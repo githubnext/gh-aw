@@ -5,24 +5,24 @@ sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }
 ---
 
-This example shows how to roll out a new Dependabot configuration across 100 repositories using the [central control plane pattern](/gh-aw/patterns/central-repo-ops/#using-a-central-control-repository). An **orchestrator** workflow filters and prioritizes target repositories, then dispatches a **worker** workflow that analyzes each repo and creates an intelligently customized pull request.
+This example uses the [central control plane pattern](/gh-aw/patterns/central-repo-ops/#using-a-central-control-repository) to roll out Dependabot across 100 repositories. An **orchestrator** workflow filters and prioritizes target repositories, then dispatches a **worker** workflow that analyzes each repo and creates a customized pull request.
 
-Both workflows live in a single private control repository.
+Both workflows live in one private control repository.
 
 ## How It Works
 
 ```mermaid
 flowchart LR
     subgraph central["Central control repo"]
-        schedule([Weekly schedule]) --> orch[Orchestrator\nfilter & prioritize]
+        WeeklySchedule([Weekly schedule]) --> Orchestrator[Orchestrator\nfilter & prioritize]
     end
-    orch -->|dispatch_workflow| w1[Worker: Repo A\ncreate PR]
-    orch -->|dispatch_workflow| w2[Worker: Repo B\ncreate PR]
-    orch -->|dispatch_workflow| w3[Worker: Repo N\ncreate PR]
+    Orchestrator -->|dispatch_workflow| WorkerRepoA[Worker: Repo A\ncreate PR]
+    Orchestrator -->|dispatch_workflow| WorkerRepoB[Worker: Repo B\ncreate PR]
+    Orchestrator -->|dispatch_workflow| WorkerRepoN[Worker: Repo N\ncreate PR]
 ```
 
-1. The orchestrator runs weekly, scans org repos, skips ones that already have Dependabot configured, and dispatches up to 5 workers per run.
-2. Each worker checks out the target repo, analyzes its structure, and creates a customized `dependabot.yml` pull request — or opens an issue if Renovate or other conflicts are detected.
+1. The orchestrator runs weekly, scans organization repositories, skips ones that already have Dependabot configured, and dispatches up to 5 workers per run.
+2. Each worker checks out its target repository, analyzes the structure, and either creates a customized `dependabot.yml` pull request or opens an issue when Renovate or another conflict is detected.
 
 ## Setup
 
@@ -254,26 +254,18 @@ Create two fine-grained PATs scoped to target repositories (see [Authentication]
 
 ## Running the Rollout
 
-After setup, the orchestrator runs automatically every Monday, processing up to 5 repositories per run. To trigger manually:
+After setup, the orchestrator runs every Monday and processes up to 5 repositories per run. You can also trigger it manually:
 
 ```bash
 gh workflow run dependabot-rollout-orchestrator.lock.yml
 ```
 
-Track progress by reviewing the Actions runs and the PRs created in each target repository.
+Monitor progress in Actions and in the PRs or issues created in each target repository.
 
 ## Best Practices
 
-- Keep `max: 5` on the orchestrator during initial rollout; increase once you've validated the worker output
-- Add `[dependabot]` title-prefix to make PRs easy to filter across repositories
-- Use `concurrency` groups to prevent duplicate worker runs for the same target repo
-- Review a few worker PRs manually before trusting the full automation
+Keep `max: 5` during the initial rollout, add the `[dependabot]` title prefix so PRs are easy to filter, use `concurrency` groups to prevent duplicate worker runs for the same repository, and manually review a few worker PRs before expanding the rollout.
 
 ## Related Documentation
 
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Central control plane pattern and other topologies
-- [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) — Upstream-to-downstream sync example
-- [Cross-Repository Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/) — Hub-and-spoke tracking example
-- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and `target-repo` configuration
-- [Authentication](/gh-aw/reference/auth/) — PAT and GitHub App setup
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for other control-plane topologies, [Feature Synchronization](/gh-aw/examples/multi-repo/feature-sync/) for upstream-to-downstream sync, [Cross-Repository Issue Tracking](/gh-aw/examples/multi-repo/issue-tracking/) for a hub-and-spoke example, [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for checkout and `target-repo` configuration, [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for secure write operations.
