@@ -50,6 +50,8 @@ type importAccumulator struct {
 	skipBotsSet              map[string]bool
 	skipIfMatch              string
 	skipIfNoMatch            string
+	ambientFolders           []string
+	ambientFoldersSet        map[string]bool
 	sandboxAgentMounts       []string
 	sandboxAgentMountsSet    map[string]bool
 	caches                   []string
@@ -107,6 +109,7 @@ func newImportAccumulator() *importAccumulator {
 		labelsSet:             make(map[string]bool),
 		skipRolesSet:          make(map[string]bool),
 		skipBotsSet:           make(map[string]bool),
+		ambientFoldersSet:     make(map[string]bool),
 		importInputs:          make(map[string]any),
 		envSources:            make(map[string]string),
 		sandboxAgentMountsSet: make(map[string]bool),
@@ -483,7 +486,7 @@ func (acc *importAccumulator) appendYAMLBuilderField(fm map[string]any, field st
 
 // extractActivationFields extracts activation and authentication-related fields from
 // the frontmatter map: bots, skip-roles, skip-bots, skip-if-match, skip-if-no-match,
-// on.github-token, on.github-app, top-level github-app, and checkout.
+// on.ambient-folders, on.github-token, on.github-app, top-level github-app, and checkout.
 //
 // Side effects: acc.bots, acc.botsSet, acc.skipRoles, acc.skipRolesSet, acc.skipBots,
 // acc.skipBotsSet, acc.skipIfMatch, acc.skipIfNoMatch, acc.activationGitHubToken,
@@ -492,6 +495,7 @@ func (acc *importAccumulator) extractActivationFields(fm map[string]any, item im
 	acc.mergeBots(fm)
 	acc.mergeSkipRoles(fm)
 	acc.mergeSkipBots(fm)
+	acc.mergeAmbientFolders(fm)
 	acc.extractActivationSkipMatchFields(fm, item.fullPath)
 	acc.extractActivationGitHubToken(fm, item.fullPath)
 	acc.extractActivationGitHubAppFields(fm, item.fullPath)
@@ -510,6 +514,10 @@ func (acc *importAccumulator) mergeSkipRoles(fm map[string]any) {
 
 func (acc *importAccumulator) mergeSkipBots(fm map[string]any) {
 	mergeJSONStringListField(fm, "skip-bots", "[]", acc.skipBotsSet, &acc.skipBots, extractOnSectionFieldFromMap)
+}
+
+func (acc *importAccumulator) mergeAmbientFolders(fm map[string]any) {
+	mergeJSONStringListField(fm, "ambient-folders", "[]", acc.ambientFoldersSet, &acc.ambientFolders, extractOnSectionFieldFromMap)
 }
 
 func mergeJSONStringListField(
@@ -914,6 +922,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedSkipBots:                acc.skipBots,
 		MergedSkipIfMatch:             acc.skipIfMatch,
 		MergedSkipIfNoMatch:           acc.skipIfNoMatch,
+		MergedAmbientFolders:          acc.ambientFolders,
 		MergedPostSteps:               acc.postStepsBuilder.String(),
 		MergedLabels:                  acc.labels,
 		MergedCaches:                  acc.caches,

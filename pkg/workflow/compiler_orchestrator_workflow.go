@@ -219,6 +219,11 @@ func (c *Compiler) populateWorkflowBuildContext(ctx *workflowBuildContext) error
 	if err := c.mergeImportedOnFields(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
 		return err
 	}
+	ambientFolders, err := resolveAmbientFolders(ctx.frontmatter.Frontmatter, ctx.engineSetup.importsResult)
+	if err != nil {
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+	}
+	ctx.workflowData.AmbientFolders = ambientFolders
 	return c.processOnSectionAndFilters(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.cleanPath)
 }
 

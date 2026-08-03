@@ -235,6 +235,7 @@ func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
 	yaml.WriteString("          path: /tmp/gh-aw\n")
+	generateRestoreAmbientFoldersStep(yaml, data)
 
 	// Materialize comment-memory safe outputs as editable markdown files BEFORE user steps.
 	// This prepares /tmp/gh-aw/comment-memory/*.md from prior comment history and injects

@@ -101,6 +101,7 @@ type WorkflowData struct {
 	OnRestoreMemory                bool                            // enable memory restore in pre-activation for on.steps via on.restore-memory (default false)
 	OnPermissions                  *Permissions                    // additional permissions for the pre-activation job from on.permissions
 	OnNeeds                        []string                        // custom workflow jobs that pre_activation/activation should depend on from on.needs
+	AmbientFolders                 []string                        // workspace-relative folders to bundle in the activation artifact and restore before the agent runs
 	ManualApproval                 string                          // environment name for manual approval from on: section
 	Command                        []string                        // for /command trigger support - multiple command names
 	CommandEvents                  []string                        // events where command should be active (nil = all events)

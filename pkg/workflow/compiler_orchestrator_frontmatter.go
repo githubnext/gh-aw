@@ -134,27 +134,30 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, fmt.Errorf("%s: invalid frontmatter key 'triggers:' — use 'on:' to define workflow triggers", cleanPath)
 	}
 
-	// Check if "on" field is missing - if so, treat as a shared/imported workflow
-	_, hasOnField := frontmatterForValidation["on"]
-	if !hasOnField {
+	// Check if "on" field is missing or contains only import-safe shared fields -
+	// if so, treat as a shared/imported workflow.
+	onValue, hasOnField := frontmatterForValidation["on"]
+	if !hasOnField || parser.IsImportSafeSharedWorkflowOn(onValue) {
 		// Check if this is a redirect-only placeholder (has a redirect field but no 'on' trigger).
 		// Redirect-only files are distinct from regular shared workflows: they are placeholders
 		// that point to a workflow's new canonical location and are not intended to be imported.
 		// They occur when `gh aw add` downloads a workflow that has been moved but the redirect
 		// was not resolved to the full content during download.
-		if redirectVal, hasRedirect := frontmatterForValidation["redirect"]; hasRedirect {
-			if redirectStr, ok := redirectVal.(string); ok {
-				if redirectTarget := strings.TrimSpace(redirectStr); redirectTarget != "" {
-					detectionLog.Printf("Redirect-only workflow detected: redirect=%s", redirectTarget)
-					return &frontmatterParseResult{
-						cleanPath:                cleanPath,
-						content:                  content,
-						frontmatterResult:        result,
-						frontmatterForValidation: frontmatterForValidation,
-						markdownDir:              filepath.Dir(cleanPath),
-						isRedirectOnly:           true,
-						redirectTarget:           redirectTarget,
-					}, nil
+		if !hasOnField {
+			if redirectVal, hasRedirect := frontmatterForValidation["redirect"]; hasRedirect {
+				if redirectStr, ok := redirectVal.(string); ok {
+					if redirectTarget := strings.TrimSpace(redirectStr); redirectTarget != "" {
+						detectionLog.Printf("Redirect-only workflow detected: redirect=%s", redirectTarget)
+						return &frontmatterParseResult{
+							cleanPath:                cleanPath,
+							content:                  content,
+							frontmatterResult:        result,
+							frontmatterForValidation: frontmatterForValidation,
+							markdownDir:              filepath.Dir(cleanPath),
+							isRedirectOnly:           true,
+							redirectTarget:           redirectTarget,
+						}, nil
+					}
 				}
 			}
 		}
