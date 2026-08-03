@@ -31,6 +31,10 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 	if stepsYAML == "" {
 		return
 	}
+	// Inject zizmor ignore annotations before uses: lines from unverified creators.
+	// YAML comments are stripped during parse/marshal, so they must be re-injected here
+	// before the indentation-normalization pass below rewrites each line.
+	stepsYAML = injectZizmorUnverifiedCreatorAnnotations(stepsYAML)
 	lines := strings.Split(stepsYAML, "\n")
 	var blockScalarState yamlBlockScalarState
 	for _, line := range lines[1:] { // skip the "pre-steps:" / "pre-agent-steps:" / "post-steps:" header line

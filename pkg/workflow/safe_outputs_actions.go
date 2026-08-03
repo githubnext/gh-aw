@@ -533,6 +533,13 @@ func (c *Compiler) buildActionSteps(data *WorkflowData) []string {
 		steps = append(steps, fmt.Sprintf("      - name: %s\n", displayName))
 		steps = append(steps, fmt.Sprintf("        id: action_%s\n", normalizedName))
 		steps = append(steps, fmt.Sprintf("        if: steps.process_safe_outputs.outputs.%s != ''\n", outputKey))
+		// Inject zizmor ignore annotation before uses: lines from unverified action creators.
+		for _, prefix := range unverifiedCreatorActionPrefixes {
+			if strings.HasPrefix(actionRef, prefix) {
+				steps = append(steps, "        # zizmor: ignore[github_action_from_unverified_creator_used]\n")
+				break
+			}
+		}
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", actionRef))
 
 		// Build optional env: block for per-action environment variables
