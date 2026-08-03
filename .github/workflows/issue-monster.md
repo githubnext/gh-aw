@@ -98,6 +98,7 @@ on:
               core.setOutput('issue_numbers', '');
               core.setOutput('issue_list', '');
               core.setOutput('issue_context', '');
+              core.setOutput('retry_blocked_list', '');
               core.setOutput('has_issues', 'false');
               return;
             }
@@ -117,7 +118,10 @@ on:
               'waiting-for-feedback',
               'needs-more-info',
               'no-bot',
-              'no-campaign'
+              'no-campaign',
+              // Topics where repeated Copilot attempts were closed without merging.
+              // A maintainer must remove this label before a new attempt is dispatched.
+              'copilot-retry-blocked'
             ];
             
             // Labels that indicate an issue is a GOOD candidate for auto-assignment
@@ -247,7 +251,56 @@ on:
               core.warning(`🛡️ Integrity filter diagnostic: ${integrityFilteredIssues.length} issue(s) were skipped due to integrity policy: #${integrityFilteredIssues.join(', #')}. These issues will be excluded from this run.`);
             }
             
+            // Pre-flight retry-blocked check: build a map of topics that Copilot already
+            // attempted and had closed without merging. Repeated attempts on the same topic
+            // burn a full agent session each time and need a human checkpoint first.
+            const RETRY_BLOCK_THRESHOLD = 2;
+            const MIN_TOPIC_LENGTH = 20;
+            // Normalize a title into a comparable topic key: drop bracketed prefixes
+            // (e.g. "[WIP] ", "[copilot-opt] "), lowercase, and strip punctuation.
+            const normalizeTopic = (title) => (title || '')
+              .replace(/^\s*(\[[^\]]*\]\s*)+/, '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, ' ')
+              .trim();
+            const closedTopicCounts = new Map();
+            try {
+              const closedPRQuery = `is:pr is:closed is:unmerged author:app/copilot-swe-agent repo:${owner}/${repo}`;
+              const closedPRResponse = await github.rest.search.issuesAndPullRequests({
+                q: closedPRQuery,
+                per_page: 100,
+                sort: 'created',
+                order: 'desc'
+              });
+              for (const pr of closedPRResponse.data.items) {
+                const topic = normalizeTopic(pr.title);
+                if (topic.length < MIN_TOPIC_LENGTH) continue;
+                const entry = closedTopicCounts.get(topic) || { count: 0, prs: [] };
+                entry.count += 1;
+                entry.prs.push(pr.number);
+                closedTopicCounts.set(topic, entry);
+              }
+              const blockedTopics = [...closedTopicCounts.entries()].filter(([, v]) => v.count >= RETRY_BLOCK_THRESHOLD);
+              core.info(`Retry pre-flight: ${closedTopicCounts.size} closed-unmerged Copilot topics, ${blockedTopics.length} at or above the retry-block threshold (${RETRY_BLOCK_THRESHOLD})`);
+            } catch (error) {
+              // A failed pre-flight check must not block the run; fall back to no topic data.
+              core.warning(`Could not build retry-blocked topic map: ${error.message}`);
+            }
+            // Returns the blocked topic entry for an issue title, or null when not blocked.
+            const findRetryBlock = (title) => {
+              const topic = normalizeTopic(title);
+              if (topic.length < MIN_TOPIC_LENGTH) return null;
+              for (const [closedTopic, entry] of closedTopicCounts) {
+                if (entry.count < RETRY_BLOCK_THRESHOLD) continue;
+                if (topic === closedTopic || topic.includes(closedTopic) || closedTopic.includes(topic)) {
+                  return entry;
+                }
+              }
+              return null;
+            };
+
             // Filter and score issues
+            const retryBlockedIssues = [];
             const scoredIssues = issuesWithDetails
               .filter(issue => {
                 // Exclude issues that already have assignees
@@ -293,6 +346,15 @@ on:
                   return false;
                 }
                 
+                // Block topics that Copilot already attempted twice or more without a merge.
+                // These require human review before another agent session is spent.
+                const retryBlock = findRetryBlock(issue.title);
+                if (retryBlock) {
+                  core.warning(`🛑 Skipping #${issue.number}: retry-blocked topic — ${retryBlock.count} prior Copilot PR(s) closed without merging (#${retryBlock.prs.join(', #')}). Human review required.`);
+                  retryBlockedIssues.push({ number: issue.number, count: retryBlock.count, prs: retryBlock.prs });
+                  return false;
+                }
+
                 return true;
               })
               .map(issue => {
@@ -369,10 +431,18 @@ on:
               core.info(`Top candidates:\n${issueList.split('\n').slice(0, 10).join('\n')}`);
             }
             
+            const retryBlockedList = retryBlockedIssues
+              .map(i => `#${i.number} | prior closed Copilot PRs: ${i.count} (#${i.prs.join(', #')})`)
+              .join('\n');
+            if (retryBlockedIssues.length > 0) {
+              core.warning(`🛑 ${retryBlockedIssues.length} issue(s) were retry-blocked and excluded from assignment:\n${retryBlockedList}`);
+            }
+
             core.setOutput('issue_count', scoredIssues.length);
             core.setOutput('issue_numbers', issueNumbers);
             core.setOutput('issue_list', issueList);
             core.setOutput('issue_context', issueContext);
+            core.setOutput('retry_blocked_list', retryBlockedList);
             
             if (scoredIssues.length === 0) {
               core.info('🍽️ No suitable candidate issues - the plate is empty!');
@@ -386,6 +456,7 @@ on:
             core.setOutput('issue_numbers', '');
             core.setOutput('issue_list', '');
             core.setOutput('issue_context', '');
+            core.setOutput('retry_blocked_list', '');
             core.setOutput('has_issues', 'false');
           }
 
@@ -429,6 +500,7 @@ jobs:
       issue_numbers: ${{ steps.search.outputs.issue_numbers }}
       issue_list: ${{ steps.search.outputs.issue_list }}
       issue_context: ${{ steps.search.outputs.issue_context }}
+      retry_blocked_list: ${{ steps.search.outputs.retry_blocked_list }}
       has_issues: ${{ steps.search.outputs.has_issues }}
 
 safe-outputs:
@@ -481,12 +553,13 @@ The issue search has already been performed in the pre-activation job with smart
 
 **Filtering Applied:**
 - ✅ Only open issues **with "cookie" label** (indicating approved work queue items from automated workflows)
-- ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info, no-bot, no-campaign
+- ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info, no-bot, no-campaign, copilot-retry-blocked
 - ✅ Excluded issues with campaign labels (campaign:*) - these are managed by campaign orchestrators
 - ✅ Excluded issues that already have assignees
 - ✅ Excluded issues that have sub-issues (parent/organizing issues)
 - ✅ Excluded issues with closed or merged PRs (treating those as complete)
 - ✅ Excluded issues with open PRs from Copilot coding agent (already being worked on)
+- 🛑 Excluded **retry-blocked topics**: issues whose normalized title matches two or more Copilot PRs that were closed without merging
 - ✅ Prioritized issues with labels: good-first-issue, bug, security, documentation, enhancement, feature, performance, tech-debt, refactoring
 
 **Scoring System:**
@@ -504,6 +577,11 @@ Issues are scored and sorted by priority:
 
 **Issue Count**: ${{ needs.pre_activation.outputs.issue_count }}
 **Issue Numbers**: ${{ needs.pre_activation.outputs.issue_numbers }}
+
+**Retry-Blocked Issues (excluded — human review required):**
+```
+${{ needs.pre_activation.outputs.retry_blocked_list }}
+```
 
 **Available Issues (sorted by priority score):**
 ```
@@ -617,6 +695,18 @@ The Copilot coding agent will:
 3. Create a pull request with the fix
 4. Follow the repository's AGENTS.md guidelines
 
+### 4a. Handle Retry-Blocked Issues
+
+The pre-activation job lists issues whose topic already has **two or more Copilot PRs closed without merging**. Never assign these to Copilot.
+
+For each issue in the retry-blocked list (up to the `add_comment` limit, and only if you have not already commented on it in a prior run), post a checkpoint comment asking for human review:
+
+```
+safeoutputs/add_comment(item_number=<issue_number>, body="🛑 **Retry blocked — human review required**\n\nThis topic already has prior Copilot pull requests that were closed without merging. Automatic re-dispatch is disabled to avoid spending another agent session on a blocked topic.\n\nA maintainer should review the prior closed PRs, clarify the requirements, and then add a 'retry approved' comment (or remove the `copilot-retry-blocked` label) before this issue is reassigned.")
+```
+
+Also state in your final summary how many issues were retry-blocked. If the retry-blocked list is empty, skip this step entirely.
+
 ### 5. Add Comment to Each Assigned Issue
 
 For each issue you assign, use the `add_comment` tool from the `safeoutputs` MCP server to add a comment:
@@ -655,6 +745,7 @@ Issue Monster runs frequently (every 30 minutes), so keeping each run lean is cr
 - ✅ **Skip integrity-blocked issues**: If `issue_read` is blocked by integrity policy, skip that issue and continue — never call `missing_data` for integrity errors
 - ❌ **Don't force batching**: If only 1-2 clearly separate issues exist, assign only those
 - ❌ **Never assign pull requests**: `assign_to_agent` is for issues only — never pass a PR number
+- 🛑 **Never re-dispatch retry-blocked topics**: if an issue appears in the retry-blocked list, comment for human review instead of assigning it
 
 ## skill: `issue-monster-report-formatting`
 ---
