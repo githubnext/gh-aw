@@ -88,6 +88,10 @@ func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
 	assert.Contains(t, text, "`--require-owner-type` accepts `any`, `user`, or `org` and defaults to `any`", "doctor docs should document the full owner type set and default")
 	assert.Contains(t, text, "`--dir` and `--require-owner-type` require `--repo`", "doctor docs should document the repo requirement for repository-only flags")
 	assert.Contains(t, text, "Outside a checkout, run `gh auth login --hostname <host>` to authenticate and set `GH_HOST=<host>` so repository diagnostics target the correct host.", "doctor docs should explain that enterprise hosts outside a checkout require both authentication and host selection")
+	assert.Contains(t, text, "`doctor --repo` currently accepts `owner/repo` only.", "doctor docs should explicitly distinguish their narrower repo format")
+	assert.Contains(t, text, "For repository scope, `--repo` currently accepts `owner/repo` only.", "env docs should explicitly distinguish their narrower repo format")
+	assert.Contains(t, text, "**Options:** `--concurrency`, `--days`, `--period`, `--sample`, `--eval`, `--timeout`, `--repo/-r`, `--json/-j`", "forecast docs should include --concurrency")
+	assert.Contains(t, text, "| `-h`, `--help` | Show help (`gh aw help [command]` for command-specific help) |\n| `-v`, `--verbose` | Enable verbose output showing detailed information |\n| `--banner` | Display ASCII logo banner with purple GitHub color theme |", "global options table rows should remain contiguous")
 }
 
 func TestSubcommandListingsUseHyphenBullets(t *testing.T) {
