@@ -159,9 +159,18 @@ If no papers are relevant, proceed to Step 4 to update the ledger, then call `no
 "N papers screened, none relevant to gh-aw today."
 Stop after the ledger update.
 
+## Step 2b: Rank Relevant Papers
+
+For each relevant paper, invoke the `relevance-ranker` sub-agent with:
+```json
+{"title": "...", "abstract": "..."}
+```
+
+Sort ranked papers by `score` descending. Keep only the top 3.
+
 ## Step 3: Extract Improvement Opportunities
 
-For each relevant paper (max 5), invoke the `opportunity-extractor` sub-agent with the full paper object.
+For each top-ranked paper (max 3), invoke the `opportunity-extractor` sub-agent with the full paper object.
 
 Collect the returned opportunity objects.
 
@@ -247,6 +256,28 @@ Input: `{"title": "...", "abstract": "..."}` as a JSON string.
 
 Output: exactly one line of valid JSON — no other text:
 `{"relevant": true, "reason": "one sentence"}` or `{"relevant": false, "reason": "one sentence"}`
+
+## agent: `relevance-ranker`
+---
+description: Scores a relevant arXiv paper by actionability for GitHub Agentic Workflows
+model: small
+---
+
+Score a relevant arXiv paper by how actionable it is for GitHub Agentic Workflows (gh-aw).
+
+gh-aw compiles markdown workflows into GitHub Actions YAML with pluggable AI engines, safe-outputs typed writes, network firewall, token optimization, sub-agents, cache-memory, repo-memory, and multi-agent orchestration.
+
+Score 1–5:
+- 5: describes a new technique, pattern, or mechanism directly applicable to a specific gh-aw component
+- 4: strong connection to gh-aw but requires adaptation
+- 3: loosely related; possible indirect improvement
+- 2: tangential; only marginally relevant to gh-aw
+- 1: relevant to AI/agents generally but no clear gh-aw application
+
+Input: `{"title": "...", "abstract": "..."}` as a JSON string.
+
+Output: exactly one line of valid JSON — no other text:
+`{"score": <1-5>, "reason": "one sentence"}`
 
 ## agent: `opportunity-extractor`
 ---
