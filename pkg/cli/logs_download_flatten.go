@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -280,4 +281,41 @@ func flattenSafeOutputsItemsArtifact(outputDir string, verbose bool) error {
 	logsDownloadLog.Printf("Flattening safe-outputs-items artifact directory: %s", safeOutputsItemsDir)
 
 	return flattenArtifactTree(safeOutputsItemsDir, safeOutputsItemsDir, outputDir, "safe-outputs-items artifact", verbose)
+}
+
+// flattenDownloadedArtifacts normalizes the directory structure of all known artifact
+// types after a successful download, moving files up out of per-artifact subdirectories
+// so downstream audit/parsing code finds them at their expected paths.
+func flattenDownloadedArtifacts(ctx context.Context, opts downloadArtifactsOptions) error {
+	// Flatten single-file artifacts
+	if err := flattenSingleFileArtifacts(opts.outputDir, opts.verbose); err != nil {
+		return fmt.Errorf("failed to flatten artifacts: %w", err)
+	}
+
+	// Flatten activation artifact directory structure (contains aw_info.json and prompt.txt)
+	if err := flattenActivationArtifact(opts.outputDir, opts.verbose); err != nil {
+		return fmt.Errorf("failed to flatten activation artifact: %w", err)
+	}
+
+	ensureUsageAwInfoFallback(ctx, opts)
+
+	// Flatten unified agent directory structure
+	if err := flattenUnifiedArtifact(opts.outputDir, opts.verbose); err != nil {
+		return fmt.Errorf("failed to flatten unified artifact: %w", err)
+	}
+
+	// Flatten agent_outputs artifact if present
+	if err := flattenAgentOutputsArtifact(opts.outputDir, opts.verbose); err != nil {
+		return fmt.Errorf("failed to flatten agent_outputs artifact: %w", err)
+	}
+
+	// Flatten safe-outputs-items artifact if present.
+	// This artifact contains safe-output-items.jsonl and temporary-id-map.json.
+	// Flattening moves them to the run root so extractCreatedItemsFromManifest
+	// and loadResolvedTemporaryIDTargets can find them at their expected paths.
+	if err := flattenSafeOutputsItemsArtifact(opts.outputDir, opts.verbose); err != nil {
+		return fmt.Errorf("failed to flatten safe-outputs-items artifact: %w", err)
+	}
+
+	return nil
 }

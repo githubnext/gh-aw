@@ -437,34 +437,8 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		spinner.StopWithMessage(fmt.Sprintf("✓ Downloaded artifacts for run %d", opts.runID))
 	}
 
-	// Flatten single-file artifacts
-	if err := flattenSingleFileArtifacts(opts.outputDir, opts.verbose); err != nil {
-		return fmt.Errorf("failed to flatten artifacts: %w", err)
-	}
-
-	// Flatten activation artifact directory structure (contains aw_info.json and prompt.txt)
-	if err := flattenActivationArtifact(opts.outputDir, opts.verbose); err != nil {
-		return fmt.Errorf("failed to flatten activation artifact: %w", err)
-	}
-
-	ensureUsageAwInfoFallback(ctx, opts)
-
-	// Flatten unified agent directory structure
-	if err := flattenUnifiedArtifact(opts.outputDir, opts.verbose); err != nil {
-		return fmt.Errorf("failed to flatten unified artifact: %w", err)
-	}
-
-	// Flatten agent_outputs artifact if present
-	if err := flattenAgentOutputsArtifact(opts.outputDir, opts.verbose); err != nil {
-		return fmt.Errorf("failed to flatten agent_outputs artifact: %w", err)
-	}
-
-	// Flatten safe-outputs-items artifact if present.
-	// This artifact contains safe-output-items.jsonl and temporary-id-map.json.
-	// Flattening moves them to the run root so extractCreatedItemsFromManifest
-	// and loadResolvedTemporaryIDTargets can find them at their expected paths.
-	if err := flattenSafeOutputsItemsArtifact(opts.outputDir, opts.verbose); err != nil {
-		return fmt.Errorf("failed to flatten safe-outputs-items artifact: %w", err)
+	if err := flattenDownloadedArtifacts(ctx, opts); err != nil {
+		return err
 	}
 
 	// Download and unzip workflow run logs unless caller requested usage-only mode.
@@ -479,46 +453,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	}
 
 	if opts.verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts for run %d to %s", opts.runID, opts.outputDir)))
-		// Enumerate created files (shallow + summary) for immediate visibility
-		var fileCount int
-		var firstFiles []string
-		var walkFailed bool
-		if walkErr := filepath.Walk(opts.outputDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				logsDownloadLog.Printf("walk error at %s: %v", path, err)
-				walkFailed = true
-				return nil
-			}
-			if info.IsDir() {
-				return nil
-			}
-			fileCount++
-			if len(firstFiles) < 12 { // capture a reasonable preview
-				rel, relErr := filepath.Rel(opts.outputDir, path)
-				if relErr == nil {
-					firstFiles = append(firstFiles, rel)
-				}
-			}
-			return nil
-		}); walkErr != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error enumerating artifacts in %s: %v", opts.outputDir, walkErr)))
-		}
-		if fileCount == 0 {
-			if walkFailed {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but artifact files could not be enumerated (filesystem error)"))
-			} else {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but no artifact files were created (empty run)"))
-			}
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Artifact file count: %d", fileCount)))
-			for _, f := range firstFiles {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("  • "+f))
-			}
-			if fileCount > len(firstFiles) {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("  … %d more files omitted", fileCount-len(firstFiles))))
-			}
-		}
+		logVerboseDownloadSummary(opts)
 	}
 
 	return nil

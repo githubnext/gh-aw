@@ -216,3 +216,48 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 		}
 	}
 }
+
+// logVerboseDownloadSummary prints a success message and a shallow enumeration of the
+// files created under opts.outputDir. It is only invoked when verbose mode is enabled.
+func logVerboseDownloadSummary(opts downloadArtifactsOptions) {
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts for run %d to %s", opts.runID, opts.outputDir)))
+	// Enumerate created files (shallow + summary) for immediate visibility
+	var fileCount int
+	var firstFiles []string
+	var walkFailed bool
+	if walkErr := filepath.Walk(opts.outputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			logsDownloadLog.Printf("walk error at %s: %v", path, err)
+			walkFailed = true
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		fileCount++
+		if len(firstFiles) < 12 { // capture a reasonable preview
+			rel, relErr := filepath.Rel(opts.outputDir, path)
+			if relErr == nil {
+				firstFiles = append(firstFiles, rel)
+			}
+		}
+		return nil
+	}); walkErr != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error enumerating artifacts in %s: %v", opts.outputDir, walkErr)))
+	}
+	if fileCount == 0 {
+		if walkFailed {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but artifact files could not be enumerated (filesystem error)"))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Download completed but no artifact files were created (empty run)"))
+		}
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Artifact file count: %d", fileCount)))
+		for _, f := range firstFiles {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("  • "+f))
+		}
+		if fileCount > len(firstFiles) {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("  … %d more files omitted", fileCount-len(firstFiles))))
+		}
+	}
+}
