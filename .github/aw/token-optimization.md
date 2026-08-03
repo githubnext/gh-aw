@@ -16,7 +16,7 @@ Apply these in order, measuring cost and quality after each change:
 - [ ] **gh-proxy**: Set `tools.github.mode: gh-proxy` — skips Docker MCP server startup and extra tool definitions
 - [ ] **cli-proxy**: Mount additional MCP servers as CLIs via `cli-proxy: true` — agent pipes output through `jq` before it enters context
 - [ ] **Sub-agents**: Delegate repetitive per-item tasks to `model: small` sub-agents (~10–20× cheaper)
-- [ ] **Sub-skills**: Keep the main prompt as a short execution plan; move detailed playbooks/output layouts into `## skill:` blocks the agent invokes only when needed
+- [ ] **Sub-skills (inline `## skill:` blocks)**: Keep the main prompt as a short execution plan; move detailed playbooks, output templates, and formatting rules into `## skill:` blocks — the runtime extracts these before the first model call, so they are available on demand without entering the initial request context
 - [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
 - [ ] **Dynamic context**: Inject only required fields — `${{ github.event.issue.number }}` not the full event payload
 - [ ] **Pull context on demand**: query logs/data only after a hypothesis forms; avoid preloading large raw dumps into the initial prompt
@@ -221,6 +221,55 @@ This delays expensive instruction payloads until the final phase, lowering ambie
 | `inherited` | Sub-agent needs same capability as the parent (default) |
 
 Always use aliases, not model IDs — aliases resolve to the best available model per provider.
+
+---
+
+## Technique 3b — Inline Skills for Delayed Instruction Loading
+
+Large output templates, formatting rubrics, and phase-specific playbooks are often included verbatim in the workflow prompt body even though they are only needed when the agent is about to produce output. Moving them into `## skill:` blocks keeps the initial request lean while still making the content available on demand.
+
+The gh-aw runtime extracts `## skill:` blocks from the prompt before the first model call and stores them at engine-specific skill locations. The agent retrieves a skill only when it explicitly needs that guidance — the content does not appear in the ambient context of early turns.
+
+### When to use inline skills
+
+Use `## skill:` blocks for content that:
+
+- is only needed in the final output phase (issue body templates, report formats, discussion templates)
+- describes a specific sub-task rubric (scoring criteria, formatting rules, classification guides)
+- is verbose (> ~500 characters) and not required to understand the task
+
+Keep in the main prompt body anything the agent needs from the very first turn: task goal, inputs, decision criteria, tool guidance.
+
+### Pattern
+
+````markdown
+---
+engine: copilot
+---
+
+Analyze the run logs. For each finding that meets threshold, create a GitHub issue using the `report-issue-template` skill. Record each created issue in `known-issues.json`.
+
+## skill: `report-issue-template`
+---
+description: Issue title, body structure, and known-issues recording format.
+---
+
+**Title**: `[my-workflow] <finding-title>`
+
+**Body**:
+
+```markdown
+### Finding: <title>
+
+**Severity**: ...
+
+...full template...
+```
+````
+
+### Technique scope
+
+Prefer inline skills over separate `.github/aw/*.md` shared files when the content is only relevant to one workflow. Use a shared import (see [reuse.md](reuse.md)) when the same template is used by multiple workflows.
 
 ---
 
