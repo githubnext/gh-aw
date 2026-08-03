@@ -23,6 +23,7 @@ engine:
   id: opencode
 strict: true
 imports:
+  - shared/opencode.md
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/otlp.md
@@ -35,10 +36,6 @@ tools:
   cache-memory: true
   github:
     toolsets: [repos, pull_requests]
-  edit:
-  bash:
-    - "*"
-  web-fetch:
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:
@@ -51,11 +48,6 @@ safe-outputs:
       labels: [automation, testing]
     add-labels:
       allowed: [smoke-opencode]
-    messages:
-      footer: "> 🔥 *[{workflow_name}]({run_url}) — Powered by OpenCode*{ai_credits_suffix}{history_link}"
-      run-started: "🔥 OpenCode initializing... [{workflow_name}]({run_url}) begins on this {event_type}..."
-      run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** OpenCode delivered. 🔥"
-      run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. OpenCode encountered unexpected challenges..."
 timeout-minutes: 10
 features:
   gh-aw-detection: false
