@@ -85,7 +85,7 @@ This is a test workflow for yamllint batch execution.
 		NoEmit:        false,
 		Yamllint:      true,
 		Strict:        strict,
-		NoShellcheck:  true, // yamllint test is independent of shellcheck
+		// Shellcheck is disabled by default; yamllint test is independent of shellcheck.
 	}
 
 	_, err = CompileWorkflows(context.Background(), config)

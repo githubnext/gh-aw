@@ -141,7 +141,6 @@ Returns JSON array with validation results for each workflow:
 		// the caller knows linting was skipped, while preserving each workflow's
 		// valid/invalid status.
 		var dockerUnavailableWarning string
-		var shellcheckUnavailableWarning string
 
 		// Check if any static analysis tools are requested that require Docker images
 		if args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Syft || args.Grype || args.Grant || args.Yamllint {
@@ -196,14 +195,6 @@ Returns JSON array with validation results for each workflow:
 		// Build command arguments
 		// Always validate workflows during compilation and use JSON output for MCP.
 		cmdArgs := []string{"compile", "--validate", "--json"}
-
-		// Keep compile JSON responses usable in MCP on hosts without shellcheck support.
-		// When neither a native shellcheck binary nor Docker fallback is available,
-		// skip shellcheck for this subprocess and return a structured warning.
-		if !isShellcheckAvailable() && !IsDockerAvailable(ctx) {
-			cmdArgs = append(cmdArgs, "--no-shellcheck")
-			shellcheckUnavailableWarning = "shellcheck binary not found in PATH and Docker is not running; run step linting was skipped"
-		}
 
 		// Add fix flag if requested
 		if args.Fix {
@@ -300,9 +291,6 @@ Returns JSON array with validation results for each workflow:
 		// workflows as invalid.
 		if dockerUnavailableWarning != "" {
 			outputStr = injectDockerUnavailableWarning(outputStr, dockerUnavailableWarning)
-		}
-		if shellcheckUnavailableWarning != "" {
-			outputStr = injectShellcheckUnavailableWarning(outputStr, shellcheckUnavailableWarning)
 		}
 		outputStr = injectShellcheckDiagnostics(outputStr, string(stderr))
 
@@ -518,13 +506,6 @@ func buildCompileErrorResults(requestedWorkflows []string, errMsg string) []Vali
 func injectDockerUnavailableWarning(outputStr, warningMsg string) string {
 	return injectValidationWarning(outputStr, CompileValidationError{
 		Type:    "docker_unavailable",
-		Message: warningMsg,
-	})
-}
-
-func injectShellcheckUnavailableWarning(outputStr, warningMsg string) string {
-	return injectValidationWarning(outputStr, CompileValidationError{
-		Type:    "shellcheck_unavailable",
 		Message: warningMsg,
 	})
 }
