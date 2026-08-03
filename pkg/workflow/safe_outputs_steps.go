@@ -145,57 +145,7 @@ type GitHubScriptStepConfig struct {
 func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScriptStepConfig) []string {
 	safeOutputsStepsLog.Printf("Building GitHub Script step: %s (useCopilotRequestsToken=%v, useCopilotCodingAgentToken=%v)", config.StepName, config.UseCopilotRequestsToken, config.UseCopilotCodingAgentToken)
 
-	var steps []string
-
-	// Add artifact download steps before the GitHub Script step.
-	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
-	// These steps are used in jobs that depend on the agent job (not activation), so use
-	// the agent-downstream prefix expression.
-	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForAgentDownstreamJob(data), c.getActionPin)...)
-
-	// Step name and metadata
-	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
-	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
-
-	// Environment variables section
-	steps = append(steps, "        env:\n")
-
-	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
-	// instead of directly from job outputs which may be masked by GitHub Actions
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n")
-
-	// Add custom environment variables specific to this safe output type
-	steps = append(steps, config.CustomEnvVars...)
-
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	// With section for github-token
-	steps = append(steps, "        with:\n")
-	if config.UseCopilotCodingAgentToken {
-		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.CustomToken)
-	} else if config.UseCopilotRequestsToken {
-		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.CustomToken)
-	} else {
-		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.CustomToken)
-	}
-
-	steps = append(steps, "          script: |\n")
-
-	// Use require() if ScriptFile is specified, otherwise inline the script
-	if config.ScriptFile != "" {
-		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
-		steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s');\n", config.ScriptFile))
-		steps = append(steps, "            await main();\n")
-	} else {
-		// Add the formatted JavaScript script (inline)
-		formattedScript := FormatJavaScriptForYAML(config.Script)
-		steps = append(steps, formattedScript...)
-	}
-
-	return steps
+	return c.buildGitHubScriptStepCommon(data, config, true)
 }
 
 // buildGitHubScriptStepWithoutDownload creates a GitHub Script step without artifact download steps
@@ -204,9 +154,23 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, config GitHubScriptStepConfig) []string {
 	safeOutputsStepsLog.Printf("Building GitHub Script step without download: %s", config.StepName)
 
+	return c.buildGitHubScriptStepCommon(data, config, false)
+}
+
+// buildGitHubScriptStepCommon renders the shared GitHub Script step scaffold.
+// When includeDownload is true, artifact download steps are emitted before the step.
+func (c *Compiler) buildGitHubScriptStepCommon(data *WorkflowData, config GitHubScriptStepConfig, includeDownload bool) []string {
 	var steps []string
 
-	// Step name and metadata (no artifact download steps)
+	if includeDownload {
+		// Add artifact download steps before the GitHub Script step.
+		// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
+		// These steps are used in jobs that depend on the agent job (not activation), so use
+		// the agent-downstream prefix expression.
+		steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForAgentDownstreamJob(data), c.getActionPin)...)
+	}
+
+	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
 	// Add optional step-level condition (e.g. "always()" to run even after prior step failures)
