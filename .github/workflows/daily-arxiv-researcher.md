@@ -12,7 +12,7 @@ permissions:
 engine: claude
 
 timeout-minutes: 20
-max-ai-credits: 250
+max-ai-credits: 300
 
 tools:
   cache-memory:
@@ -50,7 +50,7 @@ steps:
 
         fs.mkdirSync(BASE_DIR, { recursive: true });
 
-        const ARXIV_URL = 'https://export.arxiv.org/api/query?search_query=(cat:cs.AI+OR+cat:cs.SE+OR+cat:cs.LG)+AND+(agentic+OR+%22multi-agent%22+OR+%22llm+agent%22+OR+%22workflow+automation%22+OR+%22code+generation%22+OR+%22ai+agent%22)&max_results=40&sortBy=submittedDate&sortOrder=descending';
+        const ARXIV_URL = 'https://export.arxiv.org/api/query?search_query=(cat:cs.AI+OR+cat:cs.SE+OR+cat:cs.LG)+AND+(agentic+OR+%22multi-agent%22+OR+%22llm+agent%22+OR+%22workflow+automation%22+OR+%22code+generation%22+OR+%22ai+agent%22)&max_results=25&sortBy=submittedDate&sortOrder=descending';
 
         let xml = '';
         try {
@@ -96,7 +96,7 @@ steps:
           papers.push({
             id: arxivId,
             title: getText('title', entry),
-            abstract: getText('summary', entry).slice(0, 1200),
+            abstract: getText('summary', entry).slice(0, 800),
             authors: getAllText('name', entry).slice(0, 3),
             published: getText('published', entry).slice(0, 10),
             categories: getAllAttr('category', 'term', entry).slice(0, 3),
@@ -161,7 +161,7 @@ Stop after the ledger update.
 
 ## Step 3: Extract Improvement Opportunities
 
-For each relevant paper (max 8), invoke the `opportunity-extractor` sub-agent with the full paper object.
+For each relevant paper (max 5), invoke the `opportunity-extractor` sub-agent with the full paper object.
 
 Collect the returned opportunity objects.
 
@@ -204,44 +204,7 @@ Write back — no colons in filenames.
 **If actionable opportunities were found**: create a discussion titled:
 `[arXiv Research] Agentic Workflow Improvements — YYYY-MM-DD`
 
-Use `###` or lower for all headers inside the discussion body. Never use `#` or `##`.
-
-Discussion body structure:
-
-```
-### Summary
-
-N papers screened, M relevant, K opportunities identified.
-
----
-
-### Actionable Opportunities
-
-(one section per opportunity, grouped by area when there are multiple in the same area)
-
-#### [AREA] — Short Opportunity Title
-
-**Paper**: [Title](URL)
-**Authors**: Author A, Author B
-**Published**: YYYY-MM-DD
-**Effort**: low / medium / high
-**Rationale**: 2-3 sentences mapping the paper's mechanism to a specific gh-aw component.
-
----
-
-### Papers Analyzed
-
-| Paper | Published | Relevant | Area |
-|---|---|---|---|
-| [Title](URL) | YYYY-MM-DD | Yes / No | area or — |
-
----
-
-### Next Steps
-
-- [ ] Investigate: opportunity 1 (effort: low)
-- [ ] Investigate: opportunity 2 (effort: medium)
-```
+Use the `discussion-template` skill to format the discussion body.
 
 **If no actionable opportunities were found** (but papers were processed and ledger updated):
 call `noop` with message: "Processed N papers (M relevant), no actionable gh-aw improvements identified today."
@@ -309,3 +272,47 @@ Identify the single most actionable improvement the paper suggests for gh-aw —
 
 Output: exactly one line of valid JSON — no other text:
 `{"opportunity": "concise one-sentence action", "area": "token-optimization|safe-outputs|workflow-compilation|multi-agent|prompt-engineering|network|security|other", "effort": "low|medium|high", "rationale": "2-3 sentences naming the paper mechanism and the specific gh-aw component it improves"}`
+
+## skill: `discussion-template`
+---
+description: Discussion body structure and formatting rules for the arXiv research output
+---
+
+Use `###` or lower for all headers inside the discussion body. Never use `#` or `##`.
+
+Discussion body structure:
+
+```
+### Summary
+
+N papers screened, M relevant, K opportunities identified.
+
+---
+
+### Actionable Opportunities
+
+(one section per opportunity, grouped by area when there are multiple in the same area)
+
+#### [AREA] — Short Opportunity Title
+
+**Paper**: [Title](URL)
+**Authors**: Author A, Author B
+**Published**: YYYY-MM-DD
+**Effort**: low / medium / high
+**Rationale**: 2-3 sentences mapping the paper's mechanism to a specific gh-aw component.
+
+---
+
+### Papers Analyzed
+
+| Paper | Published | Relevant | Area |
+|---|---|---|---|
+| [Title](URL) | YYYY-MM-DD | Yes / No | area or — |
+
+---
+
+### Next Steps
+
+- [ ] Investigate: opportunity 1 (effort: low)
+- [ ] Investigate: opportunity 2 (effort: medium)
+```
