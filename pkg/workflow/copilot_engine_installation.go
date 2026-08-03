@@ -58,7 +58,7 @@ func getWorkspaceCommandPrefixFor(config *EngineConfig) string {
 // GetSecretValidationStep returns the secret validation step for the Copilot engine.
 // Returns an empty step if:
 //   - permissions.copilot-requests is set to write (uses GitHub Actions token instead), or
-//   - COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_API_KEY, or COPILOT_PROVIDER_BEARER_TOKEN is set in engine.env
+//   - COPILOT_PROVIDER_BASE_URL, COPILOT_PROVIDER_API_KEY, or COPILOT_PROVIDER_BEARER_TOKEN is set to a non-empty value in engine.env
 //     (BYOK mode — the external provider handles authentication, so COPILOT_GITHUB_TOKEN
 //     is not required for model routing).
 func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
@@ -67,9 +67,9 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 		copilotInstallLog.Print("Skipping secret validation step: permissions.copilot-requests=write enabled, using GitHub Actions token")
 		return GitHubActionStep{}
 	}
-	if engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL) ||
-		engineEnvHasKey(workflowData, constants.CopilotProviderAPIKey) ||
-		engineEnvHasKey(workflowData, constants.CopilotProviderBearerToken) {
+	if engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBaseURL) ||
+		engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderAPIKey) ||
+		engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBearerToken) {
 		copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
 		return GitHubActionStep{}
 	}

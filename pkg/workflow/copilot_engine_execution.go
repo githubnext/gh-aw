@@ -188,8 +188,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	sandboxEnabled := isFirewallEnabled(workflowData)
 	llmProvider := e.ResolveLLMProvider(workflowData)
-	providerOverrideBYOK := llmProvider != LLMProviderGitHub && sandboxEnabled
-	isBYOKMode := providerOverrideBYOK || engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
+	isBYOKMode := isCopilotBYOKMode(workflowData, sandboxEnabled)
 	modelConfigured := workflowData.Model != ""
 	copilotArgs := e.buildCopilotArgs(workflowData)
 	mkdirCommands := buildCopilotMkdirCommands(copilotArgs)

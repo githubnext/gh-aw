@@ -251,6 +251,37 @@ describe("safe_outputs_tools_loader", () => {
       });
     });
 
+    it("should pass ref as top-level field for dispatch_workflow handler", () => {
+      const tools = [{ name: "ci_workflow", description: "CI workflow", _workflow_name: "ci" }];
+      const mockHandlerFunction = vi.fn();
+      const defaultHandler = vi.fn(() => mockHandlerFunction);
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+        defaultHandler: defaultHandler,
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      result[0].handler({ ref: "feature-branch", input1: "value1" });
+
+      expect(mockHandlerFunction).toHaveBeenCalledWith({
+        workflow_name: "ci",
+        ref: "feature-branch",
+        inputs: {
+          input1: "value1",
+        },
+      });
+      expect(mockHandlerFunction).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.objectContaining({
+            ref: expect.anything(),
+          }),
+        })
+      );
+    });
+
     it("should handle dispatch_workflow with no inputs (empty object)", () => {
       const tools = [{ name: "no_inputs_workflow", description: "No inputs workflow", _workflow_name: "no-inputs" }];
       const mockHandlerFunction = vi.fn();
@@ -405,6 +436,43 @@ describe("safe_outputs_tools_loader", () => {
           }),
         })
       );
+    });
+
+    it("should keep strict-schema ref top-level for dispatch_workflow handler", () => {
+      const mockHandlerFunction = vi.fn();
+      const defaultHandler = vi.fn(() => mockHandlerFunction);
+      const tools = [
+        {
+          name: "dispatch_ci",
+          description: "Dispatch CI",
+          _workflow_name: "ci",
+          inputSchema: {
+            type: "object",
+            properties: {
+              ref: { type: "string" },
+              issue_number: { type: "string" },
+            },
+            additionalProperties: false,
+          },
+        },
+      ];
+      const handlers = {
+        defaultHandler,
+      };
+
+      const result = attachHandlers(tools, handlers);
+      result[0].handler({
+        ref: "feature-branch",
+        issue_number: "123",
+      });
+
+      expect(mockHandlerFunction).toHaveBeenCalledWith({
+        workflow_name: "ci",
+        ref: "feature-branch",
+        inputs: {
+          issue_number: "123",
+        },
+      });
     });
 
     it("should log stripped key names before wrapping dispatch_workflow inputs", () => {
