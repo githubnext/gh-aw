@@ -42,7 +42,6 @@ tools:
   cli-proxy: true
   cache-memory: true
   web-fetch:
-<<<<<<< current (local changes)
   web-search:
   github:
     mode: gh-proxy
@@ -212,17 +211,6 @@ evals:
   - id: diagnostic_issue_created_or_noop
     question: Was a diagnostic issue created with root cause analysis, or was noop used when no actionable failures were found?
 source: githubnext/agentics/workflows/ci-doctor.md@1c6668b751c51af8571f01204ceffb19362e0f66
-||||||| base (original)
-
-timeout-minutes: 10
-
-source: githubnext/agentics/workflows/ci-doctor.md@1c6668b751c51af8571f01204ceffb19362e0f66
-=======
-
-timeout-minutes: 10
-
-source: githubnext/agentics/workflows/ci-doctor.md@42c2ab5b4e4c9273534c39259b2e0df7f20f07e9
->>>>>>> new (upstream)
 ---
 
 # CI Failure Doctor

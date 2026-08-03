@@ -1360,10 +1360,14 @@ jobs:
           fi
           cp /tmp/gh-aw/agent_output.json /tmp/gh-aw/threat-detection/agent_output.json 2>/dev/null || true
           for f in /tmp/gh-aw/aw-*.patch; do
-            [ -f "$f" ] && cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
+            if [ -f "$f" ]; then
+              cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
+            fi
           done
           for f in /tmp/gh-aw/aw-*.bundle; do
-            [ -f "$f" ] && cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
+            if [ -f "$f" ]; then
+              cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
+            fi
           done
           echo "Prepared threat detection files:"
           ls -la /tmp/gh-aw/threat-detection/ 2>/dev/null || true
