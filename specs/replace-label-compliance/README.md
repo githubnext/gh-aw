@@ -26,10 +26,12 @@ schema, gating, set-computation, staged-mode, and error invariants.
   - `AllowlistPermits(label, allowed[])`
   - `BlocklistRejects(label, blocked[])`
   - `BlocklistBeforeAllowlist` (ordering safety property)
+  - `TransitionAllowed(allowedTransitions[], from, to)` (exact-pair state-machine gate)
 - **Postconditions**:
   - label set uses remove-then-add arithmetic with deduplication;
   - staged mode reports success with `staged=true` and no write side effects;
-  - hard REST failures return `success=false` with non-nil error.
+  - hard REST failures return `success=false` with non-nil error;
+  - post-`setLabels` response verification enforces RL-057/RL-058/RL-059 predicates.
 
 Evaluation order is modeled as: blocked check → allowlist check → gates
 (required-labels/title-prefix) → staged/execute branch.
@@ -52,13 +54,27 @@ Evaluation order is modeled as: blocked check → allowlist check → gates
 | P13 — TitlePrefixGate | `TestFormalTitlePrefixGate` | Matching prefix → proceed; non-matching → skip |
 | P14 — AddDeduplication | `TestFormalAddDeduplication` | label_to_add appears exactly once in output |
 | P15 — HardErrorOnSetLabelsFail | `TestFormalHardErrorOnRESTFail` | REST failure yields success=false, non-nil error |
+| Q1 — TransitionSetEmpty | `TestFormalTransitionSetEmptyAllowsAny` | Empty/absent `allowed-transitions` permits any (from, to) pair |
+| Q2 — TransitionExactMatch | `TestFormalTransitionExactMatchRequired` | Only exact (from, to) pairs in the list are allowed; reverse/unrelated pairs rejected |
+| Q4 — TransitionRejectedYieldsSoftSkip | `TestFormalTransitionRejectedYieldsSoftSkip` | Disallowed transition yields `success=false` without a hard workflow failure |
+| Q9 — TransitionConfigShape (single) | `TestFormalTransitionConfigShape` | `LabelTransition` unmarshals `from`/`to` YAML keys correctly |
+| Q9 — TransitionConfigShape (list) | `TestFormalTransitionConfigListShape` | `ReplaceLabelConfig.AllowedTransitions` parses a YAML list of transitions |
+| Q5 — PostSetLabelsAddPresent | `TestFormalPostSetLabelsAddPresent` | `label_to_add` found in setLabels response ⇒ success |
+| Q6 — PostSetLabelsRemoveAbsent | `TestFormalPostSetLabelsRemoveAbsent` | `label_to_remove` still present in response ⇒ failure |
+| Q7 — PartialSuccessRejected | `TestFormalPartialSuccessRejected` | Table-driven: missing add / stale remove / both-satisfied cases |
+| Q8 — PartialSuccessNoNewErrorCode | `TestFormalPartialSuccessNoNewErrorCode` | Rejected outcome keeps the standard `{success:false, error}` shape, no new error-code field |
 | Edge: Exact glob no-wildcard | `TestFormalGlobExactNoWildcard` | Exact pattern `bug` does not match `bug-fix` |
 | Edge: Alias fields | `TestFormalItemNumberAliases` | issue_number/pr_number/pull_number resolve correctly |
 | Edge: Cross-repo restriction | `TestFormalCrossRepoRestriction` | repo not in allowed-repos is rejected |
+| Edge: empty response labels | `TestFormalTransitionEdge_EmptyResponseLabels` | Empty `setLabels` response array fails the add-presence check |
+| Edge: self-transition not implicit | `TestFormalTransitionEdge_SelfTransitionRejectedWhenNotListed` | `from == to` is not implicitly allowed unless explicitly listed |
+| Edge: duplicate transition entries | `TestFormalTransitionEdge_DuplicateTransitionEntriesIdempotent` | Duplicate entries in the list don't change the allow/deny decision |
 
-Coverage parity check (2026-08-01): verified 18/18 Behavioral Coverage Map
-entries (P1–P15 plus 3 edge cases) are implemented in
-`pkg/workflow/replace_label_formal_test.go`.
+Coverage parity check (2026-08-03): verified Behavioral Coverage Map entries
+are implemented in:
+
+- `pkg/workflow/replace_label_formal_test.go`
+- `pkg/workflow/replace_label_transitions_formal_test.go`
 
 ## Fixture Schema
 
@@ -115,7 +131,13 @@ The following test IDs defined in the replace-label specification map to these f
 The formal compliance suite is implemented in:
 
 - `pkg/workflow/replace_label_formal_test.go`
+- `pkg/workflow/replace_label_transitions_formal_test.go`
 
 The suite runs fully in-process under Go test, reads the fixture YAML files in
 this directory, and does not require a JavaScript runtime to validate the
 formal predicates.
+
+The RL-057/RL-058/RL-059 post-`setLabels` checks are currently formalized in
+the Go suite via a formal helper stub and document a spec/implementation gap:
+`actions/setup/js/replace_label.cjs` does not yet enforce these predicates on
+HTTP 200 responses.
