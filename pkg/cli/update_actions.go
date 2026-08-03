@@ -657,7 +657,7 @@ func parseActionTagRefs(output string) ([]string, map[string]string) {
 	tagToSHA := make(map[string]string)
 	seenTags := make(map[string]struct{})
 
-	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(output), "\n") {
 		parts := strings.Fields(line)
 		if len(parts) < 2 || !strings.HasPrefix(parts[1], "refs/tags/") {
 			continue
