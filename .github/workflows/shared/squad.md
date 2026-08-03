@@ -9,14 +9,6 @@
 #   imports:
 #     - shared/squad.md
 #
-# Importing workflows must still declare their own `engine:` block — `engine:` is not
-# a mergeable import field:
-#
-#   engine:
-#     id: copilot
-#     agent: squad
-#     copilot-sdk: true
-#
 # Optional custom credentials for `squad init` (only needed when Squad must reach other
 # organizations or private repositories beyond the current one):
 #   vars.SQUAD_GITHUB_APP_ID / secrets.SQUAD_GITHUB_APP_PRIVATE_KEY / vars.SQUAD_GITHUB_APP_OWNER
@@ -25,18 +17,17 @@
 #     — used if the App id is not set
 # Auth precedence: GitHub App installation token > SQUAD_GITHUB_TOKEN > the workflow's
 # own default token (`github.token`).
-network:
-  allowed:
-    - node
+#
+# Optional custom Squad CLI version (defaults to 0.11.0):
+#   vars.SQUAD_CLI_VERSION
+engine:
+  id: copilot
+  agent: squad
+  copilot-sdk: true
 
 jobs:
   activation:
     pre-steps:
-      - name: Checkout repository for Squad bootstrap
-        uses: actions/checkout@v7.0.1
-        with:
-          persist-credentials: false
-
       - name: Setup Node.js for Squad
         uses: actions/setup-node@v7.0.0
         with:
@@ -52,9 +43,11 @@ jobs:
           owner: ${{ vars.SQUAD_GITHUB_APP_OWNER }}
 
       - name: Install Squad CLI
+        env:
+          SQUAD_CLI_VERSION: ${{ vars.SQUAD_CLI_VERSION }}
         run: |
           set -euo pipefail
-          npm install -g "@bradygaster/squad-cli@0.11.0"
+          npm install -g "@bradygaster/squad-cli@${SQUAD_CLI_VERSION:-0.11.0}"
 
       - name: Initialize Squad team
         env:
@@ -75,12 +68,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-tools:
-  bash: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-
 steps:
   - name: Restore Squad state from activation artifact
     continue-on-error: true
@@ -97,13 +84,14 @@ steps:
 This shared component moves the entire Squad (https://github.com/bradygaster/squad)
 install/init lifecycle out of the agent job:
 
-1. **`jobs.activation.pre-steps`** — checks out the repository, installs the pinned
-   `@bradygaster/squad-cli` npm release, optionally mints a GitHub App installation
-   token (or uses a supplied PAT) so `squad init` can see other organizations or
-   private repositories, runs `squad init --preset default` (idempotent), and uploads
-   the resulting `.squad/` team state plus `.github/agents/squad.agent.md` as a
-   dedicated `squad-state` artifact — all inside the activation job, alongside the
-   rest of the prompt/skills/sub-agent packaging.
+1. **`jobs.activation.pre-steps`** — the repository is already checked out by the
+   activation job itself, so this only installs the pinned `@bradygaster/squad-cli`
+   npm release, optionally mints a GitHub App installation token (or uses a supplied
+   PAT) so `squad init` can see other organizations or private repositories, runs
+   `squad init --preset default` (idempotent), and uploads the resulting `.squad/`
+   team state plus `.github/agents/squad.agent.md` as a dedicated `squad-state`
+   artifact — all inside the activation job, alongside the rest of the
+   prompt/skills/sub-agent packaging.
 2. **`steps:`** (agent job) — downloads the `squad-state` artifact and restores it into
    the checked-out workspace. The Squad CLI itself is never installed here; only the
    files it produced are copied in.

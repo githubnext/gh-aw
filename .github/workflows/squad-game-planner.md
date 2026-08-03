@@ -10,15 +10,16 @@ permissions:
   contents: read
   issues: read
   copilot-requests: write
-engine:
-  id: copilot
-  agent: squad
-  copilot-sdk: true
 network:
   allowed:
     - defaults
 imports:
   - shared/squad.md
+tools:
+  bash: true
+  github:
+    mode: gh-proxy
+    toolsets: [default]
 safe-outputs:
   create-issue:
     title-prefix: "[squad:plan] "
