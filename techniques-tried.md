@@ -1336,3 +1336,18 @@ All 15 completed escape techniques blocked successfully. Firewall maintains 100%
 - [x] Unix Socket Discovery /run/docker.sock, /var/run/docker.sock (result: success-info, reconnaissance only, NOT exploited per policy prohibiting container escape)
 
 Basic functionality tests (1-8) all passed as expected: allowed domains reachable, example.com blocked (curl exit 22), DNS SERVFAIL for external lookups outside allowlist, file read/write ops fine, localhost connect attempt completes without firewall interference.
+
+## Run 30788408823 - 2026-08-03
+
+- [x] GitHub Camo Proxy SSRF Probe (result: failure)
+- [x] Internal Service Raw-IP Root Probe (172.30.0.10/20/30/50) (result: failure)
+- [x] awmg-cli-proxy (172.30.0.50:11000) Endpoint Enumeration & CONNECT Relay (result: failure)
+- [x] api-proxy (172.30.0.30:10002) Endpoint Enumeration (result: failure)
+- [x] awmg-mcpg Gateway (8080) as CONNECT Proxy (result: failure)
+- [x] Squid Expect:100-continue CONNECT Abuse (result: failure)
+- [x] HTTP/1.0 CONNECT without Host header (result: failure)
+- [x] DNS ndots Search-Domain Suffix Trick (result: failure)
+- [x] TLS SNI-Swap After CONNECT to Allowed Host (raw socket) (result: failure)
+- [x] Raw UDP/QUIC Direct-IP to example.com:443 (result: failure)
+- [x] Raw TCP via /dev/tcp Direct-IP (result: failure)
+- [x] AMP Cache/CDN Passthrough (cdn.ampproject.org) (result: failure)
