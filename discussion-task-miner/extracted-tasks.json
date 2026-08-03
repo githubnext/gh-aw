@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-03T13:40:00Z",
+  "last_run": "2026-08-03T19:13:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -293,6 +293,20 @@
       "issue_number": null,
       "title": "Replace FrontmatterConfig.RunsOn/Imports/Include any fields with typed sum types",
       "created_at": "2026-08-03T13:40:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50010,
+      "issue_number": null,
+      "title": "Introduce ctxutil.OrBackground helper to consolidate nil-context fallback duplication",
+      "created_at": "2026-08-03T19:13:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50010,
+      "issue_number": null,
+      "title": "Fix context.TODO() misused as permanent nil-context fallback in docker_images.go and github_cli.go",
+      "created_at": "2026-08-03T19:13:00Z",
       "status": "created"
     }
   ]
