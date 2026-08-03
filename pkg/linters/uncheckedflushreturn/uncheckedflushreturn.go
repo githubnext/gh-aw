@@ -132,5 +132,9 @@ func isFlushCallReturningError(pass *analysis.Pass, call *ast.CallExpr) bool {
 // errorInterface is the built-in error interface type.
 var errorInterface = func() *types.Interface {
 	errorType := types.Universe.Lookup("error").Type()
-	return errorType.Underlying().(*types.Interface)
+	iface, ok := errorType.Underlying().(*types.Interface)
+	if !ok {
+		return types.NewInterfaceType(nil, nil).Complete()
+	}
+	return iface
 }()
