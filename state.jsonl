@@ -27,3 +27,4 @@
 {"run_id":"30666867283","timestamp":"2026-07-31T21:32:09.733Z","assignments":{"audit_decomposition":"phased_sub_agents"}}
 {"run_id":"30719113402","timestamp":"2026-08-01T21:26:23.723Z","assignments":{"audit_decomposition":"phased_sub_agents"}}
 {"run_id":"30767857502","timestamp":"2026-08-02T21:26:04.058Z","assignments":{"audit_decomposition":"phased_sub_agents"}}
+{"run_id":"30855024467","timestamp":"2026-08-03T21:32:37.076Z","assignments":{"audit_decomposition":"single_agent"}}
