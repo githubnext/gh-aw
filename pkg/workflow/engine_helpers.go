@@ -92,14 +92,14 @@ func ResolveEngineID(workflowData *WorkflowData) string {
 	return workflowData.AI
 }
 
-// engineEnvHasKey reports whether the given env var key is present in the engine.env map.
-// Returns false if workflowData or EngineConfig is nil, or if the key is not in the map.
-func engineEnvHasKey(workflowData *WorkflowData, key string) bool {
+// engineEnvHasNonEmptyValue reports whether the given env var key is present in
+// engine.env and has a non-empty (after trimming whitespace) value.
+func engineEnvHasNonEmptyValue(workflowData *WorkflowData, key string) bool {
 	if workflowData == nil || workflowData.EngineConfig == nil {
 		return false
 	}
-	_, ok := workflowData.EngineConfig.Env[key]
-	return ok
+	value, ok := workflowData.EngineConfig.Env[key]
+	return ok && strings.TrimSpace(value) != ""
 }
 
 // applyEngineCwdEnv sets the GH_AW_ENGINE_CWD environment variable in the given env map

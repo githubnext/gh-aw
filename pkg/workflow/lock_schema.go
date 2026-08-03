@@ -33,28 +33,30 @@ const (
 
 // LockMetadata represents the structured metadata embedded in lock files
 type LockMetadata struct {
-	SchemaVersion       LockSchemaVersion `json:"schema_version"`
-	FrontmatterHash     string            `json:"frontmatter_hash,omitempty"`
-	BodyHash            string            `json:"body_hash,omitempty"`
-	StopTime            string            `json:"stop_time,omitempty"`
-	CompilerVersion     string            `json:"compiler_version,omitempty"`
-	Strict              bool              `json:"strict,omitempty"`
-	AgentID             string            `json:"agent_id,omitempty"`
-	AgentModel          string            `json:"agent_model,omitempty"`
-	DetectionAgentID    string            `json:"detection_agent_id,omitempty"`
-	DetectionAgentModel string            `json:"detection_agent_model,omitempty"`
-	EngineVersions      map[string]string `json:"engine_versions,omitempty"`
-	AgentImageRunner    string            `json:"agent_image_runner,omitempty"`
+	SchemaVersion           LockSchemaVersion `json:"schema_version"`
+	FrontmatterHash         string            `json:"frontmatter_hash,omitempty"`
+	BodyHash                string            `json:"body_hash,omitempty"`
+	StopTime                string            `json:"stop_time,omitempty"`
+	CompilerVersion         string            `json:"compiler_version,omitempty"`
+	Strict                  bool              `json:"strict,omitempty"`
+	EngineBaseURLCustomized bool              `json:"engine_base_url_customized,omitempty"`
+	AgentID                 string            `json:"agent_id,omitempty"`
+	AgentModel              string            `json:"agent_model,omitempty"`
+	DetectionAgentID        string            `json:"detection_agent_id,omitempty"`
+	DetectionAgentModel     string            `json:"detection_agent_model,omitempty"`
+	EngineVersions          map[string]string `json:"engine_versions,omitempty"`
+	AgentImageRunner        string            `json:"agent_image_runner,omitempty"`
 }
 
 // AgentMetadataInfo holds agent and detection agent information for embedding in lock file metadata
 type AgentMetadataInfo struct {
-	AgentID             string
-	AgentModel          string
-	DetectionAgentID    string
-	DetectionAgentModel string
-	EngineVersions      map[string]string
-	AgentImageRunner    string
+	AgentID                 string
+	AgentModel              string
+	DetectionAgentID        string
+	DetectionAgentModel     string
+	EngineBaseURLCustomized bool
+	EngineVersions          map[string]string
+	AgentImageRunner        string
 }
 
 // SupportedSchemaVersions lists all schema versions this build can consume
@@ -121,17 +123,18 @@ func GenerateLockMetadata(hashInfo LockHashInfo, stopTime string, strict bool, a
 	lockSchemaLog.Printf("Generating lock metadata: schema=%s, strict=%t, hasStopTime=%t, hasBodyHash=%t", LockSchemaV4, strict, stopTime != "", hashInfo.BodyHash != "")
 
 	metadata := &LockMetadata{
-		SchemaVersion:       LockSchemaV4,
-		FrontmatterHash:     hashInfo.FrontmatterHash,
-		BodyHash:            hashInfo.BodyHash,
-		StopTime:            stopTime,
-		Strict:              strict,
-		AgentID:             agentInfo.AgentID,
-		AgentModel:          agentInfo.AgentModel,
-		DetectionAgentID:    agentInfo.DetectionAgentID,
-		DetectionAgentModel: agentInfo.DetectionAgentModel,
-		EngineVersions:      agentInfo.EngineVersions,
-		AgentImageRunner:    agentInfo.AgentImageRunner,
+		SchemaVersion:           LockSchemaV4,
+		FrontmatterHash:         hashInfo.FrontmatterHash,
+		BodyHash:                hashInfo.BodyHash,
+		StopTime:                stopTime,
+		Strict:                  strict,
+		EngineBaseURLCustomized: agentInfo.EngineBaseURLCustomized,
+		AgentID:                 agentInfo.AgentID,
+		AgentModel:              agentInfo.AgentModel,
+		DetectionAgentID:        agentInfo.DetectionAgentID,
+		DetectionAgentModel:     agentInfo.DetectionAgentModel,
+		EngineVersions:          agentInfo.EngineVersions,
+		AgentImageRunner:        agentInfo.AgentImageRunner,
 	}
 
 	// Include compiler version only for release builds
