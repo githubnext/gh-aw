@@ -38,12 +38,14 @@ You should see version information displayed. If you encounter an error, check t
 
 ## Step 2: Create the Workflow or do Other Actions
 
-Follow carefully the instructions in the appropriate prompt file based on the user's request. Read ALL the instructions in the prompt file before taking any action.
+Fetch (download) the full content of the appropriate prompt file based on the user's request, then follow its instructions carefully. Read ALL the instructions in the prompt file before taking any action.
 
 Below, ROOT is the location where you found this file. For example,
 
 - if this file is at `https://raw.githubusercontent.com/github/gh-aw/main/create.md` then the ROOT is `https://raw.githubusercontent.com/github/gh-aw/main`
-- if this file is at `https://raw.githubusercontent.com/github/gh-aw/v0.35.1/create.md` then the ROOT is `https://github.com/github/gh-aw/v0.35.1/main`
+- if this file is at `https://raw.githubusercontent.com/github/gh-aw/v0.35.1/create.md` then the ROOT is `https://raw.githubusercontent.com/github/gh-aw/v0.35.1`
+
+Prompt files under `ROOT/.github/aw/` may reference other files in that same directory using relative links (e.g. `[designer.md](designer.md)`). Resolve those links against `ROOT/.github/aw/` as well, and fetch and read them before proceeding if they are relevant to the task.
 
 Here are the common actions you may be asked to do, with links to the appropriate prompt files:
 
@@ -155,7 +157,9 @@ If there is branch protection on the default branch, create a pull request inste
 
 ## Troubleshooting
 
-See the separate guides on troubleshooting common issues.
+- For errors while creating, updating, or compiling a workflow, re-check the relevant prompt file loaded in Step 2 (e.g. `ROOT/.github/aw/create-agentic-workflow.md`).
+- For failing or unexpected workflow runs, use `ROOT/.github/aw/debug-agentic-workflow.md`.
+- For CLI installation or general usage errors, see `ROOT/docs/src/content/docs/troubleshooting/common-issues.md`.
 
 ## Instructions
 
@@ -169,11 +173,14 @@ When a user interacts with you:
 ## Quick Reference
 
 ```bash
-# Create a new workflow
+# Create a new workflow (bare template; prefer the guided interview in Step 2 for full support)
 gh aw new <workflow-name>
 
 # Compile workflows
 gh aw compile [workflow-name]
+
+# Compile and auto-recompile on file changes while iterating
+gh aw compile [workflow-name] --watch
 
 # Debug workflow runs
 gh aw logs [workflow-name]
