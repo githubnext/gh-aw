@@ -514,12 +514,17 @@ func isSafeOutputsFailureAfterSuccessfulAgent(jobDetails []JobInfoWithDuration) 
 		if normalizedName == "agent" && strings.EqualFold(job.Conclusion, "success") {
 			agentSucceeded = true
 		}
-		if normalizedName == "safe_outputs" && isFailureConclusion(job.Conclusion) {
+		if normalizedName == "safe_outputs" &&
+			isFailureConclusion(job.Conclusion) &&
+			!strings.EqualFold(job.Conclusion, "cancelled") {
 			safeOutputsFailed = true
+		}
+		if agentSucceeded && safeOutputsFailed {
+			return true
 		}
 	}
 
-	return agentSucceeded && safeOutputsFailed
+	return false
 }
 
 func normalizeJobName(name string) string {

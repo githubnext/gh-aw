@@ -1236,6 +1236,17 @@ func TestBuildLogsDataDriverExitFailureClassification(t *testing.T) {
 	}
 }
 
+func TestIsSafeOutputsFailureAfterSuccessfulAgentIgnoresCancelled(t *testing.T) {
+	jobDetails := []JobInfoWithDuration{
+		{JobInfo: JobInfo{Name: "agent", Conclusion: "success"}},
+		{JobInfo: JobInfo{Name: "safe_outputs", Conclusion: "cancelled"}},
+	}
+
+	if isSafeOutputsFailureAfterSuccessfulAgent(jobDetails) {
+		t.Fatal("expected cancelled safe_outputs to not classify as safe_outputs failure")
+	}
+}
+
 // TestBuildLogsDataNoArtifactsFailureUnclassified verifies that failed runs whose
 // artifact download returned ErrNoArtifacts (TurnsAvailable=false, Turns=0) are left
 // unclassified rather than mislabelled as driver_exit.
