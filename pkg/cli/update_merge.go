@@ -153,21 +153,18 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 	baseNormalized := stringutil.NormalizeWhitespace(baseWithSource)
 	currentNormalized := stringutil.NormalizeWhitespace(current)
 	newNormalized := stringutil.NormalizeWhitespace(newWithUpdatedSource)
-	if normalizedCurrent, normalizeErr := UpdateFieldInFrontmatter(currentNormalized, "source", currentSourceSpec); normalizeErr == nil {
-		currentNormalized = normalizedCurrent
-	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to normalize source in current content: %v", normalizeErr)))
-	}
 
 	// Normalize source field position in current to match base and new (at end of frontmatter).
 	// base and new both have source added at the end by UpdateFieldInFrontmatter above, but
 	// current may have source at a different position (e.g. before features/evals) if the
 	// file was committed with source in the middle. This positional mismatch causes git
 	// merge-file to produce conflict markers even when the only change is the source SHA.
-	// MoveTopLevelFieldToEnd performs the reposition in a single reconstruction pass so
-	// that the number of round-trips matches base and new (preventing blank-line drift).
+	// MoveTopLevelFieldToEnd performs the reposition and value update in a single reconstruction
+	// pass, superseding any need for a separate UpdateFieldInFrontmatter call on current.
 	if normalizedCurrent, moveErr := MoveTopLevelFieldToEnd(currentNormalized, "source", currentSourceSpec); moveErr == nil {
 		currentNormalized = normalizedCurrent
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to normalise source field position in current content: %v", moveErr)))
 	}
 	// Re-normalize whitespace: the parser's TrimSpace strips the trailing newline that the
 	// NormalizeWhitespace call above added to currentNormalized, whereas baseNormalized and
