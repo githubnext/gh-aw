@@ -199,14 +199,18 @@ func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, cu
 	if hasDIFCProxyNeeded(data) {
 		customStepsToEmit = injectProxyEnvIntoCustomSteps(customStepsToEmit)
 	}
-	if customStepsContainCheckout && (len(runtimeSetupSteps) > 0 || len(sharedLogsCacheRestoreSteps(data)) > 0) {
+	postLastCheckoutSteps := sharedLogsCacheRestoreSteps(data)
+	if ambientRestoreStep := restoreAmbientFoldersSteps(data); len(ambientRestoreStep) > 0 {
+		postLastCheckoutSteps = append(postLastCheckoutSteps, ambientRestoreStep)
+	}
+	if customStepsContainCheckout && (len(runtimeSetupSteps) > 0 || len(postLastCheckoutSteps) > 0) {
 		// Custom steps contain checkout: insert runtime steps after the first checkout and
-		// the cache restore after the last checkout. Inserting the cache restore after the
+		// workspace restore steps after the last checkout. Inserting restore steps after the
 		// last checkout ensures that a multi-checkout custom steps block (where a later root
-		// checkout would wipe .github/aw/logs) does not leave the consumer without cached data.
-		cacheRestoreSteps := sharedLogsCacheRestoreSteps(data)
-		compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps after first checkout, %d cache-restore steps after last checkout", len(runtimeSetupSteps), len(cacheRestoreSteps))
-		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, cacheRestoreSteps, data.ParsedTools, isArcDindTopology(data))
+		// checkout would wipe .github/aw/logs or ambient folders) leaves restored content in
+		// place for later custom steps and the agent.
+		compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps after first checkout, %d post-checkout steps after last checkout", len(runtimeSetupSteps), len(postLastCheckoutSteps))
+		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, postLastCheckoutSteps, data.ParsedTools, isArcDindTopology(data))
 	} else {
 		// No checkout in custom steps or no steps to insert, just add custom steps as-is
 		compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))

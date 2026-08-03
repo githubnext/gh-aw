@@ -383,6 +383,74 @@ imports:
 	}
 }
 
+func TestAmbientFoldersRestoredAfterCustomCheckout(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "ambient-folders-custom-checkout-test")
+	sharedDir := filepath.Join(tmpDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	sharedContent := `---
+on:
+  ambient-folders:
+    - .squad
+jobs:
+  activation:
+    pre-steps:
+      - name: Create ambient folder
+        run: |
+          mkdir -p .squad
+          echo team > .squad/team.md
+---
+
+# Shared ambient folder setup
+`
+	if err := os.WriteFile(filepath.Join(sharedDir, "ambient.md"), []byte(sharedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+imports:
+  - shared/ambient.md
+steps:
+  - name: Custom checkout
+    uses: actions/checkout@v4
+---
+
+# Test Ambient Folders With Custom Checkout
+`
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockYAML := string(lockContent)
+	checkoutIndex := strings.Index(lockYAML, "name: Custom checkout")
+	if checkoutIndex == -1 {
+		t.Fatalf("Expected custom checkout step in compiled workflow, got:\n%s", lockYAML)
+	}
+	restoreIndex := strings.LastIndex(lockYAML, "Restore ambient folders from activation artifact")
+	if restoreIndex == -1 {
+		t.Fatalf("Expected ambient restore step in compiled workflow, got:\n%s", lockYAML)
+	}
+	if restoreIndex < checkoutIndex {
+		t.Fatalf("Expected final ambient restore after custom checkout; checkout index %d, restore index %d", checkoutIndex, restoreIndex)
+	}
+}
+
 func TestPatchIncludedInArtifactWhenThreatDetectionEnabled(t *testing.T) {
 	// When push-to-pull-request-branch is staged, usesPatchesAndCheckouts() returns false.
 	// But if threat detection is enabled, the detection job needs patches for security

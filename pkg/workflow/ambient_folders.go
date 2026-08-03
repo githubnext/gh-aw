@@ -105,21 +105,30 @@ func generateStageAmbientFoldersStep(data *WorkflowData) []string {
 }
 
 func generateRestoreAmbientFoldersStep(yaml *strings.Builder, data *WorkflowData) {
-	if data == nil || len(data.AmbientFolders) == 0 {
-		return
+	for _, line := range restoreAmbientFoldersSteps(data) {
+		yaml.WriteString(line)
+		yaml.WriteByte('\n')
 	}
-	fmt.Fprintf(yaml, "      - name: Restore ambient folders from activation artifact\n")
-	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_AW_AMBIENT_FOLDERS: \"%s\"\n", strings.Join(data.AmbientFolders, " "))
-	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          for folder in $GH_AW_AMBIENT_FOLDERS; do\n")
-	yaml.WriteString("            src=\"/tmp/gh-aw/ambient-folders/$folder\"\n")
-	yaml.WriteString("            dst=\"$GITHUB_WORKSPACE/$folder\"\n")
-	yaml.WriteString("            if [ -e \"$src\" ]; then\n")
-	yaml.WriteString("              mkdir -p \"$(dirname \"$dst\")\"\n")
-	yaml.WriteString("              rm -rf \"$dst\"\n")
-	yaml.WriteString("              cp -a \"$src\" \"$dst\"\n")
-	yaml.WriteString("            fi\n")
-	yaml.WriteString("          done\n")
+}
+
+func restoreAmbientFoldersSteps(data *WorkflowData) GitHubActionStep {
+	if data == nil || len(data.AmbientFolders) == 0 {
+		return nil
+	}
+	return GitHubActionStep{
+		"      - name: Restore ambient folders from activation artifact",
+		"        env:",
+		fmt.Sprintf("          GH_AW_AMBIENT_FOLDERS: \"%s\"", strings.Join(data.AmbientFolders, " ")),
+		"        # poutine:ignore untrusted_checkout_exec",
+		"        run: |",
+		"          for folder in $GH_AW_AMBIENT_FOLDERS; do",
+		"            src=\"/tmp/gh-aw/ambient-folders/$folder\"",
+		"            dst=\"$GITHUB_WORKSPACE/$folder\"",
+		"            if [ -e \"$src\" ]; then",
+		"              mkdir -p \"$(dirname \"$dst\")\"",
+		"              rm -rf \"$dst\"",
+		"              cp -a \"$src\" \"$dst\"",
+		"            fi",
+		"          done",
+	}
 }
