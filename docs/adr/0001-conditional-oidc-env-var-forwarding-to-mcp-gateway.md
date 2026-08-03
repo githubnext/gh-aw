@@ -10,11 +10,20 @@
 
 ### Context
 
-The gh-aw compiler generates a `docker run` command that launches the MCP Gateway container. The host GitHub Actions runner has the OIDC token endpoint variables (`ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) available in its environment. The firewall layer (gh-aw-firewall#1796) was previously fixed to forward these variables into the agent container, but the second hop — from the agent container to the MCP Gateway container — was never wired up. As a result, HTTP MCP servers that require GitHub OIDC authentication (`auth.type: "github-oidc"`) fail to mint tokens because the gateway cannot reach the OIDC endpoint. These two variables are only meaningful when at least one configured HTTP MCP server uses OIDC auth; forwarding them unconditionally would expose the token endpoint unnecessarily.
+The gh-aw compiler generates a runner-owned `Start MCP Gateway` step that launches `mcpg` via `docker run`. The gateway is not launched by AWF. For HTTP MCP servers using GitHub OIDC (`auth.type: "github-oidc"`), the gateway needs runtime access to the Actions OIDC request variables (`ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) so it can mint audience-bound JWTs per request.
+
+This credential path is runner → gateway, not runner → AWF agent → gateway. AWF must not receive or relay these values.
 
 ### Decision
 
-We will detect whether any HTTP MCP server in the workflow tools configuration uses `auth.type: "github-oidc"` at compile time, and only append `-e ACTIONS_ID_TOKEN_REQUEST_URL -e ACTIONS_ID_TOKEN_REQUEST_TOKEN` to the MCP Gateway `docker run` command when that condition is true. This detection is performed by the new `hasGitHubOIDCAuthInTools()` helper, which iterates the tool map and checks each HTTP MCP server's auth configuration. The approach is consistent with the existing pattern of conditionally adding other environment variables (e.g., OTEL tracing vars) to the docker command only when the corresponding feature is active.
+We detect HTTP MCP GitHub OIDC auth at compile time and conditionally append:
+
+- `-e ACTIONS_ID_TOKEN_REQUEST_URL`
+- `-e ACTIONS_ID_TOKEN_REQUEST_TOKEN`
+
+to the runner-owned MCP gateway `docker run` command only when required.
+
+In parallel, we harden the AWF boundary by excluding both variables from the AWF agent container environment (via `--exclude-env`) when HTTP MCP GitHub OIDC is configured.
 
 ### Alternatives Considered
 
@@ -26,25 +35,24 @@ Forward `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` to t
 
 Add a top-level `forward-oidc-vars: true` option to the workflow configuration that users must set manually. This avoids any detection heuristics but creates a footgun: users configuring `auth.type: "github-oidc"` on an MCP server would have to separately remember to set a second flag. Given that the compiler already has access to the full tool configuration at compile time, auto-detection is strictly better UX and eliminates a class of configuration errors.
 
-#### Alternative 3: Forward OIDC vars via the firewall/agent-container layer only, not the docker command
+#### Alternative 3: Forward OIDC vars via the firewall/agent-container layer
 
-Rely on the firewall forwarding the variables from the host into the agent container and then have the MCP Gateway inherit them via the container's process environment rather than explicit `-e` flags. This would work only if the gateway process is spawned as a child process, which it is not — it runs inside a separate Docker container started with `docker run`. Environment inheritance does not cross a `docker run` boundary without explicit `-e` flags.
+Rejected. The gateway is launched separately by the runner with `docker run`; it does not inherit the AWF agent process environment.
 
 ### Consequences
 
 #### Positive
-- HTTP MCP servers configured with `auth.type: "github-oidc"` can successfully mint OIDC tokens inside the gateway container.
-- OIDC token endpoint variables are forwarded only when needed, following the principle of least privilege.
-- The implementation is consistent with the existing conditional env-var-forwarding pattern used for OTEL tracing.
-- No workflow author action is required; detection is automatic from existing tool configuration.
+- HTTP MCP servers with `auth.type: "github-oidc"` can mint audience-bound tokens in gateway runtime.
+- OIDC runtime variables are only forwarded to the gateway when needed.
+- AWF agent boundary is explicit: the sandboxed agent does not receive these variables.
+- Existing lock workflows that already include conditional gateway forwarding remain compatible.
 
 #### Negative
-- The `hasGitHubOIDCAuthInTools()` function must maintain a hardcoded blocklist of standard tool names (`github`, `playwright`, `cache-memory`, `agentic-workflows`, `safe-outputs`, `mcp-scripts`) that are skipped during detection. This list must be kept in sync if new built-in tools are added.
-- If a tool configuration is malformed (e.g., `getMCPConfig` returns an error), that tool is silently skipped rather than causing a compile error; OIDC auth on that tool will silently not work.
+- OIDC detection relies on MCP tool parsing; malformed tool config can suppress detection.
 
 #### Neutral
-- The `hasOIDCAuth` boolean is computed once and reused in both the `-e` flag section and the dedup map section of the docker command builder, so detection cost is O(n) over tools and paid only once per compile.
-- Workflows that do not use OIDC auth are unaffected by this change.
+- Workflows without HTTP MCP GitHub OIDC are unaffected.
+- For pinned legacy AWF versions that do not support `--exclude-env`, gh-aw cannot enforce agent-side exclusion via CLI flags; users should recompile and/or pin a modern AWF version to get hardened boundary behavior.
 
 ---
 
@@ -54,10 +62,11 @@ Rely on the firewall forwarding the variables from the host into the agent conta
 
 ### OIDC Environment Variable Forwarding
 
-1. The compiler **MUST** inspect the tools configuration at compile time to determine whether any HTTP MCP server has `auth.type` equal to `"github-oidc"`.
-2. The compiler **MUST** append `-e ACTIONS_ID_TOKEN_REQUEST_URL` and `-e ACTIONS_ID_TOKEN_REQUEST_TOKEN` to the MCP Gateway `docker run` command if and only if at least one HTTP MCP server with `auth.type: "github-oidc"` is present in the tools configuration.
-3. The compiler **MUST NOT** append these environment variable flags when no HTTP MCP server uses `auth.type: "github-oidc"`.
-4. The compiler **MUST** register `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` in the deduplication map when they are forwarded, to prevent duplicate `-e` entries.
+1. The compiler **MUST** inspect tools at compile time to detect HTTP MCP servers with `auth.type: "github-oidc"`.
+2. The compiler **MUST** append `-e ACTIONS_ID_TOKEN_REQUEST_URL` and `-e ACTIONS_ID_TOKEN_REQUEST_TOKEN` to the runner-owned MCP gateway `docker run` command iff that auth is present.
+3. The compiler **MUST NOT** append those flags when no HTTP MCP server uses `auth.type: "github-oidc"`.
+4. The gateway stdin/config payload **MUST** contain only OIDC auth metadata (`type` and optional `audience`) and **MUST NOT** embed Actions OIDC runtime variable names or values.
+5. When HTTP MCP GitHub OIDC auth is configured, gh-aw **MUST** exclude `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` from the AWF agent container environment when `--exclude-env` support is available.
 
 ### OIDC Detection Logic
 

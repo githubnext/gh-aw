@@ -1530,6 +1530,15 @@ func TestComputeAWFExcludeEnvVarNames(t *testing.T) {
 			want:               []string{"MY_TOKEN"},
 		},
 		{
+			name:               "always excludes actions oidc env vars from awf agent",
+			workflowData:       &WorkflowData{},
+			coreSecretVarNames: []string{},
+			want: []string{
+				"ACTIONS_ID_TOKEN_REQUEST_URL",
+				"ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+			},
+		},
+		{
 			name: "empty excluded-env has no effect",
 			workflowData: &WorkflowData{
 				ExcludedEnv: []string{},

@@ -25,7 +25,13 @@
 //     critical "pwn request" vulnerability.
 //  7. GitHub MCP toolset permission alignment — validates that the workflow's
 //     declared permissions cover the read/write requirements of all enabled toolsets.
-//  8. id-token: write warning — emits a security reminder when OIDC tokens are
+//  8. id-token: write permission enforcement — rejects workflows that use OIDC auth
+//     (engine, HTTP MCP server, or OTLP) without `permissions.id-token: write`.
+//  9. HTTP MCP OIDC AWF version gate — rejects legacy firewall.version pins when an
+//     HTTP MCP server uses `auth.type: github-oidc`, because --exclude-env (required
+//     to keep Actions OIDC credentials out of the agent container) is only available
+//     in AWF v0.25.3+.
+//  10. id-token: write warning — emits a security reminder when OIDC tokens are
 //     requested, because they can be used to authenticate to cloud providers.
 //
 // # Strict Mode
@@ -42,6 +48,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -168,6 +175,13 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
+	// Reject legacy AWF pins when HTTP MCP OIDC is configured: --exclude-env is required to
+	// keep Actions OIDC credentials out of the agent container, and that flag only exists in
+	// AWF v0.25.3+. Compilation must fail rather than silently expose the credentials.
+	if err := validateHTTPMCPOIDCAwfVersion(workflowData); err != nil {
+		return nil, formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	// Emit warning if id-token: write permission is detected
 	workflowLog.Printf("Checking for id-token: write permission")
 	if level, exists := workflowPermissions.Get(PermissionIdToken); exists && level == PermissionWrite {
@@ -255,6 +269,11 @@ func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Pe
 		errorPrefix = "engine.auth.type: github-oidc"
 	}
 
+	if !requiresIDTokenWrite && hasGitHubOIDCAuthInTools(workflowData.Tools) {
+		requiresIDTokenWrite = true
+		errorPrefix = "mcp-servers.<name>.auth.type: github-oidc"
+	}
+
 	if !requiresIDTokenWrite && hasOTLPGitHubOIDCAuth(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter) {
 		requiresIDTokenWrite = true
 		errorPrefix = "observability.otlp.github-app"
@@ -275,4 +294,32 @@ func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Pe
 	}
 
 	return nil
+}
+
+// validateHTTPMCPOIDCAwfVersion rejects workflows that configure HTTP MCP OIDC auth on an AWF
+// version that predates --exclude-env support (v0.25.3+). Without --exclude-env, the
+// Actions OIDC token request URL and token are visible to the agent container, breaking the
+// runner→gateway-only credential boundary. Compilation must fail so the exposure is never
+// silently accepted.
+func validateHTTPMCPOIDCAwfVersion(workflowData *WorkflowData) error {
+	if workflowData == nil {
+		return nil
+	}
+	if !hasGitHubOIDCAuthInTools(workflowData.Tools) {
+		return nil
+	}
+	firewallConfig := getFirewallConfig(workflowData)
+	if awfVersionAtLeast(firewallConfig, constants.AWFExcludeEnvMinVersion) {
+		return nil
+	}
+	effectiveVersion := string(constants.DefaultFirewallVersion)
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		effectiveVersion = firewallConfig.Version
+	}
+	return fmt.Errorf(
+		"mcp-servers.<name>.auth.type: github-oidc requires AWF %s or newer to keep Actions OIDC credentials out of the agent container.\n\nThe effective AWF version is %s. Set firewall.version to %s or newer",
+		constants.AWFExcludeEnvMinVersion,
+		effectiveVersion,
+		constants.AWFExcludeEnvMinVersion,
+	)
 }

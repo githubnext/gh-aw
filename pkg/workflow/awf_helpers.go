@@ -998,6 +998,11 @@ func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames
 		addUnique("GH_TOKEN")
 	}
 
+	// Actions OIDC request credentials must never be visible to the sandboxed AWF agent.
+	// The runner-owned gateway forwards them only for HTTP MCP github-oidc authentication.
+	addUnique("ACTIONS_ID_TOKEN_REQUEST_URL")
+	addUnique("ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+
 	// Explicitly excluded env vars from the frontmatter excluded-env field.
 	// These are always excluded regardless of their value content.
 	for _, name := range workflowData.ExcludedEnv {
