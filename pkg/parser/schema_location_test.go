@@ -647,6 +647,32 @@ func TestValidateIncludedFileFrontmatterWithSchemaAndLocation_SkipsCustomAgentFi
 	}
 }
 
+func TestValidateIncludedFileFrontmatterWithSchemaAndLocation_AcceptsBehaviorDefinedEngineEnv(t *testing.T) {
+	frontmatter := map[string]any{
+		"engine": map[string]any{
+			"id":           "opencode",
+			"display-name": "OpenCode",
+			"runtime-id":   "opencode",
+			"provider": map[string]any{
+				"name": "github",
+			},
+			"behaviors": map[string]any{
+				"execution": map[string]any{
+					"command-name": "opencode",
+					"env": map[string]any{
+						"XDG_DATA_HOME": "/tmp/opencode-data",
+					},
+				},
+			},
+		},
+	}
+
+	err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter, "/repo/.github/workflows/shared/opencode.md")
+	if err != nil {
+		t.Fatalf("expected behavior-defined engine execution env to pass schema validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxStack(t *testing.T) {
 	tests := []struct {
 		name        string

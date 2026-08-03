@@ -13333,6 +13333,13 @@
                     },
                     "provider-env-mode": {
                       "type": "string"
+                    },
+                    "env": {
+                      "type": "object",
+                      "description": "Static environment variables to inject into the behavior-defined engine execution step.",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
                     }
                   },
                   "additionalProperties": false
