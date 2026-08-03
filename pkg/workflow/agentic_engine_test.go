@@ -266,6 +266,24 @@ func TestAllEnginesEmitTimeoutMinutes(t *testing.T) {
 			wantTimeout:  "${{ inputs.timeout }}",
 			description:  "engine should forward GitHub Actions expressions verbatim",
 		},
+		{
+			name:         "legacy timeout-minutes field (numeric)",
+			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: 30"},
+			wantTimeout:  "30",
+			description:  "engine should honor already-extracted timeout-minutes values",
+		},
+		{
+			name:         "legacy timeout-minutes field (expression)",
+			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}"},
+			wantTimeout:  "${{ inputs.timeout }}",
+			description:  "engine should honor already-extracted expression timeout values",
+		},
+		{
+			name:         "legacy timeout-minutes field — malformed value falls back to default",
+			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: not-a-number\ninjected: yaml"},
+			wantTimeout:  defaultTimeout,
+			description:  "engine must fall back to default for non-integer, non-expression raw values to prevent malformed YAML",
+		},
 	}
 
 	registry := NewEngineRegistry()

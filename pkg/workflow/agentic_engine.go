@@ -710,10 +710,16 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 }
 
 // resolveStepTimeoutValue returns the timeout value string to emit on an
-// agentic_execution step's timeout-minutes field.  It reads the already-parsed
-// TimeoutMinutes from ParsedFrontmatter, so no raw-string parsing is needed.
-// When workflowData is nil, ParsedFrontmatter is nil, or TimeoutMinutes is
-// unset, it falls back to DefaultAgenticWorkflowTimeout.
+// agentic_execution step's timeout-minutes field.  Resolution uses the
+// following precedence:
+//  1. ParsedFrontmatter.TimeoutMinutes — the already-typed value; supports
+//     both integer literals and GitHub Actions expressions.
+//  2. WorkflowData.TimeoutMinutes — the raw extracted YAML string (e.g.
+//     "timeout-minutes: 30"); the "timeout-minutes:" prefix is stripped before
+//     use.  Only positive integers and GitHub Actions expressions are accepted;
+//     any other value is rejected to prevent malformed YAML output.
+//  3. DefaultAgenticWorkflowTimeout — used when workflowData is nil or neither
+//     of the above sources yields a valid non-empty value.
 func resolveStepTimeoutValue(workflowData *WorkflowData) string {
 	defaultValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
 	if workflowData == nil {
@@ -722,6 +728,20 @@ func resolveStepTimeoutValue(workflowData *WorkflowData) string {
 	if workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.TimeoutMinutes != nil {
 		if v := workflowData.ParsedFrontmatter.TimeoutMinutes.String(); v != "" {
 			return v
+		}
+	}
+	if raw := strings.TrimSpace(workflowData.TimeoutMinutes); raw != "" {
+		if after, ok := strings.CutPrefix(raw, "timeout-minutes:"); ok {
+			raw = strings.TrimSpace(after)
+		}
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			return raw
+		}
+		if isExpression(raw) {
+			return raw
+		}
+		if raw != "" {
+			agenticEngineLog.Printf("resolveStepTimeoutValue: ignoring non-integer, non-expression timeout-minutes %q; using default %s", raw, defaultValue)
 		}
 	}
 	return defaultValue
