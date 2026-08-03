@@ -189,7 +189,7 @@ func findArtifactDir(outputDir, baseName string, legacyName string) string {
 // case). label is used in log and user-facing messages.
 // Cleanup failures are non-fatal: they are logged (and optionally printed) but do not return an error.
 func flattenArtifactTree(sourceDir, artifactDir, outputDir, label string, verbose bool) error {
-	err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -231,8 +231,8 @@ func flattenArtifactTree(sourceDir, artifactDir, outputDir, label string, verbos
 		return nil
 	})
 
-	if err != nil {
-		return fmt.Errorf("failed to flatten %s: %w", label, err)
+	if walkErr != nil {
+		return fmt.Errorf("failed to flatten %s: %w", label, walkErr)
 	}
 
 	// Remove the now-empty artifact directory structure.
@@ -502,7 +502,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 func listArtifacts(outputDir string) ([]string, error) {
 	var artifacts []string
 
-	err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -522,8 +522,8 @@ func listArtifacts(outputDir string) ([]string, error) {
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
+	if walkErr != nil {
+		return nil, walkErr
 	}
 
 	return artifacts, nil
