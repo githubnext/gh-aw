@@ -150,6 +150,20 @@ on:
   reaction: "rocket"
 ```
 
+The `types:` list accepts standard GitHub pull request activity types, including transition events such as `ready_for_review` and `converted_to_draft`.
+
+### Pull Request Target Triggers (`pull_request_target:`)
+
+Trigger on pull request events in the context of the base repository. Use this only when the workflow needs write-capable repository context, and avoid checking out untrusted fork code. See [Checkout](/gh-aw/reference/checkout/#pull_request_target-checkout) for the safe checkout pattern.
+
+```yaml wrap
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+```
+
+`pull_request_target.types` accepts the same activity names as `pull_request`, including `ready_for_review`.
+
 #### Fork Filtering (`forks:`)
 
 Pull request workflows block forks by default for security. Use the `forks:` field to allow specific fork patterns:
