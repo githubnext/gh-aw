@@ -12,7 +12,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:rawloginlib")
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "rawloginlib",
@@ -31,8 +34,10 @@ var rawLogFuncs = map[string]bool{
 func run(pass *analysis.Pass) (any, error) {
 	pkgPath := pass.Pkg.Path()
 	if strings.HasSuffix(pkgPath, "/main") || strings.Contains(pkgPath, "/cmd/") {
+		pkgLog.Printf("skipping cmd/main package %s", pkgPath)
 		return nil, nil
 	}
+	pkgLog.Printf("analyzing package %s", pkgPath)
 
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
@@ -71,6 +76,7 @@ func run(pass *analysis.Pass) (any, error) {
 		if nolint.HasDirectiveForLinter(position, noLintIndex, "rawloginlib") {
 			return
 		}
+		pkgLog.Printf("flagging log.%s call at %s", sel.Sel.Name, position)
 		pass.ReportRangef(call, "log.%s called in library package %s; use pkg/logger instead", sel.Sel.Name, pkgPath)
 	})
 

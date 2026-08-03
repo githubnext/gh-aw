@@ -7,7 +7,11 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var tokenUsageSubagentLog = logger.New("cli:token_usage_subagent")
 
 var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
@@ -18,6 +22,7 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 
 	requests := extractSubagentModelRequests(runDir)
 	if len(requests) == 0 {
+		tokenUsageSubagentLog.Print("no subagent model dispatch requests found, skipping attribution")
 		return
 	}
 	addTokenUsageWarning(summary, subagentStdioWarning)
@@ -78,6 +83,7 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 	}
 	summary.SubagentModelRequests = requestRows
 	summary.MismatchCount = mismatchCount
+	tokenUsageSubagentLog.Printf("attributed %d subagent request(s), %d mismatch(es)", len(requestRows), mismatchCount)
 }
 
 func addTokenUsageWarning(summary *TokenUsageSummary, warning string) {
@@ -93,11 +99,13 @@ func addTokenUsageWarning(summary *TokenUsageSummary, warning string) {
 func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 	agentStdioPath := findAgentStdioFile(runDir)
 	if agentStdioPath == "" {
+		tokenUsageSubagentLog.Printf("no agent stdio file found under %s", runDir)
 		return nil
 	}
 
 	file, err := os.Open(agentStdioPath)
 	if err != nil {
+		tokenUsageSubagentLog.Printf("failed to open agent stdio file %s: %v", agentStdioPath, err)
 		return nil
 	}
 	defer file.Close()
