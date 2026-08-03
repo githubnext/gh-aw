@@ -8,7 +8,7 @@ on:
     - cron: "17 2 * * *" # Offset from the midnight/22:29 UTC workflow clusters
 max-daily-ai-credits: 300
 max-ai-credits: 300
-max-turns: 30
+max-turns: 50
 
 permissions:
   contents: read
