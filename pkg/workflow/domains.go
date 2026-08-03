@@ -153,8 +153,7 @@ var PiBaseDefaultDomains = []string{
 }
 
 // piProviderDomains maps provider prefixes to their API domains.
-// Mirrors openCodeProviderDomains for the same set of
-// providers that Pi can route through via the AWF LLM gateway.
+// Lists providers that Pi can route through via the AWF LLM gateway.
 // Note: "google" is intentionally omitted — Pi backend resolution only supports
 // copilot, anthropic, openai, and codex; adding google here without backend
 // support would produce an inconsistent routing configuration.

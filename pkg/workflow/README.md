@@ -69,7 +69,6 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `ClaudeEngine` | struct | Claude coding agent engine |
 | `CodexEngine` | struct | OpenAI Codex coding agent engine |
 | `GeminiEngine` | struct | Google Gemini CLI coding agent engine |
-| `OpenCodeEngine` | struct | OpenCode coding agent engine |
 | `PiEngine` | struct | Pi coding agent engine |
 | `AntigravityEngine` | struct | Antigravity coding agent engine |
 | `UniversalLLMBackend` | string alias | Universal LLM backend identifier (`claude`, `codex`) |
@@ -95,7 +94,6 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `NewClaudeEngine` | `func() *ClaudeEngine` | Creates the Claude engine |
 | `NewCodexEngine` | `func() *CodexEngine` | Creates the Codex engine |
 | `NewGeminiEngine` | `func() *GeminiEngine` | Creates the Gemini engine |
-| `NewOpenCodeEngine` | `func() *OpenCodeEngine` | Creates the OpenCode engine |
 | `NewPiEngine` | `func() *PiEngine` | Creates the Pi engine |
 | `NewAntigravityEngine` | `func() *AntigravityEngine` | Creates the Antigravity engine |
 | `NewEngineCatalog` | `func(registry *EngineRegistry) *EngineCatalog` | Creates an engine catalog from an engine registry |

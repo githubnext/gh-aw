@@ -2348,14 +2348,14 @@ post-steps: []
 # Accepted formats:
 
 # Format 1: Engine name: built-in ('claude', 'codex', 'copilot', 'gemini',
-# 'opencode', 'pi') or a named catalog entry
+# 'pi') or a named catalog entry
 engine: "example-value"
 
 # Format 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
   # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini',
-  # 'opencode', 'pi') or a named catalog entry
+  # 'pi') or a named catalog entry
   id: "example-value"
 
   # Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has
@@ -2667,7 +2667,7 @@ engine:
   # Runtime adapter reference for the inline engine definition
   runtime:
     # Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini',
-    # 'opencode', 'pi')
+    # 'pi')
     id: "example-value"
 
     # Optional version of the runtime adapter (e.g. '0.105.0', 'beta')
@@ -2751,7 +2751,7 @@ engine:
 # (used in builtin engine shared workflow files such as @builtin:engines/*.md)
 engine:
   # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini',
-  # 'opencode', 'pi')
+  # 'pi')
   id: "example-value"
 
   # Human-readable display name for the engine
