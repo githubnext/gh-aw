@@ -60,3 +60,4 @@ Grounding rules:
 - Prefer recurring patterns over one-off outliers.
 - Separate confirmed failures from observability gaps when core attributes are null/missing.
 - Call out unsupported tools or backend limitations in the report notes instead of silently skipping checks.
+- Treat repeated Sentry HTTP 400 responses for the same query shape as terminal, not transient. After the first field-type or query-syntax 400, change strategy to field discovery, `count()`, raw event rows with client-side aggregation, or another backend/fallback; if an equivalent 400 occurs again, stop retrying that query family and report the exact backend gap. The preferred fallback chain is: (1) use field discovery to confirm the schema type, (2) switch to `count()` aggregation, (3) fetch raw event rows and aggregate client-side, (4) fall back to local artifacts or an alternative backend.

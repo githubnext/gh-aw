@@ -95,6 +95,8 @@ Use these fields when present, with this precedence:
 
 Treat missing numeric fields as zero **only after** trying all precedence sources above. When Grafana lacks numeric AIC, report it as an observability gap instead of assuming zero.
 
+Do not use Sentry `sum()`, `avg()`, percentile, or other numeric aggregations on any field whose Sentry schema type is not confirmed numeric. If Sentry reports a field-type or query-syntax 400 for one of these fields, treat that query shape as invalid, fetch raw event rows or `count()` instead, aggregate numeric-looking values locally in Python, and fall back to local artifacts when backend rows are not usable.
+
 ## Phase 1: Build The Portfolio Dataset
 
 Write a Python script to `/tmp/gh-aw/python/build_portfolio.py` and run it with the Python environment already prepared by the shared imports.
