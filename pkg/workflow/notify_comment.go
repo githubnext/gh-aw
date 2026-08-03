@@ -41,6 +41,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		return nil, err
 	}
 	steps = append(steps, agentFailureSteps...)
+	steps = append(steps, c.buildConclusionReportFailedJobsStep(data, mainJobName)...)
 	customEnvVars := c.buildConclusionScriptEnvVars(data, mainJobName, safeOutputJobNames, messagesJSON)
 	var token string
 	if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
@@ -86,6 +87,17 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// comment updates), reuse that existing write access instead of broadening the job.
 	if needsDailyAICCachePermission(data) && !conclusionPerms.HasAnyWriteScope() {
 		conclusionPerms.Set(PermissionActions, PermissionWrite)
+	}
+	// The report-failed-jobs step lists workflow run jobs (actions: read) and creates issues
+	// (issues: write). Ensure the conclusion job has at least those permissions when the
+	// feature is enabled (default: true).
+	if data.SafeOutputs == nil || data.SafeOutputs.ReportFailedJobs == nil || *data.SafeOutputs.ReportFailedJobs {
+		if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
+			conclusionPerms.Set(PermissionActions, PermissionRead)
+		}
+		if level, ok := conclusionPerms.Get(PermissionIssues); !ok || level == PermissionNone {
+			conclusionPerms.Set(PermissionIssues, PermissionWrite)
+		}
 	}
 	return &Job{
 		Name:        "conclusion",
