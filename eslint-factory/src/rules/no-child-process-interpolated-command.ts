@@ -40,7 +40,11 @@ function getShellPropertyValue(optionsArg: TSESTree.ObjectExpression): boolean {
     const keyName = prop.key.type === AST_NODE_TYPES.Identifier ? prop.key.name : prop.key.type === AST_NODE_TYPES.Literal ? prop.key.value : null;
     if (keyName !== "shell") continue;
 
-    return prop.value.type === AST_NODE_TYPES.Literal && (prop.value.value === true || typeof prop.value.value === "string");
+    if (prop.value.type === AST_NODE_TYPES.Literal) {
+      return prop.value.value === true || typeof prop.value.value === "string";
+    }
+
+    return !(prop.value.type === AST_NODE_TYPES.Identifier && prop.value.name === "undefined");
   }
 
   return false;

@@ -19,6 +19,7 @@ describe("no-child-process-interpolated-command", () => {
         { code: `const { spawn } = require("child_process"); spawn(\`git \${branch}\`, ["status"]);` },
         { code: `const { spawnSync } = require("child_process"); const cmd = \`git checkout \${branch}\`; spawnSync(cmd);` },
         { code: `const { execFileSync } = require("child_process"); execFileSync("git", ["status"], { shell: false });` },
+        { code: `const { spawn } = require("child_process"); spawn(\`git checkout \${branch}\`, { shell: undefined });` },
         { code: `const { execSync } = require("child_process"); const cmd = "git status"; execSync(cmd);` },
         { code: `const { execSync } = require("child_process"); let cmd = \`git checkout \${branch}\`; cmd = "git status"; execSync(cmd);` },
         { code: `const { execSync } = require("child_process"); (function(cmd) { execSync(cmd); })("git status");` },
@@ -66,6 +67,18 @@ describe("no-child-process-interpolated-command", () => {
         {
           code: `const { spawn } = require("child_process"); spawn(\`git checkout \${branch}\`, { shell: "/bin/bash" });`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
+        },
+        {
+          code: `const { spawn } = require("child_process"); const isWindows = process.platform === "win32"; spawn(\`git checkout \${branch}\`, ["status"], { shell: isWindows });`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
+        },
+        {
+          code: `const { spawn } = require("child_process"); spawn("git checkout " + branch, ["status"], { shell: process.platform === "win32" });`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "spawn" } }],
+        },
+        {
+          code: `const { execFileSync } = require("child_process"); const cond = process.platform === "win32"; execFileSync(\`git \${branch}\`, ["status"], { shell: cond ? true : false });`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execFileSync" } }],
         },
         {
           code: `const { spawn } = require("child_process"); const opts = [{ shell: true }]; spawn("git checkout " + branch, ...opts);`,
