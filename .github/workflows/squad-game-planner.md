@@ -17,64 +17,8 @@ engine:
 network:
   allowed:
     - defaults
-    - node
-jobs:
-  activation:
-    pre-steps:
-      - name: Checkout repository for Squad bootstrap
-        uses: actions/checkout@v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js for Squad
-        uses: actions/setup-node@v7.0.0
-        with:
-          node-version: "22"
-
-      - name: Mint Squad GitHub App token
-        id: squad-app-token
-        if: ${{ vars.SQUAD_GITHUB_APP_ID != '' }}
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ vars.SQUAD_GITHUB_APP_ID }}
-          private-key: ${{ secrets.SQUAD_GITHUB_APP_PRIVATE_KEY }}
-          owner: ${{ vars.SQUAD_GITHUB_APP_OWNER }}
-
-      - name: Install Squad CLI
-        run: |
-          set -euo pipefail
-          npm install -g "@bradygaster/squad-cli@0.11.0"
-
-      - name: Initialize Squad team
-        env:
-          GH_TOKEN: ${{ steps.squad-app-token.outputs.token || secrets.SQUAD_GITHUB_TOKEN || github.token }}
-        run: |
-          set -euo pipefail
-          squad init --preset default
-
-      - name: Upload Squad state artifact
-        if: success()
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: squad-state
-          include-hidden-files: true
-          path: |
-            .squad
-            .github/agents/squad.agent.md
-          if-no-files-found: ignore
-          retention-days: 1
-tools:
-  bash: true
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-steps:
-  - name: Restore Squad state from activation artifact
-    continue-on-error: true
-    uses: actions/download-artifact@v8.0.1
-    with:
-      name: squad-state
-      path: ${{ github.workspace }}
+imports:
+  - shared/squad.md
 safe-outputs:
   create-issue:
     title-prefix: "[squad:plan] "
