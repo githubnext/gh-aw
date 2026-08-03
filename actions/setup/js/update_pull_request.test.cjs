@@ -889,7 +889,9 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
   });
 
   it("should treat no-new-commits updateBranch response as a non-fatal no-op", async () => {
-    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("There are no new commits on the base branch."));
+    const noNewCommitsError = new Error("There are no new commits on the base branch.");
+    noNewCommitsError.status = 422;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(noNewCommitsError);
 
     const handler = await updatePRModule.main({ update_branch: true });
     const result = await handler({ pull_request_number: 100 });
@@ -901,7 +903,9 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
   });
 
   it("should continue title/body updates when updateBranch reports merge conflict", async () => {
-    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(new Error("merge conflict between base and head"));
+    const mergeConflictError = new Error("merge conflict between base and head");
+    mergeConflictError.status = 422;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(mergeConflictError);
 
     const handler = await updatePRModule.main({ update_branch: true });
     const result = await handler({
@@ -918,6 +922,55 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
       title: "Updated PR",
     });
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
+  it("should treat head-ref-missing updateBranch response as a non-fatal stale-target skip", async () => {
+    const staleHeadError = new Error("head ref does not exist - https://docs.github.com/rest/pulls/pulls#update-a-pull-request-branch");
+    staleHeadError.status = 422;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(staleHeadError);
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
+  it("should continue title/body updates when updateBranch reports head ref missing", async () => {
+    const staleHeadError = new Error("head ref does not exist - https://docs.github.com/rest/pulls/pulls#update-a-pull-request-branch");
+    staleHeadError.status = 422;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(staleHeadError);
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
+  it("should treat head-ref-missing as fatal when updateBranch returns a non-422 status", async () => {
+    const unexpectedStatusError = new Error("head ref does not exist - https://docs.github.com/rest/pulls/pulls#update-a-pull-request-branch");
+    unexpectedStatusError.status = 404;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(unexpectedStatusError);
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(false);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
   });
 
   it("should continue title/body updates when updateBranch gets workflows-permission 403", async () => {

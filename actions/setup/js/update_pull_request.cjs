@@ -24,13 +24,19 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
  * @returns {boolean}
  */
 function isNonFatalUpdateBranchError(error) {
+  // Resolve the effective HTTP status by checking the error and its .originalError chain.
+  // withRetry wraps the original error in an enhanced error that lacks .status, so we need
+  // to walk the chain to find the underlying status from the GitHub API response.
   /** @type {number | undefined} */
   let status;
-  if (typeof error === "object" && error !== null && "status" in error) {
-    const candidateStatus = error.status;
-    if (typeof candidateStatus === "number") {
-      status = candidateStatus;
+  /** @type {any} */
+  let current = error;
+  while (current !== null && typeof current === "object") {
+    if ("status" in current && typeof current.status === "number") {
+      status = current.status;
+      break;
     }
+    current = current.originalError ?? null;
   }
   const message = getErrorMessage(error).toLowerCase();
   const hasWorkflowsPermissionPhrase = /without\s+`?workflows`?\s+permission/i.test(message);
@@ -54,12 +60,16 @@ function isNonFatalUpdateBranchError(error) {
   // GitHub update-branch API can return these 422 messages for benign conditions:
   // - already up to date ("There are no new commits on the base branch")
   // - cannot auto-update due to conflict ("merge conflict between base and head")
+  // - stale merged targets where the head branch was deleted ("head ref does not exist")
   // These should not fail safe output processing.
-  // hasWorkflowsPermissionError / hasWorkflowsScopeRequired are only checked here for errors
-  // with no numeric status (status === undefined). The explicit 403 case is already handled
-  // by the if-block above, and other numeric statuses (e.g. 422 with these phrases) should
-  // not be silently swallowed.
-  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined);
+  // Restrict to status === 422 to avoid silently swallowing the same phrases from proxy/network
+  // errors that lack a numeric status. hasWorkflowsPermissionError / hasWorkflowsScopeRequired
+  // are only checked for errors with no numeric status (status === undefined); the explicit 403
+  // case is already handled by the if-block above.
+  return (
+    (status === 422 && (message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || message.includes("head ref does not exist"))) ||
+    ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined)
+  );
 }
 
 /**
