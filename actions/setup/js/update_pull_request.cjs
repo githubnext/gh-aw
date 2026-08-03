@@ -54,12 +54,18 @@ function isNonFatalUpdateBranchError(error) {
   // GitHub update-branch API can return these 422 messages for benign conditions:
   // - already up to date ("There are no new commits on the base branch")
   // - cannot auto-update due to conflict ("merge conflict between base and head")
+  // - stale merged targets where the head branch was deleted ("head ref does not exist")
   // These should not fail safe output processing.
   // hasWorkflowsPermissionError / hasWorkflowsScopeRequired are only checked here for errors
   // with no numeric status (status === undefined). The explicit 403 case is already handled
   // by the if-block above, and other numeric statuses (e.g. 422 with these phrases) should
   // not be silently swallowed.
-  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined);
+  return (
+    message.includes("there are no new commits on the base branch") ||
+    message.includes("merge conflict between base and head") ||
+    message.includes("head ref does not exist") ||
+    ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined)
+  );
 }
 
 /**
