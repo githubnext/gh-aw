@@ -1369,18 +1369,8 @@ func TestComputeAWFExcludeEnvVarNames(t *testing.T) {
 			want:               []string{"MY_TOKEN"},
 		},
 		{
-			name: "http mcp github-oidc excludes actions oidc env vars from awf agent",
-			workflowData: &WorkflowData{
-				Tools: map[string]any{
-					"oidc-server": map[string]any{
-						"type": "http",
-						"url":  "https://my-server.example.com/mcp",
-						"auth": map[string]any{
-							"type": "github-oidc",
-						},
-					},
-				},
-			},
+			name:               "always excludes actions oidc env vars from awf agent",
+			workflowData:       &WorkflowData{},
 			coreSecretVarNames: []string{},
 			want: []string{
 				"ACTIONS_ID_TOKEN_REQUEST_URL",

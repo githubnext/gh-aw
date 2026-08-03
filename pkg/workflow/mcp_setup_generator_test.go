@@ -978,6 +978,14 @@ Test that OIDC env vars are forwarded to the MCP gateway container.
 		"ACTIONS_ID_TOKEN_REQUEST_URL should be passed to gateway container via -e flag")
 	assert.Contains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
 		"ACTIONS_ID_TOKEN_REQUEST_TOKEN should be passed to gateway container via -e flag")
+	assert.NotContains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_URL=",
+		"ACTIONS_ID_TOKEN_REQUEST_URL must be forwarded without embedding its value")
+	assert.NotContains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN=",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN must be forwarded without embedding its value")
+	assert.Contains(t, yamlStr, "--exclude-env ACTIONS_ID_TOKEN_REQUEST_URL",
+		"ACTIONS_ID_TOKEN_REQUEST_URL must be excluded from the AWF agent")
+	assert.Contains(t, yamlStr, "--exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN must be excluded from the AWF agent")
 
 	// Verify the docker command includes both -e flags before the container image
 	dockerCmdPatternURL := `docker run.*-e ACTIONS_ID_TOKEN_REQUEST_URL.*ghcr\.io/github/gh-aw-mcpg`
@@ -988,12 +996,22 @@ Test that OIDC env vars are forwarded to the MCP gateway container.
 		"Docker command should include -e ACTIONS_ID_TOKEN_REQUEST_TOKEN before the container image")
 }
 
-// TestOIDCEnvVarsNotPassedWithoutOIDCAuth verifies that OIDC env vars are NOT added to the
-// docker command when no HTTP MCP server uses auth.type: "github-oidc".
-func TestOIDCEnvVarsNotPassedWithoutOIDCAuth(t *testing.T) {
+// TestOIDCEnvVarsNotPassedForEngineOIDCAuth verifies that engine WIF does not add OIDC env vars
+// to the gateway command, while the AWF agent excludes them.
+func TestOIDCEnvVarsNotPassedForEngineOIDCAuth(t *testing.T) {
 	frontmatter := `---
 on: workflow_dispatch
-engine: copilot
+engine:
+  id: claude
+  auth:
+    type: github-oidc
+    provider: anthropic
+    federation-rule-id: fr_01ABC
+    organization-id: org_01XYZ
+    service-account-id: sa_01DEF
+    workspace-id: ws_01GHI
+permissions:
+  id-token: write
 tools:
   github:
     mode: remote
@@ -1007,9 +1025,9 @@ mcp-servers:
     allowed: ["*"]
 ---
 
-# Test No OIDC
+# Test Engine OIDC
 
-Test that OIDC env vars are NOT added when no server uses github-oidc auth.
+Test that only HTTP MCP OIDC adds OIDC env vars to the gateway.
 `
 
 	compiler := NewCompiler()
@@ -1030,9 +1048,13 @@ Test that OIDC env vars are NOT added when no server uses github-oidc auth.
 
 	// Verify OIDC env vars are NOT in the docker command
 	assert.NotContains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_URL",
-		"ACTIONS_ID_TOKEN_REQUEST_URL should NOT be in docker command without github-oidc auth")
+		"ACTIONS_ID_TOKEN_REQUEST_URL should NOT be in docker command without HTTP MCP github-oidc auth")
 	assert.NotContains(t, yamlStr, "-e ACTIONS_ID_TOKEN_REQUEST_TOKEN",
-		"ACTIONS_ID_TOKEN_REQUEST_TOKEN should NOT be in docker command without github-oidc auth")
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN should NOT be in docker command without HTTP MCP github-oidc auth")
+	assert.Contains(t, yamlStr, "--exclude-env ACTIONS_ID_TOKEN_REQUEST_URL",
+		"ACTIONS_ID_TOKEN_REQUEST_URL must always be excluded from the AWF agent")
+	assert.Contains(t, yamlStr, "--exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+		"ACTIONS_ID_TOKEN_REQUEST_TOKEN must always be excluded from the AWF agent")
 }
 
 // TestOTLPHeadersEnvVarPassedToGatewayContainer verifies that OTEL_EXPORTER_OTLP_HEADERS is
