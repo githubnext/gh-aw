@@ -271,24 +271,35 @@ function resolveExperimentStateRebaseConflict({ cwd }) {
  * Checkout or create an orphan git branch for experiment state.
  * Returns the remote HEAD SHA (empty string for a new branch).
  *
+ * Only the network `git fetch` is retried (via withGitRetry), and only for
+ * transient transport failures. Everything after it — the local checkout, the
+ * missing-ref classification, and the non-idempotent orphan-branch path
+ * (`checkout --orphan`, `read-tree --empty`, working-tree cleanup) — runs
+ * exactly once, so a partial failure can never be replayed against a
+ * half-mutated workspace.
+ *
  * @param {string} branchName - Target branch name (e.g. "experiments/myworkflow")
  * @param {string} repoUrl    - Authenticated HTTPS URL of the target repo
  * @param {string} workspaceDir - Local git workspace directory
- * @returns {string} baseRef (empty string when branch is brand new)
+ * @param {{maxRetries?: number, baseDelayMs?: number, fetchFn?: () => void}} [options]
+ * @returns {Promise<string>} baseRef (empty string when branch is brand new)
  */
-function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
+async function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir, options = {}) {
+  const { maxRetries, baseDelayMs, fetchFn = () => execGitSync(["fetch", repoUrl, `${branchName}:${branchName}`], { stdio: "pipe", cwd: workspaceDir, suppressLogs: true }) } = options;
+
   try {
-    execGitSync(["fetch", repoUrl, `${branchName}:${branchName}`], { stdio: "pipe", cwd: workspaceDir, suppressLogs: true });
-    execGitSync(["checkout", branchName], { stdio: "inherit", cwd: workspaceDir });
-    const baseRef = execGitSync(["rev-parse", "HEAD"], { cwd: workspaceDir }).trim();
-    core.info(`Checked out existing branch ${branchName}, baseRef=${baseRef}`);
-    return baseRef;
+    await withGitRetry(fetchFn, {
+      maxRetries,
+      baseDelayMs,
+      operationName: `Fetch of branch "${branchName}"`,
+    });
   } catch (fetchErr) {
     const msg = getErrorMessage(fetchErr);
     const isMissing = /couldn't find remote ref/i.test(msg) || /remote branch .* not found/i.test(msg);
     if (!isMissing) throw fetchErr;
 
-    // Branch does not exist yet – create an orphan branch.
+    // Branch does not exist yet – create an orphan branch. This path performs
+    // non-idempotent local mutations and is deliberately never retried.
     core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
     execGitSync(["checkout", "--orphan", branchName], { stdio: "inherit", cwd: workspaceDir });
     execGitSync(["read-tree", "--empty"], { stdio: "pipe", cwd: workspaceDir });
@@ -310,30 +321,11 @@ function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
     }
     return "";
   }
-}
 
-/**
- * Wraps checkoutOrCreateBranch with retry-with-backoff so transient network
- * failures during the initial `git fetch` (e.g. HTTP 502s or timeouts against
- * the git remote) don't immediately fail the job. Non-transient failures
- * (authentication, permissions, local git errors, filesystem errors) are
- * rethrown immediately by withGitRetry. Genuine "missing ref" conditions are
- * handled inside checkoutOrCreateBranch itself and are not retried here since
- * they are resolved deterministically (orphan branch creation).
- *
- * @param {string} branchName
- * @param {string} repoUrl
- * @param {string} workspaceDir
- * @param {{maxRetries?: number, baseDelayMs?: number, checkoutFn?: typeof checkoutOrCreateBranch}} [options]
- * @returns {Promise<string>}
- */
-async function checkoutOrCreateBranchWithRetry(branchName, repoUrl, workspaceDir, options = {}) {
-  const { maxRetries, baseDelayMs, checkoutFn = checkoutOrCreateBranch } = options;
-  return withGitRetry(() => checkoutFn(branchName, repoUrl, workspaceDir), {
-    maxRetries,
-    baseDelayMs,
-    operationName: `Checkout of branch "${branchName}"`,
-  });
+  execGitSync(["checkout", branchName], { stdio: "inherit", cwd: workspaceDir });
+  const baseRef = execGitSync(["rev-parse", "HEAD"], { cwd: workspaceDir }).trim();
+  core.info(`Checked out existing branch ${branchName}, baseRef=${baseRef}`);
+  return baseRef;
 }
 
 /**
@@ -420,7 +412,7 @@ async function main() {
   // remote) that are unrelated to genuine push conflicts.
   let baseRef;
   try {
-    baseRef = await checkoutOrCreateBranchWithRetry(branchName, repoUrl, workspaceDir);
+    baseRef = await checkoutOrCreateBranch(branchName, repoUrl, workspaceDir);
   } catch (err) {
     core.setFailed(`Failed to checkout branch "${branchName}" after retries: ${getErrorMessage(err)}`);
     return;
@@ -522,7 +514,6 @@ async function main() {
 module.exports = {
   main,
   checkoutOrCreateBranch,
-  checkoutOrCreateBranchWithRetry,
   mergeExperimentStateJSON,
   mergeExperimentStateJSONL,
   mergeExperimentRuns,

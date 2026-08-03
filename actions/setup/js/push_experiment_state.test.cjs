@@ -26,7 +26,7 @@ global.exec = mockExec;
 global.context = mockContext;
 global.github = {};
 
-const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns, checkoutOrCreateBranchWithRetry } = await import("./push_experiment_state.cjs");
+const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns, checkoutOrCreateBranch } = await import("./push_experiment_state.cjs");
 
 describe("push_experiment_state", () => {
   let tmpDir;
@@ -233,22 +233,26 @@ describe("push_experiment_state", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("skipping unparseable line"));
   });
 
-  describe("checkoutOrCreateBranchWithRetry", () => {
-    it("returns immediately on success without warnings", async () => {
-      const checkoutFn = vi.fn().mockReturnValue("abc123");
+  describe("checkoutOrCreateBranch", () => {
+    let repoDir;
 
-      const result = await checkoutOrCreateBranchWithRetry("evals/myworkflow", "******github.com/o/r.git", "/tmp/workdir", {
-        checkoutFn,
-        baseDelayMs: 0,
-      });
-
-      expect(result).toBe("abc123");
-      expect(checkoutFn).toHaveBeenCalledTimes(1);
-      expect(mockCore.warning).not.toHaveBeenCalled();
+    beforeEach(() => {
+      const { spawnSync } = require("child_process");
+      repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "push-exp-repo-"));
+      spawnSync("git", ["init", "-b", "main"], { cwd: repoDir });
+      spawnSync("git", ["config", "user.email", "test@example.com"], { cwd: repoDir });
+      spawnSync("git", ["config", "user.name", "Test"], { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "seed.txt"), "seed\n");
+      spawnSync("git", ["add", "."], { cwd: repoDir });
+      spawnSync("git", ["commit", "-m", "seed"], { cwd: repoDir });
     });
 
-    it("retries transient failures (e.g. fetch timeouts/502s) and eventually succeeds", async () => {
-      const checkoutFn = vi
+    afterEach(() => {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    });
+
+    it("retries only the fetch on transient failures and then checks out", async () => {
+      const fetchFn = vi
         .fn()
         .mockImplementationOnce(() => {
           throw new Error("Git command timed out: git fetch ...");
@@ -256,51 +260,49 @@ describe("push_experiment_state", () => {
         .mockImplementationOnce(() => {
           throw new Error("error: RPC failed; HTTP 502 curl 22 The requested URL returned error: 502");
         })
-        .mockReturnValue("def456");
+        .mockImplementation(() => {
+          // Simulate a successful fetch creating the local branch ref.
+          require("child_process").spawnSync("git", ["branch", "evals/myworkflow"], { cwd: repoDir });
+        });
 
-      const result = await checkoutOrCreateBranchWithRetry("evals/myworkflow", "******github.com/o/r.git", "/tmp/workdir", {
-        checkoutFn,
+      const result = await checkoutOrCreateBranch("evals/myworkflow", "https://x@github.com/o/r.git", repoDir, {
+        fetchFn,
         baseDelayMs: 0,
       });
 
-      expect(result).toBe("def456");
-      expect(checkoutFn).toHaveBeenCalledTimes(3);
+      expect(fetchFn).toHaveBeenCalledTimes(3);
       expect(mockCore.warning).toHaveBeenCalledTimes(2);
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("attempt 1/4"));
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("attempt 2/4"));
+      expect(result).toMatch(/^[0-9a-f]{40}$/);
     });
 
-    it("throws the last error after exhausting all retries", async () => {
-      const checkoutFn = vi.fn().mockImplementation(() => {
-        throw new Error("persistent network failure");
-      });
-
-      await expect(
-        checkoutOrCreateBranchWithRetry("evals/myworkflow", "******github.com/o/r.git", "/tmp/workdir", {
-          checkoutFn,
-          baseDelayMs: 0,
-          maxRetries: 2,
-        })
-      ).rejects.toThrow("persistent network failure");
-
-      expect(checkoutFn).toHaveBeenCalledTimes(3);
-      expect(mockCore.warning).toHaveBeenCalledTimes(2);
-    });
-
-    it("does not retry deterministic failures", async () => {
-      const checkoutFn = vi.fn().mockImplementation(() => {
+    it("does not retry deterministic fetch failures", async () => {
+      const fetchFn = vi.fn().mockImplementation(() => {
         throw new Error("fatal: Authentication failed for 'https://github.com/o/r.git/'");
       });
 
       await expect(
-        checkoutOrCreateBranchWithRetry("evals/myworkflow", "******github.com/o/r.git", "/tmp/workdir", {
-          checkoutFn,
+        checkoutOrCreateBranch("evals/myworkflow", "https://x@github.com/o/r.git", repoDir, {
+          fetchFn,
           baseDelayMs: 0,
         })
       ).rejects.toThrow("Authentication failed");
 
-      expect(checkoutFn).toHaveBeenCalledTimes(1);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
       expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("does not retry the orphan-branch path when the remote ref is missing", async () => {
+      const fetchFn = vi.fn().mockImplementation(() => {
+        throw new Error("fatal: couldn't find remote ref evals/myworkflow");
+      });
+
+      const result = await checkoutOrCreateBranch("evals/myworkflow", "https://x@github.com/o/r.git", repoDir, {
+        fetchFn,
+        baseDelayMs: 0,
+      });
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(result).toBe("");
     });
   });
 });
