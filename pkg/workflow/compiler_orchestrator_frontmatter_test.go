@@ -542,6 +542,31 @@ func TestParseFrontmatterSection_EmptyFrontmatter(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+// TestParseFrontmatterSection_CommentOnlyFrontmatter tests shared workflow detection
+// when frontmatter contains only YAML comments.
+func TestParseFrontmatterSection_CommentOnlyFrontmatter(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-comment-only")
+
+	testContent := `---
+# Ollama Llama Guard 3 Threat Scanning
+# Instructions for adding Ollama-based threat scanning to agentic workflows
+---
+
+# Shared Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "comment-only.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.NoError(t, err, "Comment-only frontmatter should be treated as present")
+	require.NotNil(t, result)
+	assert.True(t, result.isSharedWorkflow, "Should be detected as shared workflow")
+	assert.Empty(t, result.frontmatterForValidation, "Comment-only frontmatter should parse to an empty map")
+}
+
 // TestParseFrontmatterSection_MarkdownDirectory tests directory extraction
 func TestParseFrontmatterSection_MarkdownDirectory(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "frontmatter-dir")
