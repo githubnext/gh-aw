@@ -1001,6 +1001,85 @@ func TestGetCopilotAPITarget(t *testing.T) {
 	}
 }
 
+func TestIsCopilotCustomConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expected     bool
+	}{
+		{
+			name: "not customized when no custom provider or target is set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expected: false,
+		},
+		{
+			name: "customized when COPILOT_PROVIDER_BASE_URL is set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "https://api.openai.com/v1",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "customized when model-provider gateway is enabled with firewall",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:          "copilot",
+					LLMProvider: LLMProviderAnthropic,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "not customized when model-provider is non-github but firewall is disabled",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:          "copilot",
+					LLMProvider: LLMProviderAnthropic,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "customized when engine.api-target is set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "api.acme.ghe.com",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "customized when GITHUB_COPILOT_BASE_URL is set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"GITHUB_COPILOT_BASE_URL": "https://copilot-api.contoso-aw.ghe.com",
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isCopilotCustomConfig(tt.workflowData))
+		})
+	}
+}
+
 func TestBuildAWFConfigJSONIncludesCopilotLiteralBYOKTarget(t *testing.T) {
 	config := AWFCommandConfig{
 		EngineName:     "copilot",
