@@ -41,6 +41,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-mkdirsync-try-catch`](#require-mkdirsync-try-catch) | Require try/catch around `fs.mkdirSync` calls |
 | [`require-new-url-try-catch`](#require-new-url-try-catch) | Require try/catch around `new URL(variable)` calls |
 | [`require-parseInt-radix`](#require-parseInt-radix) | Require an explicit radix argument to `parseInt()` |
+| [`require-nan-check-after-env-numeric-parse`](#require-nan-check-after-env-numeric-parse) | Require NaN validation after parsing numeric values from `process.env` |
 | [`require-return-after-core-setfailed`](#require-return-after-core-setfailed) | Require a control-transfer statement after `core.setFailed()` |
 | [`require-execsync-try-catch`](#require-execsync-try-catch) | Require try/catch around `execSync(...)` calls from `child_process` |
 | [`require-execfilesync-try-catch`](#require-execfilesync-try-catch) | Require try/catch around `execFileSync(...)` calls from `child_process` |
@@ -326,6 +327,33 @@ Flagged forms:
 - `globalThis.parseInt(value)`
 
 Why: omitting the radix allows implicit base detection, which can silently accept prefixes such as `0x`.
+
+### `require-nan-check-after-env-numeric-parse`
+
+Require NaN validation after parsing numeric values from `process.env`.
+
+Why: `parseInt`, `parseFloat`, `Number.parseInt`, `Number.parseFloat`, and `Number()` silently return `NaN` for malformed environment input (empty string, typo, unexpected value). An unvalidated `NaN` can propagate silently into comparisons (e.g. rate-limit thresholds, size limits, timeouts), loop bounds, or GitHub API payloads without any error surfacing.
+
+**Detected parse forms (first argument must trace back to `process.env`):**
+- `parseInt(process.env.FOO, 10)` — global `parseInt`
+- `parseFloat(process.env.FOO)` — global `parseFloat`
+- `Number.parseInt(process.env.FOO, 10)` — `Number.parseInt`
+- `Number.parseFloat(process.env.FOO)` — `Number.parseFloat`
+- `Number(process.env.FOO)` — `Number` conversion function
+
+**Detected env-access patterns in the first argument:**
+- Direct: `process.env.FOO`
+- Logical fallbacks: `process.env.FOO || "default"`, `process.env.FOO ?? "default"`
+- Optional chaining: `process.env.FOO?.trim()`
+- Ternary: `process.env.FOO ? process.env.FOO : "default"`
+
+**Considered validated when** the declared variable is passed as the sole argument to `Number.isNaN(...)` or `isNaN(...)` anywhere in the enclosing file scope.
+
+**Safe pattern:**
+```js
+const maxRuns = parseInt(process.env.MAX_RUNS, 10);
+if (Number.isNaN(maxRuns)) throw new Error("MAX_RUNS must be a valid integer");
+```
 
 ### `require-mkdirsync-try-catch`
 
