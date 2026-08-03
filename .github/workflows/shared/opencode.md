@@ -79,6 +79,23 @@ engine:
         XDG_DATA_HOME: /tmp/opencode-data
     mcp:
       config-path: opencode.jsonc
+    domains:
+      base:
+        - host.docker.internal
+        - github.com
+        - raw.githubusercontent.com
+        - registry.npmjs.org
+        - opencode.ai
+        - models.dev
+      providers:
+        copilot: api.githubcopilot.com
+        anthropic: api.anthropic.com
+        openai: api.openai.com
+        google: generativelanguage.googleapis.com
+        groq: api.groq.com
+        mistral: api.mistral.ai
+        deepseek: api.deepseek.com
+        xai: api.x.ai
 ---
 
 <!-- # OpenCode CLI

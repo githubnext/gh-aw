@@ -54,7 +54,7 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// command-line --engine override is active (it will be validated later).
 	// The resolved value is intentionally discarded here because import defaults can
 	// still mutate engineConfig before the final resolveEngineRuntimeConfig call.
-	if engineSetting != "" && c.engineOverride == "" {
+	if engineSetting != "" && c.engineOverride == "" && !hasWorkflowImports(result.Frontmatter) {
 		if _, err := c.engineCatalog.Resolve(engineSetting, engineConfig); err != nil {
 			orchestratorEngineLog.Printf("Early engine validation failed for %q: %v", engineSetting, err)
 			return nil, err
@@ -94,6 +94,11 @@ func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int, 
 		return "", 0, 0, 0
 	}
 	return engineConfig.MaxTurns, engineConfig.MaxAICredits, engineConfig.MaxRuns, engineConfig.MaxTurnCacheMisses
+}
+
+func hasWorkflowImports(frontmatter map[string]any) bool {
+	_, ok := frontmatter["imports"]
+	return ok
 }
 
 func defaultNetworkPermissions(networkPermissions *NetworkPermissions) *NetworkPermissions {

@@ -15,7 +15,7 @@
 //
 // # Built-in Engines
 //
-// NewEngineCatalog registers the built-in engines: claude, codex, copilot, gemini, opencode, pi, antigravity.
+// NewEngineCatalog registers the built-in engines: claude, codex, copilot, gemini, pi, antigravity.
 // Each EngineDefinition carries the engine's RuntimeID which maps to the corresponding
 // CodingAgentEngine registered in the EngineRegistry.
 //
@@ -195,6 +195,12 @@ type EngineMCPDefinition struct {
 	ConfigPath string `yaml:"config-path,omitempty"`
 }
 
+// EngineDomainsDefinition describes default network domains for behavior-defined engines.
+type EngineDomainsDefinition struct {
+	Base      []string          `yaml:"base,omitempty"`
+	Providers map[string]string `yaml:"providers,omitempty"`
+}
+
 // EngineBehaviorDefinition captures declarative runtime behaviour for a custom
 // engine definition.
 type EngineBehaviorDefinition struct {
@@ -206,6 +212,7 @@ type EngineBehaviorDefinition struct {
 	ConfigFile          *EngineConfigFileDefinition   `yaml:"config-file,omitempty"`
 	Execution           *EngineExecutionDefinition    `yaml:"execution,omitempty"`
 	MCP                 *EngineMCPDefinition          `yaml:"mcp,omitempty"`
+	Domains             *EngineDomainsDefinition      `yaml:"domains,omitempty"`
 	// HarnessScript is the JavaScript source of a Node.js harness that spawns the
 	// engine CLI.  When non-empty the script is written to
 	// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before execution and the
@@ -283,7 +290,7 @@ type ResolvedEngineTarget struct {
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
-// pre-registers the built-in engine definitions (claude, codex, copilot, gemini, opencode, pi, antigravity)
+// pre-registers the built-in engine definitions (claude, codex, copilot, gemini, pi, antigravity)
 // loaded from the embedded Markdown files in data/engines/*.md.
 func NewEngineCatalog(registry *EngineRegistry) *EngineCatalog {
 	catalog := &EngineCatalog{

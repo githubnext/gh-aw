@@ -30,10 +30,6 @@ func TestGetDefaultAgentModel(t *testing.T) {
 			expectedModel: constants.AgentDefaultModel,
 		},
 		{
-			engineID:      string(constants.OpenCodeEngine),
-			expectedModel: constants.AgentDefaultModel,
-		},
-		{
 			engineID:      string(constants.PiEngine),
 			expectedModel: constants.AgentDefaultModel,
 		},
@@ -86,10 +82,6 @@ func TestGetDefaultModelOverrideVar(t *testing.T) {
 		{
 			// GeminiEngine has no enterprise default override variable.
 			engineID:    string(constants.GeminiEngine),
-			expectedVar: "",
-		},
-		{
-			engineID:    string(constants.OpenCodeEngine),
 			expectedVar: "",
 		},
 		{

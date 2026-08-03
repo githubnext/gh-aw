@@ -24,8 +24,6 @@ const (
 	GeminiEngine EngineName = "gemini"
 	// AntigravityEngine is the Antigravity engine identifier
 	AntigravityEngine EngineName = "antigravity"
-	// OpenCodeEngine is the OpenCode engine identifier
-	OpenCodeEngine EngineName = "opencode"
 	// PiEngine is the Pi engine identifier (experimental)
 	PiEngine EngineName = "pi"
 
@@ -38,7 +36,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(OpenCodeEngine), string(PiEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(PiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -98,15 +96,6 @@ var EngineOptions = []EngineOption{
 		SecretName:  AntigravityAPIKey,
 		KeyURL:      "https://aistudio.google.com/app/apikey",
 		WhenNeeded:  "Antigravity engine workflows",
-	},
-	{
-		Value:              string(OpenCodeEngine),
-		Label:              "OpenCode",
-		Description:        "OpenCode multi-provider AI coding agent (BYOK)",
-		SecretName:         CopilotGitHubToken,
-		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
-		KeyURL:             "https://github.com/anomalyco/opencode",
-		WhenNeeded:         "OpenCode engine workflows (default: Copilot routing)",
 	},
 	{
 		Value:              string(PiEngine),
@@ -226,8 +215,6 @@ const (
 	EnvVarModelAgentGemini = "GH_AW_MODEL_AGENT_GEMINI"
 	// EnvVarModelAgentAntigravity configures the default Antigravity model for agent execution
 	EnvVarModelAgentAntigravity = "GH_AW_MODEL_AGENT_ANTIGRAVITY"
-	// EnvVarModelAgentOpenCode configures the default OpenCode model for agent execution
-	EnvVarModelAgentOpenCode = "GH_AW_MODEL_AGENT_OPENCODE"
 	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
 	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
 	// EnvVarModelDetectionClaude configures the default Claude model for detection
@@ -238,8 +225,6 @@ const (
 	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
 	// EnvVarModelDetectionAntigravity configures the default Antigravity model for detection
 	EnvVarModelDetectionAntigravity = "GH_AW_MODEL_DETECTION_ANTIGRAVITY"
-	// EnvVarModelDetectionOpenCode configures the default OpenCode model for detection
-	EnvVarModelDetectionOpenCode = "GH_AW_MODEL_DETECTION_OPENCODE"
 	// EnvVarModelEvalsCopilot configures the default Copilot model for evals execution
 	EnvVarModelEvalsCopilot = "GH_AW_MODEL_EVALS_COPILOT"
 	// EnvVarModelEvalsClaude configures the default Claude model for evals execution
@@ -250,8 +235,6 @@ const (
 	EnvVarModelEvalsGemini = "GH_AW_MODEL_EVALS_GEMINI"
 	// EnvVarModelEvalsAntigravity configures the default Antigravity model for evals execution
 	EnvVarModelEvalsAntigravity = "GH_AW_MODEL_EVALS_ANTIGRAVITY"
-	// EnvVarModelEvalsOpenCode configures the default OpenCode model for evals execution
-	EnvVarModelEvalsOpenCode = "GH_AW_MODEL_EVALS_OPENCODE"
 	// EnvVarModelAgentPi configures the default Pi model for agent execution
 	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
 	// EnvVarModelEvalsPi configures the default Pi model for evals execution
@@ -346,7 +329,7 @@ const (
 	CodexDefaultModel = "gpt-5.4"
 
 	// AgentDefaultModel is the model display string returned for engines whose model is
-	// dynamically determined by the AI provider (e.g. Claude, Gemini, OpenCode, Pi).
+	// dynamically determined by the AI provider (e.g. Claude, Gemini, Pi).
 	// It is used as the GH_AW_INFO_MODEL value when no explicit model is configured.
 	AgentDefaultModel = "agent"
 
@@ -361,10 +344,6 @@ const (
 	// AntigravityCLIModelEnvVar is the native environment variable name supported by the Antigravity CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	AntigravityCLIModelEnvVar = "ANTIGRAVITY_MODEL"
-
-	// OpenCodeCLIModelEnvVar is the native environment variable name for OpenCode model selection.
-	// OpenCode uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
-	OpenCodeCLIModelEnvVar = "OPENCODE_MODEL"
 
 	// PiCLIModelEnvVar is the native environment variable name for Pi model selection.
 	// Setting PI_MODEL is equivalent to passing --model to the Pi CLI.

@@ -36,7 +36,6 @@ func engineConfigBaseDir(engineID string) string {
 //	claude       → .claude/skills
 //	codex        → .codex/skills
 //	gemini       → .gemini/skills
-//	opencode     → .opencode/skills
 //	antigravity  → .antigravity/skills
 //	pi           → .pi/skills
 //	others       → .github/skills  (Copilot default)
@@ -52,7 +51,6 @@ func GetEngineSkillDir(engineID string) string {
 //	claude       → .claude/agents
 //	codex        → .codex/agents
 //	gemini       → .gemini/agents
-//	opencode     → .opencode/agents
 //	antigravity  → .antigravity/agents
 //	pi           → .pi/agents
 //	others       → .github/agents  (Copilot default)

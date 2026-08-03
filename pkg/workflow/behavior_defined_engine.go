@@ -55,14 +55,6 @@ func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, er
 	return engine, nil
 }
 
-func newBuiltinBehaviorDefinedEngine(id string) (*BehaviorDefinedEngine, error) {
-	def, err := getBuiltinEngineDefinition(id)
-	if err != nil {
-		return nil, err
-	}
-	return NewBehaviorDefinedEngine(def)
-}
-
 func (e *BehaviorDefinedEngine) behavior() *EngineBehaviorDefinition {
 	if e == nil || e.definition == nil {
 		return nil
@@ -447,11 +439,31 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 }
 
 func (e *BehaviorDefinedEngine) allowedDomains(workflowData *WorkflowData) string {
-	engineName := constants.EngineName(e.GetID())
-	if e.usesUniversalLLMConsumer() && workflowData != nil && workflowData.EngineConfig != nil {
-		return mustGetAllowedDomainsForEngineWithModel(engineName, workflowData.Model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+	if defaults, ok := e.declarativeDefaultDomains(workflowData); ok {
+		return mergeDomainsWithNetworkToolsAndRuntimes(defaults, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 	}
+	engineName := constants.EngineName(e.GetID())
 	return GetAllowedDomainsForEngine(engineName, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+}
+
+func (e *BehaviorDefinedEngine) declarativeDefaultDomains(workflowData *WorkflowData) ([]string, bool) {
+	behavior := e.behavior()
+	if behavior == nil || behavior.Domains == nil {
+		return nil, false
+	}
+	domains := append([]string{}, behavior.Domains.Base...)
+	model := ""
+	if workflowData != nil {
+		model = workflowData.Model
+	}
+	provider, err := extractProviderFromModel(model)
+	if err != nil {
+		panic(fmt.Sprintf("BUG: invalid model %q reached declarative domain computation (should have been caught by validation): %v", model, err))
+	}
+	if domain, ok := behavior.Domains.Providers[provider]; ok {
+		domains = append(domains, domain)
+	}
+	return domains, true
 }
 
 func (e *BehaviorDefinedEngine) buildConfigFileStep() GitHubActionStep {
@@ -721,6 +733,19 @@ func deepCopyEngineBehaviorDefinition(src EngineBehaviorDefinition) EngineBehavi
 	if src.MCP != nil {
 		mcpCopy := *src.MCP
 		dst.MCP = &mcpCopy
+	}
+
+	if src.Domains != nil {
+		domainsCopy := *src.Domains
+		if src.Domains.Base != nil {
+			domainsCopy.Base = make([]string, len(src.Domains.Base))
+			copy(domainsCopy.Base, src.Domains.Base)
+		}
+		if src.Domains.Providers != nil {
+			domainsCopy.Providers = make(map[string]string, len(src.Domains.Providers))
+			maps.Copy(domainsCopy.Providers, src.Domains.Providers)
+		}
+		dst.Domains = &domainsCopy
 	}
 
 	return dst

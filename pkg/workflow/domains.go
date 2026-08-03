@@ -177,52 +177,11 @@ var PiDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
-// OpenCodeBaseDefaultDomains are the default domains required for OpenCode CLI operation.
-// OpenCode is BYOK (any provider), so provider-specific domains are added dynamically
-// based on the model prefix via GetDefaultDomainsForEngine.
-var OpenCodeBaseDefaultDomains = []string{
-	"host.docker.internal", // MCP gateway / API proxy access
-	"github.com",           // provider updates and metadata
-	"raw.githubusercontent.com",
-	"registry.npmjs.org", // npm package downloads
-	"opencode.ai",        // OpenCode telemetry and version checks
-	"models.dev",         // OpenCode model capability discovery
-}
-
-// openCodeProviderDomains maps provider prefixes to their API domains.
-// Used by extractProviderFromModel() and getOpenCodeDefaultDomains().
-var openCodeProviderDomains = map[string]string{
-	"copilot":   "api.githubcopilot.com",
-	"anthropic": "api.anthropic.com",
-	"openai":    "api.openai.com",
-	"google":    "generativelanguage.googleapis.com",
-	"groq":      "api.groq.com",
-	"mistral":   "api.mistral.ai",
-	"deepseek":  "api.deepseek.com",
-	"xai":       "api.x.ai",
-}
-
-// OpenCodeDefaultDomains are the static default domains for backward compatibility.
-// The dynamic path (GetDefaultDomainsForEngine) resolves provider-specific domains
-// based on the model prefix and uses OpenCodeBaseDefaultDomains as the base.
-var OpenCodeDefaultDomains = []string{
-	"api.githubcopilot.com",             // Default provider (Copilot routing)
-	"api.openai.com",                    // Direct OpenAI provider access
-	"generativelanguage.googleapis.com", // Google/Antigravity provider
-	"host.docker.internal",              // MCP gateway / API proxy access
-	"github.com",
-	"raw.githubusercontent.com",
-	"registry.npmjs.org", // npm package downloads
-	"opencode.ai",        // OpenCode telemetry and version checks
-	"models.dev",         // OpenCode model capability discovery
-}
-
 // extractProviderFromModel parses "provider/model" format and returns the
 // lowercase provider prefix. Returns ("", nil) when no model is given or the
 // format contains no slash (no provider prefix detected). Returns an error when
 // the format is explicitly malformed – a leading slash like "/gpt-4.1" means
 // the provider prefix is intentionally empty, which is always invalid.
-// Both OpenCode and Pi use this same "provider/model" convention.
 func extractProviderFromModel(model string) (string, error) {
 	if model == "" {
 		return "", nil
@@ -237,24 +196,6 @@ func extractProviderFromModel(model string) (string, error) {
 		return "", fmt.Errorf("invalid engine.model %q: provider prefix is empty; use provider/model format (for example: openai/gpt-4.1, anthropic/claude-sonnet-4)", model)
 	}
 	return provider, nil
-}
-
-// getOpenCodeDefaultDomains returns the default domains for OpenCode based on the model provider.
-// It starts with OpenCodeBaseDefaultDomains and adds the provider-specific API domain.
-// Returns an error if the model string is malformed (e.g. a leading slash).
-func getOpenCodeDefaultDomains(model string) ([]string, error) {
-	provider, err := extractProviderFromModel(model)
-	if err != nil {
-		return nil, err
-	}
-	domains := make([]string, 0, safeAllocationCapacity(len(OpenCodeBaseDefaultDomains), 1))
-	domains = append(domains, OpenCodeBaseDefaultDomains...)
-
-	if domain, ok := openCodeProviderDomains[provider]; ok {
-		domains = append(domains, domain)
-	}
-
-	return domains, nil
 }
 
 // getPiDefaultDomains returns the default domains for Pi based on the model provider.
@@ -689,7 +630,7 @@ func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *N
 }
 
 // engineDefaultDomains maps each engine to its static default required domains.
-// Engines with model-specific defaults (for example, OpenCode, Pi) are resolved in
+// Engines with model-specific defaults are resolved in
 // getDefaultDomainsForEngine instead of being stored directly in this map.
 var engineDefaultDomains = map[constants.EngineName][]string{
 	constants.CopilotEngine:     CopilotDefaultDomains,
@@ -700,15 +641,12 @@ var engineDefaultDomains = map[constants.EngineName][]string{
 }
 
 // GetDefaultDomainsForEngine returns the engine's default required domains.
-// OpenCode and Pi domains are model/provider-specific, so they are
+// Pi domains are model/provider-specific, so they are
 // resolved dynamically from the model's provider prefix rather than the static
 // engineDefaultDomains map.
 // Falls back to an empty default domain list for unknown engines.
 // Returns an error if the model string is malformed (e.g. a leading slash).
 func GetDefaultDomainsForEngine(engine constants.EngineName, model string) ([]string, error) {
-	if engine == constants.OpenCodeEngine {
-		return getOpenCodeDefaultDomains(model)
-	}
 	if engine == constants.PiEngine {
 		return getPiDefaultDomains(model)
 	}
@@ -718,7 +656,7 @@ func GetDefaultDomainsForEngine(engine constants.EngineName, model string) ([]st
 
 // GetAllowedDomainsForEngineWithModel merges the engine's default domains with
 // NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains.
-// For engines with model/provider-specific defaults (such as OpenCode), pass the
+// For engines with model/provider-specific defaults, pass the
 // selected model so the correct default domains are included.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's
 // --allow-domains flag.
@@ -746,8 +684,6 @@ func mustGetAllowedDomainsForEngineWithModel(engine constants.EngineName, model 
 // HTTP MCP server domains, and runtime ecosystem domains.
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 // Falls back to an empty default domain list for unknown engines.
-// For model/provider-specific engines such as OpenCode, prefer
-// GetAllowedDomainsForEngineWithModel so provider domains are included.
 func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	// Empty model never triggers provider-format validation, so no error is possible here.
 	result, _ := GetAllowedDomainsForEngineWithModel(engine, "", network, tools, runtimes)
@@ -916,7 +852,7 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	engine := constants.EngineName(engineID)
 	switch engine {
 	case constants.CopilotEngine, constants.CodexEngine, constants.ClaudeEngine, constants.GeminiEngine, constants.AntigravityEngine,
-		constants.PiEngine, constants.OpenCodeEngine:
+		constants.PiEngine:
 		model := ""
 		if data.EngineConfig != nil {
 			model = data.Model

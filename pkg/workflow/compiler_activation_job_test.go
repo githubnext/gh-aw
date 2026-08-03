@@ -1105,7 +1105,7 @@ func TestBuildActivationJobWrapsRepositoryStepErrors(t *testing.T) {
 	compiler := NewCompiler(WithVersion("dev"))
 	compiler.SetActionMode(ActionModeDev)
 
-	// Using the opencode engine with a malformed model (leading slash → empty provider prefix)
+	// Using the provider-qualified engine with a malformed model (leading slash → empty provider prefix)
 	// causes computeActivationSanitizationDomains to return an error. NeedsTextOutput must
 	// be true so that addActivationTextOutputStep is reached and the error is triggered.
 	data := &WorkflowData{
@@ -1113,7 +1113,7 @@ func TestBuildActivationJobWrapsRepositoryStepErrors(t *testing.T) {
 		NeedsTextOutput: true,
 		Model:           "/bad-provider",
 		EngineConfig: &EngineConfig{
-			ID: "opencode",
+			ID: "pi",
 		},
 	}
 

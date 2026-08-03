@@ -19,8 +19,6 @@ func (e *PiEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, 
 	// similarly to how CodexEngine.RenderMCPConfig handles TOML-specific sections.
 	//
 	// Pi uses ShellMcpServersJsonPath (same as Claude/Gemini/Antigravity) because
-	// the Pi CLI resolves its MCP config from the shell environment path. OpenCode
-	// uses TmpMcpServersJsonPath instead because its CLI looks for the
-	// config in a different location.
+	// the Pi CLI resolves its MCP config from the shell environment path.
 	return renderDefaultJSONMCPConfig(yaml, tools, mcpTools, workflowData, constants.ShellMcpServersJsonPath)
 }
