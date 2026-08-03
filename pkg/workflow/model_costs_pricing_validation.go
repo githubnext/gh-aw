@@ -7,9 +7,13 @@ import (
 )
 
 // validateDefaultAiCreditsPricing returns an error when the workflow's
-// models.default-ai-credits-pricing frontmatter is present and any price field
-// has a non-positive value. Absent pricing (nil) is allowed; the check is only
-// enforced once a value is explicitly configured.
+// models.default-ai-credits-pricing frontmatter is present and either:
+//   - the effective AWF version is older than AWFDefaultAiCreditsPricingMinVersion
+//     (the field is silently dropped during config resolution in older versions), or
+//   - any price field has a non-positive value.
+//
+// Absent pricing (nil) is allowed; both checks are only enforced once a value
+// is explicitly configured.
 //
 // The AWF api-proxy rejects zero rates as "not configured", so requiring
 // positive values here prevents silent runtime failures for self-hosted models.
@@ -20,7 +24,13 @@ func validateDefaultAiCreditsPricing(workflowData *WorkflowData) error {
 	}
 	firewallConfig := getFirewallConfig(workflowData)
 	if !awfSupportsDefaultAiCreditsPricing(firewallConfig) {
-		return fmt.Errorf("models.default-ai-credits-pricing requires AWF %s or newer; pinned AWF version %q drops apiProxy.defaultAiCreditsPricing during config resolution", constants.AWFDefaultAiCreditsPricingMinVersion, getAWFImageTag(firewallConfig))
+		awfTag := getAWFImageTag(firewallConfig)
+		return NewValidationError(
+			"models.default-ai-credits-pricing",
+			awfTag,
+			fmt.Sprintf("requires AWF %s or newer; pinned version %q drops apiProxy.defaultAiCreditsPricing during config resolution", constants.AWFDefaultAiCreditsPricingMinVersion, awfTag),
+			fmt.Sprintf("Set network.firewall.version or sandbox.agent.version to %s or newer:\n\nnetwork:\n  firewall:\n    version: %s", constants.AWFDefaultAiCreditsPricingMinVersion, constants.AWFDefaultAiCreditsPricingMinVersion),
+		)
 	}
 	if p.Input <= 0 {
 		return fmt.Errorf("models.default-ai-credits-pricing: input must be a positive value (got %g); use a small positive rate such as 0.000001 for effectively-free self-hosted models", p.Input)
