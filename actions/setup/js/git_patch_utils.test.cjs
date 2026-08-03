@@ -307,6 +307,33 @@ describe("getPatchDiffSizeBytes", () => {
     expect(result).toBe(expected);
   });
 
+  it("does not let deletions in one file mask additions in another file (per-file clamping)", () => {
+    // File A: pure addition of new content
+    // File B: pure deletion of similar-sized content
+    // Global net ≈ 0 would be wrong — the added content must still count toward the limit
+    const addLine = '+{"new_key":"aaaaaaaaaaaaaaaaaaa"}';
+    const delLine = '-{"old_key":"bbbbbbbbbbbbbbbbbbb"}';
+    const diff = [
+      "diff --git a/new_file.json b/new_file.json",
+      "index 0000000..abc1234 100644",
+      "--- /dev/null",
+      "+++ b/new_file.json",
+      "@@ -0,0 +1 @@",
+      addLine,
+      "diff --git a/old_file.json b/old_file.json",
+      "index def5678..0000000 100644",
+      "--- a/old_file.json",
+      "+++ /dev/null",
+      "@@ -1 +0,0 @@",
+      delLine,
+    ].join("\n");
+    const result = getPatchDiffSizeBytes(diff);
+    const addBytes = Buffer.byteLength(addLine + "\n", "utf8");
+    // File A contributes its addBytes; File B contributes max(0, 0 - delBytes) = 0
+    // Total must equal addBytes, not near-zero
+    expect(result).toBe(addBytes);
+  });
+
   it("does not count +++ file header lines (they appear before any @@ hunk)", () => {
     const diff = [
       "diff --git a/file.json b/file.json",

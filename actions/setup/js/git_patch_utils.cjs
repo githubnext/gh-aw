@@ -104,7 +104,8 @@ function buildExcludePathspecs(excludedFiles) {
 /**
  * Compute net UTF-8 bytes added by a unified diff.
  *
- * "Net added bytes" = (bytes in added lines) − (bytes in deleted lines), clamped to zero.
+ * "Net added bytes" per file = (bytes in added lines) − (bytes in deleted lines), clamped to
+ * zero per file, then summed across all files in the diff.
  *
  * Using the net value instead of raw additions means that files which are
  * completely rewritten with similar-sized content (e.g. a JSON object whose
@@ -113,34 +114,45 @@ function buildExcludePathspecs(excludedFiles) {
  * where the tool reports "entire source code size" for a rewrite that barely
  * changes the logical payload.
  *
+ * Clamping is applied per file, not globally, so that a large deletion in one
+ * file cannot mask a large addition in a different file.  Each file's net
+ * contribution is clamped to zero independently before being added to the
+ * running total.
+ *
  * Rules:
  *   - Only lines inside diff hunks (after the first "@@" line) are examined.
  *   - Lines that start with "+++" (file header) are excluded because they appear
  *     before the first "@@" and are never inside a hunk.
- *   - A new "diff " line resets the hunk state for the next file.
+ *   - A new "diff " line flushes the current file's net contribution and resets
+ *     per-file counters.
  *
  * @param {string} patchContent - Output of `git diff` (unified diff format)
- * @returns {number} Net added bytes (≥ 0)
+ * @returns {number} Sum of per-file net added bytes (≥ 0)
  */
 function getPatchDiffSizeBytes(patchContent) {
   let inHunk = false;
-  let additions = 0;
-  let deletions = 0;
+  let fileAdd = 0;
+  let fileDel = 0;
+  let total = 0;
   for (const line of patchContent.split("\n")) {
-    if (line.startsWith("@@")) {
-      inHunk = true;
-    } else if (line.startsWith("diff ")) {
+    if (line.startsWith("diff ")) {
+      total += Math.max(0, fileAdd - fileDel);
+      fileAdd = 0;
+      fileDel = 0;
       inHunk = false;
+    } else if (line.startsWith("@@")) {
+      inHunk = true;
     }
     if (inHunk) {
       if (line.startsWith("+")) {
-        additions += Buffer.byteLength(line + "\n", "utf8");
+        fileAdd += Buffer.byteLength(line + "\n", "utf8");
       } else if (line.startsWith("-")) {
-        deletions += Buffer.byteLength(line + "\n", "utf8");
+        fileDel += Buffer.byteLength(line + "\n", "utf8");
       }
     }
   }
-  return Math.max(0, additions - deletions);
+  total += Math.max(0, fileAdd - fileDel);
+  return total;
 }
 
 /**
