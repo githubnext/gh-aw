@@ -63,7 +63,7 @@ func (g *DependencyGraph) BuildGraph(compiler *workflow.Compiler) error {
 
 	// Find all markdown files in the workflows directory (including subdirectories)
 	var allWorkflows []string
-	err := filepath.Walk(g.workflowsDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(g.workflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -72,8 +72,8 @@ func (g *DependencyGraph) BuildGraph(compiler *workflow.Compiler) error {
 		}
 		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("failed to scan workflows directory: %w", err)
+	if walkErr != nil {
+		return fmt.Errorf("failed to scan workflows directory: %w", walkErr)
 	}
 
 	depGraphLog.Printf("Found %d workflow files to analyze", len(allWorkflows))
