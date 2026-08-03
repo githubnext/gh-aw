@@ -55,6 +55,7 @@
   "test-coverage.md",
   "test-expression.md",
   "token-optimization-caching-budgets.md",
+  "token-optimization-observability.md",
   "token-optimization.md",
   "triggers.md",
   "update-agentic-workflow.md",
