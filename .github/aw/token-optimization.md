@@ -242,7 +242,7 @@ Keep in the main prompt body anything the agent needs from the very first turn: 
 
 ### Pattern
 
-```markdown
+````markdown
 ---
 engine: copilot
 ---
@@ -265,7 +265,7 @@ description: Issue title, body structure, and known-issues recording format.
 
 ...full template...
 ```
-```
+````
 
 ### Technique scope
 
