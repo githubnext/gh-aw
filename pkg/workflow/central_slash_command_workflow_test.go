@@ -97,6 +97,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.Contains(t, text, "name: \"Agentic Commands\"")
 	require.NotContains(t, text, "Compiler version:")
 	require.Contains(t, text, "permissions: {}")
+	require.Contains(t, text, "concurrency:\n  group: \"gh-aw-commands-${{ github.event.comment.id || github.event.issue.number || github.event.pull_request.number || github.event.discussion.number || github.run_id }}\"\n  cancel-in-progress: true")
 	require.Contains(t, text, "runs-on: ubuntu-slim")
 	require.Contains(t, text, "timeout-minutes: 15")
 	require.Contains(t, text, "    permissions:\n      actions: write\n      contents: read\n      issues: write\n      pull-requests: write\n      discussions: write")

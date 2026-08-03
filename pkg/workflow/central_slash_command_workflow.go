@@ -380,6 +380,14 @@ on:
 `)
 	writeCentralSlashEventsYAML(&b, mergedEvents)
 	b.WriteString(`
+# Collapse duplicate/near-simultaneous routing runs for the same triggering entity.
+# The comment identifier is used first so that distinct commands on the same
+# issue/PR/discussion never cancel each other, while repeated deliveries of the
+# same event resolve to a single run.
+concurrency:
+  group: "gh-aw-commands-${{ github.event.comment.id || github.event.issue.number || github.event.pull_request.number || github.event.discussion.number || github.run_id }}"
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
