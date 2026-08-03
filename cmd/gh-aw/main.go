@@ -422,7 +422,7 @@ type compileCmdOptions struct {
 	grype                  bool
 	grant                  bool
 	yamllint               bool
-	noShellcheck           bool
+	shellcheck             bool
 	jsonOutput             bool
 	showAllErrors          bool
 	fix                    bool
@@ -465,7 +465,7 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 	grype, _ := cmd.Flags().GetBool("grype")
 	grant, _ := cmd.Flags().GetBool("grant")
 	yamllint, _ := cmd.Flags().GetBool("yamllint")
-	noShellcheck, _ := cmd.Flags().GetBool("no-shellcheck")
+	shellcheck, _ := cmd.Flags().GetBool("shellcheck")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 	showAllErrors, _ := cmd.Flags().GetBool("show-all")
 	fix, _ := cmd.Flags().GetBool("fix")
@@ -485,7 +485,7 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 		dir: dir, workflowsDir: workflowsDir, logicalRepo: logicalRepo, scheduleSeed: scheduleSeed, priorManifestFile: priorManifestFile,
 		validate: validate, watch: watch, noEmit: noEmit, purge: purge, strict: strict, trial: trial, dependabot: dependabot,
 		forceOverwrite: forceOverwrite, refreshStopTime: refreshStopTime, forceRefreshActionPins: forceRefreshActionPins, allowActionRefs: allowActionRefs,
-		zizmor: zizmor, poutine: poutine, actionlint: actionlint, runnerGuard: runnerGuard, syft: syft, grype: grype, grant: grant, yamllint: yamllint, noShellcheck: noShellcheck,
+		zizmor: zizmor, poutine: poutine, actionlint: actionlint, runnerGuard: runnerGuard, syft: syft, grype: grype, grant: grant, yamllint: yamllint, shellcheck: shellcheck,
 		jsonOutput: jsonOutput, showAllErrors: showAllErrors, fix: fix, stats: stats, failFast: failFast, noCheckUpdate: noCheckUpdate,
 		staged: staged, approve: approve, validateImages: validateImages, ghes: ghes, verbose: verbose, useSamples: useSamples,
 	}
@@ -518,7 +518,7 @@ func (o *compileCmdOptions) toCompileConfig(args []string) cli.CompileConfig {
 		NoEmit: o.noEmit, Purge: o.purge, TrialMode: o.trial, TrialLogicalRepoSlug: o.logicalRepo, Strict: o.strict,
 		Dependabot: o.dependabot, ForceOverwrite: o.forceOverwrite, RefreshStopTime: o.refreshStopTime, ForceRefreshActionPins: o.forceRefreshActionPins,
 		AllowActionRefs: o.allowActionRefs, Zizmor: o.zizmor, Poutine: o.poutine, Actionlint: o.actionlint, RunnerGuard: o.runnerGuard,
-		Syft: o.syft, Grype: o.grype, Grant: o.grant, Yamllint: o.yamllint, NoShellcheck: o.noShellcheck, JSONOutput: o.jsonOutput, ShowAllErrors: o.showAllErrors,
+		Syft: o.syft, Grype: o.grype, Grant: o.grant, Yamllint: o.yamllint, Shellcheck: o.shellcheck, JSONOutput: o.jsonOutput, ShowAllErrors: o.showAllErrors,
 		Stats: o.stats, FailFast: o.failFast, ScheduleSeed: o.scheduleSeed, Staged: o.staged, Approve: o.approve,
 		ValidateImages: o.validateImages, PriorManifestFile: o.priorManifestFile, GHESCompat: o.ghes, UseSamples: o.useSamples,
 	}
@@ -775,7 +775,7 @@ func configureCompileToolFlags() {
 	compileCmd.Flags().Bool("grype", false, "Run grype vulnerability scanner on container images referenced in compiled .lock.yml files (uses Docker image "+cli.GrypeImage+")")
 	compileCmd.Flags().Bool("grant", false, "Run grant license scanner on container images referenced in compiled .lock.yml files (uses Docker image "+cli.GrantImage+")")
 	compileCmd.Flags().Bool("yamllint", false, "Run yamllint YAML linter on generated .lock.yml files (uses Docker image "+cli.YamllintImage+")")
-	compileCmd.Flags().Bool("no-shellcheck", false, "Disable shellcheck linting of run step scripts (shellcheck runs by default when available)")
+	compileCmd.Flags().Bool("shellcheck", false, "Run shellcheck linting of run step scripts (also enabled by --validate)")
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	compileCmd.Flags().Bool("show-all", false, "Display all compilation errors instead of only the highest-priority subset (default: top 5)")

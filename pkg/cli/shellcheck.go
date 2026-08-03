@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -366,8 +367,8 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 }
 
 // runShellcheckOnLockFiles extracts run: steps from each lock file and runs
-// shellcheck on the shell snippets. It uses shellcheckDefaultIgnoreCodes to
-// suppress known false positives from GitHub Actions expression syntax.
+// shellcheck on the shell snippets in parallel. It uses shellcheckDefaultIgnoreCodes
+// to suppress known false positives from GitHub Actions expression syntax.
 //
 // When the shellcheck binary is not installed, it falls back to the Docker
 // container (ShellcheckImage) if Docker is available. This allows shellcheck
@@ -375,9 +376,10 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 // The fallback is lazy: the Docker image is only invoked when there are scripts
 // to lint and the binary is absent.
 //
-// When strict is false, individual step failures are printed as warnings and
-// the function returns nil. When strict is true, the first step failure causes
-// an error to be returned immediately (fail fast).
+// Steps across all lock files are collected first, then run in parallel using
+// goroutines. When strict is true, the first step failure causes an error to be
+// returned. In non-strict mode, all failures are printed as warnings and nil is
+// returned.
 func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
 		return nil
@@ -393,6 +395,22 @@ func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose b
 		shellcheckLog.Print("shellcheck binary not found in PATH; using Docker container fallback")
 	}
 
+	// Collect all steps from all lock files first.
+	var allSteps []runStepInfo
+	for _, lockFile := range lockFiles {
+		steps, err := extractRunStepsFromLockFile(lockFile)
+		if err != nil {
+			shellcheckLog.Printf("Failed to extract run steps from %s: %v", lockFile, err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("shellcheck: could not parse "+filepath.Base(lockFile)+": "+err.Error()))
+			continue
+		}
+		allSteps = append(allSteps, steps...)
+	}
+
+	if len(allSteps) == 0 {
+		return nil
+	}
+
 	shellcheckLog.Printf("Running shellcheck on run steps in %d lock file(s) (strict=%t, docker=%t)", len(lockFiles), strict, useDocker)
 
 	if len(lockFiles) == 1 {
@@ -401,40 +419,42 @@ func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose b
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running shellcheck on run steps in %d files", len(lockFiles))))
 	}
 
-	var totalSteps, totalIssues int
-	var firstErr error
-
-outer:
-	for _, lockFile := range lockFiles {
-		steps, err := extractRunStepsFromLockFile(lockFile)
-		if err != nil {
-			shellcheckLog.Printf("Failed to extract run steps from %s: %v", lockFile, err)
-			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("shellcheck: could not parse "+filepath.Base(lockFile)+": "+err.Error()))
-			continue
-		}
-
-		for _, step := range steps {
-			totalSteps++
+	// Run shellcheck on all steps in parallel.
+	type result struct {
+		err error
+	}
+	results := make([]result, len(allSteps))
+	var wg sync.WaitGroup
+	for i, step := range allSteps {
+		wg.Add(1)
+		go func(idx int, s runStepInfo) {
+			defer wg.Done()
 			var stepErr error
 			if useDocker {
-				stepErr = runShellcheckOnScriptViaDocker(ctx, step, shellcheckDefaultIgnoreCodes, verbose)
+				stepErr = runShellcheckOnScriptViaDocker(ctx, s, shellcheckDefaultIgnoreCodes, verbose)
 			} else {
-				stepErr = runShellcheckOnScript(step, shellcheckDefaultIgnoreCodes, verbose)
+				stepErr = runShellcheckOnScript(s, shellcheckDefaultIgnoreCodes, verbose)
 			}
-			if stepErr != nil {
-				totalIssues++
-				shellcheckLog.Printf("shellcheck issue in %s step %q: %v", lockFile, step.Name, stepErr)
-				if strict {
-					firstErr = stepErr
-					break outer // fail fast in strict mode
-				}
+			results[idx] = result{err: stepErr}
+		}(i, step)
+	}
+	wg.Wait()
+
+	var totalIssues int
+	var firstErr error
+	for i, r := range results {
+		if r.err != nil {
+			totalIssues++
+			shellcheckLog.Printf("shellcheck issue in step %q: %v", allSteps[i].Name, r.err)
+			if firstErr == nil {
+				firstErr = r.err
 			}
 		}
 	}
 
-	shellcheckLog.Printf("shellcheck complete: steps=%d, issues=%d", totalSteps, totalIssues)
+	shellcheckLog.Printf("shellcheck complete: steps=%d, issues=%d", len(allSteps), totalIssues)
 
-	if firstErr != nil {
+	if strict && firstErr != nil {
 		return fmt.Errorf("strict mode: shellcheck found issues in run steps: %w", firstErr)
 	}
 	return nil

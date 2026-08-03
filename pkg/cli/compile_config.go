@@ -29,7 +29,7 @@ type CompileConfig struct {
 	Grype                  bool     // Run grype vulnerability scanner on container images referenced in compiled .lock.yml files
 	Grant                  bool     // Run grant license scanner on container images referenced in compiled .lock.yml files
 	Yamllint               bool     // Run yamllint YAML linter on generated .lock.yml files
-	NoShellcheck           bool     // Skip shellcheck linting of run step scripts (shellcheck runs by default when available)
+	Shellcheck             bool     // Run shellcheck linting of run step scripts (disabled by default; enabled by --shellcheck or --validate)
 	JSONOutput             bool     // Output validation results as JSON
 	ShowAllErrors          bool     // Display all prioritized errors instead of the default top five
 	ActionMode             string   // How action scripts are referenced: dev, release, or action. Auto-detected if empty.

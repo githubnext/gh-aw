@@ -174,7 +174,7 @@ func compileSpecificFiles(
 					if config.Yamllint {
 						lockFilesForYamllint = append(lockFilesForYamllint, fileResult.lockFile)
 					}
-					if !config.NoShellcheck {
+					if config.Shellcheck || config.Validate {
 						lockFilesForShellcheck = append(lockFilesForShellcheck, fileResult.lockFile)
 					}
 				}
@@ -297,7 +297,7 @@ func compileSpecificFiles(
 	}
 
 	// Run shellcheck on run step scripts in all collected lock files.
-	if !config.NoShellcheck && !config.NoEmit && len(lockFilesForShellcheck) > 0 {
+	if (config.Shellcheck || config.Validate) && !config.NoEmit && len(lockFilesForShellcheck) > 0 {
 		if err := ctx.Err(); err != nil {
 			return workflowDataList, err
 		}
@@ -486,7 +486,7 @@ func compileAllFilesInDirectory(
 					if config.Yamllint {
 						lockFilesForYamllint = append(lockFilesForYamllint, fileResult.lockFile)
 					}
-					if !config.NoShellcheck {
+					if config.Shellcheck || config.Validate {
 						lockFilesForShellcheck = append(lockFilesForShellcheck, fileResult.lockFile)
 					}
 				}
@@ -605,7 +605,7 @@ func compileAllFilesInDirectory(
 	}
 
 	// Run shellcheck on run step scripts in all collected lock files.
-	if !config.NoShellcheck && !config.NoEmit && len(lockFilesForShellcheck) > 0 {
+	if (config.Shellcheck || config.Validate) && !config.NoEmit && len(lockFilesForShellcheck) > 0 {
 		if err := ctx.Err(); err != nil {
 			return workflowDataList, err
 		}

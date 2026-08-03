@@ -509,8 +509,8 @@ func TestCompileConfig_DefaultValues(t *testing.T) {
 	if config.Actionlint {
 		t.Error("Expected Actionlint to default to false")
 	}
-	if config.NoShellcheck {
-		t.Error("Expected NoShellcheck to default to false (shellcheck runs by default when available)")
+	if config.Shellcheck {
+		t.Error("Expected Shellcheck to default to false (shellcheck is disabled by default)")
 	}
 }
 
