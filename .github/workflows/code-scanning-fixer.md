@@ -32,6 +32,7 @@ imports:
   - shared/otlp.md
 tools:
   cli-proxy: true
+  bash: ["git diff:*", "git restore:*", wc]
   github:
     mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
@@ -68,7 +69,12 @@ You are a security-focused code analysis agent that automatically fixes code sca
 - Exit gracefully with a clear status message
 - The workflow will retry automatically on the next scheduled run
 
-**Tool Usage**: Use the pre-authenticated `gh` CLI for all GitHub read operations, and the `edit` tool for code changes:
+**Oversized Patches**: A patch larger than the 4,096 KB safe-output limit is not retryable while the alert is unchanged:
+- Do not emit a pull request for an oversized patch
+- Record the alert fingerprint and patch-size outcome in cache memory, then discard the local edits and emit `noop`
+- Skip that alert on later runs while its fingerprint is unchanged; reconsider it only if its rule, location, or message changes
+
+**Tool Usage**: Use the pre-authenticated `gh` CLI for all GitHub read operations, the `edit` tool for code changes, and the restricted `bash` tool only for the patch preflight and discarding its local edits:
 - List code scanning alerts: `gh api "repos/githubnext/gh-aw/code-scanning/alerts?state=open&per_page=100"`
 - Get alert details: `gh api "repos/githubnext/gh-aw/code-scanning/alerts/{alert_number}"`
 - Read file contents: `gh api "repos/githubnext/gh-aw/contents/{path}" --jq '.content' | base64 -d`
@@ -78,7 +84,7 @@ You are a security-focused code analysis agent that automatically fixes code sca
 ## Mission
 
 Your goal is to:
-1. **Check cache for previously fixed alerts**: Avoid fixing the same alert multiple times
+1. **Check cache for previously fixed or oversized alerts**: Avoid fixing the same alert multiple times or retrying a known oversized patch
 2. **List all open alerts**: Find every open code scanning alert and rank them in reverse importance/severity priority (highest first)
 3. **Select an unfixed alert**: Pick the highest-priority unfixed alert that hasn't been fixed recently
 4. **Analyze the vulnerability**: Understand the security issue and its context
@@ -90,11 +96,12 @@ Your goal is to:
 
 ### 1. Check Cache for Previously Fixed Alerts
 
-Before selecting an alert, check the cache memory to see which alerts have been fixed recently:
+Before selecting an alert, check the cache memory for prior outcomes:
 - Read the file `/tmp/gh-aw/cache-memory/fixed-alerts.jsonl` 
-- This file contains JSON lines with: `{"alert_number": 123, "fixed_at": "2024-01-15T10:30:00Z", "pr_number": 456}`
+- This file contains JSON lines. Successful fixes use: `{"alert_number": 123, "fixed_at": "2024-01-15T10:30:00Z", "pr_number": 456}`. Oversized patches use: `{"alert_number": 123, "fingerprint": "...", "outcome": "patch_too_large", "patch_bytes": 42416128, "max_patch_bytes": 4194304, "recorded_at": "2024-01-15T10:30:00Z"}`
 - If the file doesn't exist, treat it as empty (no alerts fixed yet)
-- Build a set of alert numbers that have been fixed to avoid re-fixing them
+- Use the latest record for each alert number
+- Build a set of successfully fixed alert numbers and a map of oversized alert fingerprints
 
 ### 2. List All Open Alerts
 
@@ -110,7 +117,8 @@ Use the `gh` CLI to list all open code scanning alerts:
 ### 3. Select an Unfixed Alert
 
 From the list of open alerts (sorted highest priority first):
-- Exclude any alert numbers that are in the cache (already fixed)
+- Exclude any alert numbers with a successful-fix record
+- For every remaining alert, derive a stable fingerprint from its rule ID, location path and line, and alert message. Exclude an alert when its latest cache record has `outcome: "patch_too_large"` and the same fingerprint. This deduplicates a patch-size failure indefinitely, but allows a changed alert to be reconsidered.
 - Select the first alert from the filtered list (highest-priority unfixed alert)
 - If no unfixed alerts remain, exit gracefully with message: "No unfixed code scanning alerts found. All alerts have been addressed!"
 
@@ -147,6 +155,12 @@ Create code changes to address the security issue:
 - Consider edge cases and potential side effects
 
 ### 7. Create Pull Request
+
+Before emitting `create-pull-request`, preflight the complete generated patch, including binary removals:
+- Measure `git diff --binary --no-ext-diff` in bytes. The default `create-pull-request` safe-output limit is 4,096 KB (4,194,304 bytes).
+- If the patch exceeds that limit, do not emit `create-pull-request`. Append an oversized-patch JSON record to `/tmp/gh-aw/cache-memory/fixed-alerts.jsonl` using the selected alert number, its fingerprint, measured patch size, limit, and current timestamp.
+- Discard all local edits for that attempt, emit `noop` stating that the alert was skipped because its patch exceeds 4,096 KB, and exit successfully.
+- Do not record a patch-size outcome when measurement itself fails; report that tool failure normally.
 
 After making the code changes using the `edit` tool, emit a `create-pull-request` safe output:
 
