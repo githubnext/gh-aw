@@ -1,2 +1,2 @@
-{"id":"repos_compiled","question":"Did the agent find popular repositories using gh-aw lock files and attempt to compile or upgrade them?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-31T09:51:10.787Z","runid":"30620454187"}
-{"id":"compatibility_report_created","question":"Was a report created identifying compatibility gaps or was the cache updated with results?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-31T09:51:10.787Z","runid":"30620454187"}
+{"id":"repos_compiled","question":"Did the agent find popular repositories using gh-aw lock files and attempt to compile or upgrade them?","answer":"YES","model":"evals","timestamp":"2026-08-03T10:28:01.296Z","runid":"30803739616"}
+{"id":"compatibility_report_created","question":"Was a report created identifying compatibility gaps or was the cache updated with results?","answer":"YES","model":"evals","timestamp":"2026-08-03T10:28:01.296Z","runid":"30803739616"}
