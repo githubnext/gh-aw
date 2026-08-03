@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -307,10 +308,7 @@ func RunSetupAuth(opts SetupAuthOptions) error {
 }
 
 func runSetupAuthWithRuntime(opts SetupAuthOptions, runtime setupRepositoryRuntime) error {
-	ctx := opts.Ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := ctxutil.OrBackground(opts.Ctx)
 
 	configureDefaultGHHostFromOriginRemoteIfUnset()
 
@@ -363,10 +361,7 @@ func runSetupRepositoryCheckWithRuntime(opts SetupRepositoryCheckOptions, runtim
 		return err
 	}
 
-	ctx := opts.Ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := ctxutil.OrBackground(opts.Ctx)
 
 	configureDefaultGHHostFromOriginRemoteIfUnset()
 

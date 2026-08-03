@@ -1,11 +1,11 @@
 package workflow
 
 import (
-	"context"
 	"fmt"
 	"maps"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -40,10 +40,7 @@ func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, workf
 		return modelCosts
 	}
 
-	ctx := c.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := ctxutil.OrBackground(c.ctx)
 
 	pricing, ok := c.modelPricingResolver(ctx, provider, model)
 	if !ok || len(pricing) == 0 {
