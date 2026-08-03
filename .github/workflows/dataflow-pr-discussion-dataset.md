@@ -58,7 +58,6 @@ steps:
       from dataflow.operators.general_text import (
           CharNumberFilter,
           HashDeduplicateFilter,
-          MinHashDeduplicateFilter,
       )
 
       fixture_dir = Path("/tmp/gh-aw/agent/dataflow/smoke")
@@ -83,7 +82,6 @@ steps:
       if len(after_length) != 2:
           raise RuntimeError(f"unexpected CharNumberFilter result: {len(after_length)}")
 
-      _ = MinHashDeduplicateFilter(threshold=0.85)
       storage.write(after_length)
       storage.step()
       HashDeduplicateFilter().run(storage=storage, input_key="text")
@@ -106,7 +104,6 @@ steps:
           "dataflow_version": "",
           "selected_operators": [
               "CharNumberFilter",
-              "MinHashDeduplicateFilter",
               "HashDeduplicateFilter",
           ],
           "install_log": "$LOG",
@@ -232,7 +229,7 @@ GitHub Discussions + PRs
          │
          ▼
   ┌─────────────┐
-  │ DataFlow    │  Near-duplicate removal (MinHash or exact-hash fallback)
+  │ DataFlow    │  Exact-hash deduplication (HashDeduplicateFilter)
   │ Dedup       │
   └──────┬──────┘
          │
@@ -251,7 +248,6 @@ Read `/tmp/gh-aw/agent/dataflow/output/dataflow_runtime.json` first.
 - If `dataflow_ready` is `true`, use the smoke-tested current API:
   - `dataflow.utils.storage.FileStorage`
   - `dataflow.operators.general_text.CharNumberFilter`
-  - `dataflow.operators.general_text.MinHashDeduplicateFilter`
   - `dataflow.operators.general_text.HashDeduplicateFilter`
 - If `dataflow_ready` is `false`, print the recorded warning and use the pure-Python fallback pipeline.
 - Never use `AlphaWordsFilter`; it can trigger an implicit NLTK download.
@@ -346,9 +342,8 @@ Dataset cleaning pipeline:
   1. Load JSONL records and the runtime status file
   2. DataFlow char-length filter when the validated API is available
   3. Deterministic Python alpha-ratio filter (to avoid NLTK downloads)
-  4. DataFlow near-deduplication (MinHash, then exact-hash fallback) when available
-  5. Pure-Python exact-hash fallback when DataFlow is unavailable
-  6. Save clean output and honest execution-mode statistics
+  4. DataFlow exact-hash deduplication when available; pure-Python fallback otherwise
+  5. Save clean output and honest execution-mode statistics
 """
 
 import json
@@ -412,7 +407,7 @@ python_ops_used = []
 if dataflow_ready:
     try:
         from dataflow.utils.storage import FileStorage
-        from dataflow.operators.general_text import CharNumberFilter, HashDeduplicateFilter, MinHashDeduplicateFilter
+        from dataflow.operators.general_text import CharNumberFilter, HashDeduplicateFilter
 
         storage = FileStorage(
             first_entry_file_name=INPUT,
@@ -422,6 +417,7 @@ if dataflow_ready:
         CharNumberFilter(threshold=50).run(storage=storage, input_key="text")
         storage.step()  # step 1 = length-filter output
         records_after_length = storage.read("dict")
+        records_after_length = [r for r in records_after_length if len(r.get('text', '')) <= 100_000]
         dataflow_ops_used.append("CharNumberFilter")
         print(f"After CharNumberFilter: {len(records_after_length)} records")
     except Exception as e:
@@ -437,23 +433,16 @@ stats["after_length_filter"] = len(records_after_length)
 
 records_after_alpha = [r for r in records_after_length if alpha_ratio(r.get("text", "")) >= 0.25]
 stats["after_alpha_filter"] = len(records_after_alpha)
-python_ops_used.append("python_alpha_ratio_filter")
 
 records_after_dedup = records_after_alpha
 if dataflow_ready:
     try:
         storage.write(records_after_alpha)  # writes step 2
         storage.step()  # step 2 = alpha-filter output
-        try:
-            MinHashDeduplicateFilter(threshold=0.85).run(storage=storage, input_key="text")
-            dataflow_ops_used.append("MinHashDeduplicateFilter")
-        except Exception as minhash_error:
-            stats["warnings"].append(f"MinHashDeduplicateFilter failed: {minhash_error}")
-            print(f"MinHashDeduplicateFilter failed: {minhash_error} — trying HashDeduplicateFilter")
-            HashDeduplicateFilter().run(storage=storage, input_key="text")
-            dataflow_ops_used.append("HashDeduplicateFilter")
+        HashDeduplicateFilter().run(storage=storage, input_key="text")
         storage.step()  # step 3 = dedup output
         records_after_dedup = storage.read("dict")
+        dataflow_ops_used.append("HashDeduplicateFilter")
         print(f"After DataFlow deduplication: {len(records_after_dedup)} records")
     except Exception as e:
         stats["warnings"].append(f"DataFlow dedup failed: {e}")
@@ -465,19 +454,26 @@ else:
     python_ops_used.append("python_exact_hash_dedup")
 
 stats["after_dedup"] = len(records_after_dedup)
-stats["operators_used"] = dataflow_ops_used + python_ops_used
+stats["operators_used"] = dataflow_ops_used + ["python_alpha_ratio_filter"] + python_ops_used
 
-if dataflow_ops_used and python_ops_used:
-    stats["execution_mode"] = "mixed"
-elif dataflow_ops_used:
+if dataflow_ops_used and not python_ops_used:
     stats["execution_mode"] = "dataflow"
+elif dataflow_ops_used and python_ops_used:
+    stats["execution_mode"] = "mixed"
 else:
     stats["execution_mode"] = "fallback"
 stats["fallback_mode"] = stats["execution_mode"] == "fallback"
 
+_DATAFLOW_INTERNAL_KEYS = frozenset({
+    "char_number_filter_label",
+    "minhash_deduplicated_label",
+    "hash_deduplicated_label",
+})
+
 with open(OUTPUT, "w") as fh:
     for record in records_after_dedup:
-        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+        clean = {k: v for k, v in record.items() if k not in _DATAFLOW_INTERNAL_KEYS}
+        fh.write(json.dumps(clean, ensure_ascii=False) + "\n")
 print(f"{stats['execution_mode']} pipeline output: {len(records_after_dedup)} records → {OUTPUT}")
 
 # ── Write stats ───────────────────────────────────────────────────────────────
@@ -650,7 +646,7 @@ The pipeline applied these processing stages:
 1. **Normalise** — Merged discussions and PRs into unified JSONL (`title + body` → `text`)
 2. **Text length filter** — Kept records with 50–100,000 characters
 3. **Alpha-ratio filter** — Removed records with fewer than 25% alphabetic characters using a deterministic Python stage
-4. **Near-duplicate removal** — Eliminated near-identical records using DataFlow MinHash or exact-hash fallback
+4. **Near-duplicate removal** — Eliminated near-identical records using DataFlow HashDeduplicateFilter or exact-hash fallback
 {artifact_section}
 ### Pipeline Configuration
 
