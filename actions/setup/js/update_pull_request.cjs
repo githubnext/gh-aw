@@ -24,13 +24,19 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
  * @returns {boolean}
  */
 function isNonFatalUpdateBranchError(error) {
+  // Resolve the effective HTTP status by checking the error and its .originalError chain.
+  // withRetry wraps the original error in an enhanced error that lacks .status, so we need
+  // to walk the chain to find the underlying status from the GitHub API response.
   /** @type {number | undefined} */
   let status;
-  if (typeof error === "object" && error !== null && "status" in error) {
-    const candidateStatus = error.status;
-    if (typeof candidateStatus === "number") {
-      status = candidateStatus;
+  /** @type {any} */
+  let current = error;
+  while (current !== null && typeof current === "object") {
+    if ("status" in current && typeof current.status === "number") {
+      status = current.status;
+      break;
     }
+    current = current.originalError ?? null;
   }
   const message = getErrorMessage(error).toLowerCase();
   const hasWorkflowsPermissionPhrase = /without\s+`?workflows`?\s+permission/i.test(message);
@@ -61,11 +67,7 @@ function isNonFatalUpdateBranchError(error) {
   // are only checked for errors with no numeric status (status === undefined); the explicit 403
   // case is already handled by the if-block above.
   return (
-    (status === 422 && (
-      message.includes("there are no new commits on the base branch") ||
-      message.includes("merge conflict between base and head") ||
-      message.includes("head ref does not exist")
-    )) ||
+    (status === 422 && (message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || message.includes("head ref does not exist"))) ||
     ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined)
   );
 }
