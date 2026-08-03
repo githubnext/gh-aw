@@ -123,4 +123,28 @@ func TestMCPServerUnit_CompileTool(t *testing.T) {
 	require.NotEmpty(t, capturedArgs, "execCmd should have been called")
 	assert.Equal(t, "compile", capturedArgs[0], "first arg should be 'compile'")
 	assert.Contains(t, strings.Join(capturedArgs, " "), "--json", "compile should pass --json flag")
+	assert.NotContains(t, strings.Join(capturedArgs, " "), "--strict", "compile should not pass --strict flag by default")
+}
+
+// TestMCPServerUnit_CompileToolRejectsStrict verifies that the compile tool
+// returns an error when strict=true is passed, since the MCP tool does not
+// support strict mode compilation (use gh aw compile --strict from the CLI instead).
+func TestMCPServerUnit_CompileToolRejectsStrict(t *testing.T) {
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		// Should never be called when strict=true is rejected
+		t.Error("execCmd should not be called when strict=true is rejected")
+		return exec.CommandContext(ctx, "false")
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "gh-aw", Version: "test"}, nil)
+	require.NoError(t, registerCompileTool(server, mockExecCmd, ""), "registerCompileTool should succeed")
+	session := connectInMemory(t, server)
+
+	ctx := context.Background()
+	_, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "compile",
+		Arguments: map[string]any{"strict": true},
+	})
+	require.Error(t, err, "compile tool should return an error when strict=true is passed")
+	assert.Contains(t, err.Error(), "strict", "error message should mention strict")
 }

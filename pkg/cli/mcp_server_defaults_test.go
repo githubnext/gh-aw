@@ -12,10 +12,10 @@ import (
 // TestMCPToolElicitationDefaults verifies that MCP tools have appropriate
 // elicitation defaults configured according to SEP-1024.
 func TestMCPToolElicitationDefaults(t *testing.T) {
-	t.Run("compile tool has strict default", func(t *testing.T) {
+	t.Run("compile tool has no strict default (strict is not supported via MCP)", func(t *testing.T) {
 		type compileArgs struct {
 			Workflows  []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
-			Strict     bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows"`
+			Strict     bool     `json:"strict,omitempty" jsonschema:"Deprecated: not supported via the MCP tool"`
 			Zizmor     bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
 			Poutine    bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
 			Actionlint bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
@@ -28,28 +28,14 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 			t.Fatalf("Failed to generate schema: %v", err)
 		}
 
-		// Add default as done in createMCPServer
-		if err := AddSchemaDefault(schema, "strict", true); err != nil {
-			t.Fatalf("Failed to add default: %v", err)
-		}
-
-		// Verify the default was added
+		// Verify no default is set for strict (the MCP compile tool refuses strict=true at runtime)
 		strictProp, ok := schema.Properties["strict"]
 		if !ok {
 			t.Fatal("Expected 'strict' property to exist")
 		}
 
-		if len(strictProp.Default) == 0 {
-			t.Error("Expected 'strict' property to have a default value")
-		}
-
-		var strictDefault bool
-		if err := json.Unmarshal(strictProp.Default, &strictDefault); err != nil {
-			t.Fatalf("Failed to unmarshal strict default: %v", err)
-		}
-
-		if !strictDefault {
-			t.Errorf("Expected strict default to be true, got %v", strictDefault)
+		if len(strictProp.Default) != 0 {
+			t.Errorf("Expected 'strict' property to have no schema default, got %s", strictProp.Default)
 		}
 	})
 

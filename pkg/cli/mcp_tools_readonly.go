@@ -71,7 +71,7 @@ Returns a JSON array where each element has the following structure:
 // compileArgs holds the input parameters for the compile tool.
 type compileArgs struct {
 	Workflows   []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
-	Strict      bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows. Note: Workflows default to strict mode unless frontmatter sets strict: false"`
+	Strict      bool     `json:"strict,omitempty" jsonschema:"Deprecated: not supported via the MCP tool. Use gh aw compile --strict for strict mode compilation."`
 	Zizmor      bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
 	Poutine     bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
 	Actionlint  bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
@@ -91,15 +91,12 @@ type compileArgs struct {
 // enforcement.  An empty string disables this feature.
 // Returns an error if schema generation fails, which causes the server to stop registering tools.
 func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheFile string) error {
-	// Generate schema with elicitation defaults
+	// Generate schema without a strict default: the MCP compile tool does not
+	// support strict mode (strict: true is refused at runtime).
 	compileSchema, err := GenerateSchema[compileArgs]()
 	if err != nil {
 		mcpLog.Printf("Failed to generate compile tool schema: %v", err)
 		return err
-	}
-	// Add elicitation default: strict defaults to true (most common case)
-	if err := AddSchemaDefault(compileSchema, "strict", true); err != nil {
-		mcpLog.Printf("Failed to add default for strict: %v", err)
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -115,9 +112,8 @@ func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheF
 This tool generates .lock.yml files from .md workflow files. The .lock.yml files are what GitHub Actions
 actually executes, so failing to compile after modifying a .md file means your changes won't take effect.
 
-Workflows use strict mode validation by default (unless frontmatter sets strict: false).
-Strict mode enforces: action pinning to SHAs, explicit network config, safe-outputs for write operations,
-and refuses write permissions and deprecated fields. Use the strict parameter to override frontmatter settings.
+Workflows use their own frontmatter strict setting. The strict parameter is not supported via the MCP tool;
+use gh aw compile --strict from the CLI for strict mode compilation.
 
 Returns JSON array with validation results for each workflow:
 - workflow: Name of the workflow file
@@ -133,6 +129,12 @@ Returns JSON array with validation results for each workflow:
 		case <-ctx.Done():
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "request cancelled", ctx.Err().Error())
 		default:
+		}
+
+		// Refuse strict=true: the MCP compile tool does not support strict mode.
+		// Strict compilation must be done via the CLI (gh aw compile --strict).
+		if args.Strict {
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "compile with strict=true is not supported via the MCP tool; use gh aw compile --strict for strict mode compilation", nil)
 		}
 
 		// dockerUnavailableWarning is set when Docker is not accessible but the compile
@@ -201,11 +203,6 @@ Returns JSON array with validation results for each workflow:
 			cmdArgs = append(cmdArgs, "--fix")
 		}
 
-		// Add strict flag if requested
-		if args.Strict {
-			cmdArgs = append(cmdArgs, "--strict")
-		}
-
 		// Add static analysis flags if requested
 		if args.Zizmor {
 			cmdArgs = append(cmdArgs, "--zizmor")
@@ -240,8 +237,8 @@ Returns JSON array with validation results for each workflow:
 			cmdArgs = append(cmdArgs, "--prior-manifest-file", manifestCacheFile)
 		}
 
-		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v",
-			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint)
+		mcpLog.Printf("Executing compile tool: workflows=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v",
+			args.Workflows, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint)
 
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:

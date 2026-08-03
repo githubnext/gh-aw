@@ -479,8 +479,8 @@ This workflow has an unknown field.
 	t.Logf("Compile tool handled multiple workflows correctly: %d results", len(results))
 }
 
-// TestMCPServer_CompileToolWithStrictMode tests compile with strict mode flag
-
+// TestMCPServer_CompileToolWithStrictMode tests that compile refuses strict=true
+// since the MCP tool does not support strict mode (use gh aw compile --strict from the CLI).
 func TestMCPServer_CompileToolWithStrictMode(t *testing.T) {
 	// Skip if the binary doesn't exist
 	binaryPath := "../../gh-aw"
@@ -539,31 +539,24 @@ This workflow has strict mode disabled in frontmatter.
 	}
 	defer session.Close()
 
-	// Call compile tool with strict mode enabled
+	// Call compile tool with strict=true — the MCP server should refuse this.
 	params := &mcp.CallToolParams{
 		Name: "compile",
 		Arguments: map[string]any{
 			"strict": true,
 		},
 	}
-	result, err := session.CallTool(ctx, params)
+	_, err = session.CallTool(ctx, params)
 
-	// Should not return MCP error
-	if err != nil {
-		t.Errorf("Compile tool should not return MCP error with strict flag, got: %v", err)
+	// Should return an MCP error because strict=true is not supported via the MCP tool.
+	if err == nil {
+		t.Error("Compile tool should return an error when strict=true is passed")
+	} else {
+		t.Logf("Compile tool correctly refused strict=true: %v", err)
+		if !strings.Contains(err.Error(), "strict") {
+			t.Errorf("Expected error message to mention 'strict', got: %v", err)
+		}
 	}
-
-	// Verify we got results
-	if result == nil || len(result.Content) == 0 {
-		t.Fatal("Expected non-empty result content")
-	}
-
-	textContent, ok := result.Content[0].(*mcp.TextContent)
-	if !ok {
-		t.Fatal("Expected text content from compile tool")
-	}
-
-	t.Logf("Compile tool with strict mode returned: %s", textContent.Text)
 }
 
 // TestMCPServer_CompileToolWithSpecificWorkflows tests compiling specific workflows by name
