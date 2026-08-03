@@ -116,6 +116,11 @@ const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 // Workflows pinning an older AWF version must use the old --security-mode compat behavior.
 const AWFLegacySecurityMinVersion Version = "v0.27.32"
 
+// AWFDefaultAiCreditsPricingMinVersion is the minimum AWF version where
+// apiProxy.defaultAiCreditsPricing survives config resolution and reaches the
+// api-proxy container as AWF_DEFAULT_AI_CREDITS_PRICING.
+const AWFDefaultAiCreditsPricingMinVersion Version = "v0.27.43"
+
 // AWFAPIProxyProvidersMinVersion is the minimum AWF version that supports
 // apiProxy.providers in awf-config.json.
 // Workflows pinning an older AWF version must not emit this field because older
