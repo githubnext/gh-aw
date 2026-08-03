@@ -286,5 +286,21 @@ describe("push_experiment_state", () => {
       expect(checkoutFn).toHaveBeenCalledTimes(3);
       expect(mockCore.warning).toHaveBeenCalledTimes(2);
     });
+
+    it("does not retry deterministic failures", async () => {
+      const checkoutFn = vi.fn().mockImplementation(() => {
+        throw new Error("fatal: Authentication failed for 'https://github.com/o/r.git/'");
+      });
+
+      await expect(
+        checkoutOrCreateBranchWithRetry("evals/myworkflow", "******github.com/o/r.git", "/tmp/workdir", {
+          checkoutFn,
+          baseDelayMs: 0,
+        })
+      ).rejects.toThrow("Authentication failed");
+
+      expect(checkoutFn).toHaveBeenCalledTimes(1);
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
   });
 });

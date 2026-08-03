@@ -29,6 +29,7 @@ const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
+const { isTransientError } = require("./error_recovery.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
 function isPlainObject(value) {
@@ -313,12 +314,49 @@ function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
 }
 
 /**
+ * Git transport failures that are transient but not covered by the generic
+ * network patterns in isTransientError (git reports them with its own wording).
+ * Matched case-insensitively against the error message.
+ * @type {string[]}
+ */
+const TRANSIENT_GIT_PATTERNS = [
+  "the remote end hung up",
+  "early eof",
+  "rpc failed",
+  "http 5",
+  "unable to access",
+  "could not resolve host",
+  "connection reset",
+  "timed out",
+  "ssl_error",
+  "gnutls_handshake",
+  "failed to connect",
+  "server hung up",
+];
+
+/**
+ * Determine whether a checkout failure is a transient transport error worth
+ * retrying. Deterministic failures (authentication/permission errors, invalid
+ * refs, local checkout/rev-parse errors, orphan-branch filesystem errors) are
+ * not retried.
+ *
+ * @param {any} error
+ * @returns {boolean}
+ */
+function isTransientCheckoutError(error) {
+  if (isTransientError(error)) return true;
+  const msg = getErrorMessage(error).toLowerCase();
+  return TRANSIENT_GIT_PATTERNS.some(pattern => msg.includes(pattern));
+}
+
+/**
  * Wraps checkoutOrCreateBranch with retry-with-backoff so transient network
  * failures during the initial `git fetch` (e.g. HTTP 502s or timeouts against
- * the git remote) don't immediately fail the job. Genuine "missing ref"
- * conditions are handled inside checkoutOrCreateBranch itself and are not
- * retried here since they are resolved deterministically (orphan branch
- * creation), not by retrying.
+ * the git remote) don't immediately fail the job. Non-transient failures
+ * (authentication, permissions, local git errors, filesystem errors) are
+ * rethrown immediately. Genuine "missing ref" conditions are handled inside
+ * checkoutOrCreateBranch itself and are not retried here since they are
+ * resolved deterministically (orphan branch creation), not by retrying.
  *
  * @param {string} branchName
  * @param {string} repoUrl
@@ -334,6 +372,7 @@ async function checkoutOrCreateBranchWithRetry(branchName, repoUrl, workspaceDir
       return checkoutFn(branchName, repoUrl, workspaceDir);
     } catch (err) {
       lastError = err;
+      if (!isTransientCheckoutError(err)) throw err;
       if (attempt < maxRetries) {
         const delay = baseDelayMs * Math.pow(2, attempt);
         core.warning(`Failed to checkout branch "${branchName}" (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms: ${getErrorMessage(err)}`);
