@@ -64,11 +64,11 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 		initActionlintStats()
 	}
 
-	// Warn or error when shellcheck is explicitly requested via --shellcheck but not installed.
+	// Warn or error when shellcheck is requested (via --shellcheck or --validate) but not installed.
 	// Skip this check when --no-emit is set: no lock files are written so shellcheck
 	// is never invoked. When the binary is absent, Docker is used as a fallback (lazy
 	// — only when there are scripts to lint). Only warn/error when neither is available.
-	if config.Shellcheck && !config.NoEmit && !isShellcheckAvailable() {
+	if (config.Shellcheck || config.Validate) && !config.NoEmit && !isShellcheckAvailable() {
 		if !IsDockerAvailable(ctx) {
 			if config.Strict {
 				return nil, errors.New("shellcheck not available: binary not found in PATH and Docker is not running; install shellcheck or start Docker to enable run step linting")

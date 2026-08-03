@@ -74,6 +74,12 @@ func sanitizeGHAExpressions(script string) string {
 //	        body strings.
 var shellcheckDefaultIgnoreCodes = []string{"SC2016", "SC1090", "SC1091", "SC2002", "SC2129", "SC2153", "SC2154"}
 
+// shellcheckMaxConcurrency is the maximum number of shellcheck processes (or
+// Docker containers) that may run simultaneously. It bounds resource usage on
+// large workflow sets that would otherwise exhaust process or file-descriptor
+// limits.
+const shellcheckMaxConcurrency = 8
+
 // runStepInfo captures the information from a single run: step in a lock file
 // that is needed to run shellcheck on the script snippet.
 type runStepInfo struct {
@@ -217,10 +223,14 @@ func extractRunStepsFromLockFile(lockFile string) ([]runStepInfo, error) {
 }
 
 // runShellcheckOnScript writes script to a temporary file and invokes shellcheck.
-// It prints any findings to stderr and returns a non-nil error when shellcheck
-// reports one or more issues.
-func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool) error {
+// It returns any findings as a byte slice (ready to write to stderr) and a
+// non-nil error when shellcheck reports one or more issues. Callers are
+// responsible for writing the returned output to stderr so that concurrent
+// calls do not interleave their diagnostic blocks.
+func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool) ([]byte, error) {
 	shellcheckLog.Printf("Running shellcheck on step %q (shell=%s)", info.Name, info.Shell)
+
+	var out bytes.Buffer
 
 	// Sanitize GitHub Actions ${{ ... }} expressions before writing the script.
 	// Without this, shellcheck emits parse errors (SC1073, SC1083) because
@@ -230,13 +240,13 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 	// Write script to a temp file so shellcheck can lint it.
 	tmpFile, err := os.CreateTemp("", "gh-aw-shellcheck-*.sh")
 	if err != nil {
-		return fmt.Errorf("failed to create temp file for shellcheck: %w", err)
+		return nil, fmt.Errorf("failed to create temp file for shellcheck: %w", err)
 	}
 	defer os.Remove(tmpFile.Name())
 
 	if _, err := tmpFile.WriteString(sanitizedScript); err != nil {
 		tmpFile.Close()
-		return fmt.Errorf("failed to write shellcheck temp file: %w", err)
+		return nil, fmt.Errorf("failed to write shellcheck temp file: %w", err)
 	}
 	tmpFile.Close()
 
@@ -251,7 +261,7 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 
 	if verbose {
 		shellcheckLog.Printf("Invoking: shellcheck %s", strings.Join(args, " "))
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("shellcheck "+strings.Join(args[:len(args)-1], " ")+" <script>"))
+		fmt.Fprintf(&out, "%s\n", console.FormatInfoMessage("shellcheck "+strings.Join(args[:len(args)-1], " ")+" <script>"))
 	}
 
 	// #nosec G204 -- shellcheck is a trusted system binary; args are built
@@ -268,14 +278,14 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 	// are clearly relative to the run: script snippet rather than the lock
 	// file.  The enclosing header message ("shellcheck findings in <lock>")
 	// already identifies the originating file and step.
-	output := strings.ReplaceAll(stdout.String(), tmpFile.Name(), "script")
+	findings := strings.ReplaceAll(stdout.String(), tmpFile.Name(), "script")
 	if stderr.Len() > 0 {
-		output += strings.ReplaceAll(stderr.String(), tmpFile.Name(), "script")
+		findings += strings.ReplaceAll(stderr.String(), tmpFile.Name(), "script")
 	}
 
-	if output != "" {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("shellcheck findings in "+stepLabel(info)+":"))
-		fmt.Fprint(os.Stderr, output)
+	if findings != "" {
+		fmt.Fprintf(&out, "%s\n", console.FormatWarningMessage("shellcheck findings in "+stepLabel(info)+":"))
+		fmt.Fprint(&out, findings)
 	}
 
 	if err != nil {
@@ -283,13 +293,13 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() == 1 {
 				// Exit code 1 means shellcheck found issues; already printed above.
-				return fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
+				return out.Bytes(), fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
 			}
 		}
-		return fmt.Errorf("shellcheck failed: %w", err)
+		return out.Bytes(), fmt.Errorf("shellcheck failed: %w", err)
 	}
 
-	return nil
+	return out.Bytes(), nil
 }
 
 func stepLabel(info runStepInfo) string {
@@ -305,9 +315,13 @@ func stepLabel(info runStepInfo) string {
 //
 // This is the fallback path when the shellcheck binary is not installed locally
 // (e.g. on Windows). It mirrors the behaviour of runShellcheckOnScript: findings are
-// printed to stderr and an error is returned when shellcheck reports issues.
-func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignoreCodes []string, verbose bool) error {
+// returned as a byte slice and an error is returned when shellcheck reports issues.
+// Callers are responsible for writing the returned output to stderr so that concurrent
+// calls do not interleave their diagnostic blocks.
+func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignoreCodes []string, verbose bool) ([]byte, error) {
 	shellcheckLog.Printf("Running shellcheck via Docker on step %q (shell=%s)", info.Name, info.Shell)
+
+	var out bytes.Buffer
 
 	sanitizedScript := sanitizeGHAExpressions(info.Script)
 
@@ -326,7 +340,7 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 
 	if verbose {
 		shellcheckLog.Printf("Invoking: docker %s", strings.Join(args, " "))
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("docker run --rm -i "+ShellcheckImage+" <shellcheck flags> <script>"))
+		fmt.Fprintf(&out, "%s\n", console.FormatInfoMessage("docker run --rm -i "+ShellcheckImage+" <shellcheck flags> <script>"))
 	}
 
 	// #nosec G204 -- ShellcheckImage is a SHA-pinned constant; all other args are
@@ -344,8 +358,8 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 	// positions are clearly relative to the run: script snippet.
 	findings := strings.ReplaceAll(stdout.String(), "-:", "script:")
 	if findings != "" {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("shellcheck findings in "+stepLabel(info)+":"))
-		fmt.Fprint(os.Stderr, findings)
+		fmt.Fprintf(&out, "%s\n", console.FormatWarningMessage("shellcheck findings in "+stepLabel(info)+":"))
+		fmt.Fprint(&out, findings)
 	}
 
 	if err != nil {
@@ -353,17 +367,17 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() == 1 {
 				// Exit code 1 means shellcheck found issues; already printed above.
-				return fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
+				return out.Bytes(), fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
 			}
 		}
 		stderrText := strings.TrimSpace(strings.ReplaceAll(stderr.String(), "-:", "script:"))
 		if stderrText != "" {
-			return fmt.Errorf("shellcheck (docker) failed: %w: %s", err, stderrText)
+			return out.Bytes(), fmt.Errorf("shellcheck (docker) failed: %w: %s", err, stderrText)
 		}
-		return fmt.Errorf("shellcheck (docker) failed: %w", err)
+		return out.Bytes(), fmt.Errorf("shellcheck (docker) failed: %w", err)
 	}
 
-	return nil
+	return out.Bytes(), nil
 }
 
 // runShellcheckOnLockFiles extracts run: steps from each lock file and runs
@@ -377,9 +391,14 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 // to lint and the binary is absent.
 //
 // Steps across all lock files are collected first, then run in parallel using
-// goroutines. When strict is true, the first step failure causes an error to be
-// returned. In non-strict mode, all failures are printed as warnings and nil is
-// returned.
+// goroutines bounded by shellcheckMaxConcurrency. Each goroutine captures its
+// diagnostic output; after all goroutines finish the output is written to
+// stderr in step order so diagnostic blocks are never interleaved.
+//
+// In both strict and non-strict modes every step is checked before returning.
+// When strict is true, any step failure causes a non-nil error to be returned
+// after all steps have been checked (reports-all-then-errors). In non-strict
+// mode, all failures are printed as warnings and nil is returned.
 func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
 		return nil
@@ -419,30 +438,47 @@ func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose b
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running shellcheck on run steps in %d files", len(lockFiles))))
 	}
 
-	// Run shellcheck on all steps in parallel.
+	// Run shellcheck on all steps in parallel, bounded by shellcheckMaxConcurrency
+	// to avoid exhausting process or file-descriptor limits on large workflow sets.
+	// Each goroutine captures its output; after all finish the output is written to
+	// stderr in step order so diagnostic blocks are never interleaved.
 	type result struct {
-		err error
+		err    error
+		output []byte
 	}
 	results := make([]result, len(allSteps))
+	sem := make(chan struct{}, shellcheckMaxConcurrency)
 	var wg sync.WaitGroup
 	for i, step := range allSteps {
 		wg.Add(1)
 		go func(idx int, s runStepInfo) {
 			defer wg.Done()
+			// Acquire semaphore slot; abort if context is cancelled while waiting.
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+			defer func() { <-sem }()
+			var stepOutput []byte
 			var stepErr error
 			if useDocker {
-				stepErr = runShellcheckOnScriptViaDocker(ctx, s, shellcheckDefaultIgnoreCodes, verbose)
+				stepOutput, stepErr = runShellcheckOnScriptViaDocker(ctx, s, shellcheckDefaultIgnoreCodes, verbose)
 			} else {
-				stepErr = runShellcheckOnScript(s, shellcheckDefaultIgnoreCodes, verbose)
+				stepOutput, stepErr = runShellcheckOnScript(s, shellcheckDefaultIgnoreCodes, verbose)
 			}
-			results[idx] = result{err: stepErr}
+			results[idx] = result{err: stepErr, output: stepOutput}
 		}(i, step)
 	}
 	wg.Wait()
 
+	// Flush diagnostic output in step order after all goroutines finish.
 	var totalIssues int
 	var firstErr error
 	for i, r := range results {
+		if len(r.output) > 0 {
+			os.Stderr.Write(r.output) //nolint:errcheck
+		}
 		if r.err != nil {
 			totalIssues++
 			shellcheckLog.Printf("shellcheck issue in step %q: %v", allSteps[i].Name, r.err)

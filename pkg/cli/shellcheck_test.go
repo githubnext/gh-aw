@@ -303,7 +303,7 @@ exit 0
 			Shell:    "bash",
 			LockFile: "/tmp/test.lock.yml",
 		}
-		err := runShellcheckOnScriptViaDocker(context.Background(), info, []string{"SC2016"}, false)
+		_, err := runShellcheckOnScriptViaDocker(context.Background(), info, []string{"SC2016"}, false)
 		require.NoError(t, err)
 
 		argsText, readErr := os.ReadFile(os.Getenv("DOCKER_ARGS_FILE"))
@@ -331,9 +331,10 @@ exit 1
 			Shell:    "bash",
 			LockFile: "/tmp/test.lock.yml",
 		}
-		err := runShellcheckOnScriptViaDocker(context.Background(), info, nil, false)
+		out, err := runShellcheckOnScriptViaDocker(context.Background(), info, nil, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "shellcheck found issues")
+		assert.Contains(t, string(out), "shellcheck findings in")
 	})
 
 	t.Run("docker failure includes stderr", func(t *testing.T) {
@@ -349,7 +350,7 @@ exit 2
 			Shell:    "bash",
 			LockFile: "/tmp/test.lock.yml",
 		}
-		err := runShellcheckOnScriptViaDocker(context.Background(), info, nil, false)
+		_, err := runShellcheckOnScriptViaDocker(context.Background(), info, nil, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "shellcheck (docker) failed")
 		assert.Contains(t, err.Error(), "cannot connect to daemon")
@@ -394,6 +395,79 @@ exit 2
 	calls, readErr := os.ReadFile(os.Getenv("DOCKER_CALLS_FILE"))
 	require.NoError(t, readErr)
 	assert.Contains(t, string(calls), "run")
+}
+
+// TestRunShellcheckOnLockFiles_MultiStep verifies that the parallel fan-out
+// checks every run step, keeps diagnostics attributable to their steps, and
+// applies strict/non-strict error aggregation correctly (reports-all-then-errors
+// rather than failing on the first issue).
+func TestRunShellcheckOnLockFiles_MultiStep(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses shell script stub")
+	}
+
+	// Lock file with three bash run steps; step-b intentionally contains a
+	// script that the stub reports as having a finding.
+	lockFile := writeTempLockFile(t, `
+jobs:
+  build:
+    steps:
+      - name: step-a
+        run: echo ok
+      - name: step-b
+        run: echo bad_syntax_trigger
+      - name: step-c
+        run: echo ok
+`)
+
+	// Docker stub: records every invocation in DOCKER_CALLS_FILE, emits a
+	// synthetic finding (exit 1) for scripts containing "bad_syntax_trigger".
+	// Use absolute path for cat since PATH is restricted to the stub directory.
+	restore := stubDockerCommand(t, `#!/bin/sh
+if [ "${1:-}" = "info" ]; then
+  exit 0
+fi
+echo run >> "$DOCKER_CALLS_FILE"
+script=$(/usr/bin/cat)
+case "$script" in
+  *bad_syntax_trigger*)
+    printf 'script:1:1: warning: SC1000 synthetic finding\n'
+    exit 1
+    ;;
+esac
+exit 0
+`)
+	defer restore()
+
+	origPath := os.Getenv("PATH")
+	t.Cleanup(func() { os.Setenv("PATH", origPath) })
+	// Ensure native shellcheck cannot be discovered so Docker path is used.
+	require.NoError(t, os.Setenv("PATH", filepath.Dir(os.Getenv("DOCKER_BIN"))))
+
+	t.Run("non-strict: all steps checked, no error returned", func(t *testing.T) {
+		_ = os.Remove(os.Getenv("DOCKER_CALLS_FILE")) // may not exist on first run
+
+		err := runShellcheckOnLockFiles(context.Background(), []string{lockFile}, false, false)
+		require.NoError(t, err, "non-strict mode should not return error even when steps have findings")
+
+		calls, readErr := os.ReadFile(os.Getenv("DOCKER_CALLS_FILE"))
+		require.NoError(t, readErr)
+		assert.Equal(t, 3, strings.Count(string(calls), "run"), "all three steps should be invoked")
+	})
+
+	t.Run("strict: all steps checked, error returned after all complete", func(t *testing.T) {
+		_ = os.Remove(os.Getenv("DOCKER_CALLS_FILE")) // reset between sub-tests
+
+		err := runShellcheckOnLockFiles(context.Background(), []string{lockFile}, false, true)
+		require.Error(t, err, "strict mode should return error when a step has findings")
+		assert.Contains(t, err.Error(), "strict mode")
+
+		calls, readErr := os.ReadFile(os.Getenv("DOCKER_CALLS_FILE"))
+		require.NoError(t, readErr)
+		// Reports-all-then-errors: all three steps must have been checked even
+		// though step-b triggered a finding.
+		assert.Equal(t, 3, strings.Count(string(calls), "run"), "all three steps should be invoked even in strict mode")
+	})
 }
 
 func stubDockerCommand(t *testing.T, script string) func() {
