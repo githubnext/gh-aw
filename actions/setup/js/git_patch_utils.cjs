@@ -102,6 +102,77 @@ function buildExcludePathspecs(excludedFiles) {
 }
 
 /**
+ * Compute net UTF-8 bytes added by a unified diff.
+ *
+ * "Net added bytes" per file = (bytes in added lines) − (bytes in deleted lines), clamped to
+ * zero per file, then summed across all files in the diff.
+ *
+ * Using the net value instead of raw additions means that files which are
+ * completely rewritten with similar-sized content (e.g. a JSON object whose
+ * keys are regenerated) contribute only their actual growth to the patch-size
+ * budget rather than their entire new content.  This avoids the false positive
+ * where the tool reports "entire source code size" for a rewrite that barely
+ * changes the logical payload.
+ *
+ * Clamping is applied per file, not globally, so that a large deletion in one
+ * file cannot mask a large addition in a different file.  Each file's net
+ * contribution is clamped to zero independently before being added to the
+ * running total.
+ *
+ * Rules:
+ *   - Only lines inside diff hunks (after the first "@@" line) are examined.
+ *   - Lines that start with "+++" (file header) are excluded because they appear
+ *     before the first "@@" and are never inside a hunk.
+ *   - A new "diff " line flushes the current file's net contribution and resets
+ *     per-file counters.
+ *
+ * @param {string} patchContent - Output of `git diff` (unified diff format)
+ * @returns {number} Sum of per-file net added bytes (≥ 0)
+ */
+function getPatchDiffSizeBytes(patchContent) {
+  let inHunk = false;
+  let fileAdd = 0;
+  let fileDel = 0;
+  let total = 0;
+  for (const line of patchContent.split("\n")) {
+    if (line.startsWith("diff ")) {
+      total += Math.max(0, fileAdd - fileDel);
+      fileAdd = 0;
+      fileDel = 0;
+      inHunk = false;
+    } else if (line.startsWith("@@")) {
+      inHunk = true;
+    }
+    if (inHunk) {
+      if (line.startsWith("+")) {
+        fileAdd += Buffer.byteLength(line + "\n", "utf8");
+      } else if (line.startsWith("-")) {
+        fileDel += Buffer.byteLength(line + "\n", "utf8");
+      }
+    }
+  }
+  total += Math.max(0, fileAdd - fileDel);
+  return total;
+}
+
+/**
+ * Compute the net patch diff size for staged changes (git diff --cached).
+ *
+ * Returns the net bytes added by the staged diff: additions minus deletions,
+ * clamped to zero.  This is the "diff size" used to enforce max-patch-size on
+ * repo-memory pushes.
+ *
+ * @param {Object} options
+ * @param {(args: string[], opts?: Record<string, any>) => string} options.execGitSyncFn
+ * @param {string} [options.cwd]
+ * @returns {number}
+ */
+function getStagedPatchDiffSizeBytes({ execGitSyncFn, cwd }) {
+  const patchContent = execGitSyncFn(["diff", "--cached"], { stdio: "pipe", cwd });
+  return getPatchDiffSizeBytes(patchContent);
+}
+
+/**
  * Compute the net diff size in bytes between two refs in the given git repo.
  *
  * This is the value that should be compared against `max_patch_size` in
@@ -160,4 +231,6 @@ module.exports = {
   getPatchPathForBranchInRepo,
   buildExcludePathspecs,
   computeIncrementalDiffSize,
+  getPatchDiffSizeBytes,
+  getStagedPatchDiffSizeBytes,
 };
