@@ -42,7 +42,13 @@ var unverifiedCreatorActionPrefixes = []string{
 func injectZizmorUnverifiedCreatorAnnotations(yamlStr string) string {
 	lines := strings.Split(yamlStr, "\n")
 	result := make([]string, 0, len(lines)+4)
+	var blockScalarState yamlBlockScalarState
 	for _, line := range lines {
+		if blockScalarState.update(line) {
+			result = append(result, line)
+			continue
+		}
+
 		trimmed := strings.TrimLeft(line, " \t")
 		if actionRef, ok := strings.CutPrefix(trimmed, "uses: "); ok {
 			for _, prefix := range unverifiedCreatorActionPrefixes {
