@@ -283,6 +283,29 @@ func TestRunShellcheckOnLockFilesEmpty(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestRunShellcheckOnScriptVerboseDoesNotEmitInvocation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses shell script stub")
+	}
+
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "shellcheck")
+	require.NoError(t, os.WriteFile(bin, []byte("#!/bin/sh\nexit 0\n"), 0o755))
+
+	origPath := os.Getenv("PATH")
+	t.Cleanup(func() { _ = os.Setenv("PATH", origPath) })
+	require.NoError(t, os.Setenv("PATH", dir))
+
+	out, err := runShellcheckOnScript(runStepInfo{
+		Name:     "native step",
+		Script:   "echo hello",
+		Shell:    "bash",
+		LockFile: "/tmp/test.lock.yml",
+	}, shellcheckDefaultIgnoreCodes, true)
+	require.NoError(t, err)
+	assert.Empty(t, out)
+}
+
 func TestRunShellcheckOnScriptViaDocker(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses shell script stub")
@@ -303,8 +326,9 @@ exit 0
 			Shell:    "bash",
 			LockFile: "/tmp/test.lock.yml",
 		}
-		_, err := runShellcheckOnScriptViaDocker(context.Background(), info, []string{"SC2016"}, false)
+		out, err := runShellcheckOnScriptViaDocker(context.Background(), info, []string{"SC2016"}, true)
 		require.NoError(t, err)
+		assert.Empty(t, out)
 
 		argsText, readErr := os.ReadFile(os.Getenv("DOCKER_ARGS_FILE"))
 		require.NoError(t, readErr)

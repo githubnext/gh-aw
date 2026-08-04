@@ -261,7 +261,6 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 
 	if verbose {
 		shellcheckLog.Printf("Invoking: shellcheck %s", strings.Join(args, " "))
-		fmt.Fprintf(&out, "%s\n", console.FormatInfoMessage("shellcheck "+strings.Join(args[:len(args)-1], " ")+" <script>"))
 	}
 
 	// #nosec G204 -- shellcheck is a trusted system binary; args are built
@@ -340,7 +339,6 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 
 	if verbose {
 		shellcheckLog.Printf("Invoking: docker %s", strings.Join(args, " "))
-		fmt.Fprintf(&out, "%s\n", console.FormatInfoMessage("docker run --rm -i "+ShellcheckImage+" <shellcheck flags> <script>"))
 	}
 
 	// #nosec G204 -- ShellcheckImage is a SHA-pinned constant; all other args are
