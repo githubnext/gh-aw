@@ -284,4 +284,22 @@ content there could realistically breach 4096 KB).
   4096KB-cap analysis assumed. Bundle 3033.91KB (24.65% smaller, zlib-vs-base64 law
   holds). batch-xlarge tier: clean-single done, ahead/merge_msg/diverged remain (172-179).
 - **Zero real fail/error/rejected across 172 cells.**
-- **Next index: 172** = tiny-none-batch-xlarge-clean-multi.
+
+## Run 2026-08-04: idx172-175 (batch-xlarge clean+ahead tiers CLOSED)
+
+- **idx172 clean-multi: PASS.** 3 disjoint commits (34/33/33f)/4083.07KB/100f, headroom
+  ~1037KB. Pairwise `comm -12` confirmed zero filename overlap across commits.
+- **idx173 clean-merge_msg: PASS.** 1c/100f/4082.52KB. Filename leak reconfirmed
+  (`0001-Merge-branch-topic-xyz-into-feature.patch`), parent=1/merges=empty.
+- **idx174 ahead-single: PASS.** Initial 1c/100f/4082.54KB + followup push 1c/1f/3.64KB
+  = 101f/4086.18KB/2c total. ff rc0 (OLD_TIP→feature ancestor).
+- **idx175 ahead-multi: PASS.** Initial 3 disjoint commits/100f/4037.24KB + followup
+  push 1c/1f/4.59KB = 101f/4041.83KB/4c. Same-run single-baseline A/B ratio 1.0001x
+  (4134133/4133528B) — tightest disjoint-multi≈1x confirmation yet, even at xlarge+batch.
+- **batch-xlarge tier: clean+ahead CLOSED (9/9... actually 6/9; diverged×3 remain).**
+  All 4 well under 5120KB cap (~20-21% utilized) and 200-file cap (100-101 touched).
+  No new laws contradicted; disjoint-multi≈1x and merge_msg filename-leak hold at
+  the largest payload/file-count tier tested yet.
+- **Zero real fail/error/rejected across 176 cells.**
+- **Next index: 176** = tiny-none-batch-xlarge-diverged-single (closes batch-xlarge
+  tier fully; last cell before HISTORY moves off "none", idx180+).
