@@ -340,9 +340,9 @@ describe("check_permissions_utils", () => {
         permission: "Security Champions",
       });
       expect(mockGithub.rest.orgs.listCustomRepoRoles).not.toHaveBeenCalled();
-      expect(mockCore.info).toHaveBeenCalledWith("Repository permission API fields for 'testuser': permission='write', role='Security Champions'");
-      expect(mockCore.info).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='write'");
-      expect(mockCore.info).toHaveBeenCalledWith("Repository permission matched required role 'write' via base-role");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission API fields for 'testuser': permission='write', role='Security Champions'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='write'");
+      expect(mockCore.info).toHaveBeenCalledWith("Custom repository role 'Security Champions' satisfied required role 'write' via base role");
       expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
     });
 
@@ -416,7 +416,7 @@ describe("check_permissions_utils", () => {
         permission: "Security Champions",
       });
       expect(mockCore.warning).toHaveBeenCalledWith("Ignoring 'admin' permission reported for custom repository role 'Security Champions': custom roles cannot grant admin access");
-      expect(mockCore.info).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='<empty>'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='<empty>'");
     });
 
     it("should not let an admin-permission custom org role satisfy a lesser required role", async () => {
@@ -501,7 +501,7 @@ describe("check_permissions_utils", () => {
         authorized: false,
         permission: "Security Champions",
       });
-      expect(mockCore.info).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='<empty>'");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='<empty>'");
       expect(mockCore.info).toHaveBeenCalledWith("Repository permission fallback unavailable for custom role 'Security Champions' because GitHub did not report a standard permission level");
       expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: write");
     });
