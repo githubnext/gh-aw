@@ -25,7 +25,7 @@ const GitHubMCPFeatureFieldsParam = "fields_param"
 //   - search_issues / list_issues:               omit "body", "reactions"
 //   - search_code:                               omit "repository", "text_matches"
 //   - list_commits:                              omit "parents", "stats", "files"
-//   - get_file_contents (directory listing):     limit to "name", "type"
+//   - get_file_contents (directory listing):     include metadata needed to avoid full file reads
 //   - list_releases:                             omit "body", "assets", "author"
 var GitHubMCPDefaultFields = map[string][]string{
 	"list_pull_requests": {
@@ -83,6 +83,8 @@ var GitHubMCPDefaultFields = map[string][]string{
 	"get_file_contents": {
 		"name",
 		"type",
+		"size",
+		"path",
 	},
 	"list_releases": {
 		"id",
