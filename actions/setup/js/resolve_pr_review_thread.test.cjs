@@ -39,14 +39,14 @@ global.context = mockContext;
  * @param {number} lookupPRNumber - PR number returned by the thread lookup query
  * @param {string} [lookupRepo] - Repository nameWithOwner returned by the lookup query (default: "test-owner/test-repo")
  */
-function mockGraphqlForThread(lookupPRNumber, lookupRepo = "test-owner/test-repo") {
+function mockGraphqlForThread(lookupPRNumber, lookupRepo = "test-owner/test-repo", lookupThreadId = "PRRT_kwDOABCD123456") {
   mockGraphql.mockImplementation(query => {
     if (query.includes("resolveReviewThread")) {
       // Mutation
       return Promise.resolve({
         resolveReviewThread: {
           thread: {
-            id: "PRRT_kwDOABCD123456",
+            id: lookupThreadId,
             isResolved: true,
           },
         },
@@ -56,6 +56,7 @@ function mockGraphqlForThread(lookupPRNumber, lookupRepo = "test-owner/test-repo
     return Promise.resolve({
       node: {
         __typename: "PullRequestReviewThread",
+        id: lookupThreadId,
         isResolved: false,
         pullRequest: {
           number: lookupPRNumber,
@@ -176,6 +177,7 @@ describe("resolve_pr_review_thread", () => {
                     id: "PRRT_kwDOThread123",
                     isResolved: false,
                     comments: {
+                      pageInfo: { hasNextPage: false, endCursor: null },
                       nodes: [{ id: "PRRC_kwDOComment123" }],
                     },
                   },
@@ -212,6 +214,129 @@ describe("resolve_pr_review_thread", () => {
     expect(result.thread_id).toBe("PRRT_kwDOThread123");
     expect(result.is_resolved).toBe(true);
     expect(mockGraphql).toHaveBeenCalledTimes(3);
+    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("resolveReviewThread"), expect.objectContaining({ threadId: "PRRT_kwDOThread123" }));
+  });
+
+  it("should return comment_without_thread when the PRRC_ ID is not found in any review thread", async () => {
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("reviewThreads")) {
+        return Promise.resolve({
+          repository: {
+            pullRequest: {
+              reviewThreads: {
+                pageInfo: { hasNextPage: false, endCursor: null },
+                nodes: [
+                  {
+                    id: "PRRT_kwDOThread999",
+                    isResolved: false,
+                    comments: {
+                      pageInfo: { hasNextPage: false, endCursor: null },
+                      nodes: [{ id: "PRRC_kwDOOtherComment" }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        node: {
+          __typename: "PullRequestReviewComment",
+          pullRequest: {
+            number: 42,
+            repository: {
+              name: "test-repo",
+              nameWithOwner: "test-owner/test-repo",
+              owner: { login: "test-owner" },
+            },
+          },
+        },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRC_kwDOComment123",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("PRRC_kwDOComment123");
+  });
+
+  it("should resolve a review comment found on a later comments page within a thread", async () => {
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        return Promise.resolve({
+          resolveReviewThread: {
+            thread: {
+              id: "PRRT_kwDOThread123",
+              isResolved: true,
+            },
+          },
+        });
+      }
+      if (query.includes("threadId") && query.includes("comments(first: 100, after:")) {
+        // Second comments page for the thread — contains the matching comment
+        return Promise.resolve({
+          node: {
+            comments: {
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: [{ id: "PRRC_kwDOComment123" }],
+            },
+          },
+        });
+      }
+      if (query.includes("reviewThreads")) {
+        return Promise.resolve({
+          repository: {
+            pullRequest: {
+              reviewThreads: {
+                pageInfo: { hasNextPage: false, endCursor: null },
+                nodes: [
+                  {
+                    id: "PRRT_kwDOThread123",
+                    isResolved: false,
+                    comments: {
+                      pageInfo: { hasNextPage: true, endCursor: "cursor-page2" },
+                      nodes: [{ id: "PRRC_kwDOOtherComment" }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        node: {
+          __typename: "PullRequestReviewComment",
+          pullRequest: {
+            number: 42,
+            repository: {
+              name: "test-repo",
+              nameWithOwner: "test-owner/test-repo",
+              owner: { login: "test-owner" },
+            },
+          },
+        },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRC_kwDOComment123",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.thread_id).toBe("PRRT_kwDOThread123");
+    expect(result.is_resolved).toBe(true);
     expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("resolveReviewThread"), expect.objectContaining({ threadId: "PRRT_kwDOThread123" }));
   });
 
@@ -321,7 +446,7 @@ describe("resolve_pr_review_thread", () => {
     // Simulate a schedule-triggered workflow (no pull_request in payload)
     global.context.payload = {};
 
-    mockGraphqlForThread(77);
+    mockGraphqlForThread(77, "test-owner/test-repo", "PRRT_kwDOSchedule77");
 
     const { main } = require("./resolve_pr_review_thread.cjs");
     const freshHandler = await main({ max: 10 });
@@ -583,7 +708,7 @@ describe("resolve_pr_review_thread - cross-repo support", () => {
   });
 
   it("should allow resolving a thread in target-repo when configured", async () => {
-    mockGraphqlForThread(10, "other-owner/other-repo");
+    mockGraphqlForThread(10, "other-owner/other-repo", "PRRT_kwDOCrossRepo");
 
     const { main } = require("./resolve_pr_review_thread.cjs");
     const freshHandler = await main({

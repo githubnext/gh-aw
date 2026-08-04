@@ -79,7 +79,7 @@ async function getThreadPullRequestInfo(github, threadId) {
 
   return {
     status: "thread",
-    threadId: threadNode.id || threadId,
+    threadId: threadNode.id,
     prNumber: pullRequest.number,
     repoNameWithOwner: pullRequest.repository?.nameWithOwner ?? null,
     isResolved: threadNode?.isResolved === true,
@@ -108,41 +108,64 @@ async function findThreadInfoForReviewComment(github, commentId, commentNode) {
     return { status: "comment_without_thread" };
   }
 
-  let cursor = null;
-  do {
-    const query = /* GraphQL */ `
-      query ($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
-        repository(owner: $owner, name: $repo) {
-          pullRequest(number: $number) {
-            reviewThreads(first: 100, after: $cursor) {
-              pageInfo {
-                hasNextPage
-                endCursor
-              }
-              nodes {
-                id
-                isResolved
-                comments(first: 100) {
-                  nodes {
-                    id
-                  }
+  const threadListQuery = /* GraphQL */ `
+    query ($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $number) {
+          reviewThreads(first: 100, after: $cursor) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+              isResolved
+              comments(first: 100) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  id
                 }
               }
             }
           }
         }
       }
-    `;
+    }
+  `;
 
-    const result = await github.graphql(query, {
+  const threadCommentsQuery = /* GraphQL */ `
+    query ($threadId: ID!, $cursor: String) {
+      node(id: $threadId) {
+        ... on PullRequestReviewThread {
+          comments(first: 100, after: $cursor) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  let threadCursor = null;
+  do {
+    const result = await github.graphql(threadListQuery, {
       owner: repoOwner,
       repo: repoName,
       number: prNumber,
-      cursor,
+      cursor: threadCursor,
     });
     const reviewThreads = result?.repository?.pullRequest?.reviewThreads;
 
     for (const thread of reviewThreads?.nodes || []) {
+      // Check first page of comments for this thread
       if ((thread.comments?.nodes || []).some(comment => comment?.id === commentId)) {
         return {
           status: "thread",
@@ -152,10 +175,30 @@ async function findThreadInfoForReviewComment(github, commentId, commentNode) {
           isResolved: thread.isResolved === true,
         };
       }
+
+      // If there are more comment pages, paginate within this thread
+      let commentCursor = thread.comments?.pageInfo?.hasNextPage ? thread.comments.pageInfo.endCursor : null;
+      while (commentCursor) {
+        const commentResult = await github.graphql(threadCommentsQuery, {
+          threadId: thread.id,
+          cursor: commentCursor,
+        });
+        const commentsPage = commentResult?.node?.comments;
+        if ((commentsPage?.nodes || []).some(comment => comment?.id === commentId)) {
+          return {
+            status: "thread",
+            threadId: thread.id,
+            prNumber,
+            repoNameWithOwner,
+            isResolved: thread.isResolved === true,
+          };
+        }
+        commentCursor = commentsPage?.pageInfo?.hasNextPage ? commentsPage.pageInfo.endCursor : null;
+      }
     }
 
-    cursor = reviewThreads?.pageInfo?.hasNextPage ? reviewThreads.pageInfo.endCursor : null;
-  } while (cursor);
+    threadCursor = reviewThreads?.pageInfo?.hasNextPage ? reviewThreads.pageInfo.endCursor : null;
+  } while (threadCursor);
 
   return { status: "comment_without_thread" };
 }
