@@ -190,6 +190,28 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	})
 }
 
+func TestExtractAgentSandboxConfigTokenSteering(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts sandbox.agent.token-steering false", func(t *testing.T) {
+		config := compiler.extractAgentSandboxConfig(map[string]any{
+			"id":             "awf",
+			"token-steering": false,
+		})
+
+		require.NotNil(t, config)
+		require.NotNil(t, config.TokenSteering)
+		assert.False(t, *config.TokenSteering)
+	})
+
+	t.Run("token-steering is nil when absent", func(t *testing.T) {
+		config := compiler.extractAgentSandboxConfig(map[string]any{"id": "awf"})
+
+		require.NotNil(t, config)
+		assert.Nil(t, config.TokenSteering)
+	})
+}
+
 func TestExtractAgentSandboxConfigMemory(t *testing.T) {
 	compiler := &Compiler{}
 

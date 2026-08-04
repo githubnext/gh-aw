@@ -162,6 +162,16 @@ When omitted, AWF's own default memory limit applies. Specifying an invalid form
 > [!NOTE]
 > Exit code 137 means the process received `SIGKILL`. A memory limit can be one cause, but verify with logs before changing `memory`. If you increase `memory`, leave headroom for the runner OS and other processes.
 
+#### Token steering (`sandbox.agent.token-steering`)
+
+AWF enables API proxy token steering by default. To keep the explicitly configured provider and model, disable it for a workflow:
+
+```yaml wrap
+sandbox:
+  agent:
+    token-steering: false
+```
+
 #### Copilot BYOK request customization (`sandbox.agent.targets.copilot`)
 
 When routing Copilot through a BYOK-compatible upstream behind the AWF proxy, you can attach custom headers, extra request body fields, and an explicit session identifier on upstream requests:
