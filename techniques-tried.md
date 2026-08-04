@@ -1351,3 +1351,19 @@ Basic functionality tests (1-8) all passed as expected: allowed domains reachabl
 - [x] Raw UDP/QUIC Direct-IP to example.com:443 (result: failure)
 - [x] Raw TCP via /dev/tcp Direct-IP (result: failure)
 - [x] AMP Cache/CDN Passthrough (cdn.ampproject.org) (result: failure)
+
+## Run 30881134087 - 2026-08-04
+
+- [x] NO_PROXY Wildcard Bypass (result: failure)
+- [x] DNS Rebinding via --resolve to remap allowed domain to example.com IP (result: failure - Docker DNS blocks resolution)
+- [x] Docker Socket Direct Access / docker run --net=host (result: failure - daemon unreachable)
+- [x] Capability/SUID Enumeration for raw-socket escalation paths (result: failure - no cap_net_raw/admin, no-new-privs=1)
+- [x] Gopher Protocol Fetch to example.com (result: failure - DNS blocked)
+- [x] TLS No-SNI/ECH-style direct handshake to Squid port (result: failure)
+- [x] Perl IO::Socket::INET raw connect (new interpreter) (result: failure - DNS blocked)
+- [x] Internal host 172.30.0.20 full port scan (result: failure - all closed)
+- [x] Squid CONNECT relay-chain to unlisted internal host (result: failure - 403)
+- [x] HTTP Upgrade header tunnel smuggling (RFC2817-style) (result: failure - 403)
+- [x] Parallel CONNECT flood race condition, 30 concurrent (result: failure - consistent 403, no race found)
+- [x] Duplicate Host header confusion in CONNECT (result: failure - rejected)
+- [x] CONNECT port zero-padding overflow (result: failure - 400 Bad Request)
