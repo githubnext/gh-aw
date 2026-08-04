@@ -57,6 +57,10 @@ engine:
         - --no-stream
         - --no-fancy-input
         - --analytics-disable
+        - --openai-api-base
+        - http://172.30.0.30:10002/v1
+        - --openai-api-key
+        - awf-copilot-proxy
       step-name: Execute Aider CLI
       model-env-var: AIDER_MODEL
       model-env-provider-prefix: openai
@@ -103,7 +107,7 @@ Import this file and set `engine: id: aider` to use it:
 ```yaml
 engine:
   id: aider
-model: copilot/claude-sonnet-4.5
+model: copilot/claude-sonnet-4-5
 imports:
   - shared/aider.md
 ```

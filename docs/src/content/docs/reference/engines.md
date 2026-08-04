@@ -74,7 +74,7 @@ Because Goose is provider-routed through the AWF proxy, the workflow still needs
 engine:
   id: aider
 
-model: copilot/claude-sonnet-4.5
+model: copilot/claude-sonnet-4-5
 imports:
   - shared/aider.md
 ```
