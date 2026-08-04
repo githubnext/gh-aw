@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-03T19:13:00Z",
+  "last_run": "2026-08-04T01:11:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -307,6 +307,20 @@
       "issue_number": null,
       "title": "Fix context.TODO() misused as permanent nil-context fallback in docker_images.go and github_cli.go",
       "created_at": "2026-08-03T19:13:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50119,
+      "issue_number": null,
+      "title": "Investigate sentrux 0-rules-checked tooling gap",
+      "created_at": "2026-08-04T01:11:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50116,
+      "issue_number": null,
+      "title": "Add gh-aw-detection: true to 4 misconfigured workflows",
+      "created_at": "2026-08-04T01:11:00Z",
       "status": "created"
     }
   ]
