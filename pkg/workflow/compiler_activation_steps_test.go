@@ -163,7 +163,7 @@ func TestActivationStepsAddRepositoryAndOutputSteps(t *testing.T) {
 			NeedsTextOutput: true,
 			Model:           "/bad-provider",
 			EngineConfig: &EngineConfig{
-				ID: "opencode",
+				ID: "pi",
 			},
 		}, false, "", "test.lock.yml")
 
@@ -334,7 +334,7 @@ func TestActivationStepsAddTextOutputStep(t *testing.T) {
 			NeedsTextOutput: true,
 			Model:           "/bad-provider",
 			EngineConfig: &EngineConfig{
-				ID: "opencode",
+				ID: "pi",
 			},
 		})
 
@@ -374,7 +374,7 @@ func TestActivationStepsComputeActivationSanitizationDomains(t *testing.T) {
 		_, err := compiler.computeActivationSanitizationDomains(&WorkflowData{
 			Model: "/bad-provider",
 			EngineConfig: &EngineConfig{
-				ID: "opencode",
+				ID: "pi",
 			},
 		})
 
