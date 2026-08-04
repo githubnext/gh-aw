@@ -235,6 +235,36 @@ async function checkBotStatus(actor, owner, repo) {
 }
 
 /**
+ * Resolve the base role of an organization custom repository role.
+ *
+ * The repository collaborator permission endpoint only reports the custom role's display
+ * name; the standard permission it derives from is published by
+ * `GET /orgs/{org}/custom-repository-roles` as `base_role` (read | triage | write | maintain).
+ *
+ * @param {string} org - Organization login (repository owner)
+ * @param {string} roleName - Custom role name reported by the collaborator permission API
+ * @returns {Promise<string>} Normalized base role, or "" when it cannot be resolved
+ */
+async function resolveCustomRoleBaseRole(org, roleName) {
+  try {
+    const response = await github.rest.orgs.listCustomRepoRoles({ org });
+    /** @type {Array<{name?: unknown, base_role?: unknown}>} */
+    const customRoles = response?.data?.custom_roles ?? [];
+    const target = roleName.toLowerCase();
+    const match = customRoles.find(role => typeof role?.name === "string" && role.name.toLowerCase() === target);
+    if (!match) {
+      core.debug?.(`Custom repository role '${roleName}' not found in organization '${org}'`);
+      return "";
+    }
+    const baseRole = typeof match.base_role === "string" ? normalizeRoleName(match.base_role.toLowerCase()) : "";
+    return STANDARD_ROLES.has(baseRole) ? baseRole : "";
+  } catch (error) {
+    core.debug?.(`Failed to resolve custom repository roles for organization '${org}': ${getErrorMessage(error)}`);
+    return "";
+  }
+}
+
+/**
  * Check if user has required repository permissions
  * @param {string} actor - GitHub username to check
  * @param {string} owner - Repository owner
@@ -253,39 +283,36 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
       username: actor,
     });
 
-    /** @type {{ permission: string, role_name?: unknown, inherited_role?: unknown }} */
+    /** @type {{ permission: string, role_name?: unknown }} */
     const repoPermissionData = repoPermission.data;
     const permission = repoPermissionData.permission;
     const rawRoleName = repoPermissionData.role_name;
     const roleName = rawRoleName == null ? "" : typeof rawRoleName === "string" ? rawRoleName : "";
-    const rawInheritedRole = repoPermissionData.inherited_role;
-    const inheritedRole = rawInheritedRole == null ? "" : typeof rawInheritedRole === "string" ? rawInheritedRole : "";
     const normalizedRoleName = normalizeRoleName(roleName);
     const normalizedPermission = normalizeRoleName(permission);
-    const normalizedInheritedRole = normalizeRoleName(inheritedRole);
     const effectiveRole = normalizedRoleName || normalizedPermission;
     const logDetails = normalizedRoleName && normalizedRoleName !== normalizedPermission ? `${normalizedPermission} (role: ${normalizedRoleName})` : normalizedPermission;
     core.info(`Repository permission level: ${logDetails}`);
 
     // Standard GitHub repository permission levels. Custom org repository roles (e.g.
-    // "Security Champions") have a role_name that is not one of these — for those, use
-    // the inherited standard role from GitHub's custom-role metadata so the actor is not
-    // blocked simply because their custom role name is not literally listed in on.roles.
+    // "Security Champions") have a role_name that is not one of these — for those, resolve
+    // the role's base_role from the organization's custom repository role definitions so the
+    // actor is not blocked simply because their custom role name is not literally listed in
+    // on.roles.
     const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
-    const inheritedStandardRole = isCustomRole && STANDARD_ROLES.has(normalizedInheritedRole) ? normalizedInheritedRole : "";
+    const resolvedBaseRole = isCustomRole ? await resolveCustomRoleBaseRole(owner, roleName) : "";
     const debugRoleName = normalizedRoleName || "<empty>";
-    const debugInheritedRole = normalizedInheritedRole || "<empty>";
-    const debugInheritedStandardRole = inheritedStandardRole || "<empty>";
-    core.debug?.(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}', inherited='${debugInheritedRole}'`);
-    core.debug?.(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, inherited_standard_role='${debugInheritedStandardRole}'`);
-    if (isCustomRole && inheritedStandardRole === "") {
-      core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not provide an inherited standard role`);
+    const debugBaseRole = resolvedBaseRole || "<empty>";
+    core.debug?.(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}'`);
+    core.debug?.(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, base_role='${debugBaseRole}'`);
+    if (isCustomRole && resolvedBaseRole === "") {
+      core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not provide a base_role`);
     }
 
     // Check if user has one of the required permission levels.
     // For standard roles, use role_name (precise: maintain/triage are not collapsed to
-    // write/read). For custom org roles, only fall back to the inherited standard role
-    // from custom-role metadata; fail closed if GitHub does not provide it.
+    // write/read). For custom org roles, only fall back to the role's base_role from the
+    // organization custom-role definitions; fail closed if it cannot be resolved.
     /** @type {{ permission: string, roleMatchType: string }|null} */
     let permissionMatch = null;
     for (const requiredPerm of requiredPermissions) {
@@ -294,8 +321,8 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
         permissionMatch = { permission: normalizedRequired, roleMatchType: "effective-role" };
         break;
       }
-      if (normalizedRequired === inheritedStandardRole) {
-        permissionMatch = { permission: normalizedRequired, roleMatchType: "inherited-standard-role" };
+      if (resolvedBaseRole !== "" && normalizedRequired === resolvedBaseRole) {
+        permissionMatch = { permission: normalizedRequired, roleMatchType: "base-role" };
         break;
       }
     }
