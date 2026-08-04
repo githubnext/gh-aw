@@ -21,6 +21,34 @@ A maintenance workflow should make useful progress without consuming disproporti
 
 These rules deliberately balance bias toward progress with quality over quantity. The workflow should search systematically for useful work, but it should not manufacture comments or changes to prove activity.
 
+## Survey the repository before choosing a strategy
+
+Do not begin maintenance workflow design from a generic task portfolio. First inspect the target repository so the initial strategy reflects its technology, activity, backlog, and maintainer practices.
+
+Build a bounded baseline from:
+
+| Area | Signals to inspect |
+|---|---|
+| Project shape | Languages, manifests, generated files, monorepo boundaries, package layout, build systems, and deployment targets |
+| Repository policy | `AGENTS.md`, `CONTRIBUTING.md`, `CODEOWNERS`, pull request templates, protected paths, release practices, and existing automation |
+| Activity pattern | Commits, releases, issue and pull request arrival/closure rates, contributor activity, and bot-generated activity over a stated window |
+| Issue state | Open count, age distribution, unlabelled and stale items, milestones, response status, common categories, and duplicate signals |
+| Pull request state | Open count, age, reviews, failed checks, merge conflicts, abandoned work, and workflow-owned versus contributor-owned branches |
+| Operational health | Format/lint/build/test commands, CI reliability, dependency update volume, flaky tests, release cadence, and recurring failures |
+
+Use deterministic GitHub queries and repository inspection for this survey. Bound every query, state the observation window and limits, and mark unavailable data instead of guessing. Distinguish observations from recommendations in the design summary.
+
+Derive the first portfolio from the evidence. For example:
+
+- a large unlabelled issue backlog favors bounded classification before code changes
+- many unanswered but active issues favors investigation and substantive responses
+- unhealthy workflow-owned pull requests favors self-maintenance before creating more
+- high contributor pull request volume favors review support and conservative stale-follow-up rules
+- low activity or sparse tests favors low cadence, documentation, test discovery, and maintainer reports
+- frequent releases or dependency churn favors release, dependency, and CI health tasks
+
+Recommend two or three low-risk task families, a conservative cadence, per-run limits, state requirements, and pressure valves. Ask maintainers only for policy choices that repository data cannot establish, such as acceptable attention cost, protected areas, and whether contributor-facing comments are appropriate.
+
 ## Separate invocation modes
 
 Support two distinct modes when both autonomous and requested maintenance are needed:
@@ -152,7 +180,7 @@ When a run legitimately produces no action after checking all bounded queues and
 
 Build the workflow in stages:
 
-1. **Inventory the repository.** Identify contribution rules, labels, validation commands, protected paths, ecosystems, release practices, and maintainer capacity.
+1. **Survey the repository.** Record the project shape, contribution rules, validation commands, protected paths, activity window, issue and pull request health, labels, releases, CI reliability, and existing automation. Keep observed facts separate from strategy recommendations.
 2. **Choose the initial portfolio.** Start with two or three low-risk families such as labelling, investigation, and owned-PR maintenance. Add code-writing tasks only after observing output quality.
 3. **Define live signals and applicability.** Document how each signal changes priority, when each task is eligible, and its fallback.
 4. **Define state and deduplication.** Specify cursors, timestamps, ownership markers, and retention. Avoid storing repository data that can be fetched cheaply.
