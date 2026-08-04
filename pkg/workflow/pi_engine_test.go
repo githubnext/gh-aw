@@ -19,6 +19,7 @@ func TestNewPiEngine(t *testing.T) {
 	assert.True(t, engine.IsExperimental(), "Pi engine should be experimental")
 	capabilities := engine.GetCapabilities()
 	assert.True(t, capabilities.ToolsAllowlist, "Pi should support tools allowlist (needed for gh-proxy/cli-proxy settings)")
+	assert.False(t, capabilities.MCP, "Pi should not support MCP directly")
 	assert.True(t, capabilities.MaxTurns, "Pi should support max turns")
 }
 

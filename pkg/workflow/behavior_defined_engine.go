@@ -39,6 +39,12 @@ func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, er
 	if def.Behaviors == nil {
 		return nil, fmt.Errorf("engine definition %q is missing behaviors", def.ID)
 	}
+	capabilities := def.Behaviors.Capabilities.ToRuntimeCapabilities()
+	capabilities.MCP = true
+	if def.MCP != nil {
+		capabilities.MCP = *def.MCP
+	}
+
 	engine := &BehaviorDefinedEngine{
 		UniversalLLMConsumerEngine: UniversalLLMConsumerEngine{
 			BaseEngine: BaseEngine{
@@ -47,7 +53,7 @@ func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, er
 				description:      def.Description,
 				experimental:     def.Experimental,
 				ghSkillAgentName: def.GHSkillAgentName,
-				capabilities:     def.Behaviors.Capabilities.ToRuntimeCapabilities(),
+				capabilities:     capabilities,
 			},
 		},
 		definition: def,
@@ -255,7 +261,7 @@ func (e *BehaviorDefinedEngine) buildScriptWriteStep(stepName, filename, script,
 		return nil
 	}
 	command := fmt.Sprintf(
-		"mkdir -p %[1]s\ncat <<'%[4]s' > %[1]s/%[2]s\n%[3]s\n%[4]s\nchmod 755 %[1]s/%[2]s",
+		"mkdir -p \"%[1]s\"\ncat <<'%[4]s' > \"%[1]s/%[2]s\"\n%[3]s\n%[4]s\nchmod 755 \"%[1]s/%[2]s\"",
 		SetupActionDestinationShell,
 		filename,
 		script,

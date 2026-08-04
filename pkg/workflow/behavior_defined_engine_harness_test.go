@@ -50,6 +50,9 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 		assert.Contains(t, harnessStepContent, "Write TestHarness harness script", "step name should include engine display name")
 		assert.Contains(t, harnessStepContent, "testharness_harness.cjs", "step should write the correct harness filename")
 		assert.Contains(t, harnessStepContent, "gh-aw/actions", "step should write to the setup action destination directory")
+		assert.Contains(t, harnessStepContent, `mkdir -p "${RUNNER_TEMP}/gh-aw/actions"`, "setup action directory should be quoted for shellcheck")
+		assert.Contains(t, harnessStepContent, `> "${RUNNER_TEMP}/gh-aw/actions/testharness_harness.cjs"`, "harness output path should be quoted for shellcheck")
+		assert.Contains(t, harnessStepContent, `chmod 755 "${RUNNER_TEMP}/gh-aw/actions/testharness_harness.cjs"`, "chmod path should be quoted for shellcheck")
 		assert.Contains(t, harnessStepContent, harnessScriptHeredocDelimiter, "step should use heredoc delimiter")
 		assert.Contains(t, harnessStepContent, "use strict", "step should embed harness script content")
 	})
@@ -128,6 +131,22 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 		require.NoError(t, err)
 		harnessStep := eng.buildHarnessWriteStep()
 		assert.Nil(t, harnessStep, "harness write step must be skipped when script contains the heredoc delimiter")
+	})
+}
+
+func TestBehaviorDefinedEngineMCPCapability(t *testing.T) {
+	t.Run("defaults to supported", func(t *testing.T) {
+		engine, err := NewBehaviorDefinedEngine(newHarnessEngineDefinition())
+		require.NoError(t, err)
+		assert.True(t, engine.GetCapabilities().MCP)
+	})
+
+	t.Run("uses engine definition", func(t *testing.T) {
+		def := newHarnessEngineDefinition()
+		def.MCP = boolPtr(false)
+		engine, err := NewBehaviorDefinedEngine(def)
+		require.NoError(t, err)
+		assert.False(t, engine.GetCapabilities().MCP)
 	})
 }
 
