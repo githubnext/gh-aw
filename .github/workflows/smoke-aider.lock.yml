@@ -948,6 +948,7 @@ jobs:
           GITHUB_API_URL: ${{ github.api_url }}
           GH_AW_COMMANDS: "[\"smoke-aider\"]"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);

@@ -314,6 +314,20 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	}
 
 	yaml.WriteString("        with:\n")
+	// Use the same effective safe-outputs GitHub token as the handler manager step (Process
+	// Safe Outputs) so that mention sanitization (allowed-teams resolution) sees the same team
+	// membership during ingest as it does later. Without this, mentions could be escaped here
+	// with a token that lacks read:org access, then never be un-escaped later since the body
+	// is already backtick-escaped by the time Process Safe Outputs runs.
+	//
+	// Note: this step runs in the main job, not the consolidated safe-outputs job, so it
+	// cannot reference the safe-outputs-app-token step output (minted in the other job).
+	// Only the configured custom token / GH_AW_GITHUB_TOKEN fallback chain is used here.
+	configToken := ""
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
+		configToken = data.SafeOutputs.GitHubToken
+	}
+	fmt.Fprintf(yaml, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(configToken))
 	yaml.WriteString("          script: |\n")
 
 	// Load script from external file using require()

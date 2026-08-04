@@ -984,6 +984,7 @@ jobs:
           GH_AW_COMMANDS: "[\"smoke-copilot-sdk\"]"
           GH_AW_LABEL_COMMANDS: "[\"smoke-sdk\"]"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);

@@ -1312,6 +1312,7 @@ jobs:
           GH_AW_COMMANDS: "[\"cloclo\"]"
           GH_AW_LABEL_COMMANDS: "[\"cloclo\"]"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
