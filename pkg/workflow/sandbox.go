@@ -79,6 +79,7 @@ type AgentSandboxConfig struct {
 	Mounts                []string                              `yaml:"mounts,omitempty"`         // Container mounts to add for AWF (format: "source:dest:mode")
 	Memory                string                                `yaml:"memory,omitempty"`         // Memory limit for the AWF container (e.g., "4g", "8g")
 	ModelFallback         *TemplatableBool                      `yaml:"model-fallback,omitempty"` // AWF API proxy model fallback enable/disable flag (optional)
+	TokenSteering         *bool                                 `yaml:"token-steering,omitempty"` // AWF API proxy token steering enable/disable flag (optional)
 	Targets               map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"`        // Per-provider API proxy target overrides keyed by provider name (e.g. "openai", "anthropic")
 }
 

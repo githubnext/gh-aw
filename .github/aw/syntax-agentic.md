@@ -302,6 +302,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         id: awf                     # Required in strict mode
         version: "v0.25.29"         # Optional: pin AWF version
         model-fallback: false       # Optional: disable model fallback (default true); set false for BYOK Azure OpenAI to prevent deployment-name rewriting
+        token-steering: false       # Optional: disable API proxy token steering to preserve the configured provider and model
     ```
 
   - To disable the agent firewall while keeping MCP gateway enabled, you must provide the dangerous-disable justification feature:
