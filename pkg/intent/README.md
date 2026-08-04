@@ -25,6 +25,8 @@ Resolution is performed by a `Resolver`, which holds a label matcher function an
 | `RootReference` | struct | Represents a referenced issue or artifact root (node ID, type, URL, labels) |
 | `PullRequestData` | struct | Input data for pull request resolution (node ID, URL, labels, explicit intent, closing issues) |
 | `Resolver` | struct | Stateless resolver that maps labels to intent records |
+| `PolicyRule` | struct | Pairs a match condition with the execution policy fragment to apply |
+| `PolicyCondition` | struct | Describes the intent labels and repository organization context that make a policy rule match |
 
 ### AttributionStatus constants
 
@@ -63,6 +65,12 @@ Resolution is performed by a `Resolver`, which holds a label matcher function an
 | Method | Signature | Description |
 |--------|-----------|-------------|
 | `Compile` | `func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) ExecutionPolicy` | Compiles an `IntentRecord` and repository context into an execution policy |
+
+### Policy rule types
+
+`PolicyRule` configures a single policy fragment. Its `ID` identifies the matched rule in compiled policy output, `Scope` records the rule level (`"organization"`, `"repository"`, `"intent"`, or `"workflow"`), `When` holds the match criteria, and `Set` holds the `ExecutionPolicy` fields to merge when the rule applies.
+
+`PolicyCondition` matches rule criteria against an `IntentRecord` and `RepositoryContext`. Empty condition fields act as wildcards. `Domain`, `Priority`, and `Risk` match against intent labels; `Org` matches either the repository organization or owner.
 
 ## Usage Examples
 
