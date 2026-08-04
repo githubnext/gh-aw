@@ -886,8 +886,10 @@ func TestWarnDeprecatedFrontmatterFields_SafeOutputsDeprecatedAliases(t *testing
 }
 
 func TestEnforceMCPProxyTools(t *testing.T) {
-	mcpUnsupported := false
-	engine := &EngineDefinition{ID: "custom-engine", MCP: &mcpUnsupported}
+	engine := &BaseEngine{
+		id:           "custom-engine",
+		capabilities: EngineCapabilities{MCP: false},
+	}
 
 	t.Run("enables required proxies", func(t *testing.T) {
 		tools, err := enforceMCPProxyTools(engine, map[string]any{})
@@ -941,7 +943,10 @@ func TestEnforceMCPProxyTools(t *testing.T) {
 
 	t.Run("leaves MCP engines unchanged", func(t *testing.T) {
 		tools := map[string]any{"github": false, "cli-proxy": false}
-		actual, err := enforceMCPProxyTools(&EngineDefinition{ID: "copilot"}, tools)
+		actual, err := enforceMCPProxyTools(&BaseEngine{
+			id:           "mcp-engine",
+			capabilities: EngineCapabilities{MCP: true},
+		}, tools)
 		require.NoError(t, err)
 		assert.Equal(t, tools, actual)
 	})

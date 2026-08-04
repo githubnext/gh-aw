@@ -207,12 +207,12 @@ func (c *Compiler) resolveToolsConfiguration(
 		orchestratorToolsLog.Printf("MCP configuration validation failed: %v", err)
 		return nil, err
 	}
-	tools, err = enforceMCPProxyTools(c.engineCatalog.Get(engineSetting), tools)
+	tools, err = enforceMCPProxyTools(agenticEngine, tools)
 	if err != nil {
 		return nil, err
 	}
 	tools = c.adjustToolsForEngineCapabilities(result.Frontmatter, agenticEngine, tools)
-	tools, err = enforceMCPProxyTools(c.engineCatalog.Get(engineSetting), tools)
+	tools, err = enforceMCPProxyTools(agenticEngine, tools)
 	if err != nil {
 		return nil, err
 	}
@@ -231,8 +231,8 @@ func (c *Compiler) resolveToolsConfiguration(
 
 // enforceMCPProxyTools exposes MCP-backed tools through CLI proxies for engines
 // that do not have an MCP client.
-func enforceMCPProxyTools(engine *EngineDefinition, tools map[string]any) (map[string]any, error) {
-	if engine == nil || engine.MCP == nil || *engine.MCP {
+func enforceMCPProxyTools(engine MCPProxyEngine, tools map[string]any) (map[string]any, error) {
+	if engine == nil || engine.GetCapabilities().MCP {
 		return tools, nil
 	}
 
@@ -240,13 +240,13 @@ func enforceMCPProxyTools(engine *EngineDefinition, tools map[string]any) (map[s
 		switch github := githubValue.(type) {
 		case bool:
 			if !github {
-				return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github cannot be disabled because gh-proxy is required", engine.ID)
+				return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github cannot be disabled because gh-proxy is required", engine.GetID())
 			}
 		case map[string]any:
 			if modeValue, hasMode := github["mode"]; hasMode {
 				mode, ok := modeValue.(string)
 				if !ok || (mode != string(GitHubMCPModeGHProxy) && mode != string(GitHubMCPModeCLI)) {
-					return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github.mode must be gh-proxy", engine.ID)
+					return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github.mode must be gh-proxy", engine.GetID())
 				}
 			}
 			github["mode"] = string(GitHubMCPModeGHProxy)
@@ -263,7 +263,7 @@ func enforceMCPProxyTools(engine *EngineDefinition, tools map[string]any) (map[s
 
 	if cliProxy, exists := tools["cli-proxy"]; exists {
 		if enabled, ok := cliProxy.(bool); ok && !enabled {
-			return nil, fmt.Errorf("engine '%s' does not support MCP; tools.cli-proxy cannot be disabled", engine.ID)
+			return nil, fmt.Errorf("engine '%s' does not support MCP; tools.cli-proxy cannot be disabled", engine.GetID())
 		}
 	}
 	tools["cli-proxy"] = true

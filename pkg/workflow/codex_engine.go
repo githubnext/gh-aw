@@ -59,6 +59,7 @@ func NewCodexEngine() *CodexEngine {
 			ghSkillAgentName: "codex",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
+				MCP:              true,
 				MaxTurns:         true,  // AWF max-turns is supported for Codex runs
 				MaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
 				WebSearch:        true,  // Codex has built-in web-search support

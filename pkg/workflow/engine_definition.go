@@ -136,7 +136,15 @@ type EngineCapabilitiesDefinition struct {
 // ToRuntimeCapabilities converts the declarative capabilities definition into the
 // runtime EngineCapabilities struct used by CodingAgentEngine implementations.
 func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities {
-	return EngineCapabilities(d)
+	return EngineCapabilities{
+		ToolsAllowlist:       d.ToolsAllowlist,
+		MaxTurns:             d.MaxTurns,
+		WebSearch:            d.WebSearch,
+		MaxContinuations:     d.MaxContinuations,
+		NativeAgentFile:      d.NativeAgentFile,
+		BareMode:             d.BareMode,
+		BashCommandAllowlist: d.BashCommandAllowlist,
+	}
 }
 
 // EngineManifestDefinition describes engine-specific files and folders that alter

@@ -131,6 +131,22 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 	})
 }
 
+func TestBehaviorDefinedEngineMCPCapability(t *testing.T) {
+	t.Run("defaults to supported", func(t *testing.T) {
+		engine, err := NewBehaviorDefinedEngine(newHarnessEngineDefinition())
+		require.NoError(t, err)
+		assert.True(t, engine.GetCapabilities().MCP)
+	})
+
+	t.Run("uses engine definition", func(t *testing.T) {
+		def := newHarnessEngineDefinition()
+		def.MCP = boolPtr(false)
+		engine, err := NewBehaviorDefinedEngine(def)
+		require.NoError(t, err)
+		assert.False(t, engine.GetCapabilities().MCP)
+	})
+}
+
 // TestBehaviorDefinedEngineNoHarnessScript verifies that engines without harness-script
 // continue to use the direct command execution path (inline prompt substitution).
 func TestBehaviorDefinedEngineNoHarnessScript(t *testing.T) {
