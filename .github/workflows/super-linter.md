@@ -50,8 +50,8 @@ jobs:
           DEFAULT_BRANCH: main
           # Only validate Markdown - other linters (Go, JS, YAML, Shell) run in CI
           VALIDATE_MARKDOWN: "true"
-          # Disable all other linters to improve performance
-          VALIDATE_ALL_CODEBASE: "false"
+          # Scheduled runs have no diff, so they must validate the full codebase.
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
           # Avoid false-negative failures from super-linter summary formatter
           ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "false"
           ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: "false"

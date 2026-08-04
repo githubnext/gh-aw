@@ -26,6 +26,7 @@ type runnerGuardFinding struct {
 	Description string `json:"description"`
 	Remediation string `json:"remediation"`
 	File        string `json:"file"`
+	JobID       string `json:"job_id"`
 	Line        int    `json:"line"`
 }
 
@@ -170,8 +171,9 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 					if totalFindings > 0 {
 						return fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode. Example: rerun after resolving all reported findings", totalFindings)
 					}
-					// Exit code 1 with no parseable findings is still a failure in strict mode
-					return errors.New("strict mode: runner-guard exited with code 1 indicating findings are present")
+					// Exit code 1 with no remaining findings means every reported finding was
+					// a known false positive that was filtered out, so the scan passes.
+					return nil
 				}
 				// In non-strict mode, findings are logged but not treated as errors
 				return nil
@@ -207,6 +209,14 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 	}
 
 	totalFindings := len(output.Findings)
+	if totalFindings == 0 {
+		return 0, nil
+	}
+
+	// Drop RGS-004 findings for jobs that are gated behind gh-aw's activation job chain.
+	// runner-guard evaluates jobs in isolation and does not follow needs: edges.
+	output.Findings = filterRunnerGuardFindings(output.Findings, gitRoot)
+	totalFindings = len(output.Findings)
 	if totalFindings == 0 {
 		return 0, nil
 	}

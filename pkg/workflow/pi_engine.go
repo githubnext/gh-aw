@@ -43,6 +43,7 @@ func NewPiEngine() *PiEngine {
 			ghSkillAgentName: "pi",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,
+				MCP:              false,
 				MaxTurns:         true,
 				MaxContinuations: false,
 				WebSearch:        false,

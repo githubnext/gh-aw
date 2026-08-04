@@ -28,6 +28,10 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	default:
 	}
 
+	if config.Watch && IsRunningInCI() {
+		return nil, errors.New("watch mode cannot be used in CI or Copilot coding agent environments")
+	}
+
 	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary
 		if detectedHost := getHostFromOriginRemote(); detectedHost != "github.com" && detectedHost != "" {
 			compileOrchestratorLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)

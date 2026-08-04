@@ -15,6 +15,7 @@ func IsRunningInCI() bool {
 		"CI",
 		"CONTINUOUS_INTEGRATION",
 		"GITHUB_ACTIONS",
+		"COPILOT_AGENT_SESSION_ID",
 	}
 
 	for _, v := range ciVars {

@@ -43,6 +43,7 @@ func NewCopilotEngine() *CopilotEngine {
 			ghSkillAgentName: "github-copilot",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:       true,
+				MCP:                  true,
 				MaxTurns:             true,  // AWF max-turns is supported for Copilot runs
 				MaxContinuations:     true,  // Copilot CLI supports --autopilot with --max-autopilot-continues
 				WebSearch:            false, // Copilot CLI does not have built-in web-search support

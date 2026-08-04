@@ -31,6 +31,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			ghSkillAgentName: "claude-code",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:       true,
+				MCP:                  true,
 				MaxTurns:             true,  // Claude supports max-turns feature
 				MaxContinuations:     false, // Claude Code does not support --max-autopilot-continues-style continuation
 				WebSearch:            true,  // Claude has built-in WebSearch support

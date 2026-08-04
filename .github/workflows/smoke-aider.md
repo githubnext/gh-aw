@@ -29,7 +29,6 @@ network:
     - defaults
     - github
 tools:
-  github: false
   edit:
   bash:
     - "*"
