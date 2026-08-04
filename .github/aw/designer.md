@@ -95,6 +95,15 @@ If no preference, suggest default:
 
 Map to `engine:` only when not default.
 
+### Phase 7b: Skills, LSP & Evals (optional)
+
+Ask only when relevant: **"Does the agent need extra domain knowledge, language-server code intelligence, or automated success checks?"**
+
+Map to:
+- `skills:` — pinned external skills (`owner/repo/skill@sha`) or local paths (`.github/skills/<name>`) when the agent needs domain knowledge (see `.github/aw/skills.md`)
+- `lsp:` — language servers for code intelligence; **experimental** and only valid with `engine: copilot` (see `.github/aw/lsp.md`)
+- `evals:` — binary YES/NO questions checking whether the run met its goals; requires `safe-outputs:` so `agent_output.json` exists (see `.github/aw/evals.md`)
+
 ### Phase 8: Confirmation
 
 Present a structured summary and ask for approval before generation.
@@ -197,6 +206,24 @@ Present a structured summary and ask for approval before generation.
 | "uses Lean theorem prover" | include `lean` in `network.allowed` |
 | "builds Python packages from source" | include `python-native` in `network.allowed` |
 | "no external access" | `network.allowed: [defaults]` (or `[]` if explicitly zero network) |
+
+#### Invalid Network Shorthands
+
+These look like ecosystem identifiers but are **not recognised** and cause a compile-time error. Always correct them before generating:
+
+| User says / writes | Correct value |
+|---|---|
+| `npm` | `node` |
+| `pypi` | `python` |
+| `pip` | `python` |
+| `cargo` | `rust` |
+| `gem` or `gems` | `ruby` |
+| `nuget` | `dotnet` |
+| `maven` | `java` |
+| `gradle` | `java` |
+| `composer` | `php` |
+| `docker` | `containers` |
+| `localhost` | `local` |
 
 ### Tool Mapping
 
@@ -335,6 +362,16 @@ network:
   allowed:
     - defaults
     - <additional entries if needed>
+skills:
+  - <owner/repo/skill@sha or .github/skills/<name> — only if domain knowledge is needed>
+lsp:
+  <language-key>:                 # optional, engine: copilot only (experimental)
+    command: <server-executable>
+    fileExtensions:
+      ".<ext>": <language-id>
+evals:
+  - id: <eval-id>                 # optional, requires safe-outputs
+    question: <binary YES/NO question about the agent output>
 ---
 
 # <Workflow Name>
@@ -365,6 +402,10 @@ Before final output, run this internal self-check:
 - [ ] Only required toolsets are listed (avoid blanket toolset lists)
 - [ ] Prompt references specific pre-computed file paths
 - [ ] For batch processing (>5 items), sub-agent pattern is suggested
+- [ ] Network entries use valid ecosystem identifiers (no `npm`/`pypi`/`docker`-style invalid shorthands)
+- [ ] `skills:` entries are pinned (`owner/repo/skill@sha`) or local paths, and only added when domain knowledge is needed
+- [ ] `lsp:` is only used with `engine: copilot` (experimental; omit otherwise)
+- [ ] `evals:` questions are binary YES/NO and `safe-outputs:` is declared so `agent_output.json` exists
 - [ ] For each third-party service/MCP integration, required secrets/env vars are listed
 - [ ] Auth guidance includes least-privilege token scope recommendations
 - [ ] For GHEC/GHES deployments, `engine.api-target` and GHES compatibility guidance are included when needed
@@ -380,6 +421,9 @@ In-repo references:
 - `.github/aw/token-optimization.md`
 - `.github/aw/triggers.md`
 - `.github/aw/create-agentic-workflow.md`
+- `.github/aw/skills.md`
+- `.github/aw/lsp.md`
+- `.github/aw/evals.md`
 
 Portable HTTPS references:
 - `https://github.com/github/gh-aw/blob/main/.github/aw/syntax.md` (index → `.../syntax-core.md`, `.../syntax-agentic.md`, `.../syntax-tools-imports.md`)
@@ -390,3 +434,6 @@ Portable HTTPS references:
 - `https://github.com/github/gh-aw/blob/main/.github/aw/token-optimization.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/triggers.md`
 - `https://github.com/github/gh-aw/blob/main/.github/aw/create-agentic-workflow.md`
+- `https://github.com/github/gh-aw/blob/main/.github/aw/skills.md`
+- `https://github.com/github/gh-aw/blob/main/.github/aw/lsp.md`
+- `https://github.com/github/gh-aw/blob/main/.github/aw/evals.md`
