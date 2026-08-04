@@ -5,6 +5,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 const STANDARD_ROLES = new Set(["admin", "maintain", "write", "triage", "read"]);
 
+// Base roles a custom organization repository role can be derived from. `admin` is
+// deliberately excluded: custom repository roles can never confer admin access.
+const CUSTOM_ROLE_BASE_ROLES = new Set(["maintain", "write", "triage", "read"]);
+
 /**
  * Normalize GitHub permission/role aliases to the canonical values used by on.roles.
  * @param {string} role
@@ -253,39 +257,42 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
       username: actor,
     });
 
-    /** @type {{ permission: string, role_name?: unknown, inherited_role?: unknown }} */
+    /** @type {{ permission: string, role_name?: unknown }} */
     const repoPermissionData = repoPermission.data;
     const permission = repoPermissionData.permission;
     const rawRoleName = repoPermissionData.role_name;
     const roleName = rawRoleName == null ? "" : typeof rawRoleName === "string" ? rawRoleName : "";
-    const rawInheritedRole = repoPermissionData.inherited_role;
-    const inheritedRole = rawInheritedRole == null ? "" : typeof rawInheritedRole === "string" ? rawInheritedRole : "";
     const normalizedRoleName = normalizeRoleName(roleName);
     const normalizedPermission = normalizeRoleName(permission);
-    const normalizedInheritedRole = normalizeRoleName(inheritedRole);
     const effectiveRole = normalizedRoleName || normalizedPermission;
     const logDetails = normalizedRoleName && normalizedRoleName !== normalizedPermission ? `${normalizedPermission} (role: ${normalizedRoleName})` : normalizedPermission;
     core.info(`Repository permission level: ${logDetails}`);
 
     // Standard GitHub repository permission levels. Custom org repository roles (e.g.
-    // "Security Champions") have a role_name that is not one of these — for those, use
-    // the inherited standard role from GitHub's custom-role metadata so the actor is not
+    // "Security Champions") have a role_name that is not one of these — for those, fall back
+    // to the standard `permission` level reported by the same endpoint so the actor is not
     // blocked simply because their custom role name is not literally listed in on.roles.
+    // A custom role can never grant admin: GitHub derives custom repository roles from the
+    // read/triage/write/maintain base roles only, so `admin` is refused here even if the API
+    // unexpectedly reports it for a custom role.
     const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
-    const inheritedStandardRole = isCustomRole && STANDARD_ROLES.has(normalizedInheritedRole) ? normalizedInheritedRole : "";
+    const resolvedBaseRole = isCustomRole && CUSTOM_ROLE_BASE_ROLES.has(normalizedPermission) ? normalizedPermission : "";
     const debugRoleName = normalizedRoleName || "<empty>";
-    const debugInheritedRole = normalizedInheritedRole || "<empty>";
-    const debugInheritedStandardRole = inheritedStandardRole || "<empty>";
-    core.debug?.(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}', inherited='${debugInheritedRole}'`);
-    core.debug?.(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, inherited_standard_role='${debugInheritedStandardRole}'`);
-    if (isCustomRole && inheritedStandardRole === "") {
-      core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not provide an inherited standard role`);
+    const debugBaseRole = resolvedBaseRole || "<empty>";
+    core.debug?.(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}'`);
+    core.debug?.(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, base_role='${debugBaseRole}'`);
+    if (isCustomRole && normalizedPermission === "admin") {
+      core.warning(`Ignoring 'admin' permission reported for custom repository role '${normalizedRoleName}': custom roles cannot grant admin access`);
+    }
+    if (isCustomRole && resolvedBaseRole === "") {
+      core.info(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not report a standard permission level`);
     }
 
     // Check if user has one of the required permission levels.
     // For standard roles, use role_name (precise: maintain/triage are not collapsed to
-    // write/read). For custom org roles, only fall back to the inherited standard role
-    // from custom-role metadata; fail closed if GitHub does not provide it.
+    // write/read). For custom org roles, fall back to the standard `permission` level that
+    // GitHub already computes for the actor (readable with the repository-scoped
+    // GITHUB_TOKEN); fail closed if it is not one of the non-admin base roles.
     /** @type {{ permission: string, roleMatchType: string }|null} */
     let permissionMatch = null;
     for (const requiredPerm of requiredPermissions) {
@@ -294,14 +301,16 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
         permissionMatch = { permission: normalizedRequired, roleMatchType: "effective-role" };
         break;
       }
-      if (normalizedRequired === inheritedStandardRole) {
-        permissionMatch = { permission: normalizedRequired, roleMatchType: "inherited-standard-role" };
+      if (resolvedBaseRole !== "" && normalizedRequired === resolvedBaseRole) {
+        permissionMatch = { permission: normalizedRequired, roleMatchType: "base-role" };
         break;
       }
     }
 
     if (permissionMatch) {
-      core.debug?.(`Repository permission matched required role '${permissionMatch.permission}' via ${permissionMatch.roleMatchType}`);
+      if (permissionMatch.roleMatchType === "base-role") {
+        core.info(`Custom repository role '${normalizedRoleName}' satisfied required role '${permissionMatch.permission}' via base role`);
+      }
       core.info(`✅ User has ${effectiveRole} access to repository`);
       return { authorized: true, permission: effectiveRole };
     }
