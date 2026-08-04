@@ -13,7 +13,9 @@ import (
 // TestVersionIsSetDuringBuild verifies that when built with proper ldflags,
 // the version is set to the actual version, not "dev"
 func TestVersionIsSetDuringBuild(t *testing.T) {
+	t.Parallel()
 	t.Run("version variable can be overridden at build time", func(t *testing.T) {
+		t.Parallel()
 
 		// Build a test binary with a specific version
 		testVersion := "v0.0.0-test"
@@ -54,6 +56,7 @@ func TestVersionIsSetDuringBuild(t *testing.T) {
 	})
 
 	t.Run("default version is dev", func(t *testing.T) {
+		t.Parallel()
 		// The in-memory version variable should default to "dev"
 		if version != "dev" {
 			t.Logf("Note: version is '%s', expected 'dev' (this is okay if running in a release build)", version)
@@ -66,7 +69,9 @@ func TestVersionIsSetDuringBuild(t *testing.T) {
 
 // TestBuildReleaseScriptExists verifies the custom build script exists and is executable
 func TestBuildReleaseScriptExists(t *testing.T) {
+	t.Parallel()
 	t.Run("build script exists", func(t *testing.T) {
+		t.Parallel()
 		cmd := exec.Command("test", "-f", "../../scripts/build-release.sh")
 		if err := cmd.Run(); err != nil {
 			t.Error("scripts/build-release.sh should exist")
@@ -74,6 +79,7 @@ func TestBuildReleaseScriptExists(t *testing.T) {
 	})
 
 	t.Run("build script is executable", func(t *testing.T) {
+		t.Parallel()
 		cmd := exec.Command("test", "-x", "../../scripts/build-release.sh")
 		if err := cmd.Run(); err != nil {
 			t.Error("scripts/build-release.sh should be executable")
@@ -81,6 +87,7 @@ func TestBuildReleaseScriptExists(t *testing.T) {
 	})
 
 	t.Run("build script requires version argument", func(t *testing.T) {
+		t.Parallel()
 		cmd := exec.Command("../../scripts/build-release.sh")
 		err := cmd.Run()
 		if err == nil {
