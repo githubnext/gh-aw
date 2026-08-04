@@ -39,6 +39,13 @@ func TestIsRunningInCI(t *testing.T) {
 			expected: true,
 		},
 		{
+			name: "running in Copilot coding agent",
+			envVars: map[string]string{
+				"COPILOT_AGENT_SESSION_ID": "session-id",
+			},
+			expected: true,
+		},
+		{
 			name: "running in CI - multiple env vars set",
 			envVars: map[string]string{
 				"CI":                     "true",
@@ -67,7 +74,7 @@ func TestIsRunningInCI(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all CI-related env vars first
-			ciVars := []string{"CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS"}
+			ciVars := []string{"CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS", "COPILOT_AGENT_SESSION_ID"}
 			for _, v := range ciVars {
 				t.Setenv(v, "")
 			}
