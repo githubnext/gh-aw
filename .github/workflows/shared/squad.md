@@ -26,6 +26,7 @@
 # the activation job.
 engine:
   id: copilot
+  agent: squad
 on:
   ambient-folders:
     - .squad
