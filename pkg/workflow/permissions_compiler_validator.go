@@ -274,7 +274,10 @@ func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Pe
 		errorPrefix = "mcp-servers.<name>.auth.type: github-oidc"
 	}
 
-	if !requiresIDTokenWrite && hasOTLPGitHubOIDCAuth(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter) {
+	// observability.otlp.workload-identity does not require a user-declared permission:
+	// ensureOTLPOIDCJobPermissions grants id-token: write to every job that mints the token.
+	if !requiresIDTokenWrite && getOTLPWorkloadIdentity(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter) == nil &&
+		hasOTLPGitHubOIDCAuth(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter) {
 		requiresIDTokenWrite = true
 		errorPrefix = "observability.otlp.github-app"
 	}

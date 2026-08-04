@@ -11642,6 +11642,27 @@
                 }
               },
               "additionalProperties": false
+            },
+            "workload-identity": {
+              "type": "object",
+              "description": "Exchange a GitHub Actions OIDC token for a cloud access token before OTLP export. Google Workload Identity Federation is currently supported.",
+              "required": ["provider", "audience"],
+              "properties": {
+                "provider": {
+                  "type": "string",
+                  "enum": ["google"],
+                  "description": "Cloud workload identity provider."
+                },
+                "audience": {
+                  "type": "string",
+                  "description": "Google Workload Identity Provider resource name (e.g. projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER). The GitHub OIDC audience (https://iam.googleapis.com/...) and Google STS audience (//iam.googleapis.com/...) are derived from it; either fully-qualified form is also accepted."
+                },
+                "service-account": {
+                  "type": "string",
+                  "description": "Optional Google service account email to impersonate after STS token exchange."
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false
@@ -13406,6 +13427,10 @@
                   "properties": {
                     "config-path": {
                       "type": "string"
+                    },
+                    "config-adapter": {
+                      "type": "string",
+                      "description": "JavaScript source of a Node.js script that converts the MCP gateway's raw output configuration into the format expected by this engine. When set, the script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_mcp_config_adapter.cjs before the MCP gateway starts, and start_mcp_gateway.cjs executes it (instead of a built-in per-engine converter) once the gateway has produced its output."
                     }
                   },
                   "additionalProperties": false

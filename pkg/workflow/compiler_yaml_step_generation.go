@@ -131,6 +131,13 @@ func setupParentSpanNeedsExpr(upstreamJob constants.JobName) string {
 	return fmt.Sprintf("${{ needs.%s.outputs.setup-parent-span-id || needs.%s.outputs.setup-span-id }}", upstreamJob, upstreamJob)
 }
 
+const (
+	// otlpOIDCMintStepID is the step ID of the GitHub OIDC token mint step used for OTLP export auth.
+	otlpOIDCMintStepID = "mint-otlp-oidc-token"
+	// otlpWIFExchangeStepID is the step ID of the Google workload identity token exchange step.
+	otlpWIFExchangeStepID = "exchange-otlp-workload-identity-token"
+)
+
 func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 	if data == nil {
 		return nil
@@ -138,18 +145,26 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 
 	if app := getOTLPGitHubAppTokenConfig(data.RawFrontmatter); app != nil {
 		compilerYamlStepGenerationLog.Print("Generating OTLP GitHub App token mint step before setup")
-		return c.buildGitHubAppTokenMintStepWithMeta(app, nil, "", "", "Mint OTLP GitHub App token", "mint-otlp-oidc-token")
+		return c.buildGitHubAppTokenMintStepWithMeta(app, nil, "", "", "Mint OTLP GitHub App token", otlpOIDCMintStepID)
 	}
 
+	workloadIdentity := getOTLPWorkloadIdentity(data.ParsedFrontmatter, data.RawFrontmatter)
 	githubApp := getOTLPGitHubApp(data.ParsedFrontmatter, data.RawFrontmatter)
-	if githubApp == nil {
+	if workloadIdentity == nil && githubApp == nil {
 		return nil
 	}
 
 	compilerYamlStepGenerationLog.Print("Generating OTLP OIDC token mint step before setup")
+	var audience string
+	var stsAudience string
+	if workloadIdentity != nil {
+		audience, stsAudience = googleWIFAudiences(workloadIdentity.Audience)
+	} else {
+		audience = strings.TrimSpace(githubApp.Audience)
+	}
 	lines := []string{
 		"      - name: Mint OTLP OIDC token\n",
-		"        id: mint-otlp-oidc-token\n",
+		fmt.Sprintf("        id: %s\n", otlpOIDCMintStepID),
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        with:\n",
 		"          script: |\n",
@@ -159,12 +174,42 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 		"            core.setOutput('token', token);\n",
 	}
 
-	if audience := strings.TrimSpace(githubApp.Audience); audience != "" {
+	if audience != "" {
 		lines = append(lines, "        env:\n")
 		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_OIDC_AUDIENCE", audience))
 	}
 
+	if workloadIdentity != nil {
+		compilerYamlStepGenerationLog.Print("Generating Google OTLP workload identity token exchange step before setup")
+		lines = append(lines,
+			"      - name: Exchange OTLP workload identity token\n",
+			fmt.Sprintf("        id: %s\n", otlpWIFExchangeStepID),
+			fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+			"        env:\n",
+			fmt.Sprintf("          GH_AW_OTLP_OIDC_TOKEN: ${{ steps.%s.outputs.token }}\n", otlpOIDCMintStepID),
+		)
+		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_AUDIENCE", stsAudience))
+		if serviceAccount := strings.TrimSpace(workloadIdentity.ServiceAccount); serviceAccount != "" {
+			lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_SERVICE_ACCOUNT", serviceAccount))
+		}
+		lines = append(lines,
+			"        with:\n",
+			"          script: |\n",
+		)
+		lines = append(lines, FormatJavaScriptForYAML(getExchangeOTLPWorkloadIdentityScript())...)
+	}
+
 	return lines
+}
+
+func getOTLPAuthTokenStepID(data *WorkflowData) string {
+	if data == nil {
+		return otlpOIDCMintStepID
+	}
+	if getOTLPWorkloadIdentity(data.ParsedFrontmatter, data.RawFrontmatter) != nil {
+		return otlpWIFExchangeStepID
+	}
+	return otlpOIDCMintStepID
 }
 
 func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string) []string {
@@ -174,6 +219,7 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string, artifactClientCondition string) []string {
 	lines := c.generateOTLPOIDCMintStep(data)
 	hasOTLPOIDC := len(lines) > 0
+	otlpAuthTokenStepID := getOTLPAuthTokenStepID(data)
 	artifactClientCondition = strings.TrimSpace(artifactClientCondition)
 
 	setupEngineID := ""
@@ -221,7 +267,7 @@ func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowDa
 			setupLines = append(setupLines, fmt.Sprintf("          INPUT_PARENT_SPAN_ID: %s\n", parentSpanID))
 		}
 		if hasOTLPOIDC {
-			setupLines = append(setupLines, "          INPUT_OTLP_OIDC_TOKEN: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n")
+			setupLines = append(setupLines, fmt.Sprintf("          INPUT_OTLP_OIDC_TOKEN: ${{ steps.%s.outputs.token }}\n", otlpAuthTokenStepID))
 		}
 		if enableArtifactClient {
 			if artifactClientCondition != "" {
@@ -251,7 +297,7 @@ func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowDa
 		setupLines = append(setupLines, fmt.Sprintf("          parent-span-id: %s\n", parentSpanID))
 	}
 	if hasOTLPOIDC {
-		setupLines = append(setupLines, "          otlp-oidc-token: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n")
+		setupLines = append(setupLines, fmt.Sprintf("          otlp-oidc-token: ${{ steps.%s.outputs.token }}\n", otlpAuthTokenStepID))
 	}
 	if enableArtifactClient {
 		if artifactClientCondition != "" {

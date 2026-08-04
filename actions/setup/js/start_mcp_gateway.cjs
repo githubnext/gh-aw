@@ -869,7 +869,11 @@ async function main() {
     gemini: "convert_gateway_config_gemini.cjs",
   };
 
-  const converterFile = converters[/** @type {keyof typeof converters} */ engineType];
+  // Engines can declare a "mcp.config-adapter" script in their behaviors definition
+  // (e.g. .github/workflows/shared/goose.md) instead of a built-in per-engine converter.
+  // The compiler writes this script to disk and exports its filename via
+  // GH_AW_MCP_CONFIG_ADAPTER before this gateway starts.
+  const converterFile = process.env.GH_AW_MCP_CONFIG_ADAPTER || converters[/** @type {keyof typeof converters} */ engineType];
   if (converterFile) {
     core.info(`Using ${engineType} converter...`);
     const converterPath = path.join(runnerTemp || "", "gh-aw/actions", converterFile);

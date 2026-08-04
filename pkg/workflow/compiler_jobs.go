@@ -332,8 +332,47 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return err
 	}
 
+	// Final pass: every job that mints an OTLP OIDC token needs id-token: write.
+	// Job-level permissions override the workflow-level block, so this must be applied
+	// to each job individually after all jobs have been created.
+	c.ensureOTLPOIDCJobPermissions(data)
+
 	compilerJobsLog.Print("Successfully built all jobs for workflow")
 	return nil
+}
+
+// ensureOTLPOIDCJobPermissions grants id-token: write to every job that contains the
+// OTLP OIDC token mint step. core.getIDToken() fails when the job-level permissions
+// block omits id-token: write, even if the workflow-level block grants it.
+func (c *Compiler) ensureOTLPOIDCJobPermissions(data *WorkflowData) {
+	if data == nil || !hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+		return
+	}
+	for _, job := range c.jobManager.GetAllJobs() {
+		if !jobStepsMintOTLPOIDCToken(job) {
+			continue
+		}
+		perms := NewPermissionsParser(job.Permissions).ToPermissions()
+		if level, exists := perms.Get(PermissionIdToken); exists && level == PermissionWrite {
+			continue
+		}
+		perms.Set(PermissionIdToken, PermissionWrite)
+		job.Permissions = perms.RenderToYAML()
+		compilerJobsLog.Printf("Granted id-token: write to job %s for OTLP OIDC token mint", job.Name)
+	}
+}
+
+// jobStepsMintOTLPOIDCToken reports whether any step in the job is the OTLP OIDC mint step.
+func jobStepsMintOTLPOIDCToken(job *Job) bool {
+	if job == nil {
+		return false
+	}
+	for _, step := range job.Steps {
+		if strings.Contains(step, "id: "+otlpOIDCMintStepID+"\n") {
+			return true
+		}
+	}
+	return false
 }
 
 // buildPreActivationAndActivationJobs builds the pre-activation and activation jobs if needed.

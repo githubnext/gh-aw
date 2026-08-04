@@ -16,8 +16,8 @@ permissions:
 env:
   GOTOOLCHAIN: auto
 tracker-id: avenger-ci
-max-turns: 50
-model: claude-haiku-4.5
+max-turns: 25
+model: claude-haiku-4-5
 engine:
   id: claude
 network:
@@ -146,7 +146,8 @@ You are **Avenger**, an automated hourly CI repair agent. Your mission is to kee
 Before doing anything:
 
 1. **If CI Status is "success"**: CI was passing at activation time — call `noop` immediately with "CI is passing on main branch - no cleanup needed" and **stop**.
-2. **If CI Status is "failure"**: Re-verify using the live API:
+2. **If CI Status is "failure"**: Proceed with the repair sequence below using the CI Run ID from the pre-check.
+3. **If CI Status is missing or ambiguous**: Re-verify using the live API:
    ```bash
    gh run list --workflow=ci.yml --branch=main --limit=2 --json conclusion,status,databaseId
    ```

@@ -188,6 +188,54 @@ func getOTLPGitHubApp(config *FrontmatterConfig, frontmatter map[string]any) *OT
 	}
 }
 
+func getOTLPWorkloadIdentity(config *FrontmatterConfig, frontmatter map[string]any) *OTLPWorkloadIdentityConfig {
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.WorkloadIdentity != nil {
+		return config.Observability.OTLP.WorkloadIdentity
+	}
+	if frontmatter == nil {
+		return nil
+	}
+	obs, _ := frontmatter["observability"].(map[string]any)
+	otlp, _ := obs["otlp"].(map[string]any)
+	workloadIdentity, _ := otlp["workload-identity"].(map[string]any)
+	if workloadIdentity == nil {
+		return nil
+	}
+	provider, _ := workloadIdentity["provider"].(string)
+	audience, _ := workloadIdentity["audience"].(string)
+	serviceAccount, _ := workloadIdentity["service-account"].(string)
+	return &OTLPWorkloadIdentityConfig{
+		Provider:       provider,
+		Audience:       audience,
+		ServiceAccount: serviceAccount,
+	}
+}
+
+// googleWIFAudiences derives the canonical GitHub OIDC and Google STS audiences from a
+// workload identity provider value. Google's WIF inputs use three related forms:
+//
+//	provider resource : projects/<n>/locations/global/workloadIdentityPools/<pool>/providers/<p>
+//	GitHub audience   : https://iam.googleapis.com/<provider resource>
+//	STS audience      : //iam.googleapis.com/<provider resource>
+//
+// Users may configure any of these forms; all three are normalized to the same pair.
+func googleWIFAudiences(provider string) (githubAudience string, stsAudience string) {
+	trimmed := strings.TrimSpace(provider)
+	if trimmed == "" {
+		return "", ""
+	}
+	resource := trimmed
+	switch {
+	case strings.HasPrefix(resource, "https://iam.googleapis.com/"):
+		resource = strings.TrimPrefix(resource, "https://iam.googleapis.com/")
+	case strings.HasPrefix(resource, "//iam.googleapis.com/"):
+		resource = strings.TrimPrefix(resource, "//iam.googleapis.com/")
+	}
+	// Expressions (e.g. ${{ vars.GCP_WIF_PROVIDER }}) are resolved at runtime, so the
+	// canonical prefixes are applied to the raw value as-is.
+	return "https://iam.googleapis.com/" + resource, "//iam.googleapis.com/" + resource
+}
+
 func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
 	if frontmatter == nil {
 		return nil
@@ -217,6 +265,9 @@ func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
 }
 
 func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any) bool {
+	if getOTLPWorkloadIdentity(config, frontmatter) != nil {
+		return true
+	}
 	if getOTLPGitHubAppTokenConfig(frontmatter) != nil {
 		return false
 	}
@@ -714,6 +765,19 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	otlpLog.Printf("Injecting OTLP configuration: %d endpoint(s)", len(entries))
 
 	// 1. Add all static OTLP endpoint domains to the firewall allowlist.
+	// Google workload identity hosts are fixed and must be allowed even when the
+	// endpoint is an expression whose domain cannot be extracted statically.
+	if workloadIdentity := getOTLPWorkloadIdentity(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter); workloadIdentity != nil &&
+		strings.EqualFold(strings.TrimSpace(workloadIdentity.Provider), "google") {
+		if workflowData.NetworkPermissions == nil {
+			workflowData.NetworkPermissions = &NetworkPermissions{}
+		}
+		workflowData.NetworkPermissions.Allowed = append(workflowData.NetworkPermissions.Allowed,
+			"sts.googleapis.com",
+			"iamcredentials.googleapis.com",
+		)
+		otlpLog.Print("Added Google workload identity hosts to network allowlist")
+	}
 	for _, e := range entries {
 		if domain := extractOTLPEndpointDomain(e.URL); domain != "" {
 			if workflowData.NetworkPermissions == nil {

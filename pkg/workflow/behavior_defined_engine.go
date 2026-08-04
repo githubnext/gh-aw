@@ -220,9 +220,50 @@ func (e *BehaviorDefinedEngine) RenderMCPConfig(sb *strings.Builder, tools map[s
 // it is extremely unlikely to appear at the start of a line in any JavaScript harness.
 const harnessScriptHeredocDelimiter = "GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF"
 
+// mcpConfigAdapterHeredocDelimiter is the shell heredoc delimiter used when writing
+// the MCP config-adapter script to disk. It is intentionally long and project-specific
+// so that it is extremely unlikely to appear at the start of a line in any JavaScript.
+const mcpConfigAdapterHeredocDelimiter = "GHAW_MCP_CONFIG_ADAPTER_SCRIPT_7e1a4d2c_EOF"
+
 // harnessScriptFilename returns the filename (not path) for the engine's harness script.
 func (e *BehaviorDefinedEngine) harnessScriptFilename() string {
 	return e.GetID() + "_harness.cjs"
+}
+
+// mcpConfigAdapterFilename returns the filename (not path) for the engine's MCP
+// config-adapter script.
+func (e *BehaviorDefinedEngine) mcpConfigAdapterFilename() string {
+	return e.GetID() + "_mcp_config_adapter.cjs"
+}
+
+// buildScriptWriteStep generates a GitHub Actions step that writes script content to
+// ${RUNNER_TEMP}/gh-aw/actions/<filename> via a bash heredoc using delimiter. Returns
+// nil and logs a warning if script contains the delimiter, which would break the
+// generated shell command.
+func (e *BehaviorDefinedEngine) buildScriptWriteStep(stepName, filename, script, delimiter string) GitHubActionStep {
+	if script == "" {
+		return nil
+	}
+	// Safety check: if the script contains the heredoc delimiter at the start
+	// of any line, the heredoc would be terminated prematurely. Detect this at
+	// compile time and log a clear error rather than generating a broken step.
+	if strings.Contains(script, "\n"+delimiter) || strings.HasPrefix(script, delimiter) {
+		behaviorDefinedEngineLog.Printf(
+			"WARNING: engine %q script %q contains heredoc delimiter %q; write step skipped",
+			e.GetID(), filename, delimiter,
+		)
+		return nil
+	}
+	command := fmt.Sprintf(
+		"mkdir -p %[1]s\ncat <<'%[4]s' > %[1]s/%[2]s\n%[3]s\n%[4]s\nchmod 755 %[1]s/%[2]s",
+		SetupActionDestinationShell,
+		filename,
+		script,
+		delimiter,
+	)
+	stepLines := []string{"      - name: " + stepName}
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
+	return GitHubActionStep(stepLines)
 }
 
 // buildHarnessWriteStep generates a GitHub Actions step that writes the behavior-defined
@@ -235,28 +276,41 @@ func (e *BehaviorDefinedEngine) buildHarnessWriteStep() GitHubActionStep {
 	if behavior == nil || behavior.HarnessScript == "" {
 		return nil
 	}
-	// Safety check: if the harness script contains the heredoc delimiter at the start
-	// of any line, the heredoc would be terminated prematurely. Detect this at
-	// compile time and log a clear error rather than generating a broken step.
-	if strings.Contains(behavior.HarnessScript, "\n"+harnessScriptHeredocDelimiter) ||
-		strings.HasPrefix(behavior.HarnessScript, harnessScriptHeredocDelimiter) {
-		behaviorDefinedEngineLog.Printf(
-			"WARNING: engine %q harness-script contains heredoc delimiter %q; harness write step skipped",
-			e.GetID(), harnessScriptHeredocDelimiter,
-		)
-		return nil
-	}
-	filename := e.harnessScriptFilename()
-	command := fmt.Sprintf(
-		"mkdir -p %[1]s\ncat <<'%[4]s' > %[1]s/%[2]s\n%[3]s\n%[4]s\nchmod 755 %[1]s/%[2]s",
-		SetupActionDestinationShell,
-		filename,
+	return e.buildScriptWriteStep(
+		"Write "+e.GetDisplayName()+" harness script",
+		e.harnessScriptFilename(),
 		behavior.HarnessScript,
 		harnessScriptHeredocDelimiter,
 	)
-	stepLines := []string{"      - name: Write " + e.GetDisplayName() + " harness script"}
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
-	return GitHubActionStep(stepLines)
+}
+
+// GetMCPConfigAdapterWriteStep generates a GitHub Actions step that writes the
+// behavior-defined engine's mcp.config-adapter script content to
+// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_mcp_config_adapter.cjs so that
+// start_mcp_gateway.cjs can execute it in place of a built-in per-engine converter.
+// Returns nil (satisfying the MCPConfigAdapterProvider interface as a no-op) if the
+// engine's behaviors do not declare a config-adapter script.
+func (e *BehaviorDefinedEngine) GetMCPConfigAdapterWriteStep() GitHubActionStep {
+	behavior := e.behavior()
+	if behavior == nil || behavior.MCP == nil || behavior.MCP.ConfigAdapter == "" {
+		return nil
+	}
+	return e.buildScriptWriteStep(
+		"Write "+e.GetDisplayName()+" MCP config adapter script",
+		e.mcpConfigAdapterFilename(),
+		behavior.MCP.ConfigAdapter,
+		mcpConfigAdapterHeredocDelimiter,
+	)
+}
+
+// GetMCPConfigAdapterFilename returns the filename (not path) of the engine's MCP
+// config-adapter script, or an empty string if no config-adapter is declared.
+func (e *BehaviorDefinedEngine) GetMCPConfigAdapterFilename() string {
+	behavior := e.behavior()
+	if behavior == nil || behavior.MCP == nil || behavior.MCP.ConfigAdapter == "" {
+		return ""
+	}
+	return e.mcpConfigAdapterFilename()
 }
 
 func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {

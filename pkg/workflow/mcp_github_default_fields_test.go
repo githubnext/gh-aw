@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/stretchr/testify/assert"
 )
 
 // knownFieldsEnabledTools is the set of GitHub MCP tools that support the optional
@@ -52,4 +53,13 @@ func TestGitHubMCPDefaultFields_AllKnownToolsHaveDefaults(t *testing.T) {
 			t.Errorf("knownFieldsEnabledTools lists %q but GitHubMCPDefaultFields has no entry for it; add a recommended field set", toolName)
 		}
 	}
+}
+
+func TestGitHubMCPDefaultFields_GetFileContentsIncludesBoundedReadMetadata(t *testing.T) {
+	fields := workflow.GitHubMCPDefaultFields["get_file_contents"]
+
+	assert.Contains(t, fields, "name")
+	assert.Contains(t, fields, "type")
+	assert.Contains(t, fields, "size")
+	assert.Contains(t, fields, "path")
 }
