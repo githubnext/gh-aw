@@ -82,7 +82,7 @@ func formatDangerousPermissionsError(writePermissions []PermissionScope) error {
 	var lines []string
 	lines = append(lines, "The agent job must not have write permissions.")
 	lines = append(lines, "The agent job should stay read-only. All writes must go through safe-outputs,")
-	lines = append(lines, "which uses a scoped GitHub App token. See: docs/safe-outputs.md")
+	lines = append(lines, "which uses a scoped GitHub App token. See: https://github.github.com/gh-aw/reference/safe-outputs/")
 	lines = append(lines, "")
 	lines = append(lines, "Found write permissions on agent job:")
 	for _, scope := range writePermissions {
