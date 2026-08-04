@@ -608,10 +608,11 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 
 		_, hasSetupSteps := configMap["setup-steps"]
 		_, hasPreSteps := configMap["pre-steps"]
+		_, hasSteps := configMap["steps"]
 		if err := validateRestrictedBuiltinSetupSteps(jobName, hasSetupSteps); err != nil {
 			return err
 		}
-		if !hasSetupSteps && !hasPreSteps {
+		if !hasSetupSteps && !hasPreSteps && !hasSteps {
 			continue
 		}
 
@@ -627,6 +628,7 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 
 		var setupSteps []string
 		var preSteps []string
+		var regularSteps []string
 		if hasSetupSteps {
 			steps, err := c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
 			if err != nil {
@@ -641,16 +643,48 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 			}
 			preSteps = append(preSteps, steps...)
 		}
-		if len(setupSteps) == 0 && len(preSteps) == 0 {
+		if hasSteps && targetJobName == string(constants.ActivationJobName) {
+			steps, err := c.extractPinnedJobSteps("steps", jobName, configMap, data)
+			if err != nil {
+				return fmt.Errorf("failed to process steps for built-in job '%s': %w", jobName, err)
+			}
+			regularSteps = append(regularSteps, steps...)
+		}
+		if len(setupSteps) == 0 && len(preSteps) == 0 && len(regularSteps) == 0 {
 			continue
 		}
 
+		job.Steps = insertActivationStepsBeforeArtifactStaging(targetJobName, job.Steps, regularSteps)
 		job.Steps = insertPreStepsAtEarliestBoundary(job.Steps, preSteps)
 		job.Steps = insertSetupStepsAtStart(job.Steps, setupSteps)
-		compilerJobsLog.Printf("Inserted %d setup-step(s) and %d pre-step(s) into built-in job '%s'", len(setupSteps), len(preSteps), targetJobName)
+		compilerJobsLog.Printf("Inserted %d setup-step(s), %d pre-step(s), and %d step(s) into built-in job '%s'", len(setupSteps), len(preSteps), len(regularSteps), targetJobName)
 	}
 
 	return nil
+}
+
+func insertActivationStepsBeforeArtifactStaging(jobName string, steps []string, activationSteps []string) []string {
+	if len(activationSteps) == 0 {
+		return steps
+	}
+	if jobName != string(constants.ActivationJobName) {
+		return steps
+	}
+
+	insertIdx := len(steps)
+	for i, step := range steps {
+		if strings.Contains(step, "name: Stage ambient folders for activation artifact") ||
+			strings.Contains(step, "name: Upload activation artifact") {
+			insertIdx = i
+			break
+		}
+	}
+
+	result := make([]string, 0, safeAllocationCapacity(len(steps), len(activationSteps)))
+	result = append(result, steps[:insertIdx]...)
+	result = append(result, activationSteps...)
+	result = append(result, steps[insertIdx:]...)
+	return result
 }
 
 func normalizeBuiltinJobAlias(jobName string) string {

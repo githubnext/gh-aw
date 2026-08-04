@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
@@ -117,7 +118,7 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 				// Keep main workflow job precedence, but merge setup/pre-step fields
 				// deterministically when imported and main define step injections for the
 				// same job.
-				mergedJob, merged := mergeJobInjectedSteps(result[jobName], jobConfig)
+				mergedJob, merged := mergeJobInjectedSteps(jobName, result[jobName], jobConfig)
 				if merged {
 					workflowImportMergeLog.Printf("Merged injected job steps for conflicting job %s (imported first, then main per field)", jobName)
 					result[jobName] = mergedJob
@@ -133,7 +134,7 @@ func (c *Compiler) mergeJobsFromYAMLImports(mainJobs map[string]any, mergedJobsJ
 	return result
 }
 
-func mergeJobInjectedSteps(mainJob any, importedJob any) (map[string]any, bool) {
+func mergeJobInjectedSteps(jobName string, mainJob any, importedJob any) (map[string]any, bool) {
 	mainMap, ok := mainJob.(map[string]any)
 	if !ok {
 		return nil, false
@@ -150,7 +151,11 @@ func mergeJobInjectedSteps(mainJob any, importedJob any) (map[string]any, bool) 
 	maps.Copy(merged, mainMap)
 
 	mergedAny := false
-	for _, fieldName := range []string{"setup-steps", "pre-steps"} {
+	fieldNames := []string{"setup-steps", "pre-steps"}
+	if jobName == string(constants.ActivationJobName) {
+		fieldNames = append(fieldNames, "steps")
+	}
+	for _, fieldName := range fieldNames {
 		mergedSteps, ok := mergeJobStepField(mainMap, importedMap, fieldName)
 		if !ok {
 			continue

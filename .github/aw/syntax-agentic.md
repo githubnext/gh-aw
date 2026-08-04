@@ -268,7 +268,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
             run: echo "Custom job"
     ```
 
-  - `setup-steps`/`pre-steps` also apply to built-in jobs (e.g. `activation`): use `setup-steps` for OIDC/secret bootstrap that must run before framework token minting, then verify the result in `pre-steps`.
+  - `setup-steps`/`pre-steps` also apply to built-in jobs (e.g. `activation`): use `setup-steps` for OIDC/secret bootstrap that must run before framework token minting, then verify the result in `pre-steps`. Use `jobs.activation.steps` for activation work that must run after the activation checkout and before the activation artifact is staged.
   - **`needs`/`if` on built-in jobs** — targeting a compiler-generated job (`agent`, `activation`, `safe_outputs`, etc.) under `jobs:` also accepts additive `needs` and `if`: `jobs.agent.needs` merges with compiler-generated dependencies, and `jobs.agent.if` combines with compiler-generated conditions using `&&`. Use this to gate the agent job on a custom setup job's outcome.
 
 - **`engine:`** - AI processor configuration (string or object: `id`, `model`, `permission-mode`, `agent`, `max-continuations`, `driver`, `copilot-sdk`, `auth`, and more). See [syntax-engine.md](syntax-engine.md) for the full field reference, per-engine support notes, and inline driver examples.

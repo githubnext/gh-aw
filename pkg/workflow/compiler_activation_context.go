@@ -38,9 +38,8 @@ type activationJobBuildContext struct {
 	activationNeeds            []string
 	activationCondition        string
 
-	// activationAllScripts holds the `run` scripts extracted from jobs.activation.pre-steps,
-	// cached to avoid repeated extraction. Only pre-steps are honored for built-in jobs;
-	// jobs.activation.steps and jobs.activation.post-steps are not injected by the compiler.
+	// activationAllScripts holds the `run` scripts extracted from jobs.activation setup,
+	// pre, and activation steps, cached to avoid repeated extraction.
 	activationAllScripts []string
 	// activationInferredPerms holds the permissions inferred from activationAllScripts,
 	// cached here to avoid repeated inference.
@@ -114,13 +113,12 @@ func cacheActivationPreStepPermissions(ctx *activationJobBuildContext) error {
 	// Cache scripts from setup/pre-steps and inferred permissions once to avoid redundant
 	// extraction and inference calls in buildActivationPermissions and
 	// addActivationFeedbackAndValidationSteps.
-	// Only setup/pre-steps are honored for built-in jobs: applyBuiltinJobPreSteps (compiler_jobs.go)
-	// inserts only jobs.<name>.setup-steps / jobs.<name>.pre-steps; jobs.<name>.steps and jobs.<name>.post-steps are
-	// ignored for built-in jobs, so scanning them would cause false-positive errors or
-	// unneeded permission grants.
+	// Activation setup/pre/regular steps are injected into the built-in activation job;
+	// scan their scripts so permission inference stays aligned with emitted steps.
 	activationJobName := string(constants.ActivationJobName)
 	ctx.activationAllScripts = extractRunScriptsFromJobSection(ctx.data.Jobs, activationJobName, "setup-steps")
 	ctx.activationAllScripts = append(ctx.activationAllScripts, extractRunScriptsFromJobSection(ctx.data.Jobs, activationJobName, "pre-steps")...)
+	ctx.activationAllScripts = append(ctx.activationAllScripts, extractRunScriptsFromJobSection(ctx.data.Jobs, activationJobName, "steps")...)
 	if len(ctx.activationAllScripts) > 0 {
 		inferredPerms, err := inferPermissionsFromShellScripts(ctx.activationAllScripts)
 		if err != nil {
