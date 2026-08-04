@@ -1,8 +1,8 @@
 # ADR-50145: Remove opencode Engine from GitHub Agentic Workflows
 
 **Date**: 2026-08-04
-**Status**: Draft
-**Deciders**: Unknown (PR created by AI Agent — review and confirm before accepting)
+**Status**: Accepted
+**Deciders**: pelikhan, Copilot
 
 ---
 
@@ -46,5 +46,3 @@ Move the opencode engine configuration to a shared/central workflow definition r
 - The number of supported experimental engines drops from 3 (`antigravity`, `opencode`, `pi`) to 2 (`antigravity`, `pi`)
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
