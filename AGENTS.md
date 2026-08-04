@@ -46,10 +46,11 @@ Workflows that declare a `source:` frontmatter entry (for example `source: githu
 
 Use skills only when the task requires specialized guidance. Do not pre-load every skill.
 
-When the relevant skill is not obvious, first discover candidates and then load only the minimal guidance needed:
+All skills are local to this repository under `.github/skills/`. **NEVER** use GitHub Agent Finder (`agentfinder.github.com`) or any other remote skill discovery service to look for skills.
 
-- Query GitHub Agent Finder directly with the built-in REST API at `https://agentfinder.github.com/api/v1/search`.
-- Send an ARD search request with the user's task in `query.text`; do not ask the user for the endpoint.
+When the relevant skill is not obvious, first discover candidates locally and then load only the minimal guidance needed:
+
+- Discover skills by listing or searching `.github/skills/*/SKILL.md` in this repository.
 - Use **skill fusion** after discovery: read only the specific skill sections or fragments needed instead of loading full skills broadly.
 
 ### Use these skills by intent
