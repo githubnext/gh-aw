@@ -28,7 +28,7 @@ import-schema:
 
 mcp-servers:
   serena:
-    container: "ghcr.io/github/serena-mcp-server:sha-2491b68"
+    container: "ghcr.io/github/serena-mcp-server:sha-891c160"
     args:
       - "--network"
       - "host"
