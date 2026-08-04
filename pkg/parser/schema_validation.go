@@ -17,7 +17,6 @@ var schemaValidationLog = logger.New("parser:schema_validation")
 var sharedWorkflowForbiddenFields = buildForbiddenFieldsMap()
 
 var sharedWorkflowAllowedOnFieldList = []string{
-	"ambient-folders",
 	"skip-if-match",
 	"skip-if-no-match",
 	"skip-roles",
@@ -27,7 +26,6 @@ var sharedWorkflowAllowedOnFieldList = []string{
 }
 
 var sharedWorkflowAllowedOnFields = map[string]struct{}{
-	"ambient-folders":  {},
 	"skip-if-match":    {},
 	"skip-if-no-match": {},
 	"skip-roles":       {},

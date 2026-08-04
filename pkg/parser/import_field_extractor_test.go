@@ -251,19 +251,17 @@ func TestAmbientFoldersExtractedFromMdImport(t *testing.T) {
 	sharedDir := filepath.Join(tmpDir, "shared")
 	require.NoError(t, os.MkdirAll(sharedDir, 0755), "Failed to create shared dir")
 	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "first.md"), []byte(`---
-on:
-  ambient-folders:
-    - .squad
-    - .github/agents
+ambient-folders:
+  - .squad
+  - .github/agents
 ---
 
 # First shared workflow
 `), 0644), "Failed to write first shared file")
 	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "second.md"), []byte(`---
-on:
-  ambient-folders:
-    - .squad
-    - .config/agents
+ambient-folders:
+  - .squad
+  - .config/agents
 ---
 
 # Second shared workflow

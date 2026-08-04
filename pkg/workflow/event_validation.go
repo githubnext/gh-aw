@@ -82,7 +82,6 @@ var validGitHubEventTypes = []string{
 // type validation.
 var ghAwOnSectionKeys = map[string]bool{
 	"allow-bot-authored-trigger-comment": true,
-	"ambient-folders":                    true,
 	"bots":                               true,
 	"command":                            true,
 	"github-app":                         true,
