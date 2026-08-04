@@ -331,6 +331,66 @@ describe("parseDetectionLog", () => {
       expect(verdict.prompt_injection).toBe(false);
     });
 
+    it("should parse a verdict wrapped in Markdown bold emphasis (**)", () => {
+      const content = '**THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}**';
+      const { verdict, error } = parseDetectionLog(content);
+
+      expect(error).toBeUndefined();
+      expect(verdict).toEqual({
+        prompt_injection: false,
+        secret_leak: false,
+        malicious_patch: false,
+        reasons: [],
+      });
+    });
+
+    it("should parse a verdict wrapped in Markdown underscore emphasis (__)", () => {
+      const content = '__THREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["found injection"]}__';
+      const { verdict, error } = parseDetectionLog(content);
+
+      expect(error).toBeUndefined();
+      expect(verdict.prompt_injection).toBe(true);
+      expect(verdict.reasons).toEqual(["found injection"]);
+    });
+
+    it("should handle leading whitespace before a Markdown-wrapped verdict", () => {
+      const content = '  **THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}**  ';
+      const { verdict, error } = parseDetectionLog(content);
+
+      expect(error).toBeUndefined();
+      expect(verdict.prompt_injection).toBe(false);
+    });
+
+    it("should parse a Markdown-emphasis-wrapped verdict from a stream-json 'result' line", () => {
+      const line = JSON.stringify({
+        type: "result",
+        subtype: "success",
+        result: '**THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}**',
+        stop_reason: "end_turn",
+      });
+      const { verdict, error } = parseDetectionLog(line);
+
+      expect(error).toBeUndefined();
+      expect(verdict).toEqual({
+        prompt_injection: false,
+        secret_leak: false,
+        malicious_patch: false,
+        reasons: [],
+      });
+    });
+
+    it("should not treat a result-format example embedded in prose as the authoritative verdict", () => {
+      const content =
+        'The output format should look like this: some text THREAT_DETECTION_RESULT:{"prompt_injection":false,...} is an example.\nActual verdict below.\nTHREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["real threat"]}';
+      const { verdict, error } = parseDetectionLog(content);
+
+      // The prose example does not start the line with the prefix (with or without
+      // emphasis), so only the real verdict line should be matched.
+      expect(error).toBeUndefined();
+      expect(verdict.prompt_injection).toBe(true);
+      expect(verdict.reasons).toEqual(["real threat"]);
+    });
+
     it("should reject non-boolean values with a type error", () => {
       const content = 'THREAT_DETECTION_RESULT:{"prompt_injection":1,"secret_leak":0,"malicious_patch":"yes","reasons":"not-array"}';
       const { verdict, error } = parseDetectionLog(content);
