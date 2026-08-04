@@ -228,6 +228,13 @@ type OTLPGitHubAppConfig struct {
 	Audience string `json:"audience,omitempty"`
 }
 
+// OTLPWorkloadIdentityConfig configures cloud workload identity federation for OTLP export.
+type OTLPWorkloadIdentityConfig struct {
+	Provider       string `json:"provider,omitempty"`
+	Audience       string `json:"audience,omitempty"`
+	ServiceAccount string `json:"service-account,omitempty"`
+}
+
 // OTLPConfig holds configuration for OTLP (OpenTelemetry Protocol) trace export.
 type OTLPConfig struct {
 	// Endpoint accepts one of three forms:
@@ -290,6 +297,10 @@ type OTLPConfig struct {
 	// When configured, gh-aw mints an OIDC token before actions/setup and passes
 	// it to setup so OTLP requests can include an Authorization bearer token.
 	GitHubApp *OTLPGitHubAppConfig `json:"github-app,omitempty"`
+
+	// WorkloadIdentity exchanges a GitHub Actions OIDC token for a cloud access
+	// token before OTLP export. Google is currently the supported provider.
+	WorkloadIdentity *OTLPWorkloadIdentityConfig `json:"workload-identity,omitempty"`
 }
 
 // ObservabilityConfig represents workflow observability options.

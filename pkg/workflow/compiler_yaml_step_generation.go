@@ -141,12 +141,19 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 		return c.buildGitHubAppTokenMintStepWithMeta(app, nil, "", "", "Mint OTLP GitHub App token", "mint-otlp-oidc-token")
 	}
 
+	workloadIdentity := getOTLPWorkloadIdentity(data.ParsedFrontmatter, data.RawFrontmatter)
 	githubApp := getOTLPGitHubApp(data.ParsedFrontmatter, data.RawFrontmatter)
-	if githubApp == nil {
+	if workloadIdentity == nil && githubApp == nil {
 		return nil
 	}
 
 	compilerYamlStepGenerationLog.Print("Generating OTLP OIDC token mint step before setup")
+	var audience string
+	if workloadIdentity != nil {
+		audience = strings.TrimSpace(workloadIdentity.Audience)
+	} else {
+		audience = strings.TrimSpace(githubApp.Audience)
+	}
 	lines := []string{
 		"      - name: Mint OTLP OIDC token\n",
 		"        id: mint-otlp-oidc-token\n",
@@ -159,12 +166,69 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 		"            core.setOutput('token', token);\n",
 	}
 
-	if audience := strings.TrimSpace(githubApp.Audience); audience != "" {
+	if audience != "" {
 		lines = append(lines, "        env:\n")
 		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_OIDC_AUDIENCE", audience))
 	}
 
+	if workloadIdentity != nil {
+		compilerYamlStepGenerationLog.Print("Generating Google OTLP workload identity token exchange step before setup")
+		lines = append(lines,
+			"      - name: Exchange OTLP workload identity token\n",
+			"        id: exchange-otlp-workload-identity-token\n",
+			fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+			"        env:\n",
+			"          GH_AW_OTLP_OIDC_TOKEN: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n",
+		)
+		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_AUDIENCE", workloadIdentity.Audience))
+		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_SERVICE_ACCOUNT", workloadIdentity.ServiceAccount))
+		lines = append(lines,
+			"        with:\n",
+			"          script: |\n",
+			"            const oidcToken = process.env.GH_AW_OTLP_OIDC_TOKEN;\n",
+			"            core.setSecret(oidcToken);\n",
+			"            const response = await fetch('https://sts.googleapis.com/v1/token', {\n",
+			"              method: 'POST',\n",
+			"              headers: { 'content-type': 'application/x-www-form-urlencoded' },\n",
+			"              body: new URLSearchParams({\n",
+			"                grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',\n",
+			"                requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',\n",
+			"                subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',\n",
+			"                subject_token: oidcToken,\n",
+			"                audience: process.env.GH_AW_OTLP_WIF_AUDIENCE,\n",
+			"                scope: 'https://www.googleapis.com/auth/cloud-platform',\n",
+			"              }),\n",
+			"            });\n",
+			"            if (!response.ok) throw new Error('Google workload identity token exchange failed');\n",
+			"            let { access_token: accessToken } = await response.json();\n",
+			"            if (!accessToken) throw new Error('Google workload identity token exchange returned no access token');\n",
+			"            const serviceAccount = process.env.GH_AW_OTLP_WIF_SERVICE_ACCOUNT;\n",
+			"            if (serviceAccount) {\n",
+			"              const impersonationResponse = await fetch(`https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${encodeURIComponent(serviceAccount)}:generateAccessToken`, {\n",
+			"                method: 'POST',\n",
+			"                headers: { authorization: 'Bearer ' + accessToken, 'content-type': 'application/json' },\n",
+			"                body: JSON.stringify({ scope: ['https://www.googleapis.com/auth/cloud-platform'] }),\n",
+			"              });\n",
+			"              if (!impersonationResponse.ok) throw new Error('Google service account impersonation failed');\n",
+			"              ({ accessToken } = await impersonationResponse.json());\n",
+			"              if (!accessToken) throw new Error('Google service account impersonation returned no access token');\n",
+			"            }\n",
+			"            core.setSecret(accessToken);\n",
+			"            core.setOutput('token', accessToken);\n",
+		)
+	}
+
 	return lines
+}
+
+func getOTLPAuthTokenStepID(data *WorkflowData) string {
+	if data == nil {
+		return "mint-otlp-oidc-token"
+	}
+	if getOTLPWorkloadIdentity(data.ParsedFrontmatter, data.RawFrontmatter) != nil {
+		return "exchange-otlp-workload-identity-token"
+	}
+	return "mint-otlp-oidc-token"
 }
 
 func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string) []string {
@@ -174,6 +238,7 @@ func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, 
 func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string, artifactClientCondition string) []string {
 	lines := c.generateOTLPOIDCMintStep(data)
 	hasOTLPOIDC := len(lines) > 0
+	otlpAuthTokenStepID := getOTLPAuthTokenStepID(data)
 	artifactClientCondition = strings.TrimSpace(artifactClientCondition)
 
 	setupEngineID := ""
@@ -221,7 +286,7 @@ func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowDa
 			setupLines = append(setupLines, fmt.Sprintf("          INPUT_PARENT_SPAN_ID: %s\n", parentSpanID))
 		}
 		if hasOTLPOIDC {
-			setupLines = append(setupLines, "          INPUT_OTLP_OIDC_TOKEN: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n")
+			setupLines = append(setupLines, fmt.Sprintf("          INPUT_OTLP_OIDC_TOKEN: ${{ steps.%s.outputs.token }}\n", otlpAuthTokenStepID))
 		}
 		if enableArtifactClient {
 			if artifactClientCondition != "" {
@@ -251,7 +316,7 @@ func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowDa
 		setupLines = append(setupLines, fmt.Sprintf("          parent-span-id: %s\n", parentSpanID))
 	}
 	if hasOTLPOIDC {
-		setupLines = append(setupLines, "          otlp-oidc-token: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n")
+		setupLines = append(setupLines, fmt.Sprintf("          otlp-oidc-token: ${{ steps.%s.outputs.token }}\n", otlpAuthTokenStepID))
 	}
 	if enableArtifactClient {
 		if artifactClientCondition != "" {

@@ -280,6 +280,17 @@ func TestGetOTLPGitHubApp(t *testing.T) {
 }
 
 func TestHasOTLPGitHubOIDCAuth(t *testing.T) {
+	assert.True(t, hasOTLPGitHubOIDCAuth(nil, map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"workload-identity": map[string]any{
+					"provider": "google",
+					"audience": "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+				},
+			},
+		},
+	}))
+
 	assert.True(t, hasOTLPGitHubOIDCAuth(&FrontmatterConfig{
 		Observability: &ObservabilityConfig{
 			OTLP: &OTLPConfig{

@@ -188,6 +188,29 @@ func getOTLPGitHubApp(config *FrontmatterConfig, frontmatter map[string]any) *OT
 	}
 }
 
+func getOTLPWorkloadIdentity(config *FrontmatterConfig, frontmatter map[string]any) *OTLPWorkloadIdentityConfig {
+	if config != nil && config.Observability != nil && config.Observability.OTLP != nil && config.Observability.OTLP.WorkloadIdentity != nil {
+		return config.Observability.OTLP.WorkloadIdentity
+	}
+	if frontmatter == nil {
+		return nil
+	}
+	obs, _ := frontmatter["observability"].(map[string]any)
+	otlp, _ := obs["otlp"].(map[string]any)
+	workloadIdentity, _ := otlp["workload-identity"].(map[string]any)
+	if workloadIdentity == nil {
+		return nil
+	}
+	provider, _ := workloadIdentity["provider"].(string)
+	audience, _ := workloadIdentity["audience"].(string)
+	serviceAccount, _ := workloadIdentity["service-account"].(string)
+	return &OTLPWorkloadIdentityConfig{
+		Provider:       provider,
+		Audience:       audience,
+		ServiceAccount: serviceAccount,
+	}
+}
+
 func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
 	if frontmatter == nil {
 		return nil
@@ -217,6 +240,9 @@ func getOTLPGitHubAppTokenConfig(frontmatter map[string]any) *GitHubAppConfig {
 }
 
 func hasOTLPGitHubOIDCAuth(config *FrontmatterConfig, frontmatter map[string]any) bool {
+	if getOTLPWorkloadIdentity(config, frontmatter) != nil {
+		return true
+	}
 	if getOTLPGitHubAppTokenConfig(frontmatter) != nil {
 		return false
 	}
@@ -718,6 +744,17 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		if domain := extractOTLPEndpointDomain(e.URL); domain != "" {
 			if workflowData.NetworkPermissions == nil {
 				workflowData.NetworkPermissions = &NetworkPermissions{}
+			}
+			if workloadIdentity := getOTLPWorkloadIdentity(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter); workloadIdentity != nil &&
+				strings.EqualFold(strings.TrimSpace(workloadIdentity.Provider), "google") {
+				if workflowData.NetworkPermissions == nil {
+					workflowData.NetworkPermissions = &NetworkPermissions{}
+				}
+				workflowData.NetworkPermissions.Allowed = append(workflowData.NetworkPermissions.Allowed,
+					"sts.googleapis.com",
+					"iamcredentials.googleapis.com",
+					"oauth2.googleapis.com",
+				)
 			}
 			workflowData.NetworkPermissions.Allowed = append(workflowData.NetworkPermissions.Allowed, domain)
 			otlpLog.Printf("Added OTLP domain to network allowlist: %s", domain)

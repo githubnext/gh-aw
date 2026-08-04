@@ -355,3 +355,33 @@ func TestGenerateSetupStepIncludesOTLPOIDCTokenInScriptMode(t *testing.T) {
 		t.Fatalf("expected setup.sh env to include minted OTLP OIDC token, got:\n%s", combined)
 	}
 }
+
+func TestGenerateSetupStepExchangesGoogleOTLPWorkloadIdentityToken(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "my-workflow",
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"workload-identity": map[string]any{
+						"provider":        "google",
+						"audience":        "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+						"service-account": "otlp@example.iam.gserviceaccount.com",
+					},
+				},
+			},
+		},
+	}
+
+	combined := strings.Join(c.generateSetupStep(data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", ""), "")
+
+	if !strings.Contains(combined, "id: exchange-otlp-workload-identity-token") {
+		t.Fatalf("expected setup step to include Google workload identity exchange, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "https://sts.googleapis.com/v1/token") || !strings.Contains(combined, "iamcredentials.googleapis.com") {
+		t.Fatalf("expected setup step to include Google STS and service account exchange, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "otlp-oidc-token: ${{ steps.exchange-otlp-workload-identity-token.outputs.token }}") {
+		t.Fatalf("expected setup action to receive the exchanged access token, got:\n%s", combined)
+	}
+}

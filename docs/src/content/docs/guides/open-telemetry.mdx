@@ -34,6 +34,23 @@ observability:
 
 Once configured, gh-aw exports built-in workflow spans such as setup and conclusion events to the configured OTLP backend.
 
+### Google Workload Identity Federation
+
+For Google Cloud Telemetry, configure Google Workload Identity Federation instead of a static authorization header. gh-aw mints and exchanges a GitHub OIDC token in every span-emitting job. The workload identity principal needs permission to write telemetry and, when `service-account` is set, permission to impersonate that service account.
+
+```yaml wrap
+observability:
+  otlp:
+    endpoint:
+      - url: https://telemetry.googleapis.com
+        headers:
+          x-goog-user-project: ${{ vars.GCP_PROJECT_ID }}
+    workload-identity:
+      provider: google
+      audience: ${{ vars.GCP_WIF_PROVIDER }}
+      service-account: ${{ vars.GCP_SA_EMAIL }}
+```
+
 ## Read telemetry through MCP
 
 Configure [`mcp-servers`](/gh-aw/reference/frontmatter-full/) when the agent needs to inspect telemetry that already exists in the backend. A typical Sentry read setup looks like this:
