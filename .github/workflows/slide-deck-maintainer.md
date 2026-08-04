@@ -36,7 +36,7 @@ imports:
   - shared/otlp.md
 timeout-minutes: 45
 checkout:
-  lfs: true
+  lfs: false
 runtimes:
   node:
     version: "24"
@@ -71,6 +71,22 @@ network:
   allowed:
     - node
 steps:
+  - name: Fetch Git LFS files
+    run: |
+      attempt=1
+      max_attempts=5
+      wait_time=5
+      until git lfs pull; do
+        if [ "${attempt}" -ge "${max_attempts}" ]; then
+          echo "::error::git lfs pull failed after ${max_attempts} attempts"
+          exit 1
+        fi
+        echo "git lfs pull failed (attempt ${attempt}/${max_attempts}). Retrying in ${wait_time}s..."
+        sleep "${wait_time}"
+        attempt=$((attempt + 1))
+        wait_time=$((wait_time * 2))
+      done
+
   - name: Setup Node.js
     uses: actions/setup-node@v7.0.0
     with:
