@@ -176,13 +176,13 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	engineID := resolveActivationEngineID(ctx.data)
 	// Include the engine-specific sub-agent staging directory only when inline agents are enabled.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) {
-		subAgentDir := GetEngineSubAgentDir(engineID)
+		subAgentDir := engineConfigBaseDirForRegistry(c.engineRegistry, engineID) + "/agents"
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", subAgentDir))
 	}
 	// Always include the engine-specific skill directory when either inline skills are enabled
 	// or frontmatter skills are configured (via Skills or SkillReferences).
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) || len(ctx.data.Skills) > 0 || len(ctx.data.SkillReferences) > 0 {
-		skillDir := GetEngineSkillDir(engineID)
+		skillDir := engineConfigBaseDirForRegistry(c.engineRegistry, engineID) + "/skills"
 		ctx.steps = append(ctx.steps, fmt.Sprintf("            /tmp/gh-aw/%s\n", skillDir))
 	}
 	ctx.steps = append(ctx.steps, "          if-no-files-found: ignore\n")

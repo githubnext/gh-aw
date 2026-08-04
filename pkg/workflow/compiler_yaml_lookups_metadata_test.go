@@ -15,7 +15,7 @@ func TestCollectEngineVersionsForMetadata(t *testing.T) {
 			},
 		}
 
-		versions := collectEngineVersionsForMetadata(data)
+		versions := collectEngineVersionsForMetadata(data, GetGlobalEngineRegistry())
 		if versions["copilot"] != "1.2.3-custom" {
 			t.Fatalf("Expected copilot override version, got: %q", versions["copilot"])
 		}
@@ -43,7 +43,7 @@ func TestCollectEngineVersionsForMetadata(t *testing.T) {
 			},
 		}
 
-		versions := collectEngineVersionsForMetadata(data)
+		versions := collectEngineVersionsForMetadata(data, GetGlobalEngineRegistry())
 		if versions["copilot"] == "" {
 			t.Fatal("Expected active main engine version for copilot")
 		}

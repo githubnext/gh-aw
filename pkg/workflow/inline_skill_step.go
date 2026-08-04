@@ -9,12 +9,12 @@ import (
 
 var inlineSkillStepLog = logger.New("workflow:inline_skill_step")
 
-func generateRestoreInlineSkillsStep(yaml *strings.Builder, data *WorkflowData) {
+func generateRestoreInlineSkillsStep(yaml *strings.Builder, data *WorkflowData, registry *EngineRegistry) {
 	engineID := ""
 	if data.EngineConfig != nil {
 		engineID = data.EngineConfig.ID
 	}
-	skillDir := GetEngineSkillDir(engineID)
+	skillDir := engineConfigBaseDirForRegistry(registry, engineID) + "/skills"
 	inlineSkillStepLog.Printf("Generating restore inline skills step: engine=%s, dir=%s", engineID, skillDir)
 
 	yaml.WriteString("      - name: Restore inline skills from activation artifact\n")

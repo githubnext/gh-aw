@@ -8,6 +8,7 @@ See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
 
 - **`engine:`** - AI processor configuration
   - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"antigravity"`, `"pi"`
+  - The experimental `opencode` engine is available through `imports: [shared/opencode.md]`; see [`smoke-opencode.md`](../workflows/smoke-opencode.md) for an example.
   - Object format for extended configuration:
 
     ```yaml

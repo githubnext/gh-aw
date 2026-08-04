@@ -31,6 +31,11 @@ type workflowBuildContext struct {
 // ParseWorkflowFile parses a workflow markdown file and returns a WorkflowData structure.
 // This is the main orchestration function that coordinates all compilation phases.
 func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+	// Behavior-defined engines are contributed by a workflow's imports, so their
+	// registry and catalog must not affect subsequent compilations.
+	c.engineRegistry = NewEngineRegistry()
+	c.engineCatalog = NewEngineCatalog(c.engineRegistry)
+
 	orchestratorWorkflowLog.Printf("Starting workflow file parsing: %s", markdownPath)
 
 	parseResult, err := c.parseFrontmatterSection(markdownPath)

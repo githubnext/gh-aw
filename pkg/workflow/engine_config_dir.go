@@ -13,7 +13,10 @@ var engineConfigDirLog = logger.New("workflow:engine_config_dir")
 // AgentManifestPathPrefix from the AgentFileProvider interface.
 // Falls back to ".github" when the engine is not found or provides no path prefixes.
 func engineConfigBaseDir(engineID string) string {
-	registry := GetGlobalEngineRegistry()
+	return engineConfigBaseDirForRegistry(GetGlobalEngineRegistry(), engineID)
+}
+
+func engineConfigBaseDirForRegistry(registry *EngineRegistry, engineID string) string {
 	engine, err := registry.GetEngine(strings.ToLower(engineID))
 	if err == nil {
 		if provider, ok := engine.(AgentFileProvider); ok {

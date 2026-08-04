@@ -229,7 +229,7 @@ func (c *Compiler) getActivationRenderedEngineEnvValues(data *WorkflowData) []st
 		constants.CopilotGitHubToken: {},
 	}
 	engineID := strings.ToLower(resolveActivationEngineID(data))
-	if engine, err := GetGlobalEngineRegistry().GetEngine(engineID); err == nil {
+	if engine, err := c.engineRegistry.GetEngine(engineID); err == nil {
 		for _, secretName := range engine.GetRequiredSecretNames(data) {
 			envKeys[secretName] = struct{}{}
 		}

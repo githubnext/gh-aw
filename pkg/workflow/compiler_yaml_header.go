@@ -45,7 +45,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
 			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.Model
 		}
-		agentInfo.EngineVersions = collectEngineVersionsForMetadata(data)
+		agentInfo.EngineVersions = collectEngineVersionsForMetadata(data, c.engineRegistry)
 		agentInfo.AgentImageRunner = resolveAgentImageRunnerIdentifier(data.RawFrontmatter)
 		metadata := GenerateLockMetadata(LockHashInfo{FrontmatterHash: frontmatterHash, BodyHash: bodyHash}, data.StopTime, c.effectiveStrictMode(data.RawFrontmatter), agentInfo)
 		if metadata.CompilerVersion == "" && c.GetActionTag() != "" {

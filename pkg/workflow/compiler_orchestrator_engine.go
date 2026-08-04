@@ -95,8 +95,20 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 // imports. Imported files may contribute an engine definition, so engine-name
 // validation must be deferred until imports have been processed.
 func frontmatterDeclaresImports(frontmatter map[string]any) bool {
-	imports, ok := frontmatter["imports"].([]any)
-	return ok && len(imports) > 0
+	switch imports := frontmatter["imports"].(type) {
+	case []any:
+		return len(imports) > 0
+	case []string:
+		return len(imports) > 0
+	case map[string]any:
+		switch aw := imports["aw"].(type) {
+		case []any:
+			return len(aw) > 0
+		case []string:
+			return len(aw) > 0
+		}
+	}
+	return false
 }
 
 func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int, int) {

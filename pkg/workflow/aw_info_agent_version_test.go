@@ -195,7 +195,7 @@ func TestGetInstallationVersion(t *testing.T) {
 				}
 			}
 
-			version := getInstallationVersion(workflowData, engine)
+			version := getInstallationVersion(workflowData, engine, GetGlobalEngineRegistry())
 			if version != tt.expectedVersion {
 				t.Errorf("Expected version '%s', got '%s'", tt.expectedVersion, version)
 			}
