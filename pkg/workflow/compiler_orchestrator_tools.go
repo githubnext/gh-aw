@@ -62,7 +62,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	if err != nil {
 		return nil, err
 	}
-	toolsData, err := c.resolveToolsConfiguration(result, effectiveMarkdown, markdownDir, importsResult, agenticEngine)
+	toolsData, err := c.resolveToolsConfiguration(result, effectiveMarkdown, markdownDir, importsResult, agenticEngine, engineSetting)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +174,7 @@ func (c *Compiler) resolveToolsConfiguration(
 	markdownDir string,
 	importsResult *parser.ImportsResult,
 	agenticEngine CodingAgentEngine,
+	engineSetting string,
 ) (*mergedToolsData, error) {
 	topTools := extractToolsMapFromFrontmatter(result.Frontmatter)
 	if err := ValidateToolsSection(topTools); err != nil {
@@ -206,7 +207,15 @@ func (c *Compiler) resolveToolsConfiguration(
 		orchestratorToolsLog.Printf("MCP configuration validation failed: %v", err)
 		return nil, err
 	}
+	tools, err = enforceMCPProxyTools(agenticEngine, tools)
+	if err != nil {
+		return nil, err
+	}
 	tools = c.adjustToolsForEngineCapabilities(result.Frontmatter, agenticEngine, tools)
+	tools, err = enforceMCPProxyTools(agenticEngine, tools)
+	if err != nil {
+		return nil, err
+	}
 	if err := c.validateEngineToolRequirements(result.Frontmatter, agenticEngine, tools); err != nil {
 		return nil, err
 	}
@@ -218,6 +227,47 @@ func (c *Compiler) resolveToolsConfiguration(
 		toolsStartupTimeout:   toolsStartupTimeout,
 		hasExplicitGitHubTool: githubToolExplicit,
 	}, nil
+}
+
+// enforceMCPProxyTools exposes MCP-backed tools through CLI proxies for engines
+// that do not have an MCP client.
+func enforceMCPProxyTools(engine MCPProxyEngine, tools map[string]any) (map[string]any, error) {
+	if engine == nil || engine.GetCapabilities().MCP {
+		return tools, nil
+	}
+
+	if githubValue, exists := tools["github"]; exists {
+		switch github := githubValue.(type) {
+		case bool:
+			if !github {
+				return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github cannot be disabled because gh-proxy is required", engine.GetID())
+			}
+		case map[string]any:
+			if modeValue, hasMode := github["mode"]; hasMode {
+				mode, ok := modeValue.(string)
+				if !ok || (mode != string(GitHubMCPModeGHProxy) && mode != string(GitHubMCPModeCLI)) {
+					return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github.mode must be gh-proxy", engine.GetID())
+				}
+			}
+			github["mode"] = string(GitHubMCPModeGHProxy)
+		case nil, string:
+			tools["github"] = map[string]any{"mode": string(GitHubMCPModeGHProxy)}
+		}
+	}
+
+	if _, exists := tools["github"]; !exists {
+		tools["github"] = map[string]any{"mode": string(GitHubMCPModeGHProxy)}
+	} else if enabled, ok := tools["github"].(bool); ok && enabled {
+		tools["github"] = map[string]any{"mode": string(GitHubMCPModeGHProxy)}
+	}
+
+	if cliProxy, exists := tools["cli-proxy"]; exists {
+		if enabled, ok := cliProxy.(bool); ok && !enabled {
+			return nil, fmt.Errorf("engine '%s' does not support MCP; tools.cli-proxy cannot be disabled", engine.GetID())
+		}
+	}
+	tools["cli-proxy"] = true
+	return tools, nil
 }
 
 func nonEmptyStrings(values ...string) []string {
