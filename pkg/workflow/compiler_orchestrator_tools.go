@@ -250,6 +250,8 @@ func enforceMCPProxyTools(engine *EngineDefinition, tools map[string]any) (map[s
 				}
 			}
 			github["mode"] = string(GitHubMCPModeGHProxy)
+		case nil, string:
+			tools["github"] = map[string]any{"mode": string(GitHubMCPModeGHProxy)}
 		}
 	}
 

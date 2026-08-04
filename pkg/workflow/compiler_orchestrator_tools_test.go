@@ -887,7 +887,7 @@ func TestWarnDeprecatedFrontmatterFields_SafeOutputsDeprecatedAliases(t *testing
 
 func TestEnforceMCPProxyTools(t *testing.T) {
 	mcpUnsupported := false
-	engine := &EngineDefinition{ID: "aider", MCP: &mcpUnsupported}
+	engine := &EngineDefinition{ID: "custom-engine", MCP: &mcpUnsupported}
 
 	t.Run("enables required proxies", func(t *testing.T) {
 		tools, err := enforceMCPProxyTools(engine, map[string]any{})
@@ -906,6 +906,20 @@ func TestEnforceMCPProxyTools(t *testing.T) {
 			"toolsets": []any{"repos"},
 		}, tools["github"])
 		assert.Equal(t, true, tools["cli-proxy"])
+	})
+
+	t.Run("normalizes default-enabled github forms", func(t *testing.T) {
+		for name, github := range map[string]any{
+			"nil":    nil,
+			"string": "enabled",
+		} {
+			t.Run(name, func(t *testing.T) {
+				tools, err := enforceMCPProxyTools(engine, map[string]any{"github": github})
+				require.NoError(t, err)
+				assert.Equal(t, map[string]any{"mode": "gh-proxy"}, tools["github"])
+				assert.Equal(t, true, tools["cli-proxy"])
+			})
+		}
 	})
 
 	t.Run("rejects disabled github proxy", func(t *testing.T) {
