@@ -181,15 +181,16 @@ jobs:
               }
             }' > "$ARTIFACT_DIR/summary.json"
 
-          if [ "$FINDINGS_COUNT" -gt 0 ]; then
-            echo "has_findings=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_findings=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          echo "findings_count=$FINDINGS_COUNT" >> "$GITHUB_OUTPUT"
-          echo "files_checked=$FILES_CHECKED" >> "$GITHUB_OUTPUT"
-          echo "dictionary_path=$DICTIONARY_PATH_REL" >> "$GITHUB_OUTPUT"
+          {
+            if [ "$FINDINGS_COUNT" -gt 0 ]; then
+              echo "has_findings=true"
+            else
+              echo "has_findings=false"
+            fi
+            echo "findings_count=$FINDINGS_COUNT"
+            echo "files_checked=$FILES_CHECKED"
+            echo "dictionary_path=$DICTIONARY_PATH_REL"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Render spellcheck report to step summary
         if: success()

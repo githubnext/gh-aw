@@ -187,7 +187,7 @@ Build the workflow in stages:
 5. **Configure triggers and pressure valves.** Add a fuzzy schedule, optional manual or slash-command entrypoint, concurrency, and an open-PR guard.
 6. **Configure least privilege and safe outputs.** Derive tools, permissions, network access, allowlists, protected files, and per-run caps from the chosen portfolio.
 7. **Write the execution contract.** State the selected-task input, quality bar, stop conditions, contributor etiquette, validation policy, reporting format, and memory update requirement.
-8. **Compile and inspect generated Actions.** Run `gh aw compile --watch` while iterating, then compile once more before committing.
+8. **Compile and inspect generated Actions.** Agents must run one-shot `gh aw compile` commands and must not use `--watch`, because watch mode does not terminate automatically.
 9. **Roll out gradually.** Begin with low cadence and conservative caps. Review early runs before increasing scope or frequency.
 
 Do not transplant Repo Assist's exact weights, labels, stale threshold, open-PR ceiling, or output maxima without measuring the target repository. These are policy choices, not universal defaults.

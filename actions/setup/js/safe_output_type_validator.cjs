@@ -540,13 +540,28 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
   }
 
   if (validation.type === "array") {
-    // Backward compatibility: create_issue agents sometimes provide comma-separated labels as a string.
-    // Normalize this into a string array before strict array validation.
+    // Backward compatibility: create_issue agents sometimes provide labels as a JSON array
+    // or comma-separated string. Normalize either form before strict array validation.
     if (itemType === "create_issue" && fieldName === "labels" && typeof value === "string") {
-      value = value
-        .split(",")
-        .map(item => item.trim())
-        .filter(Boolean);
+      const trimmedValue = value.trim();
+      if (trimmedValue.startsWith("[")) {
+        try {
+          const parsedValue = JSON.parse(trimmedValue);
+          if (Array.isArray(parsedValue)) {
+            // Filter out non-string entries from the JSON-parsed array.
+            value = parsedValue.filter(item => typeof item === "string");
+          }
+          // Non-array JSON values (objects, primitives) fall through to comma-separated parsing.
+        } catch {
+          // Fall back to comma-separated parsing below.
+        }
+      }
+      if (typeof value === "string") {
+        value = value
+          .split(",")
+          .map(item => item.trim())
+          .filter(Boolean);
+      }
     }
 
     if (!Array.isArray(value)) {
