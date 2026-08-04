@@ -274,10 +274,12 @@ func (a *AuthDefinition) RequiredSecretNames() []string {
 // It is separate from the runtime adapter (CodingAgentEngine) to allow the catalog
 // layer to carry identity and provider information without coupling to implementation.
 type EngineDefinition struct {
-	ID               string `yaml:"id"`
-	DisplayName      string `yaml:"display-name,omitempty"`
-	Description      string `yaml:"description,omitempty"`
-	Experimental     bool   `yaml:"experimental,omitempty"`
+	ID           string `yaml:"id"`
+	DisplayName  string `yaml:"display-name,omitempty"`
+	Description  string `yaml:"description,omitempty"`
+	Experimental bool   `yaml:"experimental,omitempty"`
+	// MCP indicates whether the engine supports MCP. Nil defaults to supported.
+	MCP              *bool  `yaml:"mcp,omitempty"`
 	GHSkillAgentName string `yaml:"gh-skill-agent-name,omitempty"`
 	// RuntimeID maps to the CodingAgentEngine registered in EngineRegistry.
 	// Defaults to ID when omitted.

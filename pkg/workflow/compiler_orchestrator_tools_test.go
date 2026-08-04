@@ -884,3 +884,51 @@ func TestWarnDeprecatedFrontmatterFields_SafeOutputsDeprecatedAliases(t *testing
 	assert.Contains(t, stderr, "required-title-prefix", "warning should mention required-title-prefix replacement")
 	assert.Equal(t, 1, compiler.warningCount, "one warning for the deprecated alias")
 }
+
+func TestEnforceMCPProxyTools(t *testing.T) {
+	mcpUnsupported := false
+	engine := &EngineDefinition{ID: "aider", MCP: &mcpUnsupported}
+
+	t.Run("enables required proxies", func(t *testing.T) {
+		tools, err := enforceMCPProxyTools(engine, map[string]any{})
+		require.NoError(t, err)
+		assert.Equal(t, true, tools["cli-proxy"])
+		assert.Equal(t, map[string]any{"mode": "gh-proxy"}, tools["github"])
+	})
+
+	t.Run("preserves github configuration", func(t *testing.T) {
+		tools, err := enforceMCPProxyTools(engine, map[string]any{
+			"github": map[string]any{"toolsets": []any{"repos"}},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, map[string]any{
+			"mode":     "gh-proxy",
+			"toolsets": []any{"repos"},
+		}, tools["github"])
+		assert.Equal(t, true, tools["cli-proxy"])
+	})
+
+	t.Run("rejects disabled github proxy", func(t *testing.T) {
+		_, err := enforceMCPProxyTools(engine, map[string]any{"github": false})
+		require.ErrorContains(t, err, "tools.github cannot be disabled")
+	})
+
+	t.Run("rejects non proxy github mode", func(t *testing.T) {
+		_, err := enforceMCPProxyTools(engine, map[string]any{
+			"github": map[string]any{"mode": "remote"},
+		})
+		require.ErrorContains(t, err, "tools.github.mode must be gh-proxy")
+	})
+
+	t.Run("rejects disabled cli proxy", func(t *testing.T) {
+		_, err := enforceMCPProxyTools(engine, map[string]any{"cli-proxy": false})
+		require.ErrorContains(t, err, "tools.cli-proxy cannot be disabled")
+	})
+
+	t.Run("leaves MCP engines unchanged", func(t *testing.T) {
+		tools := map[string]any{"github": false, "cli-proxy": false}
+		actual, err := enforceMCPProxyTools(&EngineDefinition{ID: "copilot"}, tools)
+		require.NoError(t, err)
+		assert.Equal(t, tools, actual)
+	})
+}
