@@ -368,6 +368,9 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 		// Add outputs from handler manager
 		outputs["process_safe_outputs_temporary_id_map"] = "${{ steps.process_safe_outputs.outputs.temporary_id_map }}"
 		outputs["process_safe_outputs_processed_count"] = "${{ steps.process_safe_outputs.outputs.processed_count }}"
+		outputs["process_safe_outputs_items_succeeded"] = "${{ steps.process_safe_outputs.outputs.items_succeeded }}"
+		outputs["process_safe_outputs_items_failed"] = "${{ steps.process_safe_outputs.outputs.items_failed }}"
+		outputs["process_safe_outputs_status"] = "${{ steps.process_safe_outputs.outputs.status }}"
 		outputs["create_discussion_errors"] = "${{ steps.process_safe_outputs.outputs.create_discussion_errors }}"
 		outputs["create_discussion_error_count"] = "${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}"
 		outputs["code_push_failure_errors"] = "${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}"

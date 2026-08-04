@@ -179,3 +179,34 @@ func TestBehaviorDefinedEngineNoHarnessScript(t *testing.T) {
 	assert.NotContains(t, execStepContent, "GH_AW_NODE_EXEC", "should not use node harness when harness-script is absent")
 	assert.NotContains(t, execStepContent, "GHAW_HARNESS_SCRIPT_EOF", "no harness write step should be present")
 }
+
+// TestBehaviorDefinedEngineRenderMCPConfig verifies that the MCP gateway startup command
+// is always emitted, even for engines that declare no behaviors.mcp.config-path (e.g.
+// engines with `mcp: false`). Skipping it would leave the gateway container unstarted
+// while AWF still attempts to attach it to the internal network.
+func TestBehaviorDefinedEngineRenderMCPConfig(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test",
+		Tools: map[string]any{"safe-outputs": map[string]any{}},
+	}
+
+	t.Run("uses default config path when mcp behavior is absent", func(t *testing.T) {
+		engine, err := NewBehaviorDefinedEngine(newHarnessEngineDefinition())
+		require.NoError(t, err)
+
+		var sb strings.Builder
+		require.NoError(t, engine.RenderMCPConfig(&sb, workflowData.Tools, []string{"safe-outputs"}, workflowData))
+		assert.Contains(t, sb.String(), "start_mcp_gateway.cjs", "gateway startup command must be emitted")
+	})
+
+	t.Run("uses engine config path when declared", func(t *testing.T) {
+		def := newHarnessEngineDefinition()
+		def.Behaviors.MCP = &EngineMCPDefinition{ConfigPath: ".custom/mcp.json"}
+		engine, err := NewBehaviorDefinedEngine(def)
+		require.NoError(t, err)
+
+		var sb strings.Builder
+		require.NoError(t, engine.RenderMCPConfig(&sb, workflowData.Tools, []string{"safe-outputs"}, workflowData))
+		assert.Contains(t, sb.String(), "start_mcp_gateway.cjs", "gateway startup command must be emitted")
+	})
+}
