@@ -419,6 +419,29 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Contains(t, wd.Env, "GH_AW_OTLP_IF_MISSING: warn")
 	})
 
+	t.Run("allows Google workload identity hosts even for expression endpoints", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{
+					"otlp": map[string]any{
+						"endpoint": "${{ secrets.OTLP_ENDPOINT }}",
+						"workload-identity": map[string]any{
+							"provider": "google",
+							"audience": "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+						},
+					},
+				},
+			},
+		}
+		c.injectOTLPConfig(wd)
+
+		require.NotNil(t, wd.NetworkPermissions, "NetworkPermissions should be created")
+		assert.Contains(t, wd.NetworkPermissions.Allowed, "sts.googleapis.com")
+		assert.Contains(t, wd.NetworkPermissions.Allowed, "iamcredentials.googleapis.com")
+		assert.Contains(t, wd.NetworkPermissions.Allowed, "oauth2.googleapis.com")
+	})
+
 	t.Run("adds domain to new NetworkPermissions and injects env vars for static URL", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{

@@ -11655,7 +11655,7 @@
                 },
                 "audience": {
                   "type": "string",
-                  "description": "Google Workload Identity Provider resource name used as the GitHub OIDC and STS audience."
+                  "description": "Google Workload Identity Provider resource name (e.g. projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER). The GitHub OIDC audience (https://iam.googleapis.com/...) and Google STS audience (//iam.googleapis.com/...) are derived from it; either fully-qualified form is also accepted."
                 },
                 "service-account": {
                   "type": "string",

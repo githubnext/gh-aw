@@ -131,6 +131,13 @@ func setupParentSpanNeedsExpr(upstreamJob constants.JobName) string {
 	return fmt.Sprintf("${{ needs.%s.outputs.setup-parent-span-id || needs.%s.outputs.setup-span-id }}", upstreamJob, upstreamJob)
 }
 
+const (
+	// otlpOIDCMintStepID is the step ID of the GitHub OIDC token mint step used for OTLP export auth.
+	otlpOIDCMintStepID = "mint-otlp-oidc-token"
+	// otlpWIFExchangeStepID is the step ID of the Google workload identity token exchange step.
+	otlpWIFExchangeStepID = "exchange-otlp-workload-identity-token"
+)
+
 func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 	if data == nil {
 		return nil
@@ -138,7 +145,7 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 
 	if app := getOTLPGitHubAppTokenConfig(data.RawFrontmatter); app != nil {
 		compilerYamlStepGenerationLog.Print("Generating OTLP GitHub App token mint step before setup")
-		return c.buildGitHubAppTokenMintStepWithMeta(app, nil, "", "", "Mint OTLP GitHub App token", "mint-otlp-oidc-token")
+		return c.buildGitHubAppTokenMintStepWithMeta(app, nil, "", "", "Mint OTLP GitHub App token", otlpOIDCMintStepID)
 	}
 
 	workloadIdentity := getOTLPWorkloadIdentity(data.ParsedFrontmatter, data.RawFrontmatter)
@@ -149,14 +156,15 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 
 	compilerYamlStepGenerationLog.Print("Generating OTLP OIDC token mint step before setup")
 	var audience string
+	var stsAudience string
 	if workloadIdentity != nil {
-		audience = strings.TrimSpace(workloadIdentity.Audience)
+		audience, stsAudience = googleWIFAudiences(workloadIdentity.Audience)
 	} else {
 		audience = strings.TrimSpace(githubApp.Audience)
 	}
 	lines := []string{
 		"      - name: Mint OTLP OIDC token\n",
-		"        id: mint-otlp-oidc-token\n",
+		fmt.Sprintf("        id: %s\n", otlpOIDCMintStepID),
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        with:\n",
 		"          script: |\n",
@@ -175,12 +183,12 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 		compilerYamlStepGenerationLog.Print("Generating Google OTLP workload identity token exchange step before setup")
 		lines = append(lines,
 			"      - name: Exchange OTLP workload identity token\n",
-			"        id: exchange-otlp-workload-identity-token\n",
+			fmt.Sprintf("        id: %s\n", otlpWIFExchangeStepID),
 			fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 			"        env:\n",
-			"          GH_AW_OTLP_OIDC_TOKEN: ${{ steps.mint-otlp-oidc-token.outputs.token }}\n",
+			fmt.Sprintf("          GH_AW_OTLP_OIDC_TOKEN: ${{ steps.%s.outputs.token }}\n", otlpOIDCMintStepID),
 		)
-		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_AUDIENCE", workloadIdentity.Audience))
+		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_AUDIENCE", stsAudience))
 		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_SERVICE_ACCOUNT", workloadIdentity.ServiceAccount))
 		lines = append(lines,
 			"        with:\n",
@@ -199,7 +207,7 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 			"                scope: 'https://www.googleapis.com/auth/cloud-platform',\n",
 			"              }),\n",
 			"            });\n",
-			"            if (!response.ok) throw new Error('Google workload identity token exchange failed');\n",
+			"            if (!response.ok) throw new Error(`Google workload identity token exchange failed with HTTP ${response.status} ${response.statusText}. Verify observability.otlp.workload-identity.audience matches the workload identity provider resource and that the provider trusts this repository`);\n",
 			"            let { access_token: accessToken } = await response.json();\n",
 			"            if (!accessToken) throw new Error('Google workload identity token exchange returned no access token');\n",
 			"            const serviceAccount = process.env.GH_AW_OTLP_WIF_SERVICE_ACCOUNT;\n",
@@ -209,7 +217,7 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 			"                headers: { authorization: 'Bearer ' + accessToken, 'content-type': 'application/json' },\n",
 			"                body: JSON.stringify({ scope: ['https://www.googleapis.com/auth/cloud-platform'] }),\n",
 			"              });\n",
-			"              if (!impersonationResponse.ok) throw new Error('Google service account impersonation failed');\n",
+			"              if (!impersonationResponse.ok) throw new Error(`Google service account impersonation failed with HTTP ${impersonationResponse.status} ${impersonationResponse.statusText}. Verify observability.otlp.workload-identity.service-account exists and grants roles/iam.workloadIdentityUser to the federated principal`);\n",
 			"              ({ accessToken } = await impersonationResponse.json());\n",
 			"              if (!accessToken) throw new Error('Google service account impersonation returned no access token');\n",
 			"            }\n",
@@ -223,12 +231,12 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 
 func getOTLPAuthTokenStepID(data *WorkflowData) string {
 	if data == nil {
-		return "mint-otlp-oidc-token"
+		return otlpOIDCMintStepID
 	}
 	if getOTLPWorkloadIdentity(data.ParsedFrontmatter, data.RawFrontmatter) != nil {
-		return "exchange-otlp-workload-identity-token"
+		return otlpWIFExchangeStepID
 	}
-	return "mint-otlp-oidc-token"
+	return otlpOIDCMintStepID
 }
 
 func (c *Compiler) generateSetupStep(data *WorkflowData, setupActionRef string, destination string, enableArtifactClient bool, traceID string, parentSpanID string) []string {

@@ -36,7 +36,9 @@ Once configured, gh-aw exports built-in workflow spans such as setup and conclus
 
 ### Google Workload Identity Federation
 
-For Google Cloud Telemetry, configure Google Workload Identity Federation instead of a static authorization header. gh-aw mints and exchanges a GitHub OIDC token in every span-emitting job. The workload identity principal needs permission to write telemetry and, when `service-account` is set, permission to impersonate that service account.
+For Google Cloud Telemetry, configure Google Workload Identity Federation instead of a static authorization header. gh-aw mints and exchanges a GitHub OIDC token in every span-emitting job, and automatically grants those jobs `id-token: write`. The workload identity principal needs permission to write telemetry and, when `service-account` is set, permission to impersonate that service account.
+
+Set `audience` to the workload identity provider resource name (`projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER`). gh-aw derives the GitHub OIDC audience (`https://iam.googleapis.com/...`) and the Google STS audience (`//iam.googleapis.com/...`) from it, so either fully-qualified form is also accepted.
 
 ```yaml wrap
 observability:
