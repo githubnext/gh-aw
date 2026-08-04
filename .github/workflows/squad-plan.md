@@ -27,7 +27,6 @@ safe-outputs:
     title-prefix: "[squad-plan] "
     labels: [cookie]
     assignees: [copilot]
-    group: true
     max: 8
 ---
 
@@ -44,8 +43,9 @@ small Copilot-ready sub-issues.
 2. Work with the Squad team to produce a concise implementation plan for the
    issue, including scope, sequencing, dependencies, and validation criteria.
 3. Create at most 8 small, independently actionable sub-issues from the plan.
-   With issue grouping enabled, create only the sub-issues; the safe-output
-   runtime will group them under a parent tracking issue automatically.
+   Each created issue is automatically linked as a sub-issue of the triggering
+   issue (#${{ github.event.issue.number }}), so do not create a separate
+   parent tracking issue.
 4. Each sub-issue must be suitable for assignment to GitHub Copilot coding
    agent one by one, carry the configured `cookie` label, and include:
    - a clear objective
@@ -58,7 +58,7 @@ small Copilot-ready sub-issues.
 
 - Use `create_issue` for each planned sub-issue.
 - Do not create a separate parent issue and do not use `parent` or
-  `temporary_id`; grouping is automatic.
+  `temporary_id`; sub-issues are linked to the triggering issue automatically.
 - If the issue is already fully planned or no useful sub-issues are needed,
   call `noop` with a short explanation.
 - If Squad cannot produce a usable plan, call `noop` instead of filing
