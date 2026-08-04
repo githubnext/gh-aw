@@ -121,7 +121,7 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 	usageArtifactName := prefix + "usage"
 	safeOutputsItemsArtifactName := prefix + constants.SafeOutputItemsArtifactName
 	steps := []string{
-		"      - name: Download safe outputs items manifest\n",
+		"      - name: Download Safe Outputs Items Manifest\n",
 		"        id: download-safe-outputs-manifest\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
