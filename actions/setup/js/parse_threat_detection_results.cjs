@@ -26,6 +26,40 @@ const { ERR_SYSTEM, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const RESULT_PREFIX = "THREAT_DETECTION_RESULT:";
 
 /**
+ * Strip a single leading Markdown emphasis delimiter (bold `**`, italic `*`,
+ * bold `__`, or italic `_`) from the start of a string, if present.
+ *
+ * Detection models sometimes wrap the verdict line in Markdown emphasis, e.g.:
+ *   **THREAT_DETECTION_RESULT:{"prompt_injection":false,...}**
+ * This helper allows callers to recognize the RESULT_PREFIX immediately after
+ * such delimiters without treating arbitrary prose mentions of the prefix as
+ * an authoritative verdict (matching remains anchored to the start of the line).
+ *
+ * @param {string} text - Trimmed line to inspect
+ * @returns {string} The text with a single leading emphasis delimiter removed, if any
+ */
+function stripLeadingMarkdownEmphasis(text) {
+  return text.replace(/^(\*\*|\*|__|_)/, "");
+}
+
+/**
+ * Check whether a trimmed line begins with RESULT_PREFIX, optionally preceded
+ * by a single Markdown emphasis delimiter, and if so return the line with
+ * that delimiter stripped so downstream brace-counting extraction can operate
+ * on it directly. Returns null if the line does not begin with the prefix
+ * (with or without emphasis).
+ *
+ * @param {string} trimmedLine - A trimmed line to check
+ * @returns {string|null} The line with leading emphasis stripped, or null if not a match
+ */
+function matchResultPrefixLine(trimmedLine) {
+  if (trimmedLine.startsWith(RESULT_PREFIX)) return trimmedLine;
+  const stripped = stripLeadingMarkdownEmphasis(trimmedLine);
+  if (stripped !== trimmedLine && stripped.startsWith(RESULT_PREFIX)) return stripped;
+  return null;
+}
+
+/**
  * Extract a complete JSON object from a string that starts with RESULT_PREFIX,
  * using character-by-character brace counting to find the matching closing brace.
  * Tracks string context so that braces inside JSON string values are not counted.
@@ -177,17 +211,22 @@ function extractFromStreamJson(line) {
       // subsequent lines, then use brace-counting to locate the complete JSON object.
       const resultLines = obj.result.split("\n");
       let prefixLineIdx = -1;
+      /** @type {string | null} */
+      let strippedFirstLine = null;
       for (let i = 0; i < resultLines.length; i++) {
-        if (resultLines[i].trim().startsWith(RESULT_PREFIX)) {
+        const matched = matchResultPrefixLine(resultLines[i].trim());
+        if (matched !== null) {
           prefixLineIdx = i;
+          strippedFirstLine = matched;
           break;
         }
       }
       if (prefixLineIdx === -1) return null;
 
       // Rejoin all lines from the prefix line onward so that any JSON string
-      // values split by actual newlines are reassembled.
-      const joined = resultLines.slice(prefixLineIdx).join("\n").trim();
+      // values split by actual newlines are reassembled. Use the emphasis-
+      // stripped version of the first line so brace-counting starts cleanly.
+      const joined = [strippedFirstLine, ...resultLines.slice(prefixLineIdx + 1)].join("\n").trim();
 
       // Extract the complete JSON object using brace-counting.
       return extractResultFromText(joined);
@@ -300,8 +339,9 @@ function parseDetectionLog(content) {
   if (streamMatches.length === 0 && assistantMatches.length === 0) {
     let i = 0;
     while (i < lines.length) {
-      if (lines[i].trim().startsWith(RESULT_PREFIX)) {
-        const joined = lines.slice(i).join("\n").trim();
+      const matchedFirstLine = matchResultPrefixLine(lines[i].trim());
+      if (matchedFirstLine !== null) {
+        const joined = [matchedFirstLine, ...lines.slice(i + 1)].join("\n").trim();
         const extracted = extractResultFromText(joined);
         if (extracted !== null) {
           // Successfully extracted a complete JSON object; advance past consumed lines.
