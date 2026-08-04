@@ -42,6 +42,83 @@ engine:
         GOOSE_DISABLE_SESSION_NAMING: "true"
     mcp:
       config-path: .goose/mcp.json
+      config-adapter: |
+        // Converts the MCP gateway's standard HTTP-based configuration to the JSON
+        // format expected by the Goose CLI harness (.goose/mcp.json). Reads the
+        // gateway output JSON, filters out CLI-mounted servers, sets
+        // type:"streamable_http" (Goose's remote MCP extension type), rewrites URLs
+        // to use the correct domain, and writes the result to
+        // ${GITHUB_WORKSPACE}/.goose/mcp.json (see the harness-script below, which
+        // reads this file and translates each entry into a
+        // --with-streamable-http-extension or --with-extension CLI flag).
+        const fs = require("fs");
+        const path = require("path");
+
+        const requireEnvVar = name => {
+          const value = process.env[name];
+          if (!value) throw new Error(`${name} environment variable is required`);
+          return value;
+        };
+
+        const gatewayOutputPath = requireEnvVar("MCP_GATEWAY_OUTPUT");
+        const workspace = requireEnvVar("GITHUB_WORKSPACE");
+        // Goose runs directly on the host runner (not inside a Docker container), so use
+        // MCP_GATEWAY_HOST_DOMAIN (localhost) instead of MCP_GATEWAY_DOMAIN (host.docker.internal).
+        // host.docker.internal does not resolve on the host runner on Linux.
+        const hostDomain = process.env.MCP_GATEWAY_HOST_DOMAIN || "localhost";
+        const port = requireEnvVar("MCP_GATEWAY_PORT");
+        const urlPrefix = `http://${hostDomain}:${port}`;
+
+        let cliServers;
+        try {
+          cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
+        } catch (err) {
+          throw new Error(`Failed to parse GH_AW_MCP_CLI_SERVERS: ${err instanceof Error ? err.message : String(err)}`);
+        }
+
+        const gatewayOutput = JSON.parse(fs.readFileSync(gatewayOutputPath, "utf8"));
+        const rawServers = gatewayOutput.mcpServers;
+        const servers = rawServers && typeof rawServers === "object" && !Array.isArray(rawServers) ? rawServers : {};
+
+        console.log("Converting gateway configuration to Goose format...");
+        console.log(`Input: ${gatewayOutputPath}`);
+        console.log(`Target domain: ${hostDomain}:${port}`);
+        if (cliServers.size > 0) {
+          console.log(`CLI-mounted servers to filter: ${[...cliServers].join(", ")}`);
+        }
+
+        const result = {};
+        for (const [name, entry] of Object.entries(servers)) {
+          if (cliServers.has(name)) continue;
+          const transformed = { ...entry };
+          if (typeof transformed.url === "string") {
+            transformed.url = transformed.url.replace(/^http:\/\/[^/]+\/mcp\//, `${urlPrefix}/mcp/`);
+          }
+          // Goose's remote MCP extension type is "streamable_http" (per the MCP
+          // Streamable HTTP specification); the gateway's default "http" type is
+          // not recognized by the Goose harness.
+          transformed.type = "streamable_http";
+          // The MCP gateway may include a "tools" field for Copilot, but Goose's
+          // MCP config format does not support that field.
+          delete transformed.tools;
+          result[name] = transformed;
+        }
+
+        const output = JSON.stringify({ mcpServers: result }, null, 2);
+        const totalCount = Object.keys(servers).length;
+        console.log(`Servers: ${Object.keys(result).length} included, ${totalCount - Object.keys(result).length} filtered (CLI-mounted)`);
+
+        // Create .goose directory in the workspace (matches behaviors.mcp.config-path above).
+        const configFile = path.join(workspace, ".goose", "mcp.json");
+        // Write with owner-only permissions (0o600) to protect the gateway bearer token.
+        // mcp.json contains the bearer token for the MCP gateway; an attacker who
+        // reads it could bypass the tool constraints by issuing raw JSON-RPC calls
+        // directly to the gateway.
+        fs.mkdirSync(path.dirname(configFile), { recursive: true });
+        fs.writeFileSync(configFile, output, { mode: 0o600 });
+        fs.chmodSync(configFile, 0o600);
+
+        console.log(`Goose configuration written to ${configFile}`);
     harness-script: |
       const { createHash } = require("crypto");
       const { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("fs");
