@@ -27,11 +27,9 @@
 engine:
   id: copilot
   agent: squad
-on:
-  ambient-folders:
-    - .squad
-    - .github/agents
-
+ambient-folders:
+  - .squad
+  - .github/agents
 jobs:
   activation:
     steps:
@@ -63,7 +61,7 @@ install/init lifecycle out of the agent job:
    npm release, optionally mints a GitHub App installation token (or uses a supplied
    PAT) so `squad init` can see other organizations or private repositories, and runs
    `squad init --preset default` (idempotent).
-2. **`on.ambient-folders`** — bundles the resulting `.squad/` team state and
+2. **`ambient-folders`** — bundles the resulting `.squad/` team state and
    `.github/agents/` files into the standard activation artifact alongside the rest
    of the prompt/skills/sub-agent packaging, then restores them into the agent
    checkout. The Squad CLI itself is never installed in the agent job; only the

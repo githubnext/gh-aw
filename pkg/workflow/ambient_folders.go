@@ -27,11 +27,10 @@ func resolveAmbientFolders(frontmatter map[string]any, importsResult *parser.Imp
 }
 
 func extractAmbientFolders(frontmatter map[string]any) ([]string, error) {
-	onMap := ensureOnMap(frontmatter)
-	if onMap == nil {
+	if frontmatter == nil {
 		return nil, nil
 	}
-	raw, exists := onMap["ambient-folders"]
+	raw, exists := frontmatter["ambient-folders"]
 	if !exists || raw == nil {
 		return nil, nil
 	}
@@ -43,14 +42,14 @@ func extractAmbientFolders(frontmatter map[string]any) ([]string, error) {
 				values = append(values, value)
 			}
 		} else {
-			return nil, errors.New("on.ambient-folders must be an array of folder paths")
+			return nil, errors.New("ambient-folders must be an array of folder paths")
 		}
 	}
 	folders := make([]string, 0, len(values))
 	for _, value := range values {
 		folder, ok := value.(string)
 		if !ok {
-			return nil, errors.New("on.ambient-folders entries must be strings")
+			return nil, errors.New("ambient-folders entries must be strings")
 		}
 		folders = append(folders, folder)
 	}
@@ -63,14 +62,14 @@ func normalizeAmbientFolders(folders []string) ([]string, error) {
 	for _, folder := range folders {
 		value := strings.TrimSpace(strings.ReplaceAll(folder, "\\", "/"))
 		if value == "" {
-			return nil, errors.New("on.ambient-folders entries cannot be empty")
+			return nil, errors.New("ambient-folders entries cannot be empty")
 		}
 		clean := filepath.ToSlash(filepath.Clean(value))
 		if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || filepath.IsAbs(value) || strings.HasPrefix(value, "/") {
-			return nil, fmt.Errorf("on.ambient-folders entry %q must be a relative folder path within the repository", folder)
+			return nil, fmt.Errorf("ambient-folders entry %q must be a relative folder path within the repository", folder)
 		}
 		if !ambientFolderPattern.MatchString(clean) {
-			return nil, fmt.Errorf("on.ambient-folders entry %q contains unsupported characters", folder)
+			return nil, fmt.Errorf("ambient-folders entry %q contains unsupported characters", folder)
 		}
 		if _, exists := seen[clean]; exists {
 			continue

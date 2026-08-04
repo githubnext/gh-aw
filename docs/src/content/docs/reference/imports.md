@@ -84,7 +84,7 @@ Paths are resolved within the `.github` folder. You can specify paths with or wi
 
 ## Shared Workflow Components
 
-Files without a trigger event are shared workflow components: they are validated, can be imported by other workflows, and are not compiled into standalone GitHub Actions. Shared components may also define import-safe `on` keys (`ambient-folders`, `skip-if-match`, `skip-if-no-match`, `skip-roles`, `skip-bots`, `github-token`, `github-app`) for reuse through imports.
+Files without a trigger event are shared workflow components: they are validated, can be imported by other workflows, and are not compiled into standalone GitHub Actions. Shared components may also define import-safe `on` keys (`skip-if-match`, `skip-if-no-match`, `skip-roles`, `skip-bots`, `github-token`, `github-app`) and the top-level `ambient-folders` field for reuse through imports.
 
 A shared workflow's frontmatter can contain comments only. Comment-only frontmatter is treated as present, so the file still parses as a shared component and produces an empty frontmatter map rather than failing with `no frontmatter found`. Only truly missing or whitespace-only frontmatter is rejected.
 

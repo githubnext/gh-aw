@@ -324,9 +324,8 @@ func TestAmbientFoldersIncludedInActivationArtifact(t *testing.T) {
 		t.Fatal(err)
 	}
 	sharedContent := `---
-on:
-  ambient-folders:
-    - .squad
+ambient-folders:
+  - .squad
 jobs:
   activation:
     pre-steps:
@@ -390,9 +389,8 @@ func TestAmbientFoldersRestoredAfterCustomCheckout(t *testing.T) {
 		t.Fatal(err)
 	}
 	sharedContent := `---
-on:
-  ambient-folders:
-    - .squad
+ambient-folders:
+  - .squad
 jobs:
   activation:
     pre-steps:
