@@ -300,6 +300,17 @@
       "avg_agent_duration_minutes": 118,
       "success_rate": 0.729,
       "note": "rolling 24h window from 08-02 18:48Z; author app/copilot-swe-agent only; 8 of 56 PRs still open (all <24h old, oldest ~6.7h); success_rate over 48 completed; avg_duration created->merged; 26 human issue comments across 56 PRs (all pelikhan; 19 PRs had >=1, bot comments from copilot-swe-agent/gh-aw-bot/github-actions excluded); volume down 73->56 (-23%); avg_duration down sharply 251->118min (-53%); success_rate down 80%->72.9% (-8.9%, just under 10% threshold but part of a 3-day decline from 87.1% on 08-01); 7 of 13 closures were WIP superseded placeholders, all automated container-vulnerability-fix PRs (#49852,#49851,#49843,#49842,#49841,#49839,#49838)"
+    },
+    {
+      "date": "2026-08-04",
+      "total_prs": 71,
+      "merged_prs": 39,
+      "closed_prs": 23,
+      "open_prs": 9,
+      "avg_comments": 0.83,
+      "avg_agent_duration_minutes": 78,
+      "success_rate": 0.629,
+      "note": "rolling 24h window from 08-03 18:47Z; author app/copilot-swe-agent only; 9 of 71 PRs still open (all <24h old, oldest 13.3h); success_rate over 62 completed; avg_duration created->merged; 59 human comments/reviews across 71 PRs (all pelikhan; 25 PRs had >=1, bot comments from copilot-swe-agent/gh-aw-bot/github-actions/copilot-pull-request-reviewer excluded); volume up 56->71 (+27%); avg_duration down sharply 118->78min (-34%, continuing 3-day decline from 251min on 08-02); success_rate down sharply 72.9%->62.9% (-13.7%), 4th consecutive day of decline from 87.1% on 08-01; 7 of 23 closures were WIP superseded placeholders (#50322,#50321,#50319,#50317,#50290,#50246,#50150), other 16 closures had substantive bodies; no PRs open >24h"
     }
   ],
   "last_updated": "2026-08-03"
