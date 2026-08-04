@@ -211,6 +211,7 @@ function extractFromStreamJson(line) {
       // subsequent lines, then use brace-counting to locate the complete JSON object.
       const resultLines = obj.result.split("\n");
       let prefixLineIdx = -1;
+      /** @type {string | null} */
       let strippedFirstLine = null;
       for (let i = 0; i < resultLines.length; i++) {
         const matched = matchResultPrefixLine(resultLines[i].trim());

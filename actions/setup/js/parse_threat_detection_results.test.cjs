@@ -361,6 +361,24 @@ describe("parseDetectionLog", () => {
       expect(verdict.prompt_injection).toBe(false);
     });
 
+    it("should parse a Markdown-emphasis-wrapped verdict from a stream-json 'result' line", () => {
+      const line = JSON.stringify({
+        type: "result",
+        subtype: "success",
+        result: '**THREAT_DETECTION_RESULT:{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}**',
+        stop_reason: "end_turn",
+      });
+      const { verdict, error } = parseDetectionLog(line);
+
+      expect(error).toBeUndefined();
+      expect(verdict).toEqual({
+        prompt_injection: false,
+        secret_leak: false,
+        malicious_patch: false,
+        reasons: [],
+      });
+    });
+
     it("should not treat a result-format example embedded in prose as the authoritative verdict", () => {
       const content =
         'The output format should look like this: some text THREAT_DETECTION_RESULT:{"prompt_injection":false,...} is an example.\nActual verdict below.\nTHREAT_DETECTION_RESULT:{"prompt_injection":true,"secret_leak":false,"malicious_patch":false,"reasons":["real threat"]}';
