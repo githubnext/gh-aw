@@ -240,7 +240,7 @@ The following frontmatter fields in imported files are merged into the importing
 - `steps:` - Steps appended in import order
 - `pre-agent-steps:` - Steps appended in import order
 - `post-steps:` - Steps appended in import order
-- `jobs.<job-id>.setup-steps` and `jobs.<job-id>.pre-steps` - Merged per job with imported steps first, then main workflow steps. Execution order is `setup-steps` before `pre-steps`.
+- `jobs.<job-id>.setup-steps`, `jobs.<job-id>.pre-steps`, and `jobs.activation.steps` - Merged per job with imported steps first, then main workflow steps. Execution order is `setup-steps` before `pre-steps`; `jobs.activation.steps` run later in the activation job before the activation artifact is staged.
 - `runtimes:`, `network:`, `permissions:`, `services:`, `cache:`, `features:`, `mcp-servers:`
 
 Example import file:

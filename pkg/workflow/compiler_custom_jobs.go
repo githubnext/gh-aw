@@ -608,16 +608,21 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 
 		_, hasSetupSteps := configMap["setup-steps"]
 		_, hasPreSteps := configMap["pre-steps"]
+		_, hasSteps := configMap["steps"]
 		if err := validateRestrictedBuiltinSetupSteps(jobName, hasSetupSteps); err != nil {
 			return err
 		}
-		if !hasSetupSteps && !hasPreSteps {
+		if !hasSetupSteps && !hasPreSteps && !hasSteps {
 			continue
 		}
 
 		targetJobName := jobName
 		if jobName == "pre-activation" {
 			targetJobName = string(constants.PreActivationJobName)
+		}
+
+		if err := validateRestrictedBuiltinSteps(jobName, targetJobName, hasSteps); err != nil {
+			return err
 		}
 
 		job, exists := c.jobManager.GetJob(targetJobName)
@@ -627,6 +632,7 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 
 		var setupSteps []string
 		var preSteps []string
+		var regularSteps []string
 		if hasSetupSteps {
 			steps, err := c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
 			if err != nil {
@@ -641,16 +647,48 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 			}
 			preSteps = append(preSteps, steps...)
 		}
-		if len(setupSteps) == 0 && len(preSteps) == 0 {
+		if hasSteps && targetJobName == string(constants.ActivationJobName) {
+			steps, err := c.extractPinnedJobSteps("steps", jobName, configMap, data)
+			if err != nil {
+				return fmt.Errorf("failed to process steps for built-in job '%s': %w", jobName, err)
+			}
+			regularSteps = append(regularSteps, steps...)
+		}
+		if len(setupSteps) == 0 && len(preSteps) == 0 && len(regularSteps) == 0 {
 			continue
 		}
 
+		job.Steps = insertActivationStepsBeforeArtifactStaging(targetJobName, job.Steps, regularSteps)
 		job.Steps = insertPreStepsAtEarliestBoundary(job.Steps, preSteps)
 		job.Steps = insertSetupStepsAtStart(job.Steps, setupSteps)
-		compilerJobsLog.Printf("Inserted %d setup-step(s) and %d pre-step(s) into built-in job '%s'", len(setupSteps), len(preSteps), targetJobName)
+		compilerJobsLog.Printf("Inserted %d setup-step(s), %d pre-step(s), and %d step(s) into built-in job '%s'", len(setupSteps), len(preSteps), len(regularSteps), targetJobName)
 	}
 
 	return nil
+}
+
+func insertActivationStepsBeforeArtifactStaging(jobName string, steps []string, activationSteps []string) []string {
+	if len(activationSteps) == 0 {
+		return steps
+	}
+	if jobName != string(constants.ActivationJobName) {
+		return steps
+	}
+
+	insertIdx := len(steps)
+	for i, step := range steps {
+		if strings.Contains(step, "name: "+constants.ActivationStageAmbientFoldersStepName) ||
+			strings.Contains(step, "name: "+constants.ActivationUploadArtifactStepName) {
+			insertIdx = i
+			break
+		}
+	}
+
+	result := make([]string, 0, safeAllocationCapacity(len(steps), len(activationSteps)))
+	result = append(result, steps[:insertIdx]...)
+	result = append(result, activationSteps...)
+	result = append(result, steps[insertIdx:]...)
+	return result
 }
 
 func normalizeBuiltinJobAlias(jobName string) string {
@@ -852,6 +890,17 @@ func ifExpressionContainsStatusFunc(expr string) bool {
 		strings.Contains(expr, "cancelled(")
 }
 
+// validateRestrictedBuiltinSetupSteps rejects jobs.<name>.setup-steps for the
+// activation and pre-activation jobs. setup-steps run before any
+// compiler-generated token-mint or short-circuit protection steps, so
+// allowing arbitrary user-authored steps there could bypass those
+// protections. By contrast, jobs.activation.steps (see
+// validateRestrictedBuiltinSteps) is inserted later in the job, before
+// artifact staging but after the activation gate/output has already run, so
+// it is not equivalent to setup-steps and is intentionally allowed for the
+// activation job. Injected steps content is still scanned for GitHub CLI
+// write-command usage (see cacheActivationPreStepPermissions) regardless of
+// which field it came from.
 func validateRestrictedBuiltinSetupSteps(jobName string, hasSetupSteps bool) error {
 	if !hasSetupSteps {
 		return nil
@@ -867,6 +916,31 @@ func validateRestrictedBuiltinSetupSteps(jobName string, hasSetupSteps bool) err
 	}
 
 	return nil
+}
+
+// validateRestrictedBuiltinSteps rejects jobs.<name>.steps on built-in jobs
+// other than activation. Unlike setup-steps and pre-steps, steps are only
+// applied to the activation job (inserted before artifact staging); silently
+// accepting the field on other built-in jobs (e.g. pre-activation,
+// safe_outputs) would discard the user's configuration without feedback.
+// Custom (non-built-in) jobs are unaffected since their steps field is a
+// regular job definition field, not an injection field.
+func validateRestrictedBuiltinSteps(jobName string, targetJobName string, hasSteps bool) error {
+	if !hasSteps || !isBuiltinJobName(targetJobName) || targetJobName == string(constants.ActivationJobName) {
+		return nil
+	}
+	// jobs.pre-activation.steps is a distinct, already-validated custom field
+	// (see extractPreActivationCustomFields) handled outside of this
+	// built-in setup/pre-steps injection path; it is not subject to this
+	// restriction.
+	if targetJobName == string(constants.PreActivationJobName) {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"jobs.%s.steps is not allowed: steps are only supported for the activation job",
+		jobName,
+	)
 }
 
 // insertSetupStepsAtStart places setup-steps at the start of the job so they

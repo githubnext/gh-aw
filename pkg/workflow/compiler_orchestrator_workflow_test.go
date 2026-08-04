@@ -1123,6 +1123,55 @@ func TestMergeJobsFromYAMLImports_MergesSetupAndPreStepsIndependentlyOnConflict(
 	assert.Equal(t, "main pre", secondPre["name"], "Main workflow pre-steps should run after imported pre-steps")
 }
 
+func TestMergeJobsFromYAMLImports_MergesActivationStepsOnConflict(t *testing.T) {
+	compiler := NewCompiler()
+
+	mainJobs := map[string]any{
+		"activation": map[string]any{
+			"steps": []any{
+				map[string]any{"name": "main activation", "run": "echo main"},
+			},
+		},
+	}
+
+	importedJobsJSON := `{"activation": {"steps": [{"name": "import activation", "run": "echo import"}]}}`
+	result := compiler.mergeJobsFromYAMLImports(mainJobs, importedJobsJSON)
+
+	assert.Len(t, result, 1)
+	activationJob := result["activation"].(map[string]any)
+
+	steps, ok := activationJob["steps"].([]any)
+	require.True(t, ok, "Expected merged activation steps array")
+	require.Len(t, steps, 2, "Expected imported+main activation steps to be merged")
+
+	first := steps[0].(map[string]any)
+	second := steps[1].(map[string]any)
+	assert.Equal(t, "import activation", first["name"], "Imported activation steps should run first")
+	assert.Equal(t, "main activation", second["name"], "Main workflow activation steps should run after imported activation steps")
+}
+
+func TestMergeJobsFromYAMLImports_DoesNotMergeRegularStepsForCustomJobConflict(t *testing.T) {
+	compiler := NewCompiler()
+
+	mainJobs := map[string]any{
+		"test": map[string]any{
+			"runs-on": "ubuntu-latest",
+			"steps": []any{
+				map[string]any{"name": "main", "run": "echo main"},
+			},
+		},
+	}
+
+	importedJobsJSON := `{"test": {"runs-on": "macos-latest", "steps": [{"name": "import", "run": "echo import"}]}}`
+	result := compiler.mergeJobsFromYAMLImports(mainJobs, importedJobsJSON)
+
+	testJob := result["test"].(map[string]any)
+	steps, ok := testJob["steps"].([]any)
+	require.True(t, ok, "Expected main custom job steps array")
+	require.Len(t, steps, 1, "Custom job conflicts should preserve main regular steps")
+	assert.Equal(t, "main", steps[0].(map[string]any)["name"])
+}
+
 // TestMergeJobsFromYAMLImports_MultipleImportedJobs tests merging multiple imported jobs
 func TestMergeJobsFromYAMLImports_MultipleImportedJobs(t *testing.T) {
 	compiler := NewCompiler()
