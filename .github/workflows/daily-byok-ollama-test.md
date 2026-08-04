@@ -53,6 +53,29 @@ steps:
   - name: Pull small model
     run: |
       ollama pull qwen2.5:0.5b
+  - name: Warm up model
+    env:
+      OLLAMA_MODEL: "qwen2.5:0.5b"
+    run: |
+      # Force Ollama to load the model into memory before the agent runs.
+      # A cold model (not yet loaded) can cause the OpenAI-compatible /v1/chat/completions
+      # endpoint to return 503 Service Unavailable on the agent's first requests, which
+      # exhausts the Copilot CLI's built-in retry budget and fails the whole run.
+      echo "Warming up model '$OLLAMA_MODEL'..."
+      MAX_ATTEMPTS=10
+      for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+        if curl -sf http://localhost:11434/api/generate \
+          -d "{\"model\":\"${OLLAMA_MODEL}\",\"prompt\":\"hi\",\"stream\":false}" > /dev/null 2>&1; then
+          echo "Model warm-up succeeded on attempt ${attempt}"
+          break
+        fi
+        if [ "$attempt" -eq "$MAX_ATTEMPTS" ]; then
+          echo "::error::Model '$OLLAMA_MODEL' failed to warm up after ${MAX_ATTEMPTS} attempts."
+          exit 1
+        fi
+        echo "Warm-up attempt ${attempt}/${MAX_ATTEMPTS} failed, retrying..."
+        sleep 3
+      done
   - name: Verify Ollama BYOK readiness
     env:
       OLLAMA_MODEL: "qwen2.5:0.5b"
