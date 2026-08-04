@@ -4,29 +4,98 @@ description: Guide for configuring new declarative agentic engines — engine de
 
 # Configure a New Agentic Engine
 
-Use this guide when adding or updating a built-in engine definition under `pkg/workflow/data/engines/` or when reviewing a proposed declarative engine configuration.
+Use this guide when adding or updating a declarative engine definition in a repository that uses the `gh aw` extension. Do not assume that the gh-aw source repository, its build system, or its Go packages are available.
 
-## Prefer declarative engine definitions
+## Prefer shared agentic workflow definitions
 
-For CLI-style engines, define behavior in `pkg/workflow/data/engines/<id>.md`.
+For CLI-style engines, create a repository-scoped definition in `.github/workflows/shared/<id>.md`. Import it from a workflow that sets `engine.id: <id>`. Use GitHub to inspect the shared [OpenCode](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/opencode.md), [Goose](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/goose.md), and [Aider](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/aider.md) definitions as patterns.
 
-- prefer frontmatter-defined `engine.behaviors` over a bespoke Go wrapper
+- express the engine entirely through frontmatter-defined `engine.behaviors`
 - keep install, config, execution, MCP, manifest, and capability metadata in the engine markdown file
-- add Go changes only when the runtime cannot be expressed with the current declarative behavior schema
-
-Built-in engine files are embedded from `pkg/workflow/data/engines/*.md`. Adding a new built-in engine should normally start with a new markdown file there.
+- keep engine-specific adapters and harnesses with the shared definition
+- stop and report the missing declarative capability when the runtime cannot be expressed by the supported schema; do not modify gh-aw internals from the consuming repository
 
 ## Gather the engine contract first
 
-Before editing files, identify:
+Do not begin from a generic engine template. Use GitHub access to inspect the CLI's repository, documentation, release notes, package manifests, configuration examples, and pinned release source. Answer every item below before editing files.
 
-1. the stable engine `id` and display name
-2. whether it can reuse an existing `runtime-id` or needs a new runtime adapter
-3. the install source, package manager, package name, binary name, and version
-4. the required secrets and whether they follow universal provider routing or engine-specific auth
-5. any config file path, default content, and merge behavior
-6. the execution command, fixed args, model wiring, and MCP config wiring
-7. engine-owned manifest files or directories that must be protected from untrusted PR edits
+### LLM endpoint and model contract
+
+1. Identify how the CLI accepts its LLM endpoint: environment variable, command flag, or config key.
+2. Determine whether the endpoint is OpenAI-compatible, Anthropic-native, or another protocol, including any required path such as `/v1`.
+3. Record the workflow-facing model syntax, normally `provider/model`, and the exact syntax passed to the CLI. Document any provider-prefix removal, replacement, or other model transformation.
+4. Determine whether the CLI runs on the host or inside the AWF agent container. Do not copy a host URL into a container configuration or hard-code an `api-proxy` port or container IP.
+5. Identify which configured provider must be selected at runtime and how to report an actionable error when the provider or model is unavailable.
+
+### MCP contract
+
+1. Determine whether the CLI has native MCP support. If it does not, set `engine.mcp: false` and rely on the compiler's proxy-backed tools.
+2. If MCP is supported, identify the accepted transports, config path, root object name, server entry schema, and support for authorization headers.
+3. Compare the native schema with the gateway's `{ "mcpServers": ... }` output. If they differ, generate the native config with `behaviors.mcp.config-adapter`.
+4. Determine whether the CLI loads that config directly or requires a harness to translate servers into command-line flags or a runtime config overlay.
+5. Determine whether CLI-mounted servers must be filtered and whether gateway URLs must use the host or container domain.
+6. Treat generated MCP configuration as sensitive when it contains gateway authorization headers; create it with owner-only permissions.
+
+### Installation, config, and execution contract
+
+1. Choose a stable engine `id` and display name. Set `runtime-id` only when reusing a documented runtime adapter.
+2. Identify the install source, package manager, package name, binary name, pinned version, and verification command.
+3. Identify the config path and format, such as JSON, JSONC, YAML, or TOML. Determine whether gh-aw creates, replaces, or merges the file; do not use a JSON merge strategy for syntax that is only valid as JSONC.
+4. Identify the non-interactive execution command, fixed arguments, prompt delivery mechanism, exit-code behavior, and any required environment variables.
+5. List every engine-owned config file and directory in `behaviors.manifest`.
+6. Identify required secrets and whether they use universal provider routing or engine-specific auth.
+
+Do not implement the engine until each contract is known. If the available GitHub documentation and pinned source disagree, use the pinned release behavior and record the limitation in the shared definition.
+
+## Choose the declarative mechanism
+
+| Requirement | Mechanism |
+|---|---|
+| Shared provider credentials and environment | `secret-strategy: universal-llm-consumer` and `execution.provider-env-mode: universal-llm-consumer` |
+| Model passed through an environment variable | `execution.model-env-var` |
+| `provider/model` must be rewritten for the CLI | `execution.model-env-provider-prefix`, or a harness for more complex transformations |
+| Static engine configuration | `behaviors.config-file` with the correct path, content, and merge strategy |
+| Gateway MCP output already matches the CLI | `behaviors.mcp.config-path` and an execution MCP config binding |
+| Gateway MCP output needs another schema | `behaviors.mcp.config-adapter` |
+| MCP servers must become CLI flags or a runtime overlay | `execution.mcp-config-env-var` and `behaviors.harness-script` |
+| Runtime endpoint discovery or custom invocation | `behaviors.harness-script` using `awf_reflect.cjs` |
+| No native MCP client | `engine.mcp: false` |
+
+Use a `config-adapter` only to transform generated MCP configuration. Use a `harness-script` when endpoint selection, model transformation, prompt delivery, or CLI invocation requires runtime logic.
+
+## Resolve LLM endpoints at runtime
+
+Do not hard-code proxy ports or addresses in new shared engine definitions. Add a harness and resolve the configured endpoint from `/reflect` at execution time. Prefer the versioned helper beside the generated harness:
+
+```javascript
+const {
+  fetchAWFReflect,
+  resolveProviderEndpointFromReflect,
+} = require("./awf_reflect.cjs");
+```
+
+The harness must:
+
+1. check `AWF_REFLECT_ENABLED` before using the AWF endpoint
+2. call `fetchAWFReflect()` and require a successful response
+3. select the requested provider from `GH_AW_LLM_PROVIDER`
+4. use only an endpoint with `configured: true`
+5. map the resolved URL into the CLI's documented environment variable, flag, or config key
+6. transform and validate the selected model using the discovered provider's syntax
+7. read the prompt from `GH_AW_PROMPT`, spawn the CLI without shell interpolation, and preserve its exit status
+8. fail with an actionable message when endpoint or model resolution is impossible
+
+Use `resolveProviderEndpointFromReflect()` when the CLI accepts a base URL. Use `resolveOpenAICompatibleEndpointFromReflect()` when it needs an OpenAI-compatible host and request path separately, as in the shared Goose harness. Use `resolveMultiProviderFromReflect()` only when the CLI consumes a generated multi-provider catalog. Parse `/reflect` directly only when the shared helpers cannot represent the engine's contract.
+
+`AWF_REFLECT_ENABLED=1` only indicates that reflection is available; it does not configure the CLI. The harness must fetch and apply the result. When AWF is disabled, preserve the CLI's documented environment-based fallback or fail clearly if the engine cannot run without reflection. See [LLM API Endpoint Discovery](llms.md) for the response shape and model-discovery behavior.
+
+## Generate MCP configuration only when needed
+
+When the gateway output already matches the CLI's native schema, point `behaviors.mcp.config-path` at the native config path and bind it through `execution.mcp-config-env-var` or `execution.mcp-config-flag`.
+
+When the schemas differ, add a `config-adapter` that reads the gateway environment, filters CLI-mounted servers, preserves supported authorization headers, rewrites the gateway domain for the engine's execution context, and writes the native format with owner-only permissions.
+
+When the CLI requires MCP servers as flags or cannot represent all gateway fields in its static config, add that translation to the execution harness. Read the generated path from the configured MCP environment variable, pass arguments as an array to the spawned process, and use a temporary runtime overlay for fields such as HTTP headers that cannot be represented safely as flags. Do not interpolate generated MCP values into a shell command. The shared Goose definition demonstrates both a config adapter and runtime harness.
 
 ## Engine definition shape
 
@@ -83,24 +152,26 @@ engine:
 - pair that with `execution.provider-env-mode: universal-llm-consumer` when the CLI expects provider env vars
 - use `engine.auth` only for engine-specific secrets that must be injected directly into the CLI runtime
 - keep `supported-env-var-keys` aligned with the env var names the CLI actually accepts
-- do not hard-code credential values in markdown, Go, or tests
+- do not hard-code credential values in the shared definition or generated configuration
 
 ## Validation loop
 
-1. add or update `pkg/workflow/data/engines/<id>.md`
-2. if the schema surface changes, update `pkg/parser/schemas/main_workflow_schema.json`
-3. if the engine is user-facing, update `docs/src/content/docs/reference/engines.md` and any generated schema reference as needed
-4. if a new built-in engine ID is added, update tests that assert the catalog contents
-5. run:
+1. add or update `.github/workflows/shared/<id>.md`
+2. import it from a minimal workflow that exercises the selected provider, model syntax, MCP mode, and prompt delivery
+3. compile that workflow in strict mode with the installed extension
+4. inspect the generated `.lock.yml` and verify the installation, config, MCP adapter, harness, model, and prompt wiring
+5. repeat until compilation succeeds without engine-related warnings:
 
 ```bash
-make build
-go test ./pkg/workflow/... ./pkg/parser/...
+gh aw compile <workflow-name> --strict
 ```
 
 ## Anti-patterns
 
-- do not add a new bespoke `*_engine.go` wrapper for behavior that already fits `engine.behaviors`
-- do not store install metadata, CLI args, or config-file templates partly in Go and partly in markdown without a clear need
+- do not require a gh-aw source checkout, Go changes, or repository-internal build commands
+- do not scatter install metadata, CLI args, or config-file templates across consuming workflows
+- do not attempt to create a built-in engine when a shared agentic workflow definition can express the contract
+- do not hard-code LLM proxy ports, container IPs, or a single provider endpoint when `/reflect` can resolve the selected provider
+- do not claim MCP support until the generated gateway configuration matches the CLI's accepted schema and transport
 - do not omit manifest files for engine-owned config that changes runtime behavior
 - do not use a mismatched `runtime-id` unless an existing runtime adapter is intentionally being reused
