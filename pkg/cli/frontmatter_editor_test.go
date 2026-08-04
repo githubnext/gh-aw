@@ -304,6 +304,27 @@ evals:
 
 # Body`,
 		},
+		{
+			name: "preserves nested fields with same name",
+			content: `---
+steps:
+  - name: test
+    with:
+      source: nested-input
+source: owner/repo/workflow.md@abc123
+---
+
+# Body`,
+			fieldName: "source",
+			want: `---
+steps:
+  - name: test
+    with:
+      source: nested-input
+---
+
+# Body`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -383,6 +404,29 @@ name: wf
 source-extra: other
 name: wf
 source: owner/repo@abc
+---
+
+# Body`,
+		},
+		{
+			name: "preserves nested fields with same name",
+			content: `---
+steps:
+  - name: test
+    with:
+      source: nested-input
+source: owner/repo@old
+---
+
+# Body`,
+			fieldName:  "source",
+			fieldValue: "owner/repo@new",
+			want: `---
+steps:
+  - name: test
+    with:
+      source: nested-input
+source: owner/repo@new
 ---
 
 # Body`,
