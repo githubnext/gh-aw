@@ -77,8 +77,6 @@ install/init lifecycle out of the agent job and performs it lazily:
    checkout. The Squad CLI itself is never installed in the agent job; only the
    files it produced are copied in.
 
--->
-
 ## Working with Squad
 
 Squad's team state (`.squad/`) and its Copilot custom agent
@@ -91,3 +89,5 @@ and restored into this checkout before you started — do not install Squad or r
   why instead of proceeding.
 - Coordinate work through the Squad team already defined in `.squad/` rather
   than proposing a brand-new team from scratch.
+
+-->
