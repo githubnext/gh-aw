@@ -181,49 +181,9 @@ Present a structured summary and ask for approval before generation.
 | "runs apt install / yum / apk" | include `linux-distros` in `network.allowed` |
 | "uses Terraform / HashiCorp registry" | include `terraform` in `network.allowed` |
 | "connects to localhost / loopback / local services" | include `local` in `network.allowed` |
-| "uses Swift Package Manager" | include `swift` in `network.allowed` |
-| "uses Composer / PHP packages" | include `php` in `network.allowed` |
-| "uses pub.dev / Dart packages" | include `dart` in `network.allowed` |
-| "uses Hackage / Haskell packages" | include `haskell` in `network.allowed` |
-| "uses CPAN / Perl packages" | include `perl` in `network.allowed` |
-| "serves or loads web fonts" | include `fonts` in `network.allowed` |
-| "uses Deno or JSR packages" | include `deno` in `network.allowed` |
-| "uses Elixir / Hex packages" | include `elixir` in `network.allowed` |
-| "uses Bazel build" | include `bazel` in `network.allowed` |
-| "uses Clojure / Clojars packages" | include `clojure` in `network.allowed` |
-| "uses Julia packages" | include `julia` in `network.allowed` |
-| "uses Kotlin / JetBrains packages" | include `kotlin` in `network.allowed` |
-| "uses LuaRocks / Lua packages" | include `lua` in `network.allowed` |
-| "uses node CDNs (jsdelivr, unpkg)" | include `node-cdns` in `network.allowed` |
-| "uses OPAM / OCaml packages" | include `ocaml` in `network.allowed` |
-| "uses PowerShell Gallery" | include `powershell` in `network.allowed` |
-| "uses R / CRAN packages" | include `r` in `network.allowed` |
-| "uses sbt / Scala packages" | include `scala` in `network.allowed` |
-| "uses Zig packages" | include `zig` in `network.allowed` |
-| "uses Renovate, Codecov, or other CI tools" | include `dev-tools` in `network.allowed` |
-| "uses Chrome / Chromium downloads" | include `chrome` in `network.allowed` |
-| "uses LaTeX / TeX / MiKTeX" | include `latex` in `network.allowed` |
-| "uses Lean theorem prover" | include `lean` in `network.allowed` |
-| "builds Python packages from source" | include `python-native` in `network.allowed` |
 | "no external access" | `network.allowed: [defaults]` (or `[]` if explicitly zero network) |
 
-#### Invalid Network Shorthands
-
-These look like ecosystem identifiers but are **not recognised** and cause a compile-time error. Always correct them before generating:
-
-| User says / writes | Correct value |
-|---|---|
-| `npm` | `node` |
-| `pypi` | `python` |
-| `pip` | `python` |
-| `cargo` | `rust` |
-| `gem` or `gems` | `ruby` |
-| `nuget` | `dotnet` |
-| `maven` | `java` |
-| `gradle` | `java` |
-| `composer` | `php` |
-| `docker` | `containers` |
-| `localhost` | `local` |
+For less common ecosystems (Swift, PHP, Dart, Haskell, Perl, fonts, Deno, Elixir, Bazel, Clojure, Julia, Kotlin, Lua, node CDNs, OCaml, PowerShell, R, Scala, Zig, dev-tools, Chrome, LaTeX, Lean, python-native) and the full list of **invalid shorthands** (`npm`, `pypi`, `docker`, etc. — see `.github/aw/network.md#invalid-shorthands`), consult `.github/aw/network.md` before generating.
 
 ### Tool Mapping
 

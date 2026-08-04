@@ -27,6 +27,8 @@ describe("no-duplicate-constant-values", () => {
         `const NOTIFY_TIMEOUT_MS = 10000; const KEEPALIVE_PING_INTERVAL_MS = 10000;`,
         `const A_PREFIX_LENGTH = 2; const B_PREFIX_LENGTH = 2;`,
         `const DEFAULT_HTTP_TIMEOUT_MS = 15000; const TOOL_CALL_TIMEOUT_BUFFER_MS = 15000; const NOTIFY_TIMEOUT_MS = 10000; const KEEPALIVE_PING_INTERVAL_MS = 10000;`,
+        `const FIRST_ENABLED = true; const SECOND_ENABLED = true;`,
+        `const FIRST_ENABLED = false; const SECOND_ENABLED = false;`,
       ],
       invalid: [],
     });
@@ -67,6 +69,21 @@ describe("no-duplicate-constant-values", () => {
     ruleTester.run("no-duplicate-constant-values", noDuplicateConstantValuesRule, {
       valid: [`const FIRST = -42; const SECOND = -42;`],
       invalid: [],
+    });
+  });
+
+  it("requires at least three matching boolean constants before reporting duplicates", () => {
+    ruleTester.run("no-duplicate-constant-values", noDuplicateConstantValuesRule, {
+      valid: [`const FIRST_ENABLED = true; const SECOND_ENABLED = true;`],
+      invalid: [
+        {
+          code: `const FIRST_ENABLED = true; const SECOND_ENABLED = true; const THIRD_ENABLED = true;`,
+          errors: [
+            { messageId: "duplicateConstantValue", data: { name: "SECOND_ENABLED", originalName: "FIRST_ENABLED", value: "true" } },
+            { messageId: "duplicateConstantValue", data: { name: "THIRD_ENABLED", originalName: "FIRST_ENABLED", value: "true" } },
+          ],
+        },
+      ],
     });
   });
 

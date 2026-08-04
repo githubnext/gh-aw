@@ -511,6 +511,16 @@ safe-outputs:
 
 Custom GitHub token or GitHub App used by the activation job to post reactions and status comments on the triggering item. Configured via `github-token:` (for a PAT or token expression) or `github-app:` (to mint a short-lived installation token) inside the `on:` section. Affects only the activation job — agent job tokens are configured separately via `tools.github.github-token` or `safe-outputs.github-app`. See [Authentication Reference](/gh-aw/reference/auth/).
 
+### Ambient Folders (`ambient-folders:`)
+
+Top-level, workspace-relative folders (for example `.squad/`, `.github/agents`) declared via the `ambient-folders:` frontmatter field that are bundled into the activation artifact and restored into the checkout before the agent runs. Enables shared workflows to prepare reusable prompt, skill, or agent context without requiring per-consumer manual artifact handling. Shared workflow components (files without a trigger event) may also declare `ambient-folders` for reuse through imports. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#ambient-folders-ambient-folders).
+
+```yaml wrap
+ambient-folders:
+  - .squad
+  - .github/agents
+```
+
 ### Bare Mode (`engine.bare`)
 
 An engine configuration field that disables automatic loading of context and custom instructions by the engine. Set `engine.bare: true` to prevent the engine from reading memory files, `AGENTS.md`, `CLAUDE.md`, or built-in system prompts that would otherwise be loaded automatically. Useful for triage, reporting, and ops workflows where the prompt is fully self-contained and repository code context adds noise. Supported by Copilot, Claude, Codex, and Gemini engines. See [AI Engines Reference](/gh-aw/reference/engines/#bare-mode-bare).
@@ -922,6 +932,10 @@ A frontmatter option that appends custom key/value pairs to the standard gh-aw a
 
 A telemetry API provided by the `otlp.cjs` helper that lets shared workflow imports emit their own OTLP spans alongside built-in gh-aw telemetry. Call `otlp.logSpan(toolName, attributes, options)` inside a `github-script` step to attach domain-specific measurements to the same distributed trace as the workflow run. The function is non-fatal and never throws — export failures are surfaced as warnings. See [OpenTelemetry](/gh-aw/guides/open-telemetry/#custom-spans-from-shared-imports).
 
+### Activation Steps (`jobs.activation.steps`)
+
+An activation-only built-in job injection field. The compiler inserts these steps after the generated activation checkout/gate sequence and before the activation artifact is staged and uploaded. Useful for shared workflows (for example, Squad initialization) that need the activation checkout available before preparing content for the activation artifact. Imported activation `steps` are merged in import declaration order before the main workflow's activation `steps`. `jobs.<other-built-in>.steps` is rejected at compile time. See [Custom Jobs](/gh-aw/reference/steps-jobs/#jobs-and-steps).
+
 ### Setup-Steps (`jobs.<job-id>.setup-steps`)
 
 Steps injected immediately after the compiler-generated `actions/setup` step for a custom or built-in job. Defined under `jobs.<job-id>.setup-steps` in workflow frontmatter. When both a main workflow and an imported workflow define `setup-steps` for the same job, imported setup-steps run first. `setup-steps` remain distinct from `pre-steps` and are not merged across keys. `jobs.activation.setup-steps` and `jobs.pre_activation`/`jobs.pre-activation` `setup-steps` are refused at compile time because they can short-circuit protections. See [Custom Jobs](/gh-aw/reference/steps-jobs/#jobs-and-steps).
@@ -1153,6 +1167,10 @@ on:
 
 A deterministic SHA-256 hash of a workflow's frontmatter configuration, including all imported workflow frontmatter collected in breadth-first order. The hash covers security-relevant fields (`engine`, `on`, `permissions`, `tools`, `network`, `safe-outputs`, etc.) while excluding the markdown body. Identical configurations produce identical hashes across the Go and JavaScript compiler implementations, enabling change detection, tamper verification, and reproducibility checks. To also hash the prompt body, use `on.stale-check: "full"` (see [Body Hash](#body-hash)). See [Frontmatter Hash Specification](/gh-aw/specs/frontmatter-hash-specification/).
 
+### Custom Routing Signal (`engine_base_url_customized`)
+
+A boolean field in compiled lock file metadata (`# gh-aw-metadata:`) that authoritatively records whether a Copilot engine is running with custom provider/base-URL routing — via BYOK mode, a non-GitHub `engine.model-provider`, or an explicit `engine.api-target` — instead of default GitHub-hosted routing. Uses `omitempty` so default configurations omit the field rather than emit `false`. Replaces fragile downstream inference from compiled step `env:` blocks. See [Lock File Metadata](/gh-aw/reference/compilation-process/).
+
 ### Action-Pin Mapping (`action_pins`)
 
 An `aw.json` configuration field that redirects action references to replacement references before pin resolution occurs. Enables enterprises in private-cloud or air-gapped environments to use internally mirrored actions without modifying individual workflow files. Keys and values use `owner/repo@ref` format; each source version must be mapped individually. The redirect is applied at the start of the pin resolution pipeline, so the standard resolution steps (cache, GitHub API, embedded pins) operate on the mapped target.
@@ -1365,6 +1383,16 @@ sandbox:
   agent:
     mounts:
       - /run/docker.sock:/var/run/docker.sock:ro
+```
+
+### Token Steering (`sandbox.agent.token-steering`)
+
+A `sandbox.agent` boolean field, enabled by default, that controls whether AWF's API proxy actively steers Copilot requests through dynamic token/provider routing. Set `token-steering: false` to preserve the explicitly configured provider and model without proxy interception. See [Sandbox Configuration](/gh-aw/reference/sandbox/#token-steering-sandboxagenttoken-steering).
+
+```yaml wrap
+sandbox:
+  agent:
+    token-steering: false
 ```
 
 ### Excluded Env (`excluded-env`)

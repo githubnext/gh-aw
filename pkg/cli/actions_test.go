@@ -9,6 +9,7 @@ import (
 )
 
 func TestConvertToGitHubActionsEnv(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       map[string]any
@@ -135,6 +136,7 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := convertToGitHubActionsEnv(tt.input, tt.envMetadata)
 			assert.Equal(t, tt.expected, result, "convertToGitHubActionsEnv should produce the expected environment variable map")
 		})
