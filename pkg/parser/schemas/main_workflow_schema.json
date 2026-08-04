@@ -3515,6 +3515,11 @@
                       "description": "Enable or disable model fallback for unresolved model selections. Set to false for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports literal boolean or GitHub Actions expression.",
                       "examples": [false, "${{ inputs.model-fallback }}"]
                     },
+                    "token-steering": {
+                      "type": "boolean",
+                      "description": "Enable or disable API proxy token steering. Set to false to preserve the explicitly configured provider and model.",
+                      "examples": [false]
+                    },
                     "runtime": {
                       "type": "string",
                       "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation \u2014 requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Incompatible with runner.topology: arc-dind.",
