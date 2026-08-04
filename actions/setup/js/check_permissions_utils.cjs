@@ -5,6 +5,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 const STANDARD_ROLES = new Set(["admin", "maintain", "write", "triage", "read"]);
 
+// Base roles a custom organization repository role can be derived from. `admin` is
+// deliberately excluded: custom repository roles can never confer admin access.
+const CUSTOM_ROLE_BASE_ROLES = new Set(["maintain", "write", "triage", "read"]);
+
 /**
  * Normalize GitHub permission/role aliases to the canonical values used by on.roles.
  * @param {string} role
@@ -268,12 +272,18 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     // "Security Champions") have a role_name that is not one of these — for those, fall back
     // to the standard `permission` level reported by the same endpoint so the actor is not
     // blocked simply because their custom role name is not literally listed in on.roles.
+    // A custom role can never grant admin: GitHub derives custom repository roles from the
+    // read/triage/write/maintain base roles only, so `admin` is refused here even if the API
+    // unexpectedly reports it for a custom role.
     const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
-    const resolvedBaseRole = isCustomRole && STANDARD_ROLES.has(normalizedPermission) ? normalizedPermission : "";
+    const resolvedBaseRole = isCustomRole && CUSTOM_ROLE_BASE_ROLES.has(normalizedPermission) ? normalizedPermission : "";
     const debugRoleName = normalizedRoleName || "<empty>";
     const debugBaseRole = resolvedBaseRole || "<empty>";
     core.info(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}'`);
     core.info(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, base_role='${debugBaseRole}'`);
+    if (isCustomRole && normalizedPermission === "admin") {
+      core.warning(`Ignoring 'admin' permission reported for custom repository role '${normalizedRoleName}': custom roles cannot grant admin access`);
+    }
     if (isCustomRole && resolvedBaseRole === "") {
       core.info(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not report a standard permission level`);
     }
@@ -282,7 +292,7 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     // For standard roles, use role_name (precise: maintain/triage are not collapsed to
     // write/read). For custom org roles, fall back to the standard `permission` level that
     // GitHub already computes for the actor (readable with the repository-scoped
-    // GITHUB_TOKEN); fail closed if it is not a standard role.
+    // GITHUB_TOKEN); fail closed if it is not one of the non-admin base roles.
     /** @type {{ permission: string, roleMatchType: string }|null} */
     let permissionMatch = null;
     for (const requiredPerm of requiredPermissions) {

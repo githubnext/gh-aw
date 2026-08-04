@@ -404,6 +404,35 @@ describe("check_permissions_utils", () => {
       });
     });
 
+    it("should never authorize admin for a custom org role reporting admin permission", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "admin", role_name: "Security Champions" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["admin"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        permission: "Security Champions",
+      });
+      expect(mockCore.warning).toHaveBeenCalledWith("Ignoring 'admin' permission reported for custom repository role 'Security Champions': custom roles cannot grant admin access");
+      expect(mockCore.info).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='<empty>'");
+    });
+
+    it("should not let an admin-permission custom org role satisfy a lesser required role", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "admin", role_name: "Security Champions" },
+      });
+
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
+
+      expect(result).toEqual({
+        authorized: false,
+        permission: "Security Champions",
+      });
+      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: write");
+    });
+
     it("should authorize read-permission custom org role when read is required", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "read", role_name: "Security Champions" },
