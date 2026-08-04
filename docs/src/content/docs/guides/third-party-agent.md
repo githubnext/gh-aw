@@ -5,19 +5,19 @@ sidebar:
   order: 330
 ---
 
-Third-party coding agent CLIs that are not built into gh-aw can integrate through a declarative engine definition file that the agent publisher distributes. This guide uses [OpenCode](https://opencode.ai) as a concrete open-source example.
+Third-party coding agent CLIs that are not built into gh-aw can integrate through a declarative engine definition file that the agent publisher distributes. This guide uses [OpenCode](https://opencode.ai) as a concrete open-source example; its engine definition ships in this repository at `.github/workflows/shared/opencode.md`.
 
 ## How third-party engine integration works
 
-A third-party agent publishes a Markdown engine definition file to their GitHub repository. The file's frontmatter declares the agent's installation, configuration, and execution steps using the `engine.behaviors` format. When a workflow imports that file, gh-aw registers the engine at compile time — no changes to the gh-aw binary are required.
+A third-party agent publishes a Markdown engine definition file to a GitHub repository (or you vendor one under `.github/workflows/shared/`). The file's frontmatter declares the agent's installation, configuration, and execution steps using the `engine.behaviors` format. When a workflow imports that file, gh-aw registers the engine at compile time — no changes to the gh-aw binary are required.
 
 ## Example: OpenCode
 
 OpenCode is an open-source, provider-agnostic AI coding agent (BYOK — Bring Your Own Key) that supports 75+ models from Anthropic, OpenAI, Google, Groq, and others via a unified CLI interface.
 
-An agent publisher provides an engine definition file like the following in their repository. The file's `engine.behaviors` block tells gh-aw exactly how to install, configure, and invoke the CLI:
+An engine definition file looks like the following. The file's `engine.behaviors` block tells gh-aw exactly how to install, configure, and invoke the CLI:
 
-```aw wrap title=".github/workflows/opencode-engine.md (published by the OpenCode project)"
+```aw wrap title=".github/workflows/shared/opencode.md (an engine definition file)"
 ---
 engine:
   id: opencode
@@ -35,6 +35,18 @@ engine:
         - AGENTS.md
       path-prefixes:
         - .opencode/
+    network:
+      defaults:
+        - host.docker.internal
+        - github.com
+        - raw.githubusercontent.com
+        - registry.npmjs.org
+        - opencode.ai
+        - models.dev
+      provider-domains:
+        copilot: api.githubcopilot.com
+        anthropic: api.anthropic.com
+        openai: api.openai.com
     installation:
       package-manager: npm
       package-name: opencode-ai
@@ -95,7 +107,7 @@ on: issues
 engine: opencode
 
 imports:
-  - sst/opencode/.github/workflows/opencode-engine.md@v1.2.14
+  - shared/opencode.md
 
 network:
   allowed:
@@ -107,9 +119,11 @@ network:
 Triage this issue and apply an appropriate label.
 ```
 
-Pin the import to a specific tag or SHA to control when you pick up new versions of the engine definition.
+Use a repository-relative path such as `shared/opencode.md` for a vendored definition, or `owner/repo/.github/workflows/opencode-engine.md@v1.2.14` to import a published one — pin remote imports to a tag or SHA to control when you pick up new versions.
 
 The `network.allowed` entry should match the provider you are using. OpenCode supports multiple providers — for example, add `api.openai.com` instead of (or in addition to) `api.anthropic.com` when using an OpenAI model.
+
+The `behaviors.network` block lets an engine definition declare its own default domains instead of relying on gh-aw built-in knowledge. `defaults` lists the domains always required by the CLI, and `provider-domains` maps a `provider/model` prefix to the API host that provider needs, so the firewall allow-list adapts automatically to the configured `model`.
 
 ## Add the API key secret
 
@@ -130,7 +144,7 @@ engine:
   version: "1.3.0"
 
 imports:
-  - sst/opencode/.github/workflows/opencode-engine.md@v1.2.14
+  - shared/opencode.md
 ```
 
 ## Recompile after workflow edits

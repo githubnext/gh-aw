@@ -7,12 +7,13 @@ description: `engine:` frontmatter field detail for GitHub Agentic Workflows.
 See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"antigravity"`, `"opencode"`, `"pi"`
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"antigravity"`, `"pi"`
+  - The experimental `opencode` engine is available through `imports: [shared/opencode.md]`; see [`smoke-opencode.md`](../workflows/smoke-opencode.md) for an example.
   - Object format for extended configuration:
 
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini; experimental: antigravity, opencode, pi)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini; experimental: antigravity, pi)
       version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Deprecated alias for the top-level `model`; prefer the top-level field
       permission-mode: acceptEdits      # Optional (claude only): auto | acceptEdits | plan | bypassPermissions. Default: acceptEdits (auto when tools.edit is false)
@@ -34,7 +35,6 @@ See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
 
   - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `web-search`. Supports AWF firewall and LLM gateway.
   - **`antigravity` engine** (experimental): Google Antigravity CLI in headless mode. Requires `ANTIGRAVITY_API_KEY` secret; model via `model:` (maps to `ANTIGRAVITY_MODEL`). Supports `max-turns`, tools allow-list, AWF firewall, and LLM gateway. Does not support `web-search`, `max-continuations`, or native agent files (agent content is prepended to the prompt).
-  - **`opencode` engine** (experimental): Provider-agnostic, open-source AI coding agent (BYOK). Defaults to Copilot routing via `COPILOT_GITHUB_TOKEN` (or `${{ github.token }}` with `copilot-requests` feature). Supports 75+ models via `provider/model` format. Supports AWF firewall and LLM gateway.
   - **`engine.driver:`** — canonical field to run a custom inner driver script instead of the engine's built-in CLI. For the `pi` engine it launches the driver directly with Node.js (e.g. built-in `pi_agent_core_driver.cjs`, or a workspace-relative path like `.github/drivers/pi_agent_core_driver_sample_node.cjs`); the driver must emit JSONL compatible with `parse_pi_log.cjs` so step summaries and token tracking keep working. Accepts a bare basename (resolved from the setup-action directory) or a workspace-relative path; no absolute paths, no `..`, only `.js`/`.cjs`/`.mjs` (pi).
   - **`copilot-sdk`** (copilot only): set `copilot-sdk: true` to start a headless Copilot CLI SDK sidecar. **`engine.driver`** (experimental, copilot only): set `driver: <path-or-command>` to supply a custom SDK driver (`.js`/`.cjs`/`.mjs`/`.py`/`.ts`/`.mts`/`.rb`, or a bare PATH command); this also enables `copilot-sdk: true` automatically. Tune the repeated-tool-denial safeguard with the top-level `max-tool-denials:` field (default `5`).
 

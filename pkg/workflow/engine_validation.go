@@ -155,6 +155,18 @@ func isModelOnlyEngineJSON(engineJSON string) bool {
 	return hasPreference
 }
 
+// isEngineDefinitionJSON reports whether engineJSON declares a shared engine definition
+// (an engine object carrying a 'behaviors' block). Such entries define an engine's
+// installation and execution rather than selecting the workflow's engine.
+func isEngineDefinitionJSON(engineJSON string) bool {
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(engineJSON), &obj); err != nil {
+		return false
+	}
+	_, hasBehaviors := obj["behaviors"]
+	return hasBehaviors
+}
+
 // validateSingleEngineSpecification validates that only one engine field exists across all files
 func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, includedEnginesJSON []string) (string, error) {
 	var allEngines []string
@@ -174,6 +186,10 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	// "multiple engine fields" errors when a shared workflow only declares engine.model
 	// without engine.id). Objects with unknown keys or empty objects are not skipped
 	// and will continue through normal validation.
+	// Engine *definition* files (declaring behaviors) describe how to run an engine
+	// rather than selecting one, so they only act as a selection when nothing else
+	// specifies an engine.
+	var firstIncludedDefinition string
 	for _, engineJSON := range includedEnginesJSON {
 		if engineJSON == "" {
 			continue
@@ -181,10 +197,20 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 		if isModelOnlyEngineJSON(engineJSON) {
 			continue
 		}
+		if isEngineDefinitionJSON(engineJSON) {
+			if firstIncludedDefinition == "" {
+				firstIncludedDefinition = engineJSON
+			}
+			continue
+		}
 		allEngines = append(allEngines, engineJSON)
 		if firstIncludedRealEngine == "" {
 			firstIncludedRealEngine = engineJSON
 		}
+	}
+	if len(allEngines) == 0 && firstIncludedDefinition != "" {
+		allEngines = append(allEngines, firstIncludedDefinition)
+		firstIncludedRealEngine = firstIncludedDefinition
 	}
 
 	// Check count (only counting real engine specifications)

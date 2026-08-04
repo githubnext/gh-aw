@@ -79,8 +79,6 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			modelEnvVar = constants.EnvVarModelAgentClaude
 		case "codex":
 			modelEnvVar = constants.EnvVarModelAgentCodex
-		case "opencode":
-			modelEnvVar = constants.EnvVarModelAgentOpenCode
 		case "custom":
 			modelEnvVar = constants.EnvVarModelAgentCustom
 		default:
@@ -89,7 +87,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Agent version - use the actual installation version (includes defaults)
-	agentVersion := getInstallationVersion(data, engine)
+	agentVersion := getInstallationVersion(data, engine, c.engineRegistry)
 
 	// Version: prefer explicit engine config version, fall back to the installation version
 	// so the run details always show the version being used rather than "(none)".

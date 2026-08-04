@@ -79,7 +79,7 @@ func TestGetVersionForSetup(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getVersionForSetup(tt.data)
+			result := getVersionForSetup(tt.data, GetGlobalEngineRegistry())
 			if result != tt.expectedVersion {
 				t.Errorf("getVersionForSetup() = %q, want %q", result, tt.expectedVersion)
 			}

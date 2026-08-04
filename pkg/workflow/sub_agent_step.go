@@ -19,12 +19,12 @@ var subAgentStepLog = logger.New("workflow:sub_agent_step")
 //
 // Inline sub-agents are enabled by default. The shell logic lives in
 // restore_inline_sub_agents.sh for maintainability and testability.
-func generateRestoreInlineSubAgentsStep(yaml *strings.Builder, data *WorkflowData) {
+func generateRestoreInlineSubAgentsStep(yaml *strings.Builder, data *WorkflowData, registry *EngineRegistry) {
 	engineID := ""
 	if data.EngineConfig != nil {
 		engineID = data.EngineConfig.ID
 	}
-	subAgentDir := GetEngineSubAgentDir(engineID)
+	subAgentDir := engineConfigBaseDirForRegistry(registry, engineID) + "/agents"
 	subAgentExt := parser.GetEngineSubAgentExt(engineID)
 	subAgentStepLog.Printf("Generating restore inline sub-agents step: engine=%s, dir=%s, ext=%s", engineID, subAgentDir, subAgentExt)
 

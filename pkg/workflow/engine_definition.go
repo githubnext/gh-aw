@@ -15,7 +15,7 @@
 //
 // # Built-in Engines
 //
-// NewEngineCatalog registers the built-in engines: claude, codex, copilot, gemini, opencode, pi, antigravity.
+// NewEngineCatalog registers the built-in engines: claude, codex, copilot, gemini, pi, antigravity.
 // Each EngineDefinition carries the engine's RuntimeID which maps to the corresponding
 // CodingAgentEngine registered in the EngineRegistry.
 //
@@ -146,6 +146,17 @@ type EngineManifestDefinition struct {
 	PathPrefixes []string `yaml:"path-prefixes,omitempty"`
 }
 
+// EngineNetworkDefinition declares the engine's default network requirements.
+// Defaults are always included. ProviderDomains maps a "provider/model" prefix
+// to the API domain that must additionally be reachable for that provider.
+type EngineNetworkDefinition struct {
+	Defaults        []string          `yaml:"defaults,omitempty"`
+	ProviderDomains map[string]string `yaml:"provider-domains,omitempty"`
+	// DefaultProvider names the provider key used when the model carries no
+	// "provider/" prefix. When empty, no provider domain is added.
+	DefaultProvider string `yaml:"default-provider,omitempty"`
+}
+
 // EngineInstallationDefinition describes how an engine CLI is installed.
 type EngineInstallationDefinition struct {
 	PackageManager     string `yaml:"package-manager,omitempty"`
@@ -202,6 +213,7 @@ type EngineBehaviorDefinition struct {
 	SupportedEnvVarKeys []string                      `yaml:"supported-env-var-keys,omitempty"`
 	Capabilities        EngineCapabilitiesDefinition  `yaml:"capabilities,omitempty"`
 	Manifest            *EngineManifestDefinition     `yaml:"manifest,omitempty"`
+	Network             *EngineNetworkDefinition      `yaml:"network,omitempty"`
 	Installation        *EngineInstallationDefinition `yaml:"installation,omitempty"`
 	ConfigFile          *EngineConfigFileDefinition   `yaml:"config-file,omitempty"`
 	Execution           *EngineExecutionDefinition    `yaml:"execution,omitempty"`
@@ -283,7 +295,7 @@ type ResolvedEngineTarget struct {
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
-// pre-registers the built-in engine definitions (claude, codex, copilot, gemini, opencode, pi, antigravity)
+// pre-registers the built-in engine definitions (claude, codex, copilot, gemini, pi, antigravity)
 // loaded from the embedded Markdown files in data/engines/*.md.
 func NewEngineCatalog(registry *EngineRegistry) *EngineCatalog {
 	catalog := &EngineCatalog{

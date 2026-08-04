@@ -22,7 +22,7 @@ func TestBuiltinEngineMarkdownFiles(t *testing.T) {
 	catalog := NewEngineCatalog(NewEngineRegistry())
 	require.NotNil(t, catalog, "engine catalog should be created")
 
-	builtinEngineIDs := []string{"claude", "codex", "copilot", "gemini", "opencode"}
+	builtinEngineIDs := []string{"claude", "codex", "copilot", "gemini"}
 
 	for _, id := range builtinEngineIDs {
 		t.Run(id, func(t *testing.T) {
@@ -79,7 +79,7 @@ func TestBuiltinEngineStringFormInjection(t *testing.T) {
 		{
 			engineID:      "opencode",
 			expectError:   true,
-			errorContains: "engine.model is required for engine 'opencode'",
+			errorContains: "invalid engine: opencode",
 		},
 	}
 

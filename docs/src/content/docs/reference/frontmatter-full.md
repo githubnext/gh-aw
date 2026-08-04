@@ -1041,6 +1041,13 @@ on:
   # (optional)
   allow-bot-authored-trigger-comment: true
 
+  # Workspace-relative folders to bundle in the activation artifact and restore
+  # before the agent runs. Useful for activation steps that generate reusable
+  # prompt, skill, or agent context.
+  # (optional)
+  ambient-folders: []
+    # Array of strings
+
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
   # (optional)
@@ -1897,7 +1904,7 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
@@ -2352,15 +2359,15 @@ post-steps: []
 # (optional)
 # Accepted formats:
 
-# Format 1: Engine name: built-in ('claude', 'codex', 'copilot', 'gemini',
-# 'opencode', 'pi') or a named catalog entry
+# Format 1: Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'pi')
+# or a named catalog entry
 engine: "example-value"
 
 # Format 2: Extended engine configuration object with advanced options for model
 # selection, turn limiting, environment variables, and custom steps
 engine:
-  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini',
-  # 'opencode', 'pi') or a named catalog entry
+  # AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'pi') or
+  # a named catalog entry
   id: "example-value"
 
   # Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has
@@ -2671,8 +2678,7 @@ engine:
 engine:
   # Runtime adapter reference for the inline engine definition
   runtime:
-    # Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini',
-    # 'opencode', 'pi')
+    # Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'pi')
     id: "example-value"
 
     # Optional version of the runtime adapter (e.g. '0.105.0', 'beta')
@@ -2755,8 +2761,7 @@ engine:
 # Format 4: Engine definition: full declarative metadata for a named engine entry
 # (used in builtin engine shared workflow files such as @builtin:engines/*.md)
 engine:
-  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini',
-  # 'opencode', 'pi')
+  # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'pi')
   id: "example-value"
 
   # Human-readable display name for the engine
@@ -2891,6 +2896,9 @@ engine:
       # (optional)
       bare-mode: true
 
+      # (optional)
+      bash-command-allowlist: true
+
     # (optional)
     manifest:
       # (optional)
@@ -2900,6 +2908,28 @@ engine:
       # (optional)
       path-prefixes: []
         # Array of strings
+
+    # Declarative default network requirements for the engine. 'defaults' are always
+    # allowed; the domain in 'provider-domains' matching the model's provider prefix
+    # is added on top.
+    # (optional)
+    network:
+      # Domains always required by the engine CLI (for example package registries and
+      # telemetry endpoints).
+      # (optional)
+      defaults: []
+        # Array of strings
+
+      # Maps a model provider prefix (the part before '/' in 'provider/model') to the
+      # API domain required for that provider.
+      # (optional)
+      provider-domains:
+        {}
+
+      # Provider key used to resolve a provider domain when the model carries no
+      # 'provider/' prefix.
+      # (optional)
+      default-provider: "example-value"
 
     # (optional)
     installation:
@@ -2982,6 +3012,12 @@ engine:
 
       # (optional)
       provider-env-mode: "example-value"
+
+      # Additional static environment variables injected into the execution step. Values
+      # are rendered verbatim and must not contain secrets.
+      # (optional)
+      env:
+        {}
 
     # (optional)
     mcp:
@@ -8632,7 +8668,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: request_review (default),
     # blocked, allowed, or fallback-to-issue — or a GitHub Actions expression for
-    # reusable workflows. Object form: { policy, exclude } to customize the
+    # reusable workflows. Object form: { policy, exclude } to customise the
     # protected-file set.
     # (optional)
     # Accepted formats:
@@ -8648,7 +8684,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed',
     # 'fallback-to-issue', or 'request_review' at runtime. Use in reusable
-    # workflow_call workflows to parameterize the policy per caller.
+    # workflow_call workflows to parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -8728,7 +8764,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -11513,6 +11549,16 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to an integer at runtime
     max: "example-value"
+
+    # When false, excludes issues:write from the minted GitHub App token for
+    # add-labels. Default (omitted or true) includes issues:write.
+    # (optional)
+    issues: true
+
+    # When false, excludes pull-requests:write from the minted GitHub App token for
+    # add-labels. Default (omitted or true) includes pull-requests:write.
+    # (optional)
+    pull-requests: true
 
     # Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit
     # issue/PR number
@@ -15095,7 +15141,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
     # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
-    # Object form: { policy, exclude } to customize the protected-file set.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # Accepted formats:
 
@@ -15108,7 +15154,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
     # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterize the policy per caller.
+    # parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -15170,7 +15216,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -18287,7 +18333,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behavior when no files match: 'error' (default) or 'ignore'
+      # Behaviour when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 

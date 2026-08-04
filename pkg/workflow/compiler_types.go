@@ -138,6 +138,8 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 	// This ensures actions-lock.json is created at repo root regardless of CWD
 	gitRoot := findGitRoot()
 
+	engineRegistry := NewEngineRegistry()
+
 	// Create compiler with defaults
 	c := &Compiler{
 		ctx:                     context.Background(), // Default context; override with WithContext
@@ -147,8 +149,8 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		skipValidation:          true,                      // Skip validation by default for now since existing workflows don't fully comply
 		actionMode:              DetectActionMode(version), // Auto-detect action mode based on version
 		jobManager:              NewJobManager(),
-		engineRegistry:          GetGlobalEngineRegistry(),
-		engineCatalog:           NewEngineCatalog(GetGlobalEngineRegistry()),
+		engineRegistry:          engineRegistry,
+		engineCatalog:           NewEngineCatalog(engineRegistry),
 		stepOrderTracker:        NewStepOrderTracker(),
 		artifactManager:         NewArtifactManager(),
 		actionPinWarnings:       make(map[string]bool), // Initialize warning cache

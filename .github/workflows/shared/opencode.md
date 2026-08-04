@@ -17,6 +17,23 @@ engine:
         - AGENTS.md
       path-prefixes:
         - .opencode/
+    network:
+      defaults:
+        - host.docker.internal
+        - github.com
+        - raw.githubusercontent.com
+        - registry.npmjs.org
+        - opencode.ai
+        - models.dev
+      provider-domains:
+        copilot: api.githubcopilot.com
+        anthropic: api.anthropic.com
+        openai: api.openai.com
+        google: generativelanguage.googleapis.com
+        groq: api.groq.com
+        mistral: api.mistral.ai
+        deepseek: api.deepseek.com
+        xai: api.x.ai
     installation:
       package-manager: npm
       package-name: opencode-ai
@@ -81,6 +98,20 @@ engine:
       config-path: opencode.jsonc
 ---
 
-<!-- # OpenCode CLI
+<!--
+# OpenCode CLI
 
-Shared engine configuration for OpenCode multi-provider AI coding agent (BYOK). -->
+Shared engine definition for the [OpenCode](https://opencode.ai) multi-provider AI
+coding agent (BYOK). Import this file and set `engine: opencode` to use it:
+
+```yaml
+engine:
+  id: opencode
+model: copilot/claude-sonnet-4.5
+imports:
+  - shared/opencode.md
+```
+
+`model` must use `provider/model` format. Supported providers are `copilot`,
+`anthropic`, `openai`, and `codex`.
+-->

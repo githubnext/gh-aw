@@ -432,7 +432,7 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// during activation and are omitted to keep the shallow checkout minimal.
 	defaultSparseCheckoutDirs := map[string]struct {
 	}{".github": {}, ".agents": {}}
-	registry := GetGlobalEngineRegistry()
+	registry := c.engineRegistry
 	for _, folder := range registry.GetAllAgentManifestFolders() {
 		if !setutil.Contains(defaultSparseCheckoutDirs, folder) {
 			extraPaths = append(extraPaths, folder)

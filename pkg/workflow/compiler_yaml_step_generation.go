@@ -201,7 +201,7 @@ func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowDa
 				fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
 				fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
 			)
-			if v := getVersionForSetup(data); v != "" {
+			if v := getVersionForSetup(data, c.engineRegistry); v != "" {
 				setupLines = append(setupLines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
 			}
 			if v := getAWFVersionForSetup(data); v != "" {
@@ -265,7 +265,7 @@ func (c *Compiler) generateSetupStepWithArtifactClientCondition(data *WorkflowDa
 		fmt.Sprintf("          GH_AW_SETUP_WORKFLOW_NAME: %q\n", data.Name),
 		fmt.Sprintf("          GH_AW_CURRENT_WORKFLOW_REF: %s\n", buildSetupWorkflowRefExpr(data)),
 	)
-	if v := getVersionForSetup(data); v != "" {
+	if v := getVersionForSetup(data, c.engineRegistry); v != "" {
 		setupLines = append(setupLines, fmt.Sprintf("          GH_AW_INFO_VERSION: %q\n", v))
 	}
 	if v := getAWFVersionForSetup(data); v != "" {

@@ -10,7 +10,7 @@ The package is organized around three major subsystems:
 
 1. **Compiler** (`compiler*.go`, `compiler_types.go`): The `Compiler` struct drives the main compilation pipeline. It accepts a markdown file path (or pre-parsed `WorkflowData`), builds the full GitHub Actions workflow YAML, and writes the `.lock.yml` file only when the content has changed.
 
-2. **Engine registry** (`agentic_engine.go`, `*_engine.go`): A pluggable engine architecture where each AI engine (`copilot`, `claude`, `codex`, `gemini`, `opencode`, `pi`, `antigravity`, `custom`) implements a set of focused interfaces (`Engine`, `CapabilityProvider`, `WorkflowExecutor`, `MCPConfigProvider`, etc.). Engines are registered in a global `EngineRegistry` and looked up by name at compile time.
+2. **Engine registry** (`agentic_engine.go`, `*_engine.go`): A pluggable engine architecture where each AI engine (`copilot`, `claude`, `codex`, `gemini`, `pi`, `antigravity`, `custom`) implements a set of focused interfaces (`Engine`, `CapabilityProvider`, `WorkflowExecutor`, `MCPConfigProvider`, etc.). Engines are registered in a global `EngineRegistry` and looked up by name at compile time.
 
 3. **Validation** (`validation.go`, `strict_mode_*.go`, `*_validation.go`): A layered validation system organized by domain. Each validator is a focused file under 300 lines. Validation runs both at compile time and optionally in strict mode for production deployments.
 
@@ -69,7 +69,6 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `ClaudeEngine` | struct | Claude coding agent engine |
 | `CodexEngine` | struct | OpenAI Codex coding agent engine |
 | `GeminiEngine` | struct | Google Gemini CLI coding agent engine |
-| `OpenCodeEngine` | struct | OpenCode coding agent engine |
 | `PiEngine` | struct | Pi coding agent engine |
 | `AntigravityEngine` | struct | Antigravity coding agent engine |
 | `UniversalLLMBackend` | string alias | Universal LLM backend identifier (`claude`, `codex`) |
@@ -95,7 +94,6 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 | `NewClaudeEngine` | `func() *ClaudeEngine` | Creates the Claude engine |
 | `NewCodexEngine` | `func() *CodexEngine` | Creates the Codex engine |
 | `NewGeminiEngine` | `func() *GeminiEngine` | Creates the Gemini engine |
-| `NewOpenCodeEngine` | `func() *OpenCodeEngine` | Creates the OpenCode engine |
 | `NewPiEngine` | `func() *PiEngine` | Creates the Pi engine |
 | `NewAntigravityEngine` | `func() *AntigravityEngine` | Creates the Antigravity engine |
 | `NewEngineCatalog` | `func(registry *EngineRegistry) *EngineCatalog` | Creates an engine catalog from an engine registry |
@@ -397,7 +395,7 @@ The MCP renderer subsystem provides unified rendering for MCP server configurati
 |----------|-----------|-------------|
 | `GetAllowedDomains` | `func(*NetworkPermissions) []string` | Returns the full list of allowed domains |
 | `GetDomainEcosystem` | `func(domain string) string` | Returns the ecosystem name for a domain |
-| `GetDefaultDomainsForEngine` | `func(EngineName, model string) ([]string, error)` | Returns the engine's default required domains (model-aware for OpenCode, Pi) |
+| `GetDefaultDomainsForEngine` | `func(EngineName, model string) ([]string, error)` | Returns the engine's default required domains (model-aware for Pi and engines declaring `behaviors.network`) |
 | `GetAllowedDomainsForEngine` | `func(EngineName, *NetworkPermissions, ...) string` | Returns allowed domains for a specific engine |
 | `GetAllowedDomainsForEngineWithModel` | `func(EngineName, model string, *NetworkPermissions, ...) (string, error)` | Returns allowed domains for a model-aware engine |
 | `GetThreatDetectionAllowedDomains` | `func(*NetworkPermissions) string` | Allowed domains for threat detection jobs |
@@ -1056,8 +1054,6 @@ This appendix is generated from the current non-test Go source files in this pac
 | `domains.go` | `var` | `CrushBaseDefaultDomains` | `var CrushBaseDefaultDomains = []string{ "host.docker.internal", "charm.land", "github.com", "raw.githubuserco…` | CrushBaseDefaultDomains are the default domains required for Crush CLI operation. |
 | `domains.go` | `var` | `CrushDefaultDomains` | `var CrushDefaultDomains = []string{ "api.githubcopilot.com", "api.openai.com", "generativelanguage.google…` | CrushDefaultDomains are the static default domains for backward compatibility. |
 | `domains.go` | `var` | `GeminiDefaultDomains` | `var GeminiDefaultDomains = AntigravityDefaultDomains` | GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation. |
-| `domains.go` | `var` | `OpenCodeBaseDefaultDomains` | `var OpenCodeBaseDefaultDomains = []string{ "host.docker.internal", "github.com", "raw.githubusercontent.com", "r…` | OpenCodeBaseDefaultDomains are the default domains required for OpenCode CLI operation. |
-| `domains.go` | `var` | `OpenCodeDefaultDomains` | `var OpenCodeDefaultDomains = []string{ "api.githubcopilot.com", "api.openai.com", "generativelanguage.google…` | OpenCodeDefaultDomains are the static default domains for backward compatibility. |
 | `domains.go` | `var` | `PiBaseDefaultDomains` | `var PiBaseDefaultDomains = []string{ "host.docker.internal", "github.com", "raw.githubusercon…` | PiBaseDefaultDomains are the base domains required for the Pi CLI to operate, independent of the chosen LLM provider. |
 | `domains.go` | `var` | `PiDefaultDomains` | `var PiDefaultDomains = []string{ "api.githubcopilot.com", "host.docker.internal", "github…` | PiDefaultDomains are the static default domains for backward compatibility when no model provider prefix is given. |
 | `domains.go` | `var` | `PlaywrightDomains` | `var PlaywrightDomains = []string{ "cdn.playwright.dev", "playwright.download.prss.microsoft.com", }` | PlaywrightDomains are the domains required for Playwright browser downloads These domains are needed when Playwright MCP server initializes in the Docker container |

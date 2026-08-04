@@ -56,9 +56,6 @@ const DefaultAntigravityVersion Version = "1.0.2-6113393518706688"
 // DefaultPiVersion is the default version of the Pi CLI
 const DefaultPiVersion Version = "0.83.0"
 
-// DefaultOpenCodeVersion is the default version of the OpenCode CLI
-const DefaultOpenCodeVersion Version = "1.2.14"
-
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v1.8.0"
 

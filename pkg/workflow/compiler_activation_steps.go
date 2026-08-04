@@ -127,7 +127,7 @@ func (c *Compiler) addActivationCheckoutAndBaseRestoreStep(ctx *activationJobBui
 	ctx.steps = append(ctx.steps, checkoutSteps...)
 	if len(checkoutSteps) > 0 {
 		compilerActivationJobLog.Print("Adding step to save agent config folders for base branch restoration")
-		registry := GetGlobalEngineRegistry()
+		registry := c.engineRegistry
 		ctx.steps = append(ctx.steps, generateSaveBaseGitHubFoldersStep(
 			registry.GetAllAgentManifestFolders(),
 			registry.GetAllAgentManifestFiles(),
@@ -186,9 +186,9 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	}
 
 	engineID := resolveActivationEngineID(ctx.data)
-	skillDir := GetEngineSkillDir(engineID)
+	skillDir := engineConfigBaseDirForRegistry(c.engineRegistry, engineID) + "/skills"
 	skillInstallAgentName := ""
-	if engine, err := GetGlobalEngineRegistry().GetEngine(strings.ToLower(engineID)); err == nil {
+	if engine, err := c.engineRegistry.GetEngine(strings.ToLower(engineID)); err == nil {
 		skillInstallAgentName = engine.GetGHSkillAgentName()
 	}
 

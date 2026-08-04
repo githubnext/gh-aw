@@ -19,7 +19,7 @@ var gitDescribeSHAPattern = regexp.MustCompile(`-\d+-g([0-9a-f]+)$`)
 // It mirrors getInstallationVersion but derives the engine ID from data fields (not from a
 // CodingAgentEngine object), allowing it to be called in contexts where the engine object
 // is not available (e.g. compiler_yaml_step_generation.go).
-func getVersionForSetup(data *WorkflowData) string {
+func getVersionForSetup(data *WorkflowData, registry *EngineRegistry) string {
 	if data == nil {
 		return ""
 	}
@@ -41,13 +41,30 @@ func getVersionForSetup(data *WorkflowData) string {
 		return string(constants.DefaultCodexVersion)
 	case string(constants.GeminiEngine):
 		return string(constants.DefaultGeminiVersion)
-	case string(constants.OpenCodeEngine):
-		return string(constants.DefaultOpenCodeVersion)
 	case string(constants.PiEngine):
 		return string(constants.DefaultPiVersion)
 	default:
+		return behaviorEngineDefaultVersion(engineID, registry)
+	}
+}
+
+// behaviorEngineDefaultVersion returns the installation version declared by a
+// behavior-defined engine definition, or "" when the engine is unknown or declares
+// no installation version.
+func behaviorEngineDefaultVersion(engineID string, registry *EngineRegistry) string {
+	engine, err := registry.GetEngine(strings.ToLower(engineID))
+	if err != nil {
 		return ""
 	}
+	behaviorEngine, ok := engine.(*BehaviorDefinedEngine)
+	if !ok {
+		return ""
+	}
+	behavior := behaviorEngine.behavior()
+	if behavior == nil || behavior.Installation == nil {
+		return ""
+	}
+	return behavior.Installation.Version
 }
 
 // getAWFVersionForSetup returns the AWF runtime version to inject as
@@ -69,7 +86,7 @@ func getAWFVersionForSetup(data *WorkflowData) string {
 
 // getInstallationVersion returns the version that will be installed for the given engine.
 // This matches the logic in BuildStandardNpmEngineInstallSteps.
-func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {
+func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine, registry *EngineRegistry) string {
 	engineID := engine.GetID()
 	compilerYamlLookupsLog.Printf("Getting installation version for engine: %s", engineID)
 
@@ -87,11 +104,12 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 		return string(constants.DefaultClaudeCodeVersion)
 	case string(constants.CodexEngine):
 		return string(constants.DefaultCodexVersion)
-	case string(constants.OpenCodeEngine):
-		return string(constants.DefaultOpenCodeVersion)
 	case string(constants.PiEngine):
 		return string(constants.DefaultPiVersion)
 	default:
+		if version := behaviorEngineDefaultVersion(engineID, registry); version != "" {
+			return version
+		}
 		// Custom or unknown engines don't have a default version
 		compilerYamlLookupsLog.Printf("No default version for custom engine: %s", engineID)
 		return ""
@@ -107,7 +125,7 @@ func getDefaultAgentModel(engineID string) string {
 	switch engineID {
 	case string(constants.CopilotEngine):
 		return constants.CopilotBYOKDefaultModel
-	case string(constants.ClaudeEngine), string(constants.GeminiEngine), string(constants.OpenCodeEngine), string(constants.PiEngine):
+	case string(constants.ClaudeEngine), string(constants.GeminiEngine), string(constants.PiEngine):
 		return constants.AgentDefaultModel
 	case string(constants.CodexEngine):
 		return constants.CodexDefaultModel
@@ -162,7 +180,7 @@ func versionToGitRef(version string) string {
 // collectEngineVersionsForMetadata returns engine version metadata for gh-aw lock files.
 // It includes only engines that are active in the current workflow, applies explicit version
 // overrides for those engines, and includes copilot-sdk only when enabled on an active copilot engine.
-func collectEngineVersionsForMetadata(data *WorkflowData) map[string]string {
+func collectEngineVersionsForMetadata(data *WorkflowData, registry *EngineRegistry) map[string]string {
 	if data == nil {
 		return map[string]string{}
 	}
@@ -173,7 +191,6 @@ func collectEngineVersionsForMetadata(data *WorkflowData) map[string]string {
 		string(constants.CodexEngine):       string(constants.DefaultCodexVersion),
 		string(constants.GeminiEngine):      string(constants.DefaultGeminiVersion),
 		string(constants.AntigravityEngine): string(constants.DefaultAntigravityVersion),
-		string(constants.OpenCodeEngine):    string(constants.DefaultOpenCodeVersion),
 		string(constants.PiEngine):          string(constants.DefaultPiVersion),
 	}
 
@@ -196,7 +213,12 @@ func collectEngineVersionsForMetadata(data *WorkflowData) map[string]string {
 
 	filteredVersions := make(map[string]string, len(activeEngineIDs)+1)
 	for engineID := range activeEngineIDs {
-		if version := strings.TrimSpace(versions[engineID]); version != "" {
+		version := strings.TrimSpace(versions[engineID])
+		if version == "" {
+			// Behavior-defined engines declare their version in the engine definition.
+			version = strings.TrimSpace(behaviorEngineDefaultVersion(engineID, registry))
+		}
+		if version != "" {
 			filteredVersions[engineID] = version
 		}
 	}

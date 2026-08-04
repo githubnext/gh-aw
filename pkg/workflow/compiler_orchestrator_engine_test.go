@@ -14,6 +14,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFrontmatterDeclaresImports(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		want        bool
+	}{
+		{name: "array", frontmatter: map[string]any{"imports": []any{"shared/engine.md"}}, want: true},
+		{name: "string array", frontmatter: map[string]any{"imports": []string{"shared/engine.md"}}, want: true},
+		{name: "object array", frontmatter: map[string]any{"imports": map[string]any{"aw": []any{"shared/engine.md"}}}, want: true},
+		{name: "object string array", frontmatter: map[string]any{"imports": map[string]any{"aw": []string{"shared/engine.md"}}}, want: true},
+		{name: "empty object array", frontmatter: map[string]any{"imports": map[string]any{"aw": []any{}}}, want: false},
+		{name: "missing imports", frontmatter: map[string]any{}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, frontmatterDeclaresImports(tt.frontmatter))
+		})
+	}
+}
+
 // TestSetupEngineAndImports_ValidSetup tests successful engine setup with imports
 func TestSetupEngineAndImports_ValidSetup(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "engine-setup-valid")

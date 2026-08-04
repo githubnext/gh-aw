@@ -88,7 +88,7 @@ func TestSecretsBootstrapEngineFlagUsage(t *testing.T) {
 	require.NotNil(t, engineFlag, "--engine flag should exist on bootstrap")
 
 	// Assert the full shared engine list is present so future additions are detected.
-	expectedEngines := []string{"copilot", "claude", "codex", "gemini", "antigravity", "opencode", "pi"}
+	expectedEngines := []string{"copilot", "claude", "codex", "gemini", "antigravity", "pi"}
 	for _, engine := range expectedEngines {
 		assert.Contains(t, engineFlag.Usage, engine, "--engine help should include %s engine", engine)
 	}

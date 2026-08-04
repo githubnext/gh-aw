@@ -350,7 +350,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// IMPORTANT: This must run BEFORE pre-agent-steps (below) so that APM-restored skills
 	// placed in .github/skills/ by pre-agent-steps are not clobbered by this restore.
 	if ShouldGeneratePRCheckoutStep(data) {
-		registry := GetGlobalEngineRegistry()
+		registry := c.engineRegistry
 		generateRestoreBaseGitHubFoldersStep(yaml,
 			registry.GetAllAgentManifestFolders(),
 			registry.GetAllAgentManifestFiles(),
@@ -362,12 +362,12 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// This step runs AFTER the base-branch restore so the engine-specific agent directory
 	// is not clobbered. Inline sub-agents are enabled by default.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), data) {
-		generateRestoreInlineSubAgentsStep(yaml, data)
+		generateRestoreInlineSubAgentsStep(yaml, data, c.engineRegistry)
 	}
 	// Restore the engine-specific skills directory when inline skills are enabled or when
 	// explicit frontmatter skills were installed during activation.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), data) || len(data.Skills) > 0 {
-		generateRestoreInlineSkillsStep(yaml, data)
+		generateRestoreInlineSkillsStep(yaml, data, c.engineRegistry)
 	}
 
 	// Add pre-agent-steps (if any) after base-branch restore but before MCP setup.
