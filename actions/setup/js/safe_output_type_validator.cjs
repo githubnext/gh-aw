@@ -548,8 +548,10 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
         try {
           const parsedValue = JSON.parse(trimmedValue);
           if (Array.isArray(parsedValue)) {
-            value = parsedValue;
+            // Filter out non-string entries from the JSON-parsed array.
+            value = parsedValue.filter(item => typeof item === "string");
           }
+          // Non-array JSON values (objects, primitives) fall through to comma-separated parsing.
         } catch {
           // Fall back to comma-separated parsing below.
         }
