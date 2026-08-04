@@ -11,6 +11,7 @@ import (
 
 // TestExtractWorkflowDescription tests the ExtractWorkflowDescription function
 func TestExtractWorkflowDescription(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -89,6 +90,7 @@ on: push
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ExtractWorkflowDescription(tt.content)
 			if result != tt.expected {
 				t.Errorf("ExtractWorkflowDescription() = %q, want %q", result, tt.expected)
@@ -99,6 +101,7 @@ on: push
 
 // TestExtractWorkflowDescriptionFromFile tests the ExtractWorkflowDescriptionFromFile function
 func TestExtractWorkflowDescriptionFromFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -131,6 +134,7 @@ on: push
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create temporary file
 			tmpFile := testutil.TempDir(t, "test-*") + "/test-workflow.md"
 			if err := os.WriteFile(tmpFile, []byte(tt.content), 0644); err != nil {
@@ -147,6 +151,7 @@ on: push
 
 // TestExtractWorkflowDescriptionFromFile_NonExistentFile tests handling of non-existent files
 func TestExtractWorkflowDescriptionFromFile_NonExistentFile(t *testing.T) {
+	t.Parallel()
 	result := ExtractWorkflowDescriptionFromFile("/path/that/does/not/exist.md")
 	if result != "" {
 		t.Errorf("ExtractWorkflowDescriptionFromFile() with non-existent file = %q, want empty string", result)
