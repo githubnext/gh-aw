@@ -50,26 +50,6 @@ Distinct from the prompt-side strategies below (hint / fusion / inline), which s
 
 ---
 
-## Strategy 0 — Agent Finder (Discovery First)
-
-**Use when**: the relevant skill is not obvious, the repository may not contain the right skill yet, or you want to discover installable skills before loading local ones.
-
-Query **GitHub Agent Finder** through its REST API (ARD search shape: `query.text`; add `query.filter` to narrow by resource type — omit `filter` to search all types):
-
-```bash
-curl -s https://agentfinder.github.com/api/v1/search \
-  -H 'Content-Type: application/json' \
-  -d '{"query":{"text":"<the user task, in plain language>","filter":{"type":["application/ai-skill"]}},"pageSize":10}'
-```
-
-After discovery:
-
-- Prefer repository-local skills when they satisfy the task.
-- Extract only the specific guidance you need; do not paste entire skills when a fragment is enough.
-- If the user chooses an external skill, add it to frontmatter `skills:` instead of adding manual install steps.
-
----
-
 ## Inline Skills (Fusion at Authoring Time)
 
 **Use when**: keeping the main prompt compact while shipping task-specific skill guidance with the workflow.
@@ -98,7 +78,7 @@ Use a unique inline skill name per workflow file. Name must start with a lowerca
 
 ---
 
-## Strategy 1 — Hint (Generalist)
+## Strategy 0 — Hint (Generalist)
 
 **Use when**: the task strategy is unknown at authoring time, or the agent must adapt to whatever skills are available. The prompt tells the agent skills exist and to discover/apply the relevant ones itself.
 
@@ -112,7 +92,7 @@ content and apply the guidance it provides.
 
 ---
 
-## Strategy 2 — Fusion (Ultra-Cognitive)
+## Strategy 1 — Fusion (Ultra-Cognitive)
 
 **Use when**: you know exactly which skill (or part of it) is needed and want minimal context overhead. Inline **only the specific sections** the agent needs; never paste the entire SKILL.md.
 
