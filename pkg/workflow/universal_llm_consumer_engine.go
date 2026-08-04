@@ -171,6 +171,14 @@ func (e *UniversalLLMConsumerEngine) ApplyUniversalProviderEnv(env map[string]st
 	universalLLMConsumerLog.Printf("Applying provider env for backend=%s, firewallEnabled=%t", backend, firewallEnabled)
 	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	maps.Copy(env, profile.env)
+	switch backend {
+	case UniversalLLMBackendAnthropic:
+		env["GH_AW_LLM_PROVIDER"] = string(LLMProviderAnthropic)
+	case UniversalLLMBackendCodex:
+		env["GH_AW_LLM_PROVIDER"] = string(LLMProviderOpenAI)
+	default:
+		env["GH_AW_LLM_PROVIDER"] = string(LLMProviderGitHub)
+	}
 	if firewallEnabled {
 		universalLLMConsumerLog.Printf("Setting %s to gateway port %d", profile.baseURLEnvName, profile.gatewayPort)
 		env[profile.baseURLEnvName] = fmt.Sprintf("http://host.docker.internal:%d", profile.gatewayPort)

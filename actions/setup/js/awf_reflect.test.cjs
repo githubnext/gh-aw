@@ -21,6 +21,7 @@ const {
   getCatalogModelEntry,
   inferProviderTypeForModel,
   inferWireApiForModel,
+  resolveOpenAICompatibleEndpointFromReflect,
   resolveProviderEndpointFromReflect,
   resolveMultiProviderFromReflect,
 } = require("./awf_reflect.cjs");
@@ -134,6 +135,37 @@ describe("awf_reflect.cjs", () => {
           port: 10000,
           baseUrl: "http://api-proxy:10000",
         });
+      });
+    });
+
+    describe("resolveOpenAICompatibleEndpointFromReflect", () => {
+      const reflectData = {
+        endpoints: [
+          { provider: "openai", configured: true, models_url: "http://api-proxy:10000/v1/models" },
+          { provider: "copilot", configured: true, models_url: "http://api-proxy:10002/models" },
+        ],
+      };
+
+      it("derives the versionless Copilot chat endpoint for the github provider", () => {
+        expect(resolveOpenAICompatibleEndpointFromReflect({ provider: "github", reflectData, logger: () => {} })).toEqual({
+          provider: "github",
+          endpointProvider: "copilot",
+          host: "http://api-proxy:10002",
+          basePath: "chat/completions",
+        });
+      });
+
+      it("preserves the OpenAI v1 path", () => {
+        expect(resolveOpenAICompatibleEndpointFromReflect({ provider: "openai", reflectData, logger: () => {} })).toEqual({
+          provider: "openai",
+          endpointProvider: "openai",
+          host: "http://api-proxy:10000",
+          basePath: "v1/chat/completions",
+        });
+      });
+
+      it("does not fall back to a different configured provider", () => {
+        expect(resolveOpenAICompatibleEndpointFromReflect({ provider: "anthropic", reflectData, logger: () => {} })).toBeNull();
       });
     });
 

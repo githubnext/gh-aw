@@ -35,13 +35,6 @@ engine:
       provider-env-mode: universal-llm-consumer
       env:
         GOOSE_PROVIDER: openai
-        # The Goose CLI resolves the OpenAI provider endpoint from OPENAI_HOST
-        # (highest priority) and falls back to OPENAI_BASE_URL. The GOOSE_PROVIDER__*
-        # variables are Goose desktop-only settings and are ignored by the CLI, so
-        # OPENAI_HOST must point at the AWF Copilot api-proxy sidecar; otherwise Goose
-        # sends the Copilot token to the OpenAI proxy port and is rejected with 401.
-        OPENAI_HOST: http://172.30.0.30:10002
-        OPENAI_BASE_PATH: v1/chat/completions
         GOOSE_MODE: auto
         GOOSE_DISABLE_SESSION_NAMING: "true"
     mcp:
@@ -129,6 +122,7 @@ engine:
       const { tmpdir } = require("os");
       const { join } = require("path");
       const { spawnSync } = require("child_process");
+      const { fetchAWFReflect, resolveOpenAICompatibleEndpointFromReflect } = require("./awf_reflect.cjs");
 
       const [command, ...commandArgs] = process.argv.slice(2);
       const installDir = mkdtempSync(join(tmpdir(), "goose-"));
@@ -145,8 +139,10 @@ engine:
         String(value)
           .toLowerCase()
           .replace(/[^a-z0-9_-]+/g, "_");
+      const log = (message) => process.stderr.write(`[goose-harness] ${message}\n`);
 
-      try {
+      const main = async () => {
+        try {
         fail(spawnSync("curl", ["--fail", "--location", "--silent", "--show-error", "--output", archive, releaseURL], { stdio: "inherit" }), "Goose download");
         if (createHash("sha256").update(readFileSync(archive)).digest("hex") !== checksum) {
           throw new Error("Goose download checksum did not match");
@@ -174,6 +170,24 @@ engine:
         // valid subset of YAML, so a plain JSON file works here.
         const httpExtensions = Object.entries(mcpServers).filter(([, server]) => typeof server.url === "string");
         const env = { ...process.env };
+        env.GOOSE_MODEL = env.GOOSE_MODEL?.split("/", 2).at(-1);
+        if (env.AWF_REFLECT_ENABLED === "1") {
+          const result = await fetchAWFReflect({ logger: log });
+          if (!result.ok || !result.reflectData) {
+            throw new Error(`Unable to discover the Goose LLM endpoint from /reflect: ${result.reason || "empty response"}`);
+          }
+          const endpoint = resolveOpenAICompatibleEndpointFromReflect({
+            provider: env.GH_AW_LLM_PROVIDER,
+            reflectData: result.reflectData,
+            logger: log,
+          });
+          if (!endpoint) {
+            throw new Error(`No configured /reflect endpoint found for provider ${env.GH_AW_LLM_PROVIDER || "(missing)"}`);
+          }
+          env.OPENAI_HOST = endpoint.host;
+          env.OPENAI_BASE_PATH = endpoint.basePath;
+          log(`configured Goose endpoint for provider=${endpoint.provider}: ${endpoint.host}/${endpoint.basePath}`);
+        }
         if (httpExtensions.length > 0) {
           const extensionsConfig = {
             extensions: Object.fromEntries(
@@ -198,9 +212,15 @@ engine:
 
         const prompt = readFileSync(process.env.GH_AW_PROMPT, "utf8");
         fail(spawnSync(join(installDir, command), [...commandArgs, "run", "--no-session", ...extensions, "-t", prompt], { stdio: "inherit", env }), "Goose execution");
-      } finally {
-        if (existsSync(installDir)) rmSync(installDir, { recursive: true, force: true });
-      }
+        } finally {
+          if (existsSync(installDir)) rmSync(installDir, { recursive: true, force: true });
+        }
+      };
+
+      main().catch((error) => {
+        log(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+      });
 ---
 
 <!--

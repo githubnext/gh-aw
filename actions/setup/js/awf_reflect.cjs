@@ -600,6 +600,63 @@ function resolveProviderEndpointFromReflect(options) {
 }
 
 /**
+ * Resolve the OpenAI-compatible chat endpoint for a configured provider.
+ *
+ * Goose requires the endpoint origin and request path in separate environment
+ * variables. The models URL is the authoritative source for provider-specific
+ * path prefixes such as OpenAI's `/v1` and Copilot's versionless API.
+ *
+ * @param {{
+ *   provider?: string,
+ *   reflectData: ReflectData | null | undefined,
+ *   logger?: (msg: string) => void,
+ * }} options
+ * @returns {{ provider: string, endpointProvider: string, host: string, basePath: string } | null}
+ */
+function resolveOpenAICompatibleEndpointFromReflect(options) {
+  const logger = (options && options.logger) || DEFAULT_REFLECT_LOGGER;
+  const provider = normalizeReflectProviderName(options?.provider);
+  if (!provider) {
+    logger("awf-reflect: provider is required for OpenAI-compatible endpoint resolution");
+    return null;
+  }
+
+  const endpointCandidates = Array.isArray(options?.reflectData?.endpoints) ? options.reflectData.endpoints : [];
+  const aliases = REFLECT_PROVIDER_ALIASES[provider] || new Set([provider]);
+  const endpoint = endpointCandidates.find(ep => {
+    if (!ep || ep.configured !== true || typeof ep.provider !== "string") return false;
+    return aliases.has(normalizeReflectProviderName(ep.provider));
+  });
+  if (!endpoint) {
+    logger(`awf-reflect: no configured endpoint found for provider=${provider}`);
+    return null;
+  }
+
+  const endpointURL = endpoint.models_url;
+  if (typeof endpointURL !== "string" || !endpointURL) {
+    logger(`awf-reflect: configured provider=${provider} has no models URL`);
+    return null;
+  }
+
+  try {
+    const parsed = new URL(endpointURL);
+    let path = parsed.pathname.replace(/\/+$/, "");
+    if (!/\/models$/i.test(path)) {
+      logger(`awf-reflect: models URL for provider=${provider} does not end in /models`);
+      return null;
+    }
+    path = path.replace(/\/models$/i, "/chat/completions");
+    const basePath = path.replace(/^\/+/, "");
+    const endpointProvider = String(endpoint.provider);
+    logger(`awf-reflect: provider=${provider} mapped to endpoint provider=${endpointProvider} host=${parsed.origin} basePath=${basePath}`);
+    return { provider, endpointProvider, host: parsed.origin, basePath };
+  } catch {
+    logger(`awf-reflect: invalid endpoint URL for provider=${provider}`);
+    return null;
+  }
+}
+
+/**
  * Resolve multi-provider BYOK configuration from AWF /reflect data.
  *
  * Returns `null` when no configured endpoints are present or the data is
@@ -745,6 +802,7 @@ if (typeof module !== "undefined" && module.exports) {
     inferProviderTypeForModel,
     inferWireApiForModel,
     normalizeReflectProviderName,
+    resolveOpenAICompatibleEndpointFromReflect,
     resolveProviderEndpointFromReflect,
     resolveMultiProviderFromReflect,
   };
