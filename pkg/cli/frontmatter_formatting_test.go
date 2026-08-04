@@ -234,6 +234,33 @@ permissions:
 			t.Error("permissions field was removed unexpectedly")
 		}
 	})
+
+	t.Run("update preserves nested fields with same name", func(t *testing.T) {
+		content := `---
+steps:
+  - name: test
+    with:
+      source: nested-input
+source: owner/repo/workflow.md@old
+---
+
+# Test`
+
+		result, err := UpdateFieldInFrontmatter(content, "source", "owner/repo/workflow.md@new")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if !strings.Contains(result, "source: nested-input") {
+			t.Error("nested source field was removed or modified")
+		}
+		if !strings.Contains(result, "source: owner/repo/workflow.md@new") {
+			t.Error("top-level source field was not updated")
+		}
+		if strings.Contains(result, "source: owner/repo/workflow.md@old") {
+			t.Error("old top-level source value was not replaced")
+		}
+	})
 }
 
 // TestRemoveFieldFromOnTriggerEdgeCases tests edge cases for field removal

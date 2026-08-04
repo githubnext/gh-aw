@@ -252,10 +252,15 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 			mergedStr = processedContent
 		}
 
+	}
+
+	if hasConflicts {
+		mergedStr, err = updateTopLevelFieldInFrontmatterRaw(mergedStr, "source", newSourceSpec)
+	} else {
 		mergedStr, err = UpdateFieldInFrontmatter(mergedStr, "source", newSourceSpec)
-		if err != nil {
-			return "", false, fmt.Errorf("failed to restore source in merged content: %w", err)
-		}
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("failed to restore source in merged content: %w", err)
 	}
 
 	return mergedStr, hasConflicts, nil
