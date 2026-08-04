@@ -4,7 +4,7 @@ description: Guidance for designing bounded, stateful repository maintenance wor
 
 # Repository Maintenance Workflows
 
-Use this guidance when building an agentic workflow that performs recurring repository maintenance. It distills the operating model of [Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) into reusable gh-aw design principles rather than prescribing one repository's labels, thresholds, or task weights.
+Use this guidance when building an agentic workflow that performs recurring repository maintenance. It distills the operating model of [Repo Assist](https://github.com/githubnext/agentics/blob/main/workflows/repo-assist.md) into reusable gh-aw design principles rather than prescribing one repository's labels, thresholds, or task weights.
 
 ## Operating principles
 
