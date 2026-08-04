@@ -1,2 +1,2 @@
-{"id":"functional_opportunities_analyzed","question":"Did the agent analyze the codebase for pragmatic functional programming improvements?","answer":"YES","model":"small","timestamp":"2026-07-30T10:21:40.661Z","runid":"30533810893"}
-{"id":"refactoring_pr_created_or_noop","question":"Did the agent create a focused refactoring pull request, or report that no suitable change was found?","answer":"YES","model":"small","timestamp":"2026-07-30T10:21:40.661Z","runid":"30533810893"}
+{"id":"functional_opportunities_analyzed","question":"Did the agent analyze the codebase for pragmatic functional programming improvements?","answer":"YES","model":"evals","timestamp":"2026-08-04T10:33:58.949Z","runid":"30900092784"}
+{"id":"refactoring_pr_created_or_noop","question":"Did the agent create a focused refactoring pull request, or report that no suitable change was found?","answer":"YES","model":"evals","timestamp":"2026-08-04T10:33:58.949Z","runid":"30900092784"}
