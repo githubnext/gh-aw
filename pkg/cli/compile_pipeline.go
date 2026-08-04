@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -683,11 +683,11 @@ func displayBatchCompilationNotices(compiler *workflow.Compiler, config CompileC
 				count: count,
 			})
 		}
-		sort.Slice(features, func(i, j int) bool {
-			if features[i].count != features[j].count {
-				return features[i].count > features[j].count
+		slices.SortFunc(features, func(a, b featureCount) int {
+			if a.count != b.count {
+				return b.count - a.count
 			}
-			return features[i].name < features[j].name
+			return strings.Compare(a.name, b.name)
 		})
 
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Experimental features in use:"))

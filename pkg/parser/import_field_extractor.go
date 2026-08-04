@@ -899,7 +899,7 @@ func (acc *importAccumulator) appendObservabilityField(fm map[string]any, fullPa
 func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *ImportsResult {
 	parserLog.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, labels=%d",
 		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.labels))
-	return &ImportsResult{
+	result := &ImportsResult{
 		MergedTools:                   acc.toolsBuilder.String(),
 		MergedMCPServers:              acc.mcpServersBuilder.String(),
 		MergedEngines:                 acc.engines,
@@ -949,15 +949,21 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedEngineMCPToolTimeout:    acc.mergedEngineMCPToolTimeout,
 		MergedEngineMCPSessionTimeout: acc.mergedEngineMCPSessionTimeout,
 		MergedEngineModel:             acc.mergedEngineModel,
-		MergedMaxTurns:                acc.mergedMaxTurns,
-		MergedMaxToolDenials:          acc.mergedMaxToolDenials,
-		MergedMaxRuns:                 acc.mergedMaxRuns,
-		MergedMaxTurnCacheMisses:      acc.mergedMaxTurnCacheMisses,
-		MergedMaxAICredits:            acc.mergedMaxAICredits,
-		MergedMaxDailyAICredits:       acc.mergedMaxDailyAICredits,
 		MergedExcludedEnv:             acc.excludedEnv,
 		Warnings:                      acc.warnings,
 	}
+	acc.applyMergedLimits(result)
+	return result
+}
+
+// applyMergedLimits copies the accumulated max/limit fields onto the result.
+func (acc *importAccumulator) applyMergedLimits(result *ImportsResult) {
+	result.MergedMaxTurns = acc.mergedMaxTurns
+	result.MergedMaxToolDenials = acc.mergedMaxToolDenials
+	result.MergedMaxRuns = acc.mergedMaxRuns
+	result.MergedMaxTurnCacheMisses = acc.mergedMaxTurnCacheMisses
+	result.MergedMaxAICredits = acc.mergedMaxAICredits
+	result.MergedMaxDailyAICredits = acc.mergedMaxDailyAICredits
 }
 
 func computeImportRelPath(fullPath, importPath string) string {

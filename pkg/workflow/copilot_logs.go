@@ -256,7 +256,7 @@ func (p *copilotSessionJSONLParser) handleUserEntry(entry SessionEntry) {
 		if !ok {
 			continue
 		}
-		if outputSize := len(content.Content); outputSize > 0 {
+		if outputSize := len(content.Content); content.Content != "" {
 			if toolInfo, exists := p.toolCallMap[toolName]; exists {
 				if outputSize > toolInfo.MaxOutputSize {
 					toolInfo.MaxOutputSize = outputSize

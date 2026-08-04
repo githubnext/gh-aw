@@ -56,24 +56,8 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
-		sel, ok := call.Fun.(*ast.SelectorExpr)
+		sel, ok := sortPackageSelector(pass, call)
 		if !ok {
-			continue
-		}
-		pkgIdent, ok := sel.X.(*ast.Ident)
-		if !ok {
-			continue
-		}
-		if pass.TypesInfo == nil {
-			continue
-		}
-		obj := pass.TypesInfo.ObjectOf(pkgIdent)
-		// ObjectOf can be nil when type information is incomplete.
-		if obj == nil {
-			continue
-		}
-		pkgName, ok := obj.(*types.PkgName)
-		if !ok || pkgName.Imported().Path() != "sort" {
 			continue
 		}
 
@@ -89,4 +73,30 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	return nil, nil
+}
+
+// sortPackageSelector reports whether call is a call to a function in the
+// standard library "sort" package, returning the selector expression.
+func sortPackageSelector(pass *analysis.Pass, call *ast.CallExpr) (*ast.SelectorExpr, bool) {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return nil, false
+	}
+	pkgIdent, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return nil, false
+	}
+	if pass.TypesInfo == nil {
+		return nil, false
+	}
+	obj := pass.TypesInfo.ObjectOf(pkgIdent)
+	// ObjectOf can be nil when type information is incomplete.
+	if obj == nil {
+		return nil, false
+	}
+	pkgName, ok := obj.(*types.PkgName)
+	if !ok || pkgName.Imported().Path() != "sort" {
+		return nil, false
+	}
+	return sel, true
 }

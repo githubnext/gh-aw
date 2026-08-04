@@ -14,7 +14,7 @@ import "context"
 // pattern at call sites.
 func OrBackground(ctx context.Context) context.Context {
 	if ctx == nil {
-		return context.Background()
+		return context.Background() //nolint:ctxbackground // this helper intentionally provides the background fallback
 	}
 	return ctx
 }

@@ -533,13 +533,13 @@ func extractShellcheckDiagnostics(stderrOutput string) []string {
 
 	lines := strings.Split(stderrOutput, "\n")
 	diagnostics := make([]string, 0)
-	current := ""
+	var current strings.Builder
 
 	flush := func() {
-		if strings.TrimSpace(current) != "" {
-			diagnostics = append(diagnostics, strings.TrimSpace(current))
+		if trimmedCurrent := strings.TrimSpace(current.String()); trimmedCurrent != "" {
+			diagnostics = append(diagnostics, trimmedCurrent)
 		}
-		current = ""
+		current.Reset()
 	}
 
 	for _, line := range lines {
@@ -547,10 +547,11 @@ func extractShellcheckDiagnostics(stderrOutput string) []string {
 		switch {
 		case strings.Contains(trimmed, "shellcheck findings in "):
 			flush()
-			current = trimmed
-		case current != "" && (strings.Contains(trimmed, "script:") || strings.HasPrefix(trimmed, "script ")):
-			current += "\n" + trimmed
-		case current != "" && trimmed == "":
+			current.WriteString(trimmed)
+		case current.Len() > 0 && (strings.Contains(trimmed, "script:") || strings.HasPrefix(trimmed, "script ")):
+			current.WriteString("\n")
+			current.WriteString(trimmed)
+		case current.Len() > 0 && trimmed == "":
 			flush()
 		}
 	}
