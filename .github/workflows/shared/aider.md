@@ -57,7 +57,7 @@ engine:
       provider-env-mode: universal-llm-consumer
       write-timestamp: true
       env:
-        OPENAI_API_BASE: http://172.30.0.30:10002
+        OPENAI_API_BASE: http://172.30.0.30:10002/v1
         AIDER_GIT: "false"
         AIDER_CHECK_UPDATE: "false"
         AIDER_ANALYTICS_DISABLE: "true"
