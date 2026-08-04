@@ -541,8 +541,37 @@ describe("safe_output_summary", () => {
       const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
       expect(summaryContent).toContain("Safe Output Processing Summary");
       expect(summaryContent).toContain("Processed 2 safe-output message(s)");
+      expect(summaryContent).toContain("Status: **success**");
+      expect(summaryContent).toContain("Items succeeded: **2**");
+      expect(summaryContent).toContain("Items failed: **0**");
       expect(summaryContent).toContain("Create Issue");
       expect(summaryContent).toContain("Create Project");
+    });
+
+    it("should include partial success item counts in the summary", async () => {
+      const results = [
+        {
+          type: "create_issue",
+          messageIndex: 0,
+          success: true,
+          result: { repo: "owner/repo", number: 123 },
+        },
+        {
+          type: "create_discussion",
+          messageIndex: 1,
+          success: false,
+          error: "Validation failed",
+        },
+      ];
+
+      const messages = [{ title: "Issue 1" }, { title: "Discussion 1" }];
+
+      await writeSafeOutputSummaries(results, messages);
+
+      const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryContent).toContain("Status: **partial_success**");
+      expect(summaryContent).toContain("Items succeeded: **1**");
+      expect(summaryContent).toContain("Items failed: **1**");
     });
 
     it("should skip results handled by standalone steps", async () => {
