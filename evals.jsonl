@@ -1,2 +1,2 @@
-{"id":"tidy_completed","question":"Did the agent run code formatting and tidying tools on the codebase?","answer":"YES","model":"evals","timestamp":"2026-08-02T07:40:33.624Z","runid":"30737791924"}
-{"id":"pr_created_or_noop","question":"Was a pull request created with formatting and tidying fixes, or was noop used when no changes were needed?","answer":"YES","model":"evals","timestamp":"2026-08-02T07:40:33.624Z","runid":"30737791924"}
+{"id":"tidy_completed","question":"Did the agent run code formatting and tidying tools on the codebase?","answer":"NO","model":"evals","timestamp":"2026-08-04T07:44:23.927Z","runid":"30887863573"}
+{"id":"pr_created_or_noop","question":"Was a pull request created with formatting and tidying fixes, or was noop used when no changes were needed?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-04T07:44:23.927Z","runid":"30887863573"}
