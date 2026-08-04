@@ -44,3 +44,28 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 | 2607.28050v1 | IndustryForge-27B: Industrial CAD Model | 2026-07-30 | N | | |
 | 2607.28048v1 | SKILL-KD: Contrastive Skill Distillation | 2026-07-30 | N | | |
 | 2607.28037v1 | ClawTrack: Trace-Level Agent Evaluation | 2026-07-30 | Y | other | Score sub-agent turns on process dimensions (goal alignment, efficiency, info use, verification), not just final safe-output success/fail |
+| 2608.02588v1 | The Condition-Number Barrier in Sparse Least Squares | 2026-08-03 | N | | |
+| 2608.02583v1 | UEmbed: Unified Sparse and Dense Multimodal Embeddings | 2026-08-03 | N | | |
+| 2608.02582v1 | ACEM: A Cost Estimation Model for Agentic Software Engineering | 2026-08-03 | Y | token-optimization | Adapt the token/HITL/infra cost-estimation model to report per-workflow-run cost breakdowns beyond raw token counts |
+| 2608.02569v1 | AtumAI: Agentic Datacenter Control-Plane Policy Generation | 2026-08-03 | N | | |
+| 2608.02553v1 | A Taxonomy of Cognitive Capability Gaps in Generative and Agentic AI | 2026-08-03 | Y | other | Use the 5-dimension gap taxonomy (persistent state, goal-directed autonomy, self-monitoring, env interaction, learning) as a checklist for auditing gh-aw orchestrator maturity |
+| 2608.02518v1 | Magnet: Detecting Cross-Session AI Misuse | 2026-08-03 | Y | security | Track capability-accumulation signals across separate workflow runs/sessions to detect decomposed-goal misuse single-run monitoring misses |
+| 2608.02515v1 | LiveMem: Memory State Continuity in Long-Running LLM Inference | 2026-08-03 | Y | token-optimization | Add a fixed-capacity persistent memory state, decoupled from the active context window, to carry compressed state across long-running/multi-session workflows |
+| 2608.02508v1 | RoMeRL: Reduced-Order Self-Evolving Agent Memory | 2026-08-03 | Y | other | Factor cache-memory/repo-memory utility tracking by outcome polarity in fixed-dimensional per-task state to avoid diluting feedback across growing history |
+| 2608.02505v1 | Abduction Without a Body? Representational Grounding | 2026-08-03 | N | | |
+| 2608.02499v1 | SWE-Touch: Benchmarking Coding Agents When Users Touch the Code | 2026-08-03 | Y | other | Add a benchmark/test mode simulating concurrent human edits mid-task to validate gh-aw coding workflows handle conflicting user changes gracefully |
+| 2608.02470v1 | Grounding Agentic VLMs for Vehicle Damage Assessment | 2026-08-03 | N | | |
+| 2608.02464v1 | Real-Time Detection and Repair of LLM Agent Failures | 2026-08-03 | Y | other | Embed a lightweight step-telemetry anomaly monitor (no second LLM judge) to catch looping/drift/fabrication mid-run and trigger early abort or repair |
+| 2608.02444v1 | ParEvalLayer: When Partial LLM-Agent Evaluations Support a Decision | 2026-08-03 | Y | other | Use a decision layer over partial workflow-run outcomes to decide continue/abstain rather than reporting a naive partial score |
+| 2608.02441v1 | Agentic Commerce World (Vibe Commerce) | 2026-08-03 | Y | safe-outputs | Adopt pre-validation of agent actions against shared state before commit, mirroring safe-outputs, for multi-agent buyer/merchant-style workflows |
+| 2608.02422v1 | Agentic Incident Response through Digital Twin-Enhanced Planning | 2026-08-03 | Y | security | Use a digital-twin-style simulated environment to pre-validate multiscale incident-response plans before an agent executes them live |
+| 2608.02412v1 | Why Large Language Models Fail at Tabular Prediction | 2026-08-03 | N | | |
+| 2608.02407v1 | Antares: Foundation Models for Agentic Vulnerability Localization | 2026-08-03 | Y | security | Integrate a small specialized vulnerability-localization model as a fast pre-filter sub-agent ahead of full LLM-based security-review workflows |
+| 2608.02391v1 | Cooperative Coevolution for Resource-Constrained Agentic LLM Post-Training | 2026-08-03 | N | | |
+| 2608.02379v1 | Chess on Ice: Curling Tactical Decision-Making via RL | 2026-08-03 | N | | |
+| 2608.02375v1 | A Spectral Filtering Approach to Regret Analysis of Distributed Online Control | 2026-08-03 | N | | |
+| 2608.02356v1 | SkillTrace: Traversing a Query-Skill Graph for Composable LLM Agents | 2026-08-03 | Y | multi-agent | Resolve skill/sub-agent imports via a dependency-aware query-skill graph instead of single-best similarity match, to assemble complete multi-skill compositions |
+| 2608.02352v1 | Qwen-CUA: Native Computer Use for (almost) Everything | 2026-08-03 | Y | token-optimization | Fold older screenshot/tool-output history into fixed-size summarized blocks while preserving a stable prompt prefix, to extend prompt-cache hit rate in long agent runs |
+| 2608.02351v1 | KC-Agent: A Dual-Process Cognitive Architecture for Efficient ML Model Improvement | 2026-08-03 | Y | multi-agent | Give sub-agents a fast System-1 lookup over previously-solved cases before falling back to full System-2 reasoning, with atomic-change/rollback guarantees |
+| 2608.02345v1 | Can AI Agents Simulate A/B Test Outcomes? | 2026-08-03 | N | | |
+| 2608.02329v1 | On Automated and Explainable Provenance of AI-Generated Code | 2026-08-03 | Y | safe-outputs | Attach a provenance trail (prompt components, tool calls, source refs) to AI-generated code changes surfaced via safe-outputs PRs for compliance auditability |
