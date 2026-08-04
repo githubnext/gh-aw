@@ -108,8 +108,8 @@ assert "node_modules excluded from listing" "! grep -q 'node_modules/some-pkg' /
 assert "agent.md still listed despite node_modules sibling" "grep -q 'agent.md' /tmp/gh-aw/pre-agent-audit.txt"
 echo ""
 
-# ── Test 8: Step summary tree is rendered ──────────────────────────────────
-echo "Test 8: Step summary contains an ASCII tree"
+# ── Test 8: Collapsed step summary tree is rendered ─────────────────────────
+echo "Test 8: Step summary contains a collapsed tree"
 WORKSPACE="${TEST_ROOT}/workspace-8"
 mkdir -p "${WORKSPACE}/.github/agents"
 echo "agent" > "${WORKSPACE}/.github/agents/agent.md"
@@ -122,11 +122,13 @@ touch "${GH_OUT8}" "${SUMMARY8}"
 GITHUB_WORKSPACE="${WORKSPACE}" HOME="${TEST_ROOT}/home8" RUNNER_TEMP="${TMPDIR}" GITHUB_OUTPUT="${GH_OUT8}" GITHUB_STEP_SUMMARY="${SUMMARY8}" bash "${SCRIPT_PATH}" >/dev/null 2>&1
 assert "Summary uses a text code fence" "grep -Fq \"\${FENCE}text\" '${SUMMARY8}'"
 assert "Summary closes the code fence" "grep -Fq \"\${FENCE}\" '${SUMMARY8}'"
-assert "Summary contains the audit root" "grep -Fq 'Pre-agent workspace audit' '${SUMMARY8}'"
-assert "Summary contains ASCII tree branches" "grep -Fq '|-- Copilot engine' '${SUMMARY8}'"
-assert "Summary lists agent.md in the tree" "grep -Fq '\\-- ${WORKSPACE}/.github/agents/agent.md' '${SUMMARY8}'"
+assert "Summary uses details" "grep -Fq '<details>' '${SUMMARY8}'"
+assert "Summary closes details" "grep -Fq '</details>' '${SUMMARY8}'"
+assert "Summary title is in the details summary" "grep -Fq '<summary>Pre-agent workspace audit</summary>' '${SUMMARY8}'"
+assert "Summary contains tree branches" "grep -Fq '├── Copilot engine' '${SUMMARY8}'"
+assert "Summary lists agent.md in the tree" "grep -Fq '└── ${WORKSPACE}/.github/agents/agent.md' '${SUMMARY8}'"
 assert "Summary does not use a table" "! grep -Fq '| Section | Path | Size |' '${SUMMARY8}'"
-assert "Summary does not use details" "! grep -Fq '<details>' '${SUMMARY8}'"
+assert "Summary does not use ASCII branches" "! grep -Fq '|-- Copilot engine' '${SUMMARY8}'"
 echo ""
 
 # ── Test 9: Works without GITHUB_STEP_SUMMARY set ──────────────────────────
