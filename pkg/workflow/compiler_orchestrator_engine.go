@@ -54,7 +54,9 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// command-line --engine override is active (it will be validated later).
 	// The resolved value is intentionally discarded here because import defaults can
 	// still mutate engineConfig before the final resolveEngineRuntimeConfig call.
-	if engineSetting != "" && c.engineOverride == "" {
+	// Workflows that import a shared engine definition register the engine only after
+	// import processing, so the early check is skipped when imports are declared.
+	if engineSetting != "" && c.engineOverride == "" && !frontmatterDeclaresImports(result.Frontmatter) {
 		if _, err := c.engineCatalog.Resolve(engineSetting, engineConfig); err != nil {
 			orchestratorEngineLog.Printf("Early engine validation failed for %q: %v", engineSetting, err)
 			return nil, err
@@ -87,6 +89,14 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		importsResult:      importsResult,
 		configSteps:        configSteps,
 	}, nil
+}
+
+// frontmatterDeclaresImports reports whether the workflow frontmatter declares any
+// imports. Imported files may contribute an engine definition, so engine-name
+// validation must be deferred until imports have been processed.
+func frontmatterDeclaresImports(frontmatter map[string]any) bool {
+	imports, ok := frontmatter["imports"].([]any)
+	return ok && len(imports) > 0
 }
 
 func extractEngineBudgetLimits(engineConfig *EngineConfig) (string, int64, int, int) {

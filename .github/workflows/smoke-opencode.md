@@ -23,6 +23,7 @@ engine:
   id: opencode
 strict: true
 imports:
+  - shared/opencode.md
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/otlp.md

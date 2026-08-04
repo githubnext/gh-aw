@@ -11,7 +11,13 @@ import (
 
 func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 	compiler := NewCompiler()
-	opencodeEngine, err := newBuiltinBehaviorDefinedEngine("opencode")
+	opencodeEngine, err := NewBehaviorDefinedEngine(&EngineDefinition{
+		ID:          "opencode",
+		DisplayName: "OpenCode",
+		Behaviors: &EngineBehaviorDefinition{
+			SecretStrategy: behaviorSecretStrategyUniversalLLMConsumer,
+		},
+	})
 	require.NoError(t, err)
 
 	t.Run("non universal engine skips validation", func(t *testing.T) {

@@ -12621,7 +12621,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi') or a named catalog entry"
+          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'pi') or a named catalog entry"
         },
         {
           "type": "object",
@@ -12629,7 +12629,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi') or a named catalog entry"
+              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'pi') or a named catalog entry"
             },
             "version": {
               "type": ["string", "number"],
@@ -12954,8 +12954,8 @@
               "properties": {
                 "id": {
                   "type": "string",
-                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'opencode', 'pi')",
-                  "examples": ["codex", "claude", "copilot", "gemini", "opencode", "pi"]
+                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'pi')",
+                  "examples": ["codex", "claude", "copilot", "gemini", "pi"]
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -13076,7 +13076,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'opencode', 'pi')"
+              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'pi')"
             },
             "display-name": {
               "type": "string",
@@ -13243,6 +13243,9 @@
                     },
                     "bare-mode": {
                       "type": "boolean"
+                    },
+                    "bash-command-allowlist": {
+                      "type": "boolean"
                     }
                   },
                   "additionalProperties": false
@@ -13261,6 +13264,31 @@
                       "items": {
                         "type": "string"
                       }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "network": {
+                  "type": "object",
+                  "description": "Declarative default network requirements for the engine. 'defaults' are always allowed; the domain in 'provider-domains' matching the model's provider prefix is added on top.",
+                  "properties": {
+                    "defaults": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Domains always required by the engine CLI (for example package registries and telemetry endpoints)."
+                    },
+                    "provider-domains": {
+                      "type": "object",
+                      "description": "Maps a model provider prefix (the part before '/' in 'provider/model') to the API domain required for that provider.",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "default-provider": {
+                      "type": "string",
+                      "description": "Provider key used to resolve a provider domain when the model carries no 'provider/' prefix."
                     }
                   },
                   "additionalProperties": false
@@ -13357,6 +13385,13 @@
                     },
                     "provider-env-mode": {
                       "type": "string"
+                    },
+                    "env": {
+                      "type": "object",
+                      "description": "Additional static environment variables injected into the execution step. Values are rendered verbatim and must not contain secrets.",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
                     }
                   },
                   "additionalProperties": false

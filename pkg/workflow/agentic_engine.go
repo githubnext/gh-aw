@@ -520,13 +520,6 @@ func NewEngineRegistry() *EngineRegistry {
 		NewAntigravityEngine(),
 		NewPiEngine(),
 	}
-	for _, id := range []string{"opencode"} {
-		engine, err := newBuiltinBehaviorDefinedEngine(id)
-		if err != nil {
-			panic(fmt.Sprintf("BUG: failed to load built-in behavior engine %q: %v", id, err))
-		}
-		builtins = append(builtins, engine)
-	}
 	for _, engine := range builtins {
 		if err := registry.Register(engine); err != nil {
 			panic(fmt.Sprintf("BUG: failed to register built-in engine: %v", err))
@@ -563,6 +556,11 @@ func (r *EngineRegistry) Register(engine CodingAgentEngine) error {
 	}
 	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine
+	// Invalidate the pre-computed manifest caches so engines registered after
+	// construction (e.g. behavior-defined engines imported from shared workflows)
+	// contribute their manifest files and folders.
+	r.cachedManifestFolders = nil
+	r.cachedManifestFiles = nil
 	return nil
 }
 

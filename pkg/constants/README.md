@@ -27,7 +27,7 @@ The package uses typed aliases to prevent mixing unrelated string or integer val
 
 | Type | Description | Example constant |
 |------|-------------|-----------------|
-| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `AntigravityEngine`, `OpenCodeEngine`, `PiEngine` |
+| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `AntigravityEngine`, `PiEngine` |
 | `FeatureFlag` | Feature flag identifier | `MCPGatewayFeatureFlag`, `MCPScriptsFeatureFlag` |
 | `JobName` | GitHub Actions job name | `AgentJobName`, `ActivationJobName` |
 | `StepID` | GitHub Actions step identifier | `CheckMembershipStepID`, `CheckRateLimitStepID` |
@@ -53,12 +53,11 @@ constants.ClaudeEngine       // "claude"
 constants.CodexEngine        // "codex"
 constants.GeminiEngine       // "gemini"
 constants.AntigravityEngine  // "antigravity"
-constants.OpenCodeEngine     // "opencode"
 constants.PiEngine           // "pi" (experimental)
 constants.DefaultEngine      // "copilot"
 
 // All supported engine names
-constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "pi"}
+constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "pi"}
 
 // Get engine metadata
 opt := constants.GetEngineOption("copilot")
@@ -101,20 +100,17 @@ constants.EnvVarModelAgentClaude     // "GH_AW_MODEL_AGENT_CLAUDE"
 constants.EnvVarModelAgentCodex      // "GH_AW_MODEL_AGENT_CODEX"
 constants.EnvVarModelAgentCustom     // "GH_AW_MODEL_AGENT_CUSTOM"
 constants.EnvVarModelAgentGemini     // "GH_AW_MODEL_AGENT_GEMINI"
-constants.EnvVarModelAgentOpenCode   // "GH_AW_MODEL_AGENT_OPENCODE"
 constants.EnvVarModelAgentPi         // "GH_AW_MODEL_AGENT_PI"
 constants.EnvVarModelDetectionCopilot// "GH_AW_MODEL_DETECTION_COPILOT"
 constants.EnvVarModelDetectionClaude // "GH_AW_MODEL_DETECTION_CLAUDE"
 constants.EnvVarModelDetectionCodex  // "GH_AW_MODEL_DETECTION_CODEX"
 constants.EnvVarModelDetectionGemini // "GH_AW_MODEL_DETECTION_GEMINI"
-constants.EnvVarModelDetectionOpenCode // "GH_AW_MODEL_DETECTION_OPENCODE"
 
 // Native CLI model env vars (passed directly to the engine CLI)
 constants.CopilotCLIModelEnvVar         // "COPILOT_MODEL"
 constants.CopilotCLIIntegrationIDEnvVar // "GITHUB_COPILOT_INTEGRATION_ID"
 constants.ClaudeCLIModelEnvVar          // "ANTHROPIC_MODEL"
 constants.GeminiCLIModelEnvVar          // "GEMINI_MODEL"
-constants.OpenCodeCLIModelEnvVar        // "OPENCODE_MODEL"
 constants.PiCLIModelEnvVar              // "PI_MODEL"
 
 // gh-aw runtime env vars
@@ -276,7 +272,6 @@ constants.DefaultClaudeCodeVersion      // Claude Code CLI version
 constants.DefaultCodexVersion           // OpenAI Codex CLI version
 constants.DefaultGeminiVersion          // Google Gemini CLI version
 constants.DefaultAntigravityVersion     // Antigravity CLI version
-constants.DefaultOpenCodeVersion        // OpenCode CLI version
 constants.DefaultPiVersion              // Pi CLI version (experimental)
 
 // Infrastructure

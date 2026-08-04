@@ -55,14 +55,6 @@ func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, er
 	return engine, nil
 }
 
-func newBuiltinBehaviorDefinedEngine(id string) (*BehaviorDefinedEngine, error) {
-	def, err := getBuiltinEngineDefinition(id)
-	if err != nil {
-		return nil, err
-	}
-	return NewBehaviorDefinedEngine(def)
-}
-
 func (e *BehaviorDefinedEngine) behavior() *EngineBehaviorDefinition {
 	if e == nil || e.definition == nil {
 		return nil
@@ -448,6 +440,18 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 
 func (e *BehaviorDefinedEngine) allowedDomains(workflowData *WorkflowData) string {
 	engineName := constants.EngineName(e.GetID())
+	behavior := e.behavior()
+	if behavior != nil && behavior.Network != nil {
+		model := ""
+		if workflowData != nil && workflowData.EngineConfig != nil {
+			model = workflowData.Model
+		}
+		defaults, err := resolveEngineNetworkDomains(behavior.Network, model)
+		if err != nil {
+			panic(fmt.Sprintf("BUG: invalid model %q reached domain computation (should have been caught by validation): %v", model, err))
+		}
+		return mergeDomainsWithNetworkToolsAndRuntimes(defaults, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
+	}
 	if e.usesUniversalLLMConsumer() && workflowData != nil && workflowData.EngineConfig != nil {
 		return mustGetAllowedDomainsForEngineWithModel(engineName, workflowData.Model, workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 	}
@@ -689,6 +693,20 @@ func deepCopyEngineBehaviorDefinition(src EngineBehaviorDefinition) EngineBehavi
 			copy(manifestCopy.PathPrefixes, src.Manifest.PathPrefixes)
 		}
 		dst.Manifest = &manifestCopy
+	}
+
+	// Network (has Defaults []string and ProviderDomains map[string]string)
+	if src.Network != nil {
+		networkCopy := *src.Network
+		if src.Network.Defaults != nil {
+			networkCopy.Defaults = make([]string, len(src.Network.Defaults))
+			copy(networkCopy.Defaults, src.Network.Defaults)
+		}
+		if src.Network.ProviderDomains != nil {
+			networkCopy.ProviderDomains = make(map[string]string, len(src.Network.ProviderDomains))
+			maps.Copy(networkCopy.ProviderDomains, src.Network.ProviderDomains)
+		}
+		dst.Network = &networkCopy
 	}
 
 	// Installation (only scalar fields; pointer dereference suffices)

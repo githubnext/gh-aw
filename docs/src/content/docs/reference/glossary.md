@@ -562,7 +562,7 @@ engine:
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports six engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **OpenCode** (experimental), and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
+The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports five engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Engine Version (`engine.version`)
 
@@ -690,19 +690,19 @@ See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Engine Behaviors (`engine.behaviors`)
 
-A declarative configuration block inside a built-in engine definition file (under `pkg/workflow/data/engines/<id>.md`) that describes how the compiler should generate install, config, execution, and MCP steps for a CLI-style engine. Defining behaviors in frontmatter avoids bespoke Go wrapper code — the runtime reads the fields and generates the corresponding workflow steps automatically. Key sub-fields include `installation` (package manager, binary name, version), `config-file` (path, content, merge strategy), `execution` (command name, args, model env var, MCP config env var), `manifest` (protected files and path prefixes), and `capabilities`. Engines that use `engine.behaviors` inherit shared step generation logic via `behavior_defined_engine.go`. See [AI Engines Reference](/gh-aw/reference/engines/).
+A declarative configuration block inside an engine definition file (a built-in definition under `pkg/workflow/data/engines/<id>.md`, or a shared workflow imported from a repository) that describes how the compiler should generate install, config, execution, and MCP steps for a CLI-style engine. Defining behaviors in frontmatter avoids bespoke Go wrapper code — the runtime reads the fields and generates the corresponding workflow steps automatically. Key sub-fields include `installation` (package manager, binary name, version), `config-file` (path, content, merge strategy), `execution` (command name, args, model env var, MCP config env var), `manifest` (protected files and path prefixes), and `capabilities`. Engines that use `engine.behaviors` inherit shared step generation logic via `behavior_defined_engine.go`. See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ```aw wrap
 engine:
-  id: opencode
+  id: my-agent
   behaviors:
     installation:
       package-manager: npm
-      package-name: opencode-ai
-      binary-name: opencode
+      package-name: my-agent-cli
+      binary-name: my-agent
     execution:
-      command-name: opencode
-      model-env-var: OPENCODE_MODEL
+      command-name: my-agent
+      model-env-var: MY_AGENT_MODEL
 ```
 
 ### Experiments (`experiments:`)

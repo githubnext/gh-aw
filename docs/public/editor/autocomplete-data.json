@@ -972,7 +972,7 @@
       "children": {
         "id": {
           "type": "string",
-          "desc": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi') or a named catalog entry",
+          "desc": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'pi') or a named catalog entry",
           "leaf": true
         },
         "version": {

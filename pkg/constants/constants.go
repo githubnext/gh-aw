@@ -141,12 +141,12 @@ const (
 
 // AWFNoProxyHosts is the value for the NO_PROXY and no_proxy environment variables
 // in the AWF agent execution environment.  Both plain hostnames and explicit host:port
-// forms are listed because some HTTP client runtimes (e.g. Bun, which backs OpenCode)
+// forms are listed because some HTTP client runtimes (e.g. Bun)
 // compare the full host:port string against the list rather than stripping the port
 // before matching, causing them to route through Squid even when the hostname alone
 // appears in the list.
 // AWFAPIProxyContainerIP is also listed so that requests from custom providers
-// (e.g. OpenCode's awf-proxy provider) routed to the internal api-proxy sidecar
+// (e.g. an awf-proxy provider) routed to the internal api-proxy sidecar
 // bypass Squid instead of being forwarded through it.
 const AWFNoProxyHosts = "localhost,127.0.0.1," +
 	"host.docker.internal," +
