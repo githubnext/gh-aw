@@ -38,7 +38,7 @@ async function main() {
     );
   }
 
-  let { access_token: accessToken } = await response.json();
+  let { access_token: accessToken } = /** @type {any} */ await response.json();
   if (!accessToken) {
     throw new Error("Google workload identity token exchange returned no access token");
   }
@@ -55,7 +55,7 @@ async function main() {
         `Google service account impersonation failed with HTTP ${impersonationResponse.status} ${impersonationResponse.statusText}. Verify observability.otlp.workload-identity.service-account exists and grants roles/iam.workloadIdentityUser to the federated principal`
       );
     }
-    ({ accessToken } = await impersonationResponse.json());
+    ({ accessToken } = /** @type {any} */ await impersonationResponse.json());
     if (!accessToken) {
       throw new Error("Google service account impersonation returned no access token");
     }
