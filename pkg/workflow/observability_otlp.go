@@ -775,7 +775,6 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 		workflowData.NetworkPermissions.Allowed = append(workflowData.NetworkPermissions.Allowed,
 			"sts.googleapis.com",
 			"iamcredentials.googleapis.com",
-			"oauth2.googleapis.com",
 		)
 		otlpLog.Print("Added Google workload identity hosts to network allowlist")
 	}

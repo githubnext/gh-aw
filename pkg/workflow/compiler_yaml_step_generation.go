@@ -189,7 +189,9 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 			fmt.Sprintf("          GH_AW_OTLP_OIDC_TOKEN: ${{ steps.%s.outputs.token }}\n", otlpOIDCMintStepID),
 		)
 		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_AUDIENCE", stsAudience))
-		lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_SERVICE_ACCOUNT", workloadIdentity.ServiceAccount))
+		if serviceAccount := strings.TrimSpace(workloadIdentity.ServiceAccount); serviceAccount != "" {
+			lines = append(lines, formatYAMLEnv("          ", "GH_AW_OTLP_WIF_SERVICE_ACCOUNT", serviceAccount))
+		}
 		lines = append(lines,
 			"        with:\n",
 			"          script: |\n",

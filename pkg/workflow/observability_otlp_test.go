@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"maps"
 	"strings"
 	"testing"
 
@@ -439,7 +440,6 @@ func TestInjectOTLPConfig(t *testing.T) {
 		require.NotNil(t, wd.NetworkPermissions, "NetworkPermissions should be created")
 		assert.Contains(t, wd.NetworkPermissions.Allowed, "sts.googleapis.com")
 		assert.Contains(t, wd.NetworkPermissions.Allowed, "iamcredentials.googleapis.com")
-		assert.Contains(t, wd.NetworkPermissions.Allowed, "oauth2.googleapis.com")
 	})
 
 	t.Run("adds domain to new NetworkPermissions and injects env vars for static URL", func(t *testing.T) {
@@ -2204,5 +2204,63 @@ func TestEncodeOTLPCustomAttributes(t *testing.T) {
 		assert.NotEmpty(t, encoded)
 		assert.Contains(t, encoded, "langfuse.session.id")
 		assert.True(t, strings.HasPrefix(encoded, "{"), "should be a JSON object")
+	})
+}
+
+// TestValidateOTLPWorkloadIdentity verifies the workload identity configuration validation.
+func TestValidateOTLPWorkloadIdentity(t *testing.T) {
+	newData := func(workloadIdentity map[string]any, extra map[string]any) *WorkflowData {
+		otlp := map[string]any{}
+		if workloadIdentity != nil {
+			otlp["workload-identity"] = workloadIdentity
+		}
+		maps.Copy(otlp, extra)
+		return &WorkflowData{
+			RawFrontmatter: map[string]any{
+				"observability": map[string]any{"otlp": otlp},
+			},
+		}
+	}
+
+	t.Run("no workload identity is valid", func(t *testing.T) {
+		assert.NoError(t, validateOTLPWorkloadIdentity(newData(nil, nil)))
+	})
+
+	t.Run("valid configuration", func(t *testing.T) {
+		assert.NoError(t, validateOTLPWorkloadIdentity(newData(map[string]any{
+			"provider": "google",
+			"audience": "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+		}, nil)))
+	})
+
+	t.Run("unsupported provider is rejected", func(t *testing.T) {
+		err := validateOTLPWorkloadIdentity(newData(map[string]any{
+			"provider": "aws",
+			"audience": "some-audience",
+		}, nil))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "provider must be google")
+	})
+
+	t.Run("missing audience is rejected", func(t *testing.T) {
+		err := validateOTLPWorkloadIdentity(newData(map[string]any{
+			"provider": "google",
+		}, nil))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "audience is required")
+	})
+
+	t.Run("combining with github app credentials is rejected", func(t *testing.T) {
+		err := validateOTLPWorkloadIdentity(newData(map[string]any{
+			"provider": "google",
+			"audience": "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+		}, map[string]any{
+			"github-app": map[string]any{
+				"app-id":      "123",
+				"private-key": "${{ secrets.APP_KEY }}",
+			},
+		}))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot be combined")
 	})
 }
