@@ -35,9 +35,13 @@ engine:
       provider-env-mode: universal-llm-consumer
       env:
         GOOSE_PROVIDER: openai
-        GOOSE_PROVIDER__TYPE: openai
-        GOOSE_PROVIDER__HOST: http://172.30.0.30:10002
-        GOOSE_PROVIDER__API_KEY: awf-copilot-proxy
+        # The Goose CLI resolves the OpenAI provider endpoint from OPENAI_HOST
+        # (highest priority) and falls back to OPENAI_BASE_URL. The GOOSE_PROVIDER__*
+        # variables are Goose desktop-only settings and are ignored by the CLI, so
+        # OPENAI_HOST must point at the AWF Copilot api-proxy sidecar; otherwise Goose
+        # sends the Copilot token to the OpenAI proxy port and is rejected with 401.
+        OPENAI_HOST: http://172.30.0.30:10002
+        OPENAI_BASE_PATH: v1/chat/completions
         GOOSE_MODE: auto
         GOOSE_DISABLE_SESSION_NAMING: "true"
     mcp:
