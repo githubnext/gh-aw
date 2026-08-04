@@ -29,7 +29,7 @@ type CompileConfig struct {
 	Grype                  bool     // Run grype vulnerability scanner on container images referenced in compiled .lock.yml files
 	Grant                  bool     // Run grant license scanner on container images referenced in compiled .lock.yml files
 	Yamllint               bool     // Run yamllint YAML linter on generated .lock.yml files
-	Shellcheck             bool     // Run shellcheck linting of run step scripts (disabled by default; enabled by --shellcheck or --validate)
+	Shellcheck             bool     // Run shellcheck linting of run step scripts (disabled by default; enabled by --shellcheck)
 	JSONOutput             bool     // Output validation results as JSON
 	ShowAllErrors          bool     // Display all prioritized errors instead of the default top five
 	ActionMode             string   // How action scripts are referenced: dev, release, or action. Auto-detected if empty.
@@ -42,6 +42,10 @@ type CompileConfig struct {
 	ValidateImages         bool     // Require Docker to be available for container image validation (fail instead of skipping when Docker is unavailable)
 	PriorManifestFile      string   // Path to a JSON file containing pre-cached manifests (map[lockFile]*GHAWManifest) collected at MCP server startup; takes precedence over git HEAD / filesystem reads for safe update enforcement
 	GHESCompat             bool     // Enable GHES compatibility mode (overrides aw.json ghes field); artifact actions still use latest non-v3 pins
+}
+
+func (c CompileConfig) shellcheckEnabled() bool {
+	return c.Shellcheck
 }
 
 // CompileValidationError represents a single validation error or warning
