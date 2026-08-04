@@ -79,7 +79,7 @@ imports:
   - shared/aider.md
 ```
 
-The shared engine definition in `.github/workflows/shared/aider.md` installs `aider-chat` from PyPI in a harness script and runs the CLI in [scripting mode](https://aider.chat/docs/scripting.html): the generated prompt file is passed with `--message-file` and confirmations are auto-accepted with `--yes-always`. Requests are routed through the AWF proxy, so the configured `provider/model` is rewritten to Aider's `openai/<model>` LiteLLM form and served from `OPENAI_API_BASE`. The repository includes `.github/workflows/smoke-aider.md` as a concrete smoke-test example.
+The shared engine definition in `.github/workflows/shared/aider.md` installs `aider-chat` from PyPI in a harness script and runs the CLI in [scripting mode](https://aider.chat/docs/scripting.html): the generated prompt file is passed with `--message-file` and confirmations are auto-accepted with `--yes-always`. Requests are routed through the AWF proxy, so the configured `provider/model` is rewritten to Aider's `openai/<model>` LiteLLM form and `.aider.conf.yml` supplies the OpenAI-compatible proxy endpoint and key. The repository includes `.github/workflows/smoke-aider.md` as a concrete smoke-test example.
 
 Aider is not an MCP client, so MCP-based tools — including the safe-outputs MCP server — are unavailable. Set `tools: github: false` to keep the GitHub MCP server out of the workflow, and rely on `bash:` and `edit:` tools, and emit safe outputs by appending JSONL entries to the file referenced by `$GH_AW_SAFE_OUTPUTS`.
 
