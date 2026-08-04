@@ -261,7 +261,7 @@ func (e *BehaviorDefinedEngine) buildScriptWriteStep(stepName, filename, script,
 		return nil
 	}
 	command := fmt.Sprintf(
-		"mkdir -p %[1]s\ncat <<'%[4]s' > %[1]s/%[2]s\n%[3]s\n%[4]s\nchmod 755 %[1]s/%[2]s",
+		"mkdir -p \"%[1]s\"\ncat <<'%[4]s' > \"%[1]s/%[2]s\"\n%[3]s\n%[4]s\nchmod 755 \"%[1]s/%[2]s\"",
 		SetupActionDestinationShell,
 		filename,
 		script,

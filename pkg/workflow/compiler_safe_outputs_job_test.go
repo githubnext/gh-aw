@@ -929,9 +929,15 @@ func TestJobOutputs(t *testing.T) {
 	// Handler manager outputs
 	assert.Contains(t, job.Outputs, "process_safe_outputs_temporary_id_map")
 	assert.Contains(t, job.Outputs, "process_safe_outputs_processed_count")
+	assert.Contains(t, job.Outputs, "process_safe_outputs_items_succeeded")
+	assert.Contains(t, job.Outputs, "process_safe_outputs_items_failed")
+	assert.Contains(t, job.Outputs, "process_safe_outputs_status")
 
 	// Check output format
 	assert.Contains(t, job.Outputs["process_safe_outputs_temporary_id_map"], "steps.process_safe_outputs.outputs")
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.items_succeeded }}", job.Outputs["process_safe_outputs_items_succeeded"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.items_failed }}", job.Outputs["process_safe_outputs_items_failed"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.status }}", job.Outputs["process_safe_outputs_status"])
 }
 
 // TestJobDependencies tests that job dependencies are correctly set

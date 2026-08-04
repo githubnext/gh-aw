@@ -779,8 +779,8 @@ jobs:
             await main();
       - name: Write Goose MCP config adapter script
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/actions
-          cat <<'GHAW_MCP_CONFIG_ADAPTER_SCRIPT_7e1a4d2c_EOF' > ${RUNNER_TEMP}/gh-aw/actions/goose_mcp_config_adapter.cjs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/actions"
+          cat <<'GHAW_MCP_CONFIG_ADAPTER_SCRIPT_7e1a4d2c_EOF' > "${RUNNER_TEMP}/gh-aw/actions/goose_mcp_config_adapter.cjs"
           // Converts the MCP gateway's standard HTTP-based configuration to the JSON
           // format expected by the Goose CLI harness (.goose/mcp.json). Reads the
           // gateway output JSON, filters out CLI-mounted servers, sets
@@ -859,7 +859,7 @@ jobs:
           console.log(`Goose configuration written to ${configFile}`);
 
           GHAW_MCP_CONFIG_ADAPTER_SCRIPT_7e1a4d2c_EOF
-          chmod 755 ${RUNNER_TEMP}/gh-aw/actions/goose_mcp_config_adapter.cjs
+          chmod 755 "${RUNNER_TEMP}/gh-aw/actions/goose_mcp_config_adapter.cjs"
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
@@ -985,8 +985,8 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh"
       - name: Write Goose harness script
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/actions
-          cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > ${RUNNER_TEMP}/gh-aw/actions/goose_harness.cjs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/actions"
+          cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > "${RUNNER_TEMP}/gh-aw/actions/goose_harness.cjs"
           const { createHash } = require("crypto");
           const { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("fs");
           const { tmpdir } = require("os");
@@ -1066,7 +1066,7 @@ jobs:
           }
 
           GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF
-          chmod 755 ${RUNNER_TEMP}/gh-aw/actions/goose_harness.cjs
+          chmod 755 "${RUNNER_TEMP}/gh-aw/actions/goose_harness.cjs"
       - name: Execute Goose CLI
         id: agentic_execution
         timeout-minutes: 10
@@ -1728,8 +1728,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/actions
-          cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > ${RUNNER_TEMP}/gh-aw/actions/goose_harness.cjs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/actions"
+          cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > "${RUNNER_TEMP}/gh-aw/actions/goose_harness.cjs"
           const { createHash } = require("crypto");
           const { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("fs");
           const { tmpdir } = require("os");
@@ -1809,7 +1809,7 @@ jobs:
           }
 
           GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF
-          chmod 755 ${RUNNER_TEMP}/gh-aw/actions/goose_harness.cjs
+          chmod 755 "${RUNNER_TEMP}/gh-aw/actions/goose_harness.cjs"
       - name: Execute Goose CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
@@ -2015,7 +2015,10 @@ jobs:
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
       created_issue_number: ${{ steps.process_safe_outputs.outputs.created_issue_number }}
       created_issue_url: ${{ steps.process_safe_outputs.outputs.created_issue_url }}
+      process_safe_outputs_items_failed: ${{ steps.process_safe_outputs.outputs.items_failed }}
+      process_safe_outputs_items_succeeded: ${{ steps.process_safe_outputs.outputs.items_succeeded }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
+      process_safe_outputs_status: ${{ steps.process_safe_outputs.outputs.status }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Checkout actions folder

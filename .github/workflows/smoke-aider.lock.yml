@@ -826,8 +826,8 @@ jobs:
           bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
       - name: Write Aider harness script
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/actions
-          cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > ${RUNNER_TEMP}/gh-aw/actions/aider_harness.cjs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/actions"
+          cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > "${RUNNER_TEMP}/gh-aw/actions/aider_harness.cjs"
           const { spawnSync } = require("child_process");
           const { join } = require("path");
           const { homedir } = require("os");
@@ -864,7 +864,7 @@ jobs:
           );
 
           GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF
-          chmod 755 ${RUNNER_TEMP}/gh-aw/actions/aider_harness.cjs
+          chmod 755 "${RUNNER_TEMP}/gh-aw/actions/aider_harness.cjs"
       - name: Execute Aider CLI
         id: agentic_execution
         timeout-minutes: 10
@@ -1449,8 +1449,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
         run: |
-          mkdir -p ${RUNNER_TEMP}/gh-aw/actions
-          cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > ${RUNNER_TEMP}/gh-aw/actions/aider_harness.cjs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/actions"
+          cat <<'GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF' > "${RUNNER_TEMP}/gh-aw/actions/aider_harness.cjs"
           const { spawnSync } = require("child_process");
           const { join } = require("path");
           const { homedir } = require("os");
@@ -1487,7 +1487,7 @@ jobs:
           );
 
           GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF
-          chmod 755 ${RUNNER_TEMP}/gh-aw/actions/aider_harness.cjs
+          chmod 755 "${RUNNER_TEMP}/gh-aw/actions/aider_harness.cjs"
       - name: Execute Aider CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
@@ -1691,7 +1691,10 @@ jobs:
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
       created_issue_number: ${{ steps.process_safe_outputs.outputs.created_issue_number }}
       created_issue_url: ${{ steps.process_safe_outputs.outputs.created_issue_url }}
+      process_safe_outputs_items_failed: ${{ steps.process_safe_outputs.outputs.items_failed }}
+      process_safe_outputs_items_succeeded: ${{ steps.process_safe_outputs.outputs.items_succeeded }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
+      process_safe_outputs_status: ${{ steps.process_safe_outputs.outputs.status }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Checkout actions folder
