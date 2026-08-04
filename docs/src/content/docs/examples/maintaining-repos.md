@@ -15,7 +15,15 @@ A [study of 15 open-source repositories](https://github.com/githubnext/repo-assi
 
 ## Repo Assist as Your Triage Layer
 
-[🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) runs on every new issue or PR, classifies the content, and routes work to the right place. It is a strong starting point for public repositories because it sees all incoming content, uses low-cost actions such as labels and comments, and gates downstream code-modifying workflows.
+[Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) is a recurring agentic workflow that selects maintenance tasks based on the repository's current backlog. It can label and investigate issues, implement focused fixes, improve tests and documentation, maintain pull requests, and summarize its activity for maintainers. You can also invoke it on demand with `/repo-assist <instructions>`.
+
+Add Repo Assist to a repository with the interactive setup:
+
+```bash
+gh aw add-wizard githubnext/agentics/repo-assist
+```
+
+Use Repo Assist as a starting point for AI-assisted project maintenance, then review its proposed changes and adjust its schedule and permissions to match the project's maintainer capacity.
 
 ## Controlling Workflow Outputs with Safe-Outputs
 

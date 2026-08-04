@@ -64,6 +64,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `robotics` | `copilot/*robotics*`, `google/*robotics*`, `gemini/*robotics*` |
 | `veo` | `google/veo*`, `gemini/veo*` |
 | `lyria` | `google/lyria*`, `gemini/lyria*`, `copilot/lyria*` |
+| `grok` | `copilot/*grok*`, `openai/*grok*` |
 
 ### Meta-Aliases
 
@@ -73,8 +74,10 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 |------------|------------|
 | `opusplan` | `opus?effort=high` |
 | `small` | `mini` |
+| `detection` | `small` |
+| `evals` | `small` |
 | `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
-| `large` | `fable` → `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
+| `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
 | `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5.5` → `gpt-5.6` → `gpt-5.3` → `gemini-pro` → `any` |
 | `small-agent` | `haiku` → `gpt-5-mini` → `gemini-flash` |
 | `copilot` | `agent` |
