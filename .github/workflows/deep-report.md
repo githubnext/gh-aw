@@ -83,6 +83,7 @@ imports:
   - shared/mcp/agentdb.md
   - shared/weekly-issues-data-fetch.md
   - shared/reporting.md
+  - shared/github-mcp-pagination-wrappers.md
 
 
   - shared/otlp.md
