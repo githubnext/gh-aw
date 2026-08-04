@@ -30,6 +30,25 @@ safe-outputs:
     expires: 1
     close-older-issues: true
     close-older-key: squad-game-planner
+pre-agent-steps:
+  - name: Check Squad files
+    run: |
+      set -euo pipefail
+      GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
+      mkdir -p "$(dirname "$GH_AW_SAFE_OUTPUTS")"
+
+      missing=()
+      for path in .squad/team.md .github/agents/squad.agent.md; do
+        if [ ! -f "$path" ]; then
+          missing+=("$path")
+        fi
+      done
+
+      if [ "${#missing[@]}" -gt 0 ]; then
+        message="Squad files are unavailable: ${missing[*]}. The activation-job bootstrap step likely failed."
+        printf '{"type":"noop","message":"%s"}\n' "$message" >> "$GH_AW_SAFE_OUTPUTS"
+        echo "$message"
+      fi
 ---
 
 # Squad Game Planner
@@ -39,10 +58,10 @@ brand-new, original game concept today.
 
 ## Task
 
-1. Confirm Squad is initialized: `.squad/team.md` should exist. If the team
-   has not been formed yet, propose a small squad appropriate for game
-   design and production — for example a Lead, a Game Designer, a Gameplay
-   Programmer, and a Tester — and confirm it before continuing.
+1. Confirm Squad files are available before delegating work to the team:
+   `.squad/team.md` and `.github/agents/squad.agent.md` should exist. If
+   either file is missing, call `noop` with a short explanation instead of
+   proceeding.
 2. Invent one new, small-to-medium-scope game concept that has not already
    been planned by a prior run (check open and recently closed issues
    labeled `squad:plan` for titles to avoid repeating a concept).
