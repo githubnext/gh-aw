@@ -155,6 +155,7 @@ func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildC
 func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
 	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.ActivationArtifactName
+	ctx.steps = append(ctx.steps, generateStageAmbientFoldersStep(ctx.data)...)
 	ctx.steps = append(ctx.steps, "      - name: Upload activation artifact\n")
 	ctx.steps = append(ctx.steps, "        if: success()\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")))
@@ -169,6 +170,9 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/aw-prompts/prompt-import-tree.json\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/"+constants.GithubRateLimitsFilename+"\n")
 	ctx.steps = append(ctx.steps, "            /tmp/gh-aw/base\n")
+	if len(ctx.data.AmbientFolders) > 0 {
+		ctx.steps = append(ctx.steps, "            /tmp/gh-aw/ambient-folders\n")
+	}
 	engineID := resolveActivationEngineID(ctx.data)
 	// Include the engine-specific sub-agent staging directory only when inline agents are enabled.
 	if isFeatureEnabled(constants.FeatureFlag("inline-agents"), ctx.data) {

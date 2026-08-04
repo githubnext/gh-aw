@@ -443,6 +443,13 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			extraPaths = append(extraPaths, folder)
 		}
 	}
+	if data != nil {
+		for _, folder := range data.AmbientFolders {
+			if !setutil.Contains(defaultSparseCheckoutDirs, folder) {
+				extraPaths = append(extraPaths, folder)
+			}
+		}
+	}
 	compilerActivationJobLog.Printf("Adding %d engine-specific dirs to sparse-checkout: %v", len(extraPaths), extraPaths)
 
 	// Detect symlinks for well-known .github sub-paths and add their resolved targets

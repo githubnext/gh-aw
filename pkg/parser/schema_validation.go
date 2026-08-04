@@ -17,6 +17,7 @@ var schemaValidationLog = logger.New("parser:schema_validation")
 var sharedWorkflowForbiddenFields = buildForbiddenFieldsMap()
 
 var sharedWorkflowAllowedOnFieldList = []string{
+	"ambient-folders",
 	"skip-if-match",
 	"skip-if-no-match",
 	"skip-roles",
@@ -26,6 +27,7 @@ var sharedWorkflowAllowedOnFieldList = []string{
 }
 
 var sharedWorkflowAllowedOnFields = map[string]struct{}{
+	"ambient-folders":  {},
 	"skip-if-match":    {},
 	"skip-if-no-match": {},
 	"skip-roles":       {},
@@ -100,6 +102,12 @@ func validateSharedWorkflowOnField(onValue any) error {
 	}
 
 	return nil
+}
+
+// IsImportSafeSharedWorkflowOn reports whether an on: block contains only fields
+// that are safe for shared workflow imports and no trigger events.
+func IsImportSafeSharedWorkflowOn(onValue any) bool {
+	return validateSharedWorkflowOnField(onValue) == nil
 }
 
 // ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info.

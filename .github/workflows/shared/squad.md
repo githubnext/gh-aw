@@ -26,6 +26,10 @@
 # the activation job.
 engine:
   id: copilot
+on:
+  ambient-folders:
+    - .squad
+    - .github/agents
 
 jobs:
   activation:
@@ -44,24 +48,6 @@ jobs:
           GH_TOKEN: ${{ steps.squad-app-token.outputs.token || secrets.SQUAD_GITHUB_TOKEN || github.token }}
         run: npx --yes "@bradygaster/squad-cli@${SQUAD_CLI_VERSION:-0.11.0}" init --preset default
 
-      - name: Upload Squad state artifact
-        if: success()
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: squad-state
-          include-hidden-files: true
-          path: |
-            .squad
-            .github/agents/squad.agent.md
-          if-no-files-found: ignore
-          retention-days: 1
-steps:
-  - name: Restore Squad state from activation artifact
-    continue-on-error: true
-    uses: actions/download-artifact@v8.0.1
-    with:
-      name: squad-state
-      path: ${{ github.workspace }}
 ---
 
 <!--
@@ -74,13 +60,12 @@ install/init lifecycle out of the agent job:
 1. **`jobs.activation.pre-steps`** — the repository is already checked out by the
    activation job itself, so this only installs the pinned `@bradygaster/squad-cli`
    npm release, optionally mints a GitHub App installation token (or uses a supplied
-   PAT) so `squad init` can see other organizations or private repositories, runs
-   `squad init --preset default` (idempotent), and uploads the resulting `.squad/`
-   team state plus `.github/agents/squad.agent.md` as a dedicated `squad-state`
-   artifact — all inside the activation job, alongside the rest of the
-   prompt/skills/sub-agent packaging.
-2. **`steps:`** (agent job) — downloads the `squad-state` artifact and restores it into
-   the checked-out workspace. The Squad CLI itself is never installed here; only the
+   PAT) so `squad init` can see other organizations or private repositories, and runs
+   `squad init --preset default` (idempotent).
+2. **`on.ambient-folders`** — bundles the resulting `.squad/` team state and
+   `.github/agents/` files into the standard activation artifact alongside the rest
+   of the prompt/skills/sub-agent packaging, then restores them into the agent
+   checkout. The Squad CLI itself is never installed in the agent job; only the
    files it produced are copied in.
 
 -->

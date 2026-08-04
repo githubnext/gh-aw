@@ -245,6 +245,49 @@ imports:
 	assert.Equal(t, "shared/target.md", importsResult.MergedEnvSources["SHARED_VAR"], "MergedEnvSources should track the import path for SHARED_VAR")
 }
 
+func TestAmbientFoldersExtractedFromMdImport(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755), "Failed to create shared dir")
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "first.md"), []byte(`---
+on:
+  ambient-folders:
+    - .squad
+    - .github/agents
+---
+
+# First shared workflow
+`), 0644), "Failed to write first shared file")
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "second.md"), []byte(`---
+on:
+  ambient-folders:
+    - .squad
+    - .config/agents
+---
+
+# Second shared workflow
+`), 0644), "Failed to write second shared file")
+
+	mainContent := `---
+name: Main Workflow
+on: issue_comment
+imports:
+  - shared/first.md
+  - shared/second.md
+---
+
+# Main Workflow
+`
+	result, err := ExtractFrontmatterFromContent(mainContent)
+	require.NoError(t, err, "ExtractFrontmatterFromContent should succeed")
+
+	importsResult, err := ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
+	require.NoError(t, err, "ProcessImportsFromFrontmatterWithSource should succeed")
+
+	assert.Equal(t, []string{".squad", ".github/agents", ".config/agents"}, importsResult.MergedAmbientFolders)
+}
+
 // TestEnvFieldConflictBetweenImports verifies that defining the same env var in two different
 // imports produces a compilation error.
 func TestEnvFieldConflictBetweenImports(t *testing.T) {
