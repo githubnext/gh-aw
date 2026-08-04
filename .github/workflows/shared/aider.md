@@ -39,6 +39,12 @@ engine:
         copilot: api.githubcopilot.com
         anthropic: api.anthropic.com
         openai: api.openai.com
+    config-file:
+      path: .aider.conf.yml
+      step-name: Write Aider Config
+      content: |-
+        openai-api-base: http://172.30.0.30:10002/v1
+        openai-api-key: awf-copilot-proxy
     execution:
       command-name: aider
       args:
@@ -51,13 +57,16 @@ engine:
         - --no-stream
         - --no-fancy-input
         - --analytics-disable
+        - --openai-api-base
+        - http://172.30.0.30:10002/v1
+        - --openai-api-key
+        - awf-copilot-proxy
       step-name: Execute Aider CLI
       model-env-var: AIDER_MODEL
       model-env-provider-prefix: openai
       provider-env-mode: universal-llm-consumer
       write-timestamp: true
       env:
-        OPENAI_API_BASE: http://172.30.0.30:10002
         AIDER_GIT: "false"
         AIDER_CHECK_UPDATE: "false"
         AIDER_ANALYTICS_DISABLE: "true"
@@ -98,15 +107,15 @@ Import this file and set `engine: id: aider` to use it:
 ```yaml
 engine:
   id: aider
-model: copilot/claude-sonnet-4.5
+model: copilot/claude-sonnet-4-5
 imports:
   - shared/aider.md
 ```
 
 `model` must use `provider/model` format. Supported providers are `copilot`,
 `anthropic`, and `openai`. Requests are routed through the AWF proxy, so the
-model name is rewritten to Aider's `openai/<model>` LiteLLM form and served
-from `OPENAI_API_BASE`.
+model name is rewritten to Aider's `openai/<model>` LiteLLM form and the
+generated `.aider.conf.yml` configures the OpenAI-compatible proxy endpoint.
 
 Aider runs in scripting mode: the generated prompt file is passed with
 `--message-file` and all confirmations are auto-accepted (`--yes-always`).
