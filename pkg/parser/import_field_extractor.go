@@ -486,7 +486,7 @@ func (acc *importAccumulator) appendYAMLBuilderField(fm map[string]any, field st
 
 // extractActivationFields extracts activation and authentication-related fields from
 // the frontmatter map: bots, skip-roles, skip-bots, skip-if-match, skip-if-no-match,
-// on.ambient-folders, on.github-token, on.github-app, top-level github-app, and checkout.
+// top-level ambient-folders, on.github-token, on.github-app, top-level github-app, and checkout.
 //
 // Side effects: acc.bots, acc.botsSet, acc.skipRoles, acc.skipRolesSet, acc.skipBots,
 // acc.skipBotsSet, acc.skipIfMatch, acc.skipIfNoMatch, acc.activationGitHubToken,
@@ -517,7 +517,9 @@ func (acc *importAccumulator) mergeSkipBots(fm map[string]any) {
 }
 
 func (acc *importAccumulator) mergeAmbientFolders(fm map[string]any) {
-	mergeJSONStringListField(fm, "ambient-folders", "[]", acc.ambientFoldersSet, &acc.ambientFolders, extractOnSectionFieldFromMap)
+	mergeJSONStringListField(fm, "ambient-folders", "[]", acc.ambientFoldersSet, &acc.ambientFolders, func(m map[string]any, field string) (string, error) {
+		return extractFieldJSONFromMap(m, field, "[]")
+	})
 }
 
 func mergeJSONStringListField(
