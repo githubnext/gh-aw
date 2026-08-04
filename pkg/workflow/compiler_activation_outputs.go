@@ -156,7 +156,7 @@ func (c *Compiler) addActivationArtifactUploadStep(ctx *activationJobBuildContex
 	compilerActivationJobLog.Print("Adding activation artifact upload step")
 	activationArtifactName := artifactPrefixExprForActivationJob(ctx.data) + constants.ActivationArtifactName
 	ctx.steps = append(ctx.steps, generateStageAmbientFoldersStep(ctx.data)...)
-	ctx.steps = append(ctx.steps, "      - name: Upload activation artifact\n")
+	ctx.steps = append(ctx.steps, "      - name: "+constants.ActivationUploadArtifactStepName+"\n")
 	ctx.steps = append(ctx.steps, "        if: success()\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")))
 	ctx.steps = append(ctx.steps, "        with:\n")

@@ -149,6 +149,19 @@ const ArtifactPrefixOutputName = "artifact_prefix"
 // (aw_info.json and prompt.txt).
 const ActivationArtifactName = "activation"
 
+// ActivationStageAmbientFoldersStepName is the step name used to stage ambient
+// folders before the activation artifact is packaged. It is a stable anchor
+// used to determine the insertion point for jobs.activation.steps injected
+// via built-in job step merging; keep it in sync with any renames of that
+// step.
+const ActivationStageAmbientFoldersStepName = "Stage ambient folders for activation artifact"
+
+// ActivationUploadArtifactStepName is the step name used to upload the
+// activation artifact. It is a stable anchor used to determine the insertion
+// point for jobs.activation.steps injected via built-in job step merging;
+// keep it in sync with any renames of that step.
+const ActivationUploadArtifactStepName = "Upload activation artifact"
+
 // ExperimentArtifactName is the artifact name for A/B experiment state
 // uploaded by the activation job when experiments are declared in the frontmatter.
 const ExperimentArtifactName = "experiment"

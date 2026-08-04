@@ -621,6 +621,10 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 			targetJobName = string(constants.PreActivationJobName)
 		}
 
+		if err := validateRestrictedBuiltinSteps(jobName, targetJobName, hasSteps); err != nil {
+			return err
+		}
+
 		job, exists := c.jobManager.GetJob(targetJobName)
 		if !exists {
 			continue
@@ -673,8 +677,8 @@ func insertActivationStepsBeforeArtifactStaging(jobName string, steps []string, 
 
 	insertIdx := len(steps)
 	for i, step := range steps {
-		if strings.Contains(step, "name: Stage ambient folders for activation artifact") ||
-			strings.Contains(step, "name: Upload activation artifact") {
+		if strings.Contains(step, "name: "+constants.ActivationStageAmbientFoldersStepName) ||
+			strings.Contains(step, "name: "+constants.ActivationUploadArtifactStepName) {
 			insertIdx = i
 			break
 		}
@@ -886,6 +890,17 @@ func ifExpressionContainsStatusFunc(expr string) bool {
 		strings.Contains(expr, "cancelled(")
 }
 
+// validateRestrictedBuiltinSetupSteps rejects jobs.<name>.setup-steps for the
+// activation and pre-activation jobs. setup-steps run before any
+// compiler-generated token-mint or short-circuit protection steps, so
+// allowing arbitrary user-authored steps there could bypass those
+// protections. By contrast, jobs.activation.steps (see
+// validateRestrictedBuiltinSteps) is inserted later in the job, before
+// artifact staging but after the activation gate/output has already run, so
+// it is not equivalent to setup-steps and is intentionally allowed for the
+// activation job. Injected steps content is still scanned for GitHub CLI
+// write-command usage (see cacheActivationPreStepPermissions) regardless of
+// which field it came from.
 func validateRestrictedBuiltinSetupSteps(jobName string, hasSetupSteps bool) error {
 	if !hasSetupSteps {
 		return nil
@@ -901,6 +916,31 @@ func validateRestrictedBuiltinSetupSteps(jobName string, hasSetupSteps bool) err
 	}
 
 	return nil
+}
+
+// validateRestrictedBuiltinSteps rejects jobs.<name>.steps on built-in jobs
+// other than activation. Unlike setup-steps and pre-steps, steps are only
+// applied to the activation job (inserted before artifact staging); silently
+// accepting the field on other built-in jobs (e.g. pre-activation,
+// safe_outputs) would discard the user's configuration without feedback.
+// Custom (non-built-in) jobs are unaffected since their steps field is a
+// regular job definition field, not an injection field.
+func validateRestrictedBuiltinSteps(jobName string, targetJobName string, hasSteps bool) error {
+	if !hasSteps || !isBuiltinJobName(targetJobName) || targetJobName == string(constants.ActivationJobName) {
+		return nil
+	}
+	// jobs.pre-activation.steps is a distinct, already-validated custom field
+	// (see extractPreActivationCustomFields) handled outside of this
+	// built-in setup/pre-steps injection path; it is not subject to this
+	// restriction.
+	if targetJobName == string(constants.PreActivationJobName) {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"jobs.%s.steps is not allowed: steps are only supported for the activation job",
+		jobName,
+	)
 }
 
 // insertSetupStepsAtStart places setup-steps at the start of the job so they
