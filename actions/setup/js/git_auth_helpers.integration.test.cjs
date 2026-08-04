@@ -193,6 +193,36 @@ describe("git_auth_helpers.cjs git integration", () => {
       // No value written — key is absent in all scopes.
       await expect(unsetExtraheaderAllScopes(EXTRAHEADER_KEY, repoDir)).resolves.toBeUndefined();
     });
+
+    it("clears the value from an includeIf.gitdir-referenced config file (checkout v7 style)", async () => {
+      // Simulate actions/checkout@v7: it writes credentials to a separate config
+      // file under RUNNER_TEMP and references it via a local includeIf.gitdir entry
+      // instead of writing the extraheader directly into local/global config.
+      const origRunnerTemp = process.env.RUNNER_TEMP;
+      process.env.RUNNER_TEMP = root;
+      try {
+        const credFile = path.join(root, "git-credentials-abc123.config");
+        fs.writeFileSync(credFile, `[http "${SERVER_URL}/"]\n\textraheader = Authorization: basic upstream\n`);
+        const gitDirPath = repoDir + path.sep;
+        runGit(["config", "--local", `includeIf.gitdir:${gitDirPath}.path`, credFile], repoDir, globalConfigPath);
+
+        // The value is effective (visible via --get-all which resolves includes)
+        expect(readConfigValues(EXTRAHEADER_KEY, null, repoDir, globalConfigPath)).toHaveLength(1);
+
+        await unsetExtraheaderAllScopes(EXTRAHEADER_KEY, repoDir);
+
+        // After clearing, the include file's value must be gone and no longer effective.
+        const fileContents = fs.readFileSync(credFile, "utf8");
+        expect(fileContents).not.toContain("extraheader");
+        expect(readConfigValues(EXTRAHEADER_KEY, null, repoDir, globalConfigPath)).toHaveLength(0);
+      } finally {
+        if (origRunnerTemp !== undefined) {
+          process.env.RUNNER_TEMP = origRunnerTemp;
+        } else {
+          delete process.env.RUNNER_TEMP;
+        }
+      }
+    });
   });
 
   // ──────────────────────────────────────────────────────

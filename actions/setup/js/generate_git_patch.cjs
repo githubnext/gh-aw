@@ -251,7 +251,21 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           }
 
           if (defaultBranchRef) {
-            baseRef = execGitSync(["merge-base", "--", defaultBranchRef, tipRef], { cwd }).trim();
+            try {
+              baseRef = execGitSync(["merge-base", "--", defaultBranchRef, tipRef], { cwd }).trim();
+            } catch (mergeBaseError) {
+              // A shallow clone (or a `--depth` fetch that grafted history onto an
+              // otherwise complete clone) can make the merge-base unreachable.
+              // Surface that explicitly instead of the misleading "branch does not
+              // exist locally" message.
+              if (fs.existsSync(path.join(cwd || process.cwd(), ".git", "shallow"))) {
+                throw new Error(
+                  `${ERR_SYSTEM}: Could not compute merge-base between ${defaultBranchRef} and ${tipRef} because the repository is a shallow clone (.git/shallow exists). ` +
+                    "Deepen the clone (checkout.fetch-depth: 0) so the common ancestor is reachable."
+                );
+              }
+              throw mergeBaseError;
+            }
             debugLog(`Strategy 1 (full): Computed merge-base: ${baseRef}`);
           } else {
             // No remote refs available - fall through to Strategy 2
@@ -309,6 +323,16 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
       } catch (branchError) {
         // Branch does not exist locally (or pinnedSha failed)
         debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${getErrorMessage(branchError)}`);
+        // Shallow-clone diagnostics (ERR_SYSTEM errors thrown from the merge-base
+        // block above) must reach callers immediately — falling through to Strategy 2
+        // or 3 would produce a misleading "No changes to commit" result instead.
+        if (getErrorMessage(branchError).startsWith(ERR_SYSTEM)) {
+          return {
+            success: false,
+            error: getErrorMessage(branchError),
+            patchPath: patchPath,
+          };
+        }
         if (options.pinnedSha) {
           // SECURITY: When pinnedSha is set, fail closed — do not fall through to
           // other strategies that would resolve a different commit.

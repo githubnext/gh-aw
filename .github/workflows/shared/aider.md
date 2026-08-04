@@ -2,6 +2,14 @@
 runtimes:
   python:
     version: "3.12"
+pre-agent-steps:
+  - name: Preinstall Aider CLI
+    run: |
+      python3 -m pip install --quiet --user --disable-pip-version-check aider-chat==0.86.2
+      "$HOME/.local/bin/aider" --version
+    env:
+      AIDER_ANALYTICS_DISABLE: "true"
+      AIDER_CHECK_UPDATE: "false"
 engine:
   id: aider
   display-name: Aider
@@ -58,7 +66,6 @@ engine:
       const { join } = require("path");
       const { homedir } = require("os");
 
-      const AIDER_VERSION = "0.86.2";
       const [command, ...commandArgs] = process.argv.slice(2);
 
       const fail = (result, action) => {
@@ -69,15 +76,6 @@ engine:
 
       const localBin = join(homedir(), ".local", "bin");
       const env = { ...process.env, PATH: `${localBin}:${process.env.PATH || ""}` };
-
-      fail(
-        spawnSync(
-          "python3",
-          ["-m", "pip", "install", "--quiet", "--user", "--disable-pip-version-check", `aider-chat==${AIDER_VERSION}`],
-          { stdio: "inherit", env }
-        ),
-        "Aider installation"
-      );
 
       const promptFile = process.env.GH_AW_PROMPT;
       if (!promptFile) {

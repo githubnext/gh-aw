@@ -709,6 +709,80 @@ describe("generateGitPatch – full mode base ref (merge-base, not stale origin)
   });
 });
 
+describe("generateGitPatch – shallow clone merge-base error surfaces to caller", () => {
+  let repoDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE, GITHUB_SHA: process.env.GITHUB_SHA };
+    global.core = { debug: () => {}, info: () => {}, warning: () => {}, error: () => {} };
+
+    repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-shallow-"));
+    execSync("git init -b main", { cwd: repoDir });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir });
+    execSync('git config user.name "Test"', { cwd: repoDir });
+
+    delete process.env.GITHUB_WORKSPACE;
+    delete process.env.GITHUB_SHA;
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+  });
+
+  afterEach(() => {
+    Object.entries(originalEnv).forEach(([k, v]) => {
+      if (v !== undefined) process.env[k] = v;
+      else delete process.env[k];
+    });
+    if (repoDir && fs.existsSync(repoDir)) {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    }
+    delete require.cache[require.resolve("./generate_git_patch.cjs")];
+    delete global.core;
+  });
+
+  it("should return a shallow-clone diagnostic (not a generic error) when merge-base fails due to shallow clone", async () => {
+    // Set up remote + local repo
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-patch-shallow-remote-"));
+    try {
+      execSync("git init --bare -b main", { cwd: remoteDir });
+      execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir });
+
+      // Commit several times on main so there is depth
+      for (let i = 0; i < 5; i++) {
+        fs.writeFileSync(path.join(repoDir, `commit${i}.txt`), `content ${i}\n`);
+        execSync("git add .", { cwd: repoDir });
+        execSync(`git commit -m "main commit ${i}"`, { cwd: repoDir });
+      }
+      execSync("git push origin main", { cwd: repoDir });
+
+      // Create feature branch
+      execSync("git checkout -b feature", { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "feature.txt"), "feature\n");
+      execSync("git add .", { cwd: repoDir });
+      execSync('git commit -m "feature commit"', { cwd: repoDir });
+
+      // Simulate a shallow clone by creating a .git/shallow file that grafts
+      // history so merge-base cannot be resolved
+      const tipSha = execSync("git rev-parse HEAD", { cwd: repoDir }).toString().trim();
+      fs.writeFileSync(path.join(repoDir, ".git", "shallow"), `${tipSha}\n`);
+
+      // Also set up origin/main as if it were fetched
+      execSync("git fetch origin main:refs/remotes/origin/main", { cwd: repoDir });
+
+      const { generateGitPatch } = require("./generate_git_patch.cjs");
+      const result = await generateGitPatch("feature", "main", { cwd: repoDir, mode: "full" });
+
+      // The error must surface to the caller with the shallow-clone explanation
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/shallow clone/i);
+      expect(result.error).toMatch(/fetch-depth.*0|deepen/i);
+    } finally {
+      if (fs.existsSync(remoteDir)) {
+        fs.rmSync(remoteDir, { recursive: true, force: true });
+      }
+    }
+  });
+});
+
 describe("generateGitPatch – Strategy 3 picks closest remote merge-base", () => {
   let repoDir;
   let originalEnv;

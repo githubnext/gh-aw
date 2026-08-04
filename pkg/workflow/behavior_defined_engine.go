@@ -214,11 +214,16 @@ func (e *BehaviorDefinedEngine) GetAgentManifestPathPrefixes() []string {
 }
 
 func (e *BehaviorDefinedEngine) RenderMCPConfig(sb *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
-	behavior := e.behavior()
-	if behavior == nil || behavior.MCP == nil || behavior.MCP.ConfigPath == "" {
-		return nil
+	// The rendered config is piped to start_mcp_gateway.cjs, which is what actually
+	// launches the MCP gateway container. It must therefore be emitted even when the
+	// engine declares no MCP config path (e.g. engines with `mcp: false` that consume
+	// MCP-backed tools through cli-proxy): skipping it leaves the gateway container
+	// unstarted while AWF still attempts to attach it to the internal network.
+	configPath := constants.ShellMcpServersJsonPath
+	if behavior := e.behavior(); behavior != nil && behavior.MCP != nil && behavior.MCP.ConfigPath != "" {
+		configPath = behavior.MCP.ConfigPath
 	}
-	return renderDefaultJSONMCPConfig(sb, tools, mcpTools, workflowData, behavior.MCP.ConfigPath)
+	return renderDefaultJSONMCPConfig(sb, tools, mcpTools, workflowData, configPath)
 }
 
 // harnessScriptHeredocDelimiter is the shell heredoc delimiter used when writing

@@ -37,6 +37,48 @@ const { ERR_API } = require("./error_codes.cjs");
 const TRUSTED_CHECKOUT_PERMISSIONS = ["write", "maintain", "admin"];
 
 /**
+ * Determine whether the current repository is a shallow clone.
+ *
+ * A `--depth` fetch against an already-complete clone writes `.git/shallow` and
+ * grafts history, silently undoing an explicit `checkout: fetch-depth: 0`. That
+ * breaks later `git merge-base` calls (e.g. patch generation for
+ * create_pull_request). We therefore only pass `--depth` when the repository is
+ * already shallow; a complete clone already has the objects we need.
+ *
+ * @returns {Promise<boolean>} true when the repository is shallow
+ */
+async function isShallowRepository() {
+  try {
+    const result = await exec.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], {
+      silent: true,
+      ignoreReturnCode: true,
+    });
+    if (result.exitCode !== 0) {
+      return false;
+    }
+    return result.stdout.trim() === "true";
+  } catch (e) {
+    core.warning(`Could not determine repository shallowness, assuming complete clone: ${getErrorMessage(e)}`);
+    return false;
+  }
+}
+
+/**
+ * Build the optional `--depth=N` argument for a fetch, omitting it when the
+ * repository is a complete (non-shallow) clone.
+ *
+ * @param {number} fetchDepth
+ * @returns {Promise<string[]>}
+ */
+async function depthArgs(fetchDepth) {
+  if (await isShallowRepository()) {
+    return [`--depth=${fetchDepth}`];
+  }
+  core.info("Repository is not shallow (e.g. fetch-depth: 0), fetching without --depth to preserve full history");
+  return [];
+}
+
+/**
  * Log detailed PR context information for debugging
  */
 function logPRContext(eventName, pullRequest) {
@@ -264,7 +306,9 @@ async function main() {
       logCheckoutStrategy(eventName, "git fetch + checkout", "pull_request event runs in merge commit context with PR branch available");
 
       core.info(`Fetching branch: ${branchName} from origin (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
-      await exec.exec("git", ["fetch", "origin", branchName, `--depth=${fetchDepth}`]);
+      const fetchArgs = await depthArgs(fetchDepth);
+      core.info(fetchArgs.length > 0 ? `Fetching with ${fetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
+      await exec.exec("git", ["fetch", "origin", branchName, ...fetchArgs]);
 
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", branchName]);
@@ -304,7 +348,9 @@ async function main() {
       const fetchDepth = (commitCount || 1) + 1; // +1 to include the merge base
 
       core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
-      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:refs/remotes/origin/pr-head`, `--depth=${fetchDepth}`]);
+      const prFetchArgs = await depthArgs(fetchDepth);
+      core.info(prFetchArgs.length > 0 ? `Fetching with ${prFetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
+      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:refs/remotes/origin/pr-head`, ...prFetchArgs]);
 
       const branchName = headRef || `pr-${prNumber}`;
       core.info(`Checking out branch: ${branchName}`);
