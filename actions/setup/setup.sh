@@ -95,7 +95,24 @@ debug_log "Created directory: ${DESTINATION}"
 # On persistent runners, a previous AWF run may leave this directory (or subdirectories
 # like sandbox/firewall/) owned by root. Plain rm -rf fails with EACCES in that case,
 # so we fall back to sudo rm -rf which is available passwordless on GitHub-hosted runners.
-if [ -d /tmp/gh-aw ] && [ ! -w /tmp/gh-aw ]; then
+#
+# The reset is skipped when the runtime tree already holds the current run's state.
+# setup.sh can be re-executed from inside a running workflow (for example a workflow
+# whose custom steps run this repository's test suite, which shells out to setup.sh).
+# Wiping /tmp/gh-aw at that point deletes the activation prompt that was already
+# downloaded into /tmp/gh-aw/aw-prompts/prompt.txt, and the agent then fails with
+# "failed to read prompt file /tmp/gh-aw/aw-prompts/prompt.txt: ENOENT".
+# GH_AW_SKIP_TMP_RESET=1 disables the reset explicitly for the same reason.
+SKIP_TMP_RESET=""
+if [ "${GH_AW_SKIP_TMP_RESET:-0}" = "1" ]; then
+  SKIP_TMP_RESET="GH_AW_SKIP_TMP_RESET=1"
+elif [ -f /tmp/gh-aw/aw-prompts/prompt.txt ]; then
+  SKIP_TMP_RESET="an activation prompt is already present"
+fi
+
+if [ -n "${SKIP_TMP_RESET}" ]; then
+  debug_log "Skipping /tmp/gh-aw reset: ${SKIP_TMP_RESET}"
+elif [ -d /tmp/gh-aw ] && [ ! -w /tmp/gh-aw ]; then
   debug_log "/tmp/gh-aw exists but is not writable (likely root-owned from prior run); using sudo to remove"
   if command -v sudo >/dev/null 2>&1; then
     sudo -n rm -rf /tmp/gh-aw
