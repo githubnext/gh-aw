@@ -33,6 +33,20 @@ func TestParseWorkflowSpecPartsHostAllowlist(t *testing.T) {
 			wantRepo:  "repo",
 		},
 		{
+			name:      "raw.githubusercontent.com host is normalized to github.com",
+			spec:      "raw.githubusercontent.com/owner/repo/path/to/file.md",
+			wantHost:  "github.com",
+			wantOwner: "owner",
+			wantRepo:  "repo",
+		},
+		{
+			name:      "repository name containing dots is allowed",
+			spec:      "github.com/github/.github/path/to/file.md",
+			wantHost:  "github.com",
+			wantOwner: "github",
+			wantRepo:  ".github",
+		},
+		{
 			name:    "attacker host is rejected",
 			spec:    "evil.com/owner/repo/path/to/file.md",
 			wantErr: true,

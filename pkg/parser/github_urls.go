@@ -380,8 +380,25 @@ func IsValidGitHubIdentifier(s string) bool {
 }
 
 // IsValidGitHubRepositoryName checks if a string is a valid GitHub repository name.
+// Repository names may additionally contain dots (e.g. "github/.github" or
+// "my.repo"), but the relative path segments "." and ".." are rejected so the
+// name can never be used for path traversal.
 func IsValidGitHubRepositoryName(s string) bool {
-	return isValidGitHubNameWithMaxLength(s, maxGitHubRepositoryNameLength)
+	if s == "" || len(s) > maxGitHubRepositoryNameLength {
+		return false
+	}
+	if s == "." || s == ".." {
+		return false
+	}
+	if s[0] == '-' || s[len(s)-1] == '-' {
+		return false
+	}
+	for _, ch := range s {
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' && ch != '_' && ch != '.' {
+			return false
+		}
+	}
+	return true
 }
 
 // IsGitHubHost returns true if the given host is a recognized GitHub or GitHub
