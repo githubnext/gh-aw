@@ -8,6 +8,10 @@ interface ConstantDeclaration {
 }
 
 const MIN_NUMERIC_DUPLICATE_GROUP_SIZE = 3;
+// Booleans only have 2 possible values module-wide, an even smaller space than "small numbers",
+// so unrelated constants coincidentally sharing `true`/`false` are at least as likely as the
+// numeric case above. Apply the same minimum-group-size guard to avoid false positives.
+const MIN_BOOLEAN_DUPLICATE_GROUP_SIZE = 3;
 
 function getStaticValueKey(node: TSESTree.Expression): string | null {
   if (node.type === AST_NODE_TYPES.Literal) {
@@ -79,7 +83,8 @@ export const noDuplicateConstantValuesRule = createRule({
       },
       "Program:exit"() {
         for (const [valueKey, declarations] of constantsByValue) {
-          const shouldReportDuplicates = declarations.length > 1 && (!valueKey.startsWith("number:") || declarations.length >= MIN_NUMERIC_DUPLICATE_GROUP_SIZE);
+          const minGroupSize = valueKey.startsWith("number:") ? MIN_NUMERIC_DUPLICATE_GROUP_SIZE : valueKey.startsWith("boolean:") ? MIN_BOOLEAN_DUPLICATE_GROUP_SIZE : 2;
+          const shouldReportDuplicates = declarations.length >= minGroupSize;
           if (!shouldReportDuplicates) continue;
 
           const original = declarations[0];
