@@ -26,7 +26,6 @@ safe-outputs:
   create-issue:
     title-prefix: "[squad-plan] "
     labels: [cookie]
-    assignees: [copilot]
     max: 8
 ---
 

@@ -13116,6 +13116,11 @@
               "type": "boolean",
               "description": "Marks the engine as experimental so compiled workflows can surface an explicit warning."
             },
+            "mcp": {
+              "type": "boolean",
+              "description": "Whether the engine supports MCP. When false, the compiler automatically enables gh-proxy and cli-proxy and rejects attempts to disable either proxy.",
+              "default": true
+            },
             "runtime-id": {
               "type": "string",
               "description": "Runtime adapter identifier. Maps to the CodingAgentEngine registered in the engine registry. Defaults to id when omitted."

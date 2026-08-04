@@ -7,6 +7,7 @@ engine:
   display-name: Aider
   description: Aider AI pair programming CLI running in scripting (non-interactive) mode
   experimental: true
+  mcp: false
   provider:
     name: github
   behaviors:
@@ -111,7 +112,7 @@ from `OPENAI_API_BASE`.
 
 Aider runs in scripting mode: the generated prompt file is passed with
 `--message-file` and all confirmations are auto-accepted (`--yes-always`).
-Aider has no MCP client, so MCP-backed tools are unavailable. Disable the
-GitHub MCP server with `tools: github: false` and rely on `bash:` tools, file
-edits, and safe outputs written to `$GH_AW_SAFE_OUTPUTS` instead.
+Aider has no MCP client, so the compiler exposes MCP-backed tools through
+`cli-proxy` and GitHub access through `gh-proxy`. Both proxies are enabled
+automatically and cannot be disabled for this engine.
 -->
