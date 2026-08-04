@@ -95,7 +95,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	}
 
 	// Build the Docker command with JSON output for easier parsing
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir <PoutineImage> analyze_local . --format json
 	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path
 	// exec.Command with separate args (not shell execution) prevents command injection
 	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
@@ -112,7 +112,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 		"--rm",
 		"-v", volumeMount,
 		"-w", "/workdir",
-		"ghcr.io/boostsecurityio/poutine:latest",
+		PoutineImage,
 		"analyze_local",
 		".",
 		"--format", "json",
@@ -130,7 +130,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 			"--rm",
 			"-v", volumeMount,
 			"-w", "/workdir",
-			"ghcr.io/boostsecurityio/poutine:latest",
+			PoutineImage,
 			"analyze_local",
 			".",
 			"--format", "json",
@@ -215,7 +215,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	}
 
 	// Build the Docker command with JSON output for easier parsing
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir <PoutineImage> analyze_local . --format json
 	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path
 	// exec.Command with separate args (not shell execution) prevents command injection
 	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
@@ -232,7 +232,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 		"--rm",
 		"-v", volumeMount,
 		"-w", "/workdir",
-		"ghcr.io/boostsecurityio/poutine:latest",
+		PoutineImage,
 		"analyze_local",
 		".",
 		"--format", "json",
@@ -250,7 +250,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 			"--rm",
 			"-v", volumeMount,
 			"-w", "/workdir",
-			"ghcr.io/boostsecurityio/poutine:latest",
+			PoutineImage,
 			"analyze_local",
 			".",
 			"--format", "json",
