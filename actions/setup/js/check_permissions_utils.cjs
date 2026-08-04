@@ -272,10 +272,10 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     const resolvedBaseRole = isCustomRole && STANDARD_ROLES.has(normalizedPermission) ? normalizedPermission : "";
     const debugRoleName = normalizedRoleName || "<empty>";
     const debugBaseRole = resolvedBaseRole || "<empty>";
-    core.debug?.(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}'`);
-    core.debug?.(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, base_role='${debugBaseRole}'`);
+    core.info(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}'`);
+    core.info(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, base_role='${debugBaseRole}'`);
     if (isCustomRole && resolvedBaseRole === "") {
-      core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not report a standard permission level`);
+      core.info(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not report a standard permission level`);
     }
 
     // Check if user has one of the required permission levels.
@@ -298,12 +298,12 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     }
 
     if (permissionMatch) {
-      core.debug?.(`Repository permission matched required role '${permissionMatch.permission}' via ${permissionMatch.roleMatchType}`);
+      core.info(`Repository permission matched required role '${permissionMatch.permission}' via ${permissionMatch.roleMatchType}`);
       core.info(`✅ User has ${effectiveRole} access to repository`);
       return { authorized: true, permission: effectiveRole };
     }
 
-    core.debug?.(`Repository permission did not match required roles: ${requiredPermissions.join(", ")}`);
+    core.info(`Repository permission did not match required roles: ${requiredPermissions.join(", ")}`);
     core.warning(`User permission '${effectiveRole}' does not meet requirements: ${requiredPermissions.join(", ")}`);
     return { authorized: false, permission: effectiveRole };
   } catch (repoError) {
