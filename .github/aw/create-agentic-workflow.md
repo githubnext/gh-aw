@@ -20,6 +20,7 @@ Design and create new workflow files under `.github/workflows/` using the instal
 
 Load these topic files only when relevant:
 
+- [maintainer.md](maintainer.md) for recurring repository maintenance, backlog triage, owned-PR upkeep, or long-term code health
 - [campaign.md](campaign.md) for campaign, KPI, pacing, cadence, or `stop-after`
 - [experiments.md](experiments.md) for experiments, A/B tests, variants, or prompt comparisons
 - [visual-regression.md](visual-regression.md) for screenshot comparison workflows
@@ -40,13 +41,14 @@ Start with exactly:
 Then follow a progressive interview — ask one question at a time, advance only when the current phase is clear:
 
 1. **Goal** — confirm workflow name (kebab-case), brief description, optional emoji.
-2. **Trigger** — ask "When should this run?" and map to an `on:` block (see trigger mapping in [designer.md](designer.md)).
-3. **Scope** — ask what it reads and what it creates or updates; map to `permissions:`, `tools:`, and `safe-outputs:`.
-4. **Data strategy** — ask whether GitHub data should be pre-fetched with `gh` + `jq` (DataOps default); map to `steps:`.
-5. **Guardrails** — ask whether it should block, advise, or silently log; guide toward `noop` and safe-output behavior.
-6. **Context & network** — ask about external APIs, MCP servers, and required secrets; map to `network.allowed` and `env:`.
-7. **Engine** (skip if obvious) — if ambiguous, suggest Copilot as the default.
-8. **Confirmation** — present a structured summary before generating:
+2. **Repository survey for maintenance workflows** — before choosing a portfolio or cadence, inspect the target repository using [maintainer.md](maintainer.md). Infer project type, contribution and validation rules, repository layout, recent activity, issue and pull request state, labels, releases, and CI health. Summarize the observed signals and derive an initial low-risk strategy; ask only for policy or capacity information that cannot be inferred.
+3. **Trigger** — ask "When should this run?" and map to an `on:` block (see trigger mapping in [designer.md](designer.md)).
+4. **Scope** — ask what it reads and what it creates or updates; map to `permissions:`, `tools:`, and `safe-outputs:`.
+5. **Data strategy** — ask whether GitHub data should be pre-fetched with `gh` + `jq` (DataOps default); map to `steps:`.
+6. **Guardrails** — ask whether it should block, advise, or silently log; guide toward `noop` and safe-output behavior.
+7. **Context & network** — ask about external APIs, MCP servers, and required secrets; map to `network.allowed` and `env:`.
+8. **Engine** (skip if obvious) — if ambiguous, suggest Copilot as the default.
+9. **Confirmation** — present a structured summary before generating:
 
    ```text
    Proposed workflow:
@@ -57,6 +59,8 @@ Then follow a progressive interview — ask one question at a time, advance only
    - Safe outputs: <list or none>
    - Network: <allowed summary>
    - Integrations/Auth: <service/mcp + required secrets/env vars>
+   - Repository signals: <maintenance workflows only>
+   - Initial maintenance portfolio: <maintenance workflows only>
    - Intent: <one-sentence task>
    ```
 
@@ -318,6 +322,7 @@ Before finalizing any `pull_request`-triggered reporting workflow, verify:
 Before finalizing any newly generated workflow, verify:
 
 - [ ] **Trigger fit**: trigger matches user intent and event granularity (for example `pull_request`, `workflow_run`, `deployment_status`, `schedule`, `slash_command`)
+- [ ] **Maintenance baseline**: recurring maintenance strategies are derived from a bounded repository survey, with observed signals separated from recommendations
 - [ ] **Tool fit**: enabled tools are the minimal set needed for reads/analysis (prefer `gh-proxy`; add `playwright`/`cache-memory` only when required)
 - [ ] **Safe outputs**: all visible writes route through `safe-outputs:` and include `noop` for explicit no-op outcomes
 - [ ] **Permissions**: agent job remains read-only; no direct write scopes granted

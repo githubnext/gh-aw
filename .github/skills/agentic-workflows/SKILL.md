@@ -42,6 +42,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/llms.md`
 - `.github/aw/loop.md`
 - `.github/aw/lsp.md`
+- `.github/aw/maintainer.md`
 - `.github/aw/mcp-clis.md`
 - `.github/aw/memory-stateful-patterns.md`
 - `.github/aw/memory.md`
@@ -99,3 +100,4 @@ After loading the matching workflow prompt or skill, follow it directly:
 - Design long-running multi-agent research workflows: `.github/aw/multi-agent-research.md`
 
 When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt or skill.
+

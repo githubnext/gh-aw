@@ -20,12 +20,13 @@ func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 		engineID    string
 		displayName string
 		provider    string
+		mcp         *bool
 	}{
-		{"claude", "Claude Code", "anthropic"},
-		{"codex", "Codex", "openai"},
-		{"copilot", "GitHub Copilot CLI", "github"},
-		{"gemini", "Google Gemini CLI", "google"},
-		{"pi", "Pi", "github"},
+		{"claude", "Claude Code", "anthropic", nil},
+		{"codex", "Codex", "openai", nil},
+		{"copilot", "GitHub Copilot CLI", "github", nil},
+		{"gemini", "Google Gemini CLI", "google", nil},
+		{"pi", "Pi", "github", boolPtr(false)},
 	}
 
 	for _, tt := range tests {
@@ -38,6 +39,7 @@ func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 			assert.Equal(t, tt.displayName, resolved.Definition.DisplayName, "Definition.DisplayName should match")
 			assert.Equal(t, tt.provider, resolved.Definition.Provider.Name, "Definition.Provider.Name should match")
 			assert.Equal(t, tt.engineID, resolved.Runtime.GetID(), "Runtime.GetID() should match engine ID")
+			assert.Equal(t, tt.mcp, resolved.Definition.MCP, "Definition.MCP should match")
 		})
 	}
 }

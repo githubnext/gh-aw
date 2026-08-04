@@ -28,6 +28,7 @@ func NewAntigravityEngine() *AntigravityEngine {
 			ghSkillAgentName: "antigravity",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:       true,
+				MCP:                  true,
 				MaxTurns:             true,
 				MaxContinuations:     false, // Antigravity CLI does not support --max-autopilot-continues-style continuation mode
 				WebSearch:            false,

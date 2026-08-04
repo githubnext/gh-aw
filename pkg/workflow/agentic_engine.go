@@ -114,6 +114,9 @@ type EngineCapabilities struct {
 	// ToolsAllowlist reports whether the engine supports MCP tool allow-listing.
 	ToolsAllowlist bool
 
+	// MCP reports whether the engine supports MCP servers directly.
+	MCP bool
+
 	// MaxTurns reports whether the engine supports the max-turns feature.
 	MaxTurns bool
 
@@ -148,6 +151,13 @@ type EngineCapabilities struct {
 // Engines can optionally implement this to indicate feature support.
 type CapabilityProvider interface {
 	GetCapabilities() EngineCapabilities
+}
+
+// MCPProxyEngine provides the identity and MCP capability information needed to
+// configure CLI proxy tools.
+type MCPProxyEngine interface {
+	Engine
+	CapabilityProvider
 }
 
 // WorkflowExecutor handles workflow compilation and execution
