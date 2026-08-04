@@ -436,6 +436,27 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"enableTokenSteering":true`, "apiProxy should emit enableTokenSteering by default")
 	})
 
+	t.Run("token steering can be disabled in the sandbox config", func(t *testing.T) {
+		disabled := false
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{TokenSteering: &disabled},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"enableTokenSteering":false`, "apiProxy should emit the sandbox token-steering override")
+	})
+
 	t.Run("token steering is disabled when max-ai-credits is negative", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",

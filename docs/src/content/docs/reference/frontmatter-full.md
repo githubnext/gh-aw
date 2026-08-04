@@ -2117,6 +2117,11 @@ sandbox:
     # Format 2: GitHub Actions expression that resolves to a boolean at runtime
     model-fallback: "example-value"
 
+    # Enable or disable API proxy token steering. Set to false to preserve the
+    # explicitly configured provider and model.
+    # (optional)
+    token-steering: true
+
     # Container runtime for the agent container. Use 'gvisor' to run the agent under
     # gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx'
     # to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation

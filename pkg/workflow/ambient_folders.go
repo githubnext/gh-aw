@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
@@ -86,7 +87,7 @@ func generateStageAmbientFoldersStep(data *WorkflowData) []string {
 	}
 	folders := strings.Join(data.AmbientFolders, " ")
 	return []string{
-		"      - name: Stage ambient folders for activation artifact\n",
+		"      - name: " + constants.ActivationStageAmbientFoldersStepName + "\n",
 		"        env:\n",
 		fmt.Sprintf("          GH_AW_AMBIENT_FOLDERS: \"%s\"\n", folders),
 		"        # poutine:ignore untrusted_checkout_exec\n",

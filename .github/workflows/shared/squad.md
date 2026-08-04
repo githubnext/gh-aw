@@ -26,6 +26,7 @@
 # the activation job.
 engine:
   id: copilot
+  agent: squad
 on:
   ambient-folders:
     - .squad
@@ -33,7 +34,7 @@ on:
 
 jobs:
   activation:
-    pre-steps:
+    steps:
       - name: Mint Squad GitHub App token
         id: squad-app-token
         if: ${{ vars.SQUAD_GITHUB_APP_ID != '' }}
@@ -57,7 +58,7 @@ jobs:
 This shared component moves the entire Squad (https://github.com/bradygaster/squad)
 install/init lifecycle out of the agent job:
 
-1. **`jobs.activation.pre-steps`** — the repository is already checked out by the
+1. **`jobs.activation.steps`** — the repository is already checked out by the
    activation job itself, so this only installs the pinned `@bradygaster/squad-cli`
    npm release, optionally mints a GitHub App installation token (or uses a supplied
    PAT) so `squad init` can see other organizations or private repositories, and runs

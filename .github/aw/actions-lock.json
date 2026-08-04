@@ -128,10 +128,10 @@
       "version": "v1.24.1",
       "sha": "54075bcc5e249e4758d363f27d099f55d843f124"
     },
-    "github/codeql-action/upload-sarif@v4.37.4": {
+    "github/codeql-action/upload-sarif@v4.37.5": {
       "repo": "github/codeql-action/upload-sarif",
-      "version": "v4.37.4",
-      "sha": "f205ea1c3313d32999d8d6a48b4f6530d4437b38"
+      "version": "v4.37.5",
+      "sha": "d1ba80a13dd99fba24a470575428917156a28b43"
     },
     "github/stale-repos@v9.0.16": {
       "repo": "github/stale-repos",
@@ -232,8 +232,8 @@
     },
     "node:lts-alpine": {
       "image": "node:lts-alpine",
-      "digest": "sha256:f70403e87646dc51b45295f4b8b70cdad0b63d2297c4c9899119b03f7af7a6b3",
-      "pinned_image": "node:lts-alpine@sha256:f70403e87646dc51b45295f4b8b70cdad0b63d2297c4c9899119b03f7af7a6b3"
+      "digest": "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43",
+      "pinned_image": "node:lts-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
     },
     "python:alpine": {
       "image": "python:alpine",

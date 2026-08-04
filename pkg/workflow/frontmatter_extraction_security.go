@@ -309,6 +309,14 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract token-steering (AWF API proxy token steering enable/disable flag).
+	if tsVal, hasTS := agentObj["token-steering"]; hasTS {
+		if value, ok := tsVal.(bool); ok {
+			agentConfig.TokenSteering = &value
+			frontmatterExtractionSecurityLog.Print("Extracted sandbox.agent.token-steering")
+		}
+	}
+
 	// Extract targets (per-provider API proxy target overrides, e.g. authHeader, extraHeaders)
 	if targetsVal, hasTargets := agentObj["targets"]; hasTargets {
 		if targetsObj, ok := targetsVal.(map[string]any); ok {

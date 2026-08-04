@@ -100,25 +100,32 @@ list_dir() {
   list_dir "gh-aw temp directory"    "${RUNNER_TEMP}/gh-aw"
 } > "${AUDIT_FILE}"
 
-# Render the audit listing as a compact ASCII tree in a fenced code region.
+# Render the audit listing as a collapsed, compact tree in the step summary.
 render_summary_tree() {
   local line
+  local label
+  echo "<details>"
+  echo "<summary>Pre-agent workspace audit</summary>"
+  echo
   echo '```text'
   while IFS= read -r line; do
     case "${line}" in
-      "=== "*) echo "Pre-agent workspace audit" ;;
+      "=== "*) continue ;;
       "--- "*": "*" ---")
-        echo "|   |-- ${line#--- }"
+        label="${line#--- }"
+        echo "│   ├── ${label% ---}"
         ;;
       "--- "*" ---")
-        echo "|-- ${line#--- }"
+        label="${line#--- }"
+        echo "├── ${label% ---}"
         ;;
-      "(not found)") echo "|   |   \-- ${line}" ;;
+      "(not found)") echo "│   │   └── ${line}" ;;
       "") continue ;;
-      *) echo "|   |   \-- ${line}" ;;
+      *) echo "│   │   └── ${line}" ;;
     esac
   done < "${AUDIT_FILE}"
   echo '```'
+  echo "</details>"
 }
 
 LINE_COUNT="$(wc -l < "${AUDIT_FILE}" | tr -d ' ')"
