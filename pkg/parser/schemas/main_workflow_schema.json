@@ -56,6 +56,30 @@
         ["ci", "testing"]
       ]
     },
+    "ambient-folders": {
+      "type": "array",
+      "description": "Workspace-relative folders to include in the activation artifact. Useful for activation steps that generate reusable prompt, skill, or agent context.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9._/\\-]+$",
+        "not": {
+          "anyOf": [
+            {
+              "pattern": "^/"
+            },
+            {
+              "pattern": "(^|/)\\.\\.(/|$)"
+            },
+            {
+              "pattern": "^\\.$"
+            }
+          ]
+        }
+      },
+      "uniqueItems": true,
+      "examples": [[".squad"], [".squad", ".github/agents"]]
+    },
     "skills": {
       "type": "array",
       "description": "Optional list of skill references to install during activation. Supports remote repository-wide installs (`owner/repo@<sha>`), remote path-scoped installs (`owner/repo/skill/path@<sha>`), and local path references (e.g. `skills/rig` or `.github/skills/my-skill`). Remote static references must be pinned to a full 40-character lowercase commit SHA. Local paths are installed with --from-local at runtime and are rewritten to a remote repospec by `gh aw add`. GitHub Actions expressions (`${{ ... }}`) are also accepted and are evaluated at runtime. Entries may also be objects to configure per-skill authentication via github-token or github-app.",
@@ -2053,30 +2077,6 @@
             "allow-bot-authored-trigger-comment": {
               "type": "boolean",
               "description": "Allow the bot-posted-menu / user-checks-box pattern: when a workflow posts a checkbox-menu comment as a GitHub App bot and a human maintainer edits it to tick a box (issue_comment:edited where actor \u2260 comment.user.login), treat this as safe and skip the confused-deputy check. When false (default), the check applies to all issue_comment events. The Dependabot confused-deputy attack vector (issue_comment:created) is unaffected."
-            },
-            "ambient-folders": {
-              "type": "array",
-              "description": "Workspace-relative folders to bundle in the activation artifact and restore before the agent runs. Useful for activation steps that generate reusable prompt, skill, or agent context.",
-              "items": {
-                "type": "string",
-                "minLength": 1,
-                "pattern": "^[A-Za-z0-9._/\\-]+$",
-                "not": {
-                  "anyOf": [
-                    {
-                      "pattern": "^/"
-                    },
-                    {
-                      "pattern": "(^|/)\\.\\.(/|$)"
-                    },
-                    {
-                      "pattern": "^\\.$"
-                    }
-                  ]
-                }
-              },
-              "uniqueItems": true,
-              "examples": [[".squad"], [".squad", ".github/agents"]]
             },
             "manual-approval": {
               "type": "string",

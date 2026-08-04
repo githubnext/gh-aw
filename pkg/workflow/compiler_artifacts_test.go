@@ -324,9 +324,8 @@ func TestAmbientFoldersIncludedInActivationArtifact(t *testing.T) {
 		t.Fatal(err)
 	}
 	sharedContent := `---
-on:
-  ambient-folders:
-    - .squad
+ambient-folders:
+  - .squad
 jobs:
   activation:
     pre-steps:
@@ -371,11 +370,8 @@ imports:
 	lockYAML := string(lockContent)
 
 	for _, want := range []string{
-		"Stage ambient folders for activation artifact",
-		"GH_AW_AMBIENT_FOLDERS: \".squad\"",
-		"/tmp/gh-aw/ambient-folders",
-		"Restore ambient folders from activation artifact",
-		".squad",
+		"path: /",
+		"            .squad",
 	} {
 		if !strings.Contains(lockYAML, want) {
 			t.Fatalf("Expected compiled workflow to contain %q, got:\n%s", want, lockYAML)
@@ -390,9 +386,8 @@ func TestAmbientFoldersRestoredAfterCustomCheckout(t *testing.T) {
 		t.Fatal(err)
 	}
 	sharedContent := `---
-on:
-  ambient-folders:
-    - .squad
+ambient-folders:
+  - .squad
 jobs:
   activation:
     pre-steps:
@@ -442,12 +437,12 @@ steps:
 	if checkoutIndex == -1 {
 		t.Fatalf("Expected custom checkout step in compiled workflow, got:\n%s", lockYAML)
 	}
-	restoreIndex := strings.LastIndex(lockYAML, "Restore ambient folders from activation artifact")
-	if restoreIndex == -1 {
-		t.Fatalf("Expected ambient restore step in compiled workflow, got:\n%s", lockYAML)
+	downloadIndex := strings.Index(lockYAML, "name: Download activation artifact")
+	if downloadIndex == -1 {
+		t.Fatalf("Expected activation artifact download step in compiled workflow, got:\n%s", lockYAML)
 	}
-	if restoreIndex < checkoutIndex {
-		t.Fatalf("Expected final ambient restore after custom checkout; checkout index %d, restore index %d", checkoutIndex, restoreIndex)
+	if downloadIndex > checkoutIndex {
+		t.Fatalf("Expected activation artifact download before custom checkout; download index %d, checkout index %d", downloadIndex, checkoutIndex)
 	}
 }
 

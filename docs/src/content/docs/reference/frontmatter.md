@@ -82,7 +82,7 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `restore-memory:` - Opt in to restoring memory stores before `on.steps` in pre-activation (default: `false`)
 - `permissions:` - Grant additional GitHub token scopes to the pre-activation job (for use with `on.steps:` API calls)
 - `needs:` - Add custom job dependencies that both `pre_activation` and `activation` must wait for
-- `ambient-folders:` - Workspace-relative folders to bundle in the activation artifact and restore before the agent runs
+- `ambient-folders:` - Workspace-relative folders to include in the activation artifact
 - `github-token:` - Custom token for activation job reactions, status comments, and skip-if search queries
 - `github-app:` - GitHub App for minting a short-lived token used by the activation job and all skip-if search steps
 

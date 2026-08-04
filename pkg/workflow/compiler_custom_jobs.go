@@ -677,8 +677,7 @@ func insertActivationStepsBeforeArtifactStaging(jobName string, steps []string, 
 
 	insertIdx := len(steps)
 	for i, step := range steps {
-		if strings.Contains(step, "name: "+constants.ActivationStageAmbientFoldersStepName) ||
-			strings.Contains(step, "name: "+constants.ActivationUploadArtifactStepName) {
+		if strings.Contains(step, "name: "+constants.ActivationUploadArtifactStepName) {
 			insertIdx = i
 			break
 		}

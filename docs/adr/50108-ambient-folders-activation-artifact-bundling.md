@@ -12,7 +12,7 @@ Shared workflows that run activation steps (e.g., Squad CLI initialization) prod
 
 ### Decision
 
-We will introduce a new `on.ambient-folders` frontmatter field in gh-aw workflow markdown files. Shared workflows declare the workspace-relative folder paths they produce; the compiler merges those declarations across all imports (deduplicating), adds the declared folders to the activation sparse-checkout, stages them into `/tmp/gh-aw/ambient-folders/` immediately before the activation artifact is uploaded, includes that staging directory in the artifact path list, and emits a restore step in the agent job after the last custom checkout (so multi-checkout workflows do not lose ambient content). Workflows whose `on:` block contains only import-safe keys (including `ambient-folders`) are classified as shared components rather than standalone workflows.
+We will introduce a top-level `ambient-folders` frontmatter field in gh-aw workflow markdown files. Shared workflows declare the workspace-relative folder paths they produce; the compiler merges those declarations across all imports (deduplicating), adds the declared folders to the activation sparse-checkout, and adds them directly to the activation artifact path list. The artifact is extracted at its root in downstream jobs, preserving both the generated `/tmp/gh-aw` files and the declared workspace folders. Workflows with no trigger event remain shared components.
 
 ### Alternatives Considered
 
@@ -31,8 +31,7 @@ Not chosen because: it couples the platform to specific tooling choices, does no
 ### Consequences
 
 #### Positive
-- Shared workflows can declare their folder dependencies once in frontmatter; the compiler handles staging and restore automatically, removing the need for per-consumer download steps.
-- The restore step is injected after the last custom checkout, which prevents multi-checkout workflows from clobbering ambient content.
+- Shared workflows can declare their folder dependencies once in frontmatter; the compiler packages them with the standard activation artifact, removing the need for per-consumer download steps.
 - The merge strategy (union/deduplicated) means multiple shared workflows each declaring overlapping folders still produce a single coherent restore.
 - The field is validated by JSON Schema with path-traversal protections (no `..`, no absolute paths), keeping the attack surface small.
 
@@ -41,8 +40,7 @@ Not chosen because: it couples the platform to specific tooling choices, does no
 - The shared-workflow classification logic now depends on an `on:` field value inspection (`IsImportSafeSharedWorkflowOn`), which increases coupling between the parser and compiler orchestration.
 
 #### Neutral
-- Workflows with `on: ambient-folders: [...]` and no trigger event are now classified as shared components, consistent with the existing behaviour for other import-safe `on:` keys (`skip-if-match`, `github-token`, etc.).
-- The staging script uses `cp -a` (archive copy) and silently skips missing source folders, so workflows that conditionally produce folders do not fail the activation job.
+- Workflows with `ambient-folders: [...]` and no trigger event are classified as shared components.
 
 ---
 

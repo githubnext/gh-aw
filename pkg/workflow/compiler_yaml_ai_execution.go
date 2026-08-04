@@ -355,7 +355,6 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 			registry.GetAllAgentManifestFolders(),
 			registry.GetAllAgentManifestFiles(),
 		)
-		generateRestoreAmbientFoldersStep(yaml, data)
 	}
 
 	// Restore inline sub-agents written during the activation job.

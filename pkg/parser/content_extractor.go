@@ -190,6 +190,36 @@ func extractOnSectionFieldFromMap(frontmatter map[string]any, fieldName string) 
 	return string(jsonData), nil
 }
 
+// extractTopLevelListFieldFromMap extracts a top-level string or array field as a JSON array.
+func extractTopLevelListFieldFromMap(frontmatter map[string]any, fieldName string) (string, error) {
+	fieldValue, exists := frontmatter[fieldName]
+	if !exists {
+		return "[]", nil
+	}
+
+	var normalizedValue []any
+	switch v := fieldValue.(type) {
+	case string:
+		if v != "" {
+			normalizedValue = []any{v}
+		}
+	case []any:
+		normalizedValue = v
+	case []string:
+		for _, s := range v {
+			normalizedValue = append(normalizedValue, s)
+		}
+	default:
+		return "[]", nil
+	}
+
+	jsonData, err := json.Marshal(normalizedValue)
+	if err != nil {
+		return "[]", nil
+	}
+	return string(jsonData), nil
+}
+
 // extractOnSectionAnyFieldFromMap extracts a specific field from the on: section in an already-parsed
 // frontmatter map as a JSON string, handling any value type.
 // This avoids re-parsing YAML when the frontmatter has already been parsed.

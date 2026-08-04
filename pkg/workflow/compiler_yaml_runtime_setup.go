@@ -200,15 +200,12 @@ func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, cu
 		customStepsToEmit = injectProxyEnvIntoCustomSteps(customStepsToEmit)
 	}
 	postLastCheckoutSteps := sharedLogsCacheRestoreSteps(data)
-	if ambientRestoreStep := restoreAmbientFoldersSteps(data); len(ambientRestoreStep) > 0 {
-		postLastCheckoutSteps = append(postLastCheckoutSteps, ambientRestoreStep)
-	}
 	if customStepsContainCheckout && (len(runtimeSetupSteps) > 0 || len(postLastCheckoutSteps) > 0) {
 		// Custom steps contain checkout: insert runtime steps after the first checkout and
 		// workspace restore steps after the last checkout. Inserting restore steps after the
 		// last checkout ensures that a multi-checkout custom steps block (where a later root
-		// checkout would wipe .github/aw/logs or ambient folders) leaves restored content in
-		// place for later custom steps and the agent.
+		// checkout would wipe .github/aw/logs) leaves restored content in place for later
+		// custom steps and the agent.
 		compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps after first checkout, %d post-checkout steps after last checkout", len(runtimeSetupSteps), len(postLastCheckoutSteps))
 		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, postLastCheckoutSteps, data.ParsedTools, isArcDindTopology(data))
 	} else {
@@ -238,8 +235,11 @@ func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings
 	fmt.Fprintf(yaml, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName)
-	yaml.WriteString("          path: /tmp/gh-aw\n")
-	generateRestoreAmbientFoldersStep(yaml, data)
+	if len(data.AmbientFolders) > 0 {
+		yaml.WriteString("          path: /\n")
+	} else {
+		yaml.WriteString("          path: /tmp/gh-aw\n")
+	}
 
 	// Materialize comment-memory safe outputs as editable markdown files BEFORE user steps.
 	// This prepares /tmp/gh-aw/comment-memory/*.md from prior comment history and injects

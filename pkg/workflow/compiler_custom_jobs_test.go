@@ -1019,8 +1019,6 @@ func TestInsertActivationStepsBeforeArtifactStaging(t *testing.T) {
 	steps := []string{
 		"      - name: Generate prompt\n",
 		"        run: echo prompt\n",
-		"      - name: Stage ambient folders for activation artifact\n",
-		"        run: echo stage\n",
 		"      - name: Upload activation artifact\n",
 		"        run: echo upload\n",
 	}
@@ -1032,13 +1030,10 @@ func TestInsertActivationStepsBeforeArtifactStaging(t *testing.T) {
 	result := insertActivationStepsBeforeArtifactStaging(string(constants.ActivationJobName), steps, activationSteps)
 
 	squadIndex := indexOfStep(result, "Initialize Squad team")
-	stageIndex := indexOfStep(result, "Stage ambient folders for activation artifact")
 	uploadIndex := indexOfStep(result, "Upload activation artifact")
 	require.NotEqual(t, -1, squadIndex)
-	require.NotEqual(t, -1, stageIndex)
 	require.NotEqual(t, -1, uploadIndex)
-	assert.Less(t, squadIndex, stageIndex, "activation steps should run before ambient folders are staged")
-	assert.Less(t, stageIndex, uploadIndex, "ambient folders should still stage before upload")
+	assert.Less(t, squadIndex, uploadIndex, "activation steps should run before artifact upload")
 }
 
 func indexOfStep(steps []string, needle string) int {
