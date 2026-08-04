@@ -60,11 +60,9 @@ func (m *Masker) Mask(line string) string {
 //	stage=tool_call key1=val1 key2=val2
 func FlattenEvent(evt AgentEvent, excludeFields []string) string {
 	maskLog.Printf("Flattening event: stage=%s, fields=%d, exclude=%d", evt.Stage, len(evt.Fields), len(excludeFields))
-	excluded := make(map[string]struct {
-	}, len(excludeFields))
+	excluded := make(map[string]struct{}, len(excludeFields))
 	for _, f := range excludeFields {
-		excluded[f] = struct {
-		}{}
+		excluded[f] = struct{}{}
 	}
 
 	keys := sliceutil.FilterMapKeys(evt.Fields, func(k string, _ string) bool {
