@@ -859,6 +859,21 @@ func TestIsValidGitHubRepositoryName(t *testing.T) {
 			want:  false,
 		},
 		{
+			name:  "Valid name with dots",
+			input: ".github",
+			want:  true,
+		},
+		{
+			name:  "Invalid dot-only name",
+			input: ".",
+			want:  false,
+		},
+		{
+			name:  "Invalid parent directory name",
+			input: "..",
+			want:  false,
+		},
+		{
 			name:  "Invalid starts with hyphen",
 			input: "-repo",
 			want:  false,

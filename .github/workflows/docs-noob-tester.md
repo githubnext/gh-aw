@@ -61,7 +61,7 @@ pre-agent-steps:
     run: |
       mkdir -p /tmp/gh-aw/agent
       cd "$EXPR_GITHUB_WORKSPACE/docs" || exit 1
-      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/agent/preview.log 2>&1 &
+      nohup npm run dev -- --host 127.0.0.1 --port 4321 > /tmp/gh-aw/agent/preview.log 2>&1 &
       PID=$!
       echo $PID > /tmp/gh-aw/agent/server.pid
       echo "Server PID: $PID"

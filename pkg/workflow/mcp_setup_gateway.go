@@ -15,6 +15,17 @@ import (
 )
 
 func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error {
+	// If the engine provides an MCP config-adapter script (e.g. Goose), write it to disk
+	// before starting the gateway so that start_mcp_gateway.cjs can execute it once the
+	// gateway has produced its output configuration.
+	if adapterProvider, ok := engine.(MCPConfigAdapterProvider); ok {
+		if adapterStep := adapterProvider.GetMCPConfigAdapterWriteStep(); len(adapterStep) > 0 {
+			for _, line := range adapterStep {
+				yaml.WriteString(line)
+				yaml.WriteByte('\n')
+			}
+		}
+	}
 	yaml.WriteString("      - name: Start MCP Gateway\n")
 	yaml.WriteString("        id: start-mcp-gateway\n")
 	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
@@ -184,6 +195,11 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	yaml.WriteString("          export DEBUG=\"*\"\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
+	if adapterProvider, ok := engine.(MCPConfigAdapterProvider); ok {
+		if adapterFilename := adapterProvider.GetMCPConfigAdapterFilename(); adapterFilename != "" {
+			yaml.WriteString("          export GH_AW_MCP_CONFIG_ADAPTER=\"" + adapterFilename + "\"\n")
+		}
+	}
 	if cliServers := getMCPCLIExcludeFromAgentConfig(workflowData); len(cliServers) > 0 {
 		cliServersJSON, err := json.Marshal(cliServers)
 		if err == nil {

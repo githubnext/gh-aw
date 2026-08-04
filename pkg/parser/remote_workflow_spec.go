@@ -135,11 +135,25 @@ func parseWorkflowSpecParts(spec string) (string, string, string, string, string
 
 	// Optional host-prefixed format: host/owner/repo/path[@ref]
 	if len(slashParts) >= 4 && strings.Contains(slashParts[0], ".") {
+		host := slashParts[0]
+		owner := slashParts[1]
+		repo := slashParts[2]
+		if !IsGitHubHost(host) {
+			return "", "", "", "", "", fmt.Errorf("invalid workflowspec host %q — expected a GitHub host: 'github.com', 'raw.githubusercontent.com', '*.ghe.com' or '*.github.com' (for example: 'github.com/owner/repo/workflows/ci.md@main')", host)
+		}
+		if !IsValidGitHubIdentifier(owner) || !IsValidGitHubRepositoryName(repo) {
+			return "", "", "", "", "", fmt.Errorf("invalid workflowspec repository '%s/%s' — expected 'host/owner/repo/path[@ref]' format (for example: 'github.com/github/gh-aw/workflows/ci.md@main')", owner, repo)
+		}
+		// Raw content is served from raw.githubusercontent.com but the API and
+		// git remotes live on github.com, so normalize it here.
+		if host == "raw.githubusercontent.com" {
+			host = "github.com"
+		}
 		filePath := strings.Join(slashParts[3:], "/")
 		if err := gitutil.ValidateGitPath(filePath); err != nil {
 			return "", "", "", "", "", fmt.Errorf("invalid workflowspec path: %w", err)
 		}
-		return slashParts[0], slashParts[1], slashParts[2], filePath, ref, nil
+		return host, owner, repo, filePath, ref, nil
 	}
 
 	filePath := strings.Join(slashParts[2:], "/")

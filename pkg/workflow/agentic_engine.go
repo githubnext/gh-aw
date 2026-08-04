@@ -302,6 +302,21 @@ type HarnessRunner interface {
 // HarnessProvider is kept as a backward-compatible alias.
 type HarnessProvider = HarnessRunner
 
+// MCPConfigAdapterProvider is an optional interface implemented by engines that provide
+// a JavaScript config-adapter script to convert the MCP gateway's raw output
+// configuration into the engine-specific format (e.g. Goose's .goose/mcp.json).
+// The script is written to the setup actions directory and executed by
+// start_mcp_gateway.cjs in place of a built-in per-engine converter.
+type MCPConfigAdapterProvider interface {
+	// GetMCPConfigAdapterWriteStep returns a GitHub Actions step that writes the
+	// config-adapter script to disk, or nil if the engine has no config-adapter script.
+	GetMCPConfigAdapterWriteStep() GitHubActionStep
+	// GetMCPConfigAdapterFilename returns the filename (not path) of the
+	// config-adapter script located in the setup actions directory, or an empty
+	// string if the engine has no config-adapter script.
+	GetMCPConfigAdapterFilename() string
+}
+
 // engineRequiresNodeHarness reports whether the engine's execution command wraps
 // the CLI with a harness script launched via node (see nodeRuntimeResolutionCommand
 // in copilot_engine_execution.go). Used by call sites that must ensure node is on
