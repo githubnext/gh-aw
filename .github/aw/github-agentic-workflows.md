@@ -99,6 +99,7 @@ Installed gh-aw agents should support scenario evaluation requests that do not c
 - For explicit research/evaluation requests, invoke with wording such as `agentic-workflows evaluate this scenario without creating files` or `agentic-workflows research this workflow pattern and return recommendations only`.
 - Return a compact design recommendation covering trigger, scope, tools, permissions, safe outputs, `noop` behavior, and any report window / grouping / deduplication requirements.
 - Offer to turn the recommendation into `.github/workflows/<workflow-id>.md` only if the user asks to proceed.
+- There is no dedicated `gh aw` subcommand for scenario evaluation; the invocation path is prompt-driven through the installed `agentic-workflows` agent. A missing CLI surface is not a failure. See [create-agentic-workflow.md](create-agentic-workflow.md) for failure classification and fallbacks.
 
 ### Non-technical persona examples
 

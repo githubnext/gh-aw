@@ -109,6 +109,18 @@ For each scenario, return a compact recommendation table covering:
 | Permissions | read-only scopes required |
 | Noop condition | when no action is needed |
 
+### Non-Technical Persona Evaluation Example
+
+For Program Manager, Designer, and Legal / Compliance requests, the expected recommendations are:
+
+| Persona | Trigger | Scope | Safe outputs | Noop condition |
+|---|---|---|---|---|
+| Program Manager | `schedule` + `workflow_dispatch` | Explicit report window and grouping dimension | `create-issue` with `close-older-issues: true` | Reporting window contains no qualifying updates |
+| Designer | `pull_request` | `paths:` scoped to UI, design-token, copy, and asset files | `add-comment` | Scoped paths unchanged or no actionable design/token issue |
+| Legal / Compliance | `pull_request` (PR review) or `schedule` (recurring audit) | `paths:` scoped to dependency manifests and policy docs | `add-comment`; `create-issue` only for team-wide violations | No in-scope change, or all findings are in the allowed tier |
+
+All three default to `permissions: contents: read` with `tools.github.mode: gh-proxy`; name optional tools (`playwright`, `cache-memory`) only when the scenario justifies them.
+
 ### Failure Classification
 
 When evaluating scenarios, classify any failure before stopping:
@@ -118,6 +130,19 @@ When evaluating scenarios, classify any failure before stopping:
 | Transient issue | Network error, timeout, or quota exceeded | Retry once; if it persists, record `invocation_unavailable` and continue with partial results |
 | Unsupported command | Unknown subcommand or unrecognized option | Record `command_not_supported`, document the gap, and fall back to providing the recommendation directly from local gh-aw guidance |
 | Product gap | Invocation succeeds but returns no workflow-design guidance | Record `response_unavailable`, note the scenario, and surface it as a missing capability rather than treating it as an error |
+
+### Troubleshooting Unavailable CLI Surfaces
+
+Ad hoc evaluation never requires a dedicated CLI subcommand. If a CLI surface appears to be missing, map it as follows:
+
+| Symptom | Classification | Fallback |
+|---|---|---|
+| No `gh aw` subcommand exists for scenario evaluation | Not a failure | Ad hoc evaluation is prompt-driven: ask the agent directly (for example `agentic-workflows evaluate this scenario without creating files`) |
+| A known subcommand is rejected as unknown or has an unrecognized option | `command_not_supported` | Answer from local gh-aw guidance in `.github/aw/` and record the gap |
+| The command runs but returns no design guidance | `response_unavailable` | Report the scenario as a missing capability, not an error |
+| Network error, timeout, or quota exceeded | `invocation_unavailable` | Retry once, then continue with partial results |
+
+Never report a numeric quality score for scenarios that were not actually evaluated; report the classification instead.
 
 ## Design Checklist
 
