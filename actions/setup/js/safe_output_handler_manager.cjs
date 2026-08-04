@@ -12,6 +12,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
+const { computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
@@ -657,16 +658,6 @@ function skipReviewResultsForPR(results, repo, prNumber, skipReason) {
   }
 }
 
-/**
- * Determine whether a processing result is a non-skipped, non-deferred, non-cancelled failure.
- *
- * @param {{success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean}|null|undefined} result
- * @returns {boolean}
- */
-function isFailedProcessingResult(result) {
-  return Boolean(result?.success === false && !result?.deferred && !result?.skipped && !result?.cancelled);
-}
-
 /** Types whose failures are surfaced as warnings rather than failing the safe_outputs job. */
 const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]);
 
@@ -695,6 +686,17 @@ function partitionFailureResults(results) {
   const reportOnlyFailures = failedResults.filter(r => REPORT_ONLY_FAILURE_TYPES.has(r?.type ?? ""));
   const fatalFailures = failedResults.filter(r => !REPORT_ONLY_FAILURE_TYPES.has(r?.type ?? ""));
   return { fatalFailures, reportOnlyFailures };
+}
+
+/**
+ * Export item-level safe-output status as GitHub Actions outputs.
+ *
+ * @param {{itemsSucceeded: number, itemsFailed: number, status: string}} status
+ */
+function setSafeOutputsStatusOutputs(status) {
+  core.setOutput("items_succeeded", String(status.itemsSucceeded));
+  core.setOutput("items_failed", String(status.itemsFailed));
+  core.setOutput("status", status.status);
 }
 
 /**
@@ -1459,6 +1461,7 @@ async function main() {
   const isStaged = isStagedMode();
   /** @type {string | null} */
   let failedOutputsMessage = null;
+  let statusOutputsSet = false;
 
   try {
     core.info("Safe Output Handler Manager starting...");
@@ -1483,6 +1486,8 @@ async function main() {
       if (!isStaged) ensureManifestExists();
       core.setOutput("temporary_id_map", "{}");
       core.setOutput("processed_count", "0");
+      setSafeOutputsStatusOutputs({ itemsSucceeded: 0, itemsFailed: 0, status: "success" });
+      statusOutputsSet = true;
       return;
     }
 
@@ -1515,6 +1520,8 @@ async function main() {
       // Set empty outputs for downstream steps
       core.setOutput("temporary_id_map", "{}");
       core.setOutput("processed_count", "0");
+      setSafeOutputsStatusOutputs({ itemsSucceeded: 0, itemsFailed: 0, status: "success" });
+      statusOutputsSet = true;
       return;
     }
 
@@ -1592,7 +1599,8 @@ async function main() {
     await writeSafeOutputSummaries(processingResult.results, allMessages);
 
     // Log summary
-    const successCount = processingResult.results.filter(r => r.success).length;
+    const safeOutputsStatus = computeSafeOutputsStatus(processingResult.results);
+    const successCount = safeOutputsStatus.itemsSucceeded;
     const { fatalFailures, reportOnlyFailures } = partitionFailureResults(processingResult.results);
     const failureCount = fatalFailures.length;
     const reportOnlyFailureCount = reportOnlyFailures.length;
@@ -1605,8 +1613,9 @@ async function main() {
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);
+    core.info(`Status: ${safeOutputsStatus.status}`);
     core.info(`Successful: ${successCount}`);
-    core.info(`Failed: ${failureCount}`);
+    core.info(`Failed: ${safeOutputsStatus.itemsFailed}`);
     if (reportOnlyFailureCount > 0) {
       core.info(`Reported assignment failures: ${reportOnlyFailureCount}`);
     }
@@ -1671,6 +1680,8 @@ async function main() {
 
     // Export processed count for consistency with project handler
     core.setOutput("processed_count", String(successCount));
+    setSafeOutputsStatusOutputs(safeOutputsStatus);
+    statusOutputsSet = true;
 
     // Export assign_to_agent outputs when the handler was loaded
     if (messageHandlers.has("assign_to_agent")) {
@@ -1748,6 +1759,9 @@ async function main() {
     core.info("Safe Output Handler Manager completed");
   } catch (error) {
     const handlerError = `${ERR_VALIDATION}: Handler manager failed: ${getErrorMessage(error)}`;
+    if (!statusOutputsSet) {
+      setSafeOutputsStatusOutputs({ itemsSucceeded: 0, itemsFailed: 0, status: "failure" });
+    }
     if (failedOutputsMessage !== null) {
       core.setFailed(`${failedOutputsMessage}\n${handlerError}`);
       return;
@@ -1780,4 +1794,6 @@ module.exports = {
   isFailedProcessingResult,
   isReportOnlyFailureResult,
   partitionFailureResults,
+  computeSafeOutputsStatus,
+  setSafeOutputsStatusOutputs,
 };
