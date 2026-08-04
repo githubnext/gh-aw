@@ -1,2 +1,2 @@
-{"id":"container_images_scanned","question":"Did the agent analyze container images for vulnerabilities, updates, and rejected licenses?","answer":"YES","model":"evals","timestamp":"2026-08-03T07:05:17.804Z","runid":"30790565083"}
-{"id":"findings_reported_or_noop","question":"Did the agent report actionable image findings, or use noop when no findings required action?","answer":"YES","model":"evals","timestamp":"2026-08-03T07:05:17.804Z","runid":"30790565083"}
+{"id":"container_images_scanned","question":"Did the agent analyze container images for vulnerabilities, updates, and rejected licenses?","answer":"YES","model":"evals","timestamp":"2026-08-04T06:55:21.628Z","runid":"30883387143"}
+{"id":"findings_reported_or_noop","question":"Did the agent report actionable image findings, or use noop when no findings required action?","answer":"YES","model":"evals","timestamp":"2026-08-04T06:55:21.628Z","runid":"30883387143"}
