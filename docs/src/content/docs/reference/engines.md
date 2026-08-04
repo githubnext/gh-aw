@@ -19,8 +19,12 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) (standard) or [`engine.auth` Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) (keyless) |
 | [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) (experimental) | `pi` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) (default); switches to provider-specific secret when `model:` uses `provider/model` format |
+| Goose (experimental, imported shared engine) | `goose` | Same provider secret you would use for the selected `model:` (for example Copilot/GitHub provider auth when using `copilot/<model>`)
 
 Copilot CLI is the default — `engine:` can be omitted when using Copilot. See the linked authentication docs for secret setup instructions.
+
+> [!NOTE]
+> Experimental engines are not guaranteed to appear in this table automatically. Goose is included here because a merged workflow now ships a reusable shared engine definition and smoke test for it; other experimental engines may remain intentionally undocumented until maintainers promote or request them.
 
 ## Which engine should I choose?
 
@@ -44,6 +48,24 @@ Not all features are available across all engines. The table below summarizes pe
 | Tools allowlist | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 `max-turns` (default `500`, legacy alias `max-runs`) and `max-ai-credits` (default `1000`) are top-level frontmatter fields supported by all engines. `engine.max-turns` is a deprecated nested alias that still limits Claude iterations when present; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
+
+## Shared imported engines
+
+Most workflows use one of the built-in engine IDs above. You can also define an engine in an imported shared workflow and reference it by `engine.id`.
+
+Goose is the current in-repo example:
+
+```yaml wrap
+engine:
+  id: goose
+
+imports:
+  - shared/goose.md
+```
+
+The shared engine definition in `.github/workflows/shared/goose.md` marks Goose as experimental, configures its harness, and wires MCP support through `.goose/mcp.json`. The repository also includes `.github/workflows/smoke-goose.md` as a concrete smoke-test example.
+
+Because Goose is provider-routed through the AWF proxy, the workflow still needs the matching authentication and network access for the selected model provider. The shared definition currently includes defaults such as `github.com`, `raw.githubusercontent.com`, `api.github.com`, and `objects.githubusercontent.com` plus provider-specific domains.
 
 ## Extended Coding Agent Configuration
 
