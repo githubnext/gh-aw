@@ -57,6 +57,8 @@ safe-outputs:
 
 Supported formats are an integer day count (for example, `7`) or a relative duration such as `2h`, `7d`, `2w`, `1m`, or `1y`. Values under 24 hours are rounded up to a 1-day minimum for expiration.
 
+**Maintenance workflow generation is lazy**: `agentics-maintenance.yml` is only generated when at least one workflow explicitly opts in — by setting `expires` on `create-issue`, `create-discussion`, or `create-pull-request`, or by explicitly configuring `safe-outputs.noop`. The implicit `noop` fallback that is added automatically when `safe-outputs` is present defaults `report-as-issue` to `false`, so it does not create issues and does not generate a maintenance workflow.
+
 **Maintenance workflow frequency**: The generated `agentics-maintenance.yml` workflow runs at the minimum required frequency based on the shortest expiration time across all workflows:
 
 | Shortest Expiration | Maintenance Frequency |

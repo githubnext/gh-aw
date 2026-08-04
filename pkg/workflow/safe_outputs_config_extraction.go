@@ -354,8 +354,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if _, exists := outputMap["noop"]; !exists {
 					config.NoOp = &NoOpConfig{}
 					config.NoOp.Max = defaultIntStr(1) // Default max
-					trueVal := "true"
-					config.NoOp.ReportAsIssue = &trueVal // Default to reporting to issue
+					// Implicit noop is for transparency logging only; it must not create
+					// issues without a maintenance workflow to expire them, so report-as-issue
+					// defaults to false here (users can opt in with an explicit noop: block).
+					falseVal := "false"
+					config.NoOp.ReportAsIssue = &falseVal
+					config.NoOp.Implicit = true // Not authored by the user
 				}
 			}
 

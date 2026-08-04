@@ -285,6 +285,56 @@ func TestScanWorkflowsForExpires_TriggerReason(t *testing.T) {
 		require.Contains(t, triggerReason, "safe_outputs.create_issues.expires=72h")
 		require.NotContains(t, triggerReason, "second-trigger")
 	})
+
+	t.Run("implicit noop does not trigger maintenance", func(t *testing.T) {
+		compiler := NewCompiler()
+		frontmatter := map[string]any{
+			"safe-outputs": map[string]any{
+				"create-issue": map[string]any{},
+			},
+		}
+		safeOutputs := compiler.extractSafeOutputsConfig(frontmatter)
+		require.NotNil(t, safeOutputs)
+		require.NotNil(t, safeOutputs.NoOp)
+		require.True(t, safeOutputs.NoOp.Implicit, "noop should be implicit when not authored")
+		require.NotNil(t, safeOutputs.NoOp.ReportAsIssue)
+		require.Equal(t, "false", *safeOutputs.NoOp.ReportAsIssue, "implicit noop must not create issues without a maintenance workflow to expire them")
+
+		hasExpires, minExpires, triggerReason := scanWorkflowsForExpires([]*WorkflowData{
+			{
+				Name:        "implicit-noop",
+				SafeOutputs: safeOutputs,
+			},
+		})
+		require.False(t, hasExpires)
+		require.Equal(t, 0, minExpires)
+		require.Empty(t, triggerReason)
+	})
+
+	t.Run("explicit noop triggers maintenance", func(t *testing.T) {
+		compiler := NewCompiler()
+		frontmatter := map[string]any{
+			"safe-outputs": map[string]any{
+				"create-issue": map[string]any{},
+				"noop":         map[string]any{},
+			},
+		}
+		safeOutputs := compiler.extractSafeOutputsConfig(frontmatter)
+		require.NotNil(t, safeOutputs)
+		require.NotNil(t, safeOutputs.NoOp)
+		require.False(t, safeOutputs.NoOp.Implicit, "noop should not be implicit when explicitly authored")
+
+		hasExpires, minExpires, triggerReason := scanWorkflowsForExpires([]*WorkflowData{
+			{
+				Name:        "explicit-noop",
+				SafeOutputs: safeOutputs,
+			},
+		})
+		require.True(t, hasExpires)
+		require.Equal(t, defaultNoOpIssueExpirationHours, minExpires)
+		require.Contains(t, triggerReason, "explicit-noop")
+		require.Contains(t, triggerReason, "no-op issue reporting")
+	})
 }
 
 func TestGenerateMaintenanceWorkflow_CreatesWorkflowDirRecursively(t *testing.T) {
