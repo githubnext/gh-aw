@@ -14,7 +14,7 @@
     "minimatch": ">=10.2.6",
     "prettier": "^3.9.6",
     "typescript": "^7.0.2",
-    "vite": "^8.1.5",
+    "vite": "^8.2.0",
     "vitest": "^4.1.9"
   },
   "overrides": {
