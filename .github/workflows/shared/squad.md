@@ -1,6 +1,6 @@
 ---
-# Squad Bootstrap — installs and initializes Squad (https://github.com/bradygaster/squad)
-# in the activation job only, then republishes the generated team state to the agent job.
+# Squad Bootstrap — lazily installs and initializes Squad (https://github.com/bradygaster/squad)
+# in the activation job when needed, then republishes the team state to the agent job.
 #
 # The Squad CLI is never installed or executed in the agent job — only the files it
 # produces (`.squad/` team state and `.github/agents/squad.agent.md`) are restored there.
@@ -33,15 +33,24 @@ ambient-folders:
 jobs:
   activation:
     steps:
+      - name: Detect existing Squad installation
+        id: squad-installation
+        run: |
+          if [ -f .squad/team.md ] && [ -f .github/agents/squad.agent.md ]; then
+            echo "installed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "installed=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Mint Squad GitHub App token
         id: squad-app-token
-        if: ${{ vars.SQUAD_GITHUB_APP_ID != '' }}
+        if: ${{ steps.squad-installation.outputs.installed != 'true' && vars.SQUAD_GITHUB_APP_ID != '' }}
         uses: actions/create-github-app-token@v3.2.0
         with:
           app-id: ${{ vars.SQUAD_GITHUB_APP_ID }}
           private-key: ${{ secrets.SQUAD_GITHUB_APP_PRIVATE_KEY }}
           owner: ${{ vars.SQUAD_GITHUB_APP_OWNER }}
       - name: Initialize Squad team
+        if: ${{ steps.squad-installation.outputs.installed != 'true' }}
         env:
           SQUAD_CLI_VERSION: ${{ vars.SQUAD_CLI_VERSION }}
           GH_TOKEN: ${{ steps.squad-app-token.outputs.token || secrets.SQUAD_GITHUB_TOKEN || github.token }}
@@ -53,14 +62,15 @@ jobs:
 
 ## Squad Bootstrap Component
 
-This shared component moves the entire Squad (https://github.com/bradygaster/squad)
-install/init lifecycle out of the agent job:
+This shared component moves the Squad (https://github.com/bradygaster/squad)
+install/init lifecycle out of the agent job and performs it lazily:
 
 1. **`jobs.activation.steps`** — the repository is already checked out by the
-   activation job itself, so this only installs the pinned `@bradygaster/squad-cli`
-   npm release, optionally mints a GitHub App installation token (or uses a supplied
-   PAT) so `squad init` can see other organizations or private repositories, and runs
-   `squad init --preset default` (idempotent).
+   activation job itself, so this first checks for the existing Squad team state
+   and custom agent. When either is missing, it installs the pinned
+   `@bradygaster/squad-cli` npm release, optionally mints a GitHub App installation
+   token (or uses a supplied PAT) so `squad init` can see other organizations or
+   private repositories, and runs `squad init --preset default`.
 2. **`ambient-folders`** — bundles the resulting `.squad/` team state and
    `.github/agents/` files into the standard activation artifact alongside the rest
    of the prompt/skills/sub-agent packaging, then restores them into the agent
@@ -72,8 +82,8 @@ install/init lifecycle out of the agent job:
 ## Working with Squad
 
 Squad's team state (`.squad/`) and its Copilot custom agent
-(`.github/agents/squad.agent.md`) were already initialized during activation and
-restored into this checkout before you started — do not install Squad or run
+(`.github/agents/squad.agent.md`) were reused or initialized during activation
+and restored into this checkout before you started — do not install Squad or run
 `squad init` yourself.
 
 - Verify `.squad/team.md` exists before delegating work to the team. If it is
