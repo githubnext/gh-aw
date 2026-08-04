@@ -4,6 +4,9 @@
 // All callers must ensure these globals are set before invoking any helper.
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 /**
  * Normalize a server URL by stripping any trailing slash so the git config key
@@ -34,28 +37,42 @@ function normalizeServerUrl(serverUrl) {
  * @returns {Promise<string[]>}
  */
 async function findIncludedExtraheaderConfigFiles(cwd) {
-  const opts = { silent: true, ignoreReturnCode: true, ...(cwd ? { cwd } : {}) };
-  const result = await exec.getExecOutput("git", ["config", "--local", "--get-regexp", "^includeif\\.gitdir.*\\.path$"], opts);
-  if (result.exitCode !== 0 || !result.stdout.trim()) {
+  const baseOpts = { silent: true, ignoreReturnCode: true, ...(cwd ? { cwd } : {}) };
+
+  // Step 1: get the key names only (avoids splitting issues for paths with spaces in the key).
+  const namesResult = await exec.getExecOutput("git", ["config", "--local", "--name-only", "--get-regexp", "^includeif\\.gitdir.*\\.path$"], baseOpts);
+  if (namesResult.exitCode !== 0 || !namesResult.stdout.trim()) {
     return [];
   }
 
-  const path = require("path");
-  const os = require("os");
-  const safeRoots = [process.env.RUNNER_TEMP, os.tmpdir()].filter(Boolean).map(p => path.resolve(p));
+  const safeRoots = [process.env.RUNNER_TEMP, os.tmpdir()].filter(/** @param {string | undefined} p @returns {p is string} */ p => p !== undefined && p !== "").map(p => path.resolve(p));
 
   const files = [];
-  for (const line of result.stdout.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const spaceIdx = trimmed.indexOf(" ");
-    const filePath = (spaceIdx === -1 ? "" : trimmed.slice(spaceIdx + 1)).trim();
-    if (!filePath) continue;
-    const resolved = path.resolve(cwd || process.cwd(), filePath);
-    if (safeRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))) {
-      files.push(resolved);
-    } else {
-      core.warning(`git_auth_helpers: skipping includeIf-referenced config file outside safe temp directories: ${resolved}`);
+  for (const keyName of namesResult.stdout
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean)) {
+    // Step 2: for each key name, retrieve its value(s) with --get-all.
+    const valResult = await exec.getExecOutput("git", ["config", "--local", "--get-all", keyName], baseOpts);
+    if (valResult.exitCode !== 0 || !valResult.stdout.trim()) continue;
+    for (const valLine of valResult.stdout
+      .split("\n")
+      .map(l => l.trim())
+      .filter(Boolean)) {
+      const resolved = path.resolve(cwd || process.cwd(), valLine);
+      // Harden against symlink escapes: resolve the real path before checking containment.
+      let real;
+      try {
+        real = fs.realpathSync(resolved);
+      } catch {
+        // File may not exist yet (checkout hasn't created it) — fall back to the lexical path.
+        real = resolved;
+      }
+      if (safeRoots.some(root => real === root || real.startsWith(root + path.sep))) {
+        files.push(resolved);
+      } else {
+        core.warning(`git_auth_helpers: skipping includeIf-referenced config file outside safe temp directories: ${resolved}`);
+      }
     }
   }
   return files;
@@ -106,7 +123,7 @@ async function unsetExtraheaderAllScopes(key, cwd) {
   for (const file of includedFiles) {
     const result = await exec.getExecOutput("git", ["config", "--file", file, "--unset-all", key], { silent: true, ignoreReturnCode: true });
     if (result.exitCode !== 0 && result.exitCode !== 5) {
-      core.warning(`git_auth_helpers: git config --file ${file} --unset-all ${key} failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
+      throw new Error(`git config --file ${file} --unset-all ${key} failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
     }
   }
 }

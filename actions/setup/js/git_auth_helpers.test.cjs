@@ -105,19 +105,31 @@ describe("git_auth_helpers.cjs", () => {
     });
 
     it("should also unset the key from includeIf.gitdir-referenced config files (checkout v7 case)", async () => {
-      process.env.RUNNER_TEMP = "/home/runner/work/_temp";
-      const credFile = "/home/runner/work/_temp/git-credentials-abc123.config";
-      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
-        if (args.includes("--get-regexp")) {
-          return { exitCode: 0, stdout: `includeif.gitdir:/home/runner/work/repo/.git/.path ${credFile}\n`, stderr: "" };
+      const originalRunnerTemp = process.env.RUNNER_TEMP;
+      try {
+        process.env.RUNNER_TEMP = "/home/runner/work/_temp";
+        const credFile = "/home/runner/work/_temp/git-credentials-abc123.config";
+        const includeKey = "includeif.gitdir:/home/runner/work/repo/.git/.path";
+        mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+          if (args.includes("--name-only") && args.includes("--get-regexp")) {
+            return { exitCode: 0, stdout: `${includeKey}\n`, stderr: "" };
+          }
+          if (args.includes("--get-all") && args.includes(includeKey)) {
+            return { exitCode: 0, stdout: `${credFile}\n`, stderr: "" };
+          }
+          return { exitCode: 5, stdout: "", stderr: "" };
+        });
+
+        await unsetExtraheaderAllScopes(EXTRAHEADER_KEY);
+
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["config", "--file", credFile, "--unset-all", EXTRAHEADER_KEY], expect.objectContaining({ ignoreReturnCode: true }));
+      } finally {
+        if (originalRunnerTemp === undefined) {
+          delete process.env.RUNNER_TEMP;
+        } else {
+          process.env.RUNNER_TEMP = originalRunnerTemp;
         }
-        return { exitCode: 5, stdout: "", stderr: "" };
-      });
-
-      await unsetExtraheaderAllScopes(EXTRAHEADER_KEY);
-
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["config", "--file", credFile, "--unset-all", EXTRAHEADER_KEY], expect.objectContaining({ ignoreReturnCode: true }));
-      delete process.env.RUNNER_TEMP;
+      }
     });
   });
 
@@ -147,9 +159,13 @@ describe("git_auth_helpers.cjs", () => {
     it("should return the resolved path of an includeIf.gitdir config file under RUNNER_TEMP", async () => {
       process.env.RUNNER_TEMP = "/home/runner/work/_temp";
       const credFile = "/home/runner/work/_temp/git-credentials-abc123.config";
+      const includeKey = "includeif.gitdir:/home/runner/work/repo/.git/.path";
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
-        if (args.includes("--get-regexp")) {
-          return { exitCode: 0, stdout: `includeif.gitdir:/home/runner/work/repo/.git/.path ${credFile}\n`, stderr: "" };
+        if (args.includes("--name-only") && args.includes("--get-regexp")) {
+          return { exitCode: 0, stdout: `${includeKey}\n`, stderr: "" };
+        }
+        if (args.includes("--get-all") && args.includes(includeKey)) {
+          return { exitCode: 0, stdout: `${credFile}\n`, stderr: "" };
         }
         return { exitCode: 5, stdout: "", stderr: "" };
       });
@@ -162,9 +178,13 @@ describe("git_auth_helpers.cjs", () => {
     it("should skip and warn about config files outside safe temp directories", async () => {
       process.env.RUNNER_TEMP = "/home/runner/work/_temp";
       const maliciousPath = "/etc/passwd";
+      const includeKey = "includeif.gitdir:/home/runner/work/repo/.git/.path";
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
-        if (args.includes("--get-regexp")) {
-          return { exitCode: 0, stdout: `includeif.gitdir:/home/runner/work/repo/.git/.path ${maliciousPath}\n`, stderr: "" };
+        if (args.includes("--name-only") && args.includes("--get-regexp")) {
+          return { exitCode: 0, stdout: `${includeKey}\n`, stderr: "" };
+        }
+        if (args.includes("--get-all") && args.includes(includeKey)) {
+          return { exitCode: 0, stdout: `${maliciousPath}\n`, stderr: "" };
         }
         return { exitCode: 5, stdout: "", stderr: "" };
       });
