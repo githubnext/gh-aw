@@ -46,6 +46,16 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-execsync-try-catch`](#require-execsync-try-catch) | Require try/catch around `execSync(...)` calls from `child_process` |
 | [`require-execfilesync-try-catch`](#require-execfilesync-try-catch) | Require try/catch around `execFileSync(...)` calls from `child_process` |
 | [`require-spawnsync-error-check`](#require-spawnsync-error-check) | Require checking `result.error` after `spawnSync` calls |
+| [`prefer-get-error-message-over-string`](#prefer-get-error-message-over-string) | Prefer `getErrorMessage(err)` over `String(err)` when interpolating a caught error |
+| [`require-rmsync-try-catch`](#require-rmsync-try-catch) | Require try/catch around `fs.rmSync` calls |
+| [`no-core-error-then-process-exit`](#no-core-error-then-process-exit) | Disallow `core.error()` immediately followed by `process.exit(nonzero)` |
+| [`no-core-error-then-process-exitcode`](#no-core-error-then-process-exitcode) | Disallow `core.error()` immediately followed by `process.exitCode = nonzero` |
+| [`no-exec-interpolated-command`](#no-exec-interpolated-command) | Disallow interpolated command strings passed to `@actions/exec` |
+| [`no-setfailed-then-exit-zero`](#no-setfailed-then-exit-zero) | Disallow resetting the exit code to success after `core.setFailed()` |
+| [`no-err-stack-then-string-fallback`](#no-err-stack-then-string-fallback) | Disallow the `err.stack \|\| String(err)` fallback pattern |
+| [`no-caught-error-interpolation`](#no-caught-error-interpolation) | Disallow directly interpolating a caught error in a template literal |
+| [`no-core-error-then-setfailed`](#no-core-error-then-setfailed) | Disallow a redundant `core.error()` call immediately before `core.setFailed()` with the same message |
+| [`require-escaped-regexp-interpolation`](#require-escaped-regexp-interpolation) | Require regex-escaping of interpolated values in `new RegExp()` template literals |
 
 ### `no-duplicate-constant-values`
 
@@ -573,3 +583,117 @@ Why: `execFileSync` has identical throw-on-failure semantics to `execSync` — i
 - Calls already inside an enclosing `try { ... } catch { ... }` block.
 
 **Out of scope:** `execFile` (the async, callback-based sibling) is intentionally excluded. The async form accepts a callback and does not throw synchronously; errors are delivered through the callback or the returned `ChildProcess` event emitter, so a synchronous try/catch provides no protection.
+
+### `prefer-get-error-message-over-string`
+
+Prefer `getErrorMessage(err)` over `String(err)` when interpolating a caught error into a template literal, when `getErrorMessage` is already resolvable in scope.
+
+`String(err)` on an `Error` produces the redundant `"Error: message"` prefix and does not sanitize GitHub's HTML error-page responses, while `getErrorMessage(err)` handles both correctly. Several `actions/setup/js` files already import `getErrorMessage` elsewhere yet still call `String(err)` at other call sites in the same file — this rule catches that inconsistency.
+
+**Detected forms:**
+- `` `Failed: ${String(err)}` `` — `String(...)` wrapping a caught-error identifier inside a template literal expression, when `getErrorMessage` is resolvable in the enclosing scope (import, function declaration, or earlier declaration).
+
+**Not flagged:**
+- `String(err)` outside of a template literal.
+- `String(value)` where `value` is not a caught error (not bound by a `catch` clause or the first parameter of an inline `.catch()`/`.then()` rejection handler).
+- `String(err)` when `getErrorMessage` is not resolvable in scope.
+- Tagged template literals — values are passed to the tag function as-is, not string-coerced.
+
+The rule provides an autofix suggestion that replaces `String(err)` with `getErrorMessage(err)`.
+
+### `require-rmsync-try-catch`
+
+Require `fs.rmSync` calls in `actions/setup/js` scripts to be wrapped in `try/catch`.
+
+`rmSync` throws synchronously on permission errors, invalid paths, or unexpected filesystem state; an unhandled throw crashes the action without surfacing a useful diagnostic.
+
+**Not flagged:** Calls already inside an enclosing `try { ... } catch { ... }` block.
+
+### `no-core-error-then-process-exit`
+
+Disallow `core.error()` immediately followed by `process.exit(nonzero)`.
+
+Prefer `core.setFailed(msg)` to signal action failure; it marks the action failed and allows post-action cleanup hooks to run. In standalone `node` scripts, `process.exit(nonzero)` does fail the step, but `core.setFailed` is more portable.
+
+The rule provides an autofix suggestion that replaces `core.error(msg); process.exit(...);` with `core.setFailed(msg); return;`.
+
+### `no-core-error-then-process-exitcode`
+
+Disallow `core.error()` immediately followed by `process.exitCode = nonzero`.
+
+Prefer `core.setFailed(msg)` to signal action failure; it marks the action failed and allows post-action cleanup hooks to run. Unlike `process.exit(1)`, `process.exitCode = 1` does not halt execution immediately.
+
+The rule provides an autofix suggestion that replaces `core.error(msg); process.exitCode = nonzero;` with `core.setFailed(msg);` (at module top level) or `core.setFailed(msg); return;` (inside `main()`).
+
+### `no-exec-interpolated-command`
+
+Disallow passing an interpolated template literal or dynamic string concatenation as the command argument to `@actions/exec`'s `exec.exec(...)` / `exec.getExecOutput(...)` calls.
+
+`@actions/exec` splits the command string by spaces, so values containing spaces silently break argument boundaries. Use a static command string and pass all arguments in the `args` array instead, for example `exec.exec("git", ["checkout", branchName])`.
+
+**Detected forms:**
+- `` exec.exec(`git checkout ${branchName}`) `` — interpolated template literal.
+- `exec.exec("git " + branchName)` — dynamic string concatenation.
+
+**Not flagged:**
+- Static command strings, including string concatenation of only static expressions.
+- Arguments passed correctly via the `args` array.
+
+### `no-setfailed-then-exit-zero`
+
+Disallow resetting the exit code to success (`process.exit(0)` or `process.exitCode = 0`) after `core.setFailed()`.
+
+Doing so silently resets the exit code to success, hiding the failure that `core.setFailed()` already recorded.
+
+**Detected forms:**
+- `core.setFailed(msg); process.exit(0);`
+- `core.setFailed(msg); process.exitCode = 0;`
+
+The rule provides an autofix suggestion: replace `process.exit(0)` with `return;`, or remove the `process.exitCode = 0;` assignment.
+
+### `no-err-stack-then-string-fallback`
+
+Disallow the `err.stack || String(err)` (and equivalent) fallback pattern for formatting caught errors.
+
+Prefer `getErrorMessage(err)` from `error_helpers.cjs`. The `err.stack` ternary/logical-OR pattern surfaces noisy stack frames; `getErrorMessage()` returns a clean, consistent message.
+
+**Detected forms:**
+- `err && err.stack ? err.stack : String(err)`
+- `err instanceof Error ? err.stack : String(err)`
+- `err.stack || String(err)`
+
+The rule provides an autofix suggestion that replaces the pattern with `getErrorMessage(err)` (ensure `getErrorMessage` is imported from `error_helpers.cjs` before applying).
+
+### `no-caught-error-interpolation`
+
+Disallow directly interpolating a caught error variable in a template literal (for example `` `Failed: ${err}` ``).
+
+Directly interpolating a caught error is unsafe — for `Error` objects it produces `"Error: message"` (a redundant prefix); for non-`Error` throws it produces `"[object Object]"`. Use `${getErrorMessage(err)}` if it is available, or `${String(err)}` as an import-free alternative.
+
+**Not flagged:**
+- Error variables passed through `getErrorMessage(...)` or `String(...)` before interpolation.
+- Identifiers that are not caught-error bindings (not bound by a `catch` clause, an inline `.catch()`/`.then()` rejection handler, or an inline `'error'` event listener).
+
+The rule provides autofix suggestions to wrap the interpolated expression in `getErrorMessage(err)` (when resolvable in scope) or `String(err)` (import-free fallback).
+
+### `no-core-error-then-setfailed`
+
+Disallow a redundant `core.error()` call immediately before `core.setFailed()` with the same message.
+
+`core.error()` immediately before `core.setFailed()` with the same message is redundant: `core.setFailed()` already logs an error annotation and marks the action failed.
+
+The rule provides an autofix suggestion that removes the redundant `core.error()` call.
+
+### `require-escaped-regexp-interpolation`
+
+Require interpolated values inside a `new RegExp()` template literal to be passed through a regex-escaping helper (or already marked as escaped) before use.
+
+Interpolating an unescaped, user- or runtime-controlled value directly into a `new RegExp(...)` template literal allows regex metacharacters (`. * + ? ^ $ { } ( ) | [ ] \`) in that value to change the meaning of the pattern, which can cause unintended matches or a ReDoS-prone expression.
+
+**Detected forms:**
+- `` new RegExp(`^${value}$`) `` — interpolated identifier not passed through an escaping helper and not obviously pre-escaped.
+
+**Not flagged:**
+- `` new RegExp(`^${escapeRegExp(value)}$`) `` — interpolated value passed through a call whose name matches an escaping-helper pattern (contains both "escape" and "reg", e.g. `escapeRegExp`, `utils.escapeRegex`).
+- `` new RegExp(`^${escapedValue}$`) `` — interpolated identifier whose name starts with `escaped` (e.g. `escapedValue`, `ESCAPED_NAME`).
+- Static (non-interpolated) template literals.
