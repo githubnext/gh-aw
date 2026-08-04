@@ -1,7 +1,7 @@
 # ADR-50259: Enforce Host Allowlist in Workflowspec Parser and Redact Sensitive Env Vars in MCP Inspect
 
 **Date**: 2026-08-04
-**Status**: Draft
+**Status**: Proposed — pending maintainer acceptance on merge
 **Deciders**: pelikhan, Copilot SWE Agent
 
 ---
@@ -19,6 +19,8 @@ We will enforce two security boundaries at the code layer:
 1. **Parser-side host allowlist**: Add `IsGitHubHost` (`pkg/parser/github_urls.go`) — mirroring the CLI allowlist — and call it in `parseWorkflowSpecParts` before returning `host`, `owner`, or `repo`. Any workflowspec host that is not `github.com`, `raw.githubusercontent.com`, `*.ghe.com`, or `*.github.com` is rejected with an error before any outbound request is made.
 
 2. **Env-var redaction in MCP inspect**: Add `redactSensitiveEnvValues` that masks values for any env key whose lowercase name contains `token`, `secret`, `key`, `password`, `credential`, or `auth`, replacing non-empty values with `***redacted***`. Apply this before printing env vars to stderr in `spawnMCPInspector`.
+
+As part of enforcing (1), `IsValidGitHubRepositoryName` also accepts dots so real repositories such as `github/.github` are not rejected, while the relative path segments `.` and `..` remain invalid, and `raw.githubusercontent.com` is normalized to `github.com` in the parser (matching `pkg/cli/spec.go`) so API and git-remote URLs target the correct host.
 
 Both fixes are applied at the point where untrusted data is consumed, consistent with the existing defense-in-depth approach already visible in the codebase (git subprocess arg sanitization, tar/zip traversal guards, path validation).
 
@@ -66,4 +68,4 @@ Not chosen because `gh aw` is a developer CLI that runs on uncontrolled user mac
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created for PR #50259 to satisfy the Design Decision Gate before human review and merge. Status becomes Accepted when the PR is merged.*
