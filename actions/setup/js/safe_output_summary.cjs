@@ -10,6 +10,7 @@
 
 const { displayFileContent } = require("./display_file_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { computeSafeOutputsStatus } = require("./safe_outputs_status.cjs");
 
 /**
  * Generate a step summary for a single safe-output message
@@ -196,6 +197,10 @@ async function writeSafeOutputSummaries(results, messages) {
 
   let summaryContent = `## Safe Output Processing Summary\n\n`;
   summaryContent += `Processed ${results.length} safe-output message(s).\n\n`;
+  const status = computeSafeOutputsStatus(results);
+  summaryContent += `Status: **${status.status}**\n\n`;
+  summaryContent += `Items succeeded: **${status.itemsSucceeded}**\n\n`;
+  summaryContent += `Items failed: **${status.itemsFailed}**\n\n`;
 
   // Generate summary for each result
   for (const result of results) {
