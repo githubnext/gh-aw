@@ -32,6 +32,36 @@ var (
 	mcpInspectorMonitorDone    = func(string) {}
 )
 
+// sensitiveEnvKeyPatterns are substrings that, when found in an environment
+// variable name (case-insensitively), indicate the value likely holds a
+// secret/token/credential that must not be printed to the terminal or CI logs.
+var sensitiveEnvKeyPatterns = []string{"token", "secret", "key", "password", "credential", "auth"}
+
+// redactSensitiveEnvValues returns a copy of env with values redacted for any
+// key that looks like it holds a token, secret, key, password, or credential.
+// This prevents PATs and other secrets from being printed unredacted to
+// stderr (e.g. GitHub Actions only auto-masks the ephemeral GITHUB_TOKEN, not
+// developer PATs or custom GH_TOKEN/GITHUB_PERSONAL_ACCESS_TOKEN values).
+func redactSensitiveEnvValues(env map[string]string) map[string]string {
+	redacted := make(map[string]string, len(env))
+	for k, v := range env {
+		lowerKey := strings.ToLower(k)
+		isSensitive := false
+		for _, pattern := range sensitiveEnvKeyPatterns {
+			if strings.Contains(lowerKey, pattern) {
+				isSensitive = true
+				break
+			}
+		}
+		if isSensitive && v != "" {
+			redacted[k] = "***redacted***"
+		} else {
+			redacted[k] = v
+		}
+	}
+	return redacted
+}
+
 // spawnMCPInspector launches the official @modelcontextprotocol/inspector tool
 // and spawns any stdio MCP servers beforehand
 func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter string, verbose bool) error {
@@ -234,7 +264,7 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 					fmt.Fprintf(os.Stderr, "  URL: %s\n", config.URL)
 				}
 				if len(config.Env) > 0 {
-					fmt.Fprintf(os.Stderr, "  Environment Variables: %v\n", config.Env)
+					fmt.Fprintf(os.Stderr, "  Environment Variables: %v\n", redactSensitiveEnvValues(config.Env))
 				}
 			}
 			fmt.Fprintln(os.Stderr)

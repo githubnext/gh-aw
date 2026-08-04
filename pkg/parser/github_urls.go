@@ -383,3 +383,16 @@ func IsValidGitHubIdentifier(s string) bool {
 func IsValidGitHubRepositoryName(s string) bool {
 	return isValidGitHubNameWithMaxLength(s, maxGitHubRepositoryNameLength)
 }
+
+// IsGitHubHost returns true if the given host is a recognized GitHub or GitHub
+// Enterprise host: github.com, raw.githubusercontent.com, or any *.ghe.com /
+// *.github.com host. This allowlist mirrors the one enforced at the CLI entry
+// point (pkg/cli/spec.go) and must be applied to any host derived from
+// untrusted input (e.g. host-prefixed workflowspecs) before it is used to
+// make outbound requests.
+func IsGitHubHost(host string) bool {
+	return host == "github.com" ||
+		host == "raw.githubusercontent.com" ||
+		strings.HasSuffix(host, ".ghe.com") ||
+		strings.HasSuffix(host, ".github.com")
+}

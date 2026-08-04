@@ -227,3 +227,23 @@ func waitForMarker(t *testing.T, path string) {
 
 	t.Fatalf("timed out waiting for marker %s", path)
 }
+
+func TestRedactSensitiveEnvValues(t *testing.T) {
+	env := map[string]string{
+		"GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_supersecrettoken",
+		"GH_TOKEN":                     "ghp_anothersecret",
+		"MY_API_KEY":                   "abcd1234",
+		"SOME_PASSWORD":                "hunter2",
+		"PLAIN_VAR":                    "not-sensitive",
+		"EMPTY_TOKEN":                  "",
+	}
+
+	redacted := redactSensitiveEnvValues(env)
+
+	require.Equal(t, "***redacted***", redacted["GITHUB_PERSONAL_ACCESS_TOKEN"])
+	require.Equal(t, "***redacted***", redacted["GH_TOKEN"])
+	require.Equal(t, "***redacted***", redacted["MY_API_KEY"])
+	require.Equal(t, "***redacted***", redacted["SOME_PASSWORD"])
+	require.Equal(t, "not-sensitive", redacted["PLAIN_VAR"])
+	require.Empty(t, redacted["EMPTY_TOKEN"])
+}

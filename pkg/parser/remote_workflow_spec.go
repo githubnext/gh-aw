@@ -135,11 +135,20 @@ func parseWorkflowSpecParts(spec string) (string, string, string, string, string
 
 	// Optional host-prefixed format: host/owner/repo/path[@ref]
 	if len(slashParts) >= 4 && strings.Contains(slashParts[0], ".") {
+		host := slashParts[0]
+		owner := slashParts[1]
+		repo := slashParts[2]
+		if !IsGitHubHost(host) {
+			return "", "", "", "", "", fmt.Errorf("invalid workflowspec host: %q is not a recognized GitHub or GitHub Enterprise host", host)
+		}
+		if !IsValidGitHubIdentifier(owner) || !IsValidGitHubRepositoryName(repo) {
+			return "", "", "", "", "", fmt.Errorf("invalid workflowspec: %q/%q does not look like a valid GitHub owner/repository", owner, repo)
+		}
 		filePath := strings.Join(slashParts[3:], "/")
 		if err := gitutil.ValidateGitPath(filePath); err != nil {
 			return "", "", "", "", "", fmt.Errorf("invalid workflowspec path: %w", err)
 		}
-		return slashParts[0], slashParts[1], slashParts[2], filePath, ref, nil
+		return host, owner, repo, filePath, ref, nil
 	}
 
 	filePath := strings.Join(slashParts[2:], "/")
