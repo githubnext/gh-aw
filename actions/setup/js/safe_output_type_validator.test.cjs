@@ -1297,6 +1297,15 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.labels).toEqual(["reliability", "telemetry"]);
     });
 
+    it("should normalize JSON-array labels string to array", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed issue body text.", labels: '["cookie"]' }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels).toEqual(["cookie"]);
+    });
+
     it("should reject array with non-string items", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
