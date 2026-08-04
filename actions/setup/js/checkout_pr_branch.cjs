@@ -306,7 +306,9 @@ async function main() {
       logCheckoutStrategy(eventName, "git fetch + checkout", "pull_request event runs in merge commit context with PR branch available");
 
       core.info(`Fetching branch: ${branchName} from origin (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
-      await exec.exec("git", ["fetch", "origin", branchName, ...(await depthArgs(fetchDepth))]);
+      const fetchArgs = await depthArgs(fetchDepth);
+      core.info(fetchArgs.length > 0 ? `Fetching with ${fetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
+      await exec.exec("git", ["fetch", "origin", branchName, ...fetchArgs]);
 
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", branchName]);
@@ -346,7 +348,9 @@ async function main() {
       const fetchDepth = (commitCount || 1) + 1; // +1 to include the merge base
 
       core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
-      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:refs/remotes/origin/pr-head`, ...(await depthArgs(fetchDepth))]);
+      const prFetchArgs = await depthArgs(fetchDepth);
+      core.info(prFetchArgs.length > 0 ? `Fetching with ${prFetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
+      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:refs/remotes/origin/pr-head`, ...prFetchArgs]);
 
       const branchName = headRef || `pr-${prNumber}`;
       core.info(`Checking out branch: ${branchName}`);

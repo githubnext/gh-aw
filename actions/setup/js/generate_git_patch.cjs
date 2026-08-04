@@ -323,6 +323,16 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
       } catch (branchError) {
         // Branch does not exist locally (or pinnedSha failed)
         debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${getErrorMessage(branchError)}`);
+        // Shallow-clone diagnostics (ERR_SYSTEM errors thrown from the merge-base
+        // block above) must reach callers immediately — falling through to Strategy 2
+        // or 3 would produce a misleading "No changes to commit" result instead.
+        if (getErrorMessage(branchError).startsWith(ERR_SYSTEM)) {
+          return {
+            success: false,
+            error: getErrorMessage(branchError),
+            patchPath: patchPath,
+          };
+        }
         if (options.pinnedSha) {
           // SECURITY: When pinnedSha is set, fail closed — do not fall through to
           // other strategies that would resolve a different commit.
