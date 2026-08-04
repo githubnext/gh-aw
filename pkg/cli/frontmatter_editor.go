@@ -36,8 +36,6 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 		newFrontmatterLines := make([]string, 0, len(result.FrontmatterLines))
 
 		for _, line := range result.FrontmatterLines {
-			trimmedLine := strings.TrimSpace(line)
-
 			// If we just updated the field, skip its child lines (block mapping values)
 			if skipChildren {
 				currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
@@ -49,8 +47,8 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 				skipChildren = false
 			}
 
-			// Check if this line contains our field
-			if !fieldUpdated && strings.HasPrefix(trimmedLine, fieldName+":") {
+			// Check if this top-level line contains our field.
+			if !fieldUpdated && isTopLevelFieldLine(line, fieldName) {
 				// Preserve the original indentation and comments
 				leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 
@@ -209,8 +207,6 @@ func RemoveTopLevelFieldFromFrontmatter(content, fieldName string) (string, erro
 	newFrontmatterLines := make([]string, 0, len(result.FrontmatterLines))
 
 	for _, line := range result.FrontmatterLines {
-		trimmedLine := strings.TrimSpace(line)
-
 		if skipChildren {
 			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 			if currentIndent > fieldIndentLevel {
@@ -219,7 +215,7 @@ func RemoveTopLevelFieldFromFrontmatter(content, fieldName string) (string, erro
 			skipChildren = false
 		}
 
-		if strings.HasPrefix(trimmedLine, fieldName+":") {
+		if isTopLevelFieldLine(line, fieldName) {
 			leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 			fieldIndentLevel = len(leadingSpace)
 			skipChildren = true
@@ -266,8 +262,6 @@ func MoveTopLevelFieldToEnd(content, fieldName, fieldValue string) (string, erro
 	newFrontmatterLines := make([]string, 0, len(result.FrontmatterLines))
 
 	for _, line := range result.FrontmatterLines {
-		trimmedLine := strings.TrimSpace(line)
-
 		if skipChildren {
 			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 			if currentIndent > fieldIndentLevel {
@@ -276,7 +270,7 @@ func MoveTopLevelFieldToEnd(content, fieldName, fieldValue string) (string, erro
 			skipChildren = false
 		}
 
-		if strings.HasPrefix(trimmedLine, fieldName+":") {
+		if isTopLevelFieldLine(line, fieldName) {
 			leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 			fieldIndentLevel = len(leadingSpace)
 			skipChildren = true
@@ -299,6 +293,61 @@ func MoveTopLevelFieldToEnd(content, fieldName, fieldValue string) (string, erro
 	}
 
 	return strings.Join(lines, "\n"), nil
+}
+
+func isTopLevelFieldLine(line, fieldName string) bool {
+	return len(line) == len(strings.TrimLeft(line, " \t")) && strings.HasPrefix(strings.TrimSpace(line), fieldName+":")
+}
+
+func updateTopLevelFieldInFrontmatterRaw(content, fieldName, fieldValue string) (string, error) {
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return content, nil
+	}
+
+	frontmatterEnd := -1
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			frontmatterEnd = i
+			break
+		}
+	}
+	if frontmatterEnd == -1 {
+		return "", errors.New("frontmatter closing delimiter not found")
+	}
+
+	fieldUpdated := false
+	skipChildren := false
+	fieldIndentLevel := 0
+	updatedLines := make([]string, 0, len(lines)+1)
+	updatedLines = append(updatedLines, lines[0])
+
+	for _, line := range lines[1:frontmatterEnd] {
+		if skipChildren {
+			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			if currentIndent > fieldIndentLevel {
+				continue
+			}
+			skipChildren = false
+		}
+
+		if !fieldUpdated && isTopLevelFieldLine(line, fieldName) {
+			updatedLines = append(updatedLines, fmt.Sprintf("%s: %s", fieldName, fieldValue))
+			fieldUpdated = true
+			fieldIndentLevel = 0
+			skipChildren = true
+			continue
+		}
+
+		updatedLines = append(updatedLines, line)
+	}
+
+	if !fieldUpdated {
+		updatedLines = append(updatedLines, fmt.Sprintf("%s: %s", fieldName, fieldValue))
+	}
+	updatedLines = append(updatedLines, lines[frontmatterEnd:]...)
+
+	return strings.Join(updatedLines, "\n"), nil
 }
 
 // RemoveFieldFromOnTrigger removes a field from the 'on' trigger object in the frontmatter.

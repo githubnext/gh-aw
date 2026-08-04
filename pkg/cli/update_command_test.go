@@ -123,6 +123,7 @@ This is the original content.`
 	current := `---
 on: push
 engine: claude
+source: test/repo/workflow.md@v1.0.0
 ---
 
 # Original Workflow
@@ -153,6 +154,10 @@ This is the upstream modified content.`
 	// Check for conflict markers
 	if !strings.Contains(merged, "<<<<<<<") || !strings.Contains(merged, ">>>>>>>") {
 		t.Error("Expected conflict markers in merged content")
+	}
+
+	if !strings.Contains(merged, "source: test/repo/workflow.md@v1.1.0") {
+		t.Errorf("Expected source field to be restored in conflict output, got:\n%s", merged)
 	}
 
 	// The merged content should contain both versions
@@ -431,6 +436,65 @@ Test content updated upstream.`
 	if !strings.Contains(merged, "Test content updated upstream.") {
 		t.Errorf("Expected upstream markdown change to be present, got:\n%s", merged)
 	}
+}
+
+// TestMergeWorkflowContent_SourceRefDoesNotConflictWithLocalFrontmatterExpansion
+// covers a managed source ref update next to a large local frontmatter extension.
+func TestMergeWorkflowContent_SourceRefDoesNotConflictWithLocalFrontmatterExpansion(t *testing.T) {
+	base := `---
+tools:
+  cache-memory: true
+  web-fetch:
+
+timeout-minutes: 10
+---
+
+# Workflow
+`
+
+	current := `---
+tools:
+  cache-memory: true
+  web-fetch:
+  web-search:
+  github:
+    mode: gh-proxy
+
+timeout-minutes: 20
+
+steps:
+  - name: Local pre-analysis
+    with:
+      source: local-input
+    env:
+      source: local-env
+    run: echo ready
+
+features:
+  gh-aw-detection: true
+evals:
+  - id: investigated
+    question: Was the failure investigated?
+source: test/repo/ci-doctor.md@v1.0.0
+---
+
+# Workflow
+`
+
+	newContent := base
+	oldSourceSpec := "test/repo/ci-doctor.md@v1.0.0"
+	newRef := "v1.1.0"
+
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, newContent, oldSourceSpec, newRef, "", false)
+	require.NoError(t, err)
+	require.False(t, hasConflicts, "managed source ref changes must not conflict with local frontmatter additions:\n%s", merged)
+	assert.Contains(t, merged, "web-search:")
+	assert.Contains(t, merged, "timeout-minutes: 20")
+	assert.Contains(t, merged, "source: local-input")
+	assert.Contains(t, merged, "source: local-env")
+	assert.Contains(t, merged, "source: test/repo/ci-doctor.md@v1.1.0")
+	assert.NotContains(t, merged, "source: test/repo/ci-doctor.md@v1.0.0")
+	assert.NotContains(t, merged, "<<<<<<<")
 }
 
 // TestMergeWorkflowContent_Integration tests the merge with temporary files
