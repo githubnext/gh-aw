@@ -76,6 +76,7 @@ engine:
 - `behaviors.config-file` writes engine config before execution; use `json-merge` when the file must merge with rendered MCP content.
 - `behaviors.execution` defines the command, fixed args, model binding, MCP binding, and timestamp behavior.
 - `behaviors.mcp.config-path` points to the file where rendered MCP configuration should be written.
+- `behaviors.mcp.unsupported: true` declares that the CLI has no MCP client; compilation then fails when a workflow configures MCP-backed tools (for example `github:` or `playwright:`) for the engine, instead of silently dropping them. Omit `config-path` for such engines.
 
 ## Auth and provider rules
 

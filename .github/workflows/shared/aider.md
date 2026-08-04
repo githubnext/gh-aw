@@ -30,6 +30,8 @@ engine:
         copilot: api.githubcopilot.com
         anthropic: api.anthropic.com
         openai: api.openai.com
+    mcp:
+      unsupported: true
     execution:
       command-name: aider
       args:
@@ -111,6 +113,8 @@ from `OPENAI_API_BASE`.
 
 Aider runs in scripting mode: the generated prompt file is passed with
 `--message-file` and all confirmations are auto-accepted (`--yes-always`).
-Aider has no MCP client support, so MCP-based tools (including the safe-outputs
-MCP server) are not available. Use `bash:` tools and file edits instead.
+Aider has no MCP client support, so the engine definition declares
+`behaviors.mcp.unsupported: true`. Workflows that configure MCP-backed tools
+(such as `github:` or `playwright:`) with this engine fail to compile. Use
+`bash:` tools, file edits, and safe outputs instead.
 -->

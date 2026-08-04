@@ -13406,6 +13406,10 @@
                   "properties": {
                     "config-path": {
                       "type": "string"
+                    },
+                    "unsupported": {
+                      "type": "boolean",
+                      "description": "Set to true when the engine CLI has no MCP client. Workflows that configure MCP-backed tools for this engine fail to compile instead of silently dropping them."
                     }
                   },
                   "additionalProperties": false

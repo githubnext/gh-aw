@@ -204,6 +204,10 @@ type EngineExecutionDefinition struct {
 // behavior-defined engine.
 type EngineMCPDefinition struct {
 	ConfigPath string `yaml:"config-path,omitempty"`
+	// Unsupported reports that the engine CLI has no MCP client. When true, the
+	// compiler rejects workflows that configure MCP-backed tools for this engine
+	// instead of silently producing a configuration the CLI cannot consume.
+	Unsupported bool `yaml:"unsupported,omitempty"`
 }
 
 // EngineBehaviorDefinition captures declarative runtime behaviour for a custom
