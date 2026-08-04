@@ -1297,6 +1297,42 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.labels).toEqual(["reliability", "telemetry"]);
     });
 
+    it("should normalize JSON-array labels string to array", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed issue body text.", labels: '["cookie"]' }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels).toEqual(["cookie"]);
+    });
+
+    it("should normalize multi-label JSON-array string to array", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed issue body text.", labels: '["bug", "enhancement"]' }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels).toEqual(["bug", "enhancement"]);
+    });
+
+    it("should filter non-string entries from JSON-array labels string", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed issue body text.", labels: '["bug", 123, "enhancement"]' }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels).toEqual(["bug", "enhancement"]);
+    });
+
+    it("should fall back to comma-separated parsing for malformed JSON label string", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "create_issue", title: "Test", body: "Detailed issue body text.", labels: "[bug, enhancement" }, "create_issue", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.labels).toEqual(["[bug", "enhancement"]);
+    });
+
     it("should reject array with non-string items", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
