@@ -16,6 +16,8 @@ import {
   isFailedProcessingResult,
   isReportOnlyFailureResult,
   partitionFailureResults,
+  computeSafeOutputsStatus,
+  setSafeOutputsStatusOutputs,
 } from "./safe_output_handler_manager.cjs";
 
 const require = createRequire(import.meta.url);
@@ -203,6 +205,48 @@ describe("Safe Output Handler Manager", () => {
 
       expect(reportOnlyFailures).toEqual([{ type: "upload_artifact", success: false, error: "artifact twirp CreateArtifact failed (400)" }]);
       expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+    });
+
+    it("computes partial success item status from mixed successful and failed results", () => {
+      const status = computeSafeOutputsStatus([
+        { type: "create_issue", success: true },
+        { type: "add_comment", success: true },
+        { type: "create_discussion", success: false, error: "Validation failed" },
+        { type: "noop", success: false, skipped: true },
+        { type: "link_sub_issue", success: false, deferred: true },
+        { type: "merge_pull_request", success: false, cancelled: true },
+      ]);
+
+      expect(status).toEqual({
+        itemsSucceeded: 2,
+        itemsFailed: 1,
+        status: "partial_success",
+      });
+    });
+
+    it("computes failure item status when all active results failed", () => {
+      expect(
+        computeSafeOutputsStatus([
+          { type: "create_issue", success: false, error: "Validation failed" },
+          { type: "add_comment", success: false, error: "Validation failed" },
+        ])
+      ).toEqual({
+        itemsSucceeded: 0,
+        itemsFailed: 2,
+        status: "failure",
+      });
+    });
+
+    it("exports item status outputs", () => {
+      setSafeOutputsStatusOutputs({
+        itemsSucceeded: 10,
+        itemsFailed: 5,
+        status: "partial_success",
+      });
+
+      expect(core.setOutput).toHaveBeenCalledWith("items_succeeded", "10");
+      expect(core.setOutput).toHaveBeenCalledWith("items_failed", "5");
+      expect(core.setOutput).toHaveBeenCalledWith("status", "partial_success");
     });
 
     it("keeps review cleanup failures fatal unless a handler marks them skipped", () => {

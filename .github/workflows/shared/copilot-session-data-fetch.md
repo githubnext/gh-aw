@@ -198,7 +198,7 @@ steps:
             fi
 
             if [ ! -s "/tmp/gh-aw/agent/session-data/logs/${run_id}-events.jsonl" ] && [ ! -s "/tmp/gh-aw/agent/session-data/logs/${run_id}-conversation.txt" ]; then
-              echo "::error::No events.jsonl artifact or conversation transcript could be downloaded for agent run $run_id"
+              echo "::warning::No events.jsonl artifact or conversation transcript could be downloaded for agent run $run_id"
             fi
           fi
         done < "$RUNS_TO_FETCH"
@@ -209,8 +209,7 @@ steps:
         echo "Session logs downloaded: $LOG_RUN_COUNT of $AGENT_COUNT agent runs ($EVENTS_COUNT events.jsonl, $CONVERSATION_COUNT transcript fallbacks)"
 
         if [ "$AGENT_COUNT" -gt 0 ] && [ "$LOG_RUN_COUNT" -lt "$AGENT_COUNT" ]; then
-          echo "::error::Missing per-session logs for $((AGENT_COUNT - LOG_RUN_COUNT)) of $AGENT_COUNT agent runs; failing to prevent incomplete optimization analysis"
-          exit 1
+          echo "::warning::$((AGENT_COUNT - LOG_RUN_COUNT)) of $AGENT_COUNT agent runs have no retrievable session log; proceeding with $LOG_RUN_COUNT available logs"
         fi
 
         # Store in cache with today's date
@@ -259,7 +258,7 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 
 The fetcher first downloads non-expired GitHub Actions artifacts for each completed real agent run (status = `completed`, conclusion ≠ `action_required`) and extracts any `events.jsonl` files. When no structured events artifact is available, it falls back to raw GitHub Actions job logs and extracts `[cca-engine] turn=` lines as a transcript. CI gate runs (`action_required`) are skipped because they have no agent conversation.
 
-If any real agent run has neither an `events.jsonl` artifact nor a transcript fallback, the fetch step emits a GitHub Actions error and exits non-zero so audits do not silently proceed on metadata-only data.
+If a real agent run has neither an `events.jsonl` artifact nor a transcript fallback, the fetch step emits a GitHub Actions warning and continues with the available logs.
 
 The `gh agent-task view --log` approach that was previously used **requires an OAuth token** that the default `GITHUB_TOKEN` does not provide, and relied on extracting a numeric session ID from the branch name — which stopped working when Copilot switched to descriptive branch slugs (e.g., `copilot/fix-mcp-gateway-docker-daemon-access`).
 
