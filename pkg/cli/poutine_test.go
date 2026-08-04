@@ -360,3 +360,12 @@ func TestEnsurePoutineConfig(t *testing.T) {
 		}
 	})
 }
+
+func TestPoutineImageIsPinnedByDigest(t *testing.T) {
+	if _, err := validateDockerImageRef(PoutineImage); err != nil {
+		t.Fatalf("PoutineImage %q failed docker image reference validation: %v", PoutineImage, err)
+	}
+	if !strings.Contains(PoutineImage, "@sha256:") {
+		t.Errorf("PoutineImage must be pinned by digest, got %q", PoutineImage)
+	}
+}

@@ -144,11 +144,22 @@ func (e *BehaviorDefinedEngine) GetSecretValidationStep(workflowData *WorkflowDa
 
 func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	behavior := e.behavior()
-	if behavior == nil || behavior.Installation == nil {
+	if behavior == nil {
 		return nil
 	}
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		return nil
+	}
+
+	// Behavior-defined engines that execute via a harness script (e.g. Goose) run the
+	// harness through Node.js, so Node.js (and, when the firewall is enabled, the AWF
+	// binary) must always be installed even when no package-manager based installation
+	// is declared for the engine's CLI itself.
+	if behavior.Installation == nil {
+		if behavior.HarnessScript == "" {
+			return nil
+		}
+		return BuildNpmEngineInstallStepsWithAWF([]GitHubActionStep{GenerateNodeJsSetupStep()}, workflowData)
 	}
 
 	install := behavior.Installation
