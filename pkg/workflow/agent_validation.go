@@ -51,7 +51,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -253,55 +252,6 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot' and 'claude' engines. The setting will be ignored.", engine.GetID())))
 		c.IncrementWarningCount()
 	}
-}
-
-// validateMCPSupport errors when a workflow configures MCP-backed tools for an engine
-// whose CLI has no MCP client (behaviors.mcp.unsupported: true). Such tools would be
-// rendered into a configuration the engine cannot consume, so the agent would silently
-// run without them.
-//
-// Safe outputs are not covered by this check: they remain available to MCP-less engines
-// through the $GH_AW_SAFE_OUTPUTS JSONL file.
-func (c *Compiler) validateMCPSupport(tools map[string]any, engine CodingAgentEngine) error {
-	if !engineDisallowsMCP(engine) {
-		return nil
-	}
-	mcpToolNames := collectMCPToolNames(tools)
-	if len(mcpToolNames) == 0 {
-		return nil
-	}
-	agentValidationLog.Printf("Engine %s does not support MCP, emitting error for tools: %v", engine.GetID(), mcpToolNames)
-	return fmt.Errorf("engine '%s' does not support MCP servers: remove the MCP-backed tool(s) %s. "+
-		"Use 'bash:', 'edit:', and safe-outputs instead, or switch to an engine with MCP support",
-		engine.GetID(), strings.Join(mcpToolNames, ", "))
-}
-
-// collectMCPToolNames returns the sorted names of tools in the merged tools map that are
-// backed by an MCP server.
-func collectMCPToolNames(tools map[string]any) []string {
-	var names []string
-	for toolName, toolValue := range tools {
-		if toolValue == false {
-			continue
-		}
-		switch toolName {
-		case "github", "cache-memory", "agentic-workflows":
-			names = append(names, toolName)
-			continue
-		case "playwright":
-			if !isPlaywrightCLIMode(tools) {
-				names = append(names, toolName)
-			}
-			continue
-		}
-		if mcpConfig, ok := toolValue.(map[string]any); ok {
-			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-				names = append(names, toolName)
-			}
-		}
-	}
-	slices.Sort(names)
-	return names
 }
 
 // validateBashCommandAllowlistSupport errors when an explicit bash restriction is used

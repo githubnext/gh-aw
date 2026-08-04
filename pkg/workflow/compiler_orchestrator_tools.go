@@ -296,12 +296,6 @@ func (c *Compiler) adjustToolsForEngineCapabilities(frontmatter map[string]any, 
 	}
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
 	c.IncrementWarningCount()
-	if engineDisallowsMCP(agenticEngine) {
-		// The engine has no MCP client, so injecting the default GitHub MCP tool would
-		// configure a server the CLI can never reach. Keep the declared tools (bash, edit,
-		// ...) as-is; validateMCPSupport rejects any MCP-backed tool separately.
-		return tools
-	}
 	if _, hasTools := frontmatter["tools"]; hasTools {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", agenticEngine.GetID(), agenticEngine.GetDisplayName())))
 		c.IncrementWarningCount()
@@ -317,7 +311,6 @@ func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, ag
 		func() error { return c.validateUniversalLLMConsumerModel(frontmatter, agenticEngine) },
 		func() error { return c.validatePiEngineRequirements(NewTools(tools), agenticEngine) },
 		func() error { return c.validateBashCommandAllowlistSupport(tools, agenticEngine) },
-		func() error { return c.validateMCPSupport(tools, agenticEngine) },
 	}
 	for _, validator := range validators {
 		if err := validator(); err != nil {

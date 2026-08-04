@@ -209,17 +209,10 @@ func (e *BehaviorDefinedEngine) GetAgentManifestPathPrefixes() []string {
 
 func (e *BehaviorDefinedEngine) RenderMCPConfig(sb *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	behavior := e.behavior()
-	if behavior == nil || behavior.MCP == nil || behavior.MCP.ConfigPath == "" || behavior.MCP.Unsupported {
+	if behavior == nil || behavior.MCP == nil || behavior.MCP.ConfigPath == "" {
 		return nil
 	}
 	return renderDefaultJSONMCPConfig(sb, tools, mcpTools, workflowData, behavior.MCP.ConfigPath)
-}
-
-// IsMCPUnsupported reports whether the engine definition declares that the CLI has
-// no MCP client (behaviors.mcp.unsupported).
-func (e *BehaviorDefinedEngine) IsMCPUnsupported() bool {
-	behavior := e.behavior()
-	return behavior != nil && behavior.MCP != nil && behavior.MCP.Unsupported
 }
 
 // harnessScriptHeredocDelimiter is the shell heredoc delimiter used when writing

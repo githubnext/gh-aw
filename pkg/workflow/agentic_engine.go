@@ -299,19 +299,6 @@ type HarnessRunner interface {
 	GetHarnessScriptName() string
 }
 
-// MCPSupportReporter is implemented by engines that can declare that their CLI has
-// no MCP client. Engines that do not implement it are assumed to support MCP.
-type MCPSupportReporter interface {
-	// IsMCPUnsupported reports whether the engine CLI is unable to consume MCP servers.
-	IsMCPUnsupported() bool
-}
-
-// engineDisallowsMCP reports whether the engine declared that it has no MCP client.
-func engineDisallowsMCP(engine CodingAgentEngine) bool {
-	reporter, ok := engine.(MCPSupportReporter)
-	return ok && reporter.IsMCPUnsupported()
-}
-
 // HarnessProvider is kept as a backward-compatible alias.
 type HarnessProvider = HarnessRunner
 
