@@ -4,6 +4,7 @@ engine:
   display-name: Pi
   description: Pi AI coding agent (experimental)
   runtime-id: pi
+  mcp: false
   provider:
     name: github
 ---

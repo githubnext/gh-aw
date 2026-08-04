@@ -28,6 +28,7 @@ func NewGeminiEngine() *GeminiEngine {
 			ghSkillAgentName: "gemini-cli",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:       true,
+				MCP:                  true,
 				MaxTurns:             true,
 				MaxContinuations:     false, // Gemini CLI does not support --max-autopilot-continues-style continuation mode
 				WebSearch:            false,
