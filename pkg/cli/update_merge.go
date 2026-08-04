@@ -115,8 +115,6 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 		updateMergeLog.Printf("Failed to parse source spec: %v", err)
 		return "", false, fmt.Errorf("failed to parse source spec: %w", err)
 	}
-	currentSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, sourceSpec.Ref)
-
 	// Support both legacy ref-only and full source spec for the merge target.
 	newSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, newRefOrSourceSpec)
 	if tentativeSourceSpec, parseErr := parseSourceSpec(newRefOrSourceSpec); parseErr == nil {
@@ -128,51 +126,36 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 	}
 	newRef := parsedNewSourceSpec.Ref
 
-	// Fix the base version by adding the source field to match what both current and new have
-	// This prevents unnecessary conflicts over the source field
-	baseWithSource, err := UpdateFieldInFrontmatter(base, "source", currentSourceSpec)
+	// The source field is managed by the updater, not user content. Exclude it from the
+	// textual merge so changing only its ref cannot overlap local frontmatter additions.
+	baseWithoutSource, err := RemoveTopLevelFieldFromFrontmatter(base, "source")
 	if err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source to base content: %v", err)))
-		}
-		// Continue with original base content
-		baseWithSource = base
+		return "", false, fmt.Errorf("failed to remove source from base content: %w", err)
 	}
-
-	// Update the source field in the new content with the new ref
-	newWithUpdatedSource, err := UpdateFieldInFrontmatter(new, "source", newSourceSpec)
+	currentWithoutSource, err := RemoveTopLevelFieldFromFrontmatter(current, "source")
 	if err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update source in new content: %v", err)))
+		return "", false, fmt.Errorf("failed to remove source from current content: %w", err)
+	}
+	newWithoutSource, err := RemoveTopLevelFieldFromFrontmatter(new, "source")
+	if err != nil {
+		return "", false, fmt.Errorf("failed to remove source from new content: %w", err)
+	}
+
+	// Normalize whitespace in all three versions to reduce spurious conflicts.
+	baseNormalized := stringutil.NormalizeWhitespace(baseWithoutSource)
+	currentNormalized := stringutil.NormalizeWhitespace(currentWithoutSource)
+	newNormalized := stringutil.NormalizeWhitespace(newWithoutSource)
+
+	// If upstream content did not change, only advance the managed source ref.
+	// Avoid invoking git merge-file or include processing, which would rewrite
+	// locally customized frontmatter even though there is nothing to merge.
+	if baseNormalized == newNormalized {
+		updatedCurrent, updateErr := UpdateFieldInFrontmatter(current, "source", newSourceSpec)
+		if updateErr != nil {
+			return "", false, fmt.Errorf("failed to update source in current content: %w", updateErr)
 		}
-		// Continue with original new content
-		newWithUpdatedSource = new
+		return updatedCurrent, false, nil
 	}
-
-	// Normalize whitespace in all three versions to reduce spurious conflicts
-	baseNormalized := stringutil.NormalizeWhitespace(baseWithSource)
-	currentNormalized := stringutil.NormalizeWhitespace(current)
-	newNormalized := stringutil.NormalizeWhitespace(newWithUpdatedSource)
-
-	// Normalize source field position in current to match base and new (at end of frontmatter).
-	// base and new both have source added at the end by UpdateFieldInFrontmatter above, but
-	// current may have source at a different position (e.g. before features/evals) if the
-	// file was committed with source in the middle. This positional mismatch causes git
-	// merge-file to produce conflict markers even when the only change is the source SHA.
-	// MoveTopLevelFieldToEnd performs the reposition and value update in a single reconstruction
-	// pass, superseding any need for a separate UpdateFieldInFrontmatter call on current.
-	if normalizedCurrent, moveErr := MoveTopLevelFieldToEnd(currentNormalized, "source", currentSourceSpec); moveErr == nil {
-		currentNormalized = normalizedCurrent
-	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to normalise source field position in current content: %v", moveErr)))
-	}
-	// Re-normalize whitespace: the parser's TrimSpace strips the trailing newline that the
-	// NormalizeWhitespace call above added to currentNormalized, whereas baseNormalized and
-	// newNormalized both had their UpdateFieldInFrontmatter pass run before NormalizeWhitespace
-	// and therefore retain the trailing newline. A one-byte mismatch here causes git merge-file
-	// to treat base and current as different even when the content is otherwise identical,
-	// producing spurious merge conflict markers in the markdown section.
-	currentNormalized = stringutil.NormalizeWhitespace(currentNormalized)
 
 	// Create temporary directory for merge files
 	tmpDir, err := os.MkdirTemp("", "gh-aw-merge-*")
@@ -267,6 +250,11 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 			// Return unprocessed content on error
 		} else {
 			mergedStr = processedContent
+		}
+
+		mergedStr, err = UpdateFieldInFrontmatter(mergedStr, "source", newSourceSpec)
+		if err != nil {
+			return "", false, fmt.Errorf("failed to restore source in merged content: %w", err)
 		}
 	}
 
