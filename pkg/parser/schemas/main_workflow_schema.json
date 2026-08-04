@@ -13406,6 +13406,10 @@
                   "properties": {
                     "config-path": {
                       "type": "string"
+                    },
+                    "config-adapter": {
+                      "type": "string",
+                      "description": "JavaScript source of a Node.js script that converts the MCP gateway's raw output configuration into the format expected by this engine. When set, the script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_mcp_config_adapter.cjs before the MCP gateway starts, and start_mcp_gateway.cjs executes it (instead of a built-in per-engine converter) once the gateway has produced its output."
                     }
                   },
                   "additionalProperties": false

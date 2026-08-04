@@ -204,6 +204,17 @@ type EngineExecutionDefinition struct {
 // behavior-defined engine.
 type EngineMCPDefinition struct {
 	ConfigPath string `yaml:"config-path,omitempty"`
+	// ConfigAdapter is the JavaScript source of a Node.js script that converts
+	// the MCP gateway's raw output configuration into the format expected by
+	// this engine. When non-empty the script is written to
+	// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_mcp_config_adapter.cjs before the
+	// MCP gateway starts, and start_mcp_gateway.cjs executes it (instead of a
+	// built-in per-engine converter) once the gateway has produced its output.
+	// The script can read MCP_GATEWAY_OUTPUT, MCP_GATEWAY_DOMAIN,
+	// MCP_GATEWAY_HOST_DOMAIN, MCP_GATEWAY_PORT and GH_AW_MCP_CLI_SERVERS from
+	// the environment, mirroring the built-in converters, and is expected to
+	// write its own config file (e.g. via ConfigPath above).
+	ConfigAdapter string `yaml:"config-adapter,omitempty"`
 }
 
 // EngineBehaviorDefinition captures declarative runtime behaviour for a custom
