@@ -26,6 +26,8 @@ describe("checkout_pr_branch.cjs", () => {
     // Mock exec
     mockExec = {
       exec: vi.fn().mockResolvedValue(0),
+      // Default: repository is shallow, so --depth is preserved
+      getExecOutput: vi.fn().mockResolvedValue({ stdout: "true\n", stderr: "", exitCode: 0 }),
     };
 
     // Mock context
@@ -235,6 +237,28 @@ If the pull request is still open, verify that:
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
 
       expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully checked out branch: feature-branch");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should omit --depth when the repository is not shallow", async () => {
+      mockExec.getExecOutput.mockResolvedValue({ stdout: "false\n", stderr: "", exitCode: 0 });
+
+      const script = require("./checkout_pr_branch.cjs");
+      await script.main();
+
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch"]);
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should omit --depth for refs/pull fetch when the repository is not shallow", async () => {
+      mockExec.getExecOutput.mockResolvedValue({ stdout: "false\n", stderr: "", exitCode: 0 });
+      mockContext.eventName = "pull_request_target";
+
+      const script = require("./checkout_pr_branch.cjs");
+      await script.main();
+
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head"]);
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 

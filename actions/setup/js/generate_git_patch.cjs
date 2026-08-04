@@ -251,7 +251,21 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           }
 
           if (defaultBranchRef) {
-            baseRef = execGitSync(["merge-base", "--", defaultBranchRef, tipRef], { cwd }).trim();
+            try {
+              baseRef = execGitSync(["merge-base", "--", defaultBranchRef, tipRef], { cwd }).trim();
+            } catch (mergeBaseError) {
+              // A shallow clone (or a `--depth` fetch that grafted history onto an
+              // otherwise complete clone) can make the merge-base unreachable.
+              // Surface that explicitly instead of the misleading "branch does not
+              // exist locally" message.
+              if (fs.existsSync(path.join(cwd || process.cwd(), ".git", "shallow"))) {
+                throw new Error(
+                  `${ERR_SYSTEM}: Could not compute merge-base between ${defaultBranchRef} and ${tipRef} because the repository is a shallow clone (.git/shallow exists). ` +
+                    "Deepen the clone (checkout.fetch-depth: 0) so the common ancestor is reachable."
+                );
+              }
+              throw mergeBaseError;
+            }
             debugLog(`Strategy 1 (full): Computed merge-base: ${baseRef}`);
           } else {
             // No remote refs available - fall through to Strategy 2
