@@ -235,36 +235,6 @@ async function checkBotStatus(actor, owner, repo) {
 }
 
 /**
- * Resolve the base role of an organization custom repository role.
- *
- * The repository collaborator permission endpoint only reports the custom role's display
- * name; the standard permission it derives from is published by
- * `GET /orgs/{org}/custom-repository-roles` as `base_role` (read | triage | write | maintain).
- *
- * @param {string} org - Organization login (repository owner)
- * @param {string} roleName - Custom role name reported by the collaborator permission API
- * @returns {Promise<string>} Normalized base role, or "" when it cannot be resolved
- */
-async function resolveCustomRoleBaseRole(org, roleName) {
-  try {
-    const response = await github.rest.orgs.listCustomRepoRoles({ org });
-    /** @type {Array<{name?: unknown, base_role?: unknown}>} */
-    const customRoles = response?.data?.custom_roles ?? [];
-    const target = roleName.toLowerCase();
-    const match = customRoles.find(role => typeof role?.name === "string" && role.name.toLowerCase() === target);
-    if (!match) {
-      core.debug?.(`Custom repository role '${roleName}' not found in organization '${org}'`);
-      return "";
-    }
-    const baseRole = typeof match.base_role === "string" ? normalizeRoleName(match.base_role.toLowerCase()) : "";
-    return STANDARD_ROLES.has(baseRole) ? baseRole : "";
-  } catch (error) {
-    core.debug?.(`Failed to resolve custom repository roles for organization '${org}': ${getErrorMessage(error)}`);
-    return "";
-  }
-}
-
-/**
  * Check if user has required repository permissions
  * @param {string} actor - GitHub username to check
  * @param {string} owner - Repository owner
@@ -295,24 +265,24 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     core.info(`Repository permission level: ${logDetails}`);
 
     // Standard GitHub repository permission levels. Custom org repository roles (e.g.
-    // "Security Champions") have a role_name that is not one of these — for those, resolve
-    // the role's base_role from the organization's custom repository role definitions so the
-    // actor is not blocked simply because their custom role name is not literally listed in
-    // on.roles.
+    // "Security Champions") have a role_name that is not one of these — for those, fall back
+    // to the standard `permission` level reported by the same endpoint so the actor is not
+    // blocked simply because their custom role name is not literally listed in on.roles.
     const isCustomRole = normalizedRoleName !== "" && !STANDARD_ROLES.has(normalizedRoleName);
-    const resolvedBaseRole = isCustomRole ? await resolveCustomRoleBaseRole(owner, roleName) : "";
+    const resolvedBaseRole = isCustomRole && STANDARD_ROLES.has(normalizedPermission) ? normalizedPermission : "";
     const debugRoleName = normalizedRoleName || "<empty>";
     const debugBaseRole = resolvedBaseRole || "<empty>";
     core.debug?.(`Repository permission API fields for '${actor}': permission='${normalizedPermission}', role='${debugRoleName}'`);
     core.debug?.(`Repository permission computed roles for '${actor}': effective='${effectiveRole}', custom_role=${isCustomRole}, base_role='${debugBaseRole}'`);
     if (isCustomRole && resolvedBaseRole === "") {
-      core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not provide a base_role`);
+      core.debug?.(`Repository permission fallback unavailable for custom role '${normalizedRoleName}' because GitHub did not report a standard permission level`);
     }
 
     // Check if user has one of the required permission levels.
     // For standard roles, use role_name (precise: maintain/triage are not collapsed to
-    // write/read). For custom org roles, only fall back to the role's base_role from the
-    // organization custom-role definitions; fail closed if it cannot be resolved.
+    // write/read). For custom org roles, fall back to the standard `permission` level that
+    // GitHub already computes for the actor (readable with the repository-scoped
+    // GITHUB_TOKEN); fail closed if it is not a standard role.
     /** @type {{ permission: string, roleMatchType: string }|null} */
     let permissionMatch = null;
     for (const requiredPerm of requiredPermissions) {

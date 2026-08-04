@@ -328,12 +328,9 @@ describe("check_permissions_utils", () => {
       expect(mockCore.warning).toHaveBeenCalledWith("User permission 'maintain' does not meet requirements: write");
     });
 
-    it("should authorize custom org role via base_role when base_role matches", async () => {
+    it("should authorize custom org role via the standard permission level", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "write", role_name: "Security Champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ id: 8030, name: "Security Champions", base_role: "write" }] },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["admin", "maintain", "write"]);
@@ -342,23 +339,20 @@ describe("check_permissions_utils", () => {
         authorized: true,
         permission: "Security Champions",
       });
-      expect(mockGithub.rest.orgs.listCustomRepoRoles).toHaveBeenCalledWith({ org: "testowner" });
+      expect(mockGithub.rest.orgs.listCustomRepoRoles).not.toHaveBeenCalled();
       expect(mockCore.debug).toHaveBeenCalledWith("Repository permission API fields for 'testuser': permission='write', role='Security Champions'");
       expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='write'");
       expect(mockCore.debug).toHaveBeenCalledWith("Repository permission matched required role 'write' via base-role");
       expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
     });
 
-    it("should authorize the real-world Project Lead payload with base_role write", async () => {
+    it("should authorize the real-world Project Lead payload with write permission", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: {
           permission: "write",
           role_name: "Project Lead",
           user: { login: "octocat", role_name: "Project Lead" },
         },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ id: 8030, name: "Project Lead", base_role: "write" }] },
       });
 
       const result = await checkRepositoryPermission("octocat", "example-org", "example-repo", ["admin", "maintain", "write"]);
@@ -369,29 +363,23 @@ describe("check_permissions_utils", () => {
       });
     });
 
-    it("should reject maintain-based custom org role when only write is required", async () => {
+    it("should reject a write-permission custom org role when maintain is required", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "write", role_name: "Security Champions" },
       });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ name: "Security Champions", base_role: "maintain" }] },
-      });
 
-      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
+      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["maintain"]);
 
       expect(result).toEqual({
         authorized: false,
         permission: "Security Champions",
       });
-      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: write");
+      expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: maintain");
     });
 
-    it("should authorize maintain-based custom org role when maintain is required", async () => {
+    it("should authorize a maintain-permission custom org role when maintain is required", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "write", role_name: "Security Champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ name: "Security Champions", base_role: "maintain" }] },
+        data: { permission: "maintain", role_name: "Security Champions" },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["maintain"]);
@@ -403,12 +391,9 @@ describe("check_permissions_utils", () => {
       expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
     });
 
-    it("should never authorize a custom org role for admin", async () => {
+    it("should not authorize a write-permission custom org role for admin", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "write", role_name: "Security Champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ name: "Security Champions", base_role: "maintain" }] },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["admin"]);
@@ -419,28 +404,9 @@ describe("check_permissions_utils", () => {
       });
     });
 
-    it("should match custom role names case-insensitively", async () => {
-      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "write", role_name: "security champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ name: "Security Champions", base_role: "write" }] },
-      });
-
-      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
-
-      expect(result).toEqual({
-        authorized: true,
-        permission: "security champions",
-      });
-    });
-
-    it("should authorize read-based custom org role when read is required", async () => {
+    it("should authorize read-permission custom org role when read is required", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "read", role_name: "Security Champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ name: "Security Champions", base_role: "read" }] },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["read"]);
@@ -452,12 +418,9 @@ describe("check_permissions_utils", () => {
       expect(mockCore.info).toHaveBeenCalledWith("✅ User has Security Champions access to repository");
     });
 
-    it("should reject read-based custom org role when required permission does not match", async () => {
+    it("should reject read-permission custom org role when required permission does not match", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: { permission: "read", role_name: "Security Champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ name: "Security Champions", base_role: "read" }] },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
@@ -471,10 +434,7 @@ describe("check_permissions_utils", () => {
 
     it("should authorize when required permissions include the exact custom role name", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "write", role_name: "Security Champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ name: "Security Champions", base_role: "maintain" }] },
+        data: { permission: "read", role_name: "Security Champions" },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["Security Champions"]);
@@ -501,12 +461,9 @@ describe("check_permissions_utils", () => {
       expect(mockCore.warning).toHaveBeenCalledWith("User permission 'write' does not meet requirements: maintain");
     });
 
-    it("should fail closed for custom org role when the role is absent from the org role list", async () => {
+    it("should fail closed for a custom org role with a non-standard permission value", async () => {
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "write", role_name: "Security Champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockResolvedValue({
-        data: { total_count: 1, custom_roles: [{ name: "Other Role", base_role: "write" }] },
+        data: { permission: "none", role_name: "Security Champions" },
       });
 
       const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
@@ -515,25 +472,9 @@ describe("check_permissions_utils", () => {
         authorized: false,
         permission: "Security Champions",
       });
-      expect(mockCore.debug).toHaveBeenCalledWith("Custom repository role 'Security Champions' not found in organization 'testowner'");
       expect(mockCore.debug).toHaveBeenCalledWith("Repository permission computed roles for 'testuser': effective='Security Champions', custom_role=true, base_role='<empty>'");
-      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission fallback unavailable for custom role 'Security Champions' because GitHub did not provide a base_role");
+      expect(mockCore.debug).toHaveBeenCalledWith("Repository permission fallback unavailable for custom role 'Security Champions' because GitHub did not report a standard permission level");
       expect(mockCore.warning).toHaveBeenCalledWith("User permission 'Security Champions' does not meet requirements: write");
-    });
-
-    it("should fail closed for custom org role when the custom roles request fails", async () => {
-      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
-        data: { permission: "write", role_name: "Security Champions" },
-      });
-      mockGithub.rest.orgs.listCustomRepoRoles.mockRejectedValue(new Error("Not Found"));
-
-      const result = await checkRepositoryPermission("testuser", "testowner", "testrepo", ["write"]);
-
-      expect(result).toEqual({
-        authorized: false,
-        permission: "Security Champions",
-      });
-      expect(mockCore.debug).toHaveBeenCalledWith("Failed to resolve custom repository roles for organization 'testowner': Not Found");
     });
 
     it("should check permissions in order and stop at first match", async () => {
