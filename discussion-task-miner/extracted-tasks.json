@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-04T07:39:56Z",
+  "last_run": "2026-08-04T19:14:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -357,6 +357,12 @@
       "title": "eslint-factory README doc gap - already tracked as #50196, skipped",
       "created_at": "2026-08-04T07:39:56Z",
       "status": "skipped_duplicate"
+    },
+    {
+      "source_discussion": 50298,
+      "title": "Fix broken docs/safe-outputs.md link in dangerous-permissions compile error",
+      "created_at": "2026-08-04T19:14:00Z",
+      "status": "created"
     }
   ]
 }

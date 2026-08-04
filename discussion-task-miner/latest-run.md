@@ -1,23 +1,13 @@
-# Task Mining Run - 2026-08-04T07:37Z
+# Task Mining Run - 2026-08-04 (19:14 UTC)
 
 ## Summary
-- Discussions scanned: 50 (last 7 days window, github/gh-aw)
-- New discussions since last run (2026-08-04T01:11Z): 50
-- Tasks identified: 5 candidates
-- Issues created: 4
-- Duplicates avoided: 1 (eslint-factory README gap already tracked as #50196)
+- Discussions scanned: 19 new (previously unprocessed) + candidates from last 30
+- Tasks identified: 1 high-value, verified, non-duplicate
+- Issues created: 1
+- Duplicates avoided: several (awf_helpers.go split, update_actions.go split, compiler_custom_jobs.go split, schema-diff parser_yaml_fields, generateInitialAndCheckoutSteps — all already tracked in open issues #50263, #50210, #50209, or closed history)
 
 ## Created Issues
-- Refactor generateInitialAndCheckoutSteps: split 135-line function and dedupe checkout logic (source: discussion #50161)
-- Fix schema-diff parser_yaml_fields always empty, causing false-positive field gap reports (source: discussion #50195)
-- Introduce ctxutil.OrBackground helper to consolidate nil-context fallback duplication (source: discussion #50010)
-- Deduplicate RepositoryFeatures struct across build-tag files (js/wasm) (source: discussion #49984)
+- Fix broken docs/safe-outputs.md link in dangerous-permissions compile error (source: discussion #50298 [delight] UX Analysis Report)
 
-## Skipped as Duplicate
-- eslint-factory 10/38 undocumented rules (discussion #50198) — already tracked as open issue #50196.
-
-## Top Patterns Observed
-- Oversized/duplicated functions in compiler package (compiler_yaml_checkout.go)
-- Inconsistent nil-context fallback patterns across pkg/cli, pkg/workflow
-- Duplicate/near-duplicate Go type definitions (RepositoryFeatures, legacy vs AWF configs)
-- Tooling reliability gaps in schema-drift automation
+## Notes
+Most scanned discussions this run were metrics/telemetry reports (CLI performance, API consumption, prompt clustering, GEO audit, secrets analysis, cache-strategy) without new concrete code-quality tasks, or repeated code-organization findings (awf_helpers.go, update_actions.go, compiler_custom_jobs.go splits) already covered by existing open issues (#50263, #50210, #50209). Verified the docs/safe-outputs.md dead link directly in pkg/workflow/dangerous_permissions_validation.go:85 before filing.
