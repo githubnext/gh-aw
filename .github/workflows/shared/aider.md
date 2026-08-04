@@ -59,6 +59,8 @@ engine:
         - --analytics-disable
         - --openai-api-base
         - http://172.30.0.30:10002/v1
+        - --set-env
+        - OPENAI_BASE_URL=http://172.30.0.30:10002/v1
         - --openai-api-key
         - awf-copilot-proxy
       step-name: Execute Aider CLI
@@ -85,6 +87,7 @@ engine:
 
       const localBin = join(homedir(), ".local", "bin");
       const env = { ...process.env, PATH: `${localBin}:${process.env.PATH || ""}` };
+      delete env.GITHUB_COPILOT_TOKEN;
 
       const promptFile = process.env.GH_AW_PROMPT;
       if (!promptFile) {
