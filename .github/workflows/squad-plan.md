@@ -29,25 +29,6 @@ safe-outputs:
     assignees: [copilot]
     group: true
     max: 8
-pre-agent-steps:
-  - name: Check Squad files
-    run: |
-      set -euo pipefail
-      GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
-      mkdir -p "$(dirname "$GH_AW_SAFE_OUTPUTS")"
-
-      missing=()
-      for path in .squad/team.md .github/agents/squad.agent.md; do
-        if [ ! -f "$path" ]; then
-          missing+=("$path")
-        fi
-      done
-
-      if [ "${#missing[@]}" -gt 0 ]; then
-        message="Squad files are unavailable: ${missing[*]}. The activation-job bootstrap step likely failed."
-        printf '{"type":"noop","message":"%s"}\n' "$message" >> "$GH_AW_SAFE_OUTPUTS"
-        echo "$message"
-      fi
 ---
 
 # Squad Plan
@@ -58,18 +39,14 @@ small Copilot-ready sub-issues.
 
 ## Task
 
-1. Confirm Squad files are available before delegating work to the team:
-   `.squad/team.md` and `.github/agents/squad.agent.md` should exist. If
-   either file is missing, call `noop` with a short explanation instead of
-   proceeding.
-2. Review the triggering issue (#${{ github.event.issue.number }}) and the
+1. Review the triggering issue (#${{ github.event.issue.number }}) and the
    slash-command comment for any additional guidance.
-3. Work with the Squad team to produce a concise implementation plan for the
+2. Work with the Squad team to produce a concise implementation plan for the
    issue, including scope, sequencing, dependencies, and validation criteria.
-4. Create at most 8 small, independently actionable sub-issues from the plan.
+3. Create at most 8 small, independently actionable sub-issues from the plan.
    With issue grouping enabled, create only the sub-issues; the safe-output
    runtime will group them under a parent tracking issue automatically.
-5. Each sub-issue must be suitable for assignment to GitHub Copilot coding
+4. Each sub-issue must be suitable for assignment to GitHub Copilot coding
    agent one by one, carry the configured `cookie` label, and include:
    - a clear objective
    - relevant issue context
