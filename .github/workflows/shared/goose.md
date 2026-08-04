@@ -44,7 +44,7 @@ engine:
       config-path: .goose/mcp.json
     harness-script: |
       const { createHash } = require("crypto");
-      const { existsSync, mkdtempSync, readFileSync, rmSync } = require("fs");
+      const { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("fs");
       const { tmpdir } = require("os");
       const { join } = require("path");
       const { spawnSync } = require("child_process");
@@ -60,6 +60,10 @@ engine:
         }
       };
       const quote = (value) => `'${String(value).replace(/'/g, "'\\''")}'`;
+      const slugify = (value) =>
+        String(value)
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]+/g, "_");
 
       try {
         fail(spawnSync("curl", ["--fail", "--location", "--silent", "--show-error", "--output", archive, releaseURL], { stdio: "inherit" }), "Goose download");
@@ -69,13 +73,50 @@ engine:
         fail(spawnSync("tar", ["-xzf", archive, "-C", installDir], { stdio: "inherit" }), "Goose extraction");
 
         const config = JSON.parse(readFileSync(process.env.GH_AW_MCP_CONFIG, "utf8"));
-        const extensions = Object.values(config.mcpServers || {}).flatMap((server) => {
+        const mcpServers = config.mcpServers || {};
+
+        // Stdio-based MCP servers (command/args/env) are passed directly as
+        // --with-extension CLI flags.
+        const extensions = Object.values(mcpServers).flatMap((server) => {
           if (!server.command) return [];
           const env = Object.entries(server.env || {}).map(([key, value]) => `${key}=${quote(value)}`);
           return ["--with-extension", [...env, quote(server.command), ...(server.args || []).map(quote)].join(" ")];
         });
+
+        // HTTP-based MCP servers (url/headers), such as the ones produced by the
+        // MCP gateway, cannot carry an Authorization header via the
+        // --with-streamable-http-extension CLI flag (it only accepts a URL and
+        // "key=value" options like timeout). Instead, declare them as enabled
+        // "streamable_http" extensions in a Goose config-file overlay, which
+        // supports a headers map, and merge it in via GOOSE_ADDITIONAL_CONFIG_FILES.
+        // Note: serde_yaml (used by Goose to load config files) accepts JSON as a
+        // valid subset of YAML, so a plain JSON file works here.
+        const httpExtensions = Object.entries(mcpServers).filter(([, server]) => typeof server.url === "string");
+        const env = { ...process.env };
+        if (httpExtensions.length > 0) {
+          const extensionsConfig = {
+            extensions: Object.fromEntries(
+              httpExtensions.map(([name, server]) => [
+                slugify(name),
+                {
+                  enabled: true,
+                  type: "streamable_http",
+                  name,
+                  uri: server.url,
+                  headers: server.headers || {},
+                  timeout: 300,
+                },
+              ])
+            ),
+          };
+          const extensionsConfigFile = join(installDir, "goose-mcp-extensions.json");
+          writeFileSync(extensionsConfigFile, JSON.stringify(extensionsConfig, null, 2), { mode: 0o600 });
+          const existingConfigFiles = env.GOOSE_ADDITIONAL_CONFIG_FILES ? env.GOOSE_ADDITIONAL_CONFIG_FILES.split(":").filter(Boolean) : [];
+          env.GOOSE_ADDITIONAL_CONFIG_FILES = [...existingConfigFiles, extensionsConfigFile].join(":");
+        }
+
         const prompt = readFileSync(process.env.GH_AW_PROMPT, "utf8");
-        fail(spawnSync(join(installDir, command), [...commandArgs, "run", "--no-session", ...extensions, "-t", prompt], { stdio: "inherit", env: process.env }), "Goose execution");
+        fail(spawnSync(join(installDir, command), [...commandArgs, "run", "--no-session", ...extensions, "-t", prompt], { stdio: "inherit", env }), "Goose execution");
       } finally {
         if (existsSync(installDir)) rmSync(installDir, { recursive: true, force: true });
       }

@@ -867,6 +867,7 @@ async function main() {
     codex: "convert_gateway_config_codex.cjs",
     claude: "convert_gateway_config_claude.cjs",
     gemini: "convert_gateway_config_gemini.cjs",
+    goose: "convert_gateway_config_goose.cjs",
   };
 
   const converterFile = converters[/** @type {keyof typeof converters} */ engineType];
