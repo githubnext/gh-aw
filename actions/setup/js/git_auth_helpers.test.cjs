@@ -4,6 +4,7 @@ describe("git_auth_helpers.cjs", () => {
   let mockCore;
   let mockExec;
   let checkoutHasPersistedExtraheader;
+  let findIncludedExtraheaderConfigFiles;
   let overridePersistedExtraheader;
   let restorePersistedExtraheader;
   let unsetExtraheaderAllScopes;
@@ -29,7 +30,7 @@ describe("git_auth_helpers.cjs", () => {
     global.exec = mockExec;
 
     delete require.cache[require.resolve("./git_auth_helpers.cjs")];
-    ({ checkoutHasPersistedExtraheader, overridePersistedExtraheader, restorePersistedExtraheader, unsetExtraheaderAllScopes, withGitHubHostToken } = require("./git_auth_helpers.cjs"));
+    ({ checkoutHasPersistedExtraheader, findIncludedExtraheaderConfigFiles, overridePersistedExtraheader, restorePersistedExtraheader, unsetExtraheaderAllScopes, withGitHubHostToken } = require("./git_auth_helpers.cjs"));
   });
 
   afterEach(() => {
@@ -101,6 +102,77 @@ describe("git_auth_helpers.cjs", () => {
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 4, stdout: "", stderr: "error: could not lock config file" });
 
       await expect(unsetExtraheaderAllScopes(EXTRAHEADER_KEY)).rejects.toThrow(/--unset-all.*failed \(exit 4\)/);
+    });
+
+    it("should also unset the key from includeIf.gitdir-referenced config files (checkout v7 case)", async () => {
+      process.env.RUNNER_TEMP = "/home/runner/work/_temp";
+      const credFile = "/home/runner/work/_temp/git-credentials-abc123.config";
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args.includes("--get-regexp")) {
+          return { exitCode: 0, stdout: `includeif.gitdir:/home/runner/work/repo/.git/.path ${credFile}\n`, stderr: "" };
+        }
+        return { exitCode: 5, stdout: "", stderr: "" };
+      });
+
+      await unsetExtraheaderAllScopes(EXTRAHEADER_KEY);
+
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["config", "--file", credFile, "--unset-all", EXTRAHEADER_KEY], expect.objectContaining({ ignoreReturnCode: true }));
+      delete process.env.RUNNER_TEMP;
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // findIncludedExtraheaderConfigFiles
+  // ──────────────────────────────────────────────────────
+
+  describe("findIncludedExtraheaderConfigFiles", () => {
+    const originalRunnerTemp = process.env.RUNNER_TEMP;
+
+    afterEach(() => {
+      if (originalRunnerTemp === undefined) {
+        delete process.env.RUNNER_TEMP;
+      } else {
+        process.env.RUNNER_TEMP = originalRunnerTemp;
+      }
+    });
+
+    it("should return an empty array when there are no includeIf.gitdir entries", async () => {
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "" });
+
+      const files = await findIncludedExtraheaderConfigFiles();
+
+      expect(files).toEqual([]);
+    });
+
+    it("should return the resolved path of an includeIf.gitdir config file under RUNNER_TEMP", async () => {
+      process.env.RUNNER_TEMP = "/home/runner/work/_temp";
+      const credFile = "/home/runner/work/_temp/git-credentials-abc123.config";
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args.includes("--get-regexp")) {
+          return { exitCode: 0, stdout: `includeif.gitdir:/home/runner/work/repo/.git/.path ${credFile}\n`, stderr: "" };
+        }
+        return { exitCode: 5, stdout: "", stderr: "" };
+      });
+
+      const files = await findIncludedExtraheaderConfigFiles();
+
+      expect(files).toEqual([credFile]);
+    });
+
+    it("should skip and warn about config files outside safe temp directories", async () => {
+      process.env.RUNNER_TEMP = "/home/runner/work/_temp";
+      const maliciousPath = "/etc/passwd";
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args.includes("--get-regexp")) {
+          return { exitCode: 0, stdout: `includeif.gitdir:/home/runner/work/repo/.git/.path ${maliciousPath}\n`, stderr: "" };
+        }
+        return { exitCode: 5, stdout: "", stderr: "" };
+      });
+
+      const files = await findIncludedExtraheaderConfigFiles();
+
+      expect(files).toEqual([]);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("skipping includeIf-referenced config file outside safe temp directories"));
     });
   });
 
