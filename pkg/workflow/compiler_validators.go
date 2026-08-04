@@ -194,6 +194,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating private-to-public-flows string value", validateFn: func() error { return validatePrivateToPublicFlowsStringValue(workflowData) }},
 		{logMessage: "Validating private-to-public-flows server IDs", validateFn: func() error { return validatePrivateToPublicFlowsServerIDs(workflowData) }},
 		{logMessage: "Validating GCP WIF engine auth required fields", validateFn: func() error { return validateGCPWIFEngineAuth(workflowData) }},
+		{logMessage: "Validating OTLP workload identity configuration", validateFn: func() error { return validateOTLPWorkloadIdentity(workflowData) }},
 		{logMessage: "Validating default AI credits pricing values", validateFn: func() error { return validateDefaultAiCreditsPricing(workflowData) }},
 		{logMessage: "Validating tools.github.bounded-queries configuration", validateFn: func() error { return validateBoundedQueriesConfig(workflowData) }},
 	}
@@ -469,6 +470,7 @@ func validateGCPWIFEngineAuth(workflowData *WorkflowData) error {
 	if auth.Type != "github-oidc" || auth.Provider != "gcp" {
 		return nil
 	}
+
 	var missing []string
 	if auth.GoogleWorkloadIdentityProvider == "" {
 		missing = append(missing, "workload-identity-provider")
@@ -481,6 +483,23 @@ func validateGCPWIFEngineAuth(workflowData *WorkflowData) error {
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("engine.auth with provider=gcp requires the following fields: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+func validateOTLPWorkloadIdentity(workflowData *WorkflowData) error {
+	workloadIdentity := getOTLPWorkloadIdentity(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter)
+	if workloadIdentity == nil {
+		return nil
+	}
+	if !strings.EqualFold(strings.TrimSpace(workloadIdentity.Provider), "google") {
+		return errors.New("observability.otlp.workload-identity.provider must be google")
+	}
+	if strings.TrimSpace(workloadIdentity.Audience) == "" {
+		return errors.New("observability.otlp.workload-identity.audience is required")
+	}
+	if getOTLPGitHubAppTokenConfig(workflowData.RawFrontmatter) != nil {
+		return errors.New("observability.otlp.workload-identity cannot be combined with GitHub App credentials")
 	}
 	return nil
 }

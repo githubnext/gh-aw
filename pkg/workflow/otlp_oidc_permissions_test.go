@@ -80,3 +80,57 @@ engine: copilot
 		})
 	}
 }
+
+// TestOTLPWorkloadIdentityGrantsIDTokenWriteWithoutDeclaration verifies that
+// observability.otlp.workload-identity compiles without the user declaring
+// permissions.id-token: write, and that every job carrying the mint step is granted
+// the permission automatically (job-level permissions override the workflow level).
+func TestOTLPWorkloadIdentityGrantsIDTokenWriteWithoutDeclaration(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "otlp-wif-perms")
+	testFile := filepath.Join(tmpDir, "otlp-wif.md")
+
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+observability:
+  otlp:
+    endpoint: https://telemetry.googleapis.com
+    workload-identity:
+      provider: google
+      audience: projects/123/locations/global/workloadIdentityPools/pool/providers/github
+safe-outputs:
+  add-comment:
+engine: copilot
+---
+
+# OTLP workload identity permissions test
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile), "workflow should compile without a declared id-token permission")
+
+	lockBytes, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	require.NoError(t, err, "failed to read generated lock file")
+	lockContent := string(lockBytes)
+
+	jobs := []string{
+		string(constants.ActivationJobName),
+		string(constants.AgentJobName),
+		"conclusion",
+		"safe_outputs",
+	}
+	for _, jobName := range jobs {
+		t.Run(jobName, func(t *testing.T) {
+			section := extractJobSection(lockContent, jobName)
+			require.NotEmpty(t, section, "job %q should be present in the compiled output", jobName)
+			assert.Contains(t, section, "id: mint-otlp-oidc-token",
+				"job %q should contain the OTLP OIDC mint step", jobName)
+			assert.Contains(t, section, "id-token: write",
+				"job %q must be granted id-token: write automatically", jobName)
+		})
+	}
+}

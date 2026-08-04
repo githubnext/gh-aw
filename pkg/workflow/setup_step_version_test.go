@@ -355,3 +355,90 @@ func TestGenerateSetupStepIncludesOTLPOIDCTokenInScriptMode(t *testing.T) {
 		t.Fatalf("expected setup.sh env to include minted OTLP OIDC token, got:\n%s", combined)
 	}
 }
+
+func TestGenerateSetupStepExchangesGoogleOTLPWorkloadIdentityToken(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "my-workflow",
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"workload-identity": map[string]any{
+						"provider":        "google",
+						"audience":        "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+						"service-account": "otlp@example.iam.gserviceaccount.com",
+					},
+				},
+			},
+		},
+	}
+
+	combined := strings.Join(c.generateSetupStep(data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", ""), "")
+
+	if !strings.Contains(combined, "id: exchange-otlp-workload-identity-token") {
+		t.Fatalf("expected setup step to include Google workload identity exchange, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "https://sts.googleapis.com/v1/token") || !strings.Contains(combined, "iamcredentials.googleapis.com") {
+		t.Fatalf("expected setup step to include Google STS and service account exchange, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, "otlp-oidc-token: ${{ steps.exchange-otlp-workload-identity-token.outputs.token }}") {
+		t.Fatalf("expected setup action to receive the exchanged access token, got:\n%s", combined)
+	}
+	// The provider resource is normalized into the two canonical audience forms Google expects.
+	if !strings.Contains(combined, `GH_AW_OTLP_OIDC_AUDIENCE: "https://iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/pool/providers/github"`) {
+		t.Fatalf("expected GitHub OIDC audience to use the https://iam.googleapis.com/ form, got:\n%s", combined)
+	}
+	if !strings.Contains(combined, `GH_AW_OTLP_WIF_AUDIENCE: "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/pool/providers/github"`) {
+		t.Fatalf("expected STS audience to use the //iam.googleapis.com/ form, got:\n%s", combined)
+	}
+	// Exchange failures must surface the HTTP status so misconfiguration is diagnosable.
+	if !strings.Contains(combined, "response.status") || !strings.Contains(combined, "impersonationResponse.status") {
+		t.Fatalf("expected exchange errors to include HTTP status, got:\n%s", combined)
+	}
+}
+
+func TestGenerateSetupStepExchangesGoogleOTLPWorkloadIdentityTokenWithoutServiceAccount(t *testing.T) {
+	c := NewCompiler()
+	data := &WorkflowData{
+		Name: "my-workflow",
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"workload-identity": map[string]any{
+						"provider": "google",
+						"audience": "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+					},
+				},
+			},
+		},
+	}
+
+	combined := strings.Join(c.generateSetupStep(data, "github/gh-aw/actions/setup@abc123", "${{ runner.temp }}/gh-aw", false, "", ""), "")
+
+	if !strings.Contains(combined, "id: exchange-otlp-workload-identity-token") {
+		t.Fatalf("expected setup step to include Google workload identity exchange, got:\n%s", combined)
+	}
+	if strings.Contains(combined, "GH_AW_OTLP_WIF_SERVICE_ACCOUNT:") {
+		t.Fatalf("expected no service account env var when service-account is omitted, got:\n%s", combined)
+	}
+}
+
+func TestGoogleWIFAudiences(t *testing.T) {
+	const resource = "projects/123/locations/global/workloadIdentityPools/pool/providers/github"
+	for _, input := range []string{
+		resource,
+		"https://iam.googleapis.com/" + resource,
+		"//iam.googleapis.com/" + resource,
+	} {
+		githubAudience, stsAudience := googleWIFAudiences(input)
+		if githubAudience != "https://iam.googleapis.com/"+resource {
+			t.Fatalf("unexpected GitHub audience for %q: %s", input, githubAudience)
+		}
+		if stsAudience != "//iam.googleapis.com/"+resource {
+			t.Fatalf("unexpected STS audience for %q: %s", input, stsAudience)
+		}
+	}
+	if githubAudience, stsAudience := googleWIFAudiences("  "); githubAudience != "" || stsAudience != "" {
+		t.Fatalf("expected empty audiences for blank provider, got %q and %q", githubAudience, stsAudience)
+	}
+}
