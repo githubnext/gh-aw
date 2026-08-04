@@ -153,11 +153,51 @@ describe("resolve_pr_review_thread", () => {
     expect(mockGraphql).toHaveBeenCalledTimes(1);
   });
 
-  it("should reject non-thread node IDs instead of treating them as resolved", async () => {
-    mockGraphql.mockResolvedValue({
-      node: {
-        __typename: "PullRequestReviewComment",
-      },
+  it("should resolve a review comment node ID by finding its parent thread", async () => {
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        return Promise.resolve({
+          resolveReviewThread: {
+            thread: {
+              id: "PRRT_kwDOThread123",
+              isResolved: true,
+            },
+          },
+        });
+      }
+      if (query.includes("reviewThreads")) {
+        return Promise.resolve({
+          repository: {
+            pullRequest: {
+              reviewThreads: {
+                pageInfo: { hasNextPage: false, endCursor: null },
+                nodes: [
+                  {
+                    id: "PRRT_kwDOThread123",
+                    isResolved: false,
+                    comments: {
+                      nodes: [{ id: "PRRC_kwDOComment123" }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        node: {
+          __typename: "PullRequestReviewComment",
+          pullRequest: {
+            number: 42,
+            repository: {
+              name: "test-repo",
+              nameWithOwner: "test-owner/test-repo",
+              owner: { login: "test-owner" },
+            },
+          },
+        },
+      });
     });
 
     const { main } = require("./resolve_pr_review_thread.cjs");
@@ -168,9 +208,31 @@ describe("resolve_pr_review_thread", () => {
       thread_id: "PRRC_kwDOComment123",
     });
 
+    expect(result.success).toBe(true);
+    expect(result.thread_id).toBe("PRRT_kwDOThread123");
+    expect(result.is_resolved).toBe(true);
+    expect(mockGraphql).toHaveBeenCalledTimes(3);
+    expect(mockGraphql).toHaveBeenCalledWith(expect.stringContaining("resolveReviewThread"), expect.objectContaining({ threadId: "PRRT_kwDOThread123" }));
+  });
+
+  it("should still reject non-thread and non-comment node IDs", async () => {
+    mockGraphql.mockResolvedValue({
+      node: {
+        __typename: "Issue",
+      },
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({
+      type: "resolve_pull_request_review_thread",
+      thread_id: "I_kwDOIssue123",
+    });
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("PullRequestReviewThread");
-    expect(result.error).toContain("PullRequestReviewComment");
+    expect(result.error).toContain("Issue");
   });
 
   it("should still reject already resolved threads from a different PR", async () => {
