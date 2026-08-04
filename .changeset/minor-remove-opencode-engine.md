@@ -1,11 +1,11 @@
 ---
-"gh-aw": major
+"gh-aw": minor
 ---
 
 Remove the experimental `opencode` engine.
 
-**Breaking change:** Workflows using `engine: opencode` or `engine.id: opencode`
-no longer compile or validate.
+Workflows using `engine: opencode` or `engine.id: opencode` no longer compile
+or validate.
 
 **Migration:** Change the workflow to use `copilot`, `claude`, `codex`, `gemini`,
 `antigravity`, or `pi`. The runner no longer restores `opencode.jsonc` or

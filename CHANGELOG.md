@@ -4,8 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## v0.40.1 - 2026-02-03
 
-### Breaking Changes
-
 #### Removed the experimental `opencode` engine
 
 Workflows using `engine: opencode` must migrate to `copilot`, `claude`, `codex`,
