@@ -170,6 +170,7 @@ engine:
         // valid subset of YAML, so a plain JSON file works here.
         const httpExtensions = Object.entries(mcpServers).filter(([, server]) => typeof server.url === "string");
         const env = { ...process.env };
+        env.GOOSE_MODEL = env.GOOSE_MODEL?.split("/", 2).at(-1);
         if (env.AWF_REFLECT_ENABLED === "1") {
           const result = await fetchAWFReflect({ logger: log });
           if (!result.ok || !result.reflectData) {
