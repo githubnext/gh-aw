@@ -32,6 +32,8 @@ tools:
     - "split*"
     - "head*"
     - "tail*"
+    - "jq*"
+    - "safeoutputs*"
 steps:
   - name: Fetch and chunk PR diff
     env:
@@ -70,7 +72,7 @@ safe-outputs:
     body: true
     title: false
     operation: replace
-    target: '*'
+    target: triggering
     max: 1
   noop:
 timeout-minutes: 15
