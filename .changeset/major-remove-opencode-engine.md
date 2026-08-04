@@ -1,5 +1,5 @@
 ---
-"gh-aw": minor
+"gh-aw": major
 ---
 
 Remove the experimental `opencode` engine.

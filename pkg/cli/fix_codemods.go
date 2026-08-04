@@ -108,7 +108,6 @@ func GetAllCodemods() []Codemod {
 		getMentionsAllowTeamMembersCodemod(),                       // Rename allow-team-members to allowed-collaborators in safe-outputs.mentions
 		getEngineCopilotSDKDriverToDriverCodemod(),                 // Rename deprecated engine.copilot-sdk-driver to engine.driver
 		getEngineModelToTopLevelCodemod(),                          // Move engine.model to top-level model
-		getOpenCodeSharedImportCodemod(),                           // Add shared/opencode.md import for OpenCode engine
 	}
 	fixCodemodsLog.Printf("Loaded codemod registry: %d codemods available", len(codemods))
 	return codemods

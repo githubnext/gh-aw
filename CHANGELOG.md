@@ -4,12 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## v0.40.1 - 2026-02-03
 
-#### Removed the experimental `opencode` engine
-
-Workflows using `engine: opencode` must migrate to `copilot`, `claude`, `codex`,
-`gemini`, `antigravity`, or `pi`. The runner no longer restores
-`opencode.jsonc` or `.opencode/` configuration.
-
 ### Move from githubnext/gh-aw to github/gh-aw
 
 If you were a former user of the githubnext Agentic Workflows you might have to **re-register** the extension to reflect the new location.
@@ -443,6 +437,12 @@ Run `gh aw fix --write` to apply automatic updates across your repository.
 ## Unreleased
 
 ### Breaking Changes
+
+#### Removed the experimental `opencode` engine
+
+Workflows using `engine: opencode` must migrate to `copilot`, `claude`, `codex`,
+`gemini`, `antigravity`, or `pi`. The runner no longer restores
+`opencode.jsonc` or `.opencode/` configuration.
 
 #### `gh aw add` errors for packages with `aw.yml` config
 
