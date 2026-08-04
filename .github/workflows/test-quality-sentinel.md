@@ -25,6 +25,8 @@ cache:
     - pr-test-prefetch-${{ github.event.pull_request.number || github.event.issue.number }}-
 tools:
   cli-proxy: true
+  github:
+    mode: gh-proxy
   bash:
     - "git diff:*"
     - "grep:*"
@@ -336,7 +338,35 @@ Guideline violations always force `REQUEST_CHANGES` regardless of numeric score.
 
 ## Step 7: Post PR Comment with Results
 
-Post using `add-comment` (not bash; omit `item_number` — runtime infers the PR). Use this template:
+Read the `test-report-templates` skill and post the report using `add-comment` (not bash; omit `item_number` — runtime infers the PR). Use the standard template, or the infrastructure-only template when the PR contains only `TestMain`/setup changes.
+
+## Step 8: Submit PR Review Based on Result
+
+After posting the comment, submit exactly one safe-output action based on the analysis outcome:
+- When no tests required action: `{"noop": {"message": "No action needed: [brief explanation]"}}`
+- When quality passes (`implementation_tests / total <= 30%` and no violations): `{"event": "APPROVE", "body": "✅ Test Quality Sentinel: {SCORE}/100. {IMPL_PCT}% implementation tests (threshold: 30%)."}`
+- When this is an infrastructure-only PR (only `TestMain` changes, no behavioral tests) with no violations: `{"event": "APPROVE", "body": "✅ Test Quality Sentinel: Infrastructure only. {GOLEAK_NOTE} No violations."}`
+- When quality fails (ratio `> 30%` **or** any guideline violation): `{"event": "REQUEST_CHANGES", "body": "❌ Test Quality Sentinel: {SCORE}/100. {FAIL_REASON} Review flagged tests in the comment above."}`
+
+## Guidelines
+
+Calibration rules:
+- **Edge-case credit is generous**: one valid error assertion is enough (`assert.Error`, `t.Fatalf` on error, `.toThrow`, `.rejects`, etc.)
+- **Table-driven tests**: count each row as a scenario; credit error/edge rows individually
+- **Behavioral credit is strict**: mark `design_test` only when assertions verify user-visible behavior
+- **Go assertion messages required**: flag assertions without descriptive failure context
+- **Duplicate detection threshold**: report duplicates only when 3+ tests share the same pattern with trivial constant changes
+- **Goroutine-leak guards**: `TestMain` with `goleak.VerifyTestMain` is a strong design invariant; in infrastructure-only PRs with no hard violations, approve and note it as a positive quality signal
+- **Infrastructure-only PRs**: PRs adding only `TestMain` and test setup infrastructure carry no behavioral test ratio and must not be failed on that basis; evaluate only hard violations (build tags, mock libraries)
+
+**Token Budget**: Analyze at most **50 test functions** per run. If more exist, prioritize newly added functions over modified ones; add a sampling note in the PR comment. Keep individual test analysis concise — 2–3 sentences per test in the flagged section. Always wrap the per-test classification table and flagged-test details in `<details>` tags.
+
+## skill: `test-report-templates`
+---
+description: PR comment templates for the Test Quality Sentinel report (standard and infrastructure-only).
+---
+
+Standard report template:
 
 ```markdown
 ### 🧪 Test Quality Sentinel Report
@@ -376,7 +406,7 @@ Post using `add-comment` (not bash; omit `item_number` — runtime infers the PR
 > {✅/❌} **{passed/failed}.** {IMPL_PCT}% implementation tests (threshold: 30%).
 ```
 
-For infrastructure-only PRs, use a dedicated comment format (no numeric score or ratio fields):
+Infrastructure-only report template (no numeric score or ratio fields):
 
 ```markdown
 ### 🧪 Test Quality Sentinel Report
@@ -400,24 +430,3 @@ For infrastructure-only PRs, use a dedicated comment format (no numeric score or
 
 > ✅ **passed.** Infrastructure-only PR; behavioral test ratio not applicable.
 ```
-
-## Step 8: Submit PR Review Based on Result
-
-After posting the comment, submit exactly one safe-output action based on the analysis outcome:
-- When no tests required action: `{"noop": {"message": "No action needed: [brief explanation]"}}`
-- When quality passes (`implementation_tests / total <= 30%` and no violations): `{"event": "APPROVE", "body": "✅ Test Quality Sentinel: {SCORE}/100. {IMPL_PCT}% implementation tests (threshold: 30%)."}`
-- When this is an infrastructure-only PR (only `TestMain` changes, no behavioral tests) with no violations: `{"event": "APPROVE", "body": "✅ Test Quality Sentinel: Infrastructure only. {GOLEAK_NOTE} No violations."}`
-- When quality fails (ratio `> 30%` **or** any guideline violation): `{"event": "REQUEST_CHANGES", "body": "❌ Test Quality Sentinel: {SCORE}/100. {FAIL_REASON} Review flagged tests in the comment above."}`
-
-## Guidelines
-
-Calibration rules:
-- **Edge-case credit is generous**: one valid error assertion is enough (`assert.Error`, `t.Fatalf` on error, `.toThrow`, `.rejects`, etc.)
-- **Table-driven tests**: count each row as a scenario; credit error/edge rows individually
-- **Behavioral credit is strict**: mark `design_test` only when assertions verify user-visible behavior
-- **Go assertion messages required**: flag assertions without descriptive failure context
-- **Duplicate detection threshold**: report duplicates only when 3+ tests share the same pattern with trivial constant changes
-- **Goroutine-leak guards**: `TestMain` with `goleak.VerifyTestMain` is a strong design invariant; in infrastructure-only PRs with no hard violations, approve and note it as a positive quality signal
-- **Infrastructure-only PRs**: PRs adding only `TestMain` and test setup infrastructure carry no behavioral test ratio and must not be failed on that basis; evaluate only hard violations (build tags, mock libraries)
-
-**Token Budget**: Analyze at most **50 test functions** per run. If more exist, prioritize newly added functions over modified ones; add a sampling note in the PR comment. Keep individual test analysis concise — 2–3 sentences per test in the flagged section. Always wrap the per-test classification table and flagged-test details in `<details>` tags.
