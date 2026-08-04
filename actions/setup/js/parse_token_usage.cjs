@@ -102,7 +102,7 @@ function getSummaryTitle() {
  * @returns {string}
  */
 function buildStepSummarySection(title, markdown) {
-  return `### ${title}\n\n<details>\n<summary>Per-request AI credits and token totals</summary>\n\n${markdown}</details>\n\n`;
+  return `<details>\n<summary>${title}</summary>\n\nPer-request AI credits and token totals\n\n${markdown}</details>\n\n`;
 }
 
 /**

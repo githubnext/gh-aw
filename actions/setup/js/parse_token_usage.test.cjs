@@ -196,7 +196,7 @@ describe("parse_token_usage", () => {
 
       await main();
 
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("### Token Usage"), true);
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("<summary>Token Usage</summary>"), true);
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("| Alias |"), true);
       expect(mockCore.summary.write).toHaveBeenCalled();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Token usage summary appended"));
@@ -226,7 +226,7 @@ describe("parse_token_usage", () => {
 
       await main();
 
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("### Threat Detection Token Usage"), true);
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("<summary>Threat Detection Token Usage</summary>"), true);
     });
 
     test("appends token usage section to GITHUB_STEP_SUMMARY when configured", async () => {
@@ -253,8 +253,8 @@ describe("parse_token_usage", () => {
       await main();
 
       const stepSummary = originalReadFileSync(stepSummaryPath, "utf8");
-      expect(stepSummary).toContain("### Token Usage");
-      expect(stepSummary).toContain("<summary>Per-request AI credits and token totals</summary>");
+      expect(stepSummary).toContain("<summary>Token Usage</summary>");
+      expect(stepSummary).toContain("Per-request AI credits and token totals");
       expect(stepSummary).toContain("| ΔAI Credits | AI Credits |");
       expect(fs.appendFileSync).toHaveBeenCalledWith(stepSummaryPath, expect.any(String), "utf8");
       expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
@@ -333,7 +333,7 @@ describe("parse_token_usage", () => {
       await main();
 
       const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-      expect(summaryCall[0]).toContain("### Token Usage");
+      expect(summaryCall[0]).toContain("<summary>Token Usage</summary>");
       expectTokenUsageTableRows(summaryCall[0], [
         ["sonnet46", "100", "200"],
         ["gpt40", "50", "80"],
@@ -544,9 +544,9 @@ describe("parse_token_usage", () => {
 
     test("buildStepSummarySection wraps markdown in a heading and details block", () => {
       const section = buildStepSummarySection("Token Usage", "| Alias |\n| --- |");
-      expect(section).toContain("### Token Usage");
       expect(section).toContain("<details>");
-      expect(section).toContain("<summary>Per-request AI credits and token totals</summary>");
+      expect(section).toContain("<summary>Token Usage</summary>");
+      expect(section).toContain("Per-request AI credits and token totals");
     });
 
     test("renderTokenTableAsPlainText strips table separator lines and pipes", () => {

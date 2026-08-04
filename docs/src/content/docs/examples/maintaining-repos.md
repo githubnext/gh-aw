@@ -5,12 +5,9 @@ sidebar:
   order: 20
 ---
 
-Open-source maintainers face a unique challenge when running agentic workflows: anyone can open an issue or PR, triggering agent runs that consume compute and tokens — but not every contributor is equally trustworthy. gh-aw addresses this with two complementary safety mechanisms:
+Open-source maintainers using agentic workflows need to manage both cost and trust: anyone can open an issue or PR, but not every contributor should influence an agent or trigger GitHub side-effects. gh-aw addresses this with two complementary controls: **safe-outputs**, which limit what an agent can do, and **integrity filtering**, which limits what content an agent can see.
 
-- **Safe-outputs** — The primary mechanism for controlling *what an agent can do*. Every GitHub mutation (opening issues, commenting, creating PRs) must be explicitly declared; anything not listed is blocked.
-- **Integrity filtering** — The primary mechanism for controlling *what content the agent sees*. Content from untrusted authors is filtered from the agent's context before the run starts.
-
-Together they form a defense-in-depth model: integrity filtering keeps untrusted content out of the agent's context, and safe-outputs ensure the agent can only produce authorized side-effects. This guide shows how to use [🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) as the primary entry point for managing incoming work, and how to configure both mechanisms so your repository scales safely.
+Together they provide defense in depth: integrity filtering keeps untrusted content out of the agent context, while safe-outputs ensure the workflow can produce only authorized side-effects. This guide shows how to use [🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) as the entry point for incoming work and how to configure both controls for safe scale.
 
 :::note[Real-world impact]
 A [study of 15 open-source repositories](https://github.com/githubnext/repo-assist-impact/blob/main/report.md) found this approach achieved a **9× median increase** in issue closure and PR merge velocity, reducing open issue counts in every repository. Projects that were largely dormant became actively maintained, with several reaching near-complete backlog clearance. Results hold across languages and project types.
@@ -18,11 +15,7 @@ A [study of 15 open-source repositories](https://github.com/githubnext/repo-assi
 
 ## Repo Assist as Your Triage Layer
 
-[🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) is a workflow that runs on every new issue or PR, classifies the content, and routes work to the right place. It is the recommended starting point for any public repository because it:
-
-- Sees all incoming content (including from untrusted users), so nothing is silently ignored.
-- Applies lightweight, low-cost classification (labels, comments) rather than heavy agent actions.
-- Acts as a gate that downstream code-modifying agents depend on before they run.
+[🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) runs on every new issue or PR, classifies the content, and routes work to the right place. It is a strong starting point for public repositories because it sees all incoming content, uses low-cost actions such as labels and comments, and gates downstream code-modifying workflows.
 
 ## Controlling Workflow Outputs with Safe-Outputs
 
@@ -45,9 +38,9 @@ The available safe-outputs map directly to GitHub actions:
 
 ## Controlling Workflow Inputs with Integrity Filtering
 
-Integrity filtering is the primary mechanism for controlling what content the agent sees. It evaluates the author of each issue, PR, or comment and removes items that don't meet the configured trust threshold — before the agent's context is assembled. Every public repository automatically applies `min-integrity: approved` as a baseline — repo-assist overrides this to `unapproved` so it can see issues from contributors and first-time contributors, not just trusted members.
+Integrity filtering controls what content the agent sees. It evaluates the author of each issue, PR, or comment and removes items that do not meet the configured trust threshold before the agent context is assembled. Public repositories default to `min-integrity: approved`; repo-assist overrides that to `unapproved` so it can still see issues from contributors and first-time contributors.
 
-The four configurable levels, from most to least restrictive:
+The four configurable levels, from most to least restrictive, are:
 
 | Level | Who qualifies |
 | ------- | -------------- |
@@ -56,11 +49,7 @@ The four configurable levels, from most to least restrictive:
 | `unapproved` | Contributors who have had a PR merged before; first-time contributors |
 | `none` | All content including users with no prior relationship |
 
-Choose based on what the workflow does:
-
-- **Repo-assist / triage workflows**: `unapproved` — classify content from contributors and first-time contributors without acting on it.
-- **Code-modifying workflows** (open PRs, apply patches, close issues): `approved` or `merged` — only act on trusted input.
-- **Spam detection or analytics**: `none` — see everything, but produce no direct GitHub mutations.
+Choose the level based on the workflow's role: use `unapproved` for repo-assist and other triage workflows that classify contributor input without acting on it, `approved` or `merged` for code-modifying workflows that open PRs or apply patches, and `none` for spam detection or analytics workflows that need full visibility but produce no direct GitHub mutations.
 
 ### Reactions as Trust Signals
 
@@ -76,15 +65,9 @@ tools:
     min-integrity: approved
 ```
 
-The compiler handles the rest — when `integrity-reactions: true` is set, it automatically:
+The compiler handles the rest. With `integrity-reactions: true`, it enables the CLI proxy required for reaction-based integrity decisions, sets `THUMBS_UP` and `HEART` as the default endorsement reactions, sets `THUMBS_DOWN` and `CONFUSED` as the default disapproval reactions, uses `endorser-min-integrity: approved`, and uses `disapproval-integrity: none`.
 
-- Enables the CLI proxy (`cli-proxy: true`), which is required for reaction-based integrity decisions
-- Injects default endorsement reactions: `THUMBS_UP`, `HEART`
-- Injects default disapproval reactions: `THUMBS_DOWN`, `CONFUSED`
-- Uses `endorser-min-integrity: approved` (only reactions from owners, members, and collaborators count)
-- Uses `disapproval-integrity: none` (a disapproval reaction demotes content to `none`)
-
-These defaults mean that when a trusted member (owner, member, or collaborator) adds a 👍 or ❤️ reaction to an issue or comment, the item's integrity is promoted to `approved` — making it visible to agents using `min-integrity: approved`. Conversely, a 👎 or 😕 reaction from a trusted member demotes the item to `none`.
+In practice, a 👍 or ❤️ from a trusted member promotes the item's integrity to `approved`, making it visible to agents that require that level. A 👎 or 😕 from a trusted member demotes the item to `none`.
 
 See the [Integrity Filtering Reference](/gh-aw/reference/integrity/) for complete configuration details.
 
@@ -92,9 +75,9 @@ See the [Integrity Filtering Reference](/gh-aw/reference/integrity/) for complet
 
 ### Token Budget Awareness
 
-Integrity filtering directly reduces token consumption: items filtered by the gateway never appear in the agent's context window. On a busy public repository, `min-integrity: approved` on downstream agents can reduce context size dramatically compared to seeing all activity.
+Integrity filtering directly reduces token consumption because items filtered by the gateway never appear in the agent context. On a busy public repository, setting downstream agents to `min-integrity: approved` can cut context size substantially.
 
-Use `gh aw logs --format markdown --count 20` to track token trends over time. The cross-run report surfaces cost spikes, anomalous token usage, and per-run breakdowns so you can detect regressions before they accumulate.
+Use `gh aw logs --format markdown --count 20` to track token trends over time. The cross-run report highlights cost spikes, anomalous token usage, and per-run breakdowns so you can catch regressions early.
 
 ### Rate Limiting
 
@@ -106,7 +89,7 @@ user-rate-limit:
   window: 60
 ```
 
-Match your production rate to your available review bandwidth. In practice, maintainers who found the default cadence too high reduced frequency rather than disabling automation entirely — keeping the value while avoiding notification pressure. See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for full options.
+Match the run rate to your available review bandwidth. If the default cadence is too high, reduce frequency instead of disabling automation entirely. See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for full options.
 
 ### Pre-Activation Association Skips
 
@@ -120,7 +103,7 @@ on:
     issue_comment: [owner, member, collaborator]
 ```
 
-This compiles into a pre-activation job-level `if` guard (using event-specific payload fields such as `github.event.comment.author_association`, `github.event.issue.author_association`, and `github.event.pull_request.author_association`), so matching runs are skipped before agent execution starts.
+This compiles into a pre-activation job-level `if` guard using event-specific payload fields such as `github.event.comment.author_association`, `github.event.issue.author_association`, and `github.event.pull_request.author_association`, so matching runs are skipped before agent execution starts.
 
 ### Concurrency Controls
 
@@ -180,7 +163,7 @@ gh aw audit RUN_ID --json    # machine-readable output
 gh aw audit RUN_ID --parse   # writes log.md and firewall.md
 ```
 
-The audit report covers: failure summary, tool usage, MCP server health, firewall analysis, token metrics, and missing tools.
+The audit report covers the failure summary, tool usage, MCP server health, firewall analysis, token metrics, and missing tools.
 
 **Analyze logs across multiple runs:**
 
@@ -217,11 +200,4 @@ gh aw audit BASELINE_ID CURRENT_ID
 
 ## Related Documentation
 
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) — Complete output type documentation and format requirements
-- [Integrity Filtering Reference](/gh-aw/reference/integrity/) — Complete `min-integrity` and policy configuration
-- [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) — Preventing runaway workflows
-- [Cost Management](/gh-aw/reference/cost-management/) — Token budget tracking and optimization
-- [Audit Commands](/gh-aw/reference/audit/) — `gh aw audit` and `gh aw logs` reference
-- [Debugging Workflows](/gh-aw/troubleshooting/debugging/) — Detailed debugging procedures
-- [Network Configuration Guide](/gh-aw/guides/network-configuration/) — Firewall and domain setup
-- [GitHub Tools Reference](/gh-aw/reference/github-tools/) — Full `tools.github` options
+See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for output types and format requirements, [Integrity Filtering Reference](/gh-aw/reference/integrity/) for `min-integrity` and policy configuration, [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/) for runaway-workflow prevention, [Cost Management](/gh-aw/reference/cost-management/) for token optimization, [Audit Commands](/gh-aw/reference/audit/) for `gh aw audit` and `gh aw logs`, [Debugging Workflows](/gh-aw/troubleshooting/debugging/) for detailed troubleshooting, [Network Configuration Guide](/gh-aw/guides/network-configuration/) for firewall setup, and [GitHub Tools Reference](/gh-aw/reference/github-tools/) for `tools.github` options.
