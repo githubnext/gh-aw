@@ -17,6 +17,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 name: Smoke Goose
 model: copilot/claude-sonnet-4.5
 engine:
