@@ -4,6 +4,9 @@
 // All callers must ensure these globals are set before invoking any helper.
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 /**
  * Normalize a server URL by stripping any trailing slash so the git config key
@@ -17,7 +20,68 @@ function normalizeServerUrl(serverUrl) {
 }
 
 /**
- * Unset the given git config key from all writable scopes (global and local).
+ * Find config files referenced by `includeIf.gitdir*.path` directives in the local
+ * (repository) git config. `actions/checkout@v7` persists credentials in a separate
+ * file (e.g. `$RUNNER_TEMP/git-credentials-<uuid>.config`) and wires it in via a
+ * repository-local `includeIf.gitdir:<path>.path` entry rather than writing the
+ * extraheader value directly into `.git/config`. Because `git config --local
+ * --unset-all` only touches values set directly in the local scope, it never
+ * clears values that arrive through an include, so the included credential
+ * remains effective even after the local/global scopes are cleared.
+ *
+ * As a safety measure, only files that resolve under a known-safe temp directory
+ * (`RUNNER_TEMP`, or the OS tmp dir as a fallback) are returned; this avoids ever
+ * touching arbitrary paths referenced by a config file we do not control.
+ *
+ * @param {string} [cwd] - Optional working directory (the checkout) to resolve local config from
+ * @returns {Promise<string[]>}
+ */
+async function findIncludedExtraheaderConfigFiles(cwd) {
+  const baseOpts = { silent: true, ignoreReturnCode: true, ...(cwd ? { cwd } : {}) };
+
+  // Step 1: get the key names only (avoids splitting issues for paths with spaces in the key).
+  const namesResult = await exec.getExecOutput("git", ["config", "--local", "--name-only", "--get-regexp", "^includeif\\.gitdir.*\\.path$"], baseOpts);
+  if (namesResult.exitCode !== 0 || !namesResult.stdout.trim()) {
+    return [];
+  }
+
+  const safeRoots = [process.env.RUNNER_TEMP, os.tmpdir()].filter(/** @param {string | undefined} p @returns {p is string} */ p => p !== undefined && p !== "").map(p => path.resolve(p));
+
+  const files = [];
+  for (const keyName of namesResult.stdout
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean)) {
+    // Step 2: for each key name, retrieve its value(s) with --get-all.
+    const valResult = await exec.getExecOutput("git", ["config", "--local", "--get-all", keyName], baseOpts);
+    if (valResult.exitCode !== 0 || !valResult.stdout.trim()) continue;
+    for (const valLine of valResult.stdout
+      .split("\n")
+      .map(l => l.trim())
+      .filter(Boolean)) {
+      const resolved = path.resolve(cwd || process.cwd(), valLine);
+      // Harden against symlink escapes: resolve the real path before checking containment.
+      let real;
+      try {
+        real = fs.realpathSync(resolved);
+      } catch {
+        // File may not exist yet (checkout hasn't created it) — fall back to the lexical path.
+        real = resolved;
+      }
+      if (safeRoots.some(root => real === root || real.startsWith(root + path.sep))) {
+        files.push(resolved);
+      } else {
+        core.warning(`git_auth_helpers: skipping includeIf-referenced config file outside safe temp directories: ${resolved}`);
+      }
+    }
+  }
+  return files;
+}
+
+/**
+ * Unset the given git config key from all writable scopes (global and local),
+ * as well as from any `includeIf.gitdir`-referenced config files (e.g. the
+ * per-checkout credentials file written by `actions/checkout@v7`).
  * Errors are silently ignored because the key may be absent in some scopes
  * or a scope may not be accessible (e.g. read-only system scope on CI runners).
  *
@@ -43,6 +107,23 @@ async function unsetExtraheaderAllScopes(key, cwd) {
     // write lock). Throw so the caller knows the credential may still be effective.
     if (result.exitCode !== 0 && result.exitCode !== 5) {
       throw new Error(`git config ${scope} --unset-all ${key} failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
+    }
+  }
+
+  // Also clear the key from any includeIf-referenced config files (e.g. checkout v7's
+  // per-checkout credentials file). These are not touched by --local/--global unsets
+  // because git only resolves includes for reads, not for scope-targeted writes.
+  let includedFiles;
+  try {
+    includedFiles = await findIncludedExtraheaderConfigFiles(cwd);
+  } catch (err) {
+    core.warning(`git_auth_helpers: could not enumerate includeIf-referenced config files: ${getErrorMessage(err)}`);
+    includedFiles = [];
+  }
+  for (const file of includedFiles) {
+    const result = await exec.getExecOutput("git", ["config", "--file", file, "--unset-all", key], { silent: true, ignoreReturnCode: true });
+    if (result.exitCode !== 0 && result.exitCode !== 5) {
+      throw new Error(`git config --file ${file} --unset-all ${key} failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
     }
   }
 }
@@ -212,6 +293,7 @@ async function withGitHubHostToken(token, callback, cwd) {
 
 module.exports = {
   checkoutHasPersistedExtraheader,
+  findIncludedExtraheaderConfigFiles,
   overridePersistedExtraheader,
   restorePersistedExtraheader,
   unsetExtraheaderAllScopes,
