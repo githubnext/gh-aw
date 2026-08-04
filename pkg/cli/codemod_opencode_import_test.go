@@ -31,7 +31,7 @@ model: copilot/claude-sonnet-4.5
 # OpenCode workflow
 engine: opencode
 imports:
-  - shared/opencode.md
+  - github/gh-aw/.github/workflows/shared/opencode.md@main
 model: copilot/claude-sonnet-4.5
 ---
 
@@ -52,7 +52,7 @@ engine:
 
 		require.NoError(t, err)
 		assert.True(t, applied)
-		assert.Contains(t, result, "imports:\n  - shared/opencode.md")
+		assert.Contains(t, result, "imports:\n  - github/gh-aw/.github/workflows/shared/opencode.md@main")
 	})
 
 	t.Run("appends to existing imports", func(t *testing.T) {
@@ -72,13 +72,15 @@ strict: true
 
 		require.NoError(t, err)
 		assert.True(t, applied)
-		assert.Contains(t, result, "  - shared/mood.md\n  - shared/opencode.md\nstrict: true")
+		assert.Contains(t, result, "  - shared/mood.md\n  - github/gh-aw/.github/workflows/shared/opencode.md@main\nstrict: true")
 	})
 
 	t.Run("does not duplicate existing string or uses imports", func(t *testing.T) {
 		for _, imports := range []any{
 			[]any{"shared/opencode.md"},
 			[]any{map[string]any{"uses": "shared/opencode.md"}},
+			[]any{openCodeSharedImport},
+			[]any{map[string]any{"uses": openCodeSharedImport}},
 		} {
 			content := `---
 engine: opencode

@@ -9,13 +9,15 @@ import (
 
 var opencodeImportCodemodLog = logger.New("cli:codemod_opencode_import")
 
+const openCodeSharedImport = "github/gh-aw/.github/workflows/shared/opencode.md@main"
+
 // getOpenCodeSharedImportCodemod adds the shared OpenCode engine definition to
 // workflows that select OpenCode as their engine.
 func getOpenCodeSharedImportCodemod() Codemod {
 	return Codemod{
 		ID:           "opencode-engine-to-shared-import",
 		Name:         "Add shared OpenCode import",
-		Description:  "Adds the shared/opencode.md import when the workflow uses the OpenCode engine.",
+		Description:  "Adds the github/gh-aw shared OpenCode import when the workflow uses the OpenCode engine.",
 		IntroducedIn: "0.40.1",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			if !usesOpenCodeEngine(frontmatter) || hasOpenCodeSharedImport(frontmatter) {
@@ -24,7 +26,7 @@ func getOpenCodeSharedImportCodemod() Codemod {
 
 			newContent, applied, err := applyFrontmatterLineTransform(content, addOpenCodeSharedImport)
 			if applied {
-				opencodeImportCodemodLog.Print("Added shared/opencode.md import for OpenCode engine")
+				opencodeImportCodemodLog.Print("Added github/gh-aw shared OpenCode import")
 			}
 			return newContent, applied, err
 		},
@@ -78,11 +80,11 @@ func hasOpenCodeSharedImport(frontmatter map[string]any) bool {
 
 func isOpenCodeImportPath(path string) bool {
 	trimmed := strings.TrimSpace(path)
-	return trimmed == "shared/opencode.md" || trimmed == "shared/opencode"
+	return trimmed == openCodeSharedImport || trimmed == "shared/opencode.md" || trimmed == "shared/opencode"
 }
 
 func addOpenCodeSharedImport(lines []string) ([]string, bool) {
-	entry := "  - shared/opencode.md"
+	entry := "  - " + openCodeSharedImport
 	for i, line := range lines {
 		if !isTopLevelKey(line) || !strings.HasPrefix(strings.TrimSpace(line), "imports:") {
 			continue
