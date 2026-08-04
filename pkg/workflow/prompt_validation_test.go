@@ -76,6 +76,33 @@ func TestGitHubMCPToolsPromptHasFieldSelectionGuidance(t *testing.T) {
 	}
 }
 
+// TestGitHubMCPToolsPromptHasPartialFileReadGuidance verifies that both prompt
+// files steer agents away from unbounded single-file get_file_contents calls.
+func TestGitHubMCPToolsPromptHasPartialFileReadGuidance(t *testing.T) {
+	promptFiles := []string{
+		filepath.Join("..", "..", "actions", "setup", "md", "github_mcp_tools_prompt.md"),
+		filepath.Join("..", "..", "actions", "setup", "md", "github_mcp_tools_with_safeoutputs_prompt.md"),
+	}
+
+	for _, promptPath := range promptFiles {
+		t.Run(filepath.Base(promptPath), func(t *testing.T) {
+			data, err := os.ReadFile(promptPath)
+			require.NoError(t, err, "should be able to read %s", promptPath)
+
+			content := string(data)
+
+			assert.Contains(t, content, "`fields` only reduces directory listings",
+				"prompt should clarify get_file_contents fields do not reduce single-file content")
+			assert.Contains(t, content, "fields: [name, type, size, path]",
+				"prompt should recommend metadata-only directory listings before file reads")
+			assert.Contains(t, content, "Partial file reads",
+				"prompt should include explicit partial-content guidance")
+			assert.Contains(t, content, "bounded excerpt",
+				"prompt should recommend bounded excerpts for headers or sections")
+		})
+	}
+}
+
 // TestGitHubMCPToolsPromptIncludedForCodeSecurityToolset verifies that when a
 // workflow uses the code_security GitHub toolset the generated lock file references
 // one of the github_mcp_tools prompt files (which carry the list_code_scanning_alerts

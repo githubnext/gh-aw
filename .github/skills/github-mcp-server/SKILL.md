@@ -164,7 +164,8 @@ This section maps individual tools to their respective toolsets to help with mig
 
 When invoking `list_pull_requests` from workflow prompts/templates:
 - Default to a small page size (`perPage: 10` unless a smaller/larger value is justified).
-- On GitHub MCP server ≥ 1.6.0 with the `fields_param` feature (enabled automatically in Insiders mode), pass `fields: [number, title, state, html_url]` (or whichever top-level fields you need) to reduce response size. The same `fields` parameter is available on `list_issues`, `search_issues`, `search_pull_requests`, `list_commits`, `list_releases`, `search_code`, and `get_file_contents`.
+- On GitHub MCP server ≥ 1.6.0 with the `fields_param` feature (enabled automatically in Insiders mode), pass `fields: [number, title, state, html_url]` (or whichever top-level fields you need) to reduce response size. The same `fields` parameter is available on `list_issues`, `search_issues`, `search_pull_requests`, `list_commits`, `list_releases`, and `search_code`. For `get_file_contents`, `fields` only reduces directory listings; use `fields: [name, type, size, path]` to check file metadata before deciding whether to read a file.
+- Before using `get_file_contents` on a file, list its parent directory with `fields: [name, type, size, path]`. If the file is large or you only need a header/section, use a bounded excerpt such as a raw file URL with an HTTP range or another available ranged-read tool instead of fetching the whole file.
 - On older servers, request `minimal_output: true` when the installed MCP server exposes that input (minimal output trims non-essential nested fields such as large `head`/`base` payloads).
 - Confirm parameter support in the method schema from `mcp list-tools` or the tool docs for your server version.
 
