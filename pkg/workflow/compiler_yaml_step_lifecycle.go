@@ -314,15 +314,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	}
 
 	yaml.WriteString("        with:\n")
-	// Use the same effective safe-outputs GitHub token as the handler manager step (Process
-	// Safe Outputs) so that mention sanitization (allowed-teams resolution) sees the same team
-	// membership during ingest as it does later. Without this, mentions could be escaped here
-	// with a token that lacks read:org access, then never be un-escaped later since the body
-	// is already backtick-escaped by the time Process Safe Outputs runs.
-	//
-	// Note: this step runs in the main job, not the consolidated safe-outputs job, so it
-	// cannot reference the safe-outputs-app-token step output (minted in the other job).
-	// Only the configured custom token / GH_AW_GITHUB_TOKEN fallback chain is used here.
+	// Ingest runs in the main agent job, so it cannot consume the safe_outputs job's minted
+	// GitHub App token without violating the job-boundary token isolation model. Forward only a
+	// configured PAT (safe-outputs.github-token) or the default GH_AW_GITHUB_TOKEN/GITHUB_TOKEN
+	// fallback chain here. Workflows that rely on allowed-teams during ingest must use
+	// safe-outputs.github-token; safe-outputs.github-app takes effect later in Process Safe Outputs.
 	configToken := ""
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
 		configToken = data.SafeOutputs.GitHubToken

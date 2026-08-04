@@ -11,6 +11,20 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
+func compiledStepBlockFromYAML(compiled, stepID string) string {
+	marker := "id: " + stepID
+	start := strings.Index(compiled, marker)
+	if start == -1 {
+		return ""
+	}
+	rest := compiled[start:]
+	next := strings.Index(rest[len(marker):], "\n      - name: ")
+	if next == -1 {
+		return rest
+	}
+	return rest[:len(marker)+next]
+}
+
 func TestTopLevelGitHubTokenPrecedence(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "github-token-precedence-test")
 
@@ -158,10 +172,68 @@ Test that safe-outputs github-token is used for safe outputs.
 
 		yamlContent := string(content)
 
-		// Verify that safe-outputs token is used in the safe_outputs job
-		if !strings.Contains(yamlContent, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}") {
-			t.Error("Expected safe-outputs github-token to be used in safe_outputs job")
+		ingestStep := compiledStepBlockFromYAML(yamlContent, "collect_output")
+		if !strings.Contains(ingestStep, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}") {
+			t.Error("Expected Ingest agent output step to use safe-outputs github-token")
+			t.Logf("Generated ingest step:\n%s", ingestStep)
+		}
+
+		processStep := compiledStepBlockFromYAML(yamlContent, "process_safe_outputs")
+		if !strings.Contains(processStep, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}") {
+			t.Error("Expected Process Safe Outputs step to use safe-outputs github-token")
 			t.Logf("Generated YAML:\n%s", yamlContent)
+		}
+	})
+
+	t.Run("safe-outputs github-app token is minted for ingest and forwarded to process step", func(t *testing.T) {
+		testContent := `---
+name: Test Safe Outputs GitHub App
+on:
+  issues:
+    types: [opened]
+engine: claude
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.SAFE_OUTPUTS_APP_ID }}
+    private-key: ${{ secrets.SAFE_OUTPUTS_APP_PRIVATE_KEY }}
+  create-issue:
+---
+
+# Test Safe Outputs GitHub App
+`
+
+		testFile := filepath.Join(tmpDir, "test-safe-outputs-app-token.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		compiler := NewCompiler()
+		err := compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected error compiling workflow: %v", err)
+		}
+
+		outputFile := filepath.Join(tmpDir, "test-safe-outputs-app-token.lock.yml")
+		content, err := os.ReadFile(outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		yamlContent := string(content)
+		ingestStep := compiledStepBlockFromYAML(yamlContent, "collect_output")
+		if !strings.Contains(ingestStep, "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+			t.Error("Expected Ingest agent output step to stay on fallback token chain when only safe-outputs github-app is configured")
+			t.Logf("Generated ingest step:\n%s", ingestStep)
+		}
+		if strings.Contains(ingestStep, "safe-outputs-app-token") {
+			t.Error("Ingest agent output step must not reference safe-outputs app token")
+			t.Logf("Generated ingest step:\n%s", ingestStep)
+		}
+
+		processStep := compiledStepBlockFromYAML(yamlContent, "process_safe_outputs")
+		if !strings.Contains(processStep, "github-token: ${{ steps.safe-outputs-app-token.outputs.token }}") {
+			t.Error("Expected Process Safe Outputs step to use safe-outputs job app token")
+			t.Logf("Generated process step:\n%s", processStep)
 		}
 	})
 
