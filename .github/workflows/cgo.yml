@@ -500,7 +500,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
 
   zizmor:
-    needs: [build]
+    needs: [build, validate-yaml]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
