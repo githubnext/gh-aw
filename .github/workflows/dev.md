@@ -49,15 +49,15 @@ evals:
 Write agentic workflows in natural language markdown and run them in GitHub Actions.
 
 ## Key Concepts
-- **Quick Start**: Step-by-step guide at https://github.github.com/gh-aw/setup/quick-start/
+- **Quick Start**: Step-by-step guide at https://github.github.io/gh-aw/setup/quick-start/
 - **Overview**: Agentic workflows let AI automate repository tasks using natural language prompts.
-  See https://github.github.com/gh-aw/introduction/how-they-work/
+  See https://github.github.io/gh-aw/introduction/how-they-work/
 - **Guardrails**: Workflows run with read-only permissions by default. Write operations require
   sanitized `safe-outputs`. Security layers include sandboxed execution, input sanitization,
   network isolation, SHA-pinned supply chain, tool allow-listing, and compile-time validation.
   Human approval gates are available for critical operations.
-  See https://github.github.com/gh-aw/introduction/architecture/
-- **Documentation**: https://github.github.com/gh-aw/ — machine-readable llms.txt also available.
+  See https://github.github.io/gh-aw/introduction/architecture/
+- **Documentation**: https://github.github.io/gh-aw/ — machine-readable llms.txt also available.
 - **Contributing**: See CONTRIBUTING.md for development setup and contribution guidelines.
 
 ## Related Projects

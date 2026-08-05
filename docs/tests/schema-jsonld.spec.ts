@@ -29,7 +29,7 @@ test.describe('Schema JSON-LD', () => {
     expect(website).toBeDefined();
     expect(organization).toBeDefined();
     expect(website.name).toBe('gh-aw — GitHub Agentic Workflows');
-    expect(website.url).toBe('https://github.github.com/gh-aw/');
+    expect(website.url).toBe('https://github.github.io/gh-aw/');
     expect(organization.name).toBe('GitHub');
     expect(organization.url).toBe('https://github.com/github/gh-aw');
     expect(organization.logo).toBe(
@@ -63,7 +63,7 @@ test.describe('Schema JSON-LD', () => {
       ])
     );
     expect(schema.publisher).toEqual({
-      '@id': 'https://github.github.com/gh-aw/#organization',
+      '@id': 'https://github.github.io/gh-aw/#organization',
     });
   });
 
@@ -76,9 +76,9 @@ test.describe('Schema JSON-LD', () => {
     expect(schema['@type']).toBe('TechArticle');
     expect(schema.headline).toBe('Quick Start');
     expect(schema.description).toContain('Get your first agentic workflow running in minutes.');
-    expect(schema.url).toBe('https://github.github.com/gh-aw/setup/quick-start/');
+    expect(schema.url).toBe('https://github.github.io/gh-aw/setup/quick-start/');
     expect(schema.isPartOf).toEqual({
-      '@id': 'https://github.github.com/gh-aw/#website',
+      '@id': 'https://github.github.io/gh-aw/#website',
     });
   });
 });

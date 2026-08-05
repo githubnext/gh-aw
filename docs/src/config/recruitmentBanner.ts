@@ -3,7 +3,7 @@
  *
  * Adapted from the github/research-accelerator `recruitment-banner` skill, but tailored to a
  * **static** Astro Starlight site (this docs site is deployed to GitHub Pages at
- * https://github.github.com/gh-aw/). There is no server, so there is no `current_user` and no
+ * https://github.github.io/gh-aw/). There is no server, so there is no `current_user` and no
  * stafftools UI. Targeting is therefore enforced by *who you distribute the recruitment link to*
  * — your CSV of `dotcom_id`s — not by an allowlist committed to this public repo (committing
  * participant user IDs to a public repo would expose them).

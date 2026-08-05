@@ -57,12 +57,12 @@ jobs:
 
       - name: Audit documentation site homepage
         run: |
-          geo audit --url https://github.github.com/gh-aw/ --format json \
+          geo audit --url https://github.github.io/gh-aw/ --format json \
             > /tmp/gh-aw/agent/geo-optimizer/docs-site-audit.json 2>&1 || true
 
       - name: Audit documentation sitemap
         run: |
-          geo audit --sitemap https://github.github.com/gh-aw/sitemap.xml \
+          geo audit --sitemap https://github.github.io/gh-aw/sitemap.xml \
             --max-urls 20 --format json \
             > /tmp/gh-aw/agent/geo-optimizer/docs-sitemap-audit.json 2>&1 || true
 
@@ -81,7 +81,7 @@ jobs:
           metadata = {
             "run_id": "${{ github.run_id }}",
             "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H-%M-%S"),
-            "docs_url": "https://github.github.com/gh-aw/",
+            "docs_url": "https://github.github.io/gh-aw/",
             "readme_url": os.environ["REPOSITORY_URL"],
             "repository": os.environ["GITHUB_REPOSITORY"],
           }
@@ -160,7 +160,7 @@ Read all JSON files from the results directory:
 ls /tmp/gh-aw/agent/geo-optimizer/
 ```
 
-- `docs-site-audit.json` — full GEO audit of `https://github.github.com/gh-aw/`
+- `docs-site-audit.json` — full GEO audit of `https://github.github.io/gh-aw/`
 - `docs-sitemap-audit.json` — sitemap-wide audit of up to 20 documentation pages
 - `readme-audit.json` — GEO audit of the GitHub repository homepage (README)
 - `metadata.json` — run metadata (timestamp, URLs)
@@ -202,7 +202,7 @@ Use today's date derived from the metadata.json timestamp.
 
 | Target | Score | Band |
 |--------|-------|------|
-| Docs site (`github.github.com/gh-aw/`) | X/100 | Good/Foundation/... |
+| Docs site (`github.github.io/gh-aw/`) | X/100 | Good/Foundation/... |
 | README (github.com/github/gh-aw) | X/100 | ... |
 
 ---

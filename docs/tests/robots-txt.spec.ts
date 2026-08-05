@@ -85,7 +85,7 @@ const EXPECTED_ROBOTS_TXT = [
   'User-agent: CCBot',
   'Allow: /',
   '',
-  'Sitemap: https://github.github.com/gh-aw/sitemap.xml',
+  'Sitemap: https://github.github.io/gh-aw/sitemap.xml',
   '',
 ].join('\n');
 

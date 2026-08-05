@@ -35,7 +35,7 @@ function createAuthors(authors) {
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://github.github.com',
+	site: 'https://github.github.io',
 	base: '/gh-aw/',
 	trailingSlash: 'always',
 	markdown: {
