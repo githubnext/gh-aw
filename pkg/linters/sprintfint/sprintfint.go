@@ -8,12 +8,11 @@ import (
 	"go/token"
 	"go/types"
 
-	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
-
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"golang.org/x/tools/go/analysis"
 )
 
 const (
@@ -22,19 +21,9 @@ const (
 )
 
 // Analyzer is the sprintfint analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "sprintfint",
-	Doc:      `reports fmt.Sprintf("%d", x) calls where x is a single int value; use strconv.Itoa(x) instead`,
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/sprintfint",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("sprintfint", `reports fmt.Sprintf("%d", x) calls where x is a single int value; use strconv.Itoa(x) instead`, run)
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -45,10 +34,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	seenImportFiles := make(map[token.Pos]bool)
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeSprintfInt(pass, n, generatedFiles, noLintIndex, seenImportFiles)
 	})
-	return nil, nil
 }
 
 // analyzeSprintfInt checks whether a call expression is fmt.Sprintf("%d", x)

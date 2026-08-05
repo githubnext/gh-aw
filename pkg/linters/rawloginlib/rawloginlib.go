@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -17,13 +17,7 @@ import (
 
 var pkgLog = logger.New("linters:rawloginlib")
 
-var Analyzer = &analysis.Analyzer{
-	Name:     "rawloginlib",
-	Doc:      "reports use of the standard log package in library packages where pkg/logger should be used instead",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/rawloginlib",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("rawloginlib", "reports use of the standard log package in library packages where pkg/logger should be used instead", run)
 
 // rawLogFuncs is the set of standard log functions that should not be called in library code.
 var rawLogFuncs = map[string]bool{
@@ -39,10 +33,6 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	pkgLog.Printf("analyzing package %s", pkgPath)
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -54,7 +44,7 @@ func run(pass *analysis.Pass) (any, error) {
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return
@@ -79,6 +69,4 @@ func run(pass *analysis.Pass) (any, error) {
 		pkgLog.Printf("flagging log.%s call at %s", sel.Sel.Name, position)
 		pass.ReportRangef(call, "log.%s called in library package %s; use pkg/logger instead", sel.Sel.Name, pkgPath)
 	})
-
-	return nil, nil
 }

@@ -10,27 +10,17 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the strings-count-contains analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "stringscountcontains",
-	Doc:      "reports strings.Count(s, sub) comparisons with 0 or 1 (e.g. > 0, >= 1, == 0, != 0, < 1, <= 0) and their yoda-order variants that should use strings.Contains(s, sub) or !strings.Contains(s, sub)",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/stringscountcontains",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("stringscountcontains", "reports strings.Count(s, sub) comparisons with 0 or 1 (e.g. > 0, >= 1, == 0, != 0, < 1, <= 0) and their yoda-order variants that should use strings.Contains(s, sub) or !strings.Contains(s, sub)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -41,10 +31,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeCountContains(pass, n, generatedFiles, noLintIndex)
 	})
-	return nil, nil
 }
 
 // analyzeCountContains checks whether a binary expression is a strings.Count

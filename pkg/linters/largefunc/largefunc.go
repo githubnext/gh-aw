@@ -6,9 +6,8 @@ import (
 	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -20,13 +19,7 @@ var pkgLog = logger.New("linters:largefunc")
 const DefaultMaxLines = 60
 
 // Analyzer is the large-function analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "largefunc",
-	Doc:      "reports functions whose body exceeds the line limit (default 60 lines)",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/largefunc",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("largefunc", "reports functions whose body exceeds the line limit (default 60 lines)", run)
 
 // maxLines is the configurable threshold.  It is set via the -largefunc.max-lines flag.
 var maxLines int
@@ -39,10 +32,6 @@ func init() {
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s (max-lines=%d)", pass.Pkg.Path(), maxLines)
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -53,10 +42,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		checkFuncBodyLength(pass, n, generatedFiles, noLintIndex)
 	})
-	return nil, nil
 }
 
 // checkFuncBodyLength reports a diagnostic when the body of a function

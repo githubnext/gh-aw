@@ -7,9 +7,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -18,21 +17,11 @@ import (
 var pkgLog = logger.New("linters:uncheckedflushreturn")
 
 // Analyzer is the unchecked-flush-return analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "uncheckedflushreturn",
-	Doc:      "reports Flush() method calls where the error return is discarded",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/uncheckedflushreturn",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("uncheckedflushreturn", "reports Flush() method calls where the error return is discarded", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -43,7 +32,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.ExprStmt)(nil), (*ast.AssignStmt)(nil), (*ast.DeferStmt)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		switch stmt := n.(type) {
 		case *ast.ExprStmt:
 			position := pass.Fset.PositionFor(stmt.Pos(), false)
@@ -65,7 +54,6 @@ func run(pass *analysis.Pass) (any, error) {
 			checkDiscardedFlushDefer(pass, stmt, noLintIndex)
 		}
 	})
-	return nil, nil
 }
 
 // checkDiscardedFlushExpr flags Flush() used as a bare expression statement,

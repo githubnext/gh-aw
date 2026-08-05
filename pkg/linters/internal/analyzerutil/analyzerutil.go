@@ -1,0 +1,42 @@
+// Package analyzerutil provides shared analyzer setup for custom linters.
+package analyzerutil
+
+import (
+	"go/ast"
+
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
+	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+)
+
+const repositoryURL = "https://github.com/github/gh-aw/tree/main/pkg/linters/"
+
+// New creates an analyzer with the standard linter dependencies and URL.
+func New(name, doc string, run func(*analysis.Pass) (any, error)) *analysis.Analyzer {
+	return NewAtPath(name, doc, name, run)
+}
+
+// NewAtPath creates an analyzer with the standard linter dependencies and URL
+// for packagePath.
+func NewAtPath(name, doc, packagePath string, run func(*analysis.Pass) (any, error)) *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name:     name,
+		Doc:      doc,
+		URL:      repositoryURL + packagePath,
+		Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
+		Run:      run,
+	}
+}
+
+// Preorder runs fn for each node matching nodeFilter.
+func Preorder(pass *analysis.Pass, nodeFilter []ast.Node, fn func(ast.Node)) (any, error) {
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
+	}
+	insp.Preorder(nodeFilter, fn)
+	return nil, nil
+}

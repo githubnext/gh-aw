@@ -10,9 +10,9 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -22,21 +22,16 @@ import (
 var pkgLog = logger.New("linters:execcommandwithoutcontext")
 
 // Analyzer is the exec-command-without-context analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "execcommandwithoutcontext",
-	Doc:      "reports exec.Command calls inside context-receiving functions where exec.CommandContext should be used to propagate cancellation",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/execcommandwithoutcontext",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("execcommandwithoutcontext", "reports exec.Command calls inside context-receiving functions where exec.CommandContext should be used to propagate cancellation", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
 	}
+
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
+
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err

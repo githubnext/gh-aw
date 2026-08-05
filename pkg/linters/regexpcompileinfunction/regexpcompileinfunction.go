@@ -9,8 +9,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -20,20 +20,15 @@ import (
 var pkgLog = logger.New("linters:regexpcompileinfunction")
 
 // Analyzer is the regexp-compile-in-function analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "regexpcompileinfunction",
-	Doc:      "reports regexp.MustCompile and regexp.Compile calls inside function bodies that should be moved to package-level variables",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/regexpcompileinfunction",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("regexpcompileinfunction", "reports regexp.MustCompile and regexp.Compile calls inside function bodies that should be moved to package-level variables", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
 	}
+
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err

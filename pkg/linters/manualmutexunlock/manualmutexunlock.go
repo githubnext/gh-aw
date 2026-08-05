@@ -9,9 +9,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -39,21 +38,11 @@ type mutexKey struct {
 }
 
 // Analyzer is the manual-mutex-unlock analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "manualmutexunlock",
-	Doc:      "reports mutex Unlock() calls that are not deferred",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/manualmutexunlock",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("manualmutexunlock", "reports mutex Unlock() calls that are not deferred", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -67,11 +56,9 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.FuncDecl)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		inspectMutexFuncDecl(pass, noLintIndex, generatedFiles, n)
 	})
-
-	return nil, nil
 }
 
 func inspectMutexFuncDecl(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex, n ast.Node) {

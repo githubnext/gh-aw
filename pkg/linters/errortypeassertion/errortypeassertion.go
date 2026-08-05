@@ -9,8 +9,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -20,20 +20,15 @@ import (
 var pkgLog = logger.New("linters:errortypeassertion")
 
 // Analyzer is the error-type-assertion analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "errortypeassertion",
-	Doc:      "reports type assertions from error to concrete types; use errors.As for wrapped errors",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errortypeassertion",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("errortypeassertion", "reports type assertions from error to concrete types; use errors.As for wrapped errors", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
 	}
+
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err

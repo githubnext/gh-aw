@@ -20,9 +20,9 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -32,13 +32,7 @@ import (
 var pkgLog = logger.New("linters:hardcodedfilepath")
 
 // Analyzer is the hardcoded-file-path analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "hardcodedfilepath",
-	Doc:      "reports hard-coded file path string literals that should be replaced with named constants",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/hardcodedfilepath",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("hardcodedfilepath", "reports hard-coded file path string literals that should be replaced with named constants", run)
 
 // constRef holds a reference to a named path constant.
 type constRef struct {
@@ -241,6 +235,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err

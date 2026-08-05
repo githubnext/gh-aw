@@ -9,27 +9,17 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the map-clear-loop analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "mapclearloop",
-	Doc:      "reports range-over-map loops that delete every entry and can be replaced with clear(m)",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/mapclearloop",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("mapclearloop", "reports range-over-map loops that delete every entry and can be replaced with clear(m)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -40,10 +30,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.RangeStmt)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeRangeStmt(pass, n, generatedFiles, noLintIndex)
 	})
-	return nil, nil
 }
 
 // analyzeRangeStmt checks whether a range statement is a clearable range-delete

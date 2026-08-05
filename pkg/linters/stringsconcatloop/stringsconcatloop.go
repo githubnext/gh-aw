@@ -9,9 +9,9 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -21,13 +21,7 @@ import (
 var pkgLog = logger.New("linters:stringsconcatloop")
 
 // Analyzer is the string-concat-in-loop analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "stringsconcatloop",
-	Doc:      "reports string concatenation (+=  or x = x + y) inside for/range loops that should use strings.Builder",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/stringsconcatloop",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("stringsconcatloop", "reports string concatenation (+=  or x = x + y) inside for/range loops that should use strings.Builder", run)
 
 // concatLoopMatch holds the components of a string-concatenation-in-loop
 // assignment identified by collectConcatLoopAssignment.

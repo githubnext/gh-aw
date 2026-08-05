@@ -8,21 +8,15 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the ctx-background analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "ctxbackground",
-	Doc:      "reports calls to context.Background() inside functions that already receive a context.Context parameter",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/ctxbackground",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("ctxbackground", "reports calls to context.Background() inside functions that already receive a context.Context parameter", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	insp, err := astutil.Inspector(pass)
