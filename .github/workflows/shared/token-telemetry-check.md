@@ -40,7 +40,6 @@ jobs:
           if [ "${FOUND_NONEMPTY}" != "true" ]; then
             echo "::error::All token_usage.jsonl files are empty or missing after a successful agent run."
             echo "::error::The AWF firewall proxy token telemetry emitter may be broken."
-            echo "::error::See tracking issue: https://github.com/github/gh-aw/issues/42791"
             exit 1
           fi
 
