@@ -926,7 +926,7 @@ async function main(config = {}) {
         expiresHours,
         "Issue"
       );
-      bodyLines.push(``, ``, footer);
+      bodyLines.push(``, footer);
     }
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
