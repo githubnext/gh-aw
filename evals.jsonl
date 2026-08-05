@@ -1,2 +1,2 @@
-{"id":"report_outputs_cross_checked","question":"Did the agent cross-check other daily report agents' outputs for consistency and anomalies?","answer":"YES","model":"evals","timestamp":"2026-08-04T21:43:42.959Z","runid":"30953011497"}
-{"id":"regulatory_report_created_or_noop","question":"Was a regulatory report created with findings, or was noop used when all outputs were consistent?","answer":"YES","model":"evals","timestamp":"2026-08-04T21:43:42.959Z","runid":"30953011497"}
+{"id":"report_outputs_cross_checked","question":"Did the agent cross-check other daily report agents' outputs for consistency and anomalies?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-05T21:43:02.118Z","runid":"31049255989"}
+{"id":"regulatory_report_created_or_noop","question":"Was a regulatory report created with findings, or was noop used when all outputs were consistent?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-05T21:43:02.118Z","runid":"31049255989"}
