@@ -85,6 +85,17 @@ F7_SingleSourcePerRecord(a) ≜
   Resolve(a) is attributed to exactly one source
 ```
 
+### Structure
+
+`PolicyCompiler` produces an `ExecutionPolicy` that carries the governance
+decision (`autonomy`, tool restrictions, `write_scope`, required checks,
+approval, auto-merge, attempts, and matched rule IDs). It does not populate
+CLI outcome-report fields directly. The outcome evaluator records
+`objective_value` and `objective_labels` from objective mapping and
+`traced_root_url` from the resolved artifact relationship; its
+`attribution_status` and `attribution_source` preserve the attribution
+context that was supplied to policy compilation.
+
 ## Behavioral Coverage Map
 
 | Predicate / Invariant | Test Function | Description |
