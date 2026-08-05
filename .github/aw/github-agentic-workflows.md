@@ -100,6 +100,14 @@ Installed gh-aw agents should support scenario evaluation requests that do not c
 - Return a compact design recommendation covering trigger, scope, tools, permissions, safe outputs, `noop` behavior, and any report window / grouping / deduplication requirements.
 - Offer to turn the recommendation into `.github/workflows/<workflow-id>.md` only if the user asks to proceed.
 
+### Supported Invocation Surface
+
+Ad hoc scenario evaluation is a **conversation-mode capability** of the installed `agentic-workflows` custom agent — it is not a CLI flag or an MCP tool parameter.
+
+- The `gh aw` CLI and the equivalent MCP tools (`compile`, `audit`, `audit-diff`, `checks`, `mcp-inspect`, `status`, `logs`, `add`, `update`, `fix`) are all centered on managing existing workflow files (compiling, auditing runs, adding/updating workflow sources, reporting status). None of them accept a freeform `prompt`, `scenario`, or `query` parameter.
+- To run ad hoc evaluation, address the request directly to the `agentic-workflows` custom agent in conversation (for example, as an issue/PR comment or chat prompt directed at the agent) using phrasing like `agentic-workflows evaluate this scenario without creating files: ...`. Do not attempt to pass the scenario text as a parameter to a CLI/MCP tool call — those calls will fail with an "Unknown parameter" error because no tool schema defines a prompt-like field.
+- If a CLI/MCP invocation returns `Unknown parameter 'prompt'` (or similarly for `scenario`/`query`), that confirms freeform evaluation is unavailable through that path; fall back to conversation mode and use the recommendation pattern documented above and in [create-agentic-workflow.md](create-agentic-workflow.md#ad-hoc-evaluation-mode) instead of retrying with a different parameter name.
+
 ### Non-technical persona examples
 
 Trigger and write-path are the same as the [Persona-to-Pattern Quick Matrix](#persona-to-pattern-quick-matrix) above. For ad hoc evaluation, also gather:
