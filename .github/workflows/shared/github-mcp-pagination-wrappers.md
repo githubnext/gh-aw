@@ -62,7 +62,7 @@ mcp-scripts:
         }'
 
   list_label:
-    description: "List labels in a GitHub repository with perPage pagination support. Returns labels array, item_count, per_page, and page. Defaults to perPage=10 to avoid large responses."
+    description: "List labels in a GitHub repository with perPage pagination and name filtering support. Returns labels array, item_count, per_page, and page. Defaults to perPage=10 to avoid large responses."
     inputs:
       owner:
         type: string
@@ -80,6 +80,10 @@ mcp-scripts:
         type: number
         description: "Page number (default: 1)"
         required: false
+      nameFilter:
+        type: string
+        description: "Case-insensitive substring filter on the label name. When set, all labels are scanned and only matching labels are paginated."
+        required: false
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
@@ -89,6 +93,7 @@ mcp-scripts:
       REPO="${INPUT_REPO:-}"
       PER_PAGE="${INPUT_PERPAGE:-10}"
       PAGE="${INPUT_PAGE:-1}"
+      NAME_FILTER="${INPUT_NAMEFILTER:-}"
 
       if [[ -z "$OWNER" ]]; then
         echo '{"error": "owner is required"}' >&2
@@ -110,14 +115,23 @@ mcp-scripts:
         exit 1
       fi
 
-      RESPONSE=$(gh api "repos/${OWNER}/${REPO}/labels?per_page=${PER_PAGE}&page=${PAGE}")
+      if [[ -n "$NAME_FILTER" ]]; then
+        RESPONSE=$(gh api --paginate --slurp "repos/${OWNER}/${REPO}/labels?per_page=100" | jq '[.[][]]')
+      else
+        RESPONSE=$(gh api "repos/${OWNER}/${REPO}/labels?per_page=${PER_PAGE}&page=${PAGE}")
+      fi
 
       echo "$RESPONSE" | jq \
         --argjson per_page "$PER_PAGE" \
         --argjson page "$PAGE" \
-        '{
-          labels: [.[] | {id, node_id, url, name, color, default, description}],
-          item_count: length,
+        --arg name_filter "$NAME_FILTER" \
+        '(if $name_filter == "" then .
+          else [.[] | select(.name | ascii_downcase | contains($name_filter | ascii_downcase))]
+               | .[(($page - 1) * $per_page):($page * $per_page)]
+          end) as $selected
+         | {
+          labels: [$selected[] | {id, node_id, url, name, color, default, description}],
+          item_count: ($selected | length),
           per_page: $per_page,
           page: $page
         }'
@@ -133,7 +147,10 @@ The built-in `list_label` GitHub MCP tool returns up to 100 labels regardless of
 `list_workflows` built-in GitHub MCP tool uses a non-standard `per_page` parameter
 (snake_case), inconsistent with every other list-style MCP tool which uses camelCase
 `perPage`, and the limit was silently ignored. These wrappers call the GitHub REST API
-directly so `perPage` is respected on every call, using the camelCase convention.
+directly so `perPage` is respected on every call, using the camelCase convention. The `list_label`
+wrapper also accepts an optional `nameFilter` so callers that only need a handful of
+labels (for example triage workflows checking a few known names) do not pay for the
+full label set.
 
 ### Available Tools
 
@@ -168,6 +185,7 @@ imports:
 | repo | string | Yes | - | Repository name |
 | perPage | number | No | 10 | Results per page (1–100) |
 | page | number | No | 1 | Page number |
+| nameFilter | string | No | - | Case-insensitive substring filter on the label name |
 
 ### list_workflows Response
 
