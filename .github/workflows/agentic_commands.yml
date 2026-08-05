@@ -44,6 +44,7 @@
 #     /smoke-gemini -> smoke-gemini [issue_comment,issues,pull_request,pull_request_comment] reaction=rocket
 #     /smoke-github-claude -> smoke-github-claude [pull_request,pull_request_comment] reaction=eyes
 #     /smoke-goose -> smoke-goose [issue_comment,issues,pull_request,pull_request_comment] reaction=rocket
+#     /smoke-kiro -> smoke-kiro [issue_comment,issues,pull_request,pull_request_comment] reaction=rocket
 #     /smoke-multi-pr -> smoke-multi-pr [issue_comment,issues,pull_request,pull_request_comment] reaction=eyes
 #     /smoke-opencode -> smoke-opencode [issue_comment,issues,pull_request,pull_request_comment] reaction=rocket
 #     /smoke-otel-backends -> smoke-otel-backends [issue_comment,issues,pull_request,pull_request_comment] reaction=eyes
