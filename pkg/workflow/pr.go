@@ -29,7 +29,7 @@ func ShouldGeneratePRCheckoutStep(data *WorkflowData) bool {
 }
 
 func resolveAgentManifestPaths(registry *EngineRegistry, data *WorkflowData) (folders, files []string) {
-	folders = []string{".agents"}
+	folders = []string{".agents", ".github"}
 	if data != nil {
 		folders = append(folders, data.AmbientFolders...)
 	}

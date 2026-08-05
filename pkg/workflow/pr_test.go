@@ -112,7 +112,7 @@ func TestResolveAgentManifestPaths(t *testing.T) {
 			EngineConfig: &EngineConfig{ID: "claude"},
 		})
 
-		assert.Equal(t, []string{".agents", ".claude"}, folders)
+		assert.Equal(t, []string{".agents", ".claude", ".github"}, folders)
 		assert.Equal(t, []string{"AGENTS.md", "CLAUDE.md"}, files)
 	})
 
@@ -122,7 +122,7 @@ func TestResolveAgentManifestPaths(t *testing.T) {
 			AmbientFolders: []string{".squad", ".agents"},
 		})
 
-		assert.Equal(t, []string{".agents", ".codex", ".squad"}, folders)
+		assert.Equal(t, []string{".agents", ".codex", ".github", ".squad"}, folders)
 		assert.Equal(t, []string{"AGENTS.md"}, files)
 	})
 }
