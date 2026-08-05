@@ -25,7 +25,7 @@
 //	      "openai":    { "host": "api.openai.com" },
 //	      "anthropic": { "host": "api.anthropic.com" },
 //	      "copilot":   { "host": "api.githubcopilot.com" },
-//	      "antigravity":    { "host": "generativelanguage.googleapis.com" }
+//	      "gemini":        { "host": "generativelanguage.googleapis.com" }
 //	    },
 //	    "models": {
 //	      "sonnet": ["mygateway/*sonnet*"],
@@ -306,7 +306,6 @@ type AWFAPIProxyConfig struct {
 
 	// Targets holds per-provider API target overrides.
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
-	// The "gemini" target is also used for Antigravity engine routing.
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
 
 	// Providers holds per-provider model pricing overlays used by the API proxy
@@ -650,12 +649,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			awfConfigLog.Printf("API proxy: copilot sessionId configured")
 		}
 	}
-	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
-		// Route the Antigravity-resolved API target through the "gemini" provider key
-		// to match AWF's supported target providers.
-		awfConfigLog.Printf("API proxy: mapped antigravity target to gemini provider target=%s", antigravityTarget)
-		targets["gemini"] = &AWFAPITargetConfig{Host: antigravityTarget}
-	} else if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
+	if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
 		awfConfigLog.Printf("API proxy: custom gemini target=%s", geminiTarget)
 		targets["gemini"] = &AWFAPITargetConfig{Host: geminiTarget}
 	}

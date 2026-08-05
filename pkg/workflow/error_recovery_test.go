@@ -91,9 +91,9 @@ func TestNewValidationError_ClassifiesSeverity(t *testing.T) {
 }
 
 func TestBuildPrioritizedErrorReportFromMessages_DuplicateKeyErrorsGetSpecificSuggestion(t *testing.T) {
-	message := `/tmp/smoke-antigravity-duplicate-engine.md:10:1: error: mapping key "engine" already defined at [7:1]
+	message := `/tmp/smoke-gemini-duplicate-engine.md:10:1: error: mapping key "engine" already defined at [7:1]
    7 | engine:
-   8 |   id: antigravity
+   8 |   id: gemini
    9 | strict: true
 > 10 | engine:
        ^
@@ -110,7 +110,7 @@ func TestBuildPrioritizedErrorReportFromMessages_DuplicateKeyErrorsGetSpecificSu
 }
 
 func TestBuildPrioritizedErrorReportFromMessages_DuplicateKeySuggestionPreservesOriginalKeyCasing(t *testing.T) {
-	message := `/tmp/smoke-antigravity-duplicate-engine.md:10:1: error: Mapping key "Engine" already defined at [7:1]`
+	message := `/tmp/smoke-gemini-duplicate-engine.md:10:1: error: Mapping key "Engine" already defined at [7:1]`
 
 	report := BuildPrioritizedErrorReportFromMessages([]string{message}, true)
 

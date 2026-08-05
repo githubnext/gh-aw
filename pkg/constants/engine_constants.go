@@ -22,8 +22,6 @@ const (
 	CodexEngine EngineName = "codex"
 	// GeminiEngine is the Google Gemini engine identifier
 	GeminiEngine EngineName = "gemini"
-	// AntigravityEngine is the Antigravity engine identifier
-	AntigravityEngine EngineName = "antigravity"
 	// PiEngine is the Pi engine identifier (experimental)
 	PiEngine EngineName = "pi"
 
@@ -36,7 +34,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(PiEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(PiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -88,14 +86,6 @@ var EngineOptions = []EngineOption{
 		SecretName:  GeminiAPIKey,
 		KeyURL:      "https://aistudio.google.com/app/apikey",
 		WhenNeeded:  "Gemini engine workflows",
-	},
-	{
-		Value:       string(AntigravityEngine),
-		Label:       "Antigravity",
-		Description: "Antigravity CLI coding agent",
-		SecretName:  AntigravityAPIKey,
-		KeyURL:      "https://aistudio.google.com/app/apikey",
-		WhenNeeded:  "Antigravity engine workflows",
 	},
 	{
 		Value:              string(PiEngine),
@@ -197,8 +187,6 @@ const (
 	OpenAIAPIKey = "OPENAI_API_KEY"
 	// GeminiAPIKey is the API key secret name required by the Gemini engine.
 	GeminiAPIKey = "GEMINI_API_KEY"
-	// AntigravityAPIKey is the API key secret name required by the Antigravity engine.
-	AntigravityAPIKey = "ANTIGRAVITY_API_KEY"
 )
 
 // Environment variable names for model configuration
@@ -213,8 +201,6 @@ const (
 	EnvVarModelAgentCustom = "GH_AW_MODEL_AGENT_CUSTOM"
 	// EnvVarModelAgentGemini configures the default Gemini model for agent execution
 	EnvVarModelAgentGemini = "GH_AW_MODEL_AGENT_GEMINI"
-	// EnvVarModelAgentAntigravity configures the default Antigravity model for agent execution
-	EnvVarModelAgentAntigravity = "GH_AW_MODEL_AGENT_ANTIGRAVITY"
 	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
 	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
 	// EnvVarModelDetectionClaude configures the default Claude model for detection
@@ -223,8 +209,6 @@ const (
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
 	// EnvVarModelDetectionGemini configures the default Gemini model for detection
 	EnvVarModelDetectionGemini = "GH_AW_MODEL_DETECTION_GEMINI"
-	// EnvVarModelDetectionAntigravity configures the default Antigravity model for detection
-	EnvVarModelDetectionAntigravity = "GH_AW_MODEL_DETECTION_ANTIGRAVITY"
 	// EnvVarModelEvalsCopilot configures the default Copilot model for evals execution
 	EnvVarModelEvalsCopilot = "GH_AW_MODEL_EVALS_COPILOT"
 	// EnvVarModelEvalsClaude configures the default Claude model for evals execution
@@ -233,8 +217,6 @@ const (
 	EnvVarModelEvalsCodex = "GH_AW_MODEL_EVALS_CODEX"
 	// EnvVarModelEvalsGemini configures the default Gemini model for evals execution
 	EnvVarModelEvalsGemini = "GH_AW_MODEL_EVALS_GEMINI"
-	// EnvVarModelEvalsAntigravity configures the default Antigravity model for evals execution
-	EnvVarModelEvalsAntigravity = "GH_AW_MODEL_EVALS_ANTIGRAVITY"
 	// EnvVarModelAgentPi configures the default Pi model for agent execution
 	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
 	// EnvVarModelEvalsPi configures the default Pi model for evals execution
@@ -340,10 +322,6 @@ const (
 	// GeminiCLIModelEnvVar is the native environment variable name supported by the Gemini CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	GeminiCLIModelEnvVar = "GEMINI_MODEL"
-
-	// AntigravityCLIModelEnvVar is the native environment variable name supported by the Antigravity CLI
-	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
-	AntigravityCLIModelEnvVar = "ANTIGRAVITY_MODEL"
 
 	// PiCLIModelEnvVar is the native environment variable name for Pi model selection.
 	// Setting PI_MODEL is equivalent to passing --model to the Pi CLI.

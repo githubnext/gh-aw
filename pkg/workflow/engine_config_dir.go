@@ -39,7 +39,6 @@ func engineConfigBaseDirForRegistry(registry *EngineRegistry, engineID string) s
 //	claude       → .claude/skills
 //	codex        → .codex/skills
 //	gemini       → .gemini/skills
-//	antigravity  → .antigravity/skills
 //	pi           → .pi/skills
 //	others       → .github/skills  (Copilot default)
 func GetEngineSkillDir(engineID string) string {
@@ -54,7 +53,6 @@ func GetEngineSkillDir(engineID string) string {
 //	claude       → .claude/agents
 //	codex        → .codex/agents
 //	gemini       → .gemini/agents
-//	antigravity  → .antigravity/agents
 //	pi           → .pi/agents
 //	others       → .github/agents  (Copilot default)
 func GetEngineSubAgentDir(engineID string) string {

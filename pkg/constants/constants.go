@@ -133,10 +133,6 @@ const (
 
 	// GeminiLLMGatewayPort is the port for the Gemini LLM gateway
 	GeminiLLMGatewayPort = 10003
-
-	// AntigravityLLMGatewayPort is the port for the Antigravity LLM gateway.
-	// Aliased to GeminiLLMGatewayPort because the two share the same port value.
-	AntigravityLLMGatewayPort = GeminiLLMGatewayPort
 )
 
 // AWFNoProxyHosts is the value for the NO_PROXY and no_proxy environment variables
@@ -510,9 +506,6 @@ const TmpAwPatchGlob = TmpGhAwDir + "/aw-*.patch"
 
 // TmpGeminiClientErrorGlob is the glob for Gemini client error JSON diagnostic files.
 const TmpGeminiClientErrorGlob = TmpGhAwDir + "/gemini-client-error-*.json"
-
-// TmpAntigravityClientErrorGlob is the glob for Antigravity client error JSON diagnostic files.
-const TmpAntigravityClientErrorGlob = TmpGhAwDir + "/antigravity-client-error-*.json"
 
 // TmpPiAgentDir is the Pi engine agent working directory.
 const TmpPiAgentDir = TmpGhAwDir + "/pi-agent-dir"

@@ -97,12 +97,6 @@ func TestValidateBashCommandAllowlistSupport(t *testing.T) {
 			tools:       map[string]any{"bash": []any{"make", "go"}},
 			shouldError: false,
 		},
-		{
-			name:        "antigravity with restricted bash allowlist should succeed",
-			engineID:    "antigravity",
-			tools:       map[string]any{"bash": []any{"npm"}},
-			shouldError: false,
-		},
 		// Engines that support bash allowlists - deny configs should succeed (engine enforces them)
 		{
 			name:        "claude with bash: false should succeed",
@@ -147,7 +141,6 @@ func TestEngineBashCommandAllowlistCapability(t *testing.T) {
 		{"claude", true},
 		{"copilot", true},
 		{"gemini", true},
-		{"antigravity", true},
 		{"codex", false},
 	}
 

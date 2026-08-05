@@ -265,7 +265,6 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 //   - Copilot engine: Adds step unless permissions.copilot-requests is write or custom command is set
 //   - Claude engine: Adds step unless custom command is set
 //   - Codex engine: Adds step unless custom command is set
-//   - Antigravity engine: Adds step unless custom command is set
 //   - Gemini engine: Adds step unless custom command is set
 //   - Custom engine: Never adds this step (uses BaseEngine default which returns empty)
 //

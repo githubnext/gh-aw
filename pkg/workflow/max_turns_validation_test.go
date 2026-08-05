@@ -131,11 +131,6 @@ func TestEngineSupportsMaxTurns(t *testing.T) {
 			engineID:        "pi",
 			expectedSupport: true,
 		},
-		{
-			name:            "antigravity engine supports max-turns",
-			engineID:        "antigravity",
-			expectedSupport: true,
-		},
 	}
 
 	for _, tt := range tests {
