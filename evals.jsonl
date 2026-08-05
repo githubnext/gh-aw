@@ -1,2 +1,2 @@
-{"id":"issues_analyzed","question":"Did the agent analyze recent issues and identify related issue relationships?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-04T06:10:55.833Z","runid":"30882649823"}
-{"id":"sub_issues_linked_or_noop","question":"Were related issues linked as sub-issues, or was noop used when no linkable relationships were found?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-04T06:10:55.833Z","runid":"30882649823"}
+{"id":"issues_analyzed","question":"Did the agent analyze recent issues and identify related issue relationships?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-05T06:09:36.798Z","runid":"30979941973"}
+{"id":"sub_issues_linked_or_noop","question":"Were related issues linked as sub-issues, or was noop used when no linkable relationships were found?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-05T06:09:36.798Z","runid":"30979941973"}
