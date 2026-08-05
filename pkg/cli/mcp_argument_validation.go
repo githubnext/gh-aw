@@ -135,10 +135,30 @@ func extractUnknownParams(errMsg string) []string {
 	return params
 }
 
+// freeformEvaluationParamNames lists normalized (lowercase, no hyphen/underscore)
+// parameter names that indicate a caller is trying to invoke ad hoc, freeform
+// scenario evaluation (persona walkthroughs, "what workflow would you create
+// for this scenario?" requests) through a CLI/MCP tool parameter rather than
+// through the intended interface.
+//
+// None of the registered MCP tools (compile, audit, status, update, ...) accept
+// a freeform prompt: they operate on existing workflow files. Ad hoc evaluation
+// is a conversation-mode capability of the installed "agentic-workflows" custom
+// agent, not a tool parameter, so these unknown parameters get a clearer
+// product-gap message instead of a generic "did you mean" suggestion.
+var freeformEvaluationParamNames = map[string]bool{
+	"prompt":   true,
+	"scenario": true,
+	"query":    true,
+}
+
 // buildHelpfulParamError constructs a human-readable error message that:
 //   - names each unknown parameter
 //   - suggests the closest valid parameter (if a good match is found)
 //   - directs the user to the tool's --help output
+//   - for parameters that suggest freeform scenario evaluation (e.g. "prompt"),
+//     points to the ad hoc evaluation mode documented for the custom agent
+//     instead of a generic "did you mean" suggestion
 func buildHelpfulParamError(toolName string, unknownParams []string, validParams []string) string {
 	var sb strings.Builder
 
@@ -147,7 +167,9 @@ func buildHelpfulParamError(toolName string, unknownParams []string, validParams
 			sb.WriteString("\n")
 		}
 		fmt.Fprintf(&sb, "Unknown parameter '%s'.", param)
-		if suggestion := findSimilarParam(param, validParams); suggestion != "" {
+		if freeformEvaluationParamNames[normalizeParamName(param)] {
+			sb.WriteString(" The MCP tools operate on existing workflow files and do not accept a freeform prompt. For ad hoc scenario evaluation (persona walkthroughs, \"what workflow would you create for this scenario?\"), invoke the agentic-workflows custom agent directly in conversation mode; see the \"Ad Hoc Scenario Evaluation\" section of github-agentic-workflows.md.")
+		} else if suggestion := findSimilarParam(param, validParams); suggestion != "" {
 			fmt.Fprintf(&sb, " Did you mean '%s'?", suggestion)
 		}
 	}

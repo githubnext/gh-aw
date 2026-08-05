@@ -204,13 +204,15 @@ make lint
 
 Analyze any lint errors and fix them. Re-run `make lint` after each fix to confirm the error is resolved. If a lint error cannot be fixed automatically after 3 attempts, document it and move on.
 
+**Important — `golangci-lint` sandbox limitation**: `golangci-lint` is not preinstalled in this sandbox and network egress to fetch it is blocked by the firewall. If `make lint` (or `make golint`) reports `golangci-lint is not installed`, this is a known environment limitation — **do not** attempt to install it via `go install`, `curl`, or any other network call. Skip the `golangci-lint`-specific portion of linting, note it in the PR body, and move on immediately to the next step. Do not retry the install more than once.
+
 ## Step 6: Fix test failures
 
 ```bash
 make test-unit
 ```
 
-Analyze any test failures and fix them. If a test failure is too complex to fix automatically after 3 attempts, document it and move on.
+Analyze any test failures and fix them. If a test failure is too complex to fix automatically after 3 attempts, document it and move on. Do not run the full test suite in the background and poll/wait for it — this burns turns without progress. If `make test-unit` is slow, let it run to completion in the foreground within a single tool call instead of repeatedly checking on it.
 
 ## File-Count Guard Before PR Creation
 

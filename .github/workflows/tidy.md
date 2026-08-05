@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 engine: copilot
-timeout-minutes: 10
+timeout-minutes: 20
 
 network:
   allowed: ["defaults", "go"]
@@ -91,6 +91,8 @@ Run `make fmt` to format all Go code according to the project standards.
 ### 2. Lint Code  
 Run `make lint` to check for linting issues across the entire codebase (Go and JavaScript).
 
+**Important — `golangci-lint` sandbox limitation**: `golangci-lint` is not preinstalled in this sandbox and network egress to fetch it is blocked by the firewall. If `make lint` (or `make golint`) reports `golangci-lint is not installed`, this is a known environment limitation — **do not** attempt to install it via `go install`, `curl`, or any other network call. Skip the `golangci-lint`-specific portion of linting and move on immediately; do not retry the install.
+
 ### 3. Fix Linting Issues
 If any linting issues are found, analyze and fix them:
 - Review the linting output carefully
@@ -107,10 +109,15 @@ After fixing issues:
 Run `make recompile` to recompile all agentic workflow files and ensure they are up to date.
 
 ### 6. Run Tests
-Run `make test` to ensure your changes don't break anything. If tests fail:
-- Analyze the test failures
-- Only fix test failures that are clearly related to your formatting/linting changes
-- Do not attempt to fix unrelated test failures
+Before running the full test suite, check if any changes were actually made so far:
+```bash
+git status --porcelain
+```
+- **If `git status --porcelain` shows no changes at all** (after steps 1-5): skip the test run entirely — there is nothing to validate and no risk of regression. Proceed directly to step 7/8 and report that everything is already tidy.
+- **Otherwise**: run `make test` to ensure your changes don't break anything. If tests fail:
+  - Analyze the test failures
+  - Only fix test failures that are clearly related to your formatting/linting changes
+  - Do not attempt to fix unrelated test failures
 
 ### 7. Exclude Workflow Files
 Before creating or updating a pull request, exclude any changes to files in `.github/workflows/`:
