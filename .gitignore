@@ -151,6 +151,8 @@ pkg/cli/.github/aw/actions-lock.json
 test-runs/
 
 # Security scan reports
+/actionlint
+/gosec
 gosec-report.json
 gosec-results.sarif
 govulncheck-results.sarif
