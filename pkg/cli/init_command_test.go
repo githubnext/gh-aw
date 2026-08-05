@@ -242,7 +242,7 @@ func TestInitCommandInteractiveModeDetection(t *testing.T) {
 	}
 }
 
-func TestInitCommandRequiresCopilotEngineForArtifacts(t *testing.T) {
+func TestInitCommandRequiresCopilotEngineForCopilotArtifacts(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	originalDir, err := os.Getwd()
@@ -277,8 +277,8 @@ func TestInitCommandRequiresCopilotEngineForArtifacts(t *testing.T) {
 	if _, err := os.Stat(agentPath); !os.IsNotExist(err) {
 		t.Errorf("Expected Agentic Workflows custom agent file to not be created by default")
 	}
-	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); !os.IsNotExist(err) {
-		t.Error("Expected dispatcher skill file to not be created by default")
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); err != nil {
+		t.Errorf("Expected dispatcher skill file to be created by default: %v", err)
 	}
 	if _, err := os.Stat(mcpConfigFilePath); !os.IsNotExist(err) {
 		t.Error("Expected .github/mcp.json to not be created by default")
@@ -588,8 +588,8 @@ func TestInitRepositoryWithNonCopilotEngineSkipsCopilotArtifacts(t *testing.T) {
 		t.Fatalf("InitRepository with --engine claude failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); err == nil {
-		t.Error("Expected dispatcher skill file to NOT be created for non-Copilot engine")
+	if _, err := os.Stat(filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")); err != nil {
+		t.Errorf("Expected dispatcher skill file to be created for non-Copilot engine: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(".github", "agents", "agentic-workflows.md")); err == nil {
 		t.Error("Expected Agentic Workflows custom agent file to NOT be created for non-Copilot engine")

@@ -25,12 +25,12 @@ engine selection or secret configuration.
 
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
+- Creates the dispatcher skill at .github/skills/agentic-workflows/SKILL.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
 - Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use the expires field for discussions or issues
 
 With --engine copilot:
-- Creates the dispatcher skill at .github/skills/agentic-workflows/SKILL.md
 - Creates the custom agent at .github/agents/agentic-workflows.md
 
 With --engine copilot (without --no-mcp):
@@ -63,7 +63,7 @@ After running this command, you can:
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
   ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Initialize with verbose output
-  ` + string(constants.CLIExtensionPrefix) + ` init --engine copilot               # Add Copilot MCP, skill, and agent files
+  ` + string(constants.CLIExtensionPrefix) + ` init --engine copilot               # Add Copilot MCP and agent files
   ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                # Initialize for the Claude engine
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
   ` + string(constants.CLIExtensionPrefix) + ` init --no-skill                     # Skip dispatcher skill creation

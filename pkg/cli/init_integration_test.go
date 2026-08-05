@@ -86,11 +86,12 @@ func TestInitCommandIntegration(t *testing.T) {
 	assert.Contains(t, string(content), ".github/workflows/*.lock.yml linguist-generated=true merge=ours",
 		".gitattributes should mark lock.yml files as generated")
 
-	// Copilot-specific files should not be created without --engine copilot.
+	// The dispatcher skill is created for every engine.
 	skillPath := filepath.Join(setup.tempDir, ".github", "skills", "agentic-workflows", "SKILL.md")
 	_, err = os.Stat(skillPath)
-	require.True(t, os.IsNotExist(err), "dispatcher skill file should not be created at %s", skillPath)
+	require.NoError(t, err, "dispatcher skill file should be created at %s", skillPath)
 
+	// Copilot-specific files should not be created without --engine copilot.
 	agentPath := filepath.Join(setup.tempDir, ".github", "agents", "agentic-workflows.md")
 	_, err = os.Stat(agentPath)
 	require.True(t, os.IsNotExist(err), "custom agent file should not be created at %s", agentPath)
