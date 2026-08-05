@@ -50,13 +50,14 @@ function getGeminiHostDomain() {
 }
 
 function main() {
+  const hostDomain = getGeminiHostDomain();
   return runGatewayConversion({
     format: "Gemini",
     engine: "Gemini",
     contextOptions: { extraRequiredEnv: ["GITHUB_WORKSPACE"] },
     outputPath: ({ extraEnv }) => path.join(extraEnv.GITHUB_WORKSPACE, ".gemini", "settings.json"),
-    getTargetDomain: getGeminiHostDomain,
-    getUrlPrefix: ({ port }) => `http://${getGeminiHostDomain()}:${port}`,
+    getTargetDomain: () => hostDomain,
+    getUrlPrefix: ({ port }) => `http://${hostDomain}:${port}`,
     transformServer: (_name, entry, urlPrefix) => transformGeminiEntry(entry, urlPrefix),
     serialize: servers =>
       JSON.stringify(

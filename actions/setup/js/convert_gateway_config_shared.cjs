@@ -165,6 +165,12 @@ function writeSecureOutput(outputPath, output) {
 /**
  * Run the common gateway configuration conversion pipeline.
  *
+ * `getTargetDomain` and `getUrlPrefix` are intentionally separate so that
+ * engines can diverge the log label from the actual URL prefix (for example,
+ * Codex logs `host.docker.internal` but builds URLs with `172.30.0.1`).
+ * When both are provided they MUST be kept consistent; when omitted, both
+ * default to `context.domain` / `context.urlPrefix` respectively.
+ *
  * @param {{
  *   format: string;
  *   engine: string;

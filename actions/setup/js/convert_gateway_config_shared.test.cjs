@@ -309,4 +309,38 @@ describe("runGatewayConversion", () => {
     expect(mockCore.info).toHaveBeenCalledWith("Servers: 1 included, 1 filtered (CLI-mounted)");
     expect(mockCore.info).toHaveBeenCalledWith(`Test configuration written to ${outputPath}`);
   });
+
+  it("accepts outputPath as a function and calls it with the gateway context", () => {
+    const output = runGatewayConversion({
+      format: "Test",
+      engine: "Test",
+      outputPath: context => path.join(dir, `output-${context.port}.json`),
+      transformServer: (_name, entry, urlPrefix) => normalizeGatewayEntry(entry, urlPrefix),
+      serialize: servers => JSON.stringify({ mcpServers: servers }),
+    });
+
+    const expectedPath = path.join(dir, "output-80.json");
+    expect(fs.existsSync(expectedPath)).toBe(true);
+    expect(JSON.parse(fs.readFileSync(expectedPath, "utf8"))).toEqual({
+      mcpServers: { github: { url: "http://gateway.internal:80/mcp/github" } },
+    });
+    expect(output).toBe(fs.readFileSync(expectedPath, "utf8"));
+  });
+
+  it("uses context.urlPrefix when getUrlPrefix is not provided", () => {
+    const outputPath = path.join(dir, "output/config-default.json");
+    const output = runGatewayConversion({
+      format: "Test",
+      engine: "Test",
+      outputPath,
+      transformServer: (_name, entry, urlPrefix) => normalizeGatewayEntry(entry, urlPrefix),
+      serialize: servers => JSON.stringify({ mcpServers: servers }),
+    });
+
+    // context.urlPrefix = http://gateway.internal:80 (from MCP_GATEWAY_DOMAIN + MCP_GATEWAY_PORT)
+    expect(JSON.parse(output)).toEqual({
+      mcpServers: { github: { url: "http://gateway.internal:80/mcp/github" } },
+    });
+    expect(mockCore.info).toHaveBeenCalledWith("Target domain: gateway.internal:80");
+  });
 });
