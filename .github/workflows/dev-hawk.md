@@ -12,7 +12,9 @@ on:
       - completed
     branches:
       - 'copilot/*'
-if: ${{ github.event.workflow_run.event == 'workflow_dispatch' }}
+if: >-
+  ${{ github.event.workflow_run.event == 'workflow_dispatch' &&
+  contains(fromJSON('["pelikhan","cmuto09","dsyme","mnkiefer","davidslater","zarenner","lpcox","salmanmkc","gh-aw-bot"]'), github.event.workflow_run.actor.login) }}
 permissions:
   contents: read
   actions: read
