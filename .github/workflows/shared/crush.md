@@ -219,11 +219,10 @@ engine:
         if (!promptPath) throw new Error("GH_AW_PROMPT is required");
         const prompt = readFileSync(promptPath, "utf8");
         fail(
-          spawnSync(command, [...commandArgs, "--model", `awf-proxy/${model}`], {
+          spawnSync(command, [...commandArgs, "--model", `awf-proxy/${model}`, prompt], {
             cwd: workspace,
             env: process.env,
-            input: prompt,
-            stdio: ["pipe", "inherit", "inherit"],
+            stdio: "inherit",
           }),
           "Crush execution"
         );
