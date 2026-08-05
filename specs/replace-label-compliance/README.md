@@ -70,7 +70,7 @@ Evaluation order is modeled as: blocked check → allowlist check → gates
 | Edge: self-transition not implicit | `TestFormalTransitionEdge_SelfTransitionRejectedWhenNotListed` | `from == to` is not implicitly allowed unless explicitly listed |
 | Edge: duplicate transition entries | `TestFormalTransitionEdge_DuplicateTransitionEntriesIdempotent` | Duplicate entries in the list don't change the allow/deny decision |
 
-Coverage parity check (2026-08-03): verified Behavioral Coverage Map entries
+Coverage parity check (2026-08-05): verified Behavioral Coverage Map entries
 are implemented in:
 
 - `pkg/workflow/replace_label_formal_test.go`
@@ -137,7 +137,6 @@ The suite runs fully in-process under Go test, reads the fixture YAML files in
 this directory, and does not require a JavaScript runtime to validate the
 formal predicates.
 
-The RL-057/RL-058/RL-059 post-`setLabels` checks are currently formalized in
-the Go suite via a formal helper stub and document a spec/implementation gap:
-`actions/setup/js/replace_label.cjs` does not yet enforce these predicates on
-HTTP 200 responses.
+The RL-057/RL-058/RL-059 post-`setLabels` checks are enforced by
+`actions/setup/js/replace_label.cjs` and covered by
+`actions/setup/js/replace_label.test.cjs`.

@@ -4305,7 +4305,7 @@
                 },
                 "bounded-queries": {
                   "type": "object",
-                  "description": "AWF bounded-query configuration for cross-repository private data access (AWF v0.28.0+). Requires the AWF sandbox (sandbox.agent.id: awf). Query execution is independent from the primary agent sandbox, and every query runs in a fresh backend-specific sandbox.",
+                  "description": "AWF bounded-query configuration for cross-repository private data access (AWF v0.27.44+). Requires the AWF sandbox (sandbox.agent.id: awf). Query execution is independent from the primary agent sandbox, and every query runs in a fresh backend-specific sandbox.",
                   "additionalProperties": false,
                   "required": ["private-repos"],
                   "properties": {

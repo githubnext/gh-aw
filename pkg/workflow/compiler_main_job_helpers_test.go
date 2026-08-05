@@ -251,6 +251,16 @@ func TestBuildMainJobEnv(t *testing.T) {
 		assert.NotEmpty(t, env["GH_AW_WORKFLOW_ID_SANITIZED"])
 	})
 
+	t.Run("engine version is available to all agent job steps", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{Version: "${{ inputs.engine-version }}"},
+		}
+		env := c.buildMainJobEnv(data)
+		require.NotNil(t, env)
+		assert.Equal(t, "${{ inputs.engine-version }}", env["GH_AW_ENGINE_VERSION"])
+	})
+
 	t.Run("UTC offset from repo config sets GH_AW_PROJECT_UTC", func(t *testing.T) {
 		c := NewCompiler()
 		c.repoConfigLoaded = true

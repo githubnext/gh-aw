@@ -126,7 +126,7 @@ If creating a workflow, the actual files you created will be under `.github/work
 If creating a workflow, check the .gitattributes file and make sure it exists and contains at least the following line:
 
 ```text
-.github/workflows/*.lock.yml linguist-generated=true merge=ours
+.github/workflows/*.lock.yml linguist-generated=true
 ```
 
 You do not need to run `gh aw init` as part of your workflow creation. However if you did run this you may also see:

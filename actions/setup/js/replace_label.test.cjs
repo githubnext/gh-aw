@@ -198,6 +198,36 @@ describe("replace_label", () => {
     expect(result.success).toBe(false);
   });
 
+  it("should reject a successful setLabels response that omits label_to_add", async () => {
+    mockGithub.rest.issues.setLabels = async () => ({
+      data: [{ name: "bug" }],
+    });
+
+    const handler = await main({});
+    const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
+
+    expect(result).toEqual({
+      success: false,
+      error: 'replace_label: label_to_add "done" not found in POST-setLabels response',
+    });
+    expect(mockCore.errors).toContain(result.error);
+  });
+
+  it("should reject a successful setLabels response that retains label_to_remove", async () => {
+    mockGithub.rest.issues.setLabels = async () => ({
+      data: [{ name: "in-progress" }, { name: "bug" }, { name: "done" }],
+    });
+
+    const handler = await main({});
+    const result = await handler({ label_to_remove: "in-progress", label_to_add: "done" }, {});
+
+    expect(result).toEqual({
+      success: false,
+      error: 'replace_label: label_to_remove "in-progress" still present after setLabels call',
+    });
+    expect(mockCore.errors).toContain(result.error);
+  });
+
   describe("allowed-transitions", () => {
     it("should allow a transition that is in the allowed-transitions list", async () => {
       const handler = await main({

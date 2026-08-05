@@ -121,7 +121,7 @@ func TestBoundedQueryRuntimeVersionGate(t *testing.T) {
 				}
 			}
 
-			err := validateBoundedQueriesConfig(makeWorkflow("v0.27.99"))
+			err := validateBoundedQueriesConfig(makeWorkflow("v0.27.43"))
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), string(constants.AWFBoundedQueriesMinVersion))
 			assert.NoError(t, validateBoundedQueriesConfig(
