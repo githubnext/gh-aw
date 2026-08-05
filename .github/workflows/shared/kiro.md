@@ -26,6 +26,8 @@ engine:
         - objects.githubusercontent.com
         - codewhisperer.us-east-1.amazonaws.com
         - cognito-identity.us-east-1.amazonaws.com
+        - q.us-east-1.amazonaws.com
+        - client-telemetry.us-east-1.amazonaws.com
         - prod.us-east-1.telemetry.kiro.aws.dev
         - prod.assets.shortbread.aws.dev
       provider-domains:
@@ -117,6 +119,9 @@ engine:
       const log = message => process.stderr.write(`[kiro-harness] ${message}\n`);
 
       try {
+        if (!process.env.KIRO_API_KEY && process.env.SECRET_KIRO_API_KEY) {
+          process.env.KIRO_API_KEY = process.env.SECRET_KIRO_API_KEY;
+        }
         const release = releases[process.arch];
         if (!release) throw new Error(`Unsupported Kiro CLI architecture: ${process.arch}`);
         const releaseURL = `https://prod.download.cli.kiro.dev/stable/${version}/kirocli-${release.arch}-linux.tar.gz`;

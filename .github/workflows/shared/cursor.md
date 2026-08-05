@@ -116,6 +116,9 @@ engine:
       const log = message => process.stderr.write(`[cursor-harness] ${message}\n`);
 
       try {
+        if (!process.env.CURSOR_API_KEY && process.env.SECRET_CURSOR_API_KEY) {
+          process.env.CURSOR_API_KEY = process.env.SECRET_CURSOR_API_KEY;
+        }
         const release = releases[process.arch];
         if (!release) throw new Error(`Unsupported Cursor Agent architecture: ${process.arch}`);
         const releaseURL = `https://downloads.cursor.com/lab/${version}/linux/${release.arch}/agent-cli-package.tar.gz`;
