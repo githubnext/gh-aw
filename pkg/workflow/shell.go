@@ -27,6 +27,13 @@ func shellJoinArgs(args []string) string {
 // Arguments containing ${{ }} GitHub Actions expressions are double-quoted;
 // other arguments with special shell characters are single-quoted.
 func shellEscapeArg(arg string) string {
+	// Empty arguments must be quoted; otherwise the shell drops them entirely,
+	// shifting positional arguments in scripts that expect a fixed argument count
+	// (e.g. validate_multi_secret.sh SECRET_NAME... ENGINE_NAME DOCS_URL).
+	if arg == "" {
+		return "''"
+	}
+
 	// If the argument contains GitHub Actions expressions (${{ }}), use double-quote
 	// wrapping. GitHub Actions evaluates ${{ }} at the YAML level before the shell runs,
 	// so single-quoting would mangle the expression syntax (e.g., 'staging' inside

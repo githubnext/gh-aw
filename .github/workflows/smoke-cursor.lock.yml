@@ -241,7 +241,7 @@ jobs:
             await main();
       - name: Validate CURSOR_API_KEY secret
         id: validate-secret
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" CURSOR_API_KEY Cursor
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" CURSOR_API_KEY Cursor ''
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
       - name: Check for OAuth tokens
