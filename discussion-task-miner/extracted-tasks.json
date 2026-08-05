@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-04T19:14:00Z",
+  "last_run": "2026-08-05T01:15:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -363,6 +363,24 @@
       "title": "Fix broken docs/safe-outputs.md link in dangerous-permissions compile error",
       "created_at": "2026-08-04T19:14:00Z",
       "status": "created"
+    },
+    {
+      "source_discussion": 50406,
+      "title": "Fix incorrect percentage calculation in Copilot Agent Analysis report",
+      "status": "created",
+      "created_at": "2026-08-05T01:15:00Z"
+    },
+    {
+      "source_discussion": 50406,
+      "title": "Reconcile merged-PR count discrepancy between Copilot Agent Analysis and PR Merged Report workflows",
+      "status": "created",
+      "created_at": "2026-08-05T01:15:00Z"
+    },
+    {
+      "source_discussion": 50421,
+      "title": "Enable gh-aw-detection on high-frequency Smoke Aider and Smoke Goose workflows",
+      "status": "created",
+      "created_at": "2026-08-05T01:15:00Z"
     }
   ]
 }

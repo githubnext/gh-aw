@@ -1,13 +1,17 @@
-# Task Mining Run - 2026-08-04 (19:14 UTC)
+# Task Mining Run - 2026-08-05
 
 ## Summary
-- Discussions scanned: 19 new (previously unprocessed) + candidates from last 30
-- Tasks identified: 1 high-value, verified, non-duplicate
-- Issues created: 1
-- Duplicates avoided: several (awf_helpers.go split, update_actions.go split, compiler_custom_jobs.go split, schema-diff parser_yaml_fields, generateInitialAndCheckoutSteps — all already tracked in open issues #50263, #50210, #50209, or closed history)
+- Discussions scanned: 9 new (of 30 most recent)
+- Tasks identified: 3
+- Issues created: 3
+- Duplicates avoided: 0 (no matching open issues found)
 
 ## Created Issues
-- Fix broken docs/safe-outputs.md link in dangerous-permissions compile error (source: discussion #50298 [delight] UX Analysis Report)
+- Fix incorrect percentage calculation in Copilot Agent Analysis report (source: #50406, #50367)
+- Reconcile merged-PR count discrepancy between Copilot Agent Analysis and PR Merged Report workflows (source: #50406)
+- Enable gh-aw-detection on high-frequency Smoke Aider and Smoke Goose workflows (source: #50421)
 
-## Notes
-Most scanned discussions this run were metrics/telemetry reports (CLI performance, API consumption, prompt clustering, GEO audit, secrets analysis, cache-strategy) without new concrete code-quality tasks, or repeated code-organization findings (awf_helpers.go, update_actions.go, compiler_custom_jobs.go splits) already covered by existing open issues (#50263, #50210, #50209). Verified the docs/safe-outputs.md dead link directly in pkg/workflow/dangerous_permissions_validation.go:85 before filing.
+## Top Patterns Observed
+- Cross-report data validation (Daily Regulatory Report) is a high-signal source: caught a math error and a real cross-report discrepancy in one pass
+- Detection Analysis Report flagged config drift (detection disabled on high-frequency smoke workflows)
+- Other scanned reports (code metrics, lockfile stats, prompt analysis, team evolution, workflow audit, observability, sentrux) were observational/statistical with no clear 1-3 day actionable fix meeting extraction criteria
