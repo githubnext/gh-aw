@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"os"
 	"testing"
 )
 
@@ -194,4 +195,77 @@ func TestTrialWorkflowSpecParsing(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWorkflowDeclaresDispatchInput(t *testing.T) {
+	testCases := []struct {
+		name     string
+		content  string
+		input    string
+		expected bool
+	}{
+		{
+			name: "declares issue_number input",
+			content: `on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number"
+        required: false
+        type: string
+`,
+			input:    "issue_number",
+			expected: true,
+		},
+		{
+			name: "does not declare issue_number input",
+			content: `on:
+  workflow_dispatch:
+    inputs:
+      aw_context:
+        description: "Agent caller context"
+        required: false
+        type: string
+`,
+			input:    "issue_number",
+			expected: false,
+		},
+		{
+			name: "workflow_dispatch without inputs",
+			content: `on:
+  workflow_dispatch:
+`,
+			input:    "issue_number",
+			expected: false,
+		},
+		{
+			name: "no workflow_dispatch trigger",
+			content: `on:
+  schedule:
+    - cron: "0 0 * * *"
+`,
+			input:    "issue_number",
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			lockFile := dir + "/workflow.lock.yml"
+			if err := os.WriteFile(lockFile, []byte(tc.content), 0644); err != nil {
+				t.Fatalf("Failed to write lock file: %v", err)
+			}
+
+			if got := workflowDeclaresDispatchInput(lockFile, tc.input); got != tc.expected {
+				t.Errorf("workflowDeclaresDispatchInput() = %v, want %v", got, tc.expected)
+			}
+		})
+	}
+
+	t.Run("missing file returns false", func(t *testing.T) {
+		if workflowDeclaresDispatchInput("/nonexistent/path.lock.yml", "issue_number") {
+			t.Errorf("expected false for missing file")
+		}
+	})
 }
