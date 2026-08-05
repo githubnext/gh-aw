@@ -221,6 +221,17 @@ const main = createCountGatedHandler({
 
         const updatedLabelNames = (updatedLabels || []).map((/** @param {any} l */ l) => l.name || "").filter(Boolean);
 
+        if (!updatedLabelNames.includes(labelToAdd)) {
+          const error = `replace_label: label_to_add ${JSON.stringify(labelToAdd)} not found in POST-setLabels response`;
+          core.error(error);
+          return { success: false, error };
+        }
+        if (labelToRemoveIsPresent && labelToRemove !== labelToAdd && updatedLabelNames.includes(labelToRemove)) {
+          const error = `replace_label: label_to_remove ${JSON.stringify(labelToRemove)} still present after setLabels call`;
+          core.error(error);
+          return { success: false, error };
+        }
+
         core.info(`Successfully replaced label "${labelToRemove}" → "${labelToAdd}" on ${contextType} #${itemNumber} in ${itemRepo}`);
         core.info(`Updated labels: ${JSON.stringify(updatedLabelNames)}`);
 
