@@ -675,9 +675,10 @@ func TestInitRepositoryWithMCPBackwardCompatibility(t *testing.T) {
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
 	// Test init with deprecated --mcp flag for backward compatibility (mcp=true)
-	err = InitRepository(InitOptions{Verbose: false, Engine: "copilot", Skill: true, Agent: true, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
-	if err != nil {
-		t.Fatalf("InitRepository(, false, false, false, nil) with deprecated --mcp flag failed: %v", err)
+	cmd := NewInitCommand()
+	cmd.SetArgs([]string{"--engine", "copilot", "--mcp"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("init --engine copilot --mcp failed: %v", err)
 	}
 
 	// Verify .github/mcp.json was created
@@ -778,7 +779,7 @@ func TestInitRepositoryIdempotent(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Run init twice with default options.
+	// Run init twice with Copilot engine options.
 	err = InitRepository(InitOptions{Verbose: false, Engine: "copilot", Skill: true, Agent: true, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
 	if err != nil {
 		t.Fatalf("First InitRepository(, false, false, false, nil) failed: %v", err)
@@ -876,8 +877,8 @@ func TestInitRepositoryCreatesDirectories(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Run init with MCP
-	err = InitRepository(InitOptions{Verbose: false, Skill: true, Agent: true, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
+	// Run init with Copilot MCP
+	err = InitRepository(InitOptions{Verbose: false, Engine: "copilot", Skill: true, Agent: true, MCP: true, CodespaceRepos: []string{}, CodespaceEnabled: false, Completions: false, CreatePR: false, RootCmd: nil})
 	if err != nil {
 		t.Fatalf("InitRepository(, false, false, false, nil) failed: %v", err)
 	}
