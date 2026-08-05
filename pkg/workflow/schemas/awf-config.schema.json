@@ -76,7 +76,7 @@
         "enabled": {
           "type": "boolean",
           "deprecated": true,
-          "description": "[DEPRECATED] The API proxy sidecar is always enabled; this field is ignored. Source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_PROVIDER_API_KEY, GEMINI_API_KEY) are always held exclusively in the sidecar and excluded from the agent environment. The negated CLI form --no-enable-api-proxy is rejected at runtime. See docs/awf-config-spec.md \u00a79.3 for details."
+          "description": "[DEPRECATED] The API proxy sidecar is always enabled; this field is ignored. Source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_PROVIDER_API_KEY, GEMINI_API_KEY) are always held exclusively in the sidecar and excluded from the agent environment. The negated CLI form --no-enable-api-proxy is rejected at runtime. See docs/awf-config-spec.md §9.3 for details."
         },
         "enableTokenSteering": {
           "type": "boolean",
@@ -94,7 +94,7 @@
         "maxEffectiveTokens": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input \u00d71, cache-read \u00d70.1, output \u00d74, reasoning \u00d74. See spec \u00a710."
+          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input ×1, cache-read ×0.1, output ×4, reasoning ×4. See spec §10."
         },
         "maxAiCredits": {
           "type": "number",
@@ -119,7 +119,7 @@
             "cachedInput": {
               "type": "number",
               "minimum": 0,
-              "description": "Cached input token price per 1M tokens. Defaults to input \u00d7 0.1 if omitted."
+              "description": "Cached input token price per 1M tokens. Defaults to input × 0.1 if omitted."
             },
             "cacheWrite": {
               "type": ["number", "null"],
@@ -136,7 +136,7 @@
         },
         "modelMultipliers": {
           "type": "object",
-          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec \u00a710.2.",
+          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec §10.2.",
           "additionalProperties": {
             "type": "number",
             "exclusiveMinimum": 0
@@ -155,7 +155,7 @@
         "maxTurns": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec \u00a711."
+          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
         },
         "maxRuns": {
           "type": "integer",
@@ -238,6 +238,10 @@
             "vertex": {
               "$ref": "#/$defs/providerTarget",
               "description": "Google Vertex AI API target override."
+            },
+            "antigravity": {
+              "$ref": "#/$defs/providerTarget",
+              "description": "Antigravity API target override (alias of Gemini runtime settings)."
             }
           }
         },
@@ -253,7 +257,7 @@
         },
         "allowedModels": {
           "type": "array",
-          "description": "Allowlist of permitted model names (glob patterns). When set, only models matching at least one pattern are permitted. Uses case-insensitive glob matching with * as a wildcard. Evaluated after disallowedModels \u2014 a model in the denylist is always rejected even if it matches the allowlist. Examples: [\"*sonnet*\", \"*haiku*\"].",
+          "description": "Allowlist of permitted model names (glob patterns). When set, only models matching at least one pattern are permitted. Uses case-insensitive glob matching with * as a wildcard. Evaluated after disallowedModels — a model in the denylist is always rejected even if it matches the allowlist. Examples: [\"*sonnet*\", \"*haiku*\"].",
           "items": {
             "type": "string"
           }
@@ -267,7 +271,7 @@
         },
         "auth": {
           "type": "object",
-          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC \u2192 Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md \u00a79.5.",
+          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC → Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md §9.5.",
           "additionalProperties": false,
           "properties": {
             "type": {
@@ -585,7 +589,7 @@
         "containerRuntime": {
           "type": "string",
           "enum": ["gvisor", "sbx"],
-          "description": "Container runtime for the agent container. \"gvisor\" runs the agent under gVisor's runsc runtime (OCI runtime, compose-based). \"sbx\" runs the agent inside a Docker sbx microVM with hypervisor isolation; infrastructure containers (squid-proxy, api-proxy) stay in Docker Compose on the host and the sbx proxy chains upstream through AWF's Squid for domain filtering. Only the agent uses the custom runtime; infrastructure containers always use the default runc runtime. Note: when gh-aw compiles a workflow that uses the docker-sbx runtime, it passes \"--container-runtime sbx\" as a CLI flag to AWF rather than setting this field; this field is the AWF-native mechanism for specifying the runtime directly in the config JSON."
+          "description": "Container runtime for the agent container. \"gvisor\" runs the agent under gVisor's runsc runtime (OCI runtime, compose-based). \"sbx\" runs the agent inside a Docker sbx microVM with hypervisor isolation; infrastructure containers (squid-proxy, api-proxy) stay in Docker Compose on the host and the sbx proxy chains upstream through AWF's Squid for domain filtering. Only the agent uses the custom runtime; infrastructure containers always use the default runc runtime."
         }
       }
     },
@@ -661,7 +665,7 @@
     },
     "environment": {
       "type": "object",
-      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence for user-supplied values and may override envAll/envFile. Reserved proxy variables may be overridden only via CLI -e/--env, while other AWF-reserved variables remain protected. Source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are always excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md \u00a78\u20139 for credential isolation rules.",
+      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence for user-supplied values and may override envAll/envFile. Reserved proxy variables may be overridden only via CLI -e/--env, while other AWF-reserved variables remain protected. Source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are always excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md §8–9 for credential isolation rules.",
       "additionalProperties": false,
       "properties": {
         "envFile": {
@@ -670,7 +674,7 @@
         },
         "envAll": {
           "type": "boolean",
-          "description": "Forward all host environment variables into the agent container. Use with caution \u2014 may expose secrets."
+          "description": "Forward all host environment variables into the agent container. Use with caution — may expose secrets."
         },
         "excludeEnv": {
           "type": "array",
@@ -765,63 +769,225 @@
     },
     "boundedQueries": {
       "type": "object",
-      "description": "Bounded-query subsystem configuration. When present, enables the agent to answer finite, pre-approved questions about private repositories without receiving raw source content. Every query runs in a fresh backend-specific sandbox independently from the primary agent sandbox. The staging credential used to access private repositories must remain host-side and must not be written to the generated config or reach the agent environment.",
-      "required": ["enabled"],
+      "description": "Bounded-query sandbox configuration. When enabled, AWF stages an immutable seed per configured private repository, starts an offline broker (network_mode: none), and exposes a fixed `bounded-query` CLI plus a generated skill to the agent. See docs/awf-config-spec.md §14.",
       "additionalProperties": false,
       "properties": {
         "enabled": {
           "type": "boolean",
-          "description": "Must be true to activate the bounded-query subsystem. Set automatically by gh-aw when sandbox.agent.bounded-queries is configured."
+          "description": "Enable bounded queries for this run. Requires a staging credential in GH_TOKEN or GITHUB_TOKEN on the AWF host and a Compose-based container runtime. Default: false.",
+          "default": false
         },
         "privateRepos": {
           "type": "array",
-          "description": "List of private repositories approved for bounded-query access.",
-          "minItems": 1,
+          "description": "Private repositories the bounded-query broker may run queries against, each with a trusted confidentiality category that fixes its per-run information budget (`public` unmetered, `internal` 64 bits/run, `confidential` 8 bits/run, `sealed` 0 bits/run — never launches a query). A legacy bare `owner/repo` string is accepted for one release only and normalized to `{ repo, sensitivity: \"internal\" }` with a warning; update it to the object form. Each `repo` must be a bare `owner/repo` slug — no scheme, host, credentials, path traversal, query string, fragment, or wildcard. Repository names must be unique case-insensitively. AWF stages one immutable seed per entry before the primary agent starts.",
           "items": {
-            "type": "object",
-            "required": ["repo", "sensitivity"],
-            "additionalProperties": false,
-            "properties": {
-              "repo": {
+            "oneOf": [
+              {
                 "type": "string",
-                "description": "The 'owner/repo' slug of the approved private repository. Must be a literal value; GitHub Actions expressions are not permitted.",
-                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*/[a-zA-Z0-9][a-zA-Z0-9._-]*$"
+                "maxLength": 140,
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*$"
               },
-              "sensitivity": {
-                "type": "string",
-                "description": "Confidentiality classification for this repository.",
-                "enum": ["public", "internal", "confidential", "sealed"]
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["repo", "sensitivity"],
+                "properties": {
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 140,
+                    "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*$"
+                  },
+                  "sensitivity": {
+                    "type": "string",
+                    "enum": ["public", "internal", "confidential", "sealed"],
+                    "description": "Confidentiality category, which fixes this repository's immutable per-run information budget. Cannot be increased by configuration."
+                  }
+                }
               }
-            }
-          }
+            ]
+          },
+          "minItems": 1
         },
         "runtime": {
           "type": "string",
-          "description": "Isolated backend used to execute each bounded-query script. The sbx backend is experimental and capability-gated: AWF performs a fail-closed host preflight and never falls back to docker or gvisor. When omitted AWF uses its default.",
-          "enum": ["docker", "gvisor", "sbx"]
+          "enum": ["docker", "gvisor", "sbx"],
+          "description": "Sandbox runtime backend used to execute the query script, selected independently of the primary agent runtime. \"docker\" uses the daemon default runtime; \"gvisor\" requires the runsc OCI runtime; \"sbx\" is a fail-closed preview and is blocked until the installed sbx CLI proves mandatory no-network, PID, disk, file-size, target-mount, CPU, and memory controls. No backend ever falls back. Default: \"docker\".",
+          "default": "docker"
         },
         "timeout": {
           "type": "integer",
-          "description": "Maximum execution time in seconds for a single bounded-query invocation. When omitted AWF uses its default.",
           "minimum": 1,
-          "maximum": 540
+          "maximum": 540,
+          "description": "Maximum wall-clock time in seconds allowed for a single query invocation. Exceeding it returns the canonical error. Capped at 540 so the 10-minute response bucket reserves its final minute for termination, validation, container removal, and workspace cleanup. Default: 30.",
+          "default": 30
         },
         "memoryLimit": {
           "type": "string",
-          "description": "Memory limit for bounded-query container execution (e.g. \"512m\", \"2g\"). When omitted AWF uses its default.",
-          "pattern": "^[1-9][0-9]*[bkmgBKMG]$"
+          "pattern": "^[1-9][0-9]*[bkmgBKMG]$",
+          "description": "Docker-style memory limit applied to the query sandbox (e.g. \"512m\", \"1g\"). Swap is disabled at the same value. Default: \"512m\".",
+          "default": "512m"
         },
         "interpreter": {
           "type": "string",
-          "description": "Script interpreter for bounded-query execution (e.g. \"python3\"). When omitted AWF uses its default.",
-          "enum": ["python3"]
+          "enum": ["python3"],
+          "description": "Script interpreter used to run the query. Only \"python3\" (standard library only, no package installation) is supported.",
+          "default": "python3"
         },
         "maxInvocations": {
           "type": "integer",
-          "description": "Maximum number of bounded-query invocations allowed per run. When omitted AWF uses its default.",
           "minimum": 1,
-          "maximum": 10000
+          "maximum": 10000,
+          "description": "Maximum number of query responses permitted for the current AWF run. Every response — including a rejection — counts, because each one reveals one of the four permitted symbols. Exhaustion returns the canonical ERROR without launching a query. Default: 32.",
+          "default": 32
         }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        },
+        "required": ["enabled"]
+      },
+      "then": {
+        "required": ["privateRepos"]
+      }
+    },
+    "boundedAgents": {
+      "type": "object",
+      "description": "Bounded-agent enclave configuration. When enabled, AWF stages an immutable seed per configured private repository, starts an offline broker, and exposes a fixed `bounded-agent` CLI plus a generated skill to the agent. Each invocation runs the configured native coding-agent engine inside a single-use enclave that joins only a dedicated `internal` bounded-agent Docker network whose sole other member is the AWF API proxy. Requires the API proxy and a supported configured engine/model route. See docs/awf-config-spec.md §15.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable bounded agents for this run. Requires a staging credential in GH_TOKEN or GITHUB_TOKEN on the AWF host, an enabled API proxy, and a configured `engine`/`model` route. Default: false.",
+          "default": false
+        },
+        "privateRepos": {
+          "type": "array",
+          "description": "Private repositories a bounded agent may reason about, each with a trusted confidentiality category that fixes its per-run information budget (`public` unmetered, `internal` 64 bits/run, `confidential` 8 bits/run, `sealed` 0 bits/run — never launches an enclave). Each `repo` must be a bare `owner/repo` slug — no scheme, host, credentials, path traversal, query string, fragment, or wildcard. Repository names must be unique case-insensitively. Bounded agents keep a ledger separate from bounded queries.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["repo", "sensitivity"],
+            "properties": {
+              "repo": {
+                "type": "string",
+                "maxLength": 140,
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*$"
+              },
+              "sensitivity": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "sealed"],
+                "description": "Confidentiality category, which fixes this repository's immutable per-run information budget. Cannot be increased by configuration."
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "runtime": {
+          "type": "string",
+          "enum": ["docker", "gvisor", "sbx"],
+          "description": "Sandbox runtime backend used to execute the bounded-agent enclave, selected independently of the primary agent runtime. \"docker\" uses the daemon default runtime; \"gvisor\" requires the runsc OCI runtime; \"sbx\" is a fail-closed preview and is blocked until the installed sbx CLI proves the mandatory API-proxy-only network policy, read-only targeted mounts, unprivileged exec/workdir, and pids/disk/fsize/lifecycle controls this enclave requires. No backend ever falls back. Default: \"docker\".",
+          "default": "docker"
+        },
+        "engine": {
+          "type": "string",
+          "enum": ["copilot", "claude", "codex", "gemini"],
+          "description": "Native coding-agent runtime executed inside each single-use enclave. \"copilot\" is implemented with a dedicated pinned Copilot CLI image. Other accepted engine names fail closed until their dedicated images are implemented. The caller cannot choose or override this value.",
+          "default": "copilot"
+        },
+        "profile": {
+          "type": "string",
+          "enum": ["openai", "anthropic"],
+          "description": "Legacy provider-loop compatibility field. Native engines select their fixed API-proxy route from `engine`; callers cannot override it. Default: \"openai\".",
+          "default": "openai"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$",
+          "description": "Model identifier sent on every enclave request. Required when enabled. A request can never choose or override it."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 540,
+          "description": "Maximum wall-clock time in seconds allowed for a single enclave invocation. Capped at 540 so the 10-minute response bucket reserves its final minute for termination, validation, container removal, and workspace cleanup. Default: 120.",
+          "default": 120
+        },
+        "memoryLimit": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*[bkmgBKMG]$",
+          "description": "Docker-style memory limit applied to the enclave (e.g. \"512m\"). Swap is disabled at the same value. Default: \"512m\".",
+          "default": "512m"
+        },
+        "cpuLimit": {
+          "type": "string",
+          "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$",
+          "description": "Fractional CPU limit applied to the enclave (Docker --cpus). Default: \"1\".",
+          "default": "1"
+        },
+        "pidsLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096,
+          "description": "Maximum number of processes/threads the enclave may create. Default: 128.",
+          "default": 128
+        },
+        "tmpfsLimit": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*[bkmgBKMG]$",
+          "description": "Docker-style size limit for each of the enclave's writable tmpfs mounts (/tmp and the /agent work/result root). Default: \"64m\".",
+          "default": "64m"
+        },
+        "maxOutputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192,
+          "description": "Maximum size in bytes of the enclave's dedicated result file. The broker reads back at most this many bytes and requires exactly one JSON value conforming to the declared finite schema. Default: 8192.",
+          "default": 8192
+        },
+        "maxTaskBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536,
+          "description": "Maximum size in bytes of the caller-supplied bounded task text. The task is byte-bounded input forwarded verbatim into the enclave prompt; it is never interpreted as configuration. Default: 4096.",
+          "default": 4096
+        },
+        "maxInvocations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Maximum number of enclave responses permitted for the current AWF run. Every response — including a rejection — counts. Exhaustion returns the canonical error without launching an enclave. Default: 8.",
+          "default": 8
+        },
+        "maxModelRequests": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "description": "Maximum number of model requests one enclave invocation may issue through the API proxy. Default: 8.",
+          "default": 8
+        },
+        "maxModelTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32768,
+          "description": "Maximum completion tokens requested per model call (max_tokens). Default: 1024.",
+          "default": 1024
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        },
+        "required": ["enabled"]
+      },
+      "then": {
+        "required": ["privateRepos", "engine", "model"]
       }
     }
   },

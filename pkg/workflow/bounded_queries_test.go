@@ -323,7 +323,7 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					ID:      "awf",
-					Version: "v0.27.42", // below v0.28.0 minimum
+					Version: "v0.27.42", // below v0.27.44 minimum
 				},
 			},
 			ParsedTools: &ToolsConfig{

@@ -43,6 +43,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `panic-in-library-code` — reports `panic()` calls in library packages (`pkg/*`) where errors should be returned instead.
 - `rawloginlib` — reports direct usage of the standard `log` package in library packages, where `pkg/logger` should be used.
 - `regexpcompileinfunction` — reports `regexp.MustCompile` / `regexp.Compile` calls inside functions that should be package-level.
+- `regexpdynamicpattern` — reports `regexp.MustCompile` / `regexp.Compile` calls whose pattern is not a compile-time constant string.
 - `seenmapbool` — reports `map[string]bool` used as a set (values always `true`) that should use `map[string]struct{}` instead.
 - `sortslice` — reports `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc`.
 - `sprintferrdot` — reports redundant `.Error()` calls on error values passed to `fmt` format functions where the fmt package calls `.Error()` automatically.
@@ -112,6 +113,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `panic-in-library-code` | Custom `go/analysis` analyzer that flags `panic()` usage in library packages |
 | `rawloginlib` | Custom `go/analysis` analyzer that flags standard-library `log` package calls in library packages |
 | `regexpcompileinfunction` | Custom `go/analysis` analyzer that flags regexp compilation inside function bodies |
+| `regexpdynamicpattern` | Custom `go/analysis` analyzer that flags regexp.MustCompile/Compile calls with non-constant patterns |
 | `seenmapbool` | Custom `go/analysis` analyzer that flags `map[string]bool` used as a set that should use `map[string]struct{}` |
 | `sortslice` | Custom `go/analysis` analyzer that flags `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc` |
 | `sprintferrdot` | Custom `go/analysis` analyzer that flags redundant `.Error()` calls on error values passed to `fmt` format functions |
@@ -170,6 +172,7 @@ import (
 	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
+	"github.com/github/gh-aw/pkg/linters/regexpdynamicpattern"
 	"github.com/github/gh-aw/pkg/linters/sortslice"
 	"github.com/github/gh-aw/pkg/linters/sprintfbool"
 	"github.com/github/gh-aw/pkg/linters/sprintfint"
@@ -199,6 +202,7 @@ _ = osexitinlibrary.Analyzer
 _ = panicinlibrarycode.Analyzer
 _ = rawloginlib.Analyzer
 _ = regexpcompileinfunction.Analyzer
+_ = regexpdynamicpattern.Analyzer
 _ = sortslice.Analyzer
 _ = sprintfbool.Analyzer
 _ = sprintfint.Analyzer
@@ -245,6 +249,7 @@ _ = trimleftright.Analyzer
 - `github.com/github/gh-aw/pkg/linters/panic-in-library-code` — panic-in-library-code analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/rawloginlib` — raw-log-in-lib analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/regexpcompileinfunction` — regexp-compile-in-function analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/regexpdynamicpattern` — regexp-dynamic-pattern analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/seenmapbool` — seen-map-bool analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/sortslice` — sort-slice analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/sprintferrdot` — sprintf-err-dot analyzer subpackage

@@ -113,6 +113,17 @@ func applyEngineCwdEnv(env map[string]string, workflowData *WorkflowData) {
 	env["GH_AW_ENGINE_CWD"] = workflowData.EngineConfig.Cwd
 }
 
+// applyEngineVersionEnv sets the GH_AW_ENGINE_VERSION environment variable in the given
+// env map when engine.version is configured. This allows scripts and install helpers to
+// read the user-specified engine version at runtime without parsing frontmatter directly.
+// It is also useful for traceability when auditing which version of a custom engine ran.
+func applyEngineVersionEnv(env map[string]string, workflowData *WorkflowData) {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Version == "" {
+		return
+	}
+	env["GH_AW_ENGINE_VERSION"] = workflowData.EngineConfig.Version
+}
+
 // applyOptionalEngineToolTimeouts adds optional tool timeout environment variables.
 func applyOptionalEngineToolTimeouts(env map[string]string, workflowData *WorkflowData) {
 	if workflowData == nil {
