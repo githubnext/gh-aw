@@ -1,6 +1,6 @@
 ---
 name: github-labels-query
-description: List GitHub repository labels with per_page pagination support.
+description: List GitHub repository labels with per_page pagination and name filtering support.
 ---
 
 # GitHub Labels Query Skill
@@ -28,6 +28,16 @@ Use this script to list labels from any repository with controlled page sizes.
 ./query-labels.sh --owner github --repo gh-aw --per-page 25 --page 2
 ```
 
+### Filtering by name
+
+```bash
+# Only labels whose name contains "bug" (case-insensitive)
+./query-labels.sh --owner github --repo gh-aw --name-filter bug
+```
+
+When `--name-filter` is set, all labels are fetched and filtered, then
+`--per-page`/`--page` are applied to the filtered results.
+
 ## Parameters
 
 | Parameter | Required | Default | Description |
@@ -36,6 +46,7 @@ Use this script to list labels from any repository with controlled page sizes.
 | `--repo` | Yes | - | Repository name |
 | `--per-page` | No | 10 | Results per page (1–100) |
 | `--page` | No | 1 | Page number |
+| `--name-filter` | No | - | Case-insensitive substring filter on the label name |
 
 ## Output
 
@@ -64,3 +75,6 @@ Returns JSON with the following fields:
 
 Calls the GitHub REST API:
 `GET /repos/{owner}/{repo}/labels?per_page={n}&page={n}`
+
+When `--name-filter` is used, the script pages through all labels
+(`--paginate`) before filtering and slicing locally.
