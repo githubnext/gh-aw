@@ -518,6 +518,13 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 		engineCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommandWithPath)
 	}
 
+	excludedSecretNames := e.GetRequiredSecretNames(workflowData)
+	for _, binding := range e.definition.Auth {
+		excludedSecretNames = slices.DeleteFunc(excludedSecretNames, func(secretName string) bool {
+			return secretName == binding.Secret
+		})
+	}
+
 	return BuildAWFCommand(AWFCommandConfig{
 		EngineName:         e.GetID(),
 		EngineCommand:      engineCommandWithPath,
@@ -525,7 +532,7 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 		WorkflowData:       workflowData,
 		UsesTTY:            false,
 		AllowedDomains:     allowedDomains,
-		ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, e.GetRequiredSecretNames(workflowData)),
+		ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, excludedSecretNames),
 	})
 }
 
