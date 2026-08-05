@@ -127,10 +127,10 @@ func (c *Compiler) addActivationCheckoutAndBaseRestoreStep(ctx *activationJobBui
 	ctx.steps = append(ctx.steps, checkoutSteps...)
 	if len(checkoutSteps) > 0 {
 		compilerActivationJobLog.Print("Adding step to save agent config folders for base branch restoration")
-		registry := c.engineRegistry
+		folders, files := resolveAgentManifestPaths(c.engineRegistry, data)
 		ctx.steps = append(ctx.steps, generateSaveBaseGitHubFoldersStep(
-			registry.GetAllAgentManifestFolders(),
-			registry.GetAllAgentManifestFiles(),
+			folders,
+			files,
 		)...)
 	}
 }

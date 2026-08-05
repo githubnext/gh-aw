@@ -106,6 +106,27 @@ func TestShouldGeneratePRCheckoutStep_CheckoutDisabled(t *testing.T) {
 	})
 }
 
+func TestResolveAgentManifestPaths(t *testing.T) {
+	t.Run("includes defaults and only the selected engine", func(t *testing.T) {
+		folders, files := resolveAgentManifestPaths(NewEngineRegistry(), &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "claude"},
+		})
+
+		assert.Equal(t, []string{".agents", ".claude"}, folders)
+		assert.Equal(t, []string{"AGENTS.md", "CLAUDE.md"}, files)
+	})
+
+	t.Run("includes ambient folders without duplicates", func(t *testing.T) {
+		folders, files := resolveAgentManifestPaths(NewEngineRegistry(), &WorkflowData{
+			EngineConfig:   &EngineConfig{ID: "codex"},
+			AmbientFolders: []string{".squad", ".agents"},
+		})
+
+		assert.Equal(t, []string{".agents", ".codex", ".squad"}, folders)
+		assert.Equal(t, []string{"AGENTS.md"}, files)
+	})
+}
+
 func TestGeneratePRReadyForReviewCheckout_IncludesWorkflowDispatchIssueCommentContext(t *testing.T) {
 	compiler := NewCompiler()
 	var yaml strings.Builder

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -27,10 +28,51 @@ func ShouldGeneratePRCheckoutStep(data *WorkflowData) bool {
 	return permParser.HasContentsReadAccess()
 }
 
+func resolveAgentManifestPaths(registry *EngineRegistry, data *WorkflowData) (folders, files []string) {
+	folders = []string{".agents"}
+	if data != nil {
+		folders = append(folders, data.AmbientFolders...)
+	}
+	files = []string{"AGENTS.md"}
+
+	if registry != nil {
+		engine, err := registry.GetEngine(strings.ToLower(resolveActivationEngineID(data)))
+		if err == nil {
+			if provider, ok := engine.(AgentFileProvider); ok {
+				for _, prefix := range provider.GetAgentManifestPathPrefixes() {
+					if folder := strings.TrimSuffix(prefix, "/"); folder != "" {
+						folders = append(folders, folder)
+					}
+				}
+				files = append(files, provider.GetAgentManifestFiles()...)
+			}
+		}
+	}
+
+	return sortedUniqueStrings(folders), sortedUniqueStrings(files)
+}
+
+func sortedUniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
+
 // generateSaveBaseGitHubFoldersStep generates step strings (for the activation job) that
 // snapshot agent config folders and root instruction files from the workspace into
-// /tmp/gh-aw/base/.  The folder and file lists are computed from the engine registry so
-// that engine implementations are the single source of truth — no hardcoding in the script.
+// /tmp/gh-aw/base/. The folder and file lists contain platform defaults, the selected
+// engine's manifests, and ambient folders.
 //
 // folders: the agent config directories to snapshot (e.g. ".agents", ".claude", ".github")
 // files:   the root instruction files to snapshot (e.g. "AGENTS.md", "CLAUDE.md")

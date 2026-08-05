@@ -146,11 +146,9 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 
 // GetAgentManifestFiles returns instruction files that should be treated as
 // security-sensitive manifests to protect against injection attacks in fork PRs.
-// AGENTS.md is the cross-engine convention read by Copilot; CLAUDE.md and GEMINI.md
-// are also protected so that multi-engine repositories cannot be poisoned via
-// whichever instruction file a given fork PR happens to target.
+// AGENTS.md is the cross-engine convention read by Copilot.
 func (e *CopilotEngine) GetAgentManifestFiles() []string {
-	return []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"}
+	return []string{"AGENTS.md"}
 }
 
 // GetAgentManifestPathPrefixes returns Copilot-specific config directory prefixes

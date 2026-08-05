@@ -350,10 +350,10 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// IMPORTANT: This must run BEFORE pre-agent-steps (below) so that APM-restored skills
 	// placed in .github/skills/ by pre-agent-steps are not clobbered by this restore.
 	if ShouldGeneratePRCheckoutStep(data) {
-		registry := c.engineRegistry
+		folders, files := resolveAgentManifestPaths(c.engineRegistry, data)
 		generateRestoreBaseGitHubFoldersStep(yaml,
-			registry.GetAllAgentManifestFolders(),
-			registry.GetAllAgentManifestFiles(),
+			folders,
+			files,
 		)
 		generateRestoreAmbientFoldersStep(yaml, data)
 	}
