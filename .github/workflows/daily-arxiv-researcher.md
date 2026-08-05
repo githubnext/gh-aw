@@ -8,8 +8,11 @@ on:
 
 permissions:
   contents: read
+  copilot-requests: write
 
-engine: claude
+engine:
+  id: crush
+model: copilot/claude-sonnet-4.5
 
 timeout-minutes: 20
 max-ai-credits: 300
@@ -28,6 +31,9 @@ tools:
     - "ls *"
 
 network: defaults
+
+imports:
+  - shared/crush.md
 
 safe-outputs:
   create-discussion:
