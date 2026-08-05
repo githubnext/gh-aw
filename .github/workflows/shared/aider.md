@@ -43,7 +43,7 @@ engine:
       path: .aider.conf.yml
       step-name: Write Aider Config
       content: |-
-        openai-api-base: http://172.30.0.30:10002/v1
+        openai-api-base: http://172.30.0.30:10002
         openai-api-key: awf-copilot-proxy
     execution:
       command-name: aider
@@ -58,9 +58,9 @@ engine:
         - --no-fancy-input
         - --analytics-disable
         - --openai-api-base
-        - http://172.30.0.30:10002/v1
+        - http://172.30.0.30:10002
         - --set-env
-        - OPENAI_BASE_URL=http://172.30.0.30:10002/v1
+        - OPENAI_BASE_URL=http://172.30.0.30:10002
         - --openai-api-key
         - awf-copilot-proxy
       step-name: Execute Aider CLI
