@@ -50,10 +50,66 @@ else
 fi
 echo ""
 
-# Test 3: Already cached images (should be fast)
-echo -e "${YELLOW}Test 3: Already cached images${NC}"
+# Test 3: AWF digest-pinned images restore local aliases without retagging unrelated latest refs
+echo -e "${YELLOW}Test 3: Digest-pinned AWF alias handling${NC}"
+WORKDIR=$(mktemp -d)
+cleanup_mock_docker() {
+    rm -rf "$WORKDIR"
+}
+cat > "$WORKDIR/docker" <<'MOCK'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$DOCKER_LOG"
+case "$1" in
+  pull)
+    exit 0
+    ;;
+  tag)
+    exit 0
+    ;;
+  *)
+    echo "unexpected docker command: $*" >&2
+    exit 1
+    ;;
+esac
+MOCK
+chmod +x "$WORKDIR/docker"
+DOCKER_LOG="$WORKDIR/docker.log"
+export DOCKER_LOG
+NODE_DIGEST="$(printf 'a%.0s' {1..64})"
+CLI_PROXY_DIGEST="$(printf 'b%.0s' {1..64})"
+if PATH="$WORKDIR:$PATH" bash "$DOWNLOAD_SCRIPT" \
+    "ghcr.io/github/gh-aw-node@sha256:${NODE_DIGEST}" \
+    "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44@sha256:${CLI_PROXY_DIGEST}" \
+    alpine:3.17 > /tmp/test3.log 2>&1; then
+    if grep -q 'tag ghcr.io/github/gh-aw-node@sha256:' "$DOCKER_LOG" \
+        && grep -q 'ghcr.io/github/gh-aw-node:latest' "$DOCKER_LOG" \
+        && grep -q 'tag ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44@sha256:' "$DOCKER_LOG" \
+        && grep -q 'ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44 ghcr.io/github/gh-aw-firewall/cli-proxy:latest' "$DOCKER_LOG"; then
+        echo -e "${GREEN}✓ PASS${NC}: AWF digest aliases restored correctly"
+    else
+        echo -e "${RED}✗ FAIL${NC}: Missing expected AWF alias commands"
+        cat "$DOCKER_LOG"
+        exit 1
+    fi
+    if grep -q 'alpine:3.17 alpine:latest' "$DOCKER_LOG"; then
+        echo -e "${RED}✗ FAIL${NC}: Unrelated image was incorrectly aliased to latest"
+        cat "$DOCKER_LOG"
+        exit 1
+    else
+        echo -e "${GREEN}✓ PASS${NC}: Unrelated repositories were not aliased to latest"
+    fi
+else
+    echo -e "${RED}✗ FAIL${NC}: Digest alias test failed"
+    cat /tmp/test3.log
+    exit 1
+fi
+echo ""
+
+# Test 4: Already cached images (should be fast)
+echo -e "${YELLOW}Test 4: Already cached images${NC}"
 START_TIME=$(date +%s)
-if bash "$DOWNLOAD_SCRIPT" alpine:3.19 alpine:3.18 > /tmp/test3.log 2>&1; then
+if bash "$DOWNLOAD_SCRIPT" alpine:3.19 alpine:3.18 > /tmp/test4.log 2>&1; then
     END_TIME=$(date +%s)
     DURATION=$((END_TIME - START_TIME))
     echo -e "${GREEN}✓ PASS${NC}: Cached images download succeeded (${DURATION}s)"
@@ -65,20 +121,20 @@ if bash "$DOWNLOAD_SCRIPT" alpine:3.19 alpine:3.18 > /tmp/test3.log 2>&1; then
     fi
 else
     echo -e "${RED}✗ FAIL${NC}: Cached images download failed"
-    cat /tmp/test3.log
+    cat /tmp/test4.log
     exit 1
 fi
 echo ""
 
-# Test 4: Invalid image (should fail gracefully)
-echo -e "${YELLOW}Test 4: Invalid image (expected to fail)${NC}"
-if bash "$DOWNLOAD_SCRIPT" "nonexistent-registry.invalid/fake-image:v999" > /tmp/test4.log 2>&1; then
+# Test 5: Invalid image (should fail gracefully)
+echo -e "${YELLOW}Test 5: Invalid image (expected to fail)${NC}"
+if bash "$DOWNLOAD_SCRIPT" "nonexistent-registry.invalid/fake-image:v999" > /tmp/test5.log 2>&1; then
     echo -e "${RED}✗ FAIL${NC}: Should have failed for invalid image"
     exit 1
 else
     echo -e "${GREEN}✓ PASS${NC}: Failed as expected for invalid image"
     # Check for expected error message
-    if grep -q "Failed to download" /tmp/test4.log; then
+    if grep -q "Failed to download" /tmp/test5.log; then
         echo -e "${GREEN}✓ PASS${NC}: Error message present"
     else
         echo -e "${YELLOW}⚠ WARNING${NC}: Expected error message format not found"
@@ -86,9 +142,9 @@ else
 fi
 echo ""
 
-# Test 5: Empty arguments (should handle gracefully)
-echo -e "${YELLOW}Test 5: No images provided${NC}"
-if bash "$DOWNLOAD_SCRIPT" > /tmp/test5.log 2>&1; then
+# Test 6: Empty arguments (should handle gracefully)
+echo -e "${YELLOW}Test 6: No images provided${NC}"
+if bash "$DOWNLOAD_SCRIPT" > /tmp/test6.log 2>&1; then
     echo -e "${GREEN}✓ PASS${NC}: Handled empty arguments gracefully"
 else
     # This might fail which is also acceptable behavior
@@ -102,3 +158,4 @@ echo "=========================================="
 
 # Cleanup
 rm -f /tmp/test*.log
+cleanup_mock_docker

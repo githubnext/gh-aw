@@ -15,6 +15,13 @@ set +o histexpand
 # When images include a digest pin (e.g. image:tag@sha256:abc), the script
 # ensures the tag alias (image:tag) is created after pulling so that tools
 # referencing images by tag (such as AWF with --skip-pull) can find them.
+#
+# The script also aliases the image as "image:latest" so that any downstream
+# tool that references the image via the mutable ":latest" tag (regardless of
+# which versioned tag was actually pulled) can still resolve it locally under
+# --pull-never/--skip-pull semantics. This guards against tag mismatches
+# between the version-pinned tag written here and a ":latest" reference used
+# elsewhere (see gh-aw#50681).
 
 set -euo pipefail
 
@@ -30,14 +37,37 @@ docker_pull_with_retry() {
     if timeout 5m docker pull --quiet "$image" 2>&1; then
       echo "Successfully pulled $image"
 
-      # When pulling with a digest pin (image:tag@sha256:...), Docker may not
-      # create the tag alias automatically. Ensure the tag exists so that
-      # downstream tools (e.g. AWF --skip-pull) can find the image by tag.
+      # When pulling with a digest pin, Docker may not create a digest-free
+      # alias automatically. Preserve the original base reference and add back
+      # its implicit ":latest" or explicit tag alias so downstream tools can
+      # resolve the image locally under --pull-never/--skip-pull semantics.
+      local tag_ref="$image"
+      local base_ref="$image"
       if [[ "$image" == *"@sha256:"* ]]; then
-        local tag_ref="${image%%@sha256:*}"
-        if [[ "$tag_ref" == *":"* ]]; then
-          echo "Tagging digest-pinned image as $tag_ref"
-          docker tag "$image" "$tag_ref"
+        base_ref="${image%%@sha256:*}"
+        tag_ref="$base_ref"
+        if [[ "$base_ref" == *":"* ]]; then
+          echo "Tagging digest-pinned image as $base_ref"
+          docker tag "$image" "$base_ref"
+        else
+          local latest_ref="${base_ref}:latest"
+          echo "Tagging digest-pinned image as $latest_ref"
+          docker tag "$image" "$latest_ref"
+          tag_ref="$latest_ref"
+        fi
+      fi
+
+      # Only AWF images need a mutable ":latest" alias for local compose
+      # stacks, and only when the requested reference was version-pinned. This
+      # avoids races when unrelated repositories are pulled concurrently with
+      # multiple distinct tags.
+      if [[ "$base_ref" == ghcr.io/github/gh-aw-* && "$tag_ref" == *":"* ]]; then
+        local repo_ref="${tag_ref%%:*}"
+        local tag_part="${tag_ref##*:}"
+        if [[ "$tag_part" != "latest" ]]; then
+          local latest_ref="${repo_ref}:latest"
+          echo "Aliasing $tag_ref as $latest_ref"
+          docker tag "$tag_ref" "$latest_ref"
         fi
       fi
 
