@@ -128,8 +128,8 @@ var ClaudeDefaultDomains = []string{
 	"ts-ocsp.ws.symantec.com",
 }
 
-// AntigravityDefaultDomains are the default domains required for Antigravity CLI authentication and operation
-var AntigravityDefaultDomains = []string{
+// GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation.
+var GeminiDefaultDomains = []string{
 	"*.googleapis.com",
 	"generativelanguage.googleapis.com",
 	"github.com",
@@ -137,10 +137,6 @@ var AntigravityDefaultDomains = []string{
 	"raw.githubusercontent.com",
 	"registry.npmjs.org",
 }
-
-// GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation.
-// Deprecated: Use AntigravityDefaultDomains. Kept for backward compatibility.
-var GeminiDefaultDomains = AntigravityDefaultDomains
 
 // PiBaseDefaultDomains are the base domains required for the Pi CLI to operate,
 // independent of the chosen LLM provider. When a model uses provider/model format,
@@ -676,11 +672,10 @@ func engineDeclaredNetworkDomains(engineID string, model string) ([]string, erro
 // Engines with model-specific defaults (for example, Pi and behavior-defined engines)
 // are resolved dynamically instead of being stored directly in this map.
 var engineDefaultDomains = map[constants.EngineName][]string{
-	constants.CopilotEngine:     CopilotDefaultDomains,
-	constants.ClaudeEngine:      ClaudeDefaultDomains,
-	constants.CodexEngine:       CodexDefaultDomains,
-	constants.GeminiEngine:      GeminiDefaultDomains,
-	constants.AntigravityEngine: AntigravityDefaultDomains,
+	constants.CopilotEngine: CopilotDefaultDomains,
+	constants.ClaudeEngine:  ClaudeDefaultDomains,
+	constants.CodexEngine:   CodexDefaultDomains,
+	constants.GeminiEngine:  GeminiDefaultDomains,
 }
 
 // GetDefaultDomainsForEngine returns the engine's default required domains.
@@ -900,7 +895,7 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	var base string
 	engine := constants.EngineName(engineID)
 	switch engine {
-	case constants.CopilotEngine, constants.CodexEngine, constants.ClaudeEngine, constants.GeminiEngine, constants.AntigravityEngine,
+	case constants.CopilotEngine, constants.CodexEngine, constants.ClaudeEngine, constants.GeminiEngine,
 		constants.PiEngine:
 		model := ""
 		if data.EngineConfig != nil {
@@ -936,13 +931,7 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 		base = mergeAPITargetDomains(base, copilotTarget)
 	}
 
-	// Add Antigravity API target domains so GH_AW_ALLOWED_DOMAINS stays in sync with --allow-domains.
-	// Resolved from ANTIGRAVITY_API_BASE_URL in engine.env or default generativelanguage.googleapis.com.
-	if antigravityAPITarget := GetAntigravityAPITarget(data, engineID); antigravityAPITarget != "" {
-		base = mergeAPITargetDomains(base, antigravityAPITarget)
-	}
-
-	// Add Gemini API target domains for backward compat with deprecated Gemini engine workflows.
+	// Add Gemini API target domains.
 	// Resolved from GEMINI_API_BASE_URL in engine.env or default generativelanguage.googleapis.com.
 	if geminiAPITarget := GetGeminiAPITarget(data, engineID); geminiAPITarget != "" {
 		base = mergeAPITargetDomains(base, geminiAPITarget)

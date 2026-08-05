@@ -268,8 +268,8 @@ compute time, so a turn limit bounds both runaway loops and cost.
 max-turns: 20
 ```
 
-`max-turns` is supported across Claude, Codex, Copilot, and
-Antigravity engines. When set, gh-aw exports the compiled value as
+`max-turns` is supported across Claude, Codex, Copilot, Gemini, and
+Pi engines. When set, gh-aw exports the compiled value as
 `GH_AW_MAX_TURNS` for the engine runtime — you do not need to set
 `CLAUDE_CODE_MAX_TURNS` or an equivalent variable separately.
 

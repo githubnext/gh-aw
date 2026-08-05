@@ -22,10 +22,8 @@ func TestAWFHelpersDoesNotContainEngineAPITargetHelpers(t *testing.T) {
 		"func GetCopilotAPITarget(",
 		"func extractLiteralEngineEnvHost(",
 		"func GetCopilotAllowlistTargets(",
-		"func GetAntigravityAPITarget(",
 		"func GetGeminiAPITarget(",
 		"func getEngineAPIHosts(",
-		"const DefaultAntigravityAPITarget",
 		"const DefaultGeminiAPITarget",
 	}
 

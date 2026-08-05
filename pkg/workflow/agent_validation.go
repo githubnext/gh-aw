@@ -272,7 +272,7 @@ func (c *Compiler) validateBashCommandAllowlistSupport(tools map[string]any, eng
 	agentValidationLog.Printf("Engine %s does not support bash command allowlist, emitting error", engine.GetID())
 	return fmt.Errorf("engine '%s' does not support bash command allow-listing: tools.bash with specific commands is silently ignored at runtime for this engine. "+
 		"Use 'bash: [\"*\"]' to allow all commands or remove the tools.bash entry. "+
-		"To restrict bash commands, switch to an engine that supports this feature (copilot, claude, gemini, or antigravity)",
+		"To restrict bash commands, switch to an engine that supports this feature (copilot, claude, or gemini)",
 		engine.GetID())
 }
 

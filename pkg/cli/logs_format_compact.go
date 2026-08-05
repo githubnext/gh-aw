@@ -15,7 +15,7 @@ import (
 var logsCompactLog = logger.New("cli:logs_format_compact")
 
 // workflowIDFromPath extracts the workflow ID from a workflow path.
-// e.g. ".github/workflows/smoke-antigravity.lock.yml" → "smoke-antigravity"
+// e.g. ".github/workflows/smoke-copilot.lock.yml" → "smoke-copilot"
 func workflowIDFromPath(path string) string {
 	// Get the base filename
 	base := path

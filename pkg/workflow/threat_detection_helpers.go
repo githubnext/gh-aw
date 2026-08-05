@@ -184,8 +184,8 @@ func engineCoreSecretVarNames(engineID string) []string {
 		return []string{"ANTHROPIC_API_KEY"}
 	case "codex":
 		return []string{"OPENAI_API_KEY", "CODEX_API_KEY"}
-	case "gemini", "antigravity":
-		return []string{"GEMINI_API_KEY", "ANTIGRAVITY_API_KEY"}
+	case "gemini":
+		return []string{"GEMINI_API_KEY"}
 	default:
 		return []string{}
 	}
