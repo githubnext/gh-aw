@@ -11,7 +11,7 @@ export const requireNanCheckAfterEnvNumericParseRule = createRule({
     },
     schema: [],
     messages: {
-      requireNaNCheck: "Numeric value '{{name}}' parsed from process.env is never validated with Number.isNaN() or isNaN(). Parsing functions silently return NaN for malformed environment input.",
+      requireNaNCheck: "Numeric value '{{name}}' parsed from process.env is never validated with Number.isNaN(), isNaN(), Number.isFinite(), isFinite(), or a truthiness check. Parsing functions silently return NaN for malformed environment input.",
     },
   },
   defaultOptions: [],
@@ -92,22 +92,44 @@ export const requireNanCheckAfterEnvNumericParseRule = createRule({
     }
 
     /**
-     * Returns true when the call expression is isNaN(...) or Number.isNaN(...).
+     * Returns true when the call expression is a NaN-validating global:
+     * isNaN(...), Number.isNaN(...), isFinite(...) or Number.isFinite(...).
      */
     function isIsNaNCall(node: TSESTree.CallExpression): boolean {
       const { callee } = node;
 
-      // Global isNaN(x)
-      if (callee.type === "Identifier" && callee.name === "isNaN") {
+      // Global isNaN(x) / isFinite(x)
+      if (callee.type === "Identifier" && (callee.name === "isNaN" || callee.name === "isFinite")) {
         return true;
       }
 
-      // Number.isNaN(x)
-      if (callee.type === "MemberExpression" && callee.object.type === "Identifier" && callee.object.name === "Number" && !callee.computed && callee.property.type === "Identifier" && callee.property.name === "isNaN") {
+      // Number.isNaN(x) / Number.isFinite(x)
+      if (
+        callee.type === "MemberExpression" &&
+        callee.object.type === "Identifier" &&
+        callee.object.name === "Number" &&
+        !callee.computed &&
+        callee.property.type === "Identifier" &&
+        (callee.property.name === "isNaN" || callee.property.name === "isFinite")
+      ) {
         return true;
       }
 
       return false;
+    }
+
+    /**
+     * Marks a bare identifier (or `!identifier`) used as a condition test as validated,
+     * since NaN is falsy and such a truthiness guard rejects it.
+     */
+    function markTruthinessGuard(test: TSESTree.Node): void {
+      let expr = test;
+      while (expr.type === "UnaryExpression" && expr.operator === "!") {
+        expr = expr.argument;
+      }
+      if (expr.type === "Identifier") {
+        validated.add(expr.name);
+      }
     }
 
     return {
@@ -122,6 +144,14 @@ export const requireNanCheckAfterEnvNumericParseRule = createRule({
         if (isIsNaNCall(node) && node.arguments.length === 1 && node.arguments[0].type === "Identifier") {
           validated.add((node.arguments[0] as TSESTree.Identifier).name);
         }
+      },
+
+      IfStatement(node) {
+        markTruthinessGuard(node.test);
+      },
+
+      ConditionalExpression(node) {
+        markTruthinessGuard(node.test);
       },
 
       "Program:exit"() {

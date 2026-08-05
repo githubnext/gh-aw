@@ -231,4 +231,26 @@ const maxFileCount = parseInt(process.env.MAX_FILE_COUNT, 10);
       ],
     });
   });
+  it("valid: Number.isFinite guard (build_checkout_manifest.cjs pattern)", () => {
+    cjsRuleTester.run("require-nan-check-after-env-numeric-parse", requireNanCheckAfterEnvNumericParseRule, {
+      valid: [
+        `const count = Number.parseInt(process.env.GH_AW_CHECKOUT_MANIFEST_COUNT || "0", 10); if (!Number.isFinite(count) || count < 0) { throw new Error("invalid"); }`,
+        `const runId = parseInt(process.env.GITHUB_RUN_ID || "0", 10); if (Number.isFinite(runId)) { use(runId); }`,
+        `const configuredDelay = Number.parseInt(process.env.DELAY_MS || "", 10); const delay = Number.isFinite(configuredDelay) && configuredDelay >= 0 ? configuredDelay : 100;`,
+        `const count = parseInt(process.env.COUNT, 10); if (isFinite(count)) { use(count); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: truthiness guard on parsed value", () => {
+    cjsRuleTester.run("require-nan-check-after-env-numeric-parse", requireNanCheckAfterEnvNumericParseRule, {
+      valid: [
+        `const runId = Number(process.env.GITHUB_RUN_ID || 0); if (!runId) { return; } use(runId);`,
+        `const port = parseInt(process.env.PORT, 10); if (port) { listen(port); }`,
+        `const port = parseInt(process.env.PORT, 10); const value = port ? port : 8080;`,
+      ],
+      invalid: [],
+    });
+  });
 });
