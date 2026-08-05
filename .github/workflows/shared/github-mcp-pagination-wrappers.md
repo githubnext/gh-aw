@@ -165,7 +165,12 @@ mcp-scripts:
       OWNER="${INPUT_OWNER:-}"
       REPO="${INPUT_REPO:-}"
       PATH_IN_REPO="${INPUT_PATH:-}"
-      REF="${INPUT_REF:-${GITHUB_SHA:-}}"
+      REF="${INPUT_REF:-}"
+      if [[ -z "$REF" ]]; then
+        if [[ "${OWNER}/${REPO}" == "${GITHUB_REPOSITORY:-}" ]]; then
+          REF="${GITHUB_SHA:-}"
+        fi
+      fi
       BYTE_OFFSET="${INPUT_BYTEOFFSET:-0}"
       MAX_BYTES="${INPUT_MAXBYTES:-20000}"
       START_LINE="${INPUT_STARTLINE:-}"
@@ -215,6 +220,8 @@ mcp-scripts:
         REF=$(gh repo view "${OWNER}/${REPO}" --json defaultBranchRef --jq '.defaultBranchRef.name')
       fi
 
+      ENCODED_PATH=$(python3 -c "import sys, urllib.parse; print('/'.join(urllib.parse.quote(p, safe='') for p in sys.argv[1].split('/')))" "$PATH_IN_REPO")
+
       RAW_FILE=$(mktemp)
       trap 'rm -f "$RAW_FILE"' EXIT
 
@@ -224,7 +231,7 @@ mcp-scripts:
         --method GET \
         -H "Accept: application/vnd.github.raw" \
         -H "Range: bytes=${BYTE_OFFSET}-${BYTE_END}" \
-        "repos/${OWNER}/${REPO}/contents/${PATH_IN_REPO}" \
+        "repos/${OWNER}/${REPO}/contents/${ENCODED_PATH}" \
         -f "ref=${REF}" > "$RAW_FILE"
 
       python3 - "$RAW_FILE" <<'PY'
@@ -245,9 +252,9 @@ mcp-scripts:
 
       line_start = None
       line_end = None
-      if start_line:
-        line_start = int(start_line)
-        line_end = int(end_line) if end_line else line_start + 99
+      if start_line or end_line:
+        line_start = int(start_line) if start_line else 1
+        line_end = int(end_line) if end_line else None
         lines = text.splitlines(keepends=True)
         text = "".join(lines[line_start - 1:line_end])
 
