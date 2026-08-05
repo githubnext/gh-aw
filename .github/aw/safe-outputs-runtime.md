@@ -230,6 +230,8 @@ Fields that influence permission computation (`add-comment.discussions`, `create
   - When `false`, suppresses automatic failure issue creation for this workflow
   - Supports templatable boolean expressions, e.g. `report-failure-as-issue: ${{ inputs.report-failure-as-issue }}`
   - Use to silence noisy failure reports for workflows where failures are expected or handled externally
+- `report-failed-jobs:` - Report failed non-builtin jobs (custom `jobs:` entries) as issues from the conclusion job (boolean, default: `true`)
+  - Set to `false` to suppress issue creation for custom job failures while still reporting agent/safe-outputs job failures via `report-failure-as-issue`
 - `failure-issue-repo:` - Repository to create failure tracking issues in (string, format: `"owner/repo"`)
   - Defaults to the current repository when not specified
   - Use when the current repository has issues disabled: `failure-issue-repo: "myorg/infra-alerts"`

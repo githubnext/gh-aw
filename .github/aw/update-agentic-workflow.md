@@ -17,6 +17,7 @@ Update existing workflow files in `.github/workflows/`.
 
 Load these additional files only when relevant:
 
+- [maintainer.md](maintainer.md)
 - [campaign.md](campaign.md)
 - [experiments.md](experiments.md)
 - [visual-regression.md](visual-regression.md)

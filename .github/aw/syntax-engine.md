@@ -8,7 +8,7 @@ See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
 
 - **`engine:`** - AI processor configuration
   - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"pi"`
-  - The experimental `opencode` engine is available through `imports: [shared/opencode.md]`; see [`smoke-opencode.md`](../workflows/smoke-opencode.md) for an example.
+  - Additional CLI engines (`opencode`, `goose`, `aider`, `cursor`, `kiro`, `crush`) are shared markdown definitions rather than built-in `id` values — set `engine.id: <id>` and `imports: [shared/<id>.md]`; see [configure-agentic-engine.md](configure-agentic-engine.md) for the pattern and `.github/workflows/smoke-<id>.md` for examples.
   - Object format for extended configuration:
 
     ```yaml

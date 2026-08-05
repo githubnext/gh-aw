@@ -8,7 +8,7 @@ Use this guide when adding or updating a declarative engine definition in a repo
 
 ## Prefer shared agentic workflow definitions
 
-For CLI-style engines, create a repository-scoped definition in `.github/workflows/shared/<id>.md`. Import it from a workflow that sets `engine.id: <id>`. Use GitHub to inspect the shared [OpenCode](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/opencode.md), [Goose](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/goose.md), [Aider](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/aider.md), [Cursor](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/cursor.md), and [Kiro](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/kiro.md) definitions as patterns.
+For CLI-style engines, create a repository-scoped definition in `.github/workflows/shared/<id>.md`. Import it from a workflow that sets `engine.id: <id>`. Use GitHub to inspect the shared [OpenCode](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/opencode.md), [Goose](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/goose.md), [Aider](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/aider.md), [Cursor](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/cursor.md), [Kiro](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/kiro.md), and [Crush](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/crush.md) definitions as patterns.
 
 - express the engine entirely through frontmatter-defined `engine.behaviors`
 - keep install, config, execution, MCP, manifest, and capability metadata in the engine markdown file

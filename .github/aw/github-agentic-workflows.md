@@ -146,6 +146,7 @@ Permissions: `pull-requests: read` only; all writes route through `add-comment` 
 | GitHub MCP server configuration | [github-mcp-server.md](github-mcp-server.md) |
 | GitHub MCP server pagination limits | [github-mcp-server-pagination.md](github-mcp-server-pagination.md) |
 | Campaign and KPI patterns | [campaign.md](campaign.md) |
+| Recurring repository maintenance | [maintainer.md](maintainer.md) |
 | Experiments and A/B testing | [experiments.md](experiments.md) |
 | Charts and Python data visualization | [charts.md](charts.md) |
 | LLM API endpoint discovery | [llms.md](llms.md) |
