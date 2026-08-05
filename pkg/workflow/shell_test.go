@@ -19,6 +19,11 @@ func TestShellEscapeArg(t *testing.T) {
 			expected: "hello",
 		},
 		{
+			name:     "empty argument is quoted to preserve positional argument count",
+			input:    "",
+			expected: "''",
+		},
+		{
 			name:     "argument with parentheses",
 			input:    "shell(git add:*)",
 			expected: "'shell(git add:*)'",
