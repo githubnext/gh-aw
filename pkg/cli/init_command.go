@@ -18,7 +18,7 @@ func NewInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize the repository for agentic workflows",
-		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating the dispatcher skill file.
+		Long: `Initialize the repository for agentic workflows by configuring repository settings.
 
 This command performs non-interactive repository setup and does not prompt for
 engine selection or secret configuration.
@@ -26,12 +26,14 @@ engine selection or secret configuration.
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
 - Creates the dispatcher skill at .github/skills/agentic-workflows/SKILL.md
-- Creates the custom agent at .github/agents/agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
 - Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use the expires field for discussions or issues
 
-By default (without --no-mcp):
+With --engine copilot:
+- Creates the custom agent at .github/agents/agentic-workflows.md
+
+With --engine copilot (without --no-mcp):
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
 - Creates .github/mcp.json with gh-aw MCP server configuration
 
@@ -57,13 +59,12 @@ With --completions flag:
 - Provides instructions for enabling completions in your shell
 
 After running this command, you can:
-- Use GitHub Copilot Chat or coding agent tools with the agentic-workflows skill to get started with workflow tasks
-- The dispatcher skill will route your request to the appropriate specialized prompt
 - Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
   ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Initialize with verbose output
-  ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                # Use Claude engine — skips Copilot MCP/skill files
+  ` + string(constants.CLIExtensionPrefix) + ` init --engine copilot               # Add Copilot MCP and agent files
+  ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                # Initialize for the Claude engine
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
   ` + string(constants.CLIExtensionPrefix) + ` init --no-skill                     # Skip dispatcher skill creation
   ` + string(constants.CLIExtensionPrefix) + ` init --no-agent                     # Skip custom agent creation
@@ -154,7 +155,7 @@ After running this command, you can:
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
-	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration (deprecated, MCP is enabled by default)")
+	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration (deprecated; use --engine copilot)")
 	// Hide the deprecated --mcp flag from help (kept for backward compatibility)
 	_ = cmd.Flags().MarkHidden("mcp")
 

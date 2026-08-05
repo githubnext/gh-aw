@@ -42,7 +42,7 @@ func InitRepository(opts InitOptions) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	ctx := ctxutil.OrBackground(opts.Ctx)
-	copilotArtifactsEnabled := opts.Engine == "" || opts.Engine == "copilot"
+	copilotArtifactsEnabled := opts.Engine == "copilot"
 
 	// Show welcome banner for interactive mode
 	console.ShowWelcomeBanner("This tool will initialize your repository for GitHub Agentic Workflows.")
@@ -84,20 +84,21 @@ func InitRepository(opts InitOptions) error {
 		}
 	}
 
-	// Write dispatcher skill for Copilot engine only
-	if copilotArtifactsEnabled {
-		if opts.Skill {
-			initLog.Print("Writing agentic workflows dispatcher skill")
-			if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false, true); err != nil {
-				initLog.Printf("Failed to write dispatcher skill: %v", err)
-				return fmt.Errorf("failed to write dispatcher skill: %w", err)
-			}
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
-			}
-		} else {
-			initLog.Print("Skipping agentic workflows dispatcher skill")
+	// Write dispatcher skill
+	if opts.Skill {
+		initLog.Print("Writing agentic workflows dispatcher skill")
+		if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false, true); err != nil {
+			initLog.Printf("Failed to write dispatcher skill: %v", err)
+			return fmt.Errorf("failed to write dispatcher skill: %w", err)
 		}
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
+		}
+	} else {
+		initLog.Print("Skipping agentic workflows dispatcher skill")
+	}
+
+	if copilotArtifactsEnabled {
 		if opts.Agent {
 			initLog.Print("Writing agentic workflows custom agent")
 			if err := ensureAgenticWorkflowsAgent(opts.Verbose, true); err != nil {
@@ -118,8 +119,6 @@ func InitRepository(opts InitOptions) error {
 			initLog.Printf("Failed to delete legacy agentic-workflow-designer skill directory: %v", err)
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete legacy agentic-workflow-designer skill directory: %v", err)))
 		}
-	} else {
-		initLog.Printf("Skipping Copilot dispatcher skill for engine: %s", opts.Engine)
 	}
 
 	// Delete existing setup agentic workflows agent if it exists
