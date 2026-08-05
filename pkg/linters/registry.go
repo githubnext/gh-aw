@@ -40,6 +40,7 @@ import (
 	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
+	"github.com/github/gh-aw/pkg/linters/regexpdynamicpattern"
 	"github.com/github/gh-aw/pkg/linters/seenmapbool"
 	"github.com/github/gh-aw/pkg/linters/sortslice"
 	"github.com/github/gh-aw/pkg/linters/sprintfbool"
@@ -111,6 +112,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	panicinlibrarycode.Analyzer,
 	rawloginlib.Analyzer,
 	regexpcompileinfunction.Analyzer,
+	regexpdynamicpattern.Analyzer,
 	ssljson.Analyzer,
 	seenmapbool.Analyzer,
 	sortslice.Analyzer,
