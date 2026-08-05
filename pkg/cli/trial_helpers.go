@@ -21,6 +21,7 @@ import (
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 )
 
 // issuePathPattern matches the path portion of a GitHub issue URL: /owner/repo/issues/NUMBER
@@ -84,7 +85,8 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 		}
 
 		// Run the workflow and wait for completion (with trigger context if provided)
-		runID, err := triggerWorkflowRun(hostRepoSlug, parsedSpec.WorkflowName, opts.TriggerContext, opts.Verbose)
+		lockFilePath := filepath.Join(tempDir, constants.GetWorkflowDir(), parsedSpec.WorkflowName+".lock.yml")
+		runID, err := triggerWorkflowRun(hostRepoSlug, parsedSpec.WorkflowName, lockFilePath, opts.TriggerContext, opts.Verbose)
 		if err != nil {
 			return fmt.Errorf("failed to trigger workflow run for '%s': %w", parsedSpec.WorkflowName, err)
 		}
@@ -189,7 +191,7 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 	return nil
 }
 
-func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, verbose bool) (string, error) {
+func triggerWorkflowRun(repoSlug, workflowName, lockFilePath string, triggerContext string, verbose bool) (string, error) {
 	trialLog.Printf("Triggering workflow run: workflow=%s, repo=%s, hasTriggerContext=%v", workflowName, repoSlug, triggerContext != "")
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Triggering workflow run for: "+workflowName))
@@ -201,13 +203,19 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 	// Build the command args
 	args := []string{"workflow", "run", lockFileName, "--repo", repoSlug}
 
-	// If trigger context is provided, extract issue number and add it as input
+	// If trigger context is provided, extract issue number and add it as input.
+	// Only forward the input when the compiled workflow declares an "issue_number"
+	// workflow_dispatch input; otherwise gh returns HTTP 422 and the run is skipped.
 	if triggerContext != "" {
 		issueNumber := parseIssueSpec(triggerContext)
 		if issueNumber != "" {
-			args = append(args, "--field", "issue_number="+issueNumber)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using issue number %s from trigger context", issueNumber)))
+			if workflowDeclaresDispatchInput(lockFilePath, "issue_number") {
+				args = append(args, "--field", "issue_number="+issueNumber)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using issue number %s from trigger context", issueNumber)))
+				}
+			} else if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' does not declare an issue_number input, running without trigger context", workflowName)))
 			}
 		} else if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not extract issue number from trigger context, running without inputs"))
@@ -269,7 +277,32 @@ func parseIssueSpec(input string) string {
 	return ""
 }
 
-// saveTrialResult saves a trial result to a JSON file
+// workflowDeclaresDispatchInput reports whether the compiled lock file at lockFilePath
+// declares the given workflow_dispatch input. It returns false if the file cannot be
+// read or parsed, so that trigger-derived inputs are not forwarded to workflows whose
+// workflow_dispatch schema does not declare them (which would cause an HTTP 422).
+func workflowDeclaresDispatchInput(lockFilePath, inputName string) bool {
+	content, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		trialLog.Printf("Failed to read lock file %s: %v", lockFilePath, err)
+		return false
+	}
+
+	var parsed struct {
+		On struct {
+			WorkflowDispatch struct {
+				Inputs map[string]any `yaml:"inputs"`
+			} `yaml:"workflow_dispatch"`
+		} `yaml:"on"`
+	}
+	if err := yaml.Unmarshal(content, &parsed); err != nil {
+		trialLog.Printf("Failed to parse lock file %s: %v", lockFilePath, err)
+		return false
+	}
+
+	_, ok := parsed.On.WorkflowDispatch.Inputs[inputName]
+	return ok
+}
 func saveTrialResult(filename string, result any, verbose bool) error {
 	jsonBytes, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
