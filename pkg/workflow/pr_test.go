@@ -125,6 +125,15 @@ func TestResolveAgentManifestPaths(t *testing.T) {
 		assert.Equal(t, []string{".agents", ".codex", ".github", ".squad"}, folders)
 		assert.Equal(t, []string{"AGENTS.md"}, files)
 	})
+
+	t.Run("resolves engine via prefix alias", func(t *testing.T) {
+		folders, files := resolveAgentManifestPaths(NewEngineRegistry(), &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "codex-experimental"},
+		})
+
+		assert.Equal(t, []string{".agents", ".codex", ".github"}, folders)
+		assert.Equal(t, []string{"AGENTS.md"}, files)
+	})
 }
 
 func TestGeneratePRReadyForReviewCheckout_IncludesWorkflowDispatchIssueCommentContext(t *testing.T) {

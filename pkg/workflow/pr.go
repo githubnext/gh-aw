@@ -36,7 +36,11 @@ func resolveAgentManifestPaths(registry *EngineRegistry, data *WorkflowData) (fo
 	files = []string{"AGENTS.md"}
 
 	if registry != nil {
-		engine, err := registry.GetEngine(strings.ToLower(resolveActivationEngineID(data)))
+		engineID := strings.ToLower(resolveActivationEngineID(data))
+		engine, err := registry.GetEngine(engineID)
+		if err != nil {
+			engine, err = registry.GetEngineByPrefix(engineID)
+		}
 		if err == nil {
 			if provider, ok := engine.(AgentFileProvider); ok {
 				for _, prefix := range provider.GetAgentManifestPathPrefixes() {
