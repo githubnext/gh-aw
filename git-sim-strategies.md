@@ -303,3 +303,26 @@ content there could realistically breach 4096 KB).
 - **Zero real fail/error/rejected across 176 cells.**
 - **Next index: 176** = tiny-none-batch-xlarge-diverged-single (closes batch-xlarge
   tier fully; last cell before HISTORY moves off "none", idx180+).
+
+## Run 2026-08-05: idx176-179 (batch-xlarge tier CLOSED; entire tiny-none block CLOSED)
+
+- **idx176 ahead-merge_msg: PASS.** 101f/4027.25KB/2c. merge_msg filename leak
+  reconfirmed (`0001-Merge-branch-topic-xyz-into-feature.patch`), parent=1/merges=empty,
+  ff rc0. Closes batch-xlarge ahead tier (174-176, 3/3).
+- **idx177 diverged-single: PASS.** two-dot 2f/4084.08KB vs three-dot 3f/4084.52KB
+  (+0.44KB main phantom). ff(old→new feature tip) rc0; ff(main→feature) rc1 (real
+  divergence) — both checks reconfirmed at xlarge scale.
+- **idx178 diverged-multi: PASS.** two-dot 4f/4038.89KB (3 disjoint + followup) vs
+  three-dot 5f/4039.37KB. Disjoint-multi ratio vs single-baseline = 1.0001x — tightest
+  confirmation yet that disjoint commits add ~0 overhead even at xlarge+batch+diverged.
+- **idx179 diverged-merge_msg: PASS.** two-dot 2f/4083.08KB vs three-dot 3f/4083.53KB.
+  Filename leak + parent=1/merges=empty + ff-rc0/rc1 pair all reconfirmed together.
+- **batch-xlarge tier now FULLY CLOSED (171-179, 9/9 pass).**
+- **ENTIRE tiny-none BLOCK NOW CLOSED (idx0-179, 180/180, zero fail/error/rejected).**
+  All FILES×PATCH×BRANCH×COMMIT combos pass under SIZE=tiny/HISTORY=none. Largest
+  cells (~4027-4084 KB) sit at ~79-80% of the 5120KB cap — consistent margin, no
+  cliff found yet.
+- **Next index: 180** = tiny-shallow-single-micro-clean-single — first cell with
+  HISTORY=shallow (5 entries in history.md). This begins probing whether history.md
+  entry count (vs raw patch bytes) has any independent cost effect, since history.md
+  content itself is tiny/negligible-sized regardless of entry count in most designs.
