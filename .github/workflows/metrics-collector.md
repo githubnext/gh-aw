@@ -79,12 +79,22 @@ If you see any `.md` files at the root (e.g. `agent-performance-latest.md`, `sha
 
 **Workflow Status and Runs**:
 - Use the `status` tool to get a list of all workflows in the repository
-- Use the `logs` tool to download workflow run data from the last 24 hours:
+- Use the `logs` tool to download workflow run data from the last 24 hours, **in small
+  paginated batches** to avoid the tool timing out on large windows:
   ```
-  Parameters:
+  Parameters (first call):
   - start_date: "-1d" (last 24 hours)
+  - count: 20
   - Include all workflows (no workflow_name filter)
   ```
+- **Pagination loop (required)**: the `logs` tool returns a `continuation` field when it stops
+  early (timeout or count limit). While a `continuation` field is present in the returned data,
+  issue another `logs` call using the parameters it provides (notably `before_run_id`, plus the
+  original `start_date`) with `count: 20`, and accumulate the runs from every batch. Stop when
+  either no `continuation` field is returned or you have made 10 batch calls (~200 runs), so the
+  overall step stays within the workflow timeout.
+- Never issue a single `logs` call with `count >= 100` for the full `-1d` window: that request
+  has repeatedly exceeded the 60s tool timeout and yields truncated data.
 - From the logs data, extract for each workflow:
   - Total runs in last 24 hours
   - Successful runs (conclusion: "success")
@@ -100,6 +110,25 @@ If you see any `.md` files at the root (e.g. `agent-performance-latest.md`, `sha
   - Comments added by workflows
   - Discussions created by workflows
 - Extract and count these for each workflow
+- **If the accumulated log batches still do not cover the full 24h window** (i.e. the last batch
+  returned a `continuation` field or the oldest run collected is newer than 24h ago), do **not**
+  report `safe_outputs` as zero. Instead compute safe-output counts from the GitHub API fallback
+  described below and mark the source accordingly.
+
+**Safe Outputs Fallback (GitHub API)**:
+
+When the logs-based path is truncated or unavailable, derive safe-output counts from the GitHub
+API instead of zeroing them:
+- Issues created: search issues created in the window that carry a
+  `gh-aw-workflow-call-id: <owner>/<repo>/<workflow-id>` marker in the body
+  (e.g. `search_issues` with `repo:<owner>/<repo> is:issue created:>=<window start>`)
+- PRs created: same search with `is:pr`
+- Comments added: `list_issues` / issue comment listing for issues updated in the window,
+  counting comments authored by the agent app
+- Discussions created: `list_discussions` filtered by creation date in the window
+Attribute each result to a workflow via its `gh-aw-workflow-call-id` footer marker, aggregate the
+counts per workflow, and set `"safe_outputs_source": "github_api_fallback"` alongside a
+`collection_note` explaining the truncation. The same fallback applies to `engagement` fields.
 
 **Additional Metrics via GitHub API**:
 - Use GitHub MCP server (default toolset) to supplement with:
@@ -236,8 +265,9 @@ find /tmp/gh-aw/repo-memory/default/metrics/daily/ -name "*.json" -mtime +30 -de
 
 **Primary data source**: Use the agentic-workflows tool for all workflow run metrics:
 1. Start with `status` tool to get workflow inventory
-2. Use `logs` tool with `start_date: "-1d"` to collect last 24 hours of runs
-3. Extract metrics from the log data (success/failure, tokens, costs, safe outputs)
+2. Use `logs` tool with `start_date: "-1d"` and `count: 20`, then follow the `continuation`
+   field (using its `before_run_id`) for up to 10 batches to cover the full window
+3. Extract metrics from the accumulated log data (success/failure, tokens, costs, safe outputs)
 
 **Secondary data source**: Use GitHub MCP server for engagement metrics only:
 - Reactions on issues/PRs created by workflows
@@ -248,6 +278,10 @@ find /tmp/gh-aw/repo-memory/default/metrics/daily/ -name "*.json" -mtime +30 -de
 
 - If a workflow has no runs in the last 24 hours, set all run metrics to 0
 - If a workflow has no safe outputs, set all safe output counts to 0
+- **Never report `safe_outputs` or `engagement` as 0 merely because the `logs` tool timed out or
+  returned a truncated window** — use the GitHub API safe-outputs fallback above and set
+  `"safe_outputs_source": "github_api_fallback"`. Only report 0 when the data source actually
+  covered the window and found no outputs.
 - If token/cost data is unavailable, omit or set to null
 - Always include workflows in the metrics even if they have no activity (helps detect stalled workflows)
 - **If the agentic-workflows `logs` tool is unavailable**, collect what you can from the GitHub API directly (workflow runs via `list_workflow_runs`) and set `"data_source": "github_api_fallback"` in the JSON
@@ -278,6 +312,8 @@ The agentic-workflows logs tool provides structured data with workflow names alr
 
 - The agentic-workflows tool is optimized for log retrieval and analysis
 - Use date filters (start_date: "-1d") to limit data collection scope
+- Request small batches (`count: 20`) and paginate via `continuation` rather than one large
+  `count >= 100` request, which times out (>60s) and silently truncates the window
 - Process logs in memory rather than making multiple API calls
 - Cache workflow list from status tool
 
