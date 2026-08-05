@@ -11,7 +11,8 @@ export const requireNanCheckAfterEnvNumericParseRule = createRule({
     },
     schema: [],
     messages: {
-      requireNaNCheck: "Numeric value '{{name}}' parsed from process.env is never validated with Number.isNaN(), isNaN(), Number.isFinite(), isFinite(), or a truthiness check. Parsing functions silently return NaN for malformed environment input.",
+      requireNaNCheck:
+        "Numeric value '{{name}}' parsed from process.env is never validated with Number.isNaN(), isNaN(), Number.isFinite(), isFinite(), or a truthiness check. Parsing functions silently return NaN for malformed environment input.",
     },
   },
   defaultOptions: [],

@@ -37,7 +37,8 @@ export const preferStructuredCloneRule = createRule({
     type: "suggestion",
     hasSuggestions: true,
     docs: {
-      description: "Prefer structuredClone(...) over JSON.parse(JSON.stringify(...)) for deep-cloning plain data in actions/setup/js scripts. The JSON round-trip is slower, silently drops values it cannot represent (undefined, functions, Date becomes a string), and throws on circular references, whereas structuredClone (Node >=17, available globally in the Node 24 runtime this action targets) clones plain objects and JSON-safe data directly.",
+      description:
+        "Prefer structuredClone(...) over JSON.parse(JSON.stringify(...)) for deep-cloning plain data in actions/setup/js scripts. The JSON round-trip is slower, silently drops values it cannot represent (undefined, functions, Date becomes a string), and throws on circular references, whereas structuredClone (Node >=17, available globally in the Node 24 runtime this action targets) clones plain objects and JSON-safe data directly.",
     },
     schema: [],
     messages: {

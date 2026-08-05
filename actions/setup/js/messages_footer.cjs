@@ -739,7 +739,7 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
   // Attribution footer line comes after any guard notices. Only add the separating
   // blank line when guard notices are present, otherwise the footer would start with
   // stray blank lines that render as a large gap after the body.
-  let footer = guardNotices ? guardNotices.trimEnd() + "\n\n" + getFooterMessage(ctx) : getFooterMessage(ctx);
+  let footer = guardNotices ? guardNotices.trim() + "\n\n" + getFooterMessage(ctx) : getFooterMessage(ctx);
 
   // Add installation instructions if source is available
   const installMessage = getFooterInstallMessage(ctx);
