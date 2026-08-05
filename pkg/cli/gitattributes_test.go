@@ -47,31 +47,37 @@ func TestEnsureGitAttributes(t *testing.T) {
 		{
 			name:            "creates new gitattributes file",
 			existingContent: "",
-			expectedContent: ".github/workflows/*.lock.yml linguist-generated=true merge=ours",
+			expectedContent: ".github/workflows/*.lock.yml linguist-generated=true",
 			expectUpdated:   true,
 		},
 		{
 			name:            "adds entry to existing file",
 			existingContent: "*.generated linguist-generated=true\n",
-			expectedContent: "*.generated linguist-generated=true\n\n.github/workflows/*.lock.yml linguist-generated=true merge=ours",
+			expectedContent: "*.generated linguist-generated=true\n\n.github/workflows/*.lock.yml linguist-generated=true",
 			expectUpdated:   true,
 		},
 		{
 			name:            "does not duplicate existing entry",
-			existingContent: ".github/workflows/*.lock.yml linguist-generated=true merge=ours\n",
-			expectedContent: ".github/workflows/*.lock.yml linguist-generated=true merge=ours",
+			existingContent: ".github/workflows/*.lock.yml linguist-generated=true\n",
+			expectedContent: ".github/workflows/*.lock.yml linguist-generated=true",
 			expectUpdated:   false,
 		},
 		{
 			name:            "does not duplicate entry with different order",
-			existingContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=ours\n*.txt text=auto\n",
-			expectedContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=ours\n*.txt text=auto",
+			existingContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true\n*.txt text=auto\n",
+			expectedContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true\n*.txt text=auto",
 			expectUpdated:   false,
 		},
 		{
-			name:            "updates old format entry",
-			existingContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true\n*.txt text=auto\n",
-			expectedContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=ours\n*.txt text=auto",
+			name:            "migrates legacy merge=ours entry",
+			existingContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=ours\n*.txt text=auto\n",
+			expectedContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true\n*.txt text=auto",
+			expectUpdated:   true,
+		},
+		{
+			name:            "does not rewrite repository-owned lock-yml policy",
+			existingContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=union\n*.txt text=auto\n",
+			expectedContent: "*.md linguist-documentation=true\n.github/workflows/*.lock.yml linguist-generated=true merge=union\n*.txt text=auto\n\n.github/workflows/*.lock.yml linguist-generated=true",
 			expectUpdated:   true,
 		},
 	}
@@ -119,8 +125,8 @@ func TestEnsureGitAttributes(t *testing.T) {
 			}
 
 			// Verify the entry is actually present
-			if !strings.Contains(string(content), ".github/workflows/*.lock.yml linguist-generated=true merge=ours") {
-				t.Errorf("Expected .gitattributes to contain '.github/workflows/*.lock.yml linguist-generated=true merge=ours'")
+			if !strings.Contains(string(content), ".github/workflows/*.lock.yml linguist-generated=true") {
+				t.Errorf("Expected .gitattributes to contain '.github/workflows/*.lock.yml linguist-generated=true'")
 			}
 			// Verify campaign.g.md entry is NOT present (it's now in .gitignore)
 			if strings.Contains(string(content), ".github/workflows/*.campaign.g.md") {

@@ -1,6 +1,7 @@
 ---
 engine:
   id: goose
+  version: "1.45.0"
   display-name: Goose
   description: Goose CLI with headless execution and MCP support
   experimental: true
@@ -127,7 +128,9 @@ engine:
       const [command, ...commandArgs] = process.argv.slice(2);
       const installDir = mkdtempSync(join(tmpdir(), "goose-"));
       const archive = join(installDir, "goose.tar.gz");
-      const releaseURL = "https://github.com/aaif-goose/goose/releases/download/v1.45.0/goose-x86_64-unknown-linux-gnu.tar.gz";
+      const version = process.env.GH_AW_ENGINE_VERSION;
+      if (!version) throw new Error("GH_AW_ENGINE_VERSION is required");
+      const releaseURL = `https://github.com/aaif-goose/goose/releases/download/v${version}/goose-x86_64-unknown-linux-gnu.tar.gz`;
       const checksum = "e0db638ac437ca0a60b0c1622f45322608d228d1a285214c3bf48fd9763346a5";
       const fail = (result, action) => {
         if (result.error || result.status !== 0) {

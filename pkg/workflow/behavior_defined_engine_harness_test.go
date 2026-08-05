@@ -238,3 +238,54 @@ func TestBehaviorDefinedEngineRenderMCPConfig(t *testing.T) {
 		assert.Contains(t, sb.String(), "start_mcp_gateway.cjs", "gateway startup command must be emitted")
 	})
 }
+
+// TestBehaviorDefinedEngineVersionEnvInjection verifies that when engine.version is set,
+// GH_AW_ENGINE_VERSION is injected into the execution step environment.
+func TestBehaviorDefinedEngineVersionEnvInjection(t *testing.T) {
+	def := &EngineDefinition{
+		ID:          "goose",
+		DisplayName: "Goose",
+		Behaviors: &EngineBehaviorDefinition{
+			Execution: &EngineExecutionDefinition{
+				CommandName: "goose",
+				Args:        []string{"run"},
+				StepName:    "Execute Goose",
+			},
+		},
+	}
+	engine, err := NewBehaviorDefinedEngine(def)
+	require.NoError(t, err)
+
+	t.Run("version injected when set", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test",
+			EngineConfig: &EngineConfig{ID: "goose", Version: "1.2.3"},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.NotEmpty(t, steps, "execution steps must not be empty")
+		execStepContent := strings.Join(steps[len(steps)-1], "\n")
+		assert.Contains(t, execStepContent, "GH_AW_ENGINE_VERSION: 1.2.3", "execution env should include engine version")
+	})
+
+	t.Run("version expression injected when set", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test",
+			EngineConfig: &EngineConfig{ID: "goose", Version: "${{ inputs.engine-version }}"},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.NotEmpty(t, steps, "execution steps must not be empty")
+		execStepContent := strings.Join(steps[len(steps)-1], "\n")
+		assert.Contains(t, execStepContent, "GH_AW_ENGINE_VERSION: ${{ inputs.engine-version }}", "execution env should include expression version")
+	})
+
+	t.Run("version not set when absent", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test",
+			EngineConfig: &EngineConfig{ID: "goose"},
+		}
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		require.NotEmpty(t, steps, "execution steps must not be empty")
+		execStepContent := strings.Join(steps[len(steps)-1], "\n")
+		assert.NotContains(t, execStepContent, "GH_AW_ENGINE_VERSION", "execution env should not include version when not configured")
+	})
+}

@@ -1,6 +1,7 @@
 ---
 engine:
   id: crush
+  version: "0.88.0"
   display-name: Crush
   description: Crush CLI with non-interactive execution and native MCP support
   experimental: true
@@ -35,7 +36,6 @@ engine:
     installation:
       package-manager: npm
       package-name: "@charmland/crush"
-      version: "0.88.0"
       step-name: Install Crush
       binary-name: crush
       include-node-setup: true

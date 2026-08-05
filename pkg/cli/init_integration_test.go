@@ -83,7 +83,7 @@ func TestInitCommandIntegration(t *testing.T) {
 	gitAttrPath := filepath.Join(setup.tempDir, ".gitattributes")
 	content, err := os.ReadFile(gitAttrPath)
 	require.NoError(t, err, ".gitattributes should be created")
-	assert.Contains(t, string(content), ".github/workflows/*.lock.yml linguist-generated=true merge=ours",
+	assert.Contains(t, string(content), ".github/workflows/*.lock.yml linguist-generated=true",
 		".gitattributes should mark lock.yml files as generated")
 
 	// The dispatcher skill is created for every engine.

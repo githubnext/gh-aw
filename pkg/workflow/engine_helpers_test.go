@@ -563,3 +563,60 @@ func TestNormalizeBashCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyEngineVersionEnv(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		wantVersion  string
+		wantSet      bool
+	}{
+		{
+			name:         "nil workflow data",
+			workflowData: nil,
+			wantSet:      false,
+		},
+		{
+			name:         "nil engine config",
+			workflowData: &WorkflowData{},
+			wantSet:      false,
+		},
+		{
+			name: "empty version",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "goose"},
+			},
+			wantSet: false,
+		},
+		{
+			name: "explicit version string",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "goose", Version: "1.0.0"},
+			},
+			wantVersion: "1.0.0",
+			wantSet:     true,
+		},
+		{
+			name: "expression version",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "goose", Version: "${{ inputs.engine-version }}"},
+			},
+			wantVersion: "${{ inputs.engine-version }}",
+			wantSet:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := map[string]string{}
+			applyEngineVersionEnv(env, tt.workflowData)
+			got, set := env["GH_AW_ENGINE_VERSION"]
+			if set != tt.wantSet {
+				t.Errorf("expected GH_AW_ENGINE_VERSION to be set=%v, got set=%v", tt.wantSet, set)
+			}
+			if tt.wantSet && got != tt.wantVersion {
+				t.Errorf("expected GH_AW_ENGINE_VERSION=%q, got %q", tt.wantVersion, got)
+			}
+		})
+	}
+}
