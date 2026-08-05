@@ -53,6 +53,10 @@ tools:
   - find .github -name "*.md"
   - jq *
   - cat *
+  - head *
+  - tail *
+  - sed -n *
+  - wc *
   - date *
   cli-proxy: true
   github:
