@@ -18,13 +18,14 @@ permissions:
   copilot-requests: write
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: opencode
 strict: true
 network:
   allowed:
     - defaults
     - github
 imports:
+  - shared/opencode.md
   - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - shared/reporting.md

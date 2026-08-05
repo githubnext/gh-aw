@@ -13,7 +13,7 @@ permissions:
 tracker-id: daily-awf-spec-compiler-surfacing
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: crush
 sandbox:
   agent:
     sudo: false
@@ -37,6 +37,7 @@ safe-outputs:
 timeout-minutes: 30
 strict: true
 imports:
+  - shared/crush.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

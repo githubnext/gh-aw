@@ -19,7 +19,7 @@ permissions:
 tracker-id: daily-hippo-learn
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: crush
   bare: true
 
 timeout-minutes: 30
@@ -60,6 +60,7 @@ safe-outputs:
     max: 3
 
 imports:
+  - shared/crush.md
   - shared/hippo-memory.md
   - shared/reporting.md
   - shared/otlp.md

@@ -31,9 +31,10 @@ network:
   allowed: ["defaults", "go"]
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: goose
 strict: true
 imports:
+  - shared/goose.md
   - shared/mcp-pagination.md
   - shared/otlp.md
 tools:

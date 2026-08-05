@@ -13,7 +13,7 @@ permissions:
 tracker-id: hippo-embed
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: aider
   bare: true
 
 timeout-minutes: 60
@@ -47,6 +47,7 @@ steps:
       npm install -g @xenova/transformers
 
 imports:
+  - shared/aider.md
   - shared/pmg.md
   - shared/hippo-memory.md
 

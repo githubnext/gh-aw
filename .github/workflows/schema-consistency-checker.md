@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: goose
 max-ai-credits: 1500
 tools:
   cli-proxy: true
@@ -27,6 +27,7 @@ checkout:
   - fetch-depth: 1
     current: true
 imports:
+  - shared/goose.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[Schema Consistency] "

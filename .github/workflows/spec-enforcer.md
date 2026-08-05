@@ -19,6 +19,7 @@ network:
   - github
   - go
 imports:
+- shared/goose.md
 - shared/reporting.md
 - shared/otlp.md
 safe-outputs:
@@ -35,7 +36,7 @@ emoji: 📋
 max-turns: 100
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: goose
 name: Package Specification Enforcer
 strict: true
 timeout-minutes: 30

@@ -475,8 +475,9 @@ sandbox:
 
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: aider
 imports:
+  - shared/aider.md
   - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - shared/activation-app.md

@@ -17,6 +17,7 @@ network:
   allowed:
   - defaults
 imports:
+- shared/opencode.md
 - shared/otlp.md
 safe-outputs:
   create-issue:
@@ -35,7 +36,7 @@ emoji: 🧪
 model: copilot/gpt-5.4
 engine:
   bare: true
-  id: pi
+  id: opencode
 strict: true
 timeout-minutes: 30
 tools:

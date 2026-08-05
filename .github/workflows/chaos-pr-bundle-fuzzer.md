@@ -12,7 +12,7 @@ permissions:
   issues: read
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: crush
 strict: true
 sandbox:
   agent:
@@ -44,6 +44,7 @@ safe-outputs:
   noop:
 timeout-minutes: 30
 imports:
+  - shared/crush.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

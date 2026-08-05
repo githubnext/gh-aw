@@ -29,11 +29,12 @@ permissions:
 # AI engine configuration
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: goose
   bare: true
 
 # Import shared reporting guidelines
 imports:
+  - shared/goose.md
   - shared/reporting.md
   - shared/otlp.md
 

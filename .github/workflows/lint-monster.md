@@ -19,7 +19,7 @@ sandbox:
 tracker-id: lint-monster
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: aider
 strict: true
 timeout-minutes: 45
 tools:
@@ -81,6 +81,7 @@ safe-outputs:
   noop:
 
 imports:
+  - shared/aider.md
   - shared/otlp.md
 ---
 

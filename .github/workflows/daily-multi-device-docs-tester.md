@@ -24,7 +24,7 @@ tracker-id: daily-multi-device-docs-tester
 max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: opencode
 strict: true
 timeout-minutes: 30
 runtimes:
@@ -57,6 +57,7 @@ network:
     - playwright
 
 imports:
+  - shared/opencode.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[multi-device-docs] "

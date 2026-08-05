@@ -18,7 +18,7 @@ permissions:
 max-turns: 100
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: opencode
 sandbox:
   agent:
     sudo: false
@@ -37,6 +37,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 30
 imports:
+  - shared/opencode.md
   - shared/reporting.md
 
 

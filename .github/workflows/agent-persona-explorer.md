@@ -6,7 +6,7 @@ on: daily
 max-daily-ai-credits: 10000
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: opencode
 permissions:
   contents: read
   actions: read
@@ -55,6 +55,7 @@ safe-outputs:
     engine: copilot
 timeout-minutes: 180
 imports:
+  - shared/opencode.md
   - shared/reporting.md
 
 

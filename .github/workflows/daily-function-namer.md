@@ -17,8 +17,9 @@ tracker-id: daily-function-namer
 
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: crush
 imports:
+  - shared/crush.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[function-namer] "

@@ -19,7 +19,7 @@ sandbox:
 tracker-id: eslint-monster
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: aider
 strict: true
 timeout-minutes: 45
 tools:
@@ -80,6 +80,7 @@ safe-outputs:
     close-older-discussions: true
   noop:
 imports:
+  - shared/aider.md
   - shared/otlp.md
 evals:
   - id: eslint_diagnostics_analyzed

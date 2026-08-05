@@ -14,6 +14,7 @@ network:
   - defaults
   - github
 imports:
+- shared/crush.md
 - shared/github-guard-policy.md
 - shared/ai-coding-dictionary.md
 - shared/otlp.md
@@ -34,7 +35,7 @@ description: Automatically reviews and updates documentation to ensure accuracy 
 emoji: 📝
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: crush
 name: Daily Documentation Updater
 strict: true
 experiments:

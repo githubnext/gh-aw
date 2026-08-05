@@ -36,9 +36,10 @@ runtimes:
 max-turns: 90  # Reduce from avg 115 turns
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: goose
 # Shared instructions
 imports:
+  - shared/goose.md
   - uses: shared/daily-pr-base.md
     with:
       title-prefix: "[docs] "

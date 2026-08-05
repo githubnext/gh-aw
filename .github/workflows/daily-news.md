@@ -18,7 +18,7 @@ permissions:
 tracker-id: daily-news-weekday
 model: copilot/gpt-5.4
 engine:
-  id: pi
+  id: aider
   bare: true
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
@@ -313,6 +313,7 @@ steps:
       find /tmp/gh-aw/agent/daily-news-data/ -maxdepth 1 -ls
 
 imports:
+  - shared/aider.md
   - uses: shared/repo-memory-standard.md
     with:
       branch-name: "memory/daily-news"
