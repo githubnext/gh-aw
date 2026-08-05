@@ -69,3 +69,28 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 | 2608.02351v1 | KC-Agent: A Dual-Process Cognitive Architecture for Efficient ML Model Improvement | 2026-08-03 | Y | multi-agent | Give sub-agents a fast System-1 lookup over previously-solved cases before falling back to full System-2 reasoning, with atomic-change/rollback guarantees |
 | 2608.02345v1 | Can AI Agents Simulate A/B Test Outcomes? | 2026-08-03 | N | | |
 | 2608.02329v1 | On Automated and Explainable Provenance of AI-Generated Code | 2026-08-03 | Y | safe-outputs | Attach a provenance trail (prompt components, tool calls, source refs) to AI-generated code changes surfaced via safe-outputs PRs for compliance auditability |
+| 2608.04007v1 | TurnSight: Turn-Level Hindsight Self-Distillation for TIR | 2026-08-04 | N | | |
+| 2608.03979v1 | Video-DeepResearch: Multimodal Deepresearch Agent | 2026-08-04 | N | | |
+| 2608.03970v1 | Should We Type or Talk to LLM Agents? | 2026-08-04 | N | | |
+| 2608.03958v1 | A Game Theory for Foundation Models (Cooperation) | 2026-08-04 | N | | |
+| 2608.03918v1 | EcoFrame: Adaptive Visual Evidence Scheduling | 2026-08-04 | N | | |
+| 2608.03917v1 | Implementing Causal Perception: Competing SCMs | 2026-08-04 | N | | |
+| 2608.03910v1 | Socially Grounded Agentic AI | 2026-08-04 | N | | |
+| 2608.03882v1 | MultiGlobeQA: Geospatial Reasoning Benchmark | 2026-08-04 | N | | |
+| 2608.03874v1 | ContinualSkillBench: Can LLM Agents Truly Evolve? | 2026-08-04 | Y | | |
+| 2608.03852v1 | FedCritic-MIMO: 6G RAN Federated Critic Learning | 2026-08-04 | N | | |
+| 2608.03844v1 | MAFIA: Query-Only Memory Attacks via Probing & Injection | 2026-08-04 | Y | | |
+| 2608.03836v1 | Resume Means Resume: Checkpoint/Interrupt/Resume Conformance | 2026-08-04 | Y | safe-outputs | Adopt the RESUME CONTRACT's properties (effect exactly-once, checkpoint validity, consume-once) as a verification checklist for gh-aw's cache-memory/repo-memory and safe-outputs behavior across Actions reruns and cancellations |
+| 2608.03800v1 | Autoreflection: Agentic Strange Loops | 2026-08-04 | N | | |
+| 2608.03764v1 | GDPevo: Evaluating Agent Self-Evolution on Business Tasks | 2026-08-04 | N | | |
+| 2608.03744v1 | Agents Catching Agents: Shortcut Cascades in Clinical MAS | 2026-08-04 | Y | | |
+| 2608.03738v1 | AgenticECO: Agentic Framework for 3D-IC ECO | 2026-08-04 | N | | |
+| 2608.03731v1 | CARE-Bench: Patient-Facing LLM Triage | 2026-08-04 | N | | |
+| 2608.03728v1 | SAT-Edge-Agent: HIL Edge-Agent Orchestration | 2026-08-04 | N | | |
+| 2608.03722v1 | Dispersion-Revision Coupling Diagnostic | 2026-08-04 | Y | | |
+| 2608.03699v1 | TARL: Transaction-Aware Reliable Ledgers for Agent Memory | 2026-08-04 | Y | other | Replace cache-memory/repo-memory's binary write/hold update logic with TARL's 5-action scheme (add/ignore/revise/reject/defer) plus accepted/pending/rejected ledgers for conflicting or stale entries |
+| 2608.03691v1 | Pattern over Pixels: Pattern Completion Bias in Code Gen | 2026-08-04 | N | | |
+| 2608.03689v1 | LiveEvalBench: Open-World Web Generation Evaluation | 2026-08-04 | Y | | |
+| 2608.03644v1 | Is Inter-Seed Cross-Play Enough? (ZSC Robustness) | 2026-08-04 | Y | | |
+| 2608.03626v1 | A Security-Oriented Lifecycle Model for LLM Systems | 2026-08-04 | Y | security | Adopt the paper's lifecycle-stage security checklist (data provenance verification, artifact signing, agentic permission control, decommissioning) to structure gh-aw's network-firewall and safe-outputs permission configuration by workflow lifecycle stage |
+| 2608.03609v1 | Formal Verification of Agentic Systems over Operational Data | 2026-08-04 | Y | | |
