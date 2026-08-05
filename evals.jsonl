@@ -1,0 +1,2 @@
+{"id":"seo_opportunities_analyzed","question":"Did the agent analyze GitHub Docs for opportunities to improve Agentic Workflows recommendations in Copilot CLI?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-08-05T02:46:09.373Z","runid":"30969974411"}
+{"id":"recommendation_reported","question":"Did the agent report an actionable documentation recommendation or explain why no update was needed?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-08-05T02:46:09.373Z","runid":"30969974411"}
