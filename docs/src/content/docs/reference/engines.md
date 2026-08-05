@@ -19,13 +19,20 @@ Set `engine:` in your workflow frontmatter and configure the corresponding secre
 | [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
 | [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) (standard) or [`engine.auth` Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) (keyless) |
 | [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) (experimental) | `pi` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) (default); switches to provider-specific secret when `model:` uses `provider/model` format |
-| Goose (experimental, imported shared engine) | `goose` | Same provider secret you would use for the selected `model:` (for example Copilot/GitHub provider auth when using `copilot/<model>`)
-| [Aider](https://aider.chat/docs/) (experimental, imported shared engine) | `aider` | Same provider secret you would use for the selected `model:` (for example Copilot/GitHub provider auth when using `copilot/<model>`)
 
 Copilot CLI is the default — `engine:` can be omitted when using Copilot. See the linked authentication docs for secret setup instructions.
 
-> [!NOTE]
-> Experimental engines are not guaranteed to appear in this table automatically. Goose and Aider are included here because merged workflows ship reusable shared engine definitions and smoke tests for them; other experimental engines may remain intentionally undocumented until maintainers promote or request them.
+## Unsupported engine samples
+
+The OpenCode, Aider, and Crush integrations in this repository are **samples only**. They are not officially supported by gh-aw and have no compatibility or maintenance commitment.
+
+| Sample engine | Sample definition |
+|---------------|-------------------|
+| [OpenCode](https://opencode.ai) | `.github/workflows/shared/opencode.md` |
+| [Aider](https://aider.chat/docs/) | `.github/workflows/shared/aider.md` |
+| [Crush](https://github.com/charmbracelet/crush) | `.github/workflows/shared/crush.md` |
+
+Engine owners should publish and maintain their own Markdown integration definition. Users should import the definition from that owner-maintained source, pinned to a tag or commit SHA. The in-repository files are examples for authors, not supported engine integrations.
 
 ## Which engine should I choose?
 
@@ -52,36 +59,19 @@ Not all features are available across all engines. The table below summarizes pe
 
 ## Shared imported engines
 
-Most workflows use one of the built-in engine IDs above. You can also define an engine in an imported shared workflow and reference it by `engine.id`.
+Most workflows use one of the supported engine IDs above. You can also define an engine in an imported shared workflow and reference it by `engine.id`. Third-party engine owners should publish and maintain these Markdown definition files in their own repositories.
 
-Goose is the current in-repo example:
-
-```yaml wrap
-engine:
-  id: goose
-
-imports:
-  - shared/goose.md
-```
-
-The shared engine definition in `.github/workflows/shared/goose.md` marks Goose as experimental, configures its harness, and wires MCP support through `.goose/mcp.json`. The repository also includes `.github/workflows/smoke-goose.md` as a concrete smoke-test example.
-
-Because Goose is provider-routed through the AWF proxy, the workflow still needs the matching authentication and network access for the selected model provider. The shared definition currently includes defaults such as `github.com`, `raw.githubusercontent.com`, `api.github.com`, and `objects.githubusercontent.com` plus provider-specific domains.
-
-[Aider](https://github.com/Aider-AI/aider) is a second example:
+Use an owner-maintained, pinned import:
 
 ```yaml wrap
 engine:
-  id: aider
+  id: example-engine
 
-model: copilot/claude-sonnet-4-5
 imports:
-  - shared/aider.md
+  - owner/repository/.github/workflows/example-engine.md@v1.2.3
 ```
 
-The shared engine definition in `.github/workflows/shared/aider.md` installs `aider-chat` from PyPI in a harness script and runs the CLI in [scripting mode](https://aider.chat/docs/scripting.html): the generated prompt file is passed with `--message-file` and confirmations are auto-accepted with `--yes-always`. Requests are routed through the AWF proxy, so the configured `provider/model` is rewritten to Aider's `openai/<model>` LiteLLM form and `.aider.conf.yml` supplies the OpenAI-compatible proxy endpoint and key. The repository includes `.github/workflows/smoke-aider.md` as a concrete smoke-test example.
-
-Aider is not an MCP client, so MCP-based tools — including the safe-outputs MCP server — are unavailable. Set `tools: github: false` to keep the GitHub MCP server out of the workflow, and rely on `bash:` and `edit:` tools, and emit safe outputs by appending JSONL entries to the file referenced by `$GH_AW_SAFE_OUTPUTS`.
+Do not treat imported definitions as supported unless their engine owner explicitly supports them. The OpenCode, Aider, and Crush files listed above remain samples; copy or adapt them only under the maintenance and support terms provided by their respective owners.
 
 ## Extended Coding Agent Configuration
 
