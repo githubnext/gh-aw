@@ -51,12 +51,6 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
   <FeatureCard icon="server" title="Self-Hosted & ARC Runners" href="/gh-aw/reference/self-hosted-runners/">
     Deploy on Linux self-hosted runners, including ARC with Docker-in-Docker
   </FeatureCard>
-  <FeatureCard icon="shield-lock" title="MicroVM Isolation" href="/gh-aw/reference/glossary/#docker-sbx">
-    Run agents in KVM-isolated Docker sbx microVMs on compatible runners
-  </FeatureCard>
-  <FeatureCard icon="filter" title="Integrity Filtering" href="/gh-aw/reference/integrity/">
-    Reduce prompt-injection risk by filtering untrusted GitHub content
-  </FeatureCard>
   <FeatureCard icon="mark-github" title="GitHub Integration" href="/gh-aw/reference/github-tools/">
     Deep integration with Actions, Issues, PRs, Discussions, and repository management
   </FeatureCard>
@@ -94,6 +88,12 @@ flowchart LR
   <FeatureCard title="Sandbox + network firewall" href="/gh-aw/introduction/architecture/#agent-workflow-firewall-awf">
     The agent runs in a container behind the Agent Workflow Firewall
     and can only reach allowed destinations.
+  </FeatureCard>
+  <FeatureCard icon="shield-lock" title="MicroVM Isolation" href="/gh-aw/reference/glossary/#docker-sbx">
+    Run agents in KVM-isolated Docker sbx microVMs on compatible runners
+  </FeatureCard>
+  <FeatureCard icon="filter" title="Integrity Filtering" href="/gh-aw/reference/integrity/">
+    Reduce prompt-injection risk by filtering untrusted GitHub content
   </FeatureCard>
   <FeatureCard title="Safe outputs gate" href="/gh-aw/reference/safe-outputs/">
     Requested actions are validated against your configured safe outputs
