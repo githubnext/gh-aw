@@ -5,7 +5,7 @@ sidebar:
   order: 330
 ---
 
-Third-party coding agent CLIs that are not built into gh-aw can integrate through a declarative engine definition file that the agent publisher distributes. This guide uses [OpenCode](https://opencode.ai) as a concrete open-source example; its engine definition ships in this repository at `.github/workflows/shared/opencode.md`.
+Third-party coding agent CLIs that are not built into gh-aw can integrate through a declarative engine definition file that the agent publisher distributes and maintains. This guide uses [OpenCode](https://opencode.ai) as a concrete open-source example. The definition in this repository at `.github/workflows/shared/opencode.md` is an unsupported sample; the OpenCode project owner should publish and maintain its production integration.
 
 ## How third-party engine integration works
 
@@ -119,7 +119,7 @@ network:
 Triage this issue and apply an appropriate label.
 ```
 
-Use a repository-relative path such as `shared/opencode.md` for a vendored definition, or `owner/repo/.github/workflows/opencode-engine.md@v1.2.14` to import a published one — pin remote imports to a tag or SHA to control when you pick up new versions.
+Use a repository-relative path such as `shared/opencode.md` for a vendored definition, or `owner/repo/.github/workflows/opencode-engine.md@v1.2.14` to import one published by the engine owner — pin remote imports to a tag or SHA to control when you pick up new versions. Treat the local OpenCode definition as a sample rather than an officially supported integration.
 
 The `network.allowed` entry should match the provider you are using. OpenCode supports multiple providers — for example, add `api.openai.com` instead of (or in addition to) `api.anthropic.com` when using an OpenAI model.
 
