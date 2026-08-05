@@ -241,7 +241,7 @@ jobs:
             await main();
       - name: Validate KIRO_API_KEY secret
         id: validate-secret
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" KIRO_API_KEY Kiro
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" KIRO_API_KEY Kiro ''
         env:
           KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
       - name: Check for OAuth tokens
