@@ -57,7 +57,9 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
   // Caller is responsible for sanitizing body before passing it here.
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const bodyWithCaution = detectionCaution ? detectionCaution + "\n\n" + body.trim() : body.trim();
-  return bodyWithCaution + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, undefined, { skipDetectionCaution: true });
+  return (
+    bodyWithCaution + getTrackerID("markdown") + "\n\n" + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined, undefined, { skipDetectionCaution: true })
+  );
 }
 
 /**
