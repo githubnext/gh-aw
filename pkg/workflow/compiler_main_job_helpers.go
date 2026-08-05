@@ -256,6 +256,10 @@ func (c *Compiler) buildMainJobOutputs(data *WorkflowData) map[string]string {
 // buildMainJobEnv builds the job-level environment variable map for the main agent job.
 func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 	var env map[string]string
+	if data != nil && data.EngineConfig != nil && data.EngineConfig.Version != "" {
+		env = make(map[string]string)
+		applyEngineVersionEnv(env, data)
+	}
 
 	// Disable the Chromium process sandbox for playwright CLI mode.
 	// GitHub Actions runners are containerised environments where kernel namespace

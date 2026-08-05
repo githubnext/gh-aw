@@ -827,6 +827,16 @@ Job finalization SHOULD finish functional work, record result attributes and eve
 
 When an additive pipeline root span is emitted, it SHOULD end only after the workflow result and all known job results are available.
 
+### Safeguards
+
+Observability is fail-closed with respect to telemetry correctness and
+secrets: export failures, partial endpoint fan-out failures, and shutdown
+timeouts MUST be recorded as bounded diagnostics and MUST NOT be reported as
+successful delivery. They MUST NOT discard successful endpoint deliveries,
+delete local mirror data, expose exporter credentials, or interrupt already
+completed functional workflow work. Finalization MUST write eligible mirror
+records and end known spans before its bounded exporter flush.
+
 ---
 
 ## 17. Compliance Testing
@@ -897,6 +907,8 @@ The following implementation areas are authoritative for version 0.4.0 compatibi
 | Frontmatter schema | `pkg/parser/schemas/main_workflow_schema.json`, `pkg/parser/schema_test.go` |
 | Compiler normalization and env injection | `pkg/workflow/observability_otlp.go`, `pkg/workflow/observability_otlp_test.go`, `pkg/workflow/safe_output_helpers_test.go` |
 | Gateway credential scoping | `pkg/workflow/mcp_renderer.go`, `pkg/workflow/mcp_setup_generator.go`, `pkg/workflow/mcp_renderer_test.go` |
+| MCP access-control fixture contract | `specs/github-mcp-access-control-compliance/README.md` |
+| Replace-label fixture contract | `specs/replace-label-compliance/README.md` |
 | Runtime setup/conclusion spans and JSONL mirror | `actions/setup/js/send_otlp_span.cjs`, `actions/setup/js/send_otlp_span.test.cjs`, `actions/setup/js/otel_contract.test.cjs` |
 | Header and attribute masking | `actions/setup/sh/mask_otlp_headers.sh`, `actions/setup/sh/mask_otlp_attributes.sh`, `pkg/workflow/observability_otlp_mask_script_test.go` |
 | Local validation target | `Makefile` target `validate-otel-contract` |
@@ -949,6 +961,7 @@ context is added to outcome spans or links.
 - **Clarified**: A versioned mirror envelope may be added only as an additive format; `/tmp/gh-aw/otel.jsonl` remains raw OTLP/JSON lines for compatibility.
 - **Added**: Metric cardinality, privacy, redaction, and secret-handling guidance while preserving existing artifacts and query surfaces.
 - **Added**: Inlined compatibility validation requirements, optional extension tests, and the implementation map so this document is self-contained.
+- **Added**: Consolidated fail-closed safeguards for export, endpoint fan-out, and shutdown handling.
 - **See also**: `specs/safe-output-outcome-evaluation.md` (Change Log, Version 1.0.1) for aligned outcome-taxonomy and provenance rules.
 
 ### Version 0.3.0 (Working Draft, June 15, 2026)

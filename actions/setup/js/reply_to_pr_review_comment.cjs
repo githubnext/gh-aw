@@ -183,7 +183,7 @@ async function main(config = {}) {
       // Append footer with workflow information when enabled
       if (includeFooter) {
         const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, triggeringPRNumber, undefined, undefined, { skipDetectionCaution: true });
-        finalBody = finalBody.trimEnd() + footer;
+        finalBody = finalBody.trimEnd() + "\n\n" + footer;
       }
 
       core.info(`Replying to review comment ${numericCommentId} on PR #${targetPRNumber} (${owner}/${repo})`);

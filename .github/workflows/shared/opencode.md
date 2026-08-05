@@ -1,6 +1,7 @@
 ---
 engine:
   id: opencode
+  version: "1.2.14"
   display-name: OpenCode
   description: OpenCode CLI with headless mode and multi-provider LLM support
   runtime-id: opencode
@@ -37,7 +38,6 @@ engine:
     installation:
       package-manager: npm
       package-name: opencode-ai
-      version: "1.2.14"
       step-name: Install OpenCode
       binary-name: opencode
       include-node-setup: true

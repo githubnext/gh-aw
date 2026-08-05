@@ -375,9 +375,11 @@ func ensureGitAttributes() (bool, error) {
 				found = true
 				break
 			}
-			// Check for old format entries that need updating
-			if strings.HasPrefix(trimmedLine, constants.WorkflowsLockYmlGlob) && required == lockYmlEntry {
-				gitLog.Print("Updating old .gitattributes entry format")
+			// Only clean up the exact legacy gh-aw entry (with the ineffective
+			// "merge=ours" attribute); never rewrite other repository-owned lines
+			// that happen to start with the lock-yml glob.
+			if trimmedLine == constants.WorkflowsLockYmlGitAttributesEntryLegacy && required == lockYmlEntry {
+				gitLog.Print("Updating legacy .gitattributes entry format")
 				lines[i] = lockYmlEntry
 				found = true
 				modified = true

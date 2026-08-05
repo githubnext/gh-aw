@@ -33,7 +33,8 @@ const { MAX_LABELS } = require("./constants.cjs");
 const { createCountGatedHandler } = require("./handler_scaffold.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-const { normalizeIssueIntentLabelInputs } = require("./issue_intents.cjs");
+const { normalizeIssueIntentLabelInputs, buildIssueIntentLabelUpdates } = require("./issue_intents.cjs");
+const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
 
 /**
  * @param {{ rationale?: string, confidence?: string, suggest?: boolean } | null | undefined} spec
@@ -223,11 +224,18 @@ const main = createCountGatedHandler({
         };
       }
 
-      const labelsRequestPayload = uniqueLabels.map(name => {
-        const labelSpec = requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name };
-        const hasIntentMetadata = hasLabelIntentMetadata(labelSpec);
-        return issueIntentEnabled && hasIntentMetadata ? labelSpec : labelSpec.name;
-      });
+      // Build the resolved label specs (name + optional intent metadata) for the validated
+      // unique labels, preserving the order returned by validation.
+      const uniqueLabelSpecs = uniqueLabels.map(name => requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name });
+      const intentLabelSpecs = uniqueLabelSpecs.filter(spec => hasLabelIntentMetadata(spec));
+      const useIssueIntentPath = issueIntentEnabled && intentLabelSpecs.length > 0;
+
+      // The REST issues.addLabels endpoint only accepts label name strings; it does not
+      // support issue-intent metadata (rationale/confidence/suggest). Passing objects with
+      // those extra keys causes GitHub to return success while silently applying no labels.
+      // When intent metadata is present, route through the GraphQL updateIssue/LabelUpdateInput
+      // mutation instead (see update_issue.cjs), which does support intent metadata.
+      const labelsRequestPayload = uniqueLabels;
 
       core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(labelsRequestPayload)}`);
 
@@ -248,6 +256,79 @@ const main = createCountGatedHandler({
 
       try {
         const beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
+
+        if (useIssueIntentPath) {
+          // Intent metadata is only supported via the GraphQL updateIssue mutation. That
+          // mutation replaces the issue's label set, so merge the newly requested labels with
+          // the issue's existing labels to preserve add-only semantics. Existing labels are
+          // sent without intent metadata; newly requested labels carry their metadata.
+          const { data: issueData } = await withRetry(
+            () =>
+              githubClient.rest.issues.get({
+                owner: repoParts.owner,
+                repo: repoParts.repo,
+                issue_number: itemNumber,
+              }),
+            RATE_LIMIT_RETRY_CONFIG,
+            `get ${contextType} #${itemNumber} in ${itemRepo}`
+          );
+
+          const issueNodeId = issueData?.node_id;
+          if (!issueNodeId) {
+            throw new Error(`Failed to resolve GraphQL node ID for ${contextType} #${itemNumber}`);
+          }
+
+          const repoLabels = await fetchAllRepoLabels(githubClient, repoParts.owner, repoParts.repo);
+          const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
+
+          // Merge existing labels (metadata-free) with the requested specs, de-duplicating by
+          // lowercased name and favouring the requested specs so their intent metadata wins.
+          const requestedNamesLower = new Set(uniqueLabelSpecs.map(spec => spec.name.toLowerCase()));
+          const existingLabelNames = normalizeLabelNames(issueData.labels || []);
+          const mergedSpecs = [...uniqueLabelSpecs, ...existingLabelNames.filter(name => !requestedNamesLower.has(name.toLowerCase())).map(name => ({ name }))];
+
+          const labelIntentUpdates = buildIssueIntentLabelUpdates(mergedSpecs, labelIdByName);
+
+          core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo} via GraphQL intent mutation`);
+          const result = await withRetry(
+            () =>
+              githubClient.graphql(
+                `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
+                  updateIssue(input: { id: $issueId, labels: $labels }) {
+                    issue {
+                      id
+                      labels(first: 100) {
+                        nodes {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }`,
+                { issueId: issueNodeId, labels: labelIntentUpdates, headers: { "GraphQL-Features": "update_issue_suggestions" } }
+              ),
+            RATE_LIMIT_RETRY_CONFIG,
+            `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
+          );
+
+          core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
+          const afterLabels = result?.updateIssue?.issue?.labels?.nodes || [];
+          return attachExecutionState(
+            {
+              success: true,
+              number: itemNumber,
+              repo: itemRepo,
+              labelsAdded: uniqueLabels,
+              contextType,
+            },
+            beforeState,
+            {
+              ...beforeState,
+              labels: normalizeLabelNames(afterLabels),
+            }
+          );
+        }
+
         const { data: labels } = await withRetry(
           () =>
             githubClient.rest.issues.addLabels({
