@@ -200,6 +200,19 @@ func TestBuildHelpfulParamError(t *testing.T) {
 		msg := buildHelpfulParamError("", []string{"workflow-name"}, []string{"workflows"})
 		assert.NotContains(t, msg, "--help", "no tool name means no help line")
 	})
+
+	t.Run("prompt param points to ad hoc evaluation mode instead of a suggestion", func(t *testing.T) {
+		msg := buildHelpfulParamError("status", []string{"prompt"}, []string{"pattern"})
+		assert.Contains(t, msg, "Unknown parameter 'prompt'", "should mention unknown param")
+		assert.Contains(t, msg, "agentic-workflows custom agent", "should point to the custom agent")
+		assert.NotContains(t, msg, "Did you mean", "should not offer a fuzzy-match suggestion for a freeform param")
+	})
+
+	t.Run("scenario param points to ad hoc evaluation mode", func(t *testing.T) {
+		msg := buildHelpfulParamError("compile", []string{"scenario"}, []string{"workflows", "strict"})
+		assert.Contains(t, msg, "Unknown parameter 'scenario'", "should mention unknown param")
+		assert.Contains(t, msg, "ad hoc scenario evaluation", "should mention ad hoc scenario evaluation")
+	})
 }
 
 // TestArgumentValidationMiddleware_TransformsAdditionalPropertiesError verifies
