@@ -213,7 +213,7 @@ For less common ecosystems (Swift, PHP, Dart, Haskell, Perl, fonts, Deno, Elixir
 | "run commands/tests" | `bash` tool (default unless restricted) |
 | "browse web pages/docs" | `web-fetch` and/or `web-search` |
 | "test UI flows" | `playwright` |
-| "finite question about private repo" | `tools.github.bounded-queries` (AWF v0.28.0+, preferred over cross-repo tokens) |
+| "finite question about private repo" | `tools.github.bounded-queries` (AWF v0.27.44+, preferred over cross-repo tokens) |
 
 ### Pattern Heuristics
 
