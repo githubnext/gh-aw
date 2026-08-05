@@ -79,8 +79,8 @@ engine:
 
       const [command, ...commandArgs] = process.argv.slice(2);
 
-      const fail = (result, action) => {
-        if (result.error || result.status !== 0) {
+      const fail = (result, output, action) => {
+        if (result.error || result.status !== 0 || /\blitellm\.\w*Error:/.test(output)) {
           throw new Error(`${action} failed`);
         }
       };
@@ -88,16 +88,23 @@ engine:
       const localBin = join(homedir(), ".local", "bin");
       const env = { ...process.env, PATH: `${localBin}:${process.env.PATH || ""}` };
       delete env.GITHUB_COPILOT_TOKEN;
+      env.AIDER_MODEL = env.AIDER_MODEL?.replace(
+        /^(openai\/claude-(?:haiku|sonnet|opus)-\d+)-(\d+)$/,
+        "$1.$2"
+      );
 
       const promptFile = process.env.GH_AW_PROMPT;
       if (!promptFile) {
         throw new Error("GH_AW_PROMPT is not set");
       }
 
-      fail(
-        spawnSync(command, [...commandArgs, "--message-file", promptFile], { stdio: "inherit", env }),
-        "Aider execution"
-      );
+      const result = spawnSync(command, [...commandArgs, "--message-file", promptFile], {
+        encoding: "utf8",
+        env,
+      });
+      process.stdout.write(result.stdout || "");
+      process.stderr.write(result.stderr || "");
+      fail(result, `${result.stdout || ""}\n${result.stderr || ""}`, "Aider execution");
 ---
 
 <!--
@@ -119,9 +126,13 @@ imports:
 `anthropic`, and `openai`. Requests are routed through the AWF proxy, so the
 model name is rewritten to Aider's `openai/<model>` LiteLLM form and the
 generated `.aider.conf.yml` configures the OpenAI-compatible proxy endpoint.
+Copilot Claude aliases such as `claude-sonnet-4-5` are normalized to the dotted
+model IDs exposed by the proxy, such as `claude-sonnet-4.5`.
 
 Aider runs in scripting mode: the generated prompt file is passed with
 `--message-file` and all confirmations are auto-accepted (`--yes-always`).
+Aider reports some LiteLLM request failures with exit code 0, so the harness
+also detects those errors in its output and fails the workflow.
 Aider has no MCP client, so the compiler exposes MCP-backed tools through
 `cli-proxy` and GitHub access through `gh-proxy`. Both proxies are enabled
 automatically and cannot be disabled for this engine.
