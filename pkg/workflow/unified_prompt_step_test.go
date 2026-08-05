@@ -718,3 +718,63 @@ func TestGenerateUnifiedPromptCreationStep_BlankRunCapAdjacentToRuntimeImport(t 
 	// No run of four or more newlines (i.e., 3+ consecutive blank lines) anywhere.
 	assert.NotContains(t, output, "\n\n\n\n", "blank run should be capped throughout the output")
 }
+
+func TestCollectPromptSections_TrialLogicalRepoGitHubContext(t *testing.T) {
+	compiler := &Compiler{}
+
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{
+			"github": true,
+		}),
+		Permissions:      "contents: read",
+		On:               "issue_comment",
+		TrialMode:        true,
+		TrialLogicalRepo: "owner/target",
+	}
+
+	sections := compiler.collectPromptSections(data)
+
+	var githubContext string
+	for _, section := range sections {
+		if !section.IsFile && strings.Contains(section.Content, "github-context") {
+			githubContext = section.Content
+			break
+		}
+	}
+	require.NotEmpty(t, githubContext, "Should have a github-context section")
+
+	assert.Contains(t, githubContext, "- **repository**: owner/target",
+		"github-context should report the logical target repository")
+	assert.NotContains(t, githubContext, "**repository**: ${{ github.repository }}",
+		"github-context should not report the host repository in trial mode")
+	assert.Contains(t, githubContext, "trial mode",
+		"github-context should include a trial mode directive")
+}
+
+func TestCollectPromptSections_NoTrialLogicalRepoKeepsHostRepo(t *testing.T) {
+	compiler := &Compiler{}
+
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{
+			"github": true,
+		}),
+		Permissions: "contents: read",
+		On:          "issue_comment",
+	}
+
+	sections := compiler.collectPromptSections(data)
+
+	var githubContext string
+	for _, section := range sections {
+		if !section.IsFile && strings.Contains(section.Content, "github-context") {
+			githubContext = section.Content
+			break
+		}
+	}
+	require.NotEmpty(t, githubContext, "Should have a github-context section")
+
+	assert.Contains(t, githubContext, "**repository**:",
+		"github-context should report the repository via the github.repository expression")
+	assert.NotContains(t, githubContext, "owner/target",
+		"github-context should not include a logical target when trial mode is off")
+}
