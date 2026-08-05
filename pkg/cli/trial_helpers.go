@@ -197,8 +197,10 @@ func triggerWorkflowRun(repoSlug, workflowName, lockFilePath string, triggerCont
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Triggering workflow run for: "+workflowName))
 	}
 
-	// Trigger workflow using gh CLI
-	lockFileName := workflowName + ".lock.yml"
+	// Trigger workflow using gh CLI.
+	// Derive lockFileName from lockFilePath so both the declaration check and
+	// the dispatch invocation always reference the same compiled file.
+	lockFileName := filepath.Base(lockFilePath)
 
 	// Build the command args
 	args := []string{"workflow", "run", lockFileName, "--repo", repoSlug}
@@ -281,9 +283,14 @@ func parseIssueSpec(input string) string {
 // declares the given workflow_dispatch input. It returns false if the file cannot be
 // read or parsed, so that trigger-derived inputs are not forwarded to workflows whose
 // workflow_dispatch schema does not declare them (which would cause an HTTP 422).
+// A missing file is treated as a safe failure; a parse error on an existing file is
+// surfaced as a warning since it indicates a compiler or format problem.
 func workflowDeclaresDispatchInput(lockFilePath, inputName string) bool {
 	content, err := os.ReadFile(lockFilePath)
 	if err != nil {
+		if !os.IsNotExist(err) {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read lock file %s: %v", lockFilePath, err)))
+		}
 		trialLog.Printf("Failed to read lock file %s: %v", lockFilePath, err)
 		return false
 	}
@@ -296,6 +303,7 @@ func workflowDeclaresDispatchInput(lockFilePath, inputName string) bool {
 		} `yaml:"on"`
 	}
 	if err := yaml.Unmarshal(content, &parsed); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not parse lock file %s: %v", lockFilePath, err)))
 		trialLog.Printf("Failed to parse lock file %s: %v", lockFilePath, err)
 		return false
 	}
@@ -303,6 +311,8 @@ func workflowDeclaresDispatchInput(lockFilePath, inputName string) bool {
 	_, ok := parsed.On.WorkflowDispatch.Inputs[inputName]
 	return ok
 }
+
+// saveTrialResult saves a trial result to a JSON file
 func saveTrialResult(filename string, result any, verbose bool) error {
 	jsonBytes, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
