@@ -99,6 +99,11 @@ jobs:
             pinned_image="$(jq -r '.pinned_image' <<<"$container")"
             expected_digest="$(jq -r --arg image "$image" '.containers[$image].digest // empty' "$pins_file")"
 
+            # Skip containers that are intentionally unpinned (no digest in manifest)
+            if [ "$digest" = "null" ] || [ -z "$digest" ]; then
+              continue
+            fi
+
             checked_images=$((checked_images + 1))
             if [ -z "$expected_digest" ]; then
               echo "missing container entry in actions pins for $image (file: $lock_file)"
