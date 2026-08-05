@@ -198,10 +198,23 @@ async function overridePersistedExtraheader(serverUrl, token, cwd) {
   // silent: true prevents @actions/exec from echoing the credential-bearing
   // command line (which contains the base64 Authorization header) to stdout,
   // where it would otherwise be captured in uploaded safe-output artifacts.
-  if (cwd) {
-    await exec.exec("git", ["config", "--local", "--replace-all", `http.${normalizedUrl}/.extraheader`, authHeader], { cwd, silent: true });
-  } else {
-    await exec.exec("git", ["config", "--local", "--replace-all", `http.${normalizedUrl}/.extraheader`, authHeader], { silent: true });
+  // listeners.stderr captures git diagnostic output (which never contains the
+  // secret itself) so failures surface a real error message rather than only
+  // a generic exit-code string.
+  let stderrBuf = "";
+  const stderrListener = {
+    stderr: (/** @type {Buffer} */ data) => {
+      stderrBuf += data.toString();
+    },
+  };
+  try {
+    if (cwd) {
+      await exec.exec("git", ["config", "--local", "--replace-all", `http.${normalizedUrl}/.extraheader`, authHeader], { cwd, silent: true, listeners: stderrListener });
+    } else {
+      await exec.exec("git", ["config", "--local", "--replace-all", `http.${normalizedUrl}/.extraheader`, authHeader], { silent: true, listeners: stderrListener });
+    }
+  } catch (err) {
+    throw new Error(`git config extraheader override failed: ${stderrBuf.trim() || getErrorMessage(err)}`);
   }
   core.info(`git_auth_helpers: extraheader override applied`);
   return previousValues;
@@ -241,15 +254,39 @@ async function restorePersistedExtraheader(serverUrl, previousValues, cwd) {
   try {
     // silent: true keeps any credential-bearing previous extraheader values out
     // of stdout / uploaded artifacts (see overridePersistedExtraheader).
+    // listeners.stderr captures git diagnostic output for real error messages.
+    let restoreStderrBuf = "";
+    const restoreStderrListener = {
+      stderr: (/** @type {Buffer} */ data) => {
+        restoreStderrBuf += data.toString();
+      },
+    };
+    const wrapExecError = (/** @type {unknown} */ err) => new Error(`git config extraheader restore failed: ${restoreStderrBuf.trim() || getErrorMessage(err)}`);
     if (cwd) {
-      await exec.exec("git", ["config", "--local", "--replace-all", key, previousValues[0]], { cwd, silent: true });
+      try {
+        await exec.exec("git", ["config", "--local", "--replace-all", key, previousValues[0]], { cwd, silent: true, listeners: restoreStderrListener });
+      } catch (err) {
+        throw wrapExecError(err);
+      }
       for (const value of previousValues.slice(1)) {
-        await exec.exec("git", ["config", "--local", "--add", key, value], { cwd, silent: true });
+        try {
+          await exec.exec("git", ["config", "--local", "--add", key, value], { cwd, silent: true, listeners: restoreStderrListener });
+        } catch (err) {
+          throw wrapExecError(err);
+        }
       }
     } else {
-      await exec.exec("git", ["config", "--local", "--replace-all", key, previousValues[0]], { silent: true });
+      try {
+        await exec.exec("git", ["config", "--local", "--replace-all", key, previousValues[0]], { silent: true, listeners: restoreStderrListener });
+      } catch (err) {
+        throw wrapExecError(err);
+      }
       for (const value of previousValues.slice(1)) {
-        await exec.exec("git", ["config", "--local", "--add", key, value], { silent: true });
+        try {
+          await exec.exec("git", ["config", "--local", "--add", key, value], { silent: true, listeners: restoreStderrListener });
+        } catch (err) {
+          throw wrapExecError(err);
+        }
       }
     }
   } catch (err) {
