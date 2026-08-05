@@ -848,7 +848,11 @@ gh aw mcp add workflow server --tool-id my-server  # Override the tool ID
 
 See [MCPs Guide](/gh-aw/guides/mcps/).
 
-#### `pr transfer`
+#### `pr`
+
+Pull request management utilities for transferring PRs between repositories.
+
+##### `pr transfer`
 
 Transfer pull request to another repository, preserving changes, title, and description.
 
