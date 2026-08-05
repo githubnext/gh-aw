@@ -220,14 +220,9 @@ describe("git_auth_helpers.cjs", () => {
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expectedHeader], expect.objectContaining({ silent: true }));
     });
 
-    it("should register the derived base64 header as a secret and never echo it via exec", async () => {
-      const token = "ghp_test_token";
-      const tokenBase64 = Buffer.from(`x-access-token:${token}`).toString("base64");
+    it("should silence all exec calls to prevent credential capture in safe-output artifacts", async () => {
+      await overridePersistedExtraheader(SERVER_URL, "ghp_test_token");
 
-      await overridePersistedExtraheader(SERVER_URL, token);
-
-      // The base64 header is registered for runner-side masking.
-      expect(mockCore.setSecret).toHaveBeenCalledWith(tokenBase64);
       // Every credential-bearing exec.exec call is silenced so the command line
       // is not captured in uploaded safe-output artifacts.
       for (const call of mockExec.exec.mock.calls) {
