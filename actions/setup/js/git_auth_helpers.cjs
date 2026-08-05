@@ -188,6 +188,11 @@ async function overridePersistedExtraheader(serverUrl, token, cwd) {
   core.info(`git_auth_helpers: overriding http.${normalizedUrl}/.extraheader with CI trigger token`);
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
   const authHeader = `Authorization: basic ${tokenBase64}`;
+  // Register the derived base64 header value as a secret so runner-side log
+  // masking redacts it if it ever leaks. This is defense-in-depth; the silent
+  // exec calls below prevent the credential-bearing command line from being
+  // written to stdout (and thus to uploaded artifacts) in the first place.
+  core.setSecret(tokenBase64);
 
   // Clear from ALL writable scopes before writing our token to prevent duplicate
   // Authorization headers. actions/checkout writes to the global scope; without
@@ -195,10 +200,13 @@ async function overridePersistedExtraheader(serverUrl, token, cwd) {
   // global value in place and causing duplicate-header HTTP 400 errors.
   await unsetExtraheaderAllScopes(`http.${normalizedUrl}/.extraheader`, cwd);
 
+  // silent: true prevents @actions/exec from echoing the credential-bearing
+  // command line (which contains the base64 Authorization header) to stdout,
+  // where it would otherwise be captured in uploaded safe-output artifacts.
   if (cwd) {
-    await exec.exec("git", ["config", "--local", "--replace-all", `http.${normalizedUrl}/.extraheader`, authHeader], { cwd });
+    await exec.exec("git", ["config", "--local", "--replace-all", `http.${normalizedUrl}/.extraheader`, authHeader], { cwd, silent: true });
   } else {
-    await exec.exec("git", ["config", "--local", "--replace-all", `http.${normalizedUrl}/.extraheader`, authHeader]);
+    await exec.exec("git", ["config", "--local", "--replace-all", `http.${normalizedUrl}/.extraheader`, authHeader], { silent: true });
   }
   core.info(`git_auth_helpers: extraheader override applied`);
   return previousValues;
@@ -236,15 +244,17 @@ async function restorePersistedExtraheader(serverUrl, previousValues, cwd) {
   // best-effort cleanup, then re-throw so the caller is aware that restoration
   // failed.
   try {
+    // silent: true keeps any credential-bearing previous extraheader values out
+    // of stdout / uploaded artifacts (see overridePersistedExtraheader).
     if (cwd) {
-      await exec.exec("git", ["config", "--local", "--replace-all", key, previousValues[0]], { cwd });
+      await exec.exec("git", ["config", "--local", "--replace-all", key, previousValues[0]], { cwd, silent: true });
       for (const value of previousValues.slice(1)) {
-        await exec.exec("git", ["config", "--local", "--add", key, value], { cwd });
+        await exec.exec("git", ["config", "--local", "--add", key, value], { cwd, silent: true });
       }
     } else {
-      await exec.exec("git", ["config", "--local", "--replace-all", key, previousValues[0]]);
+      await exec.exec("git", ["config", "--local", "--replace-all", key, previousValues[0]], { silent: true });
       for (const value of previousValues.slice(1)) {
-        await exec.exec("git", ["config", "--local", "--add", key, value]);
+        await exec.exec("git", ["config", "--local", "--add", key, value], { silent: true });
       }
     }
   } catch (err) {

@@ -17,6 +17,7 @@ describe("git_auth_helpers.cjs", () => {
     mockCore = {
       info: vi.fn(),
       warning: vi.fn(),
+      setSecret: vi.fn(),
     };
 
     mockExec = {
@@ -216,7 +217,22 @@ describe("git_auth_helpers.cjs", () => {
 
       await overridePersistedExtraheader(SERVER_URL, token);
 
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expectedHeader]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expectedHeader], expect.objectContaining({ silent: true }));
+    });
+
+    it("should register the derived base64 header as a secret and never echo it via exec", async () => {
+      const token = "ghp_test_token";
+      const tokenBase64 = Buffer.from(`x-access-token:${token}`).toString("base64");
+
+      await overridePersistedExtraheader(SERVER_URL, token);
+
+      // The base64 header is registered for runner-side masking.
+      expect(mockCore.setSecret).toHaveBeenCalledWith(tokenBase64);
+      // Every credential-bearing exec.exec call is silenced so the command line
+      // is not captured in uploaded safe-output artifacts.
+      for (const call of mockExec.exec.mock.calls) {
+        expect(call[2]).toEqual(expect.objectContaining({ silent: true }));
+      }
     });
 
     it("should return empty array when no previous extraheader exists", async () => {
@@ -267,7 +283,7 @@ describe("git_auth_helpers.cjs", () => {
       expect(previous).toEqual([]);
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("could not read existing extraheader"));
       // Override should still proceed despite read failure
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expect.any(String)]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expect.any(String)], expect.objectContaining({ silent: true }));
     });
 
     it("should trim the token before base64-encoding", async () => {
@@ -276,7 +292,7 @@ describe("git_auth_helpers.cjs", () => {
       await overridePersistedExtraheader(SERVER_URL, token);
 
       const expected = `Authorization: basic ${Buffer.from("x-access-token:ghp_padded_token").toString("base64")}`;
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expected]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expected], expect.objectContaining({ silent: true }));
     });
 
     it("should log the number of existing values before overriding", async () => {
@@ -303,7 +319,7 @@ describe("git_auth_helpers.cjs", () => {
       // Using the literal normalized key makes the assertion explicit.
       const normalizedKey = "http.https://github.com/.extraheader";
       expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["config", "--get-all", normalizedKey], expect.anything());
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", normalizedKey, expect.any(String)]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", normalizedKey, expect.any(String)], expect.objectContaining({ silent: true }));
     });
   });
 
@@ -332,7 +348,7 @@ describe("git_auth_helpers.cjs", () => {
 
       await restorePersistedExtraheader(SERVER_URL, [prevHeader]);
 
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, prevHeader]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, prevHeader], expect.objectContaining({ silent: true }));
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["--add"]));
     });
 
