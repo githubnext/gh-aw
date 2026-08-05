@@ -9,13 +9,14 @@ pre-agent-steps:
       # ensures pip resolves the prebuilt wheel instead of falling back to a source build
       # that would require Cargo/crates.io network access.
       python3 -m pip install --quiet --user --disable-pip-version-check --only-binary=:all: fastuuid==0.14.0
-      python3 -m pip install --quiet --user --disable-pip-version-check aider-chat==0.86.2
+      python3 -m pip install --quiet --user --disable-pip-version-check "aider-chat==$GH_AW_ENGINE_VERSION"
       "$HOME/.local/bin/aider" --version
     env:
       AIDER_ANALYTICS_DISABLE: "true"
       AIDER_CHECK_UPDATE: "false"
 engine:
   id: aider
+  version: "0.86.2"
   display-name: Aider
   description: Aider AI pair programming CLI running in scripting (non-interactive) mode
   experimental: true

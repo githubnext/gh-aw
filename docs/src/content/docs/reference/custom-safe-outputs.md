@@ -334,16 +334,22 @@ steps:
 
 The `inputs:` schema serves as both the MCP tool definition visible to the agent and validation for the output fields written to `GH_AW_AGENT_OUTPUT`.
 
+> [!IMPORTANT]
+> A custom job runs **once per workflow run**, not once per tool call. If the agent calls the tool multiple times, every call is collected into the `.items[]` array of the single `GH_AW_AGENT_OUTPUT` file. Your job must iterate over `.items[]` (for example with `jq -c '.items[] | select(.type == "my_job")'`) to process all calls. Reading only `.items[0]` silently drops every call after the first — the run still succeeds, so the data loss is easy to miss.
+>
+> Because inline [scripts](#inline-script-handlers-safe-outputsscripts) cannot access repository secrets, any per-item handler that needs a secret (for example to call an external API with a token) must be a job — and therefore must loop over `.items[]` itself.
+
 ## Inline Script Handlers (`safe-outputs.scripts`)
 
-Use `safe-outputs.scripts` to define lightweight inline JavaScript handlers that execute inside the consolidated safe-outputs job handler loop. Unlike `jobs` (which create a separate GitHub Actions job for each tool call), scripts run in-process alongside the built-in safe-output handlers — there is no extra job allocation or startup overhead.
+Use `safe-outputs.scripts` to define lightweight inline JavaScript handlers that execute inside the consolidated safe-outputs job handler loop. Unlike `jobs` (which run as a single separate GitHub Actions job per workflow run, processing all of that tool's calls together), scripts run in-process alongside the built-in safe-output handlers — once per tool call, with no extra job allocation or startup overhead.
 
 **When to use scripts vs jobs:**
 
 | | Scripts | Jobs |
 |---|---|---|
 | Execution | In-process, in the consolidated safe-outputs job | Separate GitHub Actions job |
-| Startup | Fast (no job scheduling) | Slower (new job per call) |
+| Invocation | Once per tool call (each call gets its own `item`) | Once per workflow run (job must loop over `.items[]`) |
+| Startup | Fast (no job scheduling) | Slower (one job per run) |
 | Secrets | Not directly available — use for lightweight logic | Full access to repository secrets |
 | Use case | Lightweight processing, logging, notifications without secrets | External API calls requiring secrets |
 
