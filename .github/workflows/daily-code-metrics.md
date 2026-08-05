@@ -10,8 +10,11 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 tracker-id: daily-code-metrics
-engine: claude
+engine:
+  id: crush
+model: copilot/claude-sonnet-4.5
 sandbox:
   agent:
     sudo: false
@@ -33,6 +36,7 @@ safe-outputs:
 timeout-minutes: 30
 strict: true
 imports:
+  - shared/crush.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-code-metrics] "

@@ -11,13 +11,16 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+  copilot-requests: write
 
 sandbox:
   agent:
     sudo: false
 
 tracker-id: daily-team-evolution-insights
-engine: claude
+engine:
+  id: goose
+model: copilot/claude-sonnet-4.5
 strict: false
 network:
   allowed:
@@ -31,6 +34,7 @@ tools:
 timeout-minutes: 90
 max-ai-credits: 1500
 imports:
+  - shared/goose.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-team-evolution] "

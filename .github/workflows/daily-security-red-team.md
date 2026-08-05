@@ -16,10 +16,15 @@ sandbox:
     sudo: false
 
 tracker-id: security-red-team
-engine: claude
+engine:
+  id: opencode
+model: copilot/claude-sonnet-4.5
 strict: true
+network:
+  allowed:
+    - defaults
+    - github
 tools:
-  cli-proxy: true
   cache-memory: true
   github:
     mode: gh-proxy
@@ -50,6 +55,7 @@ experiments:
     issue: 31673
 timeout-minutes: 60
 imports:
+  - shared/opencode.md
   - shared/security-analysis-base.md
   - uses: shared/daily-audit-base.md
     with:

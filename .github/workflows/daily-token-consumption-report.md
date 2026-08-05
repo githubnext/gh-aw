@@ -8,14 +8,21 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 
 sandbox:
   agent:
     sudo: false
 
 tracker-id: daily-token-consumption-report
-engine: claude
+engine:
+  id: goose
+model: copilot/claude-sonnet-4.5
 strict: true
+network:
+  allowed:
+    - defaults
+    - github
 tools:
   bash: true
 safe-outputs:
@@ -29,6 +36,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 30
 imports:
+  - shared/goose.md
   - shared/mcp/sentry.md
   - shared/mcp/grafana.md
   - uses: shared/daily-audit-base.md
