@@ -55,7 +55,7 @@ safe-outputs:
   link-sub-issue:
     max: 10
   noop:
-timeout-minutes: 60
+timeout-minutes: 90
 imports:
   - uses: shared/meta-analysis-base.md
     with:
