@@ -146,6 +146,14 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		// The checkout list may contain ${{ github.repository }} which must go through
 		// the expression extractor so the placeholder substitution step can resolve it.
 		combinedPromptText := githubContextPromptText
+		// In trial mode with a logical target repository, the workflow runs on the host
+		// repo (github.repository) but checkout and safe outputs are redirected to the
+		// logical target. Rewrite the reported repository so the agent's notion of "the
+		// repository" matches the logical target, and add a directive so GitHub MCP calls
+		// that omit owner/repo don't silently operate against the host repo.
+		if data.TrialMode && data.TrialLogicalRepo != "" {
+			combinedPromptText = applyTrialLogicalRepoToGitHubContext(combinedPromptText, data.TrialLogicalRepo)
+		}
 		if checkoutsContent := buildCheckoutsPromptContent(data.CheckoutConfigs); checkoutsContent != "" {
 			unifiedPromptLog.Printf("Injecting checkout list into GitHub context (%d checkouts)", len(data.CheckoutConfigs))
 			const closeTag = "</github-context>"
@@ -779,4 +787,27 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	})
 
 	return sections
+}
+
+// applyTrialLogicalRepoToGitHubContext rewrites the github-context prompt so that
+// the reported repository is the trial mode logical target rather than the host
+// repository (github.repository). It replaces the unconditional repository line and
+// appends a directive instructing the agent to target the logical repository for
+// GitHub MCP calls that omit an explicit owner/repo.
+func applyTrialLogicalRepoToGitHubContext(promptText, logicalRepo string) string {
+	const repoLine = "- **repository**: ${{ github.repository }}"
+	replacement := "- **repository**: " + logicalRepo
+	promptText = strings.Replace(promptText, repoLine, replacement, 1)
+
+	directive := fmt.Sprintf(
+		"\nThis workflow is running in trial mode. The repository above (%s) is the logical target repository. When calling GitHub tools without an explicit owner/repo, use this repository.\n",
+		logicalRepo,
+	)
+	const closeTag = "</github-context>"
+	if idx := strings.LastIndex(promptText, closeTag); idx >= 0 {
+		promptText = promptText[:idx] + directive + promptText[idx:]
+	} else {
+		promptText += directive
+	}
+	return promptText
 }
