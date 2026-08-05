@@ -35,11 +35,31 @@ describe("add_labels", () => {
     };
 
     mockGithub = {
+      graphql: async (query, variables) => {
+        // Repo labels query used by fetchAllRepoLabels: resolve label IDs by name.
+        if (typeof query === "string" && query.includes("repository(owner")) {
+          return {
+            repository: {
+              labels: {
+                nodes: (mockGithub._repoLabels || ["bug", "enhancement", "documentation", "security:low", "security:medium", "security:high"]).map(name => ({
+                  id: `LABEL_${name}`,
+                  name,
+                })),
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          };
+        }
+        // updateIssue intent mutation: echo back the requested label names.
+        const labels = (variables?.labels || []).map(l => ({ name: l.name || l.labelId }));
+        return { updateIssue: { issue: { id: variables?.issueId, labels: { nodes: labels } } } };
+      },
       rest: {
         issues: {
           addLabels: async () => ({}),
           get: async () => ({
             data: {
+              node_id: "ISSUE_NODE_ID",
               title: "Test issue title",
               labels: [],
             },
@@ -115,11 +135,14 @@ describe("add_labels", () => {
 
     it("should accept structured label entries and add normalized label names", async () => {
       const handler = await main({ max: 10, issue_intent: true });
-      const addLabelsCalls = [];
+      const graphqlMutationCalls = [];
 
-      mockGithub.rest.issues.addLabels = async params => {
-        addLabelsCalls.push(params);
-        return {};
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          graphqlMutationCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
       };
 
       const result = await handler(
@@ -132,17 +155,22 @@ describe("add_labels", () => {
 
       expect(result.success).toBe(true);
       expect(result.number).toBe(456);
-      expect(addLabelsCalls).toHaveLength(1);
-      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
+      // Intent metadata routes through the GraphQL updateIssue mutation, not REST addLabels
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
+      expect(graphqlMutationCalls[0].headers).toEqual({ "GraphQL-Features": "update_issue_suggestions" });
     });
 
     it("should send structured label metadata without requiring a runtime feature", async () => {
       const handler = await main({ max: 10, issue_intent: true });
-      const addLabelsCalls = [];
+      const graphqlMutationCalls = [];
 
-      mockGithub.rest.issues.addLabels = async params => {
-        addLabelsCalls.push(params);
-        return {};
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          graphqlMutationCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
       };
 
       const result = await handler(
@@ -154,17 +182,20 @@ describe("add_labels", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(addLabelsCalls).toHaveLength(1);
-      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
     });
 
     it("should normalize lowercase confidence in structured label metadata", async () => {
       const handler = await main({ max: 10, issue_intent: true });
-      const addLabelsCalls = [];
+      const graphqlMutationCalls = [];
 
-      mockGithub.rest.issues.addLabels = async params => {
-        addLabelsCalls.push(params);
-        return {};
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          graphqlMutationCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
       };
 
       const result = await handler(
@@ -176,8 +207,43 @@ describe("add_labels", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(addLabelsCalls).toHaveLength(1);
-      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Application crashes on file uploads >5MB", confidence: "HIGH" }]);
+    });
+
+    it("should preserve existing labels when adding intent labels via GraphQL", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+      const graphqlMutationCalls = [];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "ISSUE_NODE_ID",
+          title: "Test issue title",
+          labels: [{ name: "enhancement" }],
+        },
+      });
+
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          graphqlMutationCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Crash on upload", confidence: "HIGH" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["bug"]);
+      expect(graphqlMutationCalls).toHaveLength(1);
+      // Existing labels are merged (metadata-free) so add-only semantics are preserved
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Crash on upload", confidence: "HIGH" }, { labelId: "LABEL_enhancement" }]);
     });
 
     it("should accept issue_number as an alias for item_number", async () => {
@@ -515,11 +581,14 @@ describe("add_labels", () => {
     it("should prefer the metadata-bearing entry when a duplicate label name appears", async () => {
       // Default (omitted issue_intent) accepts both strings and objects; deduplication favours the metadata-bearing entry.
       const handler = await main({ max: 10 });
-      const addLabelsCalls = [];
+      const graphqlMutationCalls = [];
 
-      mockGithub.rest.issues.addLabels = async params => {
-        addLabelsCalls.push(params);
-        return {};
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          graphqlMutationCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
       };
 
       const result = await handler(
@@ -533,9 +602,9 @@ describe("add_labels", () => {
 
       expect(result.success).toBe(true);
       expect(result.labelsAdded).toEqual(["bug"]);
-      expect(addLabelsCalls.length).toBe(1);
-      // The payload sent to the API must use the spec with metadata, not the plain string
-      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
+      // Intent metadata routes through the GraphQL mutation; the metadata-bearing spec wins
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
     });
 
     it("should strip structured intent metadata when issue_intent is disabled", async () => {
@@ -560,10 +629,18 @@ describe("add_labels", () => {
       expect(addLabelsCalls[0].labels).toEqual(["bug"]);
     });
 
-    it("should forward per-label intent metadata by default when issue_intent is omitted", async () => {
+    it("should forward per-label intent metadata via GraphQL when issue_intent is omitted", async () => {
       const handler = await main({ max: 10 });
+      const graphqlMutationCalls = [];
       const addLabelsCalls = [];
 
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          graphqlMutationCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
+      };
       mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
         return {};
@@ -578,8 +655,10 @@ describe("add_labels", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(addLabelsCalls).toHaveLength(1);
-      expect(addLabelsCalls[0].labels).toEqual([{ name: "bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
+      // Intent metadata is forwarded through GraphQL, not the REST addLabels endpoint
+      expect(addLabelsCalls).toHaveLength(0);
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Known crash path", confidence: "HIGH", suggest: true }]);
     });
 
     it("should accept plain string labels by default when issue_intent is omitted", async () => {
@@ -653,11 +732,14 @@ describe("add_labels", () => {
 
     it("should accept label objects with both rationale and confidence in strict mode", async () => {
       const handler = await main({ max: 10, issue_intent: true });
-      const addLabelsCalls = [];
+      const graphqlMutationCalls = [];
 
-      mockGithub.rest.issues.addLabels = async params => {
-        addLabelsCalls.push(params);
-        return {};
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          graphqlMutationCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
       };
 
       const result = await handler(
@@ -669,7 +751,8 @@ describe("add_labels", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(addLabelsCalls).toHaveLength(1);
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Crash on upload", confidence: "HIGH" }]);
     });
 
     it("should sanitize and trim label names", async () => {
