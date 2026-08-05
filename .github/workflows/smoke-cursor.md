@@ -29,9 +29,7 @@ imports:
   - shared/otlp.md
   - shared/token-telemetry-check.md
 network:
-  allowed:
-    - defaults
-    - github
+  allowed: []
 safe-outputs:
   allowed-domains: [default-safe-outputs]
   add-comment:

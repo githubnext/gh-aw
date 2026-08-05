@@ -25,9 +25,7 @@ strict: true
 imports:
   - shared/aider.md
 network:
-  allowed:
-    - defaults
-    - github
+  allowed: []
 tools:
   edit:
   bash:

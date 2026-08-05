@@ -30,9 +30,7 @@ imports:
   - shared/otlp.md
   - shared/token-telemetry-check.md
 network:
-  allowed:
-    - defaults
-    - github
+  allowed: []
 tools:
   cache-memory: true
   github:
