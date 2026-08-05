@@ -587,7 +587,7 @@ async function main(config = {}) {
     // Generate footer with expiration using helper
     if (includeFooter) {
       const footer = addExpirationToFooter(markdownParts.footer, expiresHours, "Discussion");
-      bodyLines.push(``, ``, footer);
+      bodyLines.push(``, footer);
     }
 
     // Add standalone workflow-id marker for searchability (consistent with comments)

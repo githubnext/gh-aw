@@ -1595,7 +1595,7 @@ async function main(config = {}) {
         if (expiresHours > 0) {
           footer += "\n\n<!-- gh-aw-expires-type: pull-request -->";
         }
-        bodyLines.push(``, ``, footer);
+        bodyLines.push(``, footer);
         footerParts.push(footer);
       }
 
