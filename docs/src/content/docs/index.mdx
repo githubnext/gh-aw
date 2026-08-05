@@ -181,7 +181,7 @@ The `gh aw` cli hardens this to a traditional GitHub Actions Workflow (.lock.yml
 
 ## AI Engines
 
-gh-aw supports four AI engines. Switch between them by changing one line of frontmatter.
+gh-aw supports five built-in AI engines. Switch between them by changing one line of frontmatter.
 
 <FeatureGrid columns={4}>
   <FeatureCard title="GitHub Copilot" href="/gh-aw/engines/copilot/">
@@ -196,7 +196,37 @@ gh-aw supports four AI engines. Switch between them by changing one line of fron
   <FeatureCard title="Google Gemini" href="/gh-aw/engines/gemini/">
     Google Gemini CLI. Set engine: gemini and add GEMINI_API_KEY.
   </FeatureCard>
+  <FeatureCard title="Pi" href="/gh-aw/reference/engines/#available-coding-agents">
+    Experimental multi-provider agent. Set engine: pi and add COPILOT_GITHUB_TOKEN.
+  </FeatureCard>
 </FeatureGrid>
+
+### Configurable Engines
+
+gh-aw's open engine model lets you plug in any coding agent CLI by importing a Markdown engine definition file. The following agents are available as sample integrations — import the definition maintained by the agent's publisher to use them in your workflows.
+
+<FeatureGrid columns={3}>
+  <FeatureCard title="Copilot SDK" href="/gh-aw/reference/engines/#copilot-sdk-support">
+    Run Copilot in SDK mode for advanced multi-provider routing. Enable with copilot-sdk: true.
+  </FeatureCard>
+  <FeatureCard title="OpenCode" href="/gh-aw/guides/third-party-agent/">
+    Provider-agnostic BYOK agent supporting 75+ models from Anthropic, OpenAI, Google, and more.
+  </FeatureCard>
+  <FeatureCard title="Cursor" href="/gh-aw/reference/engines/#shared-imported-engines">
+    Cursor's AI coding agent, importable as a shared engine definition.
+  </FeatureCard>
+  <FeatureCard title="Kiro" href="/gh-aw/reference/engines/#shared-imported-engines">
+    Amazon's Kiro agentic IDE, importable as a shared engine definition.
+  </FeatureCard>
+  <FeatureCard title="Aider" href="/gh-aw/reference/engines/#unsupported-engine-samples">
+    Open-source pair programming agent. Import the publisher-maintained definition.
+  </FeatureCard>
+  <FeatureCard title="Crush" href="/gh-aw/reference/engines/#unsupported-engine-samples">
+    Charmbracelet's terminal-first coding agent, importable as a shared engine definition.
+  </FeatureCard>
+</FeatureGrid>
+
+See [Configuring a third-party agent](/gh-aw/guides/third-party-agent/) and the [Engines reference](/gh-aw/reference/engines/#shared-imported-engines) for how to import and pin an engine definition.
 
 ## Common Use Cases
 
