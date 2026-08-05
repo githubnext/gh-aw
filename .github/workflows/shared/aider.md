@@ -2,8 +2,6 @@
 runtimes:
   python:
     version: "3.12"
-env:
-  GH_AW_ENGINE_VERSION: "0.86.2"
 pre-agent-steps:
   - name: Preinstall Aider CLI
     run: |

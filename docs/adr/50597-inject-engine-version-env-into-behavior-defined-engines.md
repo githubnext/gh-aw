@@ -1,8 +1,8 @@
 # ADR-50597: Inject Engine Version as Environment Variable into Behavior-Defined Engine Execution Steps
 
 **Date**: 2026-08-05
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: gh-aw maintainers
 
 ---
 
@@ -12,7 +12,7 @@ The gh-aw platform supports "behavior-defined" custom engines (Goose, Ader, Crus
 
 ### Decision
 
-We will add a new `applyEngineVersionEnv` helper in `engine_helpers.go` that sets `GH_AW_ENGINE_VERSION` from `EngineConfig.Version` when the field is non-empty, and call it from `buildBehaviorDefinedExecutionEnv` in `behavior_defined_engine.go` alongside the existing `applyEngineCwdEnv` call. The helper passes the version value verbatim — including GitHub Actions expression syntax (e.g., `${{ inputs.engine-version }}`) — without attempting evaluation, consistent with how other environment helpers in this layer operate.
+We will add a new `applyEngineVersionEnv` helper in `engine_helpers.go` that sets `GH_AW_ENGINE_VERSION` from `EngineConfig.Version` when the field is non-empty. The main agent job receives this environment variable so engine installation and execution steps share the same configured version. Behavior-defined engine execution retains the explicit environment injection alongside `applyEngineCwdEnv`. The helper passes the version value verbatim — including GitHub Actions expression syntax (e.g., `${{ inputs.engine-version }}`) — without attempting evaluation, consistent with how other environment helpers in this layer operate.
 
 ### Alternatives Considered
 
@@ -41,5 +41,3 @@ Rather than a single `GH_AW_ENGINE_VERSION` variable, serialize the entire `Engi
 - The pattern mirrors the `applyEngineCwdEnv` function added previously; no new architectural abstractions are introduced.
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
