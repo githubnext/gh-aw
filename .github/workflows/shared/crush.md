@@ -74,7 +74,6 @@ engine:
     execution:
       command-name: crush
       args:
-        - -y
         - run
         - --quiet
       step-name: Execute Crush CLI
