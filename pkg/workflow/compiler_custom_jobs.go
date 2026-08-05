@@ -775,7 +775,8 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 		if err != nil {
 			return err
 		}
-		if len(augmentedNeeds) == 0 && augmentedIf == "" {
+		_, hasPermissions := configMap["permissions"]
+		if len(augmentedNeeds) == 0 && augmentedIf == "" && !hasPermissions {
 			continue
 		}
 
@@ -784,11 +785,21 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 			// Report the actual field(s) the author configured so they can identify the problem.
 			augmentedField := configuredJobName + ".needs"
 			if len(augmentedNeeds) == 0 {
-				augmentedField = configuredJobName + ".if"
-			} else if augmentedIf != "" {
+				if augmentedIf != "" {
+					augmentedField = configuredJobName + ".if"
+				} else {
+					augmentedField = configuredJobName + ".permissions"
+				}
+			} else if augmentedIf != "" || hasPermissions {
 				augmentedField = configuredJobName
 			}
 			return fmt.Errorf("jobs.%s: cannot augment %q because this workflow does not generate that job", augmentedField, targetJobName)
+		}
+
+		if hasPermissions {
+			if err := applyBuiltinJobPermissionsAugmentation(configuredJobName, targetJobName, configMap, targetJob); err != nil {
+				return err
+			}
 		}
 
 		normalizedNeeds := make([]string, 0, len(augmentedNeeds))
@@ -840,7 +851,32 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 			compilerJobsLog.Printf("Applied jobs.%s.needs augmentation to %q: %v", configuredJobName, targetJobName, normalizedNeeds)
 		}
 	}
+	return nil
+}
 
+// applyBuiltinJobPermissionsAugmentation merges user-declared jobs.<built-in>.permissions
+// into a compiler-generated built-in job (e.g. safe_outputs, conclusion). The merge is
+// additive: the compiler-computed permissions are preserved and the user's declared scopes
+// are added on top, with write overriding read. This ensures scopes such as id-token: write
+// that authors declare under jobs.*.permissions are retained in the compiled lock file rather
+// than being dropped by the minimal least-privilege permission computation.
+func applyBuiltinJobPermissionsAugmentation(configuredJobName, targetJobName string, configMap map[string]any, targetJob *Job) error {
+	permissionsValue, exists := configMap["permissions"]
+	if !exists || permissionsValue == nil {
+		return nil
+	}
+
+	userPermissions := NewPermissionsParserFromValue(permissionsValue).ToPermissions()
+	if userPermissions == nil {
+		return nil
+	}
+
+	// Start from the compiler-computed permissions already rendered on the job, then merge
+	// the user-declared permissions additively so no compiler-required scope is lost.
+	merged := NewPermissionsParser(targetJob.Permissions).ToPermissions()
+	merged.Merge(userPermissions)
+	targetJob.Permissions = merged.RenderToYAML()
+	compilerJobsLog.Printf("Applied jobs.%s.permissions augmentation to %q", configuredJobName, targetJobName)
 	return nil
 }
 
