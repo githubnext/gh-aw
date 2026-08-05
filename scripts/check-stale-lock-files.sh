@@ -74,17 +74,23 @@ if [ ! -d "$WORKFLOWS_DIR" ]; then
 fi
 
 collect_modified_files() {
-    # Explicit base ref compare (clean checkout safe, CI-friendly).
+    # Compare the merge-base to the current working tree so committed, staged,
+    # and unstaged branch changes are all covered.
     if [ -n "$BASE_REF" ]; then
         if git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
-            git diff --name-only "${BASE_REF}...HEAD" 2>/dev/null || true
-            return
+            merge_base=$(git merge-base "$BASE_REF" HEAD 2>/dev/null || true)
+            if [ -n "$merge_base" ]; then
+                git diff --name-only "$merge_base" 2>/dev/null || true
+                git ls-files --others --exclude-standard
+                return
+            fi
         fi
         echo -e "${YELLOW}WARN${NC}: --base-ref not found (${BASE_REF}); falling back to working-tree check." >&2
     fi
 
-    # Local contributor path: staged/unstaged vs HEAD.
+    # Local contributor path: staged/unstaged and untracked files vs HEAD.
     git diff --name-only HEAD 2>/dev/null || true
+    git ls-files --others --exclude-standard
 }
 
 all_modified=$(collect_modified_files)
