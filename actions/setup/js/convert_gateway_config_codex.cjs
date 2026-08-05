@@ -23,7 +23,7 @@ require("./shim.cjs");
  */
 
 const path = require("path");
-const { loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
+const { runGatewayConversion } = require("./convert_gateway_config_shared.cjs");
 
 const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/config.toml");
 
@@ -47,43 +47,26 @@ function toCodexTomlSection(name, value, urlPrefix) {
 }
 
 function main() {
-  const { gatewayOutput, domain, port, cliServers, servers } = loadGatewayContext();
-
-  core.info("Converting gateway configuration to Codex TOML format...");
-  core.info(`Input: ${gatewayOutput}`);
-  core.info(`Target domain: ${domain}:${port}`);
-
-  // For host.docker.internal, resolve to the gateway IP to avoid DNS resolution
-  // issues in Rust
-  let resolvedDomain = domain;
-  if (domain === "host.docker.internal") {
-    // AWF network gateway IP is always 172.30.0.1
-    resolvedDomain = "172.30.0.1";
-    core.info(`Resolving host.docker.internal to gateway IP: ${resolvedDomain}`);
-  }
-
-  const urlPrefix = `http://${resolvedDomain}:${port}`;
-  logCLIFilters(cliServers);
-  const filteredServers = filterAndTransformServers(servers, cliServers, (_name, entry) => entry);
-
-  // Build the TOML output
-  let toml = '[history]\npersistence = "none"\n\n';
-
-  for (const [name, value] of Object.entries(filteredServers)) {
-    toml += toCodexTomlSection(name, value, urlPrefix);
-  }
-
-  logServerStats(servers, Object.keys(filteredServers).length);
-
-  // Write with owner-only permissions (0o600) to protect the gateway bearer token.
-  // An attacker who reads config.toml could issue raw JSON-RPC calls directly
-  // to the gateway.
-  writeSecureOutput(OUTPUT_PATH, toml);
-
-  core.info(`Codex configuration written to ${OUTPUT_PATH}`);
-  core.info("");
-  core.info("Converted configuration:");
-  core.info(toml);
+  return runGatewayConversion({
+    format: "Codex TOML",
+    engine: "Codex",
+    outputPath: OUTPUT_PATH,
+    getUrlPrefix: ({ domain, port }) => {
+      if (domain === "host.docker.internal") {
+        core.info("Resolving host.docker.internal to gateway IP: 172.30.0.1");
+        return `http://172.30.0.1:${port}`;
+      }
+      return `http://${domain}:${port}`;
+    },
+    transformServer: (_name, entry) => entry,
+    serialize: (servers, _context, urlPrefix) => {
+      let toml = '[history]\npersistence = "none"\n\n';
+      for (const [name, value] of Object.entries(servers)) {
+        toml += toCodexTomlSection(name, value, urlPrefix);
+      }
+      return toml;
+    },
+  });
 }
 
 if (require.main === module) {

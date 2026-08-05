@@ -4,7 +4,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { rewriteUrl, normalizeGatewayEntry, filterAndTransformServers, writeSecureOutput, loadGatewayContext, logCLIFilters, logServerStats } from "./convert_gateway_config_shared.cjs";
+import { rewriteUrl, normalizeGatewayEntry, filterAndTransformServers, writeSecureOutput, loadGatewayContext, logCLIFilters, logServerStats, runGatewayConversion } from "./convert_gateway_config_shared.cjs";
 
 describe("rewriteUrl", () => {
   it("replaces hostname and port with the provided url prefix", () => {
@@ -240,5 +240,73 @@ describe("logCLIFilters and logServerStats", () => {
     logServerStats(servers, 2);
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/2 included/));
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/1 filtered/));
+  });
+});
+
+describe("runGatewayConversion", () => {
+  /** @type {string} */
+  let dir;
+  /** @type {NodeJS.ProcessEnv} */
+  let savedEnv;
+  /** @type {unknown} */
+  let originalCore;
+  /** @type {{ info: ReturnType<typeof vi.fn> }} */
+  let mockCore;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-test-"));
+    savedEnv = { ...process.env };
+    originalCore = global.core;
+    mockCore = { info: vi.fn() };
+    // @ts-ignore
+    global.core = mockCore;
+
+    const gatewayFile = path.join(dir, "gateway.json");
+    fs.writeFileSync(
+      gatewayFile,
+      JSON.stringify({
+        mcpServers: {
+          github: { url: "http://old/mcp/github" },
+          cli: { url: "http://old/mcp/cli" },
+        },
+      })
+    );
+    process.env.MCP_GATEWAY_OUTPUT = gatewayFile;
+    process.env.MCP_GATEWAY_DOMAIN = "gateway.internal";
+    process.env.MCP_GATEWAY_PORT = "80";
+    process.env.GH_AW_MCP_CLI_SERVERS = '["cli"]';
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+    for (const key of Object.keys(process.env)) {
+      if (!(key in savedEnv)) delete process.env[key];
+    }
+    Object.assign(process.env, savedEnv);
+    // @ts-ignore
+    global.core = originalCore;
+  });
+
+  it("loads, filters, serializes, securely writes, and reports a converted configuration", () => {
+    const outputPath = path.join(dir, "output/config.json");
+    const output = runGatewayConversion({
+      format: "Test",
+      engine: "Test",
+      outputPath,
+      getTargetDomain: () => "target.internal",
+      getUrlPrefix: () => "http://target.internal:80",
+      transformServer: (_name, entry, urlPrefix) => normalizeGatewayEntry(entry, urlPrefix),
+      serialize: servers => JSON.stringify({ mcpServers: servers }),
+    });
+
+    expect(JSON.parse(output)).toEqual({
+      mcpServers: { github: { url: "http://target.internal:80/mcp/github" } },
+    });
+    expect(fs.readFileSync(outputPath, "utf8")).toBe(output);
+    expect(fs.statSync(outputPath).mode & 0o777).toBe(0o600);
+    expect(mockCore.info).toHaveBeenCalledWith("Converting gateway configuration to Test format...");
+    expect(mockCore.info).toHaveBeenCalledWith("Target domain: target.internal:80");
+    expect(mockCore.info).toHaveBeenCalledWith("Servers: 1 included, 1 filtered (CLI-mounted)");
+    expect(mockCore.info).toHaveBeenCalledWith(`Test configuration written to ${outputPath}`);
   });
 });
