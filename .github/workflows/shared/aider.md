@@ -5,6 +5,10 @@ runtimes:
 pre-agent-steps:
   - name: Preinstall Aider CLI
     run: |
+      # fastuuid only ships manylinux wheels for CPython; installing it explicitly first
+      # ensures pip resolves the prebuilt wheel instead of falling back to a source build
+      # that would require Cargo/crates.io network access.
+      python3 -m pip install --quiet --user --disable-pip-version-check --only-binary=:all: fastuuid==0.14.0
       python3 -m pip install --quiet --user --disable-pip-version-check aider-chat==0.86.2
       "$HOME/.local/bin/aider" --version
     env:
@@ -35,8 +39,6 @@ engine:
         - objects.githubusercontent.com
         - pypi.org
         - files.pythonhosted.org
-        - index.crates.io
-        - static.crates.io
       provider-domains:
         copilot: api.githubcopilot.com
         anthropic: api.anthropic.com
