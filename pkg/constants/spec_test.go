@@ -384,6 +384,7 @@ func TestSpec_VersionConstraints_MinVersionValues(t *testing.T) {
 		{name: "CopilotNoAskUserMinVersion", constant: constants.CopilotNoAskUserMinVersion, expected: "1.0.19"},
 		// From spec: AWFBoundedQueriesMinVersion // "v0.28.0"
 		{name: "AWFBoundedQueriesMinVersion", constant: constants.AWFBoundedQueriesMinVersion, expected: "v0.28.0"},
+		{name: "AWFBoundedAgentsMinVersion", constant: constants.AWFBoundedAgentsMinVersion, expected: "v0.27.44"},
 	}
 
 	for _, tt := range tests {

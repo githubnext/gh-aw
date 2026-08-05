@@ -1738,6 +1738,24 @@
                   "leaf": true
                 }
               }
+            },
+            "bounded-agents": {
+              "type": "object",
+              "desc": "AWF bounded-agent configuration for finite private-repository answers requiring multi-step judgment.",
+              "children": {
+                "private-repos": { "type": "array", "desc": "Approved private repositories.", "array": true },
+                "runtime": { "type": "string", "enum": ["docker", "gvisor"], "leaf": true },
+                "engine": { "type": "string", "enum": ["copilot"], "leaf": true },
+                "model": { "type": "string", "desc": "Fixed enclave model.", "leaf": true },
+                "timeout": { "type": "integer", "leaf": true },
+                "memory-limit": { "type": "string", "leaf": true },
+                "cpu-limit": { "type": "string", "leaf": true },
+                "pids-limit": { "type": "integer", "leaf": true },
+                "tmpfs-limit": { "type": "string", "leaf": true },
+                "max-output-bytes": { "type": "integer", "leaf": true },
+                "max-task-bytes": { "type": "integer", "leaf": true },
+                "max-invocations": { "type": "integer", "leaf": true }
+              }
             }
           }
         },

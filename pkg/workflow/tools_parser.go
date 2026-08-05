@@ -423,6 +423,15 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 				}
 			}
 		}
+		if rawBA, ok := configMap["bounded-agents"]; ok {
+			if baMap, ok := rawBA.(map[string]any); ok {
+				config.BoundedAgents = parseBoundedAgentsConfig(baMap)
+			} else {
+				config.BoundedAgents = &BoundedAgentsConfig{
+					ParseError: fmt.Sprintf("bounded-agents must be a mapping object, got %T", rawBA),
+				}
+			}
+		}
 
 		return config
 	}
@@ -446,6 +455,7 @@ func parseBoundedQueriesConfig(bqMap map[string]any) *BoundedQueriesConfig {
 					if repo, ok := repoMap["repo"].(string); ok {
 						entry.Repo = repo
 					}
+
 					if sensitivity, ok := repoMap["sensitivity"].(string); ok {
 						entry.Sensitivity = sensitivity
 					}
@@ -489,6 +499,56 @@ func parseBoundedQueriesConfig(bqMap map[string]any) *BoundedQueriesConfig {
 
 	return config
 }
+func parseBoundedAgentsConfig(baMap map[string]any) *BoundedAgentsConfig {
+	config := &BoundedAgentsConfig{}
+	if rawRepos, ok := baMap["private-repos"]; ok {
+		repos, ok := rawRepos.([]any)
+		if !ok {
+			config.ParseError = fmt.Sprintf("private-repos must be an array, got %T", rawRepos)
+			return config
+		}
+		config.PrivateRepos = make([]*BoundedAgentPrivateRepo, 0, len(repos))
+		for i, item := range repos {
+			repoMap, ok := item.(map[string]any)
+			if !ok {
+				config.ParseError = fmt.Sprintf("private-repos[%d] must be a mapping object, got %T", i, item)
+				return config
+			}
+			entry := &BoundedAgentPrivateRepo{}
+			entry.Repo, _ = repoMap["repo"].(string)
+			entry.Sensitivity, _ = repoMap["sensitivity"].(string)
+			config.PrivateRepos = append(config.PrivateRepos, entry)
+		}
+	}
+	for key, destination := range map[string]*string{
+		"runtime": &config.Runtime, "engine": &config.Engine, "model": &config.Model,
+		"memory-limit": &config.MemoryLimit, "cpu-limit": &config.CPULimit, "tmpfs-limit": &config.TmpfsLimit,
+	} {
+		if value, ok := baMap[key]; ok {
+			var stringOK bool
+			*destination, stringOK = value.(string)
+			if !stringOK {
+				config.ParseError = fmt.Sprintf("%s must be a string, got %T", key, value)
+				return config
+			}
+		}
+	}
+	for key, destination := range map[string]**int{
+		"timeout": &config.Timeout, "pids-limit": &config.PidsLimit, "max-output-bytes": &config.MaxOutputBytes,
+		"max-task-bytes": &config.MaxTaskBytes, "max-invocations": &config.MaxInvocations,
+	} {
+		if value, ok := baMap[key]; ok {
+			number, ok := value.(int)
+			if !ok {
+				config.ParseError = fmt.Sprintf("%s must be an integer, got %T", key, value)
+				return config
+			}
+			*destination = &number
+		}
+	}
+	return config
+}
+
 func parseBashTool(val any) *BashToolConfig {
 	if val == nil {
 		// nil is no longer supported - return nil to indicate invalid configuration

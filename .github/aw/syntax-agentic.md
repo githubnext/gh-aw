@@ -320,6 +320,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
 - **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
   - **`tools.github.bounded-queries`** (object, AWF v0.28.0+) configures the AWF bounded-query subsystem for cross-repository private data access. When present, the agent may answer finite, pre-approved questions about the listed repositories using the generated `bounded-query` skill — without receiving raw source code. This is the preferred pattern for cross-repository workflows. Requires the AWF sandbox (`sandbox.agent.id: awf`). The query runtime is independent from `sandbox.agent.runtime`, and every query runs in a fresh backend-specific sandbox. All optional fields use AWF defaults when omitted.
+  - **`tools.github.bounded-agents`** (object, AWF v0.27.44+) configures fixed Copilot enclave requests for private-repository questions that require multi-step reading or judgment. Use `bounded-queries` for deterministic author-supplied Python; use bounded agents only when the answer has a finite schema. The caller cannot select its engine, model, runtime, route, or credentials, and never receives repository contents or transcripts.
 
     ```yaml
     tools:

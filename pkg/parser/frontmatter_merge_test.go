@@ -232,6 +232,39 @@ func TestMergeTools(t *testing.T) {
 			},
 		},
 		{
+			name: "imported bounded-agent fields fill missing main fields",
+			base: map[string]any{
+				"github": map[string]any{
+					"bounded-agents": map[string]any{
+						"model": "gpt-4o-mini",
+					},
+				},
+			},
+			additional: map[string]any{
+				"github": map[string]any{
+					"bounded-agents": map[string]any{
+						"engine": "copilot",
+						"private-repos": []any{map[string]any{
+							"repo":        "my-org/internal-service",
+							"sensitivity": "internal",
+						}},
+					},
+				},
+			},
+			expected: map[string]any{
+				"github": map[string]any{
+					"bounded-agents": map[string]any{
+						"engine": "copilot",
+						"model":  "gpt-4o-mini",
+						"private-repos": []any{map[string]any{
+							"repo":        "my-org/internal-service",
+							"sensitivity": "internal",
+						}},
+					},
+				},
+			},
+		},
+		{
 			// bash: true in main workflow (or parent import) must win over an import's
 			// specific bash command list, e.g. ["ls", "cat"]. Both are valid bash tool
 			// configurations, but they are different types (bool vs array).

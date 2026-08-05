@@ -240,12 +240,18 @@ var validBoundedQueryInterpreters = map[string]struct{}{
 	"python3": {},
 }
 
+var validBoundedAgentRuntimes = map[string]struct{}{
+	"docker": {},
+	"gvisor": {},
+}
+
 // validateBoundedQueriesConfig validates tools.github.bounded-queries configuration.
 // Returns an error when the configuration is invalid.
 func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 	if workflowData == nil || workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
 		return nil
 	}
+
 	bq := workflowData.ParsedTools.GitHub.BoundedQueries
 	if bq == nil {
 		return nil
@@ -401,6 +407,102 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 
 	sandboxValidationLog.Printf("bounded-queries validation passed: %d private repo(s)", len(bq.PrivateRepos))
 	return nil
+}
+
+func validateBoundedAgentsConfig(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
+		return nil
+	}
+	ba := workflowData.ParsedTools.GitHub.BoundedAgents
+	if ba == nil {
+		return nil
+	}
+	const field = "tools.github.bounded-agents"
+	if ba.ParseError != "" {
+		return NewValidationError(field, "<malformed>", ba.ParseError, "Use a mapping with private-repos, engine, and model.")
+	}
+	if workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil ||
+		!isSupportedSandboxType(getAgentType(workflowData.SandboxConfig.Agent)) {
+		return NewValidationError(field, "", "bounded-agents requires the AWF sandbox (sandbox.agent.id: awf)", "")
+	}
+	if !awfSupportsBoundedAgents(getFirewallConfig(workflowData)) {
+		return NewValidationError(field, getAWFImageTag(getFirewallConfig(workflowData)),
+			fmt.Sprintf("bounded-agents requires AWF %s or newer", constants.AWFBoundedAgentsMinVersion), "")
+	}
+	if isArcDindTopology(workflowData) || containsDindEnableArg(getFirewallConfig(workflowData)) ||
+		(getAgentConfig(workflowData) != nil && containsDindArgs(getAgentConfig(workflowData).Args)) {
+		return NewValidationError(field, "", "bounded-agents is incompatible with Docker-in-Docker access", "Remove runner.topology: arc-dind and --enable-dind.")
+	}
+	if len(ba.PrivateRepos) == 0 {
+		return NewValidationError(field+".private-repos", "[]", "bounded-agents requires at least one private-repos entry", "")
+	}
+	seen := make(map[string]struct{}, len(ba.PrivateRepos))
+	for i, repo := range ba.PrivateRepos {
+		repoField := fmt.Sprintf("%s.private-repos[%d]", field, i)
+		if repo == nil {
+			return NewValidationError(repoField, "<nil>", "private-repos entry must not be null", "")
+		}
+		if err := validateRepoSlug(repoField+".repo", repo.Repo); err != nil {
+			return err
+		}
+		if _, ok := validBoundedQuerySensitivities[repo.Sensitivity]; !ok || githubActionsExpressionPattern.MatchString(repo.Sensitivity) {
+			return NewValidationError(repoField+".sensitivity", repo.Sensitivity, "sensitivity must be one of: public, internal, confidential, sealed", "")
+		}
+		key := strings.ToLower(repo.Repo)
+		if _, duplicate := seen[key]; duplicate {
+			return NewValidationError(repoField+".repo", repo.Repo, "duplicate repository slug in bounded-agents.private-repos", "")
+		}
+		seen[key] = struct{}{}
+	}
+	if ba.Engine != "copilot" {
+		return NewValidationError(field+".engine", ba.Engine, "unsupported bounded-agents engine: must be \"copilot\"", "")
+	}
+	if ba.Model == "" || githubActionsExpressionPattern.MatchString(ba.Model) || strings.ContainsAny(ba.Model, " \t\r\n") {
+		return NewValidationError(field+".model", ba.Model, "bounded-agents model must be a literal, non-empty model identifier", "")
+	}
+	if ba.Runtime != "" {
+		if _, ok := validBoundedAgentRuntimes[ba.Runtime]; !ok {
+			return NewValidationError(field+".runtime", ba.Runtime, "unsupported bounded-agents runtime: must be \"docker\" or \"gvisor\"", "")
+		}
+	}
+	for name, value := range map[string]*int{
+		"timeout": ba.Timeout, "pids-limit": ba.PidsLimit, "max-output-bytes": ba.MaxOutputBytes,
+		"max-task-bytes": ba.MaxTaskBytes, "max-invocations": ba.MaxInvocations,
+	} {
+		if value != nil && *value <= 0 {
+			return NewValidationError(field+"."+name, strconv.Itoa(*value), "bounded-agents "+name+" must be a positive integer", "")
+		}
+	}
+	if ba.Timeout != nil && *ba.Timeout > 540 {
+		return NewValidationError(field+".timeout", strconv.Itoa(*ba.Timeout), "bounded-agents timeout must be between 1 and 540 seconds", "")
+	}
+	for name, value := range map[string]string{
+		"memory-limit": ba.MemoryLimit, "tmpfs-limit": ba.TmpfsLimit,
+	} {
+		if value != "" && !regexp.MustCompile(`^[1-9][0-9]*[bkmgBKMG]$`).MatchString(value) {
+			return NewValidationError(field+"."+name, value, "bounded-agents "+name+" must be a valid byte limit", "")
+		}
+	}
+	if ba.CPULimit != "" && !regexp.MustCompile(`^[1-9][0-9]*(\.[0-9]+)?$`).MatchString(ba.CPULimit) {
+		return NewValidationError(field+".cpu-limit", ba.CPULimit, "bounded-agents cpu-limit must be a positive CPU quantity", "")
+	}
+	return nil
+}
+
+func containsDindEnableArg(config *FirewallConfig) bool {
+	if config == nil {
+		return false
+	}
+	return containsDindArgs(config.Args)
+}
+
+func containsDindArgs(args []string) bool {
+	for _, arg := range args {
+		if arg == "--enable-dind" || arg == "--enable-dind=true" {
+			return true
+		}
+	}
+	return false
 }
 
 // validateRepoSlug validates a repository slug in "owner/repo" format.

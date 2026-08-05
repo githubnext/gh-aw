@@ -379,6 +379,31 @@ type GitHubToolConfig struct {
 	// about the listed repositories without receiving raw source code.
 	// Requires the AWF sandbox (sandbox.agent.id: awf) and AWF v0.28.0+.
 	BoundedQueries *BoundedQueriesConfig `yaml:"bounded-queries,omitempty"`
+	BoundedAgents  *BoundedAgentsConfig  `yaml:"bounded-agents,omitempty"`
+}
+
+// BoundedAgentsConfig configures fixed Copilot enclave requests over approved
+// private repository seeds. The caller can select only a repository and a finite
+// response schema at invocation time.
+type BoundedAgentsConfig struct {
+	PrivateRepos   []*BoundedAgentPrivateRepo `yaml:"private-repos,omitempty"`
+	Runtime        string                     `yaml:"runtime,omitempty"`
+	Engine         string                     `yaml:"engine,omitempty"`
+	Model          string                     `yaml:"model,omitempty"`
+	Timeout        *int                       `yaml:"timeout,omitempty"`
+	MemoryLimit    string                     `yaml:"memory-limit,omitempty"`
+	CPULimit       string                     `yaml:"cpu-limit,omitempty"`
+	PidsLimit      *int                       `yaml:"pids-limit,omitempty"`
+	TmpfsLimit     string                     `yaml:"tmpfs-limit,omitempty"`
+	MaxOutputBytes *int                       `yaml:"max-output-bytes,omitempty"`
+	MaxTaskBytes   *int                       `yaml:"max-task-bytes,omitempty"`
+	MaxInvocations *int                       `yaml:"max-invocations,omitempty"`
+	ParseError     string                     `yaml:"-"`
+}
+
+type BoundedAgentPrivateRepo struct {
+	Repo        string `yaml:"repo"`
+	Sensitivity string `yaml:"sensitivity"`
 }
 
 // BoundedQueryRuntime identifies the isolated backend used for each bounded-query invocation.

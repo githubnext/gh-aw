@@ -4360,6 +4360,34 @@
                       "maximum": 10000
                     }
                   }
+                },
+                "bounded-agents": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["private-repos", "engine", "model"],
+                  "properties": {
+                    "private-repos": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["repo", "sensitivity"],
+                        "properties": { "repo": { "type": "string", "pattern": "^[^/]+/[^/]+$" }, "sensitivity": { "type": "string", "enum": ["public", "internal", "confidential", "sealed"] } }
+                      }
+                    },
+                    "runtime": { "type": "string", "enum": ["docker", "gvisor"] },
+                    "engine": { "type": "string", "enum": ["copilot"] },
+                    "model": { "type": "string", "minLength": 1 },
+                    "timeout": { "type": "integer", "minimum": 1, "maximum": 540 },
+                    "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$" },
+                    "cpu-limit": { "type": "string", "pattern": "^[1-9][0-9]*(\\.[0-9]+)?$" },
+                    "pids-limit": { "type": "integer", "minimum": 1 },
+                    "tmpfs-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$" },
+                    "max-output-bytes": { "type": "integer", "minimum": 1 },
+                    "max-task-bytes": { "type": "integer", "minimum": 1 },
+                    "max-invocations": { "type": "integer", "minimum": 1 }
+                  }
                 }
               },
               "additionalProperties": false,

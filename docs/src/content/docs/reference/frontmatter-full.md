@@ -120,6 +120,13 @@ resources: []
 # (optional)
 inlined-imports: true
 
+# Workspace-relative folders to bundle in the activation artifact and restore
+# before the agent runs. Useful for activation steps that generate reusable
+# prompt, skill, or agent context.
+# (optional)
+ambient-folders: []
+  # Array of strings
+
 # Workflow triggers that define when the agentic workflow should run. Supports
 # standard GitHub Actions trigger events plus special command triggers for
 # /commands (required)
@@ -1041,13 +1048,6 @@ on:
   # (optional)
   allow-bot-authored-trigger-comment: true
 
-  # Workspace-relative folders to bundle in the activation artifact and restore
-  # before the agent runs. Useful for activation steps that generate reusable
-  # prompt, skill, or agent context.
-  # (optional)
-  ambient-folders: []
-    # Array of strings
-
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
   # (optional)
@@ -1904,7 +1904,7 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
@@ -2776,6 +2776,11 @@ engine:
   # (optional)
   experimental: true
 
+  # Whether the engine supports MCP. When false, the compiler automatically enables
+  # gh-proxy and cli-proxy and rejects attempts to disable either proxy.
+  # (optional)
+  mcp: true
+
   # Runtime adapter identifier. Maps to the CodingAgentEngine registered in the
   # engine registry. Defaults to id when omitted.
   # (optional)
@@ -3023,6 +3028,14 @@ engine:
     mcp:
       # (optional)
       config-path: "example-value"
+
+      # JavaScript source of a Node.js script that converts the MCP gateway's raw output
+      # configuration into the format expected by this engine. When set, the script is
+      # written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_mcp_config_adapter.cjs
+      # before the MCP gateway starts, and start_mcp_gateway.cjs executes it (instead of
+      # a built-in per-engine converter) once the gateway has produced its output.
+      # (optional)
+      config-adapter: "example-value"
 
     # JavaScript source of a Node.js harness that spawns the engine CLI. When set, the
     # script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before
@@ -3794,6 +3807,45 @@ tools:
 
       # Maximum number of bounded-query invocations allowed per run. When omitted AWF
       # uses its default.
+      # (optional)
+      max-invocations: 1
+
+    # (optional)
+    bounded-agents:
+      private-repos: []
+        # Array items:
+          repo: "example-value"
+
+          sensitivity: "public"
+
+      # (optional)
+      runtime: "docker"
+
+      engine: "copilot"
+
+      model: "example-value"
+
+      # (optional)
+      timeout: 1
+
+      # (optional)
+      memory-limit: "example-value"
+
+      # (optional)
+      cpu-limit: "example-value"
+
+      # (optional)
+      pids-limit: 1
+
+      # (optional)
+      tmpfs-limit: "example-value"
+
+      # (optional)
+      max-output-bytes: 1
+
+      # (optional)
+      max-task-bytes: 1
+
       # (optional)
       max-invocations: 1
 
@@ -8668,7 +8720,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: request_review (default),
     # blocked, allowed, or fallback-to-issue — or a GitHub Actions expression for
-    # reusable workflows. Object form: { policy, exclude } to customize the
+    # reusable workflows. Object form: { policy, exclude } to customise the
     # protected-file set.
     # (optional)
     # Accepted formats:
@@ -8684,7 +8736,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed',
     # 'fallback-to-issue', or 'request_review' at runtime. Use in reusable
-    # workflow_call workflows to parameterize the policy per caller.
+    # workflow_call workflows to parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -8764,7 +8816,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -15141,7 +15193,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
     # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
-    # Object form: { policy, exclude } to customize the protected-file set.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # Accepted formats:
 
@@ -15154,7 +15206,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
     # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterize the policy per caller.
+    # parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -15216,7 +15268,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -18333,7 +18385,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behavior when no files match: 'error' (default) or 'ignore'
+      # Behaviour when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 
@@ -20003,6 +20055,24 @@ observability:
       # omitted to use the default audience.
       # (optional)
       audience: "example-value"
+
+    # Exchange a GitHub Actions OIDC token for a cloud access token before OTLP
+    # export. Google Workload Identity Federation is currently supported.
+    # (optional)
+    workload-identity:
+      # Cloud workload identity provider.
+      provider: "google"
+
+      # Google Workload Identity Provider resource name (e.g.
+      # projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER).
+      # The GitHub OIDC audience (https://iam.googleapis.com/...) and Google STS
+      # audience (//iam.googleapis.com/...) are derived from it; either fully-qualified
+      # form is also accepted.
+      audience: "example-value"
+
+      # Optional Google service account email to impersonate after STS token exchange.
+      # (optional)
+      service-account: "example-value"
 
 # Rate limiting configuration to restrict how frequently users can trigger the
 # workflow. Helps prevent abuse and resource exhaustion from programmatically

@@ -174,6 +174,8 @@ type AWFConfigFile struct {
 	// cross-repository private data access. Omitted when not configured.
 	BoundedQueries *AWFBoundedQueriesConfig `json:"boundedQueries,omitempty"`
 
+	BoundedAgents *AWFBoundedAgentsConfig `json:"boundedAgents,omitempty"`
+
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
 
@@ -227,6 +229,27 @@ type AWFBoundedQueryPrivateRepo struct {
 
 	// Sensitivity is the confidentiality classification.
 	// Accepted values: "public", "internal", "confidential", "sealed".
+	Sensitivity string `json:"sensitivity"`
+}
+
+type AWFBoundedAgentsConfig struct {
+	Enabled        bool                          `json:"enabled"`
+	PrivateRepos   []*AWFBoundedAgentPrivateRepo `json:"privateRepos,omitempty"`
+	Runtime        string                        `json:"runtime,omitempty"`
+	Engine         string                        `json:"engine"`
+	Model          string                        `json:"model"`
+	Timeout        int                           `json:"timeout,omitempty"`
+	MemoryLimit    string                        `json:"memoryLimit,omitempty"`
+	CPULimit       string                        `json:"cpuLimit,omitempty"`
+	PidsLimit      int                           `json:"pidsLimit,omitempty"`
+	TmpfsLimit     string                        `json:"tmpfsLimit,omitempty"`
+	MaxOutputBytes int                           `json:"maxOutputBytes,omitempty"`
+	MaxTaskBytes   int                           `json:"maxTaskBytes,omitempty"`
+	MaxInvocations int                           `json:"maxInvocations,omitempty"`
+}
+
+type AWFBoundedAgentPrivateRepo struct {
+	Repo        string `json:"repo"`
 	Sensitivity string `json:"sensitivity"`
 }
 
@@ -748,6 +771,19 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			awfConfigLog.Printf("Skipping boundedQueries: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFBoundedQueriesMinVersion)
 		}
 	}
+	if ba := extractBoundedAgentsConfig(config.WorkflowData); ba != nil {
+		if awfSupportsBoundedAgents(firewallConfig) {
+			awfConfig.BoundedAgents = ba
+			if apiProxy.Targets == nil {
+				apiProxy.Targets = make(map[string]*AWFAPITargetConfig)
+			}
+			if _, configured := apiProxy.Targets["copilot"]; !configured {
+				apiProxy.Targets["copilot"] = &AWFAPITargetConfig{}
+			}
+			awfConfig.APIProxy = apiProxy
+			awfConfigLog.Printf("Bounded agents section: %d private repo(s)", len(ba.PrivateRepos))
+		}
+	}
 
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {
@@ -967,6 +1003,7 @@ func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesC
 	if workflowData == nil {
 		return nil
 	}
+
 	if workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
 		return nil
 	}
@@ -996,6 +1033,41 @@ func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesC
 	}
 
 	return awfBQ
+}
+
+func extractBoundedAgentsConfig(workflowData *WorkflowData) *AWFBoundedAgentsConfig {
+	if workflowData == nil || workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
+		return nil
+	}
+	ba := workflowData.ParsedTools.GitHub.BoundedAgents
+	if ba == nil {
+		return nil
+	}
+	result := &AWFBoundedAgentsConfig{
+		Enabled: true, Runtime: ba.Runtime, Engine: ba.Engine, Model: ba.Model,
+		MemoryLimit: ba.MemoryLimit, CPULimit: ba.CPULimit, TmpfsLimit: ba.TmpfsLimit,
+	}
+	if ba.Timeout != nil {
+		result.Timeout = *ba.Timeout
+	}
+	if ba.PidsLimit != nil {
+		result.PidsLimit = *ba.PidsLimit
+	}
+	if ba.MaxOutputBytes != nil {
+		result.MaxOutputBytes = *ba.MaxOutputBytes
+	}
+	if ba.MaxTaskBytes != nil {
+		result.MaxTaskBytes = *ba.MaxTaskBytes
+	}
+	if ba.MaxInvocations != nil {
+		result.MaxInvocations = *ba.MaxInvocations
+	}
+	for _, repo := range ba.PrivateRepos {
+		result.PrivateRepos = append(result.PrivateRepos, &AWFBoundedAgentPrivateRepo{
+			Repo: repo.Repo, Sensitivity: repo.Sensitivity,
+		})
+	}
+	return result
 }
 
 // getRunnerTopology extracts the runner topology string from WorkflowData.
