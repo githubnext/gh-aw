@@ -58,9 +58,9 @@ engine:
 
         const gatewayOutputPath = requireEnvVar("MCP_GATEWAY_OUTPUT");
         const workspace = requireEnvVar("GITHUB_WORKSPACE");
-        const hostDomain = process.env.MCP_GATEWAY_HOST_DOMAIN || "localhost";
+        const gatewayDomain = process.env.MCP_GATEWAY_DOMAIN || "host.docker.internal";
         const gatewayPort = requireEnvVar("MCP_GATEWAY_PORT");
-        const gatewayURL = `http://${hostDomain}:${gatewayPort}`;
+        const gatewayURL = `http://${gatewayDomain}:${gatewayPort}`;
 
         let cliServers;
         try {
@@ -127,7 +127,8 @@ engine:
         }
         fail(spawnSync("tar", ["-xzf", archive, "-C", installDir], { stdio: "inherit" }), "Kiro CLI extraction");
 
-        const executable = join(installDir, "kirocli", "bin", "kiro-cli");
+        const binDir = join(installDir, "kirocli", "bin");
+        const executable = join(binDir, "kiro-cli");
         if (!existsSync(executable)) throw new Error("Kiro CLI executable was not found in the release archive");
         fail(spawnSync(executable, ["--version"], { stdio: "inherit" }), "Kiro CLI verification");
 
@@ -143,7 +144,7 @@ engine:
 
         fail(spawnSync(executable, [...commandArgs, "--model", model, prompt], {
           cwd: process.env.GITHUB_WORKSPACE,
-          env: process.env,
+          env: { ...process.env, PATH: `${binDir}:${process.env.PATH || ""}` },
           stdio: "inherit",
         }), "Kiro CLI execution");
       } catch (error) {
