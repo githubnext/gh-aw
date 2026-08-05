@@ -267,7 +267,7 @@ test-impacted-js: build-js
 		echo "Set BASE_REF explicitly, for example: make test-impacted-js BASE_REF=origin/main"; \
 		exit 1; \
 	fi; \
-	CHANGED_JS_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"..HEAD -- actions/setup/js eslint-factory | grep -E '\.(cjs|js|mjs|ts)$$' || true); \
+	CHANGED_JS_FILES=$$({ git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT" -- actions/setup/js eslint-factory; git ls-files --others --exclude-standard -- actions/setup/js eslint-factory; } | sort -u | grep -E '\.(cjs|js|mjs|ts)$$' || true); \
 	if [ -z "$$CHANGED_JS_FILES" ]; then \
 		echo "No changed JavaScript/TypeScript files under actions/setup/js or eslint-factory; skipping impacted JS tests."; \
 		exit 0; \
@@ -293,7 +293,7 @@ test-impacted-go:
 		echo "Set BASE_REF explicitly, for example: make test-impacted-go BASE_REF=origin/main"; \
 		exit 1; \
 	fi; \
-	CHANGED_GO_FILES=$$(git diff --name-only --diff-filter=ACMR "$$BASE_COMMIT"..HEAD | grep -E '\.go$$' || true); \
+	CHANGED_GO_FILES=$$({ git diff --name-only --diff-filter=ACDMR "$$BASE_COMMIT"; git ls-files --others --exclude-standard; } | sort -u | grep -E '\.go$$' || true); \
 	if [ -z "$$CHANGED_GO_FILES" ]; then \
 		echo "No changed Go files; skipping impacted Go tests."; \
 		exit 0; \
@@ -344,11 +344,22 @@ test-impacted-go:
 		CHANGED_GO_PACKAGES="$$COVERAGE_GO_PACKAGES"; \
 		echo "Running impacted Go unit tests from CI coverage correlation: $$CHANGED_GO_PACKAGES"; \
 	else \
-		CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do dirname "$$file"; done | sort -u | sed 's|^|./|'); \
+		CHANGED_GO_PACKAGES=$$(printf '%s\n' "$$CHANGED_GO_FILES" | while IFS= read -r file; do \
+			dir=$$(dirname "$$file"); \
+			if find "$$dir" -maxdepth 1 -type f -name '*.go' -print -quit 2>/dev/null | grep -q .; then \
+				printf './%s\n' "$$dir"; \
+			fi; \
+		done | sort -u); \
+		if [ -z "$$CHANGED_GO_PACKAGES" ]; then \
+			echo "No remaining Go packages for the changed files; skipping impacted Go tests."; \
+			exit 0; \
+		fi; \
 		echo "Running impacted Go unit tests in changed-file packages: $$CHANGED_GO_PACKAGES"; \
 	fi; \
 	SELECTED_GO_TESTS=""; \
-	if command -v gh >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then \
+	if [ "$(CI_COVERAGE_ENABLED)" != "1" ]; then \
+		echo "CI timing correlation disabled; using local impacted-test sampling."; \
+	elif command -v gh >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then \
 		UNIT_RUN_ID="$(CI_UNIT_RUN_ID)"; \
 		if [ -z "$$UNIT_RUN_ID" ]; then \
 			UNIT_RUN_ID=$$(gh run list --workflow "$(CI_UNIT_WORKFLOW_FILE)" --branch "$$COVERAGE_SOURCE_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true); \
@@ -450,7 +461,8 @@ test-impacted-go:
 
 # Test both impacted JavaScript and Go unit tests
 .PHONY: test-impacted
-test-impacted: test-impacted-js test-impacted-go
+test-impacted:
+	@$(MAKE) --no-print-directory -j2 test-impacted-js test-impacted-go
 
 # Install JavaScript dependencies
 .PHONY: deps-js
@@ -1313,19 +1325,18 @@ sbom:
 agent-finish: deps-dev fmt lint build build-wasm test-all validate-otel-contract fix recompile dependabot generate-schema-docs generate-agent-factory generate-llms-txt security-scan
 	@echo "Agent finished tasks successfully."
 
-# Fast pre-PR gate — run before every intermediate report_progress call.
-# Skips test-unit for speed; use agent-report-progress for the final report_progress call.
-# stale-lock guard (fast, no binary) + build + fmt + lint + workflow drift check.
+# Change-scoped pre-PR gate — run before every intermediate report_progress call.
+# The driver runs independent lint checks in parallel after formatting and build.
 .PHONY: agent-report-progress-no-test
-agent-report-progress-no-test: check-stale-lock-files build fmt lint check-workflow-drift
-	@echo "Pre-PR validation passed (zero lint errors, lock files in sync). Safe to call report_progress."
+agent-report-progress-no-test:
+	@bash scripts/agent-report-progress.sh
 
-# Full pre-PR gate with tests — run once before the final report_progress call.
-# Includes formatting + lint validation to prevent lint-fix PR churn:
-# stale-lock guard (fast, no binary) + build + fmt + lint + test-unit + workflow drift check.
+# Change-scoped pre-PR gate with impacted tests — run once before the final
+# report_progress call. Independent lint and test groups run in parallel; full
+# workflow recompilation remains isolated because it temporarily rewrites files.
 .PHONY: agent-report-progress
-agent-report-progress: check-stale-lock-files build fmt lint test-unit check-workflow-drift
-	@echo "Pre-PR validation passed (zero lint errors, lock files in sync, tests pass). Safe to call report_progress."
+agent-report-progress:
+	@bash scripts/agent-report-progress.sh --with-tests
 
 # Extended pre-PR gate with lock-file-only linting.
 .PHONY: agent-report-progress-lint
@@ -1426,8 +1437,8 @@ help:
 	@echo "  clean-docs       - Clean documentation artifacts (dist, node_modules, .astro)"
 
 	@echo "  agent-finish                - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
-	@echo "  agent-report-progress-no-test - Fast pre-PR gate (no test-unit): check-stale-lock-files + build + fmt + lint + check-workflow-drift"
-	@echo "  agent-report-progress       - Full pre-PR gate (final save only): same as above + test-unit"
+	@echo "  agent-report-progress-no-test - Fast change-scoped pre-PR gate without tests"
+	@echo "  agent-report-progress       - Change-scoped pre-PR gate with impacted Go tests"
 	@echo "  agent-report-progress-lint  - Full pre-PR gate + gh aw lint lock-file check"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"

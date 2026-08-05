@@ -22,29 +22,25 @@ args: [aw, mcp-server]
 
 ## Configuration Options
 
-### HTTP Server Mode
-
-Run with HTTP/SSE transport using `--port`:
+Use `--port` to run over HTTP/SSE:
 
 ```bash wrap
 gh aw mcp-server --port 8080
 ```
 
-### Actor Validation
-
-Control access to logs and audit tools based on repository permissions using `--validate-actor`:
+Use `--validate-actor` to require repository permission checks before exposing log and audit capabilities:
 
 ```bash wrap
 gh aw mcp-server --validate-actor
 ```
 
-When enabled, the logs and audit tools require write/maintain/admin repository access. The server reads `GITHUB_ACTOR` and `GITHUB_REPOSITORY` env vars and caches permission check results for 1 hour. Without validation (default), all tools are available without checks.
+When validation is enabled, `logs`, `audit`, and `audit-diff` require write, maintain, or admin access. The server reads `GITHUB_ACTOR` and `GITHUB_REPOSITORY`, caches permission results in memory for 1 hour, and never falls back to open access if `GITHUB_ACTOR` is missing.
 
 > [!WARNING]
-> With `--validate-actor`, the server does **not** fall back to open access when `GITHUB_ACTOR` is unset. The privileged tools stay mounted, but `logs`, `audit`, and `audit-diff` return permission-denied errors until `GITHUB_ACTOR` is provided.
+> With `--validate-actor`, privileged tools remain mounted, but `logs`, `audit`, and `audit-diff` return permission-denied errors until `GITHUB_ACTOR` is provided.
 
 > [!NOTE]
-> The permission cache is in-memory only. Cached entries expire after 1 hour, and restarting `gh aw mcp-server` clears them immediately. There is currently no manual cache-flush command, so permission or repository-role changes are picked up either after TTL expiry or after a server restart.
+> The permission cache is in-memory only. Restarting `gh aw mcp-server` clears it immediately, and there is no manual cache-flush command.
 
 ## Configuring with GitHub Copilot Agent
 
@@ -66,13 +62,13 @@ To add the MCP server in the interactive Copilot CLI session, start `copilot` an
 
 ## Configuring with VS Code
 
-Configure VS Code Copilot Chat to use gh-aw MCP server:
+Run `gh aw init` to configure VS Code Copilot Chat:
 
 ```bash wrap
 gh aw init
 ```
 
-This creates `.github/mcp.json` and `.github/workflows/copilot-setup-steps.yml`. MCP server integration is enabled by default. Use `gh aw init --no-mcp` to skip MCP configuration.
+This creates `.github/mcp.json` and `.github/workflows/copilot-setup-steps.yml`. MCP server integration is enabled by default; use `gh aw init --no-mcp` to skip it.
 
 Alternatively, create `.github/mcp.json` manually:
 
@@ -112,120 +108,28 @@ Pass your GitHub token via the `GITHUB_TOKEN` environment variable. Add `--valid
 
 ## Available Tools
 
-The MCP server exposes the following tools for workflow management:
+The MCP server exposes these workflow-management tools:
 
-### `status`
-
-Show status of agentic workflow files and workflows.
-
-- `pattern` (optional): Filter workflows by name pattern
-- `jq` (optional): Apply jq filter to JSON output
-
-Returns a JSON array with `workflow`, `agent`, `compiled`, `status`, and `time_remaining` fields.
-
-### `compile`
-
-Compile Markdown workflows to GitHub Actions YAML with optional static analysis.
-
-- `workflows` (optional): Array of workflow files to compile (empty for all)
-- `strict` (optional): Enforce strict mode validation (default: true)
-- `fix` (optional): Apply automatic codemod fixes before compiling
-- `zizmor`, `poutine`, `actionlint`, `grant` (optional): Run security scanners/linters
-- `jq` (optional): Apply jq filter to JSON output
-
-Returns a JSON array with `workflow`, `valid`, `errors`, `warnings`, and `compiled_file` fields.
+| Tool | Purpose | Key options | Returns |
+| --- | --- | --- | --- |
+| `status` | Show workflow and compiled-file status. | `pattern`, `jq` | JSON array with `workflow`, `agent`, `compiled`, `status`, `time_remaining`. |
+| `compile` | Compile Markdown workflows to GitHub Actions YAML with optional static analysis. | `workflows`, `strict`, `fix`, `zizmor`, `poutine`, `actionlint`, `grant`, `jq` | JSON array with `workflow`, `valid`, `errors`, `warnings`, `compiled_file`. |
+| `logs` | Download and analyze workflow logs with timeout and token guardrails. | `workflow_name`, `count`, `start_date`, `end_date`, `engine`, `firewall`, `no_firewall`, `branch`, `after_run_id`, `before_run_id`, `artifacts`, `timeout`, `max_tokens`, `jq` | JSON run data and metrics, or continuation parameters when a timeout occurs. |
+| `audit` | Audit one or more workflow runs; with multiple runs, compare each run to the first. | `run_ids_or_urls` (preferred), `run_id`, deprecated `run_id_or_url`, plus `artifacts`, `experiment`, `variant`, `jq` | Single-run JSON audit or multi-run diff JSON. |
+| `checks` | Normalize CI check state for a pull request. | `pr_number`, `repo` | JSON with `state`, `required_state`, `pr_number`, `head_sha`, `check_runs`, `statuses`, `total_count`. |
+| `mcp-inspect` | List MCP servers in workflows and inspect their tools, resources, and roots. | `workflow_file`, `server`, `tool` | Formatted text output. |
+| `add` | Add workflows from remote repositories to `.github/workflows`. | `workflows`, `number`, `name` | Added workflow files. |
+| `update` | Update sourced workflows and check for gh-aw updates. | `workflows`, `major`, `force` | Updated workflow files and version checks. |
+| `fix` | Apply automatic codemod-style fixes. | `workflows`, `write`, `list_codemods` | Dry-run or written fixes. |
 
 > [!NOTE]
-> The `actionlint`, `zizmor`, `poutine`, and `grant` scanners use Docker images that download on first use. If images are still being pulled, the tool returns a "Docker images are being downloaded. Please wait and retry the compile command." message. Wait 15–30 seconds, then retry the request.
+> The `actionlint`, `zizmor`, `poutine`, and `grant` scanners used by `compile` pull Docker images on first use. If you see a "Docker images are being downloaded" message, wait 15–30 seconds and retry.
 
-### `logs`
+For `audit`, each run identifier may be a numeric run ID, a run URL, a job URL, or a job URL with a step anchor such as `https://github.com/owner/repo/actions/runs/123/job/456#step:7:1`.
 
-Download and analyze workflow logs with timeout handling and size guardrails.
+For `checks`, normalized states are `success`, `failed`, `pending`, `no_checks`, and `policy_blocked`. Use `required_state` as the authoritative CI verdict when optional third-party deployments are present.
 
-- `workflow_name` (optional): Workflow name (empty for all)
-- `count` (optional): Number of runs to download (default: 100)
-- `start_date`, `end_date` (optional): Date range filter (YYYY-MM-DD or delta like `-1w`)
-- `engine`, `firewall`, `no_firewall`, `branch` (optional): Run filters
-- `after_run_id`, `before_run_id` (optional): Pagination by run ID
-- `artifacts` (array of strings, optional): Artifact sets to download. Valid values: `all`, `activation`, `agent`, `detection`, `experiment`, `firewall`, `github-api`, `mcp`, `usage`. Defaults to `usage`.
-- `timeout` (optional): Max minutes to download (default: auto-scales with count in the MCP server, rounded up in 40-run increments; e.g. 1 minute up to 40 runs, 2 minutes for 41-80, 3 minutes for 81-120). For large date-range fetches set this explicitly (e.g. `10`) and also configure `engine.mcp.tool-timeout: 10m` in the workflow frontmatter so the MCP gateway allows enough time.
-- `max_tokens` (optional): Output token guardrail (default: 12000)
-- `jq` (optional): Apply jq filter to JSON output
-
-Returns JSON with workflow run data and metrics, or continuation parameters if timeout occurred.
-
-### `audit`
-
-Investigate one or more workflow runs and generate a detailed report. With a single run, returns a full audit. With two or more runs, the first is the base and the rest are compared against it (diff mode).
-
-At least one of the following run-identifier fields must be supplied:
-
-- `run_ids_or_urls` (array of strings, preferred): One or more run IDs or URLs. Single item produces a detailed audit; multiple items produce a diff against the first.
-- `run_id` (string or number): Alias for a single run identifier. Use this when only one run is being audited.
-- `run_id_or_url` (string or number, deprecated): Original single-run field. Accepted for backward compatibility — prefer `run_ids_or_urls` or `run_id`.
-
-Each identifier accepts a numeric run ID, run URL, job URL, or job URL with a step anchor (for example `https://github.com/owner/repo/actions/runs/123/job/456#step:7:1`).
-
-Optional parameters:
-
-- `artifacts` (array of strings): Artifact sets to download. Valid values: `all`, `activation`, `agent`, `detection`, `firewall`, `github-api`, `mcp`. Defaults to all sets.
-- `experiment` (string): Filter to runs assigned to this experiment name.
-- `variant` (string): Filter to runs assigned this variant. Requires `experiment`.
-- `jq` (optional): Apply jq filter to JSON output.
-
-Single-run returns JSON with `overview`, `metrics`, `jobs`, `downloaded_files`, `missing_tools`, `mcp_failures`, `errors`, `warnings`, `tool_usage`, `firewall_analysis`, and (when present) `experiments`. Multi-run diff returns JSON describing the changes between the base run and each comparison run.
-
-### `checks`
-
-Classify CI check state for a pull request and return a normalized result.
-
-- `pr_number` (required): Pull request number to classify CI checks for
-- `repo` (optional): Repository in `owner/repo` format (defaults to current repository)
-
-Returns JSON with:
-- `state`: Aggregate check state across all check runs and commit statuses
-- `required_state`: State derived from check runs and policy commit statuses only (ignores optional third-party statuses like Vercel/Netlify deployments)
-- `pr_number`, `head_sha`, `check_runs`, `statuses`, `total_count`
-
-Normalized states: `success`, `failed`, `pending`, `no_checks`, `policy_blocked`.
-
-Use `required_state` as the authoritative CI verdict in repos with optional deployment integrations.
-
-### `mcp-inspect`
-
-Inspect MCP servers in workflows and list available tools, resources, and roots.
-
-- `workflow_file` (optional): Workflow file to inspect (empty to list all workflows with MCP servers)
-- `server` (optional): Filter to specific MCP server
-- `tool` (optional): Show detailed info about a specific tool (requires `server`)
-
-Returns formatted text listing MCP servers, their tools/resources/roots, secret availability, and detailed tool info when `tool` is specified.
-
-### `add`
-
-Add workflows from remote repositories to `.github/workflows`.
-
-- `workflows` (required): Array of workflow specs in `owner/repo/workflow-name[@version]` format
-- `number` (optional): Create multiple numbered copies
-- `name` (optional): Name for added workflow (without `.md` extension)
-
-### `update`
-
-Update workflows from their source repositories and check for gh-aw updates.
-
-- `workflows` (optional): Array of workflow IDs to update (empty for all)
-- `major` (optional): Allow major version updates
-- `force` (optional): Force update even if no changes detected
-
-### `fix`
-
-Apply automatic codemod-style fixes to workflow files.
-
-- `workflows` (optional): Array of workflow IDs to fix (empty for all)
-- `write` (optional): Write changes to files (default is dry-run)
-- `list_codemods` (optional): List available codemods and exit
-
-Available codemods: `timeout-minutes-migration`, `network-firewall-migration`, `sandbox-agent-false-removal`, `mcp-scripts-mode-removal`, `steps-run-secrets-to-env`.
+Available `fix` codemods: `timeout-minutes-migration`, `network-firewall-migration`, `sandbox-agent-false-removal`, `mcp-scripts-mode-removal`, `steps-run-secrets-to-env`.
 
 ## Using GH-AW as an MCP from an Agentic Workflow
 

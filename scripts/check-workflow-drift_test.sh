@@ -22,6 +22,9 @@ EOF
   cat > "$repo_dir/.github/workflows/example.lock.yml" <<'EOF'
 lock: original
 EOF
+  cat > "$repo_dir/.github/workflows/agentic_commands.yml" <<'EOF'
+commands: original
+EOF
 }
 
 create_fake_binary() {
@@ -41,6 +44,9 @@ case "${FAKE_COMPILE_MODE:-stable}" in
   mutate)
     cat > .github/workflows/example.lock.yml <<'OUT'
 lock: mutated
+OUT
+    cat > .github/workflows/agentic_commands.yml <<'OUT'
+commands: mutated
 OUT
     ;;
   fail)
@@ -90,10 +96,11 @@ elif grep -q ".github/workflows/example.lock.yml" "$TEST2_OUTPUT" \
   && grep -Fq ".github/workflows/*.md" "$TEST2_OUTPUT" \
   && grep -q "make recompile" "$TEST2_OUTPUT" \
   && grep -q "report_progress" "$TEST2_OUTPUT" \
-  && grep -q "^lock: original$" "$TEST_REPO/.github/workflows/example.lock.yml"; then
-  pass "drift is reported and the original file is restored"
+  && grep -q "^lock: original$" "$TEST_REPO/.github/workflows/example.lock.yml" \
+  && grep -q "^commands: original$" "$TEST_REPO/.github/workflows/agentic_commands.yml"; then
+  pass "drift is reported and all generated files are restored"
 else
-  fail "drift output or restoration was incorrect" "$(cat "$TEST2_OUTPUT"; echo; cat "$TEST_REPO/.github/workflows/example.lock.yml")"
+  fail "drift output or restoration was incorrect" "$(cat "$TEST2_OUTPUT"; echo; cat "$TEST_REPO/.github/workflows/example.lock.yml"; cat "$TEST_REPO/.github/workflows/agentic_commands.yml")"
 fi
 
 # Test 3: missing binary gets a targeted error.

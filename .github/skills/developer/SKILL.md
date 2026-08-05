@@ -31,7 +31,7 @@ Run validation in tiers — catch compile errors early, defer slow tests to the 
    ```bash
    make agent-report-progress-no-test
    ```
-3. **Before the FINAL `report_progress` call** (slower, once per session — includes test-unit)
+3. **Before the FINAL `report_progress` call** (change-scoped, includes impacted Go tests)
    ```bash
    make agent-report-progress
    ```
@@ -40,9 +40,9 @@ Run validation in tiers — catch compile errors early, defer slow tests to the 
    make agent-finish
    ```
 
-> **Key rule:** Run `test-unit` only before the **final** `report_progress` call, not before intermediate saves. Each unnecessary invocation adds 120+ seconds to total validation time.
+> **Key rule:** Run `test-unit` only before the **final** `report_progress` call, not before intermediate saves. The pre-PR targets scope formatting, linting, tests, and workflow drift checks to the branch changes.
 
-> **Timeout budget:** `make test-unit` is expected to take up to 120 seconds. If it exceeds that, use `make test-impacted-go` to run only tests for packages affected by the current branch's changes.
+> **Timeout budget:** `make agent-report-progress` should normally finish in under 30 seconds. Workflow source or compiler changes additionally run the full workflow drift check. Set `TEST_UNIT_RUN_FULL=1` only when the full Go suite is required.
 
 ### Change-type command matrix
 
