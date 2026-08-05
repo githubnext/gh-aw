@@ -164,6 +164,20 @@ func TestBehaviorDefinedEngineHarnessValidatesAuthSecret(t *testing.T) {
 	assert.NotContains(t, step, "GITHUB_MCP_SERVER_TOKEN")
 }
 
+func TestBehaviorDefinedEngineHarnessPassesAuthSecretToAWF(t *testing.T) {
+	def := newHarnessEngineDefinition()
+	def.Auth = []AuthBinding{{Role: "api-key", Secret: "TESTHARNESS_API_KEY"}}
+	engine, err := NewBehaviorDefinedEngine(def)
+	require.NoError(t, err)
+
+	steps := engine.GetExecutionSteps(&WorkflowData{Name: "test"}, "/tmp/test.log")
+	require.Len(t, steps, 2)
+
+	executionStep := strings.Join(steps[1], "\n")
+	assert.Contains(t, executionStep, "TESTHARNESS_API_KEY: ${{ secrets.TESTHARNESS_API_KEY }}")
+	assert.NotContains(t, executionStep, "--exclude-env TESTHARNESS_API_KEY")
+}
+
 // TestBehaviorDefinedEngineNoHarnessScript verifies that engines without harness-script
 // continue to use the direct command execution path (inline prompt substitution).
 func TestBehaviorDefinedEngineNoHarnessScript(t *testing.T) {
