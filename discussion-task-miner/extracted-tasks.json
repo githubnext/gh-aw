@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-05T07:36:00Z",
+  "last_run": "2026-08-05T19:08:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -393,6 +393,42 @@
       "title": "Add fmt.Errorf(%w) error wrapping throughout pkg/workflow/compiler.go",
       "created_at": "2026-08-05T07:36:00Z",
       "status": "created"
+    },
+    {
+      "source_discussion": 50544,
+      "title": "Consolidate 4 duplicated MCP-server-stats structs in pkg/cli into a shared base",
+      "created_at": "2026-08-05T19:08:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50544,
+      "title": "Consolidate 3 duplicated per-tool aggregate call stats structs in pkg/cli",
+      "created_at": "2026-08-05T19:08:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50544,
+      "title": "Strengthen getParsedSchemaDoc return type from any to map[string]any in pkg/parser",
+      "created_at": "2026-08-05T19:08:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50544,
+      "title": "Type BeforeState/AfterState audit fields as MutableItemState instead of map[string]any",
+      "created_at": "2026-08-05T19:08:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50525,
+      "title": "Migrate two tabwriter tables in pkg/cli/logs_format_compact.go to console.RenderTable",
+      "created_at": "2026-08-05T19:08:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50563,
+      "title": "Error message actionability findings - already tracked as #50591/#50592",
+      "created_at": "2026-08-05T19:08:00Z",
+      "status": "skipped_already_filed_upstream"
     }
   ]
 }
