@@ -93,6 +93,16 @@ Use this mode for exploratory testing, persona walkthroughs, and "what workflow 
 - Exit ad hoc evaluation mode only when the user explicitly asks to create, implement, or write the workflow file.
 - End by offering to turn the recommendation into `.github/workflows/<workflow-id>.md` if the user wants to proceed.
 
+### Invocation Surface
+
+Ad hoc evaluation is reached by addressing the `agentic-workflows` custom agent directly in conversation (chat prompt, issue comment, or PR comment) — it is **not** a CLI flag or MCP tool parameter. The `gh aw` CLI and MCP tools (`compile`, `audit`, `status`, `update`, etc.) only manage existing workflow files and do not accept a `prompt`/`scenario`/`query` parameter; passing one will fail with an "Unknown parameter" error. Use the example prompt below instead of trying to script evaluation through a tool call.
+
+### Single-Scenario Evaluation Example
+
+> agentic-workflows evaluate this scenario without creating files: Information Worker — weekly summary of stale documentation files not updated in the last 90 days
+
+Return a single recommendation table using the same fields as the multi-scenario example below (trigger, scope, read tools, safe outputs, permissions, noop condition). Only create `.github/workflows/<workflow-id>.md` if the user then explicitly asks to proceed.
+
 ### Multi-Scenario Evaluation Example
 
 To compare multiple persona or task slices in a single request, use the following prompt format:

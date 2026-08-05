@@ -197,44 +197,6 @@ func TestEngineRegistry_GetAllAgentManifestFolders(t *testing.T) {
 	})
 }
 
-func TestEngineRegistry_GetAllAgentManifestFiles(t *testing.T) {
-	t.Run("result is sorted", func(t *testing.T) {
-		registry := NewEngineRegistry()
-		files := registry.GetAllAgentManifestFiles()
-		for i := 1; i < len(files); i++ {
-			assert.LessOrEqual(t, files[i-1], files[i], "manifest files should be sorted alphabetically")
-		}
-	})
-
-	t.Run("includes engine-specific instruction files", func(t *testing.T) {
-		registry := NewEngineRegistry()
-		files := registry.GetAllAgentManifestFiles()
-		// Known instruction files contributed by built-in engines
-		expectedFiles := []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"}
-		for _, file := range expectedFiles {
-			assert.Contains(t, files, file, "manifest files should include instruction file %q", file)
-		}
-	})
-
-	t.Run("no duplicates in result", func(t *testing.T) {
-		registry := NewEngineRegistry()
-		files := registry.GetAllAgentManifestFiles()
-		seen := make(map[string]struct{})
-		for _, file := range files {
-			assert.NotContains(t, seen, file, "manifest files should not contain duplicates, found %q twice", file)
-			seen[file] = struct{}{}
-		}
-	})
-
-	t.Run("empty registry returns empty slice", func(t *testing.T) {
-		// Use direct struct initialization so there are no engines; this verifies
-		// the empty-input case without interference from built-in engine files.
-		registry := &EngineRegistry{engines: make(map[string]CodingAgentEngine)}
-		files := registry.GetAllAgentManifestFiles()
-		assert.Empty(t, files, "empty registry should return no manifest files")
-	})
-}
-
 // TestAllEnginesEmitTimeoutMinutes verifies that every registered agentic engine
 // emits a timeout-minutes field on the agentic_execution step. This prevents
 // silent 6-hour timeouts when timeout-minutes is not forwarded to the step.

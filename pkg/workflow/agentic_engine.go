@@ -662,20 +662,6 @@ func (r *EngineRegistry) computeAllAgentManifestFolders() []string {
 	return result
 }
 
-// GetAllAgentManifestFiles returns the union of all engines' GetAgentManifestFiles().
-// The returned list is sorted and deduplicated, making the engine implementations the
-// single source of truth for which root-level instruction files the save/restore scripts protect.
-//
-// When created via NewEngineRegistry the result is pre-computed at construction time
-// so subsequent calls are allocation-free.  Registries created directly (e.g. in tests)
-// fall back to computing on demand.
-func (r *EngineRegistry) GetAllAgentManifestFiles() []string {
-	if r.cachedManifestFiles != nil {
-		return r.cachedManifestFiles
-	}
-	return r.computeAllAgentManifestFiles()
-}
-
 // computeAllAgentManifestFiles computes the manifest files list from the registered engines.
 // Called once during NewEngineRegistry to populate cachedManifestFiles.
 func (r *EngineRegistry) computeAllAgentManifestFiles() []string {
