@@ -14,6 +14,7 @@ import (
 )
 
 func TestDetectTaskDomain(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			WorkflowName: "Weekly Research Report",
@@ -29,6 +30,7 @@ func TestDetectTaskDomain(t *testing.T) {
 }
 
 func TestBuildAgenticAssessmentsFlagsPotentialDeterministicAlternative(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			WorkflowName: "Issue Triage",
@@ -53,6 +55,7 @@ func TestBuildAgenticAssessmentsFlagsPotentialDeterministicAlternative(t *testin
 }
 
 func TestBuildAgenticAssessmentsFlagsResourceHeavyRun(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			WorkflowName:   "Deep Research",
@@ -87,6 +90,7 @@ func TestBuildAgenticAssessmentsFlagsResourceHeavyRun(t *testing.T) {
 }
 
 func TestBuildAuditDataIncludesAgenticAnalysis(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			DatabaseID:   7,
@@ -110,6 +114,7 @@ func TestBuildAuditDataIncludesAgenticAnalysis(t *testing.T) {
 }
 
 func TestComputeAgenticFraction(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		run      WorkflowRun
@@ -150,6 +155,7 @@ func TestComputeAgenticFraction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pr := ProcessedRun{Run: tt.run}
 			alpha := computeAgenticFraction(pr)
 			assert.GreaterOrEqual(t, alpha, tt.minAlpha, "agentic fraction should be >= %v", tt.minAlpha)
@@ -159,6 +165,7 @@ func TestComputeAgenticFraction(t *testing.T) {
 }
 
 func TestBuildBehaviorFingerprintIncludesAgenticFraction(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			Turns:          8,
@@ -179,6 +186,7 @@ func TestBuildBehaviorFingerprintIncludesAgenticFraction(t *testing.T) {
 }
 
 func TestBuildAgenticAssessmentsFlagsPartiallyReducible(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			WorkflowName:   "Data Collector",
@@ -211,6 +219,7 @@ func TestBuildAgenticAssessmentsFlagsPartiallyReducible(t *testing.T) {
 }
 
 func TestBuildAgenticAssessmentsFlagsModelDowngrade(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			WorkflowName:   "Issue Triage Moderate",
@@ -242,6 +251,7 @@ func TestBuildAgenticAssessmentsFlagsModelDowngrade(t *testing.T) {
 }
 
 func TestActionMinutesComputedFromDuration(t *testing.T) {
+	t.Parallel()
 	run := WorkflowRun{
 		Duration: 3*time.Minute + 30*time.Second,
 	}
@@ -253,11 +263,13 @@ func TestActionMinutesComputedFromDuration(t *testing.T) {
 }
 
 func TestPrettifyAssessmentKindNewKinds(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "Partially Reducible To Deterministic", prettifyAssessmentKind("partially_reducible"))
 	assert.Equal(t, "Cheaper Model Available", prettifyAssessmentKind("model_downgrade_available"))
 }
 
 func TestBuildToolUsageInfoAggregatesAndSorts(t *testing.T) {
+	t.Parallel()
 	metrics := LogMetrics{
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "bash", CallCount: 3, MaxInputSize: 100, MaxOutputSize: 200, MaxDuration: 1 * time.Second},
@@ -283,11 +295,13 @@ func TestBuildToolUsageInfoAggregatesAndSorts(t *testing.T) {
 }
 
 func TestBuildToolUsageInfoEmpty(t *testing.T) {
+	t.Parallel()
 	result := buildToolUsageInfo(LogMetrics{})
 	assert.Empty(t, result, "empty metrics should produce empty tool usage")
 }
 
 func TestBuildToolUsageInfoSortOrderTieBreak(t *testing.T) {
+	t.Parallel()
 	metrics := LogMetrics{
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "zebra_tool", CallCount: 2},
@@ -303,6 +317,7 @@ func TestBuildToolUsageInfoSortOrderTieBreak(t *testing.T) {
 }
 
 func TestBuildAuditDataToolUsageMatchesBuildToolUsageInfo(t *testing.T) {
+	t.Parallel()
 	metrics := LogMetrics{
 		ToolCalls: []workflow.ToolCallInfo{
 			{Name: "bash", CallCount: 4, MaxInputSize: 100, MaxOutputSize: 200},
@@ -327,6 +342,7 @@ func TestBuildAuditDataToolUsageMatchesBuildToolUsageInfo(t *testing.T) {
 }
 
 func TestMergeMCPToolUsageInfoUsesSummaryWhenMetricsToolCallsEmpty(t *testing.T) {
+	t.Parallel()
 	merged := mergeMCPToolUsageInfo(nil, &MCPToolUsageData{
 		Summary: []MCPToolSummary{
 			{ServerName: "safeoutputs", ToolName: "create_discussion", CallCount: 2, MaxInputSize: 50, MaxOutputSize: 1200},
@@ -341,6 +357,7 @@ func TestMergeMCPToolUsageInfoUsesSummaryWhenMetricsToolCallsEmpty(t *testing.T)
 }
 
 func TestMergeMCPToolUsageInfoFallsBackToToolCalls(t *testing.T) {
+	t.Parallel()
 	merged := mergeMCPToolUsageInfo(nil, &MCPToolUsageData{
 		ToolCalls: []MCPToolCall{
 			{ServerName: "safeoutputs", ToolName: "create_discussion", InputSize: 20, OutputSize: 200},
@@ -362,6 +379,7 @@ func TestMergeMCPToolUsageInfoFallsBackToToolCalls(t *testing.T) {
 // computed the fingerprint before updating result.Run.Turns from extracted metrics,
 // causing different fingerprint values between the logs and audit tools for the same run.
 func TestDeriveRunAgenticAnalysisFingerprintConsistency(t *testing.T) {
+	t.Parallel()
 	const metricsTurns = 12
 
 	logMetrics := LogMetrics{

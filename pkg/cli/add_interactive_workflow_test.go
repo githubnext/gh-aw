@@ -12,6 +12,7 @@ import (
 )
 
 func TestGetWorkflowStatuses(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		pattern      string
@@ -42,6 +43,7 @@ func TestGetWorkflowStatuses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// This function calls gh CLI, so it will likely error in tests
 			// We just verify it doesn't panic
 			statuses, err := findWorkflowsByFilenamePattern(tt.pattern, tt.repoOverride, tt.verbose)
@@ -63,6 +65,7 @@ func TestGetWorkflowStatuses(t *testing.T) {
 }
 
 func TestCheckStatusAndOfferRun_ContextCancelled(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 

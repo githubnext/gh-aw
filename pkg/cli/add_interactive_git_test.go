@@ -14,6 +14,7 @@ import (
 )
 
 func TestParseDefaultBranchFromLsRemote(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -87,6 +88,7 @@ func TestParseDefaultBranchFromLsRemote(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := parseDefaultBranchFromLsRemote(tt.input)
 			assert.Equal(t, tt.expected, result, "parsed branch should match expected")
 			// Ensure we never return something that looks like a git ref prefix
@@ -99,6 +101,7 @@ func TestParseDefaultBranchFromLsRemote(t *testing.T) {
 // TestParseDefaultBranchFromLsRemoteWithRealGit creates real git repositories
 // and runs actual `git ls-remote --symref` to verify parsing against real git output.
 func TestParseDefaultBranchFromLsRemoteWithRealGit(t *testing.T) {
+	t.Parallel()
 	// Skip if git is not available
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found in PATH")
@@ -116,6 +119,7 @@ func TestParseDefaultBranchFromLsRemoteWithRealGit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a bare repo to serve as "origin"
 			bareDir := t.TempDir()
 			runGit(t, bareDir, "init", "--bare", "--initial-branch="+tt.defaultBranch)
@@ -182,6 +186,7 @@ func runGitIn(t *testing.T, dir string, args ...string) {
 }
 
 func TestBuildMergeOptions(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		mergeFailed   bool
@@ -210,6 +215,7 @@ func TestBuildMergeOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			options := buildMergeOptions(tt.mergeFailed, tt.userReviewing)
 			values := make([]mergeAction, 0, len(options))
 			for _, opt := range options {

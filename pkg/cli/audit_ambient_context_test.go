@@ -13,6 +13,7 @@ import (
 )
 
 func TestBuildAuditDataIncludesAmbientContext(t *testing.T) {
+	t.Parallel()
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
 			DatabaseID:   1,

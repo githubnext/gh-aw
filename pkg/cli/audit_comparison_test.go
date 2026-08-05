@@ -11,6 +11,7 @@ import (
 )
 
 func TestBuildAuditComparison_NoBaseline(t *testing.T) {
+	t.Parallel()
 	comparison := buildAuditComparison("success", auditComparisonSnapshot{Turns: 4, Posture: "read_only"}, nil, nil)
 	require.NotNil(t, comparison, "comparison should still be returned when no baseline exists")
 	assert.False(t, comparison.BaselineFound, "baseline should be marked unavailable")
@@ -20,6 +21,7 @@ func TestBuildAuditComparison_NoBaseline(t *testing.T) {
 }
 
 func TestBuildAuditComparison_RiskyChange(t *testing.T) {
+	t.Parallel()
 	baselineRun := &WorkflowRun{
 		DatabaseID:   100,
 		WorkflowName: "triage",
@@ -54,6 +56,7 @@ func TestBuildAuditComparison_RiskyChange(t *testing.T) {
 }
 
 func TestBuildAuditComparison_StableRun(t *testing.T) {
+	t.Parallel()
 	baselineRun := &WorkflowRun{DatabaseID: 99, WorkflowName: "triage", Conclusion: "success", CreatedAt: time.Now().Add(-time.Hour)}
 	comparison := buildAuditComparison(
 		"success",
@@ -69,6 +72,7 @@ func TestBuildAuditComparison_StableRun(t *testing.T) {
 }
 
 func TestBuildAuditComparison_FailedRunIsRisky(t *testing.T) {
+	t.Parallel()
 	baselineRun := &WorkflowRun{DatabaseID: 101, WorkflowName: "triage", Conclusion: "success", CreatedAt: time.Now().Add(-time.Hour)}
 	comparison := buildAuditComparison(
 		"failure",
@@ -86,6 +90,7 @@ func TestBuildAuditComparison_FailedRunIsRisky(t *testing.T) {
 }
 
 func TestSelectAuditComparisonBaselinePrefersCohortMatchOverRecency(t *testing.T) {
+	t.Parallel()
 	current := ProcessedRun{
 		Run: WorkflowRun{
 			Event: "issues",
@@ -143,6 +148,7 @@ func TestSelectAuditComparisonBaselinePrefersCohortMatchOverRecency(t *testing.T
 }
 
 func TestScoreAuditComparisonCandidateFallsBackToLatestSuccess(t *testing.T) {
+	t.Parallel()
 	current := ProcessedRun{Run: WorkflowRun{Event: "issues"}}
 	candidate := auditComparisonCandidate{
 		Run: WorkflowRun{DatabaseID: 300, CreatedAt: time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC), Event: "push"},

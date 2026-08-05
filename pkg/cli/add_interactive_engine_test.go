@@ -11,6 +11,7 @@ import (
 )
 
 func TestApplyCopilotAuthMethodChoice(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		authMethod      string
@@ -34,6 +35,7 @@ func TestApplyCopilotAuthMethodChoice(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cfg := &AddInteractiveConfig{}
 			cfg.applyCopilotAuthMethodChoice(tc.authMethod)
 			assert.Equal(t, tc.wantCopilotReqs, cfg.UseCopilotRequests)
@@ -42,6 +44,7 @@ func TestApplyCopilotAuthMethodChoice(t *testing.T) {
 }
 
 func TestApplyCopilotAuthMethodChoice_ReEntryClearsOldValue(t *testing.T) {
+	t.Parallel()
 	cfg := &AddInteractiveConfig{}
 
 	// First selection: copilot-requests
@@ -54,6 +57,7 @@ func TestApplyCopilotAuthMethodChoice_ReEntryClearsOldValue(t *testing.T) {
 }
 
 func TestPrioritizeEngineOption(t *testing.T) {
+	t.Parallel()
 	options := []huh.Option[string]{
 		huh.NewOption("B", "b"),
 		huh.NewOption("A", "a"),
@@ -69,6 +73,7 @@ func TestPrioritizeEngineOption(t *testing.T) {
 }
 
 func TestDetermineDefaultEngine(t *testing.T) {
+	t.Parallel()
 	makeSecrets := func(keys ...string) map[string]struct{} {
 		m := make(map[string]struct{}, len(keys))
 		for _, k := range keys {
@@ -125,6 +130,7 @@ func TestDetermineDefaultEngine(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cfg := &AddInteractiveConfig{
 				EngineOverride:  tc.engineOverride,
 				existingSecrets: tc.existingSecrets,

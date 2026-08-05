@@ -9,6 +9,7 @@ import (
 
 // TestAddSourceToWorkflow tests the addSourceToWorkflow function
 func TestAddSourceToWorkflow(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -120,6 +121,7 @@ This workflow has proper formatting with comments and blank lines.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := addSourceToWorkflow(tt.content, tt.source)
 
 			if tt.expectError && err == nil {
@@ -182,6 +184,7 @@ This workflow has proper formatting with comments and blank lines.`,
 
 // TestAddEngineToWorkflow tests the addEngineToWorkflow function
 func TestAddEngineToWorkflow(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		content         string
@@ -221,6 +224,7 @@ engine: codex
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := addEngineToWorkflow(tt.content, tt.engine)
 
 			if tt.expectError && err == nil {
@@ -268,6 +272,7 @@ engine: codex
 
 	// Verify that engine declaration blank line separates it from a subsequently added source field.
 	t.Run("engine_blank_line_separates_from_source", func(t *testing.T) {
+		t.Parallel()
 		original := `---
 on: push
 permissions:
