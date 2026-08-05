@@ -1,2 +1,2 @@
-{"id":"ci_state_assessed","question":"Did the agent assess the current CI state and determine if intervention was needed?","answer":"YES","model":"claude-haiku-4-5","timestamp":"2026-08-05T18:06:06.275Z","runid":"31032427039"}
-{"id":"pr_created_or_skipped","question":"Was a PR created with CI fixes, or was the run correctly skipped because CI was already passing?","answer":"YES","model":"claude-haiku-4-5","timestamp":"2026-08-05T18:06:06.275Z","runid":"31032427039"}
+{"id":"ci_state_assessed","question":"Did the agent assess the current CI state and determine if intervention was needed?","answer":"UNKNOWN","model":"claude-haiku-4-5","timestamp":"2026-08-05T19:13:20.927Z","runid":"31037177175"}
+{"id":"pr_created_or_skipped","question":"Was a PR created with CI fixes, or was the run correctly skipped because CI was already passing?","answer":"UNKNOWN","model":"claude-haiku-4-5","timestamp":"2026-08-05T19:13:20.927Z","runid":"31037177175"}
