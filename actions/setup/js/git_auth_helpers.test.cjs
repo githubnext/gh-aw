@@ -17,6 +17,7 @@ describe("git_auth_helpers.cjs", () => {
     mockCore = {
       info: vi.fn(),
       warning: vi.fn(),
+      setSecret: vi.fn(),
     };
 
     mockExec = {
@@ -216,7 +217,17 @@ describe("git_auth_helpers.cjs", () => {
 
       await overridePersistedExtraheader(SERVER_URL, token);
 
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expectedHeader]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expectedHeader], expect.objectContaining({ silent: true }));
+    });
+
+    it("should silence all exec calls to prevent credential capture in safe-output artifacts", async () => {
+      await overridePersistedExtraheader(SERVER_URL, "ghp_test_token");
+
+      // Every credential-bearing exec.exec call is silenced so the command line
+      // is not captured in uploaded safe-output artifacts.
+      for (const call of mockExec.exec.mock.calls) {
+        expect(call[2]).toEqual(expect.objectContaining({ silent: true }));
+      }
     });
 
     it("should return empty array when no previous extraheader exists", async () => {
@@ -267,7 +278,7 @@ describe("git_auth_helpers.cjs", () => {
       expect(previous).toEqual([]);
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("could not read existing extraheader"));
       // Override should still proceed despite read failure
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expect.any(String)]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expect.any(String)], expect.objectContaining({ silent: true }));
     });
 
     it("should trim the token before base64-encoding", async () => {
@@ -276,7 +287,7 @@ describe("git_auth_helpers.cjs", () => {
       await overridePersistedExtraheader(SERVER_URL, token);
 
       const expected = `Authorization: basic ${Buffer.from("x-access-token:ghp_padded_token").toString("base64")}`;
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expected]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, expected], expect.objectContaining({ silent: true }));
     });
 
     it("should log the number of existing values before overriding", async () => {
@@ -303,7 +314,7 @@ describe("git_auth_helpers.cjs", () => {
       // Using the literal normalized key makes the assertion explicit.
       const normalizedKey = "http.https://github.com/.extraheader";
       expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["config", "--get-all", normalizedKey], expect.anything());
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", normalizedKey, expect.any(String)]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", normalizedKey, expect.any(String)], expect.objectContaining({ silent: true }));
     });
   });
 
@@ -332,7 +343,7 @@ describe("git_auth_helpers.cjs", () => {
 
       await restorePersistedExtraheader(SERVER_URL, [prevHeader]);
 
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, prevHeader]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", EXTRAHEADER_KEY, prevHeader], expect.objectContaining({ silent: true }));
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["--add"]));
     });
 
@@ -364,7 +375,7 @@ describe("git_auth_helpers.cjs", () => {
         return 0;
       });
 
-      await expect(restorePersistedExtraheader(SERVER_URL, [header1, header2])).rejects.toThrow(addError);
+      await expect(restorePersistedExtraheader(SERVER_URL, [header1, header2])).rejects.toThrow(/^git config --local --add http\.https:\/\/github\.com\/\.extraheader .+ failed/);
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("partial extraheader restore"));
       // Cleanup should use unsetExtraheaderAllScopes (getExecOutput calls for --unset-all)
