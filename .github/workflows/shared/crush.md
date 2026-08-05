@@ -1,0 +1,245 @@
+---
+engine:
+  id: crush
+  display-name: Crush
+  description: Crush CLI with non-interactive execution and native MCP support
+  experimental: true
+  provider:
+    name: github
+  behaviors:
+    secret-strategy: universal-llm-consumer
+    manifest:
+      files:
+        - .crush.json
+        - crush.json
+        - .crushrc
+        - crushrc
+        - CRUSH.md
+        - CRUSH.local.md
+        - AGENTS.md
+      path-prefixes:
+        - .crush/
+    network:
+      defaults:
+        - host.docker.internal
+        - github.com
+        - raw.githubusercontent.com
+        - api.github.com
+        - objects.githubusercontent.com
+        - release-assets.githubusercontent.com
+        - registry.npmjs.org
+      provider-domains:
+        copilot: api.githubcopilot.com
+        anthropic: api.anthropic.com
+        openai: api.openai.com
+    installation:
+      package-manager: npm
+      package-name: "@charmland/crush"
+      version: "0.88.0"
+      step-name: Install Crush
+      binary-name: crush
+      include-node-setup: true
+      post-install-scripts: true
+      cooldown: true
+      verify-command: crush --version
+      verify-step-name: Verify Crush CLI installation
+      docs-url: https://github.com/charmbracelet/crush
+    config-file:
+      path: .crush.json
+      step-name: Write Crush Config
+      content: |-
+        {
+          "$schema": "https://charm.land/crush.json",
+          "options": {
+            "auto_lsp": false,
+            "disable_default_providers": true,
+            "disable_metrics": true,
+            "disable_provider_auto_update": true,
+            "progress": false
+          },
+          "permissions": {
+            "allowed_tools": [
+              "view",
+              "ls",
+              "grep",
+              "edit",
+              "write",
+              "bash",
+              "webfetch",
+              "websearch"
+            ]
+          }
+        }
+      merge-strategy: json-merge
+    execution:
+      command-name: crush
+      args:
+        - -y
+        - run
+        - --quiet
+      step-name: Execute Crush CLI
+      model-env-var: CRUSH_MODEL
+      mcp-config-env-var: GH_AW_MCP_CONFIG
+      provider-env-mode: universal-llm-consumer
+      write-timestamp: true
+      env:
+        CRUSH_DISABLE_DEFAULT_PROVIDERS: "1"
+        CRUSH_DISABLE_PROVIDER_AUTO_UPDATE: "1"
+    mcp:
+      config-path: .crush.json
+      config-adapter: |
+        const fs = require("fs");
+        const path = require("path");
+
+        const requireEnvVar = name => {
+          const value = process.env[name];
+          if (!value) throw new Error(`${name} environment variable is required`);
+          return value;
+        };
+
+        const gatewayOutputPath = requireEnvVar("MCP_GATEWAY_OUTPUT");
+        const workspace = requireEnvVar("GITHUB_WORKSPACE");
+        const gatewayDomain = process.env.MCP_GATEWAY_DOMAIN || "host.docker.internal";
+        const gatewayPort = requireEnvVar("MCP_GATEWAY_PORT");
+        const gatewayURL = `http://${gatewayDomain}:${gatewayPort}`;
+
+        let cliServers;
+        try {
+          cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
+        } catch (error) {
+          throw new Error(`Failed to parse GH_AW_MCP_CLI_SERVERS: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
+        const gatewayOutput = JSON.parse(fs.readFileSync(gatewayOutputPath, "utf8"));
+        const rawServers = gatewayOutput.mcpServers;
+        const servers = rawServers && typeof rawServers === "object" && !Array.isArray(rawServers) ? rawServers : {};
+        const mcp = {};
+
+        for (const [name, entry] of Object.entries(servers)) {
+          if (cliServers.has(name) || !entry || typeof entry !== "object") continue;
+          const transformed = { ...entry };
+          if (typeof transformed.url === "string") {
+            transformed.url = transformed.url.replace(/^http:\/\/[^/]+\/mcp\//, `${gatewayURL}/mcp/`);
+            transformed.type = "http";
+          } else {
+            transformed.type = "stdio";
+          }
+          delete transformed.tools;
+          mcp[name] = transformed;
+        }
+
+        const configPath = path.join(workspace, ".crush.json");
+        fs.writeFileSync(configPath, JSON.stringify({ mcp }, null, 2), { mode: 0o600 });
+        fs.chmodSync(configPath, 0o600);
+    harness-script: |
+      const { spawnSync } = require("child_process");
+      const { readFileSync, writeFileSync } = require("fs");
+      const { join } = require("path");
+      const { fetchAWFReflect, resolveProviderEndpointFromReflect } = require("./awf_reflect.cjs");
+
+      const [command, ...commandArgs] = process.argv.slice(2);
+      const log = message => process.stderr.write(`[crush-harness] ${message}\n`);
+      const fail = (result, action) => {
+        if (result.error) throw result.error;
+        if (result.status !== 0) throw new Error(`${action} failed with exit code ${result.status ?? "unknown"}`);
+      };
+
+      const main = async () => {
+        const selectedModel = process.env.CRUSH_MODEL;
+        if (!selectedModel || !selectedModel.includes("/")) {
+          throw new Error("CRUSH_MODEL must use provider/model format");
+        }
+        const model = selectedModel.slice(selectedModel.indexOf("/") + 1);
+        const provider = process.env.GH_AW_LLM_PROVIDER;
+        if (!provider) throw new Error("GH_AW_LLM_PROVIDER is required");
+
+        let baseUrl = process.env.OPENAI_BASE_URL;
+        if (process.env.AWF_REFLECT_ENABLED === "1") {
+          const result = await fetchAWFReflect({ logger: log });
+          if (!result.ok || !result.reflectData) {
+            throw new Error(`Unable to discover the Crush LLM endpoint from /reflect: ${result.reason || "empty response"}`);
+          }
+          const endpoint = resolveProviderEndpointFromReflect({
+            provider,
+            reflectData: result.reflectData,
+            logger: log,
+          });
+          if (!endpoint || !endpoint.baseUrl) {
+            throw new Error(`No configured /reflect endpoint found for provider ${provider}`);
+          }
+          baseUrl = endpoint.baseUrl;
+          const reflectedEndpoint = result.reflectData.endpoints?.find(
+            entry => entry?.configured === true && entry.provider === endpoint.endpointProvider
+          );
+          if (typeof reflectedEndpoint?.models_url === "string") {
+            const modelsURL = new URL(reflectedEndpoint.models_url);
+            const basePath = modelsURL.pathname.replace(/\/models\/?$/i, "");
+            baseUrl = `${modelsURL.origin}${basePath}`;
+          }
+        }
+        if (!baseUrl) {
+          throw new Error("Crush requires AWF endpoint discovery or OPENAI_BASE_URL");
+        }
+
+        const workspace = process.env.GITHUB_WORKSPACE;
+        if (!workspace) throw new Error("GITHUB_WORKSPACE is required");
+        const configPath = process.env.GH_AW_MCP_CONFIG || join(workspace, ".crush.json");
+        const config = JSON.parse(readFileSync(configPath, "utf8"));
+        const providerType = provider === "anthropic" ? "anthropic" : "openai-compat";
+        const apiKey = providerType === "anthropic" ? "$ANTHROPIC_API_KEY" : "$OPENAI_API_KEY";
+        config.providers = {
+          ...(config.providers || {}),
+          "awf-proxy": {
+            id: "awf-proxy",
+            name: "GitHub Agentic Workflows",
+            base_url: baseUrl,
+            type: providerType,
+            api_key: apiKey,
+            discover_models: false,
+            models: [{
+              id: model,
+              name: model,
+              cost_per_1m_in: 0,
+              cost_per_1m_out: 0,
+              cost_per_1m_in_cached: 0,
+              cost_per_1m_out_cached: 0,
+              context_window: 200000,
+              default_max_tokens: 64000,
+              can_reason: false,
+              supports_attachments: false,
+            }],
+          },
+        };
+        config.models = {
+          ...(config.models || {}),
+          large: { provider: "awf-proxy", model },
+        };
+        writeFileSync(configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
+
+        const promptPath = process.env.GH_AW_PROMPT;
+        if (!promptPath) throw new Error("GH_AW_PROMPT is required");
+        const prompt = readFileSync(promptPath, "utf8");
+        fail(
+          spawnSync(command, [...commandArgs, "--model", `awf-proxy/${model}`], {
+            cwd: workspace,
+            env: process.env,
+            input: prompt,
+            stdio: ["pipe", "inherit", "inherit"],
+          }),
+          "Crush execution"
+        );
+      };
+
+      main().catch(error => {
+        log(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+      });
+---
+
+<!--
+# Crush CLI
+
+Shared engine definition for the [Crush](https://github.com/charmbracelet/crush)
+coding agent. Import this file and set `engine.id: crush` with a
+`provider/model` model selection.
+-->
