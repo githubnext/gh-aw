@@ -109,8 +109,8 @@ This is a test workflow.`
 			t.Fatalf("Failed to read .gitattributes: %v", err)
 		}
 
-		if !strings.Contains(string(content), ".github/workflows/*.lock.yml linguist-generated=true merge=ours") {
-			t.Errorf("Expected .gitattributes to contain '.github/workflows/*.lock.yml linguist-generated=true merge=ours'")
+		if !strings.Contains(string(content), ".github/workflows/*.lock.yml linguist-generated=true") {
+			t.Errorf("Expected .gitattributes to contain '.github/workflows/*.lock.yml linguist-generated=true'")
 		}
 	})
 

@@ -427,8 +427,13 @@ const AgentsDir = ".github/agents/"
 const WorkflowsLockYmlGlob = WorkflowsDirSlash + "*.lock.yml"
 
 // WorkflowsLockYmlGitAttributesEntry is the .gitattributes entry that marks lock YAML
-// files as generated and sets the merge strategy.
-const WorkflowsLockYmlGitAttributesEntry = WorkflowsLockYmlGlob + " linguist-generated=true merge=ours"
+// files as generated.
+const WorkflowsLockYmlGitAttributesEntry = WorkflowsLockYmlGlob + " linguist-generated=true"
+
+// WorkflowsLockYmlGitAttributesEntryLegacy is the previous .gitattributes entry format that
+// included an ineffective "merge=ours" attribute. It is only used to detect and clean up
+// entries that gh-aw itself previously wrote, so we do not overwrite repository-owned policy.
+const WorkflowsLockYmlGitAttributesEntryLegacy = WorkflowsLockYmlGlob + " linguist-generated=true merge=ours"
 
 // Temporary runtime directory constants (/tmp/gh-aw tree)
 //
