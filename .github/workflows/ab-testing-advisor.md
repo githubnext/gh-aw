@@ -35,7 +35,6 @@ description: Daily A/B testing advisor that picks a random agentic workflow with
 emoji: 🧪
 model: copilot/gpt-5.4
 engine:
-  bare: true
   id: opencode
 strict: true
 timeout-minutes: 30

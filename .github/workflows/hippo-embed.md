@@ -14,7 +14,6 @@ tracker-id: hippo-embed
 model: copilot/gpt-5.4
 engine:
   id: aider
-  bare: true
 
 timeout-minutes: 60
 

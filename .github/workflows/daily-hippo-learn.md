@@ -20,7 +20,6 @@ tracker-id: daily-hippo-learn
 model: copilot/gpt-5.4
 engine:
   id: crush
-  bare: true
 
 timeout-minutes: 30
 

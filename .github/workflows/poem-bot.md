@@ -30,7 +30,6 @@ permissions:
 model: copilot/gpt-5.4
 engine:
   id: goose
-  bare: true
 
 # Import shared reporting guidelines
 imports:
