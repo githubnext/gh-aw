@@ -357,7 +357,7 @@ func TestInitRepositoryBasic(t *testing.T) {
 		t.Fatalf("Failed to read .gitattributes: %v", err)
 	}
 
-	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
+	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true"
 	if !strings.Contains(string(content), expectedEntry) {
 		t.Errorf("Expected .gitattributes to contain %q", expectedEntry)
 	}
@@ -797,7 +797,7 @@ func TestInitRepositoryIdempotent(t *testing.T) {
 		t.Fatalf("Failed to read .gitattributes: %v", err)
 	}
 
-	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
+	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true"
 
 	// Count occurrences - should only appear once
 	count := strings.Count(string(content), expectedEntry)
@@ -997,7 +997,7 @@ func TestInitRepositoryWithExistingFiles(t *testing.T) {
 		t.Error("Expected existing content to be preserved")
 	}
 
-	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
+	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true"
 	if !strings.Contains(contentStr, expectedEntry) {
 		t.Error("Expected new entry to be added")
 	}

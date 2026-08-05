@@ -545,10 +545,10 @@ This appendix is generated from the current non-test Go source files in this pac
 | Category | Count |
 |----------|------:|
 | Types | 14 |
-| Constants | 305 |
+| Constants | 306 |
 | Variables | 23 |
 | Functions and methods | 14 |
-| Additional symbols documented in this appendix | 99 |
+| Additional symbols documented in this appendix | 100 |
 
 ### Additional constants and variables
 
@@ -620,7 +620,8 @@ This appendix is generated from the current non-test Go source files in this pac
 | `constants.go` | `const` | `UsrLocalPrefix` | `const UsrLocalPrefix = "/usr/local"` | UsrLocalPrefix is the standard /usr/local installation prefix. |
 | `constants.go` | `const` | `WorkflowsDir` | `const WorkflowsDir = ".github/workflows"` | WorkflowsDir is the GitHub Actions workflow directory path (without trailing slash). |
 | `constants.go` | `const` | `WorkflowsDirSlash` | `const WorkflowsDirSlash = WorkflowsDir + "/"` | WorkflowsDirSlash is WorkflowsDir with a trailing slash. |
-| `constants.go` | `const` | `WorkflowsLockYmlGitAttributesEntry` | `const WorkflowsLockYmlGitAttributesEntry = WorkflowsLockYmlGlob + " linguist-generated=true merge=ours"` | WorkflowsLockYmlGitAttributesEntry is the . |
+| `constants.go` | `const` | `WorkflowsLockYmlGitAttributesEntry` | `const WorkflowsLockYmlGitAttributesEntry = WorkflowsLockYmlGlob + " linguist-generated=true"` | WorkflowsLockYmlGitAttributesEntry is the .gitattributes entry that marks lock YAML files as generated. |
+| `constants.go` | `const` | `WorkflowsLockYmlGitAttributesEntryLegacy` | `const WorkflowsLockYmlGitAttributesEntryLegacy = WorkflowsLockYmlGlob + " linguist-generated=true merge=ours"` | WorkflowsLockYmlGitAttributesEntryLegacy is the previous .gitattributes entry format that included an ineffective "merge=ours" attribute. It is only used to detect and clean up entries that gh-aw itself previously wrote, so we do not overwrite repository-owned policy. |
 | `constants.go` | `const` | `WorkflowsLockYmlGlob` | `const WorkflowsLockYmlGlob = WorkflowsDirSlash + "*.lock.yml"` | WorkflowsLockYmlGlob is the glob pattern for compiled workflow lock YAML files. |
 | `engine_constants.go` | `const` | `AnthropicAPIKey` | `const AnthropicAPIKey = "ANTHROPIC_API_KEY"` | AnthropicAPIKey is the API key secret name required by the Claude engine. |
 | `engine_constants.go` | `const` | `CodexAPIKey` | `const CodexAPIKey = "CODEX_API_KEY"` | CodexAPIKey is the API key secret name used by the Codex engine. |
