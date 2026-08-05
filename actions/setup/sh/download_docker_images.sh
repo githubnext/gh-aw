@@ -15,6 +15,13 @@ set +o histexpand
 # When images include a digest pin (e.g. image:tag@sha256:abc), the script
 # ensures the tag alias (image:tag) is created after pulling so that tools
 # referencing images by tag (such as AWF with --skip-pull) can find them.
+#
+# The script also aliases the image as "image:latest" so that any downstream
+# tool that references the image via the mutable ":latest" tag (regardless of
+# which versioned tag was actually pulled) can still resolve it locally under
+# --pull-never/--skip-pull semantics. This guards against tag mismatches
+# between the version-pinned tag written here and a ":latest" reference used
+# elsewhere (see gh-aw#50681).
 
 set -euo pipefail
 
@@ -33,11 +40,29 @@ docker_pull_with_retry() {
       # When pulling with a digest pin (image:tag@sha256:...), Docker may not
       # create the tag alias automatically. Ensure the tag exists so that
       # downstream tools (e.g. AWF --skip-pull) can find the image by tag.
+      local tag_ref="$image"
       if [[ "$image" == *"@sha256:"* ]]; then
-        local tag_ref="${image%%@sha256:*}"
+        tag_ref="${image%%@sha256:*}"
         if [[ "$tag_ref" == *":"* ]]; then
           echo "Tagging digest-pinned image as $tag_ref"
           docker tag "$image" "$tag_ref"
+        else
+          tag_ref="$image"
+        fi
+      fi
+
+      # Also alias the image under the mutable ":latest" tag whenever the
+      # pulled/tagged reference uses a versioned tag. This protects against
+      # tools that resolve the image via ":latest" under --pull-never/
+      # --skip-pull semantics while the download step only wrote the
+      # version-pinned tag (see gh-aw#50681).
+      if [[ "$tag_ref" == *":"* && "$tag_ref" != *"@"* ]]; then
+        local repo_ref="${tag_ref%%:*}"
+        local tag_part="${tag_ref##*:}"
+        if [[ "$tag_part" != "latest" ]]; then
+          local latest_ref="${repo_ref}:latest"
+          echo "Aliasing $tag_ref as $latest_ref"
+          docker tag "$tag_ref" "$latest_ref"
         fi
       fi
 
