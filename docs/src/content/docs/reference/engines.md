@@ -24,13 +24,15 @@ Copilot CLI is the default — `engine:` can be omitted when using Copilot. See 
 
 ## Unsupported engine samples
 
-The OpenCode, Aider, and Crush integrations in this repository are **samples only**. They are not officially supported by gh-aw and have no compatibility or maintenance commitment.
+The OpenCode, Aider, Crush, Cursor, and Kiro integrations in this repository are **samples only**. They are not officially supported by gh-aw and have no compatibility or maintenance commitment.
 
 | Sample engine | Sample definition |
 |---------------|-------------------|
 | [OpenCode](https://opencode.ai) | `.github/workflows/shared/opencode.md` |
 | [Aider](https://aider.chat/docs/) | `.github/workflows/shared/aider.md` |
 | [Crush](https://github.com/charmbracelet/crush) | `.github/workflows/shared/crush.md` |
+| [Cursor](https://cursor.com/docs/cli) | `.github/workflows/shared/cursor.md` |
+| [Kiro](https://kiro.dev/) | `.github/workflows/shared/kiro.md` |
 
 Engine owners should publish and maintain their own Markdown integration definition. Users should import the definition from that owner-maintained source, pinned to a tag or commit SHA. The in-repository files are examples for authors, not supported engine integrations.
 
@@ -71,7 +73,7 @@ imports:
   - owner/repository/.github/workflows/example-engine.md@v1.2.3
 ```
 
-Do not treat imported definitions as supported unless their engine owner explicitly supports them. The OpenCode, Aider, and Crush files listed above remain samples; copy or adapt them only under the maintenance and support terms provided by their respective owners.
+Do not treat imported definitions as supported unless their engine owner explicitly supports them. The OpenCode, Aider, Crush, Cursor, and Kiro files listed above remain samples; copy or adapt them only under the maintenance and support terms provided by their respective owners.
 
 ## Extended Coding Agent Configuration
 
