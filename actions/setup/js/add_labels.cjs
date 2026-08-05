@@ -52,7 +52,6 @@ const main = createCountGatedHandler({
   handlerType: HANDLER_TYPE,
   setup: async (config, maxCount, isStaged) => {
     const { allowed: allowedLabels = [], blocked: blockedPatterns = [] } = config;
-    const issueIntentEnabled = config.issue_intent !== false;
     const issueIntentStrict = config.issue_intent === true; // strict mode: plain-string labels rejected, metadata required
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
     const requiredTitlePrefix = config.required_title_prefix || "";
@@ -223,11 +222,11 @@ const main = createCountGatedHandler({
         };
       }
 
-      const labelsRequestPayload = uniqueLabels.map(name => {
-        const labelSpec = requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name };
-        const hasIntentMetadata = hasLabelIntentMetadata(labelSpec);
-        return issueIntentEnabled && hasIntentMetadata ? labelSpec : labelSpec.name;
-      });
+      // The REST issues.addLabels endpoint only accepts label name strings; it does not
+      // support issue-intent metadata (rationale/confidence/suggest). Passing objects with
+      // those extra keys causes GitHub to return success while silently applying no labels.
+      // Always send plain label names so the labels are actually added.
+      const labelsRequestPayload = uniqueLabels;
 
       core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(labelsRequestPayload)}`);
 
