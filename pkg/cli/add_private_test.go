@@ -8,6 +8,7 @@ import (
 
 // TestExtractWorkflowPrivate tests the ExtractWorkflowPrivate function
 func TestExtractWorkflowPrivate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -54,6 +55,7 @@ on: push
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ExtractWorkflowPrivate(tt.content)
 			if result != tt.expected {
 				t.Errorf("ExtractWorkflowPrivate() = %v, want %v", result, tt.expected)

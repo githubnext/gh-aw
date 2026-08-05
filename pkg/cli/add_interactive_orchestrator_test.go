@@ -10,6 +10,7 @@ import (
 )
 
 func TestAddInteractiveConfig_determineFilesToAdd(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		workflowSpecs []string
@@ -82,6 +83,7 @@ func TestAddInteractiveConfig_determineFilesToAdd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			config := &AddInteractiveConfig{
 				WorkflowSpecs:     tt.workflowSpecs,
 				resolvedWorkflows: tt.resolved,
@@ -101,7 +103,9 @@ func TestAddInteractiveConfig_determineFilesToAdd(t *testing.T) {
 }
 
 func TestAddInteractiveConfig_primaryWorkflowName(t *testing.T) {
+	t.Parallel()
 	t.Run("uses resolved workflow for repository package", func(t *testing.T) {
+		t.Parallel()
 		config := &AddInteractiveConfig{
 			WorkflowSpecs: []string{"owner/repo"},
 			resolvedWorkflows: &ResolvedWorkflows{
@@ -117,6 +121,7 @@ func TestAddInteractiveConfig_primaryWorkflowName(t *testing.T) {
 	})
 
 	t.Run("falls back to parsed workflow spec", func(t *testing.T) {
+		t.Parallel()
 		config := &AddInteractiveConfig{
 			WorkflowSpecs: []string{"owner/repo/test-workflow"},
 		}
@@ -126,6 +131,7 @@ func TestAddInteractiveConfig_primaryWorkflowName(t *testing.T) {
 }
 
 func TestAddInteractiveConfig_showWorkflowDescriptions(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		resolvedWorkflows *ResolvedWorkflows
@@ -169,6 +175,7 @@ func TestAddInteractiveConfig_showWorkflowDescriptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			config := &AddInteractiveConfig{
 				resolvedWorkflows: tt.resolvedWorkflows,
 			}
@@ -182,6 +189,7 @@ func TestAddInteractiveConfig_showWorkflowDescriptions(t *testing.T) {
 }
 
 func TestAddInteractiveConfig_showFinalInstructions(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		resolvedWorkflows *ResolvedWorkflows
@@ -207,6 +215,7 @@ func TestAddInteractiveConfig_showFinalInstructions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			config := &AddInteractiveConfig{
 				resolvedWorkflows: tt.resolvedWorkflows,
 			}

@@ -10,12 +10,14 @@ import (
 )
 
 func TestAddWizardCommandMentionsEngines(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd, "Add wizard command should be created")
 	assert.Contains(t, cmd.Long, "Copilot, Claude, Codex, Gemini, or Pi", "Add wizard help should mention all interactive engine options")
 }
 
 func TestAddWizardCommand_UsesStandardThreePartWorkflowSpecWording(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)
 
@@ -26,6 +28,7 @@ func TestAddWizardCommand_UsesStandardThreePartWorkflowSpecWording(t *testing.T)
 }
 
 func TestAddWizardCommand_FlagUsageMatchesAddCommand(t *testing.T) {
+	t.Parallel()
 	addCmd := NewAddCommand(validateEngineStub)
 	wizardCmd := NewAddWizardCommand(validateEngineStub)
 
@@ -40,6 +43,7 @@ func TestAddWizardCommand_FlagUsageMatchesAddCommand(t *testing.T) {
 }
 
 func TestAddWizardCommand_ExamplesMentionNewFlags(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)
 

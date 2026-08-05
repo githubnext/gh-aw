@@ -27,6 +27,7 @@ func hasFindingByCategory(findings []Finding, category string) bool {
 
 // TestKeyFindingsGeneration verifies key findings are generated correctly
 func TestKeyFindingsGeneration(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		run           WorkflowRun
@@ -102,6 +103,7 @@ func TestKeyFindingsGeneration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			processedRun := ProcessedRun{
 				Run:          tt.run,
 				MCPFailures:  tt.mcpFailures,
@@ -138,6 +140,7 @@ func TestKeyFindingsGeneration(t *testing.T) {
 
 // TestRecommendationsGeneration verifies recommendations are generated correctly
 func TestRecommendationsGeneration(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		run              WorkflowRun
@@ -198,6 +201,7 @@ func TestRecommendationsGeneration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			processedRun := ProcessedRun{
 				Run:          tt.run,
 				MCPFailures:  tt.mcpFailures,
@@ -236,6 +240,7 @@ func TestRecommendationsGeneration(t *testing.T) {
 
 // TestPerformanceMetricsGeneration verifies performance metrics are calculated correctly
 func TestPerformanceMetricsGeneration(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                  string
 		run                   WorkflowRun
@@ -291,6 +296,7 @@ func TestPerformanceMetricsGeneration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			processedRun := ProcessedRun{
 				Run:              tt.run,
 				FirewallAnalysis: tt.firewallAnalysis,
@@ -320,6 +326,7 @@ func TestPerformanceMetricsGeneration(t *testing.T) {
 
 // TestAuditDataJSONStructure verifies the JSON structure includes all new fields
 func TestAuditDataJSONStructure(t *testing.T) {
+	t.Parallel()
 	// Create comprehensive audit data
 	run := WorkflowRun{
 		DatabaseID:   123456,

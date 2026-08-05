@@ -9,6 +9,7 @@ import (
 )
 
 func TestCollectAuditAnalysisResultsReturnsContextCancellation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -19,6 +20,7 @@ func TestCollectAuditAnalysisResultsReturnsContextCancellation(t *testing.T) {
 }
 
 func TestRunAuditAnalysisSoftFailuresRemainNonFatal(t *testing.T) {
+	t.Parallel()
 	g, gctx := errgroup.WithContext(context.Background())
 	called := false
 
@@ -37,6 +39,7 @@ func TestRunAuditAnalysisSoftFailuresRemainNonFatal(t *testing.T) {
 }
 
 func TestRunAuditAnalysisReturnsCancellationForSoftFailuresWhenContextCanceled(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	g, gctx := errgroup.WithContext(ctx)
 	called := false

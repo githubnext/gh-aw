@@ -5,6 +5,7 @@ package cli
 import "testing"
 
 func TestAppendRepositoryPackageWorkflowSpecs_PropagatesResolvedRef(t *testing.T) {
+	t.Parallel()
 	repoSpec := &RepoSpec{
 		RepoSlug: "owner/repo",
 	}
@@ -29,6 +30,7 @@ func TestAppendRepositoryPackageWorkflowSpecs_PropagatesResolvedRef(t *testing.T
 }
 
 func TestAppendRepositoryPackageWorkflowSpecs_PrefersExplicitVersion(t *testing.T) {
+	t.Parallel()
 	repoSpec := &RepoSpec{
 		RepoSlug: "owner/repo",
 		Version:  "v9.9.9",

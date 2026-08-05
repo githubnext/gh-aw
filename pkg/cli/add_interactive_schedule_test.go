@@ -10,6 +10,7 @@ import (
 )
 
 func TestClassifyScheduleFrequency(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -62,6 +63,7 @@ func TestClassifyScheduleFrequency(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := classifyScheduleFrequency(tt.input)
 			assert.Equal(t, tt.expected, got, "classifyScheduleFrequency(%q)", tt.input)
 		})
@@ -69,6 +71,7 @@ func TestClassifyScheduleFrequency(t *testing.T) {
 }
 
 func TestDetectWorkflowScheduleInfo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name               string
 		content            string
@@ -249,6 +252,7 @@ engine: copilot
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			detection := detectWorkflowScheduleInfo(tt.content)
 			assert.Equal(t, tt.wantRawExpr, detection.RawExpr, "raw expression")
 			assert.Equal(t, tt.wantFrequency, detection.Frequency, "frequency")
@@ -260,6 +264,7 @@ engine: copilot
 }
 
 func TestUpdateScheduleInOnBlock(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -351,6 +356,7 @@ engine: copilot
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := UpdateScheduleInOnBlock(tt.content, tt.newExpr)
 			if tt.wantErr {
 				assert.Error(t, err, "expected an error")
@@ -368,43 +374,51 @@ engine: copilot
 }
 
 func TestBuildScheduleOptions(t *testing.T) {
+	t.Parallel()
 	t.Run("custom schedule puts custom first", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("15 10 * * 1-5", "custom")
 		require.NotEmpty(t, opts, "options should not be empty")
 		assert.Equal(t, "custom", opts[0].Value, "custom should be first option")
 	})
 
 	t.Run("daily schedule puts daily first", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("daily", "daily")
 		require.NotEmpty(t, opts, "options should not be empty")
 		assert.Equal(t, "daily", opts[0].Value, "daily should be first option")
 	})
 
 	t.Run("hourly schedule puts hourly first", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("every 1h", "hourly")
 		require.NotEmpty(t, opts, "options should not be empty")
 		assert.Equal(t, "hourly", opts[0].Value, "hourly should be first option")
 	})
 
 	t.Run("weekly schedule puts weekly first", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("weekly", "weekly")
 		require.NotEmpty(t, opts, "options should not be empty")
 		assert.Equal(t, "weekly", opts[0].Value, "weekly should be first option")
 	})
 
 	t.Run("3-hourly schedule puts 3-hourly first", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("every 3h", "3-hourly")
 		require.NotEmpty(t, opts, "options should not be empty")
 		assert.Equal(t, "3-hourly", opts[0].Value, "3-hourly should be first option")
 	})
 
 	t.Run("monthly schedule puts monthly first", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("0 0 1 * *", "monthly")
 		require.NotEmpty(t, opts, "options should not be empty")
 		assert.Equal(t, "monthly", opts[0].Value, "monthly should be first option")
 	})
 
 	t.Run("includes all standard frequencies", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("daily", "daily")
 		require.NotEmpty(t, opts, "options should not be empty")
 		values := make(map[string]struct{})
@@ -419,6 +433,7 @@ func TestBuildScheduleOptions(t *testing.T) {
 	})
 
 	t.Run("custom schedule has no duplicate custom option", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("15 10 * * 1-5", "custom")
 		count := 0
 		for _, o := range opts {
@@ -430,6 +445,7 @@ func TestBuildScheduleOptions(t *testing.T) {
 	})
 
 	t.Run("marks current frequency in label", func(t *testing.T) {
+		t.Parallel()
 		opts := buildScheduleOptions("daily", "daily")
 		for _, o := range opts {
 			if o.Value == "daily" {

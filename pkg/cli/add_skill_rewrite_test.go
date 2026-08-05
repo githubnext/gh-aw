@@ -17,6 +17,7 @@ const testHeadSHA = "aabbccddeeff00112233445566778899aabbccdd"
 // ---------------------------------------------------------------------------
 
 func TestIsLocalSkillRef(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		spec string
@@ -35,6 +36,7 @@ func TestIsLocalSkillRef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, isLocalSkillRef(tt.spec))
 		})
 	}
@@ -45,6 +47,7 @@ func TestIsLocalSkillRef(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuildQualifiedSkillRef(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		localPath string
@@ -73,6 +76,7 @@ func TestBuildQualifiedSkillRef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := buildQualifiedSkillRef(tt.localPath, testRepoSlug, testHeadSHA)
 			assert.Equal(t, tt.want, got)
 		})
@@ -84,6 +88,7 @@ func TestBuildQualifiedSkillRef(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestTrimYAMLQuotesSkill(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "value", trimYAMLQuotesSkill(`"value"`))
 	assert.Equal(t, "value", trimYAMLQuotesSkill(`'value'`))
 	assert.Equal(t, "value", trimYAMLQuotesSkill("value"))
@@ -97,6 +102,7 @@ func TestTrimYAMLQuotesSkill(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSplitYAMLValueAndComment(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input   string
 		value   string
@@ -118,6 +124,7 @@ func TestSplitYAMLValueAndComment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			v, c := splitYAMLValueAndComment(tt.input)
 			assert.Equal(t, tt.value, v)
 			assert.Equal(t, tt.comment, c)
@@ -130,6 +137,7 @@ func TestSplitYAMLValueAndComment(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestIsSkillsKeyLine(t *testing.T) {
+	t.Parallel()
 	assert.True(t, isSkillsKeyLine("skills:"))
 	assert.True(t, isSkillsKeyLine("skills: # local skills"))
 	assert.True(t, isSkillsKeyLine("skills:   # trailing comment"))
@@ -147,7 +155,9 @@ func skillWorkflow(skillsBlock string) string {
 }
 
 func TestRewriteLocalSkillRefsInContent(t *testing.T) {
+	t.Parallel()
 	t.Run("rewrites string-form local ref", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills:\n  - .github/skills/my-skill\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -156,6 +166,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites object-form local ref", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills:\n  - skill: .github/skills/my-skill\n    github-token: ${{ secrets.TOKEN }}\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -165,6 +176,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("preserves already-qualified refs unchanged", func(t *testing.T) {
+		t.Parallel()
 		qualified := "owner/repo/.github/skills/skill@aabbccddeeff00112233445566778899aabbccdd"
 		content := skillWorkflow("skills:\n  - " + qualified + "\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
@@ -173,6 +185,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites only local refs in mixed list", func(t *testing.T) {
+		t.Parallel()
 		qualified := "owner/repo/.github/skills/skill@aabbccddeeff00112233445566778899aabbccdd"
 		content := skillWorkflow("skills:\n  - .github/skills/local-skill\n  - " + qualified + "\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
@@ -182,6 +195,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("no-op when no skills key", func(t *testing.T) {
+		t.Parallel()
 		content := "---\non:\n  workflow_dispatch:\n---\n\nDo work.\n"
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -189,6 +203,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("no-op when skills array is empty", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills: []\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -196,6 +211,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("no-op when no local refs present", func(t *testing.T) {
+		t.Parallel()
 		qualified := "owner/repo/skill@aabbccddeeff00112233445566778899aabbccdd"
 		content := skillWorkflow("skills:\n  - " + qualified + "\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
@@ -204,6 +220,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites dot-slash prefixed local ref", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills:\n  - ./skills/my-skill\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -213,6 +230,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("preserves expression refs unchanged", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills:\n  - ${{ vars.SKILL_REF }}\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -220,6 +238,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites quoted local ref", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills:\n  - \".github/skills/my-skill\"\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -227,6 +246,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("multiple local refs all rewritten", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills:\n  - .github/skills/skill-a\n  - .github/skills/skill-b\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -235,6 +255,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("no-op for content without frontmatter", func(t *testing.T) {
+		t.Parallel()
 		content := "Just some markdown without frontmatter."
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -242,6 +263,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites string-form with trailing comment", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills:\n  - .github/skills/my-skill # local\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -250,6 +272,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites object-form with trailing comment", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills:\n  - skill: .github/skills/my-skill # note\n    github-token: ${{ secrets.TOKEN }}\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -258,6 +281,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites under skills key with trailing comment", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills: # local skills\n  - .github/skills/my-skill\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -265,6 +289,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites flow-sequence single item", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills: [.github/skills/my-skill]\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -272,6 +297,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites flow-sequence mixed items", func(t *testing.T) {
+		t.Parallel()
 		qualified := "owner/repo/.github/skills/skill@aabbccddeeff00112233445566778899aabbccdd"
 		content := skillWorkflow("skills: [.github/skills/local-skill, " + qualified + "]\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
@@ -281,6 +307,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 	})
 
 	t.Run("rewrites flow-sequence with trailing line comment", func(t *testing.T) {
+		t.Parallel()
 		content := skillWorkflow("skills: [.github/skills/my-skill] # inline\n")
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
@@ -293,6 +320,7 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestApplyLocalSkillRefRewriting_NonLocal(t *testing.T) {
+	t.Parallel()
 	content := skillWorkflow("skills:\n  - .github/skills/my-skill\n")
 	// sourceInfo.IsLocal = false → rewriting must be skipped
 	sourceInfo := &FetchedWorkflow{IsLocal: false}
@@ -303,6 +331,7 @@ func TestApplyLocalSkillRefRewriting_NonLocal(t *testing.T) {
 }
 
 func TestApplyLocalSkillRefRewriting_NilSource(t *testing.T) {
+	t.Parallel()
 	content := skillWorkflow("skills:\n  - .github/skills/my-skill\n")
 	got, err := applyLocalSkillRefRewriting(content, nil, AddOptions{})
 	require.NoError(t, err)
