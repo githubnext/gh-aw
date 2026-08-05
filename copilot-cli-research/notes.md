@@ -14,3 +14,9 @@
 - cache-memory: grew to 75 (from 94 reported previously — recheck methodology, likely counting differs).
 - 5 orphaned custom agent files unchanged again this run (0 references): create-safe-output-type, custom-engine-implementation, grumpy-reviewer, interactive-agent-designer, w3c-specification-writer.
 - Total workflows: 270 (up from 269).
+
+## 2026-08-05 (run 30975991815)
+- Re-ran full inventory; workflow count grew 270->275, copilot-engine workflows flat at 38.
+- Custom agents: 9 defined in .github/agents/, only 4 referenced (3 orphaned confirmed unchanged: create-safe-output-type, interactive-agent-designer, grumpy-reviewer, custom-engine-implementation, w3c-specification-writer - 5 orphaned).
+- No change in --share adoption (still 1), engine.args/model overrides still 0.
+- cache-memory adoption rose 75->98 workflows - positive trend, worth highlighting as a success story vs recommending further adoption.
