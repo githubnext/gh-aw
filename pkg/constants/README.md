@@ -27,7 +27,7 @@ The package uses typed aliases to prevent mixing unrelated string or integer val
 
 | Type | Description | Example constant |
 |------|-------------|-----------------|
-| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `AntigravityEngine`, `PiEngine` |
+| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `PiEngine` |
 | `FeatureFlag` | Feature flag identifier | `MCPGatewayFeatureFlag`, `MCPScriptsFeatureFlag` |
 | `JobName` | GitHub Actions job name | `AgentJobName`, `ActivationJobName` |
 | `StepID` | GitHub Actions step identifier | `CheckMembershipStepID`, `CheckRateLimitStepID` |
@@ -52,12 +52,11 @@ constants.CopilotEngine      // "copilot"
 constants.ClaudeEngine       // "claude"
 constants.CodexEngine        // "codex"
 constants.GeminiEngine       // "gemini"
-constants.AntigravityEngine  // "antigravity"
 constants.PiEngine           // "pi" (experimental)
 constants.DefaultEngine      // "copilot"
 
 // All supported engine names
-constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "pi"}
+constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "pi"}
 
 // Get engine metadata
 opt := constants.GetEngineOption("copilot")
@@ -271,7 +270,6 @@ constants.DefaultCopilotSDKVersion      // @github/copilot-sdk npm package versi
 constants.DefaultClaudeCodeVersion      // Claude Code CLI version
 constants.DefaultCodexVersion           // OpenAI Codex CLI version
 constants.DefaultGeminiVersion          // Google Gemini CLI version
-constants.DefaultAntigravityVersion     // Antigravity CLI version
 constants.DefaultPiVersion              // Pi CLI version (experimental)
 
 // Infrastructure
@@ -567,7 +565,6 @@ This appendix is generated from the current non-test Go source files in this pac
 | `constants.go` | `const` | `AWFReflectFilePathExpr` | `const AWFReflectFilePathExpr = GhAwRootDir + "/sandbox/firewall/awf-reflect.json"` | AWFReflectFilePathExpr is the host-side AWF /reflect output path resolved by Actions expression. |
 | `constants.go` | `const` | `AgentStdioLogPath` | `const AgentStdioLogPath = TmpGhAwDir + "/agent-stdio.log"` | AgentStdioLogPath is the path for capturing agent standard I/O log output. |
 | `constants.go` | `const` | `AgentsDir` | `const AgentsDir = ".github/agents/"` | AgentsDir is the custom GitHub Copilot agent definitions directory (with trailing slash). |
-| `constants.go` | `const` | `AntigravityLLMGatewayPort` | `const AntigravityLLMGatewayPort = GeminiLLMGatewayPort` | AntigravityLLMGatewayPort is the port for the Antigravity LLM gateway. |
 | `constants.go` | `const` | `AwPromptsFile` | `const AwPromptsFile = TmpGhAwDir + "/aw-prompts/prompt.txt"` | AwPromptsFile is the runtime prompt file path populated by the setup action. |
 | `constants.go` | `const` | `AwPromptsFileShell` | `const AwPromptsFileShell = GhAwRootDirShell + "/aw-prompts/prompt.txt"` | AwPromptsFileShell is the runtime prompt file path in shell env-var form for host-side paths. |
 | `constants.go` | `const` | `BashCompletionDir` | `const BashCompletionDir = "/etc/bash_completion.d"` | BashCompletionDir is the system-wide bash completion directory. |
@@ -595,7 +592,6 @@ This appendix is generated from the current non-test Go source files in this pac
 | `constants.go` | `const` | `PreAgentAuditFilePath` | `const PreAgentAuditFilePath = "/tmp/gh-aw/pre-agent-audit.txt"` | PreAgentAuditFilePath is the path where the pre-agent workspace audit report is saved. |
 | `constants.go` | `const` | `ShellMcpConfigDir` | `const ShellMcpConfigDir = GhAwRootDirShell + "/mcp-config"` | ShellMcpConfigDir is the mcp-config directory in shell environment variable form. |
 | `constants.go` | `const` | `ShellMcpServersJsonPath` | `const ShellMcpServersJsonPath = GhAwRootDirShell + "/mcp-config/mcp-servers.json"` | ShellMcpServersJsonPath is the MCP servers JSON config file path in shell form. |
-| `constants.go` | `const` | `TmpAntigravityClientErrorGlob` | `const TmpAntigravityClientErrorGlob = TmpGhAwDir + "/antigravity-client-error-*.json"` | TmpAntigravityClientErrorGlob is the glob for Antigravity client error JSON diagnostic files. |
 | `constants.go` | `const` | `TmpAwBundleGlob` | `const TmpAwBundleGlob = TmpGhAwDir + "/aw-*.bundle"` | TmpAwBundleGlob is the glob pattern for bundle files produced by the agent. |
 | `constants.go` | `const` | `TmpAwMcpLogsDir` | `const TmpAwMcpLogsDir = TmpGhAwDir + "/aw-mcp/logs"` | TmpAwMcpLogsDir is the aw-mcp server logs directory. |
 | `constants.go` | `const` | `TmpAwPatchGlob` | `const TmpAwPatchGlob = TmpGhAwDir + "/aw-*.patch"` | TmpAwPatchGlob is the glob pattern for patch files produced by the agent. |
@@ -627,8 +623,6 @@ This appendix is generated from the current non-test Go source files in this pac
 | `constants.go` | `const` | `WorkflowsLockYmlGitAttributesEntry` | `const WorkflowsLockYmlGitAttributesEntry = WorkflowsLockYmlGlob + " linguist-generated=true merge=ours"` | WorkflowsLockYmlGitAttributesEntry is the . |
 | `constants.go` | `const` | `WorkflowsLockYmlGlob` | `const WorkflowsLockYmlGlob = WorkflowsDirSlash + "*.lock.yml"` | WorkflowsLockYmlGlob is the glob pattern for compiled workflow lock YAML files. |
 | `engine_constants.go` | `const` | `AnthropicAPIKey` | `const AnthropicAPIKey = "ANTHROPIC_API_KEY"` | AnthropicAPIKey is the API key secret name required by the Claude engine. |
-| `engine_constants.go` | `const` | `AntigravityAPIKey` | `const AntigravityAPIKey = "ANTIGRAVITY_API_KEY"` | AntigravityAPIKey is the API key secret name required by the Antigravity engine. |
-| `engine_constants.go` | `const` | `AntigravityCLIModelEnvVar` | `const AntigravityCLIModelEnvVar = "ANTIGRAVITY_MODEL"` | AntigravityCLIModelEnvVar is the native environment variable name supported by the Antigravity CLI for selecting the model. |
 | `engine_constants.go` | `const` | `CodexAPIKey` | `const CodexAPIKey = "CODEX_API_KEY"` | CodexAPIKey is the API key secret name used by the Codex engine. |
 | `engine_constants.go` | `const` | `CodexDefaultModel` | `const CodexDefaultModel = "gpt-5.4"` | CodexDefaultModel is the default model for the Codex agentic engine. |
 | `engine_constants.go` | `const` | `CopilotBYOKDummyAPIKeyEnvVar` | `const CopilotBYOKDummyAPIKeyEnvVar = "COPILOT_DUMMY_BYOK"` | CopilotBYOKDummyAPIKeyEnvVar is the environment variable that holds the CopilotBYOKDummyAPIKey sentinel value in generated lock files. |
@@ -644,8 +638,6 @@ This appendix is generated from the current non-test Go source files in this pac
 | `engine_constants.go` | `const` | `DefaultMaxToolDenials` | `const DefaultMaxToolDenials = 5` | DefaultMaxToolDenials is the default maximum number of repeated tool denials allowed in Copilot SDK mode before stopping inference. |
 | `engine_constants.go` | `const` | `EnvVarGitHubMCPServerToken` | `const EnvVarGitHubMCPServerToken = "GH_AW_GITHUB_MCP_SERVER_TOKEN"` | EnvVarGitHubMCPServerToken is the optional token for the GitHub MCP server. |
 | `engine_constants.go` | `const` | `EnvVarMaxToolDenials` | `const EnvVarMaxToolDenials = "GH_AW_MAX_TOOL_DENIALS"` | EnvVarMaxToolDenials is the maximum number of repeated tool denials allowed in Copilot SDK driver mode before inference is stopped. |
-| `engine_constants.go` | `const` | `EnvVarModelAgentAntigravity` | `const EnvVarModelAgentAntigravity = "GH_AW_MODEL_AGENT_ANTIGRAVITY"` | EnvVarModelAgentAntigravity configures the default Antigravity model for agent execution |
-| `engine_constants.go` | `const` | `EnvVarModelDetectionAntigravity` | `const EnvVarModelDetectionAntigravity = "GH_AW_MODEL_DETECTION_ANTIGRAVITY"` | EnvVarModelDetectionAntigravity configures the default Antigravity model for detection |
 | `engine_constants.go` | `const` | `GeminiAPIKey` | `const GeminiAPIKey = "GEMINI_API_KEY"` | GeminiAPIKey is the API key secret name required by the Gemini engine. |
 | `engine_constants.go` | `const` | `OpenAIAPIKey` | `const OpenAIAPIKey = "OPENAI_API_KEY"` | OpenAIAPIKey is the OpenAI API key secret name used by the Codex engine as an alternative. |
 | `job_constants.go` | `const` | `EvalsArtifactName` | `const EvalsArtifactName = "evals"` | EvalsArtifactName is the artifact name for the BinEval evaluation results. |

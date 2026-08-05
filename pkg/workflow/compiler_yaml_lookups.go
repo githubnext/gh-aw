@@ -186,12 +186,11 @@ func collectEngineVersionsForMetadata(data *WorkflowData, registry *EngineRegist
 	}
 
 	versions := map[string]string{
-		string(constants.CopilotEngine):     string(constants.DefaultCopilotVersion),
-		string(constants.ClaudeEngine):      string(constants.DefaultClaudeCodeVersion),
-		string(constants.CodexEngine):       string(constants.DefaultCodexVersion),
-		string(constants.GeminiEngine):      string(constants.DefaultGeminiVersion),
-		string(constants.AntigravityEngine): string(constants.DefaultAntigravityVersion),
-		string(constants.PiEngine):          string(constants.DefaultPiVersion),
+		string(constants.CopilotEngine): string(constants.DefaultCopilotVersion),
+		string(constants.ClaudeEngine):  string(constants.DefaultClaudeCodeVersion),
+		string(constants.CodexEngine):   string(constants.DefaultCodexVersion),
+		string(constants.GeminiEngine):  string(constants.DefaultGeminiVersion),
+		string(constants.PiEngine):      string(constants.DefaultPiVersion),
 	}
 
 	mainEngineID := strings.TrimSpace(ResolveEngineID(data))

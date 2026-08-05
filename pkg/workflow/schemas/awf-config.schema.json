@@ -238,10 +238,6 @@
             "vertex": {
               "$ref": "#/$defs/providerTarget",
               "description": "Google Vertex AI API target override."
-            },
-            "antigravity": {
-              "$ref": "#/$defs/providerTarget",
-              "description": "Antigravity API target override (alias of Gemini runtime settings)."
             }
           }
         },

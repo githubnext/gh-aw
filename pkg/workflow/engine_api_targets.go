@@ -155,7 +155,6 @@ func extractCopilotTargetConfig(workflowData *WorkflowData) *AgentAPIProxyTarget
 //   - Codex:    OPENAI_BASE_URL     → --openai-api-target
 //   - Claude:   ANTHROPIC_BASE_URL  → --anthropic-api-target
 //   - Copilot:  GITHUB_COPILOT_BASE_URL → --copilot-api-target (fallback when api-target not set)
-//   - Antigravity:   ANTIGRAVITY_API_BASE_URL → --antigravity-api-target (default: generativelanguage.googleapis.com)
 //
 // Returns empty string if no usable source is configured.
 func GetCopilotAPITarget(workflowData *WorkflowData) string {
@@ -243,44 +242,10 @@ func GetCopilotAllowlistTargets(workflowData *WorkflowData) []string {
 	return targets
 }
 
-// DefaultAntigravityAPITarget is the default Antigravity API endpoint hostname.
-// AWF's proxy sidecar needs this target to forward Antigravity API requests, since
-// unlike OpenAI/Anthropic/Copilot, the proxy has no built-in default handler for Antigravity.
-const DefaultAntigravityAPITarget = "generativelanguage.googleapis.com"
-
 // DefaultGeminiAPITarget is the default Gemini API endpoint hostname.
-// Deprecated: Use DefaultAntigravityAPITarget. This constant is kept for backward compatibility.
-const DefaultGeminiAPITarget = DefaultAntigravityAPITarget
-
-// GetAntigravityAPITarget returns the effective Antigravity API target hostname for the LLM gateway proxy.
-// Unlike other engines where AWF has built-in default routing, Antigravity requires an explicit target.
-//
-// Resolution order:
-//  1. ANTIGRAVITY_API_BASE_URL in engine.env (custom endpoint)
-//  2. Default: generativelanguage.googleapis.com (when engine is "antigravity")
-//
-// Returns empty string if the engine is not Antigravity and no custom ANTIGRAVITY_API_BASE_URL is configured.
-func GetAntigravityAPITarget(workflowData *WorkflowData, engineName string) string {
-	awfHelpersLog.Printf("Getting Antigravity API target for engine: %s", engineName)
-	// Check for custom ANTIGRAVITY_API_BASE_URL in engine.env
-	if customTarget := extractAPITargetHost(workflowData, "ANTIGRAVITY_API_BASE_URL"); customTarget != "" {
-		awfHelpersLog.Printf("Using custom Antigravity API target from ANTIGRAVITY_API_BASE_URL: %s", customTarget)
-		return customTarget
-	}
-
-	// Default to the standard Antigravity API endpoint when engine is Antigravity
-	if engineName == "antigravity" {
-		awfHelpersLog.Printf("Using default Antigravity API target: %s", DefaultAntigravityAPITarget)
-		return DefaultAntigravityAPITarget
-	}
-
-	awfHelpersLog.Print("No Antigravity API target configured (engine is not antigravity and no custom URL)")
-	return ""
-}
+const DefaultGeminiAPITarget = "generativelanguage.googleapis.com"
 
 // GetGeminiAPITarget returns the effective Gemini API target hostname for the LLM gateway proxy.
-// Deprecated: Use GetAntigravityAPITarget for new Antigravity engine workflows.
-// This function is retained for backward compatibility with existing Gemini engine workflows.
 //
 // Resolution order:
 //  1. GEMINI_API_BASE_URL in engine.env (custom endpoint)
@@ -340,8 +305,6 @@ func getEngineAPIHosts(data *WorkflowData, engine CodingAgentEngine) []string {
 		return []string{"api.openai.com"}
 	case *GeminiEngine:
 		return []string{DefaultGeminiAPITarget}
-	case *AntigravityEngine:
-		return []string{DefaultAntigravityAPITarget}
 	default:
 		// Custom or unknown engine — no known API hosts without explicit api-target.
 		return nil
