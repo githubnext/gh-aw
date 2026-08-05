@@ -37,26 +37,31 @@ docker_pull_with_retry() {
     if timeout 5m docker pull --quiet "$image" 2>&1; then
       echo "Successfully pulled $image"
 
-      # When pulling with a digest pin (image:tag@sha256:...), Docker may not
-      # create the tag alias automatically. Ensure the tag exists so that
-      # downstream tools (e.g. AWF --skip-pull) can find the image by tag.
+      # When pulling with a digest pin, Docker may not create a digest-free
+      # alias automatically. Preserve the original base reference and add back
+      # its implicit ":latest" or explicit tag alias so downstream tools can
+      # resolve the image locally under --pull-never/--skip-pull semantics.
       local tag_ref="$image"
+      local base_ref="$image"
       if [[ "$image" == *"@sha256:"* ]]; then
-        tag_ref="${image%%@sha256:*}"
-        if [[ "$tag_ref" == *":"* ]]; then
-          echo "Tagging digest-pinned image as $tag_ref"
-          docker tag "$image" "$tag_ref"
+        base_ref="${image%%@sha256:*}"
+        tag_ref="$base_ref"
+        if [[ "$base_ref" == *":"* ]]; then
+          echo "Tagging digest-pinned image as $base_ref"
+          docker tag "$image" "$base_ref"
         else
-          tag_ref="$image"
+          local latest_ref="${base_ref}:latest"
+          echo "Tagging digest-pinned image as $latest_ref"
+          docker tag "$image" "$latest_ref"
+          tag_ref="$latest_ref"
         fi
       fi
 
-      # Also alias the image under the mutable ":latest" tag whenever the
-      # pulled/tagged reference uses a versioned tag. This protects against
-      # tools that resolve the image via ":latest" under --pull-never/
-      # --skip-pull semantics while the download step only wrote the
-      # version-pinned tag (see gh-aw#50681).
-      if [[ "$tag_ref" == *":"* && "$tag_ref" != *"@"* ]]; then
+      # Only AWF images need a mutable ":latest" alias for local compose
+      # stacks, and only when the requested reference was version-pinned. This
+      # avoids races when unrelated repositories are pulled concurrently with
+      # multiple distinct tags.
+      if [[ "$base_ref" == ghcr.io/github/gh-aw-* && "$tag_ref" == *":"* ]]; then
         local repo_ref="${tag_ref%%:*}"
         local tag_part="${tag_ref##*:}"
         if [[ "$tag_part" != "latest" ]]; then
