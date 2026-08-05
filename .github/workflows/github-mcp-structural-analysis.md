@@ -87,7 +87,7 @@ Record this prompt-only source separately:
 - **workflow_context**: `<github-context>` - Injected workflow identity metadata; no MCP call required
 
 1. **context**: `get_teams` - Inspect team-awareness data with `org` set to the repository owner
-2. **repos**: `get_file_contents` - Get a small file (README.md or similar)
+2. **repos**: `get_file_contents_excerpt` (mcp-scripts wrapper) - Get a bounded excerpt from a file (for example `README.md` with `maxBytes: 4000`) instead of calling the built-in `get_file_contents` tool, which has no range/excerpt mode and can return large boilerplate-heavy files
 3. **issues**: `list_issues` - List issues with perPage=1
 4. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
 5. **actions**: `list_workflows` (mcp-scripts wrapper) - List workflows with `perPage: 1` (the built-in GitHub MCP `list_workflows` tool uses snake_case `per_page` and silently ignores camelCase `perPage`; the mcp-scripts wrapper imported via `shared/github-mcp-pagination-wrappers.md` respects `perPage`)
