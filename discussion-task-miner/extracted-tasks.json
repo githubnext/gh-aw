@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-05T01:15:00Z",
+  "last_run": "2026-08-05T07:36:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -381,6 +381,18 @@
       "title": "Enable gh-aw-detection on high-frequency Smoke Aider and Smoke Goose workflows",
       "status": "created",
       "created_at": "2026-08-05T01:15:00Z"
+    },
+    {
+      "source_discussion": 50464,
+      "title": "Decompose compiler_safe_outputs_job.go: split 241-line buildSafeOutputsHandlerOutputsAndActionSteps and 144-line buildJobLevelSafeOutputEnvVars",
+      "created_at": "2026-08-05T07:36:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50464,
+      "title": "Add fmt.Errorf(%w) error wrapping throughout pkg/workflow/compiler.go",
+      "created_at": "2026-08-05T07:36:00Z",
+      "status": "created"
     }
   ]
 }

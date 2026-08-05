@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-05T01:15:00Z",
+  "last_run": "2026-08-05T07:36:00Z",
   "discussions_processed": [
     {
       "id": 49032,
@@ -1115,6 +1115,56 @@
       "id": 50425,
       "title": "[daily-sentrux] Daily Sentrux Report - 2026-08-05",
       "processed_at": "2026-08-05T01:15:00Z"
+    },
+    {
+      "id": 50461,
+      "title": "Daily Firewall Report2026-08-05 - no code-quality tasks",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50464,
+      "title": "Daily Compiler Code Quality Report - 2 issues created",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50465,
+      "title": "LintMonster daily scan - targeted findings already tracked in #50163",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50482,
+      "title": "Sergo Report - CI enforcement gap already self-filed as #50481",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50490,
+      "title": "Safe Output Health Report - clean, no tasks",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50491,
+      "title": "Firewall Escape Test Report - security test, no code-quality tasks",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50497,
+      "title": "ESLint Refiner Daily Report - already created own issues today",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50498,
+      "title": "Schema Consistency Check - threat detection warn, skipped",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50499,
+      "title": "auth-test MCP Tools Not Available - infra failure, not code-quality",
+      "processed_at": "2026-08-05T07:36:00Z"
+    },
+    {
+      "id": 50513,
+      "title": "Auto-Triage report - triage labeling, no code-quality tasks",
+      "processed_at": "2026-08-05T07:36:00Z"
     }
   ]
 }
