@@ -314,6 +314,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	}
 
 	yaml.WriteString("        with:\n")
+	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
+		fmt.Fprintf(yaml, "          github-token: %s\n", data.SafeOutputs.GitHubToken)
+	}
 	yaml.WriteString("          script: |\n")
 
 	// Load script from external file using require()

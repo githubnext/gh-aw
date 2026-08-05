@@ -218,6 +218,25 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 	}
 }
 
+func TestOutputCollectionStepUsesSafeOutputsGitHubToken(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubToken: "${{ secrets.SAFE_OUTPUTS_PAT }}",
+		},
+	}
+
+	var yamlBuilder strings.Builder
+	err := compiler.generateOutputCollectionStep(&yamlBuilder, workflowData)
+	if err != nil {
+		t.Fatalf("generateOutputCollectionStep returned unexpected error: %v", err)
+	}
+
+	if !strings.Contains(yamlBuilder.String(), "          github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}\n") {
+		t.Error("Ingest agent output should use safe-outputs.github-token")
+	}
+}
+
 func TestCreateDiscussionConfigParsing(t *testing.T) {
 	tests := []struct {
 		name                string
