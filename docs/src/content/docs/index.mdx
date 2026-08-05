@@ -39,9 +39,6 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
 ## Key Features
 
 <FeatureGrid columns={3}>
-  <FeatureCard icon="pencil" title="Simple Markdown Files" href="#example-daily-issues-report">
-    Write automation in plain markdown instead of complex YAML
-  </FeatureCard>
   <FeatureCard icon="cpu" title="AI-Powered Decision Making" href="#gallery">
     Workflows that understand context and adapt to situations
   </FeatureCard>
@@ -53,6 +50,10 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
   </FeatureCard>
   <FeatureCard icon="shield-lock" title="MicroVM Isolation" href="/gh-aw/reference/glossary/#docker-sbx">
     Run agents in KVM-isolated Docker sbx microVMs on compatible runners
+  </FeatureCard>
+  <FeatureCard title="Safe outputs gate" href="/gh-aw/reference/safe-outputs/">
+    Requested actions are validated against your configured safe outputs
+    policy before anything is applied.
   </FeatureCard>
   <FeatureCard icon="filter" title="Integrity Filtering" href="/gh-aw/reference/integrity/">
     Reduce prompt-injection risk by filtering untrusted GitHub content
@@ -90,10 +91,6 @@ flowchart LR
   <FeatureCard title="Sandbox + network firewall" href="/gh-aw/introduction/architecture/#agent-workflow-firewall-awf">
     The agent runs in a container behind the Agent Workflow Firewall
     and can only reach allowed destinations.
-  </FeatureCard>
-  <FeatureCard title="Safe outputs gate" href="/gh-aw/reference/safe-outputs/">
-    Requested actions are validated against your configured safe outputs
-    policy before anything is applied.
   </FeatureCard>
   <FeatureCard title="Threat detection" href="/gh-aw/reference/threat-detection/">
     A dedicated threat detection job scans proposed outputs and blocks
