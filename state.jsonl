@@ -60,3 +60,4 @@
 {"run_id":"30766872310","timestamp":"2026-08-02T21:00:32.493Z","assignments":{"model_size":"claude-haiku-4.5"}}
 {"run_id":"30852803528","timestamp":"2026-08-03T21:01:51.511Z","assignments":{"model_size":"claude-haiku-4.5"}}
 {"run_id":"30950609527","timestamp":"2026-08-04T21:02:58.364Z","assignments":{"model_size":"claude-haiku-4.5"}}
+{"run_id":"31046863850","timestamp":"2026-08-05T21:02:32.689Z","assignments":{"model_size":"claude-sonnet-4.6"}}
