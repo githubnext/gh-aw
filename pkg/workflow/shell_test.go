@@ -251,7 +251,7 @@ func TestBuildDockerCommandWithExpandableVars(t *testing.T) {
 		{
 			name:     "empty command",
 			input:    "",
-			expected: "",
+			expected: "''",
 		},
 		{
 			name:     "injection attempt in GITHUB_WORKSPACE context",
