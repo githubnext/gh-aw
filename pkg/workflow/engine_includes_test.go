@@ -747,6 +747,10 @@ engine:
       write-timestamp: true
     mcp:
       config-path: .auggie.json
+    network:
+      defaults:
+        - index.crates.io
+        - static.crates.io
 ---
 
 # Shared Auggie engine definition
@@ -785,6 +789,8 @@ imports:
 	assert.Contains(t, lockStr, "Execute Auggie CLI", "lock file should contain behavior-defined execution step")
 	assert.Contains(t, lockStr, `GH_AW_INFO_ENGINE_ID: "auggie"`, "lock file should set engine ID to the imported definition")
 	assert.Contains(t, lockStr, "AUGMENT_SESSION_AUTH: ${{ secrets.AUGMENT_SESSION_AUTH }}", "lock file should bind custom auth secrets from engine.auth")
+	assert.Contains(t, lockStr, "index.crates.io", "lock file should allow the Cargo registry index required by the engine")
+	assert.Contains(t, lockStr, "static.crates.io", "lock file should allow Cargo crate downloads required by the engine")
 }
 
 // TestImportedEngineWithAnthropicWIFAuth is a regression test for the v0.82.10 regression

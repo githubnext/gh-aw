@@ -35,6 +35,8 @@ engine:
         - objects.githubusercontent.com
         - pypi.org
         - files.pythonhosted.org
+        - index.crates.io
+        - static.crates.io
       provider-domains:
         copilot: api.githubcopilot.com
         anthropic: api.anthropic.com
