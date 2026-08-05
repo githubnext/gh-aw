@@ -131,21 +131,36 @@ func (e *BehaviorDefinedEngine) GetSupportedEnvVarKeys() []string {
 
 func (e *BehaviorDefinedEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	behavior := e.behavior()
-	if behavior == nil || behavior.Installation == nil {
+	if behavior == nil {
 		return GitHubActionStep{}
 	}
 	if e.usesUniversalLLMConsumer() {
+		if behavior.Installation == nil {
+			return GitHubActionStep{}
+		}
 		return e.GetUniversalSecretValidationStep(
 			workflowData,
 			e.definition.DisplayName,
 			behavior.Installation.DocumentationURL,
 		)
 	}
-	secrets := e.GetRequiredSecretNames(workflowData)
+	secrets := make([]string, 0, len(e.definition.Auth))
+	seen := make(map[string]struct{}, len(e.definition.Auth))
+	for _, binding := range e.definition.Auth {
+		if binding.Secret == "" || setutil.Contains(seen, binding.Secret) {
+			continue
+		}
+		seen[binding.Secret] = struct{}{}
+		secrets = append(secrets, binding.Secret)
+	}
 	if len(secrets) == 0 {
 		return GitHubActionStep{}
 	}
-	return BuildDefaultSecretValidationStep(workflowData, secrets, e.definition.DisplayName, behavior.Installation.DocumentationURL)
+	documentationURL := ""
+	if behavior.Installation != nil {
+		documentationURL = behavior.Installation.DocumentationURL
+	}
+	return BuildDefaultSecretValidationStep(workflowData, secrets, e.definition.DisplayName, documentationURL)
 }
 
 func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
