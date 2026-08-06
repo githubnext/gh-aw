@@ -35,6 +35,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
  */
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -124,6 +125,75 @@ function isWithinRoot(filePath, root) {
 }
 
 /**
+ * Validate that a canonical absolute path does not refer to sensitive system or credential
+ * locations. Mirrors the check in safe_outputs_handlers.cjs for defense-in-depth.
+ *
+ * @param {string} canonicalPath - Resolved absolute path
+ * @returns {string|null} Error message or null if safe
+ */
+function validateSourcePath(canonicalPath) {
+  const parts = canonicalPath.split(path.sep);
+  if (parts.some(p => p === ".git")) {
+    return `path contains sensitive repository metadata (.git): ${canonicalPath}`;
+  }
+
+  const systemDenied = ["/etc", "/proc", "/sys", "/dev", "/run", "/boot", "/lib", "/lib64", "/usr/lib", "/usr/local/lib"];
+  for (const denied of systemDenied) {
+    const normalDenied = path.resolve(denied);
+    if (canonicalPath === normalDenied || canonicalPath.startsWith(normalDenied + path.sep)) {
+      return `path refers to a system directory: ${canonicalPath}`;
+    }
+  }
+
+  const homeDir = os.homedir();
+  if (homeDir) {
+    const sensitiveNames = [".ssh", ".aws", ".gnupg", ".docker", ".kube", ".azure", ".gcp", ".config", ".netrc", ".npmrc", ".gitconfig", ".gitcredentials", ".git-credentials"];
+    for (const name of sensitiveNames) {
+      const sensitive = path.join(path.resolve(homeDir), name);
+      if (canonicalPath === sensitive || canonicalPath.startsWith(sensitive + path.sep)) {
+        return `path refers to a sensitive HOME location: ${canonicalPath}`;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Resolve a root path to its canonical form, falling back to path.resolve when the
+ * directory does not yet exist (e.g. GITHUB_WORKSPACE before checkout).
+ * @param {string} root
+ * @returns {string}
+ */
+function canonicalizeRoot(root) {
+  try {
+    return fs.realpathSync(root);
+  } catch {
+    return path.resolve(root);
+  }
+}
+
+/**
+ * Validate that a canonical absolute path is within one of the allowed source roots.
+ * Allowed roots: staging directory, GITHUB_WORKSPACE.
+ * RUNNER_TEMP is intentionally excluded — only the specific staging subdirectory is allowed.
+ *
+ * @param {string} canonicalPath - Resolved absolute path
+ * @returns {string|null} Error message or null if within an allowed root
+ */
+function validateAllowedRoot(canonicalPath) {
+  const allowedRoots = [canonicalizeRoot(STAGING_DIR)];
+  if (process.env.GITHUB_WORKSPACE) {
+    allowedRoots.push(canonicalizeRoot(process.env.GITHUB_WORKSPACE));
+  }
+  const withinAllowedRoot = allowedRoots.some(root => canonicalPath === root || canonicalPath.startsWith(root + path.sep));
+  if (!withinAllowedRoot) {
+    return `path is outside allowed source roots (GITHUB_WORKSPACE, staging directory): ${canonicalPath}`;
+  }
+  return null;
+}
+
+/**
  * Recursively list all regular files under a directory.
  * @param {string} dir - Absolute directory path
  * @param {string} baseDir - Root used to compute relative paths
@@ -181,6 +251,7 @@ function copySingleFileToStaging(sourcePath, destRelPath) {
   }
   try {
     fs.copyFileSync(sourcePath, destPath);
+    fs.chmodSync(destPath, 0o600);
   } catch (err) {
     throw new Error(`Failed to copy file ${sourcePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
   }
@@ -207,10 +278,32 @@ function copyDirectoryToStaging(sourceDir, destRelDir) {
       continue;
     }
     if (stat.isDirectory()) {
+      // Reject sensitive directory names at every level (e.g. foo/.git/config).
+      let canonicalDir;
+      try {
+        canonicalDir = fs.realpathSync(srcFull);
+      } catch (err) {
+        return { copiedCount, error: `failed to resolve canonical path for ${srcFull}: ${err instanceof Error ? err.message : String(err)}` };
+      }
+      const sensitiveErr = validateSourcePath(canonicalDir);
+      if (sensitiveErr) {
+        return { copiedCount, error: sensitiveErr };
+      }
       const sub = copyDirectoryToStaging(srcFull, destRel);
       if (sub.error) return sub;
       copiedCount += sub.copiedCount;
     } else if (stat.isFile()) {
+      // Revalidate each file's canonical path before copying.
+      let canonicalFile;
+      try {
+        canonicalFile = fs.realpathSync(srcFull);
+      } catch (err) {
+        return { copiedCount, error: `failed to resolve canonical path for ${srcFull}: ${err instanceof Error ? err.message : String(err)}` };
+      }
+      const sensitiveErr = validateSourcePath(canonicalFile);
+      if (sensitiveErr) {
+        return { copiedCount, error: sensitiveErr };
+      }
       const result = copySingleFileToStaging(srcFull, destRel);
       if (result.error) return { copiedCount, error: result.error };
       copiedCount++;
@@ -241,6 +334,23 @@ function autoCopyToStaging(reqPath) {
     if (stat === null) {
       return { copied: false, relPath: "", error: `symlinks are not allowed: ${reqPath}` };
     }
+
+    // Canonicalize and validate before copying.
+    let canonical;
+    try {
+      canonical = fs.realpathSync(reqPath);
+    } catch (err) {
+      return { copied: false, relPath: "", error: `failed to resolve canonical path for ${reqPath}: ${err instanceof Error ? err.message : String(err)}` };
+    }
+    const sensitiveErr = validateSourcePath(canonical);
+    if (sensitiveErr) {
+      return { copied: false, relPath: "", error: sensitiveErr };
+    }
+    const rootErr = validateAllowedRoot(canonical);
+    if (rootErr) {
+      return { copied: false, relPath: "", error: rootErr };
+    }
+
     // Derive a relative destination path from the basename (or relative to filesystem root for nested paths).
     const relPath = path.basename(reqPath);
     if (stat.isDirectory()) {
@@ -272,6 +382,23 @@ function autoCopyToStaging(reqPath) {
     if (stat === null) {
       return { copied: false, relPath: "", error: `symlinks are not allowed: ${candidate}` };
     }
+
+    // Canonicalize and validate before copying.
+    let canonical;
+    try {
+      canonical = fs.realpathSync(candidate);
+    } catch (err) {
+      return { copied: false, relPath: "", error: `failed to resolve canonical path for ${candidate}: ${err instanceof Error ? err.message : String(err)}` };
+    }
+    const sensitiveErr = validateSourcePath(canonical);
+    if (sensitiveErr) {
+      return { copied: false, relPath: "", error: sensitiveErr };
+    }
+    const rootErr = validateAllowedRoot(canonical);
+    if (rootErr) {
+      return { copied: false, relPath: "", error: rootErr };
+    }
+
     if (stat.isDirectory()) {
       const result = copyDirectoryToStaging(candidate, reqPath);
       if (result.error) return { copied: false, relPath: "", error: result.error };

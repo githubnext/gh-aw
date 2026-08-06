@@ -607,9 +607,12 @@ describe("upload_artifact.cjs", () => {
         fs.rmSync(WORKSPACE_DIR, { recursive: true });
       }
       fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+      // Set GITHUB_WORKSPACE so auto-copy is allowed from WORKSPACE_DIR.
+      process.env.GITHUB_WORKSPACE = WORKSPACE_DIR;
     });
 
     afterEach(() => {
+      delete process.env.GITHUB_WORKSPACE;
       if (fs.existsSync(WORKSPACE_DIR)) {
         fs.rmSync(WORKSPACE_DIR, { recursive: true });
       }
@@ -758,6 +761,111 @@ describe("upload_artifact.cjs", () => {
       const [, files, rootDir] = mockArtifactClient.uploadArtifact.mock.calls[0];
       expect(files).toContain(path.join(STAGING_DIR, "fallback-report.json"));
       expect(rootDir).toBe(STAGING_DIR);
+    });
+  });
+
+  describe("path validation (security)", () => {
+    const WORKSPACE_DIR = "/tmp/gh-aw-security-test-workspace";
+
+    beforeEach(() => {
+      if (fs.existsSync(WORKSPACE_DIR)) {
+        fs.rmSync(WORKSPACE_DIR, { recursive: true });
+      }
+      fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+      process.env.GITHUB_WORKSPACE = WORKSPACE_DIR;
+    });
+
+    afterEach(() => {
+      delete process.env.GITHUB_WORKSPACE;
+      if (fs.existsSync(WORKSPACE_DIR)) {
+        fs.rmSync(WORKSPACE_DIR, { recursive: true });
+      }
+    });
+
+    it("rejects an absolute path under /etc", async () => {
+      if (!fs.existsSync("/etc/hosts")) return;
+      const stat = (() => {
+        try {
+          return fs.lstatSync("/etc/hosts");
+        } catch {
+          return null;
+        }
+      })();
+      if (!stat || stat.isSymbolicLink()) return;
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: "/etc/hosts" }]);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("system directory"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
+    });
+
+    it("rejects a path containing a .git directory component", async () => {
+      const gitDir = path.join(WORKSPACE_DIR, ".git");
+      const gitConfig = path.join(gitDir, "config");
+      fs.mkdirSync(gitDir, { recursive: true });
+      fs.writeFileSync(gitConfig, "[core]\n  repositoryformatversion = 0\n");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: gitConfig }]);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("sensitive repository metadata"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
+    });
+
+    it("rejects an absolute path outside allowed roots (GITHUB_WORKSPACE, staging)", async () => {
+      const outsideDir = "/tmp/gh-aw-out-of-bounds-" + Math.random().toString(36).substring(7);
+      try {
+        fs.mkdirSync(outsideDir, { recursive: true });
+        const outsideFile = path.join(outsideDir, "data.json");
+        fs.writeFileSync(outsideFile, "{}");
+
+        // Unset GITHUB_WORKSPACE so the outsideDir is not covered.
+        delete process.env.GITHUB_WORKSPACE;
+
+        await runHandler(buildConfig(), [{ type: "upload_artifact", path: outsideFile }]);
+
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("outside allowed source roots"));
+        expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
+      } finally {
+        try {
+          fs.rmSync(outsideDir, { recursive: true, force: true });
+        } catch {}
+      }
+    });
+
+    it("rejects a nested .git directory during recursive auto-copy", async () => {
+      const srcDir = path.join(WORKSPACE_DIR, "project");
+      const gitDir = path.join(srcDir, ".git");
+      fs.mkdirSync(gitDir, { recursive: true });
+      fs.writeFileSync(path.join(gitDir, "config"), "[core]\n  repositoryformatversion = 0\n");
+      fs.writeFileSync(path.join(srcDir, "readme.md"), "hello");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: srcDir }]);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("sensitive repository metadata"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
+    });
+
+    it("allows a path within GITHUB_WORKSPACE", async () => {
+      const wsFile = path.join(WORKSPACE_DIR, "output.json");
+      fs.writeFileSync(wsFile, '{"result":"ok"}');
+
+      const results = await runHandler(buildConfig(), [{ type: "upload_artifact", path: wsFile }]);
+
+      expect(results[0].success).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockArtifactClient.uploadArtifact).toHaveBeenCalledOnce();
+    });
+
+    it("sets restrictive permissions (0o600) on auto-copied staged files", async () => {
+      const wsFile = path.join(WORKSPACE_DIR, "secure.json");
+      fs.writeFileSync(wsFile, "secure data");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: wsFile }]);
+
+      const stagedFile = path.join(STAGING_DIR, "secure.json");
+      expect(fs.existsSync(stagedFile)).toBe(true);
+      const stat = fs.statSync(stagedFile);
+      expect(stat.mode & 0o777).toBe(0o600);
     });
   });
 });
