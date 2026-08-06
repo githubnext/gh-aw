@@ -168,8 +168,9 @@ func resolveFuncBody(fun ast.Expr, typesInfo *types.Info, funcBodies map[*types.
 			body, ok := funcBodies[fn.Origin()]
 			return body, ok
 		}
-		// Package-qualified function (pkg.Fn) — no selection recorded.
-		ident = target.Sel
+		// Package-qualified function (pkg.Fn) — no selection recorded and the
+		// body lives in another package, so it cannot be inspected.
+		return nil, false
 	case *ast.IndexExpr:
 		// Explicit instantiation of a generic function: f[T].
 		return resolveFuncBody(unwrapParens(target.X), typesInfo, funcBodies)
