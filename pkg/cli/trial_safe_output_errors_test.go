@@ -75,3 +75,118 @@ func TestWorkflowTrialResultSuccessField(t *testing.T) {
 		t.Error("expected Success to be true when there are no safe-output errors")
 	}
 }
+
+func TestAggregateTrialResults(t *testing.T) {
+	tests := []struct {
+		name              string
+		results           []WorkflowTrialResult
+		wantSuccess       bool
+		wantTotalRejected int
+		wantFirstError    string
+	}{
+		{
+			name:              "no results",
+			results:           nil,
+			wantSuccess:       true,
+			wantTotalRejected: 0,
+			wantFirstError:    "",
+		},
+		{
+			name: "all successful",
+			results: []WorkflowTrialResult{
+				{WorkflowName: "a", Success: true},
+				{WorkflowName: "b", Success: true},
+			},
+			wantSuccess:       true,
+			wantTotalRejected: 0,
+			wantFirstError:    "",
+		},
+		{
+			name: "one failure with rejected messages",
+			results: []WorkflowTrialResult{
+				{WorkflowName: "a", Success: true},
+				{
+					WorkflowName:     "b",
+					Success:          false,
+					SafeOutputErrors: []string{"first error", "second error"},
+				},
+			},
+			wantSuccess:       false,
+			wantTotalRejected: 2,
+			wantFirstError:    "first error",
+		},
+		{
+			name: "multiple failures aggregate total and keep first error in order",
+			results: []WorkflowTrialResult{
+				{
+					WorkflowName:     "a",
+					Success:          false,
+					SafeOutputErrors: []string{"error from a"},
+				},
+				{
+					WorkflowName:     "b",
+					Success:          false,
+					SafeOutputErrors: []string{"error from b1", "error from b2"},
+				},
+			},
+			wantSuccess:       false,
+			wantTotalRejected: 3,
+			wantFirstError:    "error from a",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotSuccess, gotTotalRejected, gotFirstError := aggregateTrialResults(tt.results)
+			if gotSuccess != tt.wantSuccess {
+				t.Errorf("aggregateTrialResults() success = %v, want %v", gotSuccess, tt.wantSuccess)
+			}
+			if gotTotalRejected != tt.wantTotalRejected {
+				t.Errorf("aggregateTrialResults() totalRejected = %d, want %d", gotTotalRejected, tt.wantTotalRejected)
+			}
+			if gotFirstError != tt.wantFirstError {
+				t.Errorf("aggregateTrialResults() firstErrorMessage = %q, want %q", gotFirstError, tt.wantFirstError)
+			}
+		})
+	}
+}
+
+func TestSanitizeControlChars(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "empty string", in: "", want: ""},
+		{name: "plain text unchanged", in: "plain error message", want: "plain error message"},
+		{
+			name: "escapes ANSI escape sequence",
+			in:   "before\x1b[31mred\x1b[0mafter",
+			want: `before'\x1b'[31mred'\x1b'[0mafter`,
+		},
+		{
+			name: "escapes newline and tab",
+			in:   "line1\nline2\ttabbed",
+			want: `line1'\n'line2'\t'tabbed`,
+		},
+		{
+			name: "escapes carriage return",
+			in:   "before\rafter",
+			want: `before'\r'after`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizeControlChars(tt.in)
+			if got != tt.want {
+				t.Errorf("sanitizeControlChars(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+			for _, r := range got {
+				if r < 0x20 || r == 0x7f {
+					t.Errorf("sanitizeControlChars(%q) result %q still contains raw control character", tt.in, got)
+				}
+			}
+		})
+	}
+}
