@@ -83,12 +83,10 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	threatDetectionNeedsPatches := IsDetectionJobEnabled(data.SafeOutputs)
 	if usesPatchesAndCheckouts(data.SafeOutputs) || threatDetectionNeedsPatches {
 		paths = append(paths, constants.TmpAwPatchGlob)
-		// Bundle files are generated when patch-format: bundle is configured.
-		// Both formats use the same download path in the safe_outputs job, so
-		// include the bundle glob unconditionally alongside the patch glob.
-		// The artifact upload step already sets if-no-files-found: ignore, so
-		// this is safe even when no bundle files exist.
-		paths = append(paths, constants.TmpAwBundleGlob)
+		// Bundle files are binary git bundles that cannot be safely text-scanned for
+		// secrets. They are excluded from the downloadable artifact.
+		// The artifact upload step already sets if-no-files-found: ignore, so excluding
+		// the bundle glob here is safe even when no bundle files exist.
 	}
 
 	// Include firewall audit/observability logs in the unified agent artifact

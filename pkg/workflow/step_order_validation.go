@@ -204,12 +204,13 @@ func isPathScannedBySecretRedaction(path string) bool {
 	}
 
 	// Path must have one of the scanned extensions that the redact_secrets step covers.
+	// This list must stay in sync with targetExtensions in actions/setup/js/redact_secrets.cjs.
 	// .patch files are git-diff output written to /tmp/gh-aw/ by the safe-outputs MCP server
 	// and are covered by the redact_secrets step before the unified artifact is uploaded.
-	// .bundle files are git bundle files written to /tmp/gh-aw/ when patch-format: bundle is
-	// configured. They are binary files but must still pass through secret redaction.
+	// .bundle files are binary git bundles and are excluded from artifact uploads; they are
+	// not listed here because they cannot be safely scanned as UTF-8 text.
 	ext := filepath.Ext(path)
-	scannedExtensions := []string{".txt", ".json", ".log", ".jsonl", ".patch", ".bundle"}
+	scannedExtensions := []string{".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl", ".patch"}
 	if slices.Contains(scannedExtensions, ext) {
 		return true
 	}
