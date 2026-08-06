@@ -13110,6 +13110,10 @@
               "type": "string",
               "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'pi')"
             },
+            "version": {
+              "type": ["string", "number"],
+              "description": "Default CLI version applied when a workflow references this engine without specifying engine.version"
+            },
             "display-name": {
               "type": "string",
               "description": "Human-readable display name for the engine"

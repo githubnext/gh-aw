@@ -12,11 +12,8 @@ on:
     paths:
       - 'docs/**'
       - 'cmd/gh-aw-wasm/**'
-      - 'pkg/**'
       - 'scripts/bundle-wasm-docs.sh'
       - '.github/workflows/docs.yml'
-      - 'go.mod'
-      - 'go.sum'
       - 'Makefile'
   push:
     branches:
@@ -24,11 +21,8 @@ on:
     paths:
       - 'docs/**'
       - 'cmd/gh-aw-wasm/**'
-      - 'pkg/**'
       - 'scripts/bundle-wasm-docs.sh'
       - '.github/workflows/docs.yml'
-      - 'go.mod'
-      - 'go.sum'
       - 'Makefile'
 
 # Allow this job to clone the repo
