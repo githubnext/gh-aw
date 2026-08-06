@@ -220,6 +220,58 @@ describe("generateGitBundle (incremental)", () => {
     }
   });
 
+  it("generates a filtered bundle even when the repository configures failing checkout and apply-patch hooks", async () => {
+    // Repository hooks requiring tooling absent from the safe-outputs environment must not
+    // break filtered bundle synthesis, which uses a temporary worktree and git am internally.
+    const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-hooks-remote-"));
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-hooks-work-"));
+    tempDirs.push(remoteDir, workDir);
+
+    execGit(["init", "--bare"], { cwd: remoteDir });
+    execGit(["clone", remoteDir, workDir]);
+    execGit(["config", "user.name", "Test User"], { cwd: workDir });
+    execGit(["config", "user.email", "test@example.com"], { cwd: workDir });
+
+    fs.writeFileSync(path.join(workDir, "base.txt"), "base\n");
+    execGit(["add", "base.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "base"], { cwd: workDir });
+    execGit(["branch", "-M", "main"], { cwd: workDir });
+    execGit(["push", "-u", "origin", "main"], { cwd: workDir });
+
+    execGit(["checkout", "-b", "pr-branch"], { cwd: workDir });
+    fs.writeFileSync(path.join(workDir, "pr.txt"), "pr change\n");
+    fs.writeFileSync(path.join(workDir, "secret.txt"), "secret\n");
+    execGit(["add", "pr.txt", "secret.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "pr commit"], { cwd: workDir });
+    execGit(["push", "-u", "origin", "pr-branch"], { cwd: workDir });
+
+    fs.writeFileSync(path.join(workDir, "pr-2.txt"), "pr second\n");
+    execGit(["add", "pr-2.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "pr second"], { cwd: workDir });
+
+    // Use an explicit hooks path so global Git configuration cannot bypass the regression.
+    const hooksDir = path.join(workDir, "configured-hooks");
+    fs.mkdirSync(hooksDir, { recursive: true });
+    execGit(["config", "core.hooksPath", hooksDir], { cwd: workDir });
+    for (const hookName of ["post-checkout", "pre-applypatch"]) {
+      const hookPath = path.join(hooksDir, hookName);
+      fs.writeFileSync(hookPath, `#!/bin/sh\necho '${hookName} dependency not found' >&2\nexit 2\n`);
+      fs.chmodSync(hookPath, 0o755);
+    }
+
+    const { generateGitBundle } = require("./generate_git_bundle.cjs");
+    const result = await generateGitBundle("pr-branch", "main", {
+      mode: "incremental",
+      cwd: workDir,
+      excludedFiles: ["secret.txt"],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.bundlePath).toBeTruthy();
+    bundlePaths.push(result.bundlePath);
+    expect(fs.statSync(result.bundlePath).size).toBeGreaterThan(0);
+  });
+
   it("returns actionable guidance when branch is missing in incremental mode", async () => {
     const { generateGitBundle } = require("./generate_git_bundle.cjs");
 
