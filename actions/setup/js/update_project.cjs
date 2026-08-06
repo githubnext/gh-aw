@@ -385,8 +385,7 @@ async function findExistingItemByContentId(github, projectId, contentId) {
           ... on Issue {
             projectItems(first: 100, after: $after) {
               nodes {
-                id
-                project { id }
+                ...ProjectItemProject
               }
               pageInfo {
                 hasNextPage
@@ -397,8 +396,7 @@ async function findExistingItemByContentId(github, projectId, contentId) {
           ... on PullRequest {
             projectItems(first: 100, after: $after) {
               nodes {
-                id
-                project { id }
+                ...ProjectItemProject
               }
               pageInfo {
                 hasNextPage
@@ -407,6 +405,10 @@ async function findExistingItemByContentId(github, projectId, contentId) {
             }
           }
         }
+      }
+      fragment ProjectItemProject on ProjectV2Item {
+        id
+        project { id }
       }`,
       { contentId, after: endCursor }
     );
