@@ -384,7 +384,7 @@ describe("git_auth_helpers.cjs", () => {
         return 0;
       });
 
-      await expect(restorePersistedExtraheader(SERVER_URL, [header1, header2])).rejects.toThrow(/^git config --local --add http\.https:\/\/github\.com\/\.extraheader .+ failed/);
+      await expect(restorePersistedExtraheader(SERVER_URL, [header1, header2])).rejects.toThrow(/^git-config-credential failed/);
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("partial extraheader restore"));
       // Cleanup should use unsetExtraheaderAllScopes (getExecOutput calls for --unset-all)

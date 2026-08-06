@@ -185,7 +185,7 @@ async function gitExecSilent(gitArgs, cwd) {
   try {
     await exec.exec("git", gitArgs, { silent: true, listeners, ...(cwd ? { cwd } : {}) });
   } catch (err) {
-    throw new Error(`git ${gitArgs.join(" ")} failed: ${stderrBuf.trim() || getErrorMessage(err)}`);
+    throw new Error(`git-config-credential failed: ${stderrBuf.trim() || getErrorMessage(err)}`);
   }
 }
 
@@ -209,6 +209,7 @@ async function overridePersistedExtraheader(serverUrl, token, cwd) {
     previousValues = [];
   }
   core.info(`git_auth_helpers: overriding http.${normalizedUrl}/.extraheader with CI trigger token`);
+  core.setSecret(token);
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
   core.setSecret(tokenBase64);
   const authHeader = `Authorization: basic ${tokenBase64}`;
@@ -307,6 +308,7 @@ async function withGitHubHostToken(token, callback, cwd) {
 module.exports = {
   checkoutHasPersistedExtraheader,
   findIncludedExtraheaderConfigFiles,
+  gitExecSilent,
   overridePersistedExtraheader,
   restorePersistedExtraheader,
   unsetExtraheaderAllScopes,

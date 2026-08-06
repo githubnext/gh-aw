@@ -159,6 +159,7 @@ async function main() {
   if (!token) {
     throw new Error(`${ERR_CONFIG}: Missing GitHub token: set GH_TOKEN or GITHUB_TOKEN to push changes and create a pull request for agentic workflow update/upgrade operations.`);
   }
+  core.setSecret(token);
   const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   let githubHost;
   try {
@@ -173,7 +174,7 @@ async function main() {
   } catch {
     // Remote doesn't exist yet - that's fine
   }
-  await exec.exec("git", ["remote", "add", "aw-push", remoteUrl]);
+  await exec.exec("git", ["remote", "add", "aw-push", remoteUrl], { silent: true });
 
   try {
     await exec.exec("git", ["push", "aw-push", branchName]);
