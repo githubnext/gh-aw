@@ -13,6 +13,55 @@ describe("core shim", () => {
     expect(result.stderr).toBe("::add-mask::derived%25secret%0D%0Avalue\n");
   });
 
+  it("masks registered secrets in every future shim output", () => {
+    const shimPath = join(import.meta.dirname, "shim.cjs");
+    const script = `
+      require(${JSON.stringify(shimPath)});
+      core.setSecret("derived.secret");
+      core.debug("debug derived.secret derived.secret");
+      core.info("info derived.secret");
+      core.notice("notice derived.secret");
+      core.warning("warning derived.secret");
+      core.error("error derived.secret");
+      core.setOutput("derived.secret-name", "derived.secret-value");
+      core.setFailed("failed derived.secret");
+    `;
+    const result = spawnSync(process.execPath, ["-e", script], {
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe(
+      ["::add-mask::derived.secret", "[debug] debug *** ***", "[info] info ***", "[notice] notice ***", "[warning] warning ***", "[error] error ***", "[output] ***-name=***-value", "[error] failed ***", ""].join("\n")
+    );
+  });
+
+  it("masks overlapping secrets without revealing suffixes", () => {
+    const shimPath = join(import.meta.dirname, "shim.cjs");
+    const script = `
+      require(${JSON.stringify(shimPath)});
+      core.setSecret("token");
+      core.setSecret("token-with-suffix");
+      core.info("token-with-suffix token");
+    `;
+    const result = spawnSync(process.execPath, ["-e", script], {
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("::add-mask::token\n::add-mask::token-with-suffix\n[info] *** ***\n");
+  });
+
+  it("ignores empty secrets", () => {
+    const shimPath = join(import.meta.dirname, "shim.cjs");
+    const result = spawnSync(process.execPath, ["-e", `require(${JSON.stringify(shimPath)}); core.setSecret(""); core.info("visible");`], {
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("[info] visible\n");
+  });
+
   it("adds setSecret to an existing partial core object", () => {
     const shimPath = join(import.meta.dirname, "shim.cjs");
     const result = spawnSync(process.execPath, ["-e", `global.core = { info() {} }; require(${JSON.stringify(shimPath)}); core.setSecret("derived-value");`], {
