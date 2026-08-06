@@ -88,7 +88,8 @@ func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string,
 	}
 	yaml.WriteString("        env:\n")
 	customEnvVarNames := sliceutil.SortedKeys(gatewayEnvVars)
-	transportEnvVarNames := make(map[string]struct{}, len(customEnvVarNames))
+	transportEnvVarNames := make(map[string]struct{}, len(customEnvVarNames)+1)
+	transportEnvVarNames[mcpGatewayCustomEnvNamesVar] = struct{}{}
 	for i := range customEnvVarNames {
 		transportEnvVarNames[mcpGatewayCustomEnvTransportName(i)] = struct{}{}
 	}

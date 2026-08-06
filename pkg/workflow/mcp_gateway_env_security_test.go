@@ -102,6 +102,20 @@ func TestMCPGatewayCustomEnvPreservesGitHubExpressionAsData(t *testing.T) {
 	assert.NotContains(t, yaml.String(), "API_TOKEN:")
 }
 
+func TestMCPGatewayCustomEnvReservesTransportMetadataName(t *testing.T) {
+	var yaml strings.Builder
+	writeMCPGatewayStepEnv(&yaml, map[string]string{
+		mcpGatewayCustomEnvNamesVar: "${{ secrets.COLLISION }}",
+	}, nil, map[string]string{
+		"API_TOKEN": "custom-token",
+	})
+
+	output := yaml.String()
+	assert.Equal(t, 1, strings.Count(output, mcpGatewayCustomEnvNamesVar+":"))
+	assert.Contains(t, output, `GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: "[\"API_TOKEN\"]"`)
+	assert.NotContains(t, output, "${{ secrets.COLLISION }}")
+}
+
 func TestMCPGatewayCustomEnvCommandContract(t *testing.T) {
 	gatewayConfig := &MCPGatewayRuntimeConfig{
 		Container: "ghcr.io/github/gh-aw-mcpg",
