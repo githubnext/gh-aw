@@ -112,7 +112,7 @@ async function checkoutRepo(repoSlug, token, options = {}) {
     if (!hasPersistedAuth) {
       // Use extraheader to pass the token without embedding it in the URL (more secure).
       const tokenBase64 = Buffer.from(`x-access-token:${token}`).toString("base64");
-      await exec.exec("git", ["config", `http.${serverUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`]);
+      await exec.exec("git", ["config", `http.${serverUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`], { silent: true });
     } else {
       core.info("Reusing persisted git credential for authentication (skipping extraheader injection)");
     }
