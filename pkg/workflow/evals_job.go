@@ -159,6 +159,7 @@ func (c *Compiler) buildPushEvalsStateJob(data *WorkflowData) (*Job, error) {
 		fmt.Sprintf("          GH_AW_STATE_DIR: %s\n", evalsStateDir),
 		fmt.Sprintf("          GH_AW_STATE_BRANCH: %s\n", branchName),
 		fmt.Sprintf("          GH_AW_STATE_FILES: %s\n", constants.EvalsResultFilename),
+		fmt.Sprintf("          GH_AW_STATE_APPEND_FILES: %s\n", constants.EvalsResultFilename),
 		"          GH_AW_STATE_LABEL: evals results\n",
 		"        with:\n",
 		"          script: |\n",
