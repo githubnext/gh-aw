@@ -92,6 +92,10 @@ func getBuiltinOnlyAliasMap() map[string][]string {
 		return data, nil
 	})
 	if err != nil {
+		// Don't permanently cache the failure: leave the loader ready to retry
+		// (and builtinOnlyAliasMapID at its zero value) so a caller that recovers
+		// from this panic doesn't get stuck with a stale, un-set identity pointer.
+		builtinOnlyAliasMapLoader.Reset()
 		panic(err)
 	}
 	return data
