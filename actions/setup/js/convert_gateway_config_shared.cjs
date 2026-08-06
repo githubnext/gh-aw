@@ -201,9 +201,7 @@ function runGatewayConversion(options) {
   writeSecureOutput(outputPath, output);
 
   core.info(`${options.engine} configuration written to ${outputPath}`);
-  core.info("");
-  core.info("Converted configuration:");
-  core.info(output);
+  core.info(`Converted servers: ${Object.keys(servers).join(", ") || "(none)"}`);
   return output;
 }
 
