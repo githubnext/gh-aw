@@ -12,16 +12,37 @@
  * `github-script`) the respective block is a no-op.
  */
 
-const escapeCommandData = value => String(value).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
-
 const secrets = new Set();
 
 const maskSecrets = value => {
-  let masked = String(value);
-  const orderedSecrets = [...secrets].sort((left, right) => right.length - left.length);
-  for (const secret of orderedSecrets) {
-    masked = masked.split(secret).join("***");
+  const text = String(value);
+  const ranges = [];
+  for (const secret of secrets) {
+    for (let start = text.indexOf(secret); start !== -1; start = text.indexOf(secret, start + 1)) {
+      ranges.push([start, start + secret.length]);
+    }
   }
+
+  if (ranges.length === 0) {
+    return text;
+  }
+
+  ranges.sort((left, right) => left[0] - right[0]);
+  let masked = "";
+  let cursor = 0;
+  let [rangeStart, rangeEnd] = ranges[0];
+  for (const [start, end] of ranges.slice(1)) {
+    if (start <= rangeEnd) {
+      rangeEnd = Math.max(rangeEnd, end);
+      continue;
+    }
+    masked += `${text.slice(cursor, rangeStart)}***`;
+    cursor = rangeEnd;
+    rangeStart = start;
+    rangeEnd = end;
+  }
+
+  masked += `${text.slice(cursor, rangeStart)}***${text.slice(rangeEnd)}`;
   return masked;
 };
 
@@ -31,7 +52,7 @@ const setSecret = /** @param {string} value */ value => {
     return;
   }
 
-  process.stderr.write(`::add-mask::${escapeCommandData(secret)}\n`);
+  // Do not emit an add-mask workflow command here: that would write the secret to stderr.
   secrets.add(secret);
 };
 

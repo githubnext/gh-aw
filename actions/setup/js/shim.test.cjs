@@ -3,14 +3,14 @@ import { spawnSync } from "child_process";
 import { join } from "path";
 
 describe("core shim", () => {
-  it("emits an escaped add-mask workflow command for derived secrets", () => {
+  it("does not emit derived secrets when registering them", () => {
     const shimPath = join(import.meta.dirname, "shim.cjs");
     const result = spawnSync(process.execPath, ["-e", `require(${JSON.stringify(shimPath)}); core.setSecret("derived%secret\\r\\nvalue");`], {
       encoding: "utf8",
     });
 
     expect(result.status).toBe(0);
-    expect(result.stderr).toBe("::add-mask::derived%25secret%0D%0Avalue\n");
+    expect(result.stderr).toBe("");
   });
 
   it("masks registered secrets in every future shim output", () => {
@@ -31,9 +31,7 @@ describe("core shim", () => {
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toBe(
-      ["::add-mask::derived.secret", "[debug] debug *** ***", "[info] info ***", "[notice] notice ***", "[warning] warning ***", "[error] error ***", "[output] ***-name=***-value", "[error] failed ***", ""].join("\n")
-    );
+    expect(result.stderr).toBe(["[debug] debug *** ***", "[info] info ***", "[notice] notice ***", "[warning] warning ***", "[error] error ***", "[output] ***-name=***-value", "[error] failed ***", ""].join("\n"));
   });
 
   it("masks overlapping secrets without revealing suffixes", () => {
@@ -49,7 +47,22 @@ describe("core shim", () => {
     });
 
     expect(result.status).toBe(0);
-    expect(result.stderr).toBe("::add-mask::token\n::add-mask::token-with-suffix\n[info] *** ***\n");
+    expect(result.stderr).toBe("[info] *** ***\n");
+  });
+
+  it("masks self-overlapping secrets without revealing suffixes", () => {
+    const shimPath = join(import.meta.dirname, "shim.cjs");
+    const script = `
+      require(${JSON.stringify(shimPath)});
+      core.setSecret("aaa");
+      core.info("aaaa");
+    `;
+    const result = spawnSync(process.execPath, ["-e", script], {
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("[info] ***\n");
   });
 
   it("ignores empty secrets", () => {
@@ -69,6 +82,6 @@ describe("core shim", () => {
     });
 
     expect(result.status).toBe(0);
-    expect(result.stderr).toBe("::add-mask::derived-value\n");
+    expect(result.stderr).toBe("");
   });
 });
