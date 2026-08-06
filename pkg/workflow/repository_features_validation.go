@@ -279,6 +279,10 @@ func checkRepositoryHasDiscussions(repo string, verbose bool) (bool, error) {
 // only the in-process repositoryFeaturesCache/repositoryFeaturesLoggedCache layers.
 // The underlying go-gh client still uses disk-backed HTTP response caching when enabled.
 func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
+	if err := validateRepositoryName(repo); err != nil {
+		return false, err
+	}
+
 	// Use native GraphQL client — no gh binary dependency, native context/cancel support.
 	// EnableCache persists the (rarely-changing) discussions-enabled lookup to go-gh's
 	// disk-backed HTTP cache so repeated CLI invocations don't re-query the API.
@@ -296,12 +300,10 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 // checkRepositoryHasDiscussionsUncached. It accepts an injectable GraphQL client so
 // unit tests can assert cache behavior without live credentials.
 func checkRepositoryHasDiscussionsUncachedWithClient(repo string, client *api.GraphQLClient) (bool, error) {
-	// Split repo into owner and name
-	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return false, fmt.Errorf("invalid repository format: %s. Expected format: owner/repo. Example: github/gh-aw", repo)
+	owner, name, err := parseRepositoryName(repo)
+	if err != nil {
+		return false, err
 	}
-	owner, name := parts[0], parts[1]
 
 	var response struct {
 		Repository struct {
@@ -332,6 +334,10 @@ func checkRepositoryHasIssues(repo string, verbose bool) (bool, error) {
 // only the in-process repositoryFeaturesCache/repositoryFeaturesLoggedCache layers.
 // The underlying go-gh client still uses disk-backed HTTP response caching when enabled.
 func checkRepositoryHasIssuesUncached(repo string) (bool, error) {
+	if err := validateRepositoryName(repo); err != nil {
+		return false, err
+	}
+
 	// Create REST client. EnableCache persists the (rarely-changing) has-issues lookup to
 	// go-gh's disk-backed HTTP cache so repeated CLI invocations don't re-query the API.
 	client, err := api.NewRESTClient(api.ClientOptions{
@@ -363,4 +369,18 @@ func checkRepositoryHasIssuesUncachedWithClient(repo string, client *api.RESTCli
 	}
 
 	return response.HasIssues, nil
+}
+
+func validateRepositoryName(repo string) error {
+	_, _, err := parseRepositoryName(repo)
+	return err
+}
+
+func parseRepositoryName(repo string) (owner string, name string, err error) {
+	parts := strings.SplitN(repo, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("invalid repository format: %s. Expected format: owner/repo. Example: github/gh-aw", repo)
+	}
+
+	return parts[0], parts[1], nil
 }
