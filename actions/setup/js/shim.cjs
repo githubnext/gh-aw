@@ -14,8 +14,7 @@
 
 const escapeCommandData = value => String(value).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
 
-const setSecret = /** @param {string} value */ value => {
-};
+const setSecret = /** @param {string} value */ value => {};
 
 if (!global.core) {
   /**
