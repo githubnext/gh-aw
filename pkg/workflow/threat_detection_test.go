@@ -1146,6 +1146,18 @@ func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testin
 	if !strings.Contains(joined, "Detection will continue with fallback workflow context.") {
 		t.Error("Expected prepare step warning to document fallback behavior")
 	}
+	if !strings.Contains(joined, "cp /tmp/gh-aw/aw-prompts/prompt-template.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt-template.txt") {
+		t.Error("Expected prepare step to copy prompt-template.txt into detection dir")
+	}
+	if !strings.Contains(joined, "cp /tmp/gh-aw/aw-prompts/prompt-import-tree.json /tmp/gh-aw/threat-detection/aw-prompts/prompt-import-tree.json") {
+		t.Error("Expected prepare step to copy prompt-import-tree.json into detection dir")
+	}
+	if !strings.Contains(joined, "cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/threat-detection/aw_info.json") {
+		t.Error("Expected prepare step to copy aw_info.json into detection dir")
+	}
+	if !strings.Contains(joined, "comment-memory") {
+		t.Error("Expected prepare step to stage comment-memory directory")
+	}
 	if strings.Contains(joined, `] && cp "$f"`) {
 		t.Error("Expected prepare step to avoid ambiguous A && B || C copy commands")
 	}

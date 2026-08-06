@@ -2255,6 +2255,13 @@ jobs:
           if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then
             echo "::warning::ERR_VALIDATION: Missing or empty detection context prompt at /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt. Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. Detection will continue with fallback workflow context."
           fi
+          cp /tmp/gh-aw/aw-prompts/prompt-template.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt-template.txt 2>/dev/null || true
+          cp /tmp/gh-aw/aw-prompts/prompt-import-tree.json /tmp/gh-aw/threat-detection/aw-prompts/prompt-import-tree.json 2>/dev/null || true
+          cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/threat-detection/aw_info.json 2>/dev/null || true
+          if [ -d /tmp/gh-aw/comment-memory ]; then
+            mkdir -p /tmp/gh-aw/threat-detection/comment-memory
+            cp /tmp/gh-aw/comment-memory/*.md /tmp/gh-aw/threat-detection/comment-memory/ 2>/dev/null || true
+          fi
           cp /tmp/gh-aw/agent_output.json /tmp/gh-aw/threat-detection/agent_output.json 2>/dev/null || true
           for f in /tmp/gh-aw/aw-*.patch; do
             if [ -f "$f" ]; then
