@@ -79,7 +79,7 @@ func TestBuiltinEngineStringFormInjection(t *testing.T) {
 		{
 			engineID:      "opencode",
 			expectError:   true,
-			errorContains: "invalid engine: opencode",
+			errorContains: "engine.model is required for engine 'opencode'",
 		},
 	}
 

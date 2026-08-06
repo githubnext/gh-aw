@@ -252,6 +252,7 @@ jobs:
             .claude
             .codex
             .gemini
+            .opencode
             .pi
           sparse-checkout-cone-mode: true
           fetch-depth: 1

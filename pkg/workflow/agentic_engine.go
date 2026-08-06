@@ -550,6 +550,20 @@ func NewEngineRegistry() *EngineRegistry {
 		}
 	}
 
+	// Register behavior-defined engines from embedded engine definition files.
+	for _, def := range loadBuiltinEngineDefinitions() {
+		if def.Behaviors == nil {
+			continue
+		}
+		engine, err := NewBehaviorDefinedEngine(def)
+		if err != nil {
+			panic(fmt.Sprintf("BUG: failed to build behavior-defined engine %q: %v", def.ID, err))
+		}
+		if err := registry.Register(engine); err != nil {
+			panic(fmt.Sprintf("BUG: failed to register behavior-defined engine %q: %v", def.ID, err))
+		}
+	}
+
 	agenticEngineLog.Printf("Registered %d engines", len(registry.engines))
 
 	// Pre-compute and cache the manifest file/folder lists now that all engines are

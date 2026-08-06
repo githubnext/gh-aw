@@ -263,6 +263,7 @@ jobs:
             .codex
             .gemini
             .kiro
+            .opencode
             .pi
           sparse-checkout-cone-mode: true
           fetch-depth: 1
