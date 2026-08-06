@@ -260,9 +260,7 @@ if [ $REQUIRED_SERVERS_FAILED -gt 0 ]; then
   echo "  - MCP server unavailable or rejecting requests"
   echo "  - Network connectivity or DNS issues"
   echo ""
-  echo "Check the gateway logs and individual server logs for more details:"
-  echo "  /tmp/gh-aw/mcp-logs/stderr.log"
-  echo "  /tmp/gh-aw/mcp-logs/start-gateway.log"
+  echo "Check the MCP server output above and individual server logs for more details."
   exit 1
 elif [ $SERVERS_SUCCEEDED -eq 0 ] && [ $SERVERS_FAILED -eq 0 ]; then
   echo "ERROR: No HTTP servers were successfully checked"
@@ -279,9 +277,7 @@ elif [ $SERVERS_SUCCEEDED -eq 0 ]; then
   echo "All configured HTTP MCP servers are optional but none connected successfully."
   echo "At least one server must connect for the gateway to be considered healthy."
   echo ""
-  echo "Check the gateway logs and individual server logs for more details:"
-  echo "  /tmp/gh-aw/mcp-logs/stderr.log"
-  echo "  /tmp/gh-aw/mcp-logs/start-gateway.log"
+  echo "Check the MCP server output above and individual server logs for more details."
   exit 1
 else
   if [ $SERVERS_FAILED -gt 0 ]; then

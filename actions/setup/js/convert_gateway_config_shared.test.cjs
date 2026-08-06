@@ -288,6 +288,7 @@ describe("runGatewayConversion", () => {
   });
 
   it("loads, filters, serializes, securely writes, and reports a converted configuration", () => {
+    const sentinel = "sentinel-authorization";
     const outputPath = path.join(dir, "output/config.json");
     const output = runGatewayConversion({
       format: "Test",
@@ -295,12 +296,12 @@ describe("runGatewayConversion", () => {
       outputPath,
       getTargetDomain: () => "target.internal",
       getUrlPrefix: () => "http://target.internal:80",
-      transformServer: (_name, entry, urlPrefix) => normalizeGatewayEntry(entry, urlPrefix),
+      transformServer: (_name, entry, urlPrefix) => normalizeGatewayEntry({ ...entry, headers: { Authorization: sentinel } }, urlPrefix),
       serialize: servers => JSON.stringify({ mcpServers: servers }),
     });
 
     expect(JSON.parse(output)).toEqual({
-      mcpServers: { github: { url: "http://target.internal:80/mcp/github" } },
+      mcpServers: { github: { url: "http://target.internal:80/mcp/github", headers: { Authorization: sentinel } } },
     });
     expect(fs.readFileSync(outputPath, "utf8")).toBe(output);
     expect(fs.statSync(outputPath).mode & 0o777).toBe(0o600);
@@ -308,6 +309,9 @@ describe("runGatewayConversion", () => {
     expect(mockCore.info).toHaveBeenCalledWith("Target domain: target.internal:80");
     expect(mockCore.info).toHaveBeenCalledWith("Servers: 1 included, 1 filtered (CLI-mounted)");
     expect(mockCore.info).toHaveBeenCalledWith(`Test configuration written to ${outputPath}`);
+    expect(mockCore.info).toHaveBeenCalledWith("Converted servers: github");
+    expect(mockCore.info).not.toHaveBeenCalledWith(output);
+    expect(JSON.stringify(mockCore.info.mock.calls)).not.toContain(sentinel);
   });
 
   it("accepts outputPath as a function and calls it with the gateway context", () => {

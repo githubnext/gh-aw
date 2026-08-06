@@ -55,8 +55,8 @@ function logGraphQLError(error, operation, hints = {}) {
   }
 
   if (error.status) core.info(`HTTP status: ${error.status}`);
-  if (error.request) core.info(`Request: ${JSON.stringify(error.request, null, 2)}`);
-  if (error.data) core.info(`Response data: ${JSON.stringify(error.data, null, 2)}`);
+  if (error.request) core.info("Request details omitted");
+  if (error.data) core.info("Response data omitted");
 }
 
 /**

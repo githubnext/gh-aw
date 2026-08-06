@@ -1,5 +1,23 @@
+import fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyOTLPIgnoreIfMissing, detectEngineType, getJSONParseErrorContext, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, normalizeSinkVisibilityEncoding, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
+
+describe("start_mcp_gateway logging", () => {
+  it("does not create the legacy MCP gateway stderr log", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).not.toContain("/tmp/gh-aw/mcp-logs/stderr.log");
+  });
+
+  it("does not create the MCP gateway startup log", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).not.toContain("/tmp/gh-aw/mcp-logs/start-gateway.log");
+  });
+
+  it("discards the gateway child process stderr", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).toContain(`stdio: ["pipe", outputFd, "ignore"]`);
+  });
+});
 
 describe("start_mcp_gateway OTLP if-missing helpers", () => {
   let originalWarning;

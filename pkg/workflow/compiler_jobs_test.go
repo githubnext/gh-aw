@@ -4065,6 +4065,7 @@ func TestBuildPushEvalsStateJob_WithEvals(t *testing.T) {
 	stepsYAML := strings.Join(job.Steps, "\n")
 	assert.Contains(t, stepsYAML, "evals/myworkflow", "steps should reference sanitized evals branch name")
 	assert.Contains(t, stepsYAML, "GH_AW_STATE_FILES: evals.jsonl", "steps should configure evals filename")
+	assert.NotContains(t, stepsYAML, "GH_AW_STATE_APPEND_FILES", "steps should use the state file itself for append-only history")
 	assert.Contains(t, stepsYAML, "push_experiment_state.cjs", "steps should reuse push_experiment_state.cjs helper")
 }
 

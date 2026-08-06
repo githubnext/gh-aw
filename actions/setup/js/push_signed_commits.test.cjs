@@ -2230,6 +2230,71 @@ describe("push_signed_commits integration tests", () => {
       }
     });
 
+    it("should merge evals.jsonl conflicts when configured as append-only state file", async () => {
+      const concurrentDir = fs.mkdtempSync(path.join(os.tmpdir(), "push-signed-concurrent-evals-"));
+      const originalStateFiles = process.env.GH_AW_STATE_FILES;
+      process.env.GH_AW_STATE_FILES = "evals.jsonl";
+      try {
+        execGit(["checkout", "-b", "evals-state-merge-branch"], { cwd: workDir });
+        const seed = { id: "seed", timestamp: "2026-07-31T12:00:00.000Z", runid: "100" };
+        fs.writeFileSync(path.join(workDir, "evals.jsonl"), `${JSON.stringify(seed)}\n`);
+        execGit(["add", "evals.jsonl"], { cwd: workDir });
+        execGit(["commit", "-m", "Seed eval state"], { cwd: workDir });
+        execGit(["push", "-u", "origin", "evals-state-merge-branch"], { cwd: workDir });
+
+        const baseRef = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+        execGit(["clone", bareDir, "."], { cwd: concurrentDir });
+        execGit(["config", "user.name", "Test User"], { cwd: concurrentDir });
+        execGit(["config", "user.email", "test@example.com"], { cwd: concurrentDir });
+
+        const shared = { id: "shared", timestamp: "2026-07-31T12:01:00.000Z", runid: "101" };
+        const local = { id: "local", timestamp: "2026-07-31T12:02:00.000Z", runid: "102" };
+        fs.writeFileSync(path.join(workDir, "evals.jsonl"), `${JSON.stringify(seed)}\n${JSON.stringify(shared)}\n${JSON.stringify(local)}\n`);
+        execGit(["add", "evals.jsonl"], { cwd: workDir });
+        execGit(["commit", "-m", "Local eval update"], { cwd: workDir });
+
+        execGit(["checkout", "evals-state-merge-branch"], { cwd: concurrentDir });
+        const remote = { id: "remote", timestamp: "2026-07-31T12:03:00.000Z", runid: "103" };
+        fs.writeFileSync(path.join(concurrentDir, "evals.jsonl"), `${JSON.stringify(seed)}\n${JSON.stringify(shared)}\n${JSON.stringify(remote)}\n`);
+        execGit(["add", "evals.jsonl"], { cwd: concurrentDir });
+        execGit(["commit", "-m", "Remote eval update"], { cwd: concurrentDir });
+        execGit(["push", "origin", "evals-state-merge-branch"], { cwd: concurrentDir });
+        execGit(["fetch", "origin", "refs/heads/evals-state-merge-branch"], { cwd: workDir });
+
+        global.exec = makeRealExec(workDir);
+        const githubClient = makeMockGithubClient();
+
+        await pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "evals-state-merge-branch",
+          baseRef,
+          cwd: workDir,
+          resolveRebaseConflict: resolveExperimentStateRebaseConflict,
+        });
+
+        expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+        const additions = githubClient.graphql.mock.calls[0][1].input.fileChanges.additions;
+        const stateAddition = additions.find(entry => entry.path === "evals.jsonl");
+        expect(stateAddition).toBeDefined();
+        const mergedLines = Buffer.from(stateAddition.contents, "base64")
+          .toString("utf8")
+          .trim()
+          .split("\n")
+          .map(line => JSON.parse(line));
+        expect(mergedLines.map(entry => entry.id)).toEqual(["seed", "shared", "remote", "local"]);
+      } finally {
+        cleanupDir(concurrentDir);
+        if (originalStateFiles === undefined) {
+          delete process.env.GH_AW_STATE_FILES;
+        } else {
+          process.env.GH_AW_STATE_FILES = originalStateFiles;
+        }
+      }
+    });
+
     it("should enforce protected-files policy against synthesized GraphQL payload", async () => {
       execGit(["checkout", "-b", "protected-payload-branch"], { cwd: workDir });
       fs.writeFileSync(path.join(workDir, "CODEOWNERS"), "* @octocat\n");
