@@ -508,7 +508,7 @@ Push some changes.
 	if !strings.Contains(uploadSection, "/tmp/gh-aw/aw-*.patch") {
 		t.Error("Expected '/tmp/gh-aw/aw-*.patch' in unified artifact upload when threat detection is enabled with staged push-to-pull-request-branch")
 	}
-	if strings.Contains(uploadSection, "/tmp/gh-aw/aw-*.bundle") {
-		t.Error("Expected '/tmp/gh-aw/aw-*.bundle' to be excluded from unified artifact upload (binary bundles cannot be safely text-scanned for secrets)")
+	if !strings.Contains(uploadSection, "/tmp/gh-aw/aw-*.bundle") {
+		t.Error("Expected '/tmp/gh-aw/aw-*.bundle' in unified artifact upload when threat detection is enabled with staged push-to-pull-request-branch")
 	}
 }
