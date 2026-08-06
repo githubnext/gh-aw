@@ -232,29 +232,33 @@ const viewerResponse = (login = "test-bot") => ({
   },
 });
 
-const orgProjectV2Response = (url, number = 60, id = "project123", orgLogin = "testowner") => ({
-  organization: {
-    projectV2: {
-      id,
-      number,
-      title: "Test Project",
-      url,
-      owner: { __typename: "Organization", login: orgLogin },
+const orgProjectV2Response = (url, number = 60, id = "project123", orgLogin = "testowner") => {
+  return {
+    organization: {
+      projectV2: {
+        id,
+        number,
+        title: "Test Project",
+        url,
+        owner: { __typename: "Organization", login: orgLogin },
+      },
     },
-  },
-});
+  };
+};
 
-const userProjectV2Response = (url, number = 60, id = "project123", userLogin = "testowner") => ({
-  user: {
-    projectV2: {
-      id,
-      number,
-      title: "Test Project",
-      url,
-      owner: { __typename: "User", login: userLogin },
+const userProjectV2Response = (url, number = 60, id = "project123", userLogin = "testowner") => {
+  return {
+    user: {
+      projectV2: {
+        id,
+        number,
+        title: "Test Project",
+        url,
+        owner: { __typename: "User", login: userLogin },
+      },
     },
-  },
-});
+  };
+};
 
 const orgProjectNullResponse = () => ({ organization: { projectV2: null } });
 const userProjectNullResponse = () => ({ user: { projectV2: null } });
@@ -269,13 +273,17 @@ const emptyItemsResponse = () => ({
       nodes: [],
       pageInfo: { hasNextPage: false, endCursor: null },
     },
+    projectItems: {
+      nodes: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
   },
 });
 
-const existingItemResponse = (contentId, itemId = "existing-item") => ({
+const existingItemResponse = (projectId, itemId = "existing-item") => ({
   node: {
-    items: {
-      nodes: [{ id: itemId, content: { id: contentId } }],
+    projectItems: {
+      nodes: [{ id: itemId, project: { id: projectId } }],
       pageInfo: { hasNextPage: false, endCursor: null },
     },
   },
@@ -467,6 +475,88 @@ describe("updateProject", () => {
     // update_project no longer adds labels as a side effect
     expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     expect(getOutput("item-id")).toBe("item123");
+  });
+
+  it("finds an existing issue item from the issue side instead of scanning project content", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 42 };
+
+    mockGithub.graphql.mockImplementation(async (query, vars) => {
+      const q = String(query);
+      if (q.includes("repository(owner:") && q.includes("owner {")) return repoResponse();
+      if (q.includes("viewer")) return viewerResponse();
+      if (q.includes("organization(login:")) return orgProjectV2Response(projectUrl, 60, "project123");
+      if (q.includes("issue(number:")) return issueResponse("issue-id-42");
+      if (q.includes("node(id: $contentId)") && q.includes("projectItems(")) {
+        expect(vars).toMatchObject({ contentId: "issue-id-42" });
+        return existingItemResponse("project123", "item-from-content");
+      }
+      throw new Error(`Unexpected GraphQL query: ${q}`);
+    });
+
+    await updateProject(output);
+
+    const itemLookupQueries = mockGithub.graphql.mock.calls.map(([query]) => String(query)).filter(query => query.includes("projectItems(") || query.includes("items(first:"));
+    expect(itemLookupQueries).toHaveLength(1);
+    expect(itemLookupQueries[0]).toContain("projectItems(");
+    expect(itemLookupQueries[0]).not.toContain("content {");
+    expect(mockGithub.graphql.mock.calls.some(([query]) => String(query).includes("addProjectV2ItemById"))).toBe(false);
+    expect(getOutput("item-id")).toBe("item-from-content");
+  });
+
+  it("finds an existing pull request item from the pull request side", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "pull_request", content_number: 17 };
+
+    mockGithub.graphql.mockImplementation(async (query, vars) => {
+      const q = String(query);
+      if (q.includes("repository(owner:") && q.includes("owner {")) return repoResponse();
+      if (q.includes("viewer")) return viewerResponse();
+      if (q.includes("organization(login:")) return orgProjectV2Response(projectUrl, 60, "project-pr");
+      if (q.includes("pullRequest(number:")) return pullRequestResponse("pr-id-17");
+      if (q.includes("node(id: $contentId)") && q.includes("... on PullRequest") && q.includes("projectItems(")) {
+        expect(vars).toMatchObject({ contentId: "pr-id-17" });
+        return existingItemResponse("project-pr", "pr-item-from-content");
+      }
+      throw new Error(`Unexpected GraphQL query: ${q}`);
+    });
+
+    await updateProject(output);
+
+    expect(mockGithub.graphql.mock.calls.some(([query]) => String(query).includes("addProjectV2ItemById"))).toBe(false);
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Item already on board");
+    expect(getOutput("item-id")).toBe("pr-item-from-content");
+  });
+
+  it("paginates content project items until the target project item is found", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 42 };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project123"),
+      issueResponse("issue-id-42"),
+      // First page holds items for other projects only
+      {
+        node: {
+          projectItems: {
+            nodes: [{ id: "other-item", project: { id: "other-project" } }],
+            pageInfo: { hasNextPage: true, endCursor: "cursor-items-1" },
+          },
+        },
+      },
+      existingItemResponse("project123", "item-page-2"),
+    ]);
+
+    await updateProject(output);
+
+    const itemLookupCalls = mockGithub.graphql.mock.calls.filter(([query]) => String(query).includes("projectItems("));
+    expect(itemLookupCalls).toHaveLength(2);
+    expect(itemLookupCalls[0][1]).toMatchObject({ contentId: "issue-id-42", after: null });
+    expect(itemLookupCalls[1][1]).toMatchObject({ contentId: "issue-id-42", after: "cursor-items-1" });
+    expect(mockGithub.graphql.mock.calls.some(([query]) => String(query).includes("addProjectV2ItemById"))).toBe(false);
+    expect(getOutput("item-id")).toBe("item-page-2");
   });
 
   it("adds a draft issue to a project board", async () => {
@@ -935,7 +1025,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 99 };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-99"), existingItemResponse("issue-id-99", "item-existing")]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-99"), existingItemResponse("project123", "item-existing")]);
 
     await updateProject(output);
 
@@ -1038,7 +1128,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-field"),
       issueResponse("issue-id-10"),
-      existingItemResponse("issue-id-10", "item-field"),
+      existingItemResponse("project-field", "item-field"),
       fieldsResponse([{ id: "field-status", name: "Status" }]),
       updateFieldValueResponse(),
     ]);
@@ -1093,7 +1183,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-priority"),
       issueResponse("issue-id-15"),
-      existingItemResponse("issue-id-15", "item-priority"),
+      existingItemResponse("project-priority", "item-priority"),
       fieldsResponse([
         {
           id: "field-priority",
@@ -1136,7 +1226,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-pagination"),
       issueResponse("issue-id-15"),
-      existingItemResponse("issue-id-15", "item-pagination"),
+      existingItemResponse("project-pagination", "item-pagination"),
       // First page of fields (hasNextPage: true)
       fieldsResponse(firstPageFields, true, "cursor-page-1"),
       // Second page contains the field we want to update
@@ -1183,7 +1273,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-status"),
       issueResponse("issue-id-16"),
-      existingItemResponse("issue-id-16", "item-status"),
+      existingItemResponse("project-status", "item-status"),
       fieldsResponse([
         {
           id: "field-status",
@@ -1221,7 +1311,7 @@ describe("updateProject", () => {
       fields: { NonExistentField: "Some Value" },
     };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-20"), existingItemResponse("issue-id-20", "item-test"), fieldsResponse([])]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-20"), existingItemResponse("project-test", "item-test"), fieldsResponse([])]);
 
     mockGithub.graphql.mockRejectedValueOnce(new Error("Failed to create field"));
 
@@ -1246,7 +1336,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-test"),
       issueResponse("issue-id-21"),
-      existingItemResponse("issue-id-21", "item-test"),
+      existingItemResponse("project-test", "item-test"),
       fieldsResponse([{ id: "field-lifecycle", name: "Lifecycle", options: [{ id: "opt-sandbox", name: "Sandbox" }] }]),
       updateFieldValueResponse(),
     ]);
@@ -1272,7 +1362,7 @@ describe("updateProject", () => {
       fields: "not-valid-json",
     };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-22"), existingItemResponse("issue-id-22", "item-test")]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-22"), existingItemResponse("project-test", "item-test")]);
 
     await updateProject(output);
 
@@ -1296,7 +1386,7 @@ describe("updateProject", () => {
       fields: ["Status", "In Progress"],
     };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-23"), existingItemResponse("issue-id-23", "item-test")]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-23"), existingItemResponse("project-test", "item-test")]);
 
     await updateProject(output);
 
@@ -1332,7 +1422,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-date-field"),
       issueResponse("issue-id-75"),
-      existingItemResponse("issue-id-75", "item-date-field"),
+      existingItemResponse("project-date-field", "item-date-field"),
       // DATE field with dataType explicitly set to "DATE"
       // This tests that the code checks dataType before checking for options
       fieldsResponse([{ id: "field-deadline", name: "Deadline", dataType: "DATE" }]),
@@ -1366,7 +1456,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-number-field"),
       issueResponse("issue-id-80"),
-      existingItemResponse("issue-id-80", "item-number-field"),
+      existingItemResponse("project-number-field", "item-number-field"),
       fieldsResponse([{ id: "field-story-points", name: "Story Points", dataType: "NUMBER" }]),
       updateFieldValueResponse(),
     ]);
@@ -1395,7 +1485,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-number-field"),
       issueResponse("issue-id-81"),
-      existingItemResponse("issue-id-81", "item-number-field-string"),
+      existingItemResponse("project-number-field", "item-number-field-string"),
       fieldsResponse([{ id: "field-story-points", name: "Story Points", dataType: "NUMBER" }]),
       updateFieldValueResponse(),
     ]);
@@ -1424,7 +1514,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-number-field"),
       issueResponse("issue-id-82"),
-      existingItemResponse("issue-id-82", "item-number-field-invalid"),
+      existingItemResponse("project-number-field", "item-number-field-invalid"),
       fieldsResponse([{ id: "field-story-points", name: "Story Points", dataType: "NUMBER" }]),
     ]);
 
@@ -1450,7 +1540,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-iteration-field"),
       issueResponse("issue-id-85"),
-      existingItemResponse("issue-id-85", "item-iteration-field"),
+      existingItemResponse("project-iteration-field", "item-iteration-field"),
       fieldsResponse([
         {
           id: "field-sprint",
@@ -1492,7 +1582,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-iteration-field"),
       issueResponse("issue-id-86"),
-      existingItemResponse("issue-id-86", "item-iteration-field-case"),
+      existingItemResponse("project-iteration-field", "item-iteration-field-case"),
       fieldsResponse([
         {
           id: "field-sprint",
@@ -1530,7 +1620,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-iteration-field"),
       issueResponse("issue-id-87"),
-      existingItemResponse("issue-id-87", "item-iteration-field-missing"),
+      existingItemResponse("project-iteration-field", "item-iteration-field-missing"),
       fieldsResponse([
         {
           id: "field-sprint",
@@ -1570,7 +1660,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-create-date-field"),
       issueResponse("issue-id-90"),
-      existingItemResponse("issue-id-90", "item-create-date-field"),
+      existingItemResponse("project-create-date-field", "item-create-date-field"),
       // No existing fields - will need to create them
       fieldsResponse([]),
       // Response for creating start_date field as DATE type
@@ -1633,7 +1723,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-invalid-date-format"),
       issueResponse("issue-id-91"),
-      existingItemResponse("issue-id-91", "item-invalid-date"),
+      existingItemResponse("project-invalid-date-format", "item-invalid-date"),
       // No existing fields
       fieldsResponse([]),
     ]);
@@ -1661,7 +1751,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-repository-conflict"),
       issueResponse("issue-id-95"),
-      existingItemResponse("issue-id-95", "item-repository-conflict"),
+      existingItemResponse("project-repository-conflict", "item-repository-conflict"),
       // No existing fields - would try to create if not blocked
       fieldsResponse([]),
     ]);
@@ -1698,7 +1788,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-repository-existing"),
       issueResponse("issue-id-96"),
-      existingItemResponse("issue-id-96", "item-repository-existing"),
+      existingItemResponse("project-repository-existing", "item-repository-existing"),
       // Field already exists with REPOSITORY type
       fieldsResponse([{ id: "field-repository", name: "Repository", dataType: "REPOSITORY" }]),
     ]);
@@ -1733,7 +1823,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-repo-datatype"),
       issueResponse("issue-id-97"),
-      existingItemResponse("issue-id-97", "item-repo-datatype"),
+      existingItemResponse("project-repo-datatype", "item-repo-datatype"),
       // Field exists as "Repo" with REPOSITORY dataType (GitHub auto-created it as REPOSITORY type)
       fieldsResponse([{ id: "field-repo", name: "Repo", dataType: "REPOSITORY" }]),
     ]);
@@ -1767,7 +1857,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-id-60"),
       issueResponse("issue-id-100"),
-      existingItemResponse("issue-id-100", "item-id-100"),
+      existingItemResponse("project-id-60", "item-id-100"),
       // No existing fields - will need to create Classification as TEXT
       fieldsResponse([]),
       // Response for creating Classification field as TEXT type
@@ -1817,7 +1907,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-create-number-field"),
       issueResponse("issue-id-101"),
-      existingItemResponse("issue-id-101", "item-create-number-field"),
+      existingItemResponse("project-create-number-field", "item-create-number-field"),
       // No existing fields - will need to create as NUMBER
       fieldsResponse([]),
       // Response for creating the NUMBER field
@@ -1868,7 +1958,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-create-number-field-zero"),
       issueResponse("issue-id-102"),
-      existingItemResponse("issue-id-102", "item-create-number-field-zero"),
+      existingItemResponse("project-create-number-field-zero", "item-create-number-field-zero"),
       fieldsResponse([]),
       {
         createProjectV2Field: {
@@ -1908,7 +1998,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-existing-number-field"),
       issueResponse("issue-id-103"),
-      existingItemResponse("issue-id-103", "item-existing-number-field"),
+      existingItemResponse("project-existing-number-field", "item-existing-number-field"),
       fieldsResponse([{ id: "field-comment-count", name: "Comment Count", dataType: "NUMBER" }]),
       updateFieldValueResponse(),
     ]);
@@ -1940,7 +2030,7 @@ describe("updateProject", () => {
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-date-name-number-field"),
       issueResponse("issue-id-104"),
-      existingItemResponse("issue-id-104", "item-date-name-number-field"),
+      existingItemResponse("project-date-name-number-field", "item-date-name-number-field"),
       fieldsResponse([]),
       {
         createProjectV2Field: {
@@ -2137,7 +2227,7 @@ describe("update_project temporary project ID resolution", () => {
     const tempIdMap = new Map();
     tempIdMap.set("aw_abc12345", { projectUrl }); // Stored in lowercase
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 99, "project-resolved"), issueResponse("issue-id-1"), existingItemResponse("issue-id-1", "item-resolved"), fieldsResponse([])]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 99, "project-resolved"), issueResponse("issue-id-1"), existingItemResponse("project-resolved", "item-resolved"), fieldsResponse([])]);
 
     // Create handler with config
     const config = { max: 100 };
@@ -2162,7 +2252,7 @@ describe("update_project temporary project ID resolution", () => {
     const tempIdMap = new Map();
     tempIdMap.set("aw_test99", { projectUrl }); // Stored without hash, lowercase
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 88, "project-hash"), issueResponse("issue-id-2"), existingItemResponse("issue-id-2", "item-hash"), fieldsResponse([])]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 88, "project-hash"), issueResponse("issue-id-2"), existingItemResponse("project-hash", "item-hash"), fieldsResponse([])]);
 
     const config = { max: 100 };
     messageHandler = await updateProjectHandlerFactory(config);
@@ -2186,7 +2276,7 @@ describe("update_project temporary project ID resolution", () => {
     const tempIdMap = new Map();
     tempIdMap.set("aw_abc", { projectUrl });
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 77, "project-min"), issueResponse("issue-id-3"), existingItemResponse("issue-id-3", "item-min"), fieldsResponse([])]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 77, "project-min"), issueResponse("issue-id-3"), existingItemResponse("project-min", "item-min"), fieldsResponse([])]);
 
     const config = { max: 100 };
     messageHandler = await updateProjectHandlerFactory(config);
@@ -2230,7 +2320,7 @@ describe("update_project temporary project ID resolution", () => {
     // Map has an entry, but it shouldn't be used since we're passing full URL
     tempIdMap.set("aw_other", { projectUrl: "https://github.com/orgs/other/projects/1" });
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 66, "project-full"), issueResponse("issue-id-4"), existingItemResponse("issue-id-4", "item-full"), fieldsResponse([])]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 66, "project-full"), issueResponse("issue-id-4"), existingItemResponse("project-full", "item-full"), fieldsResponse([])]);
 
     const config = { max: 100 };
     messageHandler = await updateProjectHandlerFactory(config);
