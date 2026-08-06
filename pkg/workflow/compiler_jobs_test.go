@@ -1577,11 +1577,11 @@ Test content`
 			t.Errorf("Expected step %q not found in output", step)
 		}
 	}
-	if !strings.Contains(yamlStr, "/tmp/gh-aw/process-safe-outputs.stdout.log") {
-		t.Error("Expected pre-bundled Process Safe Outputs stdout log path in safe outputs artifact upload")
+	if strings.Contains(yamlStr, "process-safe-outputs.stdout.log") {
+		t.Error("Process stdout log should NOT be included in safe outputs artifact upload")
 	}
-	if !strings.Contains(yamlStr, "/tmp/gh-aw/process-safe-outputs.stderr.log") {
-		t.Error("Expected pre-bundled Process Safe Outputs stderr log path in safe outputs artifact upload")
+	if strings.Contains(yamlStr, "process-safe-outputs.stderr.log") {
+		t.Error("Process stderr log should NOT be included in safe outputs artifact upload")
 	}
 
 	// Verify handler config contains all three enabled safe outputs

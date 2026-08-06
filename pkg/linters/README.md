@@ -15,7 +15,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `deferinloop` — reports `defer` statements placed directly inside `for`/`range` loop bodies, which execute when the enclosing function returns rather than each iteration and can cause resource leaks.
 - `errorfwrapv` — reports `fmt.Errorf` calls that pass error arguments without `%w` wrapping.
 - `excessivefuncparams` — reports function declarations that exceed a configurable parameter-count threshold.
-- `errormessage` — reports non-actionable error-message patterns in changed files.
+- `errormessage` — reports non-actionable error-message patterns in changed files; pass `-errormessage.full-repo` (or `-errormessage.changed-files=all`) to audit the whole repository.
 - `errortypeassertion` — reports type assertions from `error` to concrete types and recommends `errors.As`.
 - `errstringmatch` — reports `strings.Contains(err.Error(), "...")` patterns and recommends `errors.Is` / `errors.As`.
 - `fileclosenotdeferred` — reports non-deferred file `Close()` calls that can leak resources.
@@ -85,7 +85,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `deferinloop` | Custom `go/analysis` analyzer that flags `defer` statements inside `for`/`range` loop bodies that execute when the enclosing function returns rather than each iteration |
 | `errorfwrapv` | Custom `go/analysis` analyzer that flags `fmt.Errorf` calls that pass error arguments without `%w` wrapping |
 | `excessivefuncparams` | Custom `go/analysis` analyzer that flags function declarations with too many positional parameters |
-| `errormessage` | Custom `go/analysis` analyzer that flags non-actionable error message patterns in changed files |
+| `errormessage` | Custom `go/analysis` analyzer that flags non-actionable error message patterns in changed files (or all files with `-errormessage.full-repo`) |
 | `errortypeassertion` | Custom `go/analysis` analyzer that flags type assertions from `error` to concrete types and recommends `errors.As` |
 | `errstringmatch` | Custom `go/analysis` analyzer that flags brittle `strings.Contains(err.Error(), "...")` checks |
 | `execcommandwithoutcontext` | Custom `go/analysis` analyzer that flags `exec.Command(...)` calls that should use `exec.CommandContext(...)` in context-receiving functions |

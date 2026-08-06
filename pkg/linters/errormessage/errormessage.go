@@ -24,16 +24,29 @@ var (
 	// changedFilesCSV allows CI to scope linting to changed files only,
 	// preventing legacy violations from blocking incremental adoption.
 	changedFilesCSV string
+	// fullRepo enables auditing every analyzed file instead of only the
+	// changed ones, so pre-existing violations can be tracked as a metric.
+	fullRepo bool
 )
 
+// fullRepoSentinel is the -changed-files value that enables full-repository
+// auditing, equivalent to passing -full-repo.
+const fullRepoSentinel = "all"
+
 // Analyzer is the errormessage analysis pass.
-var Analyzer = analyzerutil.New("errormessage", "reports non-actionable error message patterns in changed files", run)
+var Analyzer = analyzerutil.New("errormessage", "reports non-actionable error message patterns in changed files (or all files with -full-repo)", run)
 
 func init() {
-	Analyzer.Flags.StringVar(&changedFilesCSV, "changed-files", "", "comma-separated list of changed file paths to lint (when empty, analyzer is a no-op)")
+	Analyzer.Flags.StringVar(&changedFilesCSV, "changed-files", "", "comma-separated list of changed file paths to lint (when empty, analyzer is a no-op; use \"all\" to audit every file)")
+	Analyzer.Flags.BoolVar(&fullRepo, "full-repo", false, "audit every analyzed file instead of only the changed ones")
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	if fullRepo || isFullRepoSentinel(changedFilesCSV) {
+		pkgLog.Printf("analyzing package %s in full-repo mode", pass.Pkg.Path())
+		return runOnFiles(pass, nil)
+	}
+
 	changed := parseChangedFiles(changedFilesCSV)
 	if len(changed) == 0 {
 		pkgLog.Printf("no changed files provided for %s, skipping", pass.Pkg.Path())
@@ -41,6 +54,12 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	pkgLog.Printf("analyzing package %s (%d changed files)", pass.Pkg.Path(), len(changed))
 
+	return runOnFiles(pass, changed)
+}
+
+// runOnFiles analyzes the package. When changed is nil every file is checked
+// (full-repo audit mode); otherwise only files present in changed are checked.
+func runOnFiles(pass *analysis.Pass, changed map[string]struct{}) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -92,7 +111,18 @@ func parseChangedFiles(csv string) map[string]struct{} {
 	return changed
 }
 
+// isFullRepoSentinel reports whether the -changed-files value requests a
+// full-repository audit.
+func isFullRepoSentinel(csv string) bool {
+	return strings.EqualFold(strings.TrimSpace(csv), fullRepoSentinel)
+}
+
+// shouldCheckFile reports whether filename is in scope. A nil changed set means
+// full-repo audit mode, where every file is in scope.
 func shouldCheckFile(filename string, changed map[string]struct{}) bool {
+	if changed == nil {
+		return true
+	}
 	path := filepath.ToSlash(filename)
 	for changedPath := range changed {
 		if path == changedPath || strings.HasSuffix(path, "/"+changedPath) {
