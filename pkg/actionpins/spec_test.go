@@ -42,6 +42,7 @@ func (r *testSHAResolver) ResolveSHA(ctx context.Context, repo, version string) 
 
 // TestSpec_PublicAPI_FormatPinnedActionReference validates the documented format "repo@sha # version".
 func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		repo      string
@@ -98,6 +99,7 @@ func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 
 // TestSpec_PublicAPI_FormatCacheKey validates the documented format "repo@version".
 func TestSpec_PublicAPI_FormatCacheKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		repo     string
@@ -146,6 +148,7 @@ func TestSpec_PublicAPI_FormatCacheKey(t *testing.T) {
 
 // TestSpec_PublicAPI_ExtractRepo validates extracting the repository from a uses reference.
 func TestSpec_PublicAPI_ExtractRepo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		uses     string
@@ -193,6 +196,7 @@ func TestSpec_PublicAPI_ExtractRepo(t *testing.T) {
 
 // TestSpec_PublicAPI_ExtractVersion validates extracting the version from a uses reference.
 func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		uses     string
@@ -240,6 +244,7 @@ func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
 
 // TestSpec_PublicAPI_GetActionPinsByRepo validates GetActionPinsByRepo for known and unknown repos.
 func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
+	t.Parallel()
 	t.Run("returns no pins for unknown repository", func(t *testing.T) {
 		pins := actionpins.GetActionPinsByRepo("does-not-exist/unknown-action-xyzzy")
 		assert.Empty(t, pins, "should return empty result for unknown repo")
@@ -254,6 +259,7 @@ func TestSpec_PublicAPI_GetActionPinsByRepo(t *testing.T) {
 
 // TestSpec_PublicAPI_GetLatestActionPinByRepo validates GetLatestActionPinByRepo returns the latest pin.
 func TestSpec_PublicAPI_GetLatestActionPinByRepo(t *testing.T) {
+	t.Parallel()
 	t.Run("returns false for unknown repository", func(t *testing.T) {
 		_, ok := actionpins.GetLatestActionPinByRepo("does-not-exist/unknown-action-xyzzy")
 		assert.False(t, ok, "should return false for unknown repo")
@@ -270,6 +276,7 @@ func TestSpec_PublicAPI_GetLatestActionPinByRepo(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin validates resolution behavior.
 // Spec: "fallback behavior controlled by PinContext.StrictMode"
 func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
+	t.Parallel()
 	t.Run("strict mode returns empty string and no error when pin is not found", func(t *testing.T) {
 		ctx := &actionpins.PinContext{StrictMode: true, Warnings: make(map[string]bool)}
 		result, err := actionpins.ResolveActionPin("does-not-exist/unknown-action-xyzzy", "v1", ctx)
@@ -280,6 +287,7 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 
 // TestSpec_PublicAPI_ResolveActionPin_NilContext validates nil context fallback to embedded pins.
 func TestSpec_PublicAPI_ResolveActionPin_NilContext(t *testing.T) {
+	t.Parallel()
 	latestPin, ok := actionpins.GetLatestActionPinByRepo("actions/checkout")
 	require.True(t, ok, "expected embedded pins for actions/checkout")
 
@@ -295,6 +303,7 @@ func TestSpec_PublicAPI_ResolveActionPin_NilContext(t *testing.T) {
 // an unknown full SHA is returned in the formatted "repo@sha # sha" form when it does not
 // appear in the embedded pins.
 func TestSpec_PublicAPI_ResolveActionPin_UnknownFullSHAReturnsFormattedReference(t *testing.T) {
+	t.Parallel()
 	unknownSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 	result, err := actionpins.ResolveActionPin("actions/checkout", unknownSHA, nil)
@@ -307,6 +316,7 @@ func TestSpec_PublicAPI_ResolveActionPin_UnknownFullSHAReturnsFormattedReference
 
 // TestSpec_PublicAPI_ResolveActionPin_EnforcePinned validates unresolved pin handling in enforce mode.
 func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		resolver         actionpins.SHAResolver
@@ -394,6 +404,7 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 // PinContext.SkipHardcodedFallback=true blocks version→SHA fallback against the
 // embedded hardcoded pins while still allowing SHA→version comment labeling.
 func TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback(t *testing.T) {
+	t.Parallel()
 	t.Run("known action with SkipHardcodedFallback=true returns empty result", func(t *testing.T) {
 		// actions/checkout has entries in the embedded pins.
 		// With SkipHardcodedFallback=true and no dynamic resolver, resolution should
@@ -448,6 +459,7 @@ func TestSpec_PublicAPI_ResolveActionPin_SkipHardcodedFallback(t *testing.T) {
 
 // TestSpec_PublicAPI_ResolveLatestActionPin validates latest-version resolution behavior.
 func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
+	t.Parallel()
 	t.Run("returns latest pinned reference for known repository", func(t *testing.T) {
 		known := "actions/checkout"
 		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
@@ -468,6 +480,7 @@ func TestSpec_PublicAPI_ResolveLatestActionPin(t *testing.T) {
 // ResolveLatestActionPin falls back to the embedded latest-pin reference when ResolveActionPin
 // errors, and returns empty when no embedded fallback exists.
 func TestSpec_PublicAPI_ResolveLatestActionPin_FallbackOnEnforceError(t *testing.T) {
+	t.Parallel()
 	t.Run("known repo falls back to embedded latest pin after enforce error", func(t *testing.T) {
 		known := "actions/checkout"
 		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
@@ -504,6 +517,7 @@ func TestSpec_PublicAPI_ResolveLatestActionPin_FallbackOnEnforceError(t *testing
 
 // TestSpec_Types_PinContext validates the documented PinContext type fields.
 func TestSpec_Types_PinContext(t *testing.T) {
+	t.Parallel()
 	t.Run("strict mode disables non-exact fallback", func(t *testing.T) {
 		ctx := &actionpins.PinContext{StrictMode: true, Warnings: make(map[string]bool)}
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v999", ctx)
@@ -528,6 +542,7 @@ func TestSpec_Types_PinContext(t *testing.T) {
 // TestSpec_DesignDecision_FormatConsistency validates that FormatPinnedActionReference and FormatCacheKey
 // produce outputs consistent with the spec: cacheKey = "repo@version", ref = "repo@sha # version".
 func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
+	t.Parallel()
 	repo := "actions/checkout"
 	version := "v4"
 	sha := "deadbeef"
@@ -545,6 +560,7 @@ func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
 // TestSpec_Types_ActionPinsData validates the documented ActionPinsData container type.
 // Spec: ActionPinsData is a JSON container used to load embedded pin entries.
 func TestSpec_Types_ActionPinsData(t *testing.T) {
+	t.Parallel()
 	data := actionpins.ActionPinsData{
 		Entries: map[string]actionpins.ActionPin{
 			"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
@@ -566,6 +582,7 @@ func TestSpec_Types_ActionPinsData(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch validates embedded-only pin resolution returns
 // a formatted reference for a known repository. Spec: "Embedded-only lookup from bundled pin data"
 func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
+	t.Parallel()
 	t.Run("returns formatted reference for known embedded pin", func(t *testing.T) {
 		known := "actions/checkout"
 		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
@@ -583,6 +600,7 @@ func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
 // succeeds and the returned SHA matches an embedded pin, the version comment includes both
 // the resolved version and the source version — consistent with the embedded-fallback path.
 func TestSpec_DynamicResolution_VersionCommentConsistency(t *testing.T) {
+	t.Parallel()
 	known := "actions/checkout"
 	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
 	require.True(t, ok, "prerequisite: known repo must be in embedded data")
@@ -627,6 +645,7 @@ func TestSpec_DynamicResolution_VersionCommentConsistency(t *testing.T) {
 // TestSpec_PublicAPI_GetContainerPin validates the documented GetContainerPin function.
 // Spec: "Returns a pinned container image by its original image reference"
 func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
+	t.Parallel()
 	t.Run("returns false for unknown container image", func(t *testing.T) {
 		_, ok := actionpins.GetContainerPin("does-not-exist/unknown-image:latest")
 		assert.False(t, ok, "should return false for unknown container image")
@@ -647,6 +666,7 @@ func TestSpec_PublicAPI_GetContainerPin(t *testing.T) {
 // Spec table: ResolutionErrorTypeDynamicResolutionFailed="dynamic_resolution_failed",
 // ResolutionErrorTypePinNotFound="pin_not_found".
 func TestSpec_Constants_ResolutionErrorType(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "dynamic_resolution_failed", string(actionpins.ResolutionErrorTypeDynamicResolutionFailed),
 		"ResolutionErrorTypeDynamicResolutionFailed should equal the documented value")
 	assert.Equal(t, "pin_not_found", string(actionpins.ResolutionErrorTypePinNotFound),
@@ -658,6 +678,7 @@ func TestSpec_Constants_ResolutionErrorType(t *testing.T) {
 // classified according to whether a resolver was present.
 // Spec section "Auditing Resolution Failures".
 func TestSpec_PublicAPI_RecordResolutionFailure(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		repo          string
@@ -706,6 +727,7 @@ func TestSpec_PublicAPI_RecordResolutionFailure(t *testing.T) {
 // TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo validates that concurrent calls to GetActionPinsByRepo
 // are safe after initialization (sync.Once guarantee from the spec).
 func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
+	t.Parallel()
 	const goroutines = 10
 	const repo = "actions/checkout"
 	results := make([][]actionpins.ActionPin, goroutines)
@@ -732,6 +754,7 @@ func TestSpec_ThreadSafety_ConcurrentGetActionPinsByRepo(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin_DynamicHappyPath validates that a dynamic resolver that
 // successfully returns a SHA produces a correctly formatted pinned reference.
 func TestSpec_PublicAPI_ResolveActionPin_DynamicHappyPath(t *testing.T) {
+	t.Parallel()
 	known := "actions/checkout"
 	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
 	require.True(t, ok, "prerequisite: known repo must be in embedded data")
@@ -753,6 +776,7 @@ func TestSpec_PublicAPI_ResolveActionPin_DynamicHappyPath(t *testing.T) {
 // TestSpec_DynamicResolution_EmptySHAFallsThrough validates that a resolver returning an empty
 // SHA with a nil error falls through to the hardcoded pin lookup rather than producing a result.
 func TestSpec_DynamicResolution_EmptySHAFallsThrough(t *testing.T) {
+	t.Parallel()
 	t.Run("empty SHA with nil error falls through to hardcoded pins for known repo", func(t *testing.T) {
 		known := "actions/checkout"
 		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
@@ -795,6 +819,7 @@ func TestSpec_DynamicResolution_EmptySHAFallsThrough(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin_NilCtxField validates that a nil PinContext.Ctx
 // falls back to context.Background() instead of panicking.
 func TestSpec_PublicAPI_ResolveActionPin_NilCtxField(t *testing.T) {
+	t.Parallel()
 	resolver := &testSHAResolver{sha: testResolvedSHA}
 	ctx := &actionpins.PinContext{
 		Ctx:      nil, // deliberately nil — should fall back to context.Background()
@@ -813,6 +838,7 @@ func TestSpec_PublicAPI_ResolveActionPin_NilCtxField(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext validates that PinContext.Ctx
 // is forwarded to the resolver instead of being replaced with context.Background().
 func TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext(t *testing.T) {
+	t.Parallel()
 	resolver := &testSHAResolver{sha: testResolvedSHA}
 	baseCtx := context.WithValue(context.Background(), testContextPropagationKey, "context-propagation-marker")
 	providedCtx, cancel := context.WithCancel(baseCtx)
@@ -837,6 +863,7 @@ func TestSpec_PublicAPI_ResolveActionPin_UsesProvidedContext(t *testing.T) {
 // TestSpec_PublicAPI_ResolveLatestActionPin_NonNilContext validates that a non-nil PinContext
 // is forwarded correctly to the embedded pin resolution path.
 func TestSpec_PublicAPI_ResolveLatestActionPin_NonNilContext(t *testing.T) {
+	t.Parallel()
 	known := "actions/checkout"
 	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
 	require.True(t, ok, "prerequisite: known repo must be in embedded data")
@@ -851,6 +878,7 @@ func TestSpec_PublicAPI_ResolveLatestActionPin_NonNilContext(t *testing.T) {
 // TestSpec_PublicAPI_RecordResolutionFailure_WarningDedup validates that repeated resolution
 // failures for the same repo@version emit the warning only once (Warnings map deduplication).
 func TestSpec_PublicAPI_RecordResolutionFailure_WarningDedup(t *testing.T) {
+	t.Parallel()
 	var failures []actionpins.ResolutionFailure
 	ctx := &actionpins.PinContext{
 		Warnings: make(map[string]bool),
@@ -879,6 +907,7 @@ func TestSpec_PublicAPI_RecordResolutionFailure_WarningDedup(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin_AppliesMapping validates that ctx.Mappings redirects
 // action resolution to the mapped repository and version.
 func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
+	t.Parallel()
 	// actions/checkout is in the embedded pins; acme-corp/checkout is not.
 	// After mapping, resolution should succeed using the mapped repo's pins.
 	checkoutPins := actionpins.GetActionPinsByRepo("actions/checkout")
@@ -956,6 +985,7 @@ func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown validates that mapping to a repo
 // with no known pins yields an empty result without panicking.
 func TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown(t *testing.T) {
+	t.Parallel()
 	ctx := &actionpins.PinContext{
 		Warnings: make(map[string]bool),
 		Mappings: map[string]string{
@@ -974,6 +1004,7 @@ func TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown(t *testing.T) {
 // Spec: ApplyContainerPinMapping redirects container image references via ctx.ContainerMappings,
 // requiring a valid @sha256:<64-hex-char> digest in the mapped value.
 func TestSpec_PublicAPI_ApplyContainerPinMapping(t *testing.T) {
+	t.Parallel()
 	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 	t.Run("nil ctx - image returned unchanged", func(t *testing.T) {
