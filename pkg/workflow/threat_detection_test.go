@@ -1125,7 +1125,7 @@ func TestDetectionGuardStepCondition(t *testing.T) {
 	}
 }
 
-func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testing.T) {
+func TestPrepareDetectionFilesStepInvokesSetupScript(t *testing.T) {
 	compiler := NewCompiler()
 
 	steps := compiler.buildPrepareDetectionFilesStep()
@@ -1134,35 +1134,8 @@ func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testin
 	}
 
 	joined := strings.Join(steps, "")
-	if !strings.Contains(joined, "rm -f /tmp/gh-aw/agent_usage.json") {
-		t.Error("Expected prepare step to remove stale downloaded agent_usage.json before detection writes its own token usage")
-	}
-	if !strings.Contains(joined, "if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then") {
-		t.Error("Expected prepare step to check for missing or empty detection context prompt")
-	}
-	if !strings.Contains(joined, "ERR_VALIDATION: Missing or empty detection context prompt") {
-		t.Error("Expected prepare step to emit actionable ERR_VALIDATION warning when prompt context is missing")
-	}
-	if !strings.Contains(joined, "Detection will continue with fallback workflow context.") {
-		t.Error("Expected prepare step warning to document fallback behavior")
-	}
-	if !strings.Contains(joined, "cp /tmp/gh-aw/aw-prompts/prompt-template.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt-template.txt") {
-		t.Error("Expected prepare step to copy prompt-template.txt into detection dir")
-	}
-	if !strings.Contains(joined, "cp /tmp/gh-aw/aw-prompts/prompt-import-tree.json /tmp/gh-aw/threat-detection/aw-prompts/prompt-import-tree.json") {
-		t.Error("Expected prepare step to copy prompt-import-tree.json into detection dir")
-	}
-	if !strings.Contains(joined, "cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/threat-detection/aw_info.json") {
-		t.Error("Expected prepare step to copy aw_info.json into detection dir")
-	}
-	if !strings.Contains(joined, "comment-memory") {
-		t.Error("Expected prepare step to stage comment-memory directory")
-	}
-	if strings.Contains(joined, `] && cp "$f"`) {
-		t.Error("Expected prepare step to avoid ambiguous A && B || C copy commands")
-	}
-	if strings.Count(joined, `if [ -f "$f" ]; then`) != 2 {
-		t.Error("Expected prepare step to guard patch and bundle copies with explicit if statements")
+	if !strings.Contains(joined, `bash "${RUNNER_TEMP}/gh-aw/actions/prepare_threat_detection_files.sh"`) {
+		t.Error("Expected prepare step to invoke prepare_threat_detection_files.sh")
 	}
 }
 
