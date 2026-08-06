@@ -1617,6 +1617,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Maintains a live community contributions section in README.md and an all-time Community Contributors wiki page by attributing all community-labeled issues using the five-tier attribution strategy"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
