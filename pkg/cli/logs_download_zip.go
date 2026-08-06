@@ -15,7 +15,10 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var logsDownloadZipLog = logger.New("cli:logs_download_zip")
 
 // unzipFile extracts a zip file to a destination directory
 func unzipFile(zipPath, destDir string, verbose bool) error {
@@ -25,6 +28,8 @@ func unzipFile(zipPath, destDir string, verbose bool) error {
 		return fmt.Errorf("failed to open zip file: %w", err)
 	}
 	defer r.Close()
+
+	logsDownloadZipLog.Printf("Extracting %d entries from %s to %s", len(r.File), zipPath, destDir)
 
 	// Extract each file in the zip
 	for _, f := range r.File {
@@ -42,6 +47,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 	// Validate file name doesn't contain path traversal attempts
 	cleanName := filepath.Clean(f.Name)
 	if strings.Contains(cleanName, "..") {
+		logsDownloadZipLog.Printf("Rejected zip entry with path traversal attempt: %s", f.Name)
 		return fmt.Errorf("invalid file path in zip (contains ..): %s", f.Name)
 	}
 
@@ -51,6 +57,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 	// Prevent zip slip vulnerability - ensure extracted path is within destDir
 	cleanDest := filepath.Clean(destDir)
 	if !strings.HasPrefix(filepath.Clean(filePath), cleanDest+string(os.PathSeparator)) && filepath.Clean(filePath) != cleanDest {
+		logsDownloadZipLog.Printf("Rejected zip entry escaping destination (zip slip): %s", f.Name)
 		return fmt.Errorf("invalid file path in zip (outside destination): %s", f.Name)
 	}
 
@@ -67,6 +74,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 	// #nosec G110 -- Decompression bomb is mitigated by size check below
 	const maxFileSize = 1 * 1024 * 1024 * 1024 // 1GB
 	if f.UncompressedSize64 > maxFileSize {
+		logsDownloadZipLog.Printf("Rejected oversized zip entry (decompression bomb guard): %s (%d bytes)", f.Name, f.UncompressedSize64)
 		return fmt.Errorf("file too large in zip (>1GB): %s (%d bytes)", f.Name, f.UncompressedSize64)
 	}
 

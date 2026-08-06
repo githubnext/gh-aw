@@ -1,6 +1,12 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var compilerLogsCacheLog = logger.New("workflow:compiler_logs_cache")
 
 const (
 	sharedLogsCacheKey  = "agentic-logs"
@@ -18,6 +24,7 @@ func usesSharedLogsCache(data *WorkflowData) bool {
 				continue
 			}
 			if strings.Contains(line, command) {
+				compilerLogsCacheLog.Printf("Shared logs cache enabled: found %q in custom steps", command)
 				return true
 			}
 		}
@@ -29,6 +36,7 @@ func sharedLogsCacheRestoreSteps(data *WorkflowData) []GitHubActionStep {
 	if !usesSharedLogsCache(data) {
 		return nil
 	}
+	compilerLogsCacheLog.Print("Generating shared logs cache restore step")
 
 	return []GitHubActionStep{
 		{
