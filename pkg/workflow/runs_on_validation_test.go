@@ -153,6 +153,19 @@ func TestValidateRunsOn(t *testing.T) {
 			errorInMsg:  "safe-outputs.threat-detection.runs-on",
 			description: "threat-detection runs-on labels containing macos runner should be rejected",
 		},
+		{
+			name: "macos string in safe-outputs.threat-detection.runs-on",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"runs-on": "macos-latest",
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.threat-detection.runs-on",
+			description: "threat-detection runs-on string set to macos-latest should be rejected",
+		},
 	}
 
 	for _, tt := range tests {

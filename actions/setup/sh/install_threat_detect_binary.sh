@@ -15,6 +15,8 @@ set +o histexpand
 #
 # Platform support:
 #   - Linux (x64, arm64): Downloads pre-built binary
+#   - macOS: Not supported. The compiler rejects threat-detection runs-on configurations
+#     that target macOS runners.
 #
 # Security features:
 #   - Downloads directly from GitHub releases
@@ -150,33 +152,13 @@ install_linux_binary() {
   maybe_sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
 }
 
-install_darwin_binary() {
-  # Determine binary name based on architecture
-  local binary_name
-  case "$ARCH" in
-    x86_64) binary_name="threat-detect-darwin-x64" ;;
-    arm64) binary_name="threat-detect-darwin-arm64" ;;
-    *) echo "ERROR: Unsupported macOS architecture: ${ARCH}"; exit 1 ;;
-  esac
-
-  local binary_url="${BASE_URL}/${binary_name}"
-  echo "Downloading binary from \"${binary_url}\"..."
-  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/${binary_name}" "${binary_url}"
-
-  # Verify checksum
-  verify_checksum "${TEMP_DIR}/${binary_name}" "${binary_name}"
-
-  # Make binary executable and install
-  chmod +x "${TEMP_DIR}/${binary_name}"
-  maybe_sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
-}
-
 case "$OS" in
   Linux)
     install_linux_binary
     ;;
   Darwin)
-    install_darwin_binary
+    echo "ERROR: macOS is not a supported platform for threat-detect. Use a Linux runner for threat-detection jobs."
+    exit 1
     ;;
   *)
     echo "ERROR: Unsupported operating system: ${OS}"
