@@ -1,2 +1,2 @@
-{"id":"spellcheck_completed","question":"Did the agent run American English spellcheck on AstroStyleLite docs content?","answer":"YES","model":"evals","timestamp":"2026-08-05T04:20:51.936Z","runid":"30974447948"}
-{"id":"pr_created_or_noop","question":"Was a PR created with spelling corrections, or was noop used when no misspellings were found?","answer":"YES","model":"evals","timestamp":"2026-08-05T04:20:51.936Z","runid":"30974447948"}
+{"id":"spellcheck_completed","question":"Did the agent run American English spellcheck on AstroStyleLite docs content?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-06T04:19:38.019Z","runid":"31070605769"}
+{"id":"pr_created_or_noop","question":"Was a PR created with spelling corrections, or was noop used when no misspellings were found?","answer":"YES","model":"evals","timestamp":"2026-08-06T04:19:38.019Z","runid":"31070605769"}
