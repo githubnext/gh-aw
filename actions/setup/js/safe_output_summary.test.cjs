@@ -125,12 +125,13 @@ describe("safe_output_summary", () => {
 
       const summary = generateSafeOutputSummary(options);
 
-      expect(summary).toContain("Body Preview");
-      expect(summary).toContain("...");
-      expect(summary.length).toBeLessThan(longBody.length + 1000);
+      // Body preview is omitted to prevent secret leakage into step summaries
+      expect(summary).not.toContain("Body Preview");
+      expect(summary).not.toContain("a".repeat(100));
+      expect(summary).toContain("Test Discussion");
     });
 
-    it("should use 6-backtick fences for body content containing backticks", () => {
+    it("should not include body content with backticks in step summary", () => {
       const bodyWithBackticks = "Here is some code:\n```javascript\nconsole.log('hello');\n```\nEnd of body.";
 
       const options = {
@@ -149,13 +150,13 @@ describe("safe_output_summary", () => {
 
       const summary = generateSafeOutputSummary(options);
 
-      // Should use 6-backtick fences to avoid breaking when body contains triple backticks
-      expect(summary).toContain("``````\n");
-      expect(summary).toContain("Body Preview");
-      expect(summary).toContain("```javascript");
+      // Body content is omitted to prevent secret leakage into step summaries
+      expect(summary).not.toContain("Body Preview");
+      expect(summary).not.toContain("```javascript");
+      expect(summary).toContain("Issue with code");
     });
 
-    it("should use 6-backtick fences for error message details containing backticks", () => {
+    it("should not include raw message details in error summary", () => {
       const messageWithBackticks = {
         title: "Test Issue",
         body: "Code: ```\nconsole.log('test');\n```",
@@ -172,9 +173,10 @@ describe("safe_output_summary", () => {
 
       const summary = generateSafeOutputSummary(options);
 
-      // Should use 6-backtick fences for message details JSON to avoid rendering issues
-      expect(summary).toContain("``````json\n");
-      expect(summary).toContain("Message Details");
+      // Raw message content is omitted to prevent secret leakage into step summaries
+      expect(summary).not.toContain("Message Details");
+      expect(summary).not.toContain("console.log");
+      expect(summary).toContain("Failed to create issue");
     });
 
     it("should handle project-specific results", () => {
@@ -264,7 +266,7 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("medium");
     });
 
-    it("should render message data as a JSON code region", () => {
+    it("should not render message data in step summary", () => {
       const options = {
         type: "add_comment",
         messageIndex: 2,
@@ -284,13 +286,13 @@ describe("safe_output_summary", () => {
 
       const summary = generateSafeOutputSummary(options);
 
-      expect(summary).toContain("**Data:**");
-      expect(summary).toContain("``````json");
-      expect(summary).toContain('"verdict": "APPROVE"');
-      expect(summary).toContain('"criteria_passed": 5');
+      // message.data is omitted to prevent secret leakage into step summaries
+      expect(summary).not.toContain("**Data:**");
+      expect(summary).not.toContain('"verdict": "APPROVE"');
+      expect(summary).not.toContain('"criteria_passed": 5');
     });
 
-    it("should use result.body (final posted body) over message.body for body preview", () => {
+    it("should not include body content in step summary (result.body or message.body)", () => {
       const options = {
         type: "add_comment",
         messageIndex: 1,
@@ -306,12 +308,13 @@ describe("safe_output_summary", () => {
 
       const summary = generateSafeOutputSummary(options);
 
-      // Should show the final posted body (from result.body) not the raw submitted body
-      expect(summary).toContain("Footer added by workflow");
-      expect(summary).toContain("Body Preview");
+      // Body content is omitted to prevent secret leakage into step summaries
+      expect(summary).not.toContain("Footer added by workflow");
+      expect(summary).not.toContain("Body Preview");
+      expect(summary).not.toContain("Submitted body");
     });
 
-    it("should fall back to message.body when result.body is absent", () => {
+    it("should not include message.body in step summary", () => {
       const options = {
         type: "add_comment",
         messageIndex: 1,
@@ -326,8 +329,9 @@ describe("safe_output_summary", () => {
 
       const summary = generateSafeOutputSummary(options);
 
-      expect(summary).toContain("Submitted body only");
-      expect(summary).toContain("Body Preview");
+      // Body content is omitted to prevent secret leakage into step summaries
+      expect(summary).not.toContain("Submitted body only");
+      expect(summary).not.toContain("Body Preview");
     });
 
     it("should not display secrecy or integrity when absent from message", () => {
@@ -504,6 +508,104 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("Fallback Issue:");
       expect(summary).toContain("https://github.com/owner/repo/issues/123");
       expect(summary).not.toContain("Fallback Pull Request Created");
+    });
+
+    describe("sentinel secret exclusion", () => {
+      const SENTINEL = "SUPERSECRETVALUE_xK9mQ2wR";
+
+      it("should not include secret from message.body in step summary", () => {
+        const options = {
+          type: "create_issue",
+          messageIndex: 1,
+          success: true,
+          result: { repo: "owner/repo", number: 1 },
+          message: { title: "Issue", body: `Token: ${SENTINEL}` },
+        };
+        expect(generateSafeOutputSummary(options)).not.toContain(SENTINEL);
+      });
+
+      it("should not include secret from result.body in step summary", () => {
+        const options = {
+          type: "add_comment",
+          messageIndex: 1,
+          success: true,
+          result: { url: "https://github.com/owner/repo/issues/1#issuecomment-1", body: `Secret: ${SENTINEL}` },
+          message: {},
+        };
+        expect(generateSafeOutputSummary(options)).not.toContain(SENTINEL);
+      });
+
+      it("should not include secret from message.data in step summary", () => {
+        const options = {
+          type: "add_comment",
+          messageIndex: 2,
+          success: true,
+          result: { repo: "owner/repo", number: 2 },
+          message: { data: { token: SENTINEL, nested: { key: SENTINEL } } },
+        };
+        expect(generateSafeOutputSummary(options)).not.toContain(SENTINEL);
+      });
+
+      it("should not include secret from message body in error path step summary", () => {
+        const options = {
+          type: "create_issue",
+          messageIndex: 1,
+          success: false,
+          result: null,
+          message: { title: "Issue", body: `Password: ${SENTINEL}` },
+          error: "Handler failed",
+        };
+        expect(generateSafeOutputSummary(options)).not.toContain(SENTINEL);
+      });
+
+      it("should not include multiline secret string from message.body", () => {
+        const options = {
+          type: "create_issue",
+          messageIndex: 1,
+          success: true,
+          result: { repo: "owner/repo", number: 1 },
+          message: { title: "Issue", body: `line1\n${SENTINEL}\nline3` },
+        };
+        expect(generateSafeOutputSummary(options)).not.toContain(SENTINEL);
+      });
+
+      it("should not include URL-like secret from message.body", () => {
+        const options = {
+          type: "create_issue",
+          messageIndex: 1,
+          success: true,
+          result: { repo: "owner/repo", number: 1 },
+          message: { title: "Issue", body: `https://example.com/api?token=${SENTINEL}` },
+        };
+        expect(generateSafeOutputSummary(options)).not.toContain(SENTINEL);
+      });
+
+      it("should not include base64-encoded secret from message.data", () => {
+        const encoded = Buffer.from(SENTINEL).toString("base64");
+        const options = {
+          type: "add_comment",
+          messageIndex: 1,
+          success: true,
+          result: { repo: "owner/repo", number: 1 },
+          message: { data: { encoded } },
+        };
+        expect(generateSafeOutputSummary(options)).not.toContain(encoded);
+      });
+
+      it("should still include safe metadata when message contains secrets", () => {
+        const options = {
+          type: "create_issue",
+          messageIndex: 1,
+          success: true,
+          result: { repo: "owner/repo", number: 42, url: "https://github.com/owner/repo/issues/42" },
+          message: { title: "Safe Title", body: `${SENTINEL}`, labels: ["bug"] },
+        };
+        const summary = generateSafeOutputSummary(options);
+        expect(summary).not.toContain(SENTINEL);
+        expect(summary).toContain("Safe Title");
+        expect(summary).toContain("owner/repo#42");
+        expect(summary).toContain("bug");
+      });
     });
   });
 

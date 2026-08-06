@@ -92,11 +92,6 @@ function generateSafeOutputSummary(options) {
       if (message.title) {
         summary += `**Title:** ${message.title}\n\n`;
       }
-      if (message.body && typeof message.body === "string") {
-        const maxBodyLength = 500;
-        const bodyPreview = message.body.length > maxBodyLength ? message.body.substring(0, maxBodyLength) + "..." : message.body;
-        summary += `**Body Preview:**\n\`\`\`\`\`\`\n${bodyPreview}\n\`\`\`\`\`\`\n\n`;
-      }
     }
   } else if (success && result) {
     // Add result-specific information based on type
@@ -118,41 +113,20 @@ function generateSafeOutputSummary(options) {
       if (message.title) {
         summary += `**Title:** ${message.title}\n\n`;
       }
-      // Prefer result.body (final posted body including footer) over message.body (submitted body)
-      const bodyToShow = result && typeof result.body === "string" ? result.body : message.body;
-      if (bodyToShow && typeof bodyToShow === "string") {
-        // Truncate body if too long
-        const maxBodyLength = 500;
-        const bodyPreview = bodyToShow.length > maxBodyLength ? bodyToShow.substring(0, maxBodyLength) + "..." : bodyToShow;
-        summary += `**Body Preview:**\n\`\`\`\`\`\`\n${bodyPreview}\n\`\`\`\`\`\`\n\n`;
-      }
       if (message.labels && Array.isArray(message.labels)) {
         summary += `**Labels:** ${message.labels.join(", ")}\n\n`;
       }
     }
   } else if (error) {
-    // Show error information
+    // Show error information (raw message content is omitted to prevent secret leakage)
     summary += `**Error:** ${error}\n\n`;
-
-    // Add original message details for debugging
-    if (message) {
-      summary += `**Message Details:**\n\`\`\`\`\`\`json\n${JSON.stringify(message, null, 2).substring(0, 1000)}\n\`\`\`\`\`\`\n\n`;
-    }
   }
 
   // Display secrecy and integrity security metadata fields if present in the message.
   // secrecy indicates the confidentiality level of the message content.
   // integrity indicates the trustworthiness level of the message source.
+  // message.data is intentionally omitted to prevent secret leakage into step summaries.
   if (message) {
-    if (message.data !== undefined) {
-      let renderedData = "";
-      try {
-        renderedData = JSON.stringify(message.data, null, 2);
-      } catch {
-        renderedData = String(message.data);
-      }
-      summary += `**Data:**\n\`\`\`\`\`\`json\n${renderedData}\n\`\`\`\`\`\`\n\n`;
-    }
     if (message.secrecy !== undefined && message.secrecy !== null) {
       summary += `**Secrecy:** \`${message.secrecy}\`\n\n`;
     }
