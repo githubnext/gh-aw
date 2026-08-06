@@ -42,6 +42,7 @@ func TestShouldRunCompileUpdateCheck(t *testing.T) {
 	t.Setenv("CI", "")
 	t.Setenv("CONTINUOUS_INTEGRATION", "")
 	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("COPILOT_AGENT_SESSION_ID", "")
 	t.Setenv("GH_AW_MCP_SERVER", "")
 	t.Setenv(compileUpdateCheckDisableEnv, "")
 	assert.True(t, shouldRunCompileUpdateCheck(false), "check should run when not disabled")
@@ -298,6 +299,7 @@ func TestStartCompileUpdateCheckDoesNotBlockShutdown(t *testing.T) {
 	t.Setenv("CI", "")
 	t.Setenv("CONTINUOUS_INTEGRATION", "")
 	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("COPILOT_AGENT_SESSION_ID", "")
 	t.Setenv("GH_AW_MCP_SERVER", "")
 	t.Setenv(compileUpdateCheckDisableEnv, "")
 	getCompileUpdateCheckFilePathFunc = func() string {
@@ -358,6 +360,7 @@ func TestStartCompileUpdateCheckSilentlyHandlesLockedDownNetwork(t *testing.T) {
 	t.Setenv("CI", "")
 	t.Setenv("CONTINUOUS_INTEGRATION", "")
 	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("COPILOT_AGENT_SESSION_ID", "")
 	t.Setenv("GH_AW_MCP_SERVER", "")
 	t.Setenv(compileUpdateCheckDisableEnv, "")
 	getCompileUpdateCheckFilePathFunc = func() string {

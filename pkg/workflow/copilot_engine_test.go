@@ -2733,6 +2733,74 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 		}
 	})
 
+	for _, tt := range []struct {
+		name    string
+		runtime AgentRuntime
+	}{
+		{name: "Docker"},
+		{name: "gVisor", runtime: AgentRuntimeGVisor},
+		{name: "docker-sbx", runtime: AgentRuntimeDockerSbx},
+	} {
+		t.Run("AWF execution stages activated Copilot CLI binary for "+tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name: "test-workflow",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID:      "awf",
+						Runtime: tt.runtime,
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+			stepContent := strings.Join([]string(steps[0]), "\n")
+
+			if !strings.Contains(stepContent, `GH_AW_COPILOT_SRC="$(command -v copilot 2>/dev/null || true)"`) {
+				t.Fatalf("Expected AWF setup to resolve the activated Copilot CLI binary, got:\n%s", stepContent)
+			}
+			if !strings.Contains(stepContent, `cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"`) {
+				t.Fatalf("Expected AWF setup to stage the Copilot CLI binary in its mounted directory, got:\n%s", stepContent)
+			}
+			mountedCopilotPath := constants.GhAwRootDirShell + "/bin/copilot"
+			if !strings.Contains(stepContent, "copilot_harness.cjs "+mountedCopilotPath) {
+				t.Fatalf("Expected harness to use mounted Copilot CLI path %q, got:\n%s", mountedCopilotPath, stepContent)
+			}
+			mount := `--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`
+			if !strings.Contains(stepContent, mount) {
+				t.Fatalf("Expected AWF to mount the staged Copilot CLI directory, got:\n%s", stepContent)
+			}
+			if strings.Contains(stepContent, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
+				t.Fatalf("Expected harness to avoid the fixed Copilot CLI path %q, got:\n%s", constants.CopilotBinaryPath, stepContent)
+			}
+		})
+	}
+
+	t.Run("AWF custom command does not require installed Copilot CLI binary", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID:      "copilot",
+				Command: "custom-copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		if strings.Contains(stepContent, "GH_AW_COPILOT_BIN") {
+			t.Fatalf("Expected custom command to avoid resolving the installed Copilot CLI binary, got:\n%s", stepContent)
+		}
+	})
+
 	t.Run("Execution step uses configured custom driver instead of built-in", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
