@@ -28,7 +28,8 @@ const fs = require("fs");
 const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { execGitSync, getGitAuthEnv, withGitRetry } = require("./git_helpers.cjs");
+const { getGitAuthEnv } = require("./git_auth_helpers.cjs");
+const { execGitSync, withGitRetry } = require("./git_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
 function isPlainObject(value) {

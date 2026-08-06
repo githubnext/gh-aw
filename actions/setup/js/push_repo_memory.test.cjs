@@ -1008,8 +1008,9 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-      // Should import execGitSync (and getGitAuthEnv) from git_helpers, not use execSync or spawnSync directly
+      // Should import execGitSync from git_helpers, not use execSync or spawnSync directly
       expect(scriptContent).toContain('require("./git_helpers.cjs")');
+      expect(scriptContent).toContain('require("./git_auth_helpers.cjs")');
       expect(scriptContent).not.toContain('const { execSync } = require("child_process")');
       expect(scriptContent).not.toContain('const { spawnSync } = require("child_process")');
 

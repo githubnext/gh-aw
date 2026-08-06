@@ -6,7 +6,8 @@ const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
-const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
+const { getGitAuthEnv } = require("./git_auth_helpers.cjs");
+const { execGitSync } = require("./git_helpers.cjs");
 const { getStagedPatchDiffSizeBytes } = require("./git_patch_utils.cjs");
 const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");

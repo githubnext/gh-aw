@@ -55,6 +55,10 @@ function collectTransitiveDeps(rootFiles) {
   return visited;
 }
 
+function filesCallingCoreSetSecret(files) {
+  return files.filter(file => /\bcore\.setSecret\s*\(/.test(readFileSync(resolve(__dirname, file), "utf8")));
+}
+
 const mcpScriptsFiles = parseSetupShArray("MCP_SCRIPTS_FILES");
 const safeOutputsFiles = parseSetupShArray("SAFE_OUTPUTS_FILES");
 
@@ -74,6 +78,10 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
     const missing = mcpScriptsFiles.filter(f => !existsSync(resolve(__dirname, f)));
     expect(missing).toEqual([]);
   });
+
+  it("does not deploy files that call core.setSecret", () => {
+    expect(filesCallingCoreSetSecret(mcpScriptsFiles)).toEqual([]);
+  });
 });
 
 describe("setup.sh SAFE_OUTPUTS_FILES", () => {
@@ -91,6 +99,10 @@ describe("setup.sh SAFE_OUTPUTS_FILES", () => {
   it("all listed files exist in js/", () => {
     const missing = safeOutputsFiles.filter(f => !existsSync(resolve(__dirname, f)));
     expect(missing).toEqual([]);
+  });
+
+  it("does not deploy files that call core.setSecret", () => {
+    expect(filesCallingCoreSetSecret(safeOutputsRoots)).toEqual([]);
   });
 
   it("copies safe_outputs_tools.json to both safe_outputs_tools.json and tools.json", () => {

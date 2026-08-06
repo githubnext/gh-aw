@@ -111,9 +111,11 @@ The following workflow lock files have changes:
 
     // Setup mock core module
     mockCore = {
+      debug: vi.fn(),
       info: vi.fn(),
       warning: vi.fn(),
       error: vi.fn(),
+      setSecret: vi.fn(),
       summary: {
         addHeading: vi.fn().mockReturnThis(),
         addRaw: vi.fn().mockReturnThis(),

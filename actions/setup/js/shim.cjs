@@ -12,9 +12,10 @@
  * `github-script`) the respective block is a no-op.
  */
 
-const escapeCommandData = value => String(value).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
-
-const setSecret = /** @param {string} value */ value => {};
+const setSecret = /** @param {string} _value */ _value => {
+  throw new Error("core.setSecret is unavailable outside the github-script runtime");
+};
+Object.defineProperty(setSecret, "__ghAwUnavailable", { value: true });
 
 if (!global.core) {
   /**
