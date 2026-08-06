@@ -1565,25 +1565,7 @@ jobs:
       - name: Prepare threat detection files
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
-          mkdir -p /tmp/gh-aw/threat-detection/aw-prompts
-          rm -f /tmp/gh-aw/agent_usage.json
-          cp /tmp/gh-aw/aw-prompts/prompt.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt 2>/dev/null || true
-          if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then
-            echo "::warning::ERR_VALIDATION: Missing or empty detection context prompt at /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt. Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. Detection will continue with fallback workflow context."
-          fi
-          cp /tmp/gh-aw/agent_output.json /tmp/gh-aw/threat-detection/agent_output.json 2>/dev/null || true
-          for f in /tmp/gh-aw/aw-*.patch; do
-            if [ -f "$f" ]; then
-              cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
-            fi
-          done
-          for f in /tmp/gh-aw/aw-*.bundle; do
-            if [ -f "$f" ]; then
-              cp "$f" /tmp/gh-aw/threat-detection/ 2>/dev/null || true
-            fi
-          done
-          echo "Prepared threat detection files:"
-          ls -la /tmp/gh-aw/threat-detection/ 2>/dev/null || true
+          bash "${RUNNER_TEMP}/gh-aw/actions/prepare_threat_detection_files.sh"
       - name: Setup threat detection
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
