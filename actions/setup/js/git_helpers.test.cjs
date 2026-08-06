@@ -1383,6 +1383,14 @@ describe("git_helpers.cjs", () => {
       } catch {
         // treat as non-shallow
       }
+      // Skip if HEAD is itself a merge commit — the range HEAD^..HEAD would then contain
+      // a merge commit and the assertion below (expects false) would incorrectly fail.
+      try {
+        execGitSync(["rev-parse", "--verify", "HEAD^2"], { suppressLogs: true });
+        return; // HEAD has a second parent → it is a merge commit → skip
+      } catch {
+        // HEAD is not a merge commit — proceed
+      }
       let result;
       try {
         result = hasMergeCommitsInRange("HEAD^", "HEAD", { maxCommits: 0 });

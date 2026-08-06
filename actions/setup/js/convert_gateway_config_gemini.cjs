@@ -31,7 +31,7 @@ require("./shim.cjs");
  */
 
 const path = require("path");
-const { rewriteUrl, normalizeGatewayEntry, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
+const { rewriteUrl, normalizeGatewayEntry, runGatewayConversion } = require("./convert_gateway_config_shared.cjs");
 
 /**
  * @param {Record<string, unknown>} entry
@@ -45,51 +45,30 @@ function transformGeminiEntry(entry, urlPrefix) {
   });
 }
 
+function getGeminiHostDomain() {
+  return process.env.MCP_GATEWAY_HOST_DOMAIN || "localhost";
+}
+
 function main() {
-  const { gatewayOutput, port, cliServers, servers, extraEnv } = loadGatewayContext({
-    extraRequiredEnv: ["GITHUB_WORKSPACE"],
+  const hostDomain = getGeminiHostDomain();
+  return runGatewayConversion({
+    format: "Gemini",
+    engine: "Gemini",
+    contextOptions: { extraRequiredEnv: ["GITHUB_WORKSPACE"] },
+    outputPath: ({ extraEnv }) => path.join(extraEnv.GITHUB_WORKSPACE, ".gemini", "settings.json"),
+    getTargetDomain: () => hostDomain,
+    getUrlPrefix: ({ port }) => `http://${hostDomain}:${port}`,
+    transformServer: (_name, entry, urlPrefix) => transformGeminiEntry(entry, urlPrefix),
+    serialize: servers =>
+      JSON.stringify(
+        {
+          mcpServers: servers,
+          context: { includeDirectories: ["/tmp/"] },
+        },
+        null,
+        2
+      ),
   });
-  const workspace = extraEnv.GITHUB_WORKSPACE;
-
-  // Gemini runs directly on the host runner (not inside a Docker container), so use
-  // MCP_GATEWAY_HOST_DOMAIN (localhost) instead of MCP_GATEWAY_DOMAIN (host.docker.internal).
-  // host.docker.internal does not resolve on the host runner on Linux.
-  const hostDomain = process.env.MCP_GATEWAY_HOST_DOMAIN || "localhost";
-  const urlPrefix = `http://${hostDomain}:${port}`;
-
-  core.info("Converting gateway configuration to Gemini format...");
-  core.info(`Input: ${gatewayOutput}`);
-  core.info(`Target domain: ${hostDomain}:${port}`);
-  logCLIFilters(cliServers);
-  const result = filterAndTransformServers(servers, cliServers, (_name, entry) => transformGeminiEntry(entry, urlPrefix));
-
-  // Build settings with mcpServers and context.includeDirectories
-  // Allow Gemini CLI to read/write files from /tmp/ (e.g. MCP payload files,
-  // cache-memory, agent outputs)
-  const settings = {
-    mcpServers: result,
-    context: {
-      includeDirectories: ["/tmp/"],
-    },
-  };
-
-  const output = JSON.stringify(settings, null, 2);
-
-  logServerStats(servers, Object.keys(result).length);
-
-  // Create .gemini directory in the workspace (project-level settings)
-  const settingsFile = path.join(workspace, ".gemini", "settings.json");
-
-  // Write with owner-only permissions (0o600) to protect the gateway bearer token.
-  // settings.json contains the bearer token for the MCP gateway; an attacker
-  // who reads it could bypass the --allowed-tools constraint by issuing raw
-  // JSON-RPC calls directly to the gateway.
-  writeSecureOutput(settingsFile, output);
-
-  core.info(`Gemini configuration written to ${settingsFile}`);
-  core.info("");
-  core.info("Converted configuration:");
-  core.info(output);
 }
 
 if (require.main === module) {

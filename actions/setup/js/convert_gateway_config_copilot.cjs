@@ -25,7 +25,7 @@ require("./shim.cjs");
  */
 
 const path = require("path");
-const { rewriteUrl, normalizeGatewayEntry, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
+const { rewriteUrl, normalizeGatewayEntry, runGatewayConversion } = require("./convert_gateway_config_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -72,26 +72,13 @@ function main() {
     return;
   }
 
-  const { gatewayOutput, domain, port, urlPrefix, cliServers, servers } = loadGatewayContext();
-
-  core.info("Converting gateway configuration to Copilot format...");
-  core.info(`Input: ${gatewayOutput}`);
-  core.info(`Target domain: ${domain}:${port}`);
-  logCLIFilters(cliServers);
-  const result = filterAndTransformServers(servers, cliServers, (_name, entry) => transformCopilotEntry(entry, urlPrefix));
-
-  const output = JSON.stringify({ mcpServers: result }, null, 2);
-  logServerStats(servers, Object.keys(result).length);
-
-  // Write with owner-only permissions (0o600) to protect the gateway bearer token.
-  // An attacker who reads mcp-config.json could bypass --allowed-tools by issuing
-  // raw JSON-RPC calls directly to the gateway.
-  writeSecureOutput(outputPath, output);
-
-  core.info(`Copilot configuration written to ${outputPath}`);
-  core.info("");
-  core.info("Converted configuration:");
-  core.info(output);
+  return runGatewayConversion({
+    format: "Copilot",
+    engine: "Copilot",
+    outputPath,
+    transformServer: (_name, entry, urlPrefix) => transformCopilotEntry(entry, urlPrefix),
+    serialize: servers => JSON.stringify({ mcpServers: servers }, null, 2),
+  });
 }
 
 if (require.main === module) {
