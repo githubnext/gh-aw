@@ -1498,6 +1498,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Analyzes one entire Go package per day using Serena to extract function names and suggest renames that improve agent discoverability, using round-robin over package directories via cache-memory"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

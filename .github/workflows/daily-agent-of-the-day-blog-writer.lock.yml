@@ -1623,6 +1623,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Generates a daily \"Agent of the Day\" blog entry with varied narrative style, SEO metadata, and live workflow evidence"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

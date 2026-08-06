@@ -1437,6 +1437,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Daily A/B testing advisor that picks a random agentic workflow without an experiments section, devises an experiment campaign to improve it, and creates a GitHub issue with the implementation task"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1592,6 +1592,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Runs hippo-memory's learn and sleep commands daily to extract lessons from git commits, consolidate the memory store, and suggest actionable improvements to the team"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

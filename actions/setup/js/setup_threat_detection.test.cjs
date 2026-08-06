@@ -34,6 +34,7 @@ describe("setup_threat_detection", () => {
     delete process.env.WORKFLOW_DESCRIPTION;
     delete process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR;
     delete process.env.HAS_PATCH;
+    delete process.env.GH_AW_DETECTION_SKIP_PROMPT_SUMMARY;
   });
 
   function setupCoreMocks() {
@@ -116,6 +117,29 @@ describe("setup_threat_detection", () => {
 
     expect(global.core.setFailed).not.toHaveBeenCalled();
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true"));
+  });
+
+  it("writes the rendered prompt to the step summary by default", async () => {
+    setupCoreMocks();
+
+    const module = await import("./setup_threat_detection.cjs");
+    await module.main();
+
+    expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Threat Detection Prompt"));
+    expect(global.core.summary.write).toHaveBeenCalled();
+  });
+
+  it("skips the step summary write when GH_AW_DETECTION_SKIP_PROMPT_SUMMARY is true", async () => {
+    setupCoreMocks();
+    process.env.GH_AW_DETECTION_SKIP_PROMPT_SUMMARY = "true";
+
+    const module = await import("./setup_threat_detection.cjs");
+    await module.main();
+
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+    expect(global.core.summary.addRaw).not.toHaveBeenCalled();
+    expect(global.core.summary.write).not.toHaveBeenCalled();
+    expect(global.core.exportVariable).toHaveBeenCalledWith("GH_AW_PROMPT", "/tmp/gh-aw/aw-prompts/prompt.txt");
   });
 
   it("fails when patch is missing and continue-on-error is disabled", async () => {

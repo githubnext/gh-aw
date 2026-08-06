@@ -3018,3 +3018,42 @@ func TestBuildExternalDetectorWorkflowDataMaxAICreditsNotInheritedFromMainAgent(
 		t.Fatalf("expected external detector steps NOT to inherit agent maxAiCredits=500, got:\n%s", allSteps)
 	}
 }
+
+func TestSetupThreatDetectionPromptSummarySuppressedOnExternalPath(t *testing.T) {
+	// The setup step renders a prompt that the external detector never uses (threat-detect
+	// renders and publishes its own prompt), so its step summary write must be suppressed to
+	// avoid two different prompt blocks in a single detection run.
+	compiler := NewCompiler()
+
+	newData := func(features map[string]any) *WorkflowData {
+		return &WorkflowData{
+			AI:   "copilot",
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+			Features: features,
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Type: SandboxTypeAWF,
+				},
+			},
+		}
+	}
+
+	t.Run("external detector path sets the suppression flag", func(t *testing.T) {
+		data := newData(map[string]any{string(constants.GHAWDetectionFeatureFlag): true})
+		joined := strings.Join(compiler.buildThreatDetectionAnalysisStep(data), "")
+		if !strings.Contains(joined, `GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"`) {
+			t.Errorf("expected GH_AW_DETECTION_SKIP_PROMPT_SUMMARY on the external detector path\ngot:\n%s", joined)
+		}
+	})
+
+	t.Run("inline path does not set the suppression flag", func(t *testing.T) {
+		data := newData(map[string]any{})
+		joined := strings.Join(compiler.buildThreatDetectionAnalysisStep(data), "")
+		if strings.Contains(joined, "GH_AW_DETECTION_SKIP_PROMPT_SUMMARY") {
+			t.Errorf("did not expect GH_AW_DETECTION_SKIP_PROMPT_SUMMARY on the inline path\ngot:\n%s", joined)
+		}
+	})
+}
