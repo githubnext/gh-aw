@@ -5,6 +5,7 @@ package cli
 import (
 	"errors"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -291,4 +292,24 @@ func makeGrypeFinding(id, severity, pkgName, pkgVersion string, fixVersions []st
 	f.Artifact.Name = pkgName
 	f.Artifact.Version = pkgVersion
 	return f
+}
+
+func TestGrypeRunOnImage_RejectsUnsafeImageRef(t *testing.T) {
+	unsafeRefs := []string{
+		"--entrypoint=/bin/sh",
+		"alpine:latest\n--privileged",
+		"ghcr.io/org/im;age:latest",
+	}
+
+	for _, imageRef := range unsafeRefs {
+		t.Run(imageRef, func(t *testing.T) {
+			_, err := grypeRunOnImage(imageRef, false)
+			if err == nil {
+				t.Fatalf("Expected error for unsafe image reference %q", imageRef)
+			}
+			if !strings.Contains(err.Error(), "docker image reference") {
+				t.Errorf("Expected image reference validation error, got: %v", err)
+			}
+		})
+	}
 }

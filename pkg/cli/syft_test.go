@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -196,5 +197,25 @@ jobs:
 	err := runSyftOnLockFiles([]string{lockFile}, false, false)
 	if err != nil {
 		t.Errorf("Expected no error in non-strict mode, got: %v", err)
+	}
+}
+
+func TestRunSyftOnImage_RejectsUnsafeImageRef(t *testing.T) {
+	unsafeRefs := []string{
+		"--entrypoint=/bin/sh",
+		"alpine:latest\n--privileged",
+		"ghcr.io/org/im;age:latest",
+	}
+
+	for _, imageRef := range unsafeRefs {
+		t.Run(imageRef, func(t *testing.T) {
+			_, err := runSyftOnImage(context.Background(), imageRef, t.TempDir(), false)
+			if err == nil {
+				t.Fatalf("Expected error for unsafe image reference %q", imageRef)
+			}
+			if !strings.Contains(err.Error(), "docker image reference") {
+				t.Errorf("Expected image reference validation error, got: %v", err)
+			}
+		})
 	}
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -103,20 +104,34 @@ func runSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 func runSyftOnImage(ctx context.Context, imageRef, sbomDir string, verbose bool) (*SyftScanResult, error) {
 	syftLog.Printf("Scanning %s with syft", imageRef)
 
-	// #nosec G204 -- imageRef comes from compiled lock-file manifests and is passed
-	// as a direct process argument (no shell interpolation).
+	// Validate the image reference before it reaches docker: lock-file manifests can carry
+	// attacker-influenced content, and an image reference starting with "-" (or containing
+	// control characters) would otherwise be interpreted as a docker/syft option.
+	validatedImageRef, err := validateDockerImageRef(imageRef)
+	if err != nil {
+		return nil, err
+	}
+
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return nil, fmt.Errorf("docker command not found: %w", err)
+	}
+
+	// #nosec G204 -- dockerPath is resolved from the fixed executable name "docker" and
+	// validatedImageRef is allow-list validated above. exec.CommandContext passes args
+	// directly to the OS without shell interpretation, preventing command injection.
 	cmd := exec.CommandContext(
 		ctx,
-		"docker",
+		dockerPath,
 		"run",
 		"--rm",
 		SyftImage,
-		imageRef,
+		validatedImageRef,
 		"-o", "syft-json",
 	)
 
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm %s %s -o syft-json", SyftImage, imageRef)
+		dockerCmd := shellJoinArgs([]string{"docker", "run", "--rm", SyftImage, validatedImageRef, "-o", "syft-json"})
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run syft directly: "+dockerCmd))
 	}
 

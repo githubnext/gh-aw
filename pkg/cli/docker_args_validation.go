@@ -63,44 +63,44 @@ func validateHostMountPath(hostPath string) (string, error) {
 
 func validateDockerImageRef(imageRef string) (string, error) {
 	if imageRef == "" {
-		return "", errors.New("grant image reference cannot be empty. Example: ghcr.io/example/image:tag")
+		return "", errors.New("docker image reference cannot be empty. Example: ghcr.io/example/image:tag")
 	}
 	// Image refs disallow all Unicode whitespace, while containsControlCharacters also rejects
 	// non-whitespace spoofing characters such as bidi overrides and other format controls.
 	if containsControlCharacters(imageRef) || strings.IndexFunc(imageRef, unicode.IsSpace) >= 0 {
-		dockerArgsValidationLog.Printf("rejected grant image reference with invalid whitespace/control characters: %q", imageRef)
-		return "", fmt.Errorf("grant image reference contains invalid whitespace/control characters. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+		dockerArgsValidationLog.Printf("rejected docker image reference with invalid whitespace/control characters: %q", imageRef)
+		return "", fmt.Errorf("docker image reference contains invalid whitespace/control characters. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 	}
 	if strings.HasPrefix(imageRef, "-") {
-		return "", fmt.Errorf("grant image reference cannot start with '-'. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+		return "", fmt.Errorf("docker image reference cannot start with '-'. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 	}
 
 	imageRefWithoutDigest := imageRef
 	if strings.Count(imageRef, "@") > 1 {
-		return "", fmt.Errorf("grant image reference has multiple digest separators. Example: ghcr.io/example/image@sha256:<digest>. Got: %q", imageRef)
+		return "", fmt.Errorf("docker image reference has multiple digest separators. Example: ghcr.io/example/image@sha256:<digest>. Got: %q", imageRef)
 	}
 	nameWithOptionalTag, digest, hasDigest := strings.Cut(imageRef, "@")
 	if hasDigest {
 		if digest == "" || !isAllowedDockerImageDigest(digest) {
-			return "", fmt.Errorf("grant image reference has an invalid digest format. Example: ghcr.io/example/image@sha256:<digest>. Got: %q", imageRef)
+			return "", fmt.Errorf("docker image reference has an invalid digest format. Example: ghcr.io/example/image@sha256:<digest>. Got: %q", imageRef)
 		}
 		imageRefWithoutDigest = nameWithOptionalTag
 	}
 	if imageRefWithoutDigest == "" {
-		return "", fmt.Errorf("grant image reference is missing an image name. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+		return "", fmt.Errorf("docker image reference is missing an image name. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 	}
 
 	imageName := imageRefWithoutDigest
 	if colon := strings.LastIndex(imageRefWithoutDigest, ":"); colon > strings.LastIndex(imageRefWithoutDigest, "/") {
 		tag := imageRefWithoutDigest[colon+1:]
 		if !dockerImageTagPattern.MatchString(tag) {
-			return "", fmt.Errorf("grant image reference has an invalid tag format. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+			return "", fmt.Errorf("docker image reference has an invalid tag format. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 		}
 		imageName = imageRefWithoutDigest[:colon]
 	}
 
 	if imageName == "" || strings.HasSuffix(imageName, "/") || !dockerImageNamePattern.MatchString(imageName) {
-		return "", fmt.Errorf("grant image reference must match an allow-listed image pattern. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+		return "", fmt.Errorf("docker image reference must match an allow-listed image pattern. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 	}
 	return imageRef, nil
 }
