@@ -299,6 +299,171 @@ imports:
 	assert.Equal(t, 7, result.engineConfig.MaxTurnCacheMisses)
 }
 
+// TestSetupEngineAndImports_ImportedEngineVersionDefault verifies that a shared/imported
+// engine definition's top-level `version` field is applied as the default
+// EngineConfig.Version when the workflow's own `engine:` frontmatter selects the same
+// engine ID but omits `version`. This mirrors how shared/goose.md pins a default
+// version for the Goose engine, so workflows that only set `engine: { id: goose }`
+// still get a non-empty GH_AW_ENGINE_VERSION rather than crashing at runtime.
+func TestSetupEngineAndImports_ImportedEngineVersionDefault(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-version-default")
+
+	sharedContent := `---
+engine:
+  id: harness-engine
+  version: "1.45.0"
+  display-name: Harness Engine
+  behaviors:
+    secret-strategy: universal-llm-consumer
+    execution:
+      command-name: harness-engine
+      step-name: Execute Harness Engine
+---
+
+# Shared Engine Definition
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "engine.md"), []byte(sharedContent), 0644))
+
+	testContent := `---
+on: push
+engine:
+  id: harness-engine
+imports:
+  - shared/engine.md
+---
+
+# Test Workflow
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.Equal(t, "harness-engine", result.engineSetting)
+	assert.Equal(t, "1.45.0", result.engineConfig.Version)
+}
+
+func TestSetupEngineAndImports_ExplicitVersionNotOverriddenByDefault(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-explicit-version-wins")
+
+	sharedContent := `---
+engine:
+  id: harness-engine
+  version: "1.45.0"
+  display-name: Harness Engine
+  behaviors:
+    secret-strategy: universal-llm-consumer
+    execution:
+      command-name: harness-engine
+      step-name: Execute Harness Engine
+---
+
+# Shared Engine Definition
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "engine.md"), []byte(sharedContent), 0644))
+
+	testContent := `---
+on: push
+engine:
+  id: harness-engine
+  version: "2.0.0"
+imports:
+  - shared/engine.md
+---
+
+# Test Workflow
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.Equal(t, "harness-engine", result.engineSetting)
+	assert.Equal(t, "2.0.0", result.engineConfig.Version)
+}
+
+func TestSetupEngineAndImports_ImportedEngineVersionDefaultDoesNotLeakAcrossWorkflows(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-version-no-leak")
+
+	sharedContent := `---
+engine:
+  id: harness-engine
+  version: "1.45.0"
+  display-name: Harness Engine
+  behaviors:
+    secret-strategy: universal-llm-consumer
+    execution:
+      command-name: harness-engine
+      step-name: Execute Harness Engine
+---
+
+# Shared Engine Definition
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "engine.md"), []byte(sharedContent), 0644))
+
+	importingContent := `---
+on: push
+engine:
+  id: harness-engine
+imports:
+  - shared/engine.md
+---
+
+# Importing Workflow
+`
+	importingFile := filepath.Join(tmpDir, "importing.md")
+	require.NoError(t, os.WriteFile(importingFile, []byte(importingContent), 0644))
+
+	compiler := NewCompiler()
+	importingFrontmatter, err := parser.ExtractFrontmatterFromContent(importingContent)
+	require.NoError(t, err)
+	importingResult, err := compiler.setupEngineAndImports(importingFrontmatter, importingFile, []byte(importingContent), tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, importingResult)
+	require.NotNil(t, importingResult.engineConfig)
+	require.Equal(t, "1.45.0", importingResult.engineConfig.Version)
+
+	plainContent := `---
+on: push
+engine:
+  id: harness-engine
+---
+
+# Plain Workflow
+`
+	plainFile := filepath.Join(tmpDir, "plain.md")
+	require.NoError(t, os.WriteFile(plainFile, []byte(plainContent), 0644))
+	plainFrontmatter, err := parser.ExtractFrontmatterFromContent(plainContent)
+	require.NoError(t, err)
+
+	plainResult, err := compiler.setupEngineAndImports(plainFrontmatter, plainFile, []byte(plainContent), tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, plainResult)
+	require.NotNil(t, plainResult.engineConfig)
+	assert.Equal(t, "harness-engine", plainResult.engineSetting)
+	assert.Empty(t, plainResult.engineConfig.Version)
+}
+
 // TestSetupEngineAndImports_MainMaxTurnCacheMissesTakesPrecedenceOverImport verifies that
 // a main workflow's max-turn-cache-misses frontmatter wins over the same field in an import.
 func TestSetupEngineAndImports_MainMaxTurnCacheMissesTakesPrecedenceOverImport(t *testing.T) {

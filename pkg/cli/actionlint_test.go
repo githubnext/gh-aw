@@ -518,3 +518,94 @@ func TestActionlintExitHelperSubprocess(t *testing.T) {
 		os.Exit(0)
 	}
 }
+
+func TestIsHighSeverityActionlintError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      actionlintError
+		expected bool
+	}{
+		{
+			name:     "non-shellcheck error is always high severity",
+			err:      actionlintError{Kind: "syntax", Message: "unexpected token"},
+			expected: true,
+		},
+		{
+			name:     "shellcheck error severity",
+			err:      actionlintError{Kind: "shellcheck", Message: "shellcheck reported issue in this script: SC2086:error:4:13: Double quote to prevent globbing"},
+			expected: true,
+		},
+		{
+			name:     "shellcheck warning severity",
+			err:      actionlintError{Kind: "shellcheck", Message: "shellcheck reported issue in this script: SC2086:warning:4:13: Double quote to prevent globbing"},
+			expected: true,
+		},
+		{
+			name:     "shellcheck info severity",
+			err:      actionlintError{Kind: "shellcheck", Message: "shellcheck reported issue in this script: SC2016:info:4:13: Expressions don't expand in single quotes"},
+			expected: false,
+		},
+		{
+			name:     "shellcheck style severity",
+			err:      actionlintError{Kind: "shellcheck", Message: "shellcheck reported issue in this script: SC2034:style:1:1: Variable appears unused"},
+			expected: false,
+		},
+		{
+			name:     "shellcheck with unparseable message",
+			err:      actionlintError{Kind: "shellcheck", Message: "some unexpected format"},
+			expected: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isHighSeverityActionlintError(tt.err)
+			if got != tt.expected {
+				t.Errorf("isHighSeverityActionlintError() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractShellcheckSeverity(t *testing.T) {
+	tests := []struct {
+		message  string
+		expected string
+	}{
+		{"shellcheck reported issue in this script: SC2016:info:4:13: msg", "info"},
+		{"shellcheck reported issue in this script: SC2086:error:1:5: msg", "error"},
+		{"shellcheck reported issue in this script: SC2034:style:1:1: msg", "style"},
+		{"shellcheck reported issue in this script: SC2155:warning:3:1: msg", "warning"},
+		{"no SC code here", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.message, func(t *testing.T) {
+			got := extractShellcheckSeverity(tt.message)
+			if got != tt.expected {
+				t.Errorf("extractShellcheckSeverity() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCountHighSeverityErrors(t *testing.T) {
+	// Mix of high and low severity
+	input := `[
+		{"message":"shellcheck reported issue in this script: SC2016:info:4:13: msg","filepath":"a.yml","line":1,"column":1,"kind":"shellcheck"},
+		{"message":"shellcheck reported issue in this script: SC2086:error:1:5: msg","filepath":"b.yml","line":2,"column":1,"kind":"shellcheck"},
+		{"message":"unexpected token","filepath":"c.yml","line":3,"column":1,"kind":"syntax"}
+	]`
+	got := countHighSeverityErrors(input)
+	if got != 2 {
+		t.Errorf("countHighSeverityErrors() = %d, want 2", got)
+	}
+
+	// All low severity
+	input2 := `[
+		{"message":"shellcheck reported issue in this script: SC2016:info:4:13: msg","filepath":"a.yml","line":1,"column":1,"kind":"shellcheck"},
+		{"message":"shellcheck reported issue in this script: SC2034:style:1:1: msg","filepath":"b.yml","line":2,"column":1,"kind":"shellcheck"}
+	]`
+	got2 := countHighSeverityErrors(input2)
+	if got2 != 0 {
+		t.Errorf("countHighSeverityErrors() = %d, want 0", got2)
+	}
+}
