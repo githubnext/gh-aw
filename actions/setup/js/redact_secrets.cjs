@@ -198,7 +198,7 @@ function redactSecrets(content, secretValues) {
  * @returns {string} Content with credential-shaped strings replaced
  */
 function redactStepSummaryContent(content) {
-  if (!content) {
+  if (typeof content !== "string" || content.length === 0) {
     return content;
   }
   try {

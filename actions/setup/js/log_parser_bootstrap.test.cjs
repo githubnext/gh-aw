@@ -594,7 +594,7 @@ describe("log_parser_bootstrap.cjs", () => {
   describe("step summary secret redaction", () => {
     // Built from parts so the fixtures are never literal credential strings in source.
     const FAKE_PAT = "ghp_" + "a1b2c3d4e5".repeat(3) + "f6g7h8";
-    const FAKE_AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE".slice(0, 16);
+    const FAKE_AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE";
 
     it("should redact credential-shaped tool input and output from the fallback summary", async () => {
       const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
