@@ -2094,6 +2094,20 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Resolve an allowed-root path to its canonical form, falling back to path.resolve when the
+   * directory does not yet exist (e.g. GITHUB_WORKSPACE before checkout).
+   * @param {string} root
+   * @returns {string}
+   */
+  function canonicalizeAllowedRoot(root) {
+    try {
+      return fs.realpathSync(root);
+    } catch {
+      return path.resolve(root);
+    }
+  }
+
+  /**
    * Validate that a canonical absolute path does not refer to sensitive system or credential
    * locations. Returns an error message string, or null if the path is safe.
    *
@@ -2266,16 +2280,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       // Enforce allowed canonical source roots: staging dir and GITHUB_WORKSPACE.
       // RUNNER_TEMP is intentionally excluded — only the specific staging subdirectory is allowed.
       const stagingDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-artifacts");
-      function canonicalizeRoot(root) {
-        try {
-          return fs.realpathSync(root);
-        } catch {
-          return path.resolve(root);
-        }
-      }
-      const allowedRoots = [canonicalizeRoot(stagingDir)];
+      const allowedRoots = [canonicalizeAllowedRoot(stagingDir)];
       if (process.env.GITHUB_WORKSPACE) {
-        allowedRoots.push(canonicalizeRoot(process.env.GITHUB_WORKSPACE));
+        allowedRoots.push(canonicalizeAllowedRoot(process.env.GITHUB_WORKSPACE));
       }
       const withinAllowedRoot = allowedRoots.some(root => canonicalFilePath === root || canonicalFilePath.startsWith(root + path.sep));
       if (!withinAllowedRoot) {
