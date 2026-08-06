@@ -140,12 +140,12 @@ func DefaultObjectiveMapping() *ObjectiveMapping {
 	}
 }
 
-// LoadObjectiveMappingFromConfig loads the mapping from environment, config file, or defaults.
+// LoadObjectiveMapping loads the mapping from environment, config file, or defaults.
 // Precedence:
 // 1. OBJECTIVE_MAPPING_JSON environment variable
 // 2. .github/objective-mapping.json file
 // 3. Built-in defaults
-func LoadObjectiveMappingFromConfig() *ObjectiveMapping {
+func LoadObjectiveMapping() *ObjectiveMapping {
 	labelObjectiveMappingLog.Print("Loading objective mapping configuration")
 
 	// Try loading from OBJECTIVE_MAPPING_JSON env var
@@ -188,9 +188,9 @@ func LoadObjectiveMappingFromConfig() *ObjectiveMapping {
 	return defaults
 }
 
-// GetObjectiveLabels returns the subset of issue labels that have objective values.
+// FilterObjectiveLabels returns the subset of issue labels that have objective values.
 // Also returns the labels in the order they appear in the issue's label list.
-func (om *ObjectiveMapping) GetObjectiveLabels(issueLabels []string) []string {
+func (om *ObjectiveMapping) FilterObjectiveLabels(issueLabels []string) []string {
 	if om == nil || len(om.LabelToValue) == 0 {
 		return []string{}
 	}
@@ -225,8 +225,8 @@ func (om *ObjectiveMapping) String() string {
 		len(om.LabelToValue), om.MultiLabelLogic, len(om.PriorityLabels))
 }
 
-// ValidateLabelExists checks if a given label has a defined objective value.
-func (om *ObjectiveMapping) ValidateLabelExists(label string) bool {
+// HasObjectiveLabel checks if a given label has a defined objective value.
+func (om *ObjectiveMapping) HasObjectiveLabel(label string) bool {
 	if om == nil {
 		return false
 	}

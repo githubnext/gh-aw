@@ -517,7 +517,7 @@ func addAuditOutcomeSummary(ctx context.Context, auditData *AuditData, createdIt
 	if len(createdItems) == 0 {
 		return
 	}
-	mapping := github.LoadObjectiveMappingFromConfig()
+	mapping := github.LoadObjectiveMapping()
 	outcomeReports := EvaluateOutcomes(ctx, createdItems, "", mapping)
 	auditData.Outcomes = outcomeReports
 	outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
