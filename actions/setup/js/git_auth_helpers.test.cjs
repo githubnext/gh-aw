@@ -230,6 +230,15 @@ describe("git_auth_helpers.cjs", () => {
       }
     });
 
+    it("should register the base64 token with core.setSecret for runner-side masking", async () => {
+      const token = "ghp_test_token";
+      const expectedBase64 = Buffer.from(`x-access-token:${token}`).toString("base64");
+
+      await overridePersistedExtraheader(SERVER_URL, token);
+
+      expect(mockCore.setSecret).toHaveBeenCalledWith(expectedBase64);
+    });
+
     it("should return empty array when no previous extraheader exists", async () => {
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
         // Only the --get-all read returns empty; unset-all calls use ignoreReturnCode
