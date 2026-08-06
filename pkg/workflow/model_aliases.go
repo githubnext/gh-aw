@@ -31,10 +31,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"sync"
 	"unsafe"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/syncutil"
 )
 
 var modelAliasesLog = logger.New("workflow:model_aliases")
@@ -47,32 +47,25 @@ type builtinModelAliasesFile struct {
 	Aliases map[string][]string `json:"aliases"`
 }
 
-var (
-	builtinModelAliasesOnce sync.Once
-	builtinModelAliasesData map[string][]string
-	builtinModelAliasesErr  error
-)
+var builtinModelAliasesLoader syncutil.OnceLoader[map[string][]string]
 
 func loadBuiltinModelAliases() (map[string][]string, error) {
-	builtinModelAliasesOnce.Do(func() {
+	return builtinModelAliasesLoader.Get(func() (map[string][]string, error) {
 		var data builtinModelAliasesFile
 		if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {
-			builtinModelAliasesErr = fmt.Errorf("BUG: workflow: failed to parse embedded model_aliases.json: %w (try 'make build' to rebuild with the latest data)", err)
-			return
+			return nil, fmt.Errorf("BUG: workflow: failed to parse embedded model_aliases.json: %w (try 'make build' to rebuild with the latest data)", err)
 		}
-		builtinModelAliasesData = data.Aliases
+		return data.Aliases, nil
 	})
-	return builtinModelAliasesData, builtinModelAliasesErr
 }
 
 // builtinOnlyAliasMap is the canonical map returned by MergeImportedModelAliases
 // when there are no imported or frontmatter overrides.  It is set once via
-// sync.Once so that pointer-equality checks in validateModelAliasMap can detect
-// the common case and skip the redundant cycle-detection DFS.
+// builtinOnlyAliasMapLoader so that pointer-equality checks in validateModelAliasMap can
+// detect the common case and skip the redundant cycle-detection DFS.
 var (
-	builtinOnlyAliasMapOnce sync.Once
-	builtinOnlyAliasMap     map[string][]string
-	builtinOnlyAliasMapID   uintptr // unsafe map-header pointer, set once under builtinOnlyAliasMapOnce
+	builtinOnlyAliasMapLoader syncutil.OnceLoader[map[string][]string]
+	builtinOnlyAliasMapID     uintptr // unsafe map-header pointer, set once under builtinOnlyAliasMapLoader
 )
 
 // mapHeaderPointer extracts the pointer stored in the map value's header
@@ -90,15 +83,18 @@ func mapHeaderPointer(m map[string][]string) uintptr {
 // getBuiltinOnlyAliasMap returns the shared, read-only builtin alias map.
 // The map must never be mutated by callers; it is shared across all parse calls.
 func getBuiltinOnlyAliasMap() map[string][]string {
-	builtinOnlyAliasMapOnce.Do(func() {
+	data, err := builtinOnlyAliasMapLoader.Get(func() (map[string][]string, error) {
 		data, err := loadBuiltinModelAliases()
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
-		builtinOnlyAliasMap = data
 		builtinOnlyAliasMapID = mapHeaderPointer(data)
+		return data, nil
 	})
-	return builtinOnlyAliasMap
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 // isBuiltinOnlyAliasMap reports whether m is the shared read-only builtin alias map

@@ -6,12 +6,12 @@ import (
 	"maps"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/syncutil"
 )
 
 var importsLog = logger.New("workflow:imports")
@@ -162,17 +162,12 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 
 // getSafeOutputTypeKeys returns the list of safe output type keys from the embedded schema.
 // This is a cached wrapper around parser.GetSafeOutputTypeKeys() to avoid parsing on every call.
-var (
-	safeOutputTypeKeys     []string
-	safeOutputTypeKeysOnce sync.Once
-	safeOutputTypeKeysErr  error
-)
+var safeOutputTypeKeysLoader syncutil.OnceLoader[[]string]
 
 func getSafeOutputTypeKeys() ([]string, error) {
-	safeOutputTypeKeysOnce.Do(func() {
-		safeOutputTypeKeys, safeOutputTypeKeysErr = parser.GetSafeOutputTypeKeys()
+	return safeOutputTypeKeysLoader.Get(func() ([]string, error) {
+		return parser.GetSafeOutputTypeKeys()
 	})
-	return safeOutputTypeKeys, safeOutputTypeKeysErr
 }
 
 // MergeSafeOutputs merges safe-outputs configurations from imports into the top-level safe-outputs.
