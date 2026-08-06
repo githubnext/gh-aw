@@ -21,6 +21,7 @@ describe("extra_empty_commit.cjs", () => {
       warning: vi.fn(),
       error: vi.fn(),
       setFailed: vi.fn(),
+      setSecret: vi.fn(),
     };
 
     // Default exec mock: resolves successfully, no stdout output
