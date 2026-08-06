@@ -250,6 +250,32 @@ function stripUrlUserinfo(s) {
 }
 
 /**
+ * Strip URL userinfo (user:password@) from protocol-relative URLs (//host/path).
+ *
+ * Browsers on an HTTPS page resolve "//host/path" to "https://host/path", so a
+ * protocol-relative URL carries the same userinfo-spoofing risk as an explicit
+ * https:// URL: in "//github.com@evil.com/x" the real host is evil.com, but a
+ * host pattern that stops at "@" would read it as the allowlisted github.com.
+ * stripUrlUserinfo() cannot cover this form because it requires a scheme.
+ *
+ * The "//" is only treated as a protocol-relative URL when it appears at the
+ * start of the string or immediately after a clear delimiter (whitespace,
+ * bracket, or quote) — the same anchoring used by the protocol-relative pass in
+ * sanitizeUrlDomains() — so "//" segments inside the path of an absolute URL
+ * (e.g. "https://github.com//issues") are left untouched.
+ *
+ * @param {string} s - The string to process
+ * @returns {string} The string with userinfo removed from protocol-relative URLs
+ */
+function stripProtocolRelativeUserinfo(s) {
+  return s.replace(/(^|[\s([{"'])(\/\/)([^\s/?#]*)/g, (match, prefix, slashes, authority) => {
+    const at = authority.lastIndexOf("@");
+    if (at === -1) return match;
+    return prefix + slashes + authority.slice(at + 1);
+  });
+}
+
+/**
  * Sanitize URL protocols - replace non-https with <sanitized-domain>/redacted
  * @param {string} s - The string to process
  * @returns {string} The string with non-https protocols redacted
@@ -335,8 +361,11 @@ function sanitizeUrlProtocols(s) {
 function sanitizeUrlDomains(s, allowed) {
   // Strip userinfo (user:password@) from HTTPS URLs before any domain filtering
   // so that credentials are never passed to the allowlist check or preserved
-  // in the output for an allowed domain.
+  // in the output for an allowed domain. Protocol-relative URLs (//host/path)
+  // are stripped too, since browsers resolve them to https:// and they are
+  // subject to the same allowlist check below.
   s = stripUrlUserinfo(s);
+  s = stripProtocolRelativeUserinfo(s);
 
   // Match HTTPS URLs with optional port and path
   // This regex is designed to:

