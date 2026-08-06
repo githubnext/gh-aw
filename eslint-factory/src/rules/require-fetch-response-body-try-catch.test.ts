@@ -19,10 +19,7 @@ const esmRuleTester = new RuleTester({
 describe("require-fetch-response-body-try-catch", () => {
   it("valid: direct chain wrapped in try/catch passes (CommonJS)", () => {
     cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
-      valid: [
-        `async function f() { try { const data = await fetch(url).json(); } catch (e) {} }`,
-        `async function f() { try { const data = await fetch(url).text(); } catch (e) {} }`,
-      ],
+      valid: [`async function f() { try { const data = await fetch(url).json(); } catch (e) {} }`, `async function f() { try { const data = await fetch(url).text(); } catch (e) {} }`],
       invalid: [],
     });
   });
