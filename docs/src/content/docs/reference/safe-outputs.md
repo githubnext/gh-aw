@@ -1827,16 +1827,18 @@ safe-outputs:
 ```yaml wrap
 safe-outputs:
   mentions:
-    allow-team-members: true    # Allow repo collaborators (default: true)
-    allow-context: true         # Allow event context participants (default: true)
-    allowed:                    # Individual users/bots always allowed
+    allowed-collaborators: true  # Allow repo collaborators (default: true)
+    allow-context: true          # Allow event context participants (default: true)
+    allowed:                     # Individual users/bots always allowed
       - trusted-bot
-    allowed-teams:              # Team members always allowed
-      - myorg/eng               # org/team-slug format
-      - reviewers               # team-slug only (uses current org)
-    max: 50                     # Max mentions per message (default: 50)
+    allowed-teams:               # Team members always allowed
+      - myorg/eng                # org/team-slug format
+      - reviewers                # team-slug only (uses current org)
+    max: 50                      # Max mentions per message (default: 50)
   add-comment: {}
 ```
+
+`allow-team-members` is a deprecated alias for `allowed-collaborators`. Run `gh aw fix` to migrate existing workflows.
 
 **`allowed-teams`** lets organizations allow all members of specific GitHub teams to be mentioned without listing individual usernames. Team members are fetched from the GitHub API at runtime using `GET /orgs/{org}/teams/{team_slug}/members`. Bot accounts within the team are excluded. Use `org/team-slug` for cross-org teams or just `team-slug` to resolve against the current repository's organization.
 
