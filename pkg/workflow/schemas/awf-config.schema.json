@@ -767,6 +767,136 @@
         }
       }
     },
+    "enclaves": {
+      "type": "object",
+      "description": "Unified private-repository enclaves. Repositories and sensitivities are shared by the script and agent executors, and every invocation debits one live per-repository information budget regardless of executor kind. AWF exposes enabled executors only through an AWF-owned MCP server and the compiler-launched trusted mcpg gateway.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the unified enclave subsystem. Cannot be enabled with boundedQueries or boundedAgents."
+        },
+        "privateRepos": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Private repositories shared by every configured enclave executor. Sensitivity fixes one shared per-run information budget for the repository across script and agent calls.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["repo", "sensitivity"],
+            "properties": {
+              "repo": {
+                "type": "string",
+                "maxLength": 140,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$"
+              },
+              "sensitivity": { "type": "string", "enum": ["public", "internal", "confidential", "sealed"] }
+            }
+          }
+        },
+        "executors": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Trusted executor definitions. Images, runtimes, networks, models, timeouts, and resources are AWF configuration and must never be accepted from an invocation request.",
+          "properties": {
+            "script": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
+                "image": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "description": "Trusted image override. Omission uses AWF's pinned script-executor image."
+                },
+                "network": { "const": "none", "default": "none" },
+                "interpreter": { "const": "python3", "default": "python3" },
+                "timeout": { "type": "integer", "minimum": 1, "maximum": 540, "default": 30 },
+                "memoryLimit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
+                "cpuLimit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
+                "pidsLimit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
+                "tmpfsLimit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "64m" },
+                "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 8192, "default": 8192 },
+                "maxScriptBytes": { "type": "integer", "minimum": 1, "maximum": 65536, "default": 65536 },
+                "maxInvocations": { "type": "integer", "minimum": 1, "maximum": 10000, "default": 32 }
+              }
+            },
+            "agent": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
+                "image": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "description": "Trusted image override. Omission uses AWF's pinned engine image."
+                },
+                "network": { "const": "api-proxy-only", "default": "api-proxy-only" },
+                "engine": { "type": "string", "enum": ["copilot", "claude", "codex", "gemini"], "default": "copilot" },
+                "profile": { "type": "string", "enum": ["openai", "anthropic"], "default": "openai" },
+                "model": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$"
+                },
+                "timeout": { "type": "integer", "minimum": 1, "maximum": 540, "default": 120 },
+                "memoryLimit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
+                "cpuLimit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
+                "pidsLimit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
+                "tmpfsLimit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "64m" },
+                "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 8192, "default": 8192 },
+                "maxTaskBytes": { "type": "integer", "minimum": 1, "maximum": 65536, "default": 4096 },
+                "maxInvocations": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 8 },
+                "maxModelRequests": { "type": "integer", "minimum": 1, "maximum": 64, "default": 8 },
+                "maxModelTokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 }
+              },
+              "if": {
+                "properties": { "enabled": { "const": true } },
+                "required": ["enabled"]
+              },
+              "then": { "required": ["model"] }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": { "enabled": { "const": true } },
+        "required": ["enabled"]
+      },
+      "then": {
+        "required": ["privateRepos", "executors"],
+        "properties": {
+          "executors": {
+            "anyOf": [
+              {
+                "required": ["script"],
+                "properties": {
+                  "script": {
+                    "required": ["enabled"],
+                    "properties": { "enabled": { "const": true } }
+                  }
+                }
+              },
+              {
+                "required": ["agent"],
+                "properties": {
+                  "agent": {
+                    "required": ["enabled"],
+                    "properties": { "enabled": { "const": true } }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
     "boundedQueries": {
       "type": "object",
       "description": "Bounded-query sandbox configuration. When enabled, AWF stages an immutable seed per configured private repository, starts an offline broker (network_mode: none), and exposes a fixed `bounded-query` CLI plus a generated skill to the agent. See docs/awf-config-spec.md §14.",

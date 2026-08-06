@@ -2791,6 +2791,121 @@
         }
       ]
     },
+    "enclaves": {
+      "type": "object",
+      "description": "Unified AWF-owned private-repository script and agent enclaves. Enabled executors are exposed only through the compiler-launched MCP gateway.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "private-repos": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["repo", "sensitivity"],
+            "properties": {
+              "repo": {
+                "type": "string",
+                "maxLength": 140,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$"
+              },
+              "sensitivity": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "sealed"]
+              }
+            }
+          }
+        },
+        "executors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "script": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
+                "image": { "type": "string", "minLength": 1, "maxLength": 500 },
+                "network": { "const": "none", "default": "none" },
+                "interpreter": { "const": "python3", "default": "python3" },
+                "timeout": { "type": "integer", "minimum": 1, "maximum": 540, "default": 30 },
+                "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
+                "cpu-limit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
+                "pids-limit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
+                "tmpfs-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "64m" },
+                "max-output-bytes": { "type": "integer", "minimum": 1, "maximum": 8192, "default": 8192 },
+                "max-script-bytes": { "type": "integer", "minimum": 1, "maximum": 65536, "default": 65536 },
+                "max-invocations": { "type": "integer", "minimum": 1, "maximum": 10000, "default": 32 }
+              }
+            },
+            "agent": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
+                "image": { "type": "string", "minLength": 1, "maxLength": 500 },
+                "network": { "const": "api-proxy-only", "default": "api-proxy-only" },
+                "engine": { "type": "string", "enum": ["copilot", "claude", "codex", "gemini"], "default": "copilot" },
+                "profile": { "type": "string", "enum": ["openai", "anthropic"], "default": "openai" },
+                "model": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$" },
+                "timeout": { "type": "integer", "minimum": 1, "maximum": 540, "default": 120 },
+                "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
+                "cpu-limit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
+                "pids-limit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
+                "tmpfs-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "64m" },
+                "max-output-bytes": { "type": "integer", "minimum": 1, "maximum": 8192, "default": 8192 },
+                "max-task-bytes": { "type": "integer", "minimum": 1, "maximum": 65536, "default": 4096 },
+                "max-invocations": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 8 },
+                "max-model-requests": { "type": "integer", "minimum": 1, "maximum": 64, "default": 8 },
+                "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 }
+              },
+              "if": {
+                "properties": { "enabled": { "const": true } },
+                "required": ["enabled"]
+              },
+              "then": { "required": ["model"] }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": { "enabled": { "const": true } },
+        "required": ["enabled"]
+      },
+      "then": {
+        "required": ["private-repos", "executors"],
+        "properties": {
+          "executors": {
+            "anyOf": [
+              {
+                "required": ["script"],
+                "properties": {
+                  "script": {
+                    "required": ["enabled"],
+                    "properties": { "enabled": { "const": true } }
+                  }
+                }
+              },
+              {
+                "required": ["agent"],
+                "properties": {
+                  "agent": {
+                    "required": ["enabled"],
+                    "properties": { "enabled": { "const": true } }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
     "runner": {
       "type": "object",
       "description": "Runner topology configuration. Tells gh-aw and AWF what kind of runner environment the workflow targets, so they can activate topology-specific behaviors automatically (split-filesystem handling, network isolation, sysroot images, tool cache redirection). The runner.topology key is the single stable contract between gh-aw and AWF for runner environment detection.",

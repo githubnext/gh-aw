@@ -174,6 +174,9 @@ type AWFConfigFile struct {
 	// cross-repository private data access. Omitted when not configured.
 	BoundedQueries *AWFBoundedQueriesConfig `json:"boundedQueries,omitempty"`
 
+	// Enclaves configures the unified AWF-owned script and agent enclave subsystem.
+	Enclaves map[string]any `json:"enclaves,omitempty"`
+
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
 
@@ -474,6 +477,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 
 	awfConfig := AWFConfigFile{
 		Schema: buildAWFConfigSchemaURL(firewallConfig),
+	}
+	if config.WorkflowData != nil {
+		awfConfig.Enclaves = buildAWFEnclavesConfig(config.WorkflowData.Enclaves)
 	}
 
 	// ── Runner section ──────────────────────────────────────────────────────

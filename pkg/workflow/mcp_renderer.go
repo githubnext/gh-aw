@@ -175,6 +175,10 @@ func RenderJSONMCPConfig(
 			if options.Renderers.RenderMCPScripts != nil {
 				options.Renderers.RenderMCPScripts(&configBuilder, workflowData.MCPScripts, isLast)
 			}
+		case enclaveMCPServerName:
+			if options.Renderers.RenderEnclave != nil {
+				options.Renderers.RenderEnclave(&configBuilder, workflowData, isLast)
+			}
 		default:
 			// Handle custom MCP tools using shared helper
 			HandleCustomMCPToolInSwitch(&configBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)

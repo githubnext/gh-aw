@@ -134,6 +134,7 @@ type WorkflowData struct {
 	SafeOutputs                    *SafeOutputsConfig              // output configuration for automatic output routes
 	SafeOutputsInputEnvVars        map[string]string               // GH_AW_INPUT_* env vars referenced by safe-outputs config; populated during MCP setup generation so renderers can forward them to the nested container
 	MCPScripts                     *MCPScriptsConfig               // mcp-scripts configuration for custom MCP tools
+	Enclaves                       *EnclavesConfig                 // AWF-owned private repository enclave executors
 	LabelNames                     []string                        // label names that must match for pull_request_target labeled events (on.labels)
 	Roles                          []string                        // permission levels required to trigger workflow
 	Bots                           []string                        // allow list of bot identifiers that can trigger workflow

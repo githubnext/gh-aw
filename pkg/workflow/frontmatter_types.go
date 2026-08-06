@@ -344,6 +344,7 @@ type FrontmatterConfig struct {
 	Jobs             map[string]any             `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
 	SafeOutputs      *SafeOutputsConfig         `json:"safe-outputs,omitempty"`
 	MCPScripts       *MCPScriptsConfig          `json:"mcp-scripts,omitempty"`
+	Enclaves         *EnclavesConfig            `json:"enclaves,omitempty"`
 	PermissionsTyped *PermissionsConfig         `json:"-"` // New typed field (not in JSON to avoid conflict)
 
 	// Event and trigger configuration
