@@ -180,7 +180,7 @@ func TestCheckRepositoryInvalidFormat(t *testing.T) {
 
 func TestCheckRepositoryHasIssuesUncached(t *testing.T) {
 	// Test the REST client code path directly
-	// This test exercises the api.DefaultRESTClient() and client.Get() path
+	// This test exercises the api.NewRESTClient() (with disk cache enabled) and client.DoWithContext() path
 	repo := "github/gh-aw"
 
 	hasIssues, err := checkRepositoryHasIssuesUncached(repo)
