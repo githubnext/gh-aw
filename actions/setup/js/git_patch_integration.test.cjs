@@ -17,6 +17,7 @@ import path from "path";
 import { spawnSync } from "child_process";
 import os from "os";
 import { generateGitPatch } from "./generate_git_patch.cjs";
+import { generateGitBundle } from "./generate_git_bundle.cjs";
 
 // generateGitPatch uses execGitSync from git_helpers.cjs which calls core.debug / core.error
 // as GitHub Actions globals. Provide a no-op mock so these tests work outside of Actions.
@@ -1004,5 +1005,69 @@ describe("git patch integration tests", () => {
         restore();
       }
     });
+  });
+});
+
+describe("generateGitBundle hook bypass", () => {
+  let remoteDir;
+  let workDir;
+
+  beforeEach(() => {
+    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-it-remote-"));
+    workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-it-work-"));
+    execGit(["init", "--bare"], { cwd: remoteDir });
+    execGit(["clone", remoteDir, workDir]);
+    execGit(["config", "user.name", "Test User"], { cwd: workDir });
+    execGit(["config", "user.email", "test@example.com"], { cwd: workDir });
+  });
+
+  afterEach(() => {
+    cleanupTestRepo(remoteDir);
+    cleanupTestRepo(workDir);
+  });
+
+  it("succeeds when repository post-checkout hook exits non-zero (e.g. git-lfs missing)", async () => {
+    // Simulate a repository whose post-checkout hook fails as git-lfs would when
+    // git-lfs is not on PATH.  Filtered bundle synthesis creates a temporary worktree
+    // internally and must bypass this hook via core.hooksPath.
+    fs.writeFileSync(path.join(workDir, "base.txt"), "base\n");
+    execGit(["add", "base.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "base commit"], { cwd: workDir });
+    execGit(["branch", "-M", "main"], { cwd: workDir });
+    execGit(["push", "-u", "origin", "main"], { cwd: workDir });
+
+    execGit(["checkout", "-b", "pr-branch"], { cwd: workDir });
+    fs.writeFileSync(path.join(workDir, "change.txt"), "pr change\n");
+    execGit(["add", "change.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "pr commit"], { cwd: workDir });
+    execGit(["push", "-u", "origin", "pr-branch"], { cwd: workDir });
+
+    // Add a second (unpushed) commit to force incremental filtered mode.
+    fs.writeFileSync(path.join(workDir, "change2.txt"), "second change\n");
+    execGit(["add", "change2.txt"], { cwd: workDir });
+    execGit(["commit", "-m", "second pr commit"], { cwd: workDir });
+
+    // Install a failing post-checkout hook (simulates git-lfs or similar absent tooling).
+    const hooksDir = path.join(workDir, "test-hooks");
+    fs.mkdirSync(hooksDir, { recursive: true });
+    execGit(["config", "core.hooksPath", hooksDir], { cwd: workDir });
+    const hookPath = path.join(hooksDir, "post-checkout");
+    fs.writeFileSync(hookPath, "#!/bin/sh\necho 'git-lfs filter-process: git-lfs not found' >&2\nexit 2\n");
+    fs.chmodSync(hookPath, 0o755);
+
+    const result = await generateGitBundle("pr-branch", "main", {
+      mode: "incremental",
+      cwd: workDir,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.bundlePath).toBeTruthy();
+    expect(fs.statSync(result.bundlePath).size).toBeGreaterThan(0);
+
+    // Verify the bundle contains the expected commits by listing its heads.
+    const bundleHeads = execGit(["bundle", "list-heads", result.bundlePath], { cwd: workDir }).stdout;
+    expect(bundleHeads).toContain("refs/heads/pr-branch");
+
+    fs.rmSync(result.bundlePath, { force: true });
   });
 });
