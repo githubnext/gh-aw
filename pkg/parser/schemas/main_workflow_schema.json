@@ -11106,6 +11106,12 @@
           "pattern": "^[^/]+/[^/]+$",
           "examples": ["github/docs-engineering", "myorg/infra-alerts"]
         },
+        "report-failed-jobs": {
+          "type": "boolean",
+          "description": "Controls whether to report failed non-builtin jobs as issues (default: true). Set to false to disable.",
+          "default": true,
+          "examples": [false, true]
+        },
         "max-bot-mentions": {
           "description": "Maximum number of bot trigger references (e.g. 'fixes #123', 'closes #456') allowed in output before all of them are neutralized. Default: 10. Supports integer or GitHub Actions expression (e.g. '${{ inputs.max-bot-mentions }}').",
           "oneOf": [
