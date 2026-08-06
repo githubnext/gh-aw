@@ -220,10 +220,9 @@ describe("generateGitBundle (incremental)", () => {
     }
   });
 
-  it("generates a filtered bundle even when the repository configures failing checkout hooks", async () => {
-    // Repositories configured for Git LFS (or any other post-checkout hook requiring tooling
-    // that is absent from the safe-outputs environment) must not break filtered bundle
-    // synthesis, which uses a temporary worktree internally.
+  it("generates a filtered bundle even when the repository configures failing checkout and apply-patch hooks", async () => {
+    // Repository hooks requiring tooling absent from the safe-outputs environment must not
+    // break filtered bundle synthesis, which uses a temporary worktree and git am internally.
     const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-hooks-remote-"));
     const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-bundle-hooks-work-"));
     tempDirs.push(remoteDir, workDir);
@@ -250,12 +249,15 @@ describe("generateGitBundle (incremental)", () => {
     execGit(["add", "pr-2.txt"], { cwd: workDir });
     execGit(["commit", "-m", "pr second"], { cwd: workDir });
 
-    // Simulate the Git LFS failure mode: a post-checkout hook that always fails.
-    const hooksDir = path.join(workDir, ".git", "hooks");
+    // Use an explicit hooks path so global Git configuration cannot bypass the regression.
+    const hooksDir = path.join(workDir, "configured-hooks");
     fs.mkdirSync(hooksDir, { recursive: true });
-    const postCheckoutHook = path.join(hooksDir, "post-checkout");
-    fs.writeFileSync(postCheckoutHook, "#!/bin/sh\necho 'git-lfs not found' >&2\nexit 2\n");
-    fs.chmodSync(postCheckoutHook, 0o755);
+    execGit(["config", "core.hooksPath", hooksDir], { cwd: workDir });
+    for (const hookName of ["post-checkout", "pre-applypatch"]) {
+      const hookPath = path.join(hooksDir, hookName);
+      fs.writeFileSync(hookPath, `#!/bin/sh\necho '${hookName} dependency not found' >&2\nexit 2\n`);
+      fs.chmodSync(hookPath, 0o755);
+    }
 
     const { generateGitBundle } = require("./generate_git_bundle.cjs");
     const result = await generateGitBundle("pr-branch", "main", {
