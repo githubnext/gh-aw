@@ -214,7 +214,7 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 
 	if !overallSuccess {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Trial completed with %d rejected safe-output message(s)", totalRejected)))
-		return fmt.Errorf("trial completed with %d rejected safe-output message(s): %s", totalRejected, firstErrorMessage)
+		return fmt.Errorf("trial completed with %d rejected safe-output message(s); first error: %s", totalRejected, firstErrorMessage)
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All trials completed successfully"))
