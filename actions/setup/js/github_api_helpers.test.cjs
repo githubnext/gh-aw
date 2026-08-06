@@ -177,15 +177,17 @@ describe("github_api_helpers.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("HTTP status: 401");
     });
 
-    it("should log request and response data when present", () => {
+    it("should omit request and response payloads when present", () => {
+      const sentinel = "sentinel-secret";
       const error = Object.assign(new Error("Error"), {
-        request: { query: "..." },
-        data: { repository: null },
+        request: { headers: { Authorization: sentinel } },
+        data: { repository: sentinel },
       });
       logGraphQLError(error, "test");
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Request:"));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Response data:"));
+      expect(mockCore.info).toHaveBeenCalledWith("Request details omitted");
+      expect(mockCore.info).toHaveBeenCalledWith("Response data omitted");
+      expect(JSON.stringify(mockCore.info.mock.calls)).not.toContain(sentinel);
     });
 
     it("should show insufficientScopesHint when INSUFFICIENT_SCOPES error is present", () => {
