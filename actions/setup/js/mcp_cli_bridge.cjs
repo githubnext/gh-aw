@@ -107,9 +107,14 @@ function ensureAuditDir(auditDir = AUDIT_LOG_DIR) {
  * @returns {Record<string, string | number | boolean>}
  */
 function sanitizeAuditEntry(entry) {
-  return /** @type {Record<string, string | number | boolean>} */ Object.fromEntries(
-    Object.entries(entry).filter(([key, value]) => SAFE_AUDIT_FIELDS.has(key) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean"))
-  );
+  /** @type {Record<string, string | number | boolean>} */
+  const safeEntry = {};
+  for (const [key, value] of Object.entries(entry)) {
+    if (SAFE_AUDIT_FIELDS.has(key) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean")) {
+      safeEntry[key] = value;
+    }
+  }
+  return safeEntry;
 }
 
 /**
