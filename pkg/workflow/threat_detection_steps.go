@@ -85,10 +85,15 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 13: Upload detection_result.json + detection.log as the detection artifact
 		steps = append(steps, c.buildUploadDetectionArtifactStep(data)...)
 
-		// Step 14: Parse threat-detection token usage for step summary and downstream footer rendering.
+		// Step 14: Append detection step-summary to the real $GITHUB_STEP_SUMMARY on the host.
+		// threat-detect writes its summary to ThreatDetectionStepSummaryPath inside the AWF
+		// sandbox via --step-summary. This host step appends it after execution, no-op when empty.
+		steps = append(steps, c.buildDetectionStepSummaryAppendStep()...)
+
+		// Step 15: Parse threat-detection token usage for step summary and downstream footer rendering.
 		steps = append(steps, c.buildDetectionTokenUsageSummaryStep(data)...)
 
-		// Step 15: Conclude via threat-detect conclude (no .cjs)
+		// Step 16: Conclude via threat-detect conclude (no .cjs)
 		steps = append(steps, c.buildExternalDetectorConcludeStep(data)...)
 	} else {
 		// Inline engine path (default)
@@ -347,6 +352,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		"        run: |\n",
 		"          mkdir -p /tmp/gh-aw/threat-detection\n",
 		"          touch /tmp/gh-aw/threat-detection/detection.log\n",
+		fmt.Sprintf("          touch %s\n", constants.ThreatDetectionStepSummaryPath),
 	}...)
 
 	return steps

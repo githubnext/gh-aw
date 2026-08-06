@@ -213,6 +213,35 @@ Test workflow`
 		t.Error("External detector path must pass --output /tmp/gh-aw/threat-detection/detection_result.json to threat-detect")
 	}
 
+	// The external detector must pass --step-summary pointing to the sandbox-writable path.
+	// The real GITHUB_STEP_SUMMARY is not writable inside the AWF sandbox; using a flag
+	// rather than an env var is the correct mechanism (the runner re-injects the env var
+	// after step-level env: is applied, overriding any override).
+	if !strings.Contains(detectionSection, "--step-summary /tmp/gh-aw/threat-detection/step-summary.md") {
+		t.Error("External detector path must pass --step-summary /tmp/gh-aw/threat-detection/step-summary.md to threat-detect")
+	}
+
+	// The step-summary file must be touched before AWF execution so it exists even if
+	// threat-detect writes nothing (avoids cat errors in the append step).
+	if !strings.Contains(detectionSection, "touch /tmp/gh-aw/threat-detection/step-summary.md") {
+		t.Error("External detector path must touch step-summary.md before AWF execution")
+	}
+
+	// A host-side append step must copy the detection step summary to $GITHUB_STEP_SUMMARY
+	// after execution. conclude runs on the host where GITHUB_STEP_SUMMARY is writable.
+	if !strings.Contains(detectionSection, "Append detection step summary") {
+		t.Error("External detector path must include 'Append detection step summary' step")
+	}
+	if !strings.Contains(detectionSection, "cat /tmp/gh-aw/threat-detection/step-summary.md >> \"$GITHUB_STEP_SUMMARY\"") {
+		t.Error("Append detection step summary must cat step-summary.md to $GITHUB_STEP_SUMMARY")
+	}
+
+	// The step-summary file must also be included in the artifact upload so it is preserved
+	// even if the append step is skipped.
+	if !strings.Contains(detectionSection, "/tmp/gh-aw/threat-detection/step-summary.md") {
+		t.Error("External detector path must include step-summary.md in artifact upload")
+	}
+
 	// The AWF execution pipeline must preserve non-zero threat-detect exits.
 	if !strings.Contains(detectionSection, "set -o pipefail") {
 		t.Error("External detector AWF step must use set -o pipefail so non-zero threat-detect exits fail the step")
@@ -223,6 +252,67 @@ Test workflow`
 		t.Error("External detector path must configure engine auth env like the agent job")
 	}
 
+}
+
+// TestExternalDetectorConcludeDoesNotReceiveStepSummaryFlag verifies that
+// threat-detect conclude (which runs on the host where GITHUB_STEP_SUMMARY is
+// writable) is NOT given --step-summary. The flag is only needed for the sandboxed
+// execution step; conclude reads $GITHUB_STEP_SUMMARY by default and that works
+// correctly on the host. This asymmetry must not be "cleaned up" by adding the flag
+// to conclude as well.
+func TestExternalDetectorConcludeDoesNotReceiveStepSummaryFlag(t *testing.T) {
+	compiler := NewCompiler()
+
+	tmpDir := testutil.TempDir(t, "test-external-conclude-*")
+	workflowPath := filepath.Join(tmpDir, "test-conclude.md")
+
+	workflowContent := `---
+on: push
+engine: copilot
+safe-outputs:
+  create-issue:
+features:
+  gh-aw-detection: true
+tools:
+  github:
+    allowed: ["*"]
+---
+Test workflow`
+
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
+	result, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	yamlStr := string(result)
+	detectionSection := extractJobSection(yamlStr, "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled workflow")
+	}
+
+	// Locate the conclude step shell invocation.
+	concludeIdx := strings.Index(detectionSection, "conclude_threat_detection.sh")
+	if concludeIdx == -1 {
+		t.Fatal("conclude_threat_detection.sh not found in detection section")
+	}
+	concludeLineEnd := strings.Index(detectionSection[concludeIdx:], "\n")
+	if concludeLineEnd == -1 {
+		concludeLineEnd = len(detectionSection) - concludeIdx
+	}
+	concludeLine := detectionSection[concludeIdx : concludeIdx+concludeLineEnd]
+
+	// conclude runs on the host: GITHUB_STEP_SUMMARY is writable there and the flag is not needed.
+	if strings.Contains(concludeLine, "--step-summary") {
+		t.Errorf("conclude_threat_detection.sh must NOT receive --step-summary (runs on host); got: %s", concludeLine)
+	}
 }
 
 func TestExternalDetectorPathUsesCopilotForPiWorkflows(t *testing.T) {
