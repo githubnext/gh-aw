@@ -160,23 +160,35 @@ function validateSourcePath(canonicalPath) {
 }
 
 /**
+ * Resolve a root path to its canonical form, falling back to path.resolve when the
+ * directory does not yet exist (e.g. GITHUB_WORKSPACE before checkout).
+ * @param {string} root
+ * @returns {string}
+ */
+function canonicalizeRoot(root) {
+  try {
+    return fs.realpathSync(root);
+  } catch {
+    return path.resolve(root);
+  }
+}
+
+/**
  * Validate that a canonical absolute path is within one of the allowed source roots.
- * Allowed roots: staging directory, GITHUB_WORKSPACE, RUNNER_TEMP.
+ * Allowed roots: staging directory, GITHUB_WORKSPACE.
+ * RUNNER_TEMP is intentionally excluded — only the specific staging subdirectory is allowed.
  *
  * @param {string} canonicalPath - Resolved absolute path
  * @returns {string|null} Error message or null if within an allowed root
  */
 function validateAllowedRoot(canonicalPath) {
-  const allowedRoots = [path.resolve(STAGING_DIR)];
+  const allowedRoots = [canonicalizeRoot(STAGING_DIR)];
   if (process.env.GITHUB_WORKSPACE) {
-    allowedRoots.push(path.resolve(process.env.GITHUB_WORKSPACE));
-  }
-  if (process.env.RUNNER_TEMP) {
-    allowedRoots.push(path.resolve(process.env.RUNNER_TEMP));
+    allowedRoots.push(canonicalizeRoot(process.env.GITHUB_WORKSPACE));
   }
   const withinAllowedRoot = allowedRoots.some(root => canonicalPath === root || canonicalPath.startsWith(root + path.sep));
   if (!withinAllowedRoot) {
-    return `path is outside allowed source roots (GITHUB_WORKSPACE, RUNNER_TEMP, staging directory): ${canonicalPath}`;
+    return `path is outside allowed source roots (GITHUB_WORKSPACE, staging directory): ${canonicalPath}`;
   }
   return null;
 }
@@ -266,10 +278,32 @@ function copyDirectoryToStaging(sourceDir, destRelDir) {
       continue;
     }
     if (stat.isDirectory()) {
+      // Reject sensitive directory names at every level (e.g. foo/.git/config).
+      let canonicalDir;
+      try {
+        canonicalDir = fs.realpathSync(srcFull);
+      } catch (err) {
+        return { copiedCount, error: `failed to resolve canonical path for ${srcFull}: ${err instanceof Error ? err.message : String(err)}` };
+      }
+      const sensitiveErr = validateSourcePath(canonicalDir);
+      if (sensitiveErr) {
+        return { copiedCount, error: sensitiveErr };
+      }
       const sub = copyDirectoryToStaging(srcFull, destRel);
       if (sub.error) return sub;
       copiedCount += sub.copiedCount;
     } else if (stat.isFile()) {
+      // Revalidate each file's canonical path before copying.
+      let canonicalFile;
+      try {
+        canonicalFile = fs.realpathSync(srcFull);
+      } catch (err) {
+        return { copiedCount, error: `failed to resolve canonical path for ${srcFull}: ${err instanceof Error ? err.message : String(err)}` };
+      }
+      const sensitiveErr = validateSourcePath(canonicalFile);
+      if (sensitiveErr) {
+        return { copiedCount, error: sensitiveErr };
+      }
       const result = copySingleFileToStaging(srcFull, destRel);
       if (result.error) return { copiedCount, error: result.error };
       copiedCount++;

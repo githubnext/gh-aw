@@ -811,16 +811,15 @@ describe("upload_artifact.cjs", () => {
       expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
-    it("rejects an absolute path outside allowed roots (GITHUB_WORKSPACE, RUNNER_TEMP, staging)", async () => {
+    it("rejects an absolute path outside allowed roots (GITHUB_WORKSPACE, staging)", async () => {
       const outsideDir = "/tmp/gh-aw-out-of-bounds-" + Math.random().toString(36).substring(7);
       try {
         fs.mkdirSync(outsideDir, { recursive: true });
         const outsideFile = path.join(outsideDir, "data.json");
         fs.writeFileSync(outsideFile, "{}");
 
-        // Unset GITHUB_WORKSPACE and RUNNER_TEMP so the outsideDir is not covered.
+        // Unset GITHUB_WORKSPACE so the outsideDir is not covered.
         delete process.env.GITHUB_WORKSPACE;
-        delete process.env.RUNNER_TEMP;
 
         await runHandler(buildConfig(), [{ type: "upload_artifact", path: outsideFile }]);
 
@@ -831,6 +830,19 @@ describe("upload_artifact.cjs", () => {
           fs.rmSync(outsideDir, { recursive: true, force: true });
         } catch {}
       }
+    });
+
+    it("rejects a nested .git directory during recursive auto-copy", async () => {
+      const srcDir = path.join(WORKSPACE_DIR, "project");
+      const gitDir = path.join(srcDir, ".git");
+      fs.mkdirSync(gitDir, { recursive: true });
+      fs.writeFileSync(path.join(gitDir, "config"), "[core]\n  repositoryformatversion = 0\n");
+      fs.writeFileSync(path.join(srcDir, "readme.md"), "hello");
+
+      await runHandler(buildConfig(), [{ type: "upload_artifact", path: srcDir }]);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("sensitive repository metadata"));
+      expect(mockArtifactClient.uploadArtifact).not.toHaveBeenCalled();
     });
 
     it("allows a path within GITHUB_WORKSPACE", async () => {

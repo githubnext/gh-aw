@@ -617,23 +617,20 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "upload_artifact", path: "charts" }));
     });
 
-    it("should reject absolute path outside GITHUB_WORKSPACE and RUNNER_TEMP", () => {
+    it("should reject absolute path outside GITHUB_WORKSPACE and staging directory", () => {
       const outsideDir = "/tmp/gh-aw-outside-handler-" + Math.random().toString(36).substring(7);
       try {
         fs.mkdirSync(outsideDir, { recursive: true });
         const outsideFile = path.join(outsideDir, "secret.json");
         fs.writeFileSync(outsideFile, "{}");
 
-        // Temporarily unset GITHUB_WORKSPACE and RUNNER_TEMP so outsideDir is not allowed.
+        // Temporarily unset GITHUB_WORKSPACE so outsideDir is not allowed.
         const savedWorkspace = process.env.GITHUB_WORKSPACE;
-        const savedRunner = process.env.RUNNER_TEMP;
         delete process.env.GITHUB_WORKSPACE;
-        delete process.env.RUNNER_TEMP;
         try {
           expect(() => handlers.uploadArtifactHandler({ path: outsideFile })).toThrow(expect.objectContaining({ message: expect.stringContaining("outside allowed source roots") }));
         } finally {
           if (savedWorkspace !== undefined) process.env.GITHUB_WORKSPACE = savedWorkspace;
-          if (savedRunner !== undefined) process.env.RUNNER_TEMP = savedRunner;
         }
       } finally {
         try {
