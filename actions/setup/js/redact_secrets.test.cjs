@@ -142,6 +142,39 @@ describe("redact_secrets.cjs", () => {
             expect(fs.readFileSync(path.join(tempDir, "test.mdx"), "utf8")).toBe("# MDX\nSecret: ***REDACTED***"),
             expect(fs.readFileSync(path.join(tempDir, "test.yml"), "utf8")).toBe("# YAML\nkey: ***REDACTED***"),
             expect(fs.readFileSync(path.join(tempDir, "test.jsonl"), "utf8")).toBe('{"key": "***REDACTED***"}'));
+        }),
+        it("should redact secrets from .patch files (exact-value and built-in credential patterns)", async () => {
+          const patchContent = [
+            "diff --git a/config.js b/config.js",
+            "--- a/config.js",
+            "+++ b/config.js",
+            "@@ -1,3 +1,3 @@",
+            "-const token = 'old';",
+            "+const token = 'my-patch-secret-value';",
+            " const url = 'https://api.example.com';",
+          ].join("\n");
+          const patchFile = path.join(tempDir, "aw-abcdef.patch");
+          fs.writeFileSync(patchFile, patchContent);
+          process.env.GH_AW_SECRET_NAMES = "PATCH_SECRET";
+          process.env.SECRET_PATCH_SECRET = "my-patch-secret-value";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const redacted = fs.readFileSync(patchFile, "utf8");
+          expect(redacted).not.toContain("my-patch-secret-value");
+          expect(redacted).toContain("***REDACTED***");
+        }),
+        it("should redact built-in credential patterns from .patch files", async () => {
+          const ghToken = "ghp_" + "A".repeat(36);
+          const patchContent = `diff --git a/creds.txt b/creds.txt\n+TOKEN=${ghToken}\n`;
+          const patchFile = path.join(tempDir, "aw-builtin.patch");
+          fs.writeFileSync(patchFile, patchContent);
+          process.env.GH_AW_SECRET_NAMES = "";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const redacted = fs.readFileSync(patchFile, "utf8");
+          expect(redacted).not.toContain(ghToken);
+          expect(redacted).toContain("***REDACTED***");
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Personal Access Token"));
         }));
     }),
     describe("built-in pattern detection", () => {

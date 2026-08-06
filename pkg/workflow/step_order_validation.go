@@ -165,11 +165,12 @@ func (t *StepOrderTracker) findUnscannablePaths(artifactUploads []StepRecord) []
 
 	for _, upload := range artifactUploads {
 		for _, path := range upload.UploadPaths {
-			// Check if this path would be scanned by secret redaction
+			// Check if this path would be scanned by secret redaction, or is otherwise
+			// explicitly allowed to bypass scanning (e.g. binary bundle files).
 			// Secret redaction only scans:
 			// 1. Files under /tmp/gh-aw/
 			// 2. With extensions .txt, .json, .log
-			if !isPathScannedBySecretRedaction(path) {
+			if !isPathScannedBySecretRedaction(path) && !isKnownUnscannedButAllowedForUpload(path) {
 				unscannable = append(unscannable, path)
 			}
 		}
@@ -204,16 +205,34 @@ func isPathScannedBySecretRedaction(path string) bool {
 	}
 
 	// Path must have one of the scanned extensions that the redact_secrets step covers.
+	// This list must stay in sync with targetExtensions in actions/setup/js/redact_secrets.cjs.
 	// .patch files are git-diff output written to /tmp/gh-aw/ by the safe-outputs MCP server
 	// and are covered by the redact_secrets step before the unified artifact is uploaded.
-	// .bundle files are git bundle files written to /tmp/gh-aw/ when patch-format: bundle is
-	// configured. They are binary files but must still pass through secret redaction.
 	ext := filepath.Ext(path)
-	scannedExtensions := []string{".txt", ".json", ".log", ".jsonl", ".patch", ".bundle"}
+	scannedExtensions := []string{".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl", ".patch"}
 	if slices.Contains(scannedExtensions, ext) {
 		return true
 	}
 
 	// If path is a directory (ends with /), we assume it contains scannable files
 	return strings.HasSuffix(path, "/")
+}
+
+// isKnownUnscannedButAllowedForUpload reports whether a path is a known type of file
+// that is NOT text-scanned by the redact_secrets step, but is nevertheless explicitly
+// permitted in artifact uploads.
+//
+// .bundle files are binary git bundles produced when patch-format: bundle is
+// configured. They are generated from the same git commit range as the accompanying
+// .patch file (see generateGitBundle in actions/setup/js/generate_git_bundle.cjs),
+// so the .patch scanning already covers the underlying diff content. Bundles cannot
+// be safely scanned as UTF-8 text, but they are required downstream to apply changes
+// while preserving merge topology, so they are intentionally allowed through
+// artifact uploads unscanned.
+func isKnownUnscannedButAllowedForUpload(path string) bool {
+	isUnderGhAwDir := strings.HasPrefix(path, constants.TmpGhAwDirSlash) ||
+		strings.HasPrefix(path, constants.GhAwRootDirShellSlash) ||
+		strings.HasPrefix(path, constants.GhAwRootDirSlash) ||
+		strings.Contains(path, "${{ env.")
+	return isUnderGhAwDir && filepath.Ext(path) == ".bundle"
 }
