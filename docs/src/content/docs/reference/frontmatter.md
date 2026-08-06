@@ -278,6 +278,17 @@ Enables defining custom MCP tools inline using JavaScript or shell scripts. See 
 
 Enables automatic issue creation, comment posting, and other safe outputs. See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/).
 
+`safe-outputs:` also accepts workflow-level control fields that apply to safe-output processing as a whole, not just individual handlers. For example, `report-failed-jobs: false` disables the automatic failed-job reporting issue created by the framework:
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    max: 1
+  report-failed-jobs: false
+```
+
+When omitted, `report-failed-jobs` defaults to `true`.
+
 ### Run Configuration (`run-name:`, `runs-on:`, `runs-on-slim:`, `timeout-minutes:`)
 
 Standard GitHub Actions properties:
