@@ -120,7 +120,7 @@ async function main() {
     // Resolve the matched slash command at the start of the text.
     // Commands must appear at position zero to match the compile-time activation conditions.
     const matchedCommand = resolveMatchedCommand(text, commands);
-    const firstWord = text.split(/\s+/)[0];
+    const firstWord = text.trimStart().split(/\s+/)[0];
 
     core.info(`Checking command position. First word in text: ${firstWord}`);
     core.info(`Looking for commands: ${commands.map(c => `/${c}`).join(", ")}`);
