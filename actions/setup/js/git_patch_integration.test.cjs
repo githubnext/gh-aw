@@ -25,6 +25,7 @@ global.core = {
   error: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
+  setSecret: vi.fn(),
 };
 
 /**
