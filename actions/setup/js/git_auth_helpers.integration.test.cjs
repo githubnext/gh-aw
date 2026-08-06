@@ -130,6 +130,7 @@ describe("git_auth_helpers.cjs git integration", () => {
     mockCore = {
       info: vi.fn(),
       warning: vi.fn(),
+      setSecret: vi.fn(),
     };
 
     global.core = mockCore;

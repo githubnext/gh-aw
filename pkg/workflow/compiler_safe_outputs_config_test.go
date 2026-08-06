@@ -5,9 +5,12 @@ package workflow
 import (
 	"encoding/json"
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -3728,6 +3731,39 @@ func TestReportFailedJobsConfig(t *testing.T) {
 			assert.Equal(t, tt.expectBool, *config.ReportFailedJobs, "ReportFailedJobs value should match")
 		})
 	}
+}
+
+// TestReportFailedJobsSchemaValidation ensures that report-failed-jobs is accepted by the
+// JSON schema during a real compile (not just extractSafeOutputsConfig), guarding against
+// regressions where the field exists in the Go config type but is missing from
+// main_workflow_schema.json.
+func TestReportFailedJobsSchemaValidation(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "report-failed-jobs-schema-test")
+
+	testContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    max: 1
+  report-failed-jobs: false
+timeout-minutes: 5
+---
+
+# Test Workflow
+
+Create an issue.
+`
+
+	testFile := filepath.Join(tmpDir, "test-report-failed-jobs.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644), "Failed to write test workflow markdown")
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Workflow with safe-outputs.report-failed-jobs should compile without errors")
 }
 
 // TestDataModeConfig tests parsing of the data structured-output global field

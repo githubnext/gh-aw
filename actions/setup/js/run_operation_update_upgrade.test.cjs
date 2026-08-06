@@ -29,6 +29,7 @@ describe("run_operation_update_upgrade", () => {
       warning: vi.fn(),
       error: vi.fn(),
       notice: vi.fn(),
+      setSecret: vi.fn(),
       summary: {
         addHeading: vi.fn().mockReturnThis(),
         addRaw: vi.fn().mockReturnThis(),
