@@ -26,3 +26,5 @@
 {"id":"findings_scoped","question":"Does the agent output show that the review findings are limited to changes in the pull request diff rather than unrelated code?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-06T13:00:43.393Z","runid":"31102469614"}
 {"id":"review_posted","question":"Did the agent post a code review comment on the pull request?","answer":"NO","model":"evals","timestamp":"2026-08-06T13:01:26.959Z","runid":"31102988000"}
 {"id":"findings_scoped","question":"Does the agent output show that the review findings are limited to changes in the pull request diff rather than unrelated code?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-06T13:01:26.959Z","runid":"31102988000"}
+{"id":"review_posted","question":"Did the agent post a code review comment on the pull request?","answer":"YES","model":"evals","timestamp":"2026-08-06T13:02:52.648Z","runid":"31103313410"}
+{"id":"findings_scoped","question":"Does the agent output show that the review findings are limited to changes in the pull request diff rather than unrelated code?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-06T13:02:52.648Z","runid":"31103313410"}
