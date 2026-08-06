@@ -173,4 +173,29 @@ tools:
 		assert.True(t, applied, "Should have applied the codemod")
 		assert.Contains(t, result, `allowed-repos: "${{ github.repository }}" # legacy alias`, "Should preserve trailing comment")
 	})
+
+	t.Run("only treats whitespace-preceded hash as a comment marker", func(t *testing.T) {
+		content := `---
+engine: copilot
+tools:
+  github:
+    allowed-repos: current # see docs on "#current" alias
+---
+
+# Test Workflow
+`
+		frontmatter := map[string]any{
+			"engine": "copilot",
+			"tools": map[string]any{
+				"github": map[string]any{
+					"allowed-repos": "current",
+				},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err, "Should not error")
+		assert.True(t, applied, "Should have applied the codemod")
+		assert.Contains(t, result, `allowed-repos: "${{ github.repository }}" # see docs on "#current" alias`, "Should preserve the full comment including embedded hash")
+	})
 }

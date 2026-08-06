@@ -139,10 +139,12 @@ func replaceAllowedReposCurrentLineValue(line string) (string, bool) {
 	leadingSpace := getIndentation(line)
 	valuePart := strings.TrimSpace(parts[1])
 
-	// Split off any trailing comment
+	// Split off any trailing comment. Per YAML rules, a '#' only starts a comment
+	// when preceded by whitespace (or at the start of the value), so a '#' embedded
+	// inside a quoted value (e.g. "cur#rent") is not mistaken for a comment.
 	value := valuePart
 	comment := ""
-	if idx := strings.Index(valuePart, "#"); idx >= 0 {
+	if idx := findTrailingCommentIndex(valuePart); idx >= 0 {
 		value = strings.TrimSpace(valuePart[:idx])
 		comment = " " + valuePart[idx:]
 	}
@@ -154,4 +156,20 @@ func replaceAllowedReposCurrentLineValue(line string) (string, bool) {
 
 	allowedReposCurrentCodemodLog.Print("Replacing 'current' value with '${{ github.repository }}'")
 	return fmt.Sprintf(`%sallowed-repos: "${{ github.repository }}"%s`, leadingSpace, comment), true
+}
+
+// findTrailingCommentIndex returns the index of the '#' that starts a trailing YAML
+// comment in value, or -1 if there is none. A '#' only starts a comment when it is
+// at the beginning of the (trimmed) value or immediately preceded by whitespace,
+// which prevents a '#' embedded inside a quoted string from being misinterpreted.
+func findTrailingCommentIndex(value string) int {
+	for i, r := range value {
+		if r != '#' {
+			continue
+		}
+		if i == 0 || value[i-1] == ' ' || value[i-1] == '\t' {
+			return i
+		}
+	}
+	return -1
 }
