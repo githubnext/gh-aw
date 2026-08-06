@@ -34,7 +34,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var engineDriverValidationLog = logger.New("workflow:engine_driver_validation")
 
 var safeHarnessScriptPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
 
@@ -96,11 +99,13 @@ func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
 	}
 
 	if workflowData.EngineConfig.InlineDriver != nil {
+		engineDriverValidationLog.Print("Delegating to inline engine driver validation")
 		return c.validateInlineEngineDriver(workflowData)
 	}
 
 	name := workflowData.EngineConfig.Driver
 	isCopilotEngine := workflowData.EngineConfig.ID == "copilot"
+	engineDriverValidationLog.Printf("Validating engine.driver %q (copilot=%v)", name, isCopilotEngine)
 
 	if strings.TrimSpace(name) != name {
 		return fmt.Errorf("engine.driver must be a safe path without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
@@ -126,6 +131,7 @@ func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
 	ext := strings.ToLower(filepath.Ext(name))
 	switch ext {
 	case ".js", ".cjs", ".mjs":
+		engineDriverValidationLog.Print("engine.driver accepted: JavaScript extension")
 		return nil
 	case ".py", ".ts", ".mts", ".rb":
 		if isCopilotEngine {
@@ -164,6 +170,7 @@ func (c *Compiler) validateInlineEngineDriver(workflowData *WorkflowData) error 
 
 	switch inlineDriver.Runtime {
 	case "node", "python", "go", "java":
+		engineDriverValidationLog.Printf("Inline engine.driver runtime %q accepted", inlineDriver.Runtime)
 		return nil
 	default:
 		return fmt.Errorf("engine.driver inline runtime %q is not supported. Use one of: node, python, go, java.\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL)
