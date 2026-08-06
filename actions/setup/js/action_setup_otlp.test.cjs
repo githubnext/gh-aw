@@ -15,6 +15,7 @@ const mockCore = {
   error: vi.fn(),
   setFailed: vi.fn(),
   setOutput: vi.fn(),
+  setSecret: vi.fn(),
 };
 global.core = mockCore;
 
@@ -170,6 +171,7 @@ describe("action_setup_otlp.cjs", () => {
 
       await run();
 
+      expect(mockCore.setSecret).toHaveBeenCalledWith(minted);
       expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toContain("Authorization=Bearer ");
       expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toContain(minted);
       expect(readFileSync(envFile, "utf8")).toContain("OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer ");

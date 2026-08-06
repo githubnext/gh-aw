@@ -14,6 +14,7 @@ describe("git_helpers.cjs", () => {
         warning: () => {},
         error: () => {},
         setFailed: () => {},
+        setSecret: () => {},
       };
     }
   });
@@ -26,6 +27,20 @@ describe("git_helpers.cjs", () => {
     global.core.warning = vi.fn();
     return global.core.warning;
   }
+
+  describe("getGitAuthEnv", () => {
+    it("masks the raw token and its base64 authorization value", async () => {
+      const setSecret = vi.fn();
+      global.core.setSecret = setSecret;
+      const { getGitAuthEnv } = await import("./git_helpers.cjs");
+
+      const env = getGitAuthEnv("derived-secret");
+      const encoded = Buffer.from("x-access-token:derived-secret").toString("base64");
+
+      expect(setSecret.mock.calls).toEqual([["derived-secret"], [encoded]]);
+      expect(env.GIT_CONFIG_VALUE_0).toBe(`Authorization: basic ${encoded}`);
+    });
+  });
 
   describe("execGitSync", () => {
     it("should export execGitSync function", async () => {

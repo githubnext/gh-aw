@@ -14,6 +14,7 @@ function generateMCPScriptsConfig({ core, crypto }) {
   // after base64 encoding and removing special characters (base64 of 45 bytes = 60 chars)
   const apiKeyBuffer = crypto.randomBytes(45);
   const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
+  core.setSecret(apiKey);
 
   // Choose a port for the HTTP server (default 3000)
   const port = 3000;
