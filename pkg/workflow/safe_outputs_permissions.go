@@ -160,11 +160,9 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig, excludePer
 	// Only add contents: read when no contents permission is already present; a
 	// handler-derived contents: write must not be downgraded to read.
 	if stepsRequireContentsRead(safeOutputs.Steps) {
-		if _, exists := permissions.GetExplicit(PermissionContents); !exists {
+		if _, exists := permissions.Get(PermissionContents); !exists {
 			safeOutputsPermissionsLog.Print("Auto-detected checkout action in steps; adding contents: read")
 			permissions.Set(PermissionContents, PermissionRead)
-		} else {
-			safeOutputsPermissionsLog.Print("Auto-detected checkout action in steps; contents permission already set, skipping downgrade")
 		}
 	}
 
