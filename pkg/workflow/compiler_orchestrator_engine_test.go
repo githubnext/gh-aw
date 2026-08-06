@@ -299,6 +299,59 @@ imports:
 	assert.Equal(t, 7, result.engineConfig.MaxTurnCacheMisses)
 }
 
+// TestSetupEngineAndImports_ImportedEngineVersionDefault verifies that a shared/imported
+// engine definition's top-level `version` field is applied as the default
+// EngineConfig.Version when the workflow's own `engine:` frontmatter selects the same
+// engine ID but omits `version`. This mirrors how shared/goose.md pins a default
+// version for the Goose engine, so workflows that only set `engine: { id: goose }`
+// still get a non-empty GH_AW_ENGINE_VERSION rather than crashing at runtime.
+func TestSetupEngineAndImports_ImportedEngineVersionDefault(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-version-default")
+
+	sharedContent := `---
+engine:
+  id: harness-engine
+  version: "1.45.0"
+  display-name: Harness Engine
+  behaviors:
+    secret-strategy: universal-llm-consumer
+    execution:
+      command-name: harness-engine
+      step-name: Execute Harness Engine
+---
+
+# Shared Engine Definition
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "engine.md"), []byte(sharedContent), 0644))
+
+	testContent := `---
+on: push
+engine:
+  id: harness-engine
+imports:
+  - shared/engine.md
+---
+
+# Test Workflow
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.Equal(t, "harness-engine", result.engineSetting)
+	assert.Equal(t, "1.45.0", result.engineConfig.Version)
+}
+
 // TestSetupEngineAndImports_MainMaxTurnCacheMissesTakesPrecedenceOverImport verifies that
 // a main workflow's max-turn-cache-misses frontmatter wins over the same field in an import.
 func TestSetupEngineAndImports_MainMaxTurnCacheMissesTakesPrecedenceOverImport(t *testing.T) {

@@ -429,6 +429,12 @@ func (c *Compiler) applyEngineImportDefaults(
 		model = importsResult.MergedEngineModel
 		orchestratorEngineLog.Printf("Applied model preference from import: %s", model)
 	}
+	if engineConfig.Version == "" && engineConfig.ID != "" {
+		if def := c.engineCatalog.Get(engineConfig.ID); def != nil && def.Version != "" {
+			engineConfig.Version = def.Version
+			orchestratorEngineLog.Printf("Applied default engine version from engine definition %q: %s", engineConfig.ID, engineConfig.Version)
+		}
+	}
 	return engineConfig, model
 }
 
