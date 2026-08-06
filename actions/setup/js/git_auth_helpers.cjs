@@ -5,6 +5,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { buildGitAuthEnv } = require("./git_auth_env.cjs");
+const { maskSecret } = require("./actions_secret_masking.cjs");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -22,8 +23,8 @@ function getGitAuthEnv(token) {
     core.debug("getGitAuthEnv: no token available, git network operations may fail if credentials were cleaned");
     return {};
   }
-  core.setSecret(authToken);
-  return buildGitAuthEnv(authToken, core.setSecret);
+  maskSecret(authToken);
+  return buildGitAuthEnv(authToken, maskSecret);
 }
 
 /**
@@ -227,9 +228,9 @@ async function overridePersistedExtraheader(serverUrl, token, cwd) {
     previousValues = [];
   }
   core.info(`git_auth_helpers: overriding http.${normalizedUrl}/.extraheader with CI trigger token`);
-  core.setSecret(token);
+  maskSecret(token);
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
-  core.setSecret(tokenBase64);
+  maskSecret(tokenBase64);
   const authHeader = `Authorization: basic ${tokenBase64}`;
 
   // Clear from ALL writable scopes before writing our token to prevent duplicate

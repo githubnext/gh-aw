@@ -15,6 +15,7 @@
 const setSecret = /** @param {string} _value */ _value => {
   throw new Error("core.setSecret is unavailable outside the github-script runtime");
 };
+Object.defineProperty(setSecret, "__ghAwUnavailable", { value: true });
 
 if (!global.core) {
   /**
