@@ -908,12 +908,11 @@ async function main() {
 
   if (fs.existsSync(checkScript)) {
     core.info("Running MCP server checks...");
-    // Store diagnostics in /tmp/gh-aw/mcp-logs/start-gateway.log
     // Pass apiKey via MCP_GATEWAY_API_KEY env var (already set) rather than
     // as a shell argument to avoid shell metacharacter injection risks.
     const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
     try {
-      execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${safePort}" "$MCP_GATEWAY_API_KEY" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log`, { stdio: "inherit", env: process.env });
+      execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${safePort}" "$MCP_GATEWAY_API_KEY"`, { stdio: "inherit", env: process.env });
     } catch {
       core.error("ERROR: MCP server checks failed - no servers could be connected");
       core.error("Gateway process will be terminated");

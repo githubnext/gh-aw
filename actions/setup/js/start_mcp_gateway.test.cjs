@@ -7,6 +7,11 @@ describe("start_mcp_gateway logging", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).not.toContain("/tmp/gh-aw/mcp-logs/stderr.log");
   });
+
+  it("does not create the MCP gateway startup log", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).not.toContain("/tmp/gh-aw/mcp-logs/start-gateway.log");
+  });
 });
 
 describe("start_mcp_gateway OTLP if-missing helpers", () => {

@@ -441,20 +441,15 @@ echo "Checking MCP server functionality..."
 MCP_CHECK_START=$(date +%s%3N)
 if [ -f ${RUNNER_TEMP}/gh-aw/actions/check_mcp_servers.sh ]; then
   echo "Running MCP server checks..."
-  # Store check diagnostic logs in /tmp/gh-aw/mcp-logs/start-gateway.log for artifact upload
-  # Use tee to output to both stdout and the log file
-  # Enable pipefail so the exit code comes from check_mcp_servers.sh, not tee
-  set -o pipefail
   if ! bash ${RUNNER_TEMP}/gh-aw/actions/check_mcp_servers.sh \
     /tmp/gh-aw/mcp-config/gateway-output.json \
     "http://localhost:${MCP_GATEWAY_PORT}" \
-    "${MCP_GATEWAY_API_KEY}" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log; then
+    "${MCP_GATEWAY_API_KEY}"; then
     echo "ERROR: MCP server checks failed - no servers could be connected"
     echo "Gateway process will be terminated"
     kill $GATEWAY_PID 2>/dev/null || true
     exit 1
   fi
-  set +o pipefail
   print_timing $MCP_CHECK_START "MCP server connectivity checks"
 else
   echo "WARNING: MCP server check script not found at ${RUNNER_TEMP}/gh-aw/actions/check_mcp_servers.sh"
