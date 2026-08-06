@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -60,7 +61,10 @@ func TestMCPGatewayCustomEnvOverridesGeneratedStepEnv(t *testing.T) {
 	var yaml strings.Builder
 	writeMCPGatewayStepEnv(
 		&yaml,
-		map[string]string{"API_TOKEN": "${{ secrets.DEFAULT_TOKEN }}"},
+		map[string]string{
+			"API_TOKEN":               "${{ secrets.DEFAULT_TOKEN }}",
+			"GH_AW_MCP_GATEWAY_ENV_0": "reserved-value",
+		},
 		map[string]string{"TARGET_REPO": "${{ inputs.target_repo }}"},
 		map[string]string{
 			"API_TOKEN":   "custom-token",
@@ -75,6 +79,7 @@ func TestMCPGatewayCustomEnvOverridesGeneratedStepEnv(t *testing.T) {
 	assert.Contains(t, output, `GH_AW_MCP_GATEWAY_ENV_1: "custom-repo"`)
 	assert.NotContains(t, output, "API_TOKEN:")
 	assert.NotContains(t, output, "TARGET_REPO:")
+	assert.NotContains(t, output, "reserved-value")
 }
 
 func TestMCPGatewayCustomEnvDoesNotSetBashEnvOnHost(t *testing.T) {
@@ -85,4 +90,43 @@ func TestMCPGatewayCustomEnvDoesNotSetBashEnvOnHost(t *testing.T) {
 
 	assert.Contains(t, yaml.String(), `GH_AW_MCP_GATEWAY_ENV_0: "$(touch /tmp/pwned)"`)
 	assert.NotContains(t, yaml.String(), "BASH_ENV:")
+}
+
+func TestMCPGatewayCustomEnvPreservesGitHubExpressionAsData(t *testing.T) {
+	var yaml strings.Builder
+	writeMCPGatewayStepEnv(&yaml, nil, nil, map[string]string{
+		"API_TOKEN": "${{ inputs.api_token }}",
+	})
+
+	assert.Contains(t, yaml.String(), `GH_AW_MCP_GATEWAY_ENV_0: "${{ inputs.api_token }}"`)
+	assert.NotContains(t, yaml.String(), "API_TOKEN:")
+}
+
+func TestMCPGatewayCustomEnvCommandContract(t *testing.T) {
+	gatewayConfig := &MCPGatewayRuntimeConfig{
+		Container: "ghcr.io/github/gh-aw-mcpg",
+		Env:       map[string]string{"API_TOKEN": "value"},
+	}
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{MCP: gatewayConfig},
+	}
+
+	command := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOptions{
+		engine:        NewCopilotEngine(),
+		workflowData:  workflowData,
+		gatewayConfig: gatewayConfig,
+	})
+
+	markerIndex := strings.Index(command, mcpGatewayCustomEnvMarker)
+	imageIndex := strings.Index(command, "ghcr.io/github/gh-aw-mcpg:")
+	require.GreaterOrEqual(t, markerIndex, 0, "Docker command should contain the custom environment marker")
+	require.Greater(t, imageIndex, markerIndex, "Custom environment marker should appear before the container image")
+	assert.NotContains(t, command, "GH_AW_MCP_GATEWAY_ENV_0")
+	assert.NotContains(t, command, "API_TOKEN=value")
+
+	launcher, err := os.ReadFile("../../actions/setup/js/start_mcp_gateway.cjs")
+	require.NoError(t, err)
+	assert.Contains(t, string(launcher), `const customGatewayEnvMarker = "`+mcpGatewayCustomEnvMarker+`"`)
+	assert.Contains(t, string(launcher), mcpGatewayCustomEnvNamesVar)
+	assert.Contains(t, string(launcher), "GH_AW_MCP_GATEWAY_ENV_${index}")
 }
