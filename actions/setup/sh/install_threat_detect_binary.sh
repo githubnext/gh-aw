@@ -15,8 +15,8 @@ set +o histexpand
 #
 # Platform support:
 #   - Linux (x64, arm64): Downloads pre-built binary
-#   - macOS: Not supported. The compiler rejects threat-detection runs-on configurations
-#     that target macOS runners.
+#   - macOS (x64, arm64): Downloads pre-built binary
+#     Note: macOS binaries are unsigned and not notarized.
 #
 # Security features:
 #   - Downloads directly from GitHub releases
@@ -27,35 +27,11 @@ set -euo pipefail
 
 # Configuration
 THREAT_DETECT_REPO="github/gh-aw-threat-detection"
-THREAT_DETECT_INSTALL_DIR="/usr/local/bin"
+THREAT_DETECT_DEFAULT_INSTALL_DIR="/usr/local/bin"
+THREAT_DETECT_INSTALL_DIR="${THREAT_DETECT_DEFAULT_INSTALL_DIR}"
 THREAT_DETECT_INSTALL_NAME="threat-detect"
-
-# Parse arguments: treat the first non-flag argument as VERSION, all --<flag> arguments as flags.
 THREAT_DETECT_VERSION=""
 ROOTLESS=false
-for arg in "$@"; do
-  case "$arg" in
-    --rootless) ROOTLESS=true ;;
-    --*) echo "WARNING: Unknown flag: $arg" >&2 ;;
-    *)
-      if [ -z "$THREAT_DETECT_VERSION" ]; then
-        THREAT_DETECT_VERSION="$arg"
-      fi
-      ;;
-  esac
-done
-
-if [ -z "$THREAT_DETECT_VERSION" ]; then
-  echo "ERROR: threat-detect version is required"
-  echo "Usage: $0 VERSION [--rootless]"
-  exit 1
-fi
-
-# In rootless mode, install into the user's home directory instead of /usr/local/bin
-# so that ARC/DinD runners with allowPrivilegeEscalation: false can run without sudo.
-if [ "$ROOTLESS" = "true" ]; then
-  THREAT_DETECT_INSTALL_DIR="${HOME}/.local/bin"
-fi
 
 # maybe_sudo runs a command with sudo unless --rootless was specified.
 # In rootless mode, sudo is not available or needed.
@@ -67,23 +43,31 @@ maybe_sudo() {
   fi
 }
 
-# Rootless mode preflight: create and verify write access to the install directory.
-if [ "$ROOTLESS" = "true" ]; then
-  if ! { mkdir -p "${THREAT_DETECT_INSTALL_DIR}" && [ -w "${THREAT_DETECT_INSTALL_DIR}" ]; }; then
-    echo "ERROR: --rootless could not create a writable install directory at ${THREAT_DETECT_INSTALL_DIR}" >&2
-    exit 1
-  fi
-fi
+resolve_binary_name() {
+  local os="$1"
+  local arch="$2"
 
-# Detect OS and architecture
-OS="$(uname -s)"
-ARCH="$(uname -m)"
-
-echo "Installing threat-detect with checksum verification (version: ${THREAT_DETECT_VERSION}, os: ${OS}, arch: ${ARCH})"
-
-# Download URLs
-BASE_URL="https://github.com/${THREAT_DETECT_REPO}/releases/download/${THREAT_DETECT_VERSION}"
-CHECKSUMS_URL="${BASE_URL}/checksums.txt"
+  case "$os" in
+    Linux)
+      case "$arch" in
+        x86_64|amd64) echo "threat-detect-linux-amd64" ;;
+        aarch64|arm64) echo "threat-detect-linux-arm64" ;;
+        *) echo "ERROR: Unsupported Linux architecture: ${arch}" >&2; return 1 ;;
+      esac
+      ;;
+    Darwin)
+      case "$arch" in
+        x86_64) echo "threat-detect-darwin-x64" ;;
+        arm64) echo "threat-detect-darwin-arm64" ;;
+        *) echo "ERROR: Unsupported macOS architecture: ${arch}" >&2; return 1 ;;
+      esac
+      ;;
+    *)
+      echo "ERROR: Unsupported operating system: ${os}" >&2
+      return 1
+      ;;
+  esac
+}
 
 # Platform-portable SHA256 function
 sha256_hash() {
@@ -97,14 +81,6 @@ sha256_hash() {
     exit 1
   fi
 }
-
-# Create temp directory
-TEMP_DIR=$(mktemp -d)
-trap 'rm -rf "$TEMP_DIR"' EXIT
-
-# Download checksums
-echo "Downloading checksums from \"${CHECKSUMS_URL}\"..."
-curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
 
 verify_checksum() {
   local file="$1"
@@ -132,13 +108,8 @@ verify_checksum() {
 }
 
 install_linux_binary() {
-  # Determine binary name based on architecture
   local binary_name
-  case "$ARCH" in
-    x86_64|amd64) binary_name="threat-detect-linux-amd64" ;;
-    aarch64|arm64) binary_name="threat-detect-linux-arm64" ;;
-    *) echo "ERROR: Unsupported Linux architecture: ${ARCH}"; exit 1 ;;
-  esac
+  binary_name="$(resolve_binary_name "Linux" "${ARCH}")"
 
   local binary_url="${BASE_URL}/${binary_name}"
   echo "Downloading binary from \"${binary_url}\"..."
@@ -152,31 +123,107 @@ install_linux_binary() {
   maybe_sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
 }
 
-case "$OS" in
-  Linux)
-    install_linux_binary
-    ;;
-  Darwin)
-    echo "ERROR: macOS is not a supported platform for threat-detect. Use a Linux runner for threat-detection jobs."
-    exit 1
-    ;;
-  *)
-    echo "ERROR: Unsupported operating system: ${OS}"
-    exit 1
-    ;;
-esac
+install_darwin_binary() {
+  local binary_name
+  binary_name="$(resolve_binary_name "Darwin" "${ARCH}")"
 
-# In rootless mode, add the install dir to PATH for subsequent steps.
-if [ "$ROOTLESS" = "true" ]; then
-  if [ -n "${GITHUB_PATH:-}" ]; then
-    echo "${THREAT_DETECT_INSTALL_DIR}" >> "${GITHUB_PATH}"
-    echo "  Exported ${THREAT_DETECT_INSTALL_DIR} to GITHUB_PATH"
-  else
-    echo "  GITHUB_PATH not set — binary installed at ${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
+  local binary_url="${BASE_URL}/${binary_name}"
+  echo "Downloading binary from \"${binary_url}\"..."
+  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/${binary_name}" "${binary_url}"
+
+  # Verify checksum
+  verify_checksum "${TEMP_DIR}/${binary_name}" "${binary_name}"
+
+  # Make binary executable and install
+  chmod +x "${TEMP_DIR}/${binary_name}"
+  maybe_sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
+}
+
+main() {
+  THREAT_DETECT_VERSION=""
+  ROOTLESS=false
+  THREAT_DETECT_INSTALL_DIR="${THREAT_DETECT_DEFAULT_INSTALL_DIR}"
+
+  # Parse arguments: treat the first non-flag argument as VERSION, all --<flag> arguments as flags.
+  for arg in "$@"; do
+    case "$arg" in
+      --rootless) ROOTLESS=true ;;
+      --*) echo "WARNING: Unknown flag: $arg" >&2 ;;
+      *)
+        if [ -z "$THREAT_DETECT_VERSION" ]; then
+          THREAT_DETECT_VERSION="$arg"
+        fi
+        ;;
+    esac
+  done
+
+  if [ -z "$THREAT_DETECT_VERSION" ]; then
+    echo "ERROR: threat-detect version is required"
+    echo "Usage: $0 VERSION [--rootless]"
+    exit 1
   fi
+
+  # In rootless mode, install into the user's home directory instead of /usr/local/bin
+  # so that ARC/DinD runners with allowPrivilegeEscalation: false can run without sudo.
+  if [ "$ROOTLESS" = "true" ]; then
+    THREAT_DETECT_INSTALL_DIR="${HOME}/.local/bin"
+  fi
+
+  # Rootless mode preflight: create and verify write access to the install directory.
+  if [ "$ROOTLESS" = "true" ]; then
+    if ! { mkdir -p "${THREAT_DETECT_INSTALL_DIR}" && [ -w "${THREAT_DETECT_INSTALL_DIR}" ]; }; then
+      echo "ERROR: --rootless could not create a writable install directory at ${THREAT_DETECT_INSTALL_DIR}" >&2
+      exit 1
+    fi
+  fi
+
+  # Detect OS and architecture
+  OS="$(uname -s)"
+  ARCH="$(uname -m)"
+
+  echo "Installing threat-detect with checksum verification (version: ${THREAT_DETECT_VERSION}, os: ${OS}, arch: ${ARCH})"
+
+  # Download URLs
+  BASE_URL="https://github.com/${THREAT_DETECT_REPO}/releases/download/${THREAT_DETECT_VERSION}"
+  CHECKSUMS_URL="${BASE_URL}/checksums.txt"
+
+  # Create temp directory
+  TEMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TEMP_DIR"' EXIT
+
+  # Download checksums
+  echo "Downloading checksums from \"${CHECKSUMS_URL}\"..."
+  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
+
+  case "$OS" in
+    Linux)
+      install_linux_binary
+      ;;
+    Darwin)
+      install_darwin_binary
+      ;;
+    *)
+      echo "ERROR: Unsupported operating system: ${OS}"
+      exit 1
+      ;;
+  esac
+
+  # In rootless mode, add the install dir to PATH for subsequent steps.
+  if [ "$ROOTLESS" = "true" ]; then
+    if [ -n "${GITHUB_PATH:-}" ]; then
+      echo "${THREAT_DETECT_INSTALL_DIR}" >> "${GITHUB_PATH}"
+      echo "  Exported ${THREAT_DETECT_INSTALL_DIR} to GITHUB_PATH"
+    else
+      echo "  GITHUB_PATH not set — binary installed at ${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
+    fi
+  fi
+
+  # Verify installation
+  "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}" --version
+
+  echo "✓ threat-detect installation complete"
+}
+
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
 fi
-
-# Verify installation
-"${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}" --version
-
-echo "✓ threat-detect installation complete"

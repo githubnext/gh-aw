@@ -482,12 +482,13 @@ bundle-js:
 	@echo "✓ bundle-js tool built"
 	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
 
-# Run Bash script tests (check-stale-lock-files, check-workflow-drift)
+# Run Bash script tests
 .PHONY: test-scripts
 test-scripts: build
 	@echo "Running Bash script tests..."
 	bash scripts/check-stale-lock-files_test.sh
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
+	bash actions/setup/sh/install_threat_detect_binary_test.sh
 	@echo "✓ All Bash script tests passed"
 
 # Test all code (Go, JavaScript, wasm golden, and shell scripts)
