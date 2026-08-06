@@ -160,8 +160,13 @@ func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowD
 	yaml.WriteString("          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}\n")
 	yaml.WriteString("          GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}\n")
 
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh\" \"$GATEWAY_PID\"\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/stop_mcp_gateway.cjs');\n")
+	yaml.WriteString("            await main();\n")
 }
 
 // generateAgentOutputPlaceholderStep generates a step that writes a minimal {"items":[]}

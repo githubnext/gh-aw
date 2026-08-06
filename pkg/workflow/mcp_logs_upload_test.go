@@ -83,6 +83,12 @@ Please navigate to example.com and take a screenshot.
 	if !strings.Contains(lockContentStr, "/tmp/gh-aw/mcp-logs/") {
 		t.Error("Expected artifact path '/tmp/gh-aw/mcp-logs/' in unified upload")
 	}
+	if !strings.Contains(lockContentStr, "!/tmp/gh-aw/mcp-logs/stderr.log") {
+		t.Error("Expected MCP gateway stderr to be excluded from the unified upload")
+	}
+	if !strings.Contains(lockContentStr, "stop_mcp_gateway.cjs") {
+		t.Error("Expected Stop MCP Gateway step to emit stderr through the JavaScript logger")
+	}
 
 	// Verify the upload step has 'if-no-files-found: ignore' condition
 	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {
@@ -177,6 +183,9 @@ This workflow does not use Playwright but should still have MCP logs upload.
 
 	if !strings.Contains(lockContentStr, "/tmp/gh-aw/mcp-logs/") {
 		t.Error("Expected MCP logs path in unified artifact upload even when Playwright is not used")
+	}
+	if !strings.Contains(lockContentStr, "!/tmp/gh-aw/mcp-logs/stderr.log") {
+		t.Error("Expected MCP gateway stderr to be excluded from the unified upload")
 	}
 
 	// Verify the upload step uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

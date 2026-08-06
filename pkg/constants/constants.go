@@ -485,6 +485,9 @@ const TmpMcpConfigLogsDir = TmpMcpConfigDir + "/logs/"
 // TmpMcpLogsDir is the MCP server logs root directory (with trailing slash).
 const TmpMcpLogsDir = TmpGhAwDir + "/mcp-logs/"
 
+// TmpMcpStderrLog is the legacy MCP gateway stderr path, excluded from artifacts.
+const TmpMcpStderrLog = TmpGhAwDir + "/mcp-logs/stderr.log"
+
 // TmpMcpLogsSafeOutputsDir is the safe-outputs MCP server log directory.
 const TmpMcpLogsSafeOutputsDir = TmpGhAwDir + "/mcp-logs/safeoutputs"
 

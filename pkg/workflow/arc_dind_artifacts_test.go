@@ -13,6 +13,7 @@ func TestRewriteTmpGhAwPathsForArcDind(t *testing.T) {
 			"/tmp/gh-aw/safe_outputs.ndjson",
 			"/tmp/gh-aw/aw-prompts/prompt.txt",
 			"/tmp/gh-aw/mcp-logs/",
+			"!/tmp/gh-aw/mcp-logs/stderr.log",
 			"/tmp/gh-aw/aw-*.patch",
 		}
 		result := rewriteTmpGhAwPathsForArcDind(input)
@@ -20,7 +21,8 @@ func TestRewriteTmpGhAwPathsForArcDind(t *testing.T) {
 		assert.Equal(t, "${{ runner.temp }}/gh-aw/safe_outputs.ndjson", result[1])
 		assert.Equal(t, "${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt", result[2])
 		assert.Equal(t, "${{ runner.temp }}/gh-aw/mcp-logs/", result[3])
-		assert.Equal(t, "${{ runner.temp }}/gh-aw/aw-*.patch", result[4])
+		assert.Equal(t, "!${{ runner.temp }}/gh-aw/mcp-logs/stderr.log", result[4])
+		assert.Equal(t, "${{ runner.temp }}/gh-aw/aw-*.patch", result[5])
 	})
 
 	t.Run("preserves paths already using runner.temp expression", func(t *testing.T) {

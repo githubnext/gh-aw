@@ -20,12 +20,18 @@ func rewriteTmpGhAwPathsForArcDind(paths []string) []string {
 	result := make([]string, len(paths))
 	rewritten := 0
 	for i, p := range paths {
-		if after, ok := strings.CutPrefix(p, constants.TmpGhAwDirSlash); ok {
+		negated := strings.HasPrefix(p, "!")
+		path := strings.TrimPrefix(p, "!")
+		prefix := ""
+		if negated {
+			prefix = "!"
+		}
+		if after, ok := strings.CutPrefix(path, constants.TmpGhAwDirSlash); ok {
 			// /tmp/gh-aw/foo → ${{ runner.temp }}/gh-aw/foo
-			result[i] = constants.GhAwRootDir + "/" + after
+			result[i] = prefix + constants.GhAwRootDir + "/" + after
 			rewritten++
-		} else if p == constants.TmpGhAwDir {
-			result[i] = constants.GhAwRootDir
+		} else if path == constants.TmpGhAwDir {
+			result[i] = prefix + constants.GhAwRootDir
 			rewritten++
 		} else {
 			result[i] = p

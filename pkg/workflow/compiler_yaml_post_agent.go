@@ -20,6 +20,9 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 
 	// Collect MCP logs.
 	paths = append(paths, constants.TmpMcpLogsDir)
+	// Gateway stderr can contain secrets. It is emitted through core.info at shutdown
+	// and explicitly excluded in case a stale or third-party file exists at the legacy path.
+	paths = append(paths, "!"+constants.TmpMcpStderrLog)
 
 	// Collect DIFC proxy logs (proxy-tls certs + container stderr) when proxy was injected
 	paths = append(paths, difcProxyLogPaths(data)...)
