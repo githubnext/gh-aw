@@ -1158,7 +1158,49 @@ describe("sanitize_content.cjs", () => {
     it("should log redacted domains", () => {
       sanitizeContent("Visit https://verylongdomainnamefortest.com/page");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Redacted URL:"));
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
+      expect(mockCore.debug).not.toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
+    });
+
+    it("should strip credentials from HTTPS URLs on allowed domains", () => {
+      // Credentials must not appear in the output even when the domain is allowed
+      const result = sanitizeContent("https://user:SECRET_TOKEN@github.com/org/repo.git");
+      expect(result).not.toContain("SECRET_TOKEN");
+      expect(result).not.toContain("user:SECRET_TOKEN@");
+      expect(result).toContain("github.com");
+    });
+
+    it("should strip credentials from HTTPS URLs on disallowed domains", () => {
+      const result = sanitizeContent("See https://user:MYPASSWORD@evil.example.com/repo.git");
+      expect(result).not.toContain("MYPASSWORD");
+      expect(result).not.toContain("user:MYPASSWORD@");
+    });
+
+    it("should strip credentials from non-HTTPS URLs before redacting", () => {
+      const result = sanitizeContent("git://x-token-user:ACCESS_TOKEN@github.com/org/repo.git");
+      expect(result).not.toContain("ACCESS_TOKEN");
+      expect(result).not.toContain("x-token-user:");
+    });
+
+    it("should not log full URLs with credentials in info or debug logs", () => {
+      sanitizeContent("https://user:SENTINEL_PASSWORD@evil.example.com/repo.git");
+      const allInfoCalls = mockCore.info.mock.calls.flat().join(" ");
+      const allDebugCalls = mockCore.debug.mock.calls.flat().join(" ");
+      expect(allInfoCalls).not.toContain("SENTINEL_PASSWORD");
+      expect(allDebugCalls).not.toContain("SENTINEL_PASSWORD");
+    });
+
+    it("should not log full rejected URLs with signed query strings", () => {
+      sanitizeContent("See https://evil.example.com/file?sig=SECRET_SIG&token=BEARER_VAL");
+      const allInfoCalls = mockCore.info.mock.calls.flat().join(" ");
+      const allDebugCalls = mockCore.debug.mock.calls.flat().join(" ");
+      expect(allInfoCalls).not.toContain("SECRET_SIG");
+      expect(allDebugCalls).not.toContain("SECRET_SIG");
+    });
+
+    it("should strip username-only userinfo (no password)", () => {
+      const result = sanitizeContent("Clone with https://myuser@github.com/org/repo.git");
+      expect(result).not.toContain("myuser@");
+      expect(result).toContain("github.com");
     });
 
     it("should support wildcard domain patterns (*.example.com)", () => {
@@ -1287,7 +1329,7 @@ describe("sanitize_content.cjs", () => {
     it("should log redacted protocol-relative URL domains", () => {
       sanitizeContent("Visit //evil.com/steal");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Redacted URL:"));
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
+      expect(mockCore.debug).not.toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
     });
 
     it("should redact protocol-relative URL with port number", () => {
@@ -1432,10 +1474,11 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should handle domains with special characters in URL context", () => {
-      // The regex captures domain up to first special character like @
-      // So http://ex@mple-domain.co_uk.net captures only "ex" as domain
+      // Userinfo (ex@) is now stripped before domain matching, so the domain
+      // captured is "mple-domain.co_uk.net", sanitized to remove non-alphanumeric
+      // characters.
       const result = sanitizeContent("Visit http://ex@mple-domain.co_uk.net/path");
-      expect(result).toContain("(ex/redacted)");
+      expect(result).toContain("(mpledomain.couk.net/redacted)");
     });
 
     it("should preserve simple domain structure", () => {
