@@ -11,6 +11,33 @@
 const { displayFileContent } = require("./display_file_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { computeSafeOutputsStatus } = require("./safe_outputs_status.cjs");
+const ERROR_CODES = require("./error_codes.cjs");
+
+/**
+ * Error codes that may be rendered verbatim in a step summary.
+ * Handler errors are built from caught exception messages, which can embed request
+ * URLs, payloads, or credentials, so only the machine-readable code prefix is shown.
+ * @type {Set<string>}
+ */
+const SUMMARY_SAFE_ERROR_CODES = new Set(Object.values(ERROR_CODES));
+
+/** @type {string} Rendered when an error carries no allowlisted code prefix */
+const UNCLASSIFIED_ERROR_CODE = "UNCLASSIFIED";
+
+/**
+ * Reduces an error message to an allowlisted error code so that raw exception text
+ * (which may contain secrets) never reaches the step summary.
+ * @param {any} error - The error message produced by a safe-output handler
+ * @returns {string} An allowlisted error code
+ */
+function toSummarySafeErrorCode(error) {
+  const text = typeof error === "string" ? error : String(error ?? "");
+  const match = text.match(/^\s*([A-Z][A-Z0-9_]*)\s*:/);
+  if (match && SUMMARY_SAFE_ERROR_CODES.has(match[1])) {
+    return match[1];
+  }
+  return UNCLASSIFIED_ERROR_CODE;
+}
 
 /**
  * Generate a step summary for a single safe-output message
@@ -118,8 +145,9 @@ function generateSafeOutputSummary(options) {
       }
     }
   } else if (error) {
-    // Show error information (raw message content is omitted to prevent secret leakage)
-    summary += `**Error:** ${error}\n\n`;
+    // Show only an allowlisted error code; raw exception text and message content are
+    // omitted because they can embed URLs, payloads, or credentials.
+    summary += `**Error:** \`${toSummarySafeErrorCode(error)}\` (see the job logs for details)\n\n`;
   }
 
   // Display secrecy and integrity security metadata fields if present in the message.

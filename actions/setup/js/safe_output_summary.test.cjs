@@ -68,7 +68,7 @@ describe("safe_output_summary", () => {
         message: {
           title: "Test Project",
         },
-        error: "Failed to create project: permission denied",
+        error: "ERR_PERMISSION: Failed to create project: permission denied",
       };
 
       const summary = generateSafeOutputSummary(options);
@@ -77,7 +77,9 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("Failed");
       expect(summary).toContain("Create Project");
       expect(summary).toContain("Message 2");
-      expect(summary).toContain("permission denied");
+      // Only the allowlisted error code is rendered; raw exception text is omitted
+      expect(summary).toContain("ERR_PERMISSION");
+      expect(summary).not.toContain("permission denied");
     });
 
     it("should generate summary for dropped duplicate issue", () => {
@@ -176,7 +178,8 @@ describe("safe_output_summary", () => {
       // Raw message content is omitted to prevent secret leakage into step summaries
       expect(summary).not.toContain("Message Details");
       expect(summary).not.toContain("console.log");
-      expect(summary).toContain("Failed to create issue");
+      expect(summary).not.toContain("Failed to create issue");
+      expect(summary).toContain("UNCLASSIFIED");
     });
 
     it("should handle project-specific results", () => {
@@ -556,6 +559,34 @@ describe("safe_output_summary", () => {
           error: "Handler failed",
         };
         expect(generateSafeOutputSummary(options)).not.toContain(SENTINEL);
+      });
+
+      it("should not include secret from the error message itself", () => {
+        const options = {
+          type: "create_issue",
+          messageIndex: 1,
+          success: false,
+          result: null,
+          message: { title: "Issue" },
+          error: `ERR_API: request to https://api.github.com failed with token ${SENTINEL}`,
+        };
+        const summary = generateSafeOutputSummary(options);
+        expect(summary).not.toContain(SENTINEL);
+        expect(summary).toContain("ERR_API");
+      });
+
+      it("should not include secret from an unclassified error message", () => {
+        const options = {
+          type: "create_issue",
+          messageIndex: 1,
+          success: false,
+          result: null,
+          message: { title: "Issue" },
+          error: `Handler failed: ${SENTINEL}`,
+        };
+        const summary = generateSafeOutputSummary(options);
+        expect(summary).not.toContain(SENTINEL);
+        expect(summary).toContain("UNCLASSIFIED");
       });
 
       it("should not include multiline secret string from message.body", () => {

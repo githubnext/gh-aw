@@ -4,6 +4,7 @@
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogInSection, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
+const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
@@ -87,6 +88,30 @@ function buildClaudeStartupDiagnostics(rawContent) {
 function escapeHtml(text) {
   const htmlEntities = { '"': "&quot;", "'": "&#39;", "&": "&amp;", "<": "&lt;", ">": "&gt;" };
   return text.replace(/["'&<>]/g, char => htmlEntities[char]);
+}
+
+/**
+ * Redacts credential-shaped strings from step-summary markdown.
+ *
+ * The agent log summary reproduces tool inputs, tool outputs, and agent text, any of
+ * which can contain a credential. GitHub Actions `::add-mask::` processing applies to
+ * the job log but does not scrub `$GITHUB_STEP_SUMMARY`, so the same built-in
+ * credential patterns used for artifact redaction are applied here before the summary
+ * is written. Redaction failures are non-fatal: the summary is best-effort output.
+ *
+ * @param {string} markdown - Markdown destined for the step summary
+ * @returns {string} Markdown with credential-shaped strings replaced
+ */
+function redactSummaryMarkdown(markdown) {
+  if (!markdown) {
+    return markdown;
+  }
+  try {
+    return redactBuiltInPatterns(markdown).content;
+  } catch (error) {
+    core.warning(`[log-parser] Failed to redact step summary content: ${getErrorMessage(error)}`);
+    return markdown;
+  }
 }
 
 /**
@@ -380,7 +405,7 @@ async function runLogParser(options) {
           }
         }
 
-        await core.summary.addRaw(fullMarkdown).write();
+        await core.summary.addRaw(redactSummaryMarkdown(fullMarkdown)).write();
       } else {
         // Fallback path: markdown exists but no structured log entries were parsed.
         // Suppress the "parsed successfully" message for Claude since it always produces
@@ -412,7 +437,7 @@ async function runLogParser(options) {
             fullMarkdown += "\n" + safeOutputsMarkdown;
           }
         }
-        await core.summary.addRaw(fullMarkdown).write();
+        await core.summary.addRaw(redactSummaryMarkdown(fullMarkdown)).write();
       }
     } else {
       core.error(`Failed to parse ${parserName} log`);
@@ -431,7 +456,7 @@ async function runLogParser(options) {
       } else {
         const diagnostics = buildClaudeStartupDiagnostics(content);
         if (diagnostics.summaryMarkdown) {
-          await core.summary.addRaw(diagnostics.summaryMarkdown).write();
+          await core.summary.addRaw(redactSummaryMarkdown(diagnostics.summaryMarkdown)).write();
         }
 
         if (diagnostics.inferenceAccessError) {

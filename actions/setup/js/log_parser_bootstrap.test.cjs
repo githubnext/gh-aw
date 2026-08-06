@@ -590,4 +590,67 @@ describe("log_parser_bootstrap.cjs", () => {
           }
         }));
     }));
+
+  describe("step summary secret redaction", () => {
+    // Built from parts so the fixtures are never literal credential strings in source.
+    const FAKE_PAT = "ghp_" + "a1b2c3d4e5".repeat(3) + "f6g7h8";
+    const FAKE_AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE".slice(0, 16);
+
+    it("should redact credential-shaped tool input and output from the fallback summary", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+      const logFile = path.join(tmpDir, "test.log");
+      try {
+        fs.writeFileSync(logFile, "content");
+        process.env.GH_AW_AGENT_OUTPUT = logFile;
+        const mockParseLog = vi.fn().mockReturnValue({
+          markdown: `### Bash\n\ncurl -H "Authorization: ${FAKE_PAT}" https://example.com\n\nOutput: key ${FAKE_AWS_KEY}\n`,
+          mcpFailures: [],
+          maxTurnsHit: false,
+        });
+        await runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
+        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+        expect(summaryCall).toBeDefined();
+        expect(summaryCall[0]).not.toContain(FAKE_PAT);
+        expect(summaryCall[0]).not.toContain(FAKE_AWS_KEY);
+        expect(summaryCall[0]).toContain("***REDACTED***");
+      } finally {
+        fs.unlinkSync(logFile);
+        fs.rmdirSync(tmpDir);
+      }
+    });
+
+    it("should redact credential-shaped tool input and output from the structured summary", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+      const logFile = path.join(tmpDir, "test.log");
+      try {
+        fs.writeFileSync(logFile, "content");
+        process.env.GH_AW_AGENT_OUTPUT = logFile;
+        const mockParseLog = vi.fn().mockReturnValue({
+          markdown: "## Result\n",
+          mcpFailures: [],
+          maxTurnsHit: false,
+          logEntries: [
+            { type: "system", subtype: "init", model: "gpt-5" },
+            {
+              type: "assistant",
+              message: {
+                content: [{ type: "tool_use", id: "tool-1", name: "Bash", input: { command: `curl -H "Authorization: ${FAKE_PAT}" https://example.com` } }],
+              },
+            },
+            { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "tool-1", content: `aws key ${FAKE_AWS_KEY}` }] } },
+            { type: "result", num_turns: 1, duration_ms: 1000 },
+          ],
+        });
+        await runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
+        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+        expect(summaryCall).toBeDefined();
+        expect(summaryCall[0]).not.toContain(FAKE_PAT);
+        expect(summaryCall[0]).not.toContain(FAKE_AWS_KEY);
+        expect(summaryCall[0]).toContain("***REDACTED***");
+      } finally {
+        fs.unlinkSync(logFile);
+        fs.rmdirSync(tmpDir);
+      }
+    });
+  });
 });
