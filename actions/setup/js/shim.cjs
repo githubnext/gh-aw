@@ -23,6 +23,16 @@ const setSecret = secret => {
   process.stderr.write(`::add-mask::${escapeCommandData(secret)}\n`);
 };
 
+function ensureCoreSetSecret() {
+  if (!global.core) {
+    global.core = {};
+  }
+  if (typeof global.core.setSecret !== "function") {
+    global.core.setSecret = setSecret;
+  }
+  return global.core;
+}
+
 if (!global.core) {
   /**
    * Write shim log lines to stderr so MCP servers that speak JSON-RPC on stdout
@@ -97,3 +107,5 @@ if (!global.context) {
     repo: { owner, repo },
   };
 }
+
+module.exports = { ensureCoreSetSecret, setSecret };

@@ -1,8 +1,6 @@
 // @ts-check
 "use strict";
 
-require("./shim.cjs");
-
 /**
  * Read a secret from the environment and register its value for masking in
  * GitHub Actions logs.
@@ -13,6 +11,8 @@ require("./shim.cjs");
 function readSecretEnv(name) {
   const value = process.env[name];
   if (value) {
+    const { ensureCoreSetSecret } = require("./shim.cjs");
+    ensureCoreSetSecret();
     core.setSecret(value);
   }
   return value;

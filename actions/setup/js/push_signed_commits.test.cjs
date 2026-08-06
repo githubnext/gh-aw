@@ -255,6 +255,7 @@ describe("push_signed_commits integration tests", () => {
       warning: vi.fn(),
       error: vi.fn(),
       debug: vi.fn(),
+      setSecret: vi.fn(),
     };
 
     global.core = mockCore;

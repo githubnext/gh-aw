@@ -1,7 +1,11 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "module";
+import { spawnSync } from "child_process";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 
 const req = createRequire(import.meta.url);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const originalCore = global.core;
 const setSecret = vi.fn();
 global.core = { setSecret };
@@ -39,5 +43,17 @@ describe("readSecretEnv", () => {
 
     expect(readSecretEnv("TEST_SECRET")).toBe("");
     expect(setSecret).not.toHaveBeenCalled();
+  });
+
+  it("uses the core shim when loaded by a standalone Node.js process", () => {
+    const result = spawnSync(process.execPath, ["-e", 'const { readSecretEnv } = require("./read_secret_env.cjs"); process.stdout.write(readSecretEnv("TEST_SECRET"));'], {
+      cwd: __dirname,
+      encoding: "utf8",
+      env: { ...process.env, TEST_SECRET: "standalone-secret" },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("standalone-secret");
+    expect(result.stderr).toBe("::add-mask::standalone-secret\n");
   });
 });
