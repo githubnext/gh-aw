@@ -66,7 +66,7 @@ on: push
 	}
 }
 
-func TestAIModeratorWorkflowIsShareable(t *testing.T) {
+func TestAIModeratorWorkflowIsPrivateRedirect(t *testing.T) {
 	t.Parallel()
 
 	content, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "ai-moderator.md"))
@@ -74,7 +74,16 @@ func TestAIModeratorWorkflowIsShareable(t *testing.T) {
 		t.Fatalf("failed to read AI Moderator workflow: %v", err)
 	}
 
-	if ExtractWorkflowPrivate(string(content)) {
-		t.Fatal("AI Moderator workflow must remain shareable for gh aw add")
+	contentStr := string(content)
+	if !ExtractWorkflowPrivate(contentStr) {
+		t.Fatal("AI Moderator workflow must remain private")
+	}
+
+	redirect, err := extractRedirectFromContent(contentStr)
+	if err != nil {
+		t.Fatalf("failed to extract AI Moderator redirect: %v", err)
+	}
+	if redirect != "githubnext/agentics/workflows/ai-moderator.md@main" {
+		t.Fatalf("AI Moderator redirect = %q, want %q", redirect, "githubnext/agentics/workflows/ai-moderator.md@main")
 	}
 }
