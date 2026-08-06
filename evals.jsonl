@@ -1,2 +1,4 @@
 {"id":"labels_applied_or_noop","question":"Did the agent apply at least one label to an unlabeled issue, or correctly skip when no unlabeled issues were found?","answer":"YES","model":"evals","timestamp":"2026-08-05T15:28:49.127Z","runid":"31019974943"}
 {"id":"allowed_labels_only","question":"Does the agent output show that only labels from the allowed set were applied to issues?","answer":"YES","model":"evals","timestamp":"2026-08-05T15:28:49.127Z","runid":"31019974943"}
+{"id":"labels_applied_or_noop","question":"Did the agent apply at least one label to an unlabeled issue, or correctly skip when no unlabeled issues were found?","answer":"YES","model":"evals","timestamp":"2026-08-06T15:28:57.487Z","runid":"31115530911"}
+{"id":"allowed_labels_only","question":"Does the agent output show that only labels from the allowed set were applied to issues?","answer":"YES","model":"evals","timestamp":"2026-08-06T15:28:57.487Z","runid":"31115530911"}
