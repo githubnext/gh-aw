@@ -165,11 +165,12 @@ func (t *StepOrderTracker) findUnscannablePaths(artifactUploads []StepRecord) []
 
 	for _, upload := range artifactUploads {
 		for _, path := range upload.UploadPaths {
-			// Check if this path would be scanned by secret redaction
+			// Check if this path would be scanned by secret redaction, or is otherwise
+			// explicitly allowed to bypass scanning (e.g. binary bundle files).
 			// Secret redaction only scans:
 			// 1. Files under /tmp/gh-aw/
 			// 2. With extensions .txt, .json, .log
-			if !isPathScannedBySecretRedaction(path) {
+			if !isPathScannedBySecretRedaction(path) && !isKnownUnscannedButAllowedForUpload(path) {
 				unscannable = append(unscannable, path)
 			}
 		}
@@ -213,14 +214,22 @@ func isPathScannedBySecretRedaction(path string) bool {
 		return true
 	}
 
-	// .bundle files are binary git bundles produced when patch-format: bundle is
-	// configured. They cannot be safely scanned as UTF-8 text by redact_secrets, but
-	// they are required downstream to apply changes while preserving merge topology,
-	// so they are intentionally allowed through artifact uploads unscanned.
-	if ext == ".bundle" {
-		return true
-	}
-
 	// If path is a directory (ends with /), we assume it contains scannable files
 	return strings.HasSuffix(path, "/")
+}
+
+// isKnownUnscannedButAllowedForUpload reports whether a path is a known type of file
+// that is NOT scanned by the redact_secrets step, but is nevertheless explicitly
+// permitted in artifact uploads as an accepted risk.
+//
+// .bundle files are binary git bundles produced when patch-format: bundle is
+// configured. They cannot be safely scanned as UTF-8 text by redact_secrets, but
+// they are required downstream to apply changes while preserving merge topology,
+// so they are intentionally allowed through artifact uploads unscanned.
+func isKnownUnscannedButAllowedForUpload(path string) bool {
+	isUnderGhAwDir := strings.HasPrefix(path, constants.TmpGhAwDirSlash) ||
+		strings.HasPrefix(path, constants.GhAwRootDirShellSlash) ||
+		strings.HasPrefix(path, constants.GhAwRootDirSlash) ||
+		strings.Contains(path, "${{ env.")
+	return isUnderGhAwDir && filepath.Ext(path) == ".bundle"
 }

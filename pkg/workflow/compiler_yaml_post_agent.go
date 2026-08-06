@@ -87,7 +87,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 		// required downstream to apply changes while preserving merge topology.
 		// Bundle files are binary and cannot be safely text-scanned for secrets, so
 		// they are intentionally excluded from the redact_secrets scanning pass
-		// (see isPathScannedBySecretRedaction in step_order_validation.go). The
+		// (see isKnownUnscannedButAllowedForUpload in step_order_validation.go). The
 		// artifact upload step already sets if-no-files-found: ignore, so including
 		// the bundle glob here is safe even when no bundle files exist.
 		paths = append(paths, constants.TmpAwBundleGlob)
