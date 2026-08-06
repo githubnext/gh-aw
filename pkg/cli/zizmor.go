@@ -117,8 +117,8 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	// Run the command
 	err = cmd.Run()
 
-	// Parse and reformat the output, get total warning count
-	totalWarnings, parseErr := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose)
+	// Parse and reformat the output, get total warning count and high severity count
+	totalWarnings, highSeverityCount, parseErr := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose)
 	if parseErr != nil {
 		zizmorLog.Printf("Failed to parse zizmor output: %v", parseErr)
 		// Fall back to showing raw output
@@ -128,6 +128,11 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		if stderr.Len() > 0 {
 			fmt.Fprint(os.Stderr, stderr.String())
 		}
+	}
+
+	fileDescription := "workflows"
+	if len(lockFiles) == 1 {
+		fileDescription = filepath.Base(lockFiles[0])
 	}
 
 	// Check if the error is due to findings (expected) or actual failure
@@ -140,25 +145,21 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			exitCode := exitErr.ExitCode()
-			zizmorLog.Printf("Zizmor exited with code %d (warnings=%d)", exitCode, totalWarnings)
+			zizmorLog.Printf("Zizmor exited with code %d (warnings=%d, high=%d)", exitCode, totalWarnings, highSeverityCount)
 			// Exit codes 10-14 indicate findings
 			if exitCode >= 10 && exitCode <= 14 {
-				// In strict mode, findings are treated as errors
+				// High/critical severity findings always fail, regardless of strict mode
+				if highSeverityCount > 0 {
+					return fmt.Errorf("zizmor found %d high/critical severity finding(s) in %s", highSeverityCount, fileDescription)
+				}
+				// In strict mode, all findings are treated as errors
 				if strict {
-					fileDescription := "workflows"
-					if len(lockFiles) == 1 {
-						fileDescription = filepath.Base(lockFiles[0])
-					}
 					return fmt.Errorf("strict mode: zizmor found %d security warnings/errors in %s - workflows must have no zizmor findings in strict mode", totalWarnings, fileDescription)
 				}
-				// In non-strict mode, findings are logged but not treated as errors
+				// In non-strict mode, non-high findings are logged but not treated as errors
 				return nil
 			}
 			// Other exit codes are actual errors
-			fileDescription := "workflows"
-			if len(lockFiles) == 1 {
-				fileDescription = filepath.Base(lockFiles[0])
-			}
 			return fmt.Errorf("zizmor failed with exit code %d on %s", exitCode, fileDescription)
 		}
 		// Non-ExitError errors (e.g., command not found)
@@ -176,8 +177,8 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 }
 
 // parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
-// Returns the total number of warnings found
-func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, error) {
+// Returns the total number of warnings found and the number of high/critical severity findings
+func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int, error) {
 	// Map findings to files for detailed display
 	fileFindings := make(map[string][]zizmorFinding)
 
@@ -203,9 +204,10 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 	// Parse JSON findings from stdout
 	var findings []zizmorFinding
 	totalWarnings := 0
+	highSeverityCount := 0
 	if stdout != "" && strings.HasPrefix(strings.TrimSpace(stdout), "[") {
 		if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
-			return 0, fmt.Errorf("failed to parse zizmor JSON output: %w", err)
+			return 0, 0, fmt.Errorf("failed to parse zizmor JSON output: %w", err)
 		}
 
 		// Organize findings by file
@@ -220,6 +222,9 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 					}{}
 					fileFindings[filePath] = append(fileFindings[filePath], finding)
 					totalWarnings++
+					if finding.Determinations.Severity == "High" || finding.Determinations.Severity == "Critical" {
+						highSeverityCount++
+					}
 				}
 			}
 		}
@@ -322,5 +327,5 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 		}
 	}
 
-	return totalWarnings, nil
+	return totalWarnings, highSeverityCount, nil
 }
