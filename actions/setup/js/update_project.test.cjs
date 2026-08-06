@@ -504,6 +504,61 @@ describe("updateProject", () => {
     expect(getOutput("item-id")).toBe("item-from-content");
   });
 
+  it("finds an existing pull request item from the pull request side", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "pull_request", content_number: 17 };
+
+    mockGithub.graphql.mockImplementation(async (query, vars) => {
+      const q = String(query);
+      if (q.includes("repository(owner:") && q.includes("owner {")) return repoResponse();
+      if (q.includes("viewer")) return viewerResponse();
+      if (q.includes("organization(login:")) return orgProjectV2Response(projectUrl, 60, "project-pr");
+      if (q.includes("pullRequest(number:")) return pullRequestResponse("pr-id-17");
+      if (q.includes("node(id: $contentId)") && q.includes("... on PullRequest") && q.includes("projectItems(")) {
+        expect(vars).toMatchObject({ contentId: "pr-id-17" });
+        return existingItemResponse("project-pr", "pr-item-from-content");
+      }
+      throw new Error(`Unexpected GraphQL query: ${q}`);
+    });
+
+    await updateProject(output);
+
+    expect(mockGithub.graphql.mock.calls.some(([query]) => String(query).includes("addProjectV2ItemById"))).toBe(false);
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Item already on board");
+    expect(getOutput("item-id")).toBe("pr-item-from-content");
+  });
+
+  it("paginates content project items until the target project item is found", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 42 };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project123"),
+      issueResponse("issue-id-42"),
+      // First page holds items for other projects only
+      {
+        node: {
+          projectItems: {
+            nodes: [{ id: "other-item", project: { id: "other-project" } }],
+            pageInfo: { hasNextPage: true, endCursor: "cursor-items-1" },
+          },
+        },
+      },
+      existingItemResponse("project123", "item-page-2"),
+    ]);
+
+    await updateProject(output);
+
+    const itemLookupCalls = mockGithub.graphql.mock.calls.filter(([query]) => String(query).includes("projectItems("));
+    expect(itemLookupCalls).toHaveLength(2);
+    expect(itemLookupCalls[0][1]).toMatchObject({ contentId: "issue-id-42", after: null });
+    expect(itemLookupCalls[1][1]).toMatchObject({ contentId: "issue-id-42", after: "cursor-items-1" });
+    expect(mockGithub.graphql.mock.calls.some(([query]) => String(query).includes("addProjectV2ItemById"))).toBe(false);
+    expect(getOutput("item-id")).toBe("item-page-2");
+  });
+
   it("adds a draft issue to a project board", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {

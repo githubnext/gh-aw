@@ -413,11 +413,13 @@ async function findExistingItemByContentId(github, projectId, contentId) {
       { contentId, after: endCursor }
     );
 
-    const projectItems = result?.node?.projectItems;
-    if (!projectItems) {
+    if (!result?.node) {
       core.warning(`Content ${contentId} not found or inaccessible; stopping project item search.`);
       break;
     }
+
+    const projectItems = result.node.projectItems;
+    if (!projectItems) break;
 
     const found = projectItems.nodes.find(item => item.project?.id === projectId);
     if (found) return found;
