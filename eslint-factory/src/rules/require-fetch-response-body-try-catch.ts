@@ -1,0 +1,159 @@
+import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { buildTryCatchSuggestion, isDeferredCallback, SAFE_WRAPPABLE_STATEMENT_TYPES } from "./try-catch-rule-utils";
+
+const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
+
+// Statement node types that can be directly wrapped in a try/catch block.
+const WRAPPABLE_STATEMENT_TYPES = new Set<AST_NODE_TYPES>([...SAFE_WRAPPABLE_STATEMENT_TYPES, AST_NODE_TYPES.VariableDeclaration]);
+
+const BODY_METHOD_NAMES = new Set(["json", "text"]);
+
+function unwrapChain(node: TSESTree.Expression | TSESTree.Super): TSESTree.Expression | TSESTree.Super {
+  return node.type === AST_NODE_TYPES.ChainExpression ? node.expression : node;
+}
+
+function getMemberPropertyName(node: TSESTree.MemberExpression): string | null {
+  const property = node.property;
+  if (!node.computed && property.type === AST_NODE_TYPES.Identifier) return property.name;
+  if (node.computed && property.type === AST_NODE_TYPES.Literal && typeof property.value === "string") return property.value;
+  return null;
+}
+
+/** Returns true when expr is `await fetch(...)` (direct global fetch call, no member chain). */
+function isDirectAwaitFetchCall(expr: TSESTree.Expression): boolean {
+  if (expr.type !== AST_NODE_TYPES.AwaitExpression) return false;
+  const argument = unwrapChain(expr.argument);
+  if (argument.type !== AST_NODE_TYPES.CallExpression) return false;
+  return argument.callee.type === AST_NODE_TYPES.Identifier && argument.callee.name === "fetch";
+}
+
+export const requireFetchResponseBodyTryCatchRule = createRule({
+  name: "require-fetch-response-body-try-catch",
+  meta: {
+    type: "problem",
+    hasSuggestions: true,
+    docs: {
+      description:
+        "Require .json()/.text() calls on a fetch() Response in actions/setup/js scripts to be wrapped in try/catch. " +
+        "Both methods reject when the body stream errors mid-read or (for .json()) when the payload is not valid JSON, " +
+        "which crashes the action with an unhelpful uncaught exception if the response was obtained via a bare `await fetch(...)` " +
+        "with no surrounding try/catch.",
+    },
+    schema: [],
+    messages: {
+      requireTryCatch: "Wrap {{call}} in try/catch — reading the body of a fetch() Response can reject (malformed JSON, truncated/errored stream) and will crash the action if unhandled.",
+      wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
+    },
+  },
+  defaultOptions: [],
+  create(context) {
+    const sourceCode = context.sourceCode;
+    type SourceCodeScope = ReturnType<typeof sourceCode.getScope>;
+
+    function isInsideTryBlock(node: TSESTree.Node): boolean {
+      const ancestors = sourceCode.getAncestors(node);
+      let crossedDeferredBoundary = false;
+
+      for (let i = ancestors.length - 1; i >= 0; i--) {
+        const ancestor = ancestors[i];
+
+        if (isDeferredCallback(ancestor)) {
+          crossedDeferredBoundary = true;
+        }
+
+        if (ancestor.type === AST_NODE_TYPES.TryStatement && !crossedDeferredBoundary && ancestor.handler != null) {
+          const block = ancestor.block;
+          if (node.range != null && block.range != null && node.range[0] >= block.range[0] && node.range[1] <= block.range[1]) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    }
+
+    function findEnclosingStatement(node: TSESTree.Node): TSESTree.Statement | null {
+      const ancestors = sourceCode.getAncestors(node);
+      for (let i = ancestors.length - 1; i >= 0; i--) {
+        const ancestor = ancestors[i];
+        if (WRAPPABLE_STATEMENT_TYPES.has(ancestor.type)) {
+          return ancestor as TSESTree.Statement;
+        }
+      }
+      return null;
+    }
+
+    /**
+     * Returns true when the identifier at `node` resolves (via any write reference in scope —
+     * either its initializing declarator or a later reassignment) to a bare `await fetch(...)`
+     * call, i.e. a Response obtained with no chained `.catch`/rejection handling of its own.
+     */
+    function resolvesToBareAwaitFetch(node: TSESTree.Identifier): boolean {
+      let scope: SourceCodeScope | null = sourceCode.getScope(node);
+      while (scope) {
+        const variable = scope.set.get(node.name);
+        if (variable) {
+          return variable.references.some(ref => {
+            const writeExpr = ref.writeExpr;
+            return writeExpr != null && isDirectAwaitFetchCall(writeExpr as TSESTree.Expression);
+          });
+        }
+        scope = scope.upper;
+      }
+      return false;
+    }
+
+    return {
+      AwaitExpression(node) {
+        const argument = unwrapChain(node.argument);
+        if (argument.type !== AST_NODE_TYPES.CallExpression) return;
+        const callee = argument.callee;
+        if (callee.type !== AST_NODE_TYPES.MemberExpression) return;
+
+        const methodName = getMemberPropertyName(callee);
+        if (methodName === null || !BODY_METHOD_NAMES.has(methodName)) return;
+
+        const objectExpr = unwrapChain(callee.object);
+        // Case 1: the call chain itself starts from a direct `fetch(...)` call, e.g.
+        // `await fetch(url).json()`.
+        const isDirectChain = objectExpr.type === AST_NODE_TYPES.CallExpression && objectExpr.callee.type === AST_NODE_TYPES.Identifier && objectExpr.callee.name === "fetch";
+        // Case 2: the receiver is a variable whose value came from a bare `await fetch(...)`,
+        // e.g. `const response = await fetch(url); ... await response.json();`.
+        const isResolvedFetchVar = !isDirectChain && objectExpr.type === AST_NODE_TYPES.Identifier && resolvesToBareAwaitFetch(objectExpr);
+
+        if (!isDirectChain && !isResolvedFetchVar) return;
+        if (isInsideTryBlock(node)) return;
+
+        const callText = sourceCode.getText(argument);
+        const stmt = findEnclosingStatement(node);
+
+        context.report({
+          node,
+          messageId: "requireTryCatch",
+          data: { call: callText },
+          suggest: stmt
+            ? [
+                {
+                  messageId: "wrapInTryCatch",
+                  fix(fixer) {
+                    const stmtText = sourceCode.getText(stmt);
+                    const startLine = stmt.loc?.start.line;
+                    const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
+                    const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
+                    return fixer.replaceText(
+                      stmt,
+                      buildTryCatchSuggestion(stmtText, {
+                        indent,
+                        todoComment: "TODO: handle a malformed/errored fetch response body for this call.",
+                        errorPrefix: `Failed to read fetch response ${methodName}(): `,
+                      })
+                    );
+                  },
+                },
+              ]
+            : [],
+        });
+      },
+    };
+  },
+});
