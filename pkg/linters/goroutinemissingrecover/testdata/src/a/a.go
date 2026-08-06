@@ -82,3 +82,67 @@ func nestedRecoverOnlyGoroutine() {
 	}()
 }
 
+// namedRecoverHelper calls recover() directly, so deferring it protects the caller.
+func namedRecoverHelper() {
+	if r := recover(); r != nil {
+		_ = r
+	}
+}
+
+// namedNoRecoverHelper does not call recover().
+func namedNoRecoverHelper() {}
+
+type recoverer struct{}
+
+func (recoverer) recoverMethod() {
+	if r := recover(); r != nil {
+		_ = r
+	}
+}
+
+// namedRecoverDeferGoroutine defers a named helper that calls recover() — no diagnostic expected.
+func namedRecoverDeferGoroutine() {
+	go func() {
+		defer namedRecoverHelper()
+		panic("oops")
+	}()
+}
+
+// methodRecoverDeferGoroutine defers a method that calls recover() — no diagnostic expected.
+func methodRecoverDeferGoroutine() {
+	var r recoverer
+	go func() {
+		defer r.recoverMethod()
+		panic("oops")
+	}()
+}
+
+// namedNoRecoverDeferGoroutine defers a named helper without recover — should be flagged.
+func namedNoRecoverDeferGoroutine() {
+	go func() { // want `goroutine launched via a function literal without a top-level defer/recover`
+		defer namedNoRecoverHelper()
+		panic("oops")
+	}()
+}
+
+// funcValueDeferGoroutine defers a func value whose body cannot be resolved — flagged conservatively.
+func funcValueDeferGoroutine() {
+	f := namedRecoverHelper
+	go func() { // want `goroutine launched via a function literal without a top-level defer/recover`
+		defer f()
+		panic("oops")
+	}()
+}
+
+// nestedRecoverHelper only calls recover() inside a nested closure — does not protect its caller.
+func nestedRecoverHelper() {
+	func() { recover() }()
+}
+
+// namedNestedRecoverDeferGoroutine defers a helper whose recover is nested — should be flagged.
+func namedNestedRecoverDeferGoroutine() {
+	go func() { // want `goroutine launched via a function literal without a top-level defer/recover`
+		defer nestedRecoverHelper()
+		panic("oops")
+	}()
+}
