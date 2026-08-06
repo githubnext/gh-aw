@@ -641,6 +641,26 @@ describe("safe_output_summary", () => {
   });
 
   describe("writeSafeOutputSummaries", () => {
+    it("should redact credential-shaped strings before writing the step summary", async () => {
+      // Built from parts so the fixture is never a literal credential string in source.
+      const fakePat = "ghp_" + "a1b2c3d4e5".repeat(3) + "f6g7h8";
+      const results = [
+        {
+          type: "create_issue",
+          messageIndex: 0,
+          success: true,
+          result: { repo: "owner/repo", number: 123 },
+        },
+      ];
+      const messages = [{ title: `Issue with token ${fakePat}` }];
+
+      await writeSafeOutputSummaries(results, messages);
+
+      const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryContent).not.toContain(fakePat);
+      expect(summaryContent).toContain("***REDACTED***");
+    });
+
     it("should write summaries for multiple results", async () => {
       const results = [
         {
