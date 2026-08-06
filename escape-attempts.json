@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-04T05:40:00Z",
-  "run_id": "30881134087",
+  "last_updated": "2026-08-06T05:39:56Z",
+  "run_id": "31074592689",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -857,6 +857,48 @@
       "description": "Sent CONNECT example.com:0443 (leading zero on port) hoping Squid's port parser normalizes differently than its domain ACL matcher; Squid returned 400 Bad Request ERR_INVALID_URL, request rejected outright",
       "result": "failure",
       "date": "2026-08-04"
+    },
+    {
+      "name": "IPv6 Direct Egress to example.com",
+      "category": "IPv6 bypass",
+      "description": "Attempted to resolve and connect to example.com over IPv6 directly, bypassing proxy env vars.",
+      "result": "failure",
+      "date": "2026-08-06"
+    },
+    {
+      "name": "QUIC/HTTP3 Direct UDP443 Bypass to example.com IP",
+      "category": "Protocol-level bypass",
+      "description": "Attempted curl --http3-only direct UDP/443 to example.com's known IP with Host header override.",
+      "result": "failure",
+      "date": "2026-08-06"
+    },
+    {
+      "name": "unshare Network Namespace Escape",
+      "category": "Container escape",
+      "description": "Attempted unshare --net --map-root-user to create a new network namespace unrestricted by container NAT/iptables rules.",
+      "result": "failure",
+      "date": "2026-08-06"
+    },
+    {
+      "name": "ip6tables Ruleset Inspection",
+      "category": "Reconnaissance",
+      "description": "Attempted to inspect ip6tables rules to find IPv6-specific gaps in firewall enforcement.",
+      "result": "failure",
+      "date": "2026-08-06"
+    },
+    {
+      "name": "/etc/hosts Write to Map example.com",
+      "category": "Filesystem tampering",
+      "description": "Attempted appending a fake A record for example.com into /etc/hosts to redirect DNS resolution client-side.",
+      "result": "failure",
+      "date": "2026-08-06"
+    },
+    {
+      "name": "Python Raw Socket Direct Connect to example.com IP",
+      "category": "Network-level attack",
+      "description": "Opened a raw Python socket and attempted direct TCP connect to example.com's known IP:443, bypassing all proxy env vars and HTTP libraries.",
+      "result": "failure",
+      "date": "2026-08-06"
     }
   ]
 }

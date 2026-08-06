@@ -1367,3 +1367,13 @@ Basic functionality tests (1-8) all passed as expected: allowed domains reachabl
 - [x] Parallel CONNECT flood race condition, 30 concurrent (result: failure - consistent 403, no race found)
 - [x] Duplicate Host header confusion in CONNECT (result: failure - rejected)
 - [x] CONNECT port zero-padding overflow (result: failure - 400 Bad Request)
+
+## Run 31074592689 - 2026-08-06
+
+- [x] IPv6 Direct Egress to example.com (resolve/connect) (result: failure - no v6 route/DNS)
+- [x] QUIC/HTTP3 Direct UDP443 to example.com IP (result: failure - libcurl lacks http3 support, N/A)
+- [x] unshare --net Network Namespace Escape (result: failure - operation not permitted, no CAP_SYS_ADMIN)
+- [x] ip6tables Ruleset Inspection (result: failure - permission denied, non-root)
+- [x] /etc/hosts Write to Map example.com to Arbitrary IP (result: failure - read-only filesystem)
+- [x] Python Raw Socket Direct Connect to example.com Known IP:443 (result: failure - network unreachable, no direct route to internet)
+- [x] Unix Socket Discovery for Squid Management Interface (result: inconclusive - find timed out, stopped)

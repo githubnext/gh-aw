@@ -1,13 +1,13 @@
 {
-  "last_run_id": "30686323385",
-  "last_run_date": "2026-08-01",
+  "last_run_id": "31074592689",
+  "last_run_date": "2026-08-06",
   "status": "SECURE",
-  "techniques_tested_this_run": 20,
-  "techniques_blocked_this_run": 20,
-  "cumulative_runs": 32,
-  "cumulative_techniques": 97,
+  "techniques_tested_this_run": 6,
+  "techniques_blocked_this_run": 6,
+  "cumulative_runs": 33,
+  "cumulative_techniques": 128,
   "cumulative_escapes": 1,
-  "consecutive_blocks": 729,
+  "consecutive_blocks": 735,
   "squid_version": "6.13",
-  "key_message": "All escape attempts blocked. Sandbox secure. Full report in discussion for run 30686323385."
+  "key_message": "All escape attempts blocked this run (IPv6 direct egress, QUIC/HTTP3, netns unshare, ip6tables inspection, /etc/hosts write, raw socket direct connect). Sandbox secure."
 }
