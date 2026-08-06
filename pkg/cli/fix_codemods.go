@@ -94,6 +94,8 @@ func GetAllCodemods() []Codemod {
 		getPullRequestTargetCheckoutFalseCodemod(),                 // Add checkout: false for pull_request_target workflows when safe
 		getDependabotPermissionsCodemod(),                          // Add vulnerability-alerts: read when dependabot toolset is used
 		getGitHubReposToAllowedReposCodemod(),                      // Rename deprecated tools.github.repos to tools.github.allowed-repos
+		getToolsetSingularToToolsetsCodemod(),                      // Rename mistyped tools.github.toolset to tools.github.toolsets
+		getAllowedReposCurrentToGitHubRepositoryCodemod(),          // Migrate legacy tools.github.allowed-repos: current to ${{ github.repository }}
 		getCopilotRequestsFeatureToPermissionsCodemod(),            // Migrate features.copilot-requests to permissions.copilot-requests
 		getByokCopilotFeatureRemovalCodemod(),                      // Remove deprecated features.byok-copilot (Copilot BYOK is default)
 		getInlineAgentsFeatureRemovalCodemod(),                     // Remove deprecated features.inline-agents (inline sub-agents now default)
