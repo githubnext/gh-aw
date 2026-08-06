@@ -11,12 +11,13 @@ import (
 
 func TestParseAndDisplayZizmorOutput(t *testing.T) {
 	tests := []struct {
-		name           string
-		stdout         string
-		stderr         string
-		verbose        bool
-		expectedOutput []string
-		expectError    bool
+		name                      string
+		stdout                    string
+		stderr                    string
+		verbose                   bool
+		expectedOutput            []string
+		expectError               bool
+		expectedHighSeverityCount int
 	}{
 		{
 			name: "single file with findings",
@@ -121,7 +122,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
 				"./.github/workflows/test.lock.yml:12:24: error: [High] template-injection: template injection with untrusted input (https://docs.zizmor.sh/audits/#template-injection)",
 			},
-			expectError: false,
+			expectError:               false,
+			expectedHighSeverityCount: 1,
 		},
 		{
 			name:           "file with no findings",
@@ -197,7 +199,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 				"./.github/workflows/test1.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
 				"./.github/workflows/test2.lock.yml:12:24: error: [High] template-injection: template injection with untrusted input (https://docs.zizmor.sh/audits/#template-injection)",
 			},
-			expectError: false,
+			expectError:               false,
+			expectedHighSeverityCount: 1,
 		},
 		{
 			name: "finding with multiple locations in same file counts as one",
@@ -362,7 +365,47 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 				// test2 still shows (appended in sorted order as extra file)
 				"./.github/workflows/test2.lock.yml:12:24: error: [High] template-injection: template injection with untrusted input (https://docs.zizmor.sh/audits/#template-injection)",
 			},
-			expectError: false,
+			expectError:               false,
+			expectedHighSeverityCount: 1,
+		},
+		{
+			name: "critical severity finding is counted as high severity",
+			stdout: `[
+  {
+    "ident": "template-injection",
+    "desc": "template injection with untrusted input",
+    "url": "https://docs.zizmor.sh/audits/#template-injection",
+    "determinations": {
+      "severity": "Critical"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "given_path": "./.github/workflows/test.lock.yml"
+            }
+          },
+          "annotation": "may expand into attacker-controllable code"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 11,
+              "column": 23
+            }
+          }
+        }
+      }
+    ]
+  }
+]`,
+			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
+			expectedOutput: []string{
+				"./.github/workflows/test.lock.yml:12:24: error: [Critical] template-injection: template injection with untrusted input (https://docs.zizmor.sh/audits/#template-injection)",
+			},
+			expectError:               false,
+			expectedHighSeverityCount: 1,
 		},
 	}
 
@@ -373,7 +416,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			warningCount, err := parseAndDisplayZizmorOutput(tt.stdout, tt.stderr, tt.verbose)
+			warningCount, highSeverityCount, err := parseAndDisplayZizmorOutput(tt.stdout, tt.stderr, tt.verbose)
 
 			// Restore stderr
 			w.Close()
@@ -395,6 +438,11 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			// Verify warning count is non-negative
 			if warningCount < 0 {
 				t.Errorf("Warning count should be non-negative, got: %d", warningCount)
+			}
+
+			// Verify high severity count
+			if highSeverityCount != tt.expectedHighSeverityCount {
+				t.Errorf("Expected high severity count %d, got %d", tt.expectedHighSeverityCount, highSeverityCount)
 			}
 
 			// Check expected output
