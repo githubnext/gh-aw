@@ -1,6 +1,6 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-07-30
+**Last Updated**: 2026-08-06
 **Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md)
 **Ubuntu Version**: 24.04 LTS
 **Image Version**: 20260720.247.2
@@ -44,7 +44,7 @@ The Ubuntu 24.04 runner includes:
   - npm: 10.x
   - yarn: 1.22.22
   - pnpm (via npm install)
-- **Version Manager**: nvm 0.40.4
+- **Version Manager**: nvm 0.40.6
 
 ### Python
 - **Installed Version**: 3.12.3 (system default)
@@ -205,7 +205,7 @@ Multiple Java versions are pre-installed:
 - **Google Chrome**: 150.x (stable)
 - **Chromium**: 150.x
 - **Microsoft Edge**: 150.x (stable)
-- **Mozilla Firefox**: 152.0.4
+- **Mozilla Firefox**: 152.0.6
 
 ### Browser Drivers
 - **ChromeDriver**: 150.x
