@@ -58,3 +58,4 @@
 {"run_id":"30825987073","timestamp":"2026-08-03T15:10:17.717Z","assignments":{"reasoning_depth":"single_pass"}}
 {"run_id":"30921460927","timestamp":"2026-08-04T14:56:02.933Z","assignments":{"reasoning_depth":"multi_candidate"}}
 {"run_id":"31017474538","timestamp":"2026-08-05T14:53:56.176Z","assignments":{"reasoning_depth":"single_pass"}}
+{"run_id":"31113069093","timestamp":"2026-08-06T14:53:29.285Z","assignments":{"reasoning_depth":"multi_candidate"}}
