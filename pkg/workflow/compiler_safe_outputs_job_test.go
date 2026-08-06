@@ -1669,7 +1669,7 @@ func TestCreateCodeScanningAlertUploadJob(t *testing.T) {
 }
 
 // TestBuildSafeOutputItemsManifestUploadStep verifies that the upload step includes
-// the stdout/stderr log artifact paths so failures are pre-bundled in the artifact.
+// the manifest and temporary ID map but excludes process stdout/stderr logs.
 func TestBuildSafeOutputItemsManifestUploadStep(t *testing.T) {
 	steps := buildSafeOutputItemsManifestUploadStep("", func(action string) string {
 		return action + "@test-pin"
@@ -1680,6 +1680,6 @@ func TestBuildSafeOutputItemsManifestUploadStep(t *testing.T) {
 	assert.Contains(t, content, "Upload Safe Outputs Items")
 	assert.Contains(t, content, "if: always()")
 	assert.Contains(t, content, "/tmp/gh-aw/safe-output-items.jsonl")
-	assert.Contains(t, content, "/tmp/gh-aw/process-safe-outputs.stdout.log")
-	assert.Contains(t, content, "/tmp/gh-aw/process-safe-outputs.stderr.log")
+	assert.NotContains(t, content, "process-safe-outputs.stdout.log")
+	assert.NotContains(t, content, "process-safe-outputs.stderr.log")
 }

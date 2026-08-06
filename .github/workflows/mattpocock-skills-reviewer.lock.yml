@@ -1998,6 +1998,4 @@ jobs:
           path: |
             /tmp/gh-aw/safe-output-items.jsonl
             /tmp/gh-aw/temporary-id-map.json
-            /tmp/gh-aw/process-safe-outputs.stdout.log
-            /tmp/gh-aw/process-safe-outputs.stderr.log
           if-no-files-found: ignore
