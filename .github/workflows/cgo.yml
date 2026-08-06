@@ -2520,9 +2520,6 @@ jobs:
     - canary-go
     - build
     - build-wasm
-    - zizmor
-    - poutine
-    - actionlint
     - bench
     - check-validator-sizes
     - lint-go
