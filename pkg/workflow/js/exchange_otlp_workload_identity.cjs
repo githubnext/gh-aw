@@ -13,12 +13,22 @@
 
 const CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
+/**
+ * Mask a token discovered by this inline github-script before it can be used
+ * or exposed as an output.
+ *
+ * @param {unknown} value
+ */
+function maskSecret(value) {
+  core.setSecret(String(value));
+}
+
 async function main() {
   const oidcToken = process.env.GH_AW_OTLP_OIDC_TOKEN;
   if (!oidcToken) {
     throw new Error("Missing GitHub OIDC token for Google workload identity token exchange");
   }
-  core.setSecret(oidcToken);
+  maskSecret(oidcToken);
 
   const response = await fetch("https://sts.googleapis.com/v1/token", {
     method: "POST",
@@ -44,6 +54,7 @@ async function main() {
   if (!accessToken) {
     throw new Error("Google workload identity token exchange returned no access token");
   }
+  maskSecret(accessToken);
 
   const serviceAccount = process.env.GH_AW_OTLP_WIF_SERVICE_ACCOUNT;
   if (serviceAccount) {
@@ -63,9 +74,9 @@ async function main() {
     if (!accessToken) {
       throw new Error("Google service account impersonation returned no access token");
     }
+    maskSecret(accessToken);
   }
 
-  core.setSecret(accessToken);
   core.setOutput("token", accessToken);
   return accessToken;
 }
