@@ -13,13 +13,17 @@ DETECTION_LOG_FILE="${DETECTION_LOG_FILE:-${RESULT_DIR}/detection.log}"
 # The only failure it cannot report on itself is its own absence from PATH.
 if ! command -v threat-detect >/dev/null 2>&1; then
   message="threat-detect binary not found on PATH"
-  if [ "${GH_AW_DETECTION_CONTINUE_ON_ERROR:-true}" != "false" ]; then
+  continue_on_error="${GH_AW_DETECTION_CONTINUE_ON_ERROR:-true}"
+  if [ "${continue_on_error,,}" != "false" ]; then
     echo "::warning::${message}; continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR != false"
     echo "conclusion=warning" >> "${GITHUB_OUTPUT}"
     echo "success=false" >> "${GITHUB_OUTPUT}"
     echo "reason=agent_failure" >> "${GITHUB_OUTPUT}"
     exit 0
   fi
+  echo "conclusion=failure" >> "${GITHUB_OUTPUT}"
+  echo "success=false" >> "${GITHUB_OUTPUT}"
+  echo "reason=agent_failure" >> "${GITHUB_OUTPUT}"
   echo "ERR_SYSTEM: ${message}"
   exit 1
 fi
