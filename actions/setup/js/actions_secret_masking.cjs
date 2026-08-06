@@ -30,6 +30,8 @@ function maskSecret(value) {
     return;
   }
 
+  // shim.cjs marks its throwing placeholder so Actions-side plain Node callers
+  // can still mask via workflow commands without enabling masking in MCP shims.
   if (process.env.GITHUB_ACTIONS === "true") {
     process.stdout.write(`::add-mask::${escapeWorkflowCommandValue(secret)}\n`);
   }
