@@ -1379,6 +1379,11 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
     return "";
   }
 
+  // Apply truncation early to avoid running expensive operations on oversized inputs.
+  // This is a pre-pass truncation on raw content; a second truncation pass is applied
+  // later after normalization (which may reduce length via stripping invisible chars).
+  content = applyTruncation(content, maxLength);
+
   // Build list of allowed domains from environment and GitHub context
   const allowedDomains = buildAllowedDomains();
 
