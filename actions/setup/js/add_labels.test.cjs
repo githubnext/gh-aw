@@ -755,6 +755,111 @@ describe("add_labels", () => {
       expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Crash on upload", confidence: "HIGH" }]);
     });
 
+    it("should use updatePullRequest mutation for PRs when using issue_intent (pull_request field)", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+      const graphqlMutationCalls = [];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "PR_kwDOB7ZBY877o-t0",
+          title: "Test PR title",
+          labels: [],
+          pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/456" },
+        },
+      });
+
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updatePullRequest")) {
+          graphqlMutationCalls.push({ mutation: "updatePullRequest", variables });
+          const labels = (variables?.labels || []).map(l => ({ name: l.name || l.labelId }));
+          return { updatePullRequest: { pullRequest: { id: variables?.prId, labels: { nodes: labels } } } };
+        }
+        return originalGraphql(query, variables);
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "security:medium", rationale: "CVE found", confidence: "HIGH" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["security:medium"]);
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].mutation).toBe("updatePullRequest");
+      expect(graphqlMutationCalls[0].variables.prId).toBe("PR_kwDOB7ZBY877o-t0");
+      expect(graphqlMutationCalls[0].variables.labels).toEqual([{ labelId: "LABEL_security:medium", rationale: "CVE found", confidence: "HIGH" }]);
+    });
+
+    it("should use updatePullRequest mutation for PRs when node_id starts with PR_", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+      const graphqlMutationCalls = [];
+
+      // PR without pull_request field (detected by node_id prefix)
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "PR_kwDOABC123",
+          title: "Test PR",
+          labels: [{ name: "bug" }],
+        },
+      });
+
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updatePullRequest")) {
+          graphqlMutationCalls.push({ mutation: "updatePullRequest", variables });
+          const labels = (variables?.labels || []).map(l => ({ name: l.name || l.labelId }));
+          return { updatePullRequest: { pullRequest: { id: variables?.prId, labels: { nodes: labels } } } };
+        }
+        return originalGraphql(query, variables);
+      };
+
+      const result = await handler(
+        {
+          item_number: 789,
+          labels: [{ name: "enhancement", rationale: "Improves UX", confidence: "MEDIUM" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].mutation).toBe("updatePullRequest");
+      expect(graphqlMutationCalls[0].variables.prId).toBe("PR_kwDOABC123");
+    });
+
+    it("should not call updatePullRequest for regular issues (ISSUE_ node_id)", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+      const updateIssueCalls = [];
+      const updatePRCalls = [];
+
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          updateIssueCalls.push(variables);
+        }
+        if (typeof query === "string" && query.includes("updatePullRequest")) {
+          updatePRCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
+      };
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Crash", confidence: "HIGH" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(updateIssueCalls).toHaveLength(1);
+      expect(updatePRCalls).toHaveLength(0);
+    });
+
     it("should sanitize and trim label names", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];

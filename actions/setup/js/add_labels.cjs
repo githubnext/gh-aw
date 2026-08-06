@@ -278,6 +278,11 @@ const main = createCountGatedHandler({
             throw new Error(`Failed to resolve GraphQL node ID for ${contextType} #${itemNumber}`);
           }
 
+          // Detect whether the item is a pull request. The REST issues endpoint returns a
+          // `pull_request` field for PRs, and PR node IDs start with "PR_". The GraphQL
+          // updateIssue mutation only accepts Issue node IDs; PRs must use updatePullRequest.
+          const itemIsPR = Boolean(issueData?.pull_request) || issueNodeId.startsWith("PR_");
+
           const repoLabels = await fetchAllRepoLabels(githubClient, repoParts.owner, repoParts.repo);
           const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
 
@@ -290,29 +295,56 @@ const main = createCountGatedHandler({
           const labelIntentUpdates = buildIssueIntentLabelUpdates(mergedSpecs, labelIdByName);
 
           core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo} via GraphQL intent mutation`);
-          const result = await withRetry(
-            () =>
-              githubClient.graphql(
-                `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
-                  updateIssue(input: { id: $issueId, labels: $labels }) {
-                    issue {
-                      id
-                      labels(first: 100) {
-                        nodes {
-                          name
+          // Both updateIssue and updatePullRequest use LabelUpdateInput (rationale/confidence/suggest),
+          // which is gated by the "update_issue_suggestions" GraphQL feature flag.
+          const intentHeaders = { "GraphQL-Features": "update_issue_suggestions" };
+          let result;
+          if (itemIsPR) {
+            result = await withRetry(
+              () =>
+                githubClient.graphql(
+                  `mutation($prId: ID!, $labels: [LabelUpdateInput!]!) {
+                    updatePullRequest(input: { pullRequestId: $prId, labels: $labels }) {
+                      pullRequest {
+                        id
+                        labels(first: 100) {
+                          nodes {
+                            name
+                          }
                         }
                       }
                     }
-                  }
-                }`,
-                { issueId: issueNodeId, labels: labelIntentUpdates, headers: { "GraphQL-Features": "update_issue_suggestions" } }
-              ),
-            RATE_LIMIT_RETRY_CONFIG,
-            `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
-          );
+                  }`,
+                  { prId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders }
+                ),
+              RATE_LIMIT_RETRY_CONFIG,
+              `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
+            );
+          } else {
+            result = await withRetry(
+              () =>
+                githubClient.graphql(
+                  `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
+                    updateIssue(input: { id: $issueId, labels: $labels }) {
+                      issue {
+                        id
+                        labels(first: 100) {
+                          nodes {
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }`,
+                  { issueId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders }
+                ),
+              RATE_LIMIT_RETRY_CONFIG,
+              `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
+            );
+          }
 
           core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
-          const afterLabels = result?.updateIssue?.issue?.labels?.nodes || [];
+          const afterLabels = itemIsPR ? result?.updatePullRequest?.pullRequest?.labels?.nodes || [] : result?.updateIssue?.issue?.labels?.nodes || [];
           return attachExecutionState(
             {
               success: true,
