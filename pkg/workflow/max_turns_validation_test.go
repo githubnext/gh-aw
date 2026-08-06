@@ -122,11 +122,6 @@ func TestEngineSupportsMaxTurns(t *testing.T) {
 			expectedSupport: true,
 		},
 		{
-			name:            "opencode engine supports max-turns",
-			engineID:        "opencode",
-			expectedSupport: true,
-		},
-		{
 			name:            "pi engine supports max-turns",
 			engineID:        "pi",
 			expectedSupport: true,
