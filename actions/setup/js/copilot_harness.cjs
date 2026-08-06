@@ -947,9 +947,8 @@ async function main() {
     // The harness always generates the connection token when SDK mode is active.
     // The token is injected into the driver subprocess env so the harness-managed
     // sidecar and the driver's SDK client share the same token.
-    // eslint-disable-next-line gh-aw-custom/require-core-setsecret-for-sensitive-values -- standalone subprocess has no Actions toolkit
     copilotConnectionToken = generateCopilotConnectionToken();
-    core.setSecret(copilotConnectionToken);
+    core.setSecret?.(copilotConnectionToken);
     log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
     log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
   }

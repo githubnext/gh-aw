@@ -209,9 +209,9 @@ async function overridePersistedExtraheader(serverUrl, token, cwd) {
     previousValues = [];
   }
   core.info(`git_auth_helpers: overriding http.${normalizedUrl}/.extraheader with CI trigger token`);
-  core.setSecret(token);
+  core.setSecret?.(token);
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
-  core.setSecret(tokenBase64);
+  core.setSecret?.(tokenBase64);
   const authHeader = `Authorization: basic ${tokenBase64}`;
   core.setSecret?.(authHeader);
 

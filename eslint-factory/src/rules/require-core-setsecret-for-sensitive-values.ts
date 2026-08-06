@@ -131,11 +131,11 @@ export const requireCoreSetSecretForSensitiveValuesRule = createRule({
   meta: {
     type: "problem",
     docs: {
-      description: "Require values that heuristically look like parsed credentials or secrets to be registered with core.setSecret() for GitHub Actions log masking.",
+      description: "Require values that heuristically look like parsed credentials or secrets to be registered with core.setSecret?.() for GitHub Actions log masking.",
     },
     schema: [],
     messages: {
-      requireSetSecret: "Sensitive value '{{name}}' is not passed to core.setSecret(). Register it for GitHub Actions log masking before it can reach logs.",
+      requireSetSecret: "Sensitive value '{{name}}' is not passed to core.setSecret?.(). Register it for GitHub Actions log masking before it can reach logs.",
     },
   },
   defaultOptions: [],

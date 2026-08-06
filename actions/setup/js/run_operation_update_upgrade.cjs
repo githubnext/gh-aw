@@ -159,7 +159,7 @@ async function main() {
   if (!token) {
     throw new Error(`${ERR_CONFIG}: Missing GitHub token: set GH_TOKEN or GITHUB_TOKEN to push changes and create a pull request for agentic workflow update/upgrade operations.`);
   }
-  core.setSecret(token);
+  core.setSecret?.(token);
   const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   let githubHost;
   try {

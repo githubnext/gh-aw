@@ -134,7 +134,7 @@ async function run() {
 
   const inputOTLPOIDCToken = getActionInput("OTLP_OIDC_TOKEN");
   if (inputOTLPOIDCToken) {
-    core.setSecret(inputOTLPOIDCToken);
+    core.setSecret?.(inputOTLPOIDCToken);
     const existingHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
     const mergedHeaders = mergeAuthorizationHeader(existingHeaders, inputOTLPOIDCToken);
 

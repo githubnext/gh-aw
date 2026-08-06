@@ -341,11 +341,11 @@ Why: omitting the radix allows implicit base detection, which can silently accep
 
 ### `require-core-setsecret-for-sensitive-values`
 
-Require values that heuristically look like secrets to be passed to `core.setSecret(...)`. Registering a value with the Actions toolkit masks later occurrences in runner logs.
+Require values that heuristically look like secrets to be passed to `core.setSecret?.(...)`. Registering a value with the Actions toolkit masks later occurrences in runner logs.
 
 The rule tracks declarations and assignments whose names or source properties contain credential terms such as `secret`, `password`, `credential`, `token`, `apiKey`, `privateKey`, or `accessKey`. It follows common parsing and transformation expressions, including environment reads, object properties, `JSON.parse(...)`, input helpers, `Buffer.from(...)`, logical fallbacks, and conditional expressions.
 
-Accepted masking forms include `core.setSecret(value)`, computed access, stable aliases of `core`, and destructured `setSecret` aliases. Passing a derived expression such as `core.setSecret(token.trim())` also masks the tracked binding.
+Accepted masking forms include `core.setSecret?.(value)`, computed access, stable aliases of `core`, and destructured `setSecret` aliases. Passing a derived expression such as `core.setSecret?.(token.trim())` also masks the tracked binding.
 
 To reduce false positives, token accounting names such as `inputTokens`, `tokenCount`, `tokenUsage`, and `tokenThreshold` are ignored, as are boolean presence checks such as `!!process.env.GITHUB_TOKEN`.
 

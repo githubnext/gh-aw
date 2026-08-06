@@ -170,7 +170,7 @@ func (c *Compiler) generateOTLPOIDCMintStep(data *WorkflowData) []string {
 		"          script: |\n",
 		"            const audience = (process.env.GH_AW_OTLP_OIDC_AUDIENCE || '').trim();\n",
 		"            const token = audience ? await core.getIDToken(audience) : await core.getIDToken();\n",
-		"            core.setSecret(token);\n",
+		"            core.setSecret?.(token);\n",
 		"            core.setOutput('token', token);\n",
 	}
 

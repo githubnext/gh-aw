@@ -17,13 +17,13 @@ describe("require-core-setsecret-for-sensitive-values", () => {
   it("accepts sensitive values registered through supported core forms", () => {
     ruleTester.run("require-core-setsecret-for-sensitive-values", requireCoreSetSecretForSensitiveValuesRule, {
       valid: [
-        `const token = process.env.GITHUB_TOKEN; core.setSecret(token);`,
+        `const token = process.env.GITHUB_TOKEN; core.setSecret?.(token);`,
         `const apiKey = process.env.API_KEY; core["setSecret"](apiKey.trim());`,
         `const credential = payload.client_secret; const c = core; c.setSecret(credential);`,
         `const { setSecret: mask } = core; const password = config.password; mask(password);`,
         `const { GITHUB_TOKEN: value } = process.env; coreObj.setSecret(value);`,
-        `const { client_secret: value } = JSON.parse(raw); core.setSecret(value);`,
-        `let accessToken; accessToken = response.access_token; core.setSecret(accessToken);`,
+        `const { client_secret: value } = JSON.parse(raw); core.setSecret?.(value);`,
+        `let accessToken; accessToken = response.access_token; core.setSecret?.(accessToken);`,
       ],
       invalid: [],
     });
@@ -62,7 +62,7 @@ describe("require-core-setsecret-for-sensitive-values", () => {
           errors: [{ messageId: "requireSetSecret", data: { name: "result" } }],
         },
         {
-          code: `const token = process.env.GITHUB_TOKEN; core.setSecret(other, token);`,
+          code: `const token = process.env.GITHUB_TOKEN; core.setSecret?.(other, token);`,
           errors: [{ messageId: "requireSetSecret", data: { name: "token" } }],
         },
       ],
@@ -97,7 +97,7 @@ describe("require-core-setsecret-for-sensitive-values", () => {
       valid: [],
       invalid: [
         {
-          code: `const token = process.env.GITHUB_TOKEN; function mask(token) { core.setSecret(token); }`,
+          code: `const token = process.env.GITHUB_TOKEN; function mask(token) { core.setSecret?.(token); }`,
           errors: [{ messageId: "requireSetSecret", data: { name: "token" } }],
         },
       ],

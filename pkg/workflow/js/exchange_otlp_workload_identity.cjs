@@ -18,7 +18,7 @@ async function main() {
   if (!oidcToken) {
     throw new Error("Missing GitHub OIDC token for Google workload identity token exchange");
   }
-  core.setSecret(oidcToken);
+  core.setSecret?.(oidcToken);
 
   const response = await fetch("https://sts.googleapis.com/v1/token", {
     method: "POST",
@@ -65,7 +65,7 @@ async function main() {
     }
   }
 
-  core.setSecret(accessToken);
+  core.setSecret?.(accessToken);
   core.setOutput("token", accessToken);
   return accessToken;
 }
