@@ -158,6 +158,9 @@ func buildExternalDetectorWorkflowData(data *WorkflowData, engineID string) *Wor
 	if d.EngineConfig.APITarget == "" && data.EngineConfig != nil {
 		d.EngineConfig.APITarget = data.EngineConfig.APITarget
 	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.MaxAICredits != 0 {
+		d.EngineConfig.MaxAICredits = data.SafeOutputs.ThreatDetection.MaxAICredits
+	}
 	return d
 }
 
