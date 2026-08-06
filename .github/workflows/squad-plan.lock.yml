@@ -241,8 +241,9 @@ jobs:
         env:
           GH_AW_AGENT_FOLDERS: ".agents .github .github/agents .squad"
           GH_AW_AGENT_FILES: "AGENTS.md"
-        # poutine:ignore untrusted_checkout_exec
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
+        run: |
+          # poutine:ignore untrusted_checkout_exec
+          bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
         id: check-lock-file
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -295,8 +296,8 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
-        # poutine:ignore untrusted_checkout_exec
         run: |
+          # poutine:ignore untrusted_checkout_exec
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
           cat << 'GH_AW_PROMPT_f3560f97952bd510_EOF'
@@ -410,13 +411,15 @@ jobs:
       - name: Validate prompt placeholders
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        # poutine:ignore untrusted_checkout_exec
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
+        run: |
+          # poutine:ignore untrusted_checkout_exec
+          bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        # poutine:ignore untrusted_checkout_exec
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh"
+        run: |
+          # poutine:ignore untrusted_checkout_exec
+          bash "${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh"
       - name: Detect existing Squad installation
         id: squad-installation
         run: |
@@ -442,8 +445,8 @@ jobs:
       - name: Stage ambient folders for activation artifact
         env:
           GH_AW_AMBIENT_FOLDERS: ".squad .github/agents"
-        # poutine:ignore untrusted_checkout_exec
         run: |
+          # poutine:ignore untrusted_checkout_exec
           mkdir -p /tmp/gh-aw/ambient-folders
           for folder in $GH_AW_AMBIENT_FOLDERS; do
             src="$GITHUB_WORKSPACE/$folder"
@@ -564,8 +567,8 @@ jobs:
       - name: Restore ambient folders from activation artifact
         env:
           GH_AW_AMBIENT_FOLDERS: ".squad .github/agents"
-        # poutine:ignore untrusted_checkout_exec
         run: |
+          # poutine:ignore untrusted_checkout_exec
           for folder in $GH_AW_AMBIENT_FOLDERS; do
             src="/tmp/gh-aw/ambient-folders/$folder"
             dst="$GITHUB_WORKSPACE/$folder"
@@ -621,8 +624,8 @@ jobs:
       - name: Restore ambient folders from activation artifact
         env:
           GH_AW_AMBIENT_FOLDERS: ".squad .github/agents"
-        # poutine:ignore untrusted_checkout_exec
         run: |
+          # poutine:ignore untrusted_checkout_exec
           for folder in $GH_AW_AMBIENT_FOLDERS; do
             src="/tmp/gh-aw/ambient-folders/$folder"
             dst="$GITHUB_WORKSPACE/$folder"
