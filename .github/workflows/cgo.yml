@@ -57,7 +57,7 @@ jobs:
         key: checkout-${{ github.sha }}
 
   verify-integration-build:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -139,9 +139,7 @@ jobs:
     name: Unit tests (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs:
-    - checkout-cache
-    - verify-integration-build
+    needs: [build]
     permissions:
       contents: read
     strategy:
@@ -311,9 +309,7 @@ jobs:
   canary-go:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs:
-    - checkout-cache
-    - test
+    needs: [build]
     if: always() && needs.test.result == 'success'  # Skip coverage check for cancelled/failed test runs
     permissions:
       contents: read
@@ -379,7 +375,7 @@ jobs:
         retention-days: 7
 
   impacted-go-tests:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -500,7 +496,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
 
   zizmor:
-    needs: [build, validate-yaml]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -530,7 +526,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
 
   poutine:
-    needs: [build, validate-yaml]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -560,7 +556,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
 
   actionlint:
-    needs: [build, validate-yaml]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -590,7 +586,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
 
   build-wasm:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -690,7 +686,7 @@ jobs:
       run: node scripts/test-wasm-golden.mjs
 
   validate-yaml:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1148,7 +1144,7 @@ jobs:
   bench:
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -1316,7 +1312,7 @@ jobs:
 
   check-validator-sizes:
     name: Check validator file sizes
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Non-blocking: report violations but don't fail the build until existing files are cleaned up
@@ -1353,7 +1349,7 @@ jobs:
         exit "$EXIT_CODE"
 
   lint-go:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -1466,7 +1462,7 @@ jobs:
       run: make lint-action-sh
 
   lint-error-messages:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1493,7 +1489,7 @@ jobs:
       run: make lint-errors
 
   actions-build:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1560,7 +1556,7 @@ jobs:
   fuzz:
     # Only run fuzz tests on main branch (10s is insufficient for PRs)
     if: github.ref == 'refs/heads/main'
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -1732,7 +1728,7 @@ jobs:
         retention-days: 7
 
   security:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1796,7 +1792,7 @@ jobs:
   security-scan:
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Prevent jobs from hanging indefinitely
     permissions:
@@ -1871,7 +1867,7 @@ jobs:
       run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }} --verbose
 
   mcp-server-compile-test:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -2048,6 +2044,7 @@ jobs:
 
   cross-platform-build:
     name: Build & Test on ${{ matrix.os }}
+    needs: [build]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     permissions:
@@ -2062,8 +2059,12 @@ jobs:
       group: ci-${{ github.ref }}-cross-platform-${{ matrix.os }}
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -2433,7 +2434,7 @@ jobs:
 
   alpine-container-test:
     name: Alpine Container Test
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -2574,7 +2575,7 @@ jobs:
         rm -rf test-workspace
 
   safe-outputs-conformance:
-    needs: [checkout-cache]
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
