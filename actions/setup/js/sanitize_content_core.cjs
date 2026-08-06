@@ -223,10 +223,22 @@ function sanitizeDomainName(domain) {
  * @returns {string} The string with userinfo removed from all URLs
  */
 function stripUrlUserinfo(s) {
-  // Match any scheme://[userinfo@]host pattern and remove the userinfo part.
-  // [^@\s/]+ matches a non-empty userinfo component (no spaces or slashes).
-  // The optional :[^@\s/]* allows for a password or token after a colon.
-  return s.replace(/([a-z][a-z0-9+.-]*:\/\/)([^@\s/]+(?::[^@\s/]*)?)@/gi, "$1");
+  // Capture the authority-like component right after scheme:// - everything
+  // up to the start of the path (/), query (?), fragment (#), or whitespace.
+  // This is a single, unambiguous character-class match (no nested
+  // quantifiers), so it runs in linear time and cannot cause catastrophic
+  // backtracking on pathological input.
+  //
+  // Once captured, look for the LAST "@" within that authority component (in
+  // plain JS, not regex) and drop everything up to and including it. Using
+  // the last "@" ensures chained userinfo values (e.g. "a@b@c@host") are
+  // fully stripped, while stopping the authority match at "?"/"#" ensures an
+  // ordinary URL whose query string happens to contain "@" is left untouched.
+  return s.replace(/([a-z][a-z0-9+.-]*:\/\/)([^\s/?#]*)/gi, (match, scheme, authority) => {
+    const at = authority.lastIndexOf("@");
+    if (at === -1) return match;
+    return scheme + authority.slice(at + 1);
+  });
 }
 
 /**

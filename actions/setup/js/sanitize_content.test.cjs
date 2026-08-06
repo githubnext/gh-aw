@@ -1329,7 +1329,7 @@ describe("sanitize_content.cjs", () => {
     it("should log redacted protocol-relative URL domains", () => {
       sanitizeContent("Visit //evil.com/steal");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Redacted URL:"));
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
+      expect(mockCore.debug).not.toHaveBeenCalledWith(expect.stringContaining("Redacted URL (full):"));
     });
 
     it("should redact protocol-relative URL with port number", () => {
@@ -1474,10 +1474,11 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should handle domains with special characters in URL context", () => {
-      // The regex captures domain up to first special character like @
-      // So http://ex@mple-domain.co_uk.net captures only "ex" as domain
+      // Userinfo (ex@) is now stripped before domain matching, so the domain
+      // captured is "mple-domain.co_uk.net", sanitized to remove non-alphanumeric
+      // characters.
       const result = sanitizeContent("Visit http://ex@mple-domain.co_uk.net/path");
-      expect(result).toContain("(ex/redacted)");
+      expect(result).toContain("(mpledomain.couk.net/redacted)");
     });
 
     it("should preserve simple domain structure", () => {
