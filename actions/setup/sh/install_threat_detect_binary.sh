@@ -15,6 +15,11 @@ set +o histexpand
 #
 # Platform support:
 #   - Linux (x64, arm64): Downloads pre-built binary
+#   - macOS: NOT supported. Agentic workflows require Linux container jobs, and the
+#     compiler rejects macOS runner labels (including
+#     safe-outputs.threat-detection.runs-on) before a workflow is generated. If this
+#     script is ever reached on Darwin it fails fast with an explicit message instead
+#     of attempting a download.
 #
 # Security features:
 #   - Downloads directly from GitHub releases
@@ -27,6 +32,7 @@ set -euo pipefail
 THREAT_DETECT_REPO="github/gh-aw-threat-detection"
 THREAT_DETECT_INSTALL_DIR="/usr/local/bin"
 THREAT_DETECT_INSTALL_NAME="threat-detect"
+MACOS_FAQ_URL="https://github.github.com/gh-aw/reference/faq/#why-are-macos-runners-not-supported"
 
 # Parse arguments: treat the first non-flag argument as VERSION, all --<flag> arguments as flags.
 THREAT_DETECT_VERSION=""
@@ -78,6 +84,24 @@ OS="$(uname -s)"
 ARCH="$(uname -m)"
 
 echo "Installing threat-detect with checksum verification (version: ${THREAT_DETECT_VERSION}, os: ${OS}, arch: ${ARCH})"
+
+# Fail fast on unsupported platforms before any network access. Only Linux is supported:
+# agentic workflows require Linux container jobs, and the compiler rejects macOS runner
+# labels (including safe-outputs.threat-detection.runs-on) at compile time.
+case "$OS" in
+  Linux) ;;
+  Darwin)
+    echo "ERROR: macOS is not a supported platform for threat-detect."
+    echo "  Agentic workflows require Linux container jobs; use a Linux runner instead."
+    echo "  See ${MACOS_FAQ_URL} for details."
+    exit 1
+    ;;
+  *)
+    echo "ERROR: Unsupported operating system: ${OS}"
+    echo "  threat-detect is only published for Linux (x64, arm64)."
+    exit 1
+    ;;
+esac
 
 # Download URLs
 BASE_URL="https://github.com/${THREAT_DETECT_REPO}/releases/download/${THREAT_DETECT_VERSION}"
@@ -150,39 +174,7 @@ install_linux_binary() {
   maybe_sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
 }
 
-install_darwin_binary() {
-  # Determine binary name based on architecture
-  local binary_name
-  case "$ARCH" in
-    x86_64) binary_name="threat-detect-darwin-x64" ;;
-    arm64) binary_name="threat-detect-darwin-arm64" ;;
-    *) echo "ERROR: Unsupported macOS architecture: ${ARCH}"; exit 1 ;;
-  esac
-
-  local binary_url="${BASE_URL}/${binary_name}"
-  echo "Downloading binary from \"${binary_url}\"..."
-  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 -o "${TEMP_DIR}/${binary_name}" "${binary_url}"
-
-  # Verify checksum
-  verify_checksum "${TEMP_DIR}/${binary_name}" "${binary_name}"
-
-  # Make binary executable and install
-  chmod +x "${TEMP_DIR}/${binary_name}"
-  maybe_sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
-}
-
-case "$OS" in
-  Linux)
-    install_linux_binary
-    ;;
-  Darwin)
-    install_darwin_binary
-    ;;
-  *)
-    echo "ERROR: Unsupported operating system: ${OS}"
-    exit 1
-    ;;
-esac
+install_linux_binary
 
 # In rootless mode, add the install dir to PATH for subsequent steps.
 if [ "$ROOTLESS" = "true" ]; then
