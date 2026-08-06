@@ -289,15 +289,6 @@ const existingItemResponse = (projectId, itemId = "existing-item") => ({
   },
 });
 
-const projectItemsResponse = (projectId, itemId = "existing-item") => ({
-  node: {
-    projectItems: {
-      nodes: [{ id: itemId, project: { id: projectId } }],
-      pageInfo: { hasNextPage: false, endCursor: null },
-    },
-  },
-});
-
 const fieldsResponse = (nodes, hasNextPage = false, endCursor = null) => ({
   node: { fields: { nodes, pageInfo: { hasNextPage, endCursor } } },
 });
@@ -498,7 +489,7 @@ describe("updateProject", () => {
       if (q.includes("issue(number:")) return issueResponse("issue-id-42");
       if (q.includes("node(id: $contentId)") && q.includes("projectItems(")) {
         expect(vars).toMatchObject({ contentId: "issue-id-42" });
-        return projectItemsResponse("project123", "item-from-content");
+        return existingItemResponse("project123", "item-from-content");
       }
       throw new Error(`Unexpected GraphQL query: ${q}`);
     });
