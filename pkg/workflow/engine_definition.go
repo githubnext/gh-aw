@@ -286,6 +286,13 @@ type EngineDefinition struct {
 	DisplayName  string `yaml:"display-name,omitempty"`
 	Description  string `yaml:"description,omitempty"`
 	Experimental bool   `yaml:"experimental,omitempty"`
+	// Version is the default engine version applied to EngineConfig.Version when
+	// the workflow's own frontmatter (or an inline engine override) does not set
+	// an explicit version. This lets a shared engine definition (e.g. a
+	// behavior-defined engine imported from a Markdown file) carry a pinned
+	// default version that downstream steps and env vars (such as
+	// GH_AW_ENGINE_VERSION) can rely on even when workflows omit engine.version.
+	Version string `yaml:"version,omitempty"`
 	// MCP indicates whether the engine supports MCP. Nil defaults to supported.
 	MCP              *bool  `yaml:"mcp,omitempty"`
 	GHSkillAgentName string `yaml:"gh-skill-agent-name,omitempty"`

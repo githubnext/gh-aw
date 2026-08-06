@@ -153,6 +153,44 @@ func TestValidateRunsOn(t *testing.T) {
 			errorInMsg:  "safe-outputs.threat-detection.runs-on",
 			description: "threat-detection runs-on labels containing macos runner should be rejected",
 		},
+		{
+			name: "macos string in safe-outputs.threat-detection.runs-on",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"runs-on": "macos-latest",
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.threat-detection.runs-on",
+			description: "threat-detection runs-on string macos runner should be rejected",
+		},
+		{
+			name: "macos in safe-outputs.threat-detection.runs-on array",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"runs-on": []any{"self-hosted", "macOS", "arm64"},
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.threat-detection.runs-on",
+			description: "threat-detection runs-on array containing macos runner should be rejected",
+		},
+		{
+			name: "linux runner in safe-outputs.threat-detection.runs-on",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"threat-detection": map[string]any{
+						"runs-on": "ubuntu-latest",
+					},
+				},
+			},
+			wantErr:     false,
+			description: "threat-detection runs-on with a Linux runner should be accepted",
+		},
 	}
 
 	for _, tt := range tests {

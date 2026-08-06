@@ -6,6 +6,10 @@
 // is not caught by the caller's recover, so any goroutine that might panic
 // should defer a recover to contain the failure locally.
 //
+// The guard may be an inline literal (`defer func() { recover() }()`) or a
+// deferred named function or method declared in the same package whose body
+// calls recover() directly, since both forms stop a panic per the Go spec.
+//
 // Only goroutines launched with a function literal (`go func() { ... }()`)
 // are checked. Goroutines that call a named function (`go f()`) are out of
 // scope because the named function can install its own recovery.
@@ -40,6 +44,8 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
+	funcBodies := indexFuncBodies(pass)
+
 	nodeFilter := []ast.Node{(*ast.GoStmt)(nil)}
 	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		goStmt, ok := n.(*ast.GoStmt)
@@ -63,7 +69,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if hasTopLevelRecoverDefer(call.Body, pass.TypesInfo) {
+		if hasTopLevelRecoverDefer(call.Body, pass.TypesInfo, funcBodies) {
 			return
 		}
 
@@ -86,10 +92,13 @@ func unwrapParens(expr ast.Expr) ast.Expr {
 }
 
 // hasTopLevelRecoverDefer reports whether body contains a top-level defer
-// statement whose call is a function literal that itself calls recover().
-// Only the direct statements of body are examined; nested function bodies are
-// not descended into.
-func hasTopLevelRecoverDefer(body *ast.BlockStmt, typesInfo *types.Info) bool {
+// statement whose deferred function calls recover() directly. Per the Go
+// spec, recover() stops a panic when it is called directly by the deferred
+// function, so both an inline function literal and a statically resolvable
+// named function (or method) declared in the same package qualify. Only the
+// direct statements of body are examined; nested function bodies are not
+// descended into.
+func hasTopLevelRecoverDefer(body *ast.BlockStmt, typesInfo *types.Info, funcBodies map[*types.Func]*ast.BlockStmt) bool {
 	if body == nil {
 		return false
 	}
@@ -99,15 +108,83 @@ func hasTopLevelRecoverDefer(body *ast.BlockStmt, typesInfo *types.Info) bool {
 			continue
 		}
 		// Unwrap parentheses: defer (func() { ... })() is valid Go.
-		fn, ok := unwrapParens(deferStmt.Call.Fun).(*ast.FuncLit)
+		fun := unwrapParens(deferStmt.Call.Fun)
+		if fn, ok := fun.(*ast.FuncLit); ok {
+			if containsRecoverCall(fn.Body, typesInfo) {
+				return true
+			}
+			continue
+		}
+		// The deferred call target is not a literal: try to resolve it to a
+		// function declared in this package and inspect its body.
+		deferredBody, ok := resolveFuncBody(fun, typesInfo, funcBodies)
 		if !ok {
 			continue
 		}
-		if containsRecoverCall(fn.Body, typesInfo) {
+		if containsRecoverCall(deferredBody, typesInfo) {
 			return true
 		}
 	}
 	return false
+}
+
+// indexFuncBodies maps every function and method declared in the analysed
+// package to its body, so that a deferred named function can be inspected for
+// a direct recover() call.
+func indexFuncBodies(pass *analysis.Pass) map[*types.Func]*ast.BlockStmt {
+	bodies := make(map[*types.Func]*ast.BlockStmt)
+	for _, file := range pass.Files {
+		for _, decl := range file.Decls {
+			funcDecl, ok := decl.(*ast.FuncDecl)
+			if !ok || funcDecl.Body == nil || funcDecl.Name == nil {
+				continue
+			}
+			fn, ok := pass.TypesInfo.Defs[funcDecl.Name].(*types.Func)
+			if !ok {
+				continue
+			}
+			bodies[fn.Origin()] = funcDecl.Body
+		}
+	}
+	return bodies
+}
+
+// resolveFuncBody resolves a deferred call target expression to the body of a
+// function declared in the analysed package. It returns false when the target
+// is not a statically known function (for example a variable holding a func
+// value) or when its body is unavailable (for example a function from another
+// package or one without a Go body).
+func resolveFuncBody(fun ast.Expr, typesInfo *types.Info, funcBodies map[*types.Func]*ast.BlockStmt) (*ast.BlockStmt, bool) {
+	var ident *ast.Ident
+	switch target := fun.(type) {
+	case *ast.Ident:
+		ident = target
+	case *ast.SelectorExpr:
+		if sel, ok := typesInfo.Selections[target]; ok {
+			fn, ok := sel.Obj().(*types.Func)
+			if !ok {
+				return nil, false
+			}
+			body, ok := funcBodies[fn.Origin()]
+			return body, ok
+		}
+		// Package-qualified function (pkg.Fn) — no selection recorded and the
+		// body lives in another package, so it cannot be inspected.
+		return nil, false
+	case *ast.IndexExpr:
+		// Explicit instantiation of a generic function: f[T].
+		return resolveFuncBody(unwrapParens(target.X), typesInfo, funcBodies)
+	case *ast.IndexListExpr:
+		return resolveFuncBody(unwrapParens(target.X), typesInfo, funcBodies)
+	default:
+		return nil, false
+	}
+	fn, ok := typesInfo.Uses[ident].(*types.Func)
+	if !ok {
+		return nil, false
+	}
+	body, ok := funcBodies[fn.Origin()]
+	return body, ok
 }
 
 // containsRecoverCall reports whether body contains a direct call to the

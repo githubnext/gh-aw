@@ -202,9 +202,9 @@ func compileSpecificFiles(
 			return workflowDataList, err
 		}
 		if err := RunZizmorOnFiles(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
+			// Always fail on high/critical severity findings (zizmor returns errors for those
+			// regardless of strict mode). In strict mode, all findings are errors.
+			return workflowDataList, err
 		}
 	}
 
@@ -514,9 +514,7 @@ func compileAllFilesInDirectory(
 			return workflowDataList, err
 		}
 		if err := RunZizmorOnFiles(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
+			return workflowDataList, err
 		}
 	}
 
