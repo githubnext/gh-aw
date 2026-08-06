@@ -1587,6 +1587,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Daily report of AI Credits (AIC) consumption across all agentic workflows using OTel telemetry from Sentry and Grafana"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1615,6 +1616,11 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        env:
+          WORKFLOW_NAME: "Daily AIC Consumption Report (Sentry + Grafana OTel)"
+          WORKFLOW_DESCRIPTION: "Daily report of AI Credits (AIC) consumption across all agentic workflows using OTel telemetry from Sentry and Grafana"
+          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt

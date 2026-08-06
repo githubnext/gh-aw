@@ -372,13 +372,43 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	}
 	command := BuildAWFCommand(awfConfig)
 
+	// Reuse the engine's own execution env block so the external detector path
+	// gets the same token/model/runtime environment configuration as the agent job.
+	executionSteps := engine.GetExecutionSteps(threatDetectionData, constants.ThreatDetectionLogPath)
+	var envLines []string
+	if len(executionSteps) > 0 {
+		envLines = extractStepEnvLines(executionSteps[0])
+		if len(envLines) == 0 {
+			threatLog.Printf("Detection engine %q execution step did not expose env lines; external detector will run with minimal env", engineID)
+		}
+	} else {
+		threatLog.Printf("Detection engine %q did not generate execution steps; external detector will run with minimal env", engineID)
+	}
+
+	continueOnError := true
+	var continueOnErrorExpr *string
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
+		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
+	}
+
 	steps := []string{
 		"      - name: Execute threat detection with AWF\n",
 		"        id: detection_agentic_execution\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        continue-on-error: true\n",
-		"        run: |\n",
 	}
+	if len(envLines) == 0 {
+		steps = append(steps, "        env:\n")
+	} else {
+		for _, line := range envLines {
+			steps = append(steps, line+"\n")
+		}
+	}
+	// Pass context as environment variables: AWF's --env-all forwards them to
+	// threat-detect without interpolating user-controlled prompt text into a command.
+	steps = append(steps, c.buildThreatDetectionContextEnvVars(data, continueOnError, continueOnErrorExpr)...)
+	steps = append(steps, "        run: |\n")
 	for _, line := range strings.SplitAfter(command, "\n") {
 		if line == "" {
 			continue
@@ -388,21 +418,6 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 			prefixed += "\n"
 		}
 		steps = append(steps, prefixed)
-	}
-
-	// Reuse the engine's own execution env block so the external detector path
-	// gets the same token/model/runtime environment configuration as the agent job.
-	executionSteps := engine.GetExecutionSteps(threatDetectionData, constants.ThreatDetectionLogPath)
-	if len(executionSteps) > 0 {
-		envLines := extractStepEnvLines(executionSteps[0])
-		if len(envLines) == 0 {
-			threatLog.Printf("Detection engine %q execution step did not expose env lines; external detector will run with minimal env", engineID)
-		}
-		for _, line := range envLines {
-			steps = append(steps, line+"\n")
-		}
-	} else {
-		threatLog.Printf("Detection engine %q did not generate execution steps; external detector will run with minimal env", engineID)
 	}
 
 	return steps
