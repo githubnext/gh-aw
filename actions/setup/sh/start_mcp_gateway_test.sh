@@ -308,7 +308,6 @@ test_validation_functions_exist() {
 }
 
 test_gateway_logs_not_generated() {
-  ((TESTS_RUN++))
   if grep -Eq "/tmp/gh-aw/mcp-logs/(stderr|start-gateway)\.log" "$SCRIPT_PATH"; then
     print_result "MCP gateway stderr and startup logs are not generated" "FAIL"
   else
