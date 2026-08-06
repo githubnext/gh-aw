@@ -1,7 +1,7 @@
 # ADR-29031: Threat Detection Parse-Step Resilience in Warn Mode
 
 **Date**: 2026-04-29
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: Unknown (automated fix by copilot-swe-agent)
 
 ---
@@ -51,7 +51,7 @@ Instead of patching the detection job, we could change the `safe_outputs` depend
 1. When the threat detection configuration specifies warn mode (`continue-on-error: true`), the compiled YAML step with `id: detection_conclusion` **MUST** include `continue-on-error: true`.
 2. The JavaScript parse script **MUST** wrap its entire execution body in a top-level `try/catch` block so that any uncaught runtime exception is routed through `setDetectionFailure()`.
 3. `setDetectionFailure()` **MUST** always call `core.setOutput` for `conclusion`, `success`, and `reason` before returning, regardless of the failure mode.
-4. In warn mode, `setDetectionFailure()` **MUST NOT** call `core.setFailed()`, ensuring the step exits with code 0 and the detection job can succeed.
+4. In warn mode, `setDetectionFailure()` **MUST NOT** call `core.setFailed()`, except when the detection execution failed and the reason is `agent_failure` or `parse_error`. That exception **MUST** fail the step, ensuring an engine failure does not allow `safe_outputs` to proceed.
 
 ### Threat Detection Parse Step — Strict Mode
 
@@ -78,13 +78,8 @@ github/gh-aw#50646 identified that the external `threat-detect` binary (v0.4.0+)
 mustFail := c.executionFailed && (reason == "agent_failure" || reason == "parse_error")
 ```
 
-i.e. even in warn mode, `threat-detect conclude` fails closed when the detection engine's own agentic execution step also failed. The inline path's `setDetectionFailure()` has no equivalent — per this ADR's normative rule (Threat Detection Parse Step — Warn Mode, item 4), it **MUST NOT** call `core.setFailed()` in warn mode, full stop. This is codified by the `"should warn when detection execution failed in warn mode"` test in `parse_threat_detection_results.test.cjs`.
+i.e. even in warn mode, `threat-detect conclude` fails closed when the detection engine's own agentic execution step also failed. The inline path now implements the same rule, as covered by the `"should fail when detection execution failed in warn mode"` test in `parse_threat_detection_results.test.cjs`.
 
-**Decision**: Option 1 — the external `threat-detect` binary's `mustFail` override is dropped so its behavior matches this ADR exactly. The inline path's warn-mode resilience guarantee (established above, with its own rationale, alternatives-considered analysis, and consequences) remains the single source of truth for both detector paths. No inline-path code change is made as part of this amendment; this decision is recorded here so it is discoverable, and is tracked upstream against the `gh-aw-threat-detection` binary (see github/gh-aw-threat-detection#694).
+**Decision**: Option 2 — the inline path adopts the external binary's `mustFail` override. When the detection engine itself failed, `agent_failure` and `parse_error` fail closed in warn mode; all other warn-mode failure handling remains unchanged. This preserves a single contract across both detector paths while preventing a failed detection engine from allowing `safe_outputs` to proceed.
 
-Rationale for choosing Option 1 over Option 2 (having gh-aw adopt `mustFail` on the inline path instead):
-
-- Option 2 is a silent behavior change for every workflow currently running in warn mode (the default): a detection engine failure that previously produced a `warning` conclusion would newly block `safe_outputs`. That contradicts the very resilience guarantee this ADR was written to establish, and would need to re-litigate the "Alternatives Considered" analysis above rather than simply amend it.
-- Keeping one authoritative warn-mode contract for both detector paths (inline and external) avoids the "two implementations, subtly different" drift class called out in github/gh-aw#50646, without introducing a new drift class between "warn mode most of the time" and "warn mode except when the engine step also failed."
-
-*This ADR is final. The external detector implementation is tracked in github/gh-aw-threat-detection#694.*
+*This ADR is final.*
