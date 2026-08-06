@@ -326,3 +326,26 @@ content there could realistically breach 4096 KB).
   HISTORY=shallow (5 entries in history.md). This begins probing whether history.md
   entry count (vs raw patch bytes) has any independent cost effect, since history.md
   content itself is tiny/negligible-sized regardless of entry count in most designs.
+
+## Run 2026-08-06: idx180-183 (HISTORY moves off "none" — tiny-shallow-single-micro tier opened)
+
+- **idx180 clean-single: PASS.** 1f/3KB (1KB payload target, 5 history.md entries,
+  0 stuff.md entries). Framing dominates at this scale as expected (micro-tier law
+  holds). 1c/1 parent/0 merges.
+- **idx181 clean-multi: PASS.** 1f/3KB/3c (2 empty follow-up commits per multi
+  convention at file_count=1 — no additional file content, so disjoint-multi ratio
+  law doesn't apply distinctly here; only the single real file diff counts).
+- **idx182 clean-merge_msg: PASS.** 1f/3KB/1c. Filename/message convention holds
+  (single-parent, 0 merges, message text only).
+- **idx183 ahead-single: PASS.** Initial 1f/3KB + followup push 1f/~0KB (tiny extra
+  file) = 2f/3KB/2c total. ff rc0 (old tip → new tip ancestor), confirms append-only
+  clean fast-forward law still holds at HISTORY=shallow.
+- **HISTORY=shallow (5 entries) has ZERO measurable cost impact** vs HISTORY=none at
+  same SIZE/FILES/PATCH tier — history.md content itself stays tiny regardless of
+  entry count in this range; patch sizes (~3KB) match the tiny-none-single-micro
+  baseline (idx0) almost exactly. Confirms history.md entry count is NOT itself a
+  cost driver (only stuff.md/patch payload sizes drive measured KB).
+- **Zero real fail/error/rejected across 184 cells.**
+- **Next index: 184** = tiny-shallow-single-micro-diverged-single (closes the
+  shallow-single-micro tier; ahead/diverged/clean × single/multi/merge_msg = 9 cells,
+  184-188 remain... actually clean×3 + ahead-single done = 4/9, remaining 5).
