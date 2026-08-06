@@ -22,3 +22,25 @@ func TestErrorMessage(t *testing.T) {
 
 	analysistest.Run(t, analysistest.TestData(), errormessage.Analyzer, "errormessage")
 }
+
+func TestErrorMessageFullRepoFlag(t *testing.T) {
+	if err := errormessage.Analyzer.Flags.Set("full-repo", "true"); err != nil {
+		t.Fatalf("failed to set full-repo flag: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = errormessage.Analyzer.Flags.Set("full-repo", "false")
+	})
+
+	analysistest.Run(t, analysistest.TestData(), errormessage.Analyzer, "errormessage")
+}
+
+func TestErrorMessageFullRepoSentinel(t *testing.T) {
+	if err := errormessage.Analyzer.Flags.Set("changed-files", "all"); err != nil {
+		t.Fatalf("failed to set changed-files flag: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = errormessage.Analyzer.Flags.Set("changed-files", "")
+	})
+
+	analysistest.Run(t, analysistest.TestData(), errormessage.Analyzer, "errormessage")
+}

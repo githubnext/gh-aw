@@ -1023,6 +1023,16 @@ lint-cjs: fmt-check-cjs validate-cjs-syntax check-node-version
 lint-json: fmt-check-json
 	@echo "✓ JSON formatting validated"
 
+# Full-repository error-message audit (non-blocking report).
+# Reports pre-existing error-message violations across the repo so the debt can
+# be tracked as a metric over time. Always exits 0.
+.PHONY: lint-error-messages-report
+lint-error-messages-report:
+	@echo "Building custom linters..."
+	@env -u GOOS -u GOARCH go build -o /tmp/gh-aw-linters ./cmd/linters
+	@echo "Auditing error messages across $(LINTER_PACKAGES) (non-blocking)..."
+	@/tmp/gh-aw-linters -errormessage -errormessage.full-repo $(LINTER_PACKAGES) || true
+
 # Lint error messages for quality compliance
 .PHONY: lint-errors
 lint-errors:
@@ -1399,6 +1409,7 @@ help:
 	@echo "  validate-cjs-syntax - Syntax-check all non-test .cjs files (catches module-load SyntaxErrors)"
 	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
+	@echo "  lint-error-messages-report - Non-blocking full-repo error message audit"
 	@echo "  validate-otel-contract - Validate the gh-aw OpenTelemetry compatibility contract"
 	@echo "  lint-action-sh   - Lint action shell scripts for python/python3 invocations"
 	@echo "  shellcheck-setup-sh - Run shellcheck on actions/setup/sh scripts"
