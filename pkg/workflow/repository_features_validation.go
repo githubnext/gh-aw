@@ -275,15 +275,10 @@ func checkRepositoryHasDiscussions(repo string, verbose bool) (bool, error) {
 	return features.HasDiscussions, nil
 }
 
-// checkRepositoryHasDiscussionsUncached checks if a repository has discussions enabled (no caching)
+// checkRepositoryHasDiscussionsUncached checks if a repository has discussions enabled, bypassing
+// only the in-process repositoryFeaturesCache/repositoryFeaturesLoggedCache layers.
+// The underlying go-gh client still uses disk-backed HTTP response caching when enabled.
 func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
-	// Split repo into owner and name
-	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return false, fmt.Errorf("invalid repository format: %s. Expected format: owner/repo. Example: github/gh-aw", repo)
-	}
-	owner, name := parts[0], parts[1]
-
 	// Use native GraphQL client — no gh binary dependency, native context/cancel support.
 	// EnableCache persists the (rarely-changing) discussions-enabled lookup to go-gh's
 	// disk-backed HTTP cache so repeated CLI invocations don't re-query the API.
@@ -294,6 +289,19 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to create GraphQL client: %w", err)
 	}
+	return checkRepositoryHasDiscussionsUncachedWithClient(repo, client)
+}
+
+// checkRepositoryHasDiscussionsUncachedWithClient is the testable core of
+// checkRepositoryHasDiscussionsUncached. It accepts an injectable GraphQL client so
+// unit tests can assert cache behavior without live credentials.
+func checkRepositoryHasDiscussionsUncachedWithClient(repo string, client *api.GraphQLClient) (bool, error) {
+	// Split repo into owner and name
+	parts := strings.SplitN(repo, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return false, fmt.Errorf("invalid repository format: %s. Expected format: owner/repo. Example: github/gh-aw", repo)
+	}
+	owner, name := parts[0], parts[1]
 
 	var response struct {
 		Repository struct {
@@ -320,7 +328,9 @@ func checkRepositoryHasIssues(repo string, verbose bool) (bool, error) {
 	return features.HasIssues, nil
 }
 
-// checkRepositoryHasIssuesUncached checks if a repository has issues enabled (no caching)
+// checkRepositoryHasIssuesUncached checks if a repository has issues enabled, bypassing
+// only the in-process repositoryFeaturesCache/repositoryFeaturesLoggedCache layers.
+// The underlying go-gh client still uses disk-backed HTTP response caching when enabled.
 func checkRepositoryHasIssuesUncached(repo string) (bool, error) {
 	// Create REST client. EnableCache persists the (rarely-changing) has-issues lookup to
 	// go-gh's disk-backed HTTP cache so repeated CLI invocations don't re-query the API.

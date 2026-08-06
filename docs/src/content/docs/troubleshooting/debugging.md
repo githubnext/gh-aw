@@ -139,7 +139,7 @@ DEBUG=workflow:*,cli:* gh aw compile           # multiple packages
 
 ### Enable GitHub API Request Logging
 
-`gh aw` uses go-gh's native REST/GraphQL clients for all GitHub API calls. Setting `GH_DEBUG=api` prints verbose request/response details for those calls to stderr, with no extra flags needed:
+`gh aw` uses go-gh's native REST/GraphQL clients for many GitHub API calls. Setting `GH_DEBUG=api` prints verbose request/response details for calls made through those go-gh clients, with no extra flags needed:
 
 ```bash
 GH_DEBUG=api gh aw compile my-workflow
