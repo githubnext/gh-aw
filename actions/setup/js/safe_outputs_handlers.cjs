@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 
@@ -2093,6 +2094,47 @@ function createHandlers(server, appendSafeOutput, config = {}) {
   };
 
   /**
+   * Validate that a canonical absolute path does not refer to sensitive system or credential
+   * locations. Returns an error message string, or null if the path is safe.
+   *
+   * Rejected patterns:
+   *  - Any path with a ".git" directory component (prevents .git/config leakage).
+   *  - System directories: /etc, /proc, /sys, /dev, /run, /boot, /lib*, /usr/lib*.
+   *  - HOME credential/config subtrees: .ssh, .aws, .netrc, .npmrc, .gitconfig, .gnupg,
+   *    .config, .docker, .kube, .azure, .gcp.
+   *
+   * @param {string} canonicalPath - Resolved absolute path (output of fs.realpathSync or path.resolve)
+   * @returns {string|null}
+   */
+  function validateUploadSourcePath(canonicalPath) {
+    const parts = canonicalPath.split(path.sep);
+    if (parts.some(p => p === ".git")) {
+      return `path contains sensitive repository metadata (.git): ${canonicalPath}`;
+    }
+
+    const systemDenied = ["/etc", "/proc", "/sys", "/dev", "/run", "/boot", "/lib", "/lib64", "/usr/lib", "/usr/local/lib"];
+    for (const denied of systemDenied) {
+      const normalDenied = path.resolve(denied);
+      if (canonicalPath === normalDenied || canonicalPath.startsWith(normalDenied + path.sep)) {
+        return `path refers to a system directory: ${canonicalPath}`;
+      }
+    }
+
+    const homeDir = os.homedir();
+    if (homeDir) {
+      const sensitiveNames = [".ssh", ".aws", ".gnupg", ".docker", ".kube", ".azure", ".gcp", ".config", ".netrc", ".npmrc", ".gitconfig", ".gitcredentials", ".git-credentials"];
+      for (const name of sensitiveNames) {
+        const sensitive = path.join(path.resolve(homeDir), name);
+        if (canonicalPath === sensitive || canonicalPath.startsWith(sensitive + path.sep)) {
+          return `path refers to a sensitive HOME location: ${canonicalPath}`;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Recursively copy all regular files from srcDir into destDir, preserving the relative
    * path structure under srcDir. Non-regular entries (sockets, devices, pipes, symlinks)
    * are skipped silently.
@@ -2121,6 +2163,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       } else if (ent.isFile() && !ent.isSymbolicLink() && !fs.existsSync(destPath)) {
         try {
           fs.copyFileSync(srcPath, destPath);
+          fs.chmodSync(destPath, 0o600);
         } catch (err) {
           throw new Error(`Failed to copy file ${srcPath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
         }
@@ -2172,7 +2215,40 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         };
       }
 
+      // Canonicalize to detect traversal escapes and symlink chains.
+      let canonicalFilePath;
+      try {
+        canonicalFilePath = fs.realpathSync(filePath);
+      } catch {
+        canonicalFilePath = path.resolve(filePath);
+      }
+
+      // Reject sensitive paths (system dirs, .git, HOME credentials).
+      const sensitiveError = validateUploadSourcePath(canonicalFilePath);
+      if (sensitiveError) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_artifact: ${sensitiveError}`,
+        };
+      }
+
+      // Enforce allowed canonical source roots: staging dir, GITHUB_WORKSPACE, RUNNER_TEMP.
       const stagingDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "safeoutputs", "upload-artifacts");
+      const allowedRoots = [path.resolve(stagingDir)];
+      if (process.env.GITHUB_WORKSPACE) {
+        allowedRoots.push(path.resolve(process.env.GITHUB_WORKSPACE));
+      }
+      if (process.env.RUNNER_TEMP) {
+        allowedRoots.push(path.resolve(process.env.RUNNER_TEMP));
+      }
+      const withinAllowedRoot = allowedRoots.some(root => canonicalFilePath === root || canonicalFilePath.startsWith(root + path.sep));
+      if (!withinAllowedRoot) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_artifact: path is outside allowed source roots (GITHUB_WORKSPACE, RUNNER_TEMP, staging directory): ${filePath}`,
+        };
+      }
+
       if (!fs.existsSync(stagingDir)) {
         try {
           fs.mkdirSync(stagingDir, { recursive: true });
@@ -2190,6 +2266,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         if (!fs.existsSync(destPath)) {
           try {
             fs.copyFileSync(filePath, destPath);
+            fs.chmodSync(destPath, 0o600);
           } catch (err) {
             throw new Error(`Failed to copy file ${filePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
           }
