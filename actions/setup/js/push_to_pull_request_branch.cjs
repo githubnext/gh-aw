@@ -320,6 +320,7 @@ async function main(config = {}) {
   const configBaseBranch = config.base_branch || null;
   const configuredHeadRepo = typeof config["head-repo"] === "string" ? config["head-repo"].trim() : "";
   const headGitHubToken = typeof config["head-github-token"] === "string" ? config["head-github-token"].trim() : "";
+  if (headGitHubToken) core.setSecret?.(headGitHubToken);
 
   // Check if we're in staged mode (either globally or per-handler config)
   const isStaged = isStagedMode(config);

@@ -298,11 +298,11 @@ function parsePrettyPrintFormat(logContent) {
       // The arrow + (cached) form has no "Breakdown by AI model" section, so this
       // is the only place token totals appear. Capture them when present so they
       // surface in the Information section.
-      const tokenMatch = trimmed.match(/^Tokens\s+↑\s*([\d.]+k?)\s*[•·]\s*↓\s*([\d.]+k?)(?:\s*[•·]\s*([\d.]+k?)\s*\(cached\))?/);
-      if (tokenMatch) {
-        if (inputTokens === 0) inputTokens = parseTokenCount(tokenMatch[1]);
-        if (outputTokens === 0) outputTokens = parseTokenCount(tokenMatch[2]);
-        if (tokenMatch[3] && cacheReadTokens === 0) cacheReadTokens = parseTokenCount(tokenMatch[3]);
+      const footerMatch = trimmed.match(/^Tokens\s+↑\s*([\d.]+k?)\s*[•·]\s*↓\s*([\d.]+k?)(?:\s*[•·]\s*([\d.]+k?)\s*\(cached\))?/);
+      if (footerMatch) {
+        if (inputTokens === 0) inputTokens = parseTokenCount(footerMatch[1]);
+        if (outputTokens === 0) outputTokens = parseTokenCount(footerMatch[2]);
+        if (footerMatch[3] && cacheReadTokens === 0) cacheReadTokens = parseTokenCount(footerMatch[3]);
       } else {
         // Newer footer variant where the cached count is shown inline after the
         // up-arrow rather than trailing the line:

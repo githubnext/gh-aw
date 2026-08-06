@@ -162,6 +162,7 @@ async function mainWithPaths(cacheFilePath, options = {}) {
 
         // Get the token from the builtin github instance for the download step.
         const token = await getTokenFromGithub();
+        if (token) core.setSecret?.(token);
 
         const downloadRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-aic-cache-fallback-"));
         const artifactClient = createArtifactClient();

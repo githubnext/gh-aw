@@ -34,6 +34,7 @@ let _allResults = [];
  */
 async function createAssignToAgentGitHubClient(config) {
   const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
+  if (token) core.setSecret?.(token);
   if (!token) {
     core.debug("No dedicated agent token configured — using step-level github client for assign-to-agent operations");
     return github;

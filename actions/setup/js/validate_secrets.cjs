@@ -560,7 +560,7 @@ function generateMarkdownReport(results) {
   report += `## 🔍 Detailed Results\n\n`;
 
   // Group by secret
-  const bySecret = results.reduce(
+  const resultsByName = results.reduce(
     /** @param {Record<string, TestResult[]>} acc */
     (acc, result) => {
       (acc[result.secret] ??= []).push(result);
@@ -569,7 +569,7 @@ function generateMarkdownReport(results) {
     {}
   );
 
-  report += Object.entries(bySecret)
+  report += Object.entries(resultsByName)
     .map(([secret, tests]) => {
       const hasFailure = tests.some(t => t.status === Status.FAILURE);
       const hasNotSet = tests.some(t => t.status === Status.NOT_SET);
@@ -617,6 +617,7 @@ async function main() {
     // Test GH_AW_GITHUB_TOKEN
     core.info("Testing GH_AW_GITHUB_TOKEN...");
     const ghAwToken = process.env.GH_AW_GITHUB_TOKEN;
+    if (ghAwToken) core.setSecret?.(ghAwToken);
     const restResult = await testGitHubRESTAPI(ghAwToken, owner, repo);
     results.push({
       secret: "GH_AW_GITHUB_TOKEN",
@@ -636,6 +637,7 @@ async function main() {
     // Test GH_AW_GITHUB_MCP_SERVER_TOKEN
     core.info("Testing GH_AW_GITHUB_MCP_SERVER_TOKEN...");
     const mcpToken = process.env.GH_AW_GITHUB_MCP_SERVER_TOKEN;
+    if (mcpToken) core.setSecret?.(mcpToken);
     const mcpRestResult = await testGitHubRESTAPI(mcpToken, owner, repo);
     results.push({
       secret: "GH_AW_GITHUB_MCP_SERVER_TOKEN",
@@ -647,6 +649,7 @@ async function main() {
     // Test GH_AW_PROJECT_GITHUB_TOKEN
     core.info("Testing GH_AW_PROJECT_GITHUB_TOKEN...");
     const projectToken = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+    if (projectToken) core.setSecret?.(projectToken);
     const projectRestResult = await testGitHubRESTAPI(projectToken, owner, repo);
     results.push({
       secret: "GH_AW_PROJECT_GITHUB_TOKEN",
@@ -658,6 +661,7 @@ async function main() {
     // Test GH_AW_COPILOT_TOKEN
     core.info("Testing GH_AW_COPILOT_TOKEN...");
     const copilotToken = process.env.GH_AW_COPILOT_TOKEN;
+    if (copilotToken) core.setSecret?.(copilotToken);
     const copilotOrgBilling = process.env.GH_AW_COPILOT_ORG_BILLING === "true";
     const copilotResult = await testCopilotToken(copilotToken, copilotOrgBilling);
     results.push({
@@ -703,6 +707,7 @@ async function main() {
     // Test NOTION_API_TOKEN
     core.info("Testing NOTION_API_TOKEN...");
     const notionToken = process.env.NOTION_API_TOKEN;
+    if (notionToken) core.setSecret?.(notionToken);
     const notionResult = await testNotionAPI(notionToken);
     results.push({
       secret: "NOTION_API_TOKEN",

@@ -16,6 +16,7 @@ function getSecretValues() {
   for (const secretName of secretNames) {
     const value = process.env[`SECRET_${secretName}`];
     if (typeof value === "string" && value.trim() !== "") {
+      core.setSecret?.(value);
       secretValues.push(value.trim());
     }
   }

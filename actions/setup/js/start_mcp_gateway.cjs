@@ -337,6 +337,7 @@ async function main() {
 
   const dockerCommand = process.env.MCP_GATEWAY_DOCKER_COMMAND;
   const apiKey = process.env.MCP_GATEWAY_API_KEY;
+  if (apiKey) core.setSecret?.(apiKey);
   const gatewayPort = process.env.MCP_GATEWAY_PORT;
   const gatewayDomain = process.env.MCP_GATEWAY_DOMAIN;
   const runnerTemp = process.env.RUNNER_TEMP;

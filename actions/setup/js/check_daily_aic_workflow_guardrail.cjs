@@ -577,6 +577,7 @@ async function main() {
   }
 
   const token = process.env.GH_AW_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
+  if (token) core.setSecret?.(token);
   if (!token) {
     core.setOutput("daily_ai_credits_guardrail_status", "skipped");
     core.warning("Skipping daily workflow AI Credits guardrail because no GitHub token was available for artifact lookup.");

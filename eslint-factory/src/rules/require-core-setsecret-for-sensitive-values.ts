@@ -6,6 +6,7 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 
 const SENSITIVE_SEGMENTS = new Set(["secret", "password", "passwd", "credential", "credentials", "token", "apikey", "privatekey", "accesskey", "clientsecret"]);
 const NON_SECRET_TOKEN_SUFFIXES = new Set(["budget", "count", "counts", "estimate", "limit", "metric", "rate", "threshold", "usage", "warning", "warnings"]);
+const METADATA_SUFFIXES = new Set(["claims", "context", "detected", "events", "label", "list", "match", "message", "name", "names", "requirement", "result", "secrets", "summary", "values"]);
 
 interface Candidate {
   name: string;
@@ -33,6 +34,11 @@ function isSensitiveName(name: string): boolean {
   if (segments.includes("tokens")) return false;
 
   return segments.some(segment => SENSITIVE_SEGMENTS.has(segment));
+}
+
+function isMetadataName(name: string): boolean {
+  const segments = nameSegments(name);
+  return ["has", "is", "using"].includes(segments[0] ?? "") || (segments.length > 1 && METADATA_SUFFIXES.has(segments.at(-1) ?? ""));
 }
 
 function staticPropertyName(node: TSESTree.MemberExpression): string | null {
@@ -138,9 +144,11 @@ export const requireCoreSetSecretForSensitiveValuesRule = createRule({
     const candidates = new Map<TSESLint.Scope.Variable, Candidate>();
 
     function track(identifier: TSESTree.Identifier, value: TSESTree.Node, reportNode: TSESTree.Node, force = false): void {
-      if (isBooleanProbe(value)) return;
+      if (isBooleanProbe(value) || isMetadataName(identifier.name)) return;
       if (
         value.type === AST_NODE_TYPES.Literal ||
+        value.type === AST_NODE_TYPES.ArrayExpression ||
+        value.type === AST_NODE_TYPES.ObjectExpression ||
         value.type === AST_NODE_TYPES.FunctionExpression ||
         value.type === AST_NODE_TYPES.ArrowFunctionExpression ||
         value.type === AST_NODE_TYPES.ClassExpression ||
@@ -162,6 +170,7 @@ export const requireCoreSetSecretForSensitiveValuesRule = createRule({
           return;
         }
         if (node.id.type !== AST_NODE_TYPES.ObjectPattern) return;
+        if (node.init.type === AST_NODE_TYPES.CallExpression && node.init.callee.type === AST_NODE_TYPES.Identifier && node.init.callee.name === "require") return;
 
         for (const property of node.id.properties) {
           if (property.type !== AST_NODE_TYPES.Property || property.value.type !== AST_NODE_TYPES.Identifier) continue;

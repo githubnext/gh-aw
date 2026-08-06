@@ -556,6 +556,7 @@ async function main() {
   }
 
   const apiKey = process.env.MCP_GATEWAY_API_KEY || "";
+  if (apiKey) core.setSecret?.(apiKey);
   if (!apiKey) {
     core.warning("MCP_GATEWAY_API_KEY is not set; generated CLI wrappers will not be able to authenticate with the gateway");
   }

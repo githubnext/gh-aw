@@ -27,17 +27,17 @@ function parseDiffGitHeader(headerLine) {
     if (foundSeparatorIndices.length > 0) {
       const sep = Math.min(...foundSeparatorIndices);
       const oldPath = rest.slice(A_PREFIX_LENGTH, sep) || null;
-      const newToken = rest.slice(sep + 1).trimEnd();
+      const newPathSegment = rest.slice(sep + 1).trimEnd();
       /** @type {any} */
       let newPath = null;
-      if (newToken.startsWith('"b/')) {
-        if (newToken.endsWith('"')) {
-          newPath = newToken.slice(QUOTED_PREFIX_LENGTH, -1) || null;
+      if (newPathSegment.startsWith('"b/')) {
+        if (newPathSegment.endsWith('"')) {
+          newPath = newPathSegment.slice(QUOTED_PREFIX_LENGTH, -1) || null;
         } else {
-          newPath = newToken.slice(QUOTED_PREFIX_LENGTH) || null;
+          newPath = newPathSegment.slice(QUOTED_PREFIX_LENGTH) || null;
         }
-      } else if (newToken.startsWith("b/")) {
-        newPath = newToken.slice(B_PREFIX_LENGTH) || null;
+      } else if (newPathSegment.startsWith("b/")) {
+        newPath = newPathSegment.slice(B_PREFIX_LENGTH) || null;
       }
       if (oldPath || newPath) {
         return { oldPath, newPath, parseable: true };
@@ -57,15 +57,15 @@ function parseDiffGitHeader(headerLine) {
       break;
     }
 
-    let token = "";
+    let pathSegment = "";
     if (rest[i] === '"') {
-      token += rest[i++];
+      pathSegment += rest[i++];
       let closedQuote = false;
       while (i < rest.length) {
         const ch = rest[i++];
-        token += ch;
+        pathSegment += ch;
         if (ch === "\\" && i < rest.length) {
-          token += rest[i++];
+          pathSegment += rest[i++];
         } else if (ch === '"') {
           closedQuote = true;
           break;
@@ -76,10 +76,10 @@ function parseDiffGitHeader(headerLine) {
       }
     } else {
       while (i < rest.length && !isWhitespace(rest[i])) {
-        token += rest[i++];
+        pathSegment += rest[i++];
       }
     }
-    tokens.push(token);
+    tokens.push(pathSegment);
   }
 
   if (tokens.length < 2) {

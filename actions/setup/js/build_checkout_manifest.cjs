@@ -81,6 +81,7 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
   if (defaultBranch === "") {
     try {
       const checkoutToken = options.checkoutToken || "";
+      if (checkoutToken) core.setSecret?.(checkoutToken);
       const ghExecOptions = {
         stdio: ["ignore", "pipe", "pipe"],
       };

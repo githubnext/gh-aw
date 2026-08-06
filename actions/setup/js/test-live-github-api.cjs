@@ -19,6 +19,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 async function testLiveGitHubAPI() {
   // Check for GitHub token
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (token) core.setSecret?.(token);
   if (!token) {
     core.setFailed(
       "❌ Error: No GitHub token found\n" +

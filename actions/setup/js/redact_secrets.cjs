@@ -111,6 +111,7 @@ function extractMCPGatewayTokens(configPaths) {
           // so the bare token is redacted even when it appears without the "Bearer " prefix.
           if (/^[Bb]earer /.test(trimmed)) {
             const tokenPart = trimmed.slice(7).trim();
+            core.setSecret?.(tokenPart);
             if (tokenPart.length >= 6) {
               tokens.add(tokenPart);
             }
@@ -232,6 +233,7 @@ async function main() {
       for (const secretName of secretNameList) {
         const envVarName = `SECRET_${secretName}`;
         const secretValue = process.env[envVarName];
+        if (secretValue) core.setSecret?.(secretValue);
         // Skip empty or undefined secrets
         if (!secretValue || secretValue.trim() === "") {
           continue;

@@ -29,6 +29,7 @@ let _allResults = [];
  */
 async function createAgentSessionGitHubClient(config) {
   const token = config["github-token"] || process.env.GH_AW_AGENT_SESSION_TOKEN;
+  if (token) core.setSecret?.(token);
   if (!token) {
     core.debug("No dedicated agent token configured — using step-level github client for create-agent-session operations");
     return github;

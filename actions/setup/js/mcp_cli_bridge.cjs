@@ -510,7 +510,7 @@ function startMcpKeepalivePings(serverUrl, apiKey, sessionId, serverName) {
  * @param {string[]} argv - process.argv (includes node path and script path)
  * @returns {{serverName: string, serverUrl: string, toolsFile: string, apiKey: string, userArgs: string[]}}
  */
-function parseBridgeArgs(argv) {
+function parseBridgeArgs(argv, core = global.core) {
   // Skip first two entries (node binary + script path)
   const args = argv.slice(2);
 
@@ -538,6 +538,7 @@ function parseBridgeArgs(argv) {
           break;
         case "--api-key":
           apiKey = args[++i];
+          core?.setSecret?.(apiKey);
           break;
       }
     } else {
@@ -1167,15 +1168,15 @@ function formatCompactNameLines(names, maxLines) {
   const lines = [];
   let current = "  ";
   for (const name of names) {
-    const token = current.trim() ? `, ${name}` : name;
+    const nameWithSeparator = current.trim() ? `, ${name}` : name;
     // A single very long name may still exceed the width target; we keep it intact.
-    const shouldStartNewLine = current.length + token.length > COMPACT_NAME_LINE_TARGET_WIDTH;
+    const shouldStartNewLine = current.length + nameWithSeparator.length > COMPACT_NAME_LINE_TARGET_WIDTH;
     if (shouldStartNewLine) {
       lines.push(current);
       current = `  ${name}`;
       continue;
     }
-    current += token;
+    current += nameWithSeparator;
   }
   if (current.trim()) {
     lines.push(current);
@@ -1394,6 +1395,7 @@ async function formatResponse(responseBody, serverName, toolName = "") {
 async function main() {
   const core = global.core;
   const { serverName, serverUrl, toolsFile, apiKey, userArgs } = parseBridgeArgs(process.argv);
+  if (apiKey) core.setSecret?.(apiKey);
 
   if (!serverName || !serverUrl) {
     core.setFailed("mcp_cli_bridge: --server-name and --server-url are required");

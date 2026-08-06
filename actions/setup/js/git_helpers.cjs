@@ -25,12 +25,14 @@ const { isTransientError } = require("./error_recovery.cjs");
  */
 function getGitAuthEnv(token) {
   const authToken = token || process.env.GITHUB_TOKEN;
+  if (authToken) core.setSecret?.(authToken);
   if (!authToken) {
     core.debug("getGitAuthEnv: no token available, git network operations may fail if credentials were cleaned");
     return {};
   }
   const serverUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "");
   const tokenBase64 = Buffer.from(`x-access-token:${authToken}`).toString("base64");
+  core.setSecret?.(tokenBase64);
   return {
     GIT_CONFIG_COUNT: "1",
     GIT_CONFIG_KEY_0: `http.${serverUrl}/.extraheader`,

@@ -56,6 +56,7 @@ function isCrossRepoTarget(repoOwner, repoName) {
  */
 async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount, allowedRepos: allowedReposInput }) {
   const token = process.env.GH_AW_CI_TRIGGER_TOKEN;
+  if (token) core.setSecret?.(token);
 
   if (!token || !token.trim()) {
     core.info("No extra empty commit token configured - skipping");

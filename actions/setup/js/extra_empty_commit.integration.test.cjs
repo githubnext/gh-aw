@@ -73,6 +73,7 @@ describe("extra_empty_commit git integration", () => {
       warning: vi.fn(),
       error: vi.fn(),
       debug: vi.fn(),
+      setSecret: vi.fn(),
     };
     commandLog = [];
 

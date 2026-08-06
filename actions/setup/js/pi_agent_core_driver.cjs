@@ -111,6 +111,7 @@ function readGatewayConfig(agentDir) {
 
   const api = typeof config.api === "string" ? config.api : "openai-completions";
   const baseUrl = typeof config.baseUrl === "string" ? config.baseUrl : "";
+  // eslint-disable-next-line gh-aw-custom/require-core-setsecret-for-sensitive-values -- standalone subprocess has no Actions toolkit
   const apiKey = typeof config.apiKey === "string" ? config.apiKey : "";
   const modelId = Array.isArray(config.models) && config.models.length > 0 && typeof config.models[0].id === "string" ? config.models[0].id : "";
 

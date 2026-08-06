@@ -79,6 +79,7 @@ const {
  */
 async function createCopilotAssignmentClient(config) {
   const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
+  if (token) core.setSecret?.(token);
   if (!token) {
     core.debug("No dedicated agent token configured — using step-level github client for copilot assignment");
     return github;
@@ -845,6 +846,7 @@ async function main(config = {}) {
   const configBaseBranch = config.base_branch || null;
   const configuredHeadRepo = typeof config["head-repo"] === "string" ? config["head-repo"].trim() : "";
   const headGitHubToken = typeof config["head-github-token"] === "string" ? config["head-github-token"].trim() : "";
+  if (headGitHubToken) core.setSecret?.(headGitHubToken);
 
   // SECURITY: If base branch is explicitly configured, validate it at factory level
   if (configBaseBranch) {
@@ -936,6 +938,7 @@ async function main(config = {}) {
   // Create checkout manager for multi-repo support (fallback when no checkout_mapping)
   // Token is available via GITHUB_TOKEN environment variable (set by the workflow job)
   const checkoutToken = process.env.GITHUB_TOKEN;
+  if (checkoutToken) core.setSecret?.(checkoutToken);
   const checkoutManager = checkoutToken ? createCheckoutManager(checkoutToken, { defaultBaseBranch: configBaseBranch }) : null;
 
   // Log multi-repo support status

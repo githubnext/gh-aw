@@ -50,6 +50,7 @@ const TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_FRACTION = 0.2;
  */
 async function createCopilotAssignmentClient(config) {
   const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
+  if (token) core.setSecret?.(token);
   if (!token) {
     core.debug("No dedicated agent token configured — using step-level github client for copilot assignment");
     return github;

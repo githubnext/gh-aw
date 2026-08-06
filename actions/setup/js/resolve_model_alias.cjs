@@ -81,11 +81,11 @@ function escapeRegex(value) {
 }
 
 /**
- * @param {string} modelToken
+ * @param {string} modelName
  * @returns {number[]}
  */
-function extractVersionTuple(modelToken) {
-  const match = modelToken.match(/(\d+(?:\.\d+)*)/g);
+function extractVersionTuple(modelName) {
+  const match = modelName.match(/(\d+(?:\.\d+)*)/g);
   if (!match || match.length === 0) {
     return [0, 0, 0];
   }
@@ -126,9 +126,9 @@ function selectLatestGlobMatch(pattern, catalog) {
     return null;
   }
   matches.sort((left, right) => {
-    const leftToken = left.includes("/") ? left.split("/", 2)[1] : left;
-    const rightToken = right.includes("/") ? right.split("/", 2)[1] : right;
-    return compareVersionTuples(extractVersionTuple(rightToken), extractVersionTuple(leftToken));
+    const leftModel = left.includes("/") ? left.split("/", 2)[1] : left;
+    const rightModel = right.includes("/") ? right.split("/", 2)[1] : right;
+    return compareVersionTuples(extractVersionTuple(rightModel), extractVersionTuple(leftModel));
   });
   return matches[0];
 }

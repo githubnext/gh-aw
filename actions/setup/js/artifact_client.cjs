@@ -55,12 +55,14 @@ function decodeJWTPayload(token) {
 }
 
 function getBackendIdsFromRuntimeToken() {
+  const core = global.core;
   const token = process.env.ACTIONS_RUNTIME_TOKEN || "";
+  if (token) core?.setSecret?.(token);
   if (!token) {
     throw new Error("ACTIONS_RUNTIME_TOKEN is required for artifact upload");
   }
-  const payload = decodeJWTPayload(token);
-  const scope = String(payload?.scp || "");
+  const runtimeClaims = decodeJWTPayload(token);
+  const scope = String(runtimeClaims?.scp || "");
   for (const part of scope.split(" ")) {
     if (!part.startsWith(RESULTS_SCOPE_PREFIX)) continue;
     const ids = part.split(":");
@@ -84,7 +86,9 @@ function getResultsServiceOrigin() {
 }
 
 async function twirpRequest(method, body) {
+  const core = global.core;
   const runtimeToken = process.env.ACTIONS_RUNTIME_TOKEN || "";
+  if (runtimeToken) core?.setSecret?.(runtimeToken);
   if (!runtimeToken) {
     throw new Error("ACTIONS_RUNTIME_TOKEN is required for artifact upload");
   }

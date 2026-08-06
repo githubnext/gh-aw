@@ -168,6 +168,7 @@ async function main() {
     githubHost = "github.com";
   }
   const remoteUrl = `https://x-access-token:${token}@${githubHost}/${owner}/${repo}.git`;
+  core.setSecret?.(remoteUrl);
 
   try {
     await exec.exec("git", ["remote", "remove", "aw-push"]);

@@ -42,6 +42,7 @@ async function createAuthenticatedGitHubClient(config) {
   // (not a valid JavaScript identifier). This is consistent with other hyphenated
   // config keys like "target-repo" and "allowed-repos".
   const token = config["github-token"];
+  if (token) core.setSecret?.(token);
   if (!token) {
     return github;
   }

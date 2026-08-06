@@ -213,6 +213,7 @@ async function overridePersistedExtraheader(serverUrl, token, cwd) {
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
   core.setSecret(tokenBase64);
   const authHeader = `Authorization: basic ${tokenBase64}`;
+  core.setSecret?.(authHeader);
 
   // Clear from ALL writable scopes before writing our token to prevent duplicate
   // Authorization headers. actions/checkout writes to the global scope; without

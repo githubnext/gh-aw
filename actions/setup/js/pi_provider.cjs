@@ -241,6 +241,7 @@ function registerProviderAliases(pi, names, config, logger) {
 function registerConfiguredProviders(pi, logger) {
   let registeredCount = 0;
 
+  // eslint-disable-next-line gh-aw-custom/require-core-setsecret-for-sensitive-values -- standalone provider module has no Actions toolkit
   const copilotToken = process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
   if (copilotToken) {
     registerProviderAliases(

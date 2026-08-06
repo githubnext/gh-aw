@@ -63,6 +63,7 @@ async function main() {
   }
 
   const ghToken = process.env.GH_TOKEN;
+  if (ghToken) core.setSecret?.(ghToken);
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
@@ -188,6 +189,7 @@ async function main() {
 
   try {
     const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
+    core.setSecret?.(repoUrl);
 
     // Try to fetch the branch
     try {
@@ -617,6 +619,7 @@ async function main() {
   // pushSignedCommits authenticates via the git extraheader set by
   // actions/checkout (and the gitAuthEnv fallback for the git-push path).
   const repoUrlWithToken = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
+  core.setSecret?.(repoUrlWithToken);
 
   // Point origin at the memory target repo so pushSignedCommits can resolve
   // the remote branch HEAD (ls-remote origin) and the git-push fallback

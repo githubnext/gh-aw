@@ -2291,8 +2291,8 @@ function buildRegisteredProviderEntries() {
       .filter(Boolean);
     if (hosts.length > 0) {
       const provider = ENGINE_ID_TO_LABEL[engineId] || engineId || "Engine";
-      const credential = ENGINE_ID_TO_CREDENTIAL[engineId] || "`API_KEY`";
-      return [{ provider, credential, hosts }];
+      const authRequirement = ENGINE_ID_TO_CREDENTIAL[engineId] || "`API_KEY`";
+      return [{ provider, credential: authRequirement, hosts }];
     }
   }
 
@@ -2368,7 +2368,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
       const hostWithoutPort = host.replace(/:\d+$/, "").toLowerCase();
 
       for (const providerEntry of providerEntries) {
-        const { provider, credential } = providerEntry;
+        const { provider, credential: authRequirement } = providerEntry;
         if (seenProviders.has(provider)) continue;
 
         // Dynamic matching: check if the host is in the registered hosts list.
@@ -2382,7 +2382,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
 
         if (matched) {
           seenProviders.add(provider);
-          results.push({ provider, credential });
+          results.push({ provider, credential: authRequirement });
           break;
         }
       }

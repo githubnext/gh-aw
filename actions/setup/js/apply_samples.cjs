@@ -187,6 +187,7 @@ async function fetchPullRequestHeadRef({ owner, repo, pullNumber }) {
     "User-Agent": "gh-aw-apply-samples",
   };
   const token = selectTokenForRepo(owner, repo);
+  if (token) core.setSecret?.(token);
   if (token) headers["Authorization"] = `Bearer ${token}`;
   try {
     const resp = await fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });

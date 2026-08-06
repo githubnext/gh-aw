@@ -341,6 +341,7 @@ async function main() {
     .map(name => name.trim())
     .filter(Boolean);
   const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
+  if (ghToken) core.setSecret?.(ghToken);
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "");
   const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
@@ -405,6 +406,7 @@ async function main() {
 
   const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
   const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
+  core.setSecret?.(repoUrl);
 
   // Checkout the target branch (or create it as an orphan on first run).
   // Retries with exponential backoff since the initial `git fetch` can hit

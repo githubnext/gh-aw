@@ -33,6 +33,7 @@ function logConfiguration(createPullRequest) {
 
 function requireRecompileToken() {
   const token = getRecompileToken();
+  if (token) core.setSecret?.(token);
   if (!token) {
     throw new Error("Missing configured maintenance GitHub token secret for maintenance compile pull request creation");
   }
@@ -140,6 +141,7 @@ async function stageFiles(files) {
 
 async function prepareAndPushRecompileBranch(owner, repo, changedFiles) {
   const token = requireRecompileToken();
+  core.setSecret?.(token);
   const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
   const baseHead = await getLocalHeadSha();
   core.info(`Current repository HEAD before maintenance branch commit: ${baseHead}`);
