@@ -307,6 +307,15 @@ test_validation_functions_exist() {
   fi
 }
 
+test_stderr_log_not_generated() {
+  ((TESTS_RUN++))
+  if grep -q "/tmp/gh-aw/mcp-logs/stderr.log" "$SCRIPT_PATH"; then
+    print_result "Legacy MCP gateway stderr log is not generated" "FAIL"
+  else
+    print_result "Legacy MCP gateway stderr log is not generated" "PASS"
+  fi
+}
+
 # Run all tests
 echo "=== Testing start_mcp_gateway.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -320,6 +329,7 @@ test_container_missing_i_flag
 test_container_missing_rm_flag
 test_container_missing_network_flag
 test_validation_functions_exist
+test_stderr_log_not_generated
 
 # Print summary
 echo ""

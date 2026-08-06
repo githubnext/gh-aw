@@ -261,7 +261,6 @@ if [ $REQUIRED_SERVERS_FAILED -gt 0 ]; then
   echo "  - Network connectivity or DNS issues"
   echo ""
   echo "Check the gateway logs and individual server logs for more details:"
-  echo "  /tmp/gh-aw/mcp-logs/stderr.log"
   echo "  /tmp/gh-aw/mcp-logs/start-gateway.log"
   exit 1
 elif [ $SERVERS_SUCCEEDED -eq 0 ] && [ $SERVERS_FAILED -eq 0 ]; then
@@ -280,7 +279,6 @@ elif [ $SERVERS_SUCCEEDED -eq 0 ]; then
   echo "At least one server must connect for the gateway to be considered healthy."
   echo ""
   echo "Check the gateway logs and individual server logs for more details:"
-  echo "  /tmp/gh-aw/mcp-logs/stderr.log"
   echo "  /tmp/gh-aw/mcp-logs/start-gateway.log"
   exit 1
 else

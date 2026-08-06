@@ -513,7 +513,6 @@ async function main() {
   // -----------------------------------------------------------------------
   const logDir = "/tmp/gh-aw/mcp-logs/";
   const outputPath = path.join(configDir, "gateway-output.json");
-  const stderrLogPath = "/tmp/gh-aw/mcp-logs/stderr.log";
 
   // Clean up any stale gateway container from a previous run on this runner.
   // On persistent self-hosted runners a prior job's gateway container may still
@@ -545,10 +544,9 @@ async function main() {
   }
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
-  const stderrFd = fs.openSync(stderrLogPath, "w", 0o600);
 
   const child = spawn(cmd, args, {
-    stdio: ["pipe", outputFd, stderrFd],
+    stdio: ["pipe", outputFd, "ignore"],
     env: { ...process.env, MCP_GATEWAY_LOG_DIR: logDir },
     detached: true,
   });
@@ -587,13 +585,6 @@ async function main() {
     } catch {
       core.error("No stdout output available");
     }
-    core.error("");
-    core.error("Gateway stderr logs:");
-    try {
-      core.error(fs.readFileSync(stderrLogPath, "utf8"));
-    } catch {
-      core.error("No stderr logs available");
-    }
     core.setFailed("ERROR: Gateway process exited immediately after start");
     return;
   }
@@ -614,13 +605,6 @@ async function main() {
       core.error(fs.readFileSync(outputPath, "utf8"));
     } catch {
       core.error("No stdout output available");
-    }
-    core.error("");
-    core.error("Gateway stderr logs (debug output):");
-    try {
-      core.error(fs.readFileSync(stderrLogPath, "utf8"));
-    } catch {
-      core.error("No stderr logs available");
     }
     core.setFailed(`ERROR: Gateway process (PID: ${gatewayPid}) exited during initialization`);
     return;
@@ -727,13 +711,6 @@ async function main() {
       core.error("No stdout output available");
     }
     core.error("");
-    core.error("Gateway stderr logs (debug output):");
-    try {
-      core.error(fs.readFileSync(stderrLogPath, "utf8"));
-    } catch {
-      core.error("No stderr logs available");
-    }
-    core.error("");
     core.error("Checking network connectivity to gateway port...");
     try {
       // Validate gatewayPort is numeric to prevent shell injection
@@ -791,13 +768,6 @@ async function main() {
     } catch {
       core.error("No stdout output available");
     }
-    core.error("");
-    core.error("Gateway stderr logs:");
-    try {
-      core.error(fs.readFileSync(stderrLogPath, "utf8"));
-    } catch {
-      core.error("No stderr logs available");
-    }
     try {
       process.kill(gatewayPid);
     } catch {
@@ -826,13 +796,6 @@ async function main() {
     core.error("");
     core.error("Gateway error details:");
     core.error(JSON.stringify(gatewayOutput, null, 2));
-    core.error("");
-    core.error("Gateway stderr logs:");
-    try {
-      core.error(fs.readFileSync(stderrLogPath, "utf8"));
-    } catch {
-      core.error("No stderr logs available");
-    }
     try {
       process.kill(gatewayPid);
     } catch {
