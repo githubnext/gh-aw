@@ -269,6 +269,19 @@ describe("push_experiment_state", () => {
     expect(result.map(entry => entry.id)).toEqual(["shared", "remote", "local"]);
   });
 
+  it("mergeAppendOnlyJSONL preserves opaque malformed lines", () => {
+    const malformed = "not-valid-json\n";
+    const remote = malformed + '{"id":"remote","timestamp":"2026-08-01T12:01:00.000Z","runid":"2"}\n';
+    const local = malformed + '{"id":"local","timestamp":"2026-08-01T12:02:00.000Z","runid":"3"}\n';
+
+    const result = mergeAppendOnlyJSONL(remote, local).trim().split("\n");
+
+    expect(result[0]).toBe("not-valid-json");
+    expect(result[1]).toBe('{"id":"remote","timestamp":"2026-08-01T12:01:00.000Z","runid":"2"}');
+    expect(result[2]).toBe('{"id":"local","timestamp":"2026-08-01T12:02:00.000Z","runid":"3"}');
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("preserving unparseable line"));
+  });
+
   describe("checkoutOrCreateBranch", () => {
     let repoDir;
 

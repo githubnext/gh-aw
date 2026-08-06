@@ -12,7 +12,7 @@
  * Generic environment variables:
  *   GH_AW_STATE_DIR             - Directory containing files to commit
  *   GH_AW_STATE_BRANCH          - Target git branch
- *   GH_AW_STATE_FILES           - Comma-separated JSONL filenames to append from GH_AW_STATE_DIR
+ *   GH_AW_STATE_FILES           - Comma-separated filenames to copy from GH_AW_STATE_DIR
  *   GH_AW_STATE_LABEL           - Human-readable label used in logs/messages
  *
  * Backward-compatible experiment aliases:
@@ -211,21 +211,24 @@ function mergeAppendOnlyJSONL(remoteContent, localContent) {
       if (!trimmed) {
         continue;
       }
-      let entry;
+      let outputLine;
+      let key;
       try {
-        entry = JSON.parse(trimmed);
+        const entry = JSON.parse(trimmed);
+        outputLine = JSON.stringify(entry);
+        key = `json:${stableJSONStringify(entry)}`;
       } catch {
-        core.warning(`mergeAppendOnlyJSONL: skipping unparseable line during merge`);
-        continue;
+        core.warning(`mergeAppendOnlyJSONL: preserving unparseable line during merge`);
+        outputLine = trimmed;
+        key = `raw:${trimmed}`;
       }
-      const key = stableJSONStringify(entry);
       if (!seen.has(key)) {
         seen.add(key);
-        merged.push(entry);
+        merged.push(outputLine);
       }
     }
   }
-  return merged.length > 0 ? `${merged.map(entry => JSON.stringify(entry)).join("\n")}\n` : "";
+  return merged.length > 0 ? `${merged.join("\n")}\n` : "";
 }
 
 function readGitStageFile(workspaceDir, stage, filePath) {
@@ -251,7 +254,7 @@ function resolveExperimentStateRebaseConflict({ cwd }) {
     (process.env.GH_AW_STATE_FILES || "")
       .split(",")
       .map(name => name.trim())
-      .filter(Boolean)
+      .filter(name => Boolean(name) && name.endsWith(".jsonl") && name !== "state.jsonl")
   );
   const hasMergeableConflict = conflictedFiles.some(file => file === "state.json" || file === "state.jsonl" || appendFiles.has(file));
   if (conflictedFiles.length === 0 || !hasMergeableConflict) {
@@ -384,12 +387,7 @@ async function main() {
     .split(",")
     .map(name => name.trim())
     .filter(Boolean);
-  const appendFiles = new Set(
-    (process.env.GH_AW_STATE_FILES || "")
-      .split(",")
-      .map(name => name.trim())
-      .filter(Boolean)
-  );
+  const appendFiles = new Set(candidateFiles.filter(name => name.endsWith(".jsonl") && name !== "state.jsonl"));
   const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "");
