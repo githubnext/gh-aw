@@ -8,6 +8,7 @@ const { getGitAuthEnv } = require("./git_helpers.cjs");
 const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 const RECOMPILE_ISSUE_TITLE = "[aw] agentic workflows out of sync";
 const RECOMPILE_PR_TITLE = "[aw] recompile agentic workflows";
@@ -23,7 +24,7 @@ async function getEffectiveBaseBranch(owner, repo) {
 }
 
 function getRecompileToken() {
-  return process.env.GH_AW_MAINTENANCE_GITHUB_TOKEN || "";
+  return readSecretEnv("GH_AW_MAINTENANCE_GITHUB_TOKEN") || "";
 }
 
 function logConfiguration(createPullRequest) {

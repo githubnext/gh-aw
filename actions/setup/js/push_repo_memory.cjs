@@ -10,6 +10,7 @@ const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { getStagedPatchDiffSizeBytes } = require("./git_patch_utils.cjs");
 const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * Push repo-memory changes to git branch
@@ -62,7 +63,7 @@ async function main() {
     }
   }
 
-  const ghToken = process.env.GH_TOKEN;
+  const ghToken = readSecretEnv("GH_TOKEN");
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
   const serverHost = githubServerUrl.replace(/^https?:\/\//, "");

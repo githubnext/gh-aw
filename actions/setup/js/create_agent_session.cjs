@@ -6,6 +6,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * Module-level state — populated by handleMessage(), read by the exported getters below.
@@ -28,7 +29,7 @@ let _allResults = [];
  * @returns {Promise<Object>} Authenticated GitHub client
  */
 async function createAgentSessionGitHubClient(config) {
-  const token = config["github-token"] || process.env.GH_AW_AGENT_SESSION_TOKEN;
+  const token = config["github-token"] || readSecretEnv("GH_AW_AGENT_SESSION_TOKEN");
   if (!token) {
     core.debug("No dedicated agent token configured — using step-level github client for create-agent-session operations");
     return github;

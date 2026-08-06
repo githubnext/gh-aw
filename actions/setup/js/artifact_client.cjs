@@ -16,6 +16,7 @@ const { pipeline } = require("stream/promises");
 const { spawnSync } = require("child_process");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 const DEFAULT_RETRY_ATTEMPTS = 5;
 const RETRY_DELAY_MS = 5000;
@@ -55,7 +56,7 @@ function decodeJWTPayload(token) {
 }
 
 function getBackendIdsFromRuntimeToken() {
-  const token = process.env.ACTIONS_RUNTIME_TOKEN || "";
+  const token = readSecretEnv("ACTIONS_RUNTIME_TOKEN") || "";
   if (!token) {
     throw new Error("ACTIONS_RUNTIME_TOKEN is required for artifact upload");
   }
@@ -84,7 +85,7 @@ function getResultsServiceOrigin() {
 }
 
 async function twirpRequest(method, body) {
-  const runtimeToken = process.env.ACTIONS_RUNTIME_TOKEN || "";
+  const runtimeToken = readSecretEnv("ACTIONS_RUNTIME_TOKEN") || "";
   if (!runtimeToken) {
     throw new Error("ACTIONS_RUNTIME_TOKEN is required for artifact upload");
   }

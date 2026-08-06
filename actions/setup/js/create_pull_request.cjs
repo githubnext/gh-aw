@@ -35,6 +35,7 @@ const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./const
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, getBundlePrerequisites, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
@@ -78,7 +79,7 @@ const {
  * @returns {Promise<Object>} Authenticated GitHub client
  */
 async function createCopilotAssignmentClient(config) {
-  const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
+  const token = config["github-token"] || readSecretEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN");
   if (!token) {
     core.debug("No dedicated agent token configured — using step-level github client for copilot assignment");
     return github;
@@ -935,7 +936,7 @@ async function main(config = {}) {
 
   // Create checkout manager for multi-repo support (fallback when no checkout_mapping)
   // Token is available via GITHUB_TOKEN environment variable (set by the workflow job)
-  const checkoutToken = process.env.GITHUB_TOKEN;
+  const checkoutToken = readSecretEnv("GITHUB_TOKEN");
   const checkoutManager = checkoutToken ? createCheckoutManager(checkoutToken, { defaultBaseBranch: configBaseBranch }) : null;
 
   // Log multi-repo support status

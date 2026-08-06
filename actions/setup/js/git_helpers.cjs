@@ -5,6 +5,7 @@ const { spawnSync } = require("child_process");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isTransientError } = require("./error_recovery.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * Build GIT_CONFIG_* environment variables that inject an Authorization header
@@ -24,7 +25,7 @@ const { isTransientError } = require("./error_recovery.cjs");
  *   Returns an empty object when no token is available.
  */
 function getGitAuthEnv(token) {
-  const authToken = token || process.env.GITHUB_TOKEN;
+  const authToken = token || readSecretEnv("GITHUB_TOKEN");
   if (!authToken) {
     core.debug("getGitAuthEnv: no token available, git network operations may fail if credentials were cleaned");
     return {};

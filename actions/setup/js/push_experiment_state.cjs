@@ -30,6 +30,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync, getGitAuthEnv, withGitRetry } = require("./git_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -340,7 +341,7 @@ async function main() {
     .split(",")
     .map(name => name.trim())
     .filter(Boolean);
-  const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
+  const ghToken = readSecretEnv("GH_TOKEN") || readSecretEnv("GITHUB_TOKEN") || "";
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "");
   const serverHost = githubServerUrl.replace(/^https?:\/\//, "");

@@ -36,6 +36,7 @@ const path = require("path");
 const { withRetry } = require("./error_recovery.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -336,7 +337,7 @@ async function main() {
   process.umask(0o077);
 
   const dockerCommand = process.env.MCP_GATEWAY_DOCKER_COMMAND;
-  const apiKey = process.env.MCP_GATEWAY_API_KEY;
+  const apiKey = readSecretEnv("MCP_GATEWAY_API_KEY");
   const gatewayPort = process.env.MCP_GATEWAY_PORT;
   const gatewayDomain = process.env.MCP_GATEWAY_DOMAIN;
   const runnerTemp = process.env.RUNNER_TEMP;

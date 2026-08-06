@@ -9,6 +9,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_NOT_FOUND, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseRepoSlug, resolveTargetRepoConfig, isRepoAllowed } = require("./repo_helpers.cjs");
 const { logGraphQLError } = require("./github_api_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /** @type {import('./github_api_helpers.cjs').GraphQLErrorHints} */
 const PROJECT_GRAPHQL_HINTS = {
@@ -1266,7 +1267,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
     }
   } catch (error) {
     if (getErrorMessage(error) && getErrorMessage(error).includes("does not have permission to create projects")) {
-      const usingCustomToken = !!process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+      const usingCustomToken = !!readSecretEnv("GH_AW_PROJECT_GITHUB_TOKEN");
       core.error(
         `Failed to manage project: ${getErrorMessage(error)}\n\nTroubleshooting:\n  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n  • Or supply a PAT (classic with project + repo scopes, or fine-grained with Projects: Read+Write) via GH_AW_PROJECT_GITHUB_TOKEN.\n  • Or use a GitHub App with Projects: Read+Write permission.\n  • Ensure the workflow grants projects: write.\n\n` +
           (usingCustomToken ? "GH_AW_PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN - this cannot access Projects v2 API. You must configure GH_AW_PROJECT_GITHUB_TOKEN.")

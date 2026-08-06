@@ -1,6 +1,7 @@
 // @ts-check
 
 const { renderLockdownTokenErrorMessage, renderPublicStrictModeErrorMessage, renderPullRequestTargetErrorMessage } = require("./validate_lockdown_requirements_templates.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * Validates that lockdown mode requirements are met at runtime.
@@ -47,9 +48,9 @@ function validateLockdownRequirements(core) {
     // Check if any custom GitHub token is configured
     // This matches the token selection logic used by the MCP gateway:
     // GH_AW_GITHUB_MCP_SERVER_TOKEN || GH_AW_GITHUB_TOKEN || custom github-token
-    const hasGhAwToken = !!process.env.GH_AW_GITHUB_TOKEN;
-    const hasGhAwMcpToken = !!process.env.GH_AW_GITHUB_MCP_SERVER_TOKEN;
-    const hasCustomToken = !!process.env.CUSTOM_GITHUB_TOKEN;
+    const hasGhAwToken = !!readSecretEnv("GH_AW_GITHUB_TOKEN");
+    const hasGhAwMcpToken = !!readSecretEnv("GH_AW_GITHUB_MCP_SERVER_TOKEN");
+    const hasCustomToken = !!readSecretEnv("CUSTOM_GITHUB_TOKEN");
     const hasAnyCustomToken = hasGhAwToken || hasGhAwMcpToken || hasCustomToken;
 
     core.info(`GH_AW_GITHUB_TOKEN configured: ${hasGhAwToken}`);

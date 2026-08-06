@@ -17,6 +17,7 @@ const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifact
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorCount, writeAssignToAgentSummary } = require("./assign_to_agent.cjs");
 const { getCreateAgentSessionNumber, getCreateAgentSessionUrl, writeCreateAgentSessionSummary } = require("./create_agent_session.cjs");
 const { createPrReviewBufferRegistry } = require("./pr_review_buffer.cjs");
@@ -342,8 +343,11 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
           // Call the factory function with config to get the message handler
           const handlerConfig = { ...(config[type] || {}) };
 
-          if (PROJECT_HANDLER_TYPES.has(type) && !handlerConfig[GITHUB_TOKEN_CONFIG_KEY] && process.env.GH_AW_PROJECT_GITHUB_TOKEN) {
-            handlerConfig[GITHUB_TOKEN_CONFIG_KEY] = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+          if (PROJECT_HANDLER_TYPES.has(type) && !handlerConfig[GITHUB_TOKEN_CONFIG_KEY]) {
+            const projectToken = readSecretEnv("GH_AW_PROJECT_GITHUB_TOKEN");
+            if (projectToken) {
+              handlerConfig[GITHUB_TOKEN_CONFIG_KEY] = projectToken;
+            }
           }
 
           // Pass top-level mentions policy through so handlers can preserve

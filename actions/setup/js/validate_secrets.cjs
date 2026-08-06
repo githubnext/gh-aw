@@ -19,6 +19,7 @@ const { exec } = require("child_process");
 const execAsync = promisify(exec);
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * Test result status
@@ -616,7 +617,7 @@ async function main() {
 
     // Test GH_AW_GITHUB_TOKEN
     core.info("Testing GH_AW_GITHUB_TOKEN...");
-    const ghAwToken = process.env.GH_AW_GITHUB_TOKEN;
+    const ghAwToken = readSecretEnv("GH_AW_GITHUB_TOKEN");
     const restResult = await testGitHubRESTAPI(ghAwToken, owner, repo);
     results.push({
       secret: "GH_AW_GITHUB_TOKEN",
@@ -635,7 +636,7 @@ async function main() {
 
     // Test GH_AW_GITHUB_MCP_SERVER_TOKEN
     core.info("Testing GH_AW_GITHUB_MCP_SERVER_TOKEN...");
-    const mcpToken = process.env.GH_AW_GITHUB_MCP_SERVER_TOKEN;
+    const mcpToken = readSecretEnv("GH_AW_GITHUB_MCP_SERVER_TOKEN");
     const mcpRestResult = await testGitHubRESTAPI(mcpToken, owner, repo);
     results.push({
       secret: "GH_AW_GITHUB_MCP_SERVER_TOKEN",
@@ -646,7 +647,7 @@ async function main() {
 
     // Test GH_AW_PROJECT_GITHUB_TOKEN
     core.info("Testing GH_AW_PROJECT_GITHUB_TOKEN...");
-    const projectToken = process.env.GH_AW_PROJECT_GITHUB_TOKEN;
+    const projectToken = readSecretEnv("GH_AW_PROJECT_GITHUB_TOKEN");
     const projectRestResult = await testGitHubRESTAPI(projectToken, owner, repo);
     results.push({
       secret: "GH_AW_PROJECT_GITHUB_TOKEN",
@@ -657,7 +658,7 @@ async function main() {
 
     // Test GH_AW_COPILOT_TOKEN
     core.info("Testing GH_AW_COPILOT_TOKEN...");
-    const copilotToken = process.env.GH_AW_COPILOT_TOKEN;
+    const copilotToken = readSecretEnv("GH_AW_COPILOT_TOKEN");
     const copilotOrgBilling = process.env.GH_AW_COPILOT_ORG_BILLING === "true";
     const copilotResult = await testCopilotToken(copilotToken, copilotOrgBilling);
     results.push({
@@ -669,7 +670,7 @@ async function main() {
 
     // Test ANTHROPIC_API_KEY
     core.info("Testing ANTHROPIC_API_KEY...");
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const anthropicKey = readSecretEnv("ANTHROPIC_API_KEY");
     const anthropicResult = await testAnthropicAPI(anthropicKey);
     results.push({
       secret: "ANTHROPIC_API_KEY",
@@ -680,7 +681,7 @@ async function main() {
 
     // Test OPENAI_API_KEY
     core.info("Testing OPENAI_API_KEY...");
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const openaiKey = readSecretEnv("OPENAI_API_KEY");
     const openaiResult = await testOpenAIAPI(openaiKey);
     results.push({
       secret: "OPENAI_API_KEY",
@@ -691,7 +692,7 @@ async function main() {
 
     // Test BRAVE_API_KEY
     core.info("Testing BRAVE_API_KEY...");
-    const braveKey = process.env.BRAVE_API_KEY;
+    const braveKey = readSecretEnv("BRAVE_API_KEY");
     const braveResult = await testBraveSearchAPI(braveKey);
     results.push({
       secret: "BRAVE_API_KEY",
@@ -702,7 +703,7 @@ async function main() {
 
     // Test NOTION_API_TOKEN
     core.info("Testing NOTION_API_TOKEN...");
-    const notionToken = process.env.NOTION_API_TOKEN;
+    const notionToken = readSecretEnv("NOTION_API_TOKEN");
     const notionResult = await testNotionAPI(notionToken);
     results.push({
       secret: "NOTION_API_TOKEN",

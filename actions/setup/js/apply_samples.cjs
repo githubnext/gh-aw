@@ -38,6 +38,7 @@ const os = require("os");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION, ERR_PARSE, ERR_SYSTEM, ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
@@ -154,7 +155,7 @@ function readEventPayload() {
  */
 function selectTokenForRepo(owner, repo) {
   const slug = `${owner}/${repo}`;
-  const raw = process.env.GH_AW_REPO_TOKENS;
+  const raw = readSecretEnv("GH_AW_REPO_TOKENS");
   if (raw && raw.trim()) {
     try {
       const map = JSON.parse(raw);
@@ -165,7 +166,7 @@ function selectTokenForRepo(owner, repo) {
       core.warning(`apply_samples: GH_AW_REPO_TOKENS is not valid JSON, ignoring: ${getErrorMessage(err)}`);
     }
   }
-  return process.env.GITHUB_TOKEN || process.env.GH_TOKEN || undefined;
+  return readSecretEnv("GITHUB_TOKEN") || readSecretEnv("GH_TOKEN");
 }
 
 /**

@@ -4,6 +4,7 @@
 const fs = require("fs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { main: redactWorkspaceSecrets, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 function getSecretValues() {
   const secretNames = (process.env.GH_AW_SECRET_NAMES || "")
@@ -14,7 +15,7 @@ function getSecretValues() {
   /** @type {string[]} */
   const secretValues = [];
   for (const secretName of secretNames) {
-    const value = process.env[`SECRET_${secretName}`];
+    const value = readSecretEnv(`SECRET_${secretName}`);
     if (typeof value === "string" && value.trim() !== "") {
       secretValues.push(value.trim());
     }

@@ -10,6 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 /**
  * Recursively finds all files matching the specified extensions
  * @param {string} dir - Directory to search
@@ -231,7 +232,7 @@ async function main() {
       const secretNameList = secretNames.split(",").filter(name => name.trim());
       for (const secretName of secretNameList) {
         const envVarName = `SECRET_${secretName}`;
-        const secretValue = process.env[envVarName];
+        const secretValue = readSecretEnv(envVarName);
         // Skip empty or undefined secrets
         if (!secretValue || secretValue.trim() === "") {
           continue;

@@ -8,6 +8,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 function parseManifestEntries(entriesJSON = process.env.GH_AW_CHECKOUT_MANIFEST_ENTRIES || "[]") {
   let parsed;
@@ -33,7 +34,7 @@ function readManifestEntriesFromEnv() {
     entries.push({
       repository: process.env[`GH_AW_CHECKOUT_REPO_${i}`] || "",
       path: process.env[`GH_AW_CHECKOUT_PATH_${i}`] || "",
-      token: process.env[`GH_AW_CHECKOUT_TOKEN_${i}`] || "",
+      token: readSecretEnv(`GH_AW_CHECKOUT_TOKEN_${i}`) || "",
     });
   }
   return entries;

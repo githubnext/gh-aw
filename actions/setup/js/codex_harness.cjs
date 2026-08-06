@@ -53,6 +53,7 @@ const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractD
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 const { resolveRetryConfig } = require("./harness_retry_config.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 const { applyModelFallback, injectModelFlagAfterExec } = require("./model_fallback.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 
@@ -494,8 +495,8 @@ async function main() {
   }
 
   // Diagnose API key presence so CI failures can be triaged without exposing secret values.
-  const codexApiKey = process.env.CODEX_API_KEY;
-  const openaiApiKey = process.env.OPENAI_API_KEY;
+  const codexApiKey = readSecretEnv("CODEX_API_KEY");
+  const openaiApiKey = readSecretEnv("OPENAI_API_KEY");
   const codexChildEnv = buildCodexChildEnv(process.env, codexApiKey, openaiApiKey);
   log(`secrets: CODEX_API_KEY=${codexApiKey ? `set (length=${codexApiKey.length})` : "not set"}` + ` OPENAI_API_KEY=${openaiApiKey ? `set (length=${openaiApiKey.length})` : "not set"}`);
 

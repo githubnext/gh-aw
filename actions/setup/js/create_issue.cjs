@@ -30,6 +30,7 @@ const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
@@ -49,7 +50,7 @@ const TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_FRACTION = 0.2;
  * @returns {Promise<Object>} Authenticated GitHub client
  */
 async function createCopilotAssignmentClient(config) {
-  const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
+  const token = config["github-token"] || readSecretEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN");
   if (!token) {
     core.debug("No dedicated agent token configured — using step-level github client for copilot assignment");
     return github;

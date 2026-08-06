@@ -12,6 +12,17 @@
  * `github-script`) the respective block is a no-op.
  */
 
+/**
+ * Escape workflow command data using the same encoding as @actions/core.
+ * @param {string} value
+ */
+const escapeCommandData = value => value.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+
+/** @param {string} secret */
+const setSecret = secret => {
+  process.stderr.write(`::add-mask::${escapeCommandData(secret)}\n`);
+};
+
 if (!global.core) {
   /**
    * Write shim log lines to stderr so MCP servers that speak JSON-RPC on stdout
@@ -40,7 +51,10 @@ if (!global.core) {
     setOutput: /** @param {string} name @param {unknown} value */ (name, value) => {
       writeShimLog("output", `${name}=${value}`);
     },
+    setSecret,
   };
+} else if (typeof global.core.setSecret !== "function") {
+  global.core.setSecret = setSecret;
 }
 
 if (!global.context) {

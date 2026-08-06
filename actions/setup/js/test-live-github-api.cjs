@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @ts-check
 require("./shim.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * Standalone script to test frontmatter hash computation with live GitHub API
@@ -18,7 +19,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function testLiveGitHubAPI() {
   // Check for GitHub token
-  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  const token = readSecretEnv("GITHUB_TOKEN") || readSecretEnv("GH_TOKEN");
   if (!token) {
     core.setFailed(
       "❌ Error: No GitHub token found\n" +

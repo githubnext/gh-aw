@@ -4,6 +4,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * Files that the 'update' command can modify outside of .github/workflows/.
@@ -155,7 +156,7 @@ async function main() {
   // Push to the new branch using a token-authenticated remote
   const owner = context.repo.owner;
   const repo = context.repo.repo;
-  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+  const token = readSecretEnv("GH_TOKEN") || readSecretEnv("GITHUB_TOKEN");
   if (!token) {
     throw new Error(`${ERR_CONFIG}: Missing GitHub token: set GH_TOKEN or GITHUB_TOKEN to push changes and create a pull request for agentic workflow update/upgrade operations.`);
   }

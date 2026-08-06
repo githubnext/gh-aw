@@ -4,6 +4,7 @@
 const { spawnSync } = require("child_process");
 const path = require("path");
 const { getActionInput } = require("./js/action_input_utils.cjs");
+const { readSecretEnv } = require("./js/read_secret_env.cjs");
 
 // Record start time for the OTLP span before any setup work begins.
 const setupStartMs = Date.now();
@@ -15,7 +16,7 @@ const safeOutputCustomTokens = getActionInput("SAFE_OUTPUT_CUSTOM_TOKENS") || "f
 const inputTraceId = getActionInput("TRACE_ID");
 const inputParentSpanId = getActionInput("PARENT_SPAN_ID");
 const inputJobName = getActionInput("JOB_NAME");
-const inputOTLPOIDCToken = getActionInput("OTLP_OIDC_TOKEN");
+const inputOTLPOIDCToken = (readSecretEnv("INPUT_OTLP_OIDC_TOKEN") || readSecretEnv("INPUT_OTLP-OIDC-TOKEN") || "").trim();
 
 const result = spawnSync(path.join(__dirname, "setup.sh"), [], {
   stdio: "inherit",

@@ -40,6 +40,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 // ---------------------------------------------------------------------------
 // Logging helpers
@@ -140,7 +141,7 @@ function buildGetApiKey(gatewayConfig) {
       // holds the secret (Pi CLI's resolveConfigValue() semantics).
       const envVarName = gatewayConfig.apiKey;
       if (envVarName) {
-        const value = process.env[envVarName];
+        const value = readSecretEnv(envVarName);
         if (value) return value;
       }
     }
@@ -149,12 +150,12 @@ function buildGetApiKey(gatewayConfig) {
     switch (provider) {
       case "github-copilot":
       case "copilot":
-        return process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+        return readSecretEnv("COPILOT_GITHUB_TOKEN") || readSecretEnv("GITHUB_TOKEN");
       case "anthropic":
-        return process.env.ANTHROPIC_API_KEY;
+        return readSecretEnv("ANTHROPIC_API_KEY");
       case "openai":
       case "codex":
-        return process.env.CODEX_API_KEY || process.env.OPENAI_API_KEY;
+        return readSecretEnv("CODEX_API_KEY") || readSecretEnv("OPENAI_API_KEY");
       default:
         return undefined;
     }

@@ -31,6 +31,7 @@ const { fetchAWFReflect, AWF_API_PROXY_REFLECT_URL, AWF_REFLECT_OUTPUT_PATH, AWF
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 // Default logger: prefixed with "[gh-aw/pi-provider]" for easy grepping.
 // prettier-ignore
@@ -241,7 +242,7 @@ function registerProviderAliases(pi, names, config, logger) {
 function registerConfiguredProviders(pi, logger) {
   let registeredCount = 0;
 
-  const copilotToken = process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+  const copilotToken = readSecretEnv("COPILOT_GITHUB_TOKEN") || readSecretEnv("GITHUB_TOKEN");
   if (copilotToken) {
     registerProviderAliases(
       pi,
@@ -256,12 +257,13 @@ function registerConfiguredProviders(pi, logger) {
     registeredCount += 2;
   }
 
-  if (process.env.ANTHROPIC_API_KEY) {
+  const anthropicApiKey = readSecretEnv("ANTHROPIC_API_KEY");
+  if (anthropicApiKey) {
     registerProviderAliases(
       pi,
       ["anthropic"],
       {
-        apiKey: process.env.ANTHROPIC_API_KEY,
+        apiKey: anthropicApiKey,
         api: "anthropic",
         ...(process.env.ANTHROPIC_BASE_URL ? { baseUrl: process.env.ANTHROPIC_BASE_URL } : {}),
       },
@@ -270,7 +272,7 @@ function registerConfiguredProviders(pi, logger) {
     registeredCount += 1;
   }
 
-  const openAIKey = process.env.CODEX_API_KEY || process.env.OPENAI_API_KEY;
+  const openAIKey = readSecretEnv("CODEX_API_KEY") || readSecretEnv("OPENAI_API_KEY");
   if (openAIKey) {
     registerProviderAliases(
       pi,

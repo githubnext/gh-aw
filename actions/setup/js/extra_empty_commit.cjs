@@ -4,6 +4,7 @@
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * @fileoverview Extra Empty Commit Helper
@@ -55,7 +56,7 @@ function isCrossRepoTarget(repoOwner, repoName) {
  * @returns {Promise<{success: boolean, skipped?: boolean, error?: string}>}
  */
 async function pushExtraEmptyCommit({ branchName, repoOwner, repoName, commitMessage, newCommitCount, allowedRepos: allowedReposInput }) {
-  const token = process.env.GH_AW_CI_TRIGGER_TOKEN;
+  const token = readSecretEnv("GH_AW_CI_TRIGGER_TOKEN");
 
   if (!token || !token.trim()) {
     core.info("No extra empty commit token configured - skipping");

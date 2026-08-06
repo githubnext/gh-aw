@@ -27,6 +27,7 @@ const http = require("http");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderSafeOutputsPromptDocs } = require("./mcp_cli_schema_docs.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 const MANIFEST_FILE = path.join(process.env.RUNNER_TEMP || "/home/runner/work/_temp", "gh-aw/mcp-cli/manifest.json");
 // Use RUNNER_TEMP so the bin and tools directories are inside the AWF sandbox mount
@@ -555,7 +556,7 @@ async function main() {
     core.info(`Bridge script: ${bridgeScript}`);
   }
 
-  const apiKey = process.env.MCP_GATEWAY_API_KEY || "";
+  const apiKey = readSecretEnv("MCP_GATEWAY_API_KEY") || "";
   if (!apiKey) {
     core.warning("MCP_GATEWAY_API_KEY is not set; generated CLI wrappers will not be able to authenticate with the gateway");
   }

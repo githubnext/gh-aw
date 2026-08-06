@@ -9,6 +9,7 @@ const { isTemporaryId, normalizeTemporaryId, resolveRepoIssueTarget } = require(
 const { sleep } = require("./error_recovery.cjs");
 const { parseAllowedRepos, validateRepo, resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { resolvePullRequestRepo } = require("./pr_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
@@ -33,7 +34,7 @@ let _allResults = [];
  * @returns {Promise<Object>} Authenticated GitHub client
  */
 async function createAssignToAgentGitHubClient(config) {
-  const token = config["github-token"] || process.env.GH_AW_ASSIGN_TO_AGENT_TOKEN;
+  const token = config["github-token"] || readSecretEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN");
   if (!token) {
     core.debug("No dedicated agent token configured — using step-level github client for assign-to-agent operations");
     return github;

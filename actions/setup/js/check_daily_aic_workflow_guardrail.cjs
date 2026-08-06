@@ -10,6 +10,7 @@ const { calculateDailyAICStats, findJSONLFiles, formatAICCredits, sumAICFromUsag
 const { AIC_USAGE_CACHE_FILE_PATH, CACHE_RETENTION_MS, pruneStaleJSONLCacheLines } = require("./daily_aic_cache_helpers.cjs");
 const { parsePositiveCompactNumber } = require("./numeric_limits.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 const { createRateLimitAwareGithub, fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
@@ -576,7 +577,7 @@ async function main() {
     return;
   }
 
-  const token = process.env.GH_AW_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
+  const token = readSecretEnv("GH_AW_GITHUB_TOKEN") || readSecretEnv("GITHUB_TOKEN") || readSecretEnv("GH_TOKEN") || "";
   if (!token) {
     core.setOutput("daily_ai_credits_guardrail_status", "skipped");
     core.warning("Skipping daily workflow AI Credits guardrail because no GitHub token was available for artifact lookup.");

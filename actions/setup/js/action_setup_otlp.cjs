@@ -29,6 +29,7 @@ require("./shim.cjs");
 const { appendFileSync } = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { getActionInput } = require("./action_input_utils.cjs");
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 /**
  * Append a key=value line to a GitHub Actions file (GITHUB_OUTPUT or GITHUB_ENV)
@@ -132,7 +133,7 @@ async function run() {
     process.env.INPUT_PARENT_SPAN_ID = inputParentSpanId;
   }
 
-  const inputOTLPOIDCToken = getActionInput("OTLP_OIDC_TOKEN");
+  const inputOTLPOIDCToken = (readSecretEnv("INPUT_OTLP_OIDC_TOKEN") || readSecretEnv("INPUT_OTLP-OIDC-TOKEN") || "").trim();
   if (inputOTLPOIDCToken) {
     const existingHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
     const mergedHeaders = mergeAuthorizationHeader(existingHeaders, inputOTLPOIDCToken);

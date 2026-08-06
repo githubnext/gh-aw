@@ -12,14 +12,13 @@
  */
 
 const CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+const { readSecretEnv } = require("./read_secret_env.cjs");
 
 async function main() {
-  const oidcToken = process.env.GH_AW_OTLP_OIDC_TOKEN;
+  const oidcToken = readSecretEnv("GH_AW_OTLP_OIDC_TOKEN");
   if (!oidcToken) {
     throw new Error("Missing GitHub OIDC token for Google workload identity token exchange");
   }
-  core.setSecret(oidcToken);
-
   const response = await fetch("https://sts.googleapis.com/v1/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
