@@ -1628,6 +1628,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
+          rm -f /tmp/gh-aw/threat-detection/step-summary.md
           touch /tmp/gh-aw/threat-detection/step-summary.md
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.44
