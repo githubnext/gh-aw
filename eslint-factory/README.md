@@ -42,6 +42,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-new-url-try-catch`](#require-new-url-try-catch) | Require try/catch around `new URL(variable)` calls |
 | [`require-parseInt-radix`](#require-parseInt-radix) | Require an explicit radix argument to `parseInt()` |
 | [`require-nan-check-after-env-numeric-parse`](#require-nan-check-after-env-numeric-parse) | Require NaN validation after parsing numeric values from `process.env` |
+| [`require-core-setsecret-for-sensitive-values`](#require-core-setsecret-for-sensitive-values) | Require parsed credentials and secrets to be registered for log masking |
 | [`require-return-after-core-setfailed`](#require-return-after-core-setfailed) | Require a control-transfer statement after `core.setFailed()` |
 | [`require-execsync-try-catch`](#require-execsync-try-catch) | Require try/catch around `execSync(...)` calls from `child_process` |
 | [`require-execfilesync-try-catch`](#require-execfilesync-try-catch) | Require try/catch around `execFileSync(...)` calls from `child_process` |
@@ -337,6 +338,16 @@ Flagged forms:
 - `globalThis.parseInt(value)`
 
 Why: omitting the radix allows implicit base detection, which can silently accept prefixes such as `0x`.
+
+### `require-core-setsecret-for-sensitive-values`
+
+Require values that heuristically look like secrets to be passed to `core.setSecret(...)`. Registering a value with the Actions toolkit masks later occurrences in runner logs.
+
+The rule tracks declarations and assignments whose names or source properties contain credential terms such as `secret`, `password`, `credential`, `token`, `apiKey`, `privateKey`, or `accessKey`. It follows common parsing and transformation expressions, including environment reads, object properties, `JSON.parse(...)`, input helpers, `Buffer.from(...)`, logical fallbacks, and conditional expressions.
+
+Accepted masking forms include `core.setSecret(value)`, computed access, stable aliases of `core`, and destructured `setSecret` aliases. Passing a derived expression such as `core.setSecret(token.trim())` also masks the tracked binding.
+
+To reduce false positives, token accounting names such as `inputTokens`, `tokenCount`, `tokenUsage`, and `tokenThreshold` are ignored, as are boolean presence checks such as `!!process.env.GITHUB_TOKEN`.
 
 ### `require-nan-check-after-env-numeric-parse`
 

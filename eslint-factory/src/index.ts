@@ -37,6 +37,7 @@ import { requireEscapedRegexpInterpolationRule } from "./rules/require-escaped-r
 import { requireFetchTimeoutRule } from "./rules/require-fetch-timeout";
 import { requireNanCheckAfterEnvNumericParseRule } from "./rules/require-nan-check-after-env-numeric-parse";
 import { preferStructuredCloneRule } from "./rules/prefer-structured-clone";
+import { requireCoreSetSecretForSensitiveValuesRule } from "./rules/require-core-setsecret-for-sensitive-values";
 
 const plugin = {
   meta: {
@@ -83,6 +84,7 @@ const plugin = {
     "require-fetch-timeout": requireFetchTimeoutRule,
     "require-nan-check-after-env-numeric-parse": requireNanCheckAfterEnvNumericParseRule,
     "prefer-structured-clone": preferStructuredCloneRule,
+    "require-core-setsecret-for-sensitive-values": requireCoreSetSecretForSensitiveValuesRule,
   },
 };
 
