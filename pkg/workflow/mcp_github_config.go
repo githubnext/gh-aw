@@ -88,11 +88,11 @@ func hasGitHubApp(githubTool map[string]any) bool {
 	return hasApp
 }
 
-// isGitHubCLIModeEnabled returns true when GitHub prompt/runtime mode is explicitly set
-// to `tools.github.mode: gh-proxy`. If mode is explicitly set to `local` or `remote`, it
-// takes precedence over the legacy features.cli-proxy flag (treated as MCP mode).
-// When mode is not explicitly set, this returns the legacy `features.cli-proxy` flag
-// value for backward compatibility.
+// isGitHubCLIModeEnabled returns true when GitHub prompt/runtime mode is gh-proxy.
+// gh-proxy is the default when tools.github is present: it is enabled unless
+// tools.github is explicitly disabled (set to false) or tools.github.mode is
+// explicitly set to `local` or `remote`. The legacy features.cli-proxy flag is
+// still respected for backward compatibility when tools.github is absent.
 func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 	if data == nil {
 		return false
@@ -111,12 +111,15 @@ func isGitHubCLIModeEnabled(data *WorkflowData) bool {
 					case GitHubMCPModeLocal, GitHubMCPModeRemote:
 						return false
 					default:
-						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", stringValue)
+						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to default (gh-proxy)", stringValue)
 					}
 				}
 			}
 		}
+		// tools.github is present but no mode is set: default to gh-proxy.
+		return true
 	}
+	// tools.github is absent: fall back to the legacy features.cli-proxy flag.
 	return isFeatureEnabled(constants.CliProxyFeatureFlag, data)
 }
 

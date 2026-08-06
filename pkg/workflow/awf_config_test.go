@@ -169,6 +169,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 						NetworkIsolation: true,
 					},
 				},
+				Tools: map[string]any{"github": false},
 			},
 		}
 
@@ -2043,6 +2044,7 @@ func TestBuildAWFTopologyAttachList(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools: map[string]any{
 				"github": map[string]any{
+					"mode":     "local",
 					"toolsets": []string{"repos"},
 				},
 			},

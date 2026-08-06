@@ -56,7 +56,8 @@ func TestBashDefaultsConsistency(t *testing.T) {
 		{
 			name: "bash with empty array (no tools)",
 			tools: map[string]any{
-				"bash": []any{},
+				"bash":   []any{},
+				"github": false,
 			},
 			safeOutputs: nil,
 		},

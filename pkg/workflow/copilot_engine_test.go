@@ -915,7 +915,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"bash": []any{"echo", "ls"},
 				"edit": nil,
 			},
-			expected: []string{"--allow-tool", "github(get_file_contents)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "github(get_file_contents)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(gh:*)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
 		},
 		// Stem command tests - commands that Copilot CLI matches with subcommands
 		{

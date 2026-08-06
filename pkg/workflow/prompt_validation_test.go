@@ -120,6 +120,7 @@ permissions:
   security-events: read
 tools:
   github:
+    mode: local
     toolsets: [code_security]
 ---
 

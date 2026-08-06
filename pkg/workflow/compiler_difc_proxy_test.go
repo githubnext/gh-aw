@@ -1106,9 +1106,11 @@ func TestIsCliProxyNeeded_IntegrityReactionsImplicitEnable(t *testing.T) {
 					},
 				},
 				Features: map[string]any{},
+				// tools.github with no explicit mode defaults to gh-proxy.
+				Tools: map[string]any{"github": map[string]any{}},
 			},
-			expected: false,
-			desc:     "no feature flags should not enable the CLI proxy",
+			expected: true,
+			desc:     "gh-proxy is enabled by default when tools.github is present with no explicit mode",
 		},
 		{
 			name: "integrity-reactions without firewall",

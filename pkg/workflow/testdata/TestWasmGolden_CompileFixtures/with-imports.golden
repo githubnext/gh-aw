@@ -233,7 +233,7 @@ jobs:
           </github-context>
 
           GH_AW_PROMPT_NORM_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_prompt.md"
+          cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_prompt.md"
           cat << 'GH_AW_PROMPT_NORM_EOF'
           </system>
           {{#runtime-import shared/tools.md}}
@@ -438,68 +438,7 @@ jobs:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:AWF_VERSION ghcr.io/github/gh-aw-firewall/api-proxy:AWF_VERSION ghcr.io/github/gh-aw-firewall/squid:AWF_VERSION ghcr.io/github/gh-aw-mcpg:MCPG_VERSION ghcr.io/github/github-mcp-server:GH_MCP_VERSION
-      - name: Start MCP Gateway
-        id: start-mcp-gateway
-        env:
-          GH_AW_SINK_VISIBILITY: ${{ steps.determine-automatic-lockdown.outputs.visibility }}
-          GITHUB_MCP_GUARD_MIN_INTEGRITY: ${{ steps.determine-automatic-lockdown.outputs.min_integrity }}
-          GITHUB_MCP_GUARD_REPOS: ${{ steps.determine-automatic-lockdown.outputs.repos }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          set -eo pipefail
-          mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config"
-
-          # Export gateway environment variables for MCP config and gateway script
-          export MCP_GATEWAY_PORT="8080"
-          export MCP_GATEWAY_DOMAIN="awmg-mcpg"
-          export MCP_GATEWAY_HOST_DOMAIN="localhost"
-          MCP_GATEWAY_API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
-          echo "::add-mask::${MCP_GATEWAY_API_KEY}"
-          export MCP_GATEWAY_API_KEY
-          export MCP_GATEWAY_PAYLOAD_DIR="/tmp/gh-aw/mcp-payloads"
-          mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
-          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD="524288"
-          export DEBUG="*"
-
-          export GH_AW_ENGINE="copilot"
-          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
-          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
-          source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GH_AW_SINK_VISIBILITY -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:MCPG_VERSION'
-
-          mkdir -p "$HOME/.copilot"
-          GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_NORM_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
-          {
-            "mcpServers": {
-              "github": {
-                "type": "stdio",
-                "container": "ghcr.io/github/github-mcp-server:GH_MCP_VERSION",
-                "env": {
-                  "GITHUB_FEATURES": "fields_param",
-                  "GITHUB_HOST": "${GITHUB_SERVER_URL}",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}",
-                  "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
-                },
-                "guard-policies": {
-                  "allow-only": {
-                    "min-integrity": "$GITHUB_MCP_GUARD_MIN_INTEGRITY",
-                    "repos": "$GITHUB_MCP_GUARD_REPOS"
-                  }
-                }
-              }
-            },
-            "gateway": {
-              "port": $MCP_GATEWAY_PORT,
-              "domain": "${MCP_GATEWAY_DOMAIN}",
-              "apiKey": "${MCP_GATEWAY_API_KEY}",
-              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}",
-              "startupTimeout": 120
-            }
-          }
-          GH_AW_MCP_CONFIG_NORM_EOF
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:AWF_VERSION ghcr.io/github/gh-aw-firewall/api-proxy:AWF_VERSION ghcr.io/github/gh-aw-firewall/cli-proxy:AWF_VERSION ghcr.io/github/gh-aw-firewall/squid:AWF_VERSION ghcr.io/github/gh-aw-mcpg:MCPG_VERSION ghcr.io/github/github-mcp-server:GH_MCP_VERSION
       - name: Clean credentials
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh"
@@ -507,6 +446,21 @@ jobs:
         id: pre_agent_audit
         continue-on-error: true
         run: bash "${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh"
+      - name: Start CLI Proxy
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GH_HOST: ${{ env.GH_HOST }}
+          GITHUB_HOST: ${{ env.GITHUB_HOST }}
+          GITHUB_ENTERPRISE_HOST: ${{ env.GITHUB_ENTERPRISE_HOST }}
+          GITHUB_GRAPHQL_URL: ${{ env.GITHUB_GRAPHQL_URL }}
+          GITHUB_COPILOT_BASE_URL: ${{ env.GITHUB_COPILOT_BASE_URL }}
+          GH_AW_NETWORK_ISOLATION: 'true'
+          CLI_PROXY_POLICY: '{"allow-only":{"repos":"${{ steps.determine-automatic-lockdown.outputs.repos }}","min-integrity":"${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"}}'
+          CLI_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:MCPG_VERSION'
+        run: |
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -543,7 +497,7 @@ jobs:
             fi
           fi
           # shellcheck disable=SC1003,SC2016,SC2086
-          awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"} --env-all --exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN --exclude-env ACTIONS_ID_TOKEN_REQUEST_URL --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --log-level info --skip-pull \
+          awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"} --env-all --exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN --exclude-env ACTIONS_ID_TOKEN_REQUEST_URL --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GH_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --log-level info --skip-pull --difc-proxy-host awmg-cli-proxy:18443 --difc-proxy-ca-cert /tmp/gh-aw/difc-proxy-tls/ca.crt \
             -- /bin/bash -c 'set +o histexpand; : "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/copilot_harness.cjs /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-all-tools --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           AWF_REFLECT_ENABLED: 1
@@ -558,6 +512,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_TIMEOUT_MINUTES: 10
           GH_AW_VERSION: dev
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
           GITHUB_COPILOT_INTEGRATION_ID: agentic-workflows
@@ -573,6 +528,10 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
+      - name: Stop CLI Proxy
+        if: always()
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/stop_cli_proxy.sh"
       - name: Detect agent errors
         if: always()
         id: detect-agent-errors

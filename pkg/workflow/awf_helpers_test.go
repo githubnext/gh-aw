@@ -1578,18 +1578,20 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		}
 	}
 
-	t.Run("does not include cli-proxy flags when feature flag is absent", func(t *testing.T) {
+	t.Run("does not include cli-proxy flags when tools.github is disabled", func(t *testing.T) {
 		config := AWFCommandConfig{
-			EngineName:     "copilot",
-			WorkflowData:   baseWorkflow(nil, nil),
+			EngineName: "copilot",
+			WorkflowData: baseWorkflow(nil, map[string]any{
+				"github": false,
+			}),
 			AllowedDomains: "github.com",
 		}
 
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.NotContains(t, argsStr, "--difc-proxy-host", "Should not include --difc-proxy-host when feature flag is absent")
-		assert.NotContains(t, argsStr, "--difc-proxy-ca-cert", "Should not include --difc-proxy-ca-cert when feature flag is absent")
+		assert.NotContains(t, argsStr, "--difc-proxy-host", "Should not include --difc-proxy-host when tools.github is disabled")
+		assert.NotContains(t, argsStr, "--difc-proxy-ca-cert", "Should not include --difc-proxy-ca-cert when tools.github is disabled")
 		assert.NotContains(t, argsStr, "--enable-cli-proxy", "Should not include deprecated --enable-cli-proxy")
 		assert.NotContains(t, argsStr, "--cli-proxy-policy", "Should not include deprecated --cli-proxy-policy")
 	})
@@ -1651,7 +1653,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		assert.NotContains(t, argsStr, "host.docker.internal:18443", "Should not use host.docker.internal in isolation mode")
 	})
 
-	t.Run("does not include cli-proxy flags for copilot by default", func(t *testing.T) {
+	t.Run("includes cli-proxy flags for copilot by default (gh-proxy enabled by default)", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -1663,6 +1665,8 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 					Firewall: &FirewallConfig{Enabled: true, Version: "v0.26.0"},
 				},
 				Features: map[string]any{},
+				// tools.github with no explicit mode defaults to gh-proxy.
+				Tools: map[string]any{"github": map[string]any{}},
 			},
 			AllowedDomains: "github.com",
 		}
@@ -1670,8 +1674,8 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
-		assert.NotContains(t, argsStr, "--difc-proxy-host", "Should not include --difc-proxy-host for copilot by default")
-		assert.NotContains(t, argsStr, "--difc-proxy-ca-cert", "Should not include --difc-proxy-ca-cert for copilot by default")
+		assert.Contains(t, argsStr, "--difc-proxy-host", "Should include --difc-proxy-host for copilot by default (gh-proxy on by default)")
+		assert.Contains(t, argsStr, "--difc-proxy-ca-cert", "Should include --difc-proxy-ca-cert for copilot by default (gh-proxy on by default)")
 	})
 
 	t.Run("does not include deprecated flags even with guard policy configured", func(t *testing.T) {

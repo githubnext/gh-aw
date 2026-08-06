@@ -35,6 +35,7 @@ on: push
 engine: claude
 tools:
   github:
+    mode: local
     allowed: [list_issues, create_issue]
 ---`,
 			// With Docker MCP always enabled, default is docker (not services)

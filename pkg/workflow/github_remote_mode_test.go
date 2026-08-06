@@ -84,7 +84,7 @@ tools:
 			engineType:    "claude",
 		},
 		{
-			name: "Local mode (default)",
+			name: "Local mode (explicit)",
 			frontmatter: `---
 on: issues
 permissions:
@@ -93,6 +93,7 @@ engine: claude
 strict: false
 tools:
   github:
+    mode: local
     toolsets: [issues]
 ---`,
 			expectedType:  "local",

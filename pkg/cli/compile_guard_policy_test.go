@@ -33,6 +33,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     min-integrity: none
 ---
 
@@ -52,6 +53,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     repos: all
     min-integrity: unapproved
 ---
@@ -72,6 +74,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     repos: public
     min-integrity: approved
 ---
@@ -92,6 +95,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     repos:
       - owner/repo
     min-integrity: merged
@@ -113,6 +117,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     repos: all
 ---
 
@@ -160,6 +165,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     min-integrity: approved
 ---
 
@@ -212,6 +218,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     allowed-repos:
       - myorg/myrepo
     min-integrity: approved
@@ -267,6 +274,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     allowed-repos: all
     min-integrity: unapproved
     blocked-users: "${{ vars.BLOCKED_USERS }}"
@@ -316,6 +324,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     allowed-repos: all
     min-integrity: unapproved
     blocked-users: "spam-bot, compromised-user"
@@ -361,6 +370,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     min-integrity: approved
     trusted-users:
       - contractor-1
@@ -410,6 +420,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     min-integrity: approved
     trusted-users: "${{ vars.TRUSTED_USERS }}"
 ---
@@ -451,6 +462,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     trusted-users:
       - contractor-1
 ---
@@ -518,6 +530,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     allowed:
       - issue_read:1
       - list_labels

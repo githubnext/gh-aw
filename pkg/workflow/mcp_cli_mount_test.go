@@ -238,7 +238,7 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 }
 
 func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *testing.T) {
-	t.Run("copilot adds github and custom MCP servers when CLI mounts are active", func(t *testing.T) {
+	t.Run("copilot adds custom MCP servers when CLI mounts are active (github uses gh-proxy by default)", func(t *testing.T) {
 		data := &WorkflowData{
 			EngineConfig: &EngineConfig{ID: string(constants.CopilotEngine)},
 			Tools: map[string]any{
@@ -255,16 +255,16 @@ func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *test
 
 		servers := getMCPCLIServerNames(data)
 		assert.Equal(t,
-			[]string{"azure-devops", constants.GitHubMCPServerID.String(), constants.SafeOutputsMCPServerID.String()},
+			[]string{"azure-devops", constants.SafeOutputsMCPServerID.String()},
 			servers,
-			"server list should contain all mounted servers in sorted order",
+			"server list should not include github when gh-proxy is active by default",
 		)
 	})
 
-	t.Run("copilot with cli-proxy only and github MCP (no safeoutputs) still advertises github", func(t *testing.T) {
-		// Regression: len(servers)==0 before the Copilot block because GitHub is
-		// excluded from the initial collection. The activation condition must include
-		// ParsedTools.CLIProxy so this case is not silently skipped.
+	t.Run("copilot with cli-proxy only and github MCP (no safeoutputs) still advertises custom servers", func(t *testing.T) {
+		// gh-proxy is active by default when github tool is present, so github CLI mount
+		// is not needed — the agent uses the gh CLI directly. Custom servers like azure-devops
+		// are still CLI-mounted when cli-proxy is enabled.
 		tools := map[string]any{
 			"github":       true,
 			"cli-proxy":    true,
@@ -279,9 +279,9 @@ func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *test
 
 		servers := getMCPCLIServerNames(data)
 		assert.Equal(t,
-			[]string{"azure-devops", constants.GitHubMCPServerID.String()},
+			[]string{"azure-devops"},
 			servers,
-			"server list should contain all mounted servers in sorted order",
+			"server list should contain custom servers but not github when gh-proxy is active by default",
 		)
 	})
 
