@@ -42,7 +42,7 @@ Then follow a progressive interview — ask one question at a time, advance only
 
 1. **Goal** — confirm workflow name (kebab-case), brief description, optional emoji.
 2. **Repository survey for maintenance workflows** — before choosing a portfolio or cadence, inspect the target repository using [maintainer.md](maintainer.md). Infer project type, contribution and validation rules, repository layout, recent activity, issue and pull request state, labels, releases, and CI health. Summarize the observed signals and derive an initial low-risk strategy; ask only for policy or capacity information that cannot be inferred.
-3. **Trigger** — ask "When should this run?" and map to an `on:` block (see trigger mapping in [designer.md](designer.md)).
+3. **Trigger** — ask "When should this run?" and map to an `on:` block (see trigger mapping in [designer-mappings.md](designer-mappings.md)).
 4. **Scope** — ask what it reads and what it creates or updates; map to `permissions:`, `tools:`, and `safe-outputs:`.
 5. **Data strategy** — ask whether GitHub data should be pre-fetched with `gh` + `jq` (DataOps default); map to `steps:`.
 6. **Guardrails** — ask whether it should block, advise, or silently log; guide toward `noop` and safe-output behavior.
@@ -68,7 +68,7 @@ Then follow a progressive interview — ask one question at a time, advance only
 
 Skip phases when the answer is already clear from earlier statements. Apply progressive disclosure: at most 5 questions before presenting the confirmation summary; then ask "anything else?" if needed. Detect done signals (`that's it`, `looks good`, `generate it`) and proceed to generation.
 
-For detailed trigger/safe-output/network/tool decision heuristics, integration auth setup patterns, and token-optimization defaults, load [designer.md](designer.md) as a reference.
+For detailed trigger/safe-output/network/tool decision heuristics and integration auth setup patterns, load [designer-mappings.md](designer-mappings.md). For token-optimization defaults, load [designer.md](designer.md).
 
 ### Issue-form mode
 
