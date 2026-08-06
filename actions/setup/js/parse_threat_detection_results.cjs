@@ -497,7 +497,8 @@ async function main() {
 
   /**
    * Helper to set detection failure/warning outputs based on continue-on-error mode.
-   * In warn mode: sets conclusion=warning, success=false, does NOT fail the job.
+   * In warn mode, engine failures with tooling reasons fail closed; all other
+   * failures set conclusion=warning, success=false, and do not fail the job.
    * In error mode: sets conclusion=failure, success=false, fails the job.
    * @param {string} reason - Categorized reason (e.g. "threat_detected", "agent_failure", "parse_error")
    * @param {string} message - Human-readable error message
@@ -505,7 +506,8 @@ async function main() {
   function setDetectionFailure(reason, message) {
     core.setOutput("reason", reason);
     core.exportVariable("GH_AW_DETECTION_REASON", reason);
-    if (isWarnMode) {
+    const mustFail = detectionExecutionOutcome === "failure" && (reason === "agent_failure" || reason === "parse_error");
+    if (isWarnMode && !mustFail) {
       core.warning(`⚠️ ${message}`);
       core.setOutput("conclusion", "warning");
       core.exportVariable("GH_AW_DETECTION_CONCLUSION", "warning");
