@@ -12,7 +12,7 @@ const { displayFileContent } = require("./display_file_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { computeSafeOutputsStatus } = require("./safe_outputs_status.cjs");
 const ERROR_CODES = require("./error_codes.cjs");
-const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
+const { redactStepSummaryContent } = require("./redact_secrets.cjs");
 
 /**
  * Error codes that may be rendered verbatim in a step summary.
@@ -38,28 +38,6 @@ function toSummarySafeErrorCode(error) {
     return match[1];
   }
   return UNCLASSIFIED_ERROR_CODE;
-}
-
-/**
- * Redacts credential-shaped strings from step-summary markdown.
- *
- * Titles, labels, and URLs rendered here are agent-controlled, and GitHub Actions
- * `::add-mask::` processing does not scrub `$GITHUB_STEP_SUMMARY`, so the built-in
- * credential patterns used for artifact redaction are applied before writing.
- * Redaction failures are non-fatal: the summary is best-effort output.
- * @param {string} content - Markdown destined for the step summary
- * @returns {string} Markdown with credential-shaped strings replaced
- */
-function redactSummaryContent(content) {
-  if (!content) {
-    return content;
-  }
-  try {
-    return redactBuiltInPatterns(content).content;
-  } catch (error) {
-    core.warning(`Failed to redact safe output summary content: ${getErrorMessage(error)}`);
-    return content;
-  }
 }
 
 /**
@@ -253,7 +231,7 @@ async function writeSafeOutputSummaries(results, messages) {
   }
 
   try {
-    await core.summary.addRaw(redactSummaryContent(summaryContent)).write();
+    await core.summary.addRaw(redactStepSummaryContent(summaryContent)).write();
     core.info(`📝 Safe output summaries written to step summary`);
   } catch (error) {
     core.warning(`Failed to write safe output summaries: ${getErrorMessage(error)}`);
