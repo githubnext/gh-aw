@@ -1,0 +1,215 @@
+import { RuleTester } from "eslint";
+import { describe, it } from "vitest";
+import { requireFetchResponseBodyTryCatchRule } from "./require-fetch-response-body-try-catch";
+
+const cjsRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "commonjs",
+  },
+});
+
+const esmRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module",
+  },
+});
+
+describe("require-fetch-response-body-try-catch", () => {
+  it("valid: direct chain wrapped in try/catch passes (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [
+        `async function f() { try { const data = await fetch(url).json(); } catch (e) {} }`,
+        `async function f() { try { const data = await fetch(url).text(); } catch (e) {} }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: variable-resolved response wrapped in try/catch passes (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [
+        `async function f() {
+          try {
+            const response = await fetch(url);
+            const data = await response.json();
+          } catch (e) {}
+        }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: response obtained via try-wrapped fetch, .json() call outside is still flagged only when unwrapped (documenting scope)", () => {
+    // The rule only tracks whether the *assignment itself* came from a bare await fetch;
+    // it does not attempt to prove that the read site is unreachable when the fetch threw.
+    // This case documents that a response variable NOT sourced from a direct await fetch call
+    // (e.g. a mocked/stubbed response) is left alone.
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [`async function f(response) { const data = await response.json(); }`, `async function f() { const response = makeResponse(); const data = await response.json(); }`],
+      invalid: [],
+    });
+  });
+
+  it("valid: non-fetch object methods named json/text are ignored (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [`async function f() { const data = await someOtherThing.json(); }`, `async function f() { const data = await someOtherThing.text(); }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: direct chain not wrapped in try/catch is flagged (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() { const data = await fetch(url).json(); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() { try {\n  const data = await fetch(url).json();\n} catch (err) {\n  // TODO: handle a malformed/errored fetch response body for this call.\n  throw new Error(\n    "Failed to read fetch response json(): " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `async function f() { const data = await fetch(url).text(); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() { try {\n  const data = await fetch(url).text();\n} catch (err) {\n  // TODO: handle a malformed/errored fetch response body for this call.\n  throw new Error(\n    "Failed to read fetch response text(): " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: variable resolved from bare await fetch, body read outside try is flagged (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() {
+            const response = await fetch(url);
+            const data = await response.json();
+          }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() {
+            const response = await fetch(url);
+            try {
+              const data = await response.json();
+            } catch (err) {
+              // TODO: handle a malformed/errored fetch response body for this call.
+              throw new Error(
+                "Failed to read fetch response json(): " + (err instanceof Error ? err.message : String(err)),
+                { cause: err },
+              );
+            }
+          }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: variable resolved from bare await fetch, body read outside try is flagged (ES module)", () => {
+    esmRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() {
+            const response = await fetch(url);
+            const data = await response.json();
+          }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() {
+            const response = await fetch(url);
+            try {
+              const data = await response.json();
+            } catch (err) {
+              // TODO: handle a malformed/errored fetch response body for this call.
+              throw new Error(
+                "Failed to read fetch response json(): " + (err instanceof Error ? err.message : String(err)),
+                { cause: err },
+              );
+            }
+          }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: fetch inside try but .json() read after try block ends is flagged (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() {
+            let response;
+            try {
+              response = await fetch(url);
+            } catch (e) {
+              throw e;
+            }
+            const data = await response.json();
+          }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() {
+            let response;
+            try {
+              response = await fetch(url);
+            } catch (e) {
+              throw e;
+            }
+            try {
+              const data = await response.json();
+            } catch (err) {
+              // TODO: handle a malformed/errored fetch response body for this call.
+              throw new Error(
+                "Failed to read fetch response json(): " + (err instanceof Error ? err.message : String(err)),
+                { cause: err },
+              );
+            }
+          }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+});
