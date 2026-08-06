@@ -107,7 +107,9 @@ function ensureAuditDir(auditDir = AUDIT_LOG_DIR) {
  * @returns {Record<string, string | number | boolean>}
  */
 function sanitizeAuditEntry(entry) {
-  return Object.fromEntries(Object.entries(entry).filter(([key, value]) => SAFE_AUDIT_FIELDS.has(key) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean")));
+  return /** @type {Record<string, string | number | boolean>} */ Object.fromEntries(
+    Object.entries(entry).filter(([key, value]) => SAFE_AUDIT_FIELDS.has(key) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean"))
+  );
 }
 
 /**
@@ -117,7 +119,7 @@ function sanitizeAuditEntry(entry) {
  */
 function serializedSize(value) {
   try {
-    return Buffer.byteLength(JSON.stringify(value) || "");
+    return Buffer.byteLength(JSON.stringify(value) ?? "");
   } catch {
     return 0;
   }
