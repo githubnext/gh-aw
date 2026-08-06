@@ -297,8 +297,9 @@ func writePromptBashStep(yaml *strings.Builder, name, script string) {
 	fmt.Fprintf(yaml, "      - name: %s\n", name)
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
-	fmt.Fprintf(yaml, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/%s\"\n", script)
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          # poutine:ignore untrusted_checkout_exec\n")
+	fmt.Fprintf(yaml, "          bash \"${RUNNER_TEMP}/gh-aw/actions/%s\"\n", script)
 }
 
 // extractPromptChunksFromMarkdown applies the standard post-processing pipeline to a markdown body:

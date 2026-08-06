@@ -1125,7 +1125,7 @@ func TestDetectionGuardStepCondition(t *testing.T) {
 	}
 }
 
-func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testing.T) {
+func TestPrepareDetectionFilesStepInvokesSetupScript(t *testing.T) {
 	compiler := NewCompiler()
 
 	steps := compiler.buildPrepareDetectionFilesStep()
@@ -1134,23 +1134,8 @@ func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testin
 	}
 
 	joined := strings.Join(steps, "")
-	if !strings.Contains(joined, "rm -f /tmp/gh-aw/agent_usage.json") {
-		t.Error("Expected prepare step to remove stale downloaded agent_usage.json before detection writes its own token usage")
-	}
-	if !strings.Contains(joined, "if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then") {
-		t.Error("Expected prepare step to check for missing or empty detection context prompt")
-	}
-	if !strings.Contains(joined, "ERR_VALIDATION: Missing or empty detection context prompt") {
-		t.Error("Expected prepare step to emit actionable ERR_VALIDATION warning when prompt context is missing")
-	}
-	if !strings.Contains(joined, "Detection will continue with fallback workflow context.") {
-		t.Error("Expected prepare step warning to document fallback behavior")
-	}
-	if strings.Contains(joined, `] && cp "$f"`) {
-		t.Error("Expected prepare step to avoid ambiguous A && B || C copy commands")
-	}
-	if strings.Count(joined, `if [ -f "$f" ]; then`) != 2 {
-		t.Error("Expected prepare step to guard patch and bundle copies with explicit if statements")
+	if !strings.Contains(joined, `bash "${RUNNER_TEMP}/gh-aw/actions/prepare_threat_detection_files.sh"`) {
+		t.Error("Expected prepare step to invoke prepare_threat_detection_files.sh")
 	}
 }
 
@@ -2868,7 +2853,7 @@ func TestBuildDetectionEngineExecutionStepArcDindTopology(t *testing.T) {
 		}
 	})
 
-	t.Run("non-arc-dind: no staging step and uses /usr/local/bin/copilot", func(t *testing.T) {
+	t.Run("non-arc-dind: resolves activated Copilot CLI binary", func(t *testing.T) {
 		data := &WorkflowData{
 			AI: "copilot",
 			// RunnerConfig is nil → default topology
@@ -2888,9 +2873,18 @@ func TestBuildDetectionEngineExecutionStepArcDindTopology(t *testing.T) {
 			t.Errorf("unexpected 'Copy Copilot CLI to daemon-visible path' step for non-arc-dind detection job;\ngot:\n%s", allSteps)
 		}
 
-		// Standard runners use the installed binary directly.
-		if !strings.Contains(allSteps, constants.CopilotBinaryPath) {
-			t.Errorf("expected detection execution to use %q for non-arc-dind;\ngot:\n%s", constants.CopilotBinaryPath, allSteps)
+		if !strings.Contains(allSteps, `GH_AW_COPILOT_SRC="$(command -v copilot 2>/dev/null || true)"`) {
+			t.Errorf("expected detection execution to resolve the activated Copilot CLI binary;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, `cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"`) {
+			t.Errorf("expected detection execution to stage the Copilot CLI binary in its mounted directory;\ngot:\n%s", allSteps)
+		}
+		mountedCopilotPath := "copilot_harness.cjs " + constants.GhAwRootDirShell + "/bin/copilot"
+		if !strings.Contains(allSteps, mountedCopilotPath) {
+			t.Errorf("expected detection harness to use mounted Copilot CLI path %q;\ngot:\n%s", mountedCopilotPath, allSteps)
+		}
+		if strings.Contains(allSteps, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
+			t.Errorf("expected detection harness to avoid fixed path %q;\ngot:\n%s", constants.CopilotBinaryPath, allSteps)
 		}
 	})
 }
