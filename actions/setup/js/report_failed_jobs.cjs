@@ -7,6 +7,7 @@ const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs")
 const { generateFooterWithExpiration, createExpirationLine } = require("./ephemerals.cjs");
 const { generateXMLMarker } = require("./messages.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const GITHUB_API_VERSION = "2022-11-28";
 const FAILED_JOBS_ISSUE_EXPIRES_HOURS = 24 * 7; // 1 week
@@ -48,10 +49,12 @@ function isActionsReadPermissionError(error) {
 function formatFailedJobsList(jobs) {
   return jobs
     .map(job => {
-      if (job.html_url) {
-        return `- [\`${job.name}\`](${job.html_url})`;
+      const safeName = sanitizeContent(job.name);
+      if (job.html_url && job.html_url.startsWith("https://")) {
+        const safeUrl = sanitizeContent(job.html_url);
+        return `- [\`${safeName}\`](${safeUrl})`;
       }
-      return `- \`${job.name}\``;
+      return `- \`${safeName}\``;
     })
     .join("\n");
 }
