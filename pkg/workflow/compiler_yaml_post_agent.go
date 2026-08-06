@@ -85,8 +85,9 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 		paths = append(paths, constants.TmpAwPatchGlob)
 		// Bundle files are generated when patch-format: bundle is configured and are
 		// required downstream to apply changes while preserving merge topology.
-		// Bundle files are binary and cannot be safely text-scanned for secrets, so
-		// they are intentionally excluded from the redact_secrets scanning pass
+		// Bundles are binary and cannot be text-scanned directly, but they are built
+		// from the same git commit range as the accompanying .patch file, so the
+		// .patch scanning above already covers the underlying diff content
 		// (see isKnownUnscannedButAllowedForUpload in step_order_validation.go). The
 		// artifact upload step already sets if-no-files-found: ignore, so including
 		// the bundle glob here is safe even when no bundle files exist.

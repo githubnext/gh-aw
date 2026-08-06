@@ -219,13 +219,16 @@ func isPathScannedBySecretRedaction(path string) bool {
 }
 
 // isKnownUnscannedButAllowedForUpload reports whether a path is a known type of file
-// that is NOT scanned by the redact_secrets step, but is nevertheless explicitly
-// permitted in artifact uploads as an accepted risk.
+// that is NOT text-scanned by the redact_secrets step, but is nevertheless explicitly
+// permitted in artifact uploads.
 //
 // .bundle files are binary git bundles produced when patch-format: bundle is
-// configured. They cannot be safely scanned as UTF-8 text by redact_secrets, but
-// they are required downstream to apply changes while preserving merge topology,
-// so they are intentionally allowed through artifact uploads unscanned.
+// configured. They are generated from the same git commit range as the accompanying
+// .patch file (see generateGitBundle in actions/setup/js/generate_git_bundle.cjs),
+// so the .patch scanning already covers the underlying diff content. Bundles cannot
+// be safely scanned as UTF-8 text, but they are required downstream to apply changes
+// while preserving merge topology, so they are intentionally allowed through
+// artifact uploads unscanned.
 func isKnownUnscannedButAllowedForUpload(path string) bool {
 	isUnderGhAwDir := strings.HasPrefix(path, constants.TmpGhAwDirSlash) ||
 		strings.HasPrefix(path, constants.GhAwRootDirShellSlash) ||
