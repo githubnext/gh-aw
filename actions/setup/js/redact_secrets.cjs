@@ -185,6 +185,31 @@ function redactSecrets(content, secretValues) {
 }
 
 /**
+ * Redacts credential-shaped strings from content destined for the GitHub Actions
+ * step summary.
+ *
+ * Step summaries reproduce agent-controlled data (tool inputs, tool outputs, agent
+ * text, safe-output titles), and `::add-mask::` processing does not scrub
+ * `$GITHUB_STEP_SUMMARY`, so the built-in credential patterns used for artifact
+ * redaction are applied before the summary is written. Redaction failures are
+ * non-fatal because the summary is best-effort output.
+ *
+ * @param {string} content - Markdown destined for the step summary
+ * @returns {string} Content with credential-shaped strings replaced
+ */
+function redactStepSummaryContent(content) {
+  if (typeof content !== "string" || content.length === 0) {
+    return content;
+  }
+  try {
+    return redactBuiltInPatterns(content).content;
+  } catch (error) {
+    core.warning(`Failed to redact step summary content: ${getErrorMessage(error)}`);
+    return content;
+  }
+}
+
+/**
  * Process a single file for secret redaction
  * @param {string} filePath - Path to the file
  * @param {string[]} secretValues - Array of secret values to redact
@@ -257,7 +282,7 @@ async function main() {
     core.info("Scanning for built-in credential patterns and custom secrets");
 
     // Find all target files in /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw directories
-    const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl"];
+    const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl", ".patch"];
     const tmpFiles = findFiles("/tmp/gh-aw", targetExtensions);
     const optFiles = findFiles(`${process.env.RUNNER_TEMP}/gh-aw`, targetExtensions);
     const files = [...tmpFiles, ...optFiles];
@@ -282,4 +307,4 @@ async function main() {
   }
 }
 
-module.exports = { main, redactSecrets, redactBuiltInPatterns, extractMCPGatewayTokens, BUILT_IN_PATTERNS, MCP_GATEWAY_CONFIG_PATHS };
+module.exports = { main, redactSecrets, redactBuiltInPatterns, redactStepSummaryContent, extractMCPGatewayTokens, BUILT_IN_PATTERNS, MCP_GATEWAY_CONFIG_PATHS };

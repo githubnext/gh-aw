@@ -368,14 +368,23 @@ class DefaultArtifactClient {
     const zipLike = isZipResponse(location, contentType);
     if (zipLike && !options.skipDecompress) {
       ensureUnzipAvailable();
-      const tempZip = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-download-")), "artifact.zip");
-      digest = await streamToFile(blobResponse, tempZip);
-      const unzipResult = spawnSync("unzip", ["-q", tempZip, "-d", destination], { encoding: "utf8" });
-      if (unzipResult.error) {
-        throw unzipResult.error;
-      }
-      if (unzipResult.status !== 0) {
-        throw new Error(`unzip failed: ${unzipResult.stderr || unzipResult.stdout || "unknown error"}`);
+      const tempDownloadDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-download-"));
+      const tempZip = path.join(tempDownloadDir, "artifact.zip");
+      try {
+        digest = await streamToFile(blobResponse, tempZip);
+        const unzipResult = spawnSync("unzip", ["-q", tempZip, "-d", destination], { encoding: "utf8" });
+        if (unzipResult.error) {
+          throw unzipResult.error;
+        }
+        if (unzipResult.status !== 0) {
+          throw new Error(`unzip failed: ${unzipResult.stderr || unzipResult.stdout || "unknown error"}`);
+        }
+      } finally {
+        try {
+          fs.rmSync(tempDownloadDir, { recursive: true, force: true });
+        } catch {
+          // Ignore cleanup errors — best effort only.
+        }
       }
     } else {
       const fileName = parseFilenameFromContentDisposition(blobResponse.headers.get("content-disposition") || "");
@@ -398,6 +407,7 @@ class DefaultArtifactClient {
     let artifactName = String(name || "").trim();
     let uploadPath = "";
     let contentType = "application/zip";
+    let tmpDir = "";
 
     if (options.skipArchive) {
       if (files.length !== 1) {
@@ -406,52 +416,62 @@ class DefaultArtifactClient {
       uploadPath = files[0];
       contentType = "application/octet-stream";
     } else {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-upload-"));
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-artifact-upload-"));
       uploadPath = path.join(tmpDir, `${artifactName || "artifact"}.zip`);
       createZipFromFiles(files, rootDirectory, uploadPath);
     }
 
-    const { workflowRunBackendId, workflowJobRunBackendId } = getBackendIdsFromRuntimeToken();
-    const createRequest = {
-      workflowRunBackendId,
-      workflowJobRunBackendId,
-      name: artifactName,
-      version: 7,
-      mimeType: contentType,
-    };
-    const expiresAt = formatRetentionTimestamp(options.retentionDays);
-    if (expiresAt) {
-      createRequest.expiresAt = expiresAt;
+    try {
+      const { workflowRunBackendId, workflowJobRunBackendId } = getBackendIdsFromRuntimeToken();
+      const createRequest = {
+        workflowRunBackendId,
+        workflowJobRunBackendId,
+        name: artifactName,
+        version: 7,
+        mimeType: contentType,
+      };
+      const expiresAt = formatRetentionTimestamp(options.retentionDays);
+      if (expiresAt) {
+        createRequest.expiresAt = expiresAt;
+      }
+
+      /** @type {any} */
+      const createResponse = await twirpRequest("CreateArtifact", createRequest);
+      const signedUploadUrl = createResponse?.signedUploadUrl || createResponse?.signed_upload_url;
+      if (!createResponse?.ok || !signedUploadUrl) {
+        throw new Error("CreateArtifact returned an invalid response");
+      }
+
+      const uploadSize = await uploadFileToSignedURL(uploadPath, signedUploadUrl, contentType);
+      const sha256 = await hashFile(uploadPath);
+
+      const finalizeRequest = {
+        workflowRunBackendId,
+        workflowJobRunBackendId,
+        name: artifactName,
+        size: String(uploadSize),
+        hash: `sha256:${sha256}`,
+      };
+      /** @type {any} */
+      const finalizeResponse = await twirpRequest("FinalizeArtifact", finalizeRequest);
+      if (!finalizeResponse?.ok) {
+        throw new Error("FinalizeArtifact returned an invalid response");
+      }
+
+      return {
+        id: Number(finalizeResponse.artifactId ?? finalizeResponse.artifact_id ?? 0) || undefined,
+        size: uploadSize,
+        digest: sha256,
+      };
+    } finally {
+      if (tmpDir) {
+        try {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch {
+          // Ignore cleanup errors — best effort only.
+        }
+      }
     }
-
-    /** @type {any} */
-    const createResponse = await twirpRequest("CreateArtifact", createRequest);
-    const signedUploadUrl = createResponse?.signedUploadUrl || createResponse?.signed_upload_url;
-    if (!createResponse?.ok || !signedUploadUrl) {
-      throw new Error("CreateArtifact returned an invalid response");
-    }
-
-    const uploadSize = await uploadFileToSignedURL(uploadPath, signedUploadUrl, contentType);
-    const sha256 = await hashFile(uploadPath);
-
-    const finalizeRequest = {
-      workflowRunBackendId,
-      workflowJobRunBackendId,
-      name: artifactName,
-      size: String(uploadSize),
-      hash: `sha256:${sha256}`,
-    };
-    /** @type {any} */
-    const finalizeResponse = await twirpRequest("FinalizeArtifact", finalizeRequest);
-    if (!finalizeResponse?.ok) {
-      throw new Error("FinalizeArtifact returned an invalid response");
-    }
-
-    return {
-      id: Number(finalizeResponse.artifactId ?? finalizeResponse.artifact_id ?? 0) || undefined,
-      size: uploadSize,
-      digest: sha256,
-    };
   }
 }
 

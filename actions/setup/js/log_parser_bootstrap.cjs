@@ -4,6 +4,7 @@
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogInSection, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
+const { redactStepSummaryContent } = require("./redact_secrets.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
@@ -380,7 +381,7 @@ async function runLogParser(options) {
           }
         }
 
-        await core.summary.addRaw(fullMarkdown).write();
+        await core.summary.addRaw(redactStepSummaryContent(fullMarkdown)).write();
       } else {
         // Fallback path: markdown exists but no structured log entries were parsed.
         // Suppress the "parsed successfully" message for Claude since it always produces
@@ -412,7 +413,7 @@ async function runLogParser(options) {
             fullMarkdown += "\n" + safeOutputsMarkdown;
           }
         }
-        await core.summary.addRaw(fullMarkdown).write();
+        await core.summary.addRaw(redactStepSummaryContent(fullMarkdown)).write();
       }
     } else {
       core.error(`Failed to parse ${parserName} log`);
@@ -431,7 +432,7 @@ async function runLogParser(options) {
       } else {
         const diagnostics = buildClaudeStartupDiagnostics(content);
         if (diagnostics.summaryMarkdown) {
-          await core.summary.addRaw(diagnostics.summaryMarkdown).write();
+          await core.summary.addRaw(redactStepSummaryContent(diagnostics.summaryMarkdown)).write();
         }
 
         if (diagnostics.inferenceAccessError) {

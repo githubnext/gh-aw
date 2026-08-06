@@ -231,7 +231,6 @@ Common file paths referenced in workflow files:
 | `/tmp/gh-aw/mcp-logs/gateway.md` | File | MCP gateway markdown log | Markdown-formatted MCP gateway summary |
 | `/tmp/gh-aw/mcp-logs/rpc-messages.jsonl` | File | MCP RPC messages | Raw JSONRPC message log from MCP servers |
 | `/tmp/gh-aw/mcp-logs/safeoutputs/server.log` | File | Safe outputs MCP server log | Logs from the safeoutputs MCP server |
-| `/tmp/gh-aw/mcp-logs/stderr.log` | File | MCP stderr log | Standard error output from MCP processes |
 | `/tmp/gh-aw/safeoutputs/output.jsonl` | File | Safe outputs JSONL | Processed safe output items in JSONL format |
 | `/tmp/gh-aw/safeoutputs/validation.json` | File | Safe outputs validation | Validation results for safe output items |
 | `/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl` | File | Token usage log | Per-call token usage recorded by AWF proxy |
@@ -657,7 +656,6 @@ GitHub Actions runner images used across compiled workflows:
 │   ├── rpc-messages.jsonl      # Raw RPC messages
 │   ├── safeoutputs/
 │   │   └── server.log          # Safe outputs MCP server log
-│   └── stderr.log              # MCP stderr log
 ├── mcp-payloads/               # MCP gateway payloads
 ├── mcp-scripts/logs/           # MCP scripts logs
 ├── model-inventory/            # AI model inventories

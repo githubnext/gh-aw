@@ -166,8 +166,9 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(eventsLog);
 
       expect(result.markdown).toContain("ls");
-      expect(result.markdown).toContain("/tmp");
       expect(result.markdown).toContain("file1.txt");
+      // cwd is part of input parameters which are not rendered to avoid secret leakage
+      expect(result.markdown).not.toContain('"cwd"');
     });
 
     it("preserves structured input for orphaned completion events without inventing a command", () => {
@@ -180,8 +181,9 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(eventsLog);
 
       expect(result.markdown).toContain("bash");
-      expect(result.markdown).toContain("/tmp");
       expect(result.markdown).toContain("file1.txt");
+      // input parameters are not rendered to avoid secret leakage
+      expect(result.markdown).not.toContain('"cwd"');
     });
 
     it("renders tool output preview from array-based result.content in Copilot CLI events.jsonl", () => {
