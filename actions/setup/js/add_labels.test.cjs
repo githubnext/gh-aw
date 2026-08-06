@@ -836,6 +836,16 @@ describe("add_labels", () => {
       const updateIssueCalls = [];
       const updatePRCalls = [];
 
+      // Explicitly set up a regular issue fixture (no pull_request field, non-PR_ node_id)
+      // so this test is resilient to changes in the shared default mock.
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "ISSUE_kwDOB7ZBY877o-t0",
+          title: "Regular issue",
+          labels: [{ name: "bug" }],
+        },
+      });
+
       const originalGraphql = mockGithub.graphql;
       mockGithub.graphql = async (query, variables) => {
         if (typeof query === "string" && query.includes("updateIssue")) {

@@ -298,53 +298,43 @@ const main = createCountGatedHandler({
           // Both updateIssue and updatePullRequest use LabelUpdateInput (rationale/confidence/suggest),
           // which is gated by the "update_issue_suggestions" GraphQL feature flag.
           const intentHeaders = { "GraphQL-Features": "update_issue_suggestions" };
-          let result;
-          if (itemIsPR) {
-            result = await withRetry(
-              () =>
-                githubClient.graphql(
-                  `mutation($prId: ID!, $labels: [LabelUpdateInput!]!) {
-                    updatePullRequest(input: { pullRequestId: $prId, labels: $labels }) {
-                      pullRequest {
-                        id
-                        labels(first: 100) {
-                          nodes {
-                            name
-                          }
+          const [mutationQuery, mutationVars, getResultLabels] = itemIsPR
+            ? [
+                `mutation($prId: ID!, $labels: [LabelUpdateInput!]!) {
+                  updatePullRequest(input: { pullRequestId: $prId, labels: $labels }) {
+                    pullRequest {
+                      id
+                      labels(first: 100) {
+                        nodes {
+                          name
                         }
                       }
                     }
-                  }`,
-                  { prId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders }
-                ),
-              RATE_LIMIT_RETRY_CONFIG,
-              `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
-            );
-          } else {
-            result = await withRetry(
-              () =>
-                githubClient.graphql(
-                  `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
-                    updateIssue(input: { id: $issueId, labels: $labels }) {
-                      issue {
-                        id
-                        labels(first: 100) {
-                          nodes {
-                            name
-                          }
+                  }
+                }`,
+                { prId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders },
+                r => r?.updatePullRequest?.pullRequest?.labels?.nodes,
+              ]
+            : [
+                `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
+                  updateIssue(input: { id: $issueId, labels: $labels }) {
+                    issue {
+                      id
+                      labels(first: 100) {
+                        nodes {
+                          name
                         }
                       }
                     }
-                  }`,
-                  { issueId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders }
-                ),
-              RATE_LIMIT_RETRY_CONFIG,
-              `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
-            );
-          }
+                  }
+                }`,
+                { issueId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders },
+                r => r?.updateIssue?.issue?.labels?.nodes,
+              ];
+          const result = await withRetry(() => githubClient.graphql(mutationQuery, mutationVars), RATE_LIMIT_RETRY_CONFIG, `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`);
 
           core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
-          const afterLabels = itemIsPR ? result?.updatePullRequest?.pullRequest?.labels?.nodes || [] : result?.updateIssue?.issue?.labels?.nodes || [];
+          const afterLabels = getResultLabels(result) || [];
           return attachExecutionState(
             {
               success: true,
