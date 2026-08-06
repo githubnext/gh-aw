@@ -4,9 +4,27 @@
 // All callers must ensure these globals are set before invoking any helper.
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { buildGitAuthEnv } = require("./git_auth_env.cjs");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+
+/**
+ * Build git authentication environment variables and mask both credential
+ * representations in the surrounding GitHub Actions step.
+ *
+ * @param {string} [token]
+ * @returns {Object}
+ */
+function getGitAuthEnv(token) {
+  const authToken = token || process.env.GITHUB_TOKEN;
+  if (!authToken) {
+    core.debug("getGitAuthEnv: no token available, git network operations may fail if credentials were cleaned");
+    return {};
+  }
+  core.setSecret(authToken);
+  return buildGitAuthEnv(authToken, core.setSecret);
+}
 
 /**
  * Normalize a server URL by stripping any trailing slash so the git config key
@@ -308,6 +326,7 @@ async function withGitHubHostToken(token, callback, cwd) {
 module.exports = {
   checkoutHasPersistedExtraheader,
   findIncludedExtraheaderConfigFiles,
+  getGitAuthEnv,
   gitExecSilent,
   overridePersistedExtraheader,
   restorePersistedExtraheader,

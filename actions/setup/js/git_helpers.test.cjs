@@ -29,7 +29,7 @@ describe("git_helpers.cjs", () => {
   }
 
   describe("getGitAuthEnv", () => {
-    it("masks the raw token and its base64 authorization value", async () => {
+    it("does not call core.setSecret in the MCP-safe helper", async () => {
       const setSecret = vi.fn();
       global.core.setSecret = setSecret;
       const { getGitAuthEnv } = await import("./git_helpers.cjs");
@@ -37,7 +37,7 @@ describe("git_helpers.cjs", () => {
       const env = getGitAuthEnv("derived-secret");
       const encoded = Buffer.from("x-access-token:derived-secret").toString("base64");
 
-      expect(setSecret.mock.calls).toEqual([["derived-secret"], [encoded]]);
+      expect(setSecret).not.toHaveBeenCalled();
       expect(env.GIT_CONFIG_VALUE_0).toBe(`Authorization: basic ${encoded}`);
     });
   });

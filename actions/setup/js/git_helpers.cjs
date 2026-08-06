@@ -5,6 +5,7 @@ const { spawnSync } = require("child_process");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isTransientError } = require("./error_recovery.cjs");
+const { buildGitAuthEnv } = require("./git_auth_env.cjs");
 
 /**
  * Build GIT_CONFIG_* environment variables that inject an Authorization header
@@ -29,15 +30,7 @@ function getGitAuthEnv(token) {
     core.debug("getGitAuthEnv: no token available, git network operations may fail if credentials were cleaned");
     return {};
   }
-  core.setSecret(authToken);
-  const serverUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "");
-  const tokenBase64 = Buffer.from(`x-access-token:${authToken}`).toString("base64");
-  core.setSecret(tokenBase64);
-  return {
-    GIT_CONFIG_COUNT: "1",
-    GIT_CONFIG_KEY_0: `http.${serverUrl}/.extraheader`,
-    GIT_CONFIG_VALUE_0: `Authorization: basic ${tokenBase64}`,
-  };
+  return buildGitAuthEnv(authToken);
 }
 
 /**
