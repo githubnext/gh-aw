@@ -258,7 +258,7 @@ func TestBuildMainJobEnv(t *testing.T) {
 		}
 		env := c.buildMainJobEnv(data)
 		require.NotNil(t, env)
-		assert.Equal(t, "${{ inputs.engine-version }}", env["GH_AW_ENGINE_VERSION"])
+		assert.Equal(t, `"${{ inputs.engine-version }}"`, env["GH_AW_ENGINE_VERSION"])
 	})
 
 	t.Run("UTC offset from repo config sets GH_AW_PROJECT_UTC", func(t *testing.T) {

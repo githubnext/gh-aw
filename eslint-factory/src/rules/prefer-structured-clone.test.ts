@@ -80,4 +80,56 @@ describe("prefer-structured-clone", () => {
       ],
     });
   });
+
+  it("invalid: no suggestion when the cloned identifier carries function-valued properties", () => {
+    cjsRuleTester.run("prefer-structured-clone", preferStructuredCloneRule, {
+      valid: [],
+      invalid: [
+        {
+          // Shape of actions/setup/js/safe_outputs_tools_loader.cjs: the JSON round-trip
+          // intentionally drops `tool.handler`, which is re-attached afterwards.
+          // structuredClone would throw DataCloneError here.
+          code: [
+            `function attachHandlers(tools, handlers) {`,
+            `  tools.forEach(tool => {`,
+            `    tool.handler = args => handlers.defaultHandler(args);`,
+            `  });`,
+            `}`,
+            `function register(tool) {`,
+            `  const toolToRegister = JSON.parse(JSON.stringify(tool));`,
+            `  if (tool.handler) {`,
+            `    toolToRegister.handler = tool.handler;`,
+            `  }`,
+            `  return toolToRegister;`,
+            `}`,
+          ].join("\n"),
+          errors: [{ messageId: "preferStructuredClone", suggestions: [] }],
+        },
+        {
+          code: [`function register(tool) {`, `  if (typeof tool.handler === "function") {`, `  }`, `  return JSON.parse(JSON.stringify(tool));`, `}`].join("\n"),
+          errors: [{ messageId: "preferStructuredClone", suggestions: [] }],
+        },
+        {
+          code: [`const config = { handler: () => {} };`, `const clone = JSON.parse(JSON.stringify(config));`].join("\n"),
+          errors: [{ messageId: "preferStructuredClone", suggestions: [] }],
+        },
+        {
+          // JSON-sourced tool (actions/setup/js/generate_safe_outputs_tools.cjs shape):
+          // no function-valued property anywhere, so the suggestion is still offered.
+          code: [`const tools = JSON.parse(readFileSync(path, "utf8"));`, `for (const tool of tools) {`, `  const enhancedTool = JSON.parse(JSON.stringify(tool));`, `}`].join("\n"),
+          errors: [
+            {
+              messageId: "preferStructuredClone",
+              suggestions: [
+                {
+                  messageId: "replaceWithStructuredClone",
+                  output: [`const tools = JSON.parse(readFileSync(path, "utf8"));`, `for (const tool of tools) {`, `  const enhancedTool = structuredClone(tool);`, `}`].join("\n"),
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

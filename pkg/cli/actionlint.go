@@ -283,7 +283,7 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 	if shouldParseOutput && actionlintStats != nil {
 		actionlintStats.TotalWorkflows += len(lockFiles)
 	}
-	return handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr)
+	return handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr, runResult.stdout)
 }
 
 func maybePrintActionlintVersion(ctx context.Context) {
@@ -413,7 +413,7 @@ func actionlintContextError(result actionlintCommandResult, lockFiles []string) 
 	return nil
 }
 
-func handleActionlintExecutionError(err error, strict bool, lockFiles []string, totalErrors int, parseErr error) error {
+func handleActionlintExecutionError(err error, strict bool, lockFiles []string, totalErrors int, parseErr error, stdout string) error {
 	if err == nil {
 		return nil
 	}
@@ -430,7 +430,7 @@ func handleActionlintExecutionError(err error, strict bool, lockFiles []string, 
 	exitCode := exitErr.ExitCode()
 	actionlintLog.Printf("Actionlint exited with code %d, found %d errors", exitCode, totalErrors)
 	if exitCode == 1 {
-		return handleActionlintFindings(strict, lockFiles, totalErrors, parseErr)
+		return handleActionlintFindings(strict, lockFiles, totalErrors, parseErr, stdout)
 	}
 
 	fileDescription := actionlintFileDescription(lockFiles)
@@ -442,18 +442,26 @@ func handleActionlintExecutionError(err error, strict bool, lockFiles []string, 
 	return fmt.Errorf("actionlint failed with exit code %d on %s", exitCode, fileDescription)
 }
 
-func handleActionlintFindings(strict bool, lockFiles []string, totalErrors int, parseErr error) error {
-	if !strict {
+func handleActionlintFindings(strict bool, lockFiles []string, totalErrors int, parseErr error, stdout string) error {
+	if strict {
+		fileDescription := actionlintFileDescription(lockFiles)
 		if parseErr != nil {
-			actionlintLog.Printf("actionlint findings could not be parsed in non-strict mode: %v", parseErr)
+			return fmt.Errorf("strict mode: actionlint exited with errors on %s but output could not be parsed — this is likely a tooling or integration error", fileDescription)
 		}
-		return nil
+		return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, fileDescription)
 	}
-	fileDescription := actionlintFileDescription(lockFiles)
+
+	// In non-strict mode, fail only on high-severity errors.
+	highSeverityCount := countHighSeverityErrors(stdout)
+	if highSeverityCount > 0 {
+		fileDescription := actionlintFileDescription(lockFiles)
+		return fmt.Errorf("actionlint found %d high severity error(s) in %s", highSeverityCount, fileDescription)
+	}
+
 	if parseErr != nil {
-		return fmt.Errorf("strict mode: actionlint exited with errors on %s but output could not be parsed — this is likely a tooling or integration error", fileDescription)
+		actionlintLog.Printf("actionlint findings could not be parsed in non-strict mode: %v", parseErr)
 	}
-	return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, fileDescription)
+	return nil
 }
 
 func actionlintFileDescription(lockFiles []string) string {
@@ -491,6 +499,62 @@ func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, map[stri
 	}
 
 	return totalErrors, errorsByKind, nil
+}
+
+// countHighSeverityErrors counts actionlint errors that are high severity.
+// Non-shellcheck errors are always considered high severity.
+// Shellcheck errors are high severity only if their severity level is "error" or "warning".
+// Shellcheck "info" and "style" level findings are considered low severity.
+func countHighSeverityErrors(stdout string) int {
+	if stdout == "" || strings.TrimSpace(stdout) == "" {
+		return 0
+	}
+	var errors []actionlintError
+	if err := json.Unmarshal([]byte(stdout), &errors); err != nil {
+		return 0
+	}
+	count := 0
+	for _, e := range errors {
+		if isHighSeverityActionlintError(e) {
+			count++
+		}
+	}
+	return count
+}
+
+// isHighSeverityActionlintError determines whether an actionlint error is high severity.
+// Shellcheck findings with "info" or "style" severity are low severity.
+// All other errors (including non-shellcheck errors) are high severity.
+func isHighSeverityActionlintError(e actionlintError) bool {
+	if e.Kind != "shellcheck" {
+		return true
+	}
+	// Shellcheck messages from actionlint have the format:
+	// "shellcheck reported issue in this script: SC<code>:<severity>:<line>:<col>: <message>"
+	severity := extractShellcheckSeverity(e.Message)
+	switch severity {
+	case "info", "style":
+		return false
+	default:
+		return true
+	}
+}
+
+// extractShellcheckSeverity extracts the severity from a shellcheck actionlint message.
+// Expected format: "shellcheck reported issue in this script: SC<code>:<severity>:<line>:<col>: <message>"
+func extractShellcheckSeverity(message string) string {
+	// Find the "SC" code prefix
+	scIdx := strings.Index(message, "SC")
+	if scIdx < 0 {
+		return ""
+	}
+	// After "SC<digits>:" we expect the severity
+	rest := message[scIdx:]
+	parts := strings.SplitN(rest, ":", 3)
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[1]
 }
 
 func buildActionlintCompilerError(err actionlintError) console.CompilerError {
