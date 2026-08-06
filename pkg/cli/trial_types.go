@@ -11,6 +11,13 @@ type WorkflowTrialResult struct {
 	AgenticRunInfo      map[string]any `json:"agentic_run_info,omitempty"`
 	AdditionalArtifacts map[string]any `json:"additional_artifacts,omitempty"`
 	Timestamp           time.Time      `json:"timestamp"`
+	// Success reports whether the trial completed without any rejected safe-output
+	// messages. It is false when the safe-outputs artifact contains a non-empty
+	// "errors" array.
+	Success bool `json:"success"`
+	// SafeOutputErrors contains the rejected safe-output messages, if any, extracted
+	// from the safe-outputs artifact's "errors" array.
+	SafeOutputErrors []string `json:"safe_output_errors,omitempty"`
 }
 
 // CombinedTrialResult represents the combined results of multiple workflow trials
@@ -18,6 +25,32 @@ type CombinedTrialResult struct {
 	WorkflowNames []string              `json:"workflow_names"`
 	Results       []WorkflowTrialResult `json:"results"`
 	Timestamp     time.Time             `json:"timestamp"`
+	// Success reports whether all workflow trials completed without any rejected
+	// safe-output messages.
+	Success bool `json:"success"`
+}
+
+// extractSafeOutputErrors extracts the "errors" array (if any) from a safe-outputs
+// artifact map, returning the rejected safe-output messages as strings.
+func extractSafeOutputErrors(safeOutputs map[string]any) []string {
+	if safeOutputs == nil {
+		return nil
+	}
+	rawErrors, ok := safeOutputs["errors"]
+	if !ok {
+		return nil
+	}
+	errorsSlice, ok := rawErrors.([]any)
+	if !ok {
+		return nil
+	}
+	var messages []string
+	for _, e := range errorsSlice {
+		if msg, ok := e.(string); ok && msg != "" {
+			messages = append(messages, msg)
+		}
+	}
+	return messages
 }
 
 // TrialRepoContext groups repository-related configuration for trial execution
