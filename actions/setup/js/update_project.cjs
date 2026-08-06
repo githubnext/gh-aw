@@ -380,20 +380,25 @@ async function findExistingItemByContentId(github, projectId, contentId) {
 
   while (hasNextPage) {
     const result = await github.graphql(
-      `query($projectId: ID!, $after: String) {
-        node(id: $projectId) {
-          ... on ProjectV2 {
-            items(first: 100, after: $after) {
+      `query($contentId: ID!, $after: String) {
+        node(id: $contentId) {
+          ... on Issue {
+            projectItems(first: 100, after: $after) {
               nodes {
                 id
-                content {
-                  ... on Issue {
-                    id
-                  }
-                  ... on PullRequest {
-                    id
-                  }
-                }
+                project { id }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+          ... on PullRequest {
+            projectItems(first: 100, after: $after) {
+              nodes {
+                id
+                project { id }
               }
               pageInfo {
                 hasNextPage
@@ -403,19 +408,20 @@ async function findExistingItemByContentId(github, projectId, contentId) {
           }
         }
       }`,
-      { projectId, after: endCursor }
+      { contentId, after: endCursor }
     );
 
-    if (!result?.node?.items) {
-      core.warning(`Project ${projectId} not found or inaccessible; stopping item search.`);
+    const projectItems = result?.node?.projectItems || result?.node?.items;
+    if (!projectItems) {
+      core.warning(`Content ${contentId} not found or inaccessible; stopping project item search.`);
       break;
     }
 
-    const found = result.node.items.nodes.find(item => item.content?.id === contentId);
+    const found = projectItems.nodes.find(item => item.project?.id === projectId || item.content?.id === contentId);
     if (found) return found;
 
-    hasNextPage = result.node.items.pageInfo.hasNextPage;
-    endCursor = result.node.items.pageInfo.endCursor;
+    hasNextPage = projectItems.pageInfo.hasNextPage;
+    endCursor = projectItems.pageInfo.endCursor;
   }
 
   return null;

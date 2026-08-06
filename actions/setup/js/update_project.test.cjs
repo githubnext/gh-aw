@@ -281,6 +281,15 @@ const existingItemResponse = (contentId, itemId = "existing-item") => ({
   },
 });
 
+const projectItemsResponse = (projectId, itemId = "existing-item") => ({
+  node: {
+    projectItems: {
+      nodes: [{ id: itemId, project: { id: projectId } }],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+  },
+});
+
 const fieldsResponse = (nodes, hasNextPage = false, endCursor = null) => ({
   node: { fields: { nodes, pageInfo: { hasNextPage, endCursor } } },
 });
@@ -467,6 +476,33 @@ describe("updateProject", () => {
     // update_project no longer adds labels as a side effect
     expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     expect(getOutput("item-id")).toBe("item123");
+  });
+
+  it("finds an existing issue item from the issue side instead of scanning project content", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 42 };
+
+    mockGithub.graphql.mockImplementation(async (query, vars) => {
+      const q = String(query);
+      if (q.includes("repository(owner:") && q.includes("owner {")) return repoResponse();
+      if (q.includes("viewer")) return viewerResponse();
+      if (q.includes("organization(login:")) return orgProjectV2Response(projectUrl, 60, "project123");
+      if (q.includes("issue(number:")) return issueResponse("issue-id-42");
+      if (q.includes("node(id: $contentId)") && q.includes("projectItems(")) {
+        expect(vars).toMatchObject({ contentId: "issue-id-42" });
+        return projectItemsResponse("project123", "item-from-content");
+      }
+      throw new Error(`Unexpected GraphQL query: ${q}`);
+    });
+
+    await updateProject(output);
+
+    const itemLookupQueries = mockGithub.graphql.mock.calls.map(([query]) => String(query)).filter(query => query.includes("projectItems(") || query.includes("items(first:"));
+    expect(itemLookupQueries).toHaveLength(1);
+    expect(itemLookupQueries[0]).toContain("projectItems(");
+    expect(itemLookupQueries[0]).not.toContain("content {");
+    expect(mockGithub.graphql.mock.calls.some(([query]) => String(query).includes("addProjectV2ItemById"))).toBe(false);
+    expect(getOutput("item-id")).toBe("item-from-content");
   });
 
   it("adds a draft issue to a project board", async () => {
