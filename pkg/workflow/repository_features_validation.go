@@ -20,10 +20,13 @@
 // # Validation Pattern: Feature Detection with Caching
 //
 // Repository feature validation uses a caching pattern to amortize expensive API calls:
-//   - sync.Map for thread-safe cache storage
+//   - sync.Map for thread-safe, same-process cache storage
 //   - sync.Once for single-fetch guarantee
 //   - Atomic LoadOrStore for race-free caching
 //   - Separate logged cache to avoid duplicate success messages
+//   - go-gh's disk-backed HTTP response cache (EnableCache/CacheTTL) as a second layer,
+//     persisting results across separate CLI invocations (e.g. repeated runs in the same
+//     CI workflow), on top of the in-process sync.Map fast path
 //
 // # When to Add Validation Here
 //
@@ -57,6 +60,13 @@ import (
 // repositoryFeaturesTimeout is the per-request timeout for repository feature API calls
 // (mirrors the copilot-billing probe timeout).
 const repositoryFeaturesTimeout = 3 * time.Second
+
+// repositoryFeaturesCacheTTL controls how long go-gh's disk-backed HTTP response cache
+// keeps repository feature lookups (discussions/issues enablement) valid. These settings
+// rarely change, so persisting results across process invocations (not just within a
+// single process's in-memory sync.Map cache below) meaningfully reduces redundant API
+// calls when the CLI is invoked repeatedly, e.g. across steps in the same CI workflow.
+const repositoryFeaturesCacheTTL = 5 * time.Minute
 
 var repositoryFeaturesLog = logger.New("workflow:repository_features_validation")
 
@@ -275,7 +285,12 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 	owner, name := parts[0], parts[1]
 
 	// Use native GraphQL client — no gh binary dependency, native context/cancel support.
-	client, err := api.DefaultGraphQLClient()
+	// EnableCache persists the (rarely-changing) discussions-enabled lookup to go-gh's
+	// disk-backed HTTP cache so repeated CLI invocations don't re-query the API.
+	client, err := api.NewGraphQLClient(api.ClientOptions{
+		EnableCache: true,
+		CacheTTL:    repositoryFeaturesCacheTTL,
+	})
 	if err != nil {
 		return false, fmt.Errorf("failed to create GraphQL client: %w", err)
 	}
@@ -307,8 +322,12 @@ func checkRepositoryHasIssues(repo string, verbose bool) (bool, error) {
 
 // checkRepositoryHasIssuesUncached checks if a repository has issues enabled (no caching)
 func checkRepositoryHasIssuesUncached(repo string) (bool, error) {
-	// Create REST client
-	client, err := api.DefaultRESTClient()
+	// Create REST client. EnableCache persists the (rarely-changing) has-issues lookup to
+	// go-gh's disk-backed HTTP cache so repeated CLI invocations don't re-query the API.
+	client, err := api.NewRESTClient(api.ClientOptions{
+		EnableCache: true,
+		CacheTTL:    repositoryFeaturesCacheTTL,
+	})
 	if err != nil {
 		return false, fmt.Errorf("failed to create REST client: %w", err)
 	}

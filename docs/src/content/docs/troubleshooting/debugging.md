@@ -137,6 +137,14 @@ DEBUG=cli:* gh aw audit 12345678               # CLI-specific
 DEBUG=workflow:*,cli:* gh aw compile           # multiple packages
 ```
 
+### Enable GitHub API Request Logging
+
+`gh aw` uses go-gh's native REST/GraphQL clients for all GitHub API calls. Setting `GH_DEBUG=api` prints verbose request/response details for those calls to stderr, with no extra flags needed:
+
+```bash
+GH_DEBUG=api gh aw compile my-workflow
+```
+
 ### Enable GitHub Actions Debug Logging
 
 Add an `ACTIONS_STEP_DEBUG` repository secret set to `true` (**Settings → Secrets and variables → Actions**), then re-run the workflow for verbose step-level logging in the Actions UI.
