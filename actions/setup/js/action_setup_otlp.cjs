@@ -29,6 +29,7 @@ require("./shim.cjs");
 const { appendFileSync } = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { getActionInput } = require("./action_input_utils.cjs");
+const { maskSecret } = require("./actions_secret_masking.cjs");
 
 /**
  * Append a key=value line to a GitHub Actions file (GITHUB_OUTPUT or GITHUB_ENV)
@@ -134,7 +135,7 @@ async function run() {
 
   const inputOTLPOIDCToken = getActionInput("OTLP_OIDC_TOKEN");
   if (inputOTLPOIDCToken) {
-    core.setSecret(inputOTLPOIDCToken);
+    maskSecret(inputOTLPOIDCToken);
     const existingHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
     const mergedHeaders = mergeAuthorizationHeader(existingHeaders, inputOTLPOIDCToken);
 

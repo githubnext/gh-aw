@@ -5,6 +5,7 @@ describe("git_auth_helpers.cjs", () => {
   let mockExec;
   let checkoutHasPersistedExtraheader;
   let findIncludedExtraheaderConfigFiles;
+  let getGitAuthEnv;
   let overridePersistedExtraheader;
   let restorePersistedExtraheader;
   let unsetExtraheaderAllScopes;
@@ -31,13 +32,23 @@ describe("git_auth_helpers.cjs", () => {
     global.exec = mockExec;
 
     delete require.cache[require.resolve("./git_auth_helpers.cjs")];
-    ({ checkoutHasPersistedExtraheader, findIncludedExtraheaderConfigFiles, overridePersistedExtraheader, restorePersistedExtraheader, unsetExtraheaderAllScopes, withGitHubHostToken } = require("./git_auth_helpers.cjs"));
+    ({ checkoutHasPersistedExtraheader, findIncludedExtraheaderConfigFiles, getGitAuthEnv, overridePersistedExtraheader, restorePersistedExtraheader, unsetExtraheaderAllScopes, withGitHubHostToken } = require("./git_auth_helpers.cjs"));
   });
 
   afterEach(() => {
     delete global.core;
     delete global.exec;
     vi.clearAllMocks();
+  });
+
+  describe("getGitAuthEnv", () => {
+    it("masks the raw token and its base64 authorization value", () => {
+      const env = getGitAuthEnv("derived-secret");
+      const encoded = Buffer.from("x-access-token:derived-secret").toString("base64");
+
+      expect(mockCore.setSecret.mock.calls).toEqual([["derived-secret"], [encoded]]);
+      expect(env.GIT_CONFIG_VALUE_0).toBe(`Authorization: basic ${encoded}`);
+    });
   });
 
   // ──────────────────────────────────────────────────────

@@ -4,9 +4,28 @@
 // All callers must ensure these globals are set before invoking any helper.
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { buildGitAuthEnv } = require("./git_auth_env.cjs");
+const { maskSecret } = require("./actions_secret_masking.cjs");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+
+/**
+ * Build git authentication environment variables and mask both credential
+ * representations in the surrounding GitHub Actions step.
+ *
+ * @param {string} [token]
+ * @returns {Object}
+ */
+function getGitAuthEnv(token) {
+  const authToken = token || process.env.GITHUB_TOKEN;
+  if (!authToken) {
+    core.debug("getGitAuthEnv: no token available, git network operations may fail if credentials were cleaned");
+    return {};
+  }
+  maskSecret(authToken);
+  return buildGitAuthEnv(authToken, maskSecret);
+}
 
 /**
  * Normalize a server URL by stripping any trailing slash so the git config key
@@ -209,9 +228,9 @@ async function overridePersistedExtraheader(serverUrl, token, cwd) {
     previousValues = [];
   }
   core.info(`git_auth_helpers: overriding http.${normalizedUrl}/.extraheader with CI trigger token`);
-  core.setSecret(token);
+  maskSecret(token);
   const tokenBase64 = Buffer.from(`x-access-token:${token.trim()}`).toString("base64");
-  core.setSecret(tokenBase64);
+  maskSecret(tokenBase64);
   const authHeader = `Authorization: basic ${tokenBase64}`;
 
   // Clear from ALL writable scopes before writing our token to prevent duplicate
@@ -308,6 +327,7 @@ async function withGitHubHostToken(token, callback, cwd) {
 module.exports = {
   checkoutHasPersistedExtraheader,
   findIncludedExtraheaderConfigFiles,
+  getGitAuthEnv,
   gitExecSilent,
   overridePersistedExtraheader,
   restorePersistedExtraheader,
