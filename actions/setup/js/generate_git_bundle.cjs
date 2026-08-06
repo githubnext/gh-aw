@@ -244,17 +244,24 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
             }
 
             const tempWorktree = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-filtered-bundle-"));
+            // Repository hooks (post-checkout, pre-applypatch, ...) must not run for these
+            // internal synthesis operations: a repository configured for Git LFS (or any other
+            // hook requiring tooling absent from the safe-outputs environment) would otherwise
+            // fail `git worktree add` / `git am` and make a valid branch look unusable.
+            const tempHooksDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-filtered-bundle-hooks-"));
+            const noHooksArgs = ["-c", `core.hooksPath=${tempHooksDir}`];
             try {
-              execGitSync(["worktree", "add", "--detach", tempWorktree, baseCommitSha], { cwd });
-              execGitSync(["am", "--3way", patchResult.patchPath], { cwd: tempWorktree });
+              execGitSync([...noHooksArgs, "worktree", "add", "--detach", tempWorktree, baseCommitSha], { cwd });
+              execGitSync([...noHooksArgs, "am", "--3way", patchResult.patchPath], { cwd: tempWorktree });
               execGitSync(["bundle", "create", bundlePath, `${baseCommitSha}..HEAD`], { cwd: tempWorktree });
             } finally {
               try {
-                execGitSync(["worktree", "remove", "--force", tempWorktree], { cwd });
+                execGitSync([...noHooksArgs, "worktree", "remove", "--force", tempWorktree], { cwd });
               } catch (removeError) {
                 debugLog(`Failed to remove temporary filtered-bundle worktree ${tempWorktree}: ${getErrorMessage(removeError)}`);
               }
               fs.rmSync(tempWorktree, { recursive: true, force: true });
+              fs.rmSync(tempHooksDir, { recursive: true, force: true });
             }
           } else {
             const bundleCreateArgs = ["bundle", "create", bundlePath, `${baseRef}..${branchName}`];
