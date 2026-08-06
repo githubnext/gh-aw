@@ -17,8 +17,9 @@ sandbox:
 
 tracker-id: security-red-team
 engine:
-  id: opencode
-model: copilot/claude-sonnet-4.5
+  id: claude
+  model-provider: github
+model: claude-sonnet-4.6
 strict: true
 network:
   allowed:
@@ -55,7 +56,6 @@ experiments:
     issue: 31673
 timeout-minutes: 60
 imports:
-  - shared/opencode.md
   - shared/security-analysis-base.md
   - uses: shared/daily-audit-base.md
     with:

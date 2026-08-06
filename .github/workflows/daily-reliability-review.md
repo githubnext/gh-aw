@@ -17,8 +17,9 @@ sandbox:
 
 tracker-id: daily-reliability-review
 engine:
-  id: opencode
-model: copilot/claude-sonnet-4.5
+  id: claude
+  model-provider: github
+model: claude-sonnet-4.6
 strict: true
 network:
   allowed:
@@ -41,7 +42,6 @@ safe-outputs:
     close-older-issues: true
 timeout-minutes: 30
 imports:
-  - shared/opencode.md
   - uses: shared/daily-issue-base.md
     with:
       title-prefix: "[reliability] "
