@@ -352,17 +352,19 @@ function createReviewBuffer() {
 
     // Add footer to review body if we should and we have footer context
     if (shouldAddFooter && footerContext) {
-      body += generateFooterWithMessages(
-        footerContext.workflowName,
-        footerContext.runUrl,
-        footerContext.workflowSource,
-        footerContext.workflowSourceURL,
-        footerContext.triggeringIssueNumber,
-        footerContext.triggeringPRNumber,
-        footerContext.triggeringDiscussionNumber,
-        undefined,
-        { skipDetectionCaution: true }
-      );
+      body +=
+        "\n\n" +
+        generateFooterWithMessages(
+          footerContext.workflowName,
+          footerContext.runUrl,
+          footerContext.workflowSource,
+          footerContext.workflowSourceURL,
+          footerContext.triggeringIssueNumber,
+          footerContext.triggeringPRNumber,
+          footerContext.triggeringDiscussionNumber,
+          undefined,
+          { skipDetectionCaution: true }
+        );
 
       const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
       if (callerWorkflowId) {
