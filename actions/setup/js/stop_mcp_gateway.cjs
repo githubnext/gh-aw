@@ -1,15 +1,11 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-const MCP_STDERR_LOG_PATH = "/tmp/gh-aw/mcp-logs/stderr.log";
-
 /**
- * Collects the MCP gateway container's stderr stream after the container has stopped
- * and writes it to the excluded log path for downstream parser consumption.
+ * Emits the MCP gateway container's stderr stream via core.debug after shutdown.
  * Gateway stdout contains the generated client configuration and must never be
  * written to the Actions log or persisted in artifacts.
  *
@@ -28,13 +24,7 @@ async function collectGatewayStderr(execApi, coreApi) {
     return;
   }
 
-  try {
-    fs.mkdirSync(path.dirname(MCP_STDERR_LOG_PATH), { recursive: true });
-    fs.writeFileSync(MCP_STDERR_LOG_PATH, stderr, { mode: 0o600 });
-    coreApi.info(`MCP Gateway stderr written to log (${stderr.length} bytes).`);
-  } catch (err) {
-    coreApi.info(`Failed to write MCP Gateway stderr log: ${getErrorMessage(err)}`);
-  }
+  coreApi.debug(`MCP Gateway stderr:\n${stderr}`);
 }
 
 /**
@@ -65,10 +55,7 @@ async function main() {
   // container remains available for log collection after the script exits.
   await exec.exec("bash", [path.join(runnerTemp, "gh-aw/actions/stop_mcp_gateway.sh"), process.env.GATEWAY_PID || ""]);
 
-  // Collect stderr from the now-stopped container and persist it to the excluded
-  // log path so downstream parsers (parse_mcp_gateway_log.cjs) can detect
-  // ai_credits_rate_limit_error and unknown_model_ai_credits. The path is
-  // excluded from agent artifacts to prevent credential leakage.
+  // Collect stderr from the now-stopped container and emit via core.debug.
   await collectGatewayStderr(exec, core);
 
   // Explicitly remove the container now that logs have been harvested.
