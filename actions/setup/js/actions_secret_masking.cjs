@@ -26,7 +26,7 @@ function maskSecret(value) {
 
   const setSecret = global.core?.setSecret;
   if (typeof setSecret === "function" && !setSecret.__ghAwUnavailable) {
-    setSecret(secret);
+    setSecret.call(global.core, secret);
     return;
   }
 
