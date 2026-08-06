@@ -210,11 +210,35 @@ function sanitizeDomainName(domain) {
 }
 
 /**
+ * Strip URL userinfo (user:password@) from all scheme://... URLs in a string.
+ * This must run before any domain filtering so that credentials embedded in
+ * a URL authority are never passed to the allowlist check or returned to the
+ * caller.
+ *
+ * Examples:
+ *   https://user:REDACTED@example.com/repo.git  →  https://example.com/repo.git
+ *   git://user@example.com/repo.git          →  git://example.com/repo.git
+ *
+ * @param {string} s - The string to process
+ * @returns {string} The string with userinfo removed from all URLs
+ */
+function stripUrlUserinfo(s) {
+  // Match any scheme://[userinfo@]host pattern and remove the userinfo part.
+  // [^@\s/]+ matches a non-empty userinfo component (no spaces or slashes).
+  // The optional :[^@\s/]* allows for a password or token after a colon.
+  return s.replace(/([a-z][a-z0-9+.-]*:\/\/)([^@\s/]+(?::[^@\s/]*)?)@/gi, "$1");
+}
+
+/**
  * Sanitize URL protocols - replace non-https with <sanitized-domain>/redacted
  * @param {string} s - The string to process
  * @returns {string} The string with non-https protocols redacted
  */
 function sanitizeUrlProtocols(s) {
+  // Strip userinfo (user:password@) from all scheme:// URLs before any other
+  // processing so that credentials never appear in redaction summaries or logs.
+  s = stripUrlUserinfo(s);
+
   // Normalize percent-encoded colons before applying the protocol filter.
   // This prevents bypasses via javascript%3Aalert(1) (single-encoded),
   // javascript%253Aalert(1) (double-encoded), or deeper nesting.
@@ -255,7 +279,6 @@ function sanitizeUrlProtocols(s) {
       // remains useful without recording an empty-string entry.
       const truncated = fullMatch.length > 12 ? fullMatch.substring(0, 12) + "..." : fullMatch;
       core.info(`Redacted URL: ${truncated}`);
-      core.debug(`Redacted URL (full): ${fullMatch}`);
       addRedactedDomain(scheme.toLowerCase() + "://");
       return "(redacted)";
     }
@@ -263,7 +286,6 @@ function sanitizeUrlProtocols(s) {
     const sanitized = sanitizeDomainName(domainLower);
     const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
     core.info(`Redacted URL: ${truncated}`);
-    core.debug(`Redacted URL (full): ${fullMatch}`);
     addRedactedDomain(domainLower);
     return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
   });
@@ -278,7 +300,6 @@ function sanitizeUrlProtocols(s) {
       const protocol = protocolMatch[1] + ":";
       const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
       core.info(`Redacted URL: ${truncated}`);
-      core.debug(`Redacted URL (full): ${match}`);
       addRedactedDomain(protocol);
     }
     return "(redacted)";
@@ -292,6 +313,11 @@ function sanitizeUrlProtocols(s) {
  * @returns {string} The string with unknown domains redacted
  */
 function sanitizeUrlDomains(s, allowed) {
+  // Strip userinfo (user:password@) from HTTPS URLs before any domain filtering
+  // so that credentials are never passed to the allowlist check or preserved
+  // in the output for an allowed domain.
+  s = stripUrlUserinfo(s);
+
   // Match HTTPS URLs with optional port and path
   // This regex is designed to:
   // 1. Match https:// URIs with explicit protocol
@@ -337,7 +363,6 @@ function sanitizeUrlDomains(s, allowed) {
       const sanitized = sanitizeDomainName(hostname);
       const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
       core.info(`Redacted URL: ${truncated}`);
-      core.debug(`Redacted URL (full): ${match}`);
       addRedactedDomain(hostname);
       // Return sanitized domain format
       return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
