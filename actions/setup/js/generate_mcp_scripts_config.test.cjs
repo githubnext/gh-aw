@@ -11,6 +11,7 @@ describe("generateMCPScriptsConfig", () => {
 
     // Create mock core
     mockCore = {
+      setSecret: vi.fn(),
       setOutput: vi.fn(),
       info: vi.fn(),
     };
@@ -35,6 +36,7 @@ describe("generateMCPScriptsConfig", () => {
     expect(result.port).toBe(3000);
 
     // Verify outputs were set
+    expect(mockCore.setSecret).toHaveBeenCalledWith(result.apiKey);
     expect(mockCore.setOutput).toHaveBeenCalledWith("mcp_scripts_api_key", result.apiKey);
     expect(mockCore.setOutput).toHaveBeenCalledWith("mcp_scripts_port", "3000");
 

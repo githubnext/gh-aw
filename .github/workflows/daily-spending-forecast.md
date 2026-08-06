@@ -60,8 +60,7 @@ steps:
         --timeout 10 \
         --verbose \
         --json \
-        > >(tee "$output_dir/forecast.json") \
-        2> >(tee "$output_dir/forecast.stderr.log" >&2)
+        > >(tee "$output_dir/forecast.json")
       exit_code=$?
       wait
       set -e
@@ -71,16 +70,8 @@ steps:
         printf 'repository=%s\n' "$REPOSITORY"
         printf 'generated_at=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
       } > "$output_dir/forecast-metadata.txt"
-
-      {
-        echo "===== STDERR ====="
-        cat "$output_dir/forecast.stderr.log"
-        echo
-        echo "===== STDOUT ====="
-        cat "$output_dir/forecast.json"
-      } > "$output_dir/forecast.full.log"
 post-steps:
-  - name: Upload spending forecast logs and report
+  - name: Upload spending forecast report
     if: always()
     uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
     with:
@@ -113,12 +104,10 @@ evals:
 Analyze the prepared `gh aw forecast` output and publish a daily spending forecast for
 `${{ github.repository }}`.
 
-The complete initial command output is in
+The structured initial command output is in
 `/tmp/gh-aw/agent/spending-forecast/`:
 
 - `forecast.json` — machine-readable forecast output
-- `forecast.stderr.log` — verbose and debug diagnostics
-- `forecast.full.log` — complete stderr and stdout transcript
 - `forecast-metadata.txt` — command exit code and collection context
 
 ## Analysis
@@ -135,9 +124,9 @@ The complete initial command output is in
    when `sampled_runs` is zero for all workflows or artifact downloads fail — you MUST
    use the `agentic-workflows` MCP server to inspect recent runs and usage artifacts
    and derive observed/projected AIC directly from that evidence.
-   Preserve any additional command output in the spending forecast directory so it is
-   included in the artifact. Limit follow-up to the evidence needed to resolve or
-   document the discrepancy.
+   Preserve any additional structured output in the spending forecast directory so it
+   is included in the artifact, but do not persist process stdout or stderr logs. Limit
+   follow-up to the evidence needed to resolve or document the discrepancy.
 4. Calculate historical spending from `run_samples[].aic` and clearly distinguish
    observed spending from projected spending.
 

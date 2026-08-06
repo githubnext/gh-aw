@@ -526,6 +526,13 @@ const ThreatDetectionDir = TmpGhAwDir + "/threat-detection"
 // a four-field JSON verdict to this path via --output; threat-detect conclude reads it.
 const ThreatDetectionResultPath = TmpGhAwDir + "/threat-detection/detection_result.json"
 
+// ThreatDetectionStepSummaryPath is the path used as the step-summary target inside the
+// AWF sandbox for the external threat-detect binary. The sandbox cannot write to the
+// runner's real GITHUB_STEP_SUMMARY path (the _runner_file_commands directory is not
+// mounted), so threat-detect is invoked with --step-summary pointing here instead.
+// A post-execution host step then appends this file to the real $GITHUB_STEP_SUMMARY.
+const ThreatDetectionStepSummaryPath = TmpGhAwDir + "/threat-detection/step-summary.md"
+
 // TmpProxyLogsDir is the DIFC proxy logs directory (with trailing slash).
 const TmpProxyLogsDir = TmpGhAwDir + "/proxy-logs/"
 

@@ -73,6 +73,7 @@ describe("exchange_otlp_workload_identity", () => {
     const [url, options] = fetchMock.mock.calls[1];
     expect(url).toBe("https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/otlp%40example.iam.gserviceaccount.com:generateAccessToken");
     expect(options.headers.authorization).toContain("federated-token");
+    expect(mockCore.setSecret.mock.calls).toEqual([["github-oidc-token"], ["federated-token"], ["impersonated-token"]]);
     expect(mockCore.setOutput).toHaveBeenCalledWith("token", "impersonated-token");
   });
 

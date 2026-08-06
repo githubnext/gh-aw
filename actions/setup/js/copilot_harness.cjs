@@ -949,6 +949,7 @@ async function main() {
     // sidecar and the driver's SDK client share the same token.
     // eslint-disable-next-line gh-aw-custom/require-core-setsecret-for-sensitive-values -- standalone subprocess has no Actions toolkit
     copilotConnectionToken = generateCopilotConnectionToken();
+    core.setSecret(copilotConnectionToken);
     log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
     log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
   }
