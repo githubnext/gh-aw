@@ -31,6 +31,7 @@ imports:
     with:
       title-prefix: "[detection-analysis] "
       expires: 3d
+  - uses: shared/aw-logs-24h-fetch-setup.md
 features:
   gh-aw-detection: true
 sandbox:
@@ -69,9 +70,11 @@ Upload the chart using the `upload_asset` safe-output tool with the absolute pat
 
 ## Analysis Steps
 
-### Step 1 — Fetch Logs
+### Step 1 — Logs
 
-Call `agenticworkflows logs --start-date -1d` **exactly once** to download workflow run directories to `/tmp/gh-aw/aw-mcp/logs`. Do not call this command again — all subsequent analysis must use the already-downloaded data in that directory. Each run's `aw_info.json` contains `features["gh-aw-detection"]` (boolean), `status`, `total_tokens`, and `engine_id`. Use `features.gh-aw-detection` directly — do not infer detection status from `.lock.yml` files.
+{{#runtime-import? shared/aw-logs-24h-fetch-prompt.md}}
+
+Each run's `aw_info.json` contains `features["gh-aw-detection"]` (boolean), `status`, `total_tokens`, and `engine_id`. Use `features.gh-aw-detection` directly — do not infer detection status from `.lock.yml` files.
 
 ### Analyze Runs
 
