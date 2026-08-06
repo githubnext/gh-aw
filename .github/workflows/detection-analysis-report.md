@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "05 23 * * *" # Offset from other nightly scheduled workflows
   workflow_dispatch:
+timeout-minutes: 45
 max-ai-credits: 1500
 max-daily-ai-credits: 10000
 permissions:
@@ -70,7 +71,7 @@ Upload the chart using the `upload_asset` safe-output tool with the absolute pat
 
 ### Step 1 — Fetch Logs
 
-Call `agenticworkflows logs --start-date -1d` to download workflow run directories to `/tmp/gh-aw/aw-mcp/logs`. Each run's `aw_info.json` contains `features["gh-aw-detection"]` (boolean), `status`, `total_tokens`, and `engine_id`. Use `features.gh-aw-detection` directly — do not infer detection status from `.lock.yml` files.
+Call `agenticworkflows logs --start-date -1d` **exactly once** to download workflow run directories to `/tmp/gh-aw/aw-mcp/logs`. Do not call this command again — all subsequent analysis must use the already-downloaded data in that directory. Each run's `aw_info.json` contains `features["gh-aw-detection"]` (boolean), `status`, `total_tokens`, and `engine_id`. Use `features.gh-aw-detection` directly — do not infer detection status from `.lock.yml` files.
 
 ### Analyze Runs
 
