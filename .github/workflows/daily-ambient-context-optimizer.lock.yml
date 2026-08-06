@@ -1573,6 +1573,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Samples recent agentic workflow runs, inspects the first DLLM request from API proxy event logs, and recommends prompt, skill, and agent changes to shrink ambient context"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

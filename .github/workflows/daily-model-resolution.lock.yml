@@ -1506,6 +1506,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Daily audit that downloads a sample of agentic workflow runs with inlined sub-agents, parses the api-proxy event logs, and verifies each sub-agent is resolved to the correct model size (small → mini/haiku/flash/nano, large → everything else)."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

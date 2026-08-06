@@ -1743,6 +1743,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Investigates failed CI workflows to identify root causes and patterns, creating issues with diagnostic information; also reviews PR check failures when the ci-doctor label is applied"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

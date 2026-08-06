@@ -1554,6 +1554,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Explores agentic-workflows custom agent behavior by generating software personas and analyzing responses to common automation tasks"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

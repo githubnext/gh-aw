@@ -1700,6 +1700,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Analyzes agentic workflow logs daily for cache misses and misconfigured caches in workflows that use cache-memory, tracks history across runs, and creates issues when problems or improvements are found"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

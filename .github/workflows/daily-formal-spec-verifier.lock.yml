@@ -1541,6 +1541,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Picks one specification from specs/ daily, formalizes its properties using Lean/F*/Z3/Coq/TLA+ notation (as a reasoning methodology, no runtime dependency), and generates a Go testify unit-test suite covering all inferred behaviors. Results are published as a GitHub issue."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

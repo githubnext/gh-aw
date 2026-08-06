@@ -1605,6 +1605,7 @@ jobs:
           WORKFLOW_DESCRIPTION: "Analyzes test quality beyond code coverage percentages on every PR, detecting implementation-detail tests, happy-path-only tests, test inflation, and duplication"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
+          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

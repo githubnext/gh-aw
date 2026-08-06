@@ -57,6 +57,13 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 	}
 
 	// Step 6: Setup threat detection (github-script)
+	//
+	// On the external detector path this step is still emitted because it exports GH_AW_PROMPT,
+	// GH_AW_DETECTION_CONTINUE_ON_ERROR, HAS_PATCH and the workflow-context vars, and performs
+	// artifact validation. Its prompt is unused by threat-detect, so only its step-summary write
+	// is suppressed (see GH_AW_DETECTION_SKIP_PROMPT_SUMMARY in buildThreatDetectionAnalysisStep).
+	// Decision: retiring the step entirely on the external path is deferred until the remaining
+	// responsibilities move to the execution step and the detector's own validation.
 	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
 
 	if isFeatureEnabled(constants.GHAWDetectionFeatureFlag, data) {
@@ -302,6 +309,13 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		"        env:\n",
 	}...)
 	steps = append(steps, c.buildThreatDetectionContextEnvVars(data, continueOnError, continueOnErrorExpr)...)
+
+	// On the external detector path the prompt rendered by this step is never used: threat-detect
+	// renders its own embedded template and appends it to the step summary. Suppress the setup
+	// step's summary write so a single detection run does not display two different prompts.
+	if isFeatureEnabled(constants.GHAWDetectionFeatureFlag, data) {
+		steps = append(steps, "          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: \"true\"\n")
+	}
 
 	steps = append(steps, []string{
 		"        with:\n",
