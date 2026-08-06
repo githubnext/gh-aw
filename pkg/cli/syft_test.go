@@ -201,21 +201,36 @@ jobs:
 }
 
 func TestRunSyftOnImage_RejectsUnsafeImageRef(t *testing.T) {
-	unsafeRefs := []string{
-		"--entrypoint=/bin/sh",
-		"alpine:latest\n--privileged",
-		"ghcr.io/org/im;age:latest",
+	tests := []struct {
+		name     string
+		imageRef string
+	}{
+		{"option flag", "--entrypoint=/bin/sh"},
+		{"embedded newline", "alpine:latest\n--privileged"},
+		{"semicolon", "ghcr.io/org/im;age:latest"},
 	}
 
-	for _, imageRef := range unsafeRefs {
-		t.Run(imageRef, func(t *testing.T) {
-			_, err := runSyftOnImage(context.Background(), imageRef, t.TempDir(), false)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := runSyftOnImage(context.Background(), tt.imageRef, t.TempDir(), false)
 			if err == nil {
-				t.Fatalf("Expected error for unsafe image reference %q", imageRef)
+				t.Fatalf("Expected error for unsafe image reference %q", tt.imageRef)
 			}
 			if !strings.Contains(err.Error(), "docker image reference") {
 				t.Errorf("Expected image reference validation error, got: %v", err)
 			}
 		})
+	}
+}
+
+func TestRunSyftOnImage_AcceptsValidImageRef(t *testing.T) {
+	prependFakeDockerToPath(t, `{"artifacts":[]}`)
+
+	result, err := runSyftOnImage(context.Background(), "ghcr.io/anchore/syft:v1.0.0", t.TempDir(), false)
+	if err != nil {
+		t.Fatalf("Expected valid image reference to reach docker, got: %v", err)
+	}
+	if result.ImageRef != "ghcr.io/anchore/syft:v1.0.0" {
+		t.Fatalf("Expected result image ref to match input, got %q", result.ImageRef)
 	}
 }

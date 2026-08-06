@@ -5,6 +5,7 @@ package cli
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -295,21 +296,45 @@ func makeGrypeFinding(id, severity, pkgName, pkgVersion string, fixVersions []st
 }
 
 func TestGrypeRunOnImage_RejectsUnsafeImageRef(t *testing.T) {
-	unsafeRefs := []string{
-		"--entrypoint=/bin/sh",
-		"alpine:latest\n--privileged",
-		"ghcr.io/org/im;age:latest",
+	tests := []struct {
+		name     string
+		imageRef string
+	}{
+		{"option flag", "--entrypoint=/bin/sh"},
+		{"embedded newline", "alpine:latest\n--privileged"},
+		{"semicolon", "ghcr.io/org/im;age:latest"},
 	}
 
-	for _, imageRef := range unsafeRefs {
-		t.Run(imageRef, func(t *testing.T) {
-			_, err := grypeRunOnImage(imageRef, false)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := grypeRunOnImage(tt.imageRef, false)
 			if err == nil {
-				t.Fatalf("Expected error for unsafe image reference %q", imageRef)
+				t.Fatalf("Expected error for unsafe image reference %q", tt.imageRef)
 			}
 			if !strings.Contains(err.Error(), "docker image reference") {
 				t.Errorf("Expected image reference validation error, got: %v", err)
 			}
 		})
 	}
+}
+
+func TestGrypeRunOnImage_AcceptsValidImageRef(t *testing.T) {
+	prependFakeDockerToPath(t, `{"matches":[]}`)
+
+	_, err := grypeRunOnImage("ghcr.io/anchore/grype:v0.80.0", false)
+	if err != nil {
+		t.Fatalf("Expected valid image reference to reach docker, got: %v", err)
+	}
+}
+
+func prependFakeDockerToPath(t *testing.T, stdout string) {
+	t.Helper()
+
+	binDir := t.TempDir()
+	dockerPath := filepath.Join(binDir, "docker")
+	script := "#!/bin/sh\nprintf '%s' '" + stdout + "'\n"
+	if err := os.WriteFile(dockerPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("Failed to write fake docker executable: %v", err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
