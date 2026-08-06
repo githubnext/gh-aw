@@ -37,20 +37,12 @@ if [ ! -f "${RESULT_FILE}" ]; then
     echo "conclusion=warning" >> "${GITHUB_OUTPUT}"
     echo "success=false" >> "${GITHUB_OUTPUT}"
     echo "reason=agent_failure" >> "${GITHUB_OUTPUT}"
-    if [ -n "${GITHUB_ENV:-}" ]; then
-      echo "GH_AW_DETECTION_CONCLUSION=warning" >> "${GITHUB_ENV}"
-      echo "GH_AW_DETECTION_REASON=agent_failure" >> "${GITHUB_ENV}"
-    fi
     exit 0
   fi
   echo "ERR_SYSTEM: ❌ ${result_message}"
   echo "conclusion=failure" >> "${GITHUB_OUTPUT}"
   echo "success=false" >> "${GITHUB_OUTPUT}"
   echo "reason=agent_failure" >> "${GITHUB_OUTPUT}"
-  if [ -n "${GITHUB_ENV:-}" ]; then
-    echo "GH_AW_DETECTION_CONCLUSION=failure" >> "${GITHUB_ENV}"
-    echo "GH_AW_DETECTION_REASON=agent_failure" >> "${GITHUB_ENV}"
-  fi
   exit 1
 fi
 
