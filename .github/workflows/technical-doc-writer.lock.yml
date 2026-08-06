@@ -2007,6 +2007,7 @@ jobs:
           GH_AW_STATE_DIR: /tmp/gh-aw/evals-state
           GH_AW_STATE_BRANCH: evals/technicaldocwriter
           GH_AW_STATE_FILES: evals.jsonl
+          GH_AW_STATE_APPEND_FILES: evals.jsonl
           GH_AW_STATE_LABEL: evals results
         with:
           script: |
