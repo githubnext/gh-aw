@@ -36,7 +36,7 @@ const path = require("path");
 const { withRetry } = require("./error_recovery.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { readSecretEnv } = require("./read_secret_env.cjs");
+const { maskSecretEnvValues, readSecretEnv } = require("./read_secret_env.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -547,6 +547,7 @@ async function main() {
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
   const stderrFd = fs.openSync(stderrLogPath, "w", 0o600);
+  maskSecretEnvValues(process.env);
 
   const child = spawn(cmd, args, {
     stdio: ["pipe", outputFd, stderrFd],

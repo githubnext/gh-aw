@@ -23,28 +23,18 @@ const setSecret = secret => {
   process.stderr.write(`::add-mask::${escapeCommandData(secret)}\n`);
 };
 
-function ensureCoreSetSecret() {
-  if (!global.core) {
-    global.core = {};
-  }
-  if (typeof global.core.setSecret !== "function") {
-    global.core.setSecret = setSecret;
-  }
-  return global.core;
-}
+/**
+ * Write shim log lines to stderr so MCP servers that speak JSON-RPC on stdout
+ * never interleave protocol frames with diagnostic output.
+ * @param {string} level
+ * @param {string} message
+ */
+const writeShimLog = (level, message) => {
+  process.stderr.write(`[${level}] ${message}\n`);
+};
 
-if (!global.core) {
-  /**
-   * Write shim log lines to stderr so MCP servers that speak JSON-RPC on stdout
-   * never interleave protocol frames with diagnostic output.
-   * @param {string} level
-   * @param {string} message
-   */
-  const writeShimLog = (level, message) => {
-    process.stderr.write(`[${level}] ${message}\n`);
-  };
-
-  global.core = {
+function makeShimCore() {
+  return {
     debug: /** @param {string} message */ message => writeShimLog("debug", message),
     info: /** @param {string} message */ message => writeShimLog("info", message),
     notice: /** @param {string} message */ message => writeShimLog("notice", message),
@@ -63,8 +53,30 @@ if (!global.core) {
     },
     setSecret,
   };
-} else if (typeof global.core.setSecret !== "function") {
-  global.core.setSecret = setSecret;
+}
+
+function applyMissingShimCoreMethods(coreObj) {
+  const shimCore = makeShimCore();
+  for (const [name, fn] of Object.entries(shimCore)) {
+    if (typeof coreObj[name] !== "function") {
+      coreObj[name] = fn;
+    }
+  }
+  return coreObj;
+}
+
+function ensureCoreSetSecret() {
+  if (!global.core) {
+    global.core = makeShimCore();
+    return global.core;
+  }
+  return applyMissingShimCoreMethods(global.core);
+}
+
+if (!global.core) {
+  global.core = makeShimCore();
+} else {
+  applyMissingShimCoreMethods(global.core);
 }
 
 if (!global.context) {

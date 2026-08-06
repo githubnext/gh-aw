@@ -3,7 +3,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
-const { readSecretEnv } = require("./read_secret_env.cjs");
+const { isSecretEnvName, readSecretEnv } = require("./read_secret_env.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -39,7 +39,7 @@ function resolveEnvPlaceholders(value) {
     return value;
   }
   return value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (match, envName) => {
-    const envValue = /(?:TOKEN|SECRET|PASSWORD|KEY|CREDENTIAL|AUTH)/.test(envName) ? readSecretEnv(envName) : process.env[envName];
+    const envValue = isSecretEnvName(envName) ? readSecretEnv(envName) : process.env[envName];
     return envValue ?? match;
   });
 }

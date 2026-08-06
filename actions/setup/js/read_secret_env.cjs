@@ -12,10 +12,27 @@ function readSecretEnv(name) {
   const value = process.env[name];
   if (value) {
     const { ensureCoreSetSecret } = require("./shim.cjs");
-    ensureCoreSetSecret();
-    core.setSecret(value);
+    const coreShim = ensureCoreSetSecret();
+    coreShim.setSecret(value);
   }
   return value;
 }
 
-module.exports = { readSecretEnv };
+function isSecretEnvName(name) {
+  return /(?:^|_)(?:TOKEN|SECRET|PASSWORD|KEY|CREDENTIAL|AUTH|PAT)(?:_|$)/.test(name);
+}
+
+function maskSecretEnvValues(env = process.env) {
+  const { ensureCoreSetSecret } = require("./shim.cjs");
+  const coreShim = ensureCoreSetSecret();
+  let masked = 0;
+  for (const [name, value] of Object.entries(env)) {
+    if (value && isSecretEnvName(name)) {
+      coreShim.setSecret(value);
+      masked++;
+    }
+  }
+  return masked;
+}
+
+module.exports = { isSecretEnvName, maskSecretEnvValues, readSecretEnv };

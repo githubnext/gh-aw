@@ -194,28 +194,36 @@ describe("safe_outputs_config", () => {
     it("should resolve env placeholders in memory without logging token values", () => {
       const configDir = path.dirname(testConfigPath);
       fs.mkdirSync(configDir, { recursive: true });
+      const originalCore = global.core;
+      const setSecret = vi.fn();
+      global.core = { setSecret };
       process.env.WRITE_PROJECT_PAT = "runtime-project-token";
       process.env.GH_AW_INPUT_TARGET_REPO = "github/docs";
 
-      fs.writeFileSync(
-        testConfigPath,
-        JSON.stringify({
-          "update-project": {
-            "github-token": "${WRITE_PROJECT_PAT}",
-            "target-repo": "${GH_AW_INPUT_TARGET_REPO}",
-          },
-        })
-      );
+      try {
+        fs.writeFileSync(
+          testConfigPath,
+          JSON.stringify({
+            "update-project": {
+              "github-token": "${WRITE_PROJECT_PAT}",
+              "target-repo": "${GH_AW_INPUT_TARGET_REPO}",
+            },
+          })
+        );
 
-      /** @type {import("./safe_outputs_config.cjs").LoadConfigResult} */
-      const result = loadConfig(mockServer);
+        /** @type {import("./safe_outputs_config.cjs").LoadConfigResult} */
+        const result = loadConfig(mockServer);
 
-      expect(result.config.update_project["github-token"]).toBe("runtime-project-token");
-      expect(result.config.update_project["target-repo"]).toBe("github/docs");
+        expect(result.config.update_project["github-token"]).toBe("runtime-project-token");
+        expect(result.config.update_project["target-repo"]).toBe("github/docs");
+        expect(setSecret).toHaveBeenCalledWith("runtime-project-token");
 
-      const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
-      expect(debugOutput).toContain("***REDACTED***");
-      expect(debugOutput).not.toContain("runtime-project-token");
+        const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
+        expect(debugOutput).toContain("***REDACTED***");
+        expect(debugOutput).not.toContain("runtime-project-token");
+      } finally {
+        global.core = originalCore;
+      }
     });
 
     it("should emit exactly one diagnostic when a GH_AW_INPUT_* placeholder is duplicated and unresolved", () => {
