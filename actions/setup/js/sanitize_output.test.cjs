@@ -502,8 +502,8 @@ const mockCore = {
               redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: evil.com"));
             (expect(redactionLog).toBeDefined(), expect(redactionLog[0]).toBe("Redacted URL: evil.com"));
             const debugCalls = mockCore.debug.mock.calls,
-              fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): https://evil.com/malware"));
-            (expect(fullUrlLog).toBeDefined(), fs.unlinkSync(testFile));
+              fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full):"));
+            (expect(fullUrlLog).toBeUndefined(), fs.unlinkSync(testFile));
           }),
           it("should log when HTTP URLs are redacted", async () => {
             const content = "Visit http://example.com for more info",
@@ -513,8 +513,8 @@ const mockCore = {
               redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: example.com"));
             (expect(redactionLog).toBeDefined(), expect(redactionLog[0]).toBe("Redacted URL: example.com"));
             const debugCalls = mockCore.debug.mock.calls,
-              fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): http://example.com"));
-            (expect(fullUrlLog).toBeDefined(), fs.unlinkSync(testFile));
+              fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full):"));
+            (expect(fullUrlLog).toBeUndefined(), fs.unlinkSync(testFile));
           }),
           it("should log when javascript: URLs are redacted", async () => {
             const content = "Click here: javascript:alert('xss')",
@@ -524,8 +524,8 @@ const mockCore = {
               redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: javascript:a"));
             (expect(redactionLog).toBeDefined(), expect(redactionLog[0]).toBe("Redacted URL: javascript:a..."));
             const debugCalls = mockCore.debug.mock.calls,
-              fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): javascript:alert("));
-            (expect(fullUrlLog).toBeDefined(), fs.unlinkSync(testFile));
+              fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full):"));
+            (expect(fullUrlLog).toBeUndefined(), fs.unlinkSync(testFile));
           }),
           it("should log multiple URL redactions", async () => {
             const content = "Links: http://bad1.com, https://bad2.com, ftp://bad3.com",

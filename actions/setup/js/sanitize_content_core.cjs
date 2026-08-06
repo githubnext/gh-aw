@@ -225,16 +225,24 @@ function sanitizeDomainName(domain) {
 function stripUrlUserinfo(s) {
   // Capture the authority-like component right after scheme:// - everything
   // up to the start of the path (/), query (?), fragment (#), or whitespace.
-  // This is a single, unambiguous character-class match (no nested
-  // quantifiers), so it runs in linear time and cannot cause catastrophic
-  // backtracking on pathological input.
+  //
+  // The scheme quantifier is bounded ({0,30}) rather than unbounded (*). With
+  // an unbounded quantifier, a long run of characters that never resolves to
+  // "://" (e.g. hundreds of thousands of plain letters) forces the scheme
+  // group to greedily consume the whole remainder and then backtrack one
+  // character at a time before the match attempt fails at that start
+  // position - and this repeats at every subsequent start position, giving
+  // O(n^2) behavior on pathological input even though there is no nested
+  // quantifier. Real URL schemes are always short (RFC 3986 examples and IANA
+  // registrations top out well under 30 characters), so bounding the
+  // quantifier keeps this linear without affecting legitimate matches.
   //
   // Once captured, look for the LAST "@" within that authority component (in
   // plain JS, not regex) and drop everything up to and including it. Using
   // the last "@" ensures chained userinfo values (e.g. "a@b@c@host") are
   // fully stripped, while stopping the authority match at "?"/"#" ensures an
   // ordinary URL whose query string happens to contain "@" is left untouched.
-  return s.replace(/([a-z][a-z0-9+.-]*:\/\/)([^\s/?#]*)/gi, (match, scheme, authority) => {
+  return s.replace(/([a-z][a-z0-9+.-]{0,30}:\/\/)([^\s/?#]*)/gi, (match, scheme, authority) => {
     const at = authority.lastIndexOf("@");
     if (at === -1) return match;
     return scheme + authority.slice(at + 1);
