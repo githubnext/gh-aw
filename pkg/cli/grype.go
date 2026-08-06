@@ -31,6 +31,7 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -224,20 +225,33 @@ func grypeRunOnImage(imageRef string, verbose bool) (*grypeOutput, error) {
 
 	grypeLog.Printf("Scanning %s with grype", imageRef)
 
-	// #nosec G204 -- imageRef is extracted from the gh-aw-manifest in compiled lock files,
-	// which are produced by this tool from trusted markdown sources. exec.Command passes
-	// args directly to the OS without shell interpretation, preventing command injection.
+	// Validate the image reference before it reaches docker: lock-file manifests can carry
+	// attacker-influenced content, and an image reference starting with "-" (or containing
+	// control characters) would otherwise be interpreted as a docker/grype option.
+	validatedImageRef, err := validateDockerImageRef(imageRef)
+	if err != nil {
+		return nil, err
+	}
+
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return nil, fmt.Errorf("docker command not found: %w", err)
+	}
+
+	// #nosec G204 -- dockerPath is resolved from the fixed executable name "docker" and
+	// validatedImageRef is allow-list validated above. exec.Command passes args directly to
+	// the OS without shell interpretation, preventing command injection.
 	cmd := exec.Command(
-		"docker",
+		dockerPath,
 		"run",
 		"--rm",
 		GrypeImage,
-		imageRef,
+		validatedImageRef,
 		"-o", "json",
 	)
 
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm %s %s -o json", GrypeImage, imageRef)
+		dockerCmd := shellJoinArgs([]string{"docker", "run", "--rm", GrypeImage, validatedImageRef, "-o", "json"})
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run grype directly: "+dockerCmd))
 	}
 
