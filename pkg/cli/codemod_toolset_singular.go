@@ -16,7 +16,7 @@ func getToolsetSingularToToolsetsCodemod() Codemod {
 		ID:           "toolset-singular-to-toolsets",
 		Name:         "Rename 'tools.github.toolset' to 'tools.github.toolsets'",
 		Description:  "Renames the mistyped singular 'toolset:' field to the correct plural 'toolsets:' inside the tools.github configuration block.",
-		IntroducedIn: "1.0.0",
+		IntroducedIn: "0.85.5",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			if !hasSingularToolsetField(frontmatter) {
 				return content, false, nil
@@ -64,7 +64,7 @@ func renameToolsetSingularToToolsets(lines []string) ([]string, bool) {
 	modified := false
 
 	var inTools, inToolsGithub bool
-	var toolsIndent, toolsGithubIndent string
+	var toolsIndent, toolsChildIndent, toolsGithubIndent string
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -86,26 +86,31 @@ func renameToolsetSingularToToolsets(lines []string) ([]string, bool) {
 			}
 		}
 
-		// Detect 'tools:' block
-		if strings.HasPrefix(trimmed, "tools:") {
+		// Detect top-level 'tools:' block
+		if strings.HasPrefix(trimmed, "tools:") && getIndentation(line) == "" {
 			inTools = true
 			inToolsGithub = false
 			toolsIndent = getIndentation(line)
+			toolsChildIndent = ""
 			result = append(result, line)
 			continue
 		}
 
-		// Detect 'github:' block inside 'tools:'
-		if inTools && strings.HasPrefix(trimmed, "github:") {
+		lineIndent := getIndentation(line)
+		if inTools && toolsChildIndent == "" && isDescendant(lineIndent, toolsIndent) {
+			toolsChildIndent = lineIndent
+		}
+
+		// Detect direct 'github:' block inside 'tools:'
+		if inTools && strings.HasPrefix(trimmed, "github:") && lineIndent == toolsChildIndent {
 			inToolsGithub = true
-			toolsGithubIndent = getIndentation(line)
+			toolsGithubIndent = lineIndent
 			result = append(result, line)
 			continue
 		}
 
 		// Rename 'toolset:' to 'toolsets:' when inside tools.github
 		if inToolsGithub && strings.HasPrefix(trimmed, "toolset:") {
-			lineIndent := getIndentation(line)
 			if isDescendant(lineIndent, toolsGithubIndent) {
 				newLine, replaced := findAndReplaceInLine(line, "toolset", "toolsets")
 				if replaced {

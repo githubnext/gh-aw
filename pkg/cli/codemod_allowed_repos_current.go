@@ -18,7 +18,7 @@ func getAllowedReposCurrentToGitHubRepositoryCodemod() Codemod {
 		ID:           "allowed-repos-current-to-github-repository",
 		Name:         "Migrate 'tools.github.allowed-repos: current' to '${{ github.repository }}'",
 		Description:  "Rewrites the legacy 'current' alias for tools.github.allowed-repos to the accepted '${{ github.repository }}' expression.",
-		IntroducedIn: "1.0.0",
+		IntroducedIn: "0.85.5",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			if !hasAllowedReposCurrentValue(frontmatter) {
 				return content, false, nil
@@ -69,7 +69,7 @@ func rewriteAllowedReposCurrentValue(lines []string) ([]string, bool) {
 	modified := false
 
 	var inTools, inToolsGithub bool
-	var toolsIndent, toolsGithubIndent string
+	var toolsIndent, toolsChildIndent, toolsGithubIndent string
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -91,26 +91,31 @@ func rewriteAllowedReposCurrentValue(lines []string) ([]string, bool) {
 			}
 		}
 
-		// Detect 'tools:' block
-		if strings.HasPrefix(trimmed, "tools:") {
+		// Detect top-level 'tools:' block
+		if strings.HasPrefix(trimmed, "tools:") && getIndentation(line) == "" {
 			inTools = true
 			inToolsGithub = false
 			toolsIndent = getIndentation(line)
+			toolsChildIndent = ""
 			result = append(result, line)
 			continue
 		}
 
-		// Detect 'github:' block inside 'tools:'
-		if inTools && strings.HasPrefix(trimmed, "github:") {
+		lineIndent := getIndentation(line)
+		if inTools && toolsChildIndent == "" && isDescendant(lineIndent, toolsIndent) {
+			toolsChildIndent = lineIndent
+		}
+
+		// Detect direct 'github:' block inside 'tools:'
+		if inTools && strings.HasPrefix(trimmed, "github:") && lineIndent == toolsChildIndent {
 			inToolsGithub = true
-			toolsGithubIndent = getIndentation(line)
+			toolsGithubIndent = lineIndent
 			result = append(result, line)
 			continue
 		}
 
 		// Rewrite the value of 'allowed-repos: current' when inside tools.github
 		if inToolsGithub && strings.HasPrefix(trimmed, "allowed-repos:") {
-			lineIndent := getIndentation(line)
 			if isDescendant(lineIndent, toolsGithubIndent) {
 				if newLine, replaced := replaceAllowedReposCurrentLineValue(line); replaced {
 					result = append(result, newLine)

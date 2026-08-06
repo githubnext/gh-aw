@@ -40,7 +40,7 @@ Not chosen because the codemod framework already exists for exactly this purpose
 - The line-based YAML parsing approach (rather than a full AST parser) is a simplification that can fail on unusual but valid YAML: multi-document files, block scalars, or flow-style mappings that span multiple lines. These edge cases are untested.
 
 #### Neutral
-- Both codemods are registered with `IntroducedIn: "1.0.0"`, treating them as retroactive migrations rather than versioned upgrades — consistent with how other codemods handle long-standing config drift.
+- Both codemods are registered with `IntroducedIn: "0.85.5"`, matching the patch release expected to ship the new migrations.
 - The `allowed-repos` codemod normalizes output to double-quoted `"${{ github.repository }}"` regardless of the input quoting style (`current`, `"current"`, `'current'`), which is a minor stylistic imposition but aligns with the canonical form used throughout the codebase.
 
 ---
