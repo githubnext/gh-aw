@@ -143,7 +143,7 @@ function parseCopilotLog(logContent) {
 
   // Generate conversation markdown using shared function
   const conversationResult = generateConversationMarkdown(canonicalLogEntries, {
-    formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
+    formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: false }),
     formatInitCallback: initEntry =>
       formatInitializationSummary(initEntry, {
         includeSlashCommands: false,
