@@ -12,6 +12,11 @@
  * `github-script`) the respective block is a no-op.
  */
 
+const escapeCommandData = value => String(value).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+
+const setSecret = /** @param {string} value */ value => {
+};
+
 if (!global.core) {
   /**
    * Write shim log lines to stderr so MCP servers that speak JSON-RPC on stdout
@@ -40,7 +45,10 @@ if (!global.core) {
     setOutput: /** @param {string} name @param {unknown} value */ (name, value) => {
       writeShimLog("output", `${name}=${value}`);
     },
+    setSecret,
   };
+} else if (typeof global.core.setSecret !== "function") {
+  global.core.setSecret = setSecret;
 }
 
 if (!global.context) {

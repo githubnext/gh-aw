@@ -948,6 +948,7 @@ async function main() {
     // The token is injected into the driver subprocess env so the harness-managed
     // sidecar and the driver's SDK client share the same token.
     copilotConnectionToken = generateCopilotConnectionToken();
+    core.setSecret(copilotConnectionToken);
     log("copilot-sdk mode active: generated per-run COPILOT_CONNECTION_TOKEN");
     log(`copilot-sdk mode active: COPILOT_SDK_URI=${sdkEnv.COPILOT_SDK_URI || "(not set)"}`);
   }

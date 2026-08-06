@@ -352,10 +352,11 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// invokes the engine binary as a subprocess and relies on PATH to locate it.
 	npmPathSetup := GetNpmBinPathSetup()
 	threatDetectCmd := fmt.Sprintf(
-		"%s && threat-detect --engine %s --output %s %s",
+		"%s && threat-detect --engine %s --output %s --step-summary %s %s",
 		npmPathSetup,
 		engineID,
 		shellEscapeArg(constants.ThreatDetectionResultPath),
+		shellEscapeArg(constants.ThreatDetectionStepSummaryPath),
 		shellEscapeArg(constants.ThreatDetectionDir),
 	)
 
@@ -455,7 +456,24 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 		"          path: |\n",
 		"            " + constants.ThreatDetectionResultPath + "\n",
 		"            " + constants.ThreatDetectionLogPath + "\n",
+		"            " + constants.ThreatDetectionStepSummaryPath + "\n",
 		"          if-no-files-found: ignore\n",
+	}
+}
+
+// buildDetectionStepSummaryAppendStep creates a host-side step that appends the
+// detection step-summary file to the real $GITHUB_STEP_SUMMARY. The file was written
+// by threat-detect inside the AWF sandbox via --step-summary; this step runs on the
+// host where GITHUB_STEP_SUMMARY points to the real runner file-command path.
+// The step is a no-op when the file is empty (threat-detect wrote nothing).
+func (c *Compiler) buildDetectionStepSummaryAppendStep() []string {
+	return []string{
+		"      - name: Append detection step summary\n",
+		"        if: always()\n",
+		"        run: |\n",
+		fmt.Sprintf("          if [ -s %s ]; then\n", shellEscapeArg(constants.ThreatDetectionStepSummaryPath)),
+		fmt.Sprintf("            cat %s >> \"$GITHUB_STEP_SUMMARY\"\n", shellEscapeArg(constants.ThreatDetectionStepSummaryPath)),
+		"          fi\n",
 	}
 }
 

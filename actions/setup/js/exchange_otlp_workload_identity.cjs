@@ -44,6 +44,7 @@ async function main() {
   if (!accessToken) {
     throw new Error("Google workload identity token exchange returned no access token");
   }
+  core.setSecret(accessToken);
 
   const serviceAccount = process.env.GH_AW_OTLP_WIF_SERVICE_ACCOUNT;
   if (serviceAccount) {
@@ -63,9 +64,9 @@ async function main() {
     if (!accessToken) {
       throw new Error("Google service account impersonation returned no access token");
     }
+    core.setSecret(accessToken);
   }
 
-  core.setSecret(accessToken);
   core.setOutput("token", accessToken);
   return accessToken;
 }
