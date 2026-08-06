@@ -20,3 +20,11 @@
 - Custom agents: 9 defined in .github/agents/, only 4 referenced (3 orphaned confirmed unchanged: create-safe-output-type, interactive-agent-designer, grumpy-reviewer, custom-engine-implementation, w3c-specification-writer - 5 orphaned).
 - No change in --share adoption (still 1), engine.args/model overrides still 0.
 - cache-memory adoption rose 75->98 workflows - positive trend, worth highlighting as a success story vs recommending further adoption.
+
+## Run 31072088452 (2026-08-06)
+- Total workflows 275 (flat), copilot-engine workflows flat at 38.
+- engine.args usage rose 0->3 — small positive movement, first non-zero reading in tracked history.
+- --share flag: still stuck at 1 (this research workflow only) — persistent gap across 5+ runs.
+- 5 orphaned custom agents unchanged again (create-safe-output-type, interactive-agent-designer, grumpy-reviewer, custom-engine-implementation, w3c-specification-writer).
+- cache-memory adoption flat at 98 (no growth since last run) — plateaued after earlier rise from 75.
+- max-tool-denials flat at 66, max-continuations flat at 11, network config flat at 152.

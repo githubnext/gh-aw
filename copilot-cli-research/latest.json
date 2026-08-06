@@ -1,19 +1,17 @@
 {
-  "timestamp": "2026-08-05T04:46:00Z",
-  "run_id": "30975991815",
+  "timestamp": "2026-08-06T04:46:50Z",
+  "run_id": "31072088452",
   "total_workflows": 275,
   "copilot_workflows_engine_line": 38,
   "share_flag_usage": 1,
-  "max_turns_continuations_usage": 33,
+  "max_continuations_autopilot_usage": 11,
   "max_tool_denials_usage": 66,
   "cache_memory_usage": 98,
-  "network_config_usage": 151,
-  "network_defaults_usage": 5,
+  "network_config_usage": 152,
+  "engine_args_usage": 3,
   "engine_model_override_copilot": 0,
-  "engine_args_usage": 0,
-  "bare_engine_shorthand_usage": 155,
   "custom_agents_defined": 9,
-  "custom_agents_referenced_workflows": 3,
+  "custom_agents_referenced_workflows": 4,
   "orphaned_agents": ["create-safe-output-type", "interactive-agent-designer", "grumpy-reviewer", "custom-engine-implementation", "w3c-specification-writer"],
-  "opportunities_found": 8
+  "opportunities_found": 7
 }
