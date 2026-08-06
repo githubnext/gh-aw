@@ -217,29 +217,55 @@ Test workflow`
 	// The real GITHUB_STEP_SUMMARY is not writable inside the AWF sandbox; using a flag
 	// rather than an env var is the correct mechanism (the runner re-injects the env var
 	// after step-level env: is applied, overriding any override).
-	if !strings.Contains(detectionSection, "--step-summary /tmp/gh-aw/threat-detection/step-summary.md") {
-		t.Error("External detector path must pass --step-summary /tmp/gh-aw/threat-detection/step-summary.md to threat-detect")
+	if !strings.Contains(detectionSection, "--step-summary "+constants.ThreatDetectionStepSummaryPath) {
+		t.Errorf("External detector path must pass --step-summary %s to threat-detect", constants.ThreatDetectionStepSummaryPath)
+	}
+
+	// The step-summary file must be recreated before AWF execution so each run starts empty.
+	if !strings.Contains(detectionSection, "rm -f "+constants.ThreatDetectionStepSummaryPath) {
+		t.Errorf("External detector path must remove stale step summary file before execution (%s)", constants.ThreatDetectionStepSummaryPath)
 	}
 
 	// The step-summary file must be touched before AWF execution so it exists even if
 	// threat-detect writes nothing (avoids cat errors in the append step).
-	if !strings.Contains(detectionSection, "touch /tmp/gh-aw/threat-detection/step-summary.md") {
+	if !strings.Contains(detectionSection, "touch "+constants.ThreatDetectionStepSummaryPath) {
 		t.Error("External detector path must touch step-summary.md before AWF execution")
 	}
 
 	// A host-side append step must copy the detection step summary to $GITHUB_STEP_SUMMARY
 	// after execution. conclude runs on the host where GITHUB_STEP_SUMMARY is writable.
-	if !strings.Contains(detectionSection, "Append detection step summary") {
+	appendStepStart := strings.Index(detectionSection, "      - name: Append detection step summary\n")
+	if appendStepStart == -1 {
 		t.Error("External detector path must include 'Append detection step summary' step")
-	}
-	if !strings.Contains(detectionSection, "cat /tmp/gh-aw/threat-detection/step-summary.md >> \"$GITHUB_STEP_SUMMARY\"") {
-		t.Error("Append detection step summary must cat step-summary.md to $GITHUB_STEP_SUMMARY")
+	} else {
+		appendStepEnd := strings.Index(detectionSection[appendStepStart+1:], "\n      - name: ")
+		appendStep := detectionSection[appendStepStart:]
+		if appendStepEnd != -1 {
+			appendStep = detectionSection[appendStepStart : appendStepStart+1+appendStepEnd]
+		}
+		if !strings.Contains(appendStep, "if: always()") {
+			t.Error("Append detection step summary must keep if: always()")
+		}
+		if !strings.Contains(appendStep, "cat "+constants.ThreatDetectionStepSummaryPath+" >> \"$GITHUB_STEP_SUMMARY\"") {
+			t.Errorf("Append detection step summary must cat %s to $GITHUB_STEP_SUMMARY", constants.ThreatDetectionStepSummaryPath)
+		}
 	}
 
 	// The step-summary file must also be included in the artifact upload so it is preserved
 	// even if the append step is skipped.
-	if !strings.Contains(detectionSection, "/tmp/gh-aw/threat-detection/step-summary.md") {
-		t.Error("External detector path must include step-summary.md in artifact upload")
+	uploadStepStart := strings.Index(detectionSection, "      - name: Upload threat detection artifact\n")
+	if uploadStepStart == -1 {
+		t.Error("External detector path must include upload threat detection artifact step")
+	} else {
+		uploadStepEnd := strings.Index(detectionSection[uploadStepStart+1:], "\n      - name: ")
+		uploadStep := detectionSection[uploadStepStart:]
+		if uploadStepEnd != -1 {
+			uploadStep = detectionSection[uploadStepStart : uploadStepStart+1+uploadStepEnd]
+		}
+		if !strings.Contains(uploadStep, "          path: |\n") ||
+			!strings.Contains(uploadStep, "            "+constants.ThreatDetectionStepSummaryPath+"\n") {
+			t.Errorf("External detector path must include %s in upload artifact path block", constants.ThreatDetectionStepSummaryPath)
+		}
 	}
 
 	// The AWF execution pipeline must preserve non-zero threat-detect exits.

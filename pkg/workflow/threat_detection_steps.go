@@ -352,6 +352,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		"        run: |\n",
 		"          mkdir -p /tmp/gh-aw/threat-detection\n",
 		"          touch /tmp/gh-aw/threat-detection/detection.log\n",
+		fmt.Sprintf("          rm -f %s\n", constants.ThreatDetectionStepSummaryPath),
 		fmt.Sprintf("          touch %s\n", constants.ThreatDetectionStepSummaryPath),
 	}...)
 
