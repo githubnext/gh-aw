@@ -155,6 +155,22 @@ ambient-folders:
 
 The `permissions:` section uses a syntax similar to standard GitHub Actions permissions syntax to specify the GitHub read permissions relevant to the agentic (natural language) part of the execution of the workflow. See [GitHub Tools Read Permissions](/gh-aw/reference/permissions/).
 
+### GitHub App (`github-app:`)
+
+Configures GitHub App credentials used as a workflow-wide fallback for minting installation access tokens. The fallback applies to the activation job (`on.github-app`), `safe-outputs.github-app`, each `checkout` entry, and `tools.github.github-app`.
+
+```yaml wrap
+github-app:
+  client-id: ${{ vars.APP_ID }}
+  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+```
+
+Requires both `client-id` (or the deprecated `app-id` alias) and `private-key`. Optional fields include `owner` and `repositories` to scope the installation, and `ignore-if-missing: true` to skip token minting when the credentials resolve to empty strings at runtime.
+
+Precedence per section is: a section-specific `github-app`, then a section-specific `github-token`, then this top-level value. A section that already sets its own `github-token` keeps that token and does not receive the fallback. When the top-level `github-app` is defined in a shared workflow, importing workflows inherit it unless they declare their own.
+
+Per-skill credentials under `skills[].github-app` are independent and are not covered by this fallback. Note also that `permissions:` inside a `github-app` block only takes effect for `tools.github.github-app` and `safe-outputs.github-app`; it is ignored for `on.github-app` and for this top-level fallback.
+
 ### AI Engine (`engine:`)
 
 Specifies which AI engine interprets the markdown section. See [AI Engines](/gh-aw/reference/engines/) for details.

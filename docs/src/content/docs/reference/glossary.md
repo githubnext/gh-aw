@@ -867,7 +867,7 @@ Deprecated top-level alias for the AWF invocation cap. Use `max-turns` instead. 
 max-turns: 10
 ```
 
-See [Engines Reference](/gh-aw/reference/engines/).
+Not to be confused with `max-runs-per-window`, an unrelated current field under `user-rate-limit` that caps how often a single user can trigger the workflow. See [User Rate Limit](#user-rate-limit-user-rate-limit) and [Engines Reference](/gh-aw/reference/engines/).
 
 ### Max Tool Denials (`max-tool-denials`)
 
@@ -1025,6 +1025,8 @@ user-rate-limit:
   window: 60
   ignored-roles: []
 ```
+
+`max-runs-per-window` is unrelated to the deprecated top-level `max-runs` field, which caps AI engine invocations — see [Max Runs](#max-runs-max-runs-deprecated).
 
 See [Rate Limiting Controls](/gh-aw/reference/rate-limiting-controls/).
 
