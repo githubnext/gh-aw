@@ -15,6 +15,7 @@ import (
 )
 
 func TestAccessLogParsing(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -45,6 +46,7 @@ func TestAccessLogParsing(t *testing.T) {
 }
 
 func TestMultipleAccessLogAnalysis(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
 	accessLogsDir := filepath.Join(tempDir, "access.log")
@@ -87,6 +89,7 @@ func TestMultipleAccessLogAnalysis(t *testing.T) {
 }
 
 func TestAnalyzeAccessLogsDirectory(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -138,6 +141,7 @@ func TestAnalyzeAccessLogsDirectory(t *testing.T) {
 }
 
 func TestExtractDomainFromURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		url      string
 		expected string
@@ -158,6 +162,7 @@ func TestExtractDomainFromURL(t *testing.T) {
 }
 
 func TestParseSquidLogLine(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		line      string
@@ -241,6 +246,7 @@ func TestParseSquidLogLine(t *testing.T) {
 }
 
 func TestAddMetrics(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		base     *DomainAnalysis
@@ -299,6 +305,7 @@ func TestAddMetrics(t *testing.T) {
 // original "allowed_count"/"blocked_count" JSON keys (not "allowed_requests"/
 // "blocked_requests") so that cached access-analysis JSON remains backward-compatible.
 func TestDomainAnalysisJSONWireNames(t *testing.T) {
+	t.Parallel()
 	d := DomainAnalysis{
 		AnalysisBase: AnalysisBase{
 			TotalRequests:   10,
