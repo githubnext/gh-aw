@@ -258,7 +258,7 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 	var env map[string]string
 	if data != nil && data.EngineConfig != nil && data.EngineConfig.Version != "" {
 		env = make(map[string]string)
-		applyEngineVersionEnv(env, data)
+		env["GH_AW_ENGINE_VERSION"] = fmt.Sprintf("%q", data.EngineConfig.Version)
 	}
 
 	// Disable the Chromium process sandbox for playwright CLI mode.

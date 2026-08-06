@@ -323,7 +323,7 @@ jobs:
     permissions:
       contents: read
     env:
-      GH_AW_ENGINE_VERSION: 0.39.1
+      GH_AW_ENGINE_VERSION: "0.39.1"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: workflow
     outputs:
