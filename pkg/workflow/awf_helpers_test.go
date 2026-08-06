@@ -2695,3 +2695,16 @@ func TestBuildAWFCommand_ArcDindPreCreatesMountDirs(t *testing.T) {
 	assert.Contains(t, command, `--mount "${RUNNER_TEMP}/gh-aw/home:${RUNNER_TEMP}/gh-aw/home:rw"`)
 	assert.Contains(t, command, `--mount "${RUNNER_TEMP}/gh-aw/sandbox/agent:${RUNNER_TEMP}/gh-aw/sandbox/agent:rw"`)
 }
+
+func TestBuildAWFCommand_ProtectsActionLogOutput(t *testing.T) {
+	command := BuildAWFCommand(AWFCommandConfig{
+		EngineName:    "copilot",
+		EngineCommand: "copilot",
+		LogFile:       "/tmp/gh-aw/agent-stdio.log",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "copilot"},
+		},
+	})
+
+	assert.Contains(t, command, `tee -a /tmp/gh-aw/agent-stdio.log | "${GH_AW_NODE_BIN:-node}" "${RUNNER_TEMP}/gh-aw/actions/action_log.cjs" "Agent and firewall output"`)
+}

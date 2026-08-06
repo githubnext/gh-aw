@@ -70,6 +70,40 @@ function sleep(ms) {
 }
 
 /**
+ * Redacts every occurrence of the gateway API key from a diagnostic string
+ * before it is printed to the Actions log via core.error(). These diagnostic
+ * dumps run on gateway startup failure paths, well before the later "Redact
+ * secrets in logs" step has a chance to scrub gateway-output.json in place, so
+ * the gateway's own auth key (which the spec requires to be echoed back
+ * verbatim in the `Authorization` header of every mcpServers entry) must be
+ * redacted here to avoid printing it to the unmasked Actions log.
+ *
+ * @param {string} text
+ * @param {string | undefined} apiKey
+ * @returns {string}
+ */
+function redactGatewayApiKey(text, apiKey) {
+  if (!apiKey) return text;
+  return text.split(apiKey).join("***REDACTED***");
+}
+
+/**
+ * Reads a gateway diagnostic file and redacts the gateway API key before it is
+ * printed to the Actions log. See {@link redactGatewayApiKey} for rationale.
+ *
+ * @param {string} filePath
+ * @param {string | undefined} apiKey
+ * @returns {string}
+ */
+function readGatewayDiagnosticFile(filePath, apiKey) {
+  try {
+    return redactGatewayApiKey(fs.readFileSync(filePath, "utf8"), apiKey);
+  } catch (error) {
+    throw new Error(`Failed to read MCP gateway diagnostic file '${filePath}': ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+/**
  * Builds targeted context for a JSON.parse error so logs can point at the likely key.
  *
  * @param {string} jsonText
@@ -513,6 +547,14 @@ async function main() {
   // -----------------------------------------------------------------------
   const logDir = "/tmp/gh-aw/mcp-logs/";
   const outputPath = path.join(configDir, "gateway-output.json");
+  // The docker-launch stderr capture lives under the canonical /tmp/gh-aw/mcp-logs
+  // directory (alongside the gateway container's own gateway.log/gateway.jsonl/stderr.log
+  // files written via the MCP_GATEWAY_LOG_DIR bind mount) so all gateway diagnostics are
+  // grouped in one place. The filename is deliberately distinct from "stderr.log" — that
+  // path is reserved for the container's own internal log writer (see
+  // parse_mcp_gateway_log.cjs) and must never be reused here, or the two writers would
+  // race on the same bind-mounted file.
+  const stderrPath = path.join(logDir, "gateway-launch-stderr.log");
 
   // Clean up any stale gateway container from a previous run on this runner.
   // On persistent self-hosted runners a prior job's gateway container may still
@@ -544,12 +586,15 @@ async function main() {
   }
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
+  const stderrFd = fs.openSync(stderrPath, "w", 0o600);
 
   const child = spawn(cmd, args, {
-    stdio: ["pipe", outputFd, "ignore"],
+    stdio: ["pipe", outputFd, stderrFd],
     env: { ...process.env, MCP_GATEWAY_LOG_DIR: logDir },
     detached: true,
   });
+  fs.closeSync(outputFd);
+  fs.closeSync(stderrFd);
   activeGatewayPid = child.pid || null;
 
   // Write configuration to stdin then close
@@ -581,7 +626,7 @@ async function main() {
     core.error("");
     core.error("Gateway stdout output:");
     try {
-      core.error(fs.readFileSync(outputPath, "utf8"));
+      core.error(readGatewayDiagnosticFile(outputPath, apiKey));
     } catch {
       core.error("No stdout output available");
     }
@@ -602,7 +647,7 @@ async function main() {
     core.error("");
     core.error("Gateway stdout (errors are written here per MCP Gateway Specification):");
     try {
-      core.error(fs.readFileSync(outputPath, "utf8"));
+      core.error(readGatewayDiagnosticFile(outputPath, apiKey));
     } catch {
       core.error("No stdout output available");
     }
@@ -706,7 +751,7 @@ async function main() {
     core.error("");
     core.error("Gateway stdout (errors are written here per MCP Gateway Specification):");
     try {
-      core.error(fs.readFileSync(outputPath, "utf8"));
+      core.error(readGatewayDiagnosticFile(outputPath, apiKey));
     } catch {
       core.error("No stdout output available");
     }
@@ -764,7 +809,7 @@ async function main() {
     core.error("");
     core.error("Gateway stdout (should contain error or config):");
     try {
-      core.error(fs.readFileSync(outputPath, "utf8"));
+      core.error(readGatewayDiagnosticFile(outputPath, apiKey));
     } catch {
       core.error("No stdout output available");
     }
@@ -795,7 +840,7 @@ async function main() {
     core.error("ERROR: Gateway returned an error payload instead of configuration");
     core.error("");
     core.error("Gateway error details:");
-    core.error(JSON.stringify(gatewayOutput, null, 2));
+    core.error(redactGatewayApiKey(JSON.stringify(gatewayOutput, null, 2), apiKey));
     try {
       process.kill(gatewayPid);
     } catch {
@@ -972,17 +1017,19 @@ async function main() {
   }
   core.info("");
 
-  // -----------------------------------------------------------------------
-  // Delete gateway configuration file
-  // -----------------------------------------------------------------------
-  core.info("Cleaning up gateway configuration file...");
-  try {
-    fs.unlinkSync(outputPath);
-    core.info("Gateway configuration file deleted");
-  } catch {
-    core.info("Gateway configuration file not found (already deleted or never created)");
-  }
-  core.info("");
+  // Note: the gateway configuration file (outputPath) is intentionally left on disk
+  // here rather than deleted. It is still needed later in the job:
+  //   1. The "Redact secrets in logs" step reads it to extract MCP gateway bearer
+  //      tokens (see extractMCPGatewayTokens in redact_secrets.cjs) and rewrites it
+  //      in place with those secrets redacted.
+  //   2. The "Log process output" step (generateProcessOutputLogging) reads the
+  //      now-redacted file and emits its content to the Actions log for debugging.
+  // Deleting it here would leave both steps with nothing to read on the success
+  // path, silently dropping gateway stdout from the captured logs. The directory
+  // (0700) and file (0600) permissions already restrict access to the runner's
+  // own user, and mcp-servers.json holds equivalent secrets for the full agent
+  // run anyway, so retaining this file a while longer does not materially change
+  // the exposure window.
 
   // -----------------------------------------------------------------------
   // Summary
@@ -1028,4 +1075,5 @@ module.exports = {
   getJSONParseErrorContext,
   normalizeSinkVisibilityEncoding,
   resolveCopilotConfigPaths,
+  redactGatewayApiKey,
 };

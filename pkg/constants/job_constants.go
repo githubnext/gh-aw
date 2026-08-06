@@ -243,6 +243,12 @@ const ParseMCPGatewayStepID StepID = "parse-mcp-gateway"
 // provides a detection script (via GetErrorDetectionScriptId) will emit this step.
 const DetectAgentErrorsStepID StepID = "detect-agent-errors"
 
+// RedactSecretsStepID is the step ID for the "Redact secrets in logs" step in the agent job.
+// Steps that read files from /tmp/gh-aw or ${RUNNER_TEMP}/gh-aw after this point (e.g. the
+// "Log process output" step) must gate on `steps.<RedactSecretsStepID>.outcome == 'success'`
+// so they never emit unredacted content when the redaction step itself fails.
+const RedactSecretsStepID StepID = "redact-secrets-in-logs"
+
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"

@@ -324,4 +324,15 @@ Test workflow for secret redaction.
 	if !strings.Contains(redactionSection, "if: always()") {
 		t.Error("Expected redaction step to have 'if: always()' condition")
 	}
+
+	// Verify the redaction step has a stable id so later log-emitting steps can
+	// gate on its outcome (steps.redact-secrets-in-logs.outcome == 'success').
+	if !strings.Contains(redactionSection, "id: redact-secrets-in-logs") {
+		t.Error("Expected redaction step to have 'id: redact-secrets-in-logs'")
+	}
+
+	// Verify the "Log process output" step only runs after a successful redaction.
+	if !strings.Contains(lockStr, "if: always() && steps.redact-secrets-in-logs.outcome == 'success'") {
+		t.Error("Expected 'Log process output' step to be gated on the redaction step's outcome")
+	}
 }

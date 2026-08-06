@@ -1,6 +1,6 @@
 import fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyOTLPIgnoreIfMissing, detectEngineType, getJSONParseErrorContext, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, normalizeSinkVisibilityEncoding, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
+import { applyOTLPIgnoreIfMissing, detectEngineType, getJSONParseErrorContext, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, normalizeSinkVisibilityEncoding, redactGatewayApiKey, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway logging", () => {
   it("does not create the legacy MCP gateway stderr log", () => {
@@ -13,9 +13,27 @@ describe("start_mcp_gateway logging", () => {
     expect(source).not.toContain("/tmp/gh-aw/mcp-logs/start-gateway.log");
   });
 
-  it("discards the gateway child process stderr", () => {
+  it("captures the gateway child process stderr for redacted action logging under the canonical mcp-logs directory", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
-    expect(source).toContain(`stdio: ["pipe", outputFd, "ignore"]`);
+    expect(source).toContain(`const stderrPath = path.join(logDir, "gateway-launch-stderr.log")`);
+    expect(source).toContain(`stdio: ["pipe", outputFd, stderrFd]`);
+  });
+
+  it("does not delete gateway-output.json after a successful run, so the later 'Redact secrets in logs' and 'Log process output' steps can still read it", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).not.toContain("fs.unlinkSync(outputPath)");
+  });
+});
+
+describe("start_mcp_gateway redactGatewayApiKey", () => {
+  it("redacts every occurrence of the api key from diagnostic text", () => {
+    const text = 'before secret-key-123 middle {"headers":{"Authorization":"secret-key-123"}} after secret-key-123';
+    expect(redactGatewayApiKey(text, "secret-key-123")).toBe('before ***REDACTED*** middle {"headers":{"Authorization":"***REDACTED***"}} after ***REDACTED***');
+  });
+
+  it("returns the text unchanged when no api key is provided", () => {
+    expect(redactGatewayApiKey("no secrets here", undefined)).toBe("no secrets here");
+    expect(redactGatewayApiKey("no secrets here", "")).toBe("no secrets here");
   });
 });
 

@@ -468,6 +468,7 @@ fi`,
 	// umask (0644), leaving secrets (e.g. MCP gateway tokens) world-readable on the
 	// runner host until the secret-redaction step runs.
 	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
+	actionLogCommand := `"${GH_AW_NODE_BIN:-node}" "${RUNNER_TEMP}/gh-aw/actions/action_log.cjs" "Agent and firewall output"`
 
 	// Capture the epoch-millisecond timestamp at the very start of the Execute Agent CLI
 	// step on the host, before the AWF container launches.  sendJobConclusionSpan reads
@@ -503,7 +504,7 @@ fi`,
 %s
 %s
 %s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+  -- %s 2>&1 | tee -a %s | %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
@@ -519,7 +520,8 @@ fi`,
 			arcDindDockerHostRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			shellEscapeArg(config.LogFile),
+			actionLogCommand)
 	} else if config.PathSetup != "" {
 		// Include path setup before AWF command (runs on host before AWF)
 		command = fmt.Sprintf(`set -o pipefail
@@ -532,7 +534,7 @@ fi`,
 %s
 %s
 %s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+  -- %s 2>&1 | tee -a %s | %s`,
 			writeAgentCLIStartMs,
 			config.PathSetup,
 			preCreateLog,
@@ -547,7 +549,8 @@ fi`,
 			arcDindDockerHostRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			shellEscapeArg(config.LogFile),
+			actionLogCommand)
 	} else if configFileSetup != "" {
 		command = fmt.Sprintf(`set -o pipefail
 %s
@@ -559,7 +562,7 @@ fi`,
 %s
 %s
 %s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+  -- %s 2>&1 | tee -a %s | %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			configFileSetup,
@@ -574,7 +577,8 @@ fi`,
 			arcDindDockerHostRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			shellEscapeArg(config.LogFile),
+			actionLogCommand)
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
 %s
@@ -585,7 +589,7 @@ fi`,
 %s
 %s
 %s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
+  -- %s 2>&1 | tee -a %s | %s`,
 			writeAgentCLIStartMs,
 			preCreateLog,
 			modelsJSONPathExport,
@@ -599,7 +603,8 @@ fi`,
 			arcDindDockerHostRef,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+			shellEscapeArg(config.LogFile),
+			actionLogCommand)
 	}
 
 	awfHelpersLog.Print("Successfully built AWF command")

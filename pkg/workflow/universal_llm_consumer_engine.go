@@ -316,10 +316,10 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 			AllowedDomains: allowedDomains,
 		})
 	} else if cfg.WriteTimestamp {
-		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
-			AgentCLIStartMsPath, engineCommand, logFile)
+		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s",
+			AgentCLIStartMsPath, wrapProcessOutputForActionLog(engineCommand, logFile, cfg.DefaultCommandName+" output"))
 	} else {
-		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n%s 2>&1 | tee -a %s", engineCommand, logFile)
+		command = "set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n" + wrapProcessOutputForActionLog(engineCommand, logFile, cfg.DefaultCommandName+" output")
 	}
 
 	env := map[string]string{

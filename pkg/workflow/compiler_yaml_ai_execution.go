@@ -500,6 +500,7 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
 	c.generateSecretRedactionStep(yaml, yaml.String(), data)
+	c.generateProcessOutputLogging(yaml, data)
 
 	// Append the agent step summary to the real $GITHUB_STEP_SUMMARY after secrets are redacted.
 	// The agent writes its GITHUB_STEP_SUMMARY content to AgentStepSummaryPath (a file inside
@@ -515,4 +516,28 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	}
 
 	return artifactPaths, logFileFull, nil
+}
+
+// generateProcessOutputLogging sends the redacted MCP gateway launch stderr to the
+// Actions log with workflow command processing disabled. It only logs the gateway's
+// docker-launch stderr (real process diagnostics), not the gateway-output.json
+// configuration dump — that file holds the full resolved mcpServers config (URLs and
+// Authorization headers), so it stays out of the Actions log even after redaction,
+// though it remains readable on disk for the "Redact secrets in logs" step and for
+// engine-specific converters.
+// This step is gated on the "Redact secrets in logs" step's outcome: if redaction
+// itself failed, we must not risk reading and emitting a file that was not
+// successfully scrubbed of secrets.
+func (c *Compiler) generateProcessOutputLogging(yaml *strings.Builder, data *WorkflowData) {
+	yaml.WriteString("      - name: Log process output\n")
+	fmt.Fprintf(yaml, "        if: always() && steps.%s.outcome == 'success'\n", constants.RedactSecretsStepID)
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          MCP_GATEWAY_API_KEY: ${{ steps.start-mcp-gateway.outputs.gateway-api-key }}\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const path = require('path');\n")
+	yaml.WriteString("            const { logProcessOutputFiles } = require('${{ runner.temp }}/gh-aw/actions/action_log.cjs');\n")
+	yaml.WriteString("            const logDir = '/tmp/gh-aw/mcp-logs';\n")
+	yaml.WriteString("            logProcessOutputFiles('MCP gateway stderr', [path.join(logDir, 'gateway-launch-stderr.log')], [process.env.MCP_GATEWAY_API_KEY || '']);\n")
 }

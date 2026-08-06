@@ -394,7 +394,7 @@ func (e *PiEngine) buildPiExecutionCommand(workflowData *WorkflowData, logFile, 
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-%s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, piCommand, logFile)
+%s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, wrapProcessOutputForActionLog(piCommand, logFile, "Pi output"))
 }
 
 func (e *PiEngine) piAllowedDomains(workflowData *WorkflowData, modelConfigured bool) string {

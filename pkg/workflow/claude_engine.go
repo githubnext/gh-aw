@@ -413,7 +413,7 @@ func (e *ClaudeEngine) buildClaudeFullCommand(workflowData *WorkflowData, claude
           touch %s
           (umask 177 && touch %s)
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, claudeCommand, logFile)
+          %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, wrapProcessOutputForActionLog(claudeCommand, logFile, "Claude output"))
 }
 
 // buildClaudeCommandEnv builds the environment variable map for the Claude execution step.

@@ -407,10 +407,10 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionCommand(exec *Engin
 		return e.buildFirewallCommand(exec, workflowData, logFile, engineCommand)
 	}
 	if exec.WriteTimestamp {
-		return fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
-			AgentCLIStartMsPath, engineCommand, logFile)
+		return fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s",
+			AgentCLIStartMsPath, wrapProcessOutputForActionLog(engineCommand, logFile, e.GetID()+" output"))
 	}
-	return fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n%s 2>&1 | tee -a %s", engineCommand, logFile)
+	return "set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n" + wrapProcessOutputForActionLog(engineCommand, logFile, e.GetID()+" output")
 }
 
 func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionEnv(exec *EngineExecutionDefinition, workflowData *WorkflowData, firewallEnabled bool) map[string]string {

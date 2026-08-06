@@ -232,6 +232,7 @@ constants.PreActivationAppTokenStepID    // "pre-activation-app-token"
 // Agent job step IDs
 constants.ParseMCPGatewayStepID          // "parse-mcp-gateway"
 constants.DetectAgentErrorsStepID        // "detect-agent-errors" — post-execution error detection step
+constants.RedactSecretsStepID            // "redact-secrets-in-logs" — later log-emitting steps gate on this step's outcome
 ```
 
 ### Step Output Keys

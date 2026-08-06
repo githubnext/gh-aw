@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
@@ -156,11 +157,13 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		// Generate a minimal no-op redaction step for validation purposes
 		yaml.WriteString("      - name: Redact secrets in logs\n")
 		yaml.WriteString("        if: always()\n")
+		fmt.Fprintf(yaml, "        id: %s\n", constants.RedactSecretsStepID)
 		yaml.WriteString("        run: echo 'No secrets to redact'\n")
 	} else {
 		secretMaskingLog.Printf("Generating redaction step for %d secret(s)", len(secretReferences))
 		yaml.WriteString("      - name: Redact secrets in logs\n")
 		yaml.WriteString("        if: always()\n")
+		fmt.Fprintf(yaml, "        id: %s\n", constants.RedactSecretsStepID)
 		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
