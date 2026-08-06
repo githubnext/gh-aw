@@ -23,7 +23,7 @@ require("./shim.cjs");
  */
 
 const path = require("path");
-const { normalizeGatewayEntry, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
+const { normalizeGatewayEntry, runGatewayConversion } = require("./convert_gateway_config_shared.cjs");
 
 const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json");
 
@@ -43,26 +43,13 @@ function transformClaudeEntry(entry, urlPrefix) {
 }
 
 function main() {
-  const { gatewayOutput, domain, port, urlPrefix, cliServers, servers } = loadGatewayContext();
-
-  core.info("Converting gateway configuration to Claude format...");
-  core.info(`Input: ${gatewayOutput}`);
-  core.info(`Target domain: ${domain}:${port}`);
-  logCLIFilters(cliServers);
-  const result = filterAndTransformServers(servers, cliServers, (_name, entry) => transformClaudeEntry(entry, urlPrefix));
-
-  const output = JSON.stringify({ mcpServers: result }, null, 2);
-  logServerStats(servers, Object.keys(result).length);
-
-  // Write with owner-only permissions (0o600) to protect the gateway bearer token.
-  // An attacker who reads mcp-servers.json could bypass --allowed-tools by issuing
-  // raw JSON-RPC calls directly to the gateway.
-  writeSecureOutput(OUTPUT_PATH, output);
-
-  core.info(`Claude configuration written to ${OUTPUT_PATH}`);
-  core.info("");
-  core.info("Converted configuration:");
-  core.info(output);
+  return runGatewayConversion({
+    format: "Claude",
+    engine: "Claude",
+    outputPath: OUTPUT_PATH,
+    transformServer: (_name, entry, urlPrefix) => transformClaudeEntry(entry, urlPrefix),
+    serialize: servers => JSON.stringify({ mcpServers: servers }, null, 2),
+  });
 }
 
 if (require.main === module) {

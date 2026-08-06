@@ -162,6 +162,51 @@ function writeSecureOutput(outputPath, output) {
   }
 }
 
+/**
+ * Run the common gateway configuration conversion pipeline.
+ *
+ * `getTargetDomain` and `getUrlPrefix` are intentionally separate so that
+ * engines can diverge the log label from the actual URL prefix (for example,
+ * Codex logs `host.docker.internal` but builds URLs with `172.30.0.1`).
+ * When both are provided they MUST be kept consistent; when omitted, both
+ * default to `context.domain` / `context.urlPrefix` respectively.
+ *
+ * @param {{
+ *   format: string;
+ *   engine: string;
+ *   outputPath: string | ((context: ReturnType<typeof loadGatewayContext>) => string);
+ *   contextOptions?: { extraRequiredEnv?: string[] };
+ *   getTargetDomain?: (context: ReturnType<typeof loadGatewayContext>) => string;
+ *   getUrlPrefix?: (context: ReturnType<typeof loadGatewayContext>) => string;
+ *   transformServer: (name: string, entry: Record<string, unknown>, urlPrefix: string, context: ReturnType<typeof loadGatewayContext>) => Record<string, unknown>;
+ *   serialize: (servers: Record<string, Record<string, unknown>>, context: ReturnType<typeof loadGatewayContext>, urlPrefix: string) => string;
+ * }} options
+ * @returns {string}
+ */
+function runGatewayConversion(options) {
+  const context = loadGatewayContext(options.contextOptions);
+  const targetDomain = options.getTargetDomain ? options.getTargetDomain(context) : context.domain;
+
+  core.info(`Converting gateway configuration to ${options.format} format...`);
+  core.info(`Input: ${context.gatewayOutput}`);
+  core.info(`Target domain: ${targetDomain}:${context.port}`);
+
+  const urlPrefix = options.getUrlPrefix ? options.getUrlPrefix(context) : context.urlPrefix;
+  logCLIFilters(context.cliServers);
+  const servers = filterAndTransformServers(context.servers, context.cliServers, (name, entry) => options.transformServer(name, entry, urlPrefix, context));
+  const output = options.serialize(servers, context, urlPrefix);
+
+  logServerStats(context.servers, Object.keys(servers).length);
+  const outputPath = typeof options.outputPath === "function" ? options.outputPath(context) : options.outputPath;
+  writeSecureOutput(outputPath, output);
+
+  core.info(`${options.engine} configuration written to ${outputPath}`);
+  core.info("");
+  core.info("Converted configuration:");
+  core.info(output);
+  return output;
+}
+
 module.exports = {
   rewriteUrl,
   normalizeGatewayEntry,
@@ -170,4 +215,5 @@ module.exports = {
   filterAndTransformServers,
   logServerStats,
   writeSecureOutput,
+  runGatewayConversion,
 };
