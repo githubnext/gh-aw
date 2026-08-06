@@ -2219,8 +2219,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       let canonicalFilePath;
       try {
         canonicalFilePath = fs.realpathSync(filePath);
-      } catch {
-        canonicalFilePath = path.resolve(filePath);
+      } catch (err) {
+        throw {
+          code: -32602,
+          message: `${ERR_VALIDATION}: upload_artifact: failed to resolve canonical path for ${filePath}: ${getErrorMessage(err)}`,
+        };
       }
 
       // Reject sensitive paths (system dirs, .git, HOME credentials).
@@ -2245,7 +2248,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       if (!withinAllowedRoot) {
         throw {
           code: -32602,
-          message: `${ERR_VALIDATION}: upload_artifact: path is outside allowed source roots (GITHUB_WORKSPACE, RUNNER_TEMP, staging directory): ${filePath}`,
+          message: `${ERR_VALIDATION}: upload_artifact: path is outside allowed source roots (GITHUB_WORKSPACE, RUNNER_TEMP, staging directory): ${canonicalFilePath}`,
         };
       }
 

@@ -305,8 +305,8 @@ function autoCopyToStaging(reqPath) {
     let canonical;
     try {
       canonical = fs.realpathSync(reqPath);
-    } catch {
-      canonical = path.resolve(reqPath);
+    } catch (err) {
+      return { copied: false, relPath: "", error: `failed to resolve canonical path for ${reqPath}: ${err instanceof Error ? err.message : String(err)}` };
     }
     const sensitiveErr = validateSourcePath(canonical);
     if (sensitiveErr) {
@@ -353,8 +353,8 @@ function autoCopyToStaging(reqPath) {
     let canonical;
     try {
       canonical = fs.realpathSync(candidate);
-    } catch {
-      canonical = path.resolve(candidate);
+    } catch (err) {
+      return { copied: false, relPath: "", error: `failed to resolve canonical path for ${candidate}: ${err instanceof Error ? err.message : String(err)}` };
     }
     const sensitiveErr = validateSourcePath(canonical);
     if (sensitiveErr) {
