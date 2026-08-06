@@ -1,14 +1,13 @@
 // @ts-check
 
 /**
- * Returns true when a config key should be treated as sensitive (e.g. tokens).
- * The check is intentionally scoped to keys containing "token" because those are
- * the only secret-bearing fields produced by the safe-outputs compiler today.
+ * Returns true when a config key should be treated as sensitive.
  * @param {string} key
  * @returns {boolean}
  */
 function isSensitiveConfigKey(key) {
-  return /token/i.test(key);
+  const normalizedKey = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  return /(token|apikey|authorization|password|passwd|privatekey|cookie|secret|credential|headers)/.test(normalizedKey);
 }
 
 /**

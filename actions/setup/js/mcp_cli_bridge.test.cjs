@@ -6,6 +6,8 @@ import path from "path";
 
 import {
   ensureSafeOutputsTools,
+  auditLog,
+  ensureAuditDir,
   formatResponse,
   getToolCallTimeoutMs,
   hasStdinJsonPayload,
@@ -255,6 +257,68 @@ describe("mcp_cli_bridge.cjs", () => {
 
   it("uses default 120s timeout for non-logs tools", () => {
     expect(getToolCallTimeoutMs("audit", {})).toBe(120000);
+  });
+
+  it("writes owner-only audit metadata without arguments, responses, or errors", () => {
+    const auditDir = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-audit-"));
+    const sentinel = "sentinel-secret";
+    try {
+      ensureAuditDir(auditDir);
+      auditLog(
+        "server/../name",
+        {
+          event: "tools_call_done",
+          tool: "example",
+          statusCode: 200,
+          elapsedMs: 12,
+          argumentBytes: 42,
+          arguments: { apiKey: sentinel },
+          response: { secret: sentinel },
+          error: sentinel,
+        },
+        auditDir
+      );
+
+      const files = fs.readdirSync(auditDir);
+      expect(files).toEqual(["server_.._name.jsonl"]);
+      const logPath = path.join(auditDir, files[0]);
+      const record = JSON.parse(fs.readFileSync(logPath, "utf8"));
+      expect(record).toMatchObject({
+        server: "server/../name",
+        event: "tools_call_done",
+        tool: "example",
+        statusCode: 200,
+        elapsedMs: 12,
+        argumentBytes: 42,
+      });
+      expect(record).not.toHaveProperty("arguments");
+      expect(record).not.toHaveProperty("response");
+      expect(record).not.toHaveProperty("error");
+      expect(fs.statSync(auditDir).mode & 0o777).toBe(0o700);
+      expect(fs.statSync(logPath).mode & 0o777).toBe(0o600);
+      expect(fs.readFileSync(logPath, "utf8")).not.toContain(sentinel);
+    } finally {
+      fs.rmSync(auditDir, { recursive: true, force: true });
+    }
+  });
+
+  it("removes audit records older than the 24-hour retention window", () => {
+    const auditDir = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-audit-"));
+    const staleLog = path.join(auditDir, "stale.jsonl");
+    const currentLog = path.join(auditDir, "current.jsonl");
+    try {
+      fs.writeFileSync(staleLog, "{}\n");
+      fs.writeFileSync(currentLog, "{}\n");
+      const staleTime = new Date(Date.now() - 25 * 60 * 60 * 1000);
+      fs.utimesSync(staleLog, staleTime, staleTime);
+
+      ensureAuditDir(auditDir);
+
+      expect(fs.existsSync(staleLog)).toBe(false);
+      expect(fs.existsSync(currentLog)).toBe(true);
+    } finally {
+      fs.rmSync(auditDir, { recursive: true, force: true });
+    }
   });
 
   it("uses a longer timeout for logs calls without explicit timeout (default count=100, no filter)", () => {
@@ -1289,6 +1353,17 @@ describe("mcp_cli_bridge.cjs", () => {
       expect(toolsCallBody).toBeDefined();
       expect(toolsCallBody.params.name).toBe("dispatch_code_factory");
       expect(toolsCallBody.params.arguments).toEqual({});
+    });
+
+    it("does not include tool argument values in live logs", async () => {
+      const sentinel = "sentinel-tool-argument";
+      setupMainCall(requiredInputTools, ["create_issue", "--title", sentinel]);
+
+      await main();
+
+      const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
+      expect(toolsCallBody.params.arguments).toEqual({ title: sentinel });
+      expect(JSON.stringify(global.core.info.mock.calls)).not.toContain(sentinel);
     });
 
     it("reaches MCP tools/call with {} for a zero-input tool (piped {} via . sentinel)", async () => {

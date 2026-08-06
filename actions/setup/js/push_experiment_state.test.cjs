@@ -26,7 +26,7 @@ global.exec = mockExec;
 global.context = mockContext;
 global.github = {};
 
-const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns, checkoutOrCreateBranch } = await import("./push_experiment_state.cjs");
+const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeAppendOnlyJSONL, mergeExperimentRuns, checkoutOrCreateBranch } = await import("./push_experiment_state.cjs");
 
 describe("push_experiment_state", () => {
   let tmpDir;
@@ -231,6 +231,55 @@ describe("push_experiment_state", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].run_id).toBe("V1");
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("skipping unparseable line"));
+  });
+
+  it("mergeAppendOnlyJSONL appends new eval entries without pruning existing history", () => {
+    const existingEntries = Array.from({ length: 513 }, (_, i) => ({
+      id: `existing-${i}`,
+      timestamp: new Date(Date.UTC(2026, 0, 1) + i * 60000).toISOString(),
+      runid: String(i),
+    }));
+    const newEntry = {
+      id: "new",
+      timestamp: "2026-08-01T12:00:00.000Z",
+      runid: "new-run",
+    };
+
+    const result = mergeAppendOnlyJSONL(existingEntries.map(entry => JSON.stringify(entry)).join("\n") + "\n", `${JSON.stringify(newEntry)}\n`);
+    const entries = result
+      .trim()
+      .split("\n")
+      .map(line => JSON.parse(line));
+
+    expect(entries).toHaveLength(514);
+    expect(entries[0]).toEqual(existingEntries[0]);
+    expect(entries.at(-1)).toEqual(newEntry);
+  });
+
+  it("mergeAppendOnlyJSONL deduplicates entries during concurrent update merges", () => {
+    const shared = '{"id":"shared","timestamp":"2026-08-01T12:00:00.000Z","runid":"1"}\n';
+    const remote = shared + '{"id":"remote","timestamp":"2026-08-01T12:01:00.000Z","runid":"2"}\n';
+    const local = shared + '{"id":"local","timestamp":"2026-08-01T12:02:00.000Z","runid":"3"}\n';
+
+    const result = mergeAppendOnlyJSONL(remote, local)
+      .trim()
+      .split("\n")
+      .map(line => JSON.parse(line));
+
+    expect(result.map(entry => entry.id)).toEqual(["shared", "remote", "local"]);
+  });
+
+  it("mergeAppendOnlyJSONL preserves opaque malformed lines", () => {
+    const malformed = "not-valid-json\n";
+    const remote = malformed + '{"id":"remote","timestamp":"2026-08-01T12:01:00.000Z","runid":"2"}\n';
+    const local = malformed + '{"id":"local","timestamp":"2026-08-01T12:02:00.000Z","runid":"3"}\n';
+
+    const result = mergeAppendOnlyJSONL(remote, local).trim().split("\n");
+
+    expect(result[0]).toBe("not-valid-json");
+    expect(result[1]).toBe('{"id":"remote","timestamp":"2026-08-01T12:01:00.000Z","runid":"2"}');
+    expect(result[2]).toBe('{"id":"local","timestamp":"2026-08-01T12:02:00.000Z","runid":"3"}');
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("preserving unparseable line"));
   });
 
   describe("checkoutOrCreateBranch", () => {

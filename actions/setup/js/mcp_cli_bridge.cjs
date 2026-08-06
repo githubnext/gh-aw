@@ -12,9 +12,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  *
  * Protocol flow: initialize → notifications/initialized → (periodic ping) → tools/call
  *
- * All interactions are logged via core.* (shim.cjs) to console and
- * appended as JSONL entries to /tmp/gh-aw/mcp-cli-audit/<server>.jsonl
- * for auditing.
+ * Operation metadata is logged via core.* (shim.cjs) and appended as JSONL
+ * entries to /tmp/gh-aw/mcp-cli-audit/<server>.jsonl for auditing. Audit logs
+ * omit payloads and are removed after 24 hours.
  *
  * Usage (called by generated CLI wrappers):
  *   node mcp_cli_bridge.cjs \
@@ -40,6 +40,8 @@ const { renderToolRecommendedExample, renderToolSignature, summarizeHelpText } =
 
 /** Directory for JSONL audit logs (writable inside AWF sandbox via /tmp mount) */
 const AUDIT_LOG_DIR = "/tmp/gh-aw/mcp-cli-audit";
+const AUDIT_LOG_RETENTION_MS = 24 * 60 * 60 * 1000;
+const SAFE_AUDIT_FIELDS = new Set(["event", "tool", "statusCode", "hasSession", "elapsedMs", "totalElapsedMs", "pingId", "intervalMs", "pid", "toolCount", "argumentBytes", "responseBytes"]);
 
 /** Default timeout (ms) for HTTP calls to the local MCP gateway */
 const DEFAULT_HTTP_TIMEOUT_MS = 15000;
@@ -78,14 +80,53 @@ const SAFEOUTPUTS_SERVER_NAME = "safeoutputs";
 // ---------------------------------------------------------------------------
 
 /**
- * Ensure the JSONL audit log directory exists.
+ * Ensure the JSONL audit log directory exists and remove expired records.
+ * @param {string} [auditDir]
  */
-function ensureAuditDir() {
+function ensureAuditDir(auditDir = AUDIT_LOG_DIR) {
   try {
-    fs.mkdirSync(AUDIT_LOG_DIR, { recursive: true });
+    fs.mkdirSync(auditDir, { recursive: true, mode: 0o700 });
+    fs.chmodSync(auditDir, 0o700);
+    const cutoff = Date.now() - AUDIT_LOG_RETENTION_MS;
+    for (const filename of fs.readdirSync(auditDir)) {
+      const logPath = path.join(auditDir, filename);
+      const stat = fs.lstatSync(logPath);
+      if (stat.isFile() && filename.endsWith(".jsonl") && stat.mtimeMs < cutoff) {
+        fs.rmSync(logPath);
+      }
+    }
   } catch (err) {
     const core = global.core;
-    core.warning(`Failed to create audit log directory ${AUDIT_LOG_DIR}: ${getErrorMessage(err)}`);
+    core.warning(`Failed to prepare audit log directory ${auditDir}: ${getErrorMessage(err)}`);
+  }
+}
+
+/**
+ * Retain only non-payload fields that are safe and useful for diagnostics.
+ * @param {Record<string, unknown>} entry
+ * @returns {Record<string, string | number | boolean>}
+ */
+function sanitizeAuditEntry(entry) {
+  /** @type {Record<string, string | number | boolean>} */
+  const safeEntry = {};
+  for (const [key, value] of Object.entries(entry)) {
+    if (SAFE_AUDIT_FIELDS.has(key) && (typeof value === "string" || typeof value === "number" || typeof value === "boolean")) {
+      safeEntry[key] = value;
+    }
+  }
+  return safeEntry;
+}
+
+/**
+ * Return the serialized UTF-8 size of a value without exposing its content.
+ * @param {unknown} value
+ * @returns {number}
+ */
+function serializedSize(value) {
+  try {
+    return Buffer.byteLength(JSON.stringify(value) ?? "");
+  } catch {
+    return 0;
   }
 }
 
@@ -94,19 +135,26 @@ function ensureAuditDir() {
  *
  * @param {string} serverName - Server name (used as filename prefix)
  * @param {Record<string, unknown>} entry - Log entry object
+ * @param {string} [auditDir]
  */
-function auditLog(serverName, entry) {
+function auditLog(serverName, entry, auditDir = AUDIT_LOG_DIR) {
+  let fd;
   try {
-    const logPath = path.join(AUDIT_LOG_DIR, `${serverName}.jsonl`);
+    const safeServerName = serverName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const logPath = path.join(auditDir, `${safeServerName}.jsonl`);
     const record = {
       timestamp: new Date().toISOString(),
       server: serverName,
-      ...entry,
+      ...sanitizeAuditEntry(entry),
     };
-    fs.appendFileSync(logPath, JSON.stringify(record) + "\n", { mode: 0o644 });
+    fd = fs.openSync(logPath, fs.constants.O_APPEND | fs.constants.O_CREAT | fs.constants.O_WRONLY | fs.constants.O_NOFOLLOW, 0o600);
+    fs.fchmodSync(fd, 0o600);
+    fs.writeSync(fd, JSON.stringify(record) + "\n");
   } catch (err) {
     const core = global.core;
     core.warning(`Failed to write audit log for ${serverName}: ${getErrorMessage(err)}`);
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
   }
 }
 
@@ -328,12 +376,13 @@ async function mcpNotifyInitialized(serverUrl, apiKey, sessionId, serverName) {
 async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, serverName) {
   const core = global.core;
   const startMs = Date.now();
-  core.info(`[${serverName}] MCP tools/call: tool=${toolName}, args=${JSON.stringify(toolArgs)}`);
+  const argumentBytes = serializedSize(toolArgs);
+  core.info(`[${serverName}] MCP tools/call: tool=${toolName}, argumentBytes=${argumentBytes}`);
 
   auditLog(serverName, {
     event: "tools_call_start",
     tool: toolName,
-    arguments: toolArgs,
+    argumentBytes,
   });
 
   /** @type {Record<string, string>} */
@@ -363,7 +412,7 @@ async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, se
     tool: toolName,
     statusCode: resp.statusCode,
     elapsedMs,
-    response: resp.body,
+    responseBytes: serializedSize(resp.body),
   });
 
   return resp;
@@ -1402,12 +1451,9 @@ async function main() {
 
   ensureAuditDir();
 
-  core.info(`[${serverName}] Bridge invoked: url=${serverUrl}, toolsFile=${toolsFile}, userArgs=${JSON.stringify(userArgs)}`);
+  core.info(`[${serverName}] Bridge invoked: argumentCount=${Math.max(0, userArgs.length - 1)}`);
   auditLog(serverName, {
     event: "bridge_invoked",
-    url: serverUrl,
-    toolsFile,
-    userArgs,
     pid: process.pid,
   });
 
@@ -1448,8 +1494,9 @@ async function main() {
     return;
   }
 
-  core.info(`[${serverName}] Calling tool '${toolName}' with args: ${JSON.stringify(toolArgs)}${jsonOutput ? " (--json)" : ""}`);
-  auditLog(serverName, { event: "call_start", tool: toolName, arguments: toolArgs });
+  const argumentBytes = serializedSize(toolArgs);
+  core.info(`[${serverName}] Calling tool '${toolName}' (${argumentBytes} argument bytes${jsonOutput ? ", JSON output" : ""})`);
+  auditLog(serverName, { event: "call_start", tool: toolName, argumentBytes });
 
   const callStartMs = Date.now();
   /** @type {(() => void) | null} */
@@ -1527,5 +1574,9 @@ module.exports = {
   readStdinSync,
   ensureSafeOutputsTools,
   getToolCallTimeoutMs,
+  auditLog,
+  ensureAuditDir,
+  sanitizeAuditEntry,
+  serializedSize,
   main,
 };
