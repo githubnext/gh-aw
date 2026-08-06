@@ -60,6 +60,7 @@ describe("exchange_otlp_workload_identity", () => {
     expect(mockCore.setSecret).toHaveBeenCalledWith("github-oidc-token");
     expect(mockCore.setSecret).toHaveBeenCalledWith("federated-token");
     expect(mockCore.setOutput).toHaveBeenCalledWith("token", "federated-token");
+    expect(mockCore.setSecret.mock.invocationCallOrder[1]).toBeLessThan(mockCore.setOutput.mock.invocationCallOrder[0]);
   });
 
   it("impersonates the service account when configured", async () => {
@@ -75,6 +76,8 @@ describe("exchange_otlp_workload_identity", () => {
     expect(options.headers.authorization).toContain("federated-token");
     expect(mockCore.setSecret.mock.calls).toEqual([["github-oidc-token"], ["federated-token"], ["impersonated-token"]]);
     expect(mockCore.setOutput).toHaveBeenCalledWith("token", "impersonated-token");
+    expect(mockCore.setSecret.mock.invocationCallOrder[1]).toBeLessThan(fetchMock.mock.invocationCallOrder[1]);
+    expect(mockCore.setSecret.mock.invocationCallOrder[2]).toBeLessThan(mockCore.setOutput.mock.invocationCallOrder[0]);
   });
 
   it("does not call the impersonation endpoint when no service account is configured", async () => {
