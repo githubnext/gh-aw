@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-05T19:08:00Z",
+  "last_run": "2026-08-06T07:45:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -429,6 +429,27 @@
       "title": "Error message actionability findings - already tracked as #50591/#50592",
       "created_at": "2026-08-05T19:08:00Z",
       "status": "skipped_already_filed_upstream"
+    },
+    {
+      "source_discussion": 50749,
+      "issue_number": null,
+      "title": "Split compiler_safe_outputs_job.go (1091 lines) into focused files",
+      "created_at": "2026-08-06T07:45:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50749,
+      "issue_number": null,
+      "title": "Extract validation steps from compiler.go CompileWorkflowData (172 lines)",
+      "created_at": "2026-08-06T07:45:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 50749,
+      "issue_number": null,
+      "title": "Add doc comments to boolean helper functions in compiler_jobs.go",
+      "created_at": "2026-08-06T07:45:00Z",
+      "status": "created"
     }
   ]
 }

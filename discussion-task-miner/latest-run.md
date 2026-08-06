@@ -1,20 +1,25 @@
-# Task Mining Run - 2026-08-05 (19:08 UTC)
+# Task Mining Run - 2026-08-06
 
 ## Summary
-- Discussions scanned: 22 (unprocessed since last run, IDs 50520-50671)
-- Tasks identified: 6
-- Issues created: 5
-- Duplicates avoided: 1 (error-message actionability findings already filed as #50591/#50592)
+- Discussions scanned: 25 (last 7 days, top recent)
+- Tasks identified: 3
+- Issues created: 3
+- Duplicates/skips avoided: 4 (Workflow Skill Extractor and Sergo report already filed their own issues; Code Metrics report too vague/aggregate; Issue Arborist only did issue linking)
 
 ## Created Issues
-- Consolidate 4 duplicated MCP-server-stats structs in pkg/cli into a shared base
-- Consolidate 3 duplicated per-tool aggregate call stats structs in pkg/cli
-- Strengthen getParsedSchemaDoc return type from any to map[string]any in pkg/parser
-- Type BeforeState/AfterState audit fields as MutableItemState instead of map[string]any
-- Migrate two tabwriter tables in pkg/cli/logs_format_compact.go to console.RenderTable
+- Split compiler_safe_outputs_job.go (1091 lines) into focused files
+- Extract validation steps from compiler.go CompileWorkflowData (172 lines)
+- Add doc comments to boolean helper functions in compiler_jobs.go
 
-## Top Patterns Observed
-- pkg/cli audit/gateway reporting subsystem has repeated semantic-duplicate structs (MCP stats, tool stats) — same root cause across 4 clusters, most already have an existing dedup pattern (`AnalysisBase`) to follow
-- `any`/`map[string]any` used where a concrete shape is fully known (schema docs, audit item state) — easy, high-value typing wins
-- Several reports (session-insights, daily-status, PR-merged-report, auto-triage, secrets scan, cache-strategy, GEO audit) were pure status/metrics reports with no extractable code-quality tasks
-- Error message actionability audit (#50563) reproduced findings already tracked as issues #50591/#50592 — skipped to avoid duplication
+## Source
+All 3 tasks extracted from discussion #50749 ([daily-compiler-quality] Daily Compiler Code Quality Report - 2026-08-06).
+
+## Skipped / Already Covered
+- #50761 Workflow Skill Extractor: already created its own 3 issues (#50757 sandbox bundle, #50759 network defaults, + slash-command preamble)
+- #50764 Sergo Report: already filed its own issue for goroutinemissingrecover linter fix
+- #50675 Daily Code Metrics Report: aggregate repo-wide metrics only, no specific actionable file/task
+- #50790 Issue Arborist: only linked existing issues to parents, no new tasks
+
+## Dedup Checks Performed
+- Searched open issues for "compiler_safe_outputs_job" (0 hits), "CompileWorkflowData" (0 hits), "jobDependsOnAgent" (0 hits) before filing
+- Confirmed "cli-proxy shared component" -> #50757 and "network.allowed defaults" -> #50759 already exist, skipped
