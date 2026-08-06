@@ -138,6 +138,7 @@ func renderLogsCompactToWriter(w io.Writer, data LogsData) {
 			r.Event, actor, branch,
 		})
 	}
+	// RenderTable appends a trailing newline, so following section headers remain separated.
 	fmt.Fprint(w, console.RenderTable(console.TableConfig{
 		Headers: []string{"RUNID", "WORKFLOW", "ENGINE", "STATUS", "DUR", "TOKENS", "AIC", "TURNS", "ERR", "EVENT", "ACTOR", "BRANCH"},
 		Rows:    rows,
@@ -321,6 +322,7 @@ func renderLogsCompactVerboseToWriter(w io.Writer, data LogsData) {
 			r.CreatedAt.Format("01-02 15:04"), r.Branch,
 		})
 	}
+	// RenderTable appends a trailing newline, so following section headers remain separated.
 	fmt.Fprint(w, console.RenderTable(console.TableConfig{
 		Headers: []string{"RUNID", "WORKFLOW", "ENGINE", "STATUS", "DUR", "TOKENS", "AIC", "TURNS", "ERR", "WARN", "EVENT", "ACTOR", "TBT", "CLASS", "CREATED", "BRANCH"},
 		Rows:    rows,

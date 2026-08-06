@@ -65,6 +65,8 @@ func TestRenderLogsCompactSkipsSkippedAndCancelledRuns(t *testing.T) {
 	data.Runs = append(data.Runs,
 		RunData{RunID: 222, WorkflowName: "skipped-wf", Status: "skipped", CreatedAt: time.Now()},
 		RunData{RunID: 333, WorkflowName: "cancelled-wf", Status: "cancelled", CreatedAt: time.Now()},
+		RunData{RunID: 444, WorkflowName: "skipped-c", Conclusion: "skipped", CreatedAt: time.Now()},
+		RunData{RunID: 555, WorkflowName: "cancelled-c", Conclusion: "cancelled", CreatedAt: time.Now()},
 	)
 
 	var buf bytes.Buffer
@@ -73,5 +75,7 @@ func TestRenderLogsCompactSkipsSkippedAndCancelledRuns(t *testing.T) {
 
 	assert.NotContains(t, out, "222")
 	assert.NotContains(t, out, "333")
+	assert.NotContains(t, out, "444")
+	assert.NotContains(t, out, "555")
 	assert.Equal(t, 1, strings.Count(out, "1234567"))
 }
