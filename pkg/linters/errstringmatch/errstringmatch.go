@@ -8,22 +8,15 @@ import (
 	"go/ast"
 	"go/types"
 
-	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
-
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"golang.org/x/tools/go/analysis"
 )
 
 // Analyzer is the err-string-match analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "errstringmatch",
-	Doc:      "reports strings.Contains/HasPrefix/HasSuffix/EqualFold/Index/LastIndex/Compare(err.Error(), \"...\") calls that perform brittle substring matching on error messages",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errstringmatch",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("errstringmatch", "reports strings.Contains/HasPrefix/HasSuffix/EqualFold/Index/LastIndex/Compare(err.Error(), \"...\") calls that perform brittle substring matching on error messages", run)
 
 // brittleErrStringFuncs is the set of strings package functions that perform
 // brittle error-message matching when their first argument is err.Error().
@@ -38,10 +31,6 @@ var brittleErrStringFuncs = map[string]bool{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -55,7 +44,7 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.CallExpr)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		outer, ok := n.(*ast.CallExpr)
 		if !ok {
 			return
@@ -89,8 +78,6 @@ func run(pass *analysis.Pass) (any, error) {
 
 		pass.ReportRangef(outer, "avoid strings.%s(err.Error(), ...) — use errors.Is, errors.As, or a sentinel error instead", funcName)
 	})
-
-	return nil, nil
 }
 
 // brittleErrStringFuncName returns the matched strings function name and true

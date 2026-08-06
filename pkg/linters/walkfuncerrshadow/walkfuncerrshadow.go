@@ -6,13 +6,12 @@ package walkfuncerrshadow
 import (
 	"go/ast"
 
-	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
-
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
+	"golang.org/x/tools/go/analysis"
 )
 
 var pkgLog = logger.New("linters:walkfuncerrshadow")
@@ -20,21 +19,11 @@ var pkgLog = logger.New("linters:walkfuncerrshadow")
 const analyzerName = "walkfuncerrshadow"
 
 // Analyzer is the walkfuncerrshadow analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     analyzerName,
-	Doc:      "reports filepath.Walk/WalkDir callbacks whose err parameter shadows an outer err variable assigned from the walk call",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/walkfuncerrshadow",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New(analyzerName, "reports filepath.Walk/WalkDir callbacks whose err parameter shadows an outer err variable assigned from the walk call", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -44,15 +33,13 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	insp.Preorder([]ast.Node{(*ast.AssignStmt)(nil)}, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, []ast.Node{(*ast.AssignStmt)(nil)}, func(n ast.Node) {
 		assign, ok := n.(*ast.AssignStmt)
 		if !ok {
 			return
 		}
 		checkAssign(pass, assign, generatedFiles, noLintIndex)
 	})
-
-	return nil, nil
 }
 
 func checkAssign(pass *analysis.Pass, assign *ast.AssignStmt, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {

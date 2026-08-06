@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -27,13 +27,7 @@ var (
 )
 
 // Analyzer is the errormessage analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "errormessage",
-	Doc:      "reports non-actionable error message patterns in changed files",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errormessage",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("errormessage", "reports non-actionable error message patterns in changed files", run)
 
 func init() {
 	Analyzer.Flags.StringVar(&changedFilesCSV, "changed-files", "", "comma-separated list of changed file paths to lint (when empty, analyzer is a no-op)")
@@ -47,10 +41,6 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	pkgLog.Printf("analyzing package %s (%d changed files)", pass.Pkg.Path(), len(changed))
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -61,7 +51,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return
@@ -87,8 +77,6 @@ func run(pass *analysis.Pass) (any, error) {
 
 		checkNewValidationSuggestion(pass, call)
 	})
-
-	return nil, nil
 }
 
 func parseChangedFiles(csv string) map[string]struct{} {

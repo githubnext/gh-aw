@@ -11,8 +11,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -21,19 +21,9 @@ import (
 const bytesPkg = "bytes"
 
 // Analyzer is the bytes-compare-string analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "bytescomparestring",
-	Doc:      "flags string(a) == string(b) and string(a) != string(b) as []byte comparisons written the long way; use bytes.Equal for clearer intent",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/bytescomparestring",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("bytescomparestring", "flags string(a) == string(b) and string(a) != string(b) as []byte comparisons written the long way; use bytes.Equal for clearer intent", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -45,10 +35,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 	seenImportFiles := make(map[token.Pos]bool)
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeBinaryExpr(pass, n, generatedFiles, noLintIndex, seenImportFiles)
 	})
-	return nil, nil
 }
 
 // analyzeBinaryExpr checks whether a binary expression is a string(a) == string(b)

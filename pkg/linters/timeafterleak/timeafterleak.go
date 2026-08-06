@@ -10,9 +10,9 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -22,20 +22,15 @@ import (
 var pkgLog = logger.New("linters:timeafterleak")
 
 // Analyzer is the time-after-leak analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "timeafterleak",
-	Doc:      "reports time.After calls used as the channel-receive expression in a select CommClause that is enclosed by a for or range loop; does not flag receives inside case bodies, single-case selects without a default, or selects enclosed only by a function literal boundary",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/timeafterleak",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("timeafterleak", "reports time.After calls used as the channel-receive expression in a select CommClause that is enclosed by a for or range loop; does not flag receives inside case bodies, single-case selects without a default, or selects enclosed only by a function literal boundary", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
 	}
+
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err

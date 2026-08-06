@@ -12,27 +12,17 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the string-bytes-roundtrip analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "stringbytesroundtrip",
-	Doc:      "reports string([]byte(s)) as a redundant round-trip when s is already a string, and []byte(string(b)) as a wasteful two-copy clone when b is already a []byte (prefer slices.Clone or bytes.Clone)",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/stringbytesroundtrip",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("stringbytesroundtrip", "reports string([]byte(s)) as a redundant round-trip when s is already a string, and []byte(string(b)) as a wasteful two-copy clone when b is already a []byte (prefer slices.Clone or bytes.Clone)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -43,10 +33,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeRoundTrip(pass, n, generatedFiles, noLintIndex)
 	})
-	return nil, nil
 }
 
 // analyzeRoundTrip checks whether a conversion expression is a redundant

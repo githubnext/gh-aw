@@ -9,9 +9,9 @@ import (
 	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -21,21 +21,16 @@ import (
 var pkgLog = logger.New("linters:deferinloop")
 
 // Analyzer is the defer-in-loop analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "deferinloop",
-	Doc:      "reports defer statements enclosed anywhere within a for or range loop body; a function literal between a defer and an enclosing loop is treated as a new scope boundary, making the defer exempt; test files are not checked",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/deferinloop",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("deferinloop", "reports defer statements enclosed anywhere within a for or range loop body; a function literal between a defer and an enclosing loop is treated as a new scope boundary, making the defer exempt; test files are not checked", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
 	}
+
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
+
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err

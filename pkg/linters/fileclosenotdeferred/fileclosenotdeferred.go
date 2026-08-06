@@ -8,8 +8,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -19,21 +19,11 @@ import (
 var pkgLog = logger.New("linters:fileclosenotdeferred")
 
 // Analyzer is the file-close-not-deferred analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "fileclosenotdeferred",
-	Doc:      "reports file operations where Close() is not immediately deferred, which can lead to resource leaks",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/fileclosenotdeferred",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("fileclosenotdeferred", "reports file operations where Close() is not immediately deferred, which can lead to resource leaks", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -47,11 +37,9 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.FuncDecl)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		inspectFileFuncDecl(pass, n, noLintIndex, generatedFiles)
 	})
-
-	return nil, nil
 }
 
 func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {

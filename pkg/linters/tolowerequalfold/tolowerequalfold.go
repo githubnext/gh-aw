@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -23,20 +23,10 @@ import (
 var pkgLog = logger.New("linters:tolowerequalfold")
 
 // Analyzer is the tolower-equalfold analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "tolowerequalfold",
-	Doc:      "reports case-insensitive string comparisons using strings.ToLower/ToUpper that should use strings.EqualFold",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/tolowerequalfold",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("tolowerequalfold", "reports case-insensitive string comparisons using strings.ToLower/ToUpper that should use strings.EqualFold", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -51,7 +41,7 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.BinaryExpr)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		expr, ok := n.(*ast.BinaryExpr)
 		if !ok {
 			return
@@ -90,8 +80,6 @@ func run(pass *analysis.Pass) (any, error) {
 			})
 		}
 	})
-
-	return nil, nil
 }
 
 // buildEqualFoldFix returns a SuggestedFix that rewrites a direct

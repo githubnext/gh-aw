@@ -8,27 +8,17 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the time-now-sub analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "timenowsub",
-	Doc:      "reports time.Now().Sub(t) calls that should be simplified to time.Since(t)",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/timenowsub",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("timenowsub", "reports time.Now().Sub(t) calls that should be simplified to time.Since(t)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -39,10 +29,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeTimeNowSub(pass, n, generatedFiles, noLintIndex)
 	})
-	return nil, nil
 }
 
 // analyzeTimeNowSub checks whether a call is a time.Now().Sub(t) that can be

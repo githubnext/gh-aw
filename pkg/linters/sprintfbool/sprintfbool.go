@@ -9,9 +9,9 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -35,13 +35,7 @@ type candidate struct {
 }
 
 // Analyzer is the sprintfbool analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "sprintfbool",
-	Doc:      `reports fmt.Sprintf("%t", b) calls where b is a single bool value; use strconv.FormatBool(b) instead`,
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/sprintfbool",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("sprintfbool", `reports fmt.Sprintf("%t", b) calls where b is a single bool value; use strconv.FormatBool(b) instead`, run)
 
 func run(pass *analysis.Pass) (any, error) {
 	insp, err := astutil.Inspector(pass)

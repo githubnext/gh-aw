@@ -16,9 +16,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -27,21 +26,11 @@ import (
 var pkgLog = logger.New("linters:goroutinemissingrecover")
 
 // Analyzer is the goroutine-missing-recover analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "goroutinemissingrecover",
-	Doc:      "reports goroutines started via a function literal that do not install a top-level defer/recover guard",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/goroutinemissingrecover",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("goroutinemissingrecover", "reports goroutines started via a function literal that do not install a top-level defer/recover guard", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -52,7 +41,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.GoStmt)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		goStmt, ok := n.(*ast.GoStmt)
 		if !ok {
 			return
@@ -81,8 +70,6 @@ func run(pass *analysis.Pass) (any, error) {
 		pkgLog.Printf("flagging goroutine without recover at %s", position)
 		pass.ReportRangef(goStmt, "goroutine launched via a function literal without a top-level defer/recover; add defer func() { if r := recover(); r != nil { ... } }() to contain panics")
 	})
-
-	return nil, nil
 }
 
 // unwrapParens removes any surrounding *ast.ParenExpr nodes, returning the

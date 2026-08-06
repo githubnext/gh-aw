@@ -7,27 +7,17 @@ import (
 	"go/token"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the fprintlnsprintf analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "fprintlnsprintf",
-	Doc:      "reports fmt.Fprintln(w, fmt.Sprintf(...)) calls that should be rewritten as fmt.Fprintf(w, ...)",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/fprintlnsprintf",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("fprintlnsprintf", "reports fmt.Fprintln(w, fmt.Sprintf(...)) calls that should be rewritten as fmt.Fprintf(w, ...)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -41,7 +31,7 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.CallExpr)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return
@@ -80,8 +70,6 @@ func run(pass *analysis.Pass) (any, error) {
 			SuggestedFixes: buildFprintfFix(call, printedArg),
 		})
 	})
-
-	return nil, nil
 }
 
 // buildFprintfFix returns a SuggestedFix rewriting

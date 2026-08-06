@@ -9,9 +9,8 @@ import (
 	"slices"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -20,21 +19,11 @@ import (
 var pkgLog = logger.New("linters:wgdonenotdeferred")
 
 // Analyzer is the wgdonenotdeferred analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "wgdonenotdeferred",
-	Doc:      "reports sync.WaitGroup Done() calls that are not deferred, which can cause deadlock if the function panics",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/wgdonenotdeferred",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("wgdonenotdeferred", "reports sync.WaitGroup Done() calls that are not deferred, which can cause deadlock if the function panics", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -48,7 +37,7 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.FuncDecl)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		fn, ok := n.(*ast.FuncDecl)
 		if !ok || fn.Body == nil {
 			return
@@ -59,8 +48,6 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 		inspectBody(pass, noLintIndex, fn.Body)
 	})
-
-	return nil, nil
 }
 
 func inspectBody(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex, body *ast.BlockStmt) {

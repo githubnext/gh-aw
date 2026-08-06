@@ -12,8 +12,8 @@ import (
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -47,23 +47,13 @@ type formatVerb struct {
 const formatArgOffset = 1
 
 // Analyzer is the errorfwrapv analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "errorfwrapv",
-	Doc:      "reports fmt.Errorf calls that pass error arguments without %w wrapping",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errorfwrapv",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("errorfwrapv", "reports fmt.Errorf calls that pass error arguments without %w wrapping", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	if errorIface == nil {
 		return nil, errors.New("failed to resolve built-in error interface from types.Universe")
 	}
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -74,10 +64,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeFmtErrorfCall(pass, n, generatedFiles, noLintIndex)
 	})
-	return nil, nil
 }
 
 // analyzeFmtErrorfCall checks whether a call expression is a fmt.Errorf that
