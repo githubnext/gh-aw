@@ -6,8 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -108,10 +108,9 @@ func renderLogsCompactToWriter(w io.Writer, data LogsData) {
 		return
 	}
 
-	// [runs] aligned table using tabwriter
+	// [runs] aligned table
 	fmt.Fprintln(w, "[runs]")
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tAIC\tTURNS\tERR\tEVENT\tACTOR\tBRANCH")
+	rows := make([][]string, 0, len(data.Runs))
 
 	for _, r := range data.Runs {
 		status := r.Conclusion
@@ -132,14 +131,17 @@ func renderLogsCompactToWriter(w io.Writer, data LogsData) {
 		}
 		wfID := workflowIDFromRun(r.WorkflowPath, r.WorkflowName)
 
-		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\t%d\t%s\t%d\t%d\t%s\t%s\t%s\n",
-			r.RunID, wfID, r.EngineID, status, dur,
-			r.TokenUsage, formatCompactAIC(r.AIC), r.Turns, r.ErrorCount,
-			r.Event, actor, branch)
+		rows = append(rows, []string{
+			strconv.FormatInt(r.RunID, 10), wfID, r.EngineID, status, dur,
+			strconv.Itoa(r.TokenUsage), formatCompactAIC(r.AIC),
+			strconv.Itoa(r.Turns), strconv.Itoa(r.ErrorCount),
+			r.Event, actor, branch,
+		})
 	}
-	if err := tw.Flush(); err != nil {
-		logsCompactLog.Printf("flush error: %v", err)
-	}
+	fmt.Fprint(w, console.RenderTable(console.TableConfig{
+		Headers: []string{"RUNID", "WORKFLOW", "ENGINE", "STATUS", "DUR", "TOKENS", "AIC", "TURNS", "ERR", "EVENT", "ACTOR", "BRANCH"},
+		Rows:    rows,
+	}))
 
 	// [errors] — aggregated error/warning messages
 	if len(data.ErrorsAndWarnings) > 0 {
@@ -283,8 +285,7 @@ func renderLogsCompactVerboseToWriter(w io.Writer, data LogsData) {
 
 	// [runs] verbose aligned table
 	fmt.Fprintln(w, "[runs]")
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "RUNID\tWORKFLOW\tENGINE\tSTATUS\tDUR\tTOKENS\tAIC\tTURNS\tERR\tWARN\tEVENT\tACTOR\tTBT\tCLASS\tCREATED\tBRANCH")
+	rows := make([][]string, 0, len(data.Runs))
 
 	for _, r := range data.Runs {
 		status := r.Conclusion
@@ -312,16 +313,18 @@ func renderLogsCompactVerboseToWriter(w io.Writer, data LogsData) {
 		}
 		wfID := workflowIDFromRun(r.WorkflowPath, r.WorkflowName)
 
-		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\t%d\t%s\t%d\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			r.RunID, wfID, r.EngineID, status, dur,
-			r.TokenUsage, formatCompactAIC(r.AIC),
-			r.Turns, r.ErrorCount, r.WarningCount,
+		rows = append(rows, []string{
+			strconv.FormatInt(r.RunID, 10), wfID, r.EngineID, status, dur,
+			strconv.Itoa(r.TokenUsage), formatCompactAIC(r.AIC),
+			strconv.Itoa(r.Turns), strconv.Itoa(r.ErrorCount), strconv.Itoa(r.WarningCount),
 			r.Event, actor, tbt, classification,
-			r.CreatedAt.Format("01-02 15:04"), r.Branch)
+			r.CreatedAt.Format("01-02 15:04"), r.Branch,
+		})
 	}
-	if err := tw.Flush(); err != nil {
-		logsCompactLog.Printf("flush error: %v", err)
-	}
+	fmt.Fprint(w, console.RenderTable(console.TableConfig{
+		Headers: []string{"RUNID", "WORKFLOW", "ENGINE", "STATUS", "DUR", "TOKENS", "AIC", "TURNS", "ERR", "WARN", "EVENT", "ACTOR", "TBT", "CLASS", "CREATED", "BRANCH"},
+		Rows:    rows,
+	}))
 
 	// [errors]
 	if len(data.ErrorsAndWarnings) > 0 {
