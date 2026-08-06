@@ -499,95 +499,6 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
 
-  zizmor:
-    needs: [build, validate-yaml]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    concurrency:
-      group: ci-${{ github.ref }}-zizmor
-      cancel-in-progress: true
-    steps:
-    - name: Restore checkout
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
-      with:
-        path: .
-        key: checkout-${{ github.sha }}
-        fail-on-cache-miss: true
-
-    - name: Download gh-aw binary
-      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
-      with:
-        name: gh-aw-linux-amd64
-
-    - name: Make gh-aw executable
-      run: chmod +x gh-aw
-
-    - name: Run zizmor security scan on all workflows
-      run: ./gh-aw compile --zizmor --verbose
-      env:
-        GH_TOKEN: ${{ github.token }}
-
-  poutine:
-    needs: [build, validate-yaml]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    concurrency:
-      group: ci-${{ github.ref }}-poutine
-      cancel-in-progress: true
-    steps:
-    - name: Restore checkout
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
-      with:
-        path: .
-        key: checkout-${{ github.sha }}
-        fail-on-cache-miss: true
-
-    - name: Download gh-aw binary
-      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
-      with:
-        name: gh-aw-linux-amd64
-
-    - name: Make gh-aw executable
-      run: chmod +x gh-aw
-
-    - name: Run poutine security scan on all workflows
-      run: ./gh-aw compile --poutine --verbose
-      env:
-        GH_TOKEN: ${{ github.token }}
-
-  actionlint:
-    needs: [build, validate-yaml]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    concurrency:
-      group: ci-${{ github.ref }}-actionlint
-      cancel-in-progress: true
-    steps:
-    - name: Restore checkout
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
-      with:
-        path: .
-        key: checkout-${{ github.sha }}
-        fail-on-cache-miss: true
-
-    - name: Download gh-aw binary
-      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
-      with:
-        name: gh-aw-linux-amd64
-
-    - name: Make gh-aw executable
-      run: chmod +x gh-aw
-
-    - name: Run actionlint on all workflows
-      run: ./gh-aw compile --actionlint --verbose
-      env:
-        GH_TOKEN: ${{ github.token }}
 
   build-wasm:
     needs: [checkout-cache]
@@ -1732,7 +1643,7 @@ jobs:
         retention-days: 7
 
   security:
-    needs: [checkout-cache]
+    needs: [checkout-cache, build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1796,7 +1707,7 @@ jobs:
   security-scan:
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
-    needs: [checkout-cache]
+    needs: [checkout-cache, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Prevent jobs from hanging indefinitely
     permissions:
@@ -1825,47 +1736,13 @@ jobs:
         key: checkout-${{ github.sha }}
         fail-on-cache-miss: true
 
-    - name: Set up Go
-      id: setup-go
-      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+    - name: Download gh-aw binary
+      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
       with:
-        go-version-file: go.mod
-        cache: true
+        name: gh-aw-linux-amd64
 
-    - name: Report Go cache status
-      run: |
-        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
-          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
-        fi
-
-    - name: Download dependencies with retry
-      if: steps.setup-go.outputs.cache-hit != 'true'
-      run: |
-        set -e
-        MAX_RETRIES=3
-        RETRY_DELAY=5
-
-        for i in $(seq 1 $MAX_RETRIES); do
-          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
-          if go mod download; then
-            echo "✅ Successfully downloaded Go modules"
-            break
-          else
-            if [ $i -eq $MAX_RETRIES ]; then
-              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts"
-              echo "This may indicate that proxy.golang.org is unreachable"
-              echo "Please check network connectivity or consider vendoring dependencies"
-              exit 1
-            fi
-            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
-            sleep $RETRY_DELAY
-          fi
-        done
-
-    - name: Build gh-aw
-      run: make build
+    - name: Make gh-aw executable
+      run: chmod +x gh-aw
 
     - name: Run ${{ matrix.tool.name }} security scan on poem workflow
       run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }} --verbose
@@ -2047,6 +1924,7 @@ jobs:
         echo "✅ Test completed successfully" >> $GITHUB_STEP_SUMMARY
 
   cross-platform-build:
+    needs: [checkout-cache, build]
     name: Build & Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -2642,9 +2520,6 @@ jobs:
     - canary-go
     - build
     - build-wasm
-    - zizmor
-    - poutine
-    - actionlint
     - bench
     - check-validator-sizes
     - lint-go

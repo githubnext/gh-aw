@@ -27,10 +27,12 @@ func (f fakeReleaseClient) DoWithContext(ctx context.Context, method string, pat
 func TestShouldCheckForUpdate(t *testing.T) {
 	// Save original environment
 	origCI := os.Getenv("CI")
+	origCopilotAgentSessionID := os.Getenv("COPILOT_AGENT_SESSION_ID")
 	origMCP := os.Getenv("GH_AW_MCP_SERVER")
 	origGetLastCheckFilePath := getLastCheckFilePathFunc
 	defer func() {
 		os.Setenv("CI", origCI)
+		os.Setenv("COPILOT_AGENT_SESSION_ID", origCopilotAgentSessionID)
 		os.Setenv("GH_AW_MCP_SERVER", origMCP)
 		getLastCheckFilePathFunc = origGetLastCheckFilePath
 	}()
@@ -100,6 +102,7 @@ func TestShouldCheckForUpdate(t *testing.T) {
 				os.Unsetenv("CI")
 				os.Unsetenv("CONTINUOUS_INTEGRATION")
 				os.Unsetenv("GITHUB_ACTIONS")
+				os.Unsetenv("COPILOT_AGENT_SESSION_ID")
 			} else {
 				os.Setenv("CI", tt.ciEnv)
 			}
@@ -241,6 +244,7 @@ func TestCheckForUpdatesAsync_ContextCancellation(t *testing.T) {
 	t.Setenv("CI", "")
 	t.Setenv("GITHUB_ACTIONS", "")
 	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("COPILOT_AGENT_SESSION_ID", "")
 	t.Setenv("GH_AW_MCP_SERVER", "")
 
 	// Create temporary directory for last check file
@@ -281,6 +285,7 @@ func TestCheckForUpdatesAsync_JoinsGoroutine(t *testing.T) {
 	t.Setenv("CI", "")
 	t.Setenv("GITHUB_ACTIONS", "")
 	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("COPILOT_AGENT_SESSION_ID", "")
 	t.Setenv("GH_AW_MCP_SERVER", "")
 
 	// Create temporary directory for last check file

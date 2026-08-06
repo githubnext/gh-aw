@@ -647,6 +647,41 @@ func TestValidateIncludedFileFrontmatterWithSchemaAndLocation_SkipsCustomAgentFi
 	}
 }
 
+func TestValidateIncludedFileFrontmatterWithSchemaAndLocation_DeclarativeEngineWithVersionAndPreAgentSteps(t *testing.T) {
+	frontmatter := map[string]any{
+		"runtimes": map[string]any{
+			"python": map[string]any{"version": "3.12"},
+		},
+		"pre-agent-steps": []any{
+			map[string]any{
+				"name": "Install engine",
+				"run":  "python3 -m pip install aider-chat",
+			},
+		},
+		"engine": map[string]any{
+			"id":           "aider",
+			"version":      "0.86.2",
+			"display-name": "Aider",
+			"description":  "Aider CLI",
+			"experimental": true,
+			"provider": map[string]any{
+				"name": "github",
+			},
+			"behaviors": map[string]any{
+				"execution": map[string]any{
+					"command-name": "aider",
+					"step-name":    "Execute Aider CLI",
+				},
+			},
+		},
+	}
+
+	err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter, "/repo/.github/workflows/shared/aider.md")
+	if err != nil {
+		t.Fatalf("expected declarative engine with version and pre-agent-steps to pass validation, got: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxStack(t *testing.T) {
 	tests := []struct {
 		name        string

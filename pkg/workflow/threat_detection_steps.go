@@ -180,33 +180,15 @@ func (c *Compiler) buildCleanFirewallDirsStep() []string {
 	}
 }
 
-// buildPrepareDetectionFilesStep creates a step that copies agent output files
-// to the /tmp/gh-aw/threat-detection/ directory expected by the detection JS scripts.
-// In the separate detection job, files are available after downloading the agent artifact.
+// buildPrepareDetectionFilesStep creates a step that stages agent output files
+// for the threat-detect binary. In the separate detection job, files are
+// available after downloading the agent artifact.
 func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 	return []string{
 		"      - name: Prepare threat detection files\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        run: |\n",
-		"          mkdir -p /tmp/gh-aw/threat-detection/aw-prompts\n",
-		"          rm -f /tmp/gh-aw/agent_usage.json\n",
-		"          cp /tmp/gh-aw/aw-prompts/prompt.txt /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt 2>/dev/null || true\n",
-		"          if [ ! -s /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt ]; then\n",
-		"            echo \"::warning::ERR_VALIDATION: Missing or empty detection context prompt at /tmp/gh-aw/threat-detection/aw-prompts/prompt.txt. Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. Detection will continue with fallback workflow context.\"\n",
-		"          fi\n",
-		"          cp /tmp/gh-aw/agent_output.json /tmp/gh-aw/threat-detection/agent_output.json 2>/dev/null || true\n",
-		"          for f in /tmp/gh-aw/aw-*.patch; do\n",
-		"            if [ -f \"$f\" ]; then\n",
-		"              cp \"$f\" /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
-		"            fi\n",
-		"          done\n",
-		"          for f in /tmp/gh-aw/aw-*.bundle; do\n",
-		"            if [ -f \"$f\" ]; then\n",
-		"              cp \"$f\" /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
-		"            fi\n",
-		"          done\n",
-		"          echo \"Prepared threat detection files:\"\n",
-		"          ls -la /tmp/gh-aw/threat-detection/ 2>/dev/null || true\n",
+		"          bash \"${RUNNER_TEMP}/gh-aw/actions/prepare_threat_detection_files.sh\"\n",
 	}
 }
 
