@@ -306,6 +306,7 @@ async function withGitHubHostToken(token, callback, cwd) {
 module.exports = {
   checkoutHasPersistedExtraheader,
   findIncludedExtraheaderConfigFiles,
+  gitExecSilent,
   overridePersistedExtraheader,
   restorePersistedExtraheader,
   unsetExtraheaderAllScopes,
