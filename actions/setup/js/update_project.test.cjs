@@ -232,29 +232,37 @@ const viewerResponse = (login = "test-bot") => ({
   },
 });
 
-const orgProjectV2Response = (url, number = 60, id = "project123", orgLogin = "testowner") => ({
-  organization: {
-    projectV2: {
-      id,
-      number,
-      title: "Test Project",
-      url,
-      owner: { __typename: "Organization", login: orgLogin },
-    },
-  },
-});
+let lastProjectV2Id = "project123";
 
-const userProjectV2Response = (url, number = 60, id = "project123", userLogin = "testowner") => ({
-  user: {
-    projectV2: {
-      id,
-      number,
-      title: "Test Project",
-      url,
-      owner: { __typename: "User", login: userLogin },
+const orgProjectV2Response = (url, number = 60, id = "project123", orgLogin = "testowner") => {
+  lastProjectV2Id = id;
+  return {
+    organization: {
+      projectV2: {
+        id,
+        number,
+        title: "Test Project",
+        url,
+        owner: { __typename: "Organization", login: orgLogin },
+      },
     },
-  },
-});
+  };
+};
+
+const userProjectV2Response = (url, number = 60, id = "project123", userLogin = "testowner") => {
+  lastProjectV2Id = id;
+  return {
+    user: {
+      projectV2: {
+        id,
+        number,
+        title: "Test Project",
+        url,
+        owner: { __typename: "User", login: userLogin },
+      },
+    },
+  };
+};
 
 const orgProjectNullResponse = () => ({ organization: { projectV2: null } });
 const userProjectNullResponse = () => ({ user: { projectV2: null } });
@@ -269,6 +277,10 @@ const emptyItemsResponse = () => ({
       nodes: [],
       pageInfo: { hasNextPage: false, endCursor: null },
     },
+    projectItems: {
+      nodes: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
   },
 });
 
@@ -276,6 +288,10 @@ const existingItemResponse = (contentId, itemId = "existing-item") => ({
   node: {
     items: {
       nodes: [{ id: itemId, content: { id: contentId } }],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+    projectItems: {
+      nodes: [{ id: itemId, project: { id: lastProjectV2Id } }],
       pageInfo: { hasNextPage: false, endCursor: null },
     },
   },
