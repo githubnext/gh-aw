@@ -11,6 +11,34 @@
 const { displayFileContent } = require("./display_file_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { computeSafeOutputsStatus } = require("./safe_outputs_status.cjs");
+const ERROR_CODES = require("./error_codes.cjs");
+const { redactStepSummaryContent } = require("./redact_secrets.cjs");
+
+/**
+ * Error codes that may be rendered verbatim in a step summary.
+ * Handler errors are built from caught exception messages, which can embed request
+ * URLs, payloads, or credentials, so only the machine-readable code prefix is shown.
+ * @type {Set<string>}
+ */
+const SUMMARY_SAFE_ERROR_CODES = new Set(Object.values(ERROR_CODES));
+
+/** @type {string} Rendered when an error carries no allowlisted code prefix */
+const UNCLASSIFIED_ERROR_CODE = "UNCLASSIFIED";
+
+/**
+ * Reduces an error message to an allowlisted error code so that raw exception text
+ * (which may contain secrets) never reaches the step summary.
+ * @param {any} error - The error message produced by a safe-output handler
+ * @returns {string} An allowlisted error code
+ */
+function toSummarySafeErrorCode(error) {
+  const text = typeof error === "string" ? error : String(error ?? "");
+  const match = text.match(/^\s*([A-Z][A-Z0-9_]*)\s*:/);
+  if (match && SUMMARY_SAFE_ERROR_CODES.has(match[1])) {
+    return match[1];
+  }
+  return UNCLASSIFIED_ERROR_CODE;
+}
 
 /**
  * Generate a step summary for a single safe-output message
@@ -92,11 +120,6 @@ function generateSafeOutputSummary(options) {
       if (message.title) {
         summary += `**Title:** ${message.title}\n\n`;
       }
-      if (message.body && typeof message.body === "string") {
-        const maxBodyLength = 500;
-        const bodyPreview = message.body.length > maxBodyLength ? message.body.substring(0, maxBodyLength) + "..." : message.body;
-        summary += `**Body Preview:**\n\`\`\`\`\`\`\n${bodyPreview}\n\`\`\`\`\`\`\n\n`;
-      }
     }
   } else if (success && result) {
     // Add result-specific information based on type
@@ -118,41 +141,21 @@ function generateSafeOutputSummary(options) {
       if (message.title) {
         summary += `**Title:** ${message.title}\n\n`;
       }
-      // Prefer result.body (final posted body including footer) over message.body (submitted body)
-      const bodyToShow = result && typeof result.body === "string" ? result.body : message.body;
-      if (bodyToShow && typeof bodyToShow === "string") {
-        // Truncate body if too long
-        const maxBodyLength = 500;
-        const bodyPreview = bodyToShow.length > maxBodyLength ? bodyToShow.substring(0, maxBodyLength) + "..." : bodyToShow;
-        summary += `**Body Preview:**\n\`\`\`\`\`\`\n${bodyPreview}\n\`\`\`\`\`\`\n\n`;
-      }
       if (message.labels && Array.isArray(message.labels)) {
         summary += `**Labels:** ${message.labels.join(", ")}\n\n`;
       }
     }
   } else if (error) {
-    // Show error information
-    summary += `**Error:** ${error}\n\n`;
-
-    // Add original message details for debugging
-    if (message) {
-      summary += `**Message Details:**\n\`\`\`\`\`\`json\n${JSON.stringify(message, null, 2).substring(0, 1000)}\n\`\`\`\`\`\`\n\n`;
-    }
+    // Show only an allowlisted error code; raw exception text and message content are
+    // omitted because they can embed URLs, payloads, or credentials.
+    summary += `**Error:** \`${toSummarySafeErrorCode(error)}\` (see the job logs for details)\n\n`;
   }
 
   // Display secrecy and integrity security metadata fields if present in the message.
   // secrecy indicates the confidentiality level of the message content.
   // integrity indicates the trustworthiness level of the message source.
+  // message.data is intentionally omitted to prevent secret leakage into step summaries.
   if (message) {
-    if (message.data !== undefined) {
-      let renderedData = "";
-      try {
-        renderedData = JSON.stringify(message.data, null, 2);
-      } catch {
-        renderedData = String(message.data);
-      }
-      summary += `**Data:**\n\`\`\`\`\`\`json\n${renderedData}\n\`\`\`\`\`\`\n\n`;
-    }
     if (message.secrecy !== undefined && message.secrecy !== null) {
       summary += `**Secrecy:** \`${message.secrecy}\`\n\n`;
     }
@@ -228,7 +231,7 @@ async function writeSafeOutputSummaries(results, messages) {
   }
 
   try {
-    await core.summary.addRaw(summaryContent).write();
+    await core.summary.addRaw(redactStepSummaryContent(summaryContent)).write();
     core.info(`📝 Safe output summaries written to step summary`);
   } catch (error) {
     core.warning(`Failed to write safe output summaries: ${getErrorMessage(error)}`);
