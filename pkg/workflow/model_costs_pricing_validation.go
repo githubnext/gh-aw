@@ -4,7 +4,10 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var modelCostsPricingValidationLog = logger.New("workflow:model_costs_pricing_validation")
 
 // validateDefaultAiCreditsPricing returns an error when the workflow's
 // models.default-ai-credits-pricing frontmatter is present and either:
@@ -25,6 +28,7 @@ func validateDefaultAiCreditsPricing(workflowData *WorkflowData) error {
 	firewallConfig := getFirewallConfig(workflowData)
 	if !awfSupportsDefaultAiCreditsPricing(firewallConfig) {
 		awfTag := getAWFImageTag(firewallConfig)
+		modelCostsPricingValidationLog.Printf("Rejecting default-ai-credits-pricing: AWF tag %q predates %s", awfTag, constants.AWFDefaultAiCreditsPricingMinVersion)
 		return NewValidationError(
 			"models.default-ai-credits-pricing",
 			awfTag,
@@ -44,5 +48,6 @@ func validateDefaultAiCreditsPricing(workflowData *WorkflowData) error {
 	if p.CacheWrite != nil && *p.CacheWrite <= 0 {
 		return fmt.Errorf("models.default-ai-credits-pricing: cache_write must be a positive value when set (got %g)", *p.CacheWrite)
 	}
+	modelCostsPricingValidationLog.Printf("Validated default-ai-credits-pricing: input=%g output=%g", p.Input, p.Output)
 	return nil
 }

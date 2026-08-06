@@ -8,8 +8,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
+
+var ambientFoldersLog = logger.New("workflow:ambient_folders")
 
 var ambientFolderPattern = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
 
@@ -17,13 +20,19 @@ func resolveAmbientFolders(frontmatter map[string]any, importsResult *parser.Imp
 	var merged []string
 	if importsResult != nil {
 		merged = append(merged, importsResult.MergedAmbientFolders...)
+		ambientFoldersLog.Printf("Merged %d ambient folders from imports", len(importsResult.MergedAmbientFolders))
 	}
 	main, err := extractAmbientFolders(frontmatter)
 	if err != nil {
 		return nil, err
 	}
 	merged = append(merged, main...)
-	return normalizeAmbientFolders(merged)
+	normalized, err := normalizeAmbientFolders(merged)
+	if err != nil {
+		return nil, err
+	}
+	ambientFoldersLog.Printf("Resolved %d ambient folders", len(normalized))
+	return normalized, nil
 }
 
 func extractAmbientFolders(frontmatter map[string]any) ([]string, error) {
@@ -72,6 +81,7 @@ func normalizeAmbientFolders(folders []string) ([]string, error) {
 			return nil, fmt.Errorf("ambient-folders entry %q contains unsupported characters", folder)
 		}
 		if _, exists := seen[clean]; exists {
+			ambientFoldersLog.Printf("Skipping duplicate ambient folder: %s", clean)
 			continue
 		}
 		seen[clean] = struct{}{}
