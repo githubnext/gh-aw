@@ -55,9 +55,13 @@ func TestBuildEvalsEngineStepsArcDindTopology(t *testing.T) {
 		if strings.Contains(allSteps, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
 			t.Errorf("copilot_harness.cjs must NOT be invoked with %q for arc-dind (ENOENT inside chroot);\ngot:\n%s", constants.CopilotBinaryPath, allSteps)
 		}
+		mount := `--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`
+		if !strings.Contains(allSteps, mount) {
+			t.Errorf("expected ARC/DinD execution to mount the staged Copilot CLI directory;\ngot:\n%s", allSteps)
+		}
 	})
 
-	t.Run("non-arc-dind: no staging step and uses /usr/local/bin/copilot", func(t *testing.T) {
+	t.Run("non-arc-dind: resolves activated Copilot CLI binary", func(t *testing.T) {
 		data := &WorkflowData{
 			AI: "copilot",
 			// RunnerConfig is nil → default topology
@@ -79,9 +83,18 @@ func TestBuildEvalsEngineStepsArcDindTopology(t *testing.T) {
 			t.Errorf("unexpected 'Copy Copilot CLI to daemon-visible path' step for non-arc-dind evals job;\ngot:\n%s", allSteps)
 		}
 
-		// Standard runners use the installed binary directly via the harness.
-		if !strings.Contains(allSteps, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
-			t.Errorf("expected evals execution to use copilot_harness.cjs with %q for non-arc-dind;\ngot:\n%s", constants.CopilotBinaryPath, allSteps)
+		if !strings.Contains(allSteps, `GH_AW_COPILOT_SRC="$(command -v copilot 2>/dev/null || true)"`) {
+			t.Errorf("expected evals execution to resolve the activated Copilot CLI binary;\ngot:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, `cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"`) {
+			t.Errorf("expected evals execution to stage the Copilot CLI binary in its mounted directory;\ngot:\n%s", allSteps)
+		}
+		mountedCopilotPath := "copilot_harness.cjs " + constants.GhAwRootDirShell + "/bin/copilot"
+		if !strings.Contains(allSteps, mountedCopilotPath) {
+			t.Errorf("expected evals harness to use mounted Copilot CLI path %q;\ngot:\n%s", mountedCopilotPath, allSteps)
+		}
+		if strings.Contains(allSteps, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
+			t.Errorf("expected evals harness to avoid fixed path %q;\ngot:\n%s", constants.CopilotBinaryPath, allSteps)
 		}
 	})
 }

@@ -122,6 +122,18 @@ const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null |
 const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommand + `; "$GH_AW_NODE_EXEC"`
 const nodePathSetupCommandForCopilotSDK = `GH_AW_WORKSPACE_NODE_MODULES="${GITHUB_WORKSPACE:-$PWD}/node_modules"; if [ -d "$GH_AW_WORKSPACE_NODE_MODULES" ]; then export NODE_PATH="${GH_AW_WORKSPACE_NODE_MODULES}${NODE_PATH:+:${NODE_PATH}}"; fi; ` + nodePathSetupCommand
 const nodeRuntimeResolutionCommandForCopilotSDK = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommandForCopilotSDK + `; "$GH_AW_NODE_EXEC"`
+const copilotBinaryPathSetup = `GH_AW_COPILOT_SRC="$(command -v copilot 2>/dev/null || true)"
+if [ -z "$GH_AW_COPILOT_SRC" ] || [ ! -x "$GH_AW_COPILOT_SRC" ]; then
+  echo "GitHub Copilot CLI executable not found on PATH after installation" >&2
+  exit 127
+fi
+GH_AW_COPILOT_BIN="${RUNNER_TEMP}/gh-aw/bin/copilot"
+mkdir -p "${RUNNER_TEMP}/gh-aw/bin"
+if [ "$GH_AW_COPILOT_SRC" != "$GH_AW_COPILOT_BIN" ]; then
+  cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"
+fi
+chmod 755 "$GH_AW_COPILOT_BIN"
+`
 const copilotSDKPythonPathExpression = "${{ github.workspace }}/.gh-aw/copilot-sdk/python"
 
 // copilotSDKDriverExecArgs returns the runtime command and driver path argument for the
@@ -326,12 +338,10 @@ func (e *CopilotEngine) resolveCopilotCommand(workflowData *WorkflowData, sandbo
 		return customEngineCommandScriptPath, buildEngineCommandScriptSetup(workflowData.EngineConfig.Command)
 	}
 	if sandboxEnabled {
-		if isArcDindTopology(workflowData) {
-			return constants.GhAwRootDirShell + "/bin/copilot", ""
-		}
-		// AWF - use the installed binary directly
-		// The binary is mounted into the AWF container from /usr/local/bin/copilot
-		return constants.CopilotBinaryPath, ""
+		// Every AWF runtime receives RUNNER_TEMP/gh-aw as a read-only mount. Standard,
+		// gVisor, and docker-sbx runs stage the activated binary in the execution step;
+		// ARC/DinD stages it during installation so the remote daemon can see it.
+		return constants.GhAwRootDirShell + "/bin/copilot", ""
 	}
 	// Non-sandbox mode: use standard copilot command
 	return "copilot", ""
@@ -475,6 +485,10 @@ func (e *CopilotEngine) buildCopilotAWFPathSetup(workflowData *WorkflowData, cus
 		"GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)\n" +
 		"export GH_AW_NODE_BIN\n" +
 		"export COPILOT_API_KEY=\"$" + constants.CopilotBYOKDummyAPIKeyEnvVar + "\""
+	usesInstalledCopilotBinary := workflowData.EngineConfig == nil || workflowData.EngineConfig.Command == ""
+	if usesInstalledCopilotBinary && !isArcDindTopology(workflowData) {
+		pathSetup = copilotBinaryPathSetup + "\n" + pathSetup
+	}
 	if customCommandScriptSetup != "" {
 		pathSetup = customCommandScriptSetup + "\n" + pathSetup
 	}
