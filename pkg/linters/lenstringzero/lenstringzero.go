@@ -9,29 +9,18 @@ import (
 	"go/token"
 	"go/types"
 
-	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
-
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"golang.org/x/tools/go/analysis"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name: "lenstringzero",
-	Doc: "reports len(s) == 0, len(s) != 0, and equivalent relational comparisons " +
-		"(len(s) > 0, len(s) >= 1, len(s) < 1, len(s) <= 0) on string values " +
-		"that should use == \"\" or != \"\" instead",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/lenstringzero",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("lenstringzero", "reports len(s) == 0, len(s) != 0, and equivalent relational comparisons "+
+	"(len(s) > 0, len(s) >= 1, len(s) < 1, len(s) <= 0) on string values "+
+	"that should use == \"\" or != \"\" instead", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -42,10 +31,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	lenStringAliases := collectLenStringAliases(pass)
 	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeLenStringExpr(pass, n, generatedFiles, noLintIndex, lenStringAliases)
 	})
-	return nil, nil
 }
 
 // analyzeLenStringExpr checks whether a binary expression is a len(s) comparison

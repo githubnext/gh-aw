@@ -8,9 +8,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -19,21 +18,11 @@ import (
 var pkgLog = logger.New("linters:httprespbodyclose")
 
 // Analyzer is the http-resp-body-close analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "httprespbodyclose",
-	Doc:      "reports HTTP response Body.Close() calls that are not deferred, which risks resource leaks on early return",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/httprespbodyclose",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("httprespbodyclose", "reports HTTP response Body.Close() calls that are not deferred, which risks resource leaks on early return", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -48,11 +37,9 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.FuncLit)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		inspectFunc(pass, n, noLintIndex, generatedFiles)
 	})
-
-	return nil, nil
 }
 
 func inspectFunc(pass *analysis.Pass, n ast.Node, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex) {

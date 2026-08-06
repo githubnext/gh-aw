@@ -12,9 +12,9 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -24,13 +24,7 @@ import (
 var pkgLog = logger.New("linters:httpnoctx")
 
 // Analyzer is the http-no-ctx analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "httpnoctx",
-	Doc:      "reports context-free net/http request paths: http.Client/http package helpers without context, http.NewRequest in context-aware functions, and http.DefaultClient.Do",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/httpnoctx",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("httpnoctx", "reports context-free net/http request paths: http.Client/http package helpers without context, http.NewRequest in context-aware functions, and http.DefaultClient.Do", run)
 
 // contextFreeMethods is the set of http.Client (and package-level) HTTP
 // methods that accept no context.Context argument.
@@ -42,11 +36,12 @@ var contextFreeMethods = map[string]bool{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
 	}
+
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err

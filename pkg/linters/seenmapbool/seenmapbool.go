@@ -8,9 +8,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -19,20 +18,10 @@ import (
 var pkgLog = logger.New("linters:seenmapbool")
 
 // Analyzer is the seen-map-bool analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "seenmapbool",
-	Doc:      "reports map[string]bool used as a set (values always true) where map[string]struct{} should be used instead",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/seenmapbool",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("seenmapbool", "reports map[string]bool used as a set (values always true) where map[string]struct{} should be used instead", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -47,7 +36,7 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.FuncLit)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		var body *ast.BlockStmt
 		switch fn := n.(type) {
 		case *ast.FuncDecl:
@@ -67,8 +56,6 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 		inspectBody(pass, body, noLintIndex)
 	})
-
-	return nil, nil
 }
 
 // inspectBody walks a function body and reports map[string]bool variables

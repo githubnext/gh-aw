@@ -6,9 +6,8 @@ import (
 	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -20,13 +19,7 @@ var pkgLog = logger.New("linters:excessivefuncparams")
 const DefaultMaxParams = 8
 
 // Analyzer is the excessive-function-parameters analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "excessivefuncparams",
-	Doc:      "reports functions whose parameter count exceeds the limit (default 8 params)",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/excessivefuncparams",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("excessivefuncparams", "reports functions whose parameter count exceeds the limit (default 8 params)", run)
 
 // maxParams is the configurable threshold. It is set via the -excessivefuncparams.max-params flag.
 var maxParams int
@@ -39,10 +32,6 @@ func init() {
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s (max-params=%d)", pass.Pkg.Path(), maxParams)
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -56,7 +45,7 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.FuncDecl)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		fn, ok := n.(*ast.FuncDecl)
 		if !ok {
 			return
@@ -90,6 +79,4 @@ func run(pass *analysis.Pass) (any, error) {
 			)
 		}
 	})
-
-	return nil, nil
 }

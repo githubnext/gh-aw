@@ -7,21 +7,15 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the os-setenv-in-library analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "ossetenvlibrary",
-	Doc:      "reports calls to os.Setenv or os.Unsetenv in non-main, non-test packages",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/ossetenvlibrary",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("ossetenvlibrary", "reports calls to os.Setenv or os.Unsetenv in non-main, non-test packages", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgPath := pass.Pkg.Path()
@@ -29,10 +23,6 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -46,7 +36,7 @@ func run(pass *analysis.Pass) (any, error) {
 		(*ast.CallExpr)(nil),
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return
@@ -71,6 +61,4 @@ func run(pass *analysis.Pass) (any, error) {
 			pass.ReportRangef(call, "os.Unsetenv mutates the process environment; pass configuration explicitly instead")
 		}
 	})
-
-	return nil, nil
 }

@@ -7,9 +7,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -18,20 +17,10 @@ import (
 var pkgLog = logger.New("linters:jsonmarshalignoredeerror")
 
 // Analyzer is the json-marshal-ignored-error analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "jsonmarshalignoredeerror",
-	Doc:      "reports json.Marshal and json.Unmarshal calls where the error return is discarded",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/jsonmarshalignoredeerror",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("jsonmarshalignoredeerror", "reports json.Marshal and json.Unmarshal calls where the error return is discarded", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -41,7 +30,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 	nodeFilter := []ast.Node{(*ast.AssignStmt)(nil), (*ast.ExprStmt)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		switch stmt := n.(type) {
 		case *ast.AssignStmt:
 			position := pass.Fset.PositionFor(stmt.Pos(), false)
@@ -57,7 +46,6 @@ func run(pass *analysis.Pass) (any, error) {
 			checkDiscardedJSONExpr(pass, stmt, noLintIndex)
 		}
 	})
-	return nil, nil
 }
 
 func checkDiscardedJSONAssign(pass *analysis.Pass, assign *ast.AssignStmt, noLintIndex nolint.DirectiveIndex) {

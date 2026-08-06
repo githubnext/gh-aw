@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -34,13 +34,7 @@ var (
 const fullRepoSentinel = "all"
 
 // Analyzer is the errormessage analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "errormessage",
-	Doc:      "reports non-actionable error message patterns in changed files (or all files with -full-repo)",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/errormessage",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("errormessage", "reports non-actionable error message patterns in changed files (or all files with -full-repo)", run)
 
 func init() {
 	Analyzer.Flags.StringVar(&changedFilesCSV, "changed-files", "", "comma-separated list of changed file paths to lint (when empty, analyzer is a no-op; use \"all\" to audit every file)")
@@ -66,10 +60,6 @@ func run(pass *analysis.Pass) (any, error) {
 // runOnFiles analyzes the package. When changed is nil every file is checked
 // (full-repo audit mode); otherwise only files present in changed are checked.
 func runOnFiles(pass *analysis.Pass, changed map[string]struct{}) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -80,7 +70,7 @@ func runOnFiles(pass *analysis.Pass, changed map[string]struct{}) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return
@@ -106,8 +96,6 @@ func runOnFiles(pass *analysis.Pass, changed map[string]struct{}) (any, error) {
 
 		checkNewValidationSuggestion(pass, call)
 	})
-
-	return nil, nil
 }
 
 func parseChangedFiles(csv string) map[string]struct{} {

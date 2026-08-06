@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -21,13 +21,7 @@ import (
 
 var pkgLog = logger.New("linters:httpstatuscode")
 
-var Analyzer = &analysis.Analyzer{
-	Name:     "httpstatuscode",
-	Doc:      "reports integer HTTP status code literals used in comparisons that should use http.Status* named constants",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/httpstatuscode",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("httpstatuscode", "reports integer HTTP status code literals used in comparisons that should use http.Status* named constants", run)
 
 var httpStatusNames = map[int]string{
 	100: "http.StatusContinue",

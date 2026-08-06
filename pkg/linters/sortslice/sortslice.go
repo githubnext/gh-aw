@@ -8,8 +8,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -19,13 +19,7 @@ import (
 var pkgLog = logger.New("linters:sortslice")
 
 // Analyzer is the sort-slice analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "sortslice",
-	Doc:      "reports sort.Slice and sort.SliceStable calls that should use the type-safe slices.SortFunc or slices.SortStableFunc",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/sortslice",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("sortslice", "reports sort.Slice and sort.SliceStable calls that should use the type-safe slices.SortFunc or slices.SortStableFunc", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())

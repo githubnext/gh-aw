@@ -15,8 +15,8 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -26,20 +26,10 @@ import (
 var pkgLog = logger.New("linters:trimleftright")
 
 // Analyzer is the trimleftright analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "trimleftright",
-	Doc:      "reports likely mistaken strings.TrimLeft/TrimRight calls using multi-character alphanumeric literal cutsets",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/trimleftright",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("trimleftright", "reports likely mistaken strings.TrimLeft/TrimRight calls using multi-character alphanumeric literal cutsets", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -50,10 +40,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeTrimLeftRight(pass, n, generatedFiles, noLintIndex)
 	})
-	return nil, nil
 }
 
 // analyzeTrimLeftRight checks whether a call is a strings.TrimLeft or

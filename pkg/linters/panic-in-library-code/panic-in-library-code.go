@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -23,15 +23,14 @@ import (
 var pkgLog = logger.New("linters:panicinlibrarycode")
 
 // Analyzer is the panic-in-library-code analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "panicinlibrarycode",
-	Doc:      "reports panic() calls in library code under pkg/ that should return errors instead",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/panic-in-library-code",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.NewAtPath("panicinlibrarycode", "reports panic() calls in library code under pkg/ that should return errors instead", "panic-in-library-code", run)
 
 func run(pass *analysis.Pass) (any, error) {
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
+	}
+
 	pkgPath := pass.Pkg.Path()
 	// Skip packages under cmd/ entry-points — they are allowed to call panic.
 	if strings.HasSuffix(pkgPath, "/main") || strings.Contains(pkgPath, "/cmd/") {
@@ -40,10 +39,6 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	pkgLog.Printf("analyzing package %s", pkgPath)
 
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err

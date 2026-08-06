@@ -8,21 +8,14 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the strconv-parse-ignored-error analysis pass.
-var Analyzer = &analysis.Analyzer{
-	Name:     "strconvparseignorederror",
-	Doc:      "reports strconv parsing calls where the error return is discarded with _",
-	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/strconvparseignorederror",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
-	Run:      run,
-}
+var Analyzer = analyzerutil.New("strconvparseignorederror", "reports strconv parsing calls where the error return is discarded with _", run)
 
 // strconvParseFuncs is the set of strconv functions to check.
 var strconvParseFuncs = map[string]bool{
@@ -34,10 +27,6 @@ var strconvParseFuncs = map[string]bool{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	insp, err := astutil.Inspector(pass)
-	if err != nil {
-		return nil, err
-	}
 	nolintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -48,10 +37,9 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.AssignStmt)(nil)}
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
 		analyzeStrconvAssign(pass, n, generatedFiles, nolintIndex)
 	})
-	return nil, nil
 }
 
 // analyzeStrconvAssign checks whether an assignment discards the error return
