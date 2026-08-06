@@ -1622,6 +1622,35 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: claude-haiku-4-5
+          BASH_DEFAULT_TIMEOUT_MS: 60000
+          BASH_MAX_TIMEOUT_MS: 60000
+          CLAUDE_CODE_DISABLE_FAST_MODE: 1
+          DISABLE_BUG_COMMAND: 1
+          DISABLE_ERROR_REPORTING: 1
+          DISABLE_TELEMETRY: 1
+          GH_AW_LLM_PROVIDER: anthropic
+          GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
+          GH_AW_PHASE: detection
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_VERSION: dev
+          GITHUB_AW: true
+          GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          MCP_TIMEOUT: 120000
+          MCP_TOOL_TIMEOUT: 60000
+          RUNNER_TEMP: ${{ runner.temp }}
+          TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
+          WORKFLOW_NAME: "Avenger"
+          WORKFLOW_DESCRIPTION: "Hourly CI fixer — merges origin/main, runs recompile/fmt/lint/test/wasm-golden and creates a PR for any fixable issues. Skips if CI is passing."
+          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
@@ -1649,31 +1678,6 @@ jobs:
           # shellcheck disable=SC1003,SC2016,SC2086
           awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"} --env-all --exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN --exclude-env ACTIONS_ID_TOKEN_REQUEST_URL --exclude-env ANTHROPIC_API_KEY --mount /tmp/gh-aw/threat-detection:/tmp/gh-aw/threat-detection:rw --log-level info --skip-pull \
             -- /bin/bash -c 'set +o histexpand; : "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true && threat-detect --engine claude --output /tmp/gh-aw/threat-detection/detection_result.json --step-summary /tmp/gh-aw/threat-detection/step-summary.md /tmp/gh-aw/threat-detection' 2>&1 | tee -a /tmp/gh-aw/threat-detection/detection.log
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: claude-haiku-4-5
-          BASH_DEFAULT_TIMEOUT_MS: 60000
-          BASH_MAX_TIMEOUT_MS: 60000
-          CLAUDE_CODE_DISABLE_FAST_MODE: 1
-          DISABLE_BUG_COMMAND: 1
-          DISABLE_ERROR_REPORTING: 1
-          DISABLE_TELEMETRY: 1
-          GH_AW_LLM_PROVIDER: anthropic
-          GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
-          GH_AW_PHASE: detection
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_VERSION: dev
-          GITHUB_AW: true
-          GITHUB_STEP_SUMMARY: /tmp/gh-aw/agent-step-summary.md
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
-          GIT_AUTHOR_NAME: github-actions[bot]
-          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
-          GIT_COMMITTER_NAME: github-actions[bot]
-          MCP_TIMEOUT: 120000
-          MCP_TOOL_TIMEOUT: 60000
-          RUNNER_TEMP: ${{ runner.temp }}
-          TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
       - name: Upload threat detection artifact
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

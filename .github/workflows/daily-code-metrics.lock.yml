@@ -1682,6 +1682,11 @@ jobs:
         id: detection_agentic_execution
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
+        env:
+          WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
+          WORKFLOW_DESCRIPTION: "Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns"
+          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt

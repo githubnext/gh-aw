@@ -251,21 +251,12 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 		steps = append(steps, "        continue-on-error: true\n")
 	}
 
-	// Build the GH_AW_DETECTION_CONTINUE_ON_ERROR env var.
-	var coeEnvLine string
-	if continueOnErrorExpr != nil {
-		// Pass the expression unquoted so GitHub Actions evaluates it at runtime.
-		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %s\n", *continueOnErrorExpr)
-	} else {
-		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError))
-	}
-
 	steps = append(steps, []string{
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
 		"          DETECTION_AGENTIC_EXECUTION_OUTCOME: ${{ steps.detection_agentic_execution.outcome }}\n",
-		coeEnvLine,
+		buildThreatDetectionContinueOnErrorEnvLine(continueOnError, continueOnErrorExpr),
 		"        with:\n",
 		"          script: |\n",
 	}...)
@@ -310,14 +301,6 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
 	}
 
-	// Build the GH_AW_DETECTION_CONTINUE_ON_ERROR env var for the setup step.
-	var coeEnvLine string
-	if continueOnErrorExpr != nil {
-		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %s\n", *continueOnErrorExpr)
-	} else {
-		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError))
-	}
-
 	// Setup step
 	steps = append(steps, []string{
 		"      - name: Setup threat detection\n",
@@ -325,28 +308,13 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 	}...)
-	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
-
-	// Add HAS_PATCH environment variable from the agent job output (detection runs in a separate job)
-	steps = append(steps, "          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}\n")
-
-	// Propagate continue-on-error policy so setup failures also respect warn/strict mode.
-	steps = append(steps, coeEnvLine)
+	steps = append(steps, c.buildThreatDetectionContextEnvVars(data, continueOnError, continueOnErrorExpr)...)
 
 	// On the external detector path the prompt rendered by this step is never used: threat-detect
 	// renders its own embedded template and appends it to the step summary. Suppress the setup
 	// step's summary write so a single detection run does not display two different prompts.
 	if isFeatureEnabled(constants.GHAWDetectionFeatureFlag, data) {
 		steps = append(steps, "          GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: \"true\"\n")
-	}
-
-	// Add custom prompt instructions if configured
-	customPrompt := ""
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		customPrompt = data.SafeOutputs.ThreatDetection.Prompt
-	}
-	if customPrompt != "" {
-		steps = append(steps, fmt.Sprintf("          CUSTOM_PROMPT: %q\n", customPrompt))
 	}
 
 	steps = append(steps, []string{
@@ -401,6 +369,27 @@ func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 		fmt.Sprintf("          WORKFLOW_NAME: %q\n", workflowName),
 		fmt.Sprintf("          WORKFLOW_DESCRIPTION: %q\n", workflowDescription),
 	}
+}
+
+func (c *Compiler) buildThreatDetectionContextEnvVars(data *WorkflowData, continueOnError bool, continueOnErrorExpr *string) []string {
+	envVars := c.buildWorkflowContextEnvVars(data)
+	envVars = append(envVars,
+		"          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}\n",
+		buildThreatDetectionContinueOnErrorEnvLine(continueOnError, continueOnErrorExpr),
+	)
+
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Prompt != "" {
+		envVars = append(envVars, fmt.Sprintf("          CUSTOM_PROMPT: %q\n", data.SafeOutputs.ThreatDetection.Prompt))
+	}
+
+	return envVars
+}
+
+func buildThreatDetectionContinueOnErrorEnvLine(continueOnError bool, continueOnErrorExpr *string) string {
+	if continueOnErrorExpr != nil {
+		return fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %s\n", *continueOnErrorExpr)
+	}
+	return fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError))
 }
 
 // buildResultsParsingScriptRequire creates the parsing script that requires the .cjs module.

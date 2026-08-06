@@ -414,6 +414,51 @@ func TestThreatDetectionCustomPrompt(t *testing.T) {
 	}
 }
 
+func TestExternalDetectorExecutionStepIncludesThreatDetectionContext(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("configured prompt", func(t *testing.T) {
+		data := &WorkflowData{
+			AI:          "copilot",
+			Name:        "Threat Detection Test",
+			Description: "Checks generated workflows for threats.",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					ContinueOnError: boolPtr(false),
+					Prompt:          "Treat credentials as sensitive.",
+				},
+			},
+		}
+
+		steps := strings.Join(compiler.buildExternalDetectorExecutionStep(data), "")
+		for _, want := range []string{
+			`GH_AW_DETECTION_CONTINUE_ON_ERROR: "false"`,
+			"HAS_PATCH: ${{ needs.agent.outputs.has_patch }}",
+			`WORKFLOW_NAME: "Threat Detection Test"`,
+			`WORKFLOW_DESCRIPTION: "Checks generated workflows for threats."`,
+			`CUSTOM_PROMPT: "Treat credentials as sensitive."`,
+		} {
+			if !strings.Contains(steps, want) {
+				t.Errorf("expected external detector execution step to contain %q:\n%s", want, steps)
+			}
+		}
+	})
+
+	t.Run("unset prompt", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := strings.Join(compiler.buildExternalDetectorExecutionStep(data), "")
+		if strings.Contains(steps, "CUSTOM_PROMPT:") {
+			t.Errorf("expected external detector execution step to omit CUSTOM_PROMPT when unset:\n%s", steps)
+		}
+	})
+}
+
 func TestThreatDetectionWithEngineConfig(t *testing.T) {
 	compiler := NewCompiler()
 
