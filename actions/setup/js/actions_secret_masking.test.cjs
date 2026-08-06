@@ -44,6 +44,21 @@ describe("actions_secret_masking.cjs", () => {
     expect(write).toHaveBeenCalledWith("::add-mask::line1%0Aline2%25tail\n");
   });
 
+  it("uses add-mask instead of the shim setSecret placeholder in GitHub Actions", () => {
+    process.env.GITHUB_ACTIONS = "true";
+    const setSecret = vi.fn(() => {
+      throw new Error("shim placeholder");
+    });
+    Object.defineProperty(setSecret, "__ghAwUnavailable", { value: true });
+    global.core = { setSecret };
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    maskSecret("derived-secret");
+
+    expect(setSecret).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalledWith("::add-mask::derived-secret\n");
+  });
+
   it("does nothing outside GitHub Actions when core.setSecret is unavailable", () => {
     delete process.env.GITHUB_ACTIONS;
     const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
