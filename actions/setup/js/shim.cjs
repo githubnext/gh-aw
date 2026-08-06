@@ -15,7 +15,6 @@
 const escapeCommandData = value => String(value).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
 
 const setSecret = /** @param {string} value */ value => {
-  process.stderr.write(`::add-mask::${escapeCommandData(value)}\n`);
 };
 
 if (!global.core) {
