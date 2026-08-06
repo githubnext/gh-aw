@@ -85,7 +85,7 @@ func sanitizeControlChars(s string) string {
 	}
 	var needsEscaping bool
 	for _, r := range s {
-		if r < 0x20 || r == 0x7f {
+		if isControlRune(r) {
 			needsEscaping = true
 			break
 		}
@@ -95,13 +95,19 @@ func sanitizeControlChars(s string) string {
 	}
 	var b strings.Builder
 	for _, r := range s {
-		if r < 0x20 || r == 0x7f {
+		if isControlRune(r) {
 			b.WriteString(strconv.QuoteRune(r))
 			continue
 		}
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// isControlRune reports whether r is a C0 or C1 control character (including
+// DEL), which may be interpreted as terminal/log control or escape sequences.
+func isControlRune(r rune) bool {
+	return r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f)
 }
 
 // TrialRepoContext groups repository-related configuration for trial execution

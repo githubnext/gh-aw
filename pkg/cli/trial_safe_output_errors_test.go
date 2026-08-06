@@ -174,6 +174,11 @@ func TestSanitizeControlChars(t *testing.T) {
 			in:   "before\rafter",
 			want: `before'\r'after`,
 		},
+		{
+			name: "escapes C1 control character",
+			in:   "before\u009bafter",
+			want: `before'\u009b'after`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -183,7 +188,7 @@ func TestSanitizeControlChars(t *testing.T) {
 				t.Errorf("sanitizeControlChars(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 			for _, r := range got {
-				if r < 0x20 || r == 0x7f {
+				if isControlRune(r) {
 					t.Errorf("sanitizeControlChars(%q) result %q still contains raw control character", tt.in, got)
 				}
 			}
