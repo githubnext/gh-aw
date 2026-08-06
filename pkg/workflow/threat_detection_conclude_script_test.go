@@ -8,203 +8,108 @@ import (
 	"testing"
 )
 
-const detectorStatusLine = "THREAT_DETECTION_STATUS: reason=engine_error exit=2"
+func isolatedPath(t *testing.T, binDir string) string {
+	t.Helper()
 
-func TestConcludeThreatDetectionScript_MissingResultContinueOnError(t *testing.T) {
-	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
-	outputFile := filepath.Join(t.TempDir(), "github_output.txt")
-	missingResult := filepath.Join(t.TempDir(), "missing_detection_result.json")
-
-	cmd := exec.Command("bash", scriptPath, missingResult)
-	cmd.Env = append(os.Environ(),
-		"RUN_DETECTION=true",
-		"DETECTION_AGENTIC_EXECUTION_OUTCOME=failure",
-		"GH_AW_DETECTION_CONTINUE_ON_ERROR=TRUE",
-		"GITHUB_OUTPUT="+outputFile,
-	)
-
-	out, err := cmd.CombinedOutput()
+	dirnamePath, err := exec.LookPath("dirname")
 	if err != nil {
-		t.Fatalf("script should continue on missing result when continue-on-error is true: %v\nOutput: %s", err, out)
+		t.Fatalf("failed to locate dirname: %v", err)
 	}
+	if err := os.Symlink(dirnamePath, filepath.Join(binDir, "dirname")); err != nil {
+		t.Fatalf("failed to make dirname available in test PATH: %v", err)
+	}
+	return binDir
+}
 
-	outputData, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read GITHUB_OUTPUT: %v", err)
-	}
-	outputText := string(outputData)
-	if !strings.Contains(outputText, "conclusion=warning") {
-		t.Fatalf("expected warning conclusion in GITHUB_OUTPUT, got: %s", outputText)
-	}
-	if !strings.Contains(outputText, "success=false") {
-		t.Fatalf("expected success=false in GITHUB_OUTPUT, got: %s", outputText)
-	}
-	if !strings.Contains(outputText, "reason=agent_failure") {
-		t.Fatalf("expected reason=agent_failure in GITHUB_OUTPUT, got: %s", outputText)
-	}
-	if !strings.Contains(string(out), "continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true") {
-		t.Fatalf("expected warning message about continue-on-error, got: %s", out)
+// TestConcludeThreatDetectionScript_MissingBinaryWarnMode verifies that the
+// script's sole remaining shell-side special case — threat-detect missing
+// from PATH — warns and exits 0 when GH_AW_DETECTION_CONTINUE_ON_ERROR is not
+// exactly "false" (warn mode).
+func TestConcludeThreatDetectionScript_MissingBinaryWarnMode(t *testing.T) {
+	for _, continueOnError := range []string{"true", "yes"} {
+		t.Run(continueOnError, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
+			outputFile := filepath.Join(tmpDir, "github_output.txt")
+			resultFile := filepath.Join(tmpDir, "detection_result.json")
+			binDir := filepath.Join(tmpDir, "bin")
+			if err := os.MkdirAll(binDir, 0755); err != nil {
+				t.Fatalf("failed to create test bin directory: %v", err)
+			}
+
+			cmd := exec.Command("bash", scriptPath, resultFile)
+			cmd.Env = append(os.Environ(),
+				"GH_AW_DETECTION_CONTINUE_ON_ERROR="+continueOnError,
+				"GITHUB_OUTPUT="+outputFile,
+				"PATH="+isolatedPath(t, binDir),
+			)
+
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("script should exit 0 in warn mode when threat-detect is missing: %v\nOutput: %s", err, out)
+			}
+
+			outputData, err := os.ReadFile(outputFile)
+			if err != nil {
+				t.Fatalf("failed to read GITHUB_OUTPUT: %v", err)
+			}
+			outputText := string(outputData)
+			if !strings.Contains(outputText, "conclusion=warning") || !strings.Contains(outputText, "success=false") || !strings.Contains(outputText, "reason=agent_failure") {
+				t.Fatalf("expected warning failure outputs in GITHUB_OUTPUT, got: %s", outputText)
+			}
+			if !strings.Contains(string(out), "threat-detect binary not found on PATH") {
+				t.Fatalf("expected warning message about missing binary, got: %s", out)
+			}
+		})
 	}
 }
 
-func TestConcludeThreatDetectionScript_MissingResultStrictModeWritesOutputs(t *testing.T) {
+// TestConcludeThreatDetectionScript_MissingBinaryStrictMode verifies the
+// guard hard-fails (exit 1) when GH_AW_DETECTION_CONTINUE_ON_ERROR is
+// exactly "false" (strict mode).
+func TestConcludeThreatDetectionScript_MissingBinaryStrictMode(t *testing.T) {
+	tmpDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
-	outputFile := filepath.Join(t.TempDir(), "github_output.txt")
-	missingResult := filepath.Join(t.TempDir(), "missing_detection_result.json")
+	outputFile := filepath.Join(tmpDir, "github_output.txt")
+	resultFile := filepath.Join(tmpDir, "detection_result.json")
+	binDir := filepath.Join(tmpDir, "bin")
 
-	cmd := exec.Command("bash", scriptPath, missingResult)
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatalf("failed to create test bin directory: %v", err)
+	}
+
+	cmd := exec.Command("bash", scriptPath, resultFile)
 	cmd.Env = append(os.Environ(),
 		"RUN_DETECTION=true",
-		"DETECTION_AGENTIC_EXECUTION_OUTCOME=failure",
 		"GH_AW_DETECTION_CONTINUE_ON_ERROR=false",
 		"GITHUB_OUTPUT="+outputFile,
+		"PATH="+isolatedPath(t, binDir),
 	)
 
 	out, err := cmd.CombinedOutput()
 	if err == nil {
-		t.Fatalf("script should exit non-zero in strict mode on missing result: %s", out)
+		t.Fatalf("script should exit non-zero in strict mode when threat-detect is missing, output: %s", out)
 	}
-
-	outputData, readErr := os.ReadFile(outputFile)
-	if readErr != nil {
-		t.Fatalf("failed to read GITHUB_OUTPUT: %v", readErr)
+	if !strings.Contains(string(out), "ERR_SYSTEM:") {
+		t.Fatalf("expected ERR_SYSTEM message, got: %s", out)
 	}
-	outputText := string(outputData)
-	if !strings.Contains(outputText, "conclusion=failure") {
-		t.Fatalf("expected conclusion=failure in GITHUB_OUTPUT, got: %s", outputText)
+	if !strings.Contains(string(out), "threat-detect binary not found on PATH") {
+		t.Fatalf("expected message about missing binary, got: %s", out)
 	}
-	if !strings.Contains(outputText, "success=false") {
-		t.Fatalf("expected success=false in GITHUB_OUTPUT, got: %s", outputText)
-	}
-	if !strings.Contains(outputText, "reason=agent_failure") {
-		t.Fatalf("expected reason=agent_failure in GITHUB_OUTPUT, got: %s", outputText)
-	}
-}
-
-func TestConcludeThreatDetectionScript_MissingResultSurfacesDetectorStatus(t *testing.T) {
-	tempDir := t.TempDir()
-	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
-	outputFile := filepath.Join(tempDir, "github_output.txt")
-	missingResult := filepath.Join(tempDir, "missing_detection_result.json")
-	detectionLog := filepath.Join(tempDir, "detection.log")
-
-	if err := os.WriteFile(detectionLog, []byte(detectorStatusLine+"\n"), 0600); err != nil {
-		t.Fatalf("failed to write detection log: %v", err)
-	}
-
-	cmd := exec.Command("bash", scriptPath, missingResult)
-	cmd.Env = append(os.Environ(),
-		"RUN_DETECTION=true",
-		"DETECTION_AGENTIC_EXECUTION_OUTCOME=failure",
-		"GH_AW_DETECTION_CONTINUE_ON_ERROR=true",
-		"DETECTION_LOG_FILE="+detectionLog,
-		"GITHUB_OUTPUT="+outputFile,
-	)
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("script should continue when detector status is available: %v\nOutput: %s", err, out)
-	}
-
-	if !strings.Contains(string(out), detectorStatusLine) {
-		t.Fatalf("expected warning output to surface detector status, got: %s", out)
-	}
-	if !strings.Contains(string(out), "execution outcome: failure") {
-		t.Fatalf("expected warning output to include execution outcome, got: %s", out)
-	}
-}
-
-func TestConcludeThreatDetectionScript_SkippedWhenRunDetectionFalse(t *testing.T) {
-	tmpDir := t.TempDir()
-	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
-	outputFile := filepath.Join(tmpDir, "github_output.txt")
-	// No result file written — threat-detect is not installed — both should be irrelevant.
-	missingResult := filepath.Join(tmpDir, "missing_detection_result.json")
-
-	// Use a PATH that does not include threat-detect by prepending a
-	// sentinel bin dir that contains no executables. The guard must
-	// exit before ever reaching the threat-detect invocation.
-	emptyBinDir := filepath.Join(tmpDir, "empty-bin")
-	if err := os.MkdirAll(emptyBinDir, 0755); err != nil {
-		t.Fatalf("failed to create empty bin dir: %v", err)
-	}
-
-	cmd := exec.Command("bash", scriptPath, missingResult)
-	cmd.Env = append(os.Environ(),
-		"RUN_DETECTION=false",
-		"GITHUB_OUTPUT="+outputFile,
-		"PATH="+emptyBinDir+":"+os.Getenv("PATH"),
-	)
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("script should exit 0 when RUN_DETECTION=false: %v\nOutput: %s", err, out)
-	}
-
 	outputData, err := os.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("failed to read GITHUB_OUTPUT: %v", err)
 	}
 	outputText := string(outputData)
-	if !strings.Contains(outputText, "conclusion=skipped") {
-		t.Fatalf("expected conclusion=skipped in GITHUB_OUTPUT, got: %s", outputText)
-	}
-	if !strings.Contains(outputText, "success=true") {
-		t.Fatalf("expected success=true in GITHUB_OUTPUT, got: %s", outputText)
-	}
-	if !strings.Contains(outputText, "reason=") {
-		t.Fatalf("expected reason= in GITHUB_OUTPUT, got: %s", outputText)
+	if !strings.Contains(outputText, "conclusion=failure") || !strings.Contains(outputText, "success=false") || !strings.Contains(outputText, "reason=agent_failure") {
+		t.Fatalf("expected strict failure outputs in GITHUB_OUTPUT, got: %s", outputText)
 	}
 }
 
-func TestConcludeThreatDetectionScript_SkippedWhenRunDetectionUnset(t *testing.T) {
-	tmpDir := t.TempDir()
-	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
-	outputFile := filepath.Join(tmpDir, "github_output.txt")
-	missingResult := filepath.Join(tmpDir, "missing_detection_result.json")
-
-	emptyBinDir := filepath.Join(tmpDir, "empty-bin")
-	if err := os.MkdirAll(emptyBinDir, 0755); err != nil {
-		t.Fatalf("failed to create empty bin dir: %v", err)
-	}
-
-	// Build an environment that does NOT include RUN_DETECTION at all,
-	// verifying that the ${RUN_DETECTION:-false} default also triggers the guard.
-	filteredEnv := make([]string, 0, len(os.Environ()))
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, "RUN_DETECTION=") {
-			filteredEnv = append(filteredEnv, e)
-		}
-	}
-	filteredEnv = append(filteredEnv,
-		"GITHUB_OUTPUT="+outputFile,
-		"PATH="+emptyBinDir+":"+os.Getenv("PATH"),
-	)
-
-	cmd := exec.Command("bash", scriptPath, missingResult)
-	cmd.Env = filteredEnv
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("script should exit 0 when RUN_DETECTION is unset: %v\nOutput: %s", err, out)
-	}
-
-	outputData, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read GITHUB_OUTPUT: %v", err)
-	}
-	outputText := string(outputData)
-	if !strings.Contains(outputText, "conclusion=skipped") {
-		t.Fatalf("expected conclusion=skipped in GITHUB_OUTPUT, got: %s", outputText)
-	}
-	if !strings.Contains(outputText, "success=true") {
-		t.Fatalf("expected success=true in GITHUB_OUTPUT, got: %s", outputText)
-	}
-	if !strings.Contains(outputText, "reason=") {
-		t.Fatalf("expected reason= in GITHUB_OUTPUT, got: %s", outputText)
-	}
-}
-
+// TestConcludeThreatDetectionScript_InvokesThreatDetectConclude verifies the
+// script delegates to `threat-detect conclude` with both --result-file and
+// an explicit --detection-log, defaulting the log path to
+// <result-file-dir>/detection.log.
 func TestConcludeThreatDetectionScript_InvokesThreatDetectConclude(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
@@ -247,7 +152,76 @@ func TestConcludeThreatDetectionScript_InvokesThreatDetectConclude(t *testing.T)
 	if err != nil {
 		t.Fatalf("failed to read call log: %v", err)
 	}
-	if !strings.Contains(string(callData), "conclude --result-file "+resultFile) {
-		t.Fatalf("expected threat-detect conclude invocation, got: %s", callData)
+	expectedLog := filepath.Join(tmpDir, "detection.log")
+	if !strings.Contains(string(callData), "conclude --result-file "+resultFile+" --detection-log "+expectedLog) {
+		t.Fatalf("expected threat-detect conclude invocation with default detection log, got: %s", callData)
+	}
+}
+
+func TestConcludeThreatDetectionScript_PropagatesThreatDetectFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
+	binDir := filepath.Join(tmpDir, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatalf("failed to create bin directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(binDir, "threat-detect"), []byte("#!/bin/bash\nexit 1\n"), 0755); err != nil {
+		t.Fatalf("failed to write threat-detect stub: %v", err)
+	}
+
+	cmd := exec.Command("bash", scriptPath, filepath.Join(tmpDir, "detection_result.json"))
+	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Fatalf("script should propagate threat-detect failure, output: %s", out)
+	}
+}
+
+// TestConcludeThreatDetectionScript_HonorsDetectionLogOverride verifies that
+// an explicit DETECTION_LOG_FILE environment variable overrides the default
+// <result-file-dir>/detection.log path passed to --detection-log.
+func TestConcludeThreatDetectionScript_HonorsDetectionLogOverride(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
+	resultFile := filepath.Join(tmpDir, "detection_result.json")
+	outputFile := filepath.Join(tmpDir, "github_output.txt")
+	callLog := filepath.Join(tmpDir, "call.log")
+	binDir := filepath.Join(tmpDir, "bin")
+	customLog := filepath.Join(tmpDir, "custom-detection.log")
+
+	if err := os.WriteFile(resultFile, []byte(`{"conclusion":"success"}`), 0644); err != nil {
+		t.Fatalf("failed to write result file: %v", err)
+	}
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatalf("failed to create bin dir: %v", err)
+	}
+
+	stubPath := filepath.Join(binDir, "threat-detect")
+	stub := "#!/usr/bin/env bash\n" +
+		"echo \"$*\" >> \"$CALL_LOG\"\n" +
+		"echo \"conclusion=success\" >> \"$GITHUB_OUTPUT\"\n"
+	if err := os.WriteFile(stubPath, []byte(stub), 0755); err != nil {
+		t.Fatalf("failed to write threat-detect stub: %v", err)
+	}
+
+	cmd := exec.Command("bash", scriptPath, resultFile)
+	cmd.Env = append(os.Environ(),
+		"RUN_DETECTION=true",
+		"GITHUB_OUTPUT="+outputFile,
+		"CALL_LOG="+callLog,
+		"DETECTION_LOG_FILE="+customLog,
+		"PATH="+binDir+":"+os.Getenv("PATH"),
+	)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("script failed: %v\nOutput: %s", err, out)
+	}
+
+	callData, err := os.ReadFile(callLog)
+	if err != nil {
+		t.Fatalf("failed to read call log: %v", err)
+	}
+	if !strings.Contains(string(callData), "--detection-log "+customLog) {
+		t.Fatalf("expected threat-detect conclude invocation with overridden detection log, got: %s", callData)
 	}
 }

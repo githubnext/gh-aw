@@ -1,4 +1,5 @@
 // @ts-check
+// @safe-outputs-exempt SEC-004 — "body" references are HTTP transport payloads for OAuth token exchange, not GitHub content
 /**
  * Exchanges a GitHub OIDC token for a Google Cloud access token using
  * Workload Identity Federation, optionally impersonating a service account.
