@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -61,5 +63,18 @@ on: push
 				t.Errorf("ExtractWorkflowPrivate() = %v, want %v", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestAIModeratorWorkflowIsShareable(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "ai-moderator.md"))
+	if err != nil {
+		t.Fatalf("failed to read AI Moderator workflow: %v", err)
+	}
+
+	if ExtractWorkflowPrivate(string(content)) {
+		t.Fatal("AI Moderator workflow must remain shareable for gh aw add")
 	}
 }
