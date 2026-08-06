@@ -46,7 +46,6 @@ describe("push_experiment_state", () => {
     delete process.env.GITHUB_WORKSPACE;
     delete process.env.GITHUB_REPOSITORY;
     delete process.env.GH_AW_ALLOWED_TARGET_REPOS;
-    delete process.env.GH_AW_STATE_APPEND_FILES;
   });
 
   it("calls setFailed when GH_AW_EXPERIMENT_BRANCH is not set", async () => {

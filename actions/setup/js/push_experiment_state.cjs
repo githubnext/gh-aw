@@ -12,8 +12,7 @@
  * Generic environment variables:
  *   GH_AW_STATE_DIR             - Directory containing files to commit
  *   GH_AW_STATE_BRANCH          - Target git branch
- *   GH_AW_STATE_FILES           - Comma-separated filenames to copy from GH_AW_STATE_DIR
- *   GH_AW_STATE_APPEND_FILES    - Comma-separated JSONL filenames to merge with existing branch content
+ *   GH_AW_STATE_FILES           - Comma-separated JSONL filenames to append from GH_AW_STATE_DIR
  *   GH_AW_STATE_LABEL           - Human-readable label used in logs/messages
  *
  * Backward-compatible experiment aliases:
@@ -249,7 +248,7 @@ function resolveExperimentStateRebaseConflict({ cwd }) {
     .filter(Boolean);
 
   const appendFiles = new Set(
-    (process.env.GH_AW_STATE_APPEND_FILES || "")
+    (process.env.GH_AW_STATE_FILES || "")
       .split(",")
       .map(name => name.trim())
       .filter(Boolean)
@@ -386,7 +385,7 @@ async function main() {
     .map(name => name.trim())
     .filter(Boolean);
   const appendFiles = new Set(
-    (process.env.GH_AW_STATE_APPEND_FILES || "")
+    (process.env.GH_AW_STATE_FILES || "")
       .split(",")
       .map(name => name.trim())
       .filter(Boolean)
