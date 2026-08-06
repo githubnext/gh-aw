@@ -202,6 +202,35 @@ function mergeExperimentStateJSONL(remoteContent, localContent) {
   return merged.length > 0 ? `${merged.map(entry => JSON.stringify(entry)).join("\n")}\n` : "";
 }
 
+function mergeAppendOnlyJSONL(remoteContent, localContent) {
+  const merged = [];
+  const seen = new Set();
+  for (const content of [remoteContent, localContent]) {
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      let outputLine;
+      let key;
+      try {
+        const entry = JSON.parse(trimmed);
+        outputLine = JSON.stringify(entry);
+        key = `json:${stableJSONStringify(entry)}`;
+      } catch {
+        core.warning(`mergeAppendOnlyJSONL: preserving unparseable line during merge`);
+        outputLine = trimmed;
+        key = `raw:${trimmed}`;
+      }
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(outputLine);
+      }
+    }
+  }
+  return merged.length > 0 ? `${merged.join("\n")}\n` : "";
+}
+
 function readGitStageFile(workspaceDir, stage, filePath) {
   return execGitSync(["show", `:${stage}:${filePath}`], {
     cwd: workspaceDir,
@@ -221,11 +250,18 @@ function resolveExperimentStateRebaseConflict({ cwd }) {
     .map(file => file.trim())
     .filter(Boolean);
 
-  if (conflictedFiles.length === 0 || (!conflictedFiles.includes("state.json") && !conflictedFiles.includes("state.jsonl"))) {
+  const appendFiles = new Set(
+    (process.env.GH_AW_STATE_FILES || "")
+      .split(",")
+      .map(name => name.trim())
+      .filter(name => Boolean(name) && name.endsWith(".jsonl") && name !== "state.jsonl")
+  );
+  const hasMergeableConflict = conflictedFiles.some(file => file === "state.json" || file === "state.jsonl" || appendFiles.has(file));
+  if (conflictedFiles.length === 0 || !hasMergeableConflict) {
     return false;
   }
 
-  const allowedConflicts = new Set(["state.json", "state.jsonl", "assignments.json"]);
+  const allowedConflicts = new Set(["state.json", "state.jsonl", "assignments.json", ...appendFiles]);
   for (const file of conflictedFiles) {
     if (!allowedConflicts.has(file)) {
       return false;
@@ -252,6 +288,16 @@ function resolveExperimentStateRebaseConflict({ cwd }) {
       fs.writeFileSync(path.join(cwd, "state.jsonl"), mergedState, "utf8");
     } catch (err) {
       throw new Error(`Failed to resolve state.jsonl rebase conflict: ${getErrorMessage(err)}`, { cause: err });
+    }
+  }
+
+  for (const file of conflictedFiles.filter(name => appendFiles.has(name))) {
+    try {
+      const remoteState = readGitStageFile(cwd, 2, file);
+      const localState = readGitStageFile(cwd, 3, file);
+      fs.writeFileSync(path.join(cwd, file), mergeAppendOnlyJSONL(remoteState, localState), "utf8");
+    } catch (err) {
+      throw new Error(`Failed to resolve ${file} rebase conflict: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 
@@ -341,6 +387,7 @@ async function main() {
     .split(",")
     .map(name => name.trim())
     .filter(Boolean);
+  const appendFiles = new Set(candidateFiles.filter(name => name.endsWith(".jsonl") && name !== "state.jsonl"));
   const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/$/, "");
@@ -424,7 +471,13 @@ async function main() {
     const src = path.join(stateDir, name);
     const dest = path.join(workspaceDir, name);
     try {
-      fs.copyFileSync(src, dest);
+      if (appendFiles.has(name) && fs.existsSync(dest)) {
+        const existingContent = fs.readFileSync(dest, "utf8");
+        const newContent = fs.readFileSync(src, "utf8");
+        fs.writeFileSync(dest, mergeAppendOnlyJSONL(existingContent, newContent), "utf8");
+      } else {
+        fs.copyFileSync(src, dest);
+      }
       core.info(`Copied ${name}`);
     } catch (err) {
       core.setFailed(`Failed to copy ${name}: ${getErrorMessage(err)}`);
@@ -517,6 +570,7 @@ module.exports = {
   checkoutOrCreateBranch,
   mergeExperimentStateJSON,
   mergeExperimentStateJSONL,
+  mergeAppendOnlyJSONL,
   mergeExperimentRuns,
   resolveExperimentStateRebaseConflict,
 };
