@@ -27,6 +27,7 @@ require("./shim.cjs");
  * Optional:
  * - GH_AW_ENGINE: Engine type (copilot, codex, claude, gemini)
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
+ * - GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: JSON array of custom gateway environment variable names
  */
 
 const { spawn, execSync } = require("child_process");
@@ -39,6 +40,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
+const customGatewayEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__";
+const customGatewayEnvNamePattern = /^[A-Z_][A-Z0-9_]*$/;
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -67,6 +70,34 @@ function printTiming(startMs, label) {
  */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Replaces the compiler marker with atomic Docker -e arguments. Runtime values
+ * never enter MCP_GATEWAY_DOCKER_COMMAND, preventing Docker argument injection.
+ *
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {string[]}
+ */
+function injectCustomGatewayEnvArgs(args, env = process.env) {
+  const markerIndex = args.indexOf(customGatewayEnvMarker);
+  if (markerIndex === -1) {
+    return args;
+  }
+
+  let names;
+  try {
+    names = JSON.parse(env.GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES || "[]");
+  } catch (err) {
+    throw new Error(`GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must be valid JSON: ${getErrorMessage(err)}`, { cause: err });
+  }
+  if (!Array.isArray(names) || !names.every(name => typeof name === "string" && customGatewayEnvNamePattern.test(name))) {
+    throw new Error("GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must be an array of valid environment variable names");
+  }
+
+  const customArgs = names.flatMap((name, index) => ["-e", `${name}=${env[`GH_AW_MCP_GATEWAY_ENV_${index}`] || ""}`]);
+  return [...args.slice(0, markerIndex), ...customArgs, ...args.slice(markerIndex + 1)];
 }
 
 /**
@@ -536,12 +567,13 @@ async function main() {
   const gatewayStartTime = nowMs();
 
   // Split docker command into args, respecting simple quoting
-  const args = dockerCommand.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+  let args = Array.from(dockerCommand.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || []);
   const cmd = args.shift();
   if (!cmd) {
     core.setFailed("ERROR: MCP_GATEWAY_DOCKER_COMMAND did not contain an executable command");
     return;
   }
+  args = injectCustomGatewayEnvArgs(args);
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
 
@@ -1026,6 +1058,7 @@ module.exports = {
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,
   getJSONParseErrorContext,
+  injectCustomGatewayEnvArgs,
   normalizeSinkVisibilityEncoding,
   resolveCopilotConfigPaths,
 };

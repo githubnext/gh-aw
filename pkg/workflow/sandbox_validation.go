@@ -20,6 +20,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var sandboxValidationLog = logger.New("workflow:sandbox_validation")
@@ -27,6 +28,7 @@ var sandboxValidationLog = logger.New("workflow:sandbox_validation")
 const minSandboxDisableJustificationLength = 20
 
 var githubActionsExpressionPattern = regexp.MustCompile(`\$\{\{[\s\S]*\}\}`)
+var mcpGatewayEnvNamePattern = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
 
 // validateMountsSyntax validates that mount strings follow the correct syntax
 // Expected format: "source:destination:mode" where mode is either "ro" or "rw"
@@ -199,6 +201,19 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			return err
 		}
 		sandboxValidationLog.Printf("Validated MCP gateway port: %d", sandboxConfig.MCP.Port)
+	}
+
+	if sandboxConfig.MCP != nil {
+		for _, name := range sliceutil.SortedKeys(sandboxConfig.MCP.Env) {
+			if !mcpGatewayEnvNamePattern.MatchString(name) {
+				return NewValidationError(
+					"sandbox.mcp.env."+name,
+					name,
+					fmt.Sprintf("environment variable names should match %s", mcpGatewayEnvNamePattern),
+					"Use uppercase letters, digits, and underscores, starting with a letter or underscore. Example:\n\nsandbox:\n  mcp:\n    env:\n      API_TOKEN: value",
+				)
+			}
+		}
 	}
 
 	// Validate that if agent sandbox is enabled, MCP gateway is always enabled.

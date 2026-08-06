@@ -1,11 +1,40 @@
 import fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyOTLPIgnoreIfMissing, detectEngineType, getJSONParseErrorContext, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, normalizeSinkVisibilityEncoding, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
+import {
+  applyOTLPIgnoreIfMissing,
+  detectEngineType,
+  getJSONParseErrorContext,
+  getOTLPIfMissingMode,
+  hasNonEmptyOTLPHeaders,
+  injectCustomGatewayEnvArgs,
+  normalizeSinkVisibilityEncoding,
+  resolveCopilotConfigPaths,
+} from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway logging", () => {
   it("does not create the legacy MCP gateway stderr log", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).not.toContain("/tmp/gh-aw/mcp-logs/stderr.log");
+  });
+
+  describe("start_mcp_gateway custom environment arguments", () => {
+    it("passes hostile values as one atomic Docker argument", () => {
+      const hostileValue = `x" --privileged -v /workspace/evil:/evil --entrypoint /evil -e X="x`;
+      const args = injectCustomGatewayEnvArgs(["run", "--rm", "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__", "gateway-image"], {
+        GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["BASH_ENV"]',
+        GH_AW_MCP_GATEWAY_ENV_0: hostileValue,
+      });
+
+      expect(args).toEqual(["run", "--rm", "-e", `BASH_ENV=${hostileValue}`, "gateway-image"]);
+    });
+
+    it("rejects malformed or unsafe environment variable names", () => {
+      expect(() =>
+        injectCustomGatewayEnvArgs(["run", "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__", "gateway-image"], {
+          GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["BAD-NAME"]',
+        })
+      ).toThrow(/valid environment variable names/);
+    });
   });
 
   it("does not create the MCP gateway startup log", () => {
