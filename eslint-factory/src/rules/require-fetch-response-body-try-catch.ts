@@ -83,22 +83,81 @@ export const requireFetchResponseBodyTryCatchRule = createRule({
       return null;
     }
 
+    function canSuggestWrapStatement(stmt: TSESTree.Statement): boolean {
+      if (stmt.type !== AST_NODE_TYPES.VariableDeclaration) {
+        return true;
+      }
+
+      const parent = stmt.parent;
+      const isStandaloneVariableDeclaration =
+        parent != null &&
+        ((parent.type === AST_NODE_TYPES.Program && parent.body.includes(stmt)) ||
+          (parent.type === AST_NODE_TYPES.BlockStatement && parent.body.includes(stmt)) ||
+          (parent.type === AST_NODE_TYPES.SwitchCase && parent.consequent.includes(stmt)));
+      if (!isStandaloneVariableDeclaration) {
+        return false;
+      }
+
+      if (stmt.kind === "var") {
+        return true;
+      }
+
+      const statementRange = stmt.range;
+      if (!statementRange) return false;
+      const [statementStart, statementEnd] = statementRange;
+
+      const hasReferenceOutsideStatement = sourceCode.getDeclaredVariables(stmt).some(variable =>
+        variable.references.some(reference => {
+          const referenceRange = reference.identifier.range;
+          return referenceRange == null || referenceRange[0] < statementStart || referenceRange[1] > statementEnd;
+        })
+      );
+
+      return !hasReferenceOutsideStatement;
+    }
+
     /**
-     * Returns true when the identifier at `node` resolves (via any write reference in scope —
-     * either its initializing declarator or a later reassignment) to a bare `await fetch(...)`
-     * call, i.e. a Response obtained with no chained `.catch`/rejection handling of its own.
+     * Finds the write reference to the variable bound to `node` that actually reaches
+     * this read — i.e. the last write occurring strictly before `node` in program order —
+     * rather than treating "any write anywhere in scope" as relevant. Returns null if no
+     * such write exists in the visible scope chain.
      */
-    function resolvesToBareAwaitFetch(node: TSESTree.Identifier): boolean {
+    function findReachingWrite(node: TSESTree.Identifier): TSESTree.Expression | null {
       let scope: SourceCodeScope | null = sourceCode.getScope(node);
       while (scope) {
         const variable = scope.set.get(node.name);
         if (variable) {
-          return variable.references.some(ref => {
+          let reaching: TSESTree.Expression | null = null;
+          let reachingPos = -Infinity;
+          for (const ref of variable.references) {
             const writeExpr = ref.writeExpr;
-            return writeExpr != null && isDirectAwaitFetchCall(writeExpr as TSESTree.Expression);
-          });
+            if (writeExpr == null) continue;
+            const refPos = ref.identifier.range?.[0] ?? -Infinity;
+            const nodePos = node.range?.[0] ?? Infinity;
+            if (refPos < nodePos && refPos > reachingPos) {
+              reaching = writeExpr as TSESTree.Expression;
+              reachingPos = refPos;
+            }
+          }
+          return reaching;
         }
         scope = scope.upper;
+      }
+      return null;
+    }
+
+    /**
+     * Returns true when the identifier at `node` resolves — via the write reference that
+     * actually reaches this read (the last write before it in program order), following a
+     * single-hop `const` alias if needed — to a bare `await fetch(...)` call, i.e. a Response
+     * obtained with no chained `.catch`/rejection handling of its own.
+     */
+    function resolvesToBareAwaitFetch(node: TSESTree.Identifier, aliasHopsRemaining = 1): boolean {
+      const writeExpr = findReachingWrite(node);
+      if (writeExpr == null) return false;
+      if (isDirectAwaitFetchCall(writeExpr)) return true;
+      if (aliasHopsRemaining > 0 && writeExpr.type === AST_NODE_TYPES.Identifier) {
+        return resolvesToBareAwaitFetch(writeExpr, aliasHopsRemaining - 1);
       }
       return false;
     }
@@ -131,27 +190,28 @@ export const requireFetchResponseBodyTryCatchRule = createRule({
           node,
           messageId: "requireTryCatch",
           data: { call: callText },
-          suggest: stmt
-            ? [
-                {
-                  messageId: "wrapInTryCatch",
-                  fix(fixer) {
-                    const stmtText = sourceCode.getText(stmt);
-                    const startLine = stmt.loc?.start.line;
-                    const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
-                    const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
-                    return fixer.replaceText(
-                      stmt,
-                      buildTryCatchSuggestion(stmtText, {
-                        indent,
-                        todoComment: "TODO: handle a malformed/errored fetch response body for this call.",
-                        errorPrefix: `Failed to read fetch response ${methodName}(): `,
-                      })
-                    );
+          suggest:
+            stmt && canSuggestWrapStatement(stmt)
+              ? [
+                  {
+                    messageId: "wrapInTryCatch",
+                    fix(fixer) {
+                      const stmtText = sourceCode.getText(stmt);
+                      const startLine = stmt.loc?.start.line;
+                      const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
+                      const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
+                      return fixer.replaceText(
+                        stmt,
+                        buildTryCatchSuggestion(stmtText, {
+                          indent,
+                          todoComment: "TODO: handle a malformed/errored fetch response body for this call.",
+                          errorPrefix: `Failed to read fetch response ${methodName}(): `,
+                        })
+                      );
+                    },
                   },
-                },
-              ]
-            : [],
+                ]
+              : [],
         });
       },
     };
