@@ -730,6 +730,12 @@ jobs:
                   "item_number": {
                     "issueOrPRNumber": true
                   },
+                  "pr": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr_number": {
+                    "issueOrPRNumber": true
+                  },
                   "reply_to_id": {
                     "type": "string",
                     "maxLength": 256
@@ -737,6 +743,16 @@ jobs:
                   "repo": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "target": {
+                    "type": "string",
+                    "enum": [
+                      "status"
+                    ]
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   }
                 }
               },
@@ -874,6 +890,21 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
+                  }
+                }
+              },
+              "upload_artifact": {
+                "defaultMax": 10,
+                "fields": {
+                  "filters": {
+                    "type": "object"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   }
                 }
               },

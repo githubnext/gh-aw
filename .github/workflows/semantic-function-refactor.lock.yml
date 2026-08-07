@@ -610,6 +610,9 @@ jobs:
                     ],
                     "x-strip-on-error": true
                   },
+                  "duplicate_of": {
+                    "issueOrPRNumber": true
+                  },
                   "issue_number": {
                     "optionalPositiveInteger": true
                   },

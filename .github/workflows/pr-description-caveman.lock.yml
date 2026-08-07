@@ -668,6 +668,12 @@ jobs:
                       "prepend"
                     ]
                   },
+                  "pr": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr_number": {
+                    "issueOrPRNumber": true
+                  },
                   "pull_request_number": {
                     "issueOrPRNumber": true
                   },
