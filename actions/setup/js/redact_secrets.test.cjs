@@ -697,10 +697,14 @@ Custom secret: my-secret-123456789012`;
 
     it("should extract lowercase authorization keys from Codex TOML configuration", () => {
       const configPath = path.join(tempDir, "config-lowercase.toml");
-      fs.writeFileSync(configPath, '[mcp_servers.github]\nhttp_headers = { authorization = "codex-lowercase-token-abc123" }\n');
+      const token = "codex-lowercase-token-abc123";
+      const authHeader = ["Bearer", token].join(" ");
+      fs.writeFileSync(configPath, `[mcp_servers.github]\nhttp_headers = { authorization = "${authHeader}" }\n`);
 
       const { extractMCPGatewayTokens } = require("./redact_secrets.cjs");
-      expect(extractMCPGatewayTokens([configPath])).toContain("codex-lowercase-token-abc123");
+      const tokens = extractMCPGatewayTokens([configPath]);
+      expect(tokens).toContain(authHeader);
+      expect(tokens).toContain(token);
     });
 
     it("should ignore short Authorization values even when bearer-prefixed", () => {
