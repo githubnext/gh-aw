@@ -7,6 +7,7 @@ import (
 	"maps"
 	"reflect"
 	"sort"
+	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -25,7 +26,7 @@ type WorkflowStep struct {
 	Shell            string            `yaml:"shell,omitempty"`
 	With             map[string]any    `yaml:"with,omitempty"`
 	Env              map[string]string `yaml:"env,omitempty"`
-	ContinueOnError  any               `yaml:"continue-on-error,omitempty"` // Can be bool or string expression
+	ContinueOnError  *TemplatableBool  `yaml:"continue-on-error,omitempty"` // Can be bool or string expression
 	TimeoutMinutes   int               `yaml:"timeout-minutes,omitempty"`
 }
 
@@ -67,7 +68,14 @@ func (s *WorkflowStep) ToMap() map[string]any {
 		result["env"] = s.Env
 	}
 	if s.ContinueOnError != nil {
-		result["continue-on-error"] = s.ContinueOnError
+		switch s.ContinueOnError.String() {
+		case "true":
+			result["continue-on-error"] = true
+		case "false":
+			result["continue-on-error"] = false
+		default:
+			result["continue-on-error"] = s.ContinueOnError.String()
+		}
 	}
 	if s.TimeoutMinutes > 0 {
 		result["timeout-minutes"] = s.TimeoutMinutes
@@ -126,8 +134,16 @@ func MapToStep(stepMap map[string]any) (*WorkflowStep, error) {
 		}
 	}
 	if continueOnError, ok := stepMap["continue-on-error"]; ok {
-		// Preserve the original type (bool or string)
-		step.ContinueOnError = continueOnError
+		switch value := continueOnError.(type) {
+		case bool:
+			templatableValue := TemplatableBool(strconv.FormatBool(value))
+			step.ContinueOnError = &templatableValue
+		case string:
+			if value == "true" || value == "false" || isExpression(value) {
+				templatableValue := TemplatableBool(value)
+				step.ContinueOnError = &templatableValue
+			}
+		}
 	}
 	if timeoutMinutes, ok := stepMap["timeout-minutes"].(int); ok {
 		step.TimeoutMinutes = timeoutMinutes
