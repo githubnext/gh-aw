@@ -16,7 +16,6 @@ on:
     strategy: centralized
     name: review
     events: [pull_request_comment, pull_request_review_comment]
-model: copilot/gpt-5.4
 engine:
   id: pi
 permissions:
