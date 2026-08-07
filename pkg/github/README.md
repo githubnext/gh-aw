@@ -27,8 +27,8 @@ This package defines how GitHub issue labels are translated into numeric objecti
 | Method | Signature | Description |
 |--------|-----------|-------------|
 | `ComputeObjectiveValue` | `func(issueLabels []string) int` | Calculates the numeric value for an issue based on its labels; returns `0` if no labels match or if the receiver is `nil` |
-| `GetObjectiveLabels` | `func(issueLabels []string) []string` | Returns the subset of `issueLabels` that have defined objective values, preserving original order |
-| `ValidateLabelExists` | `func(label string) bool` | Reports whether a given label has a defined objective value |
+| `FilterObjectiveLabels` | `func(issueLabels []string) []string` | Returns the subset of `issueLabels` that have defined objective values, preserving original order |
+| `HasObjectiveLabel` | `func(label string) bool` | Reports whether a given label has a defined objective value |
 | `GetAllLabels` | `func() []string` | Returns all labels defined in the mapping, sorted alphabetically |
 | `MarshalJSON` | `func() ([]byte, error)` | Implements `json.Marshaler`; produces indented JSON output |
 | `String` | `func() string` | Returns a human-readable summary: `ObjectiveMapping{labels: N, logic: X, priorities: M}` |
@@ -38,7 +38,7 @@ This package defines how GitHub issue labels are translated into numeric objecti
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `DefaultObjectiveMapping` | `func() *ObjectiveMapping` | Returns the built-in default label-to-value mapping |
-| `LoadObjectiveMappingFromConfig` | `func() *ObjectiveMapping` | Loads the mapping from environment, config file, or defaults (see precedence below) |
+| `LoadObjectiveMapping` | `func() *ObjectiveMapping` | Loads the mapping from environment, config file, or defaults (see precedence below) |
 
 ### Constants
 
@@ -73,7 +73,7 @@ Multi-label logic option constants:
 
 ## Configuration Precedence
 
-`LoadObjectiveMappingFromConfig` resolves the mapping in this order:
+`LoadObjectiveMapping` resolves the mapping in this order:
 
 1. **`OBJECTIVE_MAPPING_JSON` environment variable** — interpreted first as a raw JSON string; if parsing fails, treated as a file path from which JSON is read.
 2. **`.github/objective-mapping.json`** — a repository-level override file.
@@ -85,14 +85,14 @@ Multi-label logic option constants:
 import "github.com/github/gh-aw/pkg/github"
 
 // Load mapping (env > config file > defaults)
-om := github.LoadObjectiveMappingFromConfig()
+om := github.LoadObjectiveMapping()
 
 // Score an issue by its labels (default mapping: critical=100, high-priority=50, p1=50, ...)
 score := om.ComputeObjectiveValue([]string{"critical", "high-priority"})
 // score == 100  (max of critical=100, high-priority=50)
 
 // Check which labels contributed
-objectiveLabels := om.GetObjectiveLabels([]string{"critical", "high-priority"})
+objectiveLabels := om.FilterObjectiveLabels([]string{"critical", "high-priority"})
 // objectiveLabels == ["critical", "high-priority"]
 
 // Use the default mapping directly

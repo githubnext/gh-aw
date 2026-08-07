@@ -192,6 +192,59 @@ func TestValidateSandboxConfigTrustBoundaryMessage(t *testing.T) {
 	assert.Contains(t, errMsg, "dangerously-disable-sandbox-agent", "diagnostic must name the required feature flag")
 }
 
+func TestValidateSandboxConfigMCPEnvironmentVariableNames(t *testing.T) {
+	t.Run("valid names pass validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Env: map[string]string{
+						"API_TOKEN": "value",
+						"_DEBUG":    "true",
+					},
+				},
+			},
+		}
+
+		require.NoError(t, validateSandboxConfig(workflowData))
+	})
+
+	t.Run("invalid names fail validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Env: map[string]string{
+						"BAD-NAME": "value",
+					},
+				},
+			},
+		}
+
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sandbox.mcp.env.BAD-NAME")
+		assert.Contains(t, err.Error(), "^[A-Z_][A-Z0-9_]*$")
+		assert.Contains(t, err.Error(), "API_TOKEN")
+	})
+
+	t.Run("reserved transport names fail validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Env: map[string]string{
+						"GH_AW_MCP_GATEWAY_ENV_0": "value",
+					},
+				},
+			},
+		}
+
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sandbox.mcp.env.GH_AW_MCP_GATEWAY_ENV_0")
+		assert.Contains(t, err.Error(), "reserved for internal transport")
+		assert.Contains(t, err.Error(), "GH_AW_MCP_GATEWAY_")
+	})
+}
+
 // TestValidateSandboxConfigStoresJustification tests that a valid justification is
 // stored in AgentSandboxConfig.DisableReason for downstream diagnostics and audit.
 func TestValidateSandboxConfigStoresJustification(t *testing.T) {

@@ -138,7 +138,7 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 
 	outcomesHistoryLog.Printf("Running outcomes history: repo=%s, source=%s, limit=%d, json=%v", repo, source, config.Limit, config.JSONOutput)
 
-	mapping := ghmapping.LoadObjectiveMappingFromConfig()
+	mapping := ghmapping.LoadObjectiveMapping()
 	data := historicalObjectivesData{Repo: repo, Limit: config.Limit}
 
 	if source == historySourceAll || source == historySourceIssues {
@@ -217,7 +217,7 @@ func buildHistoricalObjectiveReport(source string, items []historicalGitHubItem,
 			labels = append(labels, label.Name)
 		}
 
-		objectiveLabels := mapping.GetObjectiveLabels(labels)
+		objectiveLabels := mapping.FilterObjectiveLabels(labels)
 		objectiveValue := mapping.ComputeObjectiveValue(labels)
 		if objectiveValue > 0 {
 			scoredItems++
