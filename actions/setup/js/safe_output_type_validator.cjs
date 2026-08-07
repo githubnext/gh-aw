@@ -744,7 +744,11 @@ function validateItem(item, itemType, lineNum, options) {
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
     } else if (fieldValue !== undefined) {
-      const validationKind = validation.type ? `type=${Array.isArray(validation.type) ? validation.type.join("|") : validation.type}` : Object.keys(validation).sort().join(",") || "unspecified";
+      let validationKind = Object.keys(validation).sort().join(",") || "unspecified";
+      if (validation.type) {
+        const validationType = Array.isArray(validation.type) ? validation.type.join("|") : validation.type;
+        validationKind = `type=${validationType}`;
+      }
       const fieldValueType = Array.isArray(fieldValue) ? "array" : typeof fieldValue;
       errors.push(`Line ${lineNum}: ${itemType} '${fieldName}' validation (${validationKind}) accepted ${fieldValueType} but did not produce a normalized value`);
     }
