@@ -151,7 +151,7 @@ const NO_AUTH_INFO_PATTERN = /No authentication information found|Session was no
 // are handled by isCommonAuthenticationFailedError from harness_retry_guard.cjs.
 const COPILOT_PAT_AUTH_FAILED_PATTERN = /checking third-party user token:[^\n]*Personal Access Tokens are not supported/i;
 // Pattern: Copilot CLI inference access denied
-const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference|No model available\.\s*Check policy enablement under GitHub Settings\s*>\s*Copilot/i;
+const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/;
 // Pattern: Agentic engine process killed by signal (timeout)
 const AGENTIC_ENGINE_TIMEOUT_PATTERN = /signal=SIG(?:TERM|KILL|INT)/;
 // Pattern: Copilot SDK driver timed out waiting for the session to become idle.
@@ -161,13 +161,6 @@ const SDK_SESSION_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for sessio
 // avoid false positives from any process that logs "Gateway shutdown initiated"
 // as plain text.
 const MCP_GATEWAY_SHUTDOWN_PATTERN = /"message"\s*:\s*"Gateway shutdown initiated"/;
-// Pattern to detect Copilot SDK subagent spawn failing due to model policy/entitlement gating.
-// Observed signature:
-//   "No model available. Check policy enablement under GitHub Settings > Copilot"
-// This specifically affects Task-tool subagent delegation in environments where
-// subagent model access is disabled. Retrying is non-productive.
-const TASK_SUBAGENT_NO_MODEL_AVAILABLE_PATTERN = /No model available\.\s*Check policy enablement under GitHub Settings\s*>\s*Copilot/i;
-const TASK_SUBAGENT_MARKER_PATTERN = /subagent\.started|toolName=["']?task["']?/i;
 
 // Pattern to detect null-type tool_call error that poisons conversation history.
 // Matches the Copilot API 400 error:
@@ -477,15 +470,6 @@ function isAuthenticationFailedError(output) {
 }
 
 /**
- * Detect Task-tool subagent delegation failure caused by missing model entitlement/policy.
- * @param {string} output
- * @returns {boolean}
- */
-function isTaskSubagentModelUnavailableError(output) {
-  return TASK_SUBAGENT_NO_MODEL_AVAILABLE_PATTERN.test(output) && TASK_SUBAGENT_MARKER_PATTERN.test(output);
-}
-
-/**
  * Determines if the collected output contains a Copilot SDK session.idle timeout.
  * @param {string} output
  * @returns {boolean}
@@ -563,7 +547,6 @@ function extractTokenCountFromOutput(output) {
  *   isNullTypeToolCall?: boolean,
  *   isQuotaExceeded?: boolean,
  *   isSDKSessionIdleTimeout?: boolean,
- *   isTaskSubagentModelUnavailable?: boolean,
  *   hasNumerousPermissionDenied?: boolean,
  *   tokenCount?: number,
  * }} detection
@@ -578,7 +561,6 @@ function classifyCopilotFailure(detection) {
   if (detection.isNullTypeToolCall) return "null_type_tool_call";
   if (detection.isAuthErr) return "no_auth_info";
   if (detection.isAuthenticationFailed) return "authentication_failed";
-  if (detection.isTaskSubagentModelUnavailable) return "task_subagent_model_unavailable";
   if (detection.isSDKSessionIdleTimeout) return "sdk_session_idle_timeout";
   if (detection.isMCPGatewayShutdown) return "mcp_gateway_shutdown";
   if (detection.hasNumerousPermissionDenied) return "permission_denied";
@@ -1212,7 +1194,6 @@ async function main() {
         const isNullTypeToolCall = isNullTypeToolCallError(result.output);
         const isSDKSessionIdleTimeout = isSDKSessionIdleTimeoutError(result.output);
         const isMCPGatewayShutdown = isMCPGatewayShutdownError(result.output);
-        const isTaskSubagentModelUnavailable = isTaskSubagentModelUnavailableError(result.output);
         const permissionDeniedCount = countPermissionDeniedIssues(result.output);
         const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
         const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
@@ -1232,7 +1213,6 @@ async function main() {
           isNullTypeToolCall,
           isQuotaExceeded,
           isSDKSessionIdleTimeout,
-          isTaskSubagentModelUnavailable,
           hasNumerousPermissionDenied,
           tokenCount,
         });
@@ -1250,7 +1230,6 @@ async function main() {
             ` isNullTypeToolCallError=${isNullTypeToolCall}` +
             ` isSDKSessionIdleTimeoutError=${isSDKSessionIdleTimeout}` +
             ` isMCPGatewayShutdownError=${isMCPGatewayShutdown}` +
-            ` isTaskSubagentModelUnavailableError=${isTaskSubagentModelUnavailable}` +
             ` isAuthError=${isAuthErr}` +
             ` isAuthenticationFailedError=${isAuthenticationFailed}` +
             ` permissionDeniedCount=${permissionDeniedCount}` +
@@ -1280,16 +1259,6 @@ async function main() {
         // would not produce different results and could waste resources.
         if (safeOutputsPath && hasNoopInSafeOutputs(safeOutputsPath, { logger: log })) {
           log(`attempt ${attempt + 1}: noop message found in safe-outputs — not retrying (work is already complete or no work needed)`);
-          lastExitCode = 0;
-          break;
-        }
-
-        // Task-tool subagent delegation can fail in some runner policies because the delegated
-        // subagent model is not entitled. This is non-retryable and should not fail the whole
-        // workflow run; continue without subagent delegation.
-        if (isTaskSubagentModelUnavailable) {
-          emitInfrastructureIncomplete("Copilot Task-tool subagent delegation was skipped because no model is available under current Copilot policy settings. Continue without subagent delegation.");
-          log(`attempt ${attempt + 1}: task-tool subagent model unavailable by policy — treating as success (delegation skipped)`);
           lastExitCode = 0;
           break;
         }
@@ -1545,7 +1514,6 @@ if (typeof module !== "undefined" && module.exports) {
     AGENTIC_ENGINE_TIMEOUT_PATTERN,
     buildMissingToolPermissionIssuePayload,
     isAuthenticationFailedError,
-    isTaskSubagentModelUnavailableError,
     isMCPGatewayShutdownError,
     isSDKSessionIdleTimeoutError,
     startCopilotSDKServer,
