@@ -229,6 +229,38 @@ describe("upload_assets.cjs", () => {
       await executeScript();
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("missing required fields"));
     });
+
+    it("should derive trusted metadata from a validated asset path", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const declaredPath = "/workspace/test.png";
+      const stagedFileName = `${crypto.createHash("sha256").update(declaredPath).digest("hex")}.png`;
+      const { sha } = makeAsset(assetDir, stagedFileName, "actual content");
+      trackCwdArtifact(`${sha}.png`);
+      setAgentOutput({ items: [{ type: "upload_asset", path: declaredPath }] });
+      mockBranchMissing();
+
+      await executeScript();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("upload_count", "1");
+    });
+
+    it("should reject target filenames outside the checkout root", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { sha, size } = makeAsset(assetDir, "test.png", "actual content");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha, size, targetFileName: "../../.git/config" }],
+      });
+      mockBranchMissing();
+
+      await executeScript();
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid asset target filename"));
+    });
   });
 
   describe("missing asset handling", () => {

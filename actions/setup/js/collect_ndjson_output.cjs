@@ -112,12 +112,12 @@ async function main() {
     }
     function validateItemWithSafeJobConfig(item, jobConfig, lineNum) {
       const errors = [];
-      const normalizedItem = { ...item };
+      const normalizedItem = { type: item.type };
       if (!jobConfig.inputs) {
         return {
           isValid: true,
           errors: [],
-          normalizedItem: item,
+          normalizedItem,
         };
       }
       for (const [fieldName, inputSchema] of Object.entries(jobConfig.inputs)) {
@@ -380,16 +380,13 @@ async function main() {
             continue;
           }
           const safeJobConfig = jobOutputType;
-          if (safeJobConfig && safeJobConfig.inputs) {
-            const validation = validateItemWithSafeJobConfig(item, safeJobConfig, i + 1);
-            if (!validation.isValid) {
-              errors.push(...validation.errors);
-              continue;
-            }
-            Object.assign(item, validation.normalizedItem);
+          const validation = validateItemWithSafeJobConfig(item, safeJobConfig, i + 1);
+          if (!validation.isValid) {
+            errors.push(...validation.errors);
+            continue;
           }
           core.info(`Line ${i + 1}: Valid ${itemType} item`);
-          parsedItems.push(item);
+          parsedItems.push(validation.normalizedItem);
         }
       } catch (error) {
         const errorMsg = getErrorMessage(error);

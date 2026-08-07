@@ -113,6 +113,24 @@ const SAMPLE_VALIDATION_CONFIG = {
       repo: { type: "string", maxLength: 256 },
     },
   },
+  upload_asset: {
+    defaultMax: 10,
+    fields: {
+      path: { required: true, type: "string" },
+    },
+  },
+  close_issue: {
+    defaultMax: 1,
+    fields: {
+      issue_number: { optionalPositiveInteger: true },
+    },
+  },
+  push_to_pull_request_branch: {
+    defaultMax: 1,
+    fields: {
+      message: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+    },
+  },
   set_issue_type: {
     defaultMax: 5,
     fields: {
@@ -1343,8 +1361,8 @@ describe("safe_output_type_validator", () => {
     });
   });
 
-  describe("undeclared field passthrough", () => {
-    it("should preserve base_commit on normalizedItem", async () => {
+  describe("undeclared fields", () => {
+    it("should preserve the normalized type and declared fields", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const item = {
@@ -1352,31 +1370,32 @@ describe("safe_output_type_validator", () => {
         title: "Fix bug",
         body: "Fixes the thing",
         branch: "fix/bug",
-        base_commit: "abc123deadbeef",
       };
 
       const result = validateItem(item, "create_pull_request", 1);
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem.base_commit).toBe("abc123deadbeef");
+      expect(result.normalizedItem).toEqual(item);
     });
 
-    it("should preserve diff_size on normalizedItem", async () => {
+    it.each([
+      { itemType: "add_comment", item: { type: "add_comment", body: "Test comment", comment_id: 123 }, fieldName: "comment_id" },
+      { itemType: "update_pull_request", item: { type: "update_pull_request", title: "Updated title", base: "release", state: "closed" }, fieldName: "base" },
+      { itemType: "update_pull_request", item: { type: "update_pull_request", title: "Updated title", base: "release", state: "closed" }, fieldName: "state" },
+      { itemType: "upload_asset", item: { type: "upload_asset", path: "image.png", targetFileName: "../../.git/config" }, fieldName: "targetFileName" },
+      { itemType: "create_issue", item: { type: "create_issue", title: "Test", body: "Detailed issue body text.", assignees: ["octocat"] }, fieldName: "assignees" },
+      { itemType: "create_discussion", item: { type: "create_discussion", title: "Test", body: "This discussion body is intentionally long enough for validation.", labels: ["security"] }, fieldName: "labels" },
+      { itemType: "close_issue", item: { type: "close_issue", issue_number: 1, state_reason: "not_planned" }, fieldName: "state_reason" },
+      { itemType: "push_to_pull_request_branch", item: { type: "push_to_pull_request_branch", message: "Apply changes", diff_size: 0 }, fieldName: "diff_size" },
+      { itemType: "create_pull_request", item: { type: "create_pull_request", title: "Fix bug", body: "Fixes the thing", branch: "fix/bug", base_commit: "abc123deadbeef" }, fieldName: "base_commit" },
+    ])("should strip undeclared $itemType.$fieldName", async ({ itemType, item, fieldName }) => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const item = {
-        type: "create_pull_request",
-        title: "Fix bug",
-        body: "Fixes the thing",
-        branch: "fix/bug",
-        diff_size: 1,
-      };
-
-      const result = validateItem(item, "create_pull_request", 1);
+      const result = validateItem(item, itemType, 1);
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem.diff_size).toBe(1);
+      expect(result.normalizedItem).not.toHaveProperty(fieldName);
     });
 
-    it("should preserve undeclared fields", async () => {
+    it("should preserve enabled structured data", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const item = {
@@ -1386,7 +1405,7 @@ describe("safe_output_type_validator", () => {
         data: { project: "test" },
       };
 
-      const result = validateItem(item, "create_issue", 1);
+      const result = validateItem(item, "create_issue", 1, { dataEnabled: true });
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.data).toEqual({ project: "test" });
     });

@@ -29,6 +29,17 @@ function debugLog(message) {
   }
 }
 
+function embedBaseCommit(patchContent, baseCommitSha) {
+  if (!baseCommitSha || typeof patchContent !== "string") {
+    return patchContent;
+  }
+  const firstNewline = patchContent.indexOf("\n");
+  if (firstNewline < 0) {
+    return patchContent;
+  }
+  return `${patchContent.slice(0, firstNewline + 1)}X-GH-AW-Base-Commit: ${baseCommitSha}\n${patchContent.slice(firstNewline + 1)}`;
+}
+
 /**
  * Generates a git patch file for the current changes
  * @param {string} branchName - The branch name to generate patch for
@@ -290,7 +301,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           const patchContent = execGitSync(["format-patch", `${baseRef}..${tipRef}`, "--stdout", ...excludeArgs()], { cwd });
 
           if (patchContent && patchContent.trim()) {
-            fs.writeFileSync(patchPath, patchContent, "utf8");
+            fs.writeFileSync(patchPath, embedBaseCommit(patchContent, baseCommitSha), "utf8");
             patchGenerated = true;
             debugLog(`Strategy 1: SUCCESS - Generated patch with ${patchContent.split("\n").length} lines`);
           }
@@ -407,7 +418,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
               const patchContent = execGitSync(["format-patch", `${githubSha}..HEAD`, "--stdout", ...excludeArgs()], { cwd });
 
               if (patchContent && patchContent.trim()) {
-                fs.writeFileSync(patchPath, patchContent, "utf8");
+                fs.writeFileSync(patchPath, embedBaseCommit(patchContent, baseCommitSha), "utf8");
                 patchGenerated = true;
                 debugLog(`Strategy 2: SUCCESS - Generated patch with ${patchContent.split("\n").length} lines`);
               }
@@ -490,7 +501,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
                 const patchContent = execGitSync(["format-patch", `${bestBaseCommit}..${branchName}`, "--stdout", ...excludeArgs()], { cwd });
 
                 if (patchContent && patchContent.trim()) {
-                  fs.writeFileSync(patchPath, patchContent, "utf8");
+                  fs.writeFileSync(patchPath, embedBaseCommit(patchContent, baseCommitSha), "utf8");
                   patchGenerated = true;
                   debugLog(`Strategy 3: SUCCESS - Generated patch with ${patchContent.split("\n").length} lines`);
                 }

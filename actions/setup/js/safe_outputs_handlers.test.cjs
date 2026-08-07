@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
@@ -351,7 +352,8 @@ describe("safe_outputs_handlers", () => {
 
       // File must be staged under RUNNER_TEMP, not hardcoded /tmp
       const expectedDir = path.join(testRunnerTemp, "gh-aw", "safeoutputs", "assets");
-      expect(fs.existsSync(path.join(expectedDir, "chart.png"))).toBe(true);
+      const stagedFileName = `${crypto.createHash("sha256").update(testFile).digest("hex")}.png`;
+      expect(fs.existsSync(path.join(expectedDir, stagedFileName))).toBe(true);
     });
 
     it("should throw error if GH_AW_ASSETS_BRANCH not set", () => {

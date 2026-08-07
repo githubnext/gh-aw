@@ -526,8 +526,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const fileName = path.basename(filePath);
     const fileExt = path.extname(fileName).toLowerCase();
 
-    // Copy file to assets directory with original name
-    const targetPath = path.join(assetsDir, fileName);
+    // Key the staged file by its declared source path so same-basename assets
+    // cannot overwrite each other before the privileged publishing job.
+    const stagedFileName = `${crypto.createHash("sha256").update(filePath).digest("hex")}${fileExt}`;
+    const targetPath = path.join(assetsDir, stagedFileName);
     try {
       fs.copyFileSync(filePath, targetPath);
     } catch (err) {

@@ -413,6 +413,35 @@ func TestValidationConfigConsistency(t *testing.T) {
 	}
 }
 
+func TestValidationConfigCoversToolInputSchemas(t *testing.T) {
+	var tools []struct {
+		Name        string `json:"name"`
+		InputSchema struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"inputSchema"`
+	}
+	if err := json.Unmarshal([]byte(safeOutputsToolsJSONContent), &tools); err != nil {
+		t.Fatalf("failed to parse safe outputs tool schema: %v", err)
+	}
+
+	metadataFields := map[string]bool{"secrecy": true, "integrity": true}
+	for _, tool := range tools {
+		config, ok := ValidationConfig[tool.Name]
+		if !ok {
+			t.Errorf("%s tool is missing from ValidationConfig", tool.Name)
+			continue
+		}
+		for fieldName := range tool.InputSchema.Properties {
+			if metadataFields[fieldName] {
+				continue
+			}
+			if _, ok := config.Fields[fieldName]; !ok {
+				t.Errorf("%s tool input %q is missing from ValidationConfig", tool.Name, fieldName)
+			}
+		}
+	}
+}
+
 func TestCreateDiscussionBodyMinLength(t *testing.T) {
 	config, ok := ValidationConfig["create_discussion"]
 	if !ok {

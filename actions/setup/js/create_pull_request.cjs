@@ -33,7 +33,7 @@ const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getProm
 const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
-const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
+const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, getBundlePrerequisites, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
@@ -1882,10 +1882,10 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
 
         // Handle branch creation/checkout
         let branchBaseRef = baseBranch;
-        const recordedBaseCommit = normalizeCommitSHA(pullRequestItem.base_commit);
+        const recordedBaseCommit = extractPatchBaseCommit(patchContent);
         if (recordedBaseCommit) {
           core.info(`Patch route base_commit resolved: ${recordedBaseCommit}`);
-          core.info(`Using base_commit from safe output entry for patch apply: ${recordedBaseCommit}`);
+          core.info(`Using base_commit embedded in the patch for patch apply: ${recordedBaseCommit}`);
           try {
             try {
               await exec.exec("git", ["fetch", "origin", recordedBaseCommit, "--depth=1"]);
@@ -1901,8 +1901,6 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
           } catch (baseCommitError) {
             core.warning(`Recorded base_commit ${recordedBaseCommit} is not available in this checkout (${getErrorMessage(baseCommitError)}); falling back to ${baseBranch}`);
           }
-        } else if (String(pullRequestItem.base_commit ?? "").trim()) {
-          core.warning(`Ignoring invalid base_commit value for patch apply: ${String(pullRequestItem.base_commit).trim()}`);
         }
         core.info(`Branch should not exist locally, creating new branch from base: ${branchName} (${branchBaseRef})`);
         await exec.exec("git", ["checkout", "-b", branchName, branchBaseRef]);
@@ -1997,9 +1995,9 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 // Use the base commit recorded at patch generation time.
                 // The From <sha> header in format-patch output contains the agent's new commit SHA
                 // which does not exist in this checkout, so we cannot derive the base from it.
-                const originalBaseCommit = normalizeCommitSHA(pullRequestItem.base_commit);
+                const originalBaseCommit = extractPatchBaseCommit(patchContent);
                 if (!originalBaseCommit) {
-                  core.warning("No base_commit recorded in safe output entry - fallback not possible");
+                  core.warning("No base_commit embedded in patch - fallback not possible");
                 } else {
                   core.info(`Original base commit from patch generation: ${originalBaseCommit}`);
 

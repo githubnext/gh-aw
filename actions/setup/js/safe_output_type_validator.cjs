@@ -703,7 +703,10 @@ function validateItem(item, itemType, lineNum, options) {
     return { isValid: true, normalizedItem: item };
   }
 
-  const normalizedItem = { ...item };
+  // Build the downstream payload from the declared contract. The raw item is
+  // agent-controlled, so forwarding undeclared fields would let consumers act
+  // on values that were never validated.
+  const normalizedItem = { type: item.type };
   const errors = [];
 
   // Run custom validation first if defined
@@ -729,6 +732,8 @@ function validateItem(item, itemType, lineNum, options) {
       }
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
+    } else if (fieldValue !== undefined) {
+      normalizedItem[fieldName] = fieldValue;
     }
   }
 
