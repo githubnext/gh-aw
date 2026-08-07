@@ -151,9 +151,7 @@ async function closeDiscussionAsOutdated(github, discussionId) {
 
 /**
  * @param {{
- *   github: any,
- *   owner: string,
- *   repo: string,
+ *   core: {info: (msg: string) => void, warning: (msg: string) => void},
  *   workflowName: string,
  *   workflowId: string,
  *   runUrl: string,
@@ -169,6 +167,7 @@ async function closeDiscussionAsOutdated(github, discussionId) {
  * @returns {(entity: any) => Promise<{status: "closed" | "skipped", record: any}>}
  */
 function createExpiredEntityHandler(options) {
+  const core = options.core;
   return async entity => {
     const earlyResult = options.beforeComment ? await options.beforeComment(entity) : undefined;
     if (earlyResult) {

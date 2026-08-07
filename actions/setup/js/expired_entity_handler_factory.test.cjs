@@ -1,4 +1,8 @@
 // @ts-check
+// NOTE: This file uses ESM `import` syntax even though it has a `.cjs` extension.
+// Vitest's bundler transforms `.cjs` test files to ESM at test time; `require("vitest")`
+// is not supported by Vitest and would fail at runtime. Plain-Node execution of this
+// file outside Vitest is not supported — run tests with `vitest run`.
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createExpiredEntityHandler } from "./expired_entity_handler_factory.cjs";
 
@@ -6,8 +10,6 @@ const mockCore = {
   info: vi.fn(),
   warning: vi.fn(),
 };
-
-global.core = mockCore;
 
 describe("expired_entity_handler_factory", () => {
   beforeEach(() => {
@@ -20,9 +22,7 @@ describe("expired_entity_handler_factory", () => {
     const closeEntity = vi.fn().mockResolvedValue({ state: "closed" });
 
     const handler = createExpiredEntityHandler({
-      github: {},
-      owner: "testowner",
-      repo: "testrepo",
+      core: mockCore,
       workflowName: "Expired Cleanup",
       workflowId: "expired-cleanup",
       runUrl: "https://github.com/testowner/testrepo/actions/runs/1",
@@ -56,9 +56,7 @@ describe("expired_entity_handler_factory", () => {
     const closeEntity = vi.fn();
 
     const handler = createExpiredEntityHandler({
-      github: {},
-      owner: "testowner",
-      repo: "testrepo",
+      core: mockCore,
       workflowName: "Expired Cleanup",
       workflowId: "expired-cleanup",
       runUrl: "https://github.com/testowner/testrepo/actions/runs/1",
@@ -89,5 +87,33 @@ describe("expired_entity_handler_factory", () => {
         url: "https://github.com/testowner/testrepo/discussions/7",
       },
     });
+  });
+
+  it("runs normal flow when beforeComment returns undefined", async () => {
+    const addComment = vi.fn().mockResolvedValue({});
+    const closeEntity = vi.fn().mockResolvedValue({});
+
+    const handler = createExpiredEntityHandler({
+      core: mockCore,
+      workflowName: "Expired Cleanup",
+      workflowId: "expired-cleanup",
+      runUrl: "https://github.com/testowner/testrepo/actions/runs/1",
+      entityNoun: "discussion",
+      entityLabel: "Discussion",
+      beforeComment: async () => undefined,
+      addComment,
+      closeEntity,
+    });
+
+    const result = await handler({
+      number: 1,
+      title: "T",
+      url: "https://github.com/testowner/testrepo/discussions/1",
+      expirationDate: new Date("2020-01-20T09:20:00.000Z"),
+    });
+
+    expect(addComment).toHaveBeenCalledTimes(1);
+    expect(closeEntity).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe("closed");
   });
 });

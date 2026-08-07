@@ -58,14 +58,12 @@ async function main() {
     enableDedupe: true, // Discussions may have duplicates across pages
     includeSkippedHeading: true,
     processEntity: createExpiredEntityHandler({
-      github,
-      owner,
-      repo,
       workflowName,
       workflowId,
       runUrl,
       entityNoun: "discussion",
       entityLabel: "Discussion",
+      core,
       footerSuffix: "\n\n<!-- gh-aw-closed -->",
       beforeComment: async discussion => {
         core.info(`  Checking for existing expiration comment and closed state on discussion #${discussion.number}`);
@@ -87,7 +85,7 @@ async function main() {
           core.info(`  ✓ Discussion closed successfully`);
 
           return {
-            status: "skipped",
+            status: "closed",
             record: createClosedRecord(discussion),
           };
         }
