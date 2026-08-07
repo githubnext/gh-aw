@@ -50,7 +50,7 @@ tools:
 				"tools":  map[string]any{"bash": []any{"git", "npm"}},
 			},
 			wantErr:     true,
-			errContains: []string{"engine 'codex' does not support bash command allow-listing", `'bash: ["git", "npm"]'`, "copilot, claude, or gemini", `bash: ["*"]`},
+			errContains: []string{"engine 'codex' does not support bash command allow-listing", `'bash: ["git", "npm"]'`, "copilot", "claude", "gemini", `bash: ["*"]`},
 		},
 		{
 			name: "codex as engine string returns guided error",
@@ -127,7 +127,10 @@ tools:
 			},
 		},
 		{
-			name: "default engine with restricted bash allow-list is a no-op",
+			// No engine key → extractEngineIDFromFrontmatter returns "copilot", which does
+			// support BashCommandAllowlist, so no guided error is emitted. This test will
+			// need to be revisited if the default engine changes or loses the capability.
+			name: "default engine (copilot) with restricted bash allow-list is a no-op because copilot supports the capability",
 			frontmatter: map[string]any{
 				"tools": map[string]any{"bash": []any{"git"}},
 			},

@@ -48,6 +48,9 @@ func applyBashAllowlistUnsupportedEngineCheck(content string, frontmatter map[st
 		effectiveTools, _ = frontmatter["tools"].(map[string]any)
 	}
 
+	// Extract the bash value once so we avoid a double-read: HasBashExplicitRestriction
+	// inspects it and describeBashRestriction renders it; both see the same value.
+	bashVal := effectiveTools["bash"]
 	if !workflow.HasBashExplicitRestriction(effectiveTools) {
 		return content, false, nil
 	}
@@ -64,13 +67,20 @@ func applyBashAllowlistUnsupportedEngineCheck(content string, frontmatter map[st
 
 	bashAllowlistUnsupportedEngineCodemodLog.Printf("Engine %s ignores the restricted tools.bash configuration, emitting guided error", engineID)
 
+	// Build the list of supported engines dynamically from the registry so the message stays
+	// accurate as new engines gain BashCommandAllowlist support.
+	supportedEngines := workflow.GetGlobalEngineRegistry().EnginesWithCapability(func(c workflow.EngineCapabilities) bool {
+		return c.BashCommandAllowlist
+	})
+
 	return content, false, fmt.Errorf(
 		"engine '%s' does not support bash command allow-listing: %s is silently ignored at runtime for this engine. "+
-			"Manual fix required: switch to an engine that enforces the allow-list (copilot, claude, or gemini), "+
+			"Manual fix required: switch to an engine that enforces the allow-list (%s), "+
 			"or replace the configuration with 'bash: [\"*\"]' to make the unrestricted access explicit. "+
 			"See: https://github.github.com/gh-aw/reference/tools/",
 		engineID,
-		describeBashRestriction(effectiveTools["bash"]),
+		describeBashRestriction(bashVal),
+		strings.Join(supportedEngines, ", "),
 	)
 }
 
