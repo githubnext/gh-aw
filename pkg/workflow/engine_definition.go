@@ -32,6 +32,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -336,11 +338,12 @@ type ResolvedEngineTarget struct {
 }
 
 const (
-	knownEngineImportsOwner   = "github"
-	knownEngineImportsRepo    = "gh-aw"
-	knownEngineImportsPath    = ".github/aw/engines.json"
-	knownEngineImportsRef     = "main"
-	knownEngineImportsTimeout = 3 * time.Second
+	knownEngineImportsOwner          = "github"
+	knownEngineImportsRepo           = "gh-aw"
+	knownEngineImportsPath           = ".github/aw/engines.json"
+	knownEngineImportsRef            = "refs/heads/main"
+	knownEngineImportsTimeout        = 3 * time.Second
+	knownEngineImportsMaxBytes int64 = 1 << 20
 )
 
 type knownEngineImportEntry struct {
@@ -357,10 +360,46 @@ var (
 	knownEngineImportsLoaded bool
 	knownEngineImports       map[string]string
 
+	knownEngineImportsRawBaseURL = "https://raw.githubusercontent.com"
+	knownEngineImportsHTTPClient = func() *http.Client {
+		return &http.Client{Timeout: knownEngineImportsTimeout}
+	}
 	knownEngineImportsDownload = func(ctx context.Context) ([]byte, error) {
-		return parser.DownloadFileFromGitHubForHost(ctx, knownEngineImportsOwner, knownEngineImportsRepo, knownEngineImportsPath, knownEngineImportsRef, "github.com")
+		return downloadKnownEngineImports(ctx, knownEngineImportsRawURL())
 	}
 )
+
+func knownEngineImportsRawURL() string {
+	return strings.TrimRight(knownEngineImportsRawBaseURL, "/") + "/" + strings.Join([]string{
+		knownEngineImportsOwner,
+		knownEngineImportsRepo,
+		knownEngineImportsRef,
+		knownEngineImportsPath,
+	}, "/")
+}
+
+func downloadKnownEngineImports(ctx context.Context, rawURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := knownEngineImportsHTTPClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			engineCatalogLog.Printf("Known engine import catalog close failed: %v", closeErr)
+		}
+	}()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+
+	return io.ReadAll(io.LimitReader(resp.Body, knownEngineImportsMaxBytes))
+}
 
 // knownEngineImportFor returns the shared import spec for a known external
 // engine. The first call fetches the catalog on demand and may block for up to
@@ -415,9 +454,20 @@ func loadKnownEngineImports(download func(context.Context) ([]byte, error)) map[
 		if id == "" || importPath == "" {
 			continue
 		}
-		loaded[id] = importPath
+		loaded[id] = knownEngineImportWithCompilerRef(importPath)
 	}
 	return loaded
+}
+
+func knownEngineImportWithCompilerRef(importPath string) string {
+	if strings.Contains(importPath, "@") {
+		return importPath
+	}
+	ref := versionToGitRef(GetVersion())
+	if ref == "" {
+		return importPath
+	}
+	return importPath + "@" + ref
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and

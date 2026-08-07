@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -35,12 +37,14 @@ func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr err
 	defer knownEngineImportsMu.Unlock()
 
 	originalDownload := knownEngineImportsDownload
+	originalVersion := GetVersion()
 
 	knownEngineImportsDownload = func(context.Context) ([]byte, error) {
 		return content, downloadErr
 	}
 	knownEngineImportsLoaded = false
 	knownEngineImports = nil
+	SetVersion(knownEngineImportTestRef)
 
 	t.Cleanup(func() {
 		knownEngineImportsMu.Lock()
@@ -49,6 +53,7 @@ func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr err
 		knownEngineImportsDownload = originalDownload
 		knownEngineImportsLoaded = false
 		knownEngineImports = nil
+		SetVersion(originalVersion)
 		knownEngineImportsTestMu.Unlock()
 	})
 	cleanupRegistered = true
@@ -148,13 +153,13 @@ func TestEngineCatalog_Resolve_UnknownEngine(t *testing.T) {
 func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 	withKnownEngineImportsForTest(t, []byte(`{
 		"engines": [
-			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md@`+knownEngineImportTestRef+`"},
-			{"id": "crush", "import": "github/gh-aw/.github/workflows/shared/crush.md@`+knownEngineImportTestRef+`"},
-			{"id": "cursor", "import": "github/gh-aw/.github/workflows/shared/cursor.md@`+knownEngineImportTestRef+`"},
-			{"id": "aider", "import": "github/gh-aw/.github/workflows/shared/aider.md@`+knownEngineImportTestRef+`"},
-			{"id": "goose", "import": "github/gh-aw/.github/workflows/shared/goose.md@`+knownEngineImportTestRef+`"},
-			{"id": "kiro", "import": "github/gh-aw/.github/workflows/shared/kiro.md@`+knownEngineImportTestRef+`"},
-			{"id": "custom", "import": "github/gh-aw/.github/workflows/shared/genaiscript.md@`+knownEngineImportTestRef+`"}
+			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md"},
+			{"id": "crush", "import": "github/gh-aw/.github/workflows/shared/crush.md"},
+			{"id": "cursor", "import": "github/gh-aw/.github/workflows/shared/cursor.md"},
+			{"id": "aider", "import": "github/gh-aw/.github/workflows/shared/aider.md"},
+			{"id": "goose", "import": "github/gh-aw/.github/workflows/shared/goose.md"},
+			{"id": "kiro", "import": "github/gh-aw/.github/workflows/shared/kiro.md"},
+			{"id": "custom", "import": "github/gh-aw/.github/workflows/shared/genaiscript.md"}
 		]
 	}`), nil)
 
@@ -230,7 +235,7 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 func TestEngineCatalog_Resolve_UnknownNoTip(t *testing.T) {
 	withKnownEngineImportsForTest(t, []byte(`{
 		"engines": [
-			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md@`+knownEngineImportTestRef+`"}
+			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md"}
 		]
 	}`), nil)
 
@@ -257,6 +262,33 @@ func TestEngineCatalog_Resolve_KnownImportDownloadFailureNoTip(t *testing.T) {
 	require.NotContains(t, err.Error(), "Tip:", "download failures should be silent")
 }
 
+func TestKnownEngineImportsDownload_UsesRawGitHubURL(t *testing.T) {
+	knownEngineImportsTestMu.Lock()
+	defer knownEngineImportsTestMu.Unlock()
+
+	originalBaseURL := knownEngineImportsRawBaseURL
+	originalHTTPClient := knownEngineImportsHTTPClient
+	t.Cleanup(func() {
+		knownEngineImportsRawBaseURL = originalBaseURL
+		knownEngineImportsHTTPClient = originalHTTPClient
+	})
+
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		_, _ = w.Write([]byte(`{"engines":[]}`))
+	}))
+	defer server.Close()
+
+	knownEngineImportsRawBaseURL = server.URL
+	knownEngineImportsHTTPClient = server.Client
+
+	content, err := knownEngineImportsDownload(context.Background())
+	require.NoError(t, err)
+	require.JSONEq(t, `{"engines":[]}`, string(content))
+	require.Equal(t, "/github/gh-aw/refs/heads/main/.github/aw/engines.json", gotPath)
+}
+
 func TestKnownEngineImportsFile_MatchesSharedEngineFiles(t *testing.T) {
 	catalogPath := filepath.Join("..", "..", knownEngineImportsPath)
 	content, err := os.ReadFile(catalogPath)
@@ -269,7 +301,7 @@ func TestKnownEngineImportsFile_MatchesSharedEngineFiles(t *testing.T) {
 	for _, engine := range catalog.Engines {
 		require.NotEmpty(t, engine.ID)
 		require.NotEmpty(t, engine.Import)
-		require.NotContains(t, engine.Import, "@main", "known engine imports should be pinned")
+		require.NotContains(t, engine.Import, "@", "known engine imports should leave ref pinning to the CLI")
 		byID[engine.ID] = engine.Import
 	}
 
@@ -283,7 +315,7 @@ func TestKnownEngineImportsFile_MatchesSharedEngineFiles(t *testing.T) {
 	for id, relPath := range sharedEngines {
 		importPath, ok := byID[id]
 		require.True(t, ok, "shared external engine %q in %s should be listed in %s", id, relPath, knownEngineImportsPath)
-		require.Contains(t, importPath, relPath+"@", "import for %q should reference its shared file", id)
+		require.Contains(t, importPath, relPath, "import for %q should reference its shared file", id)
 	}
 }
 
