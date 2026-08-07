@@ -1,6 +1,15 @@
 import fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyOTLPIgnoreIfMissing, detectEngineType, getJSONParseErrorContext, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, normalizeSinkVisibilityEncoding, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
+import {
+  applyOTLPIgnoreIfMissing,
+  detectEngineType,
+  getJSONParseErrorContext,
+  getOTLPIfMissingMode,
+  hasNonEmptyOTLPHeaders,
+  injectCustomGatewayEnvArgs,
+  normalizeSinkVisibilityEncoding,
+  resolveCopilotConfigPaths,
+} from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway logging", () => {
   it("does not create the legacy MCP gateway stderr log", () => {
@@ -16,6 +25,61 @@ describe("start_mcp_gateway logging", () => {
   it("discards the gateway child process stderr", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source).toContain(`stdio: ["pipe", outputFd, "ignore"]`);
+  });
+});
+
+describe("start_mcp_gateway custom environment arguments", () => {
+  const marker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__";
+
+  it("passes hostile values as one atomic Docker argument", () => {
+    const hostileValue = `x" --privileged -v /workspace/evil:/evil --entrypoint /evil -e X="x`;
+    const args = injectCustomGatewayEnvArgs(["run", "--rm", marker, "gateway-image"], {
+      GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["BASH_ENV"]',
+      GH_AW_MCP_GATEWAY_ENV_0: hostileValue,
+    });
+
+    expect(args).toEqual(["run", "--rm", "-e", `BASH_ENV=${hostileValue}`, "gateway-image"]);
+  });
+
+  it("preserves sorted multi-value index mapping and empty values", () => {
+    const args = injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
+      GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["ALPHA","EMPTY","OMEGA"]',
+      GH_AW_MCP_GATEWAY_ENV_0: "first",
+      GH_AW_MCP_GATEWAY_ENV_1: "",
+      GH_AW_MCP_GATEWAY_ENV_2: "last\nline",
+    });
+
+    expect(args).toEqual(["run", "-e", "ALPHA=first", "-e", "EMPTY=", "-e", "OMEGA=last\nline", "gateway-image"]);
+  });
+
+  it("uses an empty value when transport metadata is missing", () => {
+    const args = injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
+      GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["PRESENT","MISSING"]',
+      GH_AW_MCP_GATEWAY_ENV_0: "value",
+    });
+
+    expect(args).toEqual(["run", "-e", "PRESENT=value", "-e", "MISSING=", "gateway-image"]);
+  });
+
+  it("leaves commands without the marker unchanged", () => {
+    const args = ["run", "--rm", "gateway-image"];
+    expect(injectCustomGatewayEnvArgs(args, { GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: "not-json" })).toBe(args);
+  });
+
+  it("rejects malformed JSON metadata", () => {
+    expect(() =>
+      injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
+        GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: "not-json",
+      })
+    ).toThrow(/must be valid JSON/);
+  });
+
+  it("rejects malformed or unsafe environment variable names", () => {
+    expect(() =>
+      injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
+        GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["BAD-NAME"]',
+      })
+    ).toThrow(/valid environment variable names/);
   });
 });
 
