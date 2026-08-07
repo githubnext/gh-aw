@@ -276,7 +276,7 @@ func renderConsoleInsights(insights []ObservabilityInsight) {
 	}
 }
 
-func renderConsoleErrors(errors []ErrorInfo) {
+func renderConsoleErrors(errors []ValidationIssue) {
 	if len(errors) == 0 {
 		return
 	}
@@ -290,7 +290,7 @@ func renderConsoleErrors(errors []ErrorInfo) {
 	}
 }
 
-func renderConsoleWarnings(warnings []ErrorInfo) {
+func renderConsoleWarnings(warnings []ValidationIssue) {
 	if len(warnings) == 0 {
 		return
 	}

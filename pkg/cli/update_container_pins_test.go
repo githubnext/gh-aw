@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -377,4 +378,45 @@ jobs:
 	require.True(t, ok)
 	assert.Equal(t, refreshedDigest, pin.Digest)
 	assert.Equal(t, "ghcr.io/github/github-mcp-server:v0.32.0@"+refreshedDigest, pin.PinnedImage)
+}
+
+func TestUpdateContainerPins_FailOnResolveErrorsOption(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	actionsLockDir := filepath.Join(tmpDir, ".github", "aw")
+	require.NoError(t, os.MkdirAll(actionsLockDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(actionsLockDir, "actions-lock.json"), []byte(`{"entries":{},"containers":{}}`), 0644))
+
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	lockFileContent := `name: test
+jobs:
+  setup:
+    steps:
+      - name: Download container images
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/github-mcp-server:v0.32.0
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "test.lock.yml"), []byte(lockFileContent), 0644))
+
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir) //nolint:errcheck
+	require.NoError(t, os.Chdir(tmpDir))
+
+	deps := defaultContainerPinUpdateDeps()
+	deps.fetchDigest = func(_ context.Context, image string, verbose bool) (string, error) {
+		return "", fmt.Errorf("resolution failed for %s", image)
+	}
+
+	t.Run("non-fatal by default", func(t *testing.T) {
+		changed, err := updateContainerPins(context.Background(), deps, workflowsDir, false, containerPinUpdateOptions{})
+		require.NoError(t, err)
+		assert.False(t, changed)
+	})
+
+	t.Run("fatal when enabled", func(t *testing.T) {
+		changed, err := updateContainerPins(context.Background(), deps, workflowsDir, false, containerPinUpdateOptions{failOnResolveErrors: true})
+		require.Error(t, err)
+		assert.False(t, changed)
+		assert.Contains(t, err.Error(), "failed to resolve digest for 1 image(s)")
+	})
 }

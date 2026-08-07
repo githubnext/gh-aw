@@ -1141,6 +1141,39 @@ func TestCodexEngineWebSearch(t *testing.T) {
 	})
 }
 
+func TestCodexEngineBashDisabled(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("shell_tool not disabled by default when bash is not fully disabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if strings.Contains(stepContent, "features.shell_tool=false") {
+			t.Errorf("Expected no features.shell_tool=false config when bash is not disabled, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("adds features.shell_tool=false when BashDisabled is set", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			BashDisabled: true,
+		}
+		steps := engine.GetExecutionSteps(workflowData, "test-log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step, got %d", len(steps))
+		}
+		stepContent := strings.Join([]string(steps[0]), "\n")
+		if !strings.Contains(stepContent, `-c features.shell_tool=false`) {
+			t.Errorf(`Expected -c features.shell_tool=false config when bash is fully disabled, got:\n%s`, stepContent)
+		}
+	})
+}
+
 func TestCodexEngineWebFetch(t *testing.T) {
 	engine := NewCodexEngine()
 

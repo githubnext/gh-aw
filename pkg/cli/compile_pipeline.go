@@ -93,8 +93,8 @@ func compileSpecificFiles(
 		result := ValidationResult{
 			Workflow: markdownFile,
 			Valid:    true,
-			Errors:   []CompileValidationError{},
-			Warnings: []CompileValidationError{},
+			Errors:   []ValidationIssue{},
+			Warnings: []ValidationIssue{},
 		}
 
 		// Resolve workflow ID or file path to actual file path
@@ -107,7 +107,7 @@ func compileSpecificFiles(
 			stats.Errors++
 			trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
 			result.Valid = false
-			result.Errors = append(result.Errors, CompileValidationError{
+			result.Errors = append(result.Errors, ValidationIssue{
 				Type:    "resolution_error",
 				Message: err.Error(),
 			})
@@ -274,7 +274,7 @@ func compileSpecificFiles(
 				*validationResults = append(*validationResults, ValidationResult{
 					Workflow: "grant",
 					Valid:    false,
-					Errors: []CompileValidationError{{
+					Errors: []ValidationIssue{{
 						Type:    "grant_error",
 						Message: err.Error(),
 					}},
@@ -580,7 +580,7 @@ func compileAllFilesInDirectory(
 				*validationResults = append(*validationResults, ValidationResult{
 					Workflow: "grant",
 					Valid:    false,
-					Errors: []CompileValidationError{{
+					Errors: []ValidationIssue{{
 						Type:    "grant_error",
 						Message: err.Error(),
 					}},

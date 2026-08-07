@@ -42,7 +42,9 @@ This specification is governed by the GitHub Next team and follows semantic vers
 
 1. [Introduction](#1-introduction)
 2. [Conformance](#2-conformance)
+   - [2.4 Norms](#24-norms)
 3. [Architecture](#3-architecture)
+   - [3.6 Entities](#36-entities)
 4. [Security Model](#4-security-model)
 5. [Builtin System Tools](#5-builtin-system-tools)
 6. [GitHub Operations](#6-github-operations)
@@ -138,7 +140,7 @@ A **Complete Conforming Implementation** MUST satisfy Standard Conformance and:
 
 ### 2.2 Requirements Notation
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt). See §2.4 (Norms) for how these key words are applied consistently across this specification.
 
 ### 2.3 Compliance Levels
 
@@ -147,6 +149,15 @@ Implementations are classified into three levels based on completeness:
 - **Level 1: Basic** - Core architecture and builtin tools only
 - **Level 2: Standard** - Common GitHub operations and guardrails
 - **Level 3: Complete** - Full feature set including advanced operations
+
+### 2.4 Norms
+
+This subsection clarifies how the Requirements Notation (§2.2) is applied consistently throughout this specification, beyond the bare RFC 2119 definitions.
+
+- Every normative statement in this specification MUST use exactly one of the RFC 2119 key words; declarative sentences without a key word are informative only and MUST NOT be treated as conformance requirements.
+- When a requirement uses "SHOULD" or "RECOMMENDED", implementations that deviate MUST document the deviation and its rationale (for example in release notes or an architecture decision record).
+- Conflicting requirements MUST NOT appear for the same conformance class; if a later section appears to narrow an earlier "MUST", the later section is normative and the earlier section MUST be read as superseded.
+- Requirements scoped to a specific conformance class (§2.1) apply only to implementations claiming that class or higher; a Standard Conforming Implementation MUST also satisfy all Basic Conformance requirements.
 
 ---
 
@@ -370,6 +381,43 @@ Implementations MUST handle errors with:
 - **Fallback Strategies**: Alternative actions on primary failure
 - **Descriptive Messages**: Clear error descriptions for debugging
 - **Graceful Degradation**: Continue processing remaining operations when possible
+
+### 3.6 Entities
+
+This subsection formalizes the primary schema types referenced throughout this section and §6, defining their fields, types, and requirement level.
+
+#### 3.6.1 SafeOutputRequest
+
+The `SafeOutputRequest` entity represents a single validated NDJSON line written by the MCP server (§3.3.4) before it is consumed by an execution handler (§3.5).
+
+| Field | Type | Requirement | Description |
+|-------|------|-------------|--------------|
+| `type` | string | MUST | Normalized safe-output operation identifier (e.g. `create-issue`, `add-comment`) |
+| `target` | string \| number | MAY | Resolution target per §3.4.4 (`"triggering"`, `"*"`, numeric issue/PR/discussion number, or temporary ID) |
+| `target-repo` | string | MAY | Cross-repository target in `owner/repo` form, required only for cross-repository operations (§3.4.5) |
+| `body` | string | SHOULD | Primary content payload for the operation; MUST be present for operations that render content |
+
+#### 3.6.2 GuardrailViolation
+
+The `GuardrailViolation` entity represents a rejected `SafeOutputRequest` that failed schema validation, max-count enforcement, sanitization, or target/cross-repository validation (§3.4).
+
+| Field | Type | Requirement | Description |
+|-------|------|-------------|--------------|
+| `code` | string | MUST | Error code from Appendix B (e.g. `E004`) |
+| `type` | string | MUST | The safe-output operation type that was rejected |
+| `reason` | string | MUST | Human-readable description of the validation failure |
+| `field` | string | MAY | Name of the specific field that failed validation, when applicable |
+
+#### 3.6.3 ExecutionResult
+
+The `ExecutionResult` entity represents the outcome of an execution handler (§3.5) processing a single `SafeOutputRequest`.
+
+| Field | Type | Requirement | Description |
+|-------|------|-------------|--------------|
+| `type` | string | MUST | The safe-output operation type that was executed |
+| `status` | string | MUST | One of `success`, `retried`, `failed`, `skipped` |
+| `resource-url` | string | SHOULD | URL of the created/updated GitHub resource, when applicable |
+| `error` | string | MAY | Error description, present only when `status` is `failed` |
 
 ---
 

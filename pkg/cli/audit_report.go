@@ -52,8 +52,8 @@ type AuditData struct {
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis,omitempty"`
 	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"`
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis,omitempty"`
-	Errors                  []ErrorInfo              `json:"errors,omitempty"`
-	Warnings                []ErrorInfo              `json:"warnings,omitempty"`
+	Errors                  []ValidationIssue        `json:"errors,omitempty"`
+	Warnings                []ValidationIssue        `json:"warnings,omitempty"`
 	ToolUsage               []ToolUsageInfo          `json:"tool_usage,omitempty"`
 	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`
 	CreatedItems            []CreatedItemReport      `json:"created_items,omitempty"`
@@ -152,14 +152,6 @@ type CreatedItemReport struct {
 	BeforeState map[string]any `json:"before_state,omitempty" console:"-"`
 	AfterState  map[string]any `json:"after_state,omitempty" console:"-"`
 	Timestamp   string         `json:"timestamp" console:"header:Timestamp"`
-}
-
-// ErrorInfo contains detailed error information
-type ErrorInfo struct {
-	File    string `json:"file,omitempty"`
-	Line    int    `json:"line,omitempty"`
-	Type    string `json:"type"`
-	Message string `json:"message"`
 }
 
 // ToolUsageInfo contains aggregated tool usage statistics
@@ -402,7 +394,7 @@ func buildAuditJobs(jobDetails []JobInfoWithDuration) []JobData {
 	})
 }
 
-func extractAuditErrors(run WorkflowRun) []ErrorInfo {
+func extractAuditErrors(run WorkflowRun) []ValidationIssue {
 	if run.Conclusion != "failure" || run.LogsPath == "" {
 		return nil
 	}
@@ -423,7 +415,7 @@ func buildAuditAssessments(processedRun ProcessedRun, metricsData MetricsData, t
 	return taskDomain, behaviorFingerprint, agenticAssessments
 }
 
-func buildAuditNarrative(processedRun ProcessedRun, metricsData MetricsData, errors []ErrorInfo, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, agenticAssessments []AgenticAssessment) ([]Finding, []Recommendation, []ObservabilityInsight) {
+func buildAuditNarrative(processedRun ProcessedRun, metricsData MetricsData, errors []ValidationIssue, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, agenticAssessments []AgenticAssessment) ([]Finding, []Recommendation, []ObservabilityInsight) {
 	findings := generateFindings(processedRun, metricsData, errors)
 	findings = append(findings, generateAgenticAssessmentFindings(agenticAssessments)...)
 
@@ -445,7 +437,7 @@ type auditDataInputs struct {
 	metricsData           MetricsData
 	jobs                  []JobData
 	downloadedFiles       []FileInfo
-	errors                []ErrorInfo
+	errors                []ValidationIssue
 	toolUsage             []ToolUsageInfo
 	createdItems          []CreatedItemReport
 	taskDomain            *TaskDomainInfo
@@ -696,7 +688,7 @@ func parseDurationString(s string) time.Duration {
 // ##[error] annotations (GitHub Actions error annotations), which are the most precise
 // failure indicators. If none are found, it falls back to the content of the last step
 // (highest step number) as a general failure indicator.
-func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
+func extractPreAgentStepErrors(logsPath string) []ValidationIssue {
 	agentStdioPath := filepath.Join(logsPath, "agent-stdio.log")
 	agentRan := fileutil.FileExists(agentStdioPath)
 
@@ -732,14 +724,14 @@ type stepLog struct {
 	stepKey string
 }
 
-func scanWorkflowStepLogs(workflowLogsDir string, maxMessageLen int) ([]ErrorInfo, *stepLog, error) {
+func scanWorkflowStepLogs(workflowLogsDir string, maxMessageLen int) ([]ValidationIssue, *stepLog, error) {
 	jobDirs, err := os.ReadDir(workflowLogsDir)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	var lastStep *stepLog
-	var errorAnnotations []ErrorInfo
+	var errorAnnotations []ValidationIssue
 
 	for _, jobEntry := range jobDirs {
 		if !jobEntry.IsDir() {
@@ -767,9 +759,9 @@ func scanWorkflowStepLogs(workflowLogsDir string, maxMessageLen int) ([]ErrorInf
 func scanFlatStepLog(
 	workflowLogsDir, filename string,
 	lastStep *stepLog,
-	errorAnnotations []ErrorInfo,
+	errorAnnotations []ValidationIssue,
 	maxMessageLen int,
-) (*stepLog, []ErrorInfo) {
+) (*stepLog, []ValidationIssue) {
 	if !strings.HasSuffix(filename, ".txt") {
 		return lastStep, errorAnnotations
 	}
@@ -787,9 +779,9 @@ func scanFlatStepLog(
 func scanNestedStepLogs(
 	workflowLogsDir, jobName string,
 	lastStep *stepLog,
-	errorAnnotations []ErrorInfo,
+	errorAnnotations []ValidationIssue,
 	maxMessageLen int,
-) (*stepLog, []ErrorInfo) {
+) (*stepLog, []ValidationIssue) {
 	jobDir := filepath.Join(workflowLogsDir, jobName)
 	stepFiles, err := os.ReadDir(jobDir)
 	if err != nil {
@@ -826,12 +818,12 @@ func updateLastStep(lastStep *stepLog, path string, num int, stepKey string) *st
 }
 
 func appendErrorAnnotation(
-	errorAnnotations []ErrorInfo,
+	errorAnnotations []ValidationIssue,
 	filePath, stepKey string,
 	num int,
 	maxMessageLen int,
 	logLabel string,
-) []ErrorInfo {
+) []ValidationIssue {
 	errorLines := extractGHErrorLines(filePath)
 	if len(errorLines) == 0 {
 		return errorAnnotations
@@ -840,7 +832,7 @@ func appendErrorAnnotation(
 	message := stringutil.Truncate(strings.Join(errorLines, "\n"), maxMessageLen)
 	auditReportLog.Printf("Extracted ##[error] annotations from %s %s (%d)", logLabel, stepKey, num)
 
-	return append(errorAnnotations, ErrorInfo{
+	return append(errorAnnotations, ValidationIssue{
 		Type:    "step_failure",
 		File:    stepKey,
 		Message: message,
@@ -867,12 +859,12 @@ func extractGHErrorLines(filePath string) []string {
 	return errorLines
 }
 
-func extractAgentFailureError(agentRan bool, agentStdioPath string, maxMessageLen int) []ErrorInfo {
+func extractAgentFailureError(agentRan bool, agentStdioPath string, maxMessageLen int) []ValidationIssue {
 	if !agentRan {
 		return nil
 	}
 	if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
-		return []ErrorInfo{{
+		return []ValidationIssue{{
 			Type:    "agent_failure",
 			File:    "agent-stdio.log",
 			Message: agentExcerpt,
@@ -881,7 +873,7 @@ func extractAgentFailureError(agentRan bool, agentStdioPath string, maxMessageLe
 	return nil
 }
 
-func extractLastStepFallbackError(lastStep *stepLog, workflowLogsDir string, maxMessageLen int) []ErrorInfo {
+func extractLastStepFallbackError(lastStep *stepLog, workflowLogsDir string, maxMessageLen int) []ValidationIssue {
 	if lastStep == nil {
 		auditReportLog.Printf("No step log files found in %s", workflowLogsDir)
 		return nil
@@ -901,7 +893,7 @@ func extractLastStepFallbackError(lastStep *stepLog, workflowLogsDir string, max
 	message = stringutil.Truncate(message, maxMessageLen)
 
 	auditReportLog.Printf("Extracted pre-agent step error from %s (step %d) as fallback", lastStep.stepKey, lastStep.num)
-	return []ErrorInfo{{
+	return []ValidationIssue{{
 		Type:    "step_failure",
 		File:    lastStep.stepKey,
 		Message: message,

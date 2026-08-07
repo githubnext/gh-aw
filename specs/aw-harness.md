@@ -1066,40 +1066,40 @@ This section specifies normative failure-mode responses that a conforming implem
 
 **Failure mode:** The Pi SDK package (`@earendil-works/pi-coding-agent`) or one of its core dependencies (`pi-agent-core`, `pi-ai`) cannot be loaded at harness startup (e.g., missing from bundle, corrupted installation, incompatible Node.js version).
 
-**Normative response:**
+**Normative response:** *(verified by [T-AW-006](#t-aw-006-pi-sdk-failure-to-load), §12)*
 
-- The harness **MUST** catch the load error and emit a structured JSONL error event to stderr indicating the SDK load failure and the originating error message.
-- The harness **MUST** write a human-readable error summary to `$GITHUB_STEP_SUMMARY` (if set) that identifies the failed module and suggests reinstalling or rebuilding the bundle.
-- The harness **MUST** exit with code `2` (invocation error) rather than code `1` (session failure), to distinguish SDK infrastructure failures from session-level failures.
-- The harness **MUST NOT** attempt to proceed with a partial or degraded session; no `AgentSession` **MUST** be created if the SDK cannot be loaded.
+- The harness **MUST** catch the load error and emit a structured JSONL error event to stderr indicating the SDK load failure and the originating error message. *(T-AW-006)*
+- The harness **MUST** write a human-readable error summary to `$GITHUB_STEP_SUMMARY` (if set) that identifies the failed module and suggests reinstalling or rebuilding the bundle. *(T-AW-006)*
+- The harness **MUST** exit with code `2` (invocation error) rather than code `1` (session failure), to distinguish SDK infrastructure failures from session-level failures. *(T-AW-006)*
+- The harness **MUST NOT** attempt to proceed with a partial or degraded session; no `AgentSession` **MUST** be created if the SDK cannot be loaded. *(T-AW-006)*
 
 #### 11.2.2 Budget Exhaustion
 
 **Failure mode:** The cumulative effective token count across all turns exceeds `harness.budget.max-effective-tokens`, or the cumulative AI credits consumed across all turns exceeds `harness.budget.max-ai-credits`, during an active session.
 
-**Normative response:**
+**Normative response:** *(verified by [T-AW-003](#t-aw-003-budget-gate), §12)*
 
 - When the budget metric reaches the **soft limit** (default: 80% of the configured limit), the cost-tracker extension **MUST** inject a steering message via `session.steer()` informing the agent that it is approaching the budget and **SHOULD** conclude its work soon.
-- When the budget metric reaches the **hard limit**, the cost-tracker extension **MUST** abort the session immediately by invoking the session's abort API. The harness **MUST NOT** allow additional turns to proceed after the hard limit is reached.
-- Upon hard-limit abort, the harness **MUST** emit a `budget_exceeded` JSONL event to stderr containing the final cumulative budget metric value and the configured limit.
-- Upon hard-limit abort, the harness **MUST** append a `budget_exceeded` audit entry to the firewall audit log (`/tmp/gh-aw/sandbox/firewall/audit/log.jsonl`) so that the conclusion job can detect the condition without parsing stderr. The entry **MUST** include `"max_ai_credits_exceeded": true`, the final `"ai_credits"` consumed, and the configured `"max_ai_credits"` limit. When `max-effective-tokens` is the active budget key, the entry **MUST** still be written with `"max_ai_credits_exceeded": true` using an estimated AI-credits equivalent so that the conclusion job detection path is uniform across budget key types.
+- When the budget metric reaches the **hard limit**, the cost-tracker extension **MUST** abort the session immediately by invoking the session's abort API. The harness **MUST NOT** allow additional turns to proceed after the hard limit is reached. *(T-AW-003)*
+- Upon hard-limit abort, the harness **MUST** emit a `budget_exceeded` JSONL event to stderr containing the final cumulative budget metric value and the configured limit. *(T-AW-003)*
+- Upon hard-limit abort, the harness **MUST** append a `budget_exceeded` audit entry to the firewall audit log (`/tmp/gh-aw/sandbox/firewall/audit/log.jsonl`) so that the conclusion job can detect the condition without parsing stderr. The entry **MUST** include `"max_ai_credits_exceeded": true`, the final `"ai_credits"` consumed, and the configured `"max_ai_credits"` limit. When `max-effective-tokens` is the active budget key, the entry **MUST** still be written with `"max_ai_credits_exceeded": true` using an estimated AI-credits equivalent so that the conclusion job detection path is uniform across budget key types. *(T-AW-003)*
 - The `budget_exceeded` event **MUST** explicitly signal forced termination (`reason: "hard_limit"` and `forced_termination: true`) so downstream consumers can distinguish budget aborts from other session failures.
-- The harness **MUST** write a step summary entry to `$GITHUB_STEP_SUMMARY` (if set) indicating that the session was terminated due to budget exhaustion, showing the final metric value versus the limit.
+- The harness **MUST** write a step summary entry to `$GITHUB_STEP_SUMMARY` (if set) indicating that the session was terminated due to budget exhaustion, showing the final metric value versus the limit. *(T-AW-003)*
 - On forced budget termination, the harness **MUST** preserve durable artifacts that were finalized before abort (`safe-outputs.ndjson` entries already appended, JSONL events already emitted, and step-summary rows for completed turns).
 - On forced budget termination, the harness **MUST** discard in-flight turn state that did not reach a completed turn boundary (partial assistant output, partially collected tool results, and uncommitted per-turn aggregates).
 - A "completed turn boundary" means the `turn_end` event has been emitted and all per-turn persistence for that turn (JSONL line, counters, and step-summary row) has succeeded.
-- The harness **MUST** exit with code `1` (session failure) after a hard-limit abort, so that the GitHub Actions job is marked as failed.
+- The harness **MUST** exit with code `1` (session failure) after a hard-limit abort, so that the GitHub Actions job is marked as failed. *(T-AW-003)*
 
 #### 11.2.3 Extension Crash Isolation
 
 **Failure mode:** A user-supplied Pi extension (declared via `harness.extensions`) throws an uncaught exception or returns a rejected Promise during its initialization function, or throws during event handler execution.
 
-**Normative response:**
+**Normative response:** *(verified by [T-AW-002](#t-aw-002-extension-loading) and [T-AW-007](#t-aw-007-extension-crash-isolation), §12)*
 
-- **During initialization:** If an extension's default export function throws or rejects, the harness **MUST** catch the error, emit a warning to stderr identifying the failing extension by name/path and the error message, and continue loading the remaining extensions. The failing extension **MUST** be skipped and **MUST NOT** be registered into the session. If `harness.extensions-required: true` is set, the harness **MUST** instead abort startup with exit code `2` and a descriptive error message.
+- **During initialization:** If an extension's default export function throws or rejects, the harness **MUST** catch the error, emit a warning to stderr identifying the failing extension by name/path and the error message, and continue loading the remaining extensions. The failing extension **MUST** be skipped and **MUST NOT** be registered into the session. If `harness.extensions-required: true` is set, the harness **MUST** instead abort startup with exit code `2` and a descriptive error message. *(T-AW-002, T-AW-007)*
 - **During event handling:** If an extension's event handler (registered via `pi.on()`) throws or rejects, the Pi SDK event dispatch **MUST** catch the error. If the Pi SDK does not isolate handler errors, the harness **MUST** wrap all user extension event handlers in a try/catch that emits a structured JSONL warning and allows the session to continue.
 - **Built-in extensions are never skipped:** The five built-in gh-aw extensions (provider setup, cost-tracker, steering, repair, observability) **MUST NOT** be subject to the skip-on-error policy described above. If a built-in extension fails to load, the harness **MUST** treat it as a fatal startup error and exit with code `2`.
-- The harness **MUST NOT** allow a crashing user extension to terminate the entire harness process without first completing the cleanup described above (step summary, final JSONL event).
+- The harness **MUST NOT** allow a crashing user extension to terminate the entire harness process without first completing the cleanup described above (step summary, final JSONL event). *(T-AW-007)*
 
 ### 11.3 MUST/MUST NOT Traceability (Spec ↔ Harness Source)
 
