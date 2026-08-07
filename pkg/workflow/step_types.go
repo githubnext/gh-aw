@@ -169,8 +169,12 @@ func (s *WorkflowStep) Clone() *WorkflowStep {
 		Run:              s.Run,
 		WorkingDirectory: s.WorkingDirectory,
 		Shell:            s.Shell,
-		ContinueOnError:  s.ContinueOnError,
 		TimeoutMinutes:   s.TimeoutMinutes,
+	}
+
+	if s.ContinueOnError != nil {
+		continueOnError := *s.ContinueOnError
+		clone.ContinueOnError = &continueOnError
 	}
 
 	if s.With != nil {

@@ -308,6 +308,12 @@ func TestWorkflowStep_Clone(t *testing.T) {
 	clone.Env["NEW_VAR"] = "new-val"
 	_, exists = original.Env["NEW_VAR"]
 	assert.False(t, exists, "Clone should deep copy Env map - modifying clone should not affect original")
+
+	require.NotNil(t, clone.ContinueOnError, "Clone should copy ContinueOnError")
+	require.NotNil(t, original.ContinueOnError, "Original should retain ContinueOnError")
+	*clone.ContinueOnError = TemplatableBool("false")
+	assert.Equal(t, "true", original.ContinueOnError.String(), "Clone should deep copy ContinueOnError - modifying clone should not affect original")
+	assert.Equal(t, "false", clone.ContinueOnError.String(), "Clone should allow independent ContinueOnError updates")
 }
 
 func TestMapToStep_RoundTrip(t *testing.T) {
