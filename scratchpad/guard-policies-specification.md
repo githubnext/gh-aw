@@ -405,7 +405,7 @@ tools:
 
 4. **Should we add a "dry-run" mode to test policies before enforcement?**
 
-   **Decision**: Dry-run enforcement mode is **deferred** to a future release. A compile-time validation (`gh aw compile --strict`) that reports which repositories would be permitted or denied under the configured guard policy SHOULD be implemented instead.
+   **Decision**: Runtime dry-run enforcement mode remains **deferred** to a future release. The compile-time validation (`gh aw compile --strict`) that reports which repositories would be permitted or denied under the configured guard policy is now **implemented**: `pkg/cli/compile_guard_policy_report.go` renders a per-workflow guard-policy dry-run report (allowed-repos, min-integrity, blocked-users, trusted-users, approval-labels, and lockdown precedence) to stderr whenever `--strict` is passed to `gh aw compile` and a GitHub guard policy is configured.
    *Rationale*: A runtime dry-run mode requires MCP Gateway support for pass-through logging of policy decisions, which is out of scope for the initial implementation. Compile-time policy analysis covers the majority of the validation need (catching misconfigured patterns before deployment) at lower implementation cost. Runtime dry-run may be added when MCP Gateway observability tooling matures.
 
 ## Conclusion

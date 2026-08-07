@@ -37,13 +37,13 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 
 ## Running Conformance Tests
 
-Conformance tests that validate `DriftRecord` schema compliance will be located in (or added to):
+Conformance tests that validate `DriftRecord` schema compliance are implemented in:
 
 ```
-pkg/workflow/awf_config_drift_test.go   — DriftRecord schema validation (T-DR-001 through T-DR-005)
+pkg/workflow/awf_config_drift_test.go   — DriftRecord schema validation and usage (T-DR-001 through T-DR-010)
 ```
 
-To run related tests (once implemented):
+To run related tests:
 
 ```bash
 go test -v -run "TestDriftRecord" ./pkg/workflow/

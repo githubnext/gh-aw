@@ -185,6 +185,7 @@ func (c *Compiler) validateWorkflowToolConfigurations(ctx *workflowBuildContext)
 		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
 	}
 	emitGitHubLockdownGuardPolicyWarning(c, ctx.workflowData.ParsedTools, ctx.cleanPath)
+	emitMinIntegrityNoneBashWarning(c, ctx.workflowData.ParsedTools, ctx.cleanPath)
 	var gatewayConfig *MCPGatewayRuntimeConfig
 	if ctx.workflowData.SandboxConfig != nil {
 		gatewayConfig = ctx.workflowData.SandboxConfig.MCP
