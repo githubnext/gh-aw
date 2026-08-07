@@ -15,7 +15,7 @@ import (
 )
 
 var gitutilLog = logger.New("gitutil:gitutil")
-var ErrNotGitRepository = errors.New("not in a git repository")
+var ErrNotGitRepository = errors.New("not in a git repository (run this command from inside a git repository, or use 'git init' to create one)")
 
 var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var gitObjectIDRegex = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
@@ -120,6 +120,28 @@ func ExtractBaseRepo(repoPath string) string {
 	return repoPath
 }
 
+// Getwd returns the current working directory. Unlike calling os.Getwd()
+// directly, the returned error includes actionable recovery guidance so
+// call sites do not need to duplicate their own wrapping message.
+func Getwd() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to determine current working directory: %w (check that the process has a valid working directory and read permissions)", err)
+	}
+	return dir, nil
+}
+
+// UserHomeDir returns the current user's home directory. Unlike calling
+// os.UserHomeDir() directly, the returned error includes actionable recovery
+// guidance so call sites do not need to duplicate their own wrapping message.
+func UserHomeDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to determine home directory: %w (set the HOME environment variable, or run this command as a user with a valid home directory)", err)
+	}
+	return home, nil
+}
+
 // FindGitRoot finds the root directory of the git repository.
 // Uses pure Go filesystem traversal to avoid requiring the git executable,
 // which can fail when the binary runs under Rosetta 2 on macOS ARM64 or in
@@ -128,10 +150,10 @@ func ExtractBaseRepo(repoPath string) string {
 func FindGitRoot() (string, error) {
 	gitutilLog.Print("Finding git root directory")
 
-	dir, err := os.Getwd()
+	dir, err := Getwd()
 	if err != nil {
 		gitutilLog.Printf("Failed to get current directory: %v", err)
-		return "", fmt.Errorf("failed to get current directory: %w", err)
+		return "", err
 	}
 
 	root, err := FindGitRootFrom(dir)

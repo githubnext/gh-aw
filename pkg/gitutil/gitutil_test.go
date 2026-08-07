@@ -321,6 +321,30 @@ func TestExtractBaseRepo(t *testing.T) {
 	}
 }
 
+func TestGetwd(t *testing.T) {
+	t.Run("returns the current working directory", func(t *testing.T) {
+		dir, err := Getwd()
+		require.NoError(t, err, "Getwd should succeed in a normal test environment")
+		assert.NotEmpty(t, dir, "Getwd should return a non-empty path")
+
+		wantDir, wantErr := os.Getwd()
+		require.NoError(t, wantErr)
+		assert.Equal(t, wantDir, dir, "Getwd should match os.Getwd")
+	})
+}
+
+func TestUserHomeDir(t *testing.T) {
+	t.Run("returns the current user's home directory", func(t *testing.T) {
+		home, err := UserHomeDir()
+		require.NoError(t, err, "UserHomeDir should succeed in a normal test environment")
+		assert.NotEmpty(t, home, "UserHomeDir should return a non-empty path")
+
+		wantHome, wantErr := os.UserHomeDir()
+		require.NoError(t, wantErr)
+		assert.Equal(t, wantHome, home, "UserHomeDir should match os.UserHomeDir")
+	})
+}
+
 func TestFindGitRoot(t *testing.T) {
 	t.Run("returns non-empty path when inside a git repository", func(t *testing.T) {
 		gitRoot, err := FindGitRoot()
