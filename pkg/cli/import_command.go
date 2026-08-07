@@ -57,6 +57,12 @@ func RunImport(opts ImportOptions) error {
 		return err
 	}
 
+	info, err := os.Stat(workflowFile)
+	if err != nil {
+		return fmt.Errorf("failed to stat workflow file %s: %w", workflowFile, err)
+	}
+	perm := info.Mode().Perm()
+
 	content, err := os.ReadFile(workflowFile)
 	if err != nil {
 		return fmt.Errorf("failed to read workflow file %s: %w", workflowFile, err)
@@ -72,7 +78,7 @@ func RunImport(opts ImportOptions) error {
 		return nil
 	}
 
-	if err := os.WriteFile(workflowFile, []byte(updated), 0644); err != nil {
+	if err := os.WriteFile(workflowFile, []byte(updated), perm); err != nil {
 		return fmt.Errorf("failed to write workflow file %s: %w", workflowFile, err)
 	}
 
