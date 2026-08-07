@@ -39,7 +39,7 @@ steps:
       set -uo pipefail
       output_dir="/tmp/gh-aw/agent/image-scan"
       mkdir -p "$output_dir"
-      "$GITHUB_WORKSPACE/gh-aw" compile --refresh-container-pins --syft --grype --grant 2>&1 | tee "$output_dir/compile-output.txt" || true
+      "$GITHUB_WORKSPACE/gh-aw" compile --force-refresh-container-pins --syft --grype --grant 2>&1 | tee "$output_dir/compile-output.txt" || true
 post-steps:
   - name: Enforce critical vulnerability and license gates
     if: always()

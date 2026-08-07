@@ -30,18 +30,18 @@ func TestCompileCommandShortFlags(t *testing.T) {
 		t.Fatalf("expected --grant default to be false, got %s", grantFlag.DefValue)
 	}
 
-	refreshContainerPinsFlag := compileCmd.Flags().Lookup("refresh-container-pins")
-	if refreshContainerPinsFlag == nil {
-		t.Fatal("expected --refresh-container-pins flag on compile command")
+	forceRefreshContainerPinsFlag := compileCmd.Flags().Lookup("force-refresh-container-pins")
+	if forceRefreshContainerPinsFlag == nil {
+		t.Fatal("expected --force-refresh-container-pins flag on compile command")
 	}
-	if refreshContainerPinsFlag.DefValue != "false" {
-		t.Fatalf("expected --refresh-container-pins default to be false, got %s", refreshContainerPinsFlag.DefValue)
+	if forceRefreshContainerPinsFlag.DefValue != "false" {
+		t.Fatalf("expected --force-refresh-container-pins default to be false, got %s", forceRefreshContainerPinsFlag.DefValue)
 	}
 }
 
-func TestCompileOptionsPropagateRefreshContainerPins(t *testing.T) {
-	config := (&compileCmdOptions{refreshContainerPins: true}).toCompileConfig(nil)
-	if !config.RefreshContainerPins {
-		t.Fatal("expected RefreshContainerPins to be propagated to CompileConfig")
+func TestCompileOptionsPropagateForceRefreshContainerPins(t *testing.T) {
+	config := (&compileCmdOptions{forceRefreshContainerPins: true}).toCompileConfig(nil)
+	if !config.ForceRefreshContainerPins {
+		t.Fatal("expected ForceRefreshContainerPins to be propagated to CompileConfig")
 	}
 }

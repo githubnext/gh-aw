@@ -108,7 +108,7 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	}
 
 	// Create and configure compiler
-	if config.RefreshContainerPins && !config.NoEmit {
+	if config.ForceRefreshContainerPins && !config.NoEmit {
 		compileOrchestratorLog.Print("Refreshing container image digest pins before compilation")
 		if _, err := updateContainerPins(ctx, defaultContainerPinUpdateDeps(), workflowDir, config.Verbose, containerPinUpdateOptions{refreshExisting: true}); err != nil {
 			return nil, fmt.Errorf("failed to refresh container pins: %w", err)
