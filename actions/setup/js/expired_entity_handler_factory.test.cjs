@@ -1,5 +1,6 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { createExpiredEntityHandler } from "./expired_entity_handler_factory.cjs";
 
 const mockCore = {
   info: vi.fn(),
@@ -15,7 +16,6 @@ describe("expired_entity_handler_factory", () => {
   });
 
   it("creates a handler that comments, closes, and returns a closed record", async () => {
-    const { createExpiredEntityHandler } = await import("./expired_entity_handler_factory.cjs");
     const addComment = vi.fn().mockResolvedValue({ id: 1 });
     const closeEntity = vi.fn().mockResolvedValue({ state: "closed" });
 
@@ -52,7 +52,6 @@ describe("expired_entity_handler_factory", () => {
   });
 
   it("allows a pre-close hook to skip the shared comment flow", async () => {
-    const { createExpiredEntityHandler } = await import("./expired_entity_handler_factory.cjs");
     const addComment = vi.fn();
     const closeEntity = vi.fn();
 
