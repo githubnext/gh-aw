@@ -1,8 +1,9 @@
 // Package regexpdynamicpattern implements a Go analysis linter that flags
 // calls to regexp compile functions whose pattern argument is not a
-// compile-time constant string. Malformed dynamic patterns can panic at
-// runtime in MustCompile variants and, when influenced by untrusted input,
-// allow an attacker to control pattern complexity or size.
+// compile-time constant string. Malformed dynamic patterns can panic in
+// MustCompile variants, return errors in Compile variants, and, when
+// influenced by untrusted input, allow an attacker to control pattern
+// complexity or size.
 package regexpdynamicpattern
 
 import (
@@ -24,7 +25,7 @@ var pkgLog = logger.New("linters:regexpdynamicpattern")
 // Analyzer is the regexp-dynamic-pattern analysis pass.
 var Analyzer = analyzerutil.New("regexpdynamicpattern", "reports regexp compile calls whose pattern is not a compile-time constant string", run)
 
-const diagnosticMessage = "regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size"
+const diagnosticMessage = "regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants, return errors in Compile variants, or let untrusted input control pattern complexity/size"
 
 func run(pass *analysis.Pass) (any, error) {
 	insp, err := astutil.Inspector(pass)
@@ -79,6 +80,7 @@ func isRegexpCompileCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	}
 	switch sel.Sel.Name {
 	case "MustCompile", "Compile", "MustCompilePOSIX", "CompilePOSIX":
+		// Recognized regexp compile function; continue with package identity checks.
 	default:
 		return false
 	}

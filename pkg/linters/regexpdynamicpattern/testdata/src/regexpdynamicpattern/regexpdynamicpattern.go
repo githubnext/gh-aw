@@ -46,7 +46,7 @@ func ValidatePOSIXConst(input string) bool {
 
 // flagged: pattern built with fmt.Sprintf.
 func ValidateSprintf(prefix, input string) (bool, error) {
-	re, err := regexp.Compile(fmt.Sprintf("^%s$", prefix)) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
+	re, err := regexp.Compile(fmt.Sprintf("^%s$", prefix)) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants, return errors in Compile variants, or let untrusted input control pattern complexity/size`
 	if err != nil {
 		return false, err
 	}
@@ -55,13 +55,13 @@ func ValidateSprintf(prefix, input string) (bool, error) {
 
 // flagged: string concatenation with a variable.
 func ValidateConcatVariable(suffix, input string) bool {
-	re := regexp.MustCompile(`^prefix` + suffix) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
+	re := regexp.MustCompile(`^prefix` + suffix) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants, return errors in Compile variants, or let untrusted input control pattern complexity/size`
 	return re.MatchString(input)
 }
 
 // flagged: pattern passed through from a function parameter.
 func ValidateDynamic(pattern, input string) (bool, error) {
-	re, err := regexp.Compile(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
+	re, err := regexp.Compile(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants, return errors in Compile variants, or let untrusted input control pattern complexity/size`
 	if err != nil {
 		return false, err
 	}
@@ -70,7 +70,7 @@ func ValidateDynamic(pattern, input string) (bool, error) {
 
 // flagged: POSIX pattern passed through from a function parameter.
 func ValidatePOSIXDynamic(pattern, input string) (bool, error) {
-	re, err := regexp.CompilePOSIX(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
+	re, err := regexp.CompilePOSIX(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants, return errors in Compile variants, or let untrusted input control pattern complexity/size`
 	if err != nil {
 		return false, err
 	}
@@ -79,7 +79,7 @@ func ValidatePOSIXDynamic(pattern, input string) (bool, error) {
 
 // flagged: POSIX MustCompile pattern passed through from a function parameter.
 func ValidateMustPOSIXDynamic(pattern, input string) bool {
-	re := regexp.MustCompilePOSIX(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
+	re := regexp.MustCompilePOSIX(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants, return errors in Compile variants, or let untrusted input control pattern complexity/size`
 	return re.MatchString(input)
 }
 
