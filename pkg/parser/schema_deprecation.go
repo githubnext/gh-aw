@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/syncutil"
 )
 
 var schemaDeprecationLog = logger.New("parser:schema_deprecation")
@@ -27,32 +27,25 @@ type DeprecatedField struct {
 // Both the result and any error are cached permanently: since mainWorkflowSchema is an
 // embedded compile-time constant, a parse failure is always a programming error (not
 // transient), so re-parsing on subsequent calls would produce the same failure.
-var (
-	deprecatedFieldsOnce  sync.Once
-	deprecatedFieldsCache []DeprecatedField
-	deprecatedFieldsErr   error
-)
+var deprecatedFieldsLoader syncutil.OnceLoader[[]DeprecatedField]
 
 // GetMainWorkflowDeprecatedFields returns a list of deprecated fields from the main workflow schema.
 // The result is cached after the first call so the schema is only parsed once per process.
 // Callers must not modify the returned slice.
 func GetMainWorkflowDeprecatedFields() ([]DeprecatedField, error) {
-	deprecatedFieldsOnce.Do(func() {
+	return deprecatedFieldsLoader.Get(func() ([]DeprecatedField, error) {
 		schemaDeprecationLog.Print("Getting deprecated fields from main workflow schema")
 		var schemaDoc map[string]any
 		if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {
-			deprecatedFieldsErr = fmt.Errorf("failed to parse main workflow schema: %w", err)
-			return
+			return nil, fmt.Errorf("failed to parse main workflow schema: %w", err)
 		}
 		fields, err := extractDeprecatedFields(schemaDoc)
 		if err != nil {
-			deprecatedFieldsErr = err
-			return
+			return nil, err
 		}
-		deprecatedFieldsCache = fields
 		schemaDeprecationLog.Printf("Found %d deprecated fields in main workflow schema", len(fields))
+		return fields, nil
 	})
-	return deprecatedFieldsCache, deprecatedFieldsErr
 }
 
 // extractDeprecatedFields extracts deprecated fields from a schema document
@@ -150,11 +143,7 @@ func FindDeprecatedFieldsInFrontmatter(frontmatter map[string]any, deprecatedFie
 
 // deprecatedFieldsDeepCache caches the result of the deep schema walk so the
 // expensive 414 KB JSON unmarshal is only performed once per process lifetime.
-var (
-	deprecatedFieldsDeepOnce  sync.Once
-	deprecatedFieldsDeepCache []DeprecatedField
-	deprecatedFieldsDeepErr   error
-)
+var deprecatedFieldsDeepLoader syncutil.OnceLoader[[]DeprecatedField]
 
 // GetMainWorkflowDeprecatedFieldsDeep returns deprecated fields from the entire
 // schema hierarchy (nested properties and oneOf variants) as dot-separated paths
@@ -162,12 +151,11 @@ var (
 // The result is cached after the first call so the schema is only parsed once.
 // Callers must not modify the returned slice.
 func GetMainWorkflowDeprecatedFieldsDeep() ([]DeprecatedField, error) {
-	deprecatedFieldsDeepOnce.Do(func() {
+	return deprecatedFieldsDeepLoader.Get(func() ([]DeprecatedField, error) {
 		schemaDeprecationLog.Print("Getting deep deprecated fields from main workflow schema")
 		var schemaDoc map[string]any
 		if err := json.Unmarshal([]byte(mainWorkflowSchema), &schemaDoc); err != nil {
-			deprecatedFieldsDeepErr = fmt.Errorf("failed to parse main workflow schema: %w", err)
-			return
+			return nil, fmt.Errorf("failed to parse main workflow schema: %w", err)
 		}
 		var fields []DeprecatedField
 		collectDeprecatedDeep(schemaDoc, "", &fields)
@@ -181,10 +169,9 @@ func GetMainWorkflowDeprecatedFieldsDeep() ([]DeprecatedField, error) {
 				return 0
 			}
 		})
-		deprecatedFieldsDeepCache = fields
 		schemaDeprecationLog.Printf("Found %d deprecated fields (deep) in main workflow schema", len(fields))
+		return fields, nil
 	})
-	return deprecatedFieldsDeepCache, deprecatedFieldsDeepErr
 }
 
 // collectDeprecatedDeep recursively walks a schema node and appends any

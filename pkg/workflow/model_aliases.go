@@ -35,6 +35,7 @@ import (
 	"unsafe"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/syncutil"
 )
 
 var modelAliasesLog = logger.New("workflow:model_aliases")
@@ -47,22 +48,16 @@ type builtinModelAliasesFile struct {
 	Aliases map[string][]string `json:"aliases"`
 }
 
-var (
-	builtinModelAliasesOnce sync.Once
-	builtinModelAliasesData map[string][]string
-	builtinModelAliasesErr  error
-)
+var builtinModelAliasesLoader syncutil.OnceLoader[map[string][]string]
 
 func loadBuiltinModelAliases() (map[string][]string, error) {
-	builtinModelAliasesOnce.Do(func() {
+	return builtinModelAliasesLoader.Get(func() (map[string][]string, error) {
 		var data builtinModelAliasesFile
 		if err := json.Unmarshal(builtinModelAliasesJSON, &data); err != nil {
-			builtinModelAliasesErr = fmt.Errorf("BUG: workflow: failed to parse embedded model_aliases.json: %w (try 'make build' to rebuild with the latest data)", err)
-			return
+			return nil, fmt.Errorf("BUG: workflow: failed to parse embedded model_aliases.json: %w (try 'make build' to rebuild with the latest data)", err)
 		}
-		builtinModelAliasesData = data.Aliases
+		return data.Aliases, nil
 	})
-	return builtinModelAliasesData, builtinModelAliasesErr
 }
 
 // builtinOnlyAliasMap is the canonical map returned by MergeImportedModelAliases
