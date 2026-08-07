@@ -1539,7 +1539,6 @@ jobs:
         fi
 
     - name: Download dependencies with retry
-      if: steps.setup-go.outputs.cache-hit != 'true'
       env:
         GOPROXY: "https://proxy.golang.org,direct"
       run: |
