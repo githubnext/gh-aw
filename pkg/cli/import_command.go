@@ -3,12 +3,15 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +40,7 @@ The workflow file is updated in place.
   ` + string(constants.CLIExtensionPrefix) + ` import my-workflow github/gh-aw/shared/mcp/tavily.md@main`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			verbose, _ := cmd.Flags().GetBool("verbose")
+			verbose := importCommandVerbose(cmd)
 			return RunImport(ImportOptions{
 				WorkflowID: args[0],
 				ImportPath: args[1],
@@ -89,57 +92,194 @@ func RunImport(opts ImportOptions) error {
 // addImportToWorkflow adds importPath to the imports: frontmatter field of content.
 // Returns the updated content, whether the import was newly added, and any error.
 func addImportToWorkflow(content, importPath string) (string, bool, error) {
-	// The parser returns no error but an empty frontmatter map when there is no
-	// frontmatter delimiter ("---") in the file.
-	if !strings.HasPrefix(strings.TrimSpace(content), "---") {
-		return "", false, errors.New("no frontmatter found in workflow file")
-	}
-
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to parse frontmatter: %w", err)
 	}
-
-	imports, existing := result.Frontmatter["imports"]
-
-	var importList []any
-
-	switch v := imports.(type) {
-	case []any:
-		importList = v
-	case []string:
-		importList = make([]any, 0, len(v))
-		for _, s := range v {
-			importList = append(importList, s)
-		}
-	case nil:
-		importList = nil
-	default:
-		return "", false, fmt.Errorf("unexpected imports field type %T", imports)
+	if result.FrontmatterStart == 0 {
+		return "", false, errors.New("no frontmatter found in workflow file")
 	}
 
-	if existing {
-		// Check for duplicates
-		for _, entry := range importList {
-			if str, ok := entry.(string); ok && str == importPath {
-				return content, false, nil
-			}
-		}
-	}
-
-	importList = append(importList, importPath)
-	result.Frontmatter["imports"] = importList
-
-	updated, err := reconstructWorkflowFileFromMap(result.Frontmatter, result.Markdown)
+	updatedImports, added, err := appendImportValue(result.Frontmatter["imports"], importPath)
 	if err != nil {
 		return "", false, err
 	}
-
-	// reconstructWorkflowFileFromMap may append a trailing newline; preserve the
-	// original file's trailing-newline behaviour.
-	if !strings.HasSuffix(content, "\n") && strings.HasSuffix(updated, "\n") {
-		updated = strings.TrimSuffix(updated, "\n")
+	if !added {
+		return content, false, nil
 	}
 
+	updated, err := updateImportsFieldInFrontmatterRaw(content, result.FrontmatterLines, updatedImports)
+	if err != nil {
+		return "", false, err
+	}
 	return updated, true, nil
+}
+
+func importCommandVerbose(cmd *cobra.Command) bool {
+	verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
+	return verbose
+}
+
+func appendImportValue(imports any, importPath string) (any, bool, error) {
+	switch value := imports.(type) {
+	case nil:
+		return []any{importPath}, true, nil
+	case []any:
+		if importListContains(value, importPath) {
+			return value, false, nil
+		}
+		return append(append([]any(nil), value...), importPath), true, nil
+	case map[string]any:
+		updated := make(map[string]any, len(value)+1)
+		maps.Copy(updated, value)
+
+		switch aw := updated["aw"].(type) {
+		case nil:
+			updated["aw"] = []any{importPath}
+			return updated, true, nil
+		case []any:
+			if importListContains(aw, importPath) {
+				return value, false, nil
+			}
+			updated["aw"] = append(append([]any(nil), aw...), importPath)
+			return updated, true, nil
+		default:
+			return nil, false, fmt.Errorf("unexpected imports.aw field type %T", updated["aw"])
+		}
+	default:
+		return nil, false, fmt.Errorf("unexpected imports field type %T", imports)
+	}
+}
+
+func importListContains(imports []any, importPath string) bool {
+	for _, entry := range imports {
+		if importEntryMatches(entry, importPath) {
+			return true
+		}
+	}
+	return false
+}
+
+func importEntryMatches(entry any, importPath string) bool {
+	switch value := entry.(type) {
+	case string:
+		return value == importPath
+	case map[string]any:
+		if uses, ok := value["uses"].(string); ok && uses == importPath {
+			return true
+		}
+		if path, ok := value["path"].(string); ok && path == importPath {
+			return true
+		}
+	}
+	return false
+}
+
+func updateImportsFieldInFrontmatterRaw(content string, frontmatterLines []string, imports any) (string, error) {
+	renderedImports, err := renderImportsFieldLines(imports, usesCRLFLineEndings(content))
+	if err != nil {
+		return "", err
+	}
+
+	updatedFrontmatterLines := make([]string, 0, len(frontmatterLines)+len(renderedImports))
+	fieldUpdated := false
+	skipChildren := false
+	fieldIndentLevel := 0
+
+	for _, line := range frontmatterLines {
+		if skipChildren {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			if currentIndent > fieldIndentLevel {
+				continue
+			}
+			skipChildren = false
+		}
+
+		if !fieldUpdated && isTopLevelFieldLine(line, "imports") {
+			if comment := inlineYAMLComment(line); comment != "" {
+				renderedImports[0] += " " + comment
+			}
+			updatedFrontmatterLines = append(updatedFrontmatterLines, renderedImports...)
+			fieldUpdated = true
+			fieldIndentLevel = len(line) - len(strings.TrimLeft(line, " \t"))
+			skipChildren = true
+			continue
+		}
+
+		updatedFrontmatterLines = append(updatedFrontmatterLines, line)
+	}
+
+	if !fieldUpdated {
+		updatedFrontmatterLines = append(updatedFrontmatterLines, renderedImports...)
+	}
+
+	return replaceFrontmatterLines(content, updatedFrontmatterLines)
+}
+
+func renderImportsFieldLines(imports any, useCRLF bool) ([]string, error) {
+	rendered, err := yaml.MarshalWithOptions(map[string]any{
+		"imports": imports,
+	}, append(append([]yaml.EncodeOption{}, workflow.DefaultMarshalOptions...), yaml.IndentSequence(true))...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal imports field: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSuffix(string(rendered), "\n"), "\n")
+	if useCRLF {
+		for i := range lines {
+			lines[i] += "\r"
+		}
+	}
+
+	return lines, nil
+}
+
+func replaceFrontmatterLines(content string, frontmatterLines []string) (string, error) {
+	lines := strings.Split(content, "\n")
+	if strings.TrimSpace(lines[0]) != "---" {
+		return "", errors.New("no frontmatter found in workflow file")
+	}
+
+	frontmatterEnd := -1
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "---" {
+			frontmatterEnd = i
+			break
+		}
+	}
+	if frontmatterEnd == -1 {
+		return "", errors.New("frontmatter closing delimiter not found")
+	}
+
+	updatedLines := make([]string, 0, len(lines)-frontmatterEnd+len(frontmatterLines)+1)
+	updatedLines = append(updatedLines, lines[0])
+	updatedLines = append(updatedLines, frontmatterLines...)
+	updatedLines = append(updatedLines, lines[frontmatterEnd:]...)
+	return strings.Join(updatedLines, "\n"), nil
+}
+
+func inlineYAMLComment(line string) string {
+	colonIndex := strings.IndexByte(line, ':')
+	if colonIndex == -1 {
+		return ""
+	}
+
+	for i := colonIndex + 1; i < len(line); i++ {
+		if line[i] != '#' {
+			continue
+		}
+		if line[i-1] != ' ' && line[i-1] != '\t' {
+			continue
+		}
+		return strings.TrimSpace(line[i:])
+	}
+
+	return ""
+}
+
+func usesCRLFLineEndings(content string) bool {
+	return strings.Contains(content, "\r\n")
 }
