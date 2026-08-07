@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-06T07:45:00Z",
+  "last_run": "2026-08-07T13:10:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -449,6 +449,36 @@
       "issue_number": null,
       "title": "Add doc comments to boolean helper functions in compiler_jobs.go",
       "created_at": "2026-08-06T07:45:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 51058,
+      "title": "Consolidate GitHubMCPDockerOptions/GitHubMCPRemoteOptions shared fields into common struct",
+      "created_at": "2026-08-07T13:10:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 51058,
+      "title": "Merge LogsDownloadOptions/StdinLogsOptions shared fields into LogsProcessingOptions embed",
+      "created_at": "2026-08-07T13:10:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 51058,
+      "title": "Consolidate ErrorInfo and CompileValidationError into shared ValidationIssue type",
+      "created_at": "2026-08-07T13:10:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 51058,
+      "title": "Reuse TemplatableBool for ContinueOnError and ReportFailureAsIssue fields instead of any",
+      "created_at": "2026-08-07T13:10:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 51041,
+      "title": "Replace manual %-*s column padding with lipgloss.Style.Width() at 3 call sites",
+      "created_at": "2026-08-07T13:10:00Z",
       "status": "created"
     }
   ]
