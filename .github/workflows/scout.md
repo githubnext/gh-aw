@@ -44,7 +44,7 @@ tools:
   cli-proxy: true
   edit:
   cache-memory: true
-  bash: true
+  bash: false
   github:
     mode: gh-proxy
     allowed-repos: all

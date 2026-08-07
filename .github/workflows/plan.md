@@ -26,7 +26,7 @@ imports:
   - shared/otlp.md
 tools:
   cli-proxy: true
-  bash: true
+  bash: false
   github:
     mode: gh-proxy
     toolsets: [default, discussions]

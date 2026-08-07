@@ -18,7 +18,7 @@ permissions:
 network: defaults
 
 tools:
-  bash: true
+  bash: false
   github:
     min-integrity: none # This workflow is allowed to examine and comment on any issues
 
