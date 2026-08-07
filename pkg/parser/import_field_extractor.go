@@ -899,6 +899,14 @@ func (acc *importAccumulator) appendObservabilityField(fm map[string]any, fullPa
 func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *ImportsResult {
 	parserLog.Printf("Building ImportsResult: importedFiles=%d, importPaths=%d, engines=%d, bots=%d, labels=%d",
 		len(topologicalOrder), len(acc.importPaths), len(acc.engines), len(acc.bots), len(acc.labels))
+	result := acc.buildImportsResult()
+	result.ImportedFiles = topologicalOrder
+	return result
+}
+
+// buildImportsResult constructs the ImportsResult from accumulated state, excluding
+// ImportedFiles which is populated separately from the topological sort order.
+func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 	return &ImportsResult{
 		MergedTools:                   acc.toolsBuilder.String(),
 		MergedMCPServers:              acc.mcpServersBuilder.String(),
@@ -937,7 +945,6 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedModelCosts:              acc.modelCosts,
 		MergedDefaultAiCreditsPricing: acc.defaultAiCreditsPricing,
 		MergedObservability:           mergeObservabilityConfigs(acc.observabilityConfigs),
-		ImportedFiles:                 topologicalOrder,
 		AgentFile:                     acc.agentFile,
 		AgentImportSpec:               acc.agentImportSpec,
 		RepositoryImports:             acc.repositoryImports,
