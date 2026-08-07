@@ -222,6 +222,65 @@ test.describe('Mobile and Responsive Layout', () => {
     await context.close();
   });
 
+  // Regression test for https://github.com/github/gh-aw/issues/51015
+  // The Galaxy S21 (360px) width is the narrowest tested device. Verify the
+  // site-title logo icon stays fully visible within the header even though
+  // its invisible 44x44 touch-target padding is clipped by the shrunk
+  // title-wrapper flex item at this width.
+  test('site-title logo stays visible at the narrowest tested width (360px)', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 360, height: 800 } });
+    const page = await context.newPage();
+
+    await page.goto('/gh-aw/');
+    await page.waitForLoadState('networkidle');
+
+    const logo = page.locator('.site-title img').first();
+    await expect(logo).toBeVisible();
+
+    const logoBox = await logo.boundingBox();
+    expect(logoBox).not.toBeNull();
+    if (logoBox) {
+      // The logo's own visible box (not the larger invisible touch-target
+      // padding around it) must be entirely within the viewport.
+      expect(logoBox.x).toBeGreaterThanOrEqual(0);
+      expect(logoBox.x + logoBox.width).toBeLessThanOrEqual(360);
+    }
+
+    await context.close();
+  });
+
+  // Regression test for https://github.com/github/gh-aw/issues/51015
+  // The theme toggle uses a visually-hidden native <select> for progressive
+  // enhancement/accessibility. Native <select> elements report their
+  // intrinsic option content via `scrollWidth` regardless of author CSS
+  // (browsers do not let `overflow` clip a form control's internal content),
+  // so that metric cannot be constrained here. What we *can* and must
+  // guarantee is that the control's actual rendered footprint on screen
+  // stays effectively invisible and doesn't push into the visible layout.
+  test('hidden theme-select control has no visible footprint', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 360, height: 800 } });
+    const page = await context.newPage();
+
+    await page.goto('/gh-aw/');
+    await page.waitForLoadState('networkidle');
+
+    const select = page.locator('starlight-theme-select select').first();
+    await expect(select).toHaveCount(1);
+
+    // The control is styled to `width: 1px; height: 1px`. Allow a small
+    // tolerance for sub-pixel rounding across browser engines rather than
+    // asserting an exact 1px match.
+    const NEAR_ZERO_PX_THRESHOLD = 4;
+    const box = await select.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.width).toBeLessThanOrEqual(NEAR_ZERO_PX_THRESHOLD);
+      expect(box.height).toBeLessThanOrEqual(NEAR_ZERO_PX_THRESHOLD);
+    }
+
+    await context.close();
+  });
+
   // Regression test for https://github.com/github/gh-aw/issues/29545
   // Verify the navigation dropdown is fully within the viewport when large
   // user fonts cause header elements to shift on Android Chrome.
