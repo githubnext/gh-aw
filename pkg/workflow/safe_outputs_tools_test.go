@@ -312,8 +312,8 @@ func TestEnhanceToolDescription(t *testing.T) {
 			baseDescription: "Update a discussion.",
 			safeOutputs: &SafeOutputsConfig{
 				UpdateDiscussions: &UpdateDiscussionsConfig{
-					AllowedLabels: []string{"Label1", "Label2"},
-					Labels:        testBoolPtr(true),
+					SafeOutputAllowedLabelsConfig: SafeOutputAllowedLabelsConfig{AllowedLabels: []string{"Label1", "Label2"}},
+					Labels:                        testBoolPtr(true),
 				},
 			},
 			wantContains:    []string{"CONSTRAINTS:", `Only these labels are allowed: ["Label1" "Label2"]`},
@@ -341,10 +341,10 @@ func TestEnhanceToolDescription(t *testing.T) {
 					UpdateEntityConfig: UpdateEntityConfig{
 						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("3")},
 					},
-					Title:         testBoolPtr(true),
-					Body:          testBoolPtr(true),
-					Labels:        testBoolPtr(true),
-					AllowedLabels: []string{"bug"},
+					Title:                         testBoolPtr(true),
+					Body:                          testBoolPtr(true),
+					Labels:                        testBoolPtr(true),
+					SafeOutputAllowedLabelsConfig: SafeOutputAllowedLabelsConfig{AllowedLabels: []string{"bug"}},
 				},
 			},
 			wantContains: []string{

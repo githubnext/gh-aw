@@ -141,7 +141,7 @@ func TestFormal_CTR011_WildcardOnlyDomainRejected(t *testing.T) {
 func TestFormal_CTR015_WildcardLabelRejected(t *testing.T) {
 	compiler := NewCompiler()
 	err := compiler.validateSafeOutputsAllowedLabelsGlobScope(&SafeOutputsConfig{
-		CreateIssues: &CreateIssuesConfig{AllowedLabels: []string{"*"}},
+		CreateIssues: &CreateIssuesConfig{SafeOutputAllowedLabelsConfig: SafeOutputAllowedLabelsConfig{AllowedLabels: []string{"*"}}},
 	})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "CTR-015")
@@ -150,7 +150,7 @@ func TestFormal_CTR015_WildcardLabelRejected(t *testing.T) {
 func TestFormal_CTR015_WildcardLabelRejected_CreateDiscussion(t *testing.T) {
 	compiler := NewCompiler()
 	err := compiler.validateSafeOutputsAllowedLabelsGlobScope(&SafeOutputsConfig{
-		CreateDiscussions: &CreateDiscussionsConfig{AllowedLabels: []string{"*"}},
+		CreateDiscussions: &CreateDiscussionsConfig{SafeOutputAllowedLabelsConfig: SafeOutputAllowedLabelsConfig{AllowedLabels: []string{"*"}}},
 	})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "CTR-015")
@@ -159,7 +159,7 @@ func TestFormal_CTR015_WildcardLabelRejected_CreateDiscussion(t *testing.T) {
 func TestFormal_CTR015_SpecificLabelsAllowed(t *testing.T) {
 	compiler := NewCompiler()
 	err := compiler.validateSafeOutputsAllowedLabelsGlobScope(&SafeOutputsConfig{
-		CreateIssues: &CreateIssuesConfig{AllowedLabels: []string{"bug", "team-*"}},
+		CreateIssues: &CreateIssuesConfig{SafeOutputAllowedLabelsConfig: SafeOutputAllowedLabelsConfig{AllowedLabels: []string{"bug", "team-*"}}},
 	})
 	require.NoError(t, err)
 }
