@@ -566,6 +566,29 @@ func TestExternalDetectorExecutionStepStagesInstalledCopilotBinary(t *testing.T)
 	}
 }
 
+func TestExternalDetectorExecutionStepSkipsInstalledCopilotBinaryForCustomCommand(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID:      "copilot",
+					Command: "/opt/custom/copilot",
+				},
+			},
+		},
+	}
+
+	steps := strings.Join(compiler.buildExternalDetectorExecutionStep(data), "")
+	if containsExternalDetectorCopilotPathPrefix(steps) {
+		t.Errorf("did not expect external detector execution to prepend installed Copilot bin dir for custom command;\ngot:\n%s", steps)
+	}
+	if strings.Contains(steps, "GH_AW_COPILOT_SRC") {
+		t.Errorf("did not expect external detector execution to stage installed Copilot binary for custom command;\ngot:\n%s", steps)
+	}
+}
+
 func TestThreatDetectionWithEngineConfig(t *testing.T) {
 	compiler := NewCompiler()
 
