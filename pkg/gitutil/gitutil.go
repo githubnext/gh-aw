@@ -16,6 +16,8 @@ import (
 
 var gitutilLog = logger.New("gitutil:gitutil")
 var ErrNotGitRepository = errors.New("not in a git repository (run this command from inside a git repository, or use 'git init' to create one)")
+var osGetwd = os.Getwd
+var osUserHomeDir = os.UserHomeDir
 
 var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var gitObjectIDRegex = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
@@ -124,9 +126,9 @@ func ExtractBaseRepo(repoPath string) string {
 // directly, the returned error includes actionable recovery guidance so
 // call sites do not need to duplicate their own wrapping message.
 func Getwd() (string, error) {
-	dir, err := os.Getwd()
+	dir, err := osGetwd()
 	if err != nil {
-		return "", fmt.Errorf("failed to determine current working directory: %w (check that the process has a valid working directory and read permissions)", err)
+		return "", fmt.Errorf("failed to determine current working directory: %w; check that the process has a valid working directory and read permissions", err)
 	}
 	return dir, nil
 }
@@ -135,9 +137,9 @@ func Getwd() (string, error) {
 // os.UserHomeDir() directly, the returned error includes actionable recovery
 // guidance so call sites do not need to duplicate their own wrapping message.
 func UserHomeDir() (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := osUserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("failed to determine home directory: %w (set the HOME environment variable, or run this command as a user with a valid home directory)", err)
+		return "", fmt.Errorf("failed to determine home directory: %w; set HOME (Unix) or USERPROFILE/HOMEDRIVE/HOMEPATH (Windows), or run this command as a user with a valid home directory", err)
 	}
 	return home, nil
 }
