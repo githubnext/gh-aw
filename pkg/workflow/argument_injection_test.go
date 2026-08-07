@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/fileutil"
 )
 
 // TestRejectHyphenPrefixPackages tests the shared helper that guards against
@@ -393,5 +395,25 @@ func TestValidatePipPackageName(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestValidateUvPackages_RejectsInvalidPackageName verifies that uv package names
+// which do not conform to the PyPI naming rules are rejected before being passed
+// as arguments to the uv CLI.
+func TestValidateUvPackages_RejectsInvalidPackageName(t *testing.T) {
+	if _, err := fileutil.ResolveExecutablePath("uv"); err != nil {
+		t.Skip("uv not installed - skipping uv argument validation test")
+	}
+
+	compiler := NewCompiler()
+	err := compiler.validateUvPackages(&WorkflowData{
+		CustomSteps: "uvx pkg;whoami",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid uv package name but got none")
+	}
+	if !strings.Contains(err.Error(), "invalid pip package name") {
+		t.Errorf("expected error to mention invalid package name, got: %v", err)
 	}
 }

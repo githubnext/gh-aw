@@ -188,7 +188,18 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 			pkgName = pkg[:eqIndex]
 		}
 
+		// Validate the package name against PyPI naming rules (PEP 508) before
+		// passing it as a command argument to uv (argument injection guard).
+		if err := validatePipPackageName(pkgName); err != nil {
+			pipValidationLog.Printf("Invalid uv package name %s: %v", pkgName, err)
+			errors = append(errors, fmt.Sprintf("uv package '%s' is invalid: %v", pkg, err))
+			continue
+		}
+
 		// Use uv pip show to check if package exists on PyPI
+		// #nosec G204 -- uvPath is resolved from the hardcoded executable name "uv" via
+		// fileutil.ResolveExecutablePath; pkgName is validated above by validatePipPackageName
+		// against the strict PyPI PEP 508 allowlist.
 		cmd := exec.Command(uvPath, "pip", "show", pkgName, "--no-cache")
 		_, err := cmd.CombinedOutput()
 
