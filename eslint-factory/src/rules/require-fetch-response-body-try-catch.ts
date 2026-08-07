@@ -83,6 +83,39 @@ export const requireFetchResponseBodyTryCatchRule = createRule({
       return null;
     }
 
+    function canSuggestWrapStatement(stmt: TSESTree.Statement): boolean {
+      if (stmt.type !== AST_NODE_TYPES.VariableDeclaration) {
+        return true;
+      }
+
+      const parent = stmt.parent;
+      const isStandaloneVariableDeclaration =
+        parent != null &&
+        ((parent.type === AST_NODE_TYPES.Program && parent.body.includes(stmt)) ||
+          (parent.type === AST_NODE_TYPES.BlockStatement && parent.body.includes(stmt)) ||
+          (parent.type === AST_NODE_TYPES.SwitchCase && parent.consequent.includes(stmt)));
+      if (!isStandaloneVariableDeclaration) {
+        return false;
+      }
+
+      if (stmt.kind === "var") {
+        return true;
+      }
+
+      const statementRange = stmt.range;
+      if (!statementRange) return false;
+      const [statementStart, statementEnd] = statementRange;
+
+      const hasReferenceOutsideStatement = sourceCode.getDeclaredVariables(stmt).some(variable =>
+        variable.references.some(reference => {
+          const referenceRange = reference.identifier.range;
+          return referenceRange == null || referenceRange[0] < statementStart || referenceRange[1] > statementEnd;
+        })
+      );
+
+      return !hasReferenceOutsideStatement;
+    }
+
     /**
      * Returns true when the identifier at `node` resolves (via any write reference in scope —
      * either its initializing declarator or a later reassignment) to a bare `await fetch(...)`
@@ -131,27 +164,28 @@ export const requireFetchResponseBodyTryCatchRule = createRule({
           node,
           messageId: "requireTryCatch",
           data: { call: callText },
-          suggest: stmt
-            ? [
-                {
-                  messageId: "wrapInTryCatch",
-                  fix(fixer) {
-                    const stmtText = sourceCode.getText(stmt);
-                    const startLine = stmt.loc?.start.line;
-                    const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
-                    const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
-                    return fixer.replaceText(
-                      stmt,
-                      buildTryCatchSuggestion(stmtText, {
-                        indent,
-                        todoComment: "TODO: handle a malformed/errored fetch response body for this call.",
-                        errorPrefix: `Failed to read fetch response ${methodName}(): `,
-                      })
-                    );
+          suggest:
+            stmt && canSuggestWrapStatement(stmt)
+              ? [
+                  {
+                    messageId: "wrapInTryCatch",
+                    fix(fixer) {
+                      const stmtText = sourceCode.getText(stmt);
+                      const startLine = stmt.loc?.start.line;
+                      const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
+                      const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
+                      return fixer.replaceText(
+                        stmt,
+                        buildTryCatchSuggestion(stmtText, {
+                          indent,
+                          todoComment: "TODO: handle a malformed/errored fetch response body for this call.",
+                          errorPrefix: `Failed to read fetch response ${methodName}(): `,
+                        })
+                      );
+                    },
                   },
-                },
-              ]
-            : [],
+                ]
+              : [],
         });
       },
     };

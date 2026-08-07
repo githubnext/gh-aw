@@ -128,6 +128,47 @@ describe("require-fetch-response-body-try-catch", () => {
     });
   });
 
+  it("invalid: variable declaration used later is reported without suggestion (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() {
+            const response = await fetch(url);
+            const payload = await response.json();
+            const pageArtifacts = Array.isArray(payload?.artifacts) ? payload.artifacts : [];
+            return pageArtifacts;
+          }`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: export declaration is reported without suggestion (ES module)", () => {
+    esmRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `export const payload = await fetch(url).json();`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: for-loop initializer declaration is reported without suggestion (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() { for (let payload = await fetch(url).json(); payload; payload = null) {} }`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
+        },
+      ],
+    });
+  });
+
   it("invalid: variable resolved from bare await fetch, body read outside try is flagged (ES module)", () => {
     esmRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
       valid: [],
