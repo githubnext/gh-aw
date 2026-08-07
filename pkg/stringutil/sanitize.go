@@ -168,6 +168,10 @@ func applySanitizePattern(result, allowedChars string, preserveSpecialChars bool
 	// Fall back to the base alphanumeric-and-hyphen pattern for safety.
 	pattern, ok := sanitizePatterns[allowedChars]
 	if !ok {
+		// allowedChars is always produced by buildSanitizePreservePattern; this branch
+		// means a new combination was added there but not to sanitizePatterns. Log a
+		// warning so the gap is visible rather than silently using the wrong pattern.
+		sanitizeLog.Printf("WARNING: no precompiled sanitize pattern for %q; falling back to a-z0-9-", allowedChars)
 		pattern = sanitizePatterns["a-z0-9-"]
 	}
 	if preserveSpecialChars {

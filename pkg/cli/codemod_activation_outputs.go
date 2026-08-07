@@ -39,6 +39,9 @@ func getActivationOutputsCodemod() Codemod {
 				// This ensures we don't match things like "needs.activation.outputs.text_custom"
 				pattern, ok := activationOutputPatterns[output]
 				if !ok {
+					// This should never happen: activationOutputPatterns covers exactly the outputs slice.
+					// Log a warning so any future drift is visible rather than silently skipped.
+					activationOutputsCodemodLog.Printf("WARNING: no precompiled pattern for output %q; skipping", output)
 					continue
 				}
 

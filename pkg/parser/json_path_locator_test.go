@@ -251,3 +251,30 @@ func TestParseJSONPath(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchesPathSegmentKey(t *testing.T) {
+	tests := []struct {
+		name        string
+		trimmedLine string
+		key         string
+		want        bool
+	}{
+		{"exact match", "foo: bar", "foo", true},
+		{"space before colon", "foo : bar", "foo", true},
+		{"tab before colon", "foo\t: bar", "foo", true},
+		{"multiple spaces before colon", "foo   : bar", "foo", true},
+		{"no value after colon", "foo:", "foo", true},
+		{"key prefix should not match", "foobar: x", "foo", false},
+		{"no colon", "foobar", "foo", false},
+		{"empty key", ":val", "", true},
+		{"different key", "bar: x", "foo", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchesPathSegmentKey(tt.trimmedLine, tt.key)
+			if got != tt.want {
+				t.Errorf("matchesPathSegmentKey(%q, %q) = %v, want %v", tt.trimmedLine, tt.key, got, tt.want)
+			}
+		})
+	}
+}

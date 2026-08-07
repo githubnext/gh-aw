@@ -55,7 +55,11 @@ var heredocPatterns = []heredocPattern{
 	// Pattern for quoted delimiter ending with suffix: << 'PREFIX_SUFFIX' or << "PREFIX_SUFFIX"
 	// \w* matches zero or more word characters (allowing both exact match and prefixes)
 	// (?ms) enables multiline and dotall modes, .*? is non-greedy
-	// \s*\wSUFFIX\s*$ allows for leading/trailing whitespace on the closing delimiter
+	// \s*\w*SUFFIX\s*$ allows for leading/trailing whitespace on the closing delimiter
+	//
+	// NOTE: if a new heredoc suffix is needed, add a corresponding heredocPattern entry here
+	// AND update the suffixes slice in the test in template_injection_utils_test.go so that
+	// the exhaustiveness check catches any future drift between the two lists.
 	{
 		quoted:   regexp.MustCompile(`(?ms)<<\s*['"]\w*EOF['"].*?\n\s*\w*EOF\s*$`),
 		unquoted: regexp.MustCompile(`(?ms)<<\s*\w*EOF.*?\n\s*\w*EOF\s*$`),
