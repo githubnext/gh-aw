@@ -35,7 +35,7 @@ network:
 imports:
   - shared/otlp.md
 tools:
-  bash: ["*"]
+  bash: []
   cli-proxy: true
   cache-memory:
     key: spam-tracking-${{ github.repository_owner }}
