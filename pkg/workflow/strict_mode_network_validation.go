@@ -145,7 +145,7 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 							"tools.bash",
 							"not specified",
 							"strict mode: when 'tools.github.min-integrity' is set to 'none', 'tools.bash' must be explicitly specified so that shell access is intentional",
-							"Add an explicit bash setting to the tools section:\n\ntools:\n  bash: false\n  github:\n    min-integrity: none",
+							"Add an explicit bash setting to the tools section:\n\ntools:\n  bash: [\"cat\", \"ls\", \"find\", \"grep\", \"head\", \"tail\", \"wc\"]\n  github:\n    min-integrity: none",
 						)
 					}
 				}
