@@ -130,6 +130,15 @@ const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 // This is a persistent configuration error — retrying with --continue will not help.
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
 
+// Pattern to detect the Copilot SDK "no model could be resolved" policy gate:
+//   "Error: No model available. Check policy enablement under GitHub Settings > Copilot"
+// This is thrown by the SDK before any inference request is dispatched, most commonly when a
+// sub-agent session spawned via the `task` tool cannot resolve a model of its own.  It is a
+// persistent policy/entitlement gate — every retry reproduces it, so the retry budget must not
+// be spent on it.  Delegation is an optional capability, so the harness degrades gracefully
+// instead of failing the whole run when the agent already produced its deliverable.
+const NO_MODEL_AVAILABLE_PATTERN = /No model available\.\s*Check policy enablement/i;
+
 // Pattern to detect missing authentication credentials.
 // On a --continue attempt this may indicate that the Copilot CLI's on-disk session
 // credential (written by a mid-stream interrupted run) is incomplete or invalid.  In that
@@ -270,6 +279,17 @@ function isMCPPolicyError(output) {
  */
 function isModelNotSupportedError(output) {
   return MODEL_NOT_SUPPORTED_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output indicates the Copilot SDK could not resolve any model
+ * because of a policy/entitlement gate.  Observed when the `task` tool delegates to a
+ * sub-agent whose session resolves no model.  Retrying always reproduces the same error.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isNoModelAvailableError(output) {
+  return NO_MODEL_AVAILABLE_PATTERN.test(output);
 }
 
 /**
@@ -542,6 +562,7 @@ function extractTokenCountFromOutput(output) {
  *   isMCPGatewayShutdown?: boolean,
  *   isMCPPolicy?: boolean,
  *   isModelNotSupported?: boolean,
+ *   isNoModelAvailable?: boolean,
  *   isHTTP400ResponseError?: boolean,
  *   isInvocationCapExceeded?: boolean,
  *   isNullTypeToolCall?: boolean,
@@ -557,6 +578,7 @@ function classifyCopilotFailure(detection) {
   if (detection.isQuotaExceeded) return "capi_quota_exceeded";
   if (detection.isMCPPolicy) return "mcp_policy_blocked";
   if (detection.isModelNotSupported) return "model_not_supported";
+  if (detection.isNoModelAvailable) return "no_model_available";
   if (detection.isHTTP400ResponseError) return "http_400_response_error";
   if (detection.isNullTypeToolCall) return "null_type_tool_call";
   if (detection.isAuthErr) return "no_auth_info";
@@ -785,6 +807,31 @@ function writeCopilotOutputs(results) {
  */
 function isNullTypeToolCallError(output) {
   return NULL_TYPE_TOOL_CALL_PATTERN.test(output);
+}
+
+/**
+ * Emit a structured missing_tool signal when sub-agent delegation is blocked by Copilot policy.
+ * Keeps the "No model available" failure observable downstream without failing on a retry loop.
+ * @param {{ safeOutputsPath?: string, runSafeOutputsCLI?: typeof runSafeOutputsCLI, logger?: (message: string) => void }=} options
+ */
+function emitMissingToolNoModelAvailable(options) {
+  const safeOutputsPath = typeof options?.safeOutputsPath === "string" ? options.safeOutputsPath : process.env.GH_AW_SAFE_OUTPUTS || "";
+  const runSafeOutputs = options?.runSafeOutputsCLI ?? runSafeOutputsCLI;
+  const logger = options?.logger ?? log;
+  if (!safeOutputsPath) {
+    logger("missing_tool skipped: GH_AW_SAFE_OUTPUTS is not set");
+    return;
+  }
+  try {
+    runSafeOutputs("missing_tool", {
+      tool: "task",
+      reason: "sub-agent delegation failed: no model available for the delegated session (Copilot policy gate)",
+      alternatives: "Enable the delegated model under GitHub Settings > Copilot, or complete the work inline without the task tool.",
+    });
+    logger(`missing_tool emitted via safeoutputs CLI: ${safeOutputsPath}`);
+  } catch (error) {
+    logger(`missing_tool emission failed: ${getErrorMessage(error)}`);
+  }
 }
 
 /**
@@ -1186,6 +1233,7 @@ async function main() {
         const isQuotaExceeded = isCAPIQuotaExceededError(result.output);
         const isMCPPolicy = isMCPPolicyError(result.output);
         const isModelNotSupported = isModelNotSupportedError(result.output);
+        const isNoModelAvailable = isNoModelAvailableError(result.output);
         const hasHTTP400ResponseError = isHTTP400ResponseError(result.output);
         const isAuthErr = isNoAuthInfoError(result.output);
         const isAuthenticationFailed = isAuthenticationFailedError(result.output);
@@ -1208,6 +1256,7 @@ async function main() {
           isMCPGatewayShutdown,
           isMCPPolicy,
           isModelNotSupported,
+          isNoModelAvailable,
           isHTTP400ResponseError: hasHTTP400ResponseError,
           isInvocationCapExceeded,
           isNullTypeToolCall,
@@ -1226,6 +1275,7 @@ async function main() {
             ` isInvocationCapExceeded=${isInvocationCapExceeded}` +
             ` isMCPPolicyError=${isMCPPolicy}` +
             ` isModelNotSupportedError=${isModelNotSupported}` +
+            ` isNoModelAvailableError=${isNoModelAvailable}` +
             ` isHTTP400ResponseError=${hasHTTP400ResponseError}` +
             ` isNullTypeToolCallError=${isNullTypeToolCall}` +
             ` isSDKSessionIdleTimeoutError=${isSDKSessionIdleTimeout}` +
@@ -1274,7 +1324,12 @@ async function main() {
         // only armed after hasTerminalSafeOutput is true, so watchdogFired on a no-stdio-output
         // run means the agent completed its task (wrote safe-output) but produced no console
         // output before the watchdog terminated the idle process.
-        const isExpectedLateExit = failureClass === "partial_execution" || failureClass === "long_run_exit" || (failureClass === "no_output" && result.watchdogFired) || (failureClass === "authentication_failed" && result.watchdogFired);
+        const isExpectedLateExit =
+          failureClass === "partial_execution" ||
+          failureClass === "long_run_exit" ||
+          failureClass === "no_model_available" ||
+          (failureClass === "no_output" && result.watchdogFired) ||
+          (failureClass === "authentication_failed" && result.watchdogFired);
         if (isExpectedLateExit && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
           const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
           log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
@@ -1361,6 +1416,23 @@ async function main() {
             log(`attempt ${attempt + 1}: refreshed awf-reflect does not include model '${configuredModel || "(none)"}' — treating as non-retryable`);
           }
           log(`attempt ${attempt + 1}: model not supported — not retrying (the requested model is unavailable for this subscription tier; specify a supported model in the workflow frontmatter)`);
+          break;
+        }
+
+        // "No model available" is a persistent policy/entitlement gate raised before any inference
+        // request is dispatched — most often when the `task` tool delegates to a sub-agent session
+        // that cannot resolve a model.  Every retry reproduces it, so the retry budget is skipped.
+        // Sub-agent delegation is an optional capability: when the agent already produced expected
+        // safe-outputs the run is reported as a success (the deliverable exists), otherwise a
+        // missing_tool signal records the unavailable capability for downstream triage.
+        if (isNoModelAvailable) {
+          if (safeOutputsPath && hasExpectedSafeOutputs(safeOutputsPath, { logger: log })) {
+            log(`attempt ${attempt + 1}: no model available for sub-agent delegation but safe-outputs already contain expected output — suppressing terminal verdict (delegation skipped, core work succeeded)`);
+            lastExitCode = 0;
+            break;
+          }
+          emitMissingToolNoModelAvailable({ logger: log });
+          log(`attempt ${attempt + 1}: no model available — not retrying (sub-agent model resolution is blocked by Copilot policy; enable the model under GitHub Settings > Copilot or avoid the task tool in this workflow)`);
           break;
         }
 
@@ -1478,6 +1550,7 @@ if (typeof module !== "undefined" && module.exports) {
     PROMPT_FILE_INLINE_THRESHOLD_BYTES,
     appendSafeOutputLine,
     buildMissingToolAlternatives,
+    emitMissingToolNoModelAvailable,
     buildPromptFileFallbackInstruction,
     buildInfrastructureIncompletePayload,
     emitInfrastructureIncomplete,
@@ -1498,6 +1571,8 @@ if (typeof module !== "undefined" && module.exports) {
     isDetectionPhase,
     computeStartupRetryEligible,
     isHTTP400ResponseError,
+    isModelNotSupportedError,
+    isNoModelAvailableError,
     isModelAvailableInReflectData,
     isModelAvailableInReflectFile,
     resolveMultiProviderFromReflect,

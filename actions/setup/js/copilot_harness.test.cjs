@@ -47,7 +47,9 @@ const {
   generateCopilotConnectionToken,
   GEMINI_MODEL_NAME_PREFIX,
   isCAPIQuotaExceededError,
+  emitMissingToolNoModelAvailable,
   isHTTP400ResponseError,
+  isNoModelAvailableError,
   isSDKSessionIdleTimeoutError,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileArgs,
@@ -508,6 +510,21 @@ describe("copilot_harness.cjs", () => {
         const output = 'Response: {"message":"Gateway shutdown initiated","serversTerminated":2,"status":"closed"}';
         expect(isMCPGatewayShutdownError(output)).toBe(true);
         expect(classifyCopilotFailure({ hasOutput: true, isMCPGatewayShutdown: true })).toBe("mcp_gateway_shutdown");
+      });
+
+      it("classifies the Copilot sub-agent 'No model available' policy gate distinctly", () => {
+        const output = '{"type":"subagent.started","agentName":"general-purpose"}\n' + "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot";
+        expect(isNoModelAvailableError(output)).toBe(true);
+        expect(classifyCopilotFailure({ hasOutput: true, isNoModelAvailable: true })).toBe("no_model_available");
+      });
+
+      it("does not flag unrelated model diagnostics as no_model_available", () => {
+        expect(isNoModelAvailableError("model resolution succeeded: gpt-5")).toBe(false);
+        expect(isNoModelAvailableError("Execution failed: CAPIError: 400 The requested model is not supported.")).toBe(false);
+      });
+
+      it("model_not_supported outranks no_model_available in failure classification", () => {
+        expect(classifyCopilotFailure({ hasOutput: true, isModelNotSupported: true, isNoModelAvailable: true })).toBe("model_not_supported");
       });
 
       it("classifies invocation cap exhaustion as invocation_cap_exceeded", () => {
@@ -1101,6 +1118,33 @@ describe("copilot_harness.cjs", () => {
       expect(calls[0].args.reason).toContain("missing tool/permission issue");
       expect(calls[0].args.alternatives).toContain("Denied commands: go version");
       expect(logs.some(message => message.includes("missing_tool emitted"))).toBe(true);
+    });
+
+    it("emits a missing_tool signal for blocked sub-agent delegation", () => {
+      const calls = [];
+      const logs = [];
+      emitMissingToolNoModelAvailable({
+        safeOutputsPath: "/tmp/safeoutputs.jsonl",
+        runSafeOutputsCLI: (toolName, args) => calls.push({ toolName, args }),
+        logger: message => logs.push(message),
+      });
+      expect(calls).toHaveLength(1);
+      expect(calls[0].toolName).toBe("missing_tool");
+      expect(calls[0].args.tool).toBe("task");
+      expect(calls[0].args.reason).toContain("no model available");
+      expect(logs.some(message => message.includes("missing_tool emitted"))).toBe(true);
+    });
+
+    it("skips the sub-agent missing_tool signal when no safe-outputs path is configured", () => {
+      const calls = [];
+      const logs = [];
+      emitMissingToolNoModelAvailable({
+        safeOutputsPath: "",
+        runSafeOutputsCLI: (toolName, args) => calls.push({ toolName, args }),
+        logger: message => logs.push(message),
+      });
+      expect(calls).toHaveLength(0);
+      expect(logs.some(message => message.includes("missing_tool skipped"))).toBe(true);
     });
   });
 
