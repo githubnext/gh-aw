@@ -683,6 +683,97 @@ func TestValidateStrictCacheMemoryScope(t *testing.T) {
 	}
 }
 
+// TestValidateStrictMinIntegrityNoneBash tests that min-integrity: none requires explicit bash in strict mode
+func TestValidateStrictMinIntegrityNoneBash(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "min-integrity none without bash - rejected",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"github": map[string]any{
+						"min-integrity": "none",
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "tools.bash",
+		},
+		{
+			name: "min-integrity none with bash: true - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"bash": true,
+					"github": map[string]any{
+						"min-integrity": "none",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "min-integrity none with bash: false - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"bash": false,
+					"github": map[string]any{
+						"min-integrity": "none",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "min-integrity approved without bash - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"github": map[string]any{
+						"min-integrity": "approved",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "no min-integrity - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"github": map[string]any{},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.strictMode = true
+
+			err := compiler.validateStrictTools(tt.frontmatter)
+
+			if tt.expectError && err == nil {
+				t.Error("Expected validation to fail but it succeeded")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Expected validation to succeed but it failed: %v", err)
+			} else if tt.expectError && err != nil && tt.errorMsg != "" {
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			}
+		})
+	}
+}
+
 // TestValidateStrictDisableXPIA tests the validateStrictDisableXPIA function
 func TestValidateStrictDisableXPIA(t *testing.T) {
 	tests := []struct {

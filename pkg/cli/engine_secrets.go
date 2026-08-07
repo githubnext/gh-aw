@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+	lipgloss "charm.land/lipgloss/v2"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -751,8 +752,8 @@ func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecret
 	// Calculate max width for alignment
 	maxNameWidth := 0
 	for _, req := range requiredOnly {
-		if len(req.Name) > maxNameWidth {
-			maxNameWidth = len(req.Name)
+		if lipgloss.Width(req.Name) > maxNameWidth {
+			maxNameWidth = lipgloss.Width(req.Name)
 		}
 	}
 
@@ -785,7 +786,7 @@ func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecret
 		}
 
 		// Format secret name with padding
-		nameWithPadding := fmt.Sprintf("%-*s", maxNameWidth, req.Name)
+		nameWithPadding := lipgloss.NewStyle().Width(maxNameWidth).Render(req.Name)
 
 		// Display the line
 		fmt.Fprintf(os.Stderr, "  %s %s - %s\n", statusLine, nameWithPadding, req.WhenNeeded)

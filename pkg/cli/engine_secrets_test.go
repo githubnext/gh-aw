@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -16,6 +17,29 @@ import (
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
+
+func TestDisplaySecretsSummaryTable_UnicodeNameAlignment(t *testing.T) {
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() {
+		os.Stderr = oldStderr
+	})
+
+	displaySecretsSummaryTable([]SecretRequirement{
+		{Name: "名称", WhenNeeded: "needed"},
+		{Name: "LONGEST", WhenNeeded: "needed"},
+	}, nil)
+
+	require.NoError(t, w.Close())
+	var output bytes.Buffer
+	_, err = output.ReadFrom(r)
+	require.NoError(t, err)
+
+	assert.Contains(t, output.String(), "名称    - needed")
+	assert.Contains(t, output.String(), "LONGEST - needed")
+}
 
 func TestGetRequiredSecretsForEngine(t *testing.T) {
 	tests := []struct {
