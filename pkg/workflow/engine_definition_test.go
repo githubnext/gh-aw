@@ -33,7 +33,7 @@ func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr err
 	knownEngineImportsDownload = func(context.Context) ([]byte, error) {
 		return content, downloadErr
 	}
-	knownEngineImportsOnce = sync.Once{}
+	knownEngineImportsLoaded = false
 	knownEngineImports = nil
 
 	t.Cleanup(func() {
@@ -41,7 +41,7 @@ func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr err
 		defer knownEngineImportsMu.Unlock()
 
 		knownEngineImportsDownload = originalDownload
-		knownEngineImportsOnce = sync.Once{}
+		knownEngineImportsLoaded = false
 		knownEngineImports = nil
 		knownEngineImportsTestMu.Unlock()
 	})

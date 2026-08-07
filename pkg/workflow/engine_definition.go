@@ -353,9 +353,9 @@ type knownEngineImportsFile struct {
 }
 
 var (
-	knownEngineImportsMu   sync.Mutex
-	knownEngineImportsOnce sync.Once
-	knownEngineImports     map[string]string
+	knownEngineImportsMu     sync.Mutex
+	knownEngineImportsLoaded bool
+	knownEngineImports       map[string]string
 
 	knownEngineImportsDownload = func(ctx context.Context) ([]byte, error) {
 		return parser.DownloadFileFromGitHubForHost(ctx, knownEngineImportsOwner, knownEngineImportsRepo, knownEngineImportsPath, knownEngineImportsRef, "github.com")
@@ -367,40 +367,44 @@ var (
 // knownEngineImportsTimeout; fetch and parse failures are treated as an empty
 // catalog so engine validation remains unchanged.
 func knownEngineImportFor(id string) (string, bool) {
-	knownEngineImportsOnce.Do(loadKnownEngineImports)
+	knownEngineImportsMu.Lock()
+	if knownEngineImportsLoaded {
+		importPath, ok := knownEngineImports[strings.ToLower(id)]
+		knownEngineImportsMu.Unlock()
+		return importPath, ok
+	}
+	download := knownEngineImportsDownload
+	knownEngineImportsMu.Unlock()
+
+	loaded := loadKnownEngineImports(download)
 
 	knownEngineImportsMu.Lock()
 	defer knownEngineImportsMu.Unlock()
+	if !knownEngineImportsLoaded {
+		knownEngineImports = loaded
+		knownEngineImportsLoaded = true
+	}
 
 	importPath, ok := knownEngineImports[strings.ToLower(id)]
 	return importPath, ok
 }
 
-func loadKnownEngineImports() {
+func loadKnownEngineImports(download func(context.Context) ([]byte, error)) map[string]string {
 	loaded := map[string]string{}
-	defer func() {
-		knownEngineImportsMu.Lock()
-		defer knownEngineImportsMu.Unlock()
-		knownEngineImports = loaded
-	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), knownEngineImportsTimeout)
 	defer cancel()
 
-	knownEngineImportsMu.Lock()
-	download := knownEngineImportsDownload
-	knownEngineImportsMu.Unlock()
-
 	content, err := download(ctx)
 	if err != nil {
 		engineCatalogLog.Printf("Known engine import catalog unavailable: %v", err)
-		return
+		return loaded
 	}
 
 	var catalog knownEngineImportsFile
 	if err := json.Unmarshal(content, &catalog); err != nil {
 		engineCatalogLog.Printf("Known engine import catalog invalid: %v", err)
-		return
+		return loaded
 	}
 
 	for _, engine := range catalog.Engines {
@@ -411,6 +415,7 @@ func loadKnownEngineImports() {
 		}
 		loaded[id] = importPath
 	}
+	return loaded
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
