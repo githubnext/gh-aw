@@ -3128,6 +3128,43 @@ func TestResolveExternalDetectorEngineConfigInheritsVersionFromMainEngine(t *tes
 		}
 	})
 
+	t.Run("does not inherit main-engine fields when resolved detection engine differs", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "pi",
+			EngineConfig: &EngineConfig{
+				ID:            "pi",
+				Version:       "9.9.9-pi-only",
+				Config:        "pi-config",
+				Args:          []string{"--pi-only"},
+				HarnessScript: "pi-harness.cjs",
+				Driver:        "pi-driver.cjs",
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		got := resolveExternalDetectorEngineConfig(data, "copilot")
+		if got.ID != "copilot" {
+			t.Errorf("expected resolved ID copilot, got %q", got.ID)
+		}
+		if got.Version != "" {
+			t.Errorf("expected empty Version when engine IDs differ, got %q", got.Version)
+		}
+		if got.Config != "" {
+			t.Errorf("expected empty Config when engine IDs differ, got %q", got.Config)
+		}
+		if len(got.Args) != 0 {
+			t.Errorf("expected empty Args when engine IDs differ, got %v", got.Args)
+		}
+		if got.HarnessScript != "" {
+			t.Errorf("expected empty HarnessScript when engine IDs differ, got %q", got.HarnessScript)
+		}
+		if got.Driver != "" {
+			t.Errorf("expected empty Driver when engine IDs differ, got %q", got.Driver)
+		}
+	})
+
 	t.Run("no main engine config falls back to bare ID", func(t *testing.T) {
 		data := &WorkflowData{
 			AI: "copilot",

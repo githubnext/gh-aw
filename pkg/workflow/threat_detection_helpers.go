@@ -175,7 +175,7 @@ func resolveExternalDetectorEngineConfig(data *WorkflowData, engineID string) *E
 	if hasThreatDetectionEngineOverride {
 		return cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
 	}
-	if data.EngineConfig != nil {
+	if data.EngineConfig != nil && (data.EngineConfig.ID == "" || data.EngineConfig.ID == engineID) {
 		return &EngineConfig{
 			ID:            engineID,
 			Version:       data.EngineConfig.Version,
