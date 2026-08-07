@@ -107,6 +107,20 @@ func TestActivationStepsAddOAuthTokenCheckStep(t *testing.T) {
 
 		assert.Contains(t, strings.Join(ctx.steps, ""), constants.CopilotGitHubToken+": ${{ secrets.CUSTOM_COPILOT_TOKEN }}")
 	})
+
+	t.Run("omits COPILOT_GITHUB_TOKEN when copilot-requests write permission is set", func(t *testing.T) {
+		ctx := newActivationStepsTestContext(&WorkflowData{
+			Permissions: "permissions:\n  copilot-requests: write\n",
+		})
+
+		compiler.addActivationOAuthTokenCheckStep(ctx)
+
+		steps := strings.Join(ctx.steps, "")
+		assert.Contains(t, steps, "Check for OAuth tokens")
+		assert.NotContains(t, steps, constants.CopilotGitHubToken)
+		assert.Contains(t, steps, constants.EnvVarGitHubToken+": ${{ secrets."+constants.EnvVarGitHubToken+" }}")
+		assert.Contains(t, steps, constants.EnvVarGitHubMCPServerToken+": ${{ secrets."+constants.EnvVarGitHubMCPServerToken+" }}")
+	})
 }
 
 func TestActivationStepsAddCrossRepoGuidanceStep(t *testing.T) {
