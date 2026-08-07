@@ -172,7 +172,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Mask OTLP telemetry headers
@@ -183,8 +183,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "codex"
           GH_AW_INFO_ENGINE_NAME: "Codex"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CODEX || vars.GH_AW_DEFAULT_MODEL_CODEX || 'gpt-5.4' }}
-          GH_AW_INFO_VERSION: "0.146.0"
-          GH_AW_INFO_AGENT_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
+          GH_AW_INFO_AGENT_VERSION: "0.146.1"
           GH_AW_INFO_WORKFLOW_NAME: "AI Moderator"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -541,7 +541,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Set runtime paths
@@ -588,7 +588,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.146.0
+        run: npm install --ignore-scripts -g @openai/codex@0.146.1
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.44 --rootless
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -1201,7 +1201,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Download agent output artifact
@@ -1447,7 +1447,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Download agent output artifact
@@ -1498,7 +1498,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex CLI
-        run: npm install --ignore-scripts -g @openai/codex@0.146.0
+        run: npm install --ignore-scripts -g @openai/codex@0.146.1
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.44
       - name: Download container images
@@ -1718,7 +1718,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Check user rate limit
@@ -1792,7 +1792,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Checkout repository
@@ -1898,7 +1898,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Mask OTLP telemetry headers
@@ -1985,7 +1985,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "AI Moderator"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ai-moderator.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.146.0"
+          GH_AW_INFO_VERSION: "0.146.1"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "codex"
       - name: Unlock issue after agentic workflow
