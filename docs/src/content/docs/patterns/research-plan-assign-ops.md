@@ -104,11 +104,7 @@ Copilot's pull request is reviewed by a human maintainer. The maintainer checks 
 
 ## End-to-End Example
 
-A full cycle driven by `go-fan`:
-
-- **Monday 7 AM** — `go-fan` posts a discussion *"[go-fan] Go Module Review: spf13/cobra"* recommending context propagation via cobra's `SetContext` and shared setup via `PersistentPreRunE`.
-- **Monday afternoon** — A developer types `/plan` on the discussion. The planner opens a `[plan] cobra improvements` tracking issue with three sub-issues (context propagation, `PersistentPreRunE` refactor, cancellation tests), then assigns the first two to Copilot, which opens PRs within minutes.
-- **Tuesday** — The developer reviews the PRs, requests one minor change, and merges both. The tracking issue closes automatically.
+A typical `go-fan` cycle spans two days: Monday morning the workflow posts a discussion such as *"[go-fan] Go Module Review: spf13/cobra"* with recommendations like adopting `SetContext` and moving shared setup into `PersistentPreRunE`. That afternoon a developer runs `/plan`, which creates a `[plan] cobra improvements` tracking issue plus three sub-issues (context propagation, `PersistentPreRunE` refactor, and cancellation tests) and assigns the first two to Copilot. By Tuesday, the developer reviews the resulting PRs, requests any needed tweaks, and merges them; the tracking issue closes automatically once the sub-issues are resolved.
 
 ## Workflow Configuration Patterns
 
@@ -142,26 +138,17 @@ safe-outputs:
 
 ## Customization
 
-Adapt the pattern by varying the **research focus** (static analysis, performance, documentation quality, security, code duplication, test coverage), the **frequency** (daily, weekly, on-demand), the **report format** (discussions for open-ended findings, issues for self-contained tasks), and the **assignment method** (pre-assign in the research workflow, bulk-assign via an orchestrator, or assign individually through the GitHub UI).
-
-## Limitations
-
-The multi-phase approach takes longer than direct execution and requires developers to review research reports and generated issues. Research agents may surface findings that don't require action (false positives), and each phase transition needs clear handoffs. Research agents often require specialized MCPs (Serena, Tavily, etc.) for deeper analysis.
+Adapt the pattern by changing the **research focus** (for example static analysis, performance, documentation quality, security, code duplication, or test coverage), the **frequency** (daily, weekly, or on-demand), the **report format** (discussions for open-ended findings, issues for self-contained tasks), and the **assignment method** (pre-assign in the research workflow, bulk-assign via an orchestrator, or assign individually through the GitHub UI).
 
 ## When to Use ResearchPlanAssignOps
 
-This pattern fits when:
+Use this pattern when the scope is unclear until analysis runs, the resulting issues need human prioritization, findings may be non-actionable, and multiple follow-up tasks can proceed in parallel.
 
-- The scope of work is unknown until analysis runs
-- Issues need human prioritization before implementation
-- Research findings vary in quality (some runs find nothing actionable)
-- Multiple work items can be executed in parallel
+Prefer a simpler pattern when the work is already well-defined ([IssueOps](/gh-aw/patterns/issue-ops/)), issues can go straight to Copilot via `assignees: copilot`, or the work spans multiple repositories ([MultiRepoOps](/gh-aw/patterns/multi-repo-ops/)).
 
-Prefer a simpler pattern when:
+## Limitations
 
-- The work is already well-defined (use [IssueOps](/gh-aw/patterns/issue-ops/))
-- Issues can go directly to Copilot without review (use the `assignees: copilot` shortcut in your research workflow)
-- Work spans multiple repositories (use [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/))
+The multi-phase approach is slower than direct execution because developers still need to review the research output and generated issues. It also depends on clean handoffs between phases, and research agents may produce false positives or need specialized MCPs such as Serena or Tavily for deeper analysis.
 
 ## Existing Workflows
 

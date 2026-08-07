@@ -30,9 +30,11 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`prefer-get-error-message`](#prefer-get-error-message) | Prefer `getErrorMessage(err)` over the inline ternary pattern |
 | [`prefer-core-logging`](#prefer-core-logging) | Prefer `@actions/core` logging over `console.log` / `console.info` / `console.debug` |
 | [`prefer-number-isnan`](#prefer-number-isnan) | Prefer `Number.isNaN()` over global `isNaN()` |
+| [`prefer-structured-clone`](#prefer-structured-clone) | Prefer `structuredClone(...)` over `JSON.parse(JSON.stringify(...))` for deep-cloning data |
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
+| [`require-fetch-response-body-try-catch`](#require-fetch-response-body-try-catch) | Require try/catch around `.json()` or `.text()` on Responses from `fetch(...)` |
 | [`require-fetch-timeout`](#require-fetch-timeout) | Require `fetch(...)` calls to include a non-nullish abort `signal` option |
 | [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around awaited `fetch(...)` calls, including chained promise forms without rejection handlers |
 | [`require-fs-io-try-catch`](#require-fs-io-try-catch) | Require try/catch around `fs.statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync` |
@@ -153,6 +155,18 @@ Flagged forms:
 
 Locally shadowed bindings (e.g. `const isNaN = Number.isNaN`) are intentionally excluded.
 
+### `prefer-structured-clone`
+
+Prefer `structuredClone(...)` over `JSON.parse(JSON.stringify(...))` for deep-cloning data. The JSON round trip is slower, drops values such as `undefined` and functions, converts `Date` instances to strings, and throws on circular references.
+
+**Detected forms:**
+- `JSON.parse(JSON.stringify(value))`
+- `JSON["parse"](JSON["stringify"](value))`
+
+The rule only reports a `JSON.stringify(...)` call with exactly one argument, because replacer or indentation arguments change the round-trip semantics.
+
+The rule suggests replacing the round trip with `structuredClone(value)` unless `value` is an identifier that is assigned a function-valued property, initialized with a function-valued object property, or checked with `typeof value.property === "function"` anywhere in the file. Those identifiers are still reported, but without a suggestion, because `structuredClone` throws on functions while JSON serialization silently drops them.
+
 ### `no-throw-plain-object`
 
 Disallow throwing plain object literals (`throw { ... }`). Plain objects lack a `.stack` trace and a meaningful `.message` string, making errors hard to debug and incompatible with catch-clause error utilities such as `getErrorMessage`.
@@ -258,6 +272,25 @@ Why: `fetch` rejects with `TypeError` on network failures (DNS errors, connectio
 **Out of scope:**
 - locally shadowed `fetch` bindings such as `async function f(fetch) { await fetch(url); }`
 - named-reference rejection handlers are not inspected for correctness; the rule only checks that `.catch(handler)` or `.then(ok, onErr)` is present on the awaited fetch chain
+
+### `require-fetch-response-body-try-catch`
+
+Require awaited `.json()` or `.text()` calls on a `fetch(...)` response to be wrapped in `try/catch`. Reading a response body can reject when the stream errors, and `.json()` can also reject for invalid JSON; an unhandled rejection crashes the action with an unhelpful exception.
+
+**Flagged forms:**
+- `await fetch(url).json();`
+- `const response = await fetch(url); await response.text();`
+
+The rule recognizes direct global `fetch(...)` chains and identifiers assigned from a bare `await fetch(...)`. It supports direct or string-literal computed body methods, such as `response["json"]()`.
+
+**Not flagged:**
+- `try { await fetch(url).json(); } catch (err) {}`
+- `try { await response.text(); } catch (err) {}` when `response` was assigned from `await fetch(...)`
+
+**Out of scope:**
+- body methods other than `.json()` and `.text()`
+- response values not resolved to a bare `await fetch(...)`
+- calls in deferred callbacks nested within a `try` block, because that `try` cannot catch their asynchronous failures
 
 ### `require-fetch-timeout`
 

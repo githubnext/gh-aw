@@ -111,13 +111,6 @@ func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData) []string {
 	return additional
 }
 
-func canReuseThreatDetectionEngineConfigForExternalDetector(data *WorkflowData, engineID string) bool {
-	return data.SafeOutputs != nil &&
-		data.SafeOutputs.ThreatDetection != nil &&
-		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
-		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID)
-}
-
 // mergeThreatDetectionEngineEnv composes detection engine env vars from the main
 // engine env and detection-specific overrides.
 //
@@ -150,10 +143,7 @@ func buildExternalDetectorWorkflowData(data *WorkflowData, engineID string) *Wor
 	d.Tools = map[string]any{
 		"bash": []any{"*"},
 	}
-	d.EngineConfig = &EngineConfig{ID: engineID}
-	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
-		d.EngineConfig = cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
-	}
+	d.EngineConfig = resolveExternalDetectorEngineConfig(data, engineID)
 	d.EngineConfig.Env = mergeThreatDetectionEngineEnv(data, d.EngineConfig.Env)
 	if d.EngineConfig.APITarget == "" && data.EngineConfig != nil {
 		d.EngineConfig.APITarget = data.EngineConfig.APITarget
@@ -162,6 +152,40 @@ func buildExternalDetectorWorkflowData(data *WorkflowData, engineID string) *Wor
 		d.EngineConfig.MaxAICredits = data.SafeOutputs.ThreatDetection.MaxAICredits
 	}
 	return d
+}
+
+// resolveExternalDetectorEngineConfig determines the EngineConfig used to install and
+// execute the engine on the external detector path. Precedence:
+//  1. An explicit safe-outputs.threat-detection.engine override — cloned with its ID
+//     normalized to the resolved detection engine ID (handles cases like the pi->copilot
+//     detection normalization where the override's declared ID differs from the engine
+//     actually used).
+//  2. No override configured and the resolved detection engine matches the main
+//     engine — inherit Version/Config/Args/HarnessScript/Driver from the main engine
+//     config. This mirrors the inline detection path (buildDetectionEngineExecutionStep)
+//     and ensures behavior-defined engines (e.g. a pinned npm package version declared
+//     via a shared engine definition's default Version) install the same version in the
+//     detection job as in the main agent job, instead of silently falling back to the
+//     package's "latest" version.
+//  3. Otherwise, a minimal config containing only the resolved engine ID.
+func resolveExternalDetectorEngineConfig(data *WorkflowData, engineID string) *EngineConfig {
+	hasThreatDetectionEngineOverride := data.SafeOutputs != nil &&
+		data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil
+	if hasThreatDetectionEngineOverride {
+		return cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
+	}
+	if data.EngineConfig != nil && (data.EngineConfig.ID == "" || data.EngineConfig.ID == engineID) {
+		return &EngineConfig{
+			ID:            engineID,
+			Version:       data.EngineConfig.Version,
+			Config:        data.EngineConfig.Config,
+			Args:          data.EngineConfig.Args,
+			HarnessScript: data.EngineConfig.HarnessScript,
+			Driver:        data.EngineConfig.Driver,
+		}
+	}
+	return &EngineConfig{ID: engineID}
 }
 
 // cloneThreatDetectionEngineConfig returns a shallow copy of source with engine ID
