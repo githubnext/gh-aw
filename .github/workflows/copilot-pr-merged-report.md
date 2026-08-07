@@ -17,17 +17,9 @@ permissions:
   actions: read
 
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 strict: false
 
-sandbox:
-  agent:
-    sudo: false
 tools:
-  cli-proxy: true
   github: false
 
 network:
@@ -37,6 +29,7 @@ network:
     - api.github.com
 
 imports:
+  - shared/copilot-sandbox-standard.md
   - shared/reporting.md
   - uses: shared/daily-audit-base.md
     with:

@@ -12,15 +12,7 @@ permissions:
   pull-requests: read
   contents: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
-sandbox:
-  agent:
-    sudo: false
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [issues, pull_requests, repos]
@@ -33,6 +25,7 @@ safe-outputs:
     max: 5
   noop:
 imports:
+  - shared/copilot-sandbox-standard.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

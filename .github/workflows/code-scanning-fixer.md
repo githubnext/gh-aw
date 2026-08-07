@@ -12,11 +12,8 @@ permissions:
   pull-requests: read
   security-events: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 imports:
+  - shared/copilot-sandbox-standard.md
   - shared/mcp-pagination.md
   - uses: shared/skip-if-issue-open.md
     with:
@@ -31,7 +28,6 @@ imports:
       reviewers: [copilot]
   - shared/otlp.md
 tools:
-  cli-proxy: true
   bash: ["git diff:*", "git restore:*", wc]
   github:
     mode: gh-proxy
@@ -47,9 +43,6 @@ safe-outputs:
 timeout-minutes: 20
 features:
   gh-aw-detection: true
-sandbox:
-  agent:
-    sudo: false
 evals:
   - id: alerts_analyzed
     question: Did the agent analyze code scanning alerts and identify at least one fixable alert, or correctly skip when no fixable alerts were found?

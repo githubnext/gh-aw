@@ -13,17 +13,10 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 imports:
+  - shared/copilot-sandbox-standard.md
   - shared/otlp.md
-sandbox:
-  agent:
-    sudo: false
 tools:
-  cli-proxy: true
   edit:
   bash:
     - "*"

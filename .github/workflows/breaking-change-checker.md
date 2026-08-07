@@ -9,10 +9,6 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 experiments:
   tone_variant:
     variants: [neutral, urgent]
@@ -32,11 +28,7 @@ experiments:
     start_date: "2026-06-30"
     issue: 42467
 tracker-id: breaking-change-checker
-sandbox:
-  agent:
-    sudo: false
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [repos]
@@ -48,6 +40,7 @@ tools:
     - "grep:*"
   edit:
 imports:
+  - shared/copilot-sandbox-standard.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[breaking-change]"

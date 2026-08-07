@@ -13,12 +13,7 @@ permissions:
 
 max-ai-credits: 50000
 tracker-id: ci-coach-daily
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [issues, pull_requests]
@@ -30,6 +25,7 @@ safe-outputs:
     protected-files: fallback-to-issue
 timeout-minutes: 30
 imports:
+  - shared/copilot-sandbox-standard.md
   - shared/ci-data-analysis.md
   - shared/ci-optimization-strategies.md
   - shared/reporting.md
@@ -53,9 +49,6 @@ experiments:
     issue: 32335
 features:
   gh-aw-detection: true
-sandbox:
-  agent:
-    sudo: false
 evals:
   - id: repair-or-optimization-path
     question: Did the workflow check validation-status first and then follow the correct repair or optimization path for this run?

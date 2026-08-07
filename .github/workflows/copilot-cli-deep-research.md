@@ -16,6 +16,7 @@ network:
   - defaults
   - github
 imports:
+- shared/copilot-sandbox-standard.md
 - shared/reporting.md
 - shared/otlp.md
 safe-outputs:
@@ -26,15 +27,8 @@ safe-outputs:
     title-prefix: "[copilot-cli-research] "
 description: Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities
 emoji: 🔬
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 strict: true
 timeout-minutes: 20
-sandbox:
-  agent:
-    sudo: false
 tools:
   bash:
   - "*"
@@ -55,7 +49,6 @@ tools:
   - ls
   - head
   - tail
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets:

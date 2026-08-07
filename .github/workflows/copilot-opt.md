@@ -13,17 +13,12 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 strict: true
 network:
   allowed:
     - defaults
     - github
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [default]
@@ -44,6 +39,7 @@ safe-outputs:
     title-prefix: "[copilot-opt] "
     close-older-issues: true
 imports:
+  - shared/copilot-sandbox-standard.md
   - ../skills/jqschema/SKILL.md
   - shared/copilot-session-data-fetch.md
   - shared/copilot-pr-data-fetch.md
@@ -52,9 +48,6 @@ imports:
 timeout-minutes: 30
 features:
   gh-aw-detection: true
-sandbox:
-  agent:
-    sudo: false
 evals:
   - id: sessions_analyzed
     question: Did the agent analyze Copilot sessions from the last 14 days?

@@ -10,15 +10,7 @@ permissions:
   discussions: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
-sandbox:
-  agent:
-    sudo: false
 tools:
-  cli-proxy: true
   bash: [":*"]
   repo-memory:
     branch-name: memory/meta-orchestrators
@@ -26,6 +18,7 @@ tools:
     max-file-size: 102400  # 100KB
     max-patch-size: 51200  # 5x the default limit (default: 10240)
 imports:
+  - shared/copilot-sandbox-standard.md
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions, repos]

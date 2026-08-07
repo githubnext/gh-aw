@@ -10,10 +10,6 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine:
-  id: copilot
-  copilot-sdk: true
-max-tool-denials: 3
 tracker-id: architecture-guardian
 experiments:
   sub_agent_strategy:
@@ -34,6 +30,7 @@ experiments:
     start_date: "2026-06-13"
     issue: 39062
 imports:
+  - shared/copilot-sandbox-standard.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[architecture-guardian]"
@@ -46,11 +43,7 @@ imports:
   - shared/otlp.md
 skills:
   - githubnext/rig/skills/rig/SKILL.md@0ba73e37355f92adca11f9d596eb709e77f25332
-sandbox:
-  agent:
-    sudo: false
 tools:
-  cli-proxy: true
   bash:
     - "cat:*"
 safe-outputs:
