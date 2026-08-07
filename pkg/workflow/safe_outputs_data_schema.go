@@ -7,7 +7,11 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var safeOutputsDataSchemaLog = logger.New("workflow:safe_outputs_data_schema")
 
 var supportedDataSchemaTypes = map[string]struct{}{
 	"object":  {},
@@ -57,6 +61,7 @@ func validateSafeOutputsDataSchema(config *SafeOutputsConfig) error {
 	config.DataEnabled = enabled
 	config.NormalizedDataSchema = schema
 	config.DataSchemaExpression = schemaExpression
+	safeOutputsDataSchemaLog.Printf("Resolved safe-outputs.data: enabled=%v hasSchema=%v hasExpression=%v", enabled, schema != nil, schemaExpression != "")
 	return nil
 }
 
@@ -71,10 +76,12 @@ func resolveSafeOutputsDataSchema(config *SafeOutputsConfig) (bool, map[string]a
 	switch v := config.Data.(type) {
 	case bool:
 		if !v {
+			safeOutputsDataSchemaLog.Print("safe-outputs.data explicitly disabled (false)")
 			return false, nil, "", nil
 		}
 		return true, nil, "", nil
 	case map[string]any:
+		safeOutputsDataSchemaLog.Print("Normalizing inline safe-outputs.data schema object")
 		normalized, err := simplifyDataSchemaNode(v, "safe-outputs.data", true)
 		if err != nil {
 			return false, nil, "", err
@@ -86,6 +93,7 @@ func resolveSafeOutputsDataSchema(config *SafeOutputsConfig) (bool, map[string]a
 	case string:
 		trimmed := strings.TrimSpace(v)
 		if containsExpression(trimmed) {
+			safeOutputsDataSchemaLog.Printf("safe-outputs.data resolved to a GitHub Actions expression: %s", trimmed)
 			return true, nil, trimmed, nil
 		}
 		var parsed any

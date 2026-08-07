@@ -12,9 +12,52 @@ const DOCS_DIR = path.join(ROOT, "docs");
 const SOURCE_PATH = path.join(DOCS_DIR, "slides/github-agentic-workflows.pdf");
 const OUTPUT_PATH = path.join(DOCS_DIR, "public/slides/github-agentic-workflows.pdf");
 const LFS_POINTER_PREFIX = "version https://git-lfs.github.com/spec/v1";
+const MAX_PDF_BYTES = 50 * 1024 * 1024; // 50 MB
+const TRUSTED_MEDIA_ORIGIN = "https://media.githubusercontent.com";
+const SLIDE_DECK_RELATIVE_PATH = "docs/slides/github-agentic-workflows.pdf";
 
-function isPdf(buffer) {
+export function isPdf(buffer) {
   return buffer.subarray(0, 5).toString("utf8") === "%PDF-";
+}
+
+export function validatePdfBytes(buffer, sourceDescription) {
+  if (!Buffer.isBuffer(buffer)) {
+    throw new Error(`${sourceDescription} did not produce a Buffer.`);
+  }
+  if (buffer.length === 0) {
+    throw new Error(`${sourceDescription} is empty.`);
+  }
+  if (buffer.length > MAX_PDF_BYTES) {
+    throw new Error(`${sourceDescription} size ${buffer.length} exceeds limit of ${MAX_PDF_BYTES} bytes`);
+  }
+  if (!isPdf(buffer)) {
+    throw new Error(`${sourceDescription} is not a real PDF.`);
+  }
+  return buffer;
+}
+
+export function isAllowedPdfContentType(contentType) {
+  const mediaType = contentType.split(";", 1)[0].trim().toLowerCase();
+  return mediaType === "application/pdf" || mediaType === "application/octet-stream";
+}
+
+export function validateSlideDeckResponse(response) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!isAllowedPdfContentType(contentType)) {
+    throw new Error(`Unexpected content-type for slide deck: ${contentType}`);
+  }
+
+  const contentLength = response.headers.get("content-length");
+  if (contentLength !== null) {
+    const normalizedContentLength = contentLength.trim();
+    if (!/^\d+$/.test(normalizedContentLength)) {
+      throw new Error(`Unexpected content-length for slide deck: ${contentLength}`);
+    }
+    const expectedBytes = Number(normalizedContentLength);
+    if (!Number.isSafeInteger(expectedBytes) || expectedBytes > MAX_PDF_BYTES) {
+      throw new Error(`Slide deck download size ${contentLength} exceeds limit of ${MAX_PDF_BYTES} bytes`);
+    }
+  }
 }
 
 function getRepositoryPath() {
@@ -47,6 +90,27 @@ function getGitRef() {
   } catch {
     throw new Error("Unable to determine the current git ref. Set GITHUB_SHA or run this script from a git checkout.");
   }
+}
+
+export function buildSlideDeckUrl(repositoryPath, ref) {
+  // Validate each URL component before interpolating into the request URL.
+  // getGitRef() always returns a 40-character hex commit SHA (from GITHUB_SHA
+  // or `git rev-parse HEAD`).
+  const safeSHAPattern = /^[0-9a-f]{40}$/i;
+  if (!safeSHAPattern.test(ref)) {
+    throw new Error(`Unsafe git ref value: ${ref}`);
+  }
+  // Repository path must be exactly "owner/repo" with no dot-only path components.
+  const safeRepoPattern = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/;
+  if (!safeRepoPattern.test(repositoryPath) || repositoryPath.split("/").some(p => /^[.]+$/.test(p))) {
+    throw new Error(`Unsafe repository path value: ${repositoryPath}`);
+  }
+
+  const url = new URL(`/media/${repositoryPath}/${ref}/${SLIDE_DECK_RELATIVE_PATH}`, TRUSTED_MEDIA_ORIGIN);
+  if (url.origin !== TRUSTED_MEDIA_ORIGIN) {
+    throw new Error(`Unsafe slide deck origin: ${url.origin}`);
+  }
+  return url.toString();
 }
 
 /**
@@ -93,7 +157,7 @@ function createPlaceholderPdfBytes() {
 async function readPdfBytes() {
   const bytes = fs.readFileSync(SOURCE_PATH);
   if (isPdf(bytes)) {
-    return bytes;
+    return validatePdfBytes(bytes, SOURCE_PATH);
   }
 
   if (!bytes.toString("utf8").startsWith(LFS_POINTER_PREFIX)) {
@@ -102,21 +166,7 @@ async function readPdfBytes() {
 
   const ref = getGitRef();
   const repositoryPath = getRepositoryPath();
-
-  // Validate each URL component before interpolating into the request URL.
-  // getGitRef() always returns a 40-character hex commit SHA (from GITHUB_SHA
-  // or `git rev-parse HEAD`).
-  const safeSHAPattern = /^[0-9a-f]{40}$/i;
-  if (!safeSHAPattern.test(ref)) {
-    throw new Error(`Unsafe git ref value: ${ref}`);
-  }
-  // Repository path must be exactly "owner/repo" with no dot-only path components.
-  const safeRepoPattern = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/;
-  if (!safeRepoPattern.test(repositoryPath) || repositoryPath.split("/").some(p => p === "." || p === "..")) {
-    throw new Error(`Unsafe repository path value: ${repositoryPath}`);
-  }
-
-  const url = `https://media.githubusercontent.com/media/${repositoryPath}/${ref}/docs/slides/github-agentic-workflows.pdf`;
+  const url = buildSlideDeckUrl(repositoryPath, ref);
 
   console.warn(`Detected Git LFS pointer at ${SOURCE_PATH}; downloading ${url}`);
 
@@ -126,33 +176,13 @@ async function readPdfBytes() {
       throw new Error(`Failed to download slide deck PDF: ${response.status} ${response.statusText}`);
     }
 
-    // Validate the Content-Type header before consuming the body to ensure we
-    // are actually receiving a PDF and not arbitrary data.
-    const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.startsWith("application/pdf") && !contentType.startsWith("application/octet-stream")) {
-      throw new Error(`Unexpected content-type for slide deck: ${contentType}`);
-    }
-
-    // Guard against unexpectedly large downloads.
-    const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
-    const contentLength = response.headers.get("content-length");
-    if (contentLength !== null && Number(contentLength) > MAX_BYTES) {
-      throw new Error(`Slide deck download size ${contentLength} exceeds limit of ${MAX_BYTES} bytes`);
-    }
+    validateSlideDeckResponse(response);
 
     const downloadedBytes = Buffer.from(await response.arrayBuffer());
-    if (downloadedBytes.length > MAX_BYTES) {
-      throw new Error(`Downloaded slide deck size ${downloadedBytes.length} exceeds limit of ${MAX_BYTES} bytes`);
-    }
-
-    if (!isPdf(downloadedBytes)) {
-      throw new Error(`Downloaded slide deck from ${url} is not a real PDF.`);
-    }
-
-    return downloadedBytes;
+    return validatePdfBytes(downloadedBytes, `Downloaded slide deck from ${url}`);
   } catch (error) {
     console.warn(`Warning: Could not download slide deck PDF (${error.message}). Using placeholder PDF.`);
-    return createPlaceholderPdfBytes();
+    return validatePdfBytes(createPlaceholderPdfBytes(), "Placeholder slide deck");
   }
 }
 
@@ -168,7 +198,9 @@ async function main() {
   console.log(`✓ Slide PDF ready at ${OUTPUT_PATH}`);
 }
 
-main().catch(error => {
-  console.error(error);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  main().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
+}

@@ -43,7 +43,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `panic-in-library-code` — reports `panic()` calls in library packages (`pkg/*`) where errors should be returned instead.
 - `rawloginlib` — reports direct usage of the standard `log` package in library packages, where `pkg/logger` should be used.
 - `regexpcompileinfunction` — reports `regexp.MustCompile` / `regexp.Compile` calls inside functions that should be package-level.
-- `regexpdynamicpattern` — reports `regexp.MustCompile` / `regexp.Compile` calls whose pattern is not a compile-time constant string.
+- `regexpdynamicpattern` — reports regexp compile calls whose pattern is not a compile-time constant string.
 - `seenmapbool` — reports `map[string]bool` used as a set (values always `true`) that should use `map[string]struct{}` instead.
 - `sortslice` — reports `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc`.
 - `sprintferrdot` — reports redundant `.Error()` calls on error values passed to `fmt` format functions where the fmt package calls `.Error()` automatically.
@@ -113,7 +113,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `panic-in-library-code` | Custom `go/analysis` analyzer that flags `panic()` usage in library packages |
 | `rawloginlib` | Custom `go/analysis` analyzer that flags standard-library `log` package calls in library packages |
 | `regexpcompileinfunction` | Custom `go/analysis` analyzer that flags regexp compilation inside function bodies |
-| `regexpdynamicpattern` | Custom `go/analysis` analyzer that flags regexp.MustCompile/Compile calls with non-constant patterns |
+| `regexpdynamicpattern` | Custom `go/analysis` analyzer that flags regexp compile calls with non-constant patterns |
 | `seenmapbool` | Custom `go/analysis` analyzer that flags `map[string]bool` used as a set that should use `map[string]struct{}` |
 | `sortslice` | Custom `go/analysis` analyzer that flags `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc` |
 | `sprintferrdot` | Custom `go/analysis` analyzer that flags redundant `.Error()` calls on error values passed to `fmt` format functions |

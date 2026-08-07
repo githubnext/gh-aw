@@ -239,7 +239,7 @@ A safe output processing behavior where a handler skips an operation with a warn
 
 ### Status Comment
 
-A comment posted on the triggering issue or pull request that shows workflow run status (started and completed). Configured via `status-comment: true` in `safe-outputs`. Defaults to `true` for `slash_command` and `label_command` triggers; must be explicitly enabled for other trigger types. Set `status-comment: false` to disable. Not automatically bundled with `ai-reaction` — each must be configured independently.
+A comment posted on the triggering issue, pull request, or discussion that shows workflow run status (started and completed). Configured via `status-comment: true` under `on:`. Defaults to `true` for `slash_command` and `label_command` triggers; must be explicitly enabled for other trigger types. Set `status-comment: false` to disable. Not automatically bundled with `ai-reaction` — each must be configured independently.
 
 ### Permissions
 
@@ -268,6 +268,19 @@ safe-outputs:
 ```
 
 Common categories include `agent_failure`, `timed_out`, `missing_safe_outputs`, `report_incomplete`, `missing_tool`, `missing_data`, `inference_access_error`, and `ai_credits_rate_limit_error`. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for the full list.
+
+### Report Failed Jobs (`report-failed-jobs:`)
+
+A workflow-level control field under `safe-outputs:` that applies to safe-output processing as a whole rather than to an individual handler. Set `report-failed-jobs: false` to disable the automatic failed-job reporting issue that the framework otherwise creates when a job in the workflow fails. Defaults to `true` when omitted, distinct from [Failure Issue Reporting (`report-failure-as-issue:`)](#failure-issue-reporting-report-failure-as-issue), which controls category-based failure reporting for the agent job itself.
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    max: 1
+  report-failed-jobs: false
+```
+
+See [Frontmatter Reference](/gh-aw/reference/frontmatter/).
 
 ### Failure Issue Repository (`failure-issue-repo:`)
 
@@ -1344,6 +1357,10 @@ Currently defined:
 
 See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide) and [Runtime Policy Variables](/gh-aw/reference/environment-variables/#runtime-policy-variables).
 
+### `GH_DEBUG=api`
+
+An environment variable that enables verbose request/response logging for GitHub API calls made through go-gh's native REST and GraphQL clients. Setting `GH_DEBUG=api` before a `gh aw` command (for example, `GH_DEBUG=api gh aw compile my-workflow`) prints detailed API call diagnostics with no extra flags required, useful for troubleshooting authentication, rate-limiting, or unexpected API responses. See [Debugging Guide](/gh-aw/troubleshooting/debugging/).
+
 ### `GH_HOST`
 
 An environment variable recognized by the `gh` CLI that specifies the GitHub hostname for GitHub Enterprise Server (GHES) or GitHub Enterprise Cloud (GHEC) deployments. When set, `gh` commands target the specified enterprise instance instead of `github.com`. Agentic workflows automatically configure this from `GITHUB_SERVER_URL` at agent job startup; the variable is also propagated to custom frontmatter jobs and the safe-outputs job so all `gh` calls target the correct enterprise host. `gh aw trial` (including `--clone-repo` and `--trigger-context`) also honors `GH_HOST` — all trial repository URLs are built against the resolved host instead of hard-coded `github.com`, so trials work correctly against GHES instances. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
@@ -1531,6 +1548,10 @@ Testing and validation pattern executing workflows in isolated trial repositorie
 ### Logical Repository Mode (`--logical-repo`)
 
 A `gh aw trial` flag that simulates running a workflow as if it targeted a different repository, while workflow outputs and safe-output side effects remain contained in the trial repository. Lets you validate repository-specific behavior — such as `target-repo` routing or repo-scoped permissions — without touching the real target repository. See [TrialOps](/gh-aw/experimental/trial-ops/).
+
+### Trial Result Success (`success`, `safe_output_errors`)
+
+Fields in the JSON result written to `trials/*.json` by `gh aw trial`. The boolean `success` field gives an explicit pass/fail signal for each workflow result, and the `safe_output_errors` array is populated with rejected-message errors whenever safe-output processing rejects one or more requested actions. When `safe_output_errors` is non-empty, `gh aw trial` exits with a non-zero status instead of reporting unconditional success. See [TrialOps](/gh-aw/experimental/trial-ops/).
 
 ### WorkQueueOps
 

@@ -23,7 +23,7 @@ MCP server configurations in your agentic workflows.
 
 Available subcommands:
   - list       - List MCP servers defined in agentic workflows
-  - list-tools - List tools for a specific MCP server, or find workflows using it
+  - list-tools - List available tools for a specific MCP server, or find workflows using it
   - inspect    - Inspect MCP servers and list available tools, resources, and roots
   - add        - Add an MCP server to an agentic workflow`,
 		Example: `  gh aw mcp list                              # List all workflows with MCP servers

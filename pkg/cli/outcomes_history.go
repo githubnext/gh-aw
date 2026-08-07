@@ -160,9 +160,9 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 	}
 
 	if config.JSONOutput {
-		out, err := json.MarshalIndent(data, "", "  ")
+		out, err := marshalIndentJSONOrWrap(data, "outcomes history")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(out))
 		return nil

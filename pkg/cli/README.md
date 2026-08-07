@@ -71,152 +71,118 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 
 ## Public API
 
-### Key Types
+The `cli` package is intentionally large and command-oriented. The tables below document the most important exported, source-verified entry points and data types rather than every helper. Callers SHOULD treat `New*Command()` constructors as the stable integration surface for Cobra wiring, and SHOULD use the corresponding `Run*` or library helpers for programmatic use.
 
-| Type | File | Description |
+### Types
+
+| Type | Kind | Description |
 |------|------|-------------|
-| `CompileConfig` | `compile_config.go` | Configuration for `CompileWorkflows` — file list, flags, validation options |
-| `ValidationResult` | `compile_config.go` | Result of a compilation validation pass |
-| `AddOptions` | `add_command.go` | Options controlling workflow addition behavior |
-| `AddWorkflowsResult` | `add_command.go` | Result of `AddWorkflows` / `AddResolvedWorkflows` |
-| `ResolvedWorkflow` | `add_workflow_resolution.go` | A single resolved workflow with source metadata |
-| `ResolvedWorkflows` | `add_workflow_resolution.go` | Collection of resolved workflows |
-| `RunOptions` | `run_workflow_execution.go` | Options for `RunWorkflowOnGitHub` |
-| `WorkflowRunResult` | `run_workflow_execution.go` | Result of a triggered workflow run |
-| `AuditData` | `audit_report.go` | Full audit data structure for a workflow run |
-| `AuditDiff` | `audit_diff.go` | Diff between two audit runs |
-| `CrossRunAuditReport` | `audit_cross_run.go` | Cross-run trend analysis |
-| `HealthConfig` | `health_command.go` | Configuration for health computation |
-| `WorkflowHealth` | `health_metrics.go` | Per-workflow health metrics |
-| `HealthSummary` | `health_metrics.go` | Aggregate health across all workflows |
-| `DependencyReport` | `deps_report.go` | Full dependency report |
-| `OutdatedDependency` | `deps_outdated.go` | An outdated dependency entry |
-| `SecurityAdvisory` | `deps_security.go` | A security advisory entry |
-| `WorkflowStatus` | `status_command.go` | Run status for a single workflow; embeds `WorkflowListItem` |
-| `MCPRegistryClient` | `mcp_registry.go` | Client for the MCP registry API |
-| `ToolGraph` | `tool_graph.go` | Dependency graph of MCP tools |
-| `DependencyGraph` | `dependency_graph.go` | Dependency graph across workflows |
-| `FileTracker` | `file_tracker.go` | Tracks files modified during an operation |
-| `RepeatOptions` | `retry.go` | Options for `ExecuteWithRepeat` polling loop |
-| `PollOptions` | `signal_aware_poll.go` | Options for `PollWithSignalHandling` |
-| `FixConfig` | `fix_command.go` | Configuration for `RunFix` codemods |
-| `ForecastConfig` | `forecast_command.go` | Configuration for `NewForecastCommand` (token usage forecasting) |
-| `ExperimentsListConfig` | `experiments_command.go` | Configuration for `RunExperimentsList` |
-| `ExperimentsAnalyzeConfig` | `experiments_command.go` | Configuration for `RunExperimentsAnalyze` |
-| `TrialOptions` | `trial_types.go` | Options for `RunWorkflowTrials` |
-| `WorkflowTrialResult` | `trial_types.go` | Result of a trial run |
-| `UpgradeConfig` | `upgrade_command.go` | Configuration for `NewUpgradeCommand` |
-| `ChecksConfig` | `checks_command.go` | Configuration for `RunChecks` |
-| `ChecksResult` | `checks_command.go` | Result of `FetchChecksResult` |
-| `OutcomesConfig` | `outcomes_command.go` | Configuration for `RunOutcomes` safe-output outcome evaluation |
-| `OutcomesData` | `outcomes_command.go` | Evaluated outcome data returned by `RunOutcomes` |
+| `AddOptions` | struct | Options for installing workflows from local paths, URLs, or source repositories. |
+| `AddWorkflowsResult` | struct | Result of `AddWorkflows` and `AddResolvedWorkflows`, including PR metadata and dispatch detection. |
+| `CompileConfig` | struct | Compilation and validation settings for `CompileWorkflows`, including scanner and output controls. |
+| `ValidationResult` | struct | Per-workflow validation result used by compile and validate flows. |
+| `ResolvedWorkflow` | struct | Metadata and fetched content for a single resolved workflow source. |
+| `ResolvedWorkflows` | struct | Batch resolution result for `gh aw add`, including warnings and bootstrap profile metadata. |
+| `RunOptions` | struct | Options for triggering workflows on GitHub, including enable/push/wait/dry-run behavior. |
+| `WorkflowRunResult` | struct | JSON-friendly result for a triggered or simulated workflow run. |
+| `HealthConfig` | struct | Configuration for workflow health analysis. |
+| `WorkflowHealth` | struct | Per-workflow health metrics computed from historical runs. |
+| `HealthSummary` | struct | Aggregate health summary across workflows. |
+| `ChecksConfig` | struct | Inputs for normalizing CI check state for a pull request. |
+| `ChecksResult` | struct | Normalized check-rollup result returned by `FetchChecksResult`. |
+| `OutcomesConfig` | struct | Configuration for safe-output outcome evaluation for a single run. |
+| `OutcomesData` | struct | Structured outcomes report for JSON output. |
+| `UpdateWorkflowsOptions` | struct | Options controlling `gh aw update` behavior for sourced workflows. |
+| `WorkflowStatus` | struct | Status view for a workflow, combining list metadata with latest run state. |
+| `MCPRegistryClient` | struct | Client for the MCP registry used by MCP subcommands. |
+| `ToolGraph` | struct | Directed graph of MCP tool transitions used in log analysis. |
+| `FileTracker` | struct | Tracks modified files during multi-step CLI operations. |
+| `RepeatOptions` | struct | Retry-loop configuration for `ExecuteWithRepeat`. |
+| `PollOptions` | struct | Signal-aware polling configuration for `PollWithSignalHandling`. |
+| `FixConfig` | struct | Configuration for codemod-based fixes. |
+| `ForecastConfig` | struct | Configuration for Monte Carlo AIC forecasting. |
+| `ExperimentsListConfig` | struct | Configuration for listing workflow experiments. |
+| `ExperimentsAnalyzeConfig` | struct | Configuration for detailed experiment analysis. |
 
-### Key Functions
+### Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `CompileWorkflows` | `func(ctx, CompileConfig) ([]*workflow.WorkflowData, error)` | Orchestrates compilation of one or more workflow files |
-| `CompileWorkflowWithValidation` | `func(*workflow.Compiler, filePath string, ...) error` | Compiles and validates a single workflow file |
-| `AddWorkflows` | `func([]string, AddOptions) (*AddWorkflowsResult, error)` | Adds workflows from string specs |
-| `ResolveWorkflows` | `func([]string, bool) (*ResolvedWorkflows, error)` | Resolves workflow specs to local paths and metadata |
-| `RunWorkflowOnGitHub` | `func(ctx, string, RunOptions) error` | Dispatches a single workflow run on GitHub |
-| `RunWorkflowsOnGitHub` | `func(ctx, []string, RunOptions) error` | Dispatches multiple workflows |
-| `AuditWorkflowRun` | `func(ctx, runID int64, ...) error` | Downloads and renders an audit report for a run |
-| `RunAuditDiff` | `func(ctx, baseRunID, compareRunIDs, ...) error` | Renders a diff between audit runs |
-| `DownloadWorkflowLogs` | `func(ctx, workflowName string, ...) error` | Downloads and analyzes workflow logs |
-| `RunListWorkflows` | `func(repo, path, pattern string, ...) error` | Lists installed workflows |
-| `StatusWorkflows` | `func(pattern string, ...) error` | Prints workflow run status |
-| `GetWorkflowStatuses` | `func(pattern, ref, ...) ([]WorkflowStatus, error)` | Fetches workflow statuses |
-| `RunHealth` | `func(HealthConfig) error` | Computes and renders workflow health metrics |
-| `CalculateWorkflowHealth` | `func(string, []WorkflowRun, float64) WorkflowHealth` | Pure health computation for a single workflow |
-| `CalculateHealthSummary` | `func([]WorkflowHealth, string, float64) HealthSummary` | Aggregate health computation |
-| `RunFix` | `func(FixConfig) error` | Applies automatic codemods |
-| `GetAllCodemods` | `func() []Codemod` | Returns all available codemods |
-| `InitRepository` | `func(InitOptions) error` | Initializes a repo with the `gh-aw` setup |
-| `CreateWorkflowMarkdownFile` | `func(string, bool, bool, string) error` | Creates a new workflow markdown file |
-| `IsRunnable` | `func(string) (bool, error)` | Checks whether a workflow file is runnable |
-| `RunWorkflowInteractively` | `func(ctx, ...) error` | Interactive workflow selection and dispatch |
-| `RunSpecificWorkflowInteractively` | `func(ctx, string, ...) error` | Interactive dispatch for a named workflow |
-| `RunAddInteractive` | `func(ctx, []string, ...) error` | Interactive wizard for adding workflows |
-| `RunSetupAuth` | `func(SetupAuthOptions) error` | Checks GitHub CLI authentication as part of `gh aw doctor` |
-| `RunSetupRepositoryCheck` | `func(SetupRepositoryCheckOptions) error` | Verifies repository existence, owner type, and checkout state for `gh aw doctor` |
-| `RunWorkflowTrials` | `func(ctx, []string, TrialOptions) error` | Runs trial workflow executions |
-| `RunUpdateWorkflows` | `func(ctx, []string, ...) error` | Updates workflows from upstream sources |
-| `RunChecks` | `func(ChecksConfig) error` | Fetches and renders CI check results for a PR |
-| `RunProjectNew` | `func(ctx, ProjectConfig) error` | Creates a new GitHub Project V2 board |
-| `RunListDomains` | `func(bool) error` | Lists all domains used across workflows |
-| `RunWorkflowDomains` | `func(string, bool) error` | Lists domains for a specific workflow |
-| `RunHashFrontmatter` | `func(string) error` | Prints the frontmatter hash for a workflow file |
-| `RunActionlintOnFiles` | `func([]string, bool, bool) error` | Runs actionlint linter on compiled lock files |
-| `RunZizmorOnFiles` | `func([]string, bool, bool) error` | Runs zizmor linter on compiled lock files |
-| `RunPoutineOnDirectory` | `func(string, bool, bool) error` | Runs poutine supply-chain scanner on workflow directory |
-| `RunRunnerGuardOnDirectory` | `func(string, bool, bool) error` | Runs runner-guard scanner on workflow directory |
-| `AddMCPTool` | `func(string, string, ...) error` | Adds an MCP server to a workflow file |
-| `InspectWorkflowMCP` | `func(string, ...) error` | Inspects MCP server configurations |
-| `ListWorkflowMCP` | `func(string, bool) error` | Lists MCP server info for a workflow |
-| `UpdateActions` | `func(bool, bool, bool, time.Duration) error` | Bulk-updates GitHub Action versions in workflows |
-| `ActionsBuildCommand` | `func() error` | Builds all custom actions in `actions/` |
-| `ActionsValidateCommand` | `func() error` | Validates all `action.yml` files under `actions/` |
-| `ActionsCleanCommand` | `func() error` | Removes generated action build artifacts |
-| `GenerateActionMetadataCommand` | `func() error` | Generates `action.yml` and README metadata for selected action modules |
-| `UpdateWorkflows` | `func([]string, ...) error` | Updates workflows from upstream sources |
-| `RemoveWorkflows` | `func(string, bool, string) error` | Removes workflow files |
-| `ValidateWorkflowName` | `func(string) error` | Validates a workflow name identifier |
-| `GetBinaryPath` | `func() (string, error)` | Returns the path to the `gh-aw` binary |
-| `GetCurrentRepoSlug` | `func() (string, error)` | Returns `owner/repo` for the current directory |
-| `GetVersion` | `func() string` | Returns the current CLI version |
-| `SetVersionInfo` | `func(string)` | Sets the version at startup |
-| `EnableWorkflowsByNames` | `func([]string, string) error` | Enables GitHub Actions workflows |
-| `DisableWorkflowsByNames` | `func([]string, string) error` | Disables GitHub Actions workflows |
-| `CheckOutdatedDependencies` | `func(bool) ([]OutdatedDependency, error)` | Checks for outdated dependencies |
-| `CheckSecurityAdvisories` | `func(bool) ([]SecurityAdvisory, error)` | Checks for known CVEs |
-| `GenerateDependencyReport` | `func(bool) (*DependencyReport, error)` | Full dependency analysis report |
-| `InstallShellCompletion` | `func(bool, CommandProvider) error` | Installs shell completions |
-| `PollWithSignalHandling` | `func(PollOptions) error` | Polls a predicate with SIGINT handling |
-| `ExecuteWithRepeat` | `func(RepeatOptions) error` | Repeats an operation with delay |
-| `IsRunningInCI` | `func() bool` | Detects CI environment |
-| `DetectShell` | `func() ShellType` | Detects the user's current shell |
-| `AddResolvedWorkflows` | `func([]string, *ResolvedWorkflows, AddOptions) (*AddWorkflowsResult, error)` | Adds pre-resolved workflows |
-| `FetchWorkflowFromSource` | `func(*WorkflowSpec, bool) (*FetchedWorkflow, error)` | Fetches a workflow from a remote or local source |
-| `FetchIncludeFromSource` | `func(string, *WorkflowSpec, bool) ([]byte, string, error)` | Fetches an `@include` target from source |
-| `MergeWorkflowContent` | `func(base, current, new, oldSpec, newSpec, localPath string, bool) (string, bool, error)` | Three-way merge of workflow content |
-| `CompileWorkflowDataWithValidation` | `func(*workflow.Compiler, *workflow.WorkflowData, string, ...) error` | Compiles a pre-loaded WorkflowData and runs security validators |
-| `ResolveWorkflowPath` | `func(string) (string, error)` | Resolves a workflow name to its absolute file path |
-| `ExtractWorkflowDescription` | `func(string) string` | Extracts the `description` field from workflow markdown content |
-| `ExtractWorkflowDescriptionFromFile` | `func(string) string` | Extracts the `description` field from a workflow file |
-| `ExtractWorkflowEngine` | `func(string) string` | Extracts the `engine` field from workflow markdown content |
-| `ExtractWorkflowPrivate` | `func(string) bool` | Returns true if the workflow is marked private |
-| `UpdateFieldInFrontmatter` | `func(content, fieldName, fieldValue string) (string, error)` | Sets a field in frontmatter YAML |
-| `SetFieldInOnTrigger` | `func(content, fieldName, fieldValue string) (string, error)` | Sets a field inside the `on:` trigger block |
-| `RemoveFieldFromOnTrigger` | `func(content, fieldName string) (string, error)` | Removes a field from the `on:` trigger block |
-| `UpdateScheduleInOnBlock` | `func(content, scheduleExpr string) (string, error)` | Updates the cron schedule in the `on:` block |
-| `ScanWorkflowsForMCP` | `func(workflowsDir, serverFilter string, verbose bool) ([]WorkflowMCPMetadata, error)` | Scans all workflows for MCP server configurations |
-| `ListToolsForMCP` | `func(workflowFile, mcpServerName string, verbose bool) error` | Lists tools for a specific MCP server in a workflow |
-| `CollectLockFileManifests` | `func(workflowsDir string) map[string]*workflow.GHAWManifest` | Reads all `*.lock.yml` manifests from a directory |
-| `WritePriorManifestFile` | `func(map[string]*workflow.GHAWManifest) (string, error)` | Writes manifest cache to a temporary file |
-| `GroupRunsByWorkflow` | `func([]WorkflowRun) map[string][]WorkflowRun` | Groups a flat slice of runs by workflow name |
-| `WaitForWorkflowCompletion` | `func(ctx, repoSlug, runID string, timeoutMinutes int, verbose bool) error` | Polls until a workflow run finishes or times out |
-| `ValidArtifactSetNames` | `func() []string` | Returns the valid artifact set name strings |
-| `ResolveArtifactFilter` | `func([]string) []string` | Expands artifact set aliases to concrete artifact names |
-| `ValidateArtifactSets` | `func([]string) error` | Validates that all provided artifact set names are known |
-| `ParseCopilotCodingAgentLogMetrics` | `func(logContent string, verbose bool) workflow.LogMetrics` | Parses Copilot coding-agent logs into metrics |
-| `ExtractLogMetricsFromRun` | `func(ProcessedRun) workflow.LogMetrics` | Extracts log metrics from a processed run |
-| `TrainDrain3Weights` | `func([]ProcessedRun, outputDir string, verbose bool) error` | Trains Drain3 anomaly-detection weights from run history |
-| `EvaluateOutcomes` | `func(items []CreatedItemReport, repoOverride string, mapping *github.ObjectiveMapping) []OutcomeReport` | Checks the current state of all safe output items from a run |
-| `ComputeOutcomeSummary` | `func(reports []OutcomeReport, mapping *github.ObjectiveMapping) OutcomeSummary` | Aggregates outcome reports into a summary with acceptance and zero-touch rates |
-| `RunOutcomes` | `func(OutcomesConfig) error` | Evaluates safe-output outcomes for a completed workflow run |
-| `RunOutcomesHistory` | `func(OutcomesHistoryConfig) error` | Scores recent closed issues and merged PRs against the objective mapping |
-| `RunForecast` | `func(ForecastConfig) error` | Forecasts AIC usage for agentic workflows via Monte Carlo simulation |
-| `RunExperimentsList` | `func(ExperimentsListConfig) error` | Lists all A/B experiment workflow branches |
-| `RunExperimentsAnalyze` | `func(ExperimentsAnalyzeConfig) error` | Analyzes variant distribution for a specific experiment workflow |
-| `DisplayOutdatedDependencies` | `func([]OutdatedDependency, int)` | Renders an outdated-dependencies table to stdout |
-| `DisplayDependencyReport` | `func(*DependencyReport)` | Renders a full dependency report to stdout |
-| `DisplayDependencyReportJSON` | `func(*DependencyReport) error` | Renders a dependency report as JSON to stdout |
-| `DisplaySecurityAdvisories` | `func([]SecurityAdvisory)` | Renders a security-advisory table to stdout |
-| `IsDockerAvailable` | `func(ctx context.Context) bool` | Returns true if the Docker daemon is reachable |
-| `IsDockerImageAvailable` | `func(ctx context.Context, image string) bool` | Returns true if a Docker image is present locally |
-| `IsDockerImageDownloading` | `func(string) bool` | Returns true if an image pull is in progress |
-| `StartDockerImageDownload` | `func(ctx context.Context, image string) (bool, func() error)` | Begins a background image pull; returns false if already pulling. The join function blocks until the goroutine exits and returns any download error. |
+| `NewAddCommand` | `func NewAddCommand(validateEngine func(string) error) *cobra.Command` | Constructs the `gh aw add` command. |
+| `AddWorkflows` | `func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*AddWorkflowsResult, error)` | Resolves and installs one or more workflows. |
+| `AddResolvedWorkflows` | `func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolved *ResolvedWorkflows, opts AddOptions) (*AddWorkflowsResult, error)` | Installs workflows from a pre-resolved batch. |
+| `ResolveWorkflows` | `func ResolveWorkflows(ctx context.Context, workflows []string, verbose bool) (*ResolvedWorkflows, error)` | Parses workflow specs and fetches their source content. |
+| `CompileWorkflows` | `func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.WorkflowData, error)` | Compiles workflow markdown into GitHub Actions lock files. |
+| `CompileWorkflowWithValidation` | `func CompileWorkflowWithValidation(ctx context.Context, compiler *workflow.Compiler, filePath string, opts CompileValidationOptions) error` | Compiles and validates a single workflow file. |
+| `CompileWorkflowDataWithValidation` | `func CompileWorkflowDataWithValidation(ctx context.Context, compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, opts CompileValidationOptions) error` | Validates a pre-loaded workflow object. |
+| `RunWorkflowOnGitHub` | `func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunOptions) error` | Validates, optionally compiles and pushes, and dispatches one workflow run. |
+| `RunWorkflowsOnGitHub` | `func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunOptions) error` | Dispatches multiple workflows sequentially. |
+| `WaitForWorkflowCompletion` | `func WaitForWorkflowCompletion(ctx context.Context, repoSlug, runID string, timeoutMinutes int, verbose bool) error` | Polls GitHub until a workflow run completes or times out. |
+| `AuditWorkflowRun` | `func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error` | Downloads artifacts and renders an audit report for a run. |
+| `RunAuditDiff` | `func RunAuditDiff(ctx context.Context, baseRunID int64, compareRunIDs []int64, opts AuditOptions) error` | Diffs multiple audit reports. |
+| `DownloadWorkflowLogs` | `func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error` | Downloads and parses workflow logs and artifacts. |
+| `NewHealthCommand` | `func NewHealthCommand() *cobra.Command` | Constructs the `gh aw health` command. |
+| `RunHealth` | `func RunHealth(config HealthConfig) error` | Computes workflow health metrics for one workflow or all workflows. |
+| `CalculateWorkflowHealth` | `func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold float64) WorkflowHealth` | Calculates success-rate and trend metrics for one workflow. |
+| `CalculateHealthSummary` | `func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, threshold float64) HealthSummary` | Aggregates workflow health results. |
+| `GroupRunsByWorkflow` | `func GroupRunsByWorkflow(runs []WorkflowRun) map[string][]WorkflowRun` | Groups historical runs by workflow identifier. |
+| `NewChecksCommand` | `func NewChecksCommand() *cobra.Command` | Constructs the `gh aw checks` command. |
+| `RunChecks` | `func RunChecks(config ChecksConfig) error` | Emits normalized PR check state. |
+| `FetchChecksResult` | `func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, error)` | Returns normalized CI state for a pull request. |
+| `NewOutcomesCommand` | `func NewOutcomesCommand() *cobra.Command` | Constructs the `gh aw outcomes` command. |
+| `RunOutcomes` | `func RunOutcomes(ctx context.Context, config OutcomesConfig) error` | Evaluates what happened to safe outputs from a workflow run. |
+| `EvaluateOutcomes` | `func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverride string, mapping *github.ObjectiveMapping) []OutcomeReport` | Evaluates current state for created GitHub objects. |
+| `ComputeOutcomeSummary` | `func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMapping) OutcomeSummary` | Summarizes outcome reports. |
+| `NewUpdateCommand` | `func NewUpdateCommand(validateEngine func(string) error) *cobra.Command` | Constructs the `gh aw update` command. |
+| `RunUpdateWorkflows` | `func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error` | CLI wrapper for updating sourced workflows. |
+| `UpdateWorkflows` | `func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error` | Updates workflows with `source:` frontmatter from upstream definitions. |
+| `NewStatusCommand` | `func NewStatusCommand() *cobra.Command` | Constructs the `gh aw status` command. |
+| `GetWorkflowStatuses` | `func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOverride string) ([]WorkflowStatus, error)` | Returns workflow status data for programmatic callers. |
+| `StatusWorkflows` | `func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, repoOverride string) error` | Renders workflow status to terminal or JSON. |
+| `InitRepository` | `func InitRepository(opts InitOptions) error` | Initializes repository-local gh-aw support files. |
+| `CreateWorkflowMarkdownFile` | `func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, engine string) error` | Creates a new workflow markdown file. |
+| `ResolveWorkflowPath` | `func ResolveWorkflowPath(workflowFile string) (string, error)` | Resolves a workflow identifier to a local file path. |
+| `ExtractWorkflowDescription` | `func ExtractWorkflowDescription(content string) string` | Reads the frontmatter description from workflow content. |
+| `ExtractWorkflowDescriptionFromFile` | `func ExtractWorkflowDescriptionFromFile(filePath string) string` | Reads the description from a workflow file. |
+| `ExtractWorkflowEngine` | `func ExtractWorkflowEngine(content string) string` | Reads the preferred engine from workflow frontmatter. |
+| `ExtractWorkflowPrivate` | `func ExtractWorkflowPrivate(content string) bool` | Reports whether workflow frontmatter marks the workflow private. |
+| `UpdateFieldInFrontmatter` | `func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, error)` | Updates a top-level YAML frontmatter field. |
+| `SetFieldInOnTrigger` | `func SetFieldInOnTrigger(content, fieldName, fieldValue string) (string, error)` | Sets a field inside the `on:` block. |
+| `RemoveFieldFromOnTrigger` | `func RemoveFieldFromOnTrigger(content, fieldName string) (string, error)` | Removes a field from the `on:` block. |
+| `UpdateScheduleInOnBlock` | `func UpdateScheduleInOnBlock(content, scheduleExpr string) (string, error)` | Rewrites the workflow schedule expression inside `on:`. |
+| `ScanWorkflowsForMCP` | `func ScanWorkflowsForMCP(workflowsDir string, serverFilter string, verbose bool) ([]WorkflowMCPMetadata, error)` | Scans workflow markdown for MCP usage. |
+| `ListToolsForMCP` | `func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) error` | Lists tools exposed by one MCP server reference. |
+| `ListWorkflowMCP` | `func ListWorkflowMCP(workflowFile string, verbose bool) error` | Lists MCP server configuration for a workflow. |
+| `InspectWorkflowMCP` | `func InspectWorkflowMCP(ctx context.Context, workflowFile string, serverFilter string, toolFilter string, verbose bool, useActionsSecrets bool) error` | Inspects MCP server definitions and resolved secrets. |
+| `AddMCPTool` | `func AddMCPTool(ctx context.Context, workflowFile string, mcpServerID string, registryURL string, transportType string, customToolID string, verbose bool) error` | Adds an MCP tool or server reference to workflow frontmatter. |
+| `GenerateDependencyReport` | `func GenerateDependencyReport(ctx context.Context, verbose bool) (*DependencyReport, error)` | Generates a dependency report for the current repo. |
+| `CheckOutdatedDependencies` | `func CheckOutdatedDependencies(ctx context.Context, verbose bool) ([]OutdatedDependency, error)` | Detects outdated dependencies. |
+| `CheckSecurityAdvisories` | `func CheckSecurityAdvisories(ctx context.Context, verbose bool) ([]SecurityAdvisory, error)` | Detects known GitHub advisories affecting dependencies. |
+| `DisplayDependencyReport` | `func DisplayDependencyReport(report *DependencyReport)` | Renders a dependency report. |
+| `DisplayDependencyReportJSON` | `func DisplayDependencyReportJSON(report *DependencyReport) error` | Writes a dependency report as JSON. |
+| `DisplayOutdatedDependencies` | `func DisplayOutdatedDependencies(outdated []OutdatedDependency, totalDeps int)` | Renders outdated dependencies. |
+| `DisplaySecurityAdvisories` | `func DisplaySecurityAdvisories(advisories []SecurityAdvisory)` | Renders advisory results. |
+| `RunForecast` | `func RunForecast(config ForecastConfig) error` | Runs token and AIC forecast analysis. |
+| `RunExperimentsList` | `func RunExperimentsList(config ExperimentsListConfig) error` | Lists experiment branches and summary statistics. |
+| `RunExperimentsAnalyze` | `func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error` | Produces detailed statistical analysis for one experiment workflow. |
+| `ExecuteWithRepeat` | `func ExecuteWithRepeat(options RepeatOptions) error` | Repeats an operation with delay and retry controls. |
+| `PollWithSignalHandling` | `func PollWithSignalHandling(options PollOptions) error` | Polls while honoring interruption signals. |
+| `InstallShellCompletion` | `func InstallShellCompletion(verbose bool, rootCmd CommandProvider) error` | Installs shell completion scripts for the CLI. |
+| `DetectShell` | `func DetectShell() ShellType` | Detects the current interactive shell. |
+| `GetBinaryPath` | `func GetBinaryPath() (string, error)` | Returns the current gh-aw binary path. |
+| `GetCurrentRepoSlug` | `func GetCurrentRepoSlug() (string, error)` | Returns the current repository slug. |
+| `GetVersion` | `func GetVersion() string` | Returns the CLI version string. |
+| `SetVersionInfo` | `func SetVersionInfo(v string)` | Sets the CLI version string at startup. |
+
+### Constants
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `CheckStateFailed` | `CheckState` | `"failed"` | Normalized CI state indicating one or more checks failed. |
+| `CheckStatePending` | `CheckState` | `"pending"` | Normalized CI state indicating checks are still running or queued. |
+| `CheckStateNoChecks` | `CheckState` | `"no_checks"` | Normalized CI state indicating no checks were configured or triggered. |
+| `CheckStatePolicyBlocked` | `CheckState` | `"policy_blocked"` | Normalized CI state indicating policy or account gates blocked the PR. |
+| `CheckStateSuccess` | `CheckState` | `"success"` | Normalized CI state indicating all required checks passed. | | Begins a background image pull; returns false if already pulling. The join function blocks until the goroutine exits and returns any download error. |
 | `CheckAndPrepareDockerImages` | `func(ctx context.Context, opts DockerImagesOptions) error` | Pre-pulls security-scanner Docker images |
 | `UpdateContainerPins` | `func(ctx, workflowDir string, verbose bool) error` | Updates container image SHA pins in workflow files |
 | `CreatePRWithChanges` | `func(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error)` | Creates a GitHub PR from uncommitted changes |
@@ -272,7 +238,6 @@ The `cli` package exports many types used across its command implementations. Th
 | `CodemodResult` | struct | Result of a single codemod transformation |
 | `CommandProvider` | interface | Interface implemented by Cobra root commands for shell-completion helpers |
 | `CompilationStats` | struct | Statistics from a compilation run (files, errors, warnings) |
-| `CompileValidationError` | struct | A validation error emitted during compilation |
 | `CombinedTrialResult` | struct | Combined results from multiple trial runs |
 | `ContinuationData` | struct | State for multi-turn agent continuations |
 | `CopilotCodingAgentDetector` | struct | Detector for Copilot coding-agent log patterns |
@@ -295,7 +260,6 @@ The `cli` package exports many types used across its command implementations. Th
 | `DomainDiffEntry` | struct | Per-domain diff between two runs |
 | `DownloadResult` | struct | Result of a log artifact download |
 | `EpisodeData` | struct | A single agent episode (one tool-call turn) |
-| `ErrorInfo` | struct | Structured error captured from an agent run |
 | `ErrorSummary` | struct | Aggregated error summary for a workflow run |
 | `FetchedWorkflow` | struct | A workflow fetched from a remote or local source with metadata |
 | `FileInfo` | struct | File metadata captured during a workflow run |
@@ -407,6 +371,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `TrialRepoContext` | struct | Repository context used during a trial run |
 | `VSCodeMCPServer` | struct | An MCP server entry in `.vscode/mcp.json` |
 | `VSCodeSettings` | struct | Parsed `.vscode/settings.json` |
+| `ValidationIssue` | struct | A validation error, warning, or audit issue entry |
 | `ValidationResult` | struct | Result of a workflow compilation validation pass |
 | `Workflow` | struct | Minimal workflow metadata used in list operations |
 | `WorkflowDomainsDetail` | struct | Detailed per-workflow domain information |

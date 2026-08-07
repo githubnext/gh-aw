@@ -30,6 +30,8 @@ The `gitutil` package contains helpers for:
 | `ValidateGitRef` | `func(ref string) error` | Returns an error if `ref` would be unsafe to pass as a positional argument to a `git` subprocess: rejects empty refs, refs starting with `-` (argument injection, CWE-88), refs containing NUL bytes, and refs containing `..` (object traversal expressions) |
 | `ValidateGitPath` | `func(path string) error` | Returns an error if `path` would be unsafe to pass as a positional argument to a `git` subprocess: rejects empty paths, paths starting with `-` (argument injection, CWE-88), absolute paths, and paths that resolve (after `path.Clean`) to `..` or contain a leading `../` traversal segment |
 | `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
+| `Getwd` | `func() (string, error)` | Returns the current working directory (like `os.Getwd()`), wrapping any error with actionable recovery guidance |
+| `UserHomeDir` | `func() (string, error)` | Returns the current user's home directory (like `os.UserHomeDir()`), wrapping any error with actionable recovery guidance |
 | `FindGitRoot` | `func() (string, error)` | Returns the absolute path of the root directory of the current Git repository using pure Go filesystem traversal (no `git` subprocess); starts from the current working directory |
 | `FindGitRootFrom` | `func(startDir string) (string, error)` | Like `FindGitRoot` but starts from `startDir`; traverses upward looking for a `.git` directory or worktree marker file |
 | `ReadFileFromHEAD` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit without `git show HEAD:path` interpolation by resolving a literal tree entry with `git ls-tree` and then reading the blob with `git cat-file`; rejects paths that escape the repository; requires `git` on `PATH` |
@@ -44,6 +46,7 @@ The `gitutil` package contains helpers for:
 - `ValidateGitPath` MUST return an error for an empty path, a path starting with `-`, an absolute path, or a path that is `..` or starts with `../` after `path.Clean`.
 - `FindGitRoot` and `FindGitRootFrom` MUST return `ErrNotGitRepository` (not a wrapped error) when the filesystem root is reached without finding a `.git` entry.
 - `FindGitRootFrom` MUST accept both `.git` directories (normal repositories) and `.git` files whose content begins with `gitdir:` (worktrees and submodules).
+- `Getwd` and `UserHomeDir` MUST wrap the underlying `os` error with actionable recovery guidance rather than returning a bare `fmt.Errorf("...: %w", err)`.
 - `ReadFileFromHEAD` MUST return an error when `gitRoot` is empty.
 - `ReadFileFromHEAD` MUST return an error when `filePath` resolves to a path outside `gitRoot`.
 
@@ -75,9 +78,9 @@ if err := gitutil.ValidateGitPath(userSuppliedPath); err != nil {
 // Find the git repository root (pure Go, no git subprocess)
 root, err := gitutil.FindGitRoot()
 if errors.Is(err, gitutil.ErrNotGitRepository) {
-    return fmt.Errorf("must be run inside a git repository")
+    return err
 } else if err != nil {
-    return fmt.Errorf("failed to find git root: %w", err)
+    return err
 }
 
 // Find the git root starting from a specific directory

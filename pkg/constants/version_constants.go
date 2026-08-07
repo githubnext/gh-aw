@@ -32,7 +32,7 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.222"
+const DefaultClaudeCodeVersion Version = "2.1.223"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -45,7 +45,7 @@ const DefaultCopilotVersion Version = "1.0.78"
 const DefaultCopilotSDKVersion Version = "1.0.8"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.146.0"
+const DefaultCodexVersion Version = "0.146.1"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
 const DefaultGeminiVersion Version = "0.39.1"
@@ -155,7 +155,7 @@ const DefaultMCPGatewayVersion Version = "v0.4.8"
 const MCPGIntegrityReactionsMinVersion Version = "v0.2.18"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.78"
+const DefaultPlaywrightMCPVersion Version = "0.0.79"
 
 // DefaultPlaywrightCLIVersion is the default version of the @playwright/cli package.
 // Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
@@ -172,11 +172,12 @@ const DefaultMCPSDKVersion Version = "1.24.0"
 // DefaultGitHubScriptVersion is the default version of the actions/github-script action
 const DefaultGitHubScriptVersion Version = "v9"
 
-// DefaultThreatDetectVersion is the default version of the gh-aw-threat-detection binary.
-// This version is downloaded from GitHub Releases when `features: gh-aw-detection: true`
-// is set in the workflow frontmatter, enabling the external threat-detect binary path instead
-// of the inline engine execution path.
-const DefaultThreatDetectVersion Version = "v0.4.0"
+// DefaultThreatDetectVersion is the version of the gh-aw-threat-detection binary to install.
+// When set to "latest", the install script resolves the actual release tag from the GitHub API
+// at runtime. This is used when `features: gh-aw-detection: true` is set in the workflow
+// frontmatter, enabling the external threat-detect binary path instead of the inline engine
+// execution path.
+const DefaultThreatDetectVersion Version = "latest"
 
 // GhSkillsMinVersion is the minimum gh CLI version required for frontmatter skill support
 // (installing gh extensions via `gh extension install`). Workflows that install frontmatter

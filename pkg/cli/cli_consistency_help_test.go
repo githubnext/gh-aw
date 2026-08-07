@@ -113,6 +113,26 @@ func TestSubcommandListingsUseHyphenBullets(t *testing.T) {
 	}
 }
 
+func TestSubcommandListingsMatchCobraShortDescriptions(t *testing.T) {
+	t.Run("secrets bootstrap", func(t *testing.T) {
+		cmd := NewSecretsCommand()
+		bootstrapCmd, _, err := cmd.Find([]string{"bootstrap"})
+		require.NoError(t, err)
+		require.NotNil(t, bootstrapCmd)
+
+		assert.Contains(t, cmd.Long, "  - bootstrap - "+bootstrapCmd.Short)
+	})
+
+	t.Run("mcp list-tools", func(t *testing.T) {
+		cmd := NewMCPCommand()
+		listToolsCmd, _, err := cmd.Find([]string{"list-tools"})
+		require.NoError(t, err)
+		require.NotNil(t, listToolsCmd)
+
+		assert.Contains(t, cmd.Long, "  - list-tools - "+listToolsCmd.Short)
+	})
+}
+
 func TestHelpTextUsesStandardEgPunctuation(t *testing.T) {
 	assert.Contains(t, coolDownFlagUsage, "(e.g., 7d", "--cool-down help should use e.g., punctuation")
 	assert.Contains(t, NewEnvCommand().Long, "(e.g., default_max_turns)", "env help should use e.g., punctuation")

@@ -233,6 +233,8 @@ Fields that influence permission computation (`add-comment.discussions`, `create
 - `failure-issue-repo:` - Repository to create failure tracking issues in (string, format: `"owner/repo"`)
   - Defaults to the current repository when not specified
   - Use when the current repository has issues disabled: `failure-issue-repo: "myorg/infra-alerts"`
+- `report-failed-jobs:` - Controls whether failed non-builtin jobs (custom `jobs:` entries) are reported as issues (boolean, default: `true`)
+  - Set to `false` to disable failure-issue creation for custom job failures while keeping agent-failure reporting
 - `id-token:` - Override the id-token permission for the safe-outputs job (string: `"write"` or `"none"`)
   - `"write"`: force-enable `id-token: write` permission (required for OIDC authentication with cloud providers)
   - `"none"`: suppress automatic detection and prevent adding `id-token: write` even when vault/OIDC actions are detected in steps

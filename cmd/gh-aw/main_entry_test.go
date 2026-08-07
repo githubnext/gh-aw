@@ -16,6 +16,7 @@ import (
 )
 
 func TestValidateEngine(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		engine     string
@@ -80,7 +81,9 @@ func TestValidateEngine(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := validateEngine(tt.engine)
 
 			if tt.expectErr {
@@ -100,8 +103,10 @@ func TestValidateEngine(t *testing.T) {
 }
 
 func TestInitFunction(t *testing.T) {
+	t.Parallel()
 	// Test that init function doesn't panic
 	t.Run("init function executes without panic", func(t *testing.T) {
+		t.Parallel()
 		defer func() {
 			assert.Nil(t, recover(), "init() should not panic")
 		}()

@@ -37,9 +37,9 @@ import (
 
 var compileWorkflowProcessorLog = logger.New("cli:compile_workflow_processor")
 
-func appendValidationErrors(dst []CompileValidationError, errorType string, err error) []CompileValidationError {
+func appendValidationErrors(dst []ValidationIssue, errorType string, err error) []ValidationIssue {
 	for _, message := range workflow.ExpandErrorMessages(err) {
-		dst = append(dst, CompileValidationError{
+		dst = append(dst, ValidationIssue{
 			Type:    errorType,
 			Message: message,
 		})
@@ -80,8 +80,8 @@ func compileWorkflowFile(
 		validationResult: ValidationResult{
 			Workflow: filepath.Base(resolvedFile),
 			Valid:    true,
-			Errors:   []CompileValidationError{},
-			Warnings: []CompileValidationError{},
+			Errors:   []ValidationIssue{},
+			Warnings: []ValidationIssue{},
 		},
 		success: false,
 	}
@@ -126,7 +126,7 @@ func compileWorkflowFile(
 			}
 			// Mark as valid but skipped
 			result.validationResult.Valid = true
-			result.validationResult.Warnings = append(result.validationResult.Warnings, CompileValidationError{
+			result.validationResult.Warnings = append(result.validationResult.Warnings, ValidationIssue{
 				Type:    "shared_workflow",
 				Message: "Skipped: Shared workflow component (missing 'on' field)",
 			})
@@ -143,7 +143,7 @@ func compileWorkflowFile(
 			}
 			// Mark as valid but skipped
 			result.validationResult.Valid = true
-			result.validationResult.Warnings = append(result.validationResult.Warnings, CompileValidationError{
+			result.validationResult.Warnings = append(result.validationResult.Warnings, ValidationIssue{
 				Type:    "redirect_only_workflow",
 				Message: "Skipped: Redirect-only workflow (missing 'on' field, has redirect)",
 			})
@@ -184,6 +184,11 @@ func compileWorkflowFile(
 
 	// Collect labels for JSON output (used by create-labels maintenance operation)
 	result.validationResult.Labels = extractSafeOutputLabels(workflowData)
+
+	// Emit a compile-time guard-policy dry-run report in --strict mode.
+	if !opts.jsonOutput {
+		printGuardPolicyDryRunReport(filepath.Base(resolvedFile), workflowData, opts.strict)
+	}
 
 	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
 	return result

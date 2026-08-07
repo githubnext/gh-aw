@@ -52,6 +52,18 @@ func TestRenderStruct_SimpleStruct(t *testing.T) {
 	assert.NotContains(t, output, "should not appear", "output should not contain skipped field")
 }
 
+func TestRenderStruct_UnicodeFieldAlignment(t *testing.T) {
+	type unicodeFields struct {
+		Wide string `console:"header:名称"`
+		Long string `console:"header:Longest"`
+	}
+
+	output := RenderStruct(unicodeFields{Wide: "wide", Long: "long"})
+
+	assert.Contains(t, output, "  名称   : wide\n")
+	assert.Contains(t, output, "  Longest: long\n")
+}
+
 func TestRenderStruct_OmitEmpty(t *testing.T) {
 	data := TestMetrics{
 		TokenUsage: 1000,

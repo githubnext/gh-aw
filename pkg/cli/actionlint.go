@@ -302,7 +302,7 @@ func maybePrintActionlintVersion(ctx context.Context) {
 func resolveActionlintPaths(lockFiles []string) (string, []string, error) {
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to find git root: %w", err)
+		return "", nil, err
 	}
 	relPaths := make([]string, 0, len(lockFiles))
 	for _, lockFile := range lockFiles {
