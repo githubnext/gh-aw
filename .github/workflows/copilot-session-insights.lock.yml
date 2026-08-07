@@ -141,7 +141,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
@@ -152,8 +152,8 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "claude"
           GH_AW_INFO_ENGINE_NAME: "Claude Code"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || 'agent' }}
-          GH_AW_INFO_VERSION: "2.1.223"
-          GH_AW_INFO_AGENT_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
+          GH_AW_INFO_AGENT_VERSION: "2.1.224"
           GH_AW_INFO_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
@@ -510,7 +510,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Set runtime paths
@@ -619,7 +619,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.44 --rootless
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.223
+        run: npm install -g @anthropic-ai/claude-code@2.1.224
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
@@ -1293,7 +1293,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
@@ -1568,7 +1568,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
@@ -1651,7 +1651,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.223
+        run: npm install -g @anthropic-ai/claude-code@2.1.224
       - name: Install threat-detect binary
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         run: |
@@ -1789,7 +1789,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download agent output artifact
@@ -1844,7 +1844,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.44
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.223
+        run: npm install -g @anthropic-ai/claude-code@2.1.224
       - name: Execute Claude Code CLI
         if: always()
         continue-on-error: true
@@ -2001,7 +2001,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
@@ -2090,7 +2090,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
@@ -2202,7 +2202,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Mask OTLP telemetry headers
@@ -2290,7 +2290,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Download cache-memory artifact (default)
@@ -2350,7 +2350,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Copilot Session Insights"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/copilot-session-insights.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "2.1.223"
+          GH_AW_INFO_VERSION: "2.1.224"
           GH_AW_INFO_AWF_VERSION: "v0.27.44"
           GH_AW_INFO_ENGINE_ID: "claude"
       - name: Checkout repository
