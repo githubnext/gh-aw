@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	lipgloss "charm.land/lipgloss/v2"
+
 	"github.com/github/gh-aw/pkg/colorwriter"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/styles"
@@ -266,7 +268,7 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 		cronDay := calendarDayIndex[calendarIndex]
 
 		var row strings.Builder
-		label := fmt.Sprintf("%-*s", dayLabelWidth, dayLabel)
+		label := lipgloss.NewStyle().Width(dayLabelWidth).Render(dayLabel)
 		row.WriteString(console.FormatTableHeaderStderr(label))
 
 		for h := range 24 {

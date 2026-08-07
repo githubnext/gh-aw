@@ -50,25 +50,40 @@ func (c *Compiler) addActivationSecretValidationStep(ctx *activationJobBuildCont
 // OAuth tokens. OAuth tokens (gho_...) are not suitable for automation as they are
 // typically over-provisioned.
 func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildContext) {
-	compilerActivationJobLog.Print("Adding OAuth token check step to activation job")
+	var envLines []string
 
-	// Resolve COPILOT_GITHUB_TOKEN expression, respecting engine.env overrides.
-	copilotTokenExpr := fmt.Sprintf("${{ secrets.%s }}", constants.CopilotGitHubToken)
-	if overrides := getEngineEnvOverrides(ctx.data); overrides != nil {
-		if override, ok := overrides[constants.CopilotGitHubToken]; ok {
-			copilotTokenExpr = override
+	// Skip COPILOT_GITHUB_TOKEN when permissions.copilot-requests is write: in that
+	// mode the Copilot engine authenticates via ${{ github.token }} (org-billed,
+	// PAT-free) and does not reference secrets.COPILOT_GITHUB_TOKEN anywhere else in
+	// the compiled workflow, so checking it here would needlessly re-introduce the
+	// secret reference into the lock file and its gh-aw-manifest.
+	if !hasCopilotRequestsWritePermission(ctx.data) {
+		// Resolve COPILOT_GITHUB_TOKEN expression, respecting engine.env overrides.
+		copilotTokenExpr := fmt.Sprintf("${{ secrets.%s }}", constants.CopilotGitHubToken)
+		if overrides := getEngineEnvOverrides(ctx.data); overrides != nil {
+			if override, ok := overrides[constants.CopilotGitHubToken]; ok {
+				copilotTokenExpr = override
+			}
 		}
+		envLines = appendEnvVarLine(envLines, constants.CopilotGitHubToken, copilotTokenExpr)
 	}
+	envLines = appendEnvVarLine(envLines, constants.EnvVarGitHubToken, fmt.Sprintf("${{ secrets.%s }}", constants.EnvVarGitHubToken))
+	envLines = appendEnvVarLine(envLines, constants.EnvVarGitHubMCPServerToken, fmt.Sprintf("${{ secrets.%s }}", constants.EnvVarGitHubMCPServerToken))
+
+	if len(envLines) == 0 {
+		compilerActivationJobLog.Print("Skipped OAuth token check step (no secrets to check)")
+		return
+	}
+
+	compilerActivationJobLog.Print("Adding OAuth token check step to activation job")
 
 	ctx.steps = append(ctx.steps, "      - name: Check for OAuth tokens\n")
 	ctx.steps = append(ctx.steps, "        id: check-oauth-tokens\n")
 	ctx.steps = append(ctx.steps, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh\"\n")
 	ctx.steps = append(ctx.steps, "        env:\n")
-	for _, envLine := range appendEnvVarLine([]string{}, constants.CopilotGitHubToken, copilotTokenExpr) {
+	for _, envLine := range envLines {
 		ctx.steps = append(ctx.steps, envLine+"\n")
 	}
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubToken, constants.EnvVarGitHubToken))
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubMCPServerToken, constants.EnvVarGitHubMCPServerToken))
 }
 
 func (c *Compiler) addActivationCrossRepoGuidanceStep(ctx *activationJobBuildContext) {

@@ -18,6 +18,7 @@ permissions:
 network: defaults
 
 tools:
+  bash: ["cat", "ls", "find", "grep", "head", "tail", "wc"]
   github:
     min-integrity: none # This workflow is allowed to examine and comment on any issues
 

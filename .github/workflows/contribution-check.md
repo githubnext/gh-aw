@@ -28,6 +28,7 @@ sandbox:
     sudo: false
 tools:
   cli-proxy: true
+  bash: ["cat", "ls", "find", "grep", "head", "tail", "wc"]
   github:
     mode: gh-proxy
     toolsets: [pull_requests, repos, issues]
