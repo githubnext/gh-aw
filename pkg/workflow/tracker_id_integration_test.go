@@ -5,17 +5,25 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-func TestTrackerIDIntegration(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "test-*")
+// assertScriptUsesRequire asserts that the compiled lock file content sets the
+// GH_AW_TRACKER_ID environment variable and loads scripts via require() (file
+// mode, not inline).
+func assertScriptUsesRequire(t *testing.T, contentStr string) {
+	t.Helper()
+	assert.Contains(t, contentStr, "GH_AW_TRACKER_ID", "expected GH_AW_TRACKER_ID environment variable to be set")
+	assert.Contains(t, contentStr, "require(", "expected scripts to be loaded using require()")
+}
 
+func TestTrackerIDIntegration(t *testing.T) {
 	tests := []struct {
 		name               string
 		workflowContent    string
@@ -82,70 +90,122 @@ Create a pull request.
 			shouldHaveInScript: true,
 			expectedTrackerID:  "pr-tracker-123",
 		},
+		{
+			name: "Workflow with tracker-id and multiple safe-outputs",
+			workflowContent: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+tracker-id: multi-output-1
+safe-outputs:
+  create-issue:
+  create-pull-request:
+---
+
+# Test Multiple Safe Outputs
+
+Create an issue and a pull request.
+`,
+			shouldCompile:      true,
+			shouldHaveEnvVar:   true,
+			shouldHaveInScript: true,
+			expectedTrackerID:  "multi-output-1",
+		},
+		{
+			name: "Workflow with too-short tracker-id",
+			workflowContent: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+tracker-id: short
+safe-outputs:
+  create-issue:
+---
+
+# Test Short Tracker ID
+
+Create a test issue.
+`,
+			shouldCompile: false,
+		},
+		{
+			name: "Workflow with tracker-id containing spaces",
+			workflowContent: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+tracker-id: has spaces
+safe-outputs:
+  create-issue:
+---
+
+# Test Tracker ID With Spaces
+
+Create a test issue.
+`,
+			shouldCompile: false,
+		},
+		{
+			name: "Workflow with tracker-id containing invalid characters",
+			workflowContent: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+tracker-id: bad!chars!
+safe-outputs:
+  create-issue:
+---
+
+# Test Tracker ID With Invalid Characters
+
+Create a test issue.
+`,
+			shouldCompile: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Each subtest gets its own tmpDir, which testutil.TempDir already
+			// registers for cleanup via t.Cleanup, so generated workflow and
+			// lock files are removed automatically even on early failures.
+			tmpDir := testutil.TempDir(t, "test-*")
 			workflowFile := filepath.Join(tmpDir, "test.md")
-			err := os.WriteFile(workflowFile, []byte(tt.workflowContent), 0644)
-			if err != nil {
-				t.Fatalf("Failed to write test workflow: %v", err)
-			}
+			require.NoError(t, os.WriteFile(workflowFile, []byte(tt.workflowContent), 0644))
 
 			compiler := NewCompiler()
 			// Use dev mode to test with local action paths
 			compiler.SetActionMode(ActionModeDev)
 			compiler.verbose = false
 
-			err = compiler.CompileWorkflow(workflowFile)
-
-			if tt.shouldCompile && err != nil {
-				t.Fatalf("Expected compilation to succeed, got error: %v", err)
-			}
-			if !tt.shouldCompile && err == nil {
-				t.Fatal("Expected compilation to fail, but it succeeded")
-			}
+			err := compiler.CompileWorkflow(workflowFile)
 
 			if tt.shouldCompile {
-				lockFile := stringutil.MarkdownToLockFile(workflowFile)
-				content, err := os.ReadFile(lockFile)
-				if err != nil {
-					t.Fatalf("Failed to read lock file: %v", err)
-				}
-
-				contentStr := string(content)
-
-				if tt.shouldHaveEnvVar {
-					envVarLine := "GH_AW_TRACKER_ID: \"" + tt.expectedTrackerID + "\""
-					if !strings.Contains(contentStr, envVarLine) {
-						t.Errorf("Expected lock file to contain env var '%s', but it didn't", envVarLine)
-					}
-				} else {
-					// The JavaScript code will always read process.env.GH_AW_TRACKER_ID
-					// but the environment variable should not be set
-					envVarLine := "GH_AW_TRACKER_ID: \""
-					if strings.Contains(contentStr, envVarLine) {
-						t.Error("Expected lock file to NOT set GH_AW_TRACKER_ID env var, but it did")
-					}
-				}
-
-				if tt.shouldHaveInScript {
-					// Check that tracker-id environment variable is set
-					if !strings.Contains(contentStr, "GH_AW_TRACKER_ID") {
-						t.Error("Expected GH_AW_TRACKER_ID environment variable to be set")
-					}
-					// Check that scripts are loaded using require() (file mode, not inline)
-					if !strings.Contains(contentStr, "require(") {
-						t.Error("Expected scripts to be loaded using require()")
-					}
-				}
-
-				// Clean up lock file
-				os.Remove(lockFile)
+				require.NoError(t, err, "expected compilation to succeed")
+			} else {
+				require.Error(t, err, "expected compilation to fail")
+				return
 			}
 
-			// Clean up workflow file
-			os.Remove(workflowFile)
+			lockFile := stringutil.MarkdownToLockFile(workflowFile)
+
+			content, err := os.ReadFile(lockFile)
+			require.NoError(t, err, "failed to read lock file")
+
+			contentStr := string(content)
+
+			if tt.shouldHaveEnvVar {
+				envVarLine := "GH_AW_TRACKER_ID: \"" + tt.expectedTrackerID + "\""
+				assert.Contains(t, contentStr, envVarLine, "expected lock file to contain tracker-id env var")
+			} else {
+				// The JavaScript code will always read process.env.GH_AW_TRACKER_ID
+				// but the environment variable should not be set
+				assert.NotContains(t, contentStr, "GH_AW_TRACKER_ID: \"", "expected lock file to NOT set GH_AW_TRACKER_ID env var")
+			}
+
+			if tt.shouldHaveInScript {
+				assertScriptUsesRequire(t, contentStr)
+			}
 		})
 	}
 }
