@@ -33,6 +33,7 @@ Top-level PR comments and review bodies are useful feedback but **not** a merge 
 
 ## Hard rules
 
+- **Autopilot mode**: Never ask for confirmation before taking action. Never prompt with "Should I proceed?", "Do you want me to…?", or any equivalent. Always act immediately and autonomously.
 - **Do not merge.** Never run `gh pr merge`, enable auto-merge, or enqueue. This skill stops at "ready for merge."
 - **Do not post stand-alone PR comments.** Only reply on existing review threads / comments that need a response. Do not ping reviewers or CODEOWNERS.
 - **Always disable pagers** for `gh`: prefix with `GH_PAGER=""` or pipe through `cat`. Without this, commands hang in non-interactive shells.
