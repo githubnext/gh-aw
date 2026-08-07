@@ -375,7 +375,7 @@ func (a *analyzer) inspect(pkg *packages.Package, fd *ast.FuncDecl) *funcInfo {
 			}
 		case *ast.CallExpr:
 			info.statements++
-			if target, reason := a.classifyCall(pkg, node); reason != "" {
+			if target, reason := a.classifyCall(pkg, node, locals); reason != "" {
 				info.localImpure = true
 				info.notes = append(info.notes, reason)
 			} else if target != "" {
@@ -393,7 +393,7 @@ func (a *analyzer) inspect(pkg *packages.Package, fd *ast.FuncDecl) *funcInfo {
 
 // classifyCall returns either the key of an in-repo callee to resolve later, or
 // a reason string explaining why the call makes the caller impure.
-func (a *analyzer) classifyCall(pkg *packages.Package, call *ast.CallExpr) (string, string) {
+func (a *analyzer) classifyCall(pkg *packages.Package, call *ast.CallExpr, locals map[types.Object]bool) (string, string) {
 	switch fun := call.Fun.(type) {
 	case *ast.Ident:
 		obj := pkg.TypesInfo.Uses[fun]
@@ -404,9 +404,13 @@ func (a *analyzer) classifyCall(pkg *packages.Package, call *ast.CallExpr) (stri
 			return "", ""
 		}
 		if _, isBuiltin := obj.(*types.Builtin); isBuiltin {
-			if fun.Name == "append" || fun.Name == "copy" || fun.Name == "delete" {
-				// These mutate their argument's backing storage.
-				return "", "builtin " + fun.Name + " may mutate shared storage"
+			switch fun.Name {
+			case "append", "copy", "delete":
+				// These write into the backing storage of their first argument,
+				// which is only safe when that storage was created locally.
+				if len(call.Args) > 0 && !isLocalValue(pkg, call.Args[0], locals) {
+					return "", "builtin " + fun.Name + " may mutate shared storage"
+				}
 			}
 			return "", ""
 		}
@@ -518,6 +522,33 @@ func (a *analyzer) resolve() {
 			fn.notes = []string{"no observable side effects detected"}
 		}
 	}
+}
+
+// isLocalValue reports whether expr denotes storage created inside the function
+// body. Composite literals, `make` calls, and locally declared variables qualify;
+// parameters, globals, and fields of shared values do not.
+func isLocalValue(pkg *packages.Package, expr ast.Expr, locals map[types.Object]bool) bool {
+	switch e := expr.(type) {
+	case *ast.CompositeLit:
+		return true
+	case *ast.CallExpr:
+		if ident, ok := e.Fun.(*ast.Ident); ok && ident.Name == "make" {
+			if _, isBuiltin := pkg.TypesInfo.Uses[ident].(*types.Builtin); isBuiltin {
+				return true
+			}
+		}
+		return false
+	case *ast.Ident:
+		if e.Name == "nil" {
+			return true
+		}
+		obj := pkg.TypesInfo.Uses[e]
+		if obj == nil {
+			obj = pkg.TypesInfo.Defs[e]
+		}
+		return obj != nil && locals[obj]
+	}
+	return false
 }
 
 // escapingTarget reports why writing to expr escapes the function, or "" when
