@@ -336,6 +336,8 @@ type ResolvedEngineTarget struct {
 }
 
 const (
+	knownEngineImportsOwner   = "github"
+	knownEngineImportsRepo    = "gh-aw"
 	knownEngineImportsPath    = ".github/aw/engines.json"
 	knownEngineImportsRef     = "main"
 	knownEngineImportsTimeout = 3 * time.Second
@@ -355,7 +357,7 @@ var (
 	knownEngineImports     map[string]string
 
 	knownEngineImportsDownload = func(ctx context.Context) ([]byte, error) {
-		return parser.DownloadFileFromGitHubForHost(ctx, "github", "gh-aw", knownEngineImportsPath, knownEngineImportsRef, "github.com")
+		return parser.DownloadFileFromGitHubForHost(ctx, knownEngineImportsOwner, knownEngineImportsRepo, knownEngineImportsPath, knownEngineImportsRef, "github.com")
 	}
 )
 

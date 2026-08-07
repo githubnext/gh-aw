@@ -13,8 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var knownEngineImportsTestMu sync.Mutex
+
 func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr error) {
 	t.Helper()
+	knownEngineImportsTestMu.Lock()
 
 	originalDownload := knownEngineImportsDownload
 
@@ -28,6 +31,7 @@ func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr err
 		knownEngineImportsDownload = originalDownload
 		knownEngineImportsOnce = sync.Once{}
 		knownEngineImports = nil
+		knownEngineImportsTestMu.Unlock()
 	})
 }
 
