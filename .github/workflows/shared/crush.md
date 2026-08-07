@@ -293,7 +293,10 @@ engine:
         flushEntry();
 
         logEntries.push({ type: "result", num_turns: turnCount, usage: {} });
-        return { markdown: "parsed", logEntries, mcpFailures, maxTurnsHit };
+        const parts = [`**Turns:** ${turnCount}`, `**Tool calls:** ${toolCallIndex}`];
+        if (mcpFailures.length) parts.push(`**MCP failures:** ${mcpFailures.length}`);
+        if (maxTurnsHit) parts.push("**Max turns reached**");
+        return { markdown: parts.join(" · "), logEntries, mcpFailures, maxTurnsHit };
       }
 ---
 

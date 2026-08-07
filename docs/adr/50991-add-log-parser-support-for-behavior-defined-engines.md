@@ -1,8 +1,8 @@
 # ADR-50991: Add Log-Parser Support for Behavior-Defined Engines
 
 **Date**: 2026-08-07
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: gh-aw maintainers
 
 ---
 
@@ -41,4 +41,4 @@ Engine definitions could point to a file path (relative to the repo or a URL) th
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR reviewed and accepted. See PR [#50991](https://github.com/github/gh-aw/pull/50991) for implementation details.*
