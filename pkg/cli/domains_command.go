@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -115,9 +114,9 @@ func RunListDomains(jsonOutput bool) error {
 	}
 
 	if jsonOutput {
-		jsonBytes, err := json.MarshalIndent(summaries, "", "  ")
+		jsonBytes, err := marshalIndentJSONOrWrap(summaries, "domain summaries")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil
@@ -155,9 +154,9 @@ func RunWorkflowDomains(workflowArg string, jsonOutput bool) error {
 			AllowedDomains: allowedDomains,
 			BlockedDomains: blockedDomains,
 		}
-		jsonBytes, err := json.MarshalIndent(detail, "", "  ")
+		jsonBytes, err := marshalIndentJSONOrWrap(detail, "domain details")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil

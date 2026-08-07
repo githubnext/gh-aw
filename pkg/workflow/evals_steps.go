@@ -271,9 +271,22 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	// Execute the engine through AWF; output is written to evalsLogPath.
 	executionSteps := engine.GetExecutionSteps(evalsData, evalsLogPath)
 	for _, step := range executionSteps {
-		// Track whether we've injected the if/continue-on-error fields yet
+		// injected and skipNextIf are intentionally scoped per-step (declared inside the
+		// outer loop) so they reset to false for each new step, preventing carry-over.
+		// skipNextIf is set after injection so that a step's own "if: always()" field
+		// (e.g. behavior-defined log-parser write steps) is dropped in favour of the
+		// injected condition, avoiding YAML duplicate mapping keys.
 		injected := false
+		skipNextIf := false
 		for _, line := range step {
+			// If the previous line was the name line and we just injected an if: condition,
+			// drop the step's original if: field to avoid a YAML duplicate mapping key.
+			if skipNextIf {
+				skipNextIf = false
+				if strings.HasPrefix(strings.TrimSpace(line), "if:") {
+					continue
+				}
+			}
 			// Prefix the agentic_execution step ID to avoid collisions with the agent job step
 			// IDs — job managers validate for duplicate step IDs across the compiled YAML.
 			// This mirrors the same pattern used in buildDetectionEngineExecutionStep (see
@@ -289,6 +302,7 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 				steps = append(steps, "        if: always()\n")
 				steps = append(steps, "        continue-on-error: true\n")
 				injected = true
+				skipNextIf = true
 			}
 		}
 	}

@@ -65,6 +65,16 @@ The following components and functions are exported by the `console` package:
 | `SpinnerWrapper` | type | Spinner controller with `Start`, `Stop`, `StopWithMessage`, and `UpdateMessage` |
 | `Init` / `View` | methods | Bubble Tea model methods on the spinner model implementation |
 | `CompilerError` / `ErrorPosition` / `TableConfig` / `TreeNode` | types | Supporting data types |
+| `FormatBanner` / `PrintBanner` | funcs | Render/print the `gh-aw` ASCII banner |
+| `ShowWelcomeBanner` | func | Prints the banner followed by a description line |
+| `ClearScreen` / `ClearLine` | funcs | ANSI terminal clear escape sequence helpers |
+| `PrintSuccessMessage` / `PrintInfoMessage` / `PrintWarningMessage` / `PrintErrorMessage` / `PrintCommandMessage` / `PrintSectionHeader` | funcs | Format-and-print convenience wrappers (write formatted messages directly to stdout) |
+| `FormatPromptMessage` | func | Styled prompt message formatting |
+| `ToRelativePath` | func | Converts an absolute path to a path relative to the current working directory for display |
+| `NewListItem` | func | Constructs a `ListItem` value |
+| `ListItem` / `SelectOption` / `FormField` | types | Supporting data types for interactive list, select, and form components |
+| `ProgressBar` | type | Progress bar controller returned by `NewProgressBar`/`NewIndeterminateProgressBar` |
+| `PromptSelect` / `PromptMultiSelect` | funcs | WASM-only single/multi select prompts (native builds use `ShowInteractiveList`) |
 
 ## Spinner Component
 

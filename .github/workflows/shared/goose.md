@@ -224,6 +224,77 @@ engine:
         log(error instanceof Error ? error.message : String(error));
         process.exitCode = 1;
       });
+    log-parser: |
+      function parseLog(logContent) {
+        const lines = logContent.split("\n");
+        const logEntries = [];
+        const mcpFailures = [];
+        let maxTurnsHit = false;
+        let turnCount = 0;
+        let toolCallIndex = 0;
+        let currentRole = null;
+        let currentText = [];
+        const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|goose-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+
+        function flushEntry() {
+          if (!currentRole || currentText.length === 0) { currentText = []; return; }
+          const text = currentText.join("\n").trim();
+          if (!text) { currentText = []; return; }
+          if (currentRole === "tool_use") {
+            const toolId = `goose_tool_${toolCallIndex++}`;
+            const nameMatch = text.match(/(?:calling|using|tool[_\s]*(?:call|use))\s+(\S+)/i);
+            const toolName = nameMatch ? nameMatch[1] : "unknown_tool";
+            logEntries.push({ type: "assistant", message: { content: [{ type: "tool_use", id: toolId, name: toolName, input: {} }] } });
+            logEntries.push({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: toolId, content: text }] } });
+          } else if (currentRole === "assistant") {
+            logEntries.push({ type: "assistant", message: { content: [{ type: "text", text }] } });
+            turnCount++;
+          }
+          currentText = [];
+        }
+
+        // Init entry
+        logEntries.push({ type: "system", subtype: "init", model: null, session_id: null });
+
+        for (const line of lines) {
+          if (AWF_INFRA_RE.test(line)) continue;
+          if (/max.?turns|maximum.*turns.*reached|turn limit/i.test(line)) maxTurnsHit = true;
+          if (/MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP/i.test(line)) {
+            const serverMatch = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
+            mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
+          }
+
+          if (/^─{3,}|^━{3,}/.test(line)) {
+            flushEntry();
+            currentRole = null;
+            continue;
+          }
+          if (/^(calling|using|tool[_\s]*(call|use|result))\b/i.test(line.trim())) {
+            flushEntry();
+            currentRole = "tool_use";
+            currentText.push(line);
+            continue;
+          }
+          if (/^(assistant|goose)\s*[>:]/i.test(line.trim())) {
+            if (currentRole !== "assistant") { flushEntry(); currentRole = "assistant"; }
+            currentText.push(line);
+            continue;
+          }
+          if (/^(user|human)\s*[>:]/i.test(line.trim())) {
+            flushEntry();
+            currentRole = null;
+            continue;
+          }
+          if (currentRole) currentText.push(line);
+        }
+        flushEntry();
+
+        logEntries.push({ type: "result", num_turns: turnCount, usage: {} });
+        const parts = [`**Turns:** ${turnCount}`, `**Tool calls:** ${toolCallIndex}`];
+        if (mcpFailures.length) parts.push(`**MCP failures:** ${mcpFailures.length}`);
+        if (maxTurnsHit) parts.push("**Max turns reached**");
+        return { markdown: parts.join(" · "), logEntries, mcpFailures, maxTurnsHit };
+      }
 ---
 
 <!--

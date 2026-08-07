@@ -339,6 +339,108 @@ func (e *BehaviorDefinedEngine) GetMCPConfigAdapterFilename() string {
 	return e.mcpConfigAdapterFilename()
 }
 
+// logParserHeredocDelimiter is the shell heredoc delimiter used when writing
+// the log-parser script to disk.
+const logParserHeredocDelimiter = "GHAW_LOG_PARSER_SCRIPT_5d2e8b3f_EOF"
+
+// logParserScriptFilename returns the filename (not path) for the engine's log-parser script.
+func (e *BehaviorDefinedEngine) logParserScriptFilename() string {
+	return e.GetID() + "_log_parser"
+}
+
+// buildWrappedLogParserScript wraps the user-supplied log-parser source with the
+// createEngineLogParser bootstrap and returns the complete script content.
+// Returns "" if no log-parser is defined or if the wrapped script contains the
+// heredoc delimiter (which would break the generated shell heredoc).
+func (e *BehaviorDefinedEngine) buildWrappedLogParserScript() string {
+	behavior := e.behavior()
+	if behavior == nil || behavior.LogParser == "" {
+		return ""
+	}
+	// Wrap the user-provided parse function with the createEngineLogParser
+	// bootstrap so the script conforms to the contract expected by
+	// log_parser_bootstrap.cjs (runLogParser). The author only needs to define
+	// a parseLog(logContent) function; the wrapper handles file I/O and exports.
+	wrapped := fmt.Sprintf(`// @ts-check
+// Auto-generated log parser for behavior-defined engine %q.
+const { createEngineLogParser } = require("./log_parser_shared.cjs");
+
+// --- begin engine-provided parse function ---
+%s
+// --- end engine-provided parse function ---
+
+const main = createEngineLogParser({
+  parserName: %q,
+  parseFunction: parseLog,
+  supportsDirectories: false,
+});
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { main, parseLog };
+}`,
+		e.GetDisplayName(),
+		behavior.LogParser,
+		e.GetDisplayName(),
+	)
+	// Safety check: if the wrapped script contains the heredoc delimiter at the
+	// start of any line, the heredoc would be terminated prematurely. Detect
+	// this at compile time so GetLogParserScriptId() and buildLogParserWriteStep()
+	// are always consistent.
+	if strings.Contains(wrapped, "\n"+logParserHeredocDelimiter) || strings.HasPrefix(wrapped, logParserHeredocDelimiter) {
+		behaviorDefinedEngineLog.Printf(
+			"WARNING: engine %q log-parser script contains heredoc delimiter %q; log-parser step suppressed",
+			e.GetID(), logParserHeredocDelimiter,
+		)
+		return ""
+	}
+	return wrapped
+}
+
+// GetLogParserScriptId returns the log-parser script ID for this engine.
+// Returns "" when no log-parser is defined, or when the wrapped script would
+// contain the heredoc delimiter (which prevents the write step from running).
+// This is always consistent with buildLogParserWriteStep: the ID is non-empty
+// only when the write step will actually emit the script file.
+func (e *BehaviorDefinedEngine) GetLogParserScriptId() string {
+	if e.buildWrappedLogParserScript() == "" {
+		return ""
+	}
+	return e.logParserScriptFilename()
+}
+
+// buildLogParserWriteStep generates a GitHub Actions step that writes the
+// behavior-defined engine's log-parser script to
+// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_log_parser.cjs so the post-agent
+// log-parsing step can require() it.
+//
+// The raw log-parser JavaScript from the behavior definition is wrapped with a
+// createEngineLogParser call from log_parser_shared.cjs so that the author only
+// needs to define a parseLog(logContent) function returning
+// {markdown, logEntries, mcpFailures, maxTurnsHit}.
+//
+// The step runs with "if: always()" so the script is written even if an earlier
+// step in the job fails, ensuring the log-parsing step (which also runs always)
+// can always require() the file.
+func (e *BehaviorDefinedEngine) buildLogParserWriteStep() GitHubActionStep {
+	script := e.buildWrappedLogParserScript()
+	if script == "" {
+		return nil
+	}
+	stepLines := []string{
+		"      - name: Write " + e.GetDisplayName() + " log parser script",
+		"        if: always()",
+	}
+	command := fmt.Sprintf(
+		"mkdir -p \"%[1]s\"\ncat <<'%[4]s' > \"%[1]s/%[2]s\"\n%[3]s\n%[4]s\nchmod 755 \"%[1]s/%[2]s\"",
+		SetupActionDestinationShell,
+		e.logParserScriptFilename()+".cjs",
+		script,
+		logParserHeredocDelimiter,
+	)
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, nil)
+	return GitHubActionStep(stepLines)
+}
+
 func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	behavior := e.behavior()
 	if behavior == nil || behavior.Execution == nil {
@@ -362,6 +464,9 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedSetupSteps() []GitHubActionS
 	}
 	if harnessStep := e.buildHarnessWriteStep(); len(harnessStep) > 0 {
 		steps = append(steps, harnessStep)
+	}
+	if logParserStep := e.buildLogParserWriteStep(); len(logParserStep) > 0 {
+		steps = append(steps, logParserStep)
 	}
 	return steps
 }

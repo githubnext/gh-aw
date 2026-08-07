@@ -10,6 +10,7 @@ import (
 )
 
 func TestRunCommandHelpTextConsistency(t *testing.T) {
+	t.Parallel()
 	assert.Contains(t, runCmd.Long, "this command enters interactive mode and shows", "run command interactive mode text should be explicit")
 
 	runApprove := runCmd.Flags().Lookup("approve")
@@ -27,6 +28,7 @@ func TestRunCommandHelpTextConsistency(t *testing.T) {
 }
 
 func TestCompileScheduleSeedHelpUsesConsistentQuotes(t *testing.T) {
+	t.Parallel()
 	scheduleSeedFlag := compileCmd.Flags().Lookup("schedule-seed")
 	require.NotNil(t, scheduleSeedFlag, "compile command should define --schedule-seed")
 	assert.Contains(t, scheduleSeedFlag.Usage, "\"github/gh-aw\"", "--schedule-seed example should use double quotes")
@@ -35,18 +37,21 @@ func TestCompileScheduleSeedHelpUsesConsistentQuotes(t *testing.T) {
 }
 
 func TestCompileStagedFlagHelpText(t *testing.T) {
+	t.Parallel()
 	stagedFlag := compileCmd.Flags().Lookup("staged")
 	require.NotNil(t, stagedFlag, "compile command should define --staged")
 	assert.Equal(t, "Force all safe-outputs into staged mode", stagedFlag.Usage)
 }
 
 func TestCompileShowAllFlagHelpText(t *testing.T) {
+	t.Parallel()
 	showAllFlag := compileCmd.Flags().Lookup("show-all")
 	require.NotNil(t, showAllFlag, "compile command should define --show-all")
 	assert.Equal(t, "Display all compilation errors instead of only the highest-priority subset (default: top 5)", showAllFlag.Usage)
 }
 
 func TestCompileStrictFlagHelpText(t *testing.T) {
+	t.Parallel()
 	strictFlag := compileCmd.Flags().Lookup("strict")
 	require.NotNil(t, strictFlag, "compile command should define --strict")
 	assert.Contains(t, strictFlag.Usage, "disallows write permissions and deprecated fields")

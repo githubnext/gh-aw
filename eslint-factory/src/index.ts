@@ -38,6 +38,7 @@ import { requireFetchTimeoutRule } from "./rules/require-fetch-timeout";
 import { requireNanCheckAfterEnvNumericParseRule } from "./rules/require-nan-check-after-env-numeric-parse";
 import { preferStructuredCloneRule } from "./rules/prefer-structured-clone";
 import { requireFetchResponseBodyTryCatchRule } from "./rules/require-fetch-response-body-try-catch";
+import { requireErrorCodeInThrownErrorRule } from "./rules/require-error-code-in-thrown-error";
 
 const plugin = {
   meta: {
@@ -85,6 +86,7 @@ const plugin = {
     "require-nan-check-after-env-numeric-parse": requireNanCheckAfterEnvNumericParseRule,
     "prefer-structured-clone": preferStructuredCloneRule,
     "require-fetch-response-body-try-catch": requireFetchResponseBodyTryCatchRule,
+    "require-error-code-in-thrown-error": requireErrorCodeInThrownErrorRule,
   },
 };
 

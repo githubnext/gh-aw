@@ -12,16 +12,18 @@ The `pkg/linters` package provides custom Go static analysis passes that enforce
 and style invariants. `regexp.Compile` and `regexp.MustCompile` are safe when called with compile-time
 constant patterns, but when the pattern is built from dynamic input (e.g. `fmt.Sprintf`, string
 concatenation with variables, or function parameters) two distinct risks arise: a malformed pattern
-causes a runtime panic (or a returned error that callers often ignore), and if the dynamic portion is
-influenced by untrusted input the pattern can trigger catastrophic backtracking (ReDoS). The existing
+causes a runtime panic in `MustCompile` variants (or a returned error that callers often ignore),
+and if the dynamic portion is influenced by untrusted input the attacker can control pattern
+complexity or size. The existing
 `regexpcompileinfunction` linter only enforces *where* compilation occurs (package-level vs.
 function-level), not *what* is being compiled, leaving the dynamic-pattern risk unaddressed.
 
 ### Decision
 
 We will introduce a new `regexpdynamicpattern` analyzer in `pkg/linters/regexpdynamicpattern/` that
-reports any `regexp.Compile` or `regexp.MustCompile` call whose first argument is not a compile-time
-constant string (literal, `const` identifier, or constant-only expression). Package identity is
+reports any `regexp.Compile`, `regexp.MustCompile`, `regexp.CompilePOSIX`, or
+`regexp.MustCompilePOSIX` call whose first argument is not a compile-time constant string (literal,
+`const` identifier, or constant-only expression). Package identity is
 resolved via the type checker to handle aliased imports without false positives. The analyzer is
 registered in `pkg/linters/registry.go` alongside the existing linters and respects
 `//nolint:regexpdynamicpattern` suppressions for intentional dynamic patterns.
@@ -37,17 +39,17 @@ identified: the *content* of the pattern, not its *location*, determines the saf
 
 #### Alternative 2: Runtime validation wrapper
 
-Wrap `regexp.Compile`/`MustCompile` with a project-internal helper that validates or sanitizes the
-pattern at runtime. This would catch panics but cannot prevent ReDoS (the unsafe pattern still
-executes) and introduces runtime overhead on every compilation call. It also requires migrating all
-call sites, whereas a static linter operates without any code changes to call sites that already use
-constant patterns.
+Wrap regexp compile calls with a project-internal helper that validates or sanitizes the pattern at
+runtime. This would catch panics or errors but cannot prevent untrusted input from controlling
+pattern complexity or size, and introduces runtime overhead on every compilation call. It also
+requires migrating all call sites, whereas a static linter operates without any code changes to call
+sites that already use constant patterns.
 
 ### Consequences
 
 #### Positive
 - Eliminates an entire class of runtime panics caused by malformed dynamically-constructed regexp patterns.
-- Reduces the ReDoS attack surface by flagging call sites where untrusted input could flow into regexp compilation.
+- Flags call sites where untrusted input could control regexp pattern complexity or size.
 - Consistent with the project's existing philosophy of enforcing safety invariants at analysis time rather than at runtime.
 
 #### Negative
