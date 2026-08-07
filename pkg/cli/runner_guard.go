@@ -59,7 +59,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	// Find git root to get the absolute path for Docker volume mount
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
-		return fmt.Errorf("failed to find git root: %w", err)
+		return err
 	}
 
 	gitRoot, err = fileutil.ValidateAbsolutePath(gitRoot)

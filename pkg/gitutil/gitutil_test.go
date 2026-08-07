@@ -3,6 +3,7 @@
 package gitutil
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -321,6 +322,58 @@ func TestExtractBaseRepo(t *testing.T) {
 	}
 }
 
+func TestGetwd(t *testing.T) {
+	t.Run("returns the current working directory", func(t *testing.T) {
+		dir, err := Getwd()
+		require.NoError(t, err, "Getwd should succeed in a normal test environment")
+		assert.NotEmpty(t, dir, "Getwd should return a non-empty path")
+
+		wantDir, wantErr := os.Getwd()
+		require.NoError(t, wantErr)
+		assert.Equal(t, wantDir, dir, "Getwd should match os.Getwd")
+	})
+
+	t.Run("returns wrapped error with recovery guidance", func(t *testing.T) {
+		orig := osGetwd
+		t.Cleanup(func() { osGetwd = orig })
+		osGetwd = func() (string, error) {
+			return "", errors.New("cwd unavailable")
+		}
+
+		_, err := Getwd()
+		require.Error(t, err)
+		require.ErrorContains(t, err, "cwd unavailable")
+		require.ErrorContains(t, err, "failed to determine current working directory")
+		require.ErrorContains(t, err, "valid working directory and read permissions")
+	})
+}
+
+func TestUserHomeDir(t *testing.T) {
+	t.Run("returns the current user's home directory", func(t *testing.T) {
+		home, err := UserHomeDir()
+		require.NoError(t, err, "UserHomeDir should succeed in a normal test environment")
+		assert.NotEmpty(t, home, "UserHomeDir should return a non-empty path")
+
+		wantHome, wantErr := os.UserHomeDir()
+		require.NoError(t, wantErr)
+		assert.Equal(t, wantHome, home, "UserHomeDir should match os.UserHomeDir")
+	})
+
+	t.Run("returns wrapped error with recovery guidance", func(t *testing.T) {
+		orig := osUserHomeDir
+		t.Cleanup(func() { osUserHomeDir = orig })
+		osUserHomeDir = func() (string, error) {
+			return "", errors.New("home unavailable")
+		}
+
+		_, err := UserHomeDir()
+		require.Error(t, err)
+		require.ErrorContains(t, err, "home unavailable")
+		require.ErrorContains(t, err, "failed to determine home directory")
+		require.ErrorContains(t, err, "HOME (Unix) or USERPROFILE/HOMEDRIVE/HOMEPATH (Windows)")
+	})
+}
+
 func TestFindGitRoot(t *testing.T) {
 	t.Run("returns non-empty path when inside a git repository", func(t *testing.T) {
 		gitRoot, err := FindGitRoot()
@@ -363,6 +416,7 @@ func TestFindGitRootFrom(t *testing.T) {
 		_, err := FindGitRootFrom(nonRepoDir)
 		require.Error(t, err, "FindGitRootFrom should return error outside a git repository")
 		require.ErrorContains(t, err, "not in a git repository", "error should mention not in git repository")
+		require.ErrorContains(t, err, "run this command from inside a git repository", "error should include recovery guidance")
 	})
 
 	t.Run("returns git root when .git is a worktree marker file", func(t *testing.T) {
