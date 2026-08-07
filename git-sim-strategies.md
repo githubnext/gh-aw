@@ -349,3 +349,31 @@ content there could realistically breach 4096 KB).
 - **Next index: 184** = tiny-shallow-single-micro-diverged-single (closes the
   shallow-single-micro tier; ahead/diverged/clean × single/multi/merge_msg = 9 cells,
   184-188 remain... actually clean×3 + ahead-single done = 4/9, remaining 5).
+
+## Run 2026-08-07: idx184-187 (shallow-single-micro tier nearly closed: ahead+diverged)
+
+- **idx184 ahead-multi: PASS.** 4c/3.28KB, 2 unique files (payload.txt+history.md) but
+  4 diff-git entries (history.md touched in 3 separate commits) — file_count metric
+  should use unique-files not diff-git-line-count. ff rc0, merges=0/parent=1.
+- **idx185 ahead-merge_msg: PASS.** 2c/2.09KB. Filename leak reconfirmed at shallow-
+  history tier: `0001-Merge-branch-topic-xyz-into-feature.patch`, merges=0/parent=1.
+- **idx186 diverged-single: PASS.** two-dot 2f/2.54KB vs three-dot 3f/3150B (+545B/+1f
+  phantom, format-patch polarity confirmed again). NEW: tree-diff shows OPPOSITE
+  polarity — `diff --name-only main..feature` (two-dot) itself leaks history.md from
+  main's divergence while two-dot format-patch stays clean; three-dot tree-diff
+  (merge-base-relative) is the clean one. ff(OLD_TIP→NEW_TIP) rc0; ff(main↔feature)
+  BOTH directions rc1 (genuine bidirectional divergence, neither is ancestor of other).
+- **idx187 diverged-multi: PASS.** two-dot 4f/3.15KB vs three-dot 5f/3751B (+525B
+  phantom). Disjoint-multi ratio: single-baseline 1618B vs 3-commit initial set 2655B
+  = ~1.64x (small history.md-append commits carry ~500B/commit header overhead at
+  THIS micro scale — not the ~1.0x seen at larger payload tiers; law refinement:
+  disjoint-multi ratio approaches 1.0x only once real payload dominates fixed
+  per-commit header cost, at micro scale fixed overhead is comparatively material).
+  ff rc0, merges=0/parent=1.
+- **HISTORY=shallow ahead/diverged sub-cases confirm all core laws hold** (ff checks,
+  merge_msg filename leak, two-dot/three-dot polarity for both format-patch and
+  tree-diff) at HISTORY=5-entries same as HISTORY=none.
+- **Zero real fail/error/rejected across 188 cells.**
+- **Next index: 188** = tiny-shallow-single-micro-diverged-merge_msg (closes the
+  shallow-single-micro tier fully, 9/9). Then HISTORY=shallow moves to FILES=few
+  (idx189+).
