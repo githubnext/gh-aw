@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -326,20 +328,64 @@ Test workflow for secret redaction.
 	}
 }
 
+// parseGeneratedSteps parses generated step YAML into a list of step mappings so
+// tests can assert on the structure GitHub Actions will see rather than on the
+// raw text. The generated fragment is indented as list items under "steps:".
+func parseGeneratedSteps(t *testing.T, generated string) []map[string]any {
+	t.Helper()
+
+	var parsed struct {
+		Steps []map[string]any `yaml:"steps"`
+	}
+	if err := yaml.Unmarshal([]byte("steps:\n"+generated), &parsed); err != nil {
+		t.Fatalf("Generated steps are not valid YAML: %v\n%s", err, generated)
+	}
+	return parsed.Steps
+}
+
 func TestSecretRedactionRunsWithoutWorkflowSecrets(t *testing.T) {
-	var yaml strings.Builder
+	var builder strings.Builder
 	compiler := NewCompiler()
 
-	compiler.generateSecretRedactionStep(&yaml, "", &WorkflowData{})
+	compiler.generateSecretRedactionStep(&builder, "", &WorkflowData{})
 
-	output := yaml.String()
+	output := builder.String()
 	if !strings.Contains(output, "const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');") {
 		t.Error("Expected redaction script to run without workflow secret references")
 	}
 	if strings.Contains(output, "No secrets to redact") {
 		t.Error("Did not expect a no-op redaction step without workflow secret references")
 	}
-	if strings.Contains(output, "        env:\n") {
-		t.Error("Did not expect an empty env mapping without workflow secret references")
+
+	steps := parseGeneratedSteps(t, output)
+	if len(steps) != 1 {
+		t.Fatalf("Expected exactly 1 generated step, got %d", len(steps))
+	}
+	// A bare "env:" would parse as null and fail workflow schema validation,
+	// so the key must be omitted entirely when there are no secrets to pass.
+	if env, ok := steps[0]["env"]; ok {
+		t.Errorf("Did not expect an env key without workflow secret references, got %#v", env)
+	}
+}
+
+func TestSecretRedactionEmitsEnvMappingWithWorkflowSecrets(t *testing.T) {
+	var builder strings.Builder
+	compiler := NewCompiler()
+
+	compiler.generateSecretRedactionStep(&builder, "${{ secrets.MY_TOKEN }}", &WorkflowData{})
+
+	steps := parseGeneratedSteps(t, builder.String())
+	if len(steps) != 1 {
+		t.Fatalf("Expected exactly 1 generated step, got %d", len(steps))
+	}
+	env, ok := steps[0]["env"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected env to be a mapping, got %#v", steps[0]["env"])
+	}
+	if env["GH_AW_SECRET_NAMES"] != "MY_TOKEN" {
+		t.Errorf("Expected GH_AW_SECRET_NAMES to list the secret, got %#v", env["GH_AW_SECRET_NAMES"])
+	}
+	if _, ok := env["SECRET_MY_TOKEN"]; !ok {
+		t.Errorf("Expected the secret value to be passed as SECRET_MY_TOKEN, got %#v", env)
 	}
 }
