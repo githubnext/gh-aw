@@ -344,7 +344,55 @@ mkdir -p ${{ github.workspace }}/docs/adr
 
 ### Post a Blocking Comment
 
-Post a comment using `add-comment` explaining the requirement:
+Read the `adr-report-templates` skill and post a comment using `add-comment` with the **ADR Required** template.
+
+### Report Formatting
+
+- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.
+- Apply **progressive disclosure**: keep the immediately visible text as brief as possible; wrap all verbose sections (next steps, background, reference material) in `<details><summary>…</summary>` tags.
+- Required structure for blocking comments: headline + one-line status (always visible) → "What to do next" (in `<details>`) → "Why ADRs Matter" (in `<details>`) → ADR format reference (in `<details>`) → blocking notice (always visible)
+
+## Step 4b: If ADR Found — Verify Implementation Matches
+
+If an ADR **is** found (either in the PR body, on the PR branch, or in a linked issue), verify that the implementation aligns with the stated decision.
+
+### Read the ADR
+
+Load and parse the ADR content. Extract:
+- The **Decision** section (what was decided)
+- The **Context** section (constraints and forces)
+- The **Consequences** section (expected outcomes)
+
+### Analyze Alignment
+
+Compare the ADR's stated decision against the actual code changes in the PR diff. Look for:
+
+1. **Divergences** — Code that contradicts the stated decision (e.g., ADR says "use PostgreSQL" but code connects to MongoDB)
+2. **Missing implementation** — Key aspects of the decision not reflected in the code
+3. **Scope creep** — Significant architectural changes not covered by the ADR
+4. **Full alignment** — Code faithfully implements the stated decision
+
+### Report Findings
+
+Read the `adr-report-templates` skill and post a comment using `add-comment` with the template matching the outcome:
+
+- **If the implementation MATCHES the ADR**: use the **ADR Verified** template.
+- **If there are DIVERGENCES**: use the **Implementation Diverges** template.
+
+## Important: Always Call a Safe Output
+
+**You MUST always call at least one safe output tool.** If none of the above steps result in an action, call `noop` with an explanation:
+
+```json
+{"noop": {"message": "No action needed: [brief explanation of what was found and why no action was required]"}}
+```
+
+## skill: `adr-report-templates`
+---
+description: PR comment templates for the Design Decision Gate (ADR Required, ADR Verified, and Implementation Diverges).
+---
+
+**ADR Required** template (no ADR found — blocking comment):
 
 ```markdown
 ### 🏗️ Design Decision Gate — ADR Required
@@ -392,37 +440,8 @@ All ADRs are stored in `docs/adr/` as Markdown files numbered by PR number (e.g.
 </details>
 ```
 
-### Report Formatting
+**ADR Verified** template (implementation matches the ADR):
 
-- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.
-- Apply **progressive disclosure**: keep the immediately visible text as brief as possible; wrap all verbose sections (next steps, background, reference material) in `<details><summary>…</summary>` tags.
-- Required structure for blocking comments: headline + one-line status (always visible) → "What to do next" (in `<details>`) → "Why ADRs Matter" (in `<details>`) → ADR format reference (in `<details>`) → blocking notice (always visible)
-
-## Step 4b: If ADR Found — Verify Implementation Matches
-
-If an ADR **is** found (either in the PR body, on the PR branch, or in a linked issue), verify that the implementation aligns with the stated decision.
-
-### Read the ADR
-
-Load and parse the ADR content. Extract:
-- The **Decision** section (what was decided)
-- The **Context** section (constraints and forces)
-- The **Consequences** section (expected outcomes)
-
-### Analyze Alignment
-
-Compare the ADR's stated decision against the actual code changes in the PR diff. Look for:
-
-1. **Divergences** — Code that contradicts the stated decision (e.g., ADR says "use PostgreSQL" but code connects to MongoDB)
-2. **Missing implementation** — Key aspects of the decision not reflected in the code
-3. **Scope creep** — Significant architectural changes not covered by the ADR
-4. **Full alignment** — Code faithfully implements the stated decision
-
-### Report Findings
-
-**If the implementation MATCHES the ADR**:
-
-Post an approving comment:
 ```markdown
 ### ✅ Design Decision Gate — ADR Verified
 
@@ -436,9 +455,8 @@ Post an approving comment:
 </details>
 ```
 
-**If there are DIVERGENCES**:
+**Implementation Diverges** template (implementation contradicts the ADR):
 
-Post a comment describing the discrepancies:
 ```markdown
 ### ⚠️ Design Decision Gate — Implementation Diverges from ADR
 
@@ -463,12 +481,4 @@ Either:
 The ADR and implementation must be in sync before this PR can merge.
 
 </details>
-```
-
-## Important: Always Call a Safe Output
-
-**You MUST always call at least one safe output tool.** If none of the above steps result in an action, call `noop` with an explanation:
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was found and why no action was required]"}}
 ```
