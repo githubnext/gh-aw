@@ -459,6 +459,136 @@ func TestExternalDetectorExecutionStepIncludesThreatDetectionContext(t *testing.
 	})
 }
 
+func containsExternalDetectorCopilotPathPrefix(steps string) bool {
+	return strings.Contains(steps, `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH"`) ||
+		strings.Contains(steps, `export PATH=\"${RUNNER_TEMP}/gh-aw/bin:$PATH\"`)
+}
+
+func TestBuildExternalDetectorPathSetup(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name              string
+		data              *WorkflowData
+		engineID          string
+		wantHostSetup     bool
+		wantCommandPrefix bool
+	}{
+		{
+			name: "copilot on standard topology stages binary and prepends PATH",
+			data: &WorkflowData{
+				AI: "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			engineID:          "copilot",
+			wantHostSetup:     true,
+			wantCommandPrefix: true,
+		},
+		{
+			name: "copilot on arc-dind prepends PATH without host staging",
+			data: &WorkflowData{
+				AI: "copilot",
+				RunnerConfig: &RunnerConfig{
+					Topology: RunnerTopologyArcDind,
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			engineID:          "copilot",
+			wantHostSetup:     false,
+			wantCommandPrefix: true,
+		},
+		{
+			name: "copilot custom command skips installed binary setup",
+			data: &WorkflowData{
+				AI: "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							ID:      "copilot",
+							Command: "/opt/custom/copilot",
+						},
+					},
+				},
+			},
+			engineID:          "copilot",
+			wantHostSetup:     false,
+			wantCommandPrefix: false,
+		},
+		{
+			name: "non-copilot engine skips setup",
+			data: &WorkflowData{
+				AI: "claude",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			engineID:          "claude",
+			wantHostSetup:     false,
+			wantCommandPrefix: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := compiler.buildExternalDetectorPathSetup(buildExternalDetectorWorkflowData(tt.data, tt.engineID), tt.engineID)
+			if hasHostSetup := strings.Contains(got.hostSetup, "GH_AW_COPILOT_SRC"); hasHostSetup != tt.wantHostSetup {
+				t.Errorf("host setup presence = %v, want %v; setup:\n%s", hasHostSetup, tt.wantHostSetup, got.hostSetup)
+			}
+			if hasCommandPrefix := containsExternalDetectorCopilotPathPrefix(got.commandPrefix); hasCommandPrefix != tt.wantCommandPrefix {
+				t.Errorf("command prefix presence = %v, want %v; prefix:\n%s", hasCommandPrefix, tt.wantCommandPrefix, got.commandPrefix)
+			}
+		})
+	}
+}
+
+func TestExternalDetectorExecutionStepStagesInstalledCopilotBinary(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := strings.Join(compiler.buildExternalDetectorExecutionStep(data), "")
+	if !containsExternalDetectorCopilotPathPrefix(steps) {
+		t.Errorf("expected external detector execution to prepend staged Copilot bin dir to PATH;\ngot:\n%s", steps)
+	}
+	if !strings.Contains(steps, "GH_AW_COPILOT_SRC") {
+		t.Errorf("expected external detector execution to stage installed Copilot binary;\ngot:\n%s", steps)
+	}
+	if !strings.Contains(steps, `cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"`) {
+		t.Errorf("expected external detector execution to copy installed Copilot binary;\ngot:\n%s", steps)
+	}
+}
+
+func TestExternalDetectorExecutionStepSkipsInstalledCopilotBinaryForCustomCommand(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID:      "copilot",
+					Command: "/opt/custom/copilot",
+				},
+			},
+		},
+	}
+
+	steps := strings.Join(compiler.buildExternalDetectorExecutionStep(data), "")
+	if containsExternalDetectorCopilotPathPrefix(steps) {
+		t.Errorf("did not expect external detector execution to prepend installed Copilot bin dir for custom command;\ngot:\n%s", steps)
+	}
+	if strings.Contains(steps, "GH_AW_COPILOT_SRC") {
+		t.Errorf("did not expect external detector execution to stage installed Copilot binary for custom command;\ngot:\n%s", steps)
+	}
+}
+
 func TestThreatDetectionWithEngineConfig(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -2091,6 +2221,12 @@ func TestBuildExternalDetectorExecutionStepPropagatesRunnerTopology(t *testing.T
 		}
 		if !strings.Contains(allSteps, "export HOME=${RUNNER_TEMP}/gh-aw/home") {
 			t.Errorf("expected arc-dind external detector execution to export HOME under ${RUNNER_TEMP}/gh-aw/home;\ngot:\n%s", allSteps)
+		}
+		if !containsExternalDetectorCopilotPathPrefix(allSteps) {
+			t.Errorf("expected arc-dind external detector execution to prepend staged Copilot bin dir to PATH;\ngot:\n%s", allSteps)
+		}
+		if strings.Contains(allSteps, "GH_AW_COPILOT_SRC") {
+			t.Errorf("did not expect arc-dind external detector execution to stage Copilot binary on the host;\ngot:\n%s", allSteps)
 		}
 	})
 

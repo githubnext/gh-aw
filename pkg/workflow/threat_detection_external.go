@@ -188,6 +188,34 @@ func (c *Compiler) getExternalThreatDetectionEngineID(data *WorkflowData) string
 	return c.getThreatDetectionEngineID(data)
 }
 
+type externalDetectorPathSetup struct {
+	hostSetup     string
+	commandPrefix string
+}
+
+// buildExternalDetectorPathSetup returns the host-side shell commands that run
+// before AWF plus any command prefix needed inside the external detector container.
+// For the installed Copilot engine, threat-detect invokes the engine binary by
+// name, so the mounted ${RUNNER_TEMP}/gh-aw/bin/ directory must be prepended to
+// PATH in the container command. Non-ARC topologies also need a host-side copy
+// into that mounted directory; ARC/DinD already stages Copilot there during install.
+func (c *Compiler) buildExternalDetectorPathSetup(data *WorkflowData, engineID string) externalDetectorPathSetup {
+	if engineID != "copilot" {
+		return externalDetectorPathSetup{}
+	}
+	if data.EngineConfig != nil && data.EngineConfig.Command != "" {
+		return externalDetectorPathSetup{}
+	}
+	setup := externalDetectorPathSetup{
+		commandPrefix: `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH" && `,
+	}
+	if isArcDindTopology(data) {
+		return setup
+	}
+	setup.hostSetup = copilotBinaryPathSetup
+	return setup
+}
+
 // buildInstallAWFForExternalDetectorStep creates the AWF installation step required
 // by the external detector execution path, which invokes `awf` directly.
 func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []string {
@@ -362,6 +390,15 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 
 	// Build the complete AWF command. BuildAWFCommand handles config file setup,
 	// ARC/DinD probes, tool cache mount, and the log tee pattern.
+	//
+	// PathSetup stages the engine binary (e.g. copilot) to the mounted
+	// ${RUNNER_TEMP}/gh-aw/bin/ directory on the host when required. The paired
+	// command prefix prepends that staged bin dir to PATH in the AWF container.
+	pathSetup := c.buildExternalDetectorPathSetup(threatDetectionData, engineID)
+	if pathSetup.commandPrefix != "" {
+		threatDetectCmd = pathSetup.commandPrefix + threatDetectCmd
+	}
+
 	awfConfig := AWFCommandConfig{
 		EngineName:         engineID,
 		EngineCommand:      threatDetectCmd,
@@ -369,6 +406,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		WorkflowData:       threatDetectionData,
 		ExcludeEnvVarNames: excludeEnvVarNames,
 		AllowedDomains:     allowedDomains,
+		PathSetup:          pathSetup.hostSetup,
 	}
 	command := BuildAWFCommand(awfConfig)
 
