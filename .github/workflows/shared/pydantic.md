@@ -1,12 +1,4 @@
 ---
-runtimes:
-  python:
-    version: "3.12"
-pre-agent-steps:
-  - name: Install Pydantic AI CLI
-    run: |
-      pip install --quiet --disable-pip-version-check "pydantic-ai-harness==$GH_AW_ENGINE_VERSION"
-      pai --version
 engine:
   id: pydantic-ai
   version: "0.1.0"
@@ -30,8 +22,6 @@ engine:
         - raw.githubusercontent.com
         - api.github.com
         - objects.githubusercontent.com
-        - pypi.org
-        - files.pythonhosted.org
       provider-domains:
         copilot: api.githubcopilot.com
         anthropic: api.anthropic.com
@@ -138,13 +128,5 @@ imports:
 The engine reads MCP server configuration from `GH_AW_MCP_CONFIG`, so
 safe outputs flow through the standard `safeoutputs` server automatically.
 
-Requires `pydantic-ai-harness` to be installed. The version is controlled by
-the `engine.version` field inherited from this shared definition; override it
-in your workflow if you need a specific version:
-
-```yaml
-engine:
-  id: pydantic-ai
-  version: "0.2.0"
-```
+Pydantic AI is preinstalled in the runtime image.
 -->
