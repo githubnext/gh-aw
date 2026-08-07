@@ -13,10 +13,8 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
-network:
-  allowed:
-  - defaults
 imports:
+- shared/network-defaults.md
 - shared/otlp.md
 safe-outputs:
   create-issue:

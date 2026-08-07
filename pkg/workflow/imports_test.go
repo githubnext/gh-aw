@@ -83,6 +83,23 @@ This is a test workflow.
 	}
 }
 
+func TestMergeNetworkPermissionsCombinesImportedAllowedDomains(t *testing.T) {
+	compiler := workflow.NewCompiler()
+	topNetwork := &workflow.NetworkPermissions{Allowed: []string{"node", "defaults"}}
+	importedNetwork := `{"allowed":["defaults","python"]}
+{"allowed":["go"]}`
+
+	result, err := compiler.MergeNetworkPermissions(topNetwork, importedNetwork)
+	if err != nil {
+		t.Fatalf("MergeNetworkPermissions failed: %v", err)
+	}
+
+	expected := []string{"defaults", "go", "node", "python"}
+	if strings.Join(result.Allowed, ",") != strings.Join(expected, ",") {
+		t.Fatalf("expected allowed domains %v, got %v", expected, result.Allowed)
+	}
+}
+
 func TestCompileWorkflowWithMultipleImports(t *testing.T) {
 	// Create a temporary directory for test files
 	tempDir := testutil.TempDir(t, "test-*")

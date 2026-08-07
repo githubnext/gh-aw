@@ -10,10 +10,8 @@ permissions:
   issues: read
   pull-requests: read
   copilot-requests: write
-network:
-  allowed:
-  - defaults
 imports:
+- shared/network-defaults.md
 - shared/github-guard-policy.md
 - uses: shared/repo-memory-standard.md
   with:
