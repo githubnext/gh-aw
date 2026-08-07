@@ -92,7 +92,7 @@ Test workflow`
 
 // TestDetectionStepSummaryOverride verifies that the inline detection execution step
 // overrides GITHUB_STEP_SUMMARY to ThreatDetectionStepSummaryPath at the step level,
-// and that a dedicated capture step (detection_step_summary) is emitted afterwards.
+// and that a dedicated echo step is emitted afterwards to allow the runner to mask secrets.
 // This prevents the AWF chroot entrypoint from failing when it tries to write to the
 // real runner file-commands path (which is not accessible inside the chroot).
 func TestDetectionStepSummaryOverride(t *testing.T) {
@@ -139,9 +139,9 @@ Test workflow`
 		t.Errorf("Detection execution step should set GITHUB_STEP_SUMMARY to %q", constants.ThreatDetectionStepSummaryPath)
 	}
 
-	// Test 2: A dedicated capture step for the detection step summary must be present.
-	if !strings.Contains(detectionSection, "id: detection_step_summary") {
-		t.Error("Detection job should contain detection_step_summary step")
+	// Test 2: A dedicated echo step for the detection step summary must be present.
+	if !strings.Contains(detectionSection, "Echo detection step summary") {
+		t.Error("Detection job should contain an echo step for the detection step summary")
 	}
 
 	// Test 4: The agent job must still use the original agent step summary path.

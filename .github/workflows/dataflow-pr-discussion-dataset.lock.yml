@@ -1960,18 +1960,12 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
-      - name: Capture detection step summary to output
-        id: detection_step_summary
+      - name: Echo detection step summary
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
         run: |
           if [ -s /tmp/gh-aw/threat-detection/step-summary.md ]; then
-            DELIM="DETECTION_SUMMARY_$(openssl rand -hex 16)"
-            {
-              printf '%%s\n' "step_summary_content<<${DELIM}"
-              cat /tmp/gh-aw/threat-detection/step-summary.md
-              printf '%%s\n' "${DELIM}"
-            } >> "$GITHUB_OUTPUT"
+            cat /tmp/gh-aw/threat-detection/step-summary.md
           fi
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage

@@ -108,13 +108,11 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 7: Engine execution (AWF, no network)
 		steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
 
-		// Step 7a: Capture detection step summary to a step output so the content is
-		// not printed to the runner log. The AWF execution step writes the detection
-		// agent's step-summary content to ThreatDetectionStepSummaryPath (overriding
-		// $GITHUB_STEP_SUMMARY at the step level). This follow-up step reads that file
-		// and writes its content to $GITHUB_OUTPUT without echoing to stdout, keeping
-		// the content out of the runner log while making it available as a step output.
-		steps = append(steps, c.buildDetectionStepSummaryOutputStep()...)
+		// Step 7a: Echo detection step summary so the GitHub runner can mask any secrets.
+		// The AWF execution step writes the detection agent's step-summary content to
+		// ThreatDetectionStepSummaryPath (overriding $GITHUB_STEP_SUMMARY at the step level).
+		// Echoing the file content here lets the runner apply its secret-masking pass.
+		steps = append(steps, c.buildDetectionStepSummaryEchoStep()...)
 
 		// Step 8: Custom post-steps if configured (run after engine execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
@@ -455,30 +453,21 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 	}
 }
 
-// buildDetectionStepSummaryOutputStep creates a step that reads the detection engine's
-// step-summary file and writes its content to $GITHUB_OUTPUT without echoing it to stdout.
-// This keeps the content out of the runner log (not stored in logs) while making it
-// available as a step output (step_summary_content) for downstream steps that need it.
+// buildDetectionStepSummaryEchoStep creates a step that echoes the detection engine's
+// step-summary file content so the GitHub runner can mask any sensitive values it contains.
 //
 // The detection engine execution step overrides $GITHUB_STEP_SUMMARY at the step level
 // to ThreatDetectionStepSummaryPath so the AWF chroot can write to a reachable path.
-// This step then captures that file into $GITHUB_OUTPUT using the heredoc syntax, which
-// redirects directly to the output file without appearing in the runner console log.
-func (c *Compiler) buildDetectionStepSummaryOutputStep() []string {
+// This step then echoes the file content; the runner will apply secret masking to the output.
+func (c *Compiler) buildDetectionStepSummaryEchoStep() []string {
 	summaryPath := constants.ThreatDetectionStepSummaryPath
 	return []string{
-		"      - name: Capture detection step summary to output\n",
-		"        id: detection_step_summary\n",
+		"      - name: Echo detection step summary\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		"        continue-on-error: true\n",
 		"        run: |\n",
 		fmt.Sprintf("          if [ -s %s ]; then\n", shellEscapeArg(summaryPath)),
-		"            DELIM=\"DETECTION_SUMMARY_$(openssl rand -hex 16)\"\n",
-		"            {\n",
-		"              printf '%%s\\n' \"step_summary_content<<${DELIM}\"\n",
-		fmt.Sprintf("              cat %s\n", shellEscapeArg(summaryPath)),
-		"              printf '%%s\\n' \"${DELIM}\"\n",
-		"            } >> \"$GITHUB_OUTPUT\"\n",
+		fmt.Sprintf("            cat %s\n", shellEscapeArg(summaryPath)),
 		"          fi\n",
 	}
 }
