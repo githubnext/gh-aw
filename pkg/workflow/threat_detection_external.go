@@ -188,6 +188,22 @@ func (c *Compiler) getExternalThreatDetectionEngineID(data *WorkflowData) string
 	return c.getThreatDetectionEngineID(data)
 }
 
+// buildExternalDetectorPathSetup returns host-side shell commands that run before
+// the AWF invocation in the external detector execution step. For the copilot engine
+// this stages the installed copilot binary to the mounted ${RUNNER_TEMP}/gh-aw/bin/
+// directory so it becomes visible inside the AWF container. threat-detect invokes the
+// engine binary by name, so the caller must also ensure the staged directory is
+// prepended to PATH in the engine command that runs inside the container.
+func (c *Compiler) buildExternalDetectorPathSetup(data *WorkflowData, engineID string) string {
+	if engineID != "copilot" {
+		return ""
+	}
+	if isArcDindTopology(data) {
+		return ""
+	}
+	return copilotBinaryPathSetup
+}
+
 // buildInstallAWFForExternalDetectorStep creates the AWF installation step required
 // by the external detector execution path, which invokes `awf` directly.
 func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []string {
@@ -362,6 +378,14 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 
 	// Build the complete AWF command. BuildAWFCommand handles config file setup,
 	// ARC/DinD probes, tool cache mount, and the log tee pattern.
+	//
+	// PathSetup stages the engine binary (e.g. copilot) to the mounted
+	// ${RUNNER_TEMP}/gh-aw/bin/ directory on the host so it becomes visible
+	// inside the AWF container. threat-detect invokes the engine binary by name,
+	// so we also prepend the staged bin dir to PATH in the engine command.
+	pathSetup := c.buildExternalDetectorPathSetup(threatDetectionData, engineID)
+	threatDetectCmd = `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH" && ` + threatDetectCmd
+
 	awfConfig := AWFCommandConfig{
 		EngineName:         engineID,
 		EngineCommand:      threatDetectCmd,
@@ -369,6 +393,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		WorkflowData:       threatDetectionData,
 		ExcludeEnvVarNames: excludeEnvVarNames,
 		AllowedDomains:     allowedDomains,
+		PathSetup:          pathSetup,
 	}
 	command := BuildAWFCommand(awfConfig)
 
