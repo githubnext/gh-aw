@@ -185,6 +185,11 @@ func compileWorkflowFile(
 	// Collect labels for JSON output (used by create-labels maintenance operation)
 	result.validationResult.Labels = extractSafeOutputLabels(workflowData)
 
+	// Emit a compile-time guard-policy dry-run report in --strict mode.
+	if !opts.jsonOutput {
+		printGuardPolicyDryRunReport(filepath.Base(resolvedFile), workflowData, opts.strict)
+	}
+
 	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
 	return result
 }

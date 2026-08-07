@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	lipgloss "charm.land/lipgloss/v2"
+
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
@@ -111,8 +113,8 @@ func computeMaxFieldLen(val reflect.Value) int {
 			fieldName = tag.header
 		}
 
-		if len(fieldName) > maxFieldLen {
-			maxFieldLen = len(fieldName)
+		if lipgloss.Width(fieldName) > maxFieldLen {
+			maxFieldLen = lipgloss.Width(fieldName)
 		}
 	})
 	return maxFieldLen
@@ -171,7 +173,7 @@ func renderStructField(field reflect.Value, fieldName string, tag consoleTag, ma
 		renderValue(field, subTitle, output, depth+1)
 	default:
 		// Simple field – render as key-value pair with alignment
-		paddedName := fmt.Sprintf("%-*s", maxFieldLen, fieldName)
+		paddedName := lipgloss.NewStyle().Width(maxFieldLen).Render(fieldName)
 		fmt.Fprintf(output, "  %s: %v\n", paddedName, formatFieldValueWithTag(field, tag))
 	}
 }

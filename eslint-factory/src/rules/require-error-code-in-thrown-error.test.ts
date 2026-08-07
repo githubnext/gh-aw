@@ -46,10 +46,7 @@ describe("require-error-code-in-thrown-error", () => {
 
   it("invalid: non-Error throws and other constructs are ignored", () => {
     cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
-      valid: [
-        `const { ERR_API } = require("./error_codes.cjs"); function f() { throw someError; }`,
-        `const { ERR_API } = require("./error_codes.cjs"); function f() { throw new TypeError("bad type"); }`,
-      ],
+      valid: [`const { ERR_API } = require("./error_codes.cjs"); function f() { throw someError; }`, `const { ERR_API } = require("./error_codes.cjs"); function f() { throw new TypeError("bad type"); }`],
       invalid: [],
     });
   });

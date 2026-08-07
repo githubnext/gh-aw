@@ -554,3 +554,43 @@ Do something useful.
 		assert.Contains(t, lockStr, "            secrets.EXAMPLE_TOKEN_C }}\n", "Final literal expression line should be preserved")
 	})
 }
+
+// TestActivationOAuthTokenCheck_CopilotRequestsWrite verifies that when
+// permissions.copilot-requests is write (org-billed Copilot auth via
+// github.token), the compiled lock file does not reference
+// secrets.COPILOT_GITHUB_TOKEN anywhere, including in the "Check for OAuth
+// tokens" step and the gh-aw-manifest secrets array.
+func TestActivationOAuthTokenCheck_CopilotRequestsWrite(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "activation-oauth-copilot-requests-test")
+	compiler := NewCompiler()
+
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  copilot-requests: write
+engine: copilot
+---
+Do something useful.
+`
+	mdPath := filepath.Join(tmpDir, "org-billing-workflow.md")
+	err := os.WriteFile(mdPath, []byte(workflowContent), 0600)
+	require.NoError(t, err)
+
+	lockPath := filepath.Join(tmpDir, "org-billing-workflow.lock.yml")
+	err = compiler.CompileWorkflow(mdPath)
+	require.NoError(t, err, "Compilation should succeed")
+
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	assert.Contains(t, lockStr, "      - name: Check for OAuth tokens\n", "OAuth token check step should still be present")
+	assert.NotContains(t, lockStr, "secrets.COPILOT_GITHUB_TOKEN", "secrets.COPILOT_GITHUB_TOKEN should not appear anywhere in the lock file when copilot-requests: write is set")
+
+	manifest, err := ExtractGHAWManifestFromLockFile(lockStr)
+	require.NoError(t, err)
+	require.NotNil(t, manifest)
+	assert.NotContains(t, manifest.Secrets, "COPILOT_GITHUB_TOKEN", "gh-aw-manifest secrets should not include COPILOT_GITHUB_TOKEN when copilot-requests: write is set")
+}
