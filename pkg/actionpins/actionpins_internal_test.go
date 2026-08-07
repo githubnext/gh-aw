@@ -45,6 +45,7 @@ func TestBuildByRepoIndex_GroupsByRepoAndSortsDescending(t *testing.T) {
 }
 
 func TestCountPinKeyMismatches_ReturnsOnlyVersionMismatches(t *testing.T) {
+	t.Parallel()
 	t.Run("returns zero for empty entries", func(t *testing.T) {
 		assert.Zero(t, countPinKeyMismatches(map[string]ActionPin{}), "Expected empty input to produce zero mismatches")
 	})
@@ -75,6 +76,7 @@ func TestCountPinKeyMismatches_ReturnsOnlyVersionMismatches(t *testing.T) {
 }
 
 func TestCollectEntriesWithEmptySHA_ReturnsOnlyEmptySHAEntries(t *testing.T) {
+	t.Parallel()
 	t.Run("returns empty slice for empty entries", func(t *testing.T) {
 		assert.Empty(t, collectEntriesWithEmptySHA(map[string]ActionPin{}), "Expected empty input to produce empty result")
 	})
@@ -106,6 +108,7 @@ func TestCollectEntriesWithEmptySHA_ReturnsOnlyEmptySHAEntries(t *testing.T) {
 }
 
 func TestLoadActionPinsData_PanicsWhenEntrySHAIsEmpty(t *testing.T) {
+	t.Parallel()
 	fixture := []byte(`{
 		"entries": {
 			"ruby/setup-ruby@v1.319.0": {
@@ -124,6 +127,7 @@ func TestLoadActionPinsData_PanicsWhenEntrySHAIsEmpty(t *testing.T) {
 }
 
 func TestLoadActionPinsData_LoadsContainerPins(t *testing.T) {
+	t.Parallel()
 	fixture := []byte(`{
 		"entries": {
 			"actions/checkout@v5": {
@@ -150,6 +154,7 @@ func TestLoadActionPinsData_LoadsContainerPins(t *testing.T) {
 }
 
 func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
+	t.Parallel()
 	assert.PanicsWithValue(t,
 		"FormatPinnedActionReference called with empty SHA for repo=ruby/setup-ruby version=v1.319.0 — this would produce invalid workflow YAML",
 		func() {
@@ -158,6 +163,7 @@ func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 }
 
 func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
+	t.Parallel()
 	t.Run("initializes nil warnings map", func(t *testing.T) {
 		ctx := &PinContext{}
 
@@ -178,6 +184,7 @@ func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
 }
 
 func TestFormatPinnedActionWithResolution_ConsistentVersionComment(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		repo            string
@@ -222,6 +229,7 @@ func TestFormatPinnedActionWithResolution_ConsistentVersionComment(t *testing.T)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatPinnedActionWithResolution(tt.repo, tt.sha, tt.sourceVersion, tt.resolvedVersion)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -229,6 +237,7 @@ func TestFormatPinnedActionWithResolution_ConsistentVersionComment(t *testing.T)
 }
 
 func TestFindCompatiblePin_SemverFallback(t *testing.T) {
+	t.Parallel()
 	pins := []ActionPin{
 		{Repo: "actions/checkout", Version: "v5.2.0", SHA: "sha-v5-2"},
 		{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5-0"},
@@ -315,6 +324,7 @@ func TestFindCompatiblePin_SemverFallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pin, found := findCompatiblePin(tt.availablePins, tt.version)
 			require.Equal(t, tt.wantFound, found)
 			if tt.wantFound {
@@ -434,6 +444,7 @@ func TestGetActionPins_CacheCorrectnessOnRepeatedCalls(t *testing.T) {
 }
 
 func TestResolveActionPinDynamically_SkipsForSHAInput(t *testing.T) {
+	t.Parallel()
 	resolver := &countingResolver{}
 	ctx := &PinContext{Resolver: resolver}
 
@@ -450,12 +461,14 @@ func TestResolveActionPinDynamically_SkipsForSHAInput(t *testing.T) {
 }
 
 func TestLogDynamicResolutionSkipped_NoResolverBranch(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() {
 		logDynamicResolutionSkipped(false, false)
 	}, "Expected no-resolver branch to be safe")
 }
 
 func TestRecordPinResolutionFailure_NilSafety(t *testing.T) {
+	t.Parallel()
 	t.Run("nil context is safe", func(t *testing.T) {
 		assert.NotPanics(t, func() {
 			recordPinResolutionFailure(nil, "actions/checkout", "v4", ResolutionErrorTypePinNotFound)
@@ -515,6 +528,7 @@ func TestResolveActionPinFromHardcodedPins_StrictModeNoFallback(t *testing.T) {
 // --- resolveExactHardcodedPin ---
 
 func TestResolveExactHardcodedPin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		pins         []ActionPin
@@ -570,6 +584,7 @@ func TestResolveExactHardcodedPin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, ok := resolveExactHardcodedPin(tt.repo, tt.version, tt.isSHA, tt.pins)
 			assert.Equal(t, tt.wantOK, ok, "ok should match expected")
 			if tt.wantOK {
@@ -685,6 +700,7 @@ func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
 }
 
 func TestApplyActionPinMapping(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                    string
 		actionRepo              string
@@ -770,6 +786,7 @@ func TestApplyActionPinMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := &PinContext{
 				Warnings: make(map[string]bool),
 				Mappings: tt.mappings,
@@ -801,6 +818,7 @@ func TestApplyActionPinMapping(t *testing.T) {
 // TestApplyContainerPinMapping verifies the redirect, miss, invalid-value, and
 // deduplication behaviour of ApplyContainerPinMapping.
 func TestApplyContainerPinMapping(t *testing.T) {
+	t.Parallel()
 	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	tests := []struct {
 		name                    string
@@ -890,6 +908,7 @@ func TestApplyContainerPinMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var ctx *PinContext
 			if tt.nilCtx {
 				ctx = nil
