@@ -33,16 +33,16 @@ runtimes:
     version: "22"
 experiments:
   output_format:
-    variants: [collapsible, inline]
-    description: "Test whether hiding report details behind a <details> block vs. presenting them inline affects discussion engagement"
-    hypothesis: "H0: no change in discussion engagement score. H1: inline format produces ≥20% higher reactions+replies by making charts and recommendations immediately visible"
+    variants: [collapsible, inline, ste]
+    description: "Test whether hiding report details behind a <details> block, presenting them inline, or writing in Simplified Technical English (STE) affects discussion engagement"
+    hypothesis: "H0: no change in discussion engagement score. H1: inline format produces ≥20% higher reactions+replies by making charts and recommendations immediately visible; ste format improves engagement via clearer, simpler language."
     metric: discussion_engagement_score
     secondary_metrics: [output_length_chars, run_duration_ms]
     guardrail_metrics:
       - name: empty_output_rate
         threshold: "==0"
     min_samples: 30
-    weight: [50, 50]
+    weight: [34, 33, 33]
     start_date: "2026-05-07"
     issue: 30573
     analysis_type: mann_whitney
@@ -288,6 +288,15 @@ Create a new discussion with the comprehensive report.
 ### Discussion Format
 
 **Title**: `[daily issues] Daily Issues Report - YYYY-MM-DD`
+
+{{#if experiments.output_format == 'ste'}}
+**Simplified Technical English (STE) Variant**: Write every sentence in the body using Simplified Technical English rules:
+- Use short sentences. Limit each sentence to 20 words or fewer.
+- Write one fact per sentence.
+- Use active voice and present tense.
+- Use simple, familiar words. Do not use jargon.
+- Spell out each acronym on first use.
+{{/if}}
 
 **Body**:
 

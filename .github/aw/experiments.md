@@ -151,7 +151,7 @@ Prefer high-frequency workflows for faster significance.
 experiments:
   prompt_style: [concise, detailed]
   reasoning_depth: [shallow, deep]
-  output_format: [bullets, prose, table]
+  output_format: [bullets, prose, table, ste]
   tone: [formal, casual]
 ```
 
@@ -162,6 +162,8 @@ Use `{{#if experiments.prompt_style == "concise" }}` blocks to swap prompt instr
 **Typical metrics**: output quality, AI credits, success rate, output length.
 
 When `metric` references `eval:<id>` or `evals.<id>`, declare that eval question under `evals:`. `gh aw experiments analyze` will then show both the metric question text and observed eval YES/NO/UNKNOWN results.
+
+`ste` (Simplified Technical English) is a text-style variant worth testing alongside `bullets`/`prose`/`table`. It constrains the prompt to a small set of writing rules — short sentences (≤20 words), one instruction or fact per sentence, active voice, present tense, familiar vocabulary, and spelled-out acronyms on first use — to test whether simplified phrasing improves readability, engagement, or token efficiency versus richer prose/table formats.
 
 ### Engine & Model
 

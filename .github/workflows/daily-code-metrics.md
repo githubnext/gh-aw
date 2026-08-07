@@ -46,9 +46,9 @@ imports:
   - shared/otlp.md
 experiments:
   output_format:
-    variants: [full_detail, executive_summary]
-    description: "Tests whether a concise executive summary report drives higher reader engagement than the current full-detail 6-chart report."
-    hypothesis: "H0: no change in discussion engagement rate. H1: executive_summary variant increases discussion reactions+comments by ≥20% due to improved readability."
+    variants: [full_detail, executive_summary, ste]
+    description: "Tests whether a concise executive summary report or a Simplified Technical English (STE) report drives higher reader engagement than the current full-detail 6-chart report."
+    hypothesis: "H0: no change in discussion engagement rate. H1: executive_summary variant increases discussion reactions+comments by ≥20% due to improved readability; ste variant improves readability further via simplified language."
     metric: discussion_engagement_score
     secondary_metrics: [output_token_count, run_duration_seconds, chart_count]
     guardrail_metrics:
@@ -57,7 +57,7 @@ experiments:
       - name: quality_score_present
         threshold: ">=1"
     min_samples: 20
-    weight: [50, 50]
+    weight: [34, 33, 33]
     start_date: "2026-05-16"
     issue: 1
 pre-agent-steps:
@@ -242,6 +242,30 @@ Use detailed template with embedded visualization charts:
 - [Recommendation 3]
 
 *For full metric tables, switch to `full_detail` variant.*
+{{#elseif experiments.output_format == 'ste' }}
+Write every sentence below using Simplified Technical English (STE) rules:
+- Use short sentences. Limit each sentence to 20 words or fewer.
+- Write one fact per sentence.
+- Use active voice and present tense.
+- Use simple, familiar words. Do not use jargon.
+- Spell out each acronym on first use.
+
+### Summary
+
+**X items found** — [brief description]
+
+**Key metrics today**: LOC: X,XXX | Quality score: XX/100 | Test ratio: X.XX | Active files (7d): XXX
+
+### 📊 Key Visualizations
+
+![Quality Score](URL_FROM_UPLOAD_ASSET)
+
+![Historical Trends](URL_FROM_UPLOAD_ASSET)
+
+### 💡 Top Recommendations
+- [Recommendation 1: one short sentence]
+- [Recommendation 2: one short sentence]
+- [Recommendation 3: one short sentence]
 {{else}}
 ### Summary
 

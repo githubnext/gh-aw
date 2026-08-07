@@ -155,7 +155,7 @@ Use the randomly selected dimension as your starting point. If after reading the
 **Accuracy & Quality**
 - `prompt_style`: Test concise vs. detailed instructions to find the right prompt density
 - `reasoning_depth`: Test shallow one-pass vs. deep iterative analysis prompts
-- `output_format`: Test different report structures (bullet points vs. prose vs. structured sections)
+- `output_format`: Test different report structures (bullet points vs. prose vs. structured sections vs. Simplified Technical English (STE) — short sentences, active voice, one instruction per sentence)
 
 **Latency & Reliability**
 - `timeout_setting`: Test different `timeout-minutes` values to find the sweet spot

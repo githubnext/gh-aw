@@ -74,6 +74,11 @@ experiment run data, compute rigorous per-variant statistics, detect statistical
 post a clear ASCII comparison table to each experiment's tracking issue (or to the workflow step
 summary if no tracking issue is configured).
 
+Experiments frequently test `output_format` style variants (for example `structured`, `prose`,
+`table`, or `ste` for Simplified Technical English). Treat these like any other variant: compare
+their `metric` and `secondary_metrics` (such as `output_length_chars` or `output_token_count`, which
+serve as verbosity/readability proxies) the same way you would for any other dimension.
+
 ## Step 1 — Discover Workflows with Active Experiments
 
 Run the `experiments` CLI command to list all experiments in the repository:

@@ -39,16 +39,16 @@ tools:
 
 experiments:
   semgrep_output_format:
-    variants: [bullet_list, structured_sections, prose]
-    description: "Tests whether the structure of Semgrep findings output (bullet list vs. grouped sections vs. prose) affects code scanning alert creation rate and output completeness."
-    hypothesis: "H0: no change in alert creation rate across formats. H1: structured_sections produces ≥15% more alerts successfully created vs. baseline bullet_list."
+    variants: [bullet_list, structured_sections, prose, ste]
+    description: "Tests whether the structure of Semgrep findings output (bullet list vs. grouped sections vs. prose vs. Simplified Technical English (STE)) affects code scanning alert creation rate and output completeness."
+    hypothesis: "H0: no change in alert creation rate across formats. H1: structured_sections produces ≥15% more alerts successfully created vs. baseline bullet_list; ste improves completeness via clearer, simpler language."
     metric: alert_creation_rate
     secondary_metrics: [run_duration_ms, output_length_chars, findings_reported]
     guardrail_metrics:
       - name: run_success_rate
         threshold: ">=0.85"
     min_samples: 30
-    weight: [34, 33, 33]
+    weight: [25, 25, 25, 25]
     start_date: "2026-05-17"
     analysis_type: proportion_test
     tags: [security, output-quality, semgrep]
@@ -79,6 +79,19 @@ Create one code scanning alert per finding.
 {{/if}}
 {{#if experiments.semgrep_output_format == 'prose' }}
 Write a narrative security assessment describing the vulnerability patterns found. Embed specific findings (file, line, rule) within the prose. Conclude with a prioritized remediation list.
+
+Create one code scanning alert per finding.
+{{/if}}
+{{#if experiments.semgrep_output_format == 'ste' }}
+Write your findings report in Simplified Technical English (STE):
+- Use short sentences. Limit each sentence to 20 words or fewer.
+- Write one fact or instruction per sentence.
+- Use active voice and present tense.
+- Use simple, familiar words. Do not use jargon.
+- Spell out each acronym on first use.
+
+Report each finding in this format:
+- **[SEVERITY]** `<file>:<line>` — Rule: `<rule_id>`. [One short sentence describing the issue.] [One short sentence with the recommended fix.]
 
 Create one code scanning alert per finding.
 {{/if}}
