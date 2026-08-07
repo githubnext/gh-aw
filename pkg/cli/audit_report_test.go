@@ -99,7 +99,7 @@ func TestGenerateFindings(t *testing.T) {
 		name          string
 		processedRun  ProcessedRun
 		metrics       MetricsData
-		errors        []ErrorInfo
+		errors        []ValidationIssue
 		expectedCount int
 		checkFindings func(t *testing.T, findings []Finding)
 	}{
@@ -116,7 +116,7 @@ func TestGenerateFindings(t *testing.T) {
 				ErrorCount:   0,
 				WarningCount: 0,
 			},
-			errors:        []ErrorInfo{},
+			errors:        []ValidationIssue{},
 			expectedCount: 1, // Should have success finding
 			checkFindings: func(t *testing.T, findings []Finding) {
 				assertFindingExists(t, findings, "success", "info",
@@ -136,7 +136,7 @@ func TestGenerateFindings(t *testing.T) {
 				ErrorCount:   2,
 				WarningCount: 0,
 			},
-			errors:        []ErrorInfo{{Type: "error", Message: "Test error"}},
+			errors:        []ValidationIssue{{Type: "error", Message: "Test error"}},
 			expectedCount: 1, // Should have failure finding
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
@@ -154,7 +154,7 @@ func TestGenerateFindings(t *testing.T) {
 				return pr
 			}(),
 			metrics:       MetricsData{ErrorCount: 1},
-			errors:        []ErrorInfo{{Type: "step_failure", Message: strings.Repeat("x", 500)}},
+			errors:        []ValidationIssue{{Type: "step_failure", Message: strings.Repeat("x", 500)}},
 			expectedCount: 1,
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
@@ -173,7 +173,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				ErrorCount: 1,
 			},
-			errors:        []ErrorInfo{},
+			errors:        []ValidationIssue{},
 			expectedCount: 1,
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
@@ -193,7 +193,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				ErrorCount: 0, // metrics are wrong / stale — should not be used when errors slice is populated
 			},
-			errors: []ErrorInfo{
+			errors: []ValidationIssue{
 				{Type: "step_failure", Message: "##[error]Process completed with exit code 1."},
 				{Type: "step_failure", Message: "##[error]Process completed with exit code 1."},
 			},
@@ -218,7 +218,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				ErrorCount: 0, // no errors extracted — logs were not available
 			},
-			errors:        []ErrorInfo{},
+			errors:        []ValidationIssue{},
 			expectedCount: 1,
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
@@ -260,7 +260,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				ErrorCount: 0,
 			},
-			errors:        []ErrorInfo{},
+			errors:        []ValidationIssue{},
 			expectedCount: 1,
 			checkFindings: func(t *testing.T, findings []Finding) {
 				finding := findFindingByCategory(findings, "error")
@@ -283,7 +283,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				Turns: 20,
 			},
-			errors:        []ErrorInfo{},
+			errors:        []ValidationIssue{},
 			expectedCount: 1, // Timeout finding
 			checkFindings: func(t *testing.T, findings []Finding) {
 				assertFindingContains(t, findings, "performance", "Timeout",
@@ -299,7 +299,7 @@ func TestGenerateFindings(t *testing.T) {
 				TokenUsage: 60000, // > 50000 threshold
 				Turns:      5,
 			},
-			errors: []ErrorInfo{},
+			errors: []ValidationIssue{},
 			checkFindings: func(t *testing.T, findings []Finding) {
 				assertFindingContains(t, findings, "performance", "Token Usage",
 					"High token usage should generate a performance finding")
@@ -313,7 +313,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				Turns: 15, // > 10 threshold
 			},
-			errors: []ErrorInfo{},
+			errors: []ValidationIssue{},
 			checkFindings: func(t *testing.T, findings []Finding) {
 				assertFindingContains(t, findings, "performance", "Iterations",
 					"Many iterations should generate a performance finding")
@@ -328,7 +328,7 @@ func TestGenerateFindings(t *testing.T) {
 				Turns:      5,
 				ErrorCount: 10,
 			},
-			errors: []ErrorInfo{
+			errors: []ValidationIssue{
 				{Type: "error", Message: "Error 1"},
 				{Type: "error", Message: "Error 2"},
 				{Type: "error", Message: "Error 3"},
@@ -353,7 +353,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				Turns: 5,
 			},
-			errors: []ErrorInfo{},
+			errors: []ValidationIssue{},
 			checkFindings: func(t *testing.T, findings []Finding) {
 				assertFindingContains(t, findings, "tooling", "MCP Server",
 					"MCP server failures should generate a tooling finding")
@@ -372,7 +372,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				Turns: 5,
 			},
-			errors: []ErrorInfo{},
+			errors: []ValidationIssue{},
 			checkFindings: func(t *testing.T, findings []Finding) {
 				assertFindingContains(t, findings, "tooling", "Tools Not Available",
 					"Missing tools should generate a tooling finding")
@@ -394,7 +394,7 @@ func TestGenerateFindings(t *testing.T) {
 			metrics: MetricsData{
 				Turns: 5,
 			},
-			errors: []ErrorInfo{},
+			errors: []ValidationIssue{},
 			checkFindings: func(t *testing.T, findings []Finding) {
 				assertFindingContains(t, findings, "network", "Blocked",
 					"Firewall blocked requests should generate a network finding")
@@ -981,10 +981,10 @@ func TestRenderJSONComplete(t *testing.T) {
 		DownloadedFiles: []FileInfo{
 			{Path: "test.log", Size: 1024, Description: "Test log"},
 		},
-		Errors: []ErrorInfo{
+		Errors: []ValidationIssue{
 			{Type: "error", Message: "Test error"},
 		},
-		Warnings: []ErrorInfo{
+		Warnings: []ValidationIssue{
 			{Type: "warning", Message: "Test warning 1"},
 			{Type: "warning", Message: "Test warning 2"},
 		},
@@ -1138,7 +1138,7 @@ func TestFindingSeverityOrdering(t *testing.T) {
 		Turns:      15, // Many turns
 	}
 
-	errors := []ErrorInfo{
+	errors := []ValidationIssue{
 		{Type: "error", Message: "Error 1"},
 		{Type: "error", Message: "Error 2"},
 		{Type: "error", Message: "Error 3"},
@@ -1560,7 +1560,7 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 
 		errors := extractPreAgentStepErrors(dir)
 		require.NotNil(t, errors, "Should return errors")
-		assert.Len(t, errors, 2, "Should return one ErrorInfo per step with ##[error] annotations")
+		assert.Len(t, errors, 2, "Should return one ValidationIssue per step with ##[error] annotations")
 		// All returned errors should be from steps with ##[error], not the cleanup step
 		for _, e := range errors {
 			assert.NotEqual(t, "agent/Complete job", e.File, "Should not include cleanup step in errors")

@@ -170,50 +170,25 @@
       "digest": "sha256:2932c10682eac29ccf840a6bd6c4c7c82c5ce770ad9e94697d44057187452530",
       "pinned_image": "ghcr.io/fabio-rovai/open-ontologies:latest@sha256:2932c10682eac29ccf840a6bd6c4c7c82c5ce770ad9e94697d44057187452530"
     },
-    "ghcr.io/github/gh-aw-firewall/agent:0.27.43": {
-      "image": "ghcr.io/github/gh-aw-firewall/agent:0.27.43",
-      "digest": "sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6",
-      "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.27.43@sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6"
-    },
     "ghcr.io/github/gh-aw-firewall/agent:0.27.44": {
       "image": "ghcr.io/github/gh-aw-firewall/agent:0.27.44",
       "digest": "sha256:0d727725c737b58c7bdf51f640cffb928385ec46517e0917c7f1a02f1bada8b4",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.27.44@sha256:0d727725c737b58c7bdf51f640cffb928385ec46517e0917c7f1a02f1bada8b4"
-    },
-    "ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43": {
-      "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43",
-      "digest": "sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1",
-      "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43@sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1"
     },
     "ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44": {
       "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44",
       "digest": "sha256:b50fbadba138f6e9aba94aca09711335c489bb3b15861220cb66f6092e042dc7",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44@sha256:b50fbadba138f6e9aba94aca09711335c489bb3b15861220cb66f6092e042dc7"
     },
-    "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43": {
-      "image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43",
-      "digest": "sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab",
-      "pinned_image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43@sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab"
-    },
     "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44": {
       "image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44",
       "digest": "sha256:c064d15974f7c933ec7d3f7b4038f4fd203547b3154bdc821afd379144887eff",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44@sha256:c064d15974f7c933ec7d3f7b4038f4fd203547b3154bdc821afd379144887eff"
     },
-    "ghcr.io/github/gh-aw-firewall/squid:0.27.43": {
-      "image": "ghcr.io/github/gh-aw-firewall/squid:0.27.43",
-      "digest": "sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d",
-      "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.27.43@sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d"
-    },
     "ghcr.io/github/gh-aw-firewall/squid:0.27.44": {
       "image": "ghcr.io/github/gh-aw-firewall/squid:0.27.44",
       "digest": "sha256:83e48bbe12c634be8c228a576832fe45f66c529ac3659db92bddbcf2eeb6d627",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.27.44@sha256:83e48bbe12c634be8c228a576832fe45f66c529ac3659db92bddbcf2eeb6d627"
-    },
-    "ghcr.io/github/gh-aw-mcpg:v0.4.7": {
-      "image": "ghcr.io/github/gh-aw-mcpg:v0.4.7",
-      "digest": "sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00",
-      "pinned_image": "ghcr.io/github/gh-aw-mcpg:v0.4.7@sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00"
     },
     "ghcr.io/github/gh-aw-mcpg:v0.4.8": {
       "image": "ghcr.io/github/gh-aw-mcpg:v0.4.8",
@@ -267,8 +242,8 @@
     },
     "python:alpine": {
       "image": "python:alpine",
-      "digest": "sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92",
-      "pinned_image": "python:alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92"
+      "digest": "sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8",
+      "pinned_image": "python:alpine@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8"
     }
   }
 }

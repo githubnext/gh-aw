@@ -64,6 +64,7 @@ func NewCodexEngine() *CodexEngine {
 				MaxContinuations: false, // Codex does not support --max-autopilot-continues-style continuation mode
 				WebSearch:        true,  // Codex has built-in web-search support
 				NativeAgentFile:  false, // Codex does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				BashDisable:      true,  // Codex can fully refuse shell execution via `-c features.shell_tool=false`, though it cannot enforce a per-command allowlist
 			},
 			dedicatedLLMGatewayPort: constants.CodexLLMGatewayPort,
 		},
@@ -271,6 +272,12 @@ func (e *CodexEngine) buildCodexCommand(workflowData *WorkflowData, commandName,
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebFetch != nil {
 		webFetchParam = ""
 	}
+	shellToolParam := ""
+	if workflowData.BashDisabled {
+		// tools.bash was fully disabled (bash: false, or bash: []). Codex cannot enforce a
+		// per-command allowlist, but it can refuse all shell execution via this feature flag.
+		shellToolParam = ` -c features.shell_tool=false`
+	}
 	customArgsParam := ""
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		var sb strings.Builder
@@ -281,11 +288,11 @@ func (e *CodexEngine) buildCodexCommand(workflowData *WorkflowData, commandName,
 	}
 	if harnessScriptName != "" {
 		execPrefix := fmt.Sprintf(`%s %s/%s %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
-		return fmt.Sprintf("%s exec%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
-			execPrefix, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+		return fmt.Sprintf("%s exec%s%s%s%s%s%s%s --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt",
+			execPrefix, modelParam, webSearchParam, webFetchParam, shellToolParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 	}
-	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + fmt.Sprintf("%s exec%s%s%s%s%s%s \"$INSTRUCTION\"",
-		commandName, modelParam, webSearchParam, webFetchParam, executionPolicyParam, structuredOutputParam, customArgsParam)
+	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + fmt.Sprintf("%s exec%s%s%s%s%s%s%s \"$INSTRUCTION\"",
+		commandName, modelParam, webSearchParam, webFetchParam, shellToolParam, executionPolicyParam, structuredOutputParam, customArgsParam)
 }
 
 func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, logFile, codexCommand, harnessScriptName, detectionSchemaWriteCmd string, firewallEnabled bool) string {
