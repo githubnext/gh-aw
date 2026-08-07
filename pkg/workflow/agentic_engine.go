@@ -608,6 +608,20 @@ func (r *EngineRegistry) GetEngine(id string) (CodingAgentEngine, error) {
 	return engine, nil
 }
 
+// EnginesWithCapability returns a sorted list of engine IDs for which the given capability
+// predicate returns true. It is used to build accurate, registry-driven lists of supported
+// engines in error messages and documentation so those lists stay correct as engines evolve.
+func (r *EngineRegistry) EnginesWithCapability(predicate func(EngineCapabilities) bool) []string {
+	var ids []string
+	for id, engine := range r.engines {
+		if predicate(engine.GetCapabilities()) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
 // GetSupportedEngines returns a list of all supported engine IDs
 func (r *EngineRegistry) GetSupportedEngines() []string {
 	agenticEngineLog.Print("Getting list of supported engines")

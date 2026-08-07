@@ -18,6 +18,12 @@ type Codemod struct {
 	IntroducedIn string // Version where this codemod was introduced
 	Guided       bool   // If true, errors from Apply are guided/manual-fix errors (not auto-correctable)
 	Apply        func(content string, frontmatter map[string]any) (string, bool, error)
+	// ApplyWithContext is an optional extension of Apply that also receives the absolute path of the
+	// workflow file being processed. Codemods that need to resolve imported tools or included files
+	// to derive the effective configuration should set this field; fix_command.go will call it in
+	// preference to Apply when a file path is available. When ApplyWithContext is nil, Apply is
+	// used as the sole handler.
+	ApplyWithContext func(content string, frontmatter map[string]any, filePath string) (string, bool, error)
 }
 
 // GuidedError is returned when a codemod with Guided: true emits an error.
@@ -65,6 +71,7 @@ func GetAllCodemods() []Codemod {
 		getInstallScriptURLCodemod(),
 		getBashAnonymousRemovalCodemod(),                           // Replace bash: with bash: false
 		getBashSingleQuotedArgsCodemod(),                           // Rewrite single-quoted bash args to double-quoted form
+		getBashAllowlistUnsupportedEngineCodemod(),                 // Detect restricted tools.bash on engines that ignore it and emit guided error
 		getActivationOutputsCodemod(),                              // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
 		getRolesToOnRolesCodemod(),                                 // Move top-level roles to on.roles
 		getBotsToOnBotsCodemod(),                                   // Move top-level bots to on.bots

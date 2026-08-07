@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -3674,14 +3675,12 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 			require.NotNil(t, config, "SafeOutputsConfig should be created")
 
 			if tt.expectBool != nil {
-				reportBool, ok := config.ReportFailureAsIssue.(bool)
-				require.True(t, ok, "ReportFailureAsIssue should be bool")
-				assert.Equal(t, *tt.expectBool, reportBool, "Boolean value should match")
+				require.NotNil(t, config.ReportFailureAsIssue, "ReportFailureAsIssue should be set")
+				assert.Equal(t, strconv.FormatBool(*tt.expectBool), config.ReportFailureAsIssue.String(), "Boolean value should match")
 			}
 			if tt.expectString != "" {
-				reportString, ok := config.ReportFailureAsIssue.(string)
-				require.True(t, ok, "ReportFailureAsIssue should be string")
-				assert.Equal(t, tt.expectString, reportString, "String value should match")
+				require.NotNil(t, config.ReportFailureAsIssue, "ReportFailureAsIssue should be set")
+				assert.Equal(t, tt.expectString, config.ReportFailureAsIssue.String(), "String value should match")
 			}
 
 			if len(tt.expectCategories) > 0 {
