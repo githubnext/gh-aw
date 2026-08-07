@@ -2036,6 +2036,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       return commentIdValidationResult.error;
     }
     if (commentIdValidationResult.commentId === undefined) {
+      // entry was spread from args, so a blank/whitespace comment_id (rather than an
+      // absent one) could still be sitting on entry; strip it so downstream code never
+      // sees an unvalidated raw value.
       delete entry.comment_id;
     } else {
       entry.comment_id = commentIdValidationResult.commentId;
