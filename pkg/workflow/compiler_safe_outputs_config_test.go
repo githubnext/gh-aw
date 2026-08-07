@@ -31,10 +31,10 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
 						Max: strPtr("5"),
 					},
-					AllowedLabels: []string{"bug", "feature"},
-					Labels:        []string{"ai-generated"},
-					TitlePrefix:   "[AI] ",
-					Assignees:     []string{"user1"},
+					SafeOutputAllowedLabelsConfig: SafeOutputAllowedLabelsConfig{AllowedLabels: []string{"bug", "feature"}},
+					Labels:                        []string{"ai-generated"},
+					TitlePrefix:                   "[AI] ",
+					Assignees:                     []string{"user1"},
 				},
 			},
 			checkContains: []string{
@@ -1002,7 +1002,7 @@ func TestHandlerConfigAllowedLabels(t *testing.T) {
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{
-				AllowedLabels: []string{"bug", "enhancement", "documentation"},
+				SafeOutputAllowedLabelsConfig: SafeOutputAllowedLabelsConfig{AllowedLabels: []string{"bug", "enhancement", "documentation"}},
 			},
 		},
 	}
