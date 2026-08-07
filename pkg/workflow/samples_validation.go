@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -59,8 +60,9 @@ type toolSchemaEntry struct {
 // compiledToolSchemas caches the per-tool jsonschema.Schema parsed from the
 // embedded safe_outputs_tools.json. Compiled lazily on first use.
 var (
-	compiledToolSchemasLoader        syncutil.OnceLoader[map[string]toolSchemaEntry]
-	sortedSafeOutputFieldNamesLoader syncutil.OnceLoader[[]string]
+	compiledToolSchemasLoader      syncutil.OnceLoader[map[string]toolSchemaEntry]
+	sortedSafeOutputFieldNamesOnce sync.Once
+	sortedSafeOutputFieldNames     []string
 )
 
 func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
@@ -166,10 +168,10 @@ func rewriteSchemaRefPaths(node any) bool {
 }
 
 func getSortedSafeOutputFieldNames() []string {
-	names, _ := sortedSafeOutputFieldNamesLoader.Get(func() ([]string, error) {
-		return sliceutil.SortedKeys(safeOutputFieldMapping), nil
+	sortedSafeOutputFieldNamesOnce.Do(func() {
+		sortedSafeOutputFieldNames = sliceutil.SortedKeys(safeOutputFieldMapping)
 	})
-	return names
+	return sortedSafeOutputFieldNames
 }
 
 // validateSafeOutputsSamples validates every `samples` entry on every

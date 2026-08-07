@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"sync"
 	"unsafe"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -61,11 +62,12 @@ func loadBuiltinModelAliases() (map[string][]string, error) {
 
 // builtinOnlyAliasMap is the canonical map returned by MergeImportedModelAliases
 // when there are no imported or frontmatter overrides.  It is set once via
-// builtinOnlyAliasMapLoader so that pointer-equality checks in validateModelAliasMap can
-// detect the common case and skip the redundant cycle-detection DFS.
+// sync.Once so that pointer-equality checks in validateModelAliasMap can detect
+// the common case and skip the redundant cycle-detection DFS.
 var (
-	builtinOnlyAliasMapLoader syncutil.OnceLoader[map[string][]string]
-	builtinOnlyAliasMapID     uintptr // unsafe map-header pointer, set once under builtinOnlyAliasMapLoader
+	builtinOnlyAliasMapOnce sync.Once
+	builtinOnlyAliasMap     map[string][]string
+	builtinOnlyAliasMapID   uintptr // unsafe map-header pointer, set once under builtinOnlyAliasMapOnce
 )
 
 // mapHeaderPointer extracts the pointer stored in the map value's header
@@ -83,22 +85,15 @@ func mapHeaderPointer(m map[string][]string) uintptr {
 // getBuiltinOnlyAliasMap returns the shared, read-only builtin alias map.
 // The map must never be mutated by callers; it is shared across all parse calls.
 func getBuiltinOnlyAliasMap() map[string][]string {
-	data, err := builtinOnlyAliasMapLoader.Get(func() (map[string][]string, error) {
+	builtinOnlyAliasMapOnce.Do(func() {
 		data, err := loadBuiltinModelAliases()
 		if err != nil {
-			return nil, err
+			panic(err)
 		}
+		builtinOnlyAliasMap = data
 		builtinOnlyAliasMapID = mapHeaderPointer(data)
-		return data, nil
 	})
-	if err != nil {
-		// Don't permanently cache the failure: leave the loader ready to retry
-		// (and builtinOnlyAliasMapID at its zero value) so a caller that recovers
-		// from this panic doesn't get stuck with a stale, un-set identity pointer.
-		builtinOnlyAliasMapLoader.Reset()
-		panic(err)
-	}
-	return data
+	return builtinOnlyAliasMap
 }
 
 // isBuiltinOnlyAliasMap reports whether m is the shared read-only builtin alias map
