@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/github/gh-aw/pkg/fileutil"
 )
 
 // TestRejectHyphenPrefixPackages tests the shared helper that guards against
@@ -400,12 +398,10 @@ func TestValidatePipPackageName(t *testing.T) {
 
 // TestValidateUvPackages_RejectsInvalidPackageName verifies that uv package names
 // which do not conform to the PyPI naming rules are rejected before being passed
-// as arguments to the uv CLI.
+// as arguments to the uv CLI. This validation happens before uv/pip is resolved
+// or invoked, so the test is deterministic regardless of whether uv is installed
+// on the host running the test.
 func TestValidateUvPackages_RejectsInvalidPackageName(t *testing.T) {
-	if _, err := fileutil.ResolveExecutablePath("uv"); err != nil {
-		t.Skip("uv not installed - skipping uv argument validation test")
-	}
-
 	compiler := NewCompiler()
 	err := compiler.validateUvPackages(&WorkflowData{
 		CustomSteps: "uvx pkg;whoami",
@@ -415,5 +411,18 @@ func TestValidateUvPackages_RejectsInvalidPackageName(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "invalid pip package name") {
 		t.Errorf("expected error to mention invalid package name, got: %v", err)
+	}
+}
+
+// TestValidateUvPackages_AcceptsVersionedUvxSpec verifies that versioned uvx
+// package specs (e.g. "ruff@0.1.0") are not rejected by the PEP 508 name
+// validation, since extractUvFromCommands explicitly supports this syntax.
+func TestValidateUvPackages_AcceptsVersionedUvxSpec(t *testing.T) {
+	compiler := NewCompiler()
+	err := compiler.validateUvPackages(&WorkflowData{
+		CustomSteps: "uvx ruff@0.1.0",
+	})
+	if err != nil && strings.Contains(err.Error(), "invalid pip package name") {
+		t.Errorf("expected versioned uvx spec to be accepted as a valid package name, got: %v", err)
 	}
 }
