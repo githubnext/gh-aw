@@ -1613,6 +1613,7 @@ jobs:
           name: detection
           path: |
             /tmp/gh-aw/threat-detection/detection_result.json
+            /tmp/gh-aw/threat-detection/detection.log
             /tmp/gh-aw/step-summary.md
           if-no-files-found: ignore
       - name: Append detection step summary
