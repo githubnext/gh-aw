@@ -408,17 +408,18 @@ func downloadKnownEngineImports(ctx context.Context, rawURL string) ([]byte, err
 // knownEngineImportsTimeout; fetch and parse failures are treated as an empty
 // catalog so engine validation remains unchanged.
 func knownEngineImportFor(id string) (string, bool) {
-	normalizedID := strings.ToLower(id)
-	download, importPath, ok, cached := func() (func(context.Context) ([]byte, error), string, bool, bool) {
+	importPath, ok, initialized, download := func() (string, bool, bool, func(context.Context) ([]byte, error)) {
 		knownEngineImportsMu.Lock()
 		defer knownEngineImportsMu.Unlock()
+
 		if knownEngineImportsLoaded {
-			importPath, ok := knownEngineImports[normalizedID]
-			return nil, importPath, ok, true
+			importPath, ok := knownEngineImports[strings.ToLower(id)]
+			return importPath, ok, true, nil
 		}
-		return knownEngineImportsDownload, "", false, false
+
+		return "", false, false, knownEngineImportsDownload
 	}()
-	if cached {
+	if initialized {
 		return importPath, ok
 	}
 
@@ -433,7 +434,7 @@ func knownEngineImportFor(id string) (string, bool) {
 		knownEngineImportsLoaded = true
 	}
 
-	importPath, ok = knownEngineImports[normalizedID]
+	importPath, ok = knownEngineImports[strings.ToLower(id)]
 	return importPath, ok
 }
 
@@ -456,12 +457,11 @@ func loadKnownEngineImports(download func(context.Context) ([]byte, error)) map[
 	}
 
 	for _, engine := range catalog.Engines {
-		rawID := strings.TrimSpace(engine.ID)
+		id := strings.ToLower(strings.TrimSpace(engine.ID))
 		importPath := strings.TrimSpace(engine.Import)
-		if rawID == "" || importPath == "" {
+		if len(id) == 0 || len(importPath) == 0 {
 			continue
 		}
-		id := strings.ToLower(rawID)
 		loaded[id] = knownEngineImportWithCompilerRef(importPath)
 	}
 	return loaded
