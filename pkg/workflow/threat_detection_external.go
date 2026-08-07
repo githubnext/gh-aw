@@ -384,7 +384,9 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// inside the AWF container. threat-detect invokes the engine binary by name,
 	// so we also prepend the staged bin dir to PATH in the engine command.
 	pathSetup := c.buildExternalDetectorPathSetup(threatDetectionData, engineID)
-	threatDetectCmd = `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH" && ` + threatDetectCmd
+	if pathSetup != "" {
+		threatDetectCmd = `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH" && ` + threatDetectCmd
+	}
 
 	awfConfig := AWFCommandConfig{
 		EngineName:         engineID,
