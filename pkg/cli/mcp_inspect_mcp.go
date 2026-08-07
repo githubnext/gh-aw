@@ -259,43 +259,49 @@ func queryServerCapabilities(ctx context.Context, config parser.RegistryMCPServe
 	}
 
 	// List tools (paginated automatically by the SDK iterator)
-	listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	for tool, err := range session.Tools(listToolsCtx, &mcp.ListToolsParams{}) {
-		if err != nil {
-			if verbose {
-				console.PrintWarningMessage(fmt.Sprintf("Failed to list tools: %v", err))
+	func() {
+		listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+		defer cancel()
+		for tool, err := range session.Tools(listToolsCtx, &mcp.ListToolsParams{}) {
+			if err != nil {
+				if verbose {
+					console.PrintWarningMessage(fmt.Sprintf("Failed to list tools: %v", err))
+				}
+				break
 			}
-			break
+			info.Tools = append(info.Tools, tool)
 		}
-		info.Tools = append(info.Tools, tool)
-	}
-	cancel()
+	}()
 
 	// List resources (paginated automatically by the SDK iterator)
-	listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	for resource, err := range session.Resources(listResourcesCtx, &mcp.ListResourcesParams{}) {
-		if err != nil {
-			if verbose {
-				console.PrintWarningMessage(fmt.Sprintf("Failed to list resources: %v", err))
+	func() {
+		listResourcesCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+		defer cancel()
+		for resource, err := range session.Resources(listResourcesCtx, &mcp.ListResourcesParams{}) {
+			if err != nil {
+				if verbose {
+					console.PrintWarningMessage(fmt.Sprintf("Failed to list resources: %v", err))
+				}
+				break
 			}
-			break
+			info.Resources = append(info.Resources, resource)
 		}
-		info.Resources = append(info.Resources, resource)
-	}
-	cancel()
+	}()
 
 	// List prompts (paginated automatically by the SDK iterator)
-	listPromptsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	for prompt, err := range session.Prompts(listPromptsCtx, &mcp.ListPromptsParams{}) {
-		if err != nil {
-			if verbose {
-				console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
+	func() {
+		listPromptsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+		defer cancel()
+		for prompt, err := range session.Prompts(listPromptsCtx, &mcp.ListPromptsParams{}) {
+			if err != nil {
+				if verbose {
+					console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
+				}
+				break
 			}
-			break
+			info.Prompts = append(info.Prompts, prompt)
 		}
-		info.Prompts = append(info.Prompts, prompt)
-	}
-	cancel()
+	}()
 
 	// Note: Roots are not directly available via MCP protocol in the current spec,
 	// so we infer them from resources.
