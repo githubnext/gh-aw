@@ -58,14 +58,14 @@ func validateRepositoryManifestForCompilation(config CompileConfig, stats *Compi
 		Valid:    parseErr == nil,
 	}
 	for _, warning := range warnings {
-		result.Warnings = append(result.Warnings, CompileValidationError{
+		result.Warnings = append(result.Warnings, ValidationIssue{
 			Type:    "manifest_warning",
 			Message: warning,
 		})
 	}
 
 	if parseErr != nil {
-		result.Errors = append(result.Errors, CompileValidationError{
+		result.Errors = append(result.Errors, ValidationIssue{
 			Type:    "manifest_error",
 			Message: parseErr.Error(),
 		})

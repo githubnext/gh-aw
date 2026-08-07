@@ -48,19 +48,12 @@ func (c CompileConfig) shellcheckEnabled() bool {
 	return c.Shellcheck
 }
 
-// CompileValidationError represents a single validation error or warning
-type CompileValidationError struct {
-	Type    string `json:"type"`
-	Message string `json:"message"`
-	Line    int    `json:"line,omitempty"`
-}
-
 // ValidationResult represents the validation result for a single workflow
 type ValidationResult struct {
-	Workflow     string                   `json:"workflow"`
-	Valid        bool                     `json:"valid"`
-	Errors       []CompileValidationError `json:"errors"`
-	Warnings     []CompileValidationError `json:"warnings"`
-	CompiledFile string                   `json:"compiled_file,omitempty"`
-	Labels       []string                 `json:"labels,omitempty"` // Labels referenced in safe-outputs configurations
+	Workflow     string            `json:"workflow"`
+	Valid        bool              `json:"valid"`
+	Errors       []ValidationIssue `json:"errors"`
+	Warnings     []ValidationIssue `json:"warnings"`
+	CompiledFile string            `json:"compiled_file,omitempty"`
+	Labels       []string          `json:"labels,omitempty"` // Labels referenced in safe-outputs configurations
 }

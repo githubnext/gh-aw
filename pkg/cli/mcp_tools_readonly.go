@@ -481,8 +481,8 @@ func buildCompileErrorResults(requestedWorkflows []string, errMsg string) []Vali
 		return []ValidationResult{{
 			Workflow: "",
 			Valid:    false,
-			Errors:   []CompileValidationError{{Type: "config_error", Message: errMsg}},
-			Warnings: []CompileValidationError{},
+			Errors:   []ValidationIssue{{Type: "config_error", Message: errMsg}},
+			Warnings: []ValidationIssue{},
 		}}
 	}
 
@@ -491,8 +491,8 @@ func buildCompileErrorResults(requestedWorkflows []string, errMsg string) []Vali
 		results = append(results, ValidationResult{
 			Workflow: name,
 			Valid:    false,
-			Errors:   []CompileValidationError{{Type: "config_error", Message: errMsg}},
-			Warnings: []CompileValidationError{},
+			Errors:   []ValidationIssue{{Type: "config_error", Message: errMsg}},
+			Warnings: []ValidationIssue{},
 		})
 	}
 	return results
@@ -504,7 +504,7 @@ func buildCompileErrorResults(requestedWorkflows []string, errMsg string) []Vali
 // the compile-time valid/invalid status of each workflow.
 // If the JSON cannot be parsed the original output is returned unchanged.
 func injectDockerUnavailableWarning(outputStr, warningMsg string) string {
-	return injectValidationWarning(outputStr, CompileValidationError{
+	return injectValidationWarning(outputStr, ValidationIssue{
 		Type:    "docker_unavailable",
 		Message: warningMsg,
 	})
@@ -516,9 +516,9 @@ func injectShellcheckDiagnostics(outputStr, stderrOutput string) string {
 		return outputStr
 	}
 
-	warnings := make([]CompileValidationError, 0, len(diagnostics))
+	warnings := make([]ValidationIssue, 0, len(diagnostics))
 	for _, diagnostic := range diagnostics {
-		warnings = append(warnings, CompileValidationError{
+		warnings = append(warnings, ValidationIssue{
 			Type:    "shellcheck",
 			Message: diagnostic,
 		})
@@ -559,7 +559,7 @@ func extractShellcheckDiagnostics(stderrOutput string) []string {
 	return diagnostics
 }
 
-func injectValidationWarnings(outputStr string, warnings []CompileValidationError) string {
+func injectValidationWarnings(outputStr string, warnings []ValidationIssue) string {
 	if len(warnings) == 0 {
 		return outputStr
 	}
@@ -581,6 +581,6 @@ func injectValidationWarnings(outputStr string, warnings []CompileValidationErro
 	return string(jsonBytes)
 }
 
-func injectValidationWarning(outputStr string, warning CompileValidationError) string {
-	return injectValidationWarnings(outputStr, []CompileValidationError{warning})
+func injectValidationWarning(outputStr string, warning ValidationIssue) string {
+	return injectValidationWarnings(outputStr, []ValidationIssue{warning})
 }
