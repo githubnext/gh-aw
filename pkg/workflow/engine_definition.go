@@ -336,15 +336,18 @@ type ResolvedEngineTarget struct {
 // referenced without importing the engine definition file first, the Resolve method
 // appends an actionable tip pointing to this file.
 //
-// Keys are lower-case engine IDs. Values are the import path relative to the
-// .github/workflows directory (the same string a user would write in an "imports:"
-// block of their workflow markdown file).
+// Keys are lower-case engine IDs. Values are the fully-qualified import spec in
+// the format "owner/repo/.github/workflows/<path>@<ref>" — the same string a user
+// would write in an "imports:" block of their workflow markdown file.
 //
 // To add a new well-known engine, append an entry here with the engine ID as the
-// key and the path to its shared engine definition file as the value.
+// key and the fully-qualified path to its shared engine definition file as the value.
 var knownEngineImports = map[string]string{
-	"opencode": "shared/opencode.md",
-	"crush":    "shared/crush.md",
+	"opencode": "github/gh-aw/.github/workflows/shared/opencode.md@main",
+	"crush":    "github/gh-aw/.github/workflows/shared/crush.md@main",
+	"cursor":   "github/gh-aw/.github/workflows/shared/cursor.md@main",
+	"aider":    "github/gh-aw/.github/workflows/shared/aider.md@main",
+	"goose":    "github/gh-aw/.github/workflows/shared/goose.md@main",
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and

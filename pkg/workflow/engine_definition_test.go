@@ -110,12 +110,27 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 		{
 			name:           "opencode tip",
 			engineID:       "opencode",
-			wantImportPath: "shared/opencode.md",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/opencode.md@main",
 		},
 		{
 			name:           "crush tip",
 			engineID:       "crush",
-			wantImportPath: "shared/crush.md",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/crush.md@main",
+		},
+		{
+			name:           "cursor tip",
+			engineID:       "cursor",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/cursor.md@main",
+		},
+		{
+			name:           "aider tip",
+			engineID:       "aider",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/aider.md@main",
+		},
+		{
+			name:           "goose tip",
+			engineID:       "goose",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/goose.md@main",
 		},
 	}
 	for _, tt := range tests {
