@@ -89,6 +89,7 @@ permissions:
   contents: read
   issues: read
 tools:
+  bash: false
   github:
     min-integrity: none
 ---
