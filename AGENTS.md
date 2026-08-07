@@ -107,6 +107,26 @@ DEBUG_COLORS=0 DEBUG=* gh aw compile workflow.md 2>debug.log
 
 To discover the exact namespace for a package, look for `logger.New(...)` at the top of the relevant `.go` file (e.g. `var log = logger.New("cli:run_workflow_execution")`).
 
+### Adding debug logs
+
+When adding new debug instrumentation to Go code, use `pkg/logger` — **never** `fmt.Println`, `log.Printf`, or other ad-hoc output:
+
+```go
+import "github.com/github/gh-aw/pkg/logger"
+
+var log = logger.New("cli:my_package") // one per file/package, at package scope
+
+func doSomething() {
+    log.Debug("starting operation", "key", value)
+    // ...
+    log.Debug("operation complete", "result", result)
+}
+```
+
+- Pick a namespace that matches the existing hierarchy (e.g. `cli:`, `workflow:`, `mcp:`).
+- Pass structured key/value pairs after the message for queryable context.
+- All output is gated by `DEBUG` at runtime — no user-visible noise in normal operation.
+
 ### GitHub Actions debug runs
 
 When `ACTIONS_RUNNER_DEBUG=true` is set (enabled automatically on re-run with debug logging in the GitHub UI), all loggers are activated — equivalent to `DEBUG=*`. No extra configuration is needed.
