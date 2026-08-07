@@ -13,6 +13,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func fakeSudoScript(installLog, installedWrapper string) string {
+	installLogLine := ""
+	if installLog != "" {
+		installLogLine = `  echo "install:${mode}:${dest}" >> "` + installLog + `"
+`
+	}
+
+	return `#!/usr/bin/env bash
+if [ "${1:-}" = "chown" ]; then
+  exit 0
+fi
+if [ "${1:-}" = "install" ]; then
+  shift
+  mode=""
+  if [ "${1:-}" = "-m" ]; then
+    mode="$2"
+    shift 2
+  fi
+  src="$1"
+  dest="$2"
+` + installLogLine + `  cp "$src" "` + installedWrapper + `"
+  if [ -n "$mode" ]; then
+    chmod "$mode" "` + installedWrapper + `"
+  fi
+  exit 0
+fi
+exec "$@"
+`
+}
+
 func TestInstallCopilotCLIScriptUsesToolcacheBeforeDownload(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err, "Failed to get working directory")
@@ -36,26 +66,7 @@ func TestInstallCopilotCLIScriptUsesToolcacheBeforeDownload(t *testing.T) {
 	sudoScript := filepath.Join(fakeBinDir, "sudo")
 	curlScript := filepath.Join(fakeBinDir, "curl")
 
-	require.NoError(t, os.WriteFile(sudoScript, []byte(`#!/usr/bin/env bash
-if [ "${1:-}" = "chown" ]; then
-  exit 0
-fi
-if [ "${1:-}" = "install" ]; then
-  shift
-  mode=""
-  if [ "${1:-}" = "-m" ]; then
-    mode="$2"
-    shift 2
-  fi
-  src="$1"
-  dest="$2"
-  echo "install:${mode}:${dest}" >> "`+installLog+`"
-  cp "$src" "`+installedWrapper+`"
-  chmod "$mode" "`+installedWrapper+`"
-  exit 0
-fi
-exec "$@"
-`), 0o755))
+	require.NoError(t, os.WriteFile(sudoScript, []byte(fakeSudoScript(installLog, installedWrapper)), 0o755))
 	require.NoError(t, os.WriteFile(curlScript, []byte(`#!/usr/bin/env bash
 echo curl-invoked >> "`+curlLog+`"
 exit 97
@@ -127,20 +138,7 @@ func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *te
 	sudoScript := filepath.Join(fakeBinDir, "sudo")
 	curlScript := filepath.Join(fakeBinDir, "curl")
 
-	require.NoError(t, os.WriteFile(sudoScript, []byte(`#!/usr/bin/env bash
-if [ "${1:-}" = "chown" ]; then
-  exit 0
-fi
-if [ "${1:-}" = "install" ]; then
-  shift
-  if [ "${1:-}" = "-m" ]; then
-    shift 2
-  fi
-  cp "$1" "`+installedWrapper+`"
-  exit 0
-fi
-exec "$@"
-`), 0o755))
+	require.NoError(t, os.WriteFile(sudoScript, []byte(fakeSudoScript("", installedWrapper)), 0o755))
 	require.NoError(t, os.WriteFile(curlScript, []byte(`#!/usr/bin/env bash
 set -euo pipefail
 output_file=""
@@ -309,20 +307,7 @@ func TestInstallCopilotCLIScriptFallsBackToBakedInDefaultWhenCompatUnavailable(t
 	sudoScript := filepath.Join(fakeBinDir, "sudo")
 	curlScript := filepath.Join(fakeBinDir, "curl")
 
-	require.NoError(t, os.WriteFile(sudoScript, []byte(`#!/usr/bin/env bash
-if [ "${1:-}" = "chown" ]; then
-  exit 0
-fi
-if [ "${1:-}" = "install" ]; then
-  shift
-  if [ "${1:-}" = "-m" ]; then
-    shift 2
-  fi
-  cp "$1" "`+installedWrapper+`"
-  exit 0
-fi
-exec "$@"
-`), 0o755))
+	require.NoError(t, os.WriteFile(sudoScript, []byte(fakeSudoScript("", installedWrapper)), 0o755))
 	require.NoError(t, os.WriteFile(curlScript, []byte(`#!/usr/bin/env bash
 echo curl-invoked >> "`+curlLog+`"
 exit 97
