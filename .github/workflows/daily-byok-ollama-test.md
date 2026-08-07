@@ -38,10 +38,18 @@ steps:
   - name: Start Ollama service
     env:
       OLLAMA_HOST: "0.0.0.0:11434"
+      OLLAMA_LOG: "/tmp/gh-aw/ollama-serve.log"
     run: |
       sudo systemctl stop ollama 2>/dev/null || true
       sleep 2
-      ollama serve &
+      mkdir -p /tmp/gh-aw
+      # Detach the server from this step's stdio and log to a file instead.
+      # The Actions runner closes the step's output pipe once the step ends, so
+      # anything still writing to it afterwards -- including the model runner
+      # subprocesses that `ollama serve` spawns on the first inference request --
+      # dies with EPIPE. Logging to a file also keeps the server output around
+      # for diagnostics in later steps.
+      nohup ollama serve > "$OLLAMA_LOG" 2>&1 < /dev/null &
       echo "Waiting for Ollama service..."
       for _ in $(seq 1 30); do
         if curl -sf http://localhost:11434/api/version > /dev/null 2>&1; then
@@ -56,26 +64,45 @@ steps:
   - name: Warm up model
     env:
       OLLAMA_MODEL: "qwen2.5:0.5b"
+      OLLAMA_LOG: "/tmp/gh-aw/ollama-serve.log"
     run: |
       # Force Ollama to load the model into memory before the agent runs.
       # A cold model (not yet loaded) can cause the OpenAI-compatible /v1/chat/completions
       # endpoint to return 503 Service Unavailable on the agent's first requests, which
       # exhausts the Copilot CLI's built-in retry budget and fails the whole run.
       echo "Warming up model '$OLLAMA_MODEL'..."
-      MAX_ATTEMPTS=10
+      mkdir -p /tmp/gh-aw
+      BODY_FILE=/tmp/gh-aw/ollama-warmup-response.json
+      STATUS_FILE=/tmp/gh-aw/ollama-warmup-status.txt
+      MAX_ATTEMPTS=6
+      DELAY=3
       for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
-        if curl -sf http://localhost:11434/api/generate \
-          -d "{\"model\":\"${OLLAMA_MODEL}\",\"prompt\":\"hi\",\"stream\":false}" > /dev/null 2>&1; then
+        : > "$BODY_FILE"
+        CURL_EXIT=0
+        curl -sS -o "$BODY_FILE" -w '%{http_code}' --max-time 60 \
+          -H 'Content-Type: application/json' \
+          http://localhost:11434/api/generate \
+          -d "{\"model\":\"${OLLAMA_MODEL}\",\"prompt\":\"hi\",\"stream\":false}" \
+          > "$STATUS_FILE" || CURL_EXIT=$?
+        HTTP_STATUS="$(cat "$STATUS_FILE" 2>/dev/null)"
+        if [ "$HTTP_STATUS" = "200" ]; then
           echo "Model warm-up succeeded on attempt ${attempt}"
-          break
+          exit 0
         fi
-        if [ "$attempt" -eq "$MAX_ATTEMPTS" ]; then
-          echo "::error::Model '$OLLAMA_MODEL' failed to warm up after ${MAX_ATTEMPTS} attempts."
-          exit 1
-        fi
-        echo "Warm-up attempt ${attempt}/${MAX_ATTEMPTS} failed, retrying..."
-        sleep 3
+        echo "Warm-up attempt ${attempt}/${MAX_ATTEMPTS} failed (HTTP ${HTTP_STATUS:-none}, curl exit ${CURL_EXIT})"
+        echo "Response body: $(head -c 2000 "$BODY_FILE" 2>/dev/null)"
+        sleep "$DELAY"
+        DELAY=$((DELAY * 2))
+        if [ "$DELAY" -gt 30 ]; then DELAY=30; fi
       done
+      echo "::error::Model '$OLLAMA_MODEL' failed to warm up after ${MAX_ATTEMPTS} attempts."
+      echo "--- ollama ps ---"
+      ollama ps || true
+      echo "--- ollama processes ---"
+      pgrep -a ollama || echo "no ollama process is running"
+      echo "--- last 200 lines of ${OLLAMA_LOG} ---"
+      tail -n 200 "$OLLAMA_LOG" 2>/dev/null || echo "no server log available"
+      exit 1
   - name: Verify Ollama BYOK readiness
     env:
       OLLAMA_MODEL: "qwen2.5:0.5b"
