@@ -102,7 +102,7 @@ export function buildSlideDeckUrl(repositoryPath, ref) {
   }
   // Repository path must be exactly "owner/repo" with no dot-only path components.
   const safeRepoPattern = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/;
-  if (!safeRepoPattern.test(repositoryPath) || repositoryPath.split("/").some(p => p === "." || p === "..")) {
+  if (!safeRepoPattern.test(repositoryPath) || repositoryPath.split("/").some(p => /^[.]+$/.test(p))) {
     throw new Error(`Unsafe repository path value: ${repositoryPath}`);
   }
 
@@ -187,7 +187,7 @@ async function readPdfBytes() {
 }
 
 async function main() {
-  const pdfBytes = validatePdfBytes(await readPdfBytes(), "Slide PDF output");
+  const pdfBytes = await readPdfBytes();
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   // readPdfBytes() only ever returns bytes from a fixed, hardcoded GitHub media
   // URL (constructed from validated repo/ref values) after checking the response

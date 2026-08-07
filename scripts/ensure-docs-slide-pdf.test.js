@@ -49,6 +49,8 @@ console.log("PASS: builds trusted slide deck URL");
 
 assertThrowsMatching(() => buildSlideDeckUrl("github/../gh-aw", safeSha), /Unsafe repository path/, "rejects unsafe repository path");
 
+assertThrowsMatching(() => buildSlideDeckUrl(".../gh-aw", safeSha), /Unsafe repository path/, "rejects dot-only repository path segments");
+
 assertThrowsMatching(() => buildSlideDeckUrl("github/gh-aw", "main"), /Unsafe git ref/, "rejects non-SHA git ref");
 
 console.log("All ensure-docs-slide-pdf tests passed.");
