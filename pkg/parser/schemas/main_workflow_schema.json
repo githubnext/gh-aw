@@ -13453,6 +13453,10 @@
                 "harness-script": {
                   "type": "string",
                   "description": "JavaScript source of a Node.js harness that spawns the engine CLI. When set, the script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before execution and the engine is launched as: node <harness-path> <command-name> [args...]. The harness reads process.env.GH_AW_PROMPT for the prompt-file path and, when the AWF firewall is active, process.env.AWF_REFLECT_ENABLED is set to '1' so the harness can read /reflect data to dynamically configure the engine CLI."
+                },
+                "log-parser": {
+                  "type": "string",
+                  "description": "JavaScript source of a log-parser function for the engine. When set, the script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_log_parser.cjs and used in the post-agent log-parsing step. The script must define a parseLog(logContent) function (not export it) that returns {markdown, logEntries, mcpFailures, maxTurnsHit}. A createEngineLogParser wrapper from log_parser_shared.cjs is automatically appended so the author only provides the parsing function; the wrapper handles exports and bootstrap. This enables behavior-defined engines (e.g. crush, opencode, goose, aider) to produce normalized events files like built-in engine parsers."
                 }
               },
               "additionalProperties": false
