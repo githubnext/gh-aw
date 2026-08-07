@@ -1220,15 +1220,45 @@ func TestDescribeFileAdditionalPatterns(t *testing.T) {
 }
 
 func TestExtractThreatDetectionRunlog(t *testing.T) {
-	dir := t.TempDir()
-	content := "{\"event\":\"run_start\"}\ninvalid\n{\"event\":\"attempt_no_verdict\",\"attempt\":1}\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, filepath.Base(constants.ThreatDetectionRunlogPath)), []byte(content), 0600))
+	t.Run("returns nil for empty logsPath", func(t *testing.T) {
+		events := extractThreatDetectionRunlog("")
+		assert.Nil(t, events)
+	})
 
-	events := extractThreatDetectionRunlog(dir)
-	require.Len(t, events, 2)
-	assert.Equal(t, "run_start", events[0]["event"])
-	assert.Equal(t, "attempt_no_verdict", events[1]["event"])
-	assert.InDelta(t, 1, events[1]["attempt"], 0)
+	t.Run("returns nil when no runlog files exist", func(t *testing.T) {
+		events := extractThreatDetectionRunlog(t.TempDir())
+		assert.Nil(t, events)
+	})
+
+	t.Run("returns empty slice when all lines are invalid", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, filepath.Base(constants.ThreatDetectionRunlogPath)), []byte("invalid\n{\n"), 0600))
+
+		events := extractThreatDetectionRunlog(dir)
+		require.NotNil(t, events)
+		assert.Empty(t, events)
+	})
+
+	t.Run("parses detect and conclude runlogs from nested detection artifact directory", func(t *testing.T) {
+		dir := t.TempDir()
+		detectionArtifactDir := filepath.Join(dir, "abcdef-"+constants.DetectionArtifactName)
+		require.NoError(t, os.MkdirAll(detectionArtifactDir, 0700))
+
+		detectContent := "{\"event\":\"run_start\"}\ninvalid\n{\"event\":\"attempt_no_verdict\",\"attempt\":1}\n"
+		concludeContent := "{\"event\":\"conclude_start\"}\n{\"event\":\"conclude_end\",\"conclusion\":\"warning\"}\n"
+
+		require.NoError(t, os.WriteFile(filepath.Join(detectionArtifactDir, filepath.Base(constants.ThreatDetectionRunlogPath)), []byte(detectContent), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(detectionArtifactDir, filepath.Base(constants.ThreatDetectionConcludeRunlogPath)), []byte(concludeContent), 0600))
+
+		events := extractThreatDetectionRunlog(dir)
+		require.Len(t, events, 4)
+		assert.Equal(t, "run_start", events[0]["event"])
+		assert.Equal(t, "attempt_no_verdict", events[1]["event"])
+		assert.InDelta(t, 1, events[1]["attempt"], 0)
+		assert.Equal(t, "conclude_start", events[2]["event"])
+		assert.Equal(t, "conclude_end", events[3]["event"])
+		assert.Equal(t, "warning", events[3]["conclusion"])
+	})
 }
 
 func TestExtractCreatedItemsFromManifest(t *testing.T) {

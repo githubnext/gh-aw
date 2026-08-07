@@ -589,29 +589,62 @@ func extractThreatDetectionRunlog(logsPath string) []map[string]any {
 		return nil
 	}
 
-	f, err := os.Open(filepath.Join(logsPath, filepath.Base(constants.ThreatDetectionRunlogPath)))
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-
+	const maxThreatDetectionRunlogEvents = 10000
+	const scanBufSize = 64 * 1024
+	const maxLineSize = 1024 * 1024
 	var events []map[string]any
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		var event map[string]any
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			auditReportLog.Printf("Skipping invalid threat detection run log line: %v", err)
-			continue
-		}
-		events = append(events, event)
+	searchDirs := []string{logsPath}
+	if detectionArtifactDir := findArtifactDir(logsPath, constants.DetectionArtifactName, constants.LegacyDetectionArtifactName); detectionArtifactDir != "" && detectionArtifactDir != logsPath {
+		searchDirs = []string{detectionArtifactDir, logsPath}
 	}
-	if err := scanner.Err(); err != nil {
-		auditReportLog.Printf("Error reading threat detection run log: %v", err)
+	foundAnyFile := false
+	logFiles := []string{
+		filepath.Base(constants.ThreatDetectionRunlogPath),
+		filepath.Base(constants.ThreatDetectionConcludeRunlogPath),
+	}
+	for _, logFile := range logFiles {
+		for _, dir := range searchDirs {
+			path := filepath.Join(dir, logFile)
+			f, err := os.Open(path)
+			if err != nil {
+				continue
+			}
+			foundAnyFile = true
+			if events == nil {
+				events = make([]map[string]any, 0)
+			}
+			func() {
+				defer f.Close()
+				scanner := bufio.NewScanner(f)
+				scanner.Buffer(make([]byte, scanBufSize), maxLineSize)
+				for scanner.Scan() {
+					line := strings.TrimSpace(scanner.Text())
+					if line == "" {
+						continue
+					}
+					var event map[string]any
+					if err := json.Unmarshal([]byte(line), &event); err != nil {
+						auditReportLog.Printf("Skipping invalid threat detection run log line: %v", err)
+						continue
+					}
+					events = append(events, event)
+					if len(events) >= maxThreatDetectionRunlogEvents {
+						auditReportLog.Printf("Threat detection run log event limit reached (%d); truncating", maxThreatDetectionRunlogEvents)
+						return
+					}
+				}
+				if err := scanner.Err(); err != nil {
+					auditReportLog.Printf("Error reading threat detection run log: %v", err)
+				}
+			}()
+			break
+		}
+		if len(events) >= maxThreatDetectionRunlogEvents {
+			return events
+		}
+	}
+	if !foundAnyFile {
+		return nil
 	}
 	return events
 }
