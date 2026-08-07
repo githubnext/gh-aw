@@ -2,6 +2,9 @@
 runtimes:
   uv:
     version: latest
+pre-agent-steps:
+  - name: Predownload Pydantic AI CLI
+    run: uv run pai --version
 engine:
   id: pydantic-ai
   version: "0.1.0"
