@@ -26,7 +26,7 @@ func filterActionableDomains(domains []string) []string {
 }
 
 // generateFindings creates key findings from workflow run data
-func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ErrorInfo) []Finding {
+func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ValidationIssue) []Finding {
 	auditReportLog.Printf("Generating findings: errors=%d, conclusion=%s", len(errors), processedRun.Run.Conclusion)
 	findings := appendFailureAndTimeoutFindings(nil, processedRun, metrics, errors)
 	findings = append(findings, generatePerformanceFindings(metrics)...)
@@ -60,7 +60,7 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 	return recommendations
 }
 
-func appendFailureAndTimeoutFindings(findings []Finding, processedRun ProcessedRun, metrics MetricsData, errors []ErrorInfo) []Finding {
+func appendFailureAndTimeoutFindings(findings []Finding, processedRun ProcessedRun, metrics MetricsData, errors []ValidationIssue) []Finding {
 	run := processedRun.Run
 	if run.Conclusion == "failure" {
 		findings = append(findings, Finding{
@@ -83,7 +83,7 @@ func appendFailureAndTimeoutFindings(findings []Finding, processedRun ProcessedR
 	return findings
 }
 
-func buildFailureFindingDescription(run WorkflowRun, jobDetails []JobInfoWithDuration, metrics MetricsData, errors []ErrorInfo) string {
+func buildFailureFindingDescription(run WorkflowRun, jobDetails []JobInfoWithDuration, metrics MetricsData, errors []ValidationIssue) string {
 	if metrics.ErrorCount == 0 && len(errors) == 0 {
 		if agentJob, ok := findFailedAgentJob(jobDetails); ok {
 			return fmt.Sprintf(
@@ -135,7 +135,7 @@ func generatePerformanceFindings(metrics MetricsData) []Finding {
 	return findings
 }
 
-func generateErrorVolumeFindings(errors []ErrorInfo) []Finding {
+func generateErrorVolumeFindings(errors []ValidationIssue) []Finding {
 	if len(errors) <= 5 {
 		return nil
 	}
@@ -216,7 +216,7 @@ func buildBlockedNetworkFindingDescription(blockedRequests int, blockedDomains [
 	}
 }
 
-func generateSuccessFindings(run WorkflowRun, metrics MetricsData, errors []ErrorInfo) []Finding {
+func generateSuccessFindings(run WorkflowRun, metrics MetricsData, errors []ValidationIssue) []Finding {
 	if run.Conclusion != "success" || len(errors) > 0 {
 		return nil
 	}

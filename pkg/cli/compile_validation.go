@@ -247,11 +247,12 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 
 	compileValidationLog.Printf("Sanitizing validation results: workflow_count=%d", len(results))
 
-	sanitizeError := func(e CompileValidationError) CompileValidationError {
-		return CompileValidationError{
+	sanitizeError := func(e ValidationIssue) ValidationIssue {
+		return ValidationIssue{
 			Type:    e.Type,
 			Message: stringutil.SanitizeErrorMessage(e.Message),
 			Line:    e.Line,
+			File:    e.File,
 		}
 	}
 
