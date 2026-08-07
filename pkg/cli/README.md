@@ -238,7 +238,6 @@ The `cli` package exports many types used across its command implementations. Th
 | `CodemodResult` | struct | Result of a single codemod transformation |
 | `CommandProvider` | interface | Interface implemented by Cobra root commands for shell-completion helpers |
 | `CompilationStats` | struct | Statistics from a compilation run (files, errors, warnings) |
-| `CompileValidationError` | struct | A validation error emitted during compilation |
 | `CombinedTrialResult` | struct | Combined results from multiple trial runs |
 | `ContinuationData` | struct | State for multi-turn agent continuations |
 | `CopilotCodingAgentDetector` | struct | Detector for Copilot coding-agent log patterns |
@@ -261,7 +260,6 @@ The `cli` package exports many types used across its command implementations. Th
 | `DomainDiffEntry` | struct | Per-domain diff between two runs |
 | `DownloadResult` | struct | Result of a log artifact download |
 | `EpisodeData` | struct | A single agent episode (one tool-call turn) |
-| `ErrorInfo` | struct | Structured error captured from an agent run |
 | `ErrorSummary` | struct | Aggregated error summary for a workflow run |
 | `FetchedWorkflow` | struct | A workflow fetched from a remote or local source with metadata |
 | `FileInfo` | struct | File metadata captured during a workflow run |
@@ -373,6 +371,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `TrialRepoContext` | struct | Repository context used during a trial run |
 | `VSCodeMCPServer` | struct | An MCP server entry in `.vscode/mcp.json` |
 | `VSCodeSettings` | struct | Parsed `.vscode/settings.json` |
+| `ValidationIssue` | struct | A validation error, warning, or audit issue entry |
 | `ValidationResult` | struct | Result of a workflow compilation validation pass |
 | `Workflow` | struct | Minimal workflow metadata used in list operations |
 | `WorkflowDomainsDetail` | struct | Detailed per-workflow domain information |

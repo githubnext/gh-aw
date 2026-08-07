@@ -32,7 +32,7 @@ func TestKeyFindingsGeneration(t *testing.T) {
 		name          string
 		run           WorkflowRun
 		metrics       MetricsData
-		errors        []ErrorInfo
+		errors        []ValidationIssue
 		mcpFailures   []MCPFailureReport
 		missingTools  []MissingToolReport
 		expectedCount int
@@ -51,7 +51,7 @@ func TestKeyFindingsGeneration(t *testing.T) {
 				ErrorCount: 3,
 				TokenUsage: 1000,
 			},
-			errors: []ErrorInfo{
+			errors: []ValidationIssue{
 				{Type: "error", Message: "Test error 1"},
 				{Type: "error", Message: "Test error 2"},
 				{Type: "error", Message: "Test error 3"},

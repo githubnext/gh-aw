@@ -593,14 +593,14 @@ func TestValidationResult(t *testing.T) {
 	result := ValidationResult{
 		Workflow: "test-workflow.md",
 		Valid:    false,
-		Errors: []CompileValidationError{
+		Errors: []ValidationIssue{
 			{
 				Type:    "schema_validation",
 				Message: "Unknown property: toolz",
 				Line:    5,
 			},
 		},
-		Warnings:     []CompileValidationError{},
+		Warnings:     []ValidationIssue{},
 		CompiledFile: ".github/workflows/test-workflow.lock.yml",
 	}
 

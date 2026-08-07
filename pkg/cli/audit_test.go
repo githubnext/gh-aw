@@ -399,7 +399,7 @@ func TestRenderJSON(t *testing.T) {
 				Reason: "Tool not available",
 			},
 		},
-		Errors: []ErrorInfo{
+		Errors: []ValidationIssue{
 			{
 				File:    "agent.log",
 				Line:    42,
@@ -407,7 +407,7 @@ func TestRenderJSON(t *testing.T) {
 				Message: "Test error",
 			},
 		},
-		Warnings: []ErrorInfo{
+		Warnings: []ValidationIssue{
 			{
 				File:    "agent.log",
 				Line:    50,
@@ -819,8 +819,8 @@ func TestRenderJSONWithFirewall(t *testing.T) {
 		DownloadedFiles:  []FileInfo{},
 		MissingTools:     []MissingToolReport{},
 		MCPFailures:      []MCPFailureReport{},
-		Errors:           []ErrorInfo{},
-		Warnings:         []ErrorInfo{},
+		Errors:           []ValidationIssue{},
+		Warnings:         []ValidationIssue{},
 		ToolUsage:        []ToolUsageInfo{},
 	}
 
