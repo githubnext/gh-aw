@@ -91,15 +91,12 @@ func (e *GeminiEngine) GetSupportedEnvVarKeys() []string {
 // GetSecretValidationStep returns the secret validation step for the Gemini engine.
 // Returns an empty step if custom command is specified or if Google/Vertex WIF is configured.
 func (e *GeminiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if isGeminiVertexWIF(workflowData) {
-		return GitHubActionStep{}
-	}
-	return BuildDefaultSecretValidationStep(
-		workflowData,
-		[]string{"GEMINI_API_KEY"},
-		"Gemini CLI",
-		"https://geminicli.com/docs/get-started/authentication/",
-	)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: []string{"GEMINI_API_KEY"},
+		EngineName:  "Gemini CLI",
+		DocsURL:     "https://geminicli.com/docs/get-started/authentication/",
+		Skip:        isGeminiVertexWIF,
+	})
 }
 
 // isGeminiVertexWIF returns true when the workflow is configured to use Google
