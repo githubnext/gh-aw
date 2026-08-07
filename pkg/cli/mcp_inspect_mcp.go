@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -258,15 +259,28 @@ func queryServerCapabilities(ctx context.Context, config parser.RegistryMCPServe
 		Roots:     []*parser.MCPRootInfo{},
 	}
 
+	recordPartialResultError := func(listName string, err error) {
+		if err == nil {
+			return
+		}
+		wrappedErr := fmt.Errorf("listing %s: %w", listName, err)
+		if info.Error == nil {
+			info.Error = wrappedErr
+		} else {
+			info.Error = errors.Join(info.Error, wrappedErr)
+		}
+		if verbose {
+			console.PrintWarningMessage(fmt.Sprintf("Failed to list %s: %v", listName, err))
+		}
+	}
+
 	// List tools (paginated automatically by the SDK iterator)
 	func() {
 		listToolsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
 		defer cancel()
 		for tool, err := range session.Tools(listToolsCtx, &mcp.ListToolsParams{}) {
 			if err != nil {
-				if verbose {
-					console.PrintWarningMessage(fmt.Sprintf("Failed to list tools: %v", err))
-				}
+				recordPartialResultError("tools", err)
 				break
 			}
 			info.Tools = append(info.Tools, tool)
@@ -279,9 +293,7 @@ func queryServerCapabilities(ctx context.Context, config parser.RegistryMCPServe
 		defer cancel()
 		for resource, err := range session.Resources(listResourcesCtx, &mcp.ListResourcesParams{}) {
 			if err != nil {
-				if verbose {
-					console.PrintWarningMessage(fmt.Sprintf("Failed to list resources: %v", err))
-				}
+				recordPartialResultError("resources", err)
 				break
 			}
 			info.Resources = append(info.Resources, resource)
@@ -294,9 +306,7 @@ func queryServerCapabilities(ctx context.Context, config parser.RegistryMCPServe
 		defer cancel()
 		for prompt, err := range session.Prompts(listPromptsCtx, &mcp.ListPromptsParams{}) {
 			if err != nil {
-				if verbose {
-					console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
-				}
+				recordPartialResultError("prompts", err)
 				break
 			}
 			info.Prompts = append(info.Prompts, prompt)
@@ -349,6 +359,10 @@ func mcpInspectClientImplementation() *mcp.Implementation {
 // displayServerCapabilities shows the server's tools, resources, and roots in formatted tables
 func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 	mcpInspectServerLog.Printf("Displaying server capabilities: tools=%d, resources=%d, prompts=%d, toolFilter=%q", len(info.Tools), len(info.Resources), len(info.Prompts), toolFilter)
+	if info.Error != nil {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP inspection returned partial results: %v", info.Error)))
+	}
 	// Display tools with allowed/not allowed status
 	if len(info.Tools) > 0 {
 		// If a specific tool is requested, show detailed information
