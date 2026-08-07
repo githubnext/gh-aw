@@ -22,7 +22,7 @@ assert.equal(isAllowedPdfContentType("application/pdf"), true);
 assert.equal(isAllowedPdfContentType("application/pdf; charset=binary"), true);
 assert.equal(isAllowedPdfContentType("application/octet-stream"), true);
 assert.equal(isAllowedPdfContentType("text/html"), false);
-console.log("PASS: validates allowed PDF content types exactly");
+console.log("PASS: accepts allowed and parameterized PDF content types");
 
 validateSlideDeckResponse(
   responseWithHeaders({
