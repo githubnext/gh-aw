@@ -1,0 +1,32 @@
+{
+  "engines": [
+    {
+      "id": "aider",
+      "import": "github/gh-aw/.github/workflows/shared/aider.md@main"
+    },
+    {
+      "id": "crush",
+      "import": "github/gh-aw/.github/workflows/shared/crush.md@main"
+    },
+    {
+      "id": "cursor",
+      "import": "github/gh-aw/.github/workflows/shared/cursor.md@main"
+    },
+    {
+      "id": "custom",
+      "import": "github/gh-aw/.github/workflows/shared/genaiscript.md@main"
+    },
+    {
+      "id": "goose",
+      "import": "github/gh-aw/.github/workflows/shared/goose.md@main"
+    },
+    {
+      "id": "kiro",
+      "import": "github/gh-aw/.github/workflows/shared/kiro.md@main"
+    },
+    {
+      "id": "opencode",
+      "import": "github/gh-aw/.github/workflows/shared/opencode.md@main"
+    }
+  ]
+}

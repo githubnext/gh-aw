@@ -28,9 +28,13 @@
 package workflow
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -331,23 +335,62 @@ type ResolvedEngineTarget struct {
 	Runtime    CodingAgentEngine // resolved adapter from the EngineRegistry
 }
 
-// knownEngineImports maps engine IDs that are not built into the binary to the
-// shared engine definition file that registers them. When an unknown engine ID is
-// referenced without importing the engine definition file first, the Resolve method
-// appends an actionable tip pointing to this file.
-//
-// Keys are lower-case engine IDs. Values are the fully-qualified import spec in
-// the format "owner/repo/.github/workflows/<path>@<ref>" — the same string a user
-// would write in an "imports:" block of their workflow markdown file.
-//
-// To add a new well-known engine, append an entry here with the engine ID as the
-// key and the fully-qualified path to its shared engine definition file as the value.
-var knownEngineImports = map[string]string{
-	"opencode": "github/gh-aw/.github/workflows/shared/opencode.md@main",
-	"crush":    "github/gh-aw/.github/workflows/shared/crush.md@main",
-	"cursor":   "github/gh-aw/.github/workflows/shared/cursor.md@main",
-	"aider":    "github/gh-aw/.github/workflows/shared/aider.md@main",
-	"goose":    "github/gh-aw/.github/workflows/shared/goose.md@main",
+const (
+	knownEngineImportsPath    = ".github/aw/engines.json"
+	knownEngineImportsRef     = "main"
+	knownEngineImportsTimeout = 3 * time.Second
+)
+
+type knownEngineImportEntry struct {
+	ID     string `json:"id"`
+	Import string `json:"import"`
+}
+
+type knownEngineImportsFile struct {
+	Engines []knownEngineImportEntry `json:"engines"`
+}
+
+var (
+	knownEngineImportsOnce sync.Once
+	knownEngineImports     map[string]string
+
+	knownEngineImportsDownload = func(ctx context.Context) ([]byte, error) {
+		return parser.DownloadFileFromGitHubForHost(ctx, "github", "gh-aw", knownEngineImportsPath, knownEngineImportsRef, "github.com")
+	}
+)
+
+func knownEngineImportFor(id string) (string, bool) {
+	knownEngineImportsOnce.Do(loadKnownEngineImports)
+	importPath, ok := knownEngineImports[strings.ToLower(id)]
+	return importPath, ok
+}
+
+func loadKnownEngineImports() {
+	knownEngineImports = map[string]string{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), knownEngineImportsTimeout)
+	defer cancel()
+
+	content, err := knownEngineImportsDownload(ctx)
+	if err != nil {
+		engineCatalogLog.Printf("Known engine import catalog unavailable: %v", err)
+		return
+	}
+
+	var catalog knownEngineImportsFile
+	if err := json.Unmarshal(content, &catalog); err != nil {
+		engineCatalogLog.Printf("Known engine import catalog invalid: %v", err)
+		return
+	}
+
+	for _, engine := range catalog.Engines {
+		id := strings.ToLower(strings.TrimSpace(engine.ID))
+		importPath := strings.TrimSpace(engine.Import)
+		if id == "" || importPath == "" {
+			continue
+		}
+		knownEngineImports[id] = importPath
+	}
 }
 
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
@@ -443,7 +486,7 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 			constants.DocsEnginesURL)
 	}
 
-	if importPath, ok := knownEngineImports[strings.ToLower(id)]; ok {
+	if importPath, ok := knownEngineImportFor(id); ok {
 		errMsg += fmt.Sprintf("\n\nTip: %q is a known engine with a shared definition file. Import it before using this engine:\n\nimports:\n  - %s",
 			id, importPath)
 	}

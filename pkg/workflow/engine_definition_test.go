@@ -3,12 +3,33 @@
 package workflow
 
 import (
+	"context"
+	"errors"
+	"sync"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr error) {
+	t.Helper()
+
+	originalDownload := knownEngineImportsDownload
+
+	knownEngineImportsDownload = func(context.Context) ([]byte, error) {
+		return content, downloadErr
+	}
+	knownEngineImportsOnce = sync.Once{}
+	knownEngineImports = nil
+
+	t.Cleanup(func() {
+		knownEngineImportsDownload = originalDownload
+		knownEngineImportsOnce = sync.Once{}
+		knownEngineImports = nil
+	})
+}
 
 // TestNewEngineCatalog_BuiltIns checks that all built-in engines are registered
 // and resolve to the expected runtime adapters.
@@ -102,6 +123,18 @@ func TestEngineCatalog_Resolve_UnknownEngine(t *testing.T) {
 // in the error when a known (but not built-in) engine is referenced without importing
 // its shared engine definition file first.
 func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
+	withKnownEngineImportsForTest(t, []byte(`{
+		"engines": [
+			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md@main"},
+			{"id": "crush", "import": "github/gh-aw/.github/workflows/shared/crush.md@main"},
+			{"id": "cursor", "import": "github/gh-aw/.github/workflows/shared/cursor.md@main"},
+			{"id": "aider", "import": "github/gh-aw/.github/workflows/shared/aider.md@main"},
+			{"id": "goose", "import": "github/gh-aw/.github/workflows/shared/goose.md@main"},
+			{"id": "kiro", "import": "github/gh-aw/.github/workflows/shared/kiro.md@main"},
+			{"id": "custom", "import": "github/gh-aw/.github/workflows/shared/genaiscript.md@main"}
+		]
+	}`), nil)
+
 	tests := []struct {
 		name           string
 		engineID       string
@@ -132,6 +165,16 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 			engineID:       "goose",
 			wantImportPath: "github/gh-aw/.github/workflows/shared/goose.md@main",
 		},
+		{
+			name:           "kiro tip",
+			engineID:       "kiro",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/kiro.md@main",
+		},
+		{
+			name:           "custom tip",
+			engineID:       "custom",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/genaiscript.md@main",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -150,8 +193,14 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 }
 
 // TestEngineCatalog_Resolve_UnknownNoTip verifies that truly unknown engines (not in
-// the knownEngineImports map) do NOT include an import tip.
+// the known-engine import catalog) do NOT include an import tip.
 func TestEngineCatalog_Resolve_UnknownNoTip(t *testing.T) {
+	withKnownEngineImportsForTest(t, []byte(`{
+		"engines": [
+			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md@main"}
+		]
+	}`), nil)
+
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
@@ -159,6 +208,20 @@ func TestEngineCatalog_Resolve_UnknownNoTip(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid engine")
 	require.NotContains(t, err.Error(), "Tip:", "error should not contain a tip for truly unknown engines")
+}
+
+// TestEngineCatalog_Resolve_KnownImportDownloadFailureNoTip verifies that the
+// remote known-engine catalog fails closed without changing the validation error.
+func TestEngineCatalog_Resolve_KnownImportDownloadFailureNoTip(t *testing.T) {
+	withKnownEngineImportsForTest(t, nil, errors.New("network unavailable"))
+
+	registry := NewEngineRegistry()
+	catalog := NewEngineCatalog(registry)
+
+	_, err := catalog.Resolve("opencode", nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid engine")
+	require.NotContains(t, err.Error(), "Tip:", "download failures should be silent")
 }
 
 // TestEngineCatalog_Resolve_ConfigPassthrough verifies that the EngineConfig passed to
