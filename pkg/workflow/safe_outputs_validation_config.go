@@ -402,7 +402,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"update_project": {
 		DefaultMax: 10,
 		Fields: map[string]FieldValidation{
-			"project":           {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://[^/]+/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
+			"project":           {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^(https://[^/]+/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9_]{3,12})$", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42) or temporary project ID (e.g., #aw_project1)"},
 			"operation":         {Type: "string", Enum: []string{"create_fields", "create_view"}},
 			"content_type":      {Type: "string", Enum: []string{"issue", "pull_request", "draft_issue"}},
 			"content_number":    {IssueNumberOrTemporaryID: true},

@@ -3,6 +3,7 @@
 
 /** @type {typeof import("fs")} */
 const fs = require("fs");
+const path = require("path");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
@@ -118,6 +119,35 @@ async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef)
     .split("\n")
     .map(f => f.trim())
     .filter(Boolean);
+}
+
+/**
+ * Measure the expanded blob size of files changed by the applied agent commits.
+ * Deleted files contribute zero bytes because no new content is being introduced.
+ *
+ * @param {Record<string, unknown>} gitOptions
+ * @param {string[]} files
+ * @returns {number}
+ */
+function getChangedBlobSizeBytes(gitOptions, files) {
+  let total = 0;
+  const cwd = typeof gitOptions.cwd === "string" && gitOptions.cwd ? gitOptions.cwd : process.cwd();
+  const resolvedCwd = path.resolve(cwd);
+  for (const file of files) {
+    const filePath = path.resolve(resolvedCwd, file);
+    if (filePath !== resolvedCwd && !filePath.startsWith(`${resolvedCwd}${path.sep}`)) {
+      continue;
+    }
+    try {
+      const stats = fs.statSync(filePath);
+      if (stats.isFile()) {
+        total += stats.size;
+      }
+    } catch {
+      // Deleted files have no expanded content to add to the limit.
+    }
+  }
+  return total;
 }
 
 /**
@@ -1210,6 +1240,15 @@ async function main(config = {}) {
             core.warning(`Post-apply: Protected file protection triggered (fallback-to-issue): ${postApplyProtection.files.join(", ")}`);
             await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
             return await createProtectedFilesFallbackIssue(postApplyProtection.files);
+          }
+
+          const changedBlobSizeBytes = getChangedBlobSizeBytes(baseGitOpts, actualFiles);
+          const changedBlobSizeKb = Math.ceil(changedBlobSizeBytes / 1024);
+          core.info(`Changed content size: ${changedBlobSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+          if (changedBlobSizeKb > maxSizeKb) {
+            const msg = `Changed content size (${changedBlobSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+            await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
+            return { success: false, error: msg };
           }
         }
       }

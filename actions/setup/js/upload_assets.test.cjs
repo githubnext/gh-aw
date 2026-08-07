@@ -70,6 +70,8 @@ describe("upload_assets.cjs", () => {
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_ASSETS_DIR;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    delete process.env.GITHUB_SERVER_URL;
+    delete process.env.GITHUB_REPOSITORY;
 
     tempBase = fs.mkdtempSync(path.join("/tmp", "test-gh-aw-"));
     cwdArtifacts = new Set();
@@ -245,6 +247,26 @@ describe("upload_assets.cjs", () => {
       await executeScript();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("upload_count", "1");
+    });
+
+    it("should derive GHES raw URLs from trusted metadata", async () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      process.env.GITHUB_SERVER_URL = "https://ghe.example.com";
+      process.env.GITHUB_REPOSITORY = "octo/repo";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const declaredPath = "/workspace/test.png";
+      const stagedFileName = `${crypto.createHash("sha256").update(declaredPath).digest("hex")}.png`;
+      const { sha } = makeAsset(assetDir, stagedFileName, "actual content");
+      trackCwdArtifact(`${sha}.png`);
+      setAgentOutput({ items: [{ type: "upload_asset", path: declaredPath }] });
+      mockBranchMissing();
+
+      await executeScript();
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining(`https://ghe.example.com/octo/repo/raw/assets/test-workflow/${sha}.png`));
     });
 
     it("should reject target filenames outside the checkout root", async () => {

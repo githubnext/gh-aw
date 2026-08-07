@@ -2135,6 +2135,31 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Patch size: 1 KB"));
     });
+
+    it("should enforce max_patch_size against expanded post-apply content", async () => {
+      const branch = "should-reject-expanded-post-apply-content";
+      const patchPath = createPatchFile(branch, "small git binary patch");
+      const changedFilePath = path.join(process.cwd(), "test.txt");
+      fs.writeFileSync(changedFilePath, Buffer.alloc(2 * 1024 * 1024));
+      mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "diff" && argList[1] === "--name-only") {
+          return { exitCode: 0, stdout: "test.txt\n", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "abc123\n", stderr: "" };
+      });
+
+      try {
+        const module = await loadModule();
+        const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+        const result = await handler({ branch }, {});
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Changed content size");
+      } finally {
+        fs.rmSync(changedFilePath, { force: true });
+      }
+    });
   });
 
   // ──────────────────────────────────────────────────────

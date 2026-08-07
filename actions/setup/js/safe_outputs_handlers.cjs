@@ -231,6 +231,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * @type {Map<string, number>}
    */
   const operationCounts = new Map();
+  const uploadedAssetPaths = new Set();
 
   /**
    * Return the explicitly user-configured max for a safe-output type, or null if not set / unlimited.
@@ -461,6 +462,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (!isInWorkspace && !isInTmp) {
       throw new Error(`${ERR_CONFIG}: File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
     }
+    if (uploadedAssetPaths.has(absolutePath)) {
+      throw new Error(`${ERR_VALIDATION}: Duplicate upload_asset source path is not allowed: ${filePath}`);
+    }
 
     // Validate file exists
     if (!fs.existsSync(filePath)) {
@@ -566,6 +570,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     };
 
     appendSafeOutputCounted(entry);
+    uploadedAssetPaths.add(absolutePath);
 
     return {
       content: [

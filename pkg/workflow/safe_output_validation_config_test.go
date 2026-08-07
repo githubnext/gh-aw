@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -302,6 +303,28 @@ func TestUpdatePullRequestValidationConfig(t *testing.T) {
 
 	if _, ok := config.Fields["update_branch"]; !ok {
 		t.Error("update_pull_request Fields is missing the 'update_branch' field")
+	}
+}
+
+func TestUpdateProjectAcceptsProjectURLOrTemporaryID(t *testing.T) {
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"update_project"}, nil, false, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSON() error = %v", err)
+	}
+
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+
+	project := parsed["update_project"].Fields["project"]
+	for _, expected := range []string{
+		"https://[^/]+/(orgs|users)/[^/]+/projects/\\d+",
+		"#?aw_[A-Za-z0-9_]{3,12}",
+	} {
+		if !strings.Contains(project.Pattern, expected) {
+			t.Fatalf("update_project.project pattern %q does not contain %q", project.Pattern, expected)
+		}
 	}
 }
 

@@ -13,6 +13,25 @@ const { normalizeBranchName } = require("./normalize_branch_name.cjs");
  * @typedef {{ type: string, path?: string, fileName: string, sha: string, size: number, targetFileName: string, url?: string }} UploadAssetItem
  */
 
+/**
+ * @param {string} githubServer
+ * @param {string} repo
+ * @param {string} branchName
+ * @param {string} targetFileName
+ * @returns {string}
+ */
+function buildAssetUrl(githubServer, repo, branchName, targetFileName) {
+  try {
+    const serverHostname = new URL(githubServer).hostname;
+    if (serverHostname === "github.com") {
+      return `https://github.com/${repo}/blob/${branchName}/${targetFileName}?raw=true`;
+    }
+  } catch {
+    // Fall through to the GHES-compatible raw URL.
+  }
+  return `${githubServer}/${repo}/raw/${branchName}/${targetFileName}`;
+}
+
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -128,7 +147,7 @@ async function main() {
       const size = fileContent.length;
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-      const url = `${githubServer}/${repo}/blob/${normalizedBranchName}/${targetFileName}?raw=true`;
+      const url = buildAssetUrl(githubServer, repo, normalizedBranchName, targetFileName);
       processedAssets.push({ fileName, sha: computedSha, size, targetFileName, url });
 
       // Check if file already exists in the branch

@@ -994,8 +994,8 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 512,
-                    "pattern": "^https://[^/]+/(orgs|users)/[^/]+/projects/\\d+",
-                    "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                    "pattern": "^(https://[^/]+/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+                    "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42) or temporary project ID (e.g., #aw_project1)"
                   },
                   "pull_request": {
                     "optionalPositiveInteger": true

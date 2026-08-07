@@ -356,6 +356,17 @@ describe("safe_outputs_handlers", () => {
       expect(fs.existsSync(path.join(expectedDir, stagedFileName))).toBe(true);
     });
 
+    it("should reject duplicate upload_asset source paths", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test";
+      const testFile = path.join(testWorkspaceDir, "duplicate.png");
+      fs.writeFileSync(testFile, "first content");
+      const args = { path: testFile };
+
+      handlers.uploadAssetHandler(args);
+
+      expect(() => handlers.uploadAssetHandler(args)).toThrow("Duplicate upload_asset source path is not allowed");
+    });
+
     it("should throw error if GH_AW_ASSETS_BRANCH not set", () => {
       delete process.env.GH_AW_ASSETS_BRANCH;
 
