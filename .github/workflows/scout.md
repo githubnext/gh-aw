@@ -44,6 +44,7 @@ tools:
   cli-proxy: true
   edit:
   cache-memory: true
+  bash: true
   github:
     mode: gh-proxy
     allowed-repos: all
@@ -59,7 +60,7 @@ safe-outputs:
     run-success: "🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️"
     run-failure: "🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party..."
 timeout-minutes: 20
-strict: false
+strict: true
 
 ---
 

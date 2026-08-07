@@ -1,6 +1,5 @@
 ---
 private: true
-strict: false
 emoji: "✅"
 name: "Contribution Check"
 on:
@@ -29,6 +28,7 @@ sandbox:
     sudo: false
 tools:
   cli-proxy: true
+  bash: true
   github:
     mode: gh-proxy
     toolsets: [pull_requests, repos, issues]

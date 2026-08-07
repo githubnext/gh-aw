@@ -1,5 +1,4 @@
 ---
-strict: false
 private: true
 redirect: "githubnext/agentics/workflows/ai-moderator.md@main"
 emoji: "🤖"
@@ -41,6 +40,7 @@ tools:
     key: spam-tracking-${{ github.repository_owner }}
     retention-days: 1
     allowed-extensions: [".json"]
+  bash: true
   github:
     mode: gh-proxy
     read-only: true

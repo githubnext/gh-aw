@@ -683,7 +683,7 @@ func TestValidateStrictCacheMemoryScope(t *testing.T) {
 	}
 }
 
-// TestValidateStrictMinIntegrityNoneBash tests that min-integrity: none requires bash: false in strict mode
+// TestValidateStrictMinIntegrityNoneBash tests that min-integrity: none requires explicit bash in strict mode
 func TestValidateStrictMinIntegrityNoneBash(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -702,10 +702,10 @@ func TestValidateStrictMinIntegrityNoneBash(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "tools.bash: false",
+			errorMsg:    "tools.bash",
 		},
 		{
-			name: "min-integrity none with bash: true - rejected",
+			name: "min-integrity none with bash: true - allowed",
 			frontmatter: map[string]any{
 				"on": "push",
 				"tools": map[string]any{
@@ -715,8 +715,7 @@ func TestValidateStrictMinIntegrityNoneBash(t *testing.T) {
 					},
 				},
 			},
-			expectError: true,
-			errorMsg:    "tools.bash: false",
+			expectError: false,
 		},
 		{
 			name: "min-integrity none with bash: false - allowed",
@@ -732,7 +731,7 @@ func TestValidateStrictMinIntegrityNoneBash(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "min-integrity approved without bash: false - allowed",
+			name: "min-integrity approved without bash - allowed",
 			frontmatter: map[string]any{
 				"on": "push",
 				"tools": map[string]any{

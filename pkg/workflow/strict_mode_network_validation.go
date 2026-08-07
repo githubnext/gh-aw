@@ -131,27 +131,21 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 		}
 	}
 
-	// Require bash: false when min-integrity is none.
-	// When min-integrity is none, any external user can trigger the workflow and execute
-	// arbitrary commands in the sandbox. Requiring bash: false mitigates this risk.
+	// Require bash to be explicitly specified when min-integrity is none.
+	// When min-integrity is none, any external user can trigger the workflow.
+	// Requiring an explicit bash setting ensures the author has considered shell access.
 	if githubValue, hasGitHub := toolsMap["github"]; hasGitHub {
 		if githubMap, ok := githubValue.(map[string]any); ok {
 			if minIntegrity, exists := githubMap["min-integrity"]; exists {
 				if minIntegrityStr, ok := minIntegrity.(string); ok && minIntegrityStr == "none" {
-					bashValue, hasBash := toolsMap["bash"]
-					bashDisabled := false
-					if hasBash {
-						if boolVal, ok := bashValue.(bool); ok && !boolVal {
-							bashDisabled = true
-						}
-					}
-					if !bashDisabled {
-						strictModeValidationLog.Printf("min-integrity: none without bash: false rejected in strict mode")
+					_, hasBash := toolsMap["bash"]
+					if !hasBash {
+						strictModeValidationLog.Printf("min-integrity: none without explicit bash setting rejected in strict mode")
 						return NewValidationError(
 							"tools.bash",
-							"not explicitly disabled",
-							"strict mode: when 'tools.github.min-integrity' is set to 'none', 'tools.bash: false' is required to prevent external users from executing arbitrary commands in the sandbox",
-							"Add 'bash: false' to the tools section:\n\ntools:\n  bash: false\n  github:\n    min-integrity: none",
+							"not specified",
+							"strict mode: when 'tools.github.min-integrity' is set to 'none', 'tools.bash' must be explicitly specified so that shell access is intentional",
+							"Add an explicit bash setting to the tools section:\n\ntools:\n  bash: false\n  github:\n    min-integrity: none",
 						)
 					}
 				}

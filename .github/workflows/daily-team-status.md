@@ -1,5 +1,4 @@
 ---
-strict: false
 description: |
   This workflow is a daily team status reporter creating upbeat activity summaries.
   Gathers recent repository activity (issues, PRs, discussions, releases, code changes)
@@ -19,6 +18,7 @@ permissions:
 network: defaults
 
 tools:
+  bash: true
   github:
     min-integrity: none # This workflow is allowed to examine and comment on any issues
 

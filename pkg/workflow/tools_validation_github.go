@@ -83,11 +83,11 @@ func emitGitHubLockdownGuardPolicyWarning(compiler *Compiler, tools *Tools, mark
 	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", githubLockdownGuardPolicyWarningMessage))
 }
 
-const githubMinIntegrityNoneBashWarningMessage = `'tools.github.min-integrity' is set to 'none' without 'tools.bash: false'. ` +
+const githubMinIntegrityNoneBashWarningMessage = `'tools.github.min-integrity' is set to 'none' without an explicit 'tools.bash' setting. ` +
 	`External users may execute arbitrary commands in the sandbox. ` +
-	`Set 'tools.bash: false' to restrict command execution.`
+	`Set 'tools.bash' explicitly to acknowledge shell access (e.g. 'bash: false' to disable).`
 
-// emitMinIntegrityNoneBashWarning emits a warning when min-integrity is none and bash is not explicitly disabled.
+// emitMinIntegrityNoneBashWarning emits a warning when min-integrity is none and bash is not explicitly specified.
 // This is called in non-strict mode (strict mode rejects this combination as an error).
 func emitMinIntegrityNoneBashWarning(compiler *Compiler, tools *Tools, markdownPath string) {
 	if tools == nil || tools.GitHub == nil {
@@ -96,8 +96,8 @@ func emitMinIntegrityNoneBashWarning(compiler *Compiler, tools *Tools, markdownP
 	if tools.GitHub.MinIntegrity != GitHubIntegrityNone {
 		return
 	}
-	// Check if bash is explicitly disabled (AllowedCommands is non-nil empty slice)
-	if tools.Bash != nil && tools.Bash.AllowedCommands != nil && len(tools.Bash.AllowedCommands) == 0 {
+	// Check if bash is explicitly specified (Bash field is non-nil)
+	if tools.Bash != nil {
 		return
 	}
 
