@@ -14,7 +14,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `agent` | `constants.AgentArtifactName`<br/>Source: `pkg/constants/job_constants.go` | Multi-file | Unified agent job outputs (logs, safe outputs, token usage summary) |
 | `activation` | `constants.ActivationArtifactName` | Multi-file | Activation job output (`aw_info.json`, `prompt.txt`, rate limits) |
 | `firewall-audit-logs` | `constants.FirewallAuditArtifactName`<br/>Source: `pkg/constants/constants.go` | Multi-file | AWF firewall audit/observability logs (token usage, network policy, audit trail) |
-| `detection` | `constants.DetectionArtifactName` | Single-file | Threat detection log (`detection.log`) |
+| `detection` | `constants.DetectionArtifactName` | Single-file | Threat detection log (`detection.log`); not included when the external `gh-aw-detection` engine is used (see below) |
 | `safe-output` | `constants.SafeOutputArtifactName` | Legacy/back-compat | Historical standalone safe output artifact (`safe_output.jsonl`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `agent-output` | `constants.AgentOutputArtifactName` | Legacy/back-compat | Historical standalone agent output artifact (`agent_output.json`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `aw-info` | — | Single-file | Engine configuration (`aw_info.json`) |
@@ -163,6 +163,9 @@ The `activation` artifact contains activation job outputs:
 ## `detection`
 
 The `detection` artifact contains `detection.log`, the threat-detection analysis output. Legacy name: `threat-detection.log`.
+
+> [!IMPORTANT]
+> When the external `gh-aw-detection` feature (`features: gh-aw-detection: true`) is enabled, `detection.log` is **not** uploaded. That raw engine log can contain the full untrusted agent transcript that was passed to the detection engine (including secrets the agent may have echoed), so uploading it as a downloadable artifact would be a secret-exfiltration path. On that path the `detection` artifact only contains `detection_result.json` (the structured verdict) and the detection step-summary.
 
 ## `experiment`
 

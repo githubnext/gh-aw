@@ -330,6 +330,13 @@ Test workflow`
 			!strings.Contains(uploadStep, "            "+constants.ThreatDetectionStepSummaryPath+"\n") {
 			t.Errorf("External detector path must include %s in upload artifact path block", constants.ThreatDetectionStepSummaryPath)
 		}
+		// The raw engine log (detection.log) must NOT be uploaded on the external detector
+		// path: it can contain the full untrusted agent transcript passed to the detection
+		// engine, and persisting it as a downloadable artifact would be a secret-exfiltration
+		// path. Only the structured verdict and step-summary are uploaded.
+		if strings.Contains(uploadStep, constants.ThreatDetectionLogPath) {
+			t.Errorf("External detector path must NOT include %s in upload artifact path block (secret-exfil risk)", constants.ThreatDetectionLogPath)
+		}
 	}
 
 	// The AWF execution pipeline must preserve non-zero threat-detect exits.

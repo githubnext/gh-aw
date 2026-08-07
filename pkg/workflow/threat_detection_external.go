@@ -494,10 +494,16 @@ func extractStepEnvLines(step GitHubActionStep) []string {
 	return envLines
 }
 
-// buildUploadDetectionArtifactStep creates a step that uploads both the structured
-// verdict file (detection_result.json) and the detection log (detection.log) as the
-// detection artifact. Used when features: gh-aw-detection: true is set; the inline
-// path uses buildUploadDetectionLogStep which only uploads detection.log.
+// buildUploadDetectionArtifactStep creates a step that uploads the structured verdict
+// file (detection_result.json) and step-summary as the detection artifact. Used when
+// features: gh-aw-detection: true is set; the inline path uses buildUploadDetectionLogStep.
+//
+// The raw engine log (detection.log) is intentionally NOT uploaded here: it can contain
+// the full untrusted agent transcript/output that was passed to the detection engine
+// (including secrets the agent may have echoed), and uploading it to a workflow artifact
+// would create a secret-exfiltration path. The engine log stays on the runner's
+// filesystem and is only ever inspected in-job (e.g. by the conclude step), never
+// persisted as a downloadable artifact.
 func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string {
 	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
 	return []string{
@@ -508,7 +514,6 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 		"          name: " + detectionArtifactName + "\n",
 		"          path: |\n",
 		"            " + constants.ThreatDetectionResultPath + "\n",
-		"            " + constants.ThreatDetectionLogPath + "\n",
 		"            " + constants.ThreatDetectionStepSummaryPath + "\n",
 		"          if-no-files-found: ignore\n",
 	}
