@@ -1699,10 +1699,11 @@ jobs:
         continue-on-error: true
         run: |
           if [ -s /tmp/gh-aw/threat-detection/step-summary.md ]; then
+            DELIM="DETECTION_SUMMARY_$(openssl rand -hex 16)"
             {
-              printf '%%s\n' 'step_summary_content<<DETECTION_STEP_SUMMARY_EOF'
+              printf '%%s\n' "step_summary_content<<${DELIM}"
               cat /tmp/gh-aw/threat-detection/step-summary.md
-              printf '%%s\n' 'DETECTION_STEP_SUMMARY_EOF'
+              printf '%%s\n' "${DELIM}"
             } >> "$GITHUB_OUTPUT"
           fi
       - name: Parse threat detection token usage for step summary

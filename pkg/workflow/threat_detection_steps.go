@@ -473,10 +473,11 @@ func (c *Compiler) buildDetectionStepSummaryOutputStep() []string {
 		"        continue-on-error: true\n",
 		"        run: |\n",
 		fmt.Sprintf("          if [ -s %s ]; then\n", shellEscapeArg(summaryPath)),
+		"            DELIM=\"DETECTION_SUMMARY_$(openssl rand -hex 16)\"\n",
 		"            {\n",
-		"              printf '%%s\\n' 'step_summary_content<<DETECTION_STEP_SUMMARY_EOF'\n",
+		"              printf '%%s\\n' \"step_summary_content<<${DELIM}\"\n",
 		fmt.Sprintf("              cat %s\n", shellEscapeArg(summaryPath)),
-		"              printf '%%s\\n' 'DETECTION_STEP_SUMMARY_EOF'\n",
+		"              printf '%%s\\n' \"${DELIM}\"\n",
 		"            } >> \"$GITHUB_OUTPUT\"\n",
 		"          fi\n",
 	}
