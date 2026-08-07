@@ -50,12 +50,7 @@ func (c *Compiler) addActivationSecretValidationStep(ctx *activationJobBuildCont
 // OAuth tokens. OAuth tokens (gho_...) are not suitable for automation as they are
 // typically over-provisioned.
 func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildContext) {
-	compilerActivationJobLog.Print("Adding OAuth token check step to activation job")
-
-	ctx.steps = append(ctx.steps, "      - name: Check for OAuth tokens\n")
-	ctx.steps = append(ctx.steps, "        id: check-oauth-tokens\n")
-	ctx.steps = append(ctx.steps, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh\"\n")
-	ctx.steps = append(ctx.steps, "        env:\n")
+	var envLines []string
 
 	// Skip COPILOT_GITHUB_TOKEN when permissions.copilot-requests is write: in that
 	// mode the Copilot engine authenticates via ${{ github.token }} (org-billed,
@@ -70,12 +65,25 @@ func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildConte
 				copilotTokenExpr = override
 			}
 		}
-		for _, envLine := range appendEnvVarLine([]string{}, constants.CopilotGitHubToken, copilotTokenExpr) {
-			ctx.steps = append(ctx.steps, envLine+"\n")
-		}
+		envLines = appendEnvVarLine(envLines, constants.CopilotGitHubToken, copilotTokenExpr)
 	}
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubToken, constants.EnvVarGitHubToken))
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubMCPServerToken, constants.EnvVarGitHubMCPServerToken))
+	envLines = appendEnvVarLine(envLines, constants.EnvVarGitHubToken, fmt.Sprintf("${{ secrets.%s }}", constants.EnvVarGitHubToken))
+	envLines = appendEnvVarLine(envLines, constants.EnvVarGitHubMCPServerToken, fmt.Sprintf("${{ secrets.%s }}", constants.EnvVarGitHubMCPServerToken))
+
+	if len(envLines) == 0 {
+		compilerActivationJobLog.Print("Skipped OAuth token check step (no secrets to check)")
+		return
+	}
+
+	compilerActivationJobLog.Print("Adding OAuth token check step to activation job")
+
+	ctx.steps = append(ctx.steps, "      - name: Check for OAuth tokens\n")
+	ctx.steps = append(ctx.steps, "        id: check-oauth-tokens\n")
+	ctx.steps = append(ctx.steps, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh\"\n")
+	ctx.steps = append(ctx.steps, "        env:\n")
+	for _, envLine := range envLines {
+		ctx.steps = append(ctx.steps, envLine+"\n")
+	}
 }
 
 func (c *Compiler) addActivationCrossRepoGuidanceStep(ctx *activationJobBuildContext) {
