@@ -213,7 +213,9 @@ func containsRegexMeta(s string) bool {
 // domainMatchesRegex checks if a domain matches any regex pattern in the list.
 func domainMatchesRegex(domain string, patterns []string) bool {
 	for _, pattern := range patterns {
-		re, err := regexp.Compile(pattern)
+		// Patterns come from trusted firewall policy configuration, and compile
+		// errors are logged and safely skipped rather than causing a panic.
+		re, err := regexp.Compile(pattern) //nolint:regexpdynamicpattern
 		if err != nil {
 			firewallPolicyLog.Printf("Invalid regex pattern %q: %v", pattern, err)
 			continue

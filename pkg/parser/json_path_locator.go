@@ -181,8 +181,7 @@ func matchesPathAtLevel(line string, pathSegments []PathSegment, level int, arra
 		switch segment.Type {
 		case "key":
 			// Look for "key:" pattern
-			keyPattern := regexp.MustCompile(`^` + regexp.QuoteMeta(segment.Value) + `\s*:`)
-			if keyPattern.MatchString(trimmedLine) {
+			if matchesPathSegmentKey(trimmedLine, segment.Value) {
 				// Found the key - return position after the colon
 				colonIndex := strings.Index(line, ":")
 				if colonIndex != -1 {
@@ -279,8 +278,7 @@ func findFirstAdditionalProperty(yamlContent string, propertyNames []string) JSO
 		// Check if this line contains any of the additional properties
 		for _, propName := range propertyNames {
 			// Look for "propName:" pattern at the start of the trimmed line
-			keyPattern := regexp.MustCompile(`^` + regexp.QuoteMeta(propName) + `\s*:`)
-			if keyPattern.MatchString(trimmedLine) {
+			if matchesPathSegmentKey(trimmedLine, propName) {
 				// Found the property - return position of the property name
 				propIndex := strings.Index(line, propName)
 				if propIndex != -1 {
@@ -409,8 +407,11 @@ func findNestedSectionStart(lines []string, pathSegments []PathSegment) (int, in
 }
 
 func matchesPathSegmentKey(trimmedLine, key string) bool {
-	keyPattern := regexp.MustCompile(`^` + regexp.QuoteMeta(key) + `\s*:`)
-	return keyPattern.MatchString(trimmedLine)
+	if !strings.HasPrefix(trimmedLine, key) {
+		return false
+	}
+	rest := strings.TrimLeft(trimmedLine[len(key):], " \t")
+	return strings.HasPrefix(rest, ":")
 }
 
 func findNestedSectionEnd(lines []string, foundLine, baseIndentLevel int) int {

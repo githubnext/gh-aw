@@ -30,7 +30,10 @@ func NewMasker(rules []MaskRule) (*Masker, error) {
 	maskLog.Printf("Compiling %d mask rules", len(rules))
 	compiled := make([]compiledRule, 0, len(rules))
 	for _, r := range rules {
-		re, err := regexp.Compile(r.Pattern)
+		// Patterns come from trusted configuration (defaults or admin-supplied
+		// mask rules), not from untrusted runtime input, and compile errors are
+		// surfaced to the caller instead of panicking.
+		re, err := regexp.Compile(r.Pattern) //nolint:regexpdynamicpattern
 		if err != nil {
 			maskLog.Printf("Failed to compile mask rule %q: %v", r.Name, err)
 			return nil, fmt.Errorf("agentdrain: mask rule %q: %w", r.Name, err)

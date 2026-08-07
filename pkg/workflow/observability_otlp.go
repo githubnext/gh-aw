@@ -15,7 +15,10 @@ import (
 
 var otlpLog = logger.New("workflow:observability_otlp")
 
-var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
+// sentryEndpointExpressionPattern matches the expected sentry endpoint secret expression.
+// constants.OTELSentryEndpointSecretName is a fixed package constant, so regexp.QuoteMeta
+// here operates on a trusted, non-user-controlled value.
+var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`) //nolint:regexpdynamicpattern
 var otlpResourceAttributeSecretRefPattern = regexp.MustCompile(`\$\{\{\s*(secrets|vars)\.`)
 var otelServiceNameKeyPattern = regexp.MustCompile(`(?m)^\s*OTEL_SERVICE_NAME:`)
 

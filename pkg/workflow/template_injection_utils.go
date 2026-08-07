@@ -49,21 +49,42 @@ type heredocPattern struct {
 // Each entry covers one of the common delimiter suffixes used by heredocs in shell scripts.
 // Since Go regex doesn't support backreferences, we match common heredoc delimiter suffixes explicitly.
 // Matches both exact delimiters (EOF) and prefixed delimiters (GH_AW_SAFE_OUTPUTS_CONFIG_EOF).
-var heredocPatterns = func() []heredocPattern {
-	suffixes := []string{"EOF", "EOL", "END", "HEREDOC", "JSON", "YAML", "SQL"}
-	patterns := make([]heredocPattern, len(suffixes))
-	for i, suffix := range suffixes {
-		// Pattern for quoted delimiter ending with suffix: << 'PREFIX_SUFFIX' or << "PREFIX_SUFFIX"
-		// \w* matches zero or more word characters (allowing both exact match and prefixes)
-		// (?ms) enables multiline and dotall modes, .*? is non-greedy
-		// \s*\w*%s\s*$ allows for leading/trailing whitespace on the closing delimiter
-		patterns[i] = heredocPattern{
-			quoted:   regexp.MustCompile(fmt.Sprintf(`(?ms)<<\s*['"]\w*%s['"].*?\n\s*\w*%s\s*$`, suffix, suffix)),
-			unquoted: regexp.MustCompile(fmt.Sprintf(`(?ms)<<\s*\w*%s.*?\n\s*\w*%s\s*$`, suffix, suffix)),
-		}
-	}
-	return patterns
-}()
+// Patterns are written out per fixed suffix (rather than built with fmt.Sprintf in a loop) so
+// that each regexp is a compile-time constant string.
+var heredocPatterns = []heredocPattern{
+	// Pattern for quoted delimiter ending with suffix: << 'PREFIX_SUFFIX' or << "PREFIX_SUFFIX"
+	// \w* matches zero or more word characters (allowing both exact match and prefixes)
+	// (?ms) enables multiline and dotall modes, .*? is non-greedy
+	// \s*\wSUFFIX\s*$ allows for leading/trailing whitespace on the closing delimiter
+	{
+		quoted:   regexp.MustCompile(`(?ms)<<\s*['"]\w*EOF['"].*?\n\s*\w*EOF\s*$`),
+		unquoted: regexp.MustCompile(`(?ms)<<\s*\w*EOF.*?\n\s*\w*EOF\s*$`),
+	},
+	{
+		quoted:   regexp.MustCompile(`(?ms)<<\s*['"]\w*EOL['"].*?\n\s*\w*EOL\s*$`),
+		unquoted: regexp.MustCompile(`(?ms)<<\s*\w*EOL.*?\n\s*\w*EOL\s*$`),
+	},
+	{
+		quoted:   regexp.MustCompile(`(?ms)<<\s*['"]\w*END['"].*?\n\s*\w*END\s*$`),
+		unquoted: regexp.MustCompile(`(?ms)<<\s*\w*END.*?\n\s*\w*END\s*$`),
+	},
+	{
+		quoted:   regexp.MustCompile(`(?ms)<<\s*['"]\w*HEREDOC['"].*?\n\s*\w*HEREDOC\s*$`),
+		unquoted: regexp.MustCompile(`(?ms)<<\s*\w*HEREDOC.*?\n\s*\w*HEREDOC\s*$`),
+	},
+	{
+		quoted:   regexp.MustCompile(`(?ms)<<\s*['"]\w*JSON['"].*?\n\s*\w*JSON\s*$`),
+		unquoted: regexp.MustCompile(`(?ms)<<\s*\w*JSON.*?\n\s*\w*JSON\s*$`),
+	},
+	{
+		quoted:   regexp.MustCompile(`(?ms)<<\s*['"]\w*YAML['"].*?\n\s*\w*YAML\s*$`),
+		unquoted: regexp.MustCompile(`(?ms)<<\s*\w*YAML.*?\n\s*\w*YAML\s*$`),
+	},
+	{
+		quoted:   regexp.MustCompile(`(?ms)<<\s*['"]\w*SQL['"].*?\n\s*\w*SQL\s*$`),
+		unquoted: regexp.MustCompile(`(?ms)<<\s*\w*SQL.*?\n\s*\w*SQL\s*$`),
+	},
+}
 
 // removeHeredocContent removes heredoc sections from shell commands.
 // Heredocs (e.g., cat > file << 'EOF' ... EOF) are safe for template expressions

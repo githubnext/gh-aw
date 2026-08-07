@@ -163,9 +163,12 @@ func buildSanitizePreservePattern(opts *SanitizeOptions) string {
 // When the caller has requested preservation of special chars, unwanted chars are
 // replaced with hyphens; otherwise they are removed entirely.
 func applySanitizePattern(result, allowedChars string, preserveSpecialChars bool) string {
+	// allowedChars is always produced by buildSanitizePreservePattern, which only
+	// ever returns one of the combinations already precompiled in sanitizePatterns.
+	// Fall back to the base alphanumeric-and-hyphen pattern for safety.
 	pattern, ok := sanitizePatterns[allowedChars]
 	if !ok {
-		pattern = regexp.MustCompile(`[^` + allowedChars + `]+`)
+		pattern = sanitizePatterns["a-z0-9-"]
 	}
 	if preserveSpecialChars {
 		return pattern.ReplaceAllString(result, "-")

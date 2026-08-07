@@ -250,8 +250,10 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 	inSection := false
 	var sectionLevel int
 
-	// Create regex pattern to match headers at any level (H1-H3) with flexible spacing
-	headerPattern := regexp.MustCompile(`^(#{1,3})[\s\t]+` + regexp.QuoteMeta(sectionName) + `[\s\t]*$`)
+	// Create regex pattern to match headers at any level (H1-H3) with flexible spacing.
+	// sectionName is escaped with regexp.QuoteMeta, so the compiled pattern only ever
+	// matches sectionName literally; it cannot introduce ReDoS or invalid syntax.
+	headerPattern := regexp.MustCompile(`^(#{1,3})[\s\t]+` + regexp.QuoteMeta(sectionName) + `[\s\t]*$`) //nolint:regexpdynamicpattern
 
 	for scanner.Scan() {
 		line := scanner.Text()

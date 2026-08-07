@@ -8,6 +8,15 @@ import (
 
 var activationOutputsCodemodLog = logger.New("cli:codemod_activation_outputs")
 
+// activationOutputPatterns maps each activation output name to its precompiled,
+// word-boundary-anchored replacement pattern. Using precompiled constant patterns
+// avoids building regexps from dynamic strings.
+var activationOutputPatterns = map[string]*regexp.Regexp{
+	"text":  regexp.MustCompile(`needs\.activation\.outputs\.text\b`),
+	"title": regexp.MustCompile(`needs\.activation\.outputs\.title\b`),
+	"body":  regexp.MustCompile(`needs\.activation\.outputs\.body\b`),
+}
+
 // getActivationOutputsCodemod creates a codemod for transforming needs.activation.outputs.* to steps.sanitized.outputs.*
 func getActivationOutputsCodemod() Codemod {
 	return Codemod{
@@ -26,10 +35,9 @@ func getActivationOutputsCodemod() Codemod {
 			for _, output := range outputs {
 				newReplacement := "steps.sanitized.outputs." + output
 
-				// Use regex with word boundary to prevent partial matches
+				// Use the precompiled pattern with a word boundary to prevent partial matches
 				// This ensures we don't match things like "needs.activation.outputs.text_custom"
-				// The pattern matches the old expression followed by a non-word character or end of string
-				pattern := regexp.MustCompile(`needs\.activation\.outputs\.` + output + `\b`)
+				pattern := activationOutputPatterns[output]
 
 				// Check if pattern exists in content
 				if pattern.MatchString(result) {

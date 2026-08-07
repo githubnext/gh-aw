@@ -166,6 +166,8 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 
 	// Create a regex pattern that matches the quoted key at the start of a line
 	// Pattern: (start of line or newline) + (optional whitespace) + quoted key + colon
+	// key is escaped via regexp.QuoteMeta above, so the compiled pattern only ever
+	// matches key literally; it cannot introduce ReDoS or invalid syntax.
 	pattern := `(^|\n)([ \t]*)"` + regexp.QuoteMeta(key) + `":`
 
 	// Use cached compiled regex to avoid recompiling on every call
@@ -175,11 +177,11 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 		re, typeOK = cached.(*regexp.Regexp)
 		if !typeOK {
 			unquoteYAMLKeyCache.Delete(key)
-			re = regexp.MustCompile(pattern)
+			re = regexp.MustCompile(pattern) //nolint:regexpdynamicpattern
 			unquoteYAMLKeyCache.Store(key, re)
 		}
 	} else {
-		re = regexp.MustCompile(pattern)
+		re = regexp.MustCompile(pattern) //nolint:regexpdynamicpattern
 		unquoteYAMLKeyCache.Store(key, re)
 	}
 	// Use ReplaceAllString with capture group references for a single-pass replacement.

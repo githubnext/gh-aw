@@ -100,7 +100,7 @@ var getCompiledGHCLIPermissions = sync.OnceValues(func() (compiledGHCLIPermissio
 	subcommandPattern := `(?m)(?:^|[\s|;])gh\s+(` + strings.Join(groups, "|") + `)\s+([\w][\w-]*)\b`
 	// Defensive check: the pattern is built from embedded JSON keys quoted with
 	// regexp.QuoteMeta, so a compile error would indicate unexpected data corruption.
-	subcommandRE, err := regexp.Compile(subcommandPattern)
+	subcommandRE, err := regexp.Compile(subcommandPattern) //nolint:regexpdynamicpattern
 	if err != nil {
 		return compiledGHCLIPermissions{}, fmt.Errorf("invalid gh subcommand pattern %q: %w", subcommandPattern, err)
 	}
@@ -141,7 +141,9 @@ var getCompiledGHCLIPermissions = sync.OnceValues(func() (compiledGHCLIPermissio
 	}
 
 	for _, ap := range data.APIPathPatterns {
-		re, err := regexp.Compile(ap.Pattern)
+		// Pattern comes from the embedded, build-time gh_cli_permissions.json config,
+		// not from untrusted runtime input.
+		re, err := regexp.Compile(ap.Pattern) //nolint:regexpdynamicpattern
 		if err != nil {
 			return compiledGHCLIPermissions{}, fmt.Errorf("invalid gh API path pattern %q in gh_cli_permissions.json: %w", ap.Pattern, err)
 		}
