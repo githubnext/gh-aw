@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var runPhaseLog = logger.New("workflow:run_phase")
+
 const (
 	runPhaseAgent     = "agent"
 	runPhaseDetection = "detection"
@@ -11,9 +15,11 @@ func workflowRunPhase(workflowData *WorkflowData) string {
 		return runPhaseAgent
 	}
 	if workflowData.IsEvalsRun {
+		runPhaseLog.Print("Run phase resolved to evals")
 		return runPhaseEvals
 	}
 	if workflowData.IsDetectionRun {
+		runPhaseLog.Print("Run phase resolved to detection")
 		return runPhaseDetection
 	}
 	return runPhaseAgent

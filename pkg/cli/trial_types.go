@@ -4,7 +4,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var trialTypesLog = logger.New("cli:trial_types")
 
 // WorkflowTrialResult represents the result of running a single workflow trial
 type WorkflowTrialResult struct {
@@ -54,6 +58,9 @@ func extractSafeOutputErrors(safeOutputs map[string]any) []string {
 			messages = append(messages, msg)
 		}
 	}
+	if len(messages) > 0 {
+		trialTypesLog.Printf("Extracted %d rejected safe-output message(s)", len(messages))
+	}
 	return messages
 }
 
@@ -71,6 +78,7 @@ func aggregateTrialResults(results []WorkflowTrialResult) (overallSuccess bool, 
 			}
 		}
 	}
+	trialTypesLog.Printf("Aggregated %d trial result(s): success=%v totalRejected=%d", len(results), overallSuccess, totalRejected)
 	return overallSuccess, totalRejected, firstErrorMessage
 }
 
