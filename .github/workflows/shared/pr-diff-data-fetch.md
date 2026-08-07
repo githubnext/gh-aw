@@ -3,7 +3,7 @@
 # Works for both pull_request events and slash_command (issue) events on PRs.
 #
 # Outputs written to:
-#   /tmp/gh-aw/agent/pr-diff.patch          — unified diff (up to 3000 lines)
+#   /tmp/gh-aw/agent/pr-diff.patch          — unified diff (up to 2000 lines)
 #   /tmp/gh-aw/agent/pr-meta.json           — PR metadata (number, title, body, etc.)
 #   /tmp/gh-aw/agent/pr-review-comments.json — existing inline review comments
 #
@@ -25,7 +25,7 @@ pre-agent-steps:
       PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
       PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
-      PR_DIFF_MAX_LINES: "3000"
+      PR_DIFF_MAX_LINES: "2000"
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
@@ -101,7 +101,7 @@ before the reviewer agents start.
 
 | File | Content |
 |---|---|
-| `/tmp/gh-aw/agent/pr-diff.patch` | Unified diff (lock/generated/dist/build excluded, capped at 3000 lines) |
+| `/tmp/gh-aw/agent/pr-diff.patch` | Unified diff (lock/generated/dist/build excluded, capped at 2000 lines) |
 | `/tmp/gh-aw/agent/pr-meta.json` | `number, title, body, headRefName, additions, deletions, changedFiles, files` |
 | `/tmp/gh-aw/agent/pr-review-comments.json` | Array of `{id, path, line, body, user}` (body capped at 200 chars) |
 -->

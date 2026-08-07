@@ -38,6 +38,8 @@ imports:
 
 
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 evals:
   - id: report_outputs_cross_checked
     question: Did the agent cross-check other daily report agents' outputs for consistency and anomalies?

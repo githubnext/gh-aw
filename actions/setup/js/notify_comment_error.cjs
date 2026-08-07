@@ -13,6 +13,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 
 /**
  * Collect generated asset URLs from safe output jobs
@@ -258,6 +259,25 @@ async function main() {
     });
   }
 
+  // Build the generated footer (attribution + XML marker). Appended after sanitization
+  // so that the XML traceability marker is not stripped by sanitizeContent.
+  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
+  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
+  const triggeringIssueNumber = context.payload?.issue?.number;
+  const triggeringPRNumber = context.payload?.pull_request?.number;
+  const triggeringDiscussionNumber = context.payload?.discussion?.number;
+  const markdownParts = assembleMarkdownBodyParts({
+    includeFooter: true,
+    workflowName,
+    runUrl,
+    workflowSource,
+    workflowSourceURL,
+    triggeringIssueNumber,
+    triggeringPRNumber,
+    triggeringDiscussionNumber,
+  });
+  const footer = markdownParts.footer;
+
   // Add "needs-review" label when detection produced a warning
   if (detectionConclusion === "warning") {
     await tryAddNeedsReviewLabel(commentRepo);
@@ -309,7 +329,7 @@ async function main() {
               }
             }`;
 
-        const sanitizedMessage = sanitizeContent(message);
+        const sanitizedMessage = sanitizeContent(message) + "\n\n" + footer;
         const variables = replyToId ? { dId: discussionId, body: sanitizedMessage, replyToId } : { dId: discussionId, body: sanitizedMessage };
         const result = await github.graphql(mutation, variables);
         const created = result?.addDiscussionComment?.comment;
@@ -326,7 +346,7 @@ async function main() {
         return;
       }
 
-      const sanitizedMessage = sanitizeContent(message);
+      const sanitizedMessage = sanitizeContent(message) + "\n\n" + footer;
       const response = await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
         owner: repoOwner,
         repo: repoName,
@@ -364,7 +384,7 @@ async function main() {
   // Check if this is a discussion comment (GraphQL node ID format)
   const isDiscussionComment = commentId.startsWith("DC_");
 
-  const sanitizedMessage = sanitizeContent(message);
+  const sanitizedMessage = sanitizeContent(message) + "\n\n" + footer;
 
   try {
     if (isDiscussionComment) {
