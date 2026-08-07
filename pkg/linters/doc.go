@@ -39,7 +39,7 @@
 //   - panic-in-library-code — flags panic() calls in library packages
 //   - rawloginlib — flags direct usage of the standard log package in library packages
 //   - regexpcompileinfunction — flags regexp.MustCompile/Compile calls inside functions
-//   - regexpdynamicpattern — flags regexp.MustCompile/Compile calls whose pattern is not a compile-time constant
+//   - regexpdynamicpattern — flags regexp compile calls whose pattern is not a compile-time constant
 //   - seenmapbool — flags map[string]bool used as a set that should use map[string]struct{}
 //   - sortslice — flags sort.Slice / sort.SliceStable calls that should use slices.SortFunc / slices.SortStableFunc
 //   - sprintferrdot — flags redundant .Error() calls on error values passed to fmt format functions
