@@ -7,7 +7,7 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.28.1<br>
+**Version**: 1.28.2<br>
 **Status**: Working Draft<br>
 **Publication Date**: 2026-08-07<br>
 **Editor**: GitHub Agentic Workflows Team<br>
@@ -1672,6 +1672,7 @@ create-issue:
 ```yaml
 add-comment:
   target: "issue" | "pull_request" | "discussion" | "*"
+  allows-comment-ids: [12345, 67890] # Required before agents may supply comment_id with target: "*"
   hide-older-comments: true      # Hide previous workflow comments
   discussions: false             # Exclude discussions:write permission (optional)
   target-repo: owner/repo
@@ -2324,7 +2325,7 @@ These extensions apply to safe-output processor messages for `add_comment` (incl
 
 - `max`: Operation limit (default: 1)
 - `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field applies to static workflow configuration (`safe-outputs.add-comment.target`) and is distinct from the runtime per-message `target: "status"` extension above.
-- `allows-comment-ids`: Trusted allowlist of issue/PR comment IDs that the agent may update with `comment_id` when `target: "*"` is configured. Accepts an array of strings or a GitHub Actions expression that resolves to a list.
+- `allows-comment-ids`: Trusted allowlist of issue/PR comment IDs that the agent may update with `comment_id` when `target: "*"` is configured. This field is REQUIRED before any agent-supplied `comment_id` is honored. Accepts an array of positive integer IDs, strings containing positive integer IDs, or a GitHub Actions expression that resolves to such a list.
 - `hide-older-comments`: Hide previous workflow comments
 - `discussions`: Control `discussions:write` permission (default: false). Set to `true` to comment on discussions.
 - `target-repo`: Cross-repository target
@@ -5413,16 +5414,23 @@ safe-outputs:
 
 This specification revision aligns with directly relevant `CHANGELOG.md` entries and with the current reviewer/status-comment PR updates:
 
-- **Commit 9d80a262**: safe-output field validation was hardened so normalized downstream payloads contain only schema/config-declared fields, agent-controlled `add_comment.comment_id` was removed, upload asset metadata is re-derived by the privileged job, and patch base metadata is embedded in the generated patch.
+- **Commit 9d80a262**: safe-output field validation was hardened so normalized downstream payloads contain only schema/config-declared fields, unconditional agent-controlled `add_comment.comment_id` was removed, upload asset metadata is re-derived by the privileged job, and patch base metadata is embedded in the generated patch.
+- **Commit 178ff313**: `add_comment.comment_id` was reintroduced only for workflows that configure `safe-outputs.add-comment.target: "*"` and provide a trusted `safe-outputs.add-comment.allows-comment-ids` allowlist containing the requested comment ID.
 - **v0.40.1**: `add_comment` discussion handling was updated to auto-detect discussion context without requiring a `discussion` flag.
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
 
+**Version 1.28.2** (2026-08-07):
+
+- **Added**: Controlled `add_comment.comment_id` support for wildcard comment targets. Agent-supplied comment IDs MAY be accepted only when `safe-outputs.add-comment.target` is `"*"` and the exact positive integer ID appears in trusted `safe-outputs.add-comment.allows-comment-ids` workflow state.
+- **Specified**: `allows-comment-ids` is REQUIRED before any agent-supplied `comment_id` is honored and accepts literal positive integer IDs, stringified positive integer IDs, or GitHub Actions expressions that resolve to such a list.
+- **Updated**: Publication metadata to 1.28.2.
+
 **Version 1.28.1** (2026-08-07):
 
 - **Specified**: Normalized downstream safe-output payloads MUST include only `type` plus schema/config-declared fields, with undeclared agent-supplied fields stripped before handler or privileged-job consumption.
-- **Removed**: Agent-controlled `add_comment.comment_id` from the MCP input contract; status-comment reuse is limited to `target: "status"` with reusable comment IDs obtained from trusted workflow state.
+- **Removed**: Unconditional agent-controlled `add_comment.comment_id` from the default MCP input contract; status-comment reuse is limited to `target: "status"` with reusable comment IDs obtained from trusted workflow state.
 - **Specified**: Optional advisory/enrichment fields marked `x-strip-on-error` MAY be omitted when invalid.
 - **Specified**: Upload asset staging and publication MUST derive collision-resistant staged filenames and asset metadata from trusted staged files rather than agent-supplied metadata.
 - **Specified**: Patch base metadata MUST be derived from the generated patch, and agent-supplied `diff_size` and base-commit metadata MUST NOT control privileged patch processing.
