@@ -332,6 +332,11 @@
           "enum": ["status"],
           "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
         },
+        "comment_id": {
+          "type": ["number", "string"],
+          "description": "Existing issue or pull request comment ID to update. Only valid when the workflow config sets safe-outputs.add-comment.target to '*' and the ID is present in safe-outputs.add-comment.allows-comment-ids. Use this only for comment IDs precomputed by trusted workflow steps.",
+          "x-synonyms": ["commentId", "comment-id"]
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -346,7 +351,7 @@
     "x-safe-outputs-target-requirements": {
       "*": {
         "primary": "item_number",
-        "anyOf": ["item_number", "pr_number", "pr"]
+        "anyOf": ["item_number", "pr_number", "pr", "comment_id"]
       }
     }
   },

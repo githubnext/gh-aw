@@ -2279,6 +2279,10 @@ Fields used for privileged transport metadata, including patch anchoring and upl
       "item_number": {
         "type": "number",
         "description": "Issue/PR/discussion number (auto-resolved from context if omitted)"
+      },
+      "comment_id": {
+        "type": ["number", "string"],
+        "description": "Existing issue or pull request comment ID to update. Valid only when safe-outputs.add-comment.target is \"*\" and the ID appears in safe-outputs.add-comment.allows-comment-ids."
       }
     },
     "additionalProperties": false
@@ -2294,15 +2298,17 @@ Fields used for privileged transport metadata, including patch anchoring and upl
 4. **Footer Injection**: Appends footer according to configuration (typically 200-500 characters).
 5. **Cross-Repository**: Supports `target-repo` configuration.
 
-**Status Comment Reuse Extension (`target: "status"`)**:
+**Controlled Comment Reuse Extensions**:
 
-This extension applies to safe-output processor messages for `add_comment` (including system-generated status updates). It is distinct from the MCP input schema in this section.
+These extensions apply to safe-output processor messages for `add_comment` (including system-generated status updates).
 
-1. The MCP input schema for `add_comment` MUST NOT expose `comment_id` as an agent-controlled input.
-2. When `target: "status"` is set and a reusable status comment ID is available from trusted workflow state, implementations MUST update the existing issue/PR comment instead of creating a new comment.
-3. When `target: "status"` is set but no reusable status comment ID is available from trusted workflow state, implementations MUST create a new comment.
-4. `target: "status"` MUST be rejected for discussion comments; status-comment reuse is valid only for issue and pull request comments.
-5. When updating an existing comment through status-comment reuse, implementations SHOULD skip hide-older-comments behavior for that operation.
+1. When message-level `target: "status"` is set and a reusable status comment ID is available from trusted workflow state, implementations MUST update the existing issue/PR comment instead of creating a new comment.
+2. When message-level `target: "status"` is set but no reusable status comment ID is available from trusted workflow state, implementations MUST create a new comment.
+3. Message-level `target: "status"` MUST be rejected for discussion comments; status-comment reuse is valid only for issue and pull request comments.
+4. The MCP input schema for `add_comment` MAY expose `comment_id` as an agent-controlled input only for workflows that configure `safe-outputs.add-comment.target: "*"`.
+5. When an agent supplies `comment_id`, implementations MUST reject the operation unless `safe-outputs.add-comment.allows-comment-ids` is configured and contains that exact positive integer ID. The allowlist is trusted workflow state and MAY be computed by earlier workflow steps.
+6. Agent-supplied `comment_id` MUST NOT be honored for discussion comments and MUST NOT be treated as a substitute for the trusted status comment ID used by `target: "status"`.
+7. When updating an existing comment through either controlled reuse path, implementations SHOULD skip hide-older-comments behavior for that operation.
 
 **Enforced Constraints**:
 
@@ -2318,6 +2324,7 @@ This extension applies to safe-output processor messages for `add_comment` (incl
 
 - `max`: Operation limit (default: 1)
 - `target`: Filter by type ("issue", "pull_request", "discussion", "*"). This configuration field applies to static workflow configuration (`safe-outputs.add-comment.target`) and is distinct from the runtime per-message `target: "status"` extension above.
+- `allows-comment-ids`: Trusted allowlist of issue/PR comment IDs that the agent may update with `comment_id` when `target: "*"` is configured. Accepts an array of strings or a GitHub Actions expression that resolves to a list.
 - `hide-older-comments`: Hide previous workflow comments
 - `discussions`: Control `discussions:write` permission (default: false). Set to `true` to comment on discussions.
 - `target-repo`: Cross-repository target

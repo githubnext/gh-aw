@@ -159,6 +159,75 @@ function parseAllowedBranchPatterns(value) {
 }
 
 /**
+ * Parse trusted comment IDs supplied by workflow configuration.
+ * @param {unknown} value
+ * @returns {Set<string>}
+ */
+function parseAllowedCommentIds(value) {
+  const values = [];
+  const visit = item => {
+    if (Array.isArray(item)) {
+      for (const child of item) visit(child);
+      return;
+    }
+    if (typeof item === "number" && Number.isInteger(item) && item > 0) {
+      values.push(String(item));
+      return;
+    }
+    if (typeof item !== "string") {
+      return;
+    }
+    const trimmed = item.trim();
+    if (!trimmed) {
+      return;
+    }
+    if (trimmed.startsWith("[") || trimmed.startsWith('"')) {
+      try {
+        visit(JSON.parse(trimmed));
+        return;
+      } catch {
+        // Fall through to delimiter parsing.
+      }
+    }
+    for (const part of trimmed.split(/[,\s]+/)) {
+      if (/^[1-9]\d*$/.test(part)) {
+        values.push(part);
+      }
+    }
+  };
+  visit(value);
+  return new Set(values);
+}
+
+/**
+ * Validate an agent-supplied add_comment.comment_id against the trusted workflow allowlist.
+ * @param {Record<string, any>} entry
+ * @param {Record<string, any>} addCommentConfig
+ * @returns {{content: Array<{type: "text", text: string}>, isError: true} | null}
+ */
+function validateAllowedAddCommentId(entry, addCommentConfig) {
+  if (entry.comment_id === undefined || entry.comment_id === null || String(entry.comment_id).trim() === "") {
+    return null;
+  }
+  if (addCommentConfig.target !== "*") {
+    return buildIntentErrorResponse("add_comment comment_id is only allowed when safe-outputs.add-comment.target is '*' and the ID is listed in safe-outputs.add-comment.allows-comment-ids.");
+  }
+  const commentId = Number(entry.comment_id);
+  if (!Number.isInteger(commentId) || commentId <= 0) {
+    return buildIntentErrorResponse("add_comment comment_id must be a positive integer.");
+  }
+  const allowedCommentIds = parseAllowedCommentIds(addCommentConfig.allows_comment_ids ?? addCommentConfig["allows-comment-ids"]);
+  if (allowedCommentIds.size === 0) {
+    return buildIntentErrorResponse("add_comment comment_id requires safe-outputs.add-comment.allows-comment-ids to list trusted comment IDs.");
+  }
+  if (!allowedCommentIds.has(String(commentId))) {
+    return buildIntentErrorResponse("add_comment comment_id is not listed in safe-outputs.add-comment.allows-comment-ids.");
+  }
+  entry.comment_id = commentId;
+  return null;
+}
+
+/**
  * @param {string} branch
  * @param {string[]} allowedPatterns
  * @returns {boolean}
@@ -1962,6 +2031,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
+    const commentIdValidationError = validateAllowedAddCommentId(entry, addCommentConfig);
+    if (commentIdValidationError) {
+      return commentIdValidationError;
+    }
     const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
     if (wildcardTargetValidationError) {
       return wildcardTargetValidationError;

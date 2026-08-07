@@ -27,6 +27,7 @@ const SAMPLE_VALIDATION_CONFIG = {
     fields: {
       body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
       item_number: { issueOrPRNumber: true },
+      comment_id: { optionalPositiveInteger: true },
     },
   },
   create_pull_request: {
@@ -1377,8 +1378,15 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem).toEqual(item);
     });
 
+    it("should preserve declared add_comment.comment_id as a positive integer", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "add_comment", body: "Test comment", comment_id: "123" }, "add_comment", 1);
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem).toEqual({ type: "add_comment", body: "Test comment", comment_id: 123 });
+    });
+
     it.each([
-      { itemType: "add_comment", item: { type: "add_comment", body: "Test comment", comment_id: 123 }, fieldName: "comment_id" },
       { itemType: "update_pull_request", item: { type: "update_pull_request", title: "Updated title", base: "release", state: "closed" }, fieldName: "base" },
       { itemType: "update_pull_request", item: { type: "update_pull_request", title: "Updated title", base: "release", state: "closed" }, fieldName: "state" },
       { itemType: "upload_asset", item: { type: "upload_asset", path: "image.png", targetFileName: "../../.git/config" }, fieldName: "targetFileName" },

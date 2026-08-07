@@ -47,6 +47,13 @@ describe("add_comment", () => {
               html_url: "https://github.com/owner/repo/issues/42#issuecomment-12345",
             },
           }),
+          getComment: async params => ({
+            data: {
+              id: params.comment_id,
+              issue_url: "https://api.github.com/repos/owner/repo/issues/42",
+              html_url: `https://github.com/owner/repo/issues/42#issuecomment-${params.comment_id}`,
+            },
+          }),
           listComments: async () => ({ data: [] }),
         },
         pulls: {
@@ -684,12 +691,19 @@ describe("add_comment", () => {
       delete process.env.GH_AW_COMMENT_ID;
     });
 
-    it("should update existing comment when comment-id alias is provided", async () => {
+    it("should update existing comment when comment-id alias is allowed by target wildcard config", async () => {
       const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
 
       /** @type {any} */
       let capturedUpdateParams = null;
       let createCommentCalled = false;
+      mockGithub.rest.issues.getComment = async params => ({
+        data: {
+          id: params.comment_id,
+          issue_url: "https://api.github.com/repos/owner/repo/issues/8535",
+          html_url: `https://github.com/owner/repo/issues/8535#issuecomment-${params.comment_id}`,
+        },
+      });
       mockGithub.rest.issues.updateComment = async params => {
         capturedUpdateParams = params;
         return {
@@ -709,10 +723,11 @@ describe("add_comment", () => {
         };
       };
 
-      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: 'triggering' }); })()`);
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: '*', allows_comment_ids: ['55555'] }); })()`);
       const result = await handler({ type: "add_comment", body: "Updated output", "comment-id": 55555 }, {});
 
       expect(result.success).toBe(true);
+      expect(result.itemNumber).toBe(8535);
       expect(capturedUpdateParams).toEqual(
         expect.objectContaining({
           owner: "owner",
@@ -721,6 +736,23 @@ describe("add_comment", () => {
         })
       );
       expect(createCommentCalled).toBe(false);
+    });
+
+    it("should reject comment_id when it is not in allows-comment-ids", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let updateCommentCalled = false;
+      mockGithub.rest.issues.updateComment = async () => {
+        updateCommentCalled = true;
+        return { data: { id: 999, html_url: "https://github.com/owner/repo/issues/8535#issuecomment-999" } };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ target: '*', allows_comment_ids: ['12345'] }); })()`);
+      const result = await handler({ type: "add_comment", body: "Updated output", comment_id: 55555 }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("allows-comment-ids");
+      expect(updateCommentCalled).toBe(false);
     });
 
     it("should warn and ignore unrecognized message-level target values instead of failing", async () => {

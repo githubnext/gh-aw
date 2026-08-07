@@ -88,6 +88,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"temporary_id": {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
 			"reply_to_id":  {Type: "string", MaxLength: 256}, // Optional: node ID of discussion comment to reply to (threading)
 			"target":       {Type: "string", Enum: []string{"status"}},
+			"comment_id":   {OptionalPositiveInteger: true},
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
