@@ -15,6 +15,7 @@ permissions:
   pull-requests: read
   discussions: read
   security-events: read
+  copilot-requests: write
 
 sandbox:
   agent:
@@ -52,6 +53,8 @@ network:
 safe-outputs:
   upload-artifact:
     retention-days: 30
+  add-comment:
+    max: 3
   create-discussion:
     category: "audits"
     max: 1
@@ -60,7 +63,7 @@ safe-outputs:
     expires: 2d
     title-prefix: "[deep-report] "
     deduplicate-by-title: 28
-    labels: [automation, improvement, quick-win, cookie]
+    labels: [automation, improvement, quick-win, cookie, code-quality, task-mining]
     max: 7
     group: true
 
@@ -73,6 +76,7 @@ tools:
   bash:
     - "*"
   edit:
+  cli-proxy: true
 
 imports:
   - uses: shared/meta-analysis-base.md
@@ -91,6 +95,10 @@ imports:
 evals:
   - id: output_format_goal_met
     question: Does the agent output show that the objective for experiment output_format was successfully completed?
+  - id: tasks-extracted
+    question: Does the agent output show that actionable tasks were identified from the analyzed discussions?
+  - id: labels-applied
+    question: Does the agent output confirm that the created issues include the expected labels (code-quality, automation, task-mining)?
 
 ---
 
@@ -199,6 +207,24 @@ Intentional-failure workflows (always exclude from success-rate rollups):
 ### Step 2.5: Analyze Repository Issues
 
 Use the `issues-analyst` sub-agent to analyze `/tmp/gh-aw/agent/weekly-issues-data/issues.json` and produce a structured issues summary.
+
+### Step 2.7: Mine Discussions for Code Quality Tasks
+
+In addition to the broad intelligence gathering above, perform targeted **code quality task mining** on the same discussions data:
+
+1. Load `memory/deep-report/processed-discussions.json` (repo-memory) to find which discussions were previously mined — skip re-processing those.
+2. For each unprocessed discussion from the last 7 days, extract tasks that meet **all** of the following criteria:
+   - **Specific**: clear scope and acceptance criteria
+   - **Actionable**: can be completed by an AI agent or developer
+   - **Valuable**: improves code quality, maintainability, or performance
+   - **Scoped**: completable in 1–3 days
+   - **Independent**: no blocking dependencies
+3. Focus on these code quality areas: refactoring, testing gaps, documentation, performance, security, technical debt, tooling improvements.
+4. Exclude: vague suggestions, feature requests, bug reports, architectural decisions.
+5. Dedup against existing open issues before creating any new ones (same check as the dedup gate above).
+6. Save updated `processed-discussions.json` and `extracted-tasks.json` to repo-memory after this step.
+
+Include the code quality tasks surfaced here in the 7 actionable issues created in the task creation step.
 
 ### Step 3: Cross-Reference and Analyze
 
