@@ -128,3 +128,4 @@
 {"run_id":"30715680366","timestamp":"2026-08-01T19:52:29.766Z","assignments":{"caveman":"no","subagent_model":"small"}}
 {"run_id":"30716153977","timestamp":"2026-08-01T20:05:16.603Z","assignments":{"caveman":"yes","subagent_model":"large"}}
 {"run_id":"31023908831","timestamp":"2026-08-05T16:11:19.722Z","assignments":{"caveman":"no","subagent_model":"small"}}
+{"run_id":"31220060696","timestamp":"2026-08-07T21:27:38.038Z","assignments":{"caveman":"yes","subagent_model":"small"}}
