@@ -188,20 +188,32 @@ func (c *Compiler) getExternalThreatDetectionEngineID(data *WorkflowData) string
 	return c.getThreatDetectionEngineID(data)
 }
 
-// buildExternalDetectorPathSetup returns host-side shell commands that run before
-// the AWF invocation in the external detector execution step. For the copilot engine
-// this stages the installed copilot binary to the mounted ${RUNNER_TEMP}/gh-aw/bin/
-// directory so it becomes visible inside the AWF container. threat-detect invokes the
-// engine binary by name, so the caller must also ensure the staged directory is
-// prepended to PATH in the engine command that runs inside the container.
-func (c *Compiler) buildExternalDetectorPathSetup(data *WorkflowData, engineID string) string {
+type externalDetectorPathSetup struct {
+	hostSetup     string
+	commandPrefix string
+}
+
+// buildExternalDetectorPathSetup returns the host-side shell commands that run
+// before AWF plus any command prefix needed inside the external detector container.
+// For the installed Copilot engine, threat-detect invokes the engine binary by
+// name, so the mounted ${RUNNER_TEMP}/gh-aw/bin/ directory must be prepended to
+// PATH in the container command. Non-ARC topologies also need a host-side copy
+// into that mounted directory; ARC/DinD already stages Copilot there during install.
+func (c *Compiler) buildExternalDetectorPathSetup(data *WorkflowData, engineID string) externalDetectorPathSetup {
 	if engineID != "copilot" {
-		return ""
+		return externalDetectorPathSetup{}
+	}
+	if data.EngineConfig != nil && data.EngineConfig.Command != "" {
+		return externalDetectorPathSetup{}
+	}
+	setup := externalDetectorPathSetup{
+		commandPrefix: `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH" && `,
 	}
 	if isArcDindTopology(data) {
-		return ""
+		return setup
 	}
-	return copilotBinaryPathSetup
+	setup.hostSetup = copilotBinaryPathSetup
+	return setup
 }
 
 // buildInstallAWFForExternalDetectorStep creates the AWF installation step required
@@ -380,12 +392,11 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// ARC/DinD probes, tool cache mount, and the log tee pattern.
 	//
 	// PathSetup stages the engine binary (e.g. copilot) to the mounted
-	// ${RUNNER_TEMP}/gh-aw/bin/ directory on the host so it becomes visible
-	// inside the AWF container. threat-detect invokes the engine binary by name,
-	// so we also prepend the staged bin dir to PATH in the engine command.
+	// ${RUNNER_TEMP}/gh-aw/bin/ directory on the host when required. The paired
+	// command prefix prepends that staged bin dir to PATH in the AWF container.
 	pathSetup := c.buildExternalDetectorPathSetup(threatDetectionData, engineID)
-	if pathSetup != "" {
-		threatDetectCmd = `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH" && ` + threatDetectCmd
+	if pathSetup.commandPrefix != "" {
+		threatDetectCmd = pathSetup.commandPrefix + threatDetectCmd
 	}
 
 	awfConfig := AWFCommandConfig{
@@ -395,7 +406,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		WorkflowData:       threatDetectionData,
 		ExcludeEnvVarNames: excludeEnvVarNames,
 		AllowedDomains:     allowedDomains,
-		PathSetup:          pathSetup,
+		PathSetup:          pathSetup.hostSetup,
 	}
 	command := BuildAWFCommand(awfConfig)
 
