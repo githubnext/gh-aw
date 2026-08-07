@@ -33,8 +33,8 @@ describe("parseSlashCommand", () => {
     expect(parseSlashCommand("")).toBe("");
   });
 
-  it("trims leading whitespace before matching", () => {
-    expect(parseSlashCommand("  /smoke-copilot-sdk")).toBe("smoke-copilot-sdk");
+  it("returns empty string when a command does not start at character zero", () => {
+    expect(parseSlashCommand("  /smoke-copilot-sdk")).toBe("");
   });
 
   it("does not match when command is followed by punctuation", () => {
