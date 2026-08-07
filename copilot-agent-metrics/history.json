@@ -322,7 +322,28 @@
       "avg_agent_duration_minutes": 57,
       "success_rate": 0.727,
       "note": "rolling 24h window from 08-04 18:46Z; author app/copilot-swe-agent only; 6 of 72 PRs still open (all <24h old, oldest ~12h); success_rate over 66 completed; avg_duration created->merged; 0 human comments/reviews across 72 PRs (all issue comments were github-actions release bot, all reviews were copilot-pull-request-reviewer bot); success_rate up 62.9%->72.7% (+15.6%), breaking the 4-day decline from 87.1% on 08-01; avg_duration down sharply 78->57min (-26.9%); 5 of 18 closures were WIP superseded placeholders (#50555,#50444,#50405,#50404,#50379), other 13 closures had substantive bodies; no PRs open >24h"
+    },
+    {
+      "date": "2026-08-06",
+      "total_prs": 73,
+      "merged_prs": 62,
+      "closed_prs": 11,
+      "open_prs": 0,
+      "avg_agent_duration_minutes": 128,
+      "success_rate": 0.849,
+      "note": "gap-fill, rolling 24h window from 08-05 18:46Z to 08-06 18:46Z; author app/copilot-swe-agent only; 0 PRs still open (all resolved by data collection time); success_rate over all 73 completed; avg_duration created->merged; comments not collected for this backfilled day; success_rate up 72.7%->84.9% (+16.8%); 3 of 11 closures were WIP superseded placeholders (#50913,#50912,#50911), other 8 closures had substantive bodies"
+    },
+    {
+      "date": "2026-08-07",
+      "total_prs": 47,
+      "merged_prs": 23,
+      "closed_prs": 7,
+      "open_prs": 17,
+      "avg_comments": 0.09,
+      "avg_agent_duration_minutes": 263,
+      "success_rate": 0.767,
+      "note": "rolling 24h window from 08-06 18:28Z; author app/copilot-swe-agent only (1 additional PR on a copilot/* branch authored by pelikhan excluded); 17 of 47 PRs still open (all <24h old); success_rate over 30 completed; avg_duration created->merged; 4 human interactions (2 issue comments + 0 reviews... precisely: 2 PRs each with 2 human issue comments, #51097 and #51102) across 47 PRs, gh api graphql alias batching still rejected by CLI proxy wrapper ('accepts 1 arg(s)') so comments collected via per-PR gh pr view calls instead; success_rate down 84.9%->76.7% (-8.2%, within 10% threshold); avg_duration up sharply 128->263min (+105%); no WIP-placeholder closures, all 7 closed PRs had substantive bodies; no PRs open >24h"
     }
   ],
-  "last_updated": "2026-08-05"
+  "last_updated": "2026-08-07"
 }
