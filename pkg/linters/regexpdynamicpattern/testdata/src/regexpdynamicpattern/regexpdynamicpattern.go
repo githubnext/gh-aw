@@ -6,7 +6,7 @@ import (
 )
 
 // not flagged: literal pattern at package level.
-var packageLevelRegexp = regexp.MustCompile(`^[a-z]+$`)
+var PackageLevelRegexp = regexp.MustCompile(`^[a-z]+$`)
 
 const constPattern = `^const$`
 const constSuffix = `$`
@@ -29,9 +29,24 @@ func ValidateConstConcat(input string) bool {
 	return re.MatchString(input)
 }
 
+// not flagged: POSIX literal pattern.
+func ValidatePOSIXLiteral(input string) (bool, error) {
+	re, err := regexp.CompilePOSIX(`^[a-z]+$`)
+	if err != nil {
+		return false, err
+	}
+	return re.MatchString(input), nil
+}
+
+// not flagged: POSIX const identifier pattern.
+func ValidatePOSIXConst(input string) bool {
+	re := regexp.MustCompilePOSIX(constPattern)
+	return re.MatchString(input)
+}
+
 // flagged: pattern built with fmt.Sprintf.
 func ValidateSprintf(prefix, input string) (bool, error) {
-	re, err := regexp.Compile(fmt.Sprintf("^%s$", prefix)) // want `regexp pattern is not a compile-time constant; dynamic patterns can panic at runtime or enable ReDoS if influenced by untrusted input`
+	re, err := regexp.Compile(fmt.Sprintf("^%s$", prefix)) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
 	if err != nil {
 		return false, err
 	}
@@ -40,20 +55,35 @@ func ValidateSprintf(prefix, input string) (bool, error) {
 
 // flagged: string concatenation with a variable.
 func ValidateConcatVariable(suffix, input string) bool {
-	re := regexp.MustCompile(`^prefix` + suffix) // want `regexp pattern is not a compile-time constant; dynamic patterns can panic at runtime or enable ReDoS if influenced by untrusted input`
+	re := regexp.MustCompile(`^prefix` + suffix) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
 	return re.MatchString(input)
 }
 
 // flagged: pattern passed through from a function parameter.
 func ValidateDynamic(pattern, input string) (bool, error) {
-	re, err := regexp.Compile(pattern) // want `regexp pattern is not a compile-time constant; dynamic patterns can panic at runtime or enable ReDoS if influenced by untrusted input`
+	re, err := regexp.Compile(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
 	if err != nil {
 		return false, err
 	}
 	return re.MatchString(input), nil
 }
 
-func suppressedPreviousLine(pattern, input string) (bool, error) {
+// flagged: POSIX pattern passed through from a function parameter.
+func ValidatePOSIXDynamic(pattern, input string) (bool, error) {
+	re, err := regexp.CompilePOSIX(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
+	if err != nil {
+		return false, err
+	}
+	return re.MatchString(input), nil
+}
+
+// flagged: POSIX MustCompile pattern passed through from a function parameter.
+func ValidateMustPOSIXDynamic(pattern, input string) bool {
+	re := regexp.MustCompilePOSIX(pattern) // want `regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size`
+	return re.MatchString(input)
+}
+
+func SuppressedPreviousLine(pattern, input string) (bool, error) {
 	//nolint:regexpdynamicpattern
 	re, err := regexp.Compile(pattern)
 	if err != nil {
@@ -62,7 +92,7 @@ func suppressedPreviousLine(pattern, input string) (bool, error) {
 	return re.MatchString(input), nil
 }
 
-func suppressedSameLine(pattern, input string) (bool, error) {
+func SuppressedSameLine(pattern, input string) (bool, error) {
 	re, err := regexp.Compile(pattern) //nolint:regexpdynamicpattern
 	if err != nil {
 		return false, err

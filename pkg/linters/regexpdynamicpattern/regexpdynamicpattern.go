@@ -1,9 +1,8 @@
 // Package regexpdynamicpattern implements a Go analysis linter that flags
-// calls to regexp.MustCompile() and regexp.Compile() whose pattern argument
-// is not a compile-time constant string. Dynamically constructed patterns can
-// panic at runtime on malformed input and, when influenced by untrusted
-// input, can enable catastrophic-backtracking (ReDoS) denial-of-service
-// attacks.
+// calls to regexp compile functions whose pattern argument is not a
+// compile-time constant string. Malformed dynamic patterns can panic at
+// runtime in MustCompile variants and, when influenced by untrusted input,
+// allow an attacker to control pattern complexity or size.
 package regexpdynamicpattern
 
 import (
@@ -23,7 +22,9 @@ import (
 var pkgLog = logger.New("linters:regexpdynamicpattern")
 
 // Analyzer is the regexp-dynamic-pattern analysis pass.
-var Analyzer = analyzerutil.New("regexpdynamicpattern", "reports regexp.MustCompile and regexp.Compile calls whose pattern is not a compile-time constant string", run)
+var Analyzer = analyzerutil.New("regexpdynamicpattern", "reports regexp compile calls whose pattern is not a compile-time constant string", run)
+
+const diagnosticMessage = "regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants or let untrusted input control pattern complexity/size"
 
 func run(pass *analysis.Pass) (any, error) {
 	insp, err := astutil.Inspector(pass)
@@ -61,14 +62,14 @@ func run(pass *analysis.Pass) (any, error) {
 		pass.Report(analysis.Diagnostic{
 			Pos:     call.Pos(),
 			End:     call.End(),
-			Message: "regexp pattern is not a compile-time constant; dynamic patterns can panic at runtime or enable ReDoS if influenced by untrusted input",
+			Message: diagnosticMessage,
 		})
 	}
 
 	return nil, nil
 }
 
-// isRegexpCompileCall checks if the call is to regexp.MustCompile or regexp.Compile,
+// isRegexpCompileCall checks if the call is to a regexp compile function,
 // resolving the package identity via the type checker to handle aliased imports
 // and avoid false positives from local identifiers named "regexp".
 func isRegexpCompileCall(pass *analysis.Pass, call *ast.CallExpr) bool {
@@ -76,7 +77,9 @@ func isRegexpCompileCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	if !ok {
 		return false
 	}
-	if sel.Sel.Name != "MustCompile" && sel.Sel.Name != "Compile" {
+	switch sel.Sel.Name {
+	case "MustCompile", "Compile", "MustCompilePOSIX", "CompilePOSIX":
+	default:
 		return false
 	}
 	ident, ok := sel.X.(*ast.Ident)
