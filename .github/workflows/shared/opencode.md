@@ -161,7 +161,7 @@ engine:
         if (outputTokens) usage.output_tokens = outputTokens;
         logEntries.push({ type: "result", num_turns: turnCount, usage });
         const parts = [`**Turns:** ${turnCount}`, `**Tool calls:** ${toolCallIndex}`];
-        if (inputTokens || outputTokens) parts.push(`**Tokens:** ${(inputTokens + outputTokens).toLocaleString()}`);
+        if (inputTokens || outputTokens) parts.push(`**Tokens:** ${((inputTokens ?? 0) + (outputTokens ?? 0)).toLocaleString()}`);
         if (mcpFailures.length) parts.push(`**MCP failures:** ${mcpFailures.length}`);
         if (maxTurnsHit) parts.push("**Max turns reached**");
         return { markdown: parts.join(" · "), logEntries, mcpFailures, maxTurnsHit };
