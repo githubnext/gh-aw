@@ -7,11 +7,11 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.28.0  
-**Status**: Working Draft  
-**Publication Date**: 2026-07-31  
-**Editor**: GitHub Agentic Workflows Team  
-**This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
+**Version**: 1.28.1<br>
+**Status**: Working Draft<br>
+**Publication Date**: 2026-08-07<br>
+**Editor**: GitHub Agentic Workflows Team<br>
+**This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
 
 ---
@@ -2150,6 +2150,14 @@ The following table defines the exact `createHandlers()` function used for each 
 | `missing_data` | `defaultHandler("missing_data")` |
 | `report_incomplete` | `defaultHandler("report_incomplete")` |
 
+### 7.0.3 Declared Field Payload Construction
+
+The MCP Gateway and Safe Output Processor MUST construct downstream safe-output payloads only from the `type` field and fields declared by the applicable MCP schema, built-in validation configuration, or custom safe-job configuration. Agent-supplied fields that are not declared by that contract MUST NOT be forwarded to handlers, privileged jobs, or API clients.
+
+If an optional advisory or enrichment field is declared with `x-strip-on-error: true`, implementations MAY omit that field from the normalized downstream payload when the field is invalid. Implementations MUST NOT use stripped fields for authorization, target selection, transport metadata, or other privileged decisions.
+
+Fields used for privileged transport metadata, including patch anchoring and upload asset file metadata, MUST be derived by trusted workflow steps or privileged processors rather than accepted from agent-controlled NDJSON.
+
 ### 7.1 Core Issue Operations
 
 #### Type: create_issue
@@ -2290,10 +2298,11 @@ The following table defines the exact `createHandlers()` function used for each 
 
 This extension applies to safe-output processor messages for `add_comment` (including system-generated status updates). It is distinct from the MCP input schema in this section.
 
-1. When `target: "status"` is set and a reusable status comment ID is available, implementations MUST update the existing issue/PR comment instead of creating a new comment.
-2. When `target: "status"` is set but no reusable status comment ID is available, implementations MUST create a new comment.
-3. `target: "status"` and `comment_id` MUST be rejected for discussion comments; they are valid only for issue and pull request comments.
-4. When updating an existing comment through status-comment reuse, implementations SHOULD skip hide-older-comments behavior for that operation.
+1. The MCP input schema for `add_comment` MUST NOT expose `comment_id` as an agent-controlled input.
+2. When `target: "status"` is set and a reusable status comment ID is available from trusted workflow state, implementations MUST update the existing issue/PR comment instead of creating a new comment.
+3. When `target: "status"` is set but no reusable status comment ID is available from trusted workflow state, implementations MUST create a new comment.
+4. `target: "status"` MUST be rejected for discussion comments; status-comment reuse is valid only for issue and pull request comments.
+5. When updating an existing comment through status-comment reuse, implementations SHOULD skip hide-older-comments behavior for that operation.
 
 **Enforced Constraints**:
 
@@ -3248,6 +3257,8 @@ This section provides complete definitions for all remaining safe output types. 
 - Requires `contents: write` for git push operations
 - Enforces maximum patch size limit (default: 10 KB, range: 1–100 KB)
 - Validates changes don't exceed size limits before pushing
+- The handler MUST ignore agent-supplied `diff_size` values and validate patch size from the generated patch artifact.
+- For patch transport, the generated patch SHOULD embed `X-GH-AW-Base-Commit` metadata derived by the trusted patch-generation step. The privileged processor MUST derive patch re-anchoring metadata from the generated patch and MUST NOT trust agent-supplied base-commit metadata.
 - Base-branch resolution MUST NOT depend on interactive credential prompts; git operations issued by the handler MUST run with `GIT_TERMINAL_PROMPT=0` and an enforced timeout so credential-less environments fail fast rather than hanging
 - When `safe-outputs.push-to-pull-request-branch.target` is `"*"`, requests MUST include `pull_request_number`.
 - The handler MUST refuse pushes unless the resolved pull request head repository exactly matches the configured `head-repo` (or `target-repo` when `head-repo` is omitted)
@@ -3770,6 +3781,9 @@ safe-outputs:
 - Creates or updates orphaned branch for asset storage
 - Enforces maximum file size limit (default: 10 MB = 10240 KB)
 - Files accessible via raw.githubusercontent.com URLs
+- Staged asset filenames MUST be keyed by a hash of the declared source path, with the original extension preserved where applicable, so distinct source paths with the same basename do not collide.
+- The privileged upload job MUST validate that staged asset paths remain contained within the staged-assets directory and that the expected staged filename matches the declared source path.
+- The privileged upload job MUST compute asset size, SHA-256 digest, target filename, and published URL from staged file contents and trusted runtime context. It MUST NOT trust agent-supplied `size`, `sha`, `path`, `targetFileName`, or URL metadata for privileged decisions.
 
 ---
 
@@ -5388,14 +5402,24 @@ safe-outputs:
 
 ## Appendix F: Document History
 
-### Changelog Alignment (Reviewer and Status-Comment Updates)
+### Changelog Alignment (Reviewer, Status-Comment, and Hardening Updates)
 
 This specification revision aligns with directly relevant `CHANGELOG.md` entries and with the current reviewer/status-comment PR updates:
 
+- **Commit 9d80a262**: safe-output field validation was hardened so normalized downstream payloads contain only schema/config-declared fields, agent-controlled `add_comment.comment_id` was removed, upload asset metadata is re-derived by the privileged job, and patch base metadata is embedded in the generated patch.
 - **v0.40.1**: `add_comment` discussion handling was updated to auto-detect discussion context without requiring a `discussion` flag.
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.28.1** (2026-08-07):
+
+- **Specified**: Normalized downstream safe-output payloads MUST include only `type` plus schema/config-declared fields, with undeclared agent-supplied fields stripped before handler or privileged-job consumption.
+- **Removed**: Agent-controlled `add_comment.comment_id` from the MCP input contract; status-comment reuse is limited to `target: "status"` with reusable comment IDs obtained from trusted workflow state.
+- **Specified**: Optional advisory/enrichment fields marked `x-strip-on-error` MAY be omitted when invalid.
+- **Specified**: Upload asset staging and publication MUST derive collision-resistant staged filenames and asset metadata from trusted staged files rather than agent-supplied metadata.
+- **Specified**: Patch base metadata MUST be derived from the generated patch, and agent-supplied `diff_size` and base-commit metadata MUST NOT control privileged patch processing.
+- **Updated**: Publication metadata to 1.28.1.
 
 **Version 1.28.0** (2026-07-31):
 
@@ -5578,7 +5602,9 @@ This section maps normative specification requirements (§3–§11) to implement
 | §5.2 Global Parameters | `footer`, `staged`, global max limits | `actions/setup/js/safe_outputs_config.cjs`, `pkg/workflow/compiler_safe_outputs.go` |
 | §6 Universal Feature Interpretation | Max limit semantics (MR1–MR4), staged mode (SM1–SM4), footer attribution (FA1–FA6) | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_mcp_server.cjs` |
 | §7 Safe Output Type Definitions | Handler implementations for each type | `actions/setup/js/safe_outputs_handlers.cjs`, `actions/setup/js/safe_outputs_tools.json` |
+| §7.0.3 Declared Field Payload Construction | Normalized payload construction, undeclared field stripping, `x-strip-on-error` advisory field handling | `actions/setup/js/collect_ndjson_output.cjs`, `actions/setup/js/safe_output_type_validator.cjs`, `pkg/workflow/safe_outputs_validation_config.go` |
 | §7.1 Core Issue Operations | `create_issue`, `add_comment`, `hide_comment`, `close_issue` | `actions/setup/js/add_comment.cjs`, `actions/setup/js/safe_outputs_handlers.cjs` |
+| §7.3 `push_to_pull_request_branch` and `upload_asset` | Trusted patch metadata derivation and upload asset staged-file metadata derivation | `actions/setup/js/generate_git_patch.cjs`, `actions/setup/js/push_to_pull_request_branch.cjs`, `actions/setup/js/upload_assets.cjs` |
 | §8 Protocol Exchange Patterns | stdio container transport, tool invocation, MCP server constraint enforcement | `actions/setup/js/safe_outputs_mcp_server.cjs`, `actions/setup/js/safe_outputs_mcp_server_http.cjs` |
 | §8.3 MCE1 Early Validation | Invocation-time validation wiring through MCP server startup | `actions/setup/js/safe_outputs_mcp_server.cjs` (`startSafeOutputsServer` → `createHandlers()`), `actions/setup/js/safe_outputs_handlers.cjs` (`addCommentHandler`, `createIssueHandler`, `updatePullRequestHandler`) |
 | §8.3 MCE2 Tool Description Disclosure | Tool descriptions/schemas exposed during MCP tool registration | `actions/setup/js/safe_outputs_mcp_server.cjs` (`registerPredefinedTools` call), `actions/setup/js/safe_outputs_tools_loader.cjs` (`registerPredefinedTools`) |
