@@ -246,6 +246,15 @@ type EngineBehaviorDefinition struct {
 	// process.env.AWF_REFLECT_ENABLED / the AWF reflect JSON file to dynamically
 	// configure the engine CLI at runtime.
 	HarnessScript string `yaml:"harness-script,omitempty"`
+	// LogParser is the JavaScript source of a log-parser function for the engine.
+	// When non-empty, the script is written to
+	// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_log_parser.cjs before the post-agent
+	// log-parsing step runs.  The script must export a parseLog(logContent) function
+	// that returns {markdown, logEntries, mcpFailures, maxTurnsHit} — the same
+	// contract used by the built-in engine parsers (e.g. parse_claude_log.cjs).
+	// A createEngineLogParser wrapper is automatically prepended so the author only
+	// needs to provide the parsing function body.
+	LogParser string `yaml:"log-parser,omitempty"`
 }
 
 // AuthBinding maps a logical authentication role to a secret name.

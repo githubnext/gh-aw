@@ -339,6 +339,73 @@ func (e *BehaviorDefinedEngine) GetMCPConfigAdapterFilename() string {
 	return e.mcpConfigAdapterFilename()
 }
 
+// logParserHeredocDelimiter is the shell heredoc delimiter used when writing
+// the log-parser script to disk.
+const logParserHeredocDelimiter = "GHAW_LOG_PARSER_SCRIPT_5d2e8b3f_EOF"
+
+// logParserScriptFilename returns the filename (not path) for the engine's log-parser script.
+func (e *BehaviorDefinedEngine) logParserScriptFilename() string {
+	return e.GetID() + "_log_parser"
+}
+
+// GetLogParserScriptId returns the log-parser script ID for this engine.
+// When the behavior definition includes a log-parser field, this returns
+// the engine-specific script ID so that generateLogParsing emits a
+// "Parse agent logs" step that requires the inline script.
+func (e *BehaviorDefinedEngine) GetLogParserScriptId() string {
+	behavior := e.behavior()
+	if behavior == nil || behavior.LogParser == "" {
+		return ""
+	}
+	return e.logParserScriptFilename()
+}
+
+// buildLogParserWriteStep generates a GitHub Actions step that writes the
+// behavior-defined engine's log-parser script to
+// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_log_parser.cjs so the post-agent
+// log-parsing step can require() it.
+//
+// The raw log-parser JavaScript from the behavior definition is wrapped with a
+// createEngineLogParser call from log_parser_shared.cjs so that the author only
+// needs to provide a parseLog(logContent) function returning
+// {markdown, logEntries, mcpFailures, maxTurnsHit}.
+func (e *BehaviorDefinedEngine) buildLogParserWriteStep() GitHubActionStep {
+	behavior := e.behavior()
+	if behavior == nil || behavior.LogParser == "" {
+		return nil
+	}
+	// Wrap the user-provided parse function with the createEngineLogParser
+	// bootstrap so the script conforms to the contract expected by
+	// log_parser_bootstrap.cjs (runLogParser).
+	wrappedScript := fmt.Sprintf(`// @ts-check
+// Auto-generated log parser for behavior-defined engine %q.
+const { createEngineLogParser } = require("./log_parser_shared.cjs");
+
+// --- begin engine-provided parse function ---
+%s
+// --- end engine-provided parse function ---
+
+const main = createEngineLogParser({
+  parserName: %q,
+  parseFunction: parseLog,
+  supportsDirectories: false,
+});
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { main, parseLog };
+}`,
+		e.GetDisplayName(),
+		behavior.LogParser,
+		e.GetDisplayName(),
+	)
+	return e.buildScriptWriteStep(
+		"Write "+e.GetDisplayName()+" log parser script",
+		e.logParserScriptFilename()+".cjs",
+		wrappedScript,
+		logParserHeredocDelimiter,
+	)
+}
+
 func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	behavior := e.behavior()
 	if behavior == nil || behavior.Execution == nil {
@@ -362,6 +429,9 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedSetupSteps() []GitHubActionS
 	}
 	if harnessStep := e.buildHarnessWriteStep(); len(harnessStep) > 0 {
 		steps = append(steps, harnessStep)
+	}
+	if logParserStep := e.buildLogParserWriteStep(); len(logParserStep) > 0 {
+		steps = append(steps, logParserStep)
 	}
 	return steps
 }
