@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,6 +20,7 @@ func TestBashAllowlistUnsupportedEngineCodemod_Metadata(t *testing.T) {
 	assert.Equal(t, "0.78.0", codemod.IntroducedIn)
 	assert.True(t, codemod.Guided, "codemod must be guided since the fix changes semantics")
 	assert.NotNil(t, codemod.Apply)
+	assert.NotNil(t, codemod.ApplyWithContext, "codemod must expose ApplyWithContext to resolve effective tools from imports")
 }
 
 func TestBashAllowlistUnsupportedEngineCodemod_Apply(t *testing.T) {
@@ -47,7 +50,7 @@ tools:
 				"tools":  map[string]any{"bash": []any{"git", "npm"}},
 			},
 			wantErr:     true,
-			errContains: []string{"engine 'codex' does not support bash command allow-listing", "'bash: [git, npm]'", "copilot, claude, or gemini", `bash: ["*"]`},
+			errContains: []string{"engine 'codex' does not support bash command allow-listing", `'bash: ["git", "npm"]'`, "copilot, claude, or gemini", `bash: ["*"]`},
 		},
 		{
 			name: "codex as engine string returns guided error",
@@ -57,6 +60,25 @@ tools:
 			},
 			wantErr:     true,
 			errContains: []string{"engine 'codex' does not support bash command allow-listing"},
+		},
+		{
+			name: "command with control characters is quoted and does not spoof output",
+			frontmatter: map[string]any{
+				"engine": "codex",
+				"tools":  map[string]any{"bash": []any{"git\x1b[31m status"}},
+			},
+			wantErr: true,
+			// The ANSI escape sequence must be rendered as \x1b in the error, not raw bytes.
+			errContains: []string{`"git\x1b[31m status"`},
+		},
+		{
+			name: "command with embedded newline is quoted and does not spoof output",
+			frontmatter: map[string]any{
+				"engine": "codex",
+				"tools":  map[string]any{"bash": []any{"git\nstatus"}},
+			},
+			wantErr:     true,
+			errContains: []string{`"git\nstatus"`},
 		},
 		{
 			name: "codex with bash: false returns guided error",
@@ -138,4 +160,68 @@ tools:
 			}
 		})
 	}
+}
+
+// TestBashAllowlistUnsupportedEngineCodemod_ApplyWithContext_ImportedRestriction verifies that
+// ApplyWithContext detects a bash restriction that originates solely from an imported file (not
+// the top-level workflow), which Apply cannot detect because it only sees raw frontmatter.
+func TestBashAllowlistUnsupportedEngineCodemod_ApplyWithContext_ImportedRestriction(t *testing.T) {
+	codemod := getBashAllowlistUnsupportedEngineCodemod()
+
+	dir := t.TempDir()
+
+	// Import file that declares a restricted bash allow-list.
+	importContent := `---
+tools:
+  bash: ["git", "npm ci"]
+---
+`
+	importPath := filepath.Join(dir, "tools-import.md")
+	require.NoError(t, os.WriteFile(importPath, []byte(importContent), 0o644))
+
+	// Main workflow file: codex engine, no top-level tools.bash, but imports the restriction.
+	mainContent := `---
+engine:
+  id: codex
+imports:
+  - tools-import.md
+---
+
+# Agent
+`
+	mainPath := filepath.Join(dir, "workflow.md")
+	require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0o644))
+
+	frontmatter := map[string]any{
+		"engine":  map[string]any{"id": "codex"},
+		"imports": []any{"tools-import.md"},
+	}
+
+	newContent, applied, err := codemod.ApplyWithContext(mainContent, frontmatter, mainPath)
+	assert.False(t, applied, "guided codemod never modifies the workflow")
+	assert.Equal(t, mainContent, newContent, "content must be preserved")
+	require.Error(t, err, "should detect bash restriction imported from shared file")
+	assert.Contains(t, err.Error(), "engine 'codex' does not support bash command allow-listing")
+}
+
+// TestBashAllowlistUnsupportedEngineCodemod_ApplyWithContext_NoImportedRestriction verifies that
+// ApplyWithContext is a no-op when no bash restriction exists in the top-level or imported tools.
+func TestBashAllowlistUnsupportedEngineCodemod_ApplyWithContext_NoImportedRestriction(t *testing.T) {
+	codemod := getBashAllowlistUnsupportedEngineCodemod()
+
+	content := `---
+engine:
+  id: codex
+---
+
+# Agent
+`
+	frontmatter := map[string]any{
+		"engine": map[string]any{"id": "codex"},
+	}
+
+	newContent, applied, err := codemod.ApplyWithContext(content, frontmatter, "")
+	require.NoError(t, err)
+	assert.False(t, applied)
+	assert.Equal(t, content, newContent)
 }
