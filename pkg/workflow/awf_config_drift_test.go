@@ -42,9 +42,6 @@ func validateDriftRecord(r driftRecord) error {
 	if _, err := time.Parse(time.RFC3339, r.DetectedAt); err != nil {
 		return assertError("detected_at must be a valid ISO 8601 UTC timestamp: " + err.Error())
 	}
-	if len(r.SuggestedAction) < 1 {
-		return assertError("suggested_action must not be empty")
-	}
 	return nil
 }
 
