@@ -555,6 +555,7 @@ type commandSet struct {
 	mcpCmd, logsCmd, auditCmd, viewCmd, healthCmd, outcomesCmd, mcpServerCmd, prCmd, secretsCmd        *cobra.Command
 	fixCmd, upgradeCmd, completionCmd, hashCmd, projectCmd, doctorCmd, checksCmd, validateCmd, lintCmd *cobra.Command
 	domainsCmd, experimentsCmd, forecastCmd, envCmd                                                    *cobra.Command
+	importCmd                                                                                          *cobra.Command
 }
 
 func fixPathForCommand(s string) string {
@@ -729,6 +730,7 @@ func createCommandSet() commandSet {
 		experimentsCmd: cli.NewExperimentsCommand(),
 		forecastCmd:    cli.NewForecastCommand(),
 		envCmd:         cli.NewEnvCommand(),
+		importCmd:      cli.NewImportCommand(),
 	}
 	cli.RegisterEngineFlagCompletion(cmds.initCmd)
 	return cmds
@@ -837,6 +839,7 @@ func assignCommandGroups(cmds commandSet) {
 	cmds.initCmd.GroupID, newCmd.GroupID, cmds.addCmd.GroupID, cmds.addWizardCmd.GroupID = "setup", "setup", "setup", "setup"
 	removeCmd.GroupID, cmds.updateCmd.GroupID, cmds.deployCmd.GroupID, cmds.upgradeCmd.GroupID = "setup", "setup", "setup", "setup"
 	cmds.secretsCmd.GroupID, cmds.envCmd.GroupID, cmds.doctorCmd.GroupID = "setup", "setup", "setup"
+	cmds.importCmd.GroupID = "setup"
 	compileCmd.GroupID, cmds.validateCmd.GroupID, cmds.lintCmd.GroupID = "development", "development", "development"
 	cmds.mcpCmd.GroupID, cmds.fixCmd.GroupID, cmds.domainsCmd.GroupID = "development", "development", "development"
 	runCmd.GroupID, enableCmd.GroupID, disableCmd.GroupID, cmds.trialCmd.GroupID = "execution", "execution", "execution", "execution"
@@ -852,7 +855,7 @@ func addCommandsToRoot(cmds commandSet) {
 		runCmd, removeCmd, cmds.statusCmd, cmds.listCmd, enableCmd, disableCmd, cmds.logsCmd, cmds.auditCmd, cmds.viewCmd,
 		cmds.healthCmd, cmds.outcomesCmd, cmds.checksCmd, cmds.mcpCmd, cmds.mcpServerCmd, cmds.prCmd, versionCmd, cmds.secretsCmd,
 		cmds.fixCmd, cmds.validateCmd, cmds.lintCmd, cmds.completionCmd, cmds.hashCmd, cmds.projectCmd, cmds.doctorCmd,
-		cmds.domainsCmd, cmds.experimentsCmd, cmds.forecastCmd, cmds.envCmd,
+		cmds.domainsCmd, cmds.experimentsCmd, cmds.forecastCmd, cmds.envCmd, cmds.importCmd,
 	)
 }
 
