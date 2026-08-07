@@ -11,15 +11,15 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
-- shared/network-defaults.md
-- shared/github-guard-policy.md
-- uses: shared/repo-memory-standard.md
-  with:
-    branch-name: memory/discussion-task-miner
-    description: Track processed discussions and extracted tasks
-- ../skills/jqschema/SKILL.md
-- shared/reporting.md
-- shared/otlp.md
+  - shared/network-defaults.md
+  - shared/github-guard-policy.md
+  - uses: shared/repo-memory-standard.md
+    with:
+      branch-name: memory/discussion-task-miner
+      description: Track processed discussions and extracted tasks
+  - ../skills/jqschema/SKILL.md
+  - shared/reporting.md
+  - shared/otlp.md
 safe-outputs:
   add-comment:
     max: 3

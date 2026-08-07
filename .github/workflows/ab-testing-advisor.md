@@ -14,8 +14,8 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
-- shared/network-defaults.md
-- shared/otlp.md
+  - shared/network-defaults.md
+  - shared/otlp.md
 safe-outputs:
   create-issue:
     close-older-issues: true
