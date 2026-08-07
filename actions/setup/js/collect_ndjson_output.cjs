@@ -113,7 +113,7 @@ async function main() {
     function validateItemWithSafeJobConfig(item, jobConfig, lineNum) {
       const errors = [];
       const normalizedItem = { type: item.type };
-      if (!jobConfig.inputs) {
+      if (!jobConfig || typeof jobConfig !== "object" || !jobConfig.inputs) {
         return {
           isValid: true,
           errors: [],

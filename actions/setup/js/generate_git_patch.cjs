@@ -13,6 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPathForBranch, getPatchPathForBranchInRepo, buildExcludePathspecs, computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
+const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 
 // sanitizeForFilename is re-exported below for backward compatibility with
 // existing callers that imported it from this module.
@@ -30,14 +31,15 @@ function debugLog(message) {
 }
 
 function embedBaseCommit(patchContent, baseCommitSha) {
-  if (!baseCommitSha || typeof patchContent !== "string") {
+  const normalizedBaseCommitSha = normalizeCommitSHA(baseCommitSha);
+  if (!normalizedBaseCommitSha || typeof patchContent !== "string") {
     return patchContent;
   }
   const firstNewline = patchContent.indexOf("\n");
   if (firstNewline < 0) {
     return patchContent;
   }
-  return `${patchContent.slice(0, firstNewline + 1)}X-GH-AW-Base-Commit: ${baseCommitSha}\n${patchContent.slice(firstNewline + 1)}`;
+  return `${patchContent.slice(0, firstNewline + 1)}X-GH-AW-Base-Commit: ${normalizedBaseCommitSha}\n${patchContent.slice(firstNewline + 1)}`;
 }
 
 /**
@@ -657,4 +659,5 @@ module.exports = {
   getPatchPathForBranchInRepo,
   sanitizeBranchNameForPatch,
   sanitizeRepoSlugForPatch,
+  embedBaseCommit,
 };

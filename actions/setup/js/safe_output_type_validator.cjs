@@ -353,7 +353,7 @@ function validateOptionalPositiveInteger(value, fieldName, lineNum) {
  * @param {any} value - Value to validate
  * @param {string} fieldName - Field name for error messages
  * @param {number} lineNum - Line number for error messages
- * @returns {{isValid: boolean, error?: string}}
+ * @returns {{isValid: boolean, normalizedValue?: number|string, error?: string}}
  */
 function validateIssueOrPRNumber(value, fieldName, lineNum) {
   if (value === undefined) {
@@ -365,7 +365,7 @@ function validateIssueOrPRNumber(value, fieldName, lineNum) {
       error: `Line ${lineNum}: ${fieldName} must be a number or string`,
     };
   }
-  return { isValid: true };
+  return { isValid: true, normalizedValue: value };
 }
 
 /**
@@ -451,6 +451,17 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
   // Handle issueOrPRNumber validation
   if (validation.issueOrPRNumber) {
     return validateIssueOrPRNumber(value, `${itemType} '${fieldName}'`, lineNum);
+  }
+
+  if (Array.isArray(validation.type)) {
+    const actualType = Array.isArray(value) ? "array" : typeof value;
+    if (!validation.type.includes(actualType)) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} '${fieldName}' must be one of: ${validation.type.join(", ")}`,
+      };
+    }
+    return { isValid: true, normalizedValue: value };
   }
 
   // Handle type validation
@@ -732,8 +743,6 @@ function validateItem(item, itemType, lineNum, options) {
       }
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
-    } else if (fieldValue !== undefined) {
-      normalizedItem[fieldName] = fieldValue;
     }
   }
 

@@ -308,6 +308,9 @@ describe("upload_assets.cjs", () => {
       const uploadCountCall = mockCore.setOutput.mock.calls.find(call => call[0] === "upload_count");
       expect(uploadCountCall).toBeDefined();
       if (uploadCountCall) expect(uploadCountCall[1]).toBe("1");
+      const summary = mockCore.summary.addRaw.mock.calls.map(call => String(call[0])).join("\n");
+      expect(summary).toContain("present-uploaded.png");
+      expect(summary).not.toContain("missing-uploaded.png");
     });
 
     it("should fail when all declared assets are missing", async () => {

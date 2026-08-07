@@ -16,6 +16,10 @@ describe("normalizeCommitSHA", () => {
       expect(extractPatchBaseCommit("From abc123 Mon Sep 17 00:00:00 2001\nX-GH-AW-Base-Commit: deadbeef\nFrom: Test\n")).toBe("deadbeef");
     });
 
+    it("handles CRLF line endings in patch metadata", () => {
+      expect(extractPatchBaseCommit("From abc123 Mon Sep 17 00:00:00 2001\r\nX-GH-AW-Base-Commit: deadbeef\r\nFrom: Test\r\n\r\nBody\r\n")).toBe("deadbeef");
+    });
+
     it("ignores missing or malformed patch metadata", () => {
       expect(extractPatchBaseCommit("From abc123 Mon Sep 17 00:00:00 2001\nFrom: Test\n")).toBe("");
       expect(extractPatchBaseCommit("X-GH-AW-Base-Commit: main\n")).toBe("");

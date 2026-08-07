@@ -148,11 +148,12 @@ async function main() {
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
       const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
       const url = buildAssetUrl(githubServer, repo, normalizedBranchName, targetFileName);
-      processedAssets.push({ fileName, sha: computedSha, size, targetFileName, url });
+      const processedAsset = { fileName, sha: computedSha, size, targetFileName, url };
 
       // Check if file already exists in the branch
       if (fs.existsSync(targetFileName)) {
         core.info(`Asset ${targetFileName} already exists, skipping`);
+        processedAssets.push(processedAsset);
         continue;
       }
 
@@ -165,6 +166,7 @@ async function main() {
 
         uploadCount++;
         hasChanges = true;
+        processedAssets.push(processedAsset);
 
         core.info(`Added asset: ${targetFileName} (${size} bytes)`);
       } catch (error) {

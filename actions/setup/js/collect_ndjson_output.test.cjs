@@ -274,6 +274,7 @@ describe("collect_ndjson_output.cjs", () => {
       expect(outputCall).toBeDefined();
       const parsedOutput = JSON.parse(outputCall[1]);
       (expect(parsedOutput.errors).toHaveLength(0), expect(parsedOutput.items).toEqual([{ type: "post_to_slack", text: slackText }]));
+      expect(parsedOutput.items[0]).not.toHaveProperty("channel");
     }),
     it("should reject items with unexpected output types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
