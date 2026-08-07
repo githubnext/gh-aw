@@ -98,6 +98,54 @@ func TestEngineCatalog_Resolve_UnknownEngine(t *testing.T) {
 		"error should include an example, got: %s", err.Error())
 }
 
+// TestEngineCatalog_Resolve_KnownImportTip verifies that a helpful import tip is included
+// in the error when a known (but not built-in) engine is referenced without importing
+// its shared engine definition file first.
+func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
+	tests := []struct {
+		name           string
+		engineID       string
+		wantImportPath string
+	}{
+		{
+			name:           "opencode tip",
+			engineID:       "opencode",
+			wantImportPath: "shared/opencode.md",
+		},
+		{
+			name:           "crush tip",
+			engineID:       "crush",
+			wantImportPath: "shared/crush.md",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registry := NewEngineRegistry()
+			catalog := NewEngineCatalog(registry)
+
+			_, err := catalog.Resolve(tt.engineID, &EngineConfig{ID: tt.engineID})
+			require.Error(t, err)
+			require.ErrorContains(t, err, "invalid engine")
+			require.ErrorContains(t, err, tt.engineID)
+			require.ErrorContains(t, err, "Tip:", "error should contain an import tip for known engine")
+			require.ErrorContains(t, err, tt.wantImportPath, "tip should reference the known import path")
+			require.ErrorContains(t, err, "imports:", "tip should show an imports example")
+		})
+	}
+}
+
+// TestEngineCatalog_Resolve_UnknownNoTip verifies that truly unknown engines (not in
+// the knownEngineImports map) do NOT include an import tip.
+func TestEngineCatalog_Resolve_UnknownNoTip(t *testing.T) {
+	registry := NewEngineRegistry()
+	catalog := NewEngineCatalog(registry)
+
+	_, err := catalog.Resolve("totally-unknown-engine", nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid engine")
+	require.NotContains(t, err.Error(), "Tip:", "error should not contain a tip for truly unknown engines")
+}
+
 // TestEngineCatalog_Resolve_ConfigPassthrough verifies that the EngineConfig passed to
 // Resolve is surfaced unchanged in the ResolvedEngineTarget.
 func TestEngineCatalog_Resolve_ConfigPassthrough(t *testing.T) {

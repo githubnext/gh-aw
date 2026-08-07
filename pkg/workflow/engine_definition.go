@@ -331,6 +331,22 @@ type ResolvedEngineTarget struct {
 	Runtime    CodingAgentEngine // resolved adapter from the EngineRegistry
 }
 
+// knownEngineImports maps engine IDs that are not built into the binary to the
+// shared engine definition file that registers them. When an unknown engine ID is
+// referenced without importing the engine definition file first, the Resolve method
+// appends an actionable tip pointing to this file.
+//
+// Keys are lower-case engine IDs. Values are the import path relative to the
+// .github/workflows directory (the same string a user would write in an "imports:"
+// block of their workflow markdown file).
+//
+// To add a new well-known engine, append an entry here with the engine ID as the
+// key and the path to its shared engine definition file as the value.
+var knownEngineImports = map[string]string{
+	"opencode": "shared/opencode.md",
+	"crush":    "shared/crush.md",
+}
+
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
 // pre-registers the built-in engine definitions (claude, codex, copilot, gemini, pi)
 // loaded from the embedded Markdown files in data/engines/*.md.
@@ -422,6 +438,11 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 			enginesStr,
 			suggestions[0],
 			constants.DocsEnginesURL)
+	}
+
+	if importPath, ok := knownEngineImports[strings.ToLower(id)]; ok {
+		errMsg += fmt.Sprintf("\n\nTip: %q is a known engine with a shared definition file. Import it before using this engine:\n\nimports:\n  - %s",
+			id, importPath)
 	}
 
 	return nil, errors.New(errMsg)
