@@ -96,6 +96,9 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
     throw new Error("GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must be an array of valid environment variable names");
   }
 
+  // Missing indexed transport values intentionally become empty container env vars.
+  // This preserves deterministic NAME→slot mapping and keeps Docker argument injection
+  // impossible even if the compiler/runtime metadata ever diverges.
   const customArgs = names.flatMap((name, index) => ["-e", `${name}=${env[`GH_AW_MCP_GATEWAY_ENV_${index}`] || ""}`]);
   return [...args.slice(0, markerIndex), ...customArgs, ...args.slice(markerIndex + 1)];
 }

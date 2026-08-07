@@ -225,6 +225,24 @@ func TestValidateSandboxConfigMCPEnvironmentVariableNames(t *testing.T) {
 		assert.Contains(t, err.Error(), "^[A-Z_][A-Z0-9_]*$")
 		assert.Contains(t, err.Error(), "API_TOKEN")
 	})
+
+	t.Run("reserved transport names fail validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				MCP: &MCPGatewayRuntimeConfig{
+					Env: map[string]string{
+						"GH_AW_MCP_GATEWAY_ENV_0": "value",
+					},
+				},
+			},
+		}
+
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sandbox.mcp.env.GH_AW_MCP_GATEWAY_ENV_0")
+		assert.Contains(t, err.Error(), "reserved for internal transport")
+		assert.Contains(t, err.Error(), "GH_AW_MCP_GATEWAY_")
+	})
 }
 
 // TestValidateSandboxConfigStoresJustification tests that a valid justification is

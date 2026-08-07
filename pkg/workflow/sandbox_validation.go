@@ -205,6 +205,14 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 
 	if sandboxConfig.MCP != nil {
 		for _, name := range sliceutil.SortedKeys(sandboxConfig.MCP.Env) {
+			if isReservedMCPGatewayTransportEnvVar(name) {
+				return NewValidationError(
+					"sandbox.mcp.env."+name,
+					name,
+					"environment variable names in the GH_AW_MCP_GATEWAY_ namespace are reserved for internal transport",
+					"Choose a different name that does not start with GH_AW_MCP_GATEWAY_. Example:\n\nsandbox:\n  mcp:\n    env:\n      API_TOKEN: value",
+				)
+			}
 			if !mcpGatewayEnvNamePattern.MatchString(name) {
 				return NewValidationError(
 					"sandbox.mcp.env."+name,

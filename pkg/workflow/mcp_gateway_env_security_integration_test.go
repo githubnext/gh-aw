@@ -43,7 +43,11 @@ func extractMCPGatewayStepSection(jobSection, stepName string) string {
 				continue
 			}
 			inStep = true
-			stepPrefix = line[:strings.Index(line, "- name: ")]
+			idx := strings.Index(line, "- name: ")
+			if idx < 0 {
+				return ""
+			}
+			stepPrefix = line[:idx]
 			stepLines = append(stepLines, line)
 			continue
 		}
@@ -106,7 +110,7 @@ mcp-servers:
     url: "https://example.com/mcp"
     env:
       FORWARDED_NAMES: ${{ env.GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES }}
-      FORWARDED_VALUE: ${{ env.GH_AW_MCP_GATEWAY_ENV_0 }}
+      FORWARDED_VALUE: ${{ env.GH_AW_MCP_GATEWAY_ENV_5 }}
 ---`), 0o644))
 
 	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
@@ -150,5 +154,6 @@ Verify MCP gateway reserved env name handling.
 	assert.Contains(t, gatewayStep, `GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: "[\"API_TOKEN\"]"`)
 	assert.Contains(t, gatewayStep, `GH_AW_MCP_GATEWAY_ENV_0: "custom-token"`)
 	assert.NotContains(t, gatewayStep, `${{ env.GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES }}`)
-	assert.NotContains(t, gatewayStep, `${{ env.GH_AW_MCP_GATEWAY_ENV_0 }}`)
+	assert.NotContains(t, gatewayStep, `${{ env.GH_AW_MCP_GATEWAY_ENV_5 }}`)
+	assert.NotContains(t, gatewayStep, "GH_AW_MCP_GATEWAY_ENV_5:")
 }
