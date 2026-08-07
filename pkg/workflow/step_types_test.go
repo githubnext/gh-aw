@@ -86,7 +86,7 @@ func TestWorkflowStep_ToMap(t *testing.T) {
 				WorkingDirectory: "/path/to/dir",
 				With:             map[string]any{"key": "value"},
 				Env:              map[string]string{"VAR": "val"},
-				ContinueOnError:  true,
+				ContinueOnError:  templatableBoolPtr("true"),
 				TimeoutMinutes:   10,
 			},
 			want: map[string]any{
@@ -115,12 +115,12 @@ func TestWorkflowStep_ToMap(t *testing.T) {
 			step: &WorkflowStep{
 				Name:            "Test step",
 				Run:             "npm test",
-				ContinueOnError: "false",
+				ContinueOnError: templatableBoolPtr("false"),
 			},
 			want: map[string]any{
 				"name":              "Test step",
 				"run":               "npm test",
-				"continue-on-error": "false",
+				"continue-on-error": false,
 			},
 		},
 	}
@@ -201,7 +201,7 @@ func TestMapToStep(t *testing.T) {
 				WorkingDirectory: "/path/to/dir",
 				With:             map[string]any{"key": "value"},
 				Env:              map[string]string{"VAR": "val"},
-				ContinueOnError:  true,
+				ContinueOnError:  templatableBoolPtr("true"),
 				TimeoutMinutes:   10,
 			},
 			wantErr: false,
@@ -228,7 +228,7 @@ func TestMapToStep(t *testing.T) {
 			want: &WorkflowStep{
 				Name:            "Test step",
 				Run:             "npm test",
-				ContinueOnError: "false",
+				ContinueOnError: templatableBoolPtr("false"),
 			},
 			wantErr: false,
 		},
@@ -288,7 +288,7 @@ func TestWorkflowStep_Clone(t *testing.T) {
 		Shell:            "bash",
 		With:             map[string]any{"key": "value", "nested": map[string]any{"inner": "val"}},
 		Env:              map[string]string{"VAR1": "val1", "VAR2": "val2"},
-		ContinueOnError:  true,
+		ContinueOnError:  templatableBoolPtr("true"),
 		TimeoutMinutes:   15,
 	}
 
@@ -308,6 +308,12 @@ func TestWorkflowStep_Clone(t *testing.T) {
 	clone.Env["NEW_VAR"] = "new-val"
 	_, exists = original.Env["NEW_VAR"]
 	assert.False(t, exists, "Clone should deep copy Env map - modifying clone should not affect original")
+
+	require.NotNil(t, clone.ContinueOnError, "Clone should copy ContinueOnError")
+	require.NotNil(t, original.ContinueOnError, "Original should retain ContinueOnError")
+	*clone.ContinueOnError = TemplatableBool("false")
+	assert.Equal(t, "true", original.ContinueOnError.String(), "Clone should deep copy ContinueOnError - modifying clone should not affect original")
+	assert.Equal(t, "false", clone.ContinueOnError.String(), "Clone should allow independent ContinueOnError updates")
 }
 
 func TestMapToStep_RoundTrip(t *testing.T) {
@@ -385,6 +391,15 @@ func compareStepValues(a, b any) bool {
 			}
 		}
 		return true
+	case *TemplatableBool:
+		bValue, ok := b.(*TemplatableBool)
+		if !ok {
+			return false
+		}
+		if aVal == nil || bValue == nil {
+			return aVal == nil && bValue == nil
+		}
+		return aVal.String() == bValue.String()
 	default:
 		return a == b
 	}
@@ -406,7 +421,7 @@ func compareSteps(a, b *WorkflowStep) bool {
 		return false
 	}
 
-	// Compare ContinueOnError (can be any type)
+	// Compare ContinueOnError (templatable bool)
 	if !compareStepValues(a.ContinueOnError, b.ContinueOnError) {
 		return false
 	}

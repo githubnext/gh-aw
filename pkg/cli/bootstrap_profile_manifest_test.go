@@ -294,7 +294,7 @@ func TestParseManifestBootstrapAction(t *testing.T) {
 				"description":        "  desc  ",
 				"default":            "  keepme  ",
 				"secret":             "  SECRET  ",
-				"strategy":           "  strat  ",
+				"strategy":           "  custom  ",
 				"message":            "  hello  ",
 				"mode":               "  existing  ",
 				"app-id-variable":    "  APP_ID  ",
@@ -315,7 +315,7 @@ func TestParseManifestBootstrapAction(t *testing.T) {
 				Description:      "desc",
 				Default:          "  keepme  ",
 				Secret:           "SECRET",
-				Strategy:         "strat",
+				Strategy:         "custom",
 				Message:          "hello",
 				Mode:             "existing",
 				AppIDVariable:    "APP_ID",
@@ -337,7 +337,6 @@ func TestParseManifestBootstrapAction(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

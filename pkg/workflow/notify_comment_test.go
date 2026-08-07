@@ -1169,7 +1169,7 @@ func TestConclusionJobCategoriesFilterQuoting(t *testing.T) {
 			Name: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				NoOp:                           &NoOpConfig{},
-				ReportFailureAsIssue:           true,
+				ReportFailureAsIssue:           templatableBoolPtr("true"),
 				ReportFailureAsIssueCategories: []string{"it's-a-category", "normal-category"},
 			},
 		}
@@ -1198,7 +1198,7 @@ func TestConclusionJobCategoriesFilterQuoting(t *testing.T) {
 			Name: "Test Workflow",
 			SafeOutputs: &SafeOutputsConfig{
 				NoOp:                                   &NoOpConfig{},
-				ReportFailureAsIssue:                   true,
+				ReportFailureAsIssue:                   templatableBoolPtr("true"),
 				ReportFailureAsIssueExcludedCategories: []string{"it's-excluded", "other-excluded"},
 			},
 		}
@@ -1228,7 +1228,7 @@ func TestConclusionJobReportFailureAsIssueTemplatableExpression(t *testing.T) {
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			NoOp:                           &NoOpConfig{},
-			ReportFailureAsIssue:           "${{ inputs.report-failure-as-issue }}",
+			ReportFailureAsIssue:           templatableBoolPtr("${{ inputs.report-failure-as-issue }}"),
 			ReportFailureAsIssueCategories: []string{"agent_failure"},
 		},
 	}
