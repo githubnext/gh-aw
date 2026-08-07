@@ -1,659 +1,132 @@
 # constants Package
 
-> Shared semantic type aliases and named constants for `gh-aw` — AI engine names, feature flags, job names, version strings, URLs, and runtime configuration values.
-
-The `constants` package provides shared semantic type aliases and named constants used across multiple `gh-aw` packages. Centralizing these values ensures consistency and type safety throughout the codebase.
+> Shared semantic types, runtime defaults, and named constants used throughout `gh-aw`.
 
 ## Overview
 
-The package is organized into focused files:
+The `constants` package centralizes stable identifiers and configuration defaults that are referenced across workflow compilation, runtime setup, engine integration, sandboxing, artifact handling, and validation. It defines semantic string and integer wrapper types such as `EngineName`, `FeatureFlag`, `JobName`, `StepID`, `Version`, and `DocURL` so call sites can express intent more clearly than with untyped primitives alone.
 
-| File | Contents |
-|------|----------|
-| `constants.go` | Core types, formatting constants, runtime config, container images, mounts, AWF |
-| `bot_constants.go` | Canonical Copilot bot identity lists |
-| `engine_constants.go` | AI engine names, options, system secrets, model env vars, Copilot CLI commands |
-| `feature_constants.go` | Feature flag identifiers |
-| `job_constants.go` | GitHub Actions job names, step IDs, artifact names, output keys |
-| `tool_constants.go` | Allowed GitHub tool expressions and default tool lists |
-| `url_constants.go` | URL semantic types, well-known URLs, documentation URLs |
-| `version_constants.go` | Default version strings and minimum version constraints |
+The package also acts as the authoritative source for the generated workflow contract: built-in job names, artifact names, environment variable names, file-system layout, AWF paths, MCP defaults, supported engines, default tool allowlists, and pinned dependency versions. Most values are plain exported constants or variables because they are consumed from many packages and are expected to remain compile-time visible.
 
 ## Public API
 
-### Semantic Types
-
-The package uses typed aliases to prevent mixing unrelated string or integer values:
-
-| Type | Description | Example constant |
-|------|-------------|-----------------|
-| `EngineName` | AI engine identifier | `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `GeminiEngine`, `PiEngine` |
-| `FeatureFlag` | Feature flag identifier | `MCPGatewayFeatureFlag`, `MCPScriptsFeatureFlag` |
-| `JobName` | GitHub Actions job name | `AgentJobName`, `ActivationJobName` |
-| `StepID` | GitHub Actions step identifier | `CheckMembershipStepID`, `CheckRateLimitStepID` |
-| `MCPServerID` | MCP server identifier | `SafeOutputsMCPServerID`, `MCPScriptsMCPServerID` |
-| `LineLength` | Character count for formatting | `MaxExpressionLineLength` (120) |
-| `CommandPrefix` | CLI command prefix | `CLIExtensionPrefix` ("gh aw") |
-| `WorkflowID` | User-provided workflow basename (no `.md`) | — |
-| `Version` | Software version string | `DefaultCopilotVersion`, `DefaultNodeVersion` |
-| `ModelName` | AI model name | — |
-| `URL` | URL string | `DefaultMCPRegistryURL`, `PublicGitHubHost` |
-| `DocURL` | Documentation URL | `DocsEnginesURL`, `DocsToolsURL` |
-
-The following types implement `String() string` and `IsValid() bool` methods: `CommandPrefix`, `JobName`, `StepID`, `Version`, `DocURL`. `MCPServerID` implements `String()` only. `EngineName`, `FeatureFlag`, `URL`, `LineLength`, `WorkflowID`, and `ModelName` do not implement these methods — use direct `string()` or `int()` conversion.
-
-## Engine Constants
-
-```go
-import "github.com/github/gh-aw/pkg/constants"
-
-// Engine names
-constants.CopilotEngine      // "copilot"
-constants.ClaudeEngine       // "claude"
-constants.CodexEngine        // "codex"
-constants.GeminiEngine       // "gemini"
-constants.PiEngine           // "pi" (experimental)
-constants.DefaultEngine      // "copilot"
-
-// All supported engine names
-constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "pi"}
-
-// Get engine metadata
-opt := constants.GetEngineOption("copilot")
-// opt.Label = "GitHub Copilot"
-// opt.SecretName = "COPILOT_GITHUB_TOKEN"
-// opt.KeyURL = "https://github.com/settings/personal-access-tokens/new"
-
-// Get all secret names for all engines
-secrets := constants.GetAllEngineSecretNames()
-```
-
-### `EngineOption`
-
-Describes a selectable AI engine with display metadata and required secret information:
-- `Value`, `Label`, `Description` — display information
-- `SecretName` — the primary secret required (e.g. `COPILOT_GITHUB_TOKEN`)
-- `AlternativeSecrets` — secondary secret names that can be used instead
-- `EnvVarName` — alternative environment variable name (if different from `SecretName`)
-- `KeyURL` — URL where users can obtain their API key
-- `WhenNeeded` — human-readable description of when this secret is needed
-
-### `SystemSecretSpec`
-
-Describes a system-level secret not tied to a specific engine (e.g. `GH_AW_GITHUB_TOKEN`):
-- `Name` — environment variable name
-- `WhenNeeded` — when to configure this secret
-- `Description` — what the secret is and what permissions it needs
-- `Optional` — whether the secret is optional
-
-`SystemSecrets` is the global `[]SystemSecretSpec` slice containing `GH_AW_GITHUB_TOKEN`, `GH_AW_AGENT_TOKEN`, and `GH_AW_GITHUB_MCP_SERVER_TOKEN`.
-
-### Model Environment Variables
-
-These constants are used to configure AI model overrides at runtime:
-
-```go
-// gh-aw model override env vars (set in workflow environment or runner)
-constants.EnvVarModelAgentCopilot    // "GH_AW_MODEL_AGENT_COPILOT"
-constants.EnvVarModelAgentClaude     // "GH_AW_MODEL_AGENT_CLAUDE"
-constants.EnvVarModelAgentCodex      // "GH_AW_MODEL_AGENT_CODEX"
-constants.EnvVarModelAgentCustom     // "GH_AW_MODEL_AGENT_CUSTOM"
-constants.EnvVarModelAgentGemini     // "GH_AW_MODEL_AGENT_GEMINI"
-constants.EnvVarModelAgentPi         // "GH_AW_MODEL_AGENT_PI"
-constants.EnvVarModelDetectionCopilot// "GH_AW_MODEL_DETECTION_COPILOT"
-constants.EnvVarModelDetectionClaude // "GH_AW_MODEL_DETECTION_CLAUDE"
-constants.EnvVarModelDetectionCodex  // "GH_AW_MODEL_DETECTION_CODEX"
-constants.EnvVarModelDetectionGemini // "GH_AW_MODEL_DETECTION_GEMINI"
-
-// Native CLI model env vars (passed directly to the engine CLI)
-constants.CopilotCLIModelEnvVar         // "COPILOT_MODEL"
-constants.CopilotCLIIntegrationIDEnvVar // "GITHUB_COPILOT_INTEGRATION_ID"
-constants.ClaudeCLIModelEnvVar          // "ANTHROPIC_MODEL"
-constants.GeminiCLIModelEnvVar          // "GEMINI_MODEL"
-constants.PiCLIModelEnvVar              // "PI_MODEL"
-
-// gh-aw runtime env vars
-constants.EnvVarPrompt          // "GH_AW_PROMPT"
-constants.EnvVarMCPConfig       // "GH_AW_MCP_CONFIG"
-constants.EnvVarSafeOutputs     // "GH_AW_SAFE_OUTPUTS"
-constants.EnvVarMaxTurns        // "GH_AW_MAX_TURNS"
-constants.EnvVarStartupTimeout  // "GH_AW_STARTUP_TIMEOUT"
-constants.EnvVarToolTimeout     // "GH_AW_TOOL_TIMEOUT"
-constants.EnvVarGitHubToken     // "GH_AW_GITHUB_TOKEN"
-constants.EnvVarGitHubBlockedUsers   // "GH_AW_GITHUB_BLOCKED_USERS"   (tools.github.blocked-users fallback)
-constants.EnvVarGitHubApprovalLabels // "GH_AW_GITHUB_APPROVAL_LABELS" (tools.github.approval-labels fallback)
-constants.EnvVarGitHubTrustedUsers   // "GH_AW_GITHUB_TRUSTED_USERS"   (tools.github.trusted-users fallback)
-```
-
-### Copilot BYOK
-
-```go
-constants.CopilotBYOKDummyAPIKey // "dummy-byok-key-for-offline-mode" — placeholder key used for AWF runtime BYOK detection
-constants.CopilotBYOKDefaultModel // "claude-sonnet-5" — explicit fallback used when GH_AW_MODEL_*_COPILOT is unset
-```
-
-### Copilot Bot Names
-
-`CopilotBotNames` (`[]string`) is the canonical list of all GitHub identifiers associated with the Copilot family — both runtime bot logins and recognised input aliases. When any entry from this list appears in a workflow's `bots:` field, it is expanded to the entire set.
-
-```go
-constants.CopilotBotNames // []string{
-                          //   "copilot-swe-agent",     // Copilot Coding Agent runtime login
-                          //   "Copilot",               // @Copilot interactive bot
-                          //   "copilot",               // base copilot bot form / canonical alias
-                          //   "@app/copilot-swe-agent", // GitHub App slug alias
-                          // }
-```
-
-### Copilot Stem Commands
-
-`CopilotStemCommands` (`map[string]bool`) lists the shell commands (e.g. `git`, `gh`, `npm`) that the Copilot CLI is permitted to invoke. Used during security validation.
-
-## Feature Flags
-
-```go
-constants.MCPScriptsFeatureFlag                   // "mcp-scripts"
-constants.MCPGatewayFeatureFlag                   // "mcp-gateway"
-constants.DisableXPIAPromptFeatureFlag            // "disable-xpia-prompt"
-constants.DIFCProxyFeatureFlag                    // "difc-proxy" (deprecated — use tools.github.integrity-proxy)
-constants.CliProxyFeatureFlag                     // "cli-proxy"
-constants.AwfDiagnosticLogsFeatureFlag            // "awf-diagnostic-logs"
-constants.ByokCopilotFeatureFlag                  // "byok-copilot" (deprecated — Copilot BYOK is now default)
-constants.IntegrityReactionsFeatureFlag           // "integrity-reactions"
-constants.GroupConcurrencyQueueFeatureFlag        // "group-concurrency-queue"
-constants.DangerouslyDisableSandboxAgentFeatureFlag // "dangerously-disable-sandbox-agent"
-constants.GHAWDetectionFeatureFlag                // "gh-aw-detection"
-```
-
-## Job and Step Constants
-
-### Job Names
-
-```go
-constants.AgentJobName               // "agent"
-constants.ActivationJobName          // "activation"
-constants.PreActivationJobName       // "pre_activation"
-constants.DetectionJobName           // "detection"
-constants.SafeOutputsJobName         // "safe_outputs"
-constants.UploadAssetsJobName        // "upload_assets"
-constants.UploadCodeScanningJobName  // "upload_code_scanning_sarif"
-constants.ConclusionJobName          // "conclusion"
-constants.UnlockJobName              // "unlock"
-```
-
-### Artifact Names
-
-```go
-// Artifact containers (uploaded as GitHub Actions artifacts)
-constants.SafeOutputArtifactName      // "safe-output"
-constants.AgentOutputArtifactName     // "agent-output"
-constants.AgentArtifactName           // "agent" (unified agent artifact)
-constants.DetectionArtifactName       // "detection"
-constants.LegacyDetectionArtifactName // "threat-detection.log" (backward compat)
-constants.ActivationArtifactName      // "activation"
-constants.ExperimentArtifactName      // "experiment" — A/B experiment state uploaded by the activation job
-constants.UsageArtifactName           // "usage" — compact run metadata and token-usage files from the conclusion job
-constants.SafeOutputItemsArtifactName // "safe-outputs-items"
-constants.SarifArtifactName           // "code-scanning-sarif"
-
-// Files written inside artifact directories
-constants.AgentOutputFilename         // "agent_output.json"
-constants.SafeOutputsFilename         // "safeoutputs.jsonl"
-constants.TokenUsageFilename          // "agent_usage.json"
-constants.GithubRateLimitsFilename    // "github_rate_limits.jsonl"
-constants.OtelJsonlFilename           // "otel.jsonl"
-constants.OtlpExportErrorsFilename    // "otlp-export-errors.jsonl" — OTLP per-endpoint export failure log
-constants.TemporaryIdMapFilename      // "temporary-id-map.json"
-constants.SarifFileName               // "code-scanning-alert.sarif"
-constants.SarifArtifactDownloadPath   // "/tmp/gh-aw/sarif/"
-
-// Job output names
-constants.ArtifactPrefixOutputName    // "artifact_prefix"
-constants.FirewallAuditArtifactName   // "firewall-audit-logs" (legacy, for old runs)
-```
-
-### Step IDs
-
-```go
-// Pre-activation gate step IDs
-constants.CheckMembershipStepID          // "check_membership"
-constants.CheckRateLimitStepID           // "check_rate_limit"
-constants.CheckStopTimeStepID            // "check_stop_time"
-constants.CheckSkipIfMatchStepID         // "check_skip_if_match"
-constants.CheckSkipIfNoMatchStepID       // "check_skip_if_no_match"
-constants.CheckCommandPositionStepID     // "check_command_position"
-constants.CheckSkipRolesStepID           // "check_skip_roles"
-constants.CheckSkipBotsStepID            // "check_skip_bots"
-constants.CheckSkipIfCheckFailingStepID  // "check_skip_if_check_failing"
-constants.RemoveTriggerLabelStepID       // "remove_trigger_label"
-constants.GetTriggerLabelStepID          // "get_trigger_label"
-constants.PreActivationAppTokenStepID    // "pre-activation-app-token"
-
-// Agent job step IDs
-constants.ParseMCPGatewayStepID          // "parse-mcp-gateway"
-constants.DetectAgentErrorsStepID        // "detect-agent-errors" — post-execution error detection step
-```
-
-### Step Output Keys
-
-```go
-constants.IsTeamMemberOutput          // "is_team_member"
-constants.ActivatedOutput             // "activated"
-constants.MatchedCommandOutput        // "matched_command"
-constants.StopTimeOkOutput            // "stop_time_ok"
-constants.SkipCheckOkOutput           // "skip_check_ok"
-constants.SkipNoMatchCheckOkOutput    // "skip_no_match_check_ok"
-constants.CommandPositionOkOutput     // "command_position_ok"
-constants.RateLimitOkOutput           // "rate_limit_ok"
-constants.SkipRolesOkOutput           // "skip_roles_ok"
-constants.SkipBotsOkOutput            // "skip_bots_ok"
-constants.SkipIfCheckFailingOkOutput  // "skip_if_check_failing_ok"
-```
-
-### MCP Server IDs
-
-```go
-constants.SafeOutputsMCPServerID       // "safeoutputs"
-constants.MCPScriptsMCPServerID        // "mcpscripts"
-constants.MCPScriptsMCPVersion         // "1.0.0"
-constants.AgenticWorkflowsMCPServerID  // "agenticworkflows"
-```
-
-## Version Constants
-
-### Default Versions (pinned dependencies)
-
-```go
-// AI engine CLIs
-constants.DefaultCopilotVersion         // Copilot CLI version (e.g. "1.0.63")
-constants.DefaultCopilotSDKVersion      // @github/copilot-sdk npm package version
-constants.DefaultClaudeCodeVersion      // Claude Code CLI version
-constants.DefaultCodexVersion           // OpenAI Codex CLI version
-constants.DefaultGeminiVersion          // Google Gemini CLI version
-constants.DefaultPiVersion              // Pi CLI version (experimental)
-
-// Infrastructure
-constants.DefaultGitHubMCPServerVersion // GitHub MCP server Docker image version
-constants.DefaultFirewallVersion        // AWF firewall version
-constants.DefaultThreatDetectVersion    // gh-aw-threat-detection binary version
-constants.DefaultMCPGatewayVersion      // MCP Gateway (gh-aw-mcpg) Docker image version
-
-// MCP tooling
-constants.DefaultPlaywrightMCPVersion   // @playwright/mcp npm package version
-constants.DefaultPlaywrightCLIVersion   // @playwright/cli npm package version (tools.playwright.mode = "cli")
-constants.DefaultPlaywrightBrowserVersion // Playwright browser Docker image version
-constants.DefaultMCPSDKVersion          // @modelcontextprotocol/sdk npm package version
-constants.DefaultGitHubScriptVersion    // actions/github-script action version
-
-// Runtime setup versions
-constants.DefaultNodeVersion            // Node.js (e.g. "24")
-constants.DefaultPythonVersion          // Python (e.g. "3.12")
-constants.DefaultGoVersion              // Go (e.g. "1.26")
-constants.DefaultBunVersion             // Bun
-constants.DefaultRubyVersion            // Ruby
-constants.DefaultDotNetVersion          // .NET
-constants.DefaultJavaVersion            // Java (JDK)
-constants.DefaultElixirVersion          // Elixir
-constants.DefaultHaskellVersion         // GHC (Haskell)
-constants.DefaultDenoVersion            // Deno
-```
-
-### Minimum Version Constraints
-
-These constants guard feature flag emission: the compiler MUST NOT emit certain flags unless the pinned version is at or above the minimum.
-
-```go
-constants.AWFExcludeEnvMinVersion       // "v0.25.3"  — minimum AWF for --exclude-env
-constants.AWFCliProxyMinVersion         // "v0.25.17" — minimum AWF for CLI proxy flags
-constants.AWFAllowHostPortsMinVersion   // "v0.25.24" — minimum AWF for --allow-host-ports
-constants.AWFDockerHostPathPrefixMinVersion // "v0.25.43" — minimum AWF for --docker-host-path-prefix
-constants.AWFTokenSteeringMinVersion    // "v0.25.44" — minimum AWF for token steering support
-constants.AWFChrootConfigMinVersion     // "v0.27.1"  — minimum AWF for chroot.binariesSourcePath and identity.*
-constants.AWFArcDindMinVersion          // "v0.27.20" — minimum AWF for ARC DinD runner topology
-constants.AWFContainerRuntimeMinVersion // "v0.27.30" — minimum AWF for containerRuntime in container config (gh-aw-firewall#6093)
-constants.DefaultGVisorVersion          // "20250707.0" — pinned gVisor release for the generated install step; bump after reviewing release notes
-constants.CopilotNoAskUserMinVersion    // "1.0.19"   — minimum Copilot CLI for --no-ask-user
-constants.MCPGIntegrityReactionsMinVersion // "v0.2.18" — minimum MCPG for integrity-reactions policy
-constants.GhSkillsMinVersion            // "2.90.0"   — minimum gh CLI version required for gh skills commands
-```
-
-## URL Constants
-
-```go
-// Registry and host URLs
-constants.DefaultMCPRegistryURL     // "https://api.mcp.github.com/v0.1"
-constants.PublicGitHubHost          // "https://github.com"
-constants.GitHubCopilotMCPDomain    // "api.githubcopilot.com" (remote MCP mode)
-
-// Documentation URLs (type DocURL)
-constants.DocsEnginesURL      // engines reference documentation
-constants.DocsToolsURL        // tools and MCP server configuration
-constants.DocsGitHubToolsURL  // GitHub tools configuration
-constants.DocsPermissionsURL  // GitHub permissions configuration
-constants.DocsNetworkURL      // network configuration
-constants.DocsSandboxURL      // sandbox configuration
-```
-
-## Formatting Constants
-
-```go
-constants.MaxExpressionLineLength    // 120 — maximum line length for YAML expressions
-constants.ExpressionBreakThreshold   // 100 — threshold at which long lines get broken
-constants.CLIExtensionPrefix         // "gh aw" — user-facing CLI prefix
-```
-
-## File Permission Constants
-
-Standard `fs.FileMode` values for consistent file and directory creation:
-
-```go
-constants.FilePermSensitive  // 0o600 — owner-only read/write (config files, credentials)
-constants.FilePermPublic     // 0o644 — owner read/write + world read (normal files)
-constants.FilePermExecutable // 0o755 — owner/group/world executable (scripts, binaries)
-constants.DirPermSensitive   // 0o750 — owner+group access (sensitive directories)
-constants.DirPermPublic      // 0o755 — standard non-sensitive directory access
-```
-
-## Runtime Configuration
-
-```go
-// Paths (GitHub Actions expression form vs shell form)
-constants.GhAwRootDir                // "${{ runner.temp }}/gh-aw" (use in with:/env: YAML)
-constants.GhAwRootDirShell           // "${RUNNER_TEMP}/gh-aw"     (use inside run: blocks)
-
-// Timeouts
-constants.DefaultAgenticWorkflowTimeout // 20 * time.Minute
-constants.DefaultToolTimeout            // 60 * time.Second
-constants.DefaultMCPStartupTimeout      // 120 * time.Second
-
-// Rate limits
-constants.DefaultRateLimitMax    // 5  — max runs per window
-constants.DefaultRateLimitWindow // 60 — window in minutes
-
-// Runner image
-constants.DefaultActivationJobRunnerImage // "ubuntu-slim"
-
-// Symlink resolution
-constants.MaxSymlinkDepth         // 5 — max recursive symlink depth for remote file fetching
-
-// Memory file extension allowlist (empty = all extensions allowed)
-constants.DefaultAllowedMemoryExtensions // []string{}
-
-// GetWorkflowDir returns ".github/workflows" (or override from GH_AW_WORKFLOWS_DIR env var)
-dir := constants.GetWorkflowDir()
-```
-
-## Container Images and Mounts
-
-### Images
-
-```go
-constants.DefaultNodeAlpineLTSImage     // "node:lts-alpine"
-constants.DefaultPythonAlpineLTSImage   // "python:alpine"
-constants.DefaultAlpineImage            // "alpine:latest"
-constants.DevModeGhAwImage              // "localhost/gh-aw:dev" (local dev only)
-constants.DefaultMCPGatewayContainer    // "ghcr.io/github/gh-aw-mcpg"
-constants.DefaultFirewallRegistry       // "ghcr.io/github/gh-aw-firewall"
-```
-
-### Docker Volume Mounts
-
-These strings are passed to Docker's `--volume` / `-v` flag in containerized MCP server steps:
-
-```go
-constants.DefaultGhAwMount        // "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"
-constants.DefaultGhBinaryMount    // "/usr/bin/gh:/usr/bin/gh:ro"
-constants.DefaultTmpGhAwMount     // "/tmp/gh-aw:/tmp/gh-aw:rw"
-constants.DefaultWorkspaceMount   // "\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"
-```
-
-### MCP Gateway
-
-```go
-constants.DefaultMCPGatewayPayloadDir              // "/tmp/gh-aw/mcp-payloads"
-constants.DefaultMCPGatewayPayloadSizeThreshold    // 524288 (512 KB)
-```
-
-## AWF (Agentic Workflow Firewall) Constants
-
-```go
-constants.AWFDefaultCommand          // "sudo -E awf"
-constants.AWFProxyLogsDir            // "/tmp/gh-aw/sandbox/firewall/logs"
-constants.AWFAuditDir                // "/tmp/gh-aw/sandbox/firewall/audit"
-constants.AWFDefaultLogLevel         // "info"
-constants.DefaultGitHubLockdown      // false — GitHub MCP server lockdown default
-constants.AWFAPIProxyContainerIP     // "172.30.0.30" — fixed api-proxy sidecar address inside the AWF sandbox network
-```
-
-### Threat Detection Paths
-
-```go
-constants.ThreatDetectionLogPath    // "/tmp/gh-aw/threat-detection/detection.log" — engine log file
-constants.ThreatDetectionDir        // "/tmp/gh-aw/threat-detection" — working directory
-constants.ThreatDetectionResultPath // "/tmp/gh-aw/threat-detection/detection_result.json" — structured verdict output
-```
-
-## Validation Field Lists
-
-These variables control YAML key ordering and validation during workflow compilation:
-
-```go
-// Conventional field order for GitHub Actions primitives
-constants.PriorityStepFields      // []string{"name","id","if","run","uses","script","env","with"}
-constants.PriorityJobFields       // []string{"name","runs-on","needs","if","permissions",...}
-constants.PriorityWorkflowFields  // []string{"on","permissions","if","network","imports",...}
-
-// Fields silently ignored during frontmatter validation
-constants.IgnoredFrontmatterFields // []string{}
-
-// Fields forbidden in shared/imported workflows (only valid in main workflows)
-constants.SharedWorkflowForbiddenFields // []string{"on","concurrency","container",...}
-
-// Events that do not require permission checks
-constants.SafeWorkflowEvents      // []string{"workflow_dispatch","schedule"}
-
-// Domains always allowed for Playwright browser automation
-constants.DefaultAllowedDomains   // []string{"localhost","localhost:*","127.0.0.1","127.0.0.1:*"}
-```
-
-## Network Port Constants
-
-```go
-constants.DefaultMCPGatewayPort     // 8080  — MCP gateway HTTP service
-constants.DefaultMCPServerPort      // 3000  — mcp-scripts MCP server
-constants.DefaultMCPInspectorPort   // 3001  — safe-outputs MCP inspector
-constants.MinNetworkPort            // 1
-constants.MaxNetworkPort            // 65535
-constants.ClaudeLLMGatewayPort      // 10000
-constants.CodexLLMGatewayPort       // 10001
-constants.CopilotLLMGatewayPort     // 10002
-constants.GeminiLLMGatewayPort      // 10003
-```
-
-## Tool Lists
-
-```go
-// GitHub API expressions allowed in workflow markdown
-constants.AllowedExpressions      // []string of allowed ${{ github.* }} expression paths
-constants.AllowedExpressionsSet   // map[string]struct{} for O(1) lookup
-
-// Property names blocked in expressions (XSS/injection prevention)
-constants.DangerousPropertyNames
-constants.DangerousPropertyNamesSet
-
-// Default GitHub tool lists used when no explicit tools: configuration is present
-constants.DefaultReadOnlyGitHubTools      // read-only tools (base set)
-constants.DefaultGitHubToolsLocal         // default tools for local (Docker) mode — equals DefaultReadOnlyGitHubTools
-constants.DefaultGitHubToolsRemote        // default tools for remote (hosted) mode — equals DefaultReadOnlyGitHubTools
-constants.DefaultGitHubTools              // deprecated: use DefaultGitHubToolsLocal or DefaultGitHubToolsRemote
-constants.DefaultBashTools
-```
+### Types
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `CommandPrefix` | alias | Semantic string type for user-facing CLI command prefixes. |
+| `DocURL` | alias | Semantic string type for documentation URLs used in validation and help messages. |
+| `EngineName` | alias | Semantic string type for AI engine identifiers such as `copilot` and `claude`. |
+| `EngineOption` | struct | Display and secret metadata for a selectable engine. |
+| `FeatureFlag` | alias | Semantic string type for workflow feature flag identifiers. |
+| `JobName` | alias | Semantic string type for built-in GitHub Actions job names. |
+| `LineLength` | alias | Semantic integer type for formatting thresholds. |
+| `MCPServerID` | alias | Semantic string type for built-in MCP server identifiers. |
+| `ModelName` | alias | Semantic string type for AI model identifiers. |
+| `StepID` | alias | Semantic string type for GitHub Actions step identifiers. |
+| `SystemSecretSpec` | struct | Metadata describing a non-engine-specific secret. |
+| `URL` | alias | Semantic string type for general URLs. |
+| `Version` | alias | Semantic string type for version pins and minimum-version gates. |
+| `WorkflowID` | alias | Semantic string type for workflow basenames without the `.md` suffix. |
+
+### Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `GetAllEngineSecretNames` | `func GetAllEngineSecretNames() []string` | Returns the deduplicated union of engine primary secrets, alternative secrets, and system secrets. |
+| `GetEngineOption` | `func GetEngineOption(engineValue string) *EngineOption` | Returns the configured engine option for an engine value, or `nil` when none exists. |
+| `GetWorkflowDir` | `func GetWorkflowDir() string` | Returns the workflow directory, honoring `GH_AW_WORKFLOWS_DIR` and normalizing path separators to `/`. |
+
+### Constants
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `CLIExtensionPrefix` | `CommandPrefix` | `"gh aw"` | Canonical user-facing CLI prefix. |
+| `ExpressionBreakThreshold` | `LineLength` | `100` | Preferred break point for wrapping long expressions. |
+| `MaxExpressionLineLength` | `LineLength` | `120` | Maximum single-line expression length before wrapping. |
+| `DefaultEngine` | `EngineName` | `CopilotEngine` | Default engine when workflows do not specify one. |
+| `CopilotEngine` | `EngineName` | `"copilot"` | GitHub Copilot engine identifier. |
+| `ClaudeEngine` | `EngineName` | `"claude"` | Claude engine identifier. |
+| `CodexEngine` | `EngineName` | `"codex"` | Codex engine identifier. |
+| `GeminiEngine` | `EngineName` | `"gemini"` | Gemini engine identifier. |
+| `PiEngine` | `EngineName` | `"pi"` | Experimental Pi engine identifier. |
+| `MCPScriptsFeatureFlag` | `FeatureFlag` | `"mcp-scripts"` | Enables mcp-scripts workflow support. |
+| `MCPGatewayFeatureFlag` | `FeatureFlag` | `"mcp-gateway"` | Enables MCP gateway workflow support. |
+| `DisableXPIAPromptFeatureFlag` | `FeatureFlag` | `"disable-xpia-prompt"` | Disables the XPIA prompt path. |
+| `DIFCProxyFeatureFlag` | `FeatureFlag` | `"difc-proxy"` | Deprecated integrity proxy flag kept for compatibility. |
+| `CliProxyFeatureFlag` | `FeatureFlag` | `"cli-proxy"` | Enables the AWF CLI proxy sidecar path. |
+| `AwfDiagnosticLogsFeatureFlag` | `FeatureFlag` | `"awf-diagnostic-logs"` | Enables AWF failure diagnostics capture. |
+| `ByokCopilotFeatureFlag` | `FeatureFlag` | `"byok-copilot"` | Deprecated legacy Copilot BYOK flag. |
+| `IntegrityReactionsFeatureFlag` | `FeatureFlag` | `"integrity-reactions"` | Enables reaction-based integrity promotion and demotion. |
+| `GroupConcurrencyQueueFeatureFlag` | `FeatureFlag` | `"group-concurrency-queue"` | Controls whether generated group concurrency uses `queue: max`. |
+| `DangerouslyDisableSandboxAgentFeatureFlag` | `FeatureFlag` | `"dangerously-disable-sandbox-agent"` | Required to allow `sandbox.agent: false`. |
+| `GHAWDetectionFeatureFlag` | `FeatureFlag` | `"gh-aw-detection"` | Enables the external threat-detection binary path. |
+| `AgentJobName` | `JobName` | `"agent"` | Built-in agent job identifier. |
+| `ActivationJobName` | `JobName` | `"activation"` | Built-in activation job identifier. |
+| `PreActivationJobName` | `JobName` | `"pre_activation"` | Built-in pre-activation job identifier. |
+| `PreActivationHyphenJobName` | `JobName` | `"pre-activation"` | Hyphenated compatibility alias for the pre-activation job. |
+| `DetectionJobName` | `JobName` | `"detection"` | Built-in detection job identifier. |
+| `EvalsJobName` | `JobName` | `"evals"` | Built-in evals job identifier. |
+| `SafeOutputsJobName` | `JobName` | `"safe_outputs"` | Built-in safe-outputs job identifier. |
+| `SafeOutputsHyphenJobName` | `JobName` | `"safe-outputs"` | Hyphenated compatibility alias for the safe-outputs job. |
+| `UploadAssetsJobName` | `JobName` | `"upload_assets"` | Built-in asset-upload job identifier. |
+| `UploadCodeScanningJobName` | `JobName` | `"upload_code_scanning_sarif"` | Built-in SARIF upload job identifier. |
+| `ConclusionJobName` | `JobName` | `"conclusion"` | Built-in conclusion job identifier. |
+| `UnlockJobName` | `JobName` | `"unlock"` | Built-in unlock job identifier. |
+| `GitHubMCPServerID` | `MCPServerID` | `"github"` | Built-in GitHub MCP server identifier. |
+| `SafeOutputsMCPServerID` | `MCPServerID` | `"safeoutputs"` | Built-in safe-outputs MCP server identifier. |
+| `MCPScriptsMCPServerID` | `MCPServerID` | `"mcpscripts"` | Built-in mcp-scripts MCP server identifier. |
+| `AgenticWorkflowsMCPServerID` | `MCPServerID` | `"agenticworkflows"` | Built-in agentic-workflows MCP server identifier. |
+| `MCPScriptsMCPVersion` | untyped `string` | `"1.0.0"` | Version identifier for the mcp-scripts MCP server. |
+| `DefaultMCPRegistryURL` | `URL` | `"https://api.mcp.github.com/v0.1"` | Default MCP registry endpoint. |
+| `PublicGitHubHost` | `URL` | `"https://github.com"` | Canonical public GitHub host. |
+| `GitHubCopilotMCPDomain` | untyped `string` | `"api.githubcopilot.com"` | Hosted GitHub MCP server domain used by remote mode. |
+| `DocsEnginesURL` | `DocURL` | `"https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/engines.md"` | Engines reference documentation URL. |
+| `DocsToolsURL` | `DocURL` | `"https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/tools.md"` | Tools reference documentation URL. |
+| `DocsGitHubToolsURL` | `DocURL` | `"https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/tools.md#github-tools-github"` | GitHub tools subsection URL. |
+| `DocsPermissionsURL` | `DocURL` | `"https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/permissions.md"` | Permissions reference URL. |
+| `DocsNetworkURL` | `DocURL` | `"https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/network.md"` | Network reference URL. |
+| `DocsSandboxURL` | `DocURL` | `"https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/sandbox.md"` | Sandbox reference URL. |
 
 ## Usage Examples
 
 ```go
-import "github.com/github/gh-aw/pkg/constants"
+engine := constants.CopilotEngine
+fmt.Println(string(engine))
 
-// Engine constants
-engine := constants.CopilotEngine // EngineName("copilot")
-fmt.Println(string(engine))       // "copilot"
-
-// Resolve an engine option for display and secret info
 opt := constants.GetEngineOption("copilot")
-fmt.Println(opt.Label)      // "GitHub Copilot"
-fmt.Println(opt.SecretName) // "COPILOT_GITHUB_TOKEN"
-
-// Version constants
-fmt.Println(constants.DefaultCopilotVersion)
-
-// Feature flags (EngineName and FeatureFlag are plain typed strings; use string() conversion)
-fmt.Println(string(constants.MCPGatewayFeatureFlag)) // "mcp-gateway"
-
-// Job / step IDs
-fmt.Println(constants.AgentJobName.String())          // "agent"
-fmt.Println(constants.CheckMembershipStepID.String()) // "check_membership"
-
-// Runtime paths
-fmt.Println(constants.GhAwRootDir)       // "${{ runner.temp }}/gh-aw"
-fmt.Println(constants.GhAwRootDirShell)  // "${RUNNER_TEMP}/gh-aw"
-
-// Dynamic workflow directory (respects GH_AW_WORKFLOWS_DIR)
-dir := constants.GetWorkflowDir() // ".github/workflows"
+fmt.Println(opt.Label)
+fmt.Println(opt.SecretName)
 ```
+
+```go
+dir := constants.GetWorkflowDir()
+fmt.Println(dir) // ".github/workflows" unless GH_AW_WORKFLOWS_DIR is set
+```
+
+```go
+fmt.Println(constants.AgentJobName.String())
+fmt.Println(constants.CheckMembershipStepID.String())
+fmt.Println(constants.DefaultCopilotVersion.String())
+```
+
+## Design Decisions
+
+The package intentionally uses many named string and integer types instead of raw primitives. Types such as `CommandPrefix`, `JobName`, `StepID`, `Version`, and `DocURL` implement `String()` and, where appropriate, `IsValid()` so callers can keep signatures expressive without introducing complex wrappers.
+
+Constants in this package SHOULD be treated as the single source of truth for generated workflow identifiers, pinned tool versions, filesystem paths, and engine environment variables. Functions such as `GetAllEngineSecretNames` MUST return deduplicated values because callers use the result for validation and secret wiring.
+
+`GetWorkflowDir` reads `GH_AW_WORKFLOWS_DIR` at call time and normalizes it with `filepath.ToSlash`. Callers MAY override the default in tests or CI, but code that persists GitHub paths SHOULD expect forward slashes in the returned value.
+
+The package preserves compatibility aliases where workflow history requires them. For example, `AgenticEngines` is deprecated in favor of the workflow engine catalog, and `DefaultGitHubTools` is a deprecated alias for `DefaultGitHubToolsLocal`, but both remain exported for older callers.
 
 ## Dependencies
 
-**Internal**:
-- `github.com/github/gh-aw/pkg/setutil` — set membership helpers
+Internal dependencies include `pkg/setutil` for deduplicating engine secret names. External dependencies are limited to the Go standard library, including `io/fs`, `os`, `path/filepath`, and `time`.
 
-**External**:
-- None beyond the Go standard library (`io/fs`, `os`, `path/filepath`, `time`).
+## Thread Safety
 
-## Design Notes
-
-- Selected semantic types implement `String()` and `IsValid()` for consistent validation: `CommandPrefix`, `JobName`, `StepID`, `Version`, `DocURL` (both methods); `MCPServerID` (String only). `EngineName`, `FeatureFlag`, and `URL` are plain typed strings without these methods.
-- Version constants are intentionally plain string literals (not derived from build tags or embedded files) so that individual upgrades can be made as targeted one-line changes.
-- `GetWorkflowDir()` reads `GH_AW_WORKFLOWS_DIR` from the environment at call time, allowing the directory to be overridden in tests and CI.
-- `AgenticEngines` is deprecated in favour of `workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs()` but is kept for backward compatibility.
-- `DefaultGitHubTools` is a deprecated compatibility alias for `DefaultGitHubToolsLocal`; `DefaultGitHubToolsLocal` and `DefaultGitHubToolsRemote` are currently identical and exist as separate names for future divergence.
-
-<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
-## Source-verified export coverage
-
-This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
-
-| Category | Count |
-|----------|------:|
-| Types | 14 |
-| Constants | 306 |
-| Variables | 23 |
-| Functions and methods | 14 |
-| Additional symbols documented in this appendix | 100 |
-
-### Additional constants and variables
-
-| File | Kind | Symbol | Declaration | Description |
-|------|------|--------|-------------|-------------|
-| `constants.go` | `const` | `AWFAuditDirExpr` | `const AWFAuditDirExpr = GhAwRootDir + "/sandbox/firewall/audit"` | AWFAuditDirExpr is the host-side AWF audit dir path resolved by Actions expression. |
-| `constants.go` | `const` | `AWFAuditDirShell` | `const AWFAuditDirShell = GhAwRootDirShell + "/sandbox/firewall/audit"` | AWFAuditDirShell is the host-side AWF audit dir path resolved by shell env expansion. |
-| `constants.go` | `const` | `AWFConfigFilePath` | `const AWFConfigFilePath = "/tmp/gh-aw/awf-config.json"` | AWFConfigFilePath is the path inside the /tmp/gh-aw tree where the AWF config file is copied so it can be included in the unified agent artifact. |
-| `constants.go` | `const` | `AWFConfigFilePathExpr` | `const AWFConfigFilePathExpr = GhAwRootDir + "/awf-config.json"` | AWFConfigFilePathExpr is the host-side AWF config path resolved by Actions expression. |
-| `constants.go` | `const` | `AWFNoProxyHosts` | `const AWFNoProxyHosts = "localhost,127.0.0.1," + "host.docker.internal," + "host.docker.internal:10000,…` | AWFNoProxyHosts is the value for the NO_PROXY and no_proxy environment variables in the AWF agent execution environment. |
-| `constants.go` | `const` | `AWFProxyLogsDirExpr` | `const AWFProxyLogsDirExpr = GhAwRootDir + "/sandbox/firewall/logs"` | AWFProxyLogsDirExpr is the host-side AWF proxy logs path resolved by Actions expression. |
-| `constants.go` | `const` | `AWFProxyLogsDirShell` | `const AWFProxyLogsDirShell = GhAwRootDirShell + "/sandbox/firewall/logs"` | AWFProxyLogsDirShell is the host-side AWF proxy logs path resolved by shell env expansion. |
-| `constants.go` | `const` | `AWFReflectFilePath` | `const AWFReflectFilePath = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json"` | AWFReflectFilePath is the path where the AWF API proxy /reflect response is persisted by the agent harness before exiting. |
-| `constants.go` | `const` | `AWFReflectFilePathExpr` | `const AWFReflectFilePathExpr = GhAwRootDir + "/sandbox/firewall/awf-reflect.json"` | AWFReflectFilePathExpr is the host-side AWF /reflect output path resolved by Actions expression. |
-| `constants.go` | `const` | `AgentStdioLogPath` | `const AgentStdioLogPath = TmpGhAwDir + "/agent-stdio.log"` | AgentStdioLogPath is the path for capturing agent standard I/O log output. |
-| `constants.go` | `const` | `AgentsDir` | `const AgentsDir = ".github/agents/"` | AgentsDir is the custom GitHub Copilot agent definitions directory (with trailing slash). |
-| `constants.go` | `const` | `AwPromptsFile` | `const AwPromptsFile = TmpGhAwDir + "/aw-prompts/prompt.txt"` | AwPromptsFile is the runtime prompt file path populated by the setup action. |
-| `constants.go` | `const` | `AwPromptsFileShell` | `const AwPromptsFileShell = GhAwRootDirShell + "/aw-prompts/prompt.txt"` | AwPromptsFileShell is the runtime prompt file path in shell env-var form for host-side paths. |
-| `constants.go` | `const` | `BashCompletionDir` | `const BashCompletionDir = "/etc/bash_completion.d"` | BashCompletionDir is the system-wide bash completion directory. |
-| `constants.go` | `const` | `BashCompletionGhAwPath` | `const BashCompletionGhAwPath = BashCompletionDir + "/gh-aw"` | BashCompletionGhAwPath is the gh-aw bash completion file path. |
-| `constants.go` | `const` | `CodexMcpConfigTomlPath` | `const CodexMcpConfigTomlPath = GhAwRootDir + "/mcp-config/config.toml"` | CodexMcpConfigTomlPath is the Codex MCP config TOML file path in Actions expression form. |
-| `constants.go` | `const` | `CopilotBinaryPath` | `const CopilotBinaryPath = "/usr/local/bin/copilot"` | CopilotBinaryPath is the path to the Copilot CLI binary inside AWF containers. |
-| `constants.go` | `const` | `DefaultCopilotSDKPort` | `const DefaultCopilotSDKPort = 3002` | DefaultCopilotSDKPort is the default localhost port for the Copilot CLI HTTP server when running in headless SDK mode (copilot-sdk: true). |
-| `constants.go` | `const` | `DefaultDetectionMaxAICredits` | `const DefaultDetectionMaxAICredits int64 = 400` | DefaultDetectionMaxAICredits is the default AI Credits budget enforced by the AWF API proxy for threat-detection runs. |
-| `constants.go` | `const` | `DefaultGhAwNodeImage` | `const DefaultGhAwNodeImage = "ghcr.io/github/gh-aw-node"` | DefaultGhAwNodeImage is the published gh-aw Node container image used for JavaScript-based MCP servers that need Node. |
-| `constants.go` | `const` | `DefaultHTTPClientTimeout` | `const DefaultHTTPClientTimeout = 30 * time.Second` | DefaultHTTPClientTimeout is the default timeout for internal HTTP clients |
-| `constants.go` | `const` | `DefaultMaxAICredits` | `const DefaultMaxAICredits int64 = 1000` | DefaultMaxAICredits is the default AI Credits budget enforced by the AWF API proxy. |
-| `constants.go` | `const` | `DefaultMaxDailyAICredits` | `const DefaultMaxDailyAICredits = "5000"` | DefaultMaxDailyAICredits is the default per-workflow daily AI Credits guardrail. |
-| `constants.go` | `const` | `DefaultMaxRuns` | `const DefaultMaxRuns = 500` | DefaultMaxRuns is the default AWF invocation cap enforced by the AWF API proxy. |
-| `constants.go` | `const` | `DefaultMaxTurnCacheMisses` | `const DefaultMaxTurnCacheMisses = 5` | DefaultMaxTurnCacheMisses is the default AWF consecutive cache-miss guardrail. |
-| `constants.go` | `const` | `DefaultSafeOutputsMount` | `const DefaultSafeOutputsMount = GhAwRootDirShell + "/safeoutputs:" + GhAwRootDirShell + "/safeoutputs:rw"` | DefaultSafeOutputsMount is the mount path for safe-outputs runtime files (config. |
-| `constants.go` | `const` | `GhAwRootDirShellSlash` | `const GhAwRootDirShellSlash = GhAwRootDirShell + "/"` | GhAwRootDirShellSlash is GhAwRootDirShell with a trailing slash. |
-| `constants.go` | `const` | `GhAwRootDirSlash` | `const GhAwRootDirSlash = GhAwRootDir + "/"` | GhAwRootDirSlash is GhAwRootDir with a trailing slash (Actions expression form). |
-| `constants.go` | `const` | `GithubDir` | `const GithubDir = ".github/"` | GithubDir is the root . |
-| `constants.go` | `const` | `HomebrewPrefix` | `const HomebrewPrefix = "/opt/homebrew"` | HomebrewPrefix is the default Homebrew installation prefix on macOS. |
-| `constants.go` | `const` | `MCPSessionTimeoutMin` | `const MCPSessionTimeoutMin = 5 * time.Minute` | MCPSessionTimeoutMin is the minimum allowed value for engine. |
-| `constants.go` | `const` | `MCPToolTimeoutMax` | `const MCPToolTimeoutMax = 600 * time.Second` | MCPToolTimeoutMax is the maximum allowed value for engine. |
-| `constants.go` | `const` | `MCPToolTimeoutMin` | `const MCPToolTimeoutMin = 10 * time.Second` | MCPToolTimeoutMin is the minimum allowed value for engine. |
-| `constants.go` | `const` | `McpServersJsonPathExpr` | `const McpServersJsonPathExpr = GhAwRootDir + "/mcp-config/mcp-servers.json"` | McpServersJsonPathExpr is the MCP servers JSON config path in Actions expression form. |
-| `constants.go` | `const` | `OTELSentryEndpointSecretName` | `const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"` | OTELSentryEndpointSecretName is the well-known secret name used by shared OTLP workflow imports for Sentry endpoint configuration. |
-| `constants.go` | `const` | `PreAgentAuditFilePath` | `const PreAgentAuditFilePath = "/tmp/gh-aw/pre-agent-audit.txt"` | PreAgentAuditFilePath is the path where the pre-agent workspace audit report is saved. |
-| `constants.go` | `const` | `ShellMcpConfigDir` | `const ShellMcpConfigDir = GhAwRootDirShell + "/mcp-config"` | ShellMcpConfigDir is the mcp-config directory in shell environment variable form. |
-| `constants.go` | `const` | `ShellMcpServersJsonPath` | `const ShellMcpServersJsonPath = GhAwRootDirShell + "/mcp-config/mcp-servers.json"` | ShellMcpServersJsonPath is the MCP servers JSON config file path in shell form. |
-| `constants.go` | `const` | `TmpAwBundleGlob` | `const TmpAwBundleGlob = TmpGhAwDir + "/aw-*.bundle"` | TmpAwBundleGlob is the glob pattern for bundle files produced by the agent. |
-| `constants.go` | `const` | `TmpAwMcpLogsDir` | `const TmpAwMcpLogsDir = TmpGhAwDir + "/aw-mcp/logs"` | TmpAwMcpLogsDir is the aw-mcp server logs directory. |
-| `constants.go` | `const` | `TmpAwPatchGlob` | `const TmpAwPatchGlob = TmpGhAwDir + "/aw-*.patch"` | TmpAwPatchGlob is the glob pattern for patch files produced by the agent. |
-| `constants.go` | `const` | `TmpCommentMemoryDir` | `const TmpCommentMemoryDir = TmpGhAwDir + "/comment-memory/"` | TmpCommentMemoryDir is the comment-memory data directory (with trailing slash). |
-| `constants.go` | `const` | `TmpDIFCProxyTLSCACert` | `const TmpDIFCProxyTLSCACert = TmpGhAwDir + "/difc-proxy-tls/ca.crt"` | TmpDIFCProxyTLSCACert is the DIFC proxy TLS CA certificate file path. |
-| `constants.go` | `const` | `TmpGeminiClientErrorGlob` | `const TmpGeminiClientErrorGlob = TmpGhAwDir + "/gemini-client-error-*.json"` | TmpGeminiClientErrorGlob is the glob for Gemini client error JSON diagnostic files. |
-| `constants.go` | `const` | `TmpGhAwAgentDir` | `const TmpGhAwAgentDir = TmpGhAwDir + "/agent/"` | TmpGhAwAgentDir is the agent working directory in the /tmp/gh-aw tree. |
-| `constants.go` | `const` | `TmpGhAwAssetsDir` | `const TmpGhAwAssetsDir = TmpGhAwDir + "/safeoutputs/assets"` | TmpGhAwAssetsDir is the directory the upload_assets job downloads the safe-outputs assets artifact into. |
-| `constants.go` | `const` | `TmpGhAwAssetsDirSlash` | `const TmpGhAwAssetsDirSlash = TmpGhAwAssetsDir + "/"` | TmpGhAwAssetsDirSlash is TmpGhAwAssetsDir with a trailing slash. |
-| `constants.go` | `const` | `TmpGhAwDir` | `const TmpGhAwDir = "/tmp/gh-aw"` | TmpGhAwDir is the root /tmp/gh-aw directory (without trailing slash). |
-| `constants.go` | `const` | `TmpGhAwDirSlash` | `const TmpGhAwDirSlash = TmpGhAwDir + "/"` | TmpGhAwDirSlash is TmpGhAwDir with a trailing slash. |
-| `constants.go` | `const` | `TmpMcpConfigDir` | `const TmpMcpConfigDir = TmpGhAwDir + "/mcp-config"` | TmpMcpConfigDir is the mcp-config directory in the /tmp/gh-aw tree. |
-| `constants.go` | `const` | `TmpMcpConfigLogsDir` | `const TmpMcpConfigLogsDir = TmpMcpConfigDir + "/logs/"` | TmpMcpConfigLogsDir is the MCP config server log directory. |
-| `constants.go` | `const` | `TmpMcpLogsDir` | `const TmpMcpLogsDir = TmpGhAwDir + "/mcp-logs/"` | TmpMcpLogsDir is the MCP server logs root directory (with trailing slash). |
-| `constants.go` | `const` | `TmpMcpLogsMount` | `const TmpMcpLogsMount = TmpGhAwDir + "/mcp-logs:" + TmpGhAwDir + "/mcp-logs"` | TmpMcpLogsMount is the Docker volume mount spec for the MCP logs directory. |
-| `constants.go` | `const` | `TmpMcpLogsPlaywrightDir` | `const TmpMcpLogsPlaywrightDir = TmpGhAwDir + "/mcp-logs/playwright"` | TmpMcpLogsPlaywrightDir is the Playwright MCP server log directory. |
-| `constants.go` | `const` | `TmpMcpLogsSafeOutputsDir` | `const TmpMcpLogsSafeOutputsDir = TmpGhAwDir + "/mcp-logs/safeoutputs"` | TmpMcpLogsSafeOutputsDir is the safe-outputs MCP server log directory. |
-| `constants.go` | `const` | `TmpMcpScriptsLogsDir` | `const TmpMcpScriptsLogsDir = TmpGhAwDir + "/mcp-scripts/logs/"` | TmpMcpScriptsLogsDir is the mcp-scripts server log directory (with trailing slash). |
-| `constants.go` | `const` | `TmpMcpServersJsonPath` | `const TmpMcpServersJsonPath = TmpMcpConfigDir + "/mcp-servers.json"` | TmpMcpServersJsonPath is the MCP servers JSON config file in the /tmp tree. |
-| `constants.go` | `const` | `TmpPiAgentDir` | `const TmpPiAgentDir = TmpGhAwDir + "/pi-agent-dir"` | TmpPiAgentDir is the Pi engine agent working directory. |
-| `constants.go` | `const` | `TmpProxyLogsDir` | `const TmpProxyLogsDir = TmpGhAwDir + "/proxy-logs/"` | TmpProxyLogsDir is the DIFC proxy logs directory (with trailing slash). |
-| `constants.go` | `const` | `TmpProxyTLSCACert` | `const TmpProxyTLSCACert = TmpGhAwDir + "/proxy-logs/proxy-tls/ca.crt"` | TmpProxyTLSCACert is the proxy TLS CA certificate file path. |
-| `constants.go` | `const` | `TmpProxyTLSDir` | `const TmpProxyTLSDir = TmpGhAwDir + "/proxy-logs/proxy-tls/"` | TmpProxyTLSDir is the proxy TLS certificates sub-directory (with trailing slash). |
-| `constants.go` | `const` | `TmpRepoMemoryDir` | `const TmpRepoMemoryDir = TmpGhAwDir + "/repo-memory/"` | TmpRepoMemoryDir is the repo-memory data directory (with trailing slash). |
-| `constants.go` | `const` | `TmpSandboxAgentLogsDir` | `const TmpSandboxAgentLogsDir = TmpGhAwDir + "/sandbox/agent/logs/"` | TmpSandboxAgentLogsDir is the sandbox agent logs directory (with trailing slash). |
-| `constants.go` | `const` | `UsrLocalPrefix` | `const UsrLocalPrefix = "/usr/local"` | UsrLocalPrefix is the standard /usr/local installation prefix. |
-| `constants.go` | `const` | `WorkflowsDir` | `const WorkflowsDir = ".github/workflows"` | WorkflowsDir is the GitHub Actions workflow directory path (without trailing slash). |
-| `constants.go` | `const` | `WorkflowsDirSlash` | `const WorkflowsDirSlash = WorkflowsDir + "/"` | WorkflowsDirSlash is WorkflowsDir with a trailing slash. |
-| `constants.go` | `const` | `WorkflowsLockYmlGitAttributesEntry` | `const WorkflowsLockYmlGitAttributesEntry = WorkflowsLockYmlGlob + " linguist-generated=true"` | WorkflowsLockYmlGitAttributesEntry is the .gitattributes entry that marks lock YAML files as generated. |
-| `constants.go` | `const` | `WorkflowsLockYmlGitAttributesEntryLegacy` | `const WorkflowsLockYmlGitAttributesEntryLegacy = WorkflowsLockYmlGlob + " linguist-generated=true merge=ours"` | WorkflowsLockYmlGitAttributesEntryLegacy is the previous .gitattributes entry format that included an ineffective "merge=ours" attribute. It is only used to detect and clean up entries that gh-aw itself previously wrote, so we do not overwrite repository-owned policy. |
-| `constants.go` | `const` | `WorkflowsLockYmlGlob` | `const WorkflowsLockYmlGlob = WorkflowsDirSlash + "*.lock.yml"` | WorkflowsLockYmlGlob is the glob pattern for compiled workflow lock YAML files. |
-| `engine_constants.go` | `const` | `AnthropicAPIKey` | `const AnthropicAPIKey = "ANTHROPIC_API_KEY"` | AnthropicAPIKey is the API key secret name required by the Claude engine. |
-| `engine_constants.go` | `const` | `CodexAPIKey` | `const CodexAPIKey = "CODEX_API_KEY"` | CodexAPIKey is the API key secret name used by the Codex engine. |
-| `engine_constants.go` | `const` | `CodexDefaultModel` | `const CodexDefaultModel = "gpt-5.4"` | CodexDefaultModel is the default model for the Codex agentic engine. |
-| `engine_constants.go` | `const` | `CopilotBYOKDummyAPIKeyEnvVar` | `const CopilotBYOKDummyAPIKeyEnvVar = "COPILOT_DUMMY_BYOK"` | CopilotBYOKDummyAPIKeyEnvVar is the environment variable that holds the CopilotBYOKDummyAPIKey sentinel value in generated lock files. |
-| `engine_constants.go` | `const` | `CopilotCLIIntegrationIDValue` | `const CopilotCLIIntegrationIDValue = "agentic-workflows"` | CopilotCLIIntegrationIDValue is the value of the integration ID for agentic workflows. |
-| `engine_constants.go` | `const` | `CopilotGitHubToken` | `const CopilotGitHubToken = "COPILOT_GITHUB_TOKEN"` | CopilotGitHubToken is the GitHub token secret name required by the Copilot engine. |
-| `engine_constants.go` | `const` | `CopilotProviderAPIKey` | `const CopilotProviderAPIKey = "COPILOT_PROVIDER_API_KEY"` | CopilotProviderAPIKey (OPTIONAL) is the API key for authenticating to the external provider. |
-| `engine_constants.go` | `const` | `CopilotProviderBaseURL` | `const CopilotProviderBaseURL = "COPILOT_PROVIDER_BASE_URL"` | COPILOT_PROVIDER_* environment variables activate Bring Your Own Key (BYOK) mode, routing Copilot CLI requests to an external LLM provider instead of GitHub's routing. |
-| `engine_constants.go` | `const` | `CopilotProviderBearerToken` | `const CopilotProviderBearerToken = "COPILOT_PROVIDER_BEARER_TOKEN"` | CopilotProviderBearerToken (OPTIONAL) is an alternative to CopilotProviderAPIKey. |
-| `engine_constants.go` | `const` | `CopilotProviderWireAPI` | `const CopilotProviderWireAPI = "COPILOT_PROVIDER_WIRE_API"` | CopilotProviderWireAPI (OPTIONAL) selects the HTTP wire API used when talking to a BYOK provider. |
-| `engine_constants.go` | `const` | `CopilotSDKDriverEnvVar` | `const CopilotSDKDriverEnvVar = "GH_AW_COPILOT_SDK_DRIVER"` | CopilotSDKDriverEnvVar is set to "1" when the copilot_sdk_driver. |
-| `engine_constants.go` | `const` | `CopilotSDKServerArgsEnvVar` | `const CopilotSDKServerArgsEnvVar = "GH_AW_COPILOT_SDK_SERVER_ARGS"` | CopilotSDKServerArgsEnvVar is the environment variable that holds the JSON-encoded CLI argument array for the headless Copilot CLI sidecar started by copilot_harness. |
-| `engine_constants.go` | `const` | `CopilotSDKURIEnvVar` | `const CopilotSDKURIEnvVar = "COPILOT_SDK_URI"` | CopilotSDKURIEnvVar is the environment variable name for the Copilot SDK URI. |
-| `engine_constants.go` | `const` | `DefaultMaxToolDenials` | `const DefaultMaxToolDenials = 5` | DefaultMaxToolDenials is the default maximum number of repeated tool denials allowed in Copilot SDK mode before stopping inference. |
-| `engine_constants.go` | `const` | `EnvVarGitHubMCPServerToken` | `const EnvVarGitHubMCPServerToken = "GH_AW_GITHUB_MCP_SERVER_TOKEN"` | EnvVarGitHubMCPServerToken is the optional token for the GitHub MCP server. |
-| `engine_constants.go` | `const` | `EnvVarMaxToolDenials` | `const EnvVarMaxToolDenials = "GH_AW_MAX_TOOL_DENIALS"` | EnvVarMaxToolDenials is the maximum number of repeated tool denials allowed in Copilot SDK driver mode before inference is stopped. |
-| `engine_constants.go` | `const` | `GeminiAPIKey` | `const GeminiAPIKey = "GEMINI_API_KEY"` | GeminiAPIKey is the API key secret name required by the Gemini engine. |
-| `engine_constants.go` | `const` | `OpenAIAPIKey` | `const OpenAIAPIKey = "OPENAI_API_KEY"` | OpenAIAPIKey is the OpenAI API key secret name used by the Codex engine as an alternative. |
-| `job_constants.go` | `const` | `EvalsArtifactName` | `const EvalsArtifactName = "evals"` | EvalsArtifactName is the artifact name for the BinEval evaluation results. |
-| `job_constants.go` | `const` | `EvalsJobName` | `const EvalsJobName JobName = "evals"` | Exported constant declared in `job_constants.go`. |
-| `job_constants.go` | `const` | `EvalsResultFilename` | `const EvalsResultFilename = "evals.jsonl"` | EvalsResultFilename is the filename of the evaluation results JSONL file. |
-| `job_constants.go` | `const` | `PreActivationHyphenJobName` | `const PreActivationHyphenJobName JobName = "pre-activation"` | Exported constant declared in `job_constants.go`. |
-| `job_constants.go` | `const` | `SafeOutputsHyphenJobName` | `const SafeOutputsHyphenJobName JobName = "safe-outputs"` | Exported constant declared in `job_constants.go`. |
-| `engine_constants.go` | `var` | `EngineOptions` | `var EngineOptions = []EngineOption{ { Value: string(CopilotEngine), Label: "GitHub Copilot", Descri…` | EngineOptions provides the list of available AI engines for user selection. |
-| `job_constants.go` | `var` | `KnownBuiltInJobNames` | `var KnownBuiltInJobNames = map[string]struct{}{ string(AgentJobName): {}, string(ActivationJobName): {}, s…` | KnownBuiltInJobNames contains all known built-in workflow job names (including aliases). |
-
-<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
-
-## Source Synchronization
-
-Reviewed against recent source updates on 2026-07-17; no additional public-contract deltas were identified beyond the sections above.
+The package exports immutable constants plus package-level slices, maps, and structs that are initialized once and then read by callers. Read-only access is safe for concurrent use. Callers SHOULD treat exported variables such as `EngineOptions`, `SystemSecrets`, `AllowedExpressions`, `DefaultReadOnlyGitHubTools`, and `CopilotStemCommands` as shared configuration data and SHOULD NOT mutate them concurrently.
 
 ---
 

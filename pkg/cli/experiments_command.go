@@ -207,9 +207,9 @@ func RunExperimentsList(config ExperimentsListConfig) error {
 	}
 
 	if config.JSONOutput {
-		jsonBytes, err := json.MarshalIndent(experiments, "", "  ")
+		jsonBytes, err := marshalIndentJSONOrWrap(experiments, "experiments list")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil
@@ -283,9 +283,9 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 	)
 
 	if config.JSONOutput {
-		jsonBytes, err := json.MarshalIndent(details, "", "  ")
+		jsonBytes, err := marshalIndentJSONOrWrap(details, "experiment details")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil

@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -135,9 +136,9 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 
 	// Determine installation path
 	var completionPath string
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := gitutil.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+		return err
 	}
 
 	// Try to determine the best location for bash completions
@@ -247,9 +248,9 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 	completionScript := buf.String()
 
 	// Determine installation path
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := gitutil.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+		return err
 	}
 
 	// Check for fpath directories
@@ -316,9 +317,9 @@ func installFishCompletion(verbose bool, cmd *cobra.Command) error {
 	completionScript := buf.String()
 
 	// Determine installation path
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := gitutil.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+		return err
 	}
 
 	// Fish completion directory
@@ -412,9 +413,9 @@ func UninstallShellCompletion(verbose bool) error {
 func uninstallBashCompletion(verbose bool) error {
 	shellCompletionLog.Print("Uninstalling bash completion")
 
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := gitutil.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+		return err
 	}
 
 	// Check all possible locations where completion might be installed
@@ -475,9 +476,9 @@ func uninstallBashCompletion(verbose bool) error {
 func uninstallZshCompletion(verbose bool) error {
 	shellCompletionLog.Print("Uninstalling zsh completion")
 
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := gitutil.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+		return err
 	}
 
 	// Check possible locations
@@ -503,9 +504,9 @@ func uninstallZshCompletion(verbose bool) error {
 func uninstallFishCompletion(verbose bool) error {
 	shellCompletionLog.Print("Uninstalling fish completion")
 
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := gitutil.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+		return err
 	}
 
 	completionPath := filepath.Join(homeDir, ".config", "fish", "completions", "gh-aw.fish")

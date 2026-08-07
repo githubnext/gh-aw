@@ -6,12 +6,12 @@ var mergePullRequestLog = logger.New("workflow:merge_pull_request")
 
 // MergePullRequestConfig holds configuration for merging pull requests with policy checks.
 type MergePullRequestConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	RequiredLabels         []string `yaml:"required-labels,omitempty"`       // Labels that must ALL be present on the PR
-	AllowedBranches        []string `yaml:"allowed-branches,omitempty"`      // Glob patterns for source branch names; PR branch must match one
-	RequiredTitlePrefix    string   `yaml:"required-title-prefix,omitempty"` // Title prefix the PR must have
-	AllowedLabels          []string `yaml:"allowed-labels,omitempty"`        // Deprecated: use required-labels
+	BaseSafeOutputConfig          `yaml:",inline"`
+	SafeOutputTargetConfig        `yaml:",inline"`
+	SafeOutputAllowedLabelsConfig `yaml:",inline"` // Deprecated: allowed-labels is migrated to required-labels
+	RequiredLabels                []string         `yaml:"required-labels,omitempty"`       // Labels that must ALL be present on the PR
+	AllowedBranches               []string         `yaml:"allowed-branches,omitempty"`      // Glob patterns for source branch names; PR branch must match one
+	RequiredTitlePrefix           string           `yaml:"required-title-prefix,omitempty"` // Title prefix the PR must have
 }
 
 // parseMergePullRequestConfig handles merge-pull-request configuration.
