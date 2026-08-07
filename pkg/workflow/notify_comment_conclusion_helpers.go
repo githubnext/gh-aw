@@ -343,26 +343,16 @@ func buildAgentFailureReportingPolicyVars(data *WorkflowData) []string {
 			envVars = append(envVars, fmt.Sprintf("          GH_AW_FAILURE_REPORT_AS_ISSUE: %q\n", strconv.FormatBool(enabled)))
 		}
 		shouldIncludeCategoryFilters := true
-		switch reportSetting := data.SafeOutputs.ReportFailureAsIssue.(type) {
-		case bool:
-			appendReportFailureEnvVar(reportSetting)
-			shouldIncludeCategoryFilters = reportSetting
-		case string:
-			reportExpression := reportSetting
-			switch reportExpression {
-			case "true":
-				appendReportFailureEnvVar(true)
-			case "false":
-				appendReportFailureEnvVar(false)
-				shouldIncludeCategoryFilters = false
-			default:
-				envVars = append(envVars, buildTemplatableBoolEnvVar("GH_AW_FAILURE_REPORT_AS_ISSUE", &reportExpression)...)
-				shouldIncludeCategoryFilters = false
-			}
-		case []any:
+		reportSetting := data.SafeOutputs.ReportFailureAsIssue.String()
+		switch reportSetting {
+		case "true":
 			appendReportFailureEnvVar(true)
+		case "false":
+			appendReportFailureEnvVar(false)
+			shouldIncludeCategoryFilters = false
 		default:
-			appendReportFailureEnvVar(true)
+			envVars = append(envVars, buildTemplatableBoolEnvVar("GH_AW_FAILURE_REPORT_AS_ISSUE", templatableBoolPtrToStringPtr(data.SafeOutputs.ReportFailureAsIssue))...)
+			shouldIncludeCategoryFilters = false
 		}
 		if shouldIncludeCategoryFilters {
 			if len(data.SafeOutputs.ReportFailureAsIssueCategories) > 0 {
