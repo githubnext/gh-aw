@@ -2144,7 +2144,7 @@ index 0000000..abc1234
       mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
         const argList = Array.isArray(args) ? args : [];
         if (cmd === "git" && argList[0] === "diff" && argList[1] === "--name-only") {
-          return { exitCode: 0, stdout: "test.txt\n", stderr: "" };
+          return { exitCode: 0, stdout: "test.txt\0", stderr: "" };
         }
         return { exitCode: 0, stdout: "abc123\n", stderr: "" };
       });
@@ -2273,7 +2273,7 @@ index 0000000..abc1234
             return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
           }
           if (cmd === "git" && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
-            return Promise.resolve({ exitCode: 0, stdout: `${actualFiles.join("\n")}\n`, stderr: "" });
+            return Promise.resolve({ exitCode: 0, stdout: `${actualFiles.join("\0")}\0`, stderr: "" });
           }
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
@@ -2289,8 +2289,8 @@ index 0000000..abc1234
         expect(mockCore.info).toHaveBeenCalledWith("Pre-apply bundle verification: 4 file(s) detected from bundle transport");
 
         const diffCalls = mockExec.getExecOutput.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames");
-        expect(diffCalls.map(([, args]) => args[3])).toContain("remote-head..refs/bundles/push-feature-branch");
-        expect(diffCalls.map(([, args]) => args[3])).toContain("remote-head..HEAD");
+        expect(diffCalls.map(([, args]) => args[4])).toContain("remote-head..refs/bundles/push-feature-branch");
+        expect(diffCalls.map(([, args]) => args[4])).toContain("remote-head..HEAD");
       } finally {
         pushSignedSpy.mockRestore();
       }
@@ -2979,7 +2979,7 @@ ${diffs}
       const patchPath = createPatchFile("should-accept-files-that-match-the-allowed-files-pattern", createPatchWithFiles(".changeset/my-feature-fix.md"));
       mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
-          return { exitCode: 0, stdout: ".changeset/my-feature-fix.md\n", stderr: "" };
+          return { exitCode: 0, stdout: ".changeset/my-feature-fix.md\0", stderr: "" };
         }
         return { exitCode: 0, stdout: "abc123\n", stderr: "" };
       });
@@ -3014,7 +3014,7 @@ ${diffs}
       const patchPath = createPatchFile("should-allow-a-protected-file-when-both-allowed-files-matche", createPatchWithFiles("package.json"));
       mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
-          return { exitCode: 0, stdout: "package.json\n", stderr: "" };
+          return { exitCode: 0, stdout: "package.json\0", stderr: "" };
         }
         return { exitCode: 0, stdout: "abc123\n", stderr: "" };
       });

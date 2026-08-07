@@ -114,11 +114,8 @@ function parsePositiveInteger(value) {
  * @returns {Promise<string[]>}
  */
 async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef) {
-  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..${bundleRef}`], gitOptions);
-  return bundleDiffResult.stdout
-    .split("\n")
-    .map(f => f.trim())
-    .filter(Boolean);
+  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..${bundleRef}`], gitOptions);
+  return bundleDiffResult.stdout.split("\0").filter(Boolean);
 }
 
 /**
@@ -1219,11 +1216,8 @@ async function main(config = {}) {
       // (see github/agentic-workflows#539)
       let agentChangedFiles = [];
       {
-        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..HEAD`], baseGitOpts);
-        const actualFiles = diffResult.stdout
-          .split("\n")
-          .map(f => f.trim())
-          .filter(Boolean);
+        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..HEAD`], baseGitOpts);
+        const actualFiles = diffResult.stdout.split("\0").filter(Boolean);
         agentChangedFiles = actualFiles;
         if (actualFiles.length > 0) {
           core.info(`Post-apply verification: ${actualFiles.length} file(s) actually modified`);
