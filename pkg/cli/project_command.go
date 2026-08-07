@@ -302,7 +302,9 @@ func runProjectGraphQLQueryWithVariables(ctx context.Context, spinnerMessage, qu
 		return nil, fmt.Errorf("failed to marshal GraphQL request: %w", err)
 	}
 
-	ghArgs := append([]string{"api", "graphql", "--input", "-"}, args...)
+	ghArgs := make([]string, 0, 4+len(args))
+	ghArgs = append(ghArgs, "api", "graphql", "--input", "-")
+	ghArgs = append(ghArgs, args...)
 	return projectCommandRunGHInputContext(ctx, spinnerMessage, bytes.NewReader(requestJSON), ghArgs...)
 }
 

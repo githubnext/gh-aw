@@ -586,9 +586,10 @@ func TestValidateOwnerUsesStringLoginField(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Equal(t, tt.wantQuery, request["query"])
-			vars := request["variables"].(map[string]any)
+			vars, ok := request["variables"].(map[string]any)
+			require.True(t, ok, "variables should be a JSON object")
 			assert.Equal(t, tt.owner, vars["login"])
-			assert.NotContains(t, request["query"], tt.owner, "owner login must not be string-interpolated into query")
+			assert.NotContains(t, tt.wantQuery, tt.owner, "owner login must not be string-interpolated into query")
 			assert.Equal(t, []string{"api", "graphql", "--input", "-"}, capturedArgs)
 		})
 	}
@@ -643,9 +644,10 @@ func TestGetOwnerNodeIdUsesStringLoginField(t *testing.T) {
 			assert.Equal(t, "NODE_ID_123", nodeID)
 
 			require.Equal(t, tt.wantQuery, request["query"])
-			vars := request["variables"].(map[string]any)
+			vars, ok := request["variables"].(map[string]any)
+			require.True(t, ok, "variables should be a JSON object")
 			assert.Equal(t, tt.owner, vars["login"])
-			assert.NotContains(t, request["query"], tt.owner, "owner login must not be string-interpolated into query")
+			assert.NotContains(t, tt.wantQuery, tt.owner, "owner login must not be string-interpolated into query")
 
 			jqIndex := slices.Index(capturedArgs, "--jq")
 			require.Positive(t, jqIndex)
@@ -710,15 +712,22 @@ func TestGetStatusFieldUsesStringLoginAndIntNumberFields(t *testing.T) {
 			require.Len(t, callsArgs, 2)
 			require.Len(t, requests, 2)
 			for i, call := range callsArgs {
-				assert.Equal(t, []string{"api", "graphql", "--input", "-", "--jq", jqPathArg(t, call)}, call)
+				wantJQ := tt.wantFieldsJ
+				if i == 0 {
+					wantJQ = tt.wantProjectJ
+				}
+				assert.Equal(t, []string{"api", "graphql", "--input", "-", "--jq", wantJQ}, call)
 
 				req := requests[i]
-				vars := req["variables"].(map[string]any)
+				vars, ok := req["variables"].(map[string]any)
+				require.True(t, ok, "variables should be a JSON object")
+				query, ok := req["query"].(string)
+				require.True(t, ok, "query should be a string")
 				assert.Equal(t, tt.info.ownerLogin, vars["login"])
 				require.IsType(t, float64(0), vars["number"])
-				assert.InDelta(t, tt.info.projectNumber, vars["number"].(float64), 0)
-				assert.NotContains(t, req["query"], tt.info.ownerLogin, "owner login must not be string-interpolated into query")
-				assert.NotContains(t, req["query"], strconv.Itoa(tt.info.projectNumber), "project number must not be string-interpolated into query")
+				assert.InDelta(t, tt.info.projectNumber, vars["number"].(float64), 1e-9)
+				assert.NotContains(t, query, tt.info.ownerLogin, "owner login must not be string-interpolated into query")
+				assert.NotContains(t, query, strconv.Itoa(tt.info.projectNumber), "project number must not be string-interpolated into query")
 			}
 		})
 	}
