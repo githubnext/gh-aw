@@ -1418,7 +1418,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install OpenCode
-        run: npm install --ignore-scripts -g opencode-ai@
+        run: npm install --ignore-scripts -g opencode-ai@1.2.14
         env:
           NPM_CONFIG_MIN_RELEASE_AGE: '3'
       - name: Verify OpenCode CLI installation
