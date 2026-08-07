@@ -618,8 +618,8 @@ async function main(config = {}) {
           repo: repoParts.repo,
           comment_id: commentIdToReuse,
         });
-        const targetURL = existingComment?.issue_url || existingComment?.html_url || "";
-        const match = String(targetURL).match(/\/issues\/(\d+)(?:[#/?]|$)/) || String(targetURL).match(/\/pull\/(\d+)(?:[#/?]|$)/);
+        const targetURL = existingComment?.issue_url || "";
+        const match = String(targetURL).match(/\/issues\/(\d+)(?:[#/?]|$)/);
         if (match) {
           itemNumber = Number(match[1]);
         }
