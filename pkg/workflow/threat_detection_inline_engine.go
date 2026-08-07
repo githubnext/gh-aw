@@ -183,6 +183,34 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	logFile := constants.ThreatDetectionLogPath
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
 	for _, step := range executionSteps {
+		// Determine whether this is the AWF engine execution step so we can inject the
+		// GITHUB_STEP_SUMMARY env override. The override is needed because the AWF
+		// entrypoint reads $GITHUB_STEP_SUMMARY from the host environment before the
+		// chroot sandbox env is applied. Without the override it still points to the real
+		// runner file-commands path, which is not accessible inside the chroot and causes
+		// "config_error exit=2" (THREAT_DETECTION_STATUS: reason=config_error).
+		isAWFExecutionStep := false
+		for _, line := range step {
+			if strings.Contains(line, "id: agentic_execution") {
+				isAWFExecutionStep = true
+				break
+			}
+		}
+
+		// Pre-scan: determine whether this step already has a step-level env: block.
+		// The Copilot engine (and some others) emit env: AFTER run:, so we cannot rely
+		// on encountering env: before run: in the forward pass.
+		hasStepLevelEnv := false
+		if isAWFExecutionStep {
+			for _, l := range step {
+				if strings.TrimSpace(l) == "env:" {
+					hasStepLevelEnv = true
+					break
+				}
+			}
+		}
+
+		stepSummaryEnvInjected := false
 		for i, line := range step {
 			// Prefix step IDs with "detection_" to avoid conflicts with agent job steps
 			// (e.g., "agentic_execution" is already used by the main engine execution step)
@@ -204,6 +232,41 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			// above supersedes it. We check specifically for "if: always()" to avoid silently
 			// dropping a legitimate custom condition from unrelated steps.
 			if i == 1 && strings.HasPrefix(strings.TrimSpace(step[0]), "- name:") && strings.TrimSpace(line) == "if: always()" {
+				continue
+			}
+			// For the AWF execution step, inject/replace GITHUB_STEP_SUMMARY in the
+			// step-level env to the detection-specific writable path.
+			// This overrides the value at the GitHub Actions step level so the AWF
+			// entrypoint (and the chroot) inherits the writable path instead of the
+			// real runner file-commands path (which is not accessible inside the chroot
+			// and causes "config_error exit=2").
+			//
+			// Two cases determined by the pre-scan above:
+			//   a) The step already has an env: block (hasStepLevelEnv == true):
+			//      emit the env: key then inject our entry as the first item; skip any
+			//      subsequent GITHUB_STEP_SUMMARY entry to avoid a duplicate key.
+			//   b) No env: block exists: inject a new env: block immediately before run:.
+			if isAWFExecutionStep && !stepSummaryEnvInjected {
+				trimmed := strings.TrimSpace(line)
+				if hasStepLevelEnv && trimmed == "env:" {
+					// Case (a): merge into existing env block.
+					steps = append(steps, prefixed+"\n")
+					steps = append(steps, fmt.Sprintf("          GITHUB_STEP_SUMMARY: %s\n", constants.ThreatDetectionStepSummaryPath))
+					stepSummaryEnvInjected = true
+					continue
+				}
+				if !hasStepLevelEnv && strings.HasPrefix(trimmed, "run:") {
+					// Case (b): no env block — inject one before run:.
+					steps = append(steps, "        env:\n")
+					steps = append(steps, fmt.Sprintf("          GITHUB_STEP_SUMMARY: %s\n", constants.ThreatDetectionStepSummaryPath))
+					stepSummaryEnvInjected = true
+				}
+			}
+			// After injecting our GITHUB_STEP_SUMMARY, skip any GITHUB_STEP_SUMMARY
+			// entry that the engine may have already placed in its env block so we
+			// don't produce a duplicate mapping key.
+			if isAWFExecutionStep && stepSummaryEnvInjected &&
+				strings.HasPrefix(strings.TrimSpace(line), "GITHUB_STEP_SUMMARY:") {
 				continue
 			}
 			steps = append(steps, prefixed+"\n")
