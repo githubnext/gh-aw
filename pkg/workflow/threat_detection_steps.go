@@ -108,6 +108,14 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 7: Engine execution (AWF, no network)
 		steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
 
+		// Step 7a: Capture detection step summary to a step output so the content is
+		// not printed to the runner log. The AWF execution step writes the detection
+		// agent's step-summary content to ThreatDetectionStepSummaryPath (overriding
+		// $GITHUB_STEP_SUMMARY at the step level). This follow-up step reads that file
+		// and writes its content to $GITHUB_OUTPUT without echoing to stdout, keeping
+		// the content out of the runner log while making it available as a step output.
+		steps = append(steps, c.buildDetectionStepSummaryOutputStep()...)
+
 		// Step 8: Custom post-steps if configured (run after engine execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
 			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
@@ -444,6 +452,33 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 		"          name: " + detectionArtifactName + "\n",
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
 		"          if-no-files-found: ignore\n",
+	}
+}
+
+// buildDetectionStepSummaryOutputStep creates a step that reads the detection engine's
+// step-summary file and writes its content to $GITHUB_OUTPUT without echoing it to stdout.
+// This keeps the content out of the runner log (not stored in logs) while making it
+// available as a step output (step_summary_content) for downstream steps that need it.
+//
+// The detection engine execution step overrides $GITHUB_STEP_SUMMARY at the step level
+// to ThreatDetectionStepSummaryPath so the AWF chroot can write to a reachable path.
+// This step then captures that file into $GITHUB_OUTPUT using the heredoc syntax, which
+// redirects directly to the output file without appearing in the runner console log.
+func (c *Compiler) buildDetectionStepSummaryOutputStep() []string {
+	summaryPath := constants.ThreatDetectionStepSummaryPath
+	return []string{
+		"      - name: Capture detection step summary to output\n",
+		"        id: detection_step_summary\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        continue-on-error: true\n",
+		"        run: |\n",
+		fmt.Sprintf("          if [ -s %s ]; then\n", shellEscapeArg(summaryPath)),
+		"            {\n",
+		"              printf '%%s\\n' 'step_summary_content<<DETECTION_STEP_SUMMARY_EOF'\n",
+		fmt.Sprintf("              cat %s\n", shellEscapeArg(summaryPath)),
+		"              printf '%%s\\n' 'DETECTION_STEP_SUMMARY_EOF'\n",
+		"            } >> \"$GITHUB_OUTPUT\"\n",
+		"          fi\n",
 	}
 }
 

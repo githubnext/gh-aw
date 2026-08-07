@@ -90,6 +90,70 @@ Test workflow`
 	}
 }
 
+// TestDetectionStepSummaryOverride verifies that the inline detection execution step
+// overrides GITHUB_STEP_SUMMARY to ThreatDetectionStepSummaryPath at the step level,
+// and that a dedicated capture step (detection_step_summary) is emitted afterwards.
+// This prevents the AWF chroot entrypoint from failing when it tries to write to the
+// real runner file-commands path (which is not accessible inside the chroot).
+func TestDetectionStepSummaryOverride(t *testing.T) {
+	compiler := NewCompiler()
+
+	tmpDir := testutil.TempDir(t, "test-detection-step-summary-*")
+	workflowPath := filepath.Join(tmpDir, "test-detection-step-summary.md")
+
+	workflowContent := `---
+on: push
+safe-outputs:
+  create-issue:
+  threat-detection:
+    continue-on-error: true
+tools:
+  github:
+    allowed: ["*"]
+---
+Test workflow`
+
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
+	result, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	yamlStr := string(result)
+	detectionSection := extractJobSection(yamlStr, "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled workflow")
+	}
+
+	// Test 1: The detection execution step must override GITHUB_STEP_SUMMARY to the
+	// detection-specific path (not the agent step summary path).
+	if !strings.Contains(detectionSection, "GITHUB_STEP_SUMMARY: "+constants.ThreatDetectionStepSummaryPath) {
+		t.Errorf("Detection execution step should set GITHUB_STEP_SUMMARY to %q", constants.ThreatDetectionStepSummaryPath)
+	}
+
+	// Test 2: A dedicated capture step for the detection step summary must be present.
+	if !strings.Contains(detectionSection, "id: detection_step_summary") {
+		t.Error("Detection job should contain detection_step_summary step")
+	}
+
+	// Test 4: The agent job must still use the original agent step summary path.
+	agentSection := extractJobSection(yamlStr, "agent")
+	if agentSection == "" {
+		t.Fatal("Agent job not found in compiled workflow")
+	}
+	if !strings.Contains(agentSection, "GITHUB_STEP_SUMMARY: "+AgentStepSummaryPath) {
+		t.Errorf("Agent job should still use AgentStepSummaryPath %q for GITHUB_STEP_SUMMARY", AgentStepSummaryPath)
+	}
+}
+
 // TestExternalDetectorPath verifies that when features: gh-aw-detection: true is set,
 // the compiler emits the external threat-detect binary path instead of the inline engine path.
 func TestExternalDetectorPath(t *testing.T) {
