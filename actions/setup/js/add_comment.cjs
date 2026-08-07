@@ -619,7 +619,7 @@ async function main(config = {}) {
           comment_id: commentIdToReuse,
         });
         const targetURL = existingComment?.issue_url || existingComment?.html_url || "";
-        const match = String(targetURL).match(/\/(?:issues|pulls?)\/(\d+)(?:[#/?]|$)/);
+        const match = String(targetURL).match(/\/issues\/(\d+)(?:[#/?]|$)/) || String(targetURL).match(/\/pull\/(\d+)(?:[#/?]|$)/);
         if (match) {
           itemNumber = Number(match[1]);
         }
