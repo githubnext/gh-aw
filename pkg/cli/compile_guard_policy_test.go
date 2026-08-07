@@ -32,6 +32,7 @@ permissions:
   contents: read
 engine: copilot
 tools:
+  bash: false
   github:
     min-integrity: none
 ---
