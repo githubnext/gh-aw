@@ -52,6 +52,7 @@ module.exports = [
       "gh-aw-custom/require-nan-check-after-env-numeric-parse": "warn",
       "gh-aw-custom/prefer-structured-clone": "warn",
       "gh-aw-custom/require-fetch-response-body-try-catch": "warn",
+      "gh-aw-custom/require-error-code-in-thrown-error": "warn",
     },
   },
   {
