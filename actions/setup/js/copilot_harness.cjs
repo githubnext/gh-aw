@@ -1331,7 +1331,11 @@ async function main() {
           (failureClass === "no_output" && result.watchdogFired) ||
           (failureClass === "authentication_failed" && result.watchdogFired);
         if (isExpectedLateExit && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
-          const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
+          const reason = result.watchdogFired
+            ? "post-result watchdog fired after terminal safe-output was emitted"
+            : failureClass === "no_model_available"
+              ? "sub-agent delegation blocked by policy after terminal safe-output was already produced"
+              : "partial execution after terminal safe-output was already produced";
           log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
           lastExitCode = 0;
           break;
