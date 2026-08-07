@@ -114,8 +114,8 @@ async function addDiscussionComment(github, discussionId, message) {
     `
     mutation($dId: ID!, $body: String!) {
       addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-        comment { 
-          id 
+        comment {
+          id
           url
         }
       }
@@ -137,7 +137,7 @@ async function closeDiscussionAsOutdated(github, discussionId) {
     `
     mutation($dId: ID!) {
       closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
-        discussion { 
+        discussion {
           id
           url
         }
