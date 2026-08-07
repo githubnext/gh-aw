@@ -19,6 +19,7 @@ type CompileConfig struct {
 	ForceOverwrite         bool     // Force overwrite of existing files (dependabot.yml)
 	RefreshStopTime        bool     // Force regeneration of stop-after times instead of preserving existing ones
 	ForceRefreshActionPins bool     // Force refresh of action pins by clearing cache and resolving from GitHub API
+	RefreshContainerPins   bool     // Refresh container image digest pins before compiling
 	AllowActionRefs        bool     // Allow unresolved action refs as warnings instead of errors
 	Staged                 bool     // Force all safe-outputs into staged mode
 	Zizmor                 bool     // Run zizmor security scanner on generated .lock.yml files
