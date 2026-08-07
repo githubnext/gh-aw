@@ -16,9 +16,9 @@ network:
   - defaults
   - github
 imports:
-- shared/copilot-sandbox-standard.md
-- shared/reporting.md
-- shared/otlp.md
+  - shared/copilot-sandbox-standard.md
+  - shared/reporting.md
+  - shared/otlp.md
 safe-outputs:
   create-issue:
     close-older-issues: true
