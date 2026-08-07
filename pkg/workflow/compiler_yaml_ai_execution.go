@@ -38,6 +38,17 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, data *WorkflowData,
 		return
 	}
 
+	// Behavior-defined engines write their log-parser script at runtime via
+	// GetExecutionSteps. In samples mode GetExecutionSteps is skipped, so the
+	// script is never materialized; suppress the parse step to avoid
+	// MODULE_NOT_FOUND failures.
+	if data.UseSamples {
+		if _, ok := engine.(*BehaviorDefinedEngine); ok {
+			compilerYamlLog.Printf("Skipping log parsing for behavior-defined engine %s in samples mode (script not materialized)", engine.GetID())
+			return
+		}
+	}
+
 	compilerYamlLog.Printf("Generating log parsing step for engine: %s (parser=%s)", engine.GetID(), parserScriptName)
 
 	logParserScript := GetLogParserScript(parserScriptName)

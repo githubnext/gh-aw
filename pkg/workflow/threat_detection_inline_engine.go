@@ -187,16 +187,26 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			// Prefix step IDs with "detection_" to avoid conflicts with agent job steps
 			// (e.g., "agentic_execution" is already used by the main engine execution step)
 			prefixed := strings.Replace(line, "id: agentic_execution", "id: detection_agentic_execution", 1)
-			steps = append(steps, prefixed+"\n")
 			// Inject the if condition and continue-on-error after the first line (- name:).
 			// continue-on-error: true ensures that infrastructure failures (e.g. unhealthy
 			// AWF container, Claude API errors) do not mark the detection job as failed.
 			// The "Parse and conclude" step always runs (if: always()) and handles the
 			// missing/incomplete detection log as parse_error in warn mode (exit 0).
 			if i == 0 {
+				steps = append(steps, prefixed+"\n")
 				steps = append(steps, fmt.Sprintf("        if: %s\n", detectionStepCondition))
 				steps = append(steps, "        continue-on-error: true\n")
+				continue
 			}
+			// If the step already had an "if: always()" field at position 1 (e.g. behavior-defined
+			// engine log-parser write steps emit "if: always()" to ensure file materialization),
+			// skip it to avoid a duplicate YAML mapping key. The detection condition injected
+			// above supersedes it. We check specifically for "if: always()" to avoid silently
+			// dropping a legitimate custom condition from unrelated steps.
+			if i == 1 && strings.HasPrefix(strings.TrimSpace(step[0]), "- name:") && strings.TrimSpace(line) == "if: always()" {
+				continue
+			}
+			steps = append(steps, prefixed+"\n")
 		}
 	}
 

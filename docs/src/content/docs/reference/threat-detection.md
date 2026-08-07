@@ -249,9 +249,9 @@ safe-outputs:
           path: /tmp/gh-aw/threat-detection/
 ```
 
-**Available Artifacts:** Custom steps have access to `/tmp/gh-aw/threat-detection/prompt.txt` (workflow prompt), `agent_output.json` (safe output items), and `aw.patch` (git patch file).
+**Available Artifacts:** Custom steps have access to `/tmp/gh-aw/threat-detection/prompt.txt` (workflow prompt), `agent_output.json` (safe output items), and `aw.patch` (git patch file). gh-aw also stages `/tmp/gh-aw/threat-detection/aw-prompts/prompt-template.txt`, `/tmp/gh-aw/threat-detection/aw-prompts/prompt-import-tree.json`, `/tmp/gh-aw/threat-detection/aw_info.json`, and any restored `/tmp/gh-aw/threat-detection/comment-memory/*.md` files so detectors can analyze prompt structure, activation context, and persisted comment memory.
 
-**Execution Order:** Download artifacts → Execute pre-steps (`steps:`) → Run AI analysis (if enabled) → Execute post-steps (`post-steps:`) → Upload detection log.
+**Execution Order:** Download artifacts → Stage detection inputs → Execute pre-steps (`steps:`) → Run AI analysis (if enabled) → Execute post-steps (`post-steps:`) → Upload detection log.
 
 ## Example: LlamaGuard Integration
 

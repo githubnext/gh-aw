@@ -602,11 +602,11 @@ func TestGenerateSafeOutputsConfigCreatePullRequestBackwardCompat(t *testing.T) 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			CreatePullRequests: &CreatePullRequestsConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("2")},
-				AllowedLabels:        []string{"bug"},
-				AllowEmpty:           strPtr("true"),
-				AutoMerge:            strPtr("true"),
-				Expires:              24,
+				BaseSafeOutputConfig:          BaseSafeOutputConfig{Max: strPtr("2")},
+				SafeOutputAllowedLabelsConfig: SafeOutputAllowedLabelsConfig{AllowedLabels: []string{"bug"}},
+				AllowEmpty:                    strPtr("true"),
+				AutoMerge:                     strPtr("true"),
+				Expires:                       24,
 			},
 		},
 	}
