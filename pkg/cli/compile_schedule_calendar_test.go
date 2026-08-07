@@ -317,7 +317,8 @@ func TestDisplayScheduleCalendar_UnicodeDayLabelAlignment(t *testing.T) {
 	})
 
 	oldStderr := os.Stderr
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
 	os.Stderr = w
 	t.Cleanup(func() {
 		os.Stderr = oldStderr
@@ -325,9 +326,10 @@ func TestDisplayScheduleCalendar_UnicodeDayLabelAlignment(t *testing.T) {
 
 	displayScheduleCalendar([]*WorkflowStats{{Workflow: "wf.lock.yml", Schedules: []string{"0 12 * * *"}}})
 
-	w.Close()
+	require.NoError(t, w.Close())
 	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
+	_, err = buf.ReadFrom(r)
+	require.NoError(t, err)
 
 	assert.Contains(t, buf.String(), "月曜 ")
 }
