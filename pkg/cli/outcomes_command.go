@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -153,7 +152,10 @@ func RunOutcomes(ctx context.Context, config OutcomesConfig) error {
 				Items:   []OutcomeReport{},
 				Summary: OutcomeSummary{},
 			}
-			out, _ := json.MarshalIndent(data, "", "  ")
+			out, err := marshalIndentJSONOrWrap(data, "outcomes report")
+			if err != nil {
+				return err
+			}
 			fmt.Fprintln(os.Stdout, string(out))
 		}
 		return nil
