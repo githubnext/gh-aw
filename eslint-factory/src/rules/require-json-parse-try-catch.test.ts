@@ -114,6 +114,21 @@ describe("require-json-parse-try-catch", () => {
     });
   });
 
+  it("invalid: variable declaration used later is reported without suggestion", () => {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function parsePayload(rawInput) {
+            const payload = JSON.parse(rawInput);
+            return payload?.artifacts ?? [];
+          }`,
+          errors: [{ messageId: "requireTryCatch", data: { arg: "rawInput" }, suggestions: [] }],
+        },
+      ],
+    });
+  });
+
   it('invalid: computed JSON["parse"] access is flagged when not in try block', () => {
     cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
       valid: [],

@@ -61,6 +61,25 @@ export const requireJsonParseTryCatchRule = createRule({
       return null;
     }
 
+    function canSuggestWrapStatement(stmt: TSESTree.Statement): boolean {
+      if (stmt.type !== AST_NODE_TYPES.VariableDeclaration || stmt.kind === "var") {
+        return true;
+      }
+
+      const statementRange = stmt.range;
+      if (!statementRange) return false;
+      const [statementStart, statementEnd] = statementRange;
+
+      const hasReferenceOutsideStatement = sourceCode.getDeclaredVariables(stmt).some(variable =>
+        variable.references.some(reference => {
+          const referenceRange = reference.identifier.range;
+          return referenceRange == null || referenceRange[0] < statementStart || referenceRange[1] > statementEnd;
+        })
+      );
+
+      return !hasReferenceOutsideStatement;
+    }
+
     return {
       CallExpression(node) {
         if (node.callee.type !== "MemberExpression") {
@@ -90,34 +109,37 @@ export const requireJsonParseTryCatchRule = createRule({
         if (!isInsideTryBlock(node)) {
           const argText = node.arguments.length > 0 ? sourceCode.getText(node.arguments[0]) : "";
 
+          const stmt = findEnclosingStatement(node);
+
           context.report({
             node,
             messageId: "requireTryCatch",
             data: { arg: argText },
-            suggest: [
-              {
-                messageId: "useHelper",
-                fix(fixer) {
-                  const stmt = findEnclosingStatement(node);
-                  if (!stmt) return null;
-                  const stmtText = sourceCode.getText(stmt);
-                  // ESLint always sets loc on parsed nodes; the optional chain guards
-                  // against hypothetical missing loc. loc.start.line is 1-based, so
-                  // subtract 1 for the 0-based lines array index.
-                  const startLine = stmt.loc?.start.line;
-                  const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
-                  const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
-                  return fixer.replaceText(
-                    stmt,
-                    buildTryCatchSuggestion(stmtText, {
-                      indent,
-                      todoComment: "TODO: handle parse failure for this code path.",
-                      errorPrefix: "Failed to parse JSON: ",
-                    })
-                  );
-                },
-              },
-            ],
+            suggest:
+              stmt && canSuggestWrapStatement(stmt)
+                ? [
+                    {
+                      messageId: "useHelper",
+                      fix(fixer) {
+                        const stmtText = sourceCode.getText(stmt);
+                        // ESLint always sets loc on parsed nodes; the optional chain guards
+                        // against hypothetical missing loc. loc.start.line is 1-based, so
+                        // subtract 1 for the 0-based lines array index.
+                        const startLine = stmt.loc?.start.line;
+                        const stmtLine = startLine !== undefined ? (sourceCode.lines[startLine - 1] ?? "") : "";
+                        const indent = stmtLine.match(/^(\s*)/)?.[1] ?? "";
+                        return fixer.replaceText(
+                          stmt,
+                          buildTryCatchSuggestion(stmtText, {
+                            indent,
+                            todoComment: "TODO: handle parse failure for this code path.",
+                            errorPrefix: "Failed to parse JSON: ",
+                          })
+                        );
+                      },
+                    },
+                  ]
+                : [],
           });
         }
       },
