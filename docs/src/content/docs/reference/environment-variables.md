@@ -20,7 +20,7 @@ GitHub Agentic Workflows supports environment variables in 13 distinct contexts:
 | **Container** | `container.env` | Container runtime | Container settings |
 | **Services** | `services.<id>.env` | Service containers | Database credentials |
 | **Sandbox Agent** | `sandbox.agent.env` | Sandbox runtime | Sandbox configuration |
-| **Sandbox MCP** | `sandbox.mcp.env` | Model Context Protocol (MCP) gateway | MCP debugging |
+| **Sandbox MCP** | `sandbox.mcp.env` | Model Context Protocol (MCP) gateway | MCP gateway configuration |
 | **MCP Tools** | `tools.<name>.env` | MCP server process | MCP server secrets |
 | **MCP Scripts** | `mcp-scripts.<name>.env` | MCP script execution | Tool-specific tokens |
 | **Safe Outputs Global** | `safe-outputs.env` | All safe-output jobs | Shared safe-output config |
@@ -262,6 +262,22 @@ Environment variables follow a **most-specific-wins** model, consistent with Git
 ### Context-Specific Scopes
 
 These scopes are independent and operate in different contexts: `engine.env`, `container.env`, `services.<id>.env`, `sandbox.agent.env`, `sandbox.mcp.env`, `tools.<tool>.env`, `mcp-scripts.<tool>.env`.
+
+### `sandbox.mcp.env` validation and transport
+
+Variables under `sandbox.mcp.env` configure the MCP gateway process, but they are not injected into the startup shell script as raw `export NAME=VALUE` lines. Instead, gh-aw transports them through compiler-controlled step environment variables and reconstructs the final gateway container `-e NAME=VALUE` arguments at runtime. This keeps values out of shell interpolation paths and avoids command-injection hazards from special characters.
+
+Names in `sandbox.mcp.env` must match `^[A-Z_][A-Z0-9_]*$`. The internal `GH_AW_MCP_GATEWAY_` namespace is reserved for gh-aw transport metadata and cannot be used for custom variables.
+
+```yaml wrap
+sandbox:
+  mcp:
+    env:
+      DEBUG: "1"
+      LOG_LEVEL: trace
+```
+
+Use `sandbox.mcp.env` for gateway-facing configuration only. For MCP server credentials or per-tool settings, prefer `tools.<name>.env` or `mcp-scripts.<name>.env`.
 
 ### Override Example
 
