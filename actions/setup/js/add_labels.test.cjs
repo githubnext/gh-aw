@@ -755,9 +755,10 @@ describe("add_labels", () => {
       expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Crash on upload", confidence: "HIGH" }]);
     });
 
-    it("should use updatePullRequest mutation for PRs when using issue_intent (pull_request field)", async () => {
+    it("should fall back to the REST add-labels endpoint for PRs when using issue_intent (pull_request field)", async () => {
       const handler = await main({ max: 10, issue_intent: true });
       const graphqlMutationCalls = [];
+      const addLabelsCalls = [];
 
       mockGithub.rest.issues.get = async () => ({
         data: {
@@ -768,12 +769,15 @@ describe("add_labels", () => {
         },
       });
 
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return { data: (params.labels || []).map(name => ({ name })) };
+      };
+
       const originalGraphql = mockGithub.graphql;
       mockGithub.graphql = async (query, variables) => {
-        if (typeof query === "string" && query.includes("updatePullRequest")) {
-          graphqlMutationCalls.push({ mutation: "updatePullRequest", variables });
-          const labels = (variables?.labels || []).map(l => ({ name: l.name || l.labelId }));
-          return { updatePullRequest: { pullRequest: { id: variables?.prId, labels: { nodes: labels } } } };
+        if (typeof query === "string" && (query.includes("updatePullRequest") || query.includes("updateIssue"))) {
+          graphqlMutationCalls.push({ query, variables });
         }
         return originalGraphql(query, variables);
       };
@@ -788,15 +792,16 @@ describe("add_labels", () => {
 
       expect(result.success).toBe(true);
       expect(result.labelsAdded).toEqual(["security:medium"]);
-      expect(graphqlMutationCalls).toHaveLength(1);
-      expect(graphqlMutationCalls[0].mutation).toBe("updatePullRequest");
-      expect(graphqlMutationCalls[0].variables.prId).toBe("PR_kwDOB7ZBY877o-t0");
-      expect(graphqlMutationCalls[0].variables.labels).toEqual([{ labelId: "LABEL_security:medium", rationale: "CVE found", confidence: "HIGH" }]);
+      expect(graphqlMutationCalls).toHaveLength(0);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].issue_number).toBe(456);
+      expect(addLabelsCalls[0].labels).toEqual(["security:medium"]);
     });
 
-    it("should use updatePullRequest mutation for PRs when node_id starts with PR_", async () => {
+    it("should fall back to the REST add-labels endpoint for PRs when node_id starts with PR_", async () => {
       const handler = await main({ max: 10, issue_intent: true });
       const graphqlMutationCalls = [];
+      const addLabelsCalls = [];
 
       // PR without pull_request field (detected by node_id prefix)
       mockGithub.rest.issues.get = async () => ({
@@ -807,12 +812,15 @@ describe("add_labels", () => {
         },
       });
 
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return { data: (params.labels || []).map(name => ({ name })) };
+      };
+
       const originalGraphql = mockGithub.graphql;
       mockGithub.graphql = async (query, variables) => {
-        if (typeof query === "string" && query.includes("updatePullRequest")) {
-          graphqlMutationCalls.push({ mutation: "updatePullRequest", variables });
-          const labels = (variables?.labels || []).map(l => ({ name: l.name || l.labelId }));
-          return { updatePullRequest: { pullRequest: { id: variables?.prId, labels: { nodes: labels } } } };
+        if (typeof query === "string" && (query.includes("updatePullRequest") || query.includes("updateIssue"))) {
+          graphqlMutationCalls.push({ query, variables });
         }
         return originalGraphql(query, variables);
       };
@@ -826,12 +834,13 @@ describe("add_labels", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(graphqlMutationCalls).toHaveLength(1);
-      expect(graphqlMutationCalls[0].mutation).toBe("updatePullRequest");
-      expect(graphqlMutationCalls[0].variables.prId).toBe("PR_kwDOABC123");
+      expect(graphqlMutationCalls).toHaveLength(0);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].issue_number).toBe(789);
+      expect(addLabelsCalls[0].labels).toEqual(["enhancement"]);
     });
 
-    it("should not call updatePullRequest for regular issues (ISSUE_ node_id)", async () => {
+    it("should use the updateIssue intent mutation for regular issues (ISSUE_ node_id)", async () => {
       const handler = await main({ max: 10, issue_intent: true });
       const updateIssueCalls = [];
       const updatePRCalls = [];

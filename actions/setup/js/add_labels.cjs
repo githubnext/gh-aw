@@ -280,43 +280,33 @@ const main = createCountGatedHandler({
 
           // Detect whether the item is a pull request. The REST issues endpoint returns a
           // `pull_request` field for PRs, and PR node IDs start with "PR_". The GraphQL
-          // updateIssue mutation only accepts Issue node IDs; PRs must use updatePullRequest.
+          // updateIssue mutation only accepts Issue node IDs, and UpdatePullRequestInput does
+          // not accept a `labels` field, so there is no intent-aware mutation for PRs. Fall
+          // back to the REST add-labels endpoint (add-only, without intent metadata).
           const itemIsPR = Boolean(issueData?.pull_request) || issueNodeId.startsWith("PR_");
 
-          const repoLabels = await fetchAllRepoLabels(githubClient, repoParts.owner, repoParts.repo);
-          const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
+          if (itemIsPR) {
+            core.info(`Issue-intent label metadata is not supported for pull requests; falling back to the REST add-labels endpoint for ${contextType} #${itemNumber} in ${itemRepo}`);
+          } else {
+            const repoLabels = await fetchAllRepoLabels(githubClient, repoParts.owner, repoParts.repo);
+            const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
 
-          // Merge existing labels (metadata-free) with the requested specs, de-duplicating by
-          // lowercased name and favouring the requested specs so their intent metadata wins.
-          const requestedNamesLower = new Set(uniqueLabelSpecs.map(spec => spec.name.toLowerCase()));
-          const existingLabelNames = normalizeLabelNames(issueData.labels || []);
-          const mergedSpecs = [...uniqueLabelSpecs, ...existingLabelNames.filter(name => !requestedNamesLower.has(name.toLowerCase())).map(name => ({ name }))];
+            // Merge existing labels (metadata-free) with the requested specs, de-duplicating by
+            // lowercased name and favouring the requested specs so their intent metadata wins.
+            const requestedNamesLower = new Set(uniqueLabelSpecs.map(spec => spec.name.toLowerCase()));
+            const existingLabelNames = normalizeLabelNames(issueData.labels || []);
+            const mergedSpecs = [...uniqueLabelSpecs, ...existingLabelNames.filter(name => !requestedNamesLower.has(name.toLowerCase())).map(name => ({ name }))];
 
-          const labelIntentUpdates = buildIssueIntentLabelUpdates(mergedSpecs, labelIdByName);
+            const labelIntentUpdates = buildIssueIntentLabelUpdates(mergedSpecs, labelIdByName);
 
-          core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo} via GraphQL intent mutation`);
-          // Both updateIssue and updatePullRequest use LabelUpdateInput (rationale/confidence/suggest),
-          // which is gated by the "update_issue_suggestions" GraphQL feature flag.
-          const intentHeaders = { "GraphQL-Features": "update_issue_suggestions" };
-          const [mutationQuery, mutationVars, getResultLabels] = itemIsPR
-            ? [
-                `mutation($prId: ID!, $labels: [LabelUpdateInput!]!) {
-                  updatePullRequest(input: { pullRequestId: $prId, labels: $labels }) {
-                    pullRequest {
-                      id
-                      labels(first: 100) {
-                        nodes {
-                          name
-                        }
-                      }
-                    }
-                  }
-                }`,
-                { prId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders },
-                r => r?.updatePullRequest?.pullRequest?.labels?.nodes,
-              ]
-            : [
-                `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
+            core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo} via GraphQL intent mutation`);
+            // updateIssue accepts LabelUpdateInput (rationale/confidence/suggest), which is gated
+            // by the "update_issue_suggestions" GraphQL feature flag.
+            const intentHeaders = { "GraphQL-Features": "update_issue_suggestions" };
+            const result = await withRetry(
+              () =>
+                githubClient.graphql(
+                  `mutation($issueId: ID!, $labels: [LabelUpdateInput!]!) {
                   updateIssue(input: { id: $issueId, labels: $labels }) {
                     issue {
                       id
@@ -328,27 +318,29 @@ const main = createCountGatedHandler({
                     }
                   }
                 }`,
-                { issueId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders },
-                r => r?.updateIssue?.issue?.labels?.nodes,
-              ];
-          const result = await withRetry(() => githubClient.graphql(mutationQuery, mutationVars), RATE_LIMIT_RETRY_CONFIG, `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`);
+                  { issueId: issueNodeId, labels: labelIntentUpdates, headers: intentHeaders }
+                ),
+              RATE_LIMIT_RETRY_CONFIG,
+              `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
+            );
 
-          core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
-          const afterLabels = getResultLabels(result) || [];
-          return attachExecutionState(
-            {
-              success: true,
-              number: itemNumber,
-              repo: itemRepo,
-              labelsAdded: uniqueLabels,
-              contextType,
-            },
-            beforeState,
-            {
-              ...beforeState,
-              labels: normalizeLabelNames(afterLabels),
-            }
-          );
+            core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
+            const afterLabels = result?.updateIssue?.issue?.labels?.nodes || [];
+            return attachExecutionState(
+              {
+                success: true,
+                number: itemNumber,
+                repo: itemRepo,
+                labelsAdded: uniqueLabels,
+                contextType,
+              },
+              beforeState,
+              {
+                ...beforeState,
+                labels: normalizeLabelNames(afterLabels),
+              }
+            );
+          }
         }
 
         const { data: labels } = await withRetry(
