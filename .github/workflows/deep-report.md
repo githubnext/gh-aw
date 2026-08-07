@@ -50,6 +50,8 @@ network:
     - python
     - node
 
+features:
+  gh-aw-detection: true
 safe-outputs:
   upload-artifact:
     retention-days: 30
