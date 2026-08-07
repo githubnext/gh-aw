@@ -89,7 +89,15 @@ A successful review:
 
 ## Process
 
-1. Read pre-fetched PR files only:
+1. Verify the required pre-fetched PR files exist and are non-empty before reviewing:
+
+   ```bash
+   test -s /tmp/gh-aw/agent/pr-meta.json && test -s /tmp/gh-aw/agent/pr-diff.patch
+   ```
+
+   If either file is missing or empty, call `noop` with the message: `pre-fetch step failed: required PR metadata or diff file is missing or empty`, then stop.
+
+2. Read pre-fetched PR files only:
 
    - `/tmp/gh-aw/agent/pr-meta.json`
    - `/tmp/gh-aw/agent/pr-diff.patch`
@@ -97,25 +105,25 @@ A successful review:
 
    **Do not** call `gh pr diff`, `gh pr view`, or `get_review_comments` — all data is pre-fetched and available on disk.
 
-2. List installed skills and inspect the skill docs you need:
+3. List installed skills and inspect the skill docs you need:
 
    ```bash
    find /tmp/gh-aw/.github/skills "${RUNNER_TEMP}/gh-aw/.github/skills" -name "SKILL.md" 2>/dev/null | head -40
    ```
 
-3. Select the most relevant skills for the detected change type and risk areas.
+4. Select the most relevant skills for the detected change type and risk areas.
 
    If no external skills are installed, perform a normal high-signal review focused on correctness and security.
 
-4. Add up to 10 high-impact inline review comments using `create-pull-request-review-comment`.
+5. Add up to 10 high-impact inline review comments using `create-pull-request-review-comment`.
 
-5. Submit an overall review using `submit-pull-request-review`:
+6. Submit an overall review using `submit-pull-request-review`:
 
    - `REQUEST_CHANGES` when blocking issues exist
    - `COMMENT` when only non-blocking suggestions exist
    - `APPROVE` when no actionable issues are found
 
-6. Optionally post one concise summary via `add-comment` for large or complex reviews.
+7. Optionally post one concise summary via `add-comment` for large or complex reviews.
 
 ## Review Constraints
 
