@@ -138,7 +138,9 @@ async function main() {
       }
 
       const generatedTargetFileName = `${computedSha}${path.extname(fileName).toLowerCase()}`;
-      const targetFileName = asset.targetFileName || generatedTargetFileName;
+      // In path mode, the source path and content are re-derived from trusted staged state,
+      // so always compute the target filename server-side and ignore any agent-supplied value.
+      const targetFileName = pathFileName ? generatedTargetFileName : asset.targetFileName || generatedTargetFileName;
       if (targetFileName !== path.basename(targetFileName)) {
         core.setFailed(`${ERR_VALIDATION}: Invalid asset target filename: ${targetFileName}`);
         return;

@@ -201,30 +201,30 @@ function parseAllowedCommentIds(value) {
 
 /**
  * Validate an agent-supplied add_comment.comment_id against the trusted workflow allowlist.
+ * Does not mutate the supplied entry; the caller is responsible for applying the normalized value.
  * @param {Record<string, any>} entry
  * @param {Record<string, any>} addCommentConfig
- * @returns {{content: Array<{type: "text", text: string}>, isError: true} | null}
+ * @returns {{error: {content: Array<{type: "text", text: string}>, isError: true}} | {error: null, commentId: number | undefined}}
  */
 function validateAllowedAddCommentId(entry, addCommentConfig) {
   if (entry.comment_id === undefined || entry.comment_id === null || String(entry.comment_id).trim() === "") {
-    return null;
+    return { error: null, commentId: undefined };
   }
   if (addCommentConfig.target !== "*") {
-    return buildIntentErrorResponse("add_comment comment_id is only allowed when safe-outputs.add-comment.target is '*' and the ID is listed in safe-outputs.add-comment.allows-comment-ids.");
+    return { error: buildIntentErrorResponse("add_comment comment_id is only allowed when safe-outputs.add-comment.target is '*' and the ID is listed in safe-outputs.add-comment.allows-comment-ids.") };
   }
   const commentId = Number(entry.comment_id);
   if (!Number.isInteger(commentId) || commentId <= 0) {
-    return buildIntentErrorResponse("add_comment comment_id must be a positive integer.");
+    return { error: buildIntentErrorResponse("add_comment comment_id must be a positive integer.") };
   }
   const allowedCommentIds = parseAllowedCommentIds(addCommentConfig.allows_comment_ids ?? addCommentConfig["allows-comment-ids"]);
   if (allowedCommentIds.size === 0) {
-    return buildIntentErrorResponse("add_comment comment_id requires safe-outputs.add-comment.allows-comment-ids to list trusted comment IDs.");
+    return { error: buildIntentErrorResponse("add_comment comment_id requires safe-outputs.add-comment.allows-comment-ids to list trusted comment IDs.") };
   }
   if (!allowedCommentIds.has(String(commentId))) {
-    return buildIntentErrorResponse("add_comment comment_id is not listed in safe-outputs.add-comment.allows-comment-ids.");
+    return { error: buildIntentErrorResponse("add_comment comment_id is not listed in safe-outputs.add-comment.allows-comment-ids.") };
   }
-  entry.comment_id = commentId;
-  return null;
+  return { error: null, commentId };
 }
 
 /**
@@ -2031,9 +2031,14 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
-    const commentIdValidationError = validateAllowedAddCommentId(entry, addCommentConfig);
-    if (commentIdValidationError) {
-      return commentIdValidationError;
+    const commentIdValidationResult = validateAllowedAddCommentId(entry, addCommentConfig);
+    if (commentIdValidationResult.error) {
+      return commentIdValidationResult.error;
+    }
+    if (commentIdValidationResult.commentId === undefined) {
+      delete entry.comment_id;
+    } else {
+      entry.comment_id = commentIdValidationResult.commentId;
     }
     const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
     if (wildcardTargetValidationError) {

@@ -2381,6 +2381,39 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
+    it("should reject comment_id when add_comment target is not '*'", () => {
+      const targetingHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        add_comment: {
+          target: "triggering",
+          allows_comment_ids: ["12345"],
+        },
+      });
+
+      const result = targetingHandlers.addCommentHandler({ item_number: 42, body: "Update an existing status-style comment.", comment_id: "12345" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("target is '*'");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should reject comment_id when allows-comment-ids is empty", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        add_comment: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.addCommentHandler({ body: "Update an existing status-style comment.", comment_id: "12345" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("allows-comment-ids");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
     it("should refuse reply_to_id when discussions are not enabled in config", () => {
       // Default handlers have no discussions: true in config
       // Discussion check precedes context check so this error surfaces regardless of event context
