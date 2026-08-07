@@ -37,7 +37,10 @@ func getActivationOutputsCodemod() Codemod {
 
 				// Use the precompiled pattern with a word boundary to prevent partial matches
 				// This ensures we don't match things like "needs.activation.outputs.text_custom"
-				pattern := activationOutputPatterns[output]
+				pattern, ok := activationOutputPatterns[output]
+				if !ok {
+					continue
+				}
 
 				// Check if pattern exists in content
 				if pattern.MatchString(result) {
