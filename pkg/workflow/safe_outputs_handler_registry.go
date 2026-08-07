@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var handlerRegistryLog = logger.New("workflow:safe_outputs_handler_registry")
+
 // commentMemoryHandlerKey is the registry key for the comment_memory safe output handler.
 // Using a constant here prevents silent regressions if the key is ever renamed.
 const commentMemoryHandlerKey = "comment_memory"
@@ -15,6 +19,7 @@ const commentMemoryHandlerKey = "comment_memory"
 // handler whose BaseSafeOutputConfig.GitHubApp is set.
 func resolveHandlerGitHubToken(app *GitHubAppConfig, handlerKey, fallbackToken string) string {
 	if app != nil && handlerSupportsPerHandlerGitHubAppToken(handlerKey) {
+		handlerRegistryLog.Printf("Using per-handler GitHub App token for %s", handlerKey)
 		return resolveHandlerGitHubTokenWithStepID(app, handlerKey+"-app-token", fallbackToken)
 	}
 	return fallbackToken
@@ -30,7 +35,11 @@ func resolveHandlerGitHubTokenWithStepID(app *GitHubAppConfig, stepID, fallbackT
 
 func handlerSupportsPerHandlerGitHubAppToken(handlerKey string) bool {
 	handler, ok := getSafeOutputHandlerByKey(handlerKey)
-	return ok && handler.PermissionBuilder != nil
+	supported := ok && handler.PermissionBuilder != nil
+	if !supported {
+		handlerRegistryLog.Printf("Handler %s does not support per-handler GitHub App tokens (registered=%v)", handlerKey, ok)
+	}
+	return supported
 }
 
 // handlerRegistry maps handler names to their builder functions.
