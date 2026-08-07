@@ -387,7 +387,11 @@ func loadKnownEngineImports() {
 	ctx, cancel := context.WithTimeout(context.Background(), knownEngineImportsTimeout)
 	defer cancel()
 
-	content, err := knownEngineImportsDownload(ctx)
+	knownEngineImportsMu.Lock()
+	download := knownEngineImportsDownload
+	knownEngineImportsMu.Unlock()
+
+	content, err := download(ctx)
 	if err != nil {
 		engineCatalogLog.Printf("Known engine import catalog unavailable: %v", err)
 		return
