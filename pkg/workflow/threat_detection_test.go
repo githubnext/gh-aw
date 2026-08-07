@@ -459,6 +459,136 @@ func TestExternalDetectorExecutionStepIncludesThreatDetectionContext(t *testing.
 	})
 }
 
+func containsExternalDetectorCopilotPathPrefix(steps string) bool {
+	return strings.Contains(steps, `export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH"`) ||
+		strings.Contains(steps, `export PATH=\"${RUNNER_TEMP}/gh-aw/bin:$PATH\"`)
+}
+
+func TestBuildExternalDetectorPathSetup(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name              string
+		data              *WorkflowData
+		engineID          string
+		wantHostSetup     bool
+		wantCommandPrefix bool
+	}{
+		{
+			name: "copilot on standard topology stages binary and prepends PATH",
+			data: &WorkflowData{
+				AI: "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			engineID:          "copilot",
+			wantHostSetup:     true,
+			wantCommandPrefix: true,
+		},
+		{
+			name: "copilot on arc-dind prepends PATH without host staging",
+			data: &WorkflowData{
+				AI: "copilot",
+				RunnerConfig: &RunnerConfig{
+					Topology: RunnerTopologyArcDind,
+				},
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			engineID:          "copilot",
+			wantHostSetup:     false,
+			wantCommandPrefix: true,
+		},
+		{
+			name: "copilot custom command skips installed binary setup",
+			data: &WorkflowData{
+				AI: "copilot",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{
+						EngineConfig: &EngineConfig{
+							ID:      "copilot",
+							Command: "/opt/custom/copilot",
+						},
+					},
+				},
+			},
+			engineID:          "copilot",
+			wantHostSetup:     false,
+			wantCommandPrefix: false,
+		},
+		{
+			name: "non-copilot engine skips setup",
+			data: &WorkflowData{
+				AI: "claude",
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+			},
+			engineID:          "claude",
+			wantHostSetup:     false,
+			wantCommandPrefix: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := compiler.buildExternalDetectorPathSetup(buildExternalDetectorWorkflowData(tt.data, tt.engineID), tt.engineID)
+			if hasHostSetup := strings.Contains(got.hostSetup, "GH_AW_COPILOT_SRC"); hasHostSetup != tt.wantHostSetup {
+				t.Errorf("host setup presence = %v, want %v; setup:\n%s", hasHostSetup, tt.wantHostSetup, got.hostSetup)
+			}
+			if hasCommandPrefix := containsExternalDetectorCopilotPathPrefix(got.commandPrefix); hasCommandPrefix != tt.wantCommandPrefix {
+				t.Errorf("command prefix presence = %v, want %v; prefix:\n%s", hasCommandPrefix, tt.wantCommandPrefix, got.commandPrefix)
+			}
+		})
+	}
+}
+
+func TestExternalDetectorExecutionStepStagesInstalledCopilotBinary(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := strings.Join(compiler.buildExternalDetectorExecutionStep(data), "")
+	if !containsExternalDetectorCopilotPathPrefix(steps) {
+		t.Errorf("expected external detector execution to prepend staged Copilot bin dir to PATH;\ngot:\n%s", steps)
+	}
+	if !strings.Contains(steps, "GH_AW_COPILOT_SRC") {
+		t.Errorf("expected external detector execution to stage installed Copilot binary;\ngot:\n%s", steps)
+	}
+	if !strings.Contains(steps, `cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"`) {
+		t.Errorf("expected external detector execution to copy installed Copilot binary;\ngot:\n%s", steps)
+	}
+}
+
+func TestExternalDetectorExecutionStepSkipsInstalledCopilotBinaryForCustomCommand(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{
+					ID:      "copilot",
+					Command: "/opt/custom/copilot",
+				},
+			},
+		},
+	}
+
+	steps := strings.Join(compiler.buildExternalDetectorExecutionStep(data), "")
+	if containsExternalDetectorCopilotPathPrefix(steps) {
+		t.Errorf("did not expect external detector execution to prepend installed Copilot bin dir for custom command;\ngot:\n%s", steps)
+	}
+	if strings.Contains(steps, "GH_AW_COPILOT_SRC") {
+		t.Errorf("did not expect external detector execution to stage installed Copilot binary for custom command;\ngot:\n%s", steps)
+	}
+}
+
 func TestThreatDetectionWithEngineConfig(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -2092,6 +2222,12 @@ func TestBuildExternalDetectorExecutionStepPropagatesRunnerTopology(t *testing.T
 		if !strings.Contains(allSteps, "export HOME=${RUNNER_TEMP}/gh-aw/home") {
 			t.Errorf("expected arc-dind external detector execution to export HOME under ${RUNNER_TEMP}/gh-aw/home;\ngot:\n%s", allSteps)
 		}
+		if !containsExternalDetectorCopilotPathPrefix(allSteps) {
+			t.Errorf("expected arc-dind external detector execution to prepend staged Copilot bin dir to PATH;\ngot:\n%s", allSteps)
+		}
+		if strings.Contains(allSteps, "GH_AW_COPILOT_SRC") {
+			t.Errorf("did not expect arc-dind external detector execution to stage Copilot binary on the host;\ngot:\n%s", allSteps)
+		}
 	})
 
 	t.Run("non-arc-dind keeps standard AWF paths", func(t *testing.T) {
@@ -3056,6 +3192,131 @@ func TestBuildExternalDetectorWorkflowDataMaxAICreditsNotInheritedFromMainAgent(
 	if strings.Contains(allSteps, `"maxAiCredits":500`) {
 		t.Fatalf("expected external detector steps NOT to inherit agent maxAiCredits=500, got:\n%s", allSteps)
 	}
+}
+
+func TestResolveExternalDetectorEngineConfigInheritsVersionFromMainEngine(t *testing.T) {
+	// Regression test: when no safe-outputs.threat-detection.engine override is configured,
+	// the external detector path must still install the same pinned engine version as the
+	// main agent job (e.g. a version declared as the default on a behavior-defined engine's
+	// shared definition, applied to the main EngineConfig.Version at import time). Previously
+	// the external detector always built a bare &EngineConfig{ID: engineID}, silently
+	// discarding Version and installing the package's "latest" release instead.
+	t.Run("no override present inherits Version/Config/Args/HarnessScript/Driver", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "opencode",
+			EngineConfig: &EngineConfig{
+				ID:            "opencode",
+				Version:       "1.2.14",
+				Config:        "some-config",
+				Args:          []string{"--flag"},
+				HarnessScript: "harness.cjs",
+				Driver:        "driver.cjs",
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		got := resolveExternalDetectorEngineConfig(data, "opencode")
+		if got.Version != "1.2.14" {
+			t.Errorf("expected Version to be inherited as 1.2.14, got %q", got.Version)
+		}
+		if got.Config != "some-config" {
+			t.Errorf("expected Config to be inherited, got %q", got.Config)
+		}
+		if len(got.Args) != 1 || got.Args[0] != "--flag" {
+			t.Errorf("expected Args to be inherited, got %v", got.Args)
+		}
+		if got.HarnessScript != "harness.cjs" {
+			t.Errorf("expected HarnessScript to be inherited, got %q", got.HarnessScript)
+		}
+		if got.Driver != "driver.cjs" {
+			t.Errorf("expected Driver to be inherited, got %q", got.Driver)
+		}
+		if got.ID != "opencode" {
+			t.Errorf("expected ID to be opencode, got %q", got.ID)
+		}
+	})
+
+	t.Run("explicit override takes precedence over main engine config", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "opencode",
+			EngineConfig: &EngineConfig{
+				ID:      "opencode",
+				Version: "1.2.14",
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					EngineConfig: &EngineConfig{
+						ID:      "codex",
+						Version: "2.0.0",
+					},
+				},
+			},
+		}
+
+		got := resolveExternalDetectorEngineConfig(data, "codex")
+		if got.Version != "2.0.0" {
+			t.Errorf("expected explicit override Version 2.0.0 to win, got %q", got.Version)
+		}
+		if got.ID != "codex" {
+			t.Errorf("expected ID codex, got %q", got.ID)
+		}
+	})
+
+	t.Run("does not inherit main-engine fields when resolved detection engine differs", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "pi",
+			EngineConfig: &EngineConfig{
+				ID:            "pi",
+				Version:       "9.9.9-pi-only",
+				Config:        "pi-config",
+				Args:          []string{"--pi-only"},
+				HarnessScript: "pi-harness.cjs",
+				Driver:        "pi-driver.cjs",
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		got := resolveExternalDetectorEngineConfig(data, "copilot")
+		if got.ID != "copilot" {
+			t.Errorf("expected resolved ID copilot, got %q", got.ID)
+		}
+		if got.Version != "" {
+			t.Errorf("expected empty Version when engine IDs differ, got %q", got.Version)
+		}
+		if got.Config != "" {
+			t.Errorf("expected empty Config when engine IDs differ, got %q", got.Config)
+		}
+		if len(got.Args) != 0 {
+			t.Errorf("expected empty Args when engine IDs differ, got %v", got.Args)
+		}
+		if got.HarnessScript != "" {
+			t.Errorf("expected empty HarnessScript when engine IDs differ, got %q", got.HarnessScript)
+		}
+		if got.Driver != "" {
+			t.Errorf("expected empty Driver when engine IDs differ, got %q", got.Driver)
+		}
+	})
+
+	t.Run("no main engine config falls back to bare ID", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		got := resolveExternalDetectorEngineConfig(data, "copilot")
+		if got.ID != "copilot" {
+			t.Errorf("expected ID copilot, got %q", got.ID)
+		}
+		if got.Version != "" {
+			t.Errorf("expected empty Version, got %q", got.Version)
+		}
+	})
 }
 
 func TestSetupThreatDetectionPromptSummarySuppressedOnExternalPath(t *testing.T) {

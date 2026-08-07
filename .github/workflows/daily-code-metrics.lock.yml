@@ -1660,7 +1660,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Crush
-        run: npm install -g @charmland/crush@
+        run: npm install -g @charmland/crush@0.88.0
         env:
           NPM_CONFIG_MIN_RELEASE_AGE: '3'
       - name: Verify Crush CLI installation
