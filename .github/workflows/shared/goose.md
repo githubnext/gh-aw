@@ -224,6 +224,82 @@ engine:
         log(error instanceof Error ? error.message : String(error));
         process.exitCode = 1;
       });
+    log-parser: |
+      function parseLog(logContent) {
+        const lines = logContent.split("\n");
+        const entries = [];
+        const mcpFailures = [];
+        let maxTurnsHit = false;
+        let currentRole = null;
+        let currentText = [];
+        const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|goose-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+
+        function flushEntry() {
+          if (currentRole && currentText.length > 0) {
+            entries.push({ type: currentRole, content: currentText.join("\n").trim() });
+          }
+          currentText = [];
+        }
+
+        for (const line of lines) {
+          if (AWF_INFRA_RE.test(line)) continue;
+          if (/max.?turns|maximum.*turns.*reached|turn limit/i.test(line)) maxTurnsHit = true;
+          if (/MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP/i.test(line)) {
+            const serverMatch = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
+            mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
+          }
+
+          // Detect tool use blocks (Goose marks them with ─ or tool indicators)
+          if (/^─{3,}|^━{3,}/.test(line)) {
+            flushEntry();
+            currentRole = "separator";
+            continue;
+          }
+          if (/^(calling|using|tool[_\s]*(call|use|result))\b/i.test(line.trim())) {
+            flushEntry();
+            currentRole = "tool_use";
+            currentText.push(line);
+            continue;
+          }
+          if (/^(assistant|goose)\s*[>:]/i.test(line.trim()) || /^\s*>\s/.test(line)) {
+            if (currentRole !== "assistant") { flushEntry(); currentRole = "assistant"; }
+            currentText.push(line);
+            continue;
+          }
+          if (/^(user|human)\s*[>:]/i.test(line.trim())) {
+            if (currentRole !== "user") { flushEntry(); currentRole = "user"; }
+            currentText.push(line);
+            continue;
+          }
+          currentText.push(line);
+        }
+        flushEntry();
+
+        const totalLines = lines.filter(l => l.trim()).length;
+        const toolCalls = entries.filter(e => e.type === "tool_use").length;
+        const assistantBlocks = entries.filter(e => e.type === "assistant").length;
+
+        let md = "### Goose Agent Log Summary\n\n";
+        md += `| Metric | Value |\n|--------|-------|\n`;
+        md += `| Total lines | ${totalLines} |\n`;
+        md += `| Assistant blocks | ${assistantBlocks} |\n`;
+        md += `| Tool calls | ${toolCalls} |\n`;
+        md += `| MCP failures | ${mcpFailures.length} |\n`;
+        md += `| Max turns hit | ${maxTurnsHit} |\n\n`;
+
+        if (entries.length > 0) {
+          md += "<details><summary>Conversation</summary>\n\n";
+          for (const entry of entries.slice(0, 50)) {
+            if (entry.type === "separator") continue;
+            const label = entry.type === "tool_use" ? "🔧 Tool" : entry.type === "assistant" ? "🤖 Assistant" : "👤 User";
+            const content = entry.content.length > 500 ? entry.content.slice(0, 500) + "..." : entry.content;
+            md += `**${label}**\n\`\`\`\n${content}\n\`\`\`\n\n`;
+          }
+          md += "</details>\n";
+        }
+
+        return { markdown: md, logEntries: entries, mcpFailures, maxTurnsHit };
+      }
 ---
 
 <!--

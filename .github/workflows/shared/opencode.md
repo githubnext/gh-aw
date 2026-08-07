@@ -96,6 +96,88 @@ engine:
         XDG_DATA_HOME: /tmp/opencode-data
     mcp:
       config-path: opencode.jsonc
+    log-parser: |
+      function parseLog(logContent) {
+        const lines = logContent.split("\n");
+        const entries = [];
+        const mcpFailures = [];
+        let maxTurnsHit = false;
+        const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let toolCalls = 0;
+        let errors = 0;
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          if (AWF_INFRA_RE.test(line)) continue;
+          if (/max.?turns|maximum.*turns.*reached|turn limit/i.test(line)) maxTurnsHit = true;
+          if (/MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP/i.test(line)) {
+            const serverMatch = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
+            mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
+          }
+
+          // Try to parse JSON log lines (OpenCode --print-logs output)
+          let parsed = null;
+          try {
+            if (line.trim().startsWith("{")) parsed = JSON.parse(line.trim());
+          } catch (e) { /* not JSON */ }
+
+          if (parsed) {
+            const entry = {
+              type: parsed.type || parsed.msg || "log",
+              level: parsed.level || "INFO",
+              service: parsed.service || "",
+              message: parsed.msg || parsed.message || "",
+              raw: line
+            };
+            if (/tool[._]call|tool[._]use/i.test(entry.type)) toolCalls++;
+            if (/error/i.test(entry.level)) errors++;
+            if (parsed.input_tokens) inputTokens += parsed.input_tokens;
+            if (parsed.output_tokens) outputTokens += parsed.output_tokens;
+            entries.push(entry);
+          } else {
+            entries.push({ type: "text", message: line.trim(), raw: line });
+          }
+        }
+
+        const jsonEntries = entries.filter(e => e.type !== "text");
+        const textEntries = entries.filter(e => e.type === "text");
+
+        let md = "### OpenCode Agent Log Summary\n\n";
+        md += `| Metric | Value |\n|--------|-------|\n`;
+        md += `| Total lines | ${lines.filter(l => l.trim()).length} |\n`;
+        md += `| Structured (JSON) entries | ${jsonEntries.length} |\n`;
+        md += `| Text entries | ${textEntries.length} |\n`;
+        md += `| Tool calls | ${toolCalls} |\n`;
+        md += `| Errors | ${errors} |\n`;
+        md += `| MCP failures | ${mcpFailures.length} |\n`;
+        md += `| Max turns hit | ${maxTurnsHit} |\n`;
+        if (inputTokens || outputTokens) {
+          md += `| Input tokens | ${inputTokens} |\n`;
+          md += `| Output tokens | ${outputTokens} |\n`;
+        }
+        md += "\n";
+
+        if (jsonEntries.length > 0) {
+          md += "<details><summary>Structured Log Entries (first 30)</summary>\n\n";
+          for (const entry of jsonEntries.slice(0, 30)) {
+            const level = entry.level === "ERROR" ? "❌" : entry.level === "WARN" ? "⚠️" : "ℹ️";
+            const msg = entry.message.length > 200 ? entry.message.slice(0, 200) + "..." : entry.message;
+            md += `${level} \`[${entry.service}]\` **${entry.type}**: ${msg}\n\n`;
+          }
+          md += "</details>\n";
+        }
+
+        if (textEntries.length > 0 && jsonEntries.length === 0) {
+          md += "<details><summary>Log Output</summary>\n\n```\n";
+          const preview = textEntries.slice(0, 100).map(e => e.message).join("\n");
+          md += preview.length > 3000 ? preview.slice(0, 3000) + "\n..." : preview;
+          md += "\n```\n</details>\n";
+        }
+
+        return { markdown: md, logEntries: entries, mcpFailures, maxTurnsHit };
+      }
 ---
 
 <!--

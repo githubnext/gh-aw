@@ -232,6 +232,87 @@ engine:
         log(error instanceof Error ? error.message : String(error));
         process.exitCode = 1;
       });
+    log-parser: |
+      function parseLog(logContent) {
+        const lines = logContent.split("\n");
+        const entries = [];
+        const mcpFailures = [];
+        let maxTurnsHit = false;
+        const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|crush-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
+        let toolCalls = 0;
+        let currentRole = null;
+        let currentText = [];
+
+        function flushEntry() {
+          if (currentRole && currentText.length > 0) {
+            entries.push({ type: currentRole, content: currentText.join("\n").trim() });
+          }
+          currentText = [];
+        }
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          if (AWF_INFRA_RE.test(line)) continue;
+          if (/max.?turns|maximum.*turns.*reached|turn limit/i.test(line)) maxTurnsHit = true;
+          if (/MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP/i.test(line)) {
+            const serverMatch = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
+            mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
+          }
+
+          // Detect tool-related patterns (Crush uses view/edit/bash/grep/ls tools)
+          if (/^(Tool|Running|Executing|>\s*(view|edit|bash|grep|ls|write|webfetch|websearch))\b/i.test(line.trim())) {
+            flushEntry();
+            currentRole = "tool_use";
+            toolCalls++;
+            currentText.push(line);
+            continue;
+          }
+          // Detect model output blocks
+          if (/^(Assistant|Response|Output)\s*[>:]/i.test(line.trim())) {
+            if (currentRole !== "assistant") { flushEntry(); currentRole = "assistant"; }
+            currentText.push(line);
+            continue;
+          }
+          if (currentRole) {
+            currentText.push(line);
+          } else {
+            entries.push({ type: "text", content: line.trim() });
+          }
+        }
+        flushEntry();
+
+        const totalLines = lines.filter(l => l.trim()).length;
+        const assistantBlocks = entries.filter(e => e.type === "assistant").length;
+        const textLines = entries.filter(e => e.type === "text").length;
+
+        let md = "### Crush Agent Log Summary\n\n";
+        md += `| Metric | Value |\n|--------|-------|\n`;
+        md += `| Total lines | ${totalLines} |\n`;
+        md += `| Assistant blocks | ${assistantBlocks} |\n`;
+        md += `| Tool calls | ${toolCalls} |\n`;
+        md += `| MCP failures | ${mcpFailures.length} |\n`;
+        md += `| Max turns hit | ${maxTurnsHit} |\n\n`;
+
+        if (entries.length > 0) {
+          md += "<details><summary>Conversation</summary>\n\n";
+          let shown = 0;
+          for (const entry of entries) {
+            if (entry.type === "text") continue;
+            if (shown >= 50) break;
+            const label = entry.type === "tool_use" ? "🔧 Tool" : "🤖 Assistant";
+            const content = entry.content.length > 500 ? entry.content.slice(0, 500) + "..." : entry.content;
+            md += `**${label}**\n\`\`\`\n${content}\n\`\`\`\n\n`;
+            shown++;
+          }
+          if (shown === 0 && textLines > 0) {
+            const preview = entries.filter(e => e.type === "text").slice(0, 50).map(e => e.content).join("\n");
+            md += "```\n" + (preview.length > 3000 ? preview.slice(0, 3000) + "\n..." : preview) + "\n```\n";
+          }
+          md += "</details>\n";
+        }
+
+        return { markdown: md, logEntries: entries, mcpFailures, maxTurnsHit };
+      }
 ---
 
 <!--
