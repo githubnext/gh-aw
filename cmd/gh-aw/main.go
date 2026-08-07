@@ -393,48 +393,49 @@ var versionCmd = &cobra.Command{
 }
 
 type compileCmdOptions struct {
-	engineOverride         string
-	actionMode             string
-	actionTag              string
-	actionsRepo            string
-	ghAwRef                string
-	dir                    string
-	workflowsDir           string
-	logicalRepo            string
-	scheduleSeed           string
-	priorManifestFile      string
-	validate               bool
-	watch                  bool
-	noEmit                 bool
-	purge                  bool
-	strict                 bool
-	trial                  bool
-	dependabot             bool
-	forceOverwrite         bool
-	refreshStopTime        bool
-	forceRefreshActionPins bool
-	allowActionRefs        bool
-	zizmor                 bool
-	poutine                bool
-	actionlint             bool
-	runnerGuard            bool
-	syft                   bool
-	grype                  bool
-	grant                  bool
-	yamllint               bool
-	shellcheck             bool
-	jsonOutput             bool
-	showAllErrors          bool
-	fix                    bool
-	stats                  bool
-	failFast               bool
-	noCheckUpdate          bool
-	staged                 bool
-	approve                bool
-	validateImages         bool
-	ghes                   bool
-	verbose                bool
-	useSamples             bool
+	engineOverride            string
+	actionMode                string
+	actionTag                 string
+	actionsRepo               string
+	ghAwRef                   string
+	dir                       string
+	workflowsDir              string
+	logicalRepo               string
+	scheduleSeed              string
+	priorManifestFile         string
+	validate                  bool
+	watch                     bool
+	noEmit                    bool
+	purge                     bool
+	strict                    bool
+	trial                     bool
+	dependabot                bool
+	forceOverwrite            bool
+	refreshStopTime           bool
+	forceRefreshActionPins    bool
+	forceRefreshContainerPins bool
+	allowActionRefs           bool
+	zizmor                    bool
+	poutine                   bool
+	actionlint                bool
+	runnerGuard               bool
+	syft                      bool
+	grype                     bool
+	grant                     bool
+	yamllint                  bool
+	shellcheck                bool
+	jsonOutput                bool
+	showAllErrors             bool
+	fix                       bool
+	stats                     bool
+	failFast                  bool
+	noCheckUpdate             bool
+	staged                    bool
+	approve                   bool
+	validateImages            bool
+	ghes                      bool
+	verbose                   bool
+	useSamples                bool
 }
 
 func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
@@ -456,6 +457,7 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 	forceOverwrite, _ := cmd.Flags().GetBool("force")
 	refreshStopTime, _ := cmd.Flags().GetBool("refresh-stop-time")
 	forceRefreshActionPins, _ := cmd.Flags().GetBool("force-refresh-action-pins")
+	forceRefreshContainerPins, _ := cmd.Flags().GetBool("force-refresh-container-pins")
 	allowActionRefs, _ := cmd.Flags().GetBool("allow-action-refs")
 	zizmor, _ := cmd.Flags().GetBool("zizmor")
 	poutine, _ := cmd.Flags().GetBool("poutine")
@@ -484,7 +486,7 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 		engineOverride: engineOverride, actionMode: actionMode, actionTag: actionTag, actionsRepo: actionsRepo, ghAwRef: ghAwRef,
 		dir: dir, workflowsDir: workflowsDir, logicalRepo: logicalRepo, scheduleSeed: scheduleSeed, priorManifestFile: priorManifestFile,
 		validate: validate, watch: watch, noEmit: noEmit, purge: purge, strict: strict, trial: trial, dependabot: dependabot,
-		forceOverwrite: forceOverwrite, refreshStopTime: refreshStopTime, forceRefreshActionPins: forceRefreshActionPins, allowActionRefs: allowActionRefs,
+		forceOverwrite: forceOverwrite, refreshStopTime: refreshStopTime, forceRefreshActionPins: forceRefreshActionPins, forceRefreshContainerPins: forceRefreshContainerPins, allowActionRefs: allowActionRefs,
 		zizmor: zizmor, poutine: poutine, actionlint: actionlint, runnerGuard: runnerGuard, syft: syft, grype: grype, grant: grant, yamllint: yamllint, shellcheck: shellcheck,
 		jsonOutput: jsonOutput, showAllErrors: showAllErrors, fix: fix, stats: stats, failFast: failFast, noCheckUpdate: noCheckUpdate,
 		staged: staged, approve: approve, validateImages: validateImages, ghes: ghes, verbose: verbose, useSamples: useSamples,
@@ -516,7 +518,7 @@ func (o *compileCmdOptions) toCompileConfig(args []string) cli.CompileConfig {
 		MarkdownFiles: args, Verbose: o.verbose, EngineOverride: o.engineOverride, ActionMode: o.actionMode, ActionTag: o.actionTag,
 		ActionsRepo: o.actionsRepo, Validate: o.validate, Watch: o.watch, WorkflowDir: o.workflowDir(), SkipInstructions: false,
 		NoEmit: o.noEmit, Purge: o.purge, TrialMode: o.trial, TrialLogicalRepoSlug: o.logicalRepo, Strict: o.strict,
-		Dependabot: o.dependabot, ForceOverwrite: o.forceOverwrite, RefreshStopTime: o.refreshStopTime, ForceRefreshActionPins: o.forceRefreshActionPins,
+		Dependabot: o.dependabot, ForceOverwrite: o.forceOverwrite, RefreshStopTime: o.refreshStopTime, ForceRefreshActionPins: o.forceRefreshActionPins, ForceRefreshContainerPins: o.forceRefreshContainerPins,
 		AllowActionRefs: o.allowActionRefs, Zizmor: o.zizmor, Poutine: o.poutine, Actionlint: o.actionlint, RunnerGuard: o.runnerGuard,
 		Syft: o.syft, Grype: o.grype, Grant: o.grant, Yamllint: o.yamllint, Shellcheck: o.shellcheck, JSONOutput: o.jsonOutput, ShowAllErrors: o.showAllErrors,
 		Stats: o.stats, FailFast: o.failFast, ScheduleSeed: o.scheduleSeed, Staged: o.staged, Approve: o.approve,
@@ -766,6 +768,7 @@ func configureCompileToolFlags() {
 	compileCmd.Flags().BoolP("force", "f", false, "Force overwrite of existing dependency files (only applies when --dependabot is set; e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("refresh-stop-time", false, "Force regeneration of stop-after times instead of preserving existing values from lock files")
 	compileCmd.Flags().Bool("force-refresh-action-pins", false, "Force refresh of action pins by clearing the cache and resolving all action SHAs from GitHub API")
+	compileCmd.Flags().Bool("force-refresh-container-pins", false, "Force refresh existing container image digest pins before compiling")
 	compileCmd.Flags().Bool("allow-action-refs", false, "Allow unresolved action refs and emit warnings instead of failing validation")
 	compileCmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")

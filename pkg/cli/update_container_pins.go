@@ -48,7 +48,8 @@ type containerPinUpdateDeps struct {
 }
 
 type containerPinUpdateOptions struct {
-	refreshExisting bool
+	refreshExisting     bool
+	failOnResolveErrors bool
 }
 
 func defaultContainerPinUpdateDeps() containerPinUpdateDeps {
@@ -198,6 +199,10 @@ func updateContainerPins(ctx context.Context, deps containerPinUpdateDeps, workf
 			return false, fmt.Errorf("failed to save actions-lock.json: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated container pins in actions-lock.json"))
+	}
+
+	if len(failedImages) > 0 && opts.failOnResolveErrors {
+		return len(updatedImages) > 0, fmt.Errorf("failed to resolve digest for %d image(s)", len(failedImages))
 	}
 
 	return len(updatedImages) > 0, nil
