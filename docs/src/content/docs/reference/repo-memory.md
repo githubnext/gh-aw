@@ -49,6 +49,8 @@ tools:
 
 Example: with the default filter `["*.json", "*.md"]`, the file `discussion-task-miner/processed-discussions.json` is persisted (depth 1 ✓), but `processed-discussions.json` (depth 0) and `discussion-task-miner/archive/old.json` (depth 2) are not.
 
+Files that no pattern matches are skipped rather than failing the push. When *every* file in the memory artifact is skipped, the push step logs a warning listing the rejected paths so a glob or layout mismatch does not look like a successful no-op run.
+
 ## Multiple Configurations
 
 ```aw wrap

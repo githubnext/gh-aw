@@ -17,3 +17,33 @@ func TestRepoMemoryTemplate_DoesNotContainMarkdownHeader(t *testing.T) {
 	templateContent := string(data)
 	assert.NotContains(t, templateContent, "## Repo Memory Available", "template should not include a markdown header in <repo-memory> section")
 }
+
+func TestRepoMemorySubfolderConstraint(t *testing.T) {
+	t.Run("slashless pattern adds required layout note", func(t *testing.T) {
+		assert.Contains(t, repoMemorySubfolderConstraint([]string{"*.md", "*.json"}), "**Required Layout**")
+	})
+
+	t.Run("patterns with explicit paths add no note", func(t *testing.T) {
+		assert.Empty(t, repoMemorySubfolderConstraint([]string{"metrics/**", "data/*.json"}))
+	})
+
+	t.Run("no glob adds no note", func(t *testing.T) {
+		assert.Empty(t, repoMemorySubfolderConstraint(nil))
+	})
+}
+
+func TestRepoMemoryPromptConstraintsIncludeSubfolderRequirement(t *testing.T) {
+	config := &RepoMemoryConfig{
+		Memories: []RepoMemoryEntry{
+			{
+				ID:         "default",
+				BranchName: "memory/deep-report",
+				FileGlob:   []string{"*.md"},
+			},
+		},
+	}
+
+	section := buildRepoMemoryPromptSection(config)
+	require.NotNil(t, section)
+	assert.Contains(t, section.EnvVars["GH_AW_MEMORY_CONSTRAINTS"], "**Required Layout**")
+}

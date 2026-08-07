@@ -399,7 +399,18 @@ async function main() {
   }
 
   if (filesToCopy.length === 0) {
-    core.info("No files to copy from artifact");
+    if (filteredOutFiles.length > 0) {
+      // All files present in the artifact were rejected by the glob filter. Without a warning this
+      // looks like a successful no-op run, so memory silently stops being updated (see deep-report
+      // stale-memory incident). Surface the mismatch with the offending paths and patterns.
+      core.warning(
+        `repo-memory (${memoryId}): no files were pushed to branch ${branchName} — all ${filteredOutFiles.length} file(s) in the artifact were rejected by FILE_GLOB_FILTER "${fileGlobFilter}". ` +
+          `Rejected paths: ${filteredOutFiles.map(f => f.path).join(", ")}. ` +
+          `Patterns are matched against the path relative to the memory directory and must not include the branch name; slashless patterns such as "*.md" only match files one folder deep (e.g. "my-agent/notes.md").`
+      );
+    } else {
+      core.info("No files to copy from artifact");
+    }
     return;
   }
 

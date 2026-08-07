@@ -71,7 +71,7 @@ tools:
   repo-memory:
     branch-name: memory/deep-report
     description: "Long-term insights, patterns, and trend data"
-    file-glob: ["*.md"]
+    file-glob: ["*.md", "*.json"]
     max-file-size: 1048576  # 1MB
   bash:
     - "*"
@@ -160,14 +160,21 @@ Schema is available at `/tmp/gh-aw/agent/weekly-issues-data/issues-schema.json`.
 
 **EFFICIENCY FIRST**: Before starting full analysis:
 
-1. Check `/tmp/gh-aw/repo-memory/default/memory/deep-report/` for previous insights
-2. Load any existing markdown files (only markdown files are allowed in repo-memory):
+1. Check `/tmp/gh-aw/repo-memory/default/deep-report/` for previous insights
+2. Load any existing markdown files:
    - `last_analysis_timestamp.md` - When the last full analysis was run
    - `known_patterns.md` - Previously identified patterns
    - `trend_data.md` - Historical trend data
    - `flagged_items.md` - Items flagged for continued monitoring
 
 3. If the last analysis was less than 20 hours ago, focus only on new data since then
+
+**Memory layout (important)**: repo-memory files are only persisted when they live in a
+single subfolder of the memory root — i.e. `/tmp/gh-aw/repo-memory/default/deep-report/<file>`.
+Never write to the memory root directly and never nest deeper (e.g. a legacy
+`/tmp/gh-aw/repo-memory/default/memory/deep-report/` path is silently dropped by the `*.md`/`*.json`
+file globs). If you find files under the legacy `memory/deep-report/` path, copy them into
+`/tmp/gh-aw/repo-memory/default/deep-report/` so their history is preserved going forward.
 
 ### Step 1: Gather Discussion Intelligence
 
@@ -212,7 +219,7 @@ Use the `issues-analyst` sub-agent to analyze `/tmp/gh-aw/agent/weekly-issues-da
 
 In addition to the broad intelligence gathering above, perform targeted **code quality task mining** on the same discussions data:
 
-1. Load `memory/deep-report/processed-discussions.json` (repo-memory) to find which discussions were previously mined — skip re-processing those.
+1. Load `/tmp/gh-aw/repo-memory/default/deep-report/processed-discussions.json` (repo-memory) to find which discussions were previously mined — skip re-processing those.
 2. For each unprocessed discussion from the last 7 days, extract tasks that meet **all** of the following criteria:
    - **Specific**: clear scope and acceptance criteria
    - **Actionable**: can be completed by an AI agent or developer
@@ -222,7 +229,7 @@ In addition to the broad intelligence gathering above, perform targeted **code q
 3. Focus on these code quality areas: refactoring, testing gaps, documentation, performance, security, technical debt, tooling improvements.
 4. Exclude: vague suggestions, feature requests, bug reports, architectural decisions.
 5. Dedup against existing open issues before creating any new ones (same check as the dedup gate above).
-6. Save updated `processed-discussions.json` and `extracted-tasks.json` to repo-memory after this step.
+6. Save updated `processed-discussions.json` and `extracted-tasks.json` to `/tmp/gh-aw/repo-memory/default/deep-report/` after this step.
 
 Include the code quality tasks surfaced here in the 7 actionable issues created in the task creation step.
 
@@ -242,13 +249,16 @@ Connect the dots between different data sources:
 
 ### Step 4: Store Insights in Repo Memory
 
-Save your findings to `/tmp/gh-aw/repo-memory/default/memory/deep-report/` as markdown files:
+Save your findings to `/tmp/gh-aw/repo-memory/default/deep-report/` as markdown files:
 - Update `known_patterns.md` with any new patterns discovered
 - Update `trend_data.md` with current metrics
 - Update `flagged_items.md` with items needing attention
 - Save `last_analysis_timestamp.md` with current timestamp
 
-**Note:** Only markdown (.md) files are allowed in the repo-memory folder. Use markdown tables, lists, and formatting to structure your data.
+**Note:** Only `.md` and `.json` files are persisted, and only when written directly inside
+`/tmp/gh-aw/repo-memory/default/deep-report/` (no deeper nesting). After writing, call the
+`push_repo_memory` tool and check its output: if it reports that files were filtered out or that
+there were no files to copy, fix the paths/extensions and retry.
 
 #### Actionable Task Creation
 

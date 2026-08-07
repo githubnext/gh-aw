@@ -15,6 +15,22 @@ var repoMemoryPromptLog = logger.New("workflow:repo_memory_prompt")
 // ensuring the substitution step always has a value to substitute.
 const ghaEmptyStringExpr = "${{ '' }}"
 
+// repoMemorySubfolderConstraint returns an extra constraint bullet explaining the depth
+// requirement of slashless file globs (e.g. "*.md"). Those patterns are matched against the
+// path relative to the memory directory and only match files inside exactly one subfolder,
+// so files written at the memory root or nested deeper are silently dropped at push time.
+// Returns an empty string when every pattern contains a "/" (explicit paths).
+func repoMemorySubfolderConstraint(fileGlob []string) string {
+	for _, pattern := range fileGlob {
+		if !strings.Contains(pattern, "/") {
+			return "- **Required Layout**: Patterns without a `/` (e.g. `*.md`) only match files placed in exactly one subfolder " +
+				"of the memory folder (e.g. `my-topic/notes.md`). Files written at the memory root or nested more than one folder " +
+				"deep are silently skipped when memory is pushed.\n"
+		}
+	}
+	return ""
+}
+
 // buildRepoMemoryPromptSection builds a PromptSection for repo memory instructions.
 // Returns a PromptSection that references a template file with substitutions, or nil if no memory is configured.
 func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
@@ -50,6 +66,7 @@ func buildRepoMemoryPromptSection(config *RepoMemoryConfig) *PromptSection {
 			constraints.WriteString("\n\n**Constraints:**\n")
 			if len(memory.FileGlob) > 0 {
 				fmt.Fprintf(&constraints, "- **Allowed Files**: Only files matching patterns: %s\n", strings.Join(memory.FileGlob, ", "))
+				constraints.WriteString(repoMemorySubfolderConstraint(memory.FileGlob))
 			}
 			if memory.MaxFileSize > 0 {
 				fmt.Fprintf(&constraints, "- **Max File Size**: %d bytes (%.2f MB) per file\n", memory.MaxFileSize, float64(memory.MaxFileSize)/1048576.0)

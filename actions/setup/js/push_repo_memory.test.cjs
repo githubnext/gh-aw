@@ -1774,3 +1774,31 @@ describe("push_repo_memory.cjs - API branch seeding for signed commits", () => {
     expect(splitIdx).toBeLessThan(checkoutIdx);
   });
 });
+
+describe("push_repo_memory.cjs - filtered-out files visibility", () => {
+  it("should warn (not silently succeed) when every file is rejected by the glob filter (source check)", () => {
+    const nodeFs = require("fs");
+    const nodePath = require("path");
+    const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+
+    // The "no files to copy" branch must emit core.warning when files were filtered out,
+    // otherwise a glob/path mismatch looks like a successful no-op run.
+    expect(scriptContent).toContain("were rejected by FILE_GLOB_FILTER");
+    const noFilesIdx = scriptContent.indexOf("if (filesToCopy.length === 0)");
+    const warningIdx = scriptContent.indexOf("were rejected by FILE_GLOB_FILTER");
+    expect(noFilesIdx).toBeGreaterThan(-1);
+    expect(warningIdx).toBeGreaterThan(noFilesIdx);
+  });
+
+  it("should only accept memory files one folder deep (deep-report layout regression)", () => {
+    const patterns = ["*.md", "*.json"].map(p => globPatternToRegex(p, { matchSubfolderRoot: true }));
+
+    // Correct layout: /tmp/gh-aw/repo-memory/default/deep-report/<file>
+    expect(patterns.some(p => p.test("deep-report/last_analysis_timestamp.md"))).toBe(true);
+    expect(patterns.some(p => p.test("deep-report/processed-discussions.json"))).toBe(true);
+
+    // Legacy layout that included the branch name – silently dropped
+    expect(patterns.some(p => p.test("memory/deep-report/last_analysis_timestamp.md"))).toBe(false);
+  });
+});
