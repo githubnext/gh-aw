@@ -683,6 +683,39 @@ Custom secret: my-secret-123456789012`;
       expect(tokens).toContain("safe-output-token-xyz789");
     });
 
+    it("should extract Authorization tokens from Codex TOML configuration", () => {
+      const configPath = path.join(tempDir, "config.toml");
+      const token = "codex-gateway-token-xyz789";
+      const authHeader = ["Bearer", token].join(" ");
+      fs.writeFileSync(configPath, `[mcp_servers.github]\nurl = "http://127.0.0.1:8080/github"\nhttp_headers = { Authorization = "${authHeader}" }\n`);
+
+      const { extractMCPGatewayTokens } = require("./redact_secrets.cjs");
+      const tokens = extractMCPGatewayTokens([configPath]);
+      expect(tokens).toContain(authHeader);
+      expect(tokens).toContain(token);
+    });
+
+    it("should extract lowercase authorization keys from Codex TOML configuration", () => {
+      const configPath = path.join(tempDir, "config-lowercase.toml");
+      const token = "codex-lowercase-token-abc123";
+      const authHeader = ["Bearer", token].join(" ");
+      fs.writeFileSync(configPath, `[mcp_servers.github]\nhttp_headers = { authorization = "${authHeader}" }\n`);
+
+      const { extractMCPGatewayTokens } = require("./redact_secrets.cjs");
+      const tokens = extractMCPGatewayTokens([configPath]);
+      expect(tokens).toContain(authHeader);
+      expect(tokens).toContain(token);
+    });
+
+    it("should ignore short Authorization values even when bearer-prefixed", () => {
+      const configPath = path.join(tempDir, "config-short.toml");
+      const authHeader = ["Bearer", "abc"].join(" ");
+      fs.writeFileSync(configPath, `[mcp_servers.github]\nhttp_headers = { Authorization = "${authHeader}" }\n`);
+
+      const { extractMCPGatewayTokens } = require("./redact_secrets.cjs");
+      expect(extractMCPGatewayTokens([configPath])).toEqual([]);
+    });
+
     it("should extract both the full Bearer header value and the bare token", () => {
       const configDir = path.join(tempDir, "mcp-config");
       fs.mkdirSync(configDir, { recursive: true });
@@ -758,7 +791,7 @@ Custom secret: my-secret-123456789012`;
       expect(tokens).toEqual([]);
     });
 
-    it("should redact MCP gateway token from agent-stdio.log in main()", async () => {
+    it("should redact MCP gateway token from diagnostic logs in main()", async () => {
       const configDir = path.join(tempDir, "mcp-config");
       fs.mkdirSync(configDir, { recursive: true });
       const gatewayOutput = path.join(configDir, "gateway-output.json");
@@ -772,9 +805,12 @@ Custom secret: my-secret-123456789012`;
         })
       );
 
-      // Write a log file that contains the gateway token (simulating the leak)
-      const logFile = path.join(tempDir, "agent-stdio.log");
-      fs.writeFileSync(logFile, `{"type":"tool_result","content":"Authorization: ${gatewayToken}"}`);
+      const logsDir = path.join(tempDir, "mcp-logs");
+      fs.mkdirSync(logsDir, { recursive: true });
+      const diagnosticLogs = ["github.log", "mcp-gateway.log", "safeoutputs.log", "stderr.log"].map(name => path.join(logsDir, name));
+      for (const logFile of diagnosticLogs) {
+        fs.writeFileSync(logFile, `{"type":"tool_result","content":"session=${gatewayToken}"}`);
+      }
 
       let modifiedScript = redactScript
         .replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`)
@@ -783,9 +819,11 @@ Custom secret: my-secret-123456789012`;
 
       await eval(`(async () => { ${modifiedScript}; await main(); })()`);
 
-      const redacted = fs.readFileSync(logFile, "utf8");
-      expect(redacted).not.toContain(gatewayToken);
-      expect(redacted).toContain("***REDACTED***");
+      for (const logFile of diagnosticLogs) {
+        const redacted = fs.readFileSync(logFile, "utf8");
+        expect(redacted).not.toContain(gatewayToken);
+        expect(redacted).toContain("***REDACTED***");
+      }
     });
   });
 });
