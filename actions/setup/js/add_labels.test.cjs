@@ -792,6 +792,7 @@ describe("add_labels", () => {
 
       expect(result.success).toBe(true);
       expect(result.labelsAdded).toEqual(["security:medium"]);
+      expect(result.after_state.labels).toEqual(["security:medium"]);
       expect(graphqlMutationCalls).toHaveLength(0);
       expect(addLabelsCalls).toHaveLength(1);
       expect(addLabelsCalls[0].issue_number).toBe(456);
@@ -834,6 +835,8 @@ describe("add_labels", () => {
       );
 
       expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["enhancement"]);
+      expect(result.after_state.labels).toEqual(["enhancement"]);
       expect(graphqlMutationCalls).toHaveLength(0);
       expect(addLabelsCalls).toHaveLength(1);
       expect(addLabelsCalls[0].issue_number).toBe(789);
