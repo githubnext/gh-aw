@@ -35,6 +35,7 @@ const {
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isDetectionPhase,
   isAuthenticationFailedError,
+  isTaskSubagentModelUnavailableError,
   isRetryableProxyAuthenticationFailure,
   isMCPGatewayShutdownError,
   isModelAvailableInReflectData,
@@ -676,6 +677,10 @@ describe("copilot_harness.cjs", () => {
         it("named error classes outrank long_run_exit: sdk_session_idle_timeout", () => {
           expect(classifyCopilotFailure({ hasOutput: true, isSDKSessionIdleTimeout: true, tokenCount: 50000 })).toBe("sdk_session_idle_timeout");
         });
+
+        it("named error classes outrank long_run_exit: task_subagent_model_unavailable", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, isTaskSubagentModelUnavailable: true, tokenCount: 50000 })).toBe("task_subagent_model_unavailable");
+        });
       });
 
       describe("resolveLongRunTokenThreshold", () => {
@@ -1255,6 +1260,18 @@ describe("copilot_harness.cjs", () => {
         expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(output)).toBe(true);
       });
 
+      it("detects task subagent 'No model available' as inference access error", () => {
+        const output = ['{"type":"subagent.started","toolName":"task"}', "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot"].join("\n");
+        expect(detectCopilotErrors(output)).toEqual({
+          inferenceAccessError: true,
+          mcpPolicyError: false,
+          agenticEngineTimeout: false,
+          modelNotSupportedError: false,
+          http400ResponseError: false,
+        });
+        expect(INFERENCE_ACCESS_ERROR_PATTERN.test(output)).toBe(true);
+      });
+
       it("writes copilot detection outputs to GITHUB_OUTPUT", () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-output-test-"));
         const outputFile = path.join(tempDir, "github-output.txt");
@@ -1364,6 +1381,18 @@ describe("copilot_harness.cjs", () => {
   describe("authentication-failed detection pattern", () => {
     it("matches authentication failed with request id", () => {
       expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
+    });
+
+    describe("task subagent model unavailable detection", () => {
+      it("matches the Task-tool subagent no-model-available signature", () => {
+        const output = ['{"type":"subagent.started","toolName":"task"}', "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot"].join("\n");
+        expect(isTaskSubagentModelUnavailableError(output)).toBe(true);
+      });
+
+      it("does not match no-model-available message without subagent/task markers", () => {
+        const output = "Error: No model available. Check policy enablement under GitHub Settings > Copilot";
+        expect(isTaskSubagentModelUnavailableError(output)).toBe(false);
+      });
     });
 
     it("does not match no-auth-info error", () => {
@@ -2491,6 +2520,46 @@ process.exit(1);`,
       // Harness exits 1 because no expected output was produced
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("detected numerous permission-denied issues — not retrying");
+    });
+  });
+
+  describe("task subagent no-model-available suppression", () => {
+    it("exits 0 without retrying when Task-tool subagent model is unavailable by policy", () => {
+      const tempDir = makeHarnessTempDir("copilot-subagent-no-model-available-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write('{"type":"subagent.started","toolName":"task"}\\n');
+process.stderr.write("[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "review changes", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_SAFEOUTPUTS_CLI: "true",
+          GH_AW_HARNESS_MAX_RETRIES: "1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      expect(callCount).toBe(1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("task-tool subagent model unavailable by policy — treating as success");
+      expect(result.stderr).toContain("report_incomplete emitted via safeoutputs CLI");
     });
   });
 

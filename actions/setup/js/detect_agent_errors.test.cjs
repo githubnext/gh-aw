@@ -36,6 +36,11 @@ describe("detect_agent_errors.cjs", () => {
       expect(INFERENCE_ACCESS_ERROR_PATTERN.test(log)).toBe(true);
     });
 
+    it("matches Copilot Task-tool subagent no-model-available policy message", () => {
+      const log = "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot";
+      expect(INFERENCE_ACCESS_ERROR_PATTERN.test(log)).toBe(true);
+    });
+
     it("does not match unrelated errors", () => {
       expect(INFERENCE_ACCESS_ERROR_PATTERN.test("CAPIError: 400 Bad Request")).toBe(false);
       expect(INFERENCE_ACCESS_ERROR_PATTERN.test("MCP server connection failed")).toBe(false);

@@ -50,7 +50,7 @@ const { parseUnknownModelAICreditsAndModelFromAuditLog, parseMaxCacheMissesExcee
 const LOG_FILE = "/tmp/gh-aw/agent-stdio.log";
 
 // Pattern: Copilot CLI inference access denied
-const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/;
+const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference|No model available\.\s*Check policy enablement under GitHub Settings\s*>\s*Copilot/i;
 
 // Pattern: MCP servers blocked by enterprise/organization policy
 const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
