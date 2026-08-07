@@ -167,7 +167,10 @@ func maybeForceRefreshContainerPins(ctx context.Context, config CompileConfig, w
 	}
 
 	compileOrchestratorLog.Print("Refreshing container image digest pins before compilation")
-	if _, err := compileUpdateContainerPins(ctx, defaultContainerPinUpdateDeps(), workflowDir, config.Verbose, containerPinUpdateOptions{refreshExisting: true}); err != nil {
+	if _, err := compileUpdateContainerPins(ctx, defaultContainerPinUpdateDeps(), workflowDir, config.Verbose, containerPinUpdateOptions{
+		refreshExisting:     true,
+		failOnResolveErrors: true,
+	}); err != nil {
 		return fmt.Errorf("failed to refresh container pins: %w", err)
 	}
 	return nil
