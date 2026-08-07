@@ -477,8 +477,7 @@ find_cached_copilot_bin() {
   return 1
 }
 
-# Make a cached Copilot CLI available to the current shell, later GitHub Actions steps,
-# and absolute-path invocations used by the containerized harness.
+# Make a cached Copilot CLI available both to the current shell and later GitHub Actions steps.
 activate_cached_copilot_bin() {
   local cached_copilot_bin="$1"
   local cached_copilot_dir=""
@@ -492,12 +491,12 @@ activate_cached_copilot_bin() {
   if [ -n "${GITHUB_PATH:-}" ]; then
     echo "  Exporting ${cached_copilot_dir} to GITHUB_PATH (${GITHUB_PATH})"
     echo "$cached_copilot_dir" >> "${GITHUB_PATH}"
+    return 0
   fi
 
-  # Install a small wrapper instead of symlinking or copying the cached script and
-  # risking broken relative paths. The wrapper is still needed when GITHUB_PATH is
-  # set because the AWF container invokes ${INSTALL_DIR}/copilot by absolute path.
-  echo "  Installing wrapper at ${INSTALL_DIR}/copilot"
+  # Outside GitHub Actions there is no GITHUB_PATH file, so install a small wrapper
+  # instead of symlinking or copying the cached script and risking broken relative paths.
+  echo "  GITHUB_PATH not set — installing wrapper at ${INSTALL_DIR}/copilot"
   wrapper_path="${TEMP_DIR}/copilot"
   cat > "$wrapper_path" <<EOF
 #!/usr/bin/env bash
