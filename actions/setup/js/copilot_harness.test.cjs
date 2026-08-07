@@ -1383,24 +1383,24 @@ describe("copilot_harness.cjs", () => {
       expect(isAuthenticationFailedError("Authentication failed (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)")).toBe(true);
     });
 
-    describe("task subagent model unavailable detection", () => {
-      it("matches the Task-tool subagent no-model-available signature", () => {
-        const output = ['{"type":"subagent.started","toolName":"task"}', "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot"].join("\n");
-        expect(isTaskSubagentModelUnavailableError(output)).toBe(true);
-      });
-
-      it("does not match no-model-available message without subagent/task markers", () => {
-        const output = "Error: No model available. Check policy enablement under GitHub Settings > Copilot";
-        expect(isTaskSubagentModelUnavailableError(output)).toBe(false);
-      });
-    });
-
     it("does not match no-auth-info error", () => {
       expect(isAuthenticationFailedError("Error: No authentication information found.")).toBe(false);
     });
 
     it("matches PAT-not-supported 400 from Copilot CAPI", () => {
       expect(isAuthenticationFailedError("400 400 checking third-party user token: bad request: Personal Access Tokens are not supported for this endpoint")).toBe(true);
+    });
+  });
+
+  describe("task subagent model unavailable detection", () => {
+    it("matches the Task-tool subagent no-model-available signature", () => {
+      const output = ['{"type":"subagent.started","toolName":"task"}', "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot"].join("\n");
+      expect(isTaskSubagentModelUnavailableError(output)).toBe(true);
+    });
+
+    it("does not match no-model-available message without subagent/task markers", () => {
+      const output = "Error: No model available. Check policy enablement under GitHub Settings > Copilot";
+      expect(isTaskSubagentModelUnavailableError(output)).toBe(false);
     });
   });
 

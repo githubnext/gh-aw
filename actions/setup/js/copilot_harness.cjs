@@ -161,7 +161,7 @@ const SDK_SESSION_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for sessio
 // avoid false positives from any process that logs "Gateway shutdown initiated"
 // as plain text.
 const MCP_GATEWAY_SHUTDOWN_PATTERN = /"message"\s*:\s*"Gateway shutdown initiated"/;
-// Pattern to detect Copilot SDK subagent spawn failing due model policy/entitlement gating.
+// Pattern to detect Copilot SDK subagent spawn failing due to model policy/entitlement gating.
 // Observed signature:
 //   "No model available. Check policy enablement under GitHub Settings > Copilot"
 // This specifically affects Task-tool subagent delegation in environments where
