@@ -376,6 +376,8 @@ func knownEngineImportFor(id string) (string, bool) {
 	download := knownEngineImportsDownload
 	knownEngineImportsMu.Unlock()
 
+	// Avoid holding the catalog mutex during the network fetch. Concurrent cold
+	// callers may each fetch once, but only the first completed result is cached.
 	loaded := loadKnownEngineImports(download)
 
 	knownEngineImportsMu.Lock()
