@@ -267,11 +267,15 @@ test.describe('Mobile and Responsive Layout', () => {
     const select = page.locator('starlight-theme-select select').first();
     await expect(select).toHaveCount(1);
 
+    // The control is styled to `width: 1px; height: 1px`. Allow a small
+    // tolerance for sub-pixel rounding across browser engines rather than
+    // asserting an exact 1px match.
+    const NEAR_ZERO_PX_THRESHOLD = 4;
     const box = await select.boundingBox();
     expect(box).not.toBeNull();
     if (box) {
-      expect(box.width).toBeLessThanOrEqual(4);
-      expect(box.height).toBeLessThanOrEqual(4);
+      expect(box.width).toBeLessThanOrEqual(NEAR_ZERO_PX_THRESHOLD);
+      expect(box.height).toBeLessThanOrEqual(NEAR_ZERO_PX_THRESHOLD);
     }
 
     await context.close();
