@@ -13,6 +13,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
 
 /**
  * Collect generated asset URLs from safe output jobs
@@ -257,6 +258,24 @@ async function main() {
       message += `${url}\n`;
     });
   }
+
+  // Append the generated footer (attribution + XML marker)
+  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
+  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
+  const triggeringIssueNumber = context.payload?.issue?.number;
+  const triggeringPRNumber = context.payload?.pull_request?.number;
+  const triggeringDiscussionNumber = context.payload?.discussion?.number;
+  const markdownParts = assembleMarkdownBodyParts({
+    includeFooter: true,
+    workflowName,
+    runUrl,
+    workflowSource,
+    workflowSourceURL,
+    triggeringIssueNumber,
+    triggeringPRNumber,
+    triggeringDiscussionNumber,
+  });
+  message += "\n\n" + markdownParts.footer;
 
   // Add "needs-review" label when detection produced a warning
   if (detectionConclusion === "warning") {
