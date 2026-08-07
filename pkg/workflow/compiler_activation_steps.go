@@ -52,20 +52,27 @@ func (c *Compiler) addActivationSecretValidationStep(ctx *activationJobBuildCont
 func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildContext) {
 	compilerActivationJobLog.Print("Adding OAuth token check step to activation job")
 
-	// Resolve COPILOT_GITHUB_TOKEN expression, respecting engine.env overrides.
-	copilotTokenExpr := fmt.Sprintf("${{ secrets.%s }}", constants.CopilotGitHubToken)
-	if overrides := getEngineEnvOverrides(ctx.data); overrides != nil {
-		if override, ok := overrides[constants.CopilotGitHubToken]; ok {
-			copilotTokenExpr = override
-		}
-	}
-
 	ctx.steps = append(ctx.steps, "      - name: Check for OAuth tokens\n")
 	ctx.steps = append(ctx.steps, "        id: check-oauth-tokens\n")
 	ctx.steps = append(ctx.steps, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh\"\n")
 	ctx.steps = append(ctx.steps, "        env:\n")
-	for _, envLine := range appendEnvVarLine([]string{}, constants.CopilotGitHubToken, copilotTokenExpr) {
-		ctx.steps = append(ctx.steps, envLine+"\n")
+
+	// Skip COPILOT_GITHUB_TOKEN when permissions.copilot-requests is write: in that
+	// mode the Copilot engine authenticates via ${{ github.token }} (org-billed,
+	// PAT-free) and does not reference secrets.COPILOT_GITHUB_TOKEN anywhere else in
+	// the compiled workflow, so checking it here would needlessly re-introduce the
+	// secret reference into the lock file and its gh-aw-manifest.
+	if !hasCopilotRequestsWritePermission(ctx.data) {
+		// Resolve COPILOT_GITHUB_TOKEN expression, respecting engine.env overrides.
+		copilotTokenExpr := fmt.Sprintf("${{ secrets.%s }}", constants.CopilotGitHubToken)
+		if overrides := getEngineEnvOverrides(ctx.data); overrides != nil {
+			if override, ok := overrides[constants.CopilotGitHubToken]; ok {
+				copilotTokenExpr = override
+			}
+		}
+		for _, envLine := range appendEnvVarLine([]string{}, constants.CopilotGitHubToken, copilotTokenExpr) {
+			ctx.steps = append(ctx.steps, envLine+"\n")
+		}
 	}
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubToken, constants.EnvVarGitHubToken))
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubMCPServerToken, constants.EnvVarGitHubMCPServerToken))
