@@ -9,7 +9,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
+
+type grantPolicy struct {
+	Allow          []string `yaml:"allow"`
+	IgnorePackages []string `yaml:"ignore-packages"`
+}
 
 func TestGrantDisplayFindings_NilOutput(t *testing.T) {
 	count, err := grantDisplayFindings("test-image:latest", nil)
@@ -75,6 +81,67 @@ func TestGrantPolicyFile(t *testing.T) {
 	}
 	if filepath.Base(policyFile) != grantPolicyFilename {
 		t.Fatalf("Expected policy file basename %q, got %q", grantPolicyFilename, filepath.Base(policyFile))
+	}
+}
+
+func TestGrantPolicy_AllowsReviewedContainerLicenses(t *testing.T) {
+	policyFile, err := grantPolicyFile()
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(policyFile)
+	require.NoError(t, err)
+
+	var policy grantPolicy
+	require.NoError(t, yaml.Unmarshal(content, &policy))
+
+	for _, license := range []string{
+		"Artistic-2.0",
+		"BlueOak-1.0.0",
+		"CC-BY-3.0",
+		"CC0-1.0",
+		"curl",
+		"MPL-2.0",
+		"X11",
+		"Zlib",
+	} {
+		require.Contains(t, policy.Allow, license)
+	}
+}
+
+func TestGrantPolicy_IgnoresReviewedBaseAndLocalPackages(t *testing.T) {
+	policyFile, err := grantPolicyFile()
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(policyFile)
+	require.NoError(t, err)
+
+	var policy grantPolicy
+	require.NoError(t, yaml.Unmarshal(content, &policy))
+
+	for _, pkg := range []string{
+		"alpine-baselayout",
+		"alpine-baselayout-data",
+		"apk-tools",
+		"awf-cli-proxy",
+		"bash",
+		"busybox",
+		"busybox-binsh",
+		"libgcc",
+		"libapk",
+		"libidn2",
+		"libncursesw",
+		"libstdc++",
+		"libunistring",
+		"musl-utils",
+		"ncurses-terminfo-base",
+		"node",
+		"qrcode-terminal",
+		"readline",
+		"scanelf",
+		"ssl_client",
+		"zstd-libs",
+	} {
+		require.Contains(t, policy.IgnorePackages, pkg)
 	}
 }
 

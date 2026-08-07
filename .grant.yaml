@@ -5,7 +5,37 @@ require-known-license: true
 allow:
   - MIT
   - Apache-2.0
+  - Artistic-2.0
+  - BlueOak-1.0.0
   - BSD-2-Clause
   - BSD-3-Clause
+  - CC-BY-3.0
+  - CC0-1.0
+  - curl
   - ISC
+  - MPL-2.0
+  - X11
+  - Zlib
 
+ignore-packages:
+  - alpine-baselayout
+  - alpine-baselayout-data
+  - apk-tools
+  - awf-cli-proxy
+  - bash
+  - busybox
+  - busybox-binsh
+  - libgcc
+  - libapk
+  - libidn2
+  - libncursesw
+  - libstdc++
+  - libunistring
+  - musl-utils
+  - ncurses-terminfo-base
+  - node
+  - qrcode-terminal
+  - readline
+  - scanelf
+  - ssl_client
+  - zstd-libs
