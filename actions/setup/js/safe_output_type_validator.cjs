@@ -743,6 +743,8 @@ function validateItem(item, itemType, lineNum, options) {
       }
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
+    } else if (fieldValue !== undefined) {
+      errors.push(`Line ${lineNum}: ${itemType} '${fieldName}' validation did not produce a normalized value`);
     }
   }
 
