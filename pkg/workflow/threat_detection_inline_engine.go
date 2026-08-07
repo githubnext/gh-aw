@@ -198,10 +198,12 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 				steps = append(steps, "        continue-on-error: true\n")
 				continue
 			}
-			// If the step already had an "if:" field at position 1 (e.g. behavior-defined
-			// engine log-parser write steps use "if: always()"), skip it to avoid a duplicate
-			// YAML mapping key. The detection condition injected above supersedes it.
-			if i == 1 && strings.HasPrefix(strings.TrimSpace(step[0]), "- name:") && strings.HasPrefix(strings.TrimSpace(line), "if:") {
+			// If the step already had an "if: always()" field at position 1 (e.g. behavior-defined
+			// engine log-parser write steps emit "if: always()" to ensure file materialization),
+			// skip it to avoid a duplicate YAML mapping key. The detection condition injected
+			// above supersedes it. We check specifically for "if: always()" to avoid silently
+			// dropping a legitimate custom condition from unrelated steps.
+			if i == 1 && strings.HasPrefix(strings.TrimSpace(step[0]), "- name:") && strings.TrimSpace(line) == "if: always()" {
 				continue
 			}
 			steps = append(steps, prefixed+"\n")
