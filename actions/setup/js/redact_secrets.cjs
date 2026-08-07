@@ -82,7 +82,21 @@ const BUILT_IN_PATTERNS = [
  * These are the canonical paths produced by the gateway setup scripts.
  * The list is defined as a module-level constant so tests can replace entries.
  */
-const MCP_GATEWAY_CONFIG_PATHS = [path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json"), path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json")];
+// Shell setup scripts write under /tmp, while CJS converters use RUNNER_TEMP.
+const MCP_GATEWAY_CONFIG_PATHS = [
+  ...new Set(
+    [
+      path.join("/tmp", "gh-aw/mcp-config/gateway-output.json"),
+      path.join("/tmp", "gh-aw/mcp-config/mcp-servers.json"),
+      path.join("/tmp", "gh-aw/mcp-config/config.toml"),
+      path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/gateway-output.json"),
+      path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json"),
+      path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/config.toml"),
+      process.env.HOME ? path.join(process.env.HOME, ".copilot/mcp-config.json") : "",
+      process.env.GITHUB_WORKSPACE ? path.join(process.env.GITHUB_WORKSPACE, ".gemini/settings.json") : "",
+    ].filter(Boolean)
+  ),
+];
 
 /**
  * Extracts MCP gateway bearer tokens from known configuration files.
@@ -100,7 +114,24 @@ function extractMCPGatewayTokens(configPaths) {
     try {
       if (!fs.existsSync(configPath)) continue;
       const raw = fs.readFileSync(configPath, "utf8");
-      const config = /** @type {Record<string, any>} */ JSON.parse(raw);
+      let config;
+      try {
+        config = /** @type {Record<string, any>} */ JSON.parse(raw);
+      } catch {
+        for (const match of raw.matchAll(/\bAuthorization\s*=\s*"([^"]+)"/g)) {
+          const auth = match[1].trim();
+          if (auth.length >= 6) {
+            tokens.add(auth);
+            if (/^[Bb]earer /.test(auth)) {
+              const tokenPart = auth.slice(7).trim();
+              if (tokenPart.length >= 6) {
+                tokens.add(tokenPart);
+              }
+            }
+          }
+        }
+        continue;
+      }
       const servers = /** @type {Record<string, any>} */ config.mcpServers || {};
       for (const server of Object.values(servers)) {
         const auth = /** @type {string|undefined} */ server?.headers?.Authorization;

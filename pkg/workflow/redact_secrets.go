@@ -149,32 +149,24 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	// This is important for validation to ensure the step ordering is correct
 	c.stepOrderTracker.RecordSecretRedaction("Redact secrets in logs")
 
-	// If no secrets found, we still generate the step but it will be a no-op at runtime
-	// This ensures consistent step ordering and validation
-	if len(secretReferences) == 0 {
-		secretMaskingLog.Print("No secrets found, generating no-op redaction step")
-		// Generate a minimal no-op redaction step for validation purposes
-		yaml.WriteString("      - name: Redact secrets in logs\n")
-		yaml.WriteString("        if: always()\n")
-		yaml.WriteString("        run: echo 'No secrets to redact'\n")
-	} else {
-		secretMaskingLog.Printf("Generating redaction step for %d secret(s)", len(secretReferences))
-		yaml.WriteString("      - name: Redact secrets in logs\n")
-		yaml.WriteString("        if: always()\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
-		yaml.WriteString("        with:\n")
-		yaml.WriteString("          script: |\n")
+	secretMaskingLog.Printf("Generating redaction step for %d secret(s)", len(secretReferences))
+	yaml.WriteString("      - name: Redact secrets in logs\n")
+	yaml.WriteString("        if: always()\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
 
-		// Load redact_secrets script from external file
-		// Use setupGlobals helper to attach GitHub Actions builtin objects to global scope
-		yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
-		yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');\n")
-		yaml.WriteString("            await main();\n")
+	// Load redact_secrets script from external file
+	// Use setupGlobals helper to attach GitHub Actions builtin objects to global scope
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');\n")
+	yaml.WriteString("            await main();\n")
 
-		// Add environment variables
-		yaml.WriteString("        env:\n")
+	// Add environment variables
+	yaml.WriteString("        env:\n")
 
+	if len(secretReferences) > 0 {
 		// Pass the list of secret names as a comma-separated string
 		// Escape each secret reference to prevent injection when embedding in YAML
 		escapedRefs := make([]string, len(secretReferences))

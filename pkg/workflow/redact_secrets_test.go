@@ -325,3 +325,18 @@ Test workflow for secret redaction.
 		t.Error("Expected redaction step to have 'if: always()' condition")
 	}
 }
+
+func TestSecretRedactionRunsWithoutWorkflowSecrets(t *testing.T) {
+	var yaml strings.Builder
+	compiler := NewCompiler()
+
+	compiler.generateSecretRedactionStep(&yaml, "", &WorkflowData{})
+
+	output := yaml.String()
+	if !strings.Contains(output, "const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');") {
+		t.Error("Expected redaction script to run without workflow secret references")
+	}
+	if strings.Contains(output, "No secrets to redact") {
+		t.Error("Did not expect a no-op redaction step without workflow secret references")
+	}
+}
