@@ -163,10 +163,11 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	yaml.WriteString("            const { main } = require('${{ runner.temp }}/gh-aw/actions/redact_secrets.cjs');\n")
 	yaml.WriteString("            await main();\n")
 
-	// Add environment variables
-	yaml.WriteString("        env:\n")
-
+	// Add environment variables (only when secrets are present, since a step's
+	// `env` must be a mapping and an empty `env:` parses as null)
 	if len(secretReferences) > 0 {
+		yaml.WriteString("        env:\n")
+
 		// Pass the list of secret names as a comma-separated string
 		// Escape each secret reference to prevent injection when embedding in YAML
 		escapedRefs := make([]string, len(secretReferences))

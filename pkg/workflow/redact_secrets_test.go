@@ -339,4 +339,7 @@ func TestSecretRedactionRunsWithoutWorkflowSecrets(t *testing.T) {
 	if strings.Contains(output, "No secrets to redact") {
 		t.Error("Did not expect a no-op redaction step without workflow secret references")
 	}
+	if strings.Contains(output, "        env:\n") {
+		t.Error("Did not expect an empty env mapping without workflow secret references")
+	}
 }
