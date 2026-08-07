@@ -216,9 +216,9 @@ Test workflow`
 	if !strings.Contains(detectionSection, "install_copilot_cli.sh") {
 		t.Error("External detector path must emit engine installation step for copilot")
 	}
-	// The install step must pass the pinned DefaultThreatDetectVersion to the script
+	// The install step must pass the DefaultThreatDetectVersion to the script
 	if !strings.Contains(detectionSection, string(constants.DefaultThreatDetectVersion)) {
-		t.Errorf("External detector path must use pinned version %q from DefaultThreatDetectVersion", constants.DefaultThreatDetectVersion)
+		t.Errorf("External detector path must use version %q from DefaultThreatDetectVersion", constants.DefaultThreatDetectVersion)
 	}
 
 	// The AWF execution step must use threat-detect as the command
