@@ -129,6 +129,30 @@ describe("require-json-parse-try-catch", () => {
     });
   });
 
+  it("invalid: export declaration is reported without suggestion", () => {
+    esmRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `export const payload = JSON.parse(rawInput);`,
+          errors: [{ messageId: "requireTryCatch", data: { arg: "rawInput" }, suggestions: [] }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: for-loop initializer declaration is reported without suggestion", () => {
+    cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `for (let payload = JSON.parse(rawInput); payload; payload = null) {}`,
+          errors: [{ messageId: "requireTryCatch", data: { arg: "rawInput" }, suggestions: [] }],
+        },
+      ],
+    });
+  });
+
   it('invalid: computed JSON["parse"] access is flagged when not in try block', () => {
     cjsRuleTester.run("require-json-parse-try-catch", requireJsonParseTryCatchRule, {
       valid: [],

@@ -62,7 +62,21 @@ export const requireJsonParseTryCatchRule = createRule({
     }
 
     function canSuggestWrapStatement(stmt: TSESTree.Statement): boolean {
-      if (stmt.type !== AST_NODE_TYPES.VariableDeclaration || stmt.kind === "var") {
+      if (stmt.type !== AST_NODE_TYPES.VariableDeclaration) {
+        return true;
+      }
+
+      const parent = stmt.parent;
+      const isStandaloneVariableDeclaration =
+        parent != null &&
+        ((parent.type === AST_NODE_TYPES.Program && parent.body.includes(stmt)) ||
+          (parent.type === AST_NODE_TYPES.BlockStatement && parent.body.includes(stmt)) ||
+          (parent.type === AST_NODE_TYPES.SwitchCase && parent.consequent.includes(stmt)));
+      if (!isStandaloneVariableDeclaration) {
+        return false;
+      }
+
+      if (stmt.kind === "var") {
         return true;
       }
 
