@@ -18,6 +18,8 @@ imports:
   - shared/mcp-pagination.md
   - shared/reporting.md
   - shared/otlp.md
+features:
+  gh-aw-detection: true
 tools:
   cli-proxy: true
   github:
