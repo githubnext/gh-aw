@@ -215,9 +215,9 @@ func RunListWorkflows(ctx context.Context, repo, path, pattern string, verbose b
 
 	// Output results
 	if jsonOutput {
-		jsonBytes, err := json.MarshalIndent(workflows, "", "  ")
+		jsonBytes, err := marshalIndentJSONOrWrap(workflows, "workflow list")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil

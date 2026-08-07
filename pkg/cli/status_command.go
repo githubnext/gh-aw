@@ -270,9 +270,9 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 	// Handle output
 	if jsonOutput {
 		// Output JSON
-		jsonBytes, err := json.MarshalIndent(statuses, "", "  ")
+		jsonBytes, err := marshalIndentJSONOrWrap(statuses, "workflow statuses")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil

@@ -19,9 +19,6 @@
 package cli
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -35,9 +32,9 @@ func formatValidationOutput(results []ValidationResult) (string, error) {
 	// This removes potential secret key names from error messages at the output boundary
 	sanitizedResults := sanitizeValidationResults(results)
 
-	jsonBytes, err := json.MarshalIndent(sanitizedResults, "", "  ")
+	jsonBytes, err := marshalIndentJSONOrWrap(sanitizedResults, "compile validation results")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON: %w", err)
+		return "", err
 	}
 
 	return string(jsonBytes), nil
