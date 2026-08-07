@@ -99,14 +99,27 @@ engine:
     log-parser: |
       function parseLog(logContent) {
         const lines = logContent.split("\n");
-        const entries = [];
+        const logEntries = [];
         const mcpFailures = [];
         let maxTurnsHit = false;
         const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
         let inputTokens = 0;
         let outputTokens = 0;
-        let toolCalls = 0;
-        let errors = 0;
+        let toolCallIndex = 0;
+        let turnCount = 0;
+        let pendingText = [];
+
+        function flushText() {
+          if (pendingText.length === 0) return;
+          const text = pendingText.join("\n").trim();
+          if (text) {
+            logEntries.push({ type: "assistant", message: { content: [{ type: "text", text }] } });
+            turnCount++;
+          }
+          pendingText = [];
+        }
+
+        logEntries.push({ type: "system", subtype: "init", model: null, session_id: null });
 
         for (const line of lines) {
           if (!line.trim()) continue;
@@ -117,66 +130,37 @@ engine:
             mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
           }
 
-          // Try to parse JSON log lines (OpenCode --print-logs output)
           let parsed = null;
           try {
             if (line.trim().startsWith("{")) parsed = JSON.parse(line.trim());
           } catch (e) { /* not JSON */ }
 
           if (parsed) {
-            const entry = {
-              type: parsed.type != null ? String(parsed.type) : "log",
-              level: parsed.level || "INFO",
-              service: parsed.service || "",
-              message: parsed.msg || parsed.message || "",
-              raw: line
-            };
-            if (/tool[._]call|tool[._]use/i.test(entry.type)) toolCalls++;
-            if (/error/i.test(entry.level)) errors++;
+            const entryType = parsed.type != null ? String(parsed.type) : "log";
+            const msg = parsed.msg || parsed.message || "";
             if (parsed.input_tokens) inputTokens += parsed.input_tokens;
             if (parsed.output_tokens) outputTokens += parsed.output_tokens;
-            entries.push(entry);
+
+            if (/tool[._]call|tool[._]use/i.test(entryType)) {
+              flushText();
+              const toolId = `opencode_tool_${toolCallIndex++}`;
+              const toolName = parsed.tool || parsed.name || entryType;
+              logEntries.push({ type: "assistant", message: { content: [{ type: "tool_use", id: toolId, name: toolName, input: {} }] } });
+              logEntries.push({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: toolId, content: msg }] } });
+            } else if (msg) {
+              pendingText.push(msg);
+            }
           } else {
-            entries.push({ type: "text", message: line.trim(), raw: line });
+            pendingText.push(line.trim());
           }
         }
+        flushText();
 
-        const jsonEntries = entries.filter(e => e.type !== "text");
-        const textEntries = entries.filter(e => e.type === "text");
-
-        let md = "### OpenCode Agent Log Summary\n\n";
-        md += `| Metric | Value |\n|--------|-------|\n`;
-        md += `| Total lines | ${lines.filter(l => l.trim()).length} |\n`;
-        md += `| Structured (JSON) entries | ${jsonEntries.length} |\n`;
-        md += `| Text entries | ${textEntries.length} |\n`;
-        md += `| Tool calls | ${toolCalls} |\n`;
-        md += `| Errors | ${errors} |\n`;
-        md += `| MCP failures | ${mcpFailures.length} |\n`;
-        md += `| Max turns hit | ${maxTurnsHit} |\n`;
-        if (inputTokens || outputTokens) {
-          md += `| Input tokens | ${inputTokens} |\n`;
-          md += `| Output tokens | ${outputTokens} |\n`;
-        }
-        md += "\n";
-
-        if (jsonEntries.length > 0) {
-          md += "<details><summary>Structured Log Entries (first 30)</summary>\n\n";
-          for (const entry of jsonEntries.slice(0, 30)) {
-            const level = entry.level === "ERROR" ? "❌" : entry.level === "WARN" ? "⚠️" : "ℹ️";
-            const msg = entry.message.length > 200 ? entry.message.slice(0, 200) + "..." : entry.message;
-            md += `${level} \`[${entry.service}]\` **${entry.type}**: ${msg}\n\n`;
-          }
-          md += "</details>\n";
-        }
-
-        if (textEntries.length > 0 && jsonEntries.length === 0) {
-          md += "<details><summary>Log Output</summary>\n\n```\n";
-          const preview = textEntries.slice(0, 100).map(e => e.message).join("\n");
-          md += preview.length > 3000 ? preview.slice(0, 3000) + "\n..." : preview;
-          md += "\n```\n</details>\n";
-        }
-
-        return { markdown: md, logEntries: entries, mcpFailures, maxTurnsHit };
+        const usage = {};
+        if (inputTokens) usage.input_tokens = inputTokens;
+        if (outputTokens) usage.output_tokens = outputTokens;
+        logEntries.push({ type: "result", num_turns: turnCount, usage });
+        return { markdown: "parsed", logEntries, mcpFailures, maxTurnsHit };
       }
 ---
 

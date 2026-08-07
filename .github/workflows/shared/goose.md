@@ -227,19 +227,34 @@ engine:
     log-parser: |
       function parseLog(logContent) {
         const lines = logContent.split("\n");
-        const entries = [];
+        const logEntries = [];
         const mcpFailures = [];
         let maxTurnsHit = false;
+        let turnCount = 0;
+        let toolCallIndex = 0;
         let currentRole = null;
         let currentText = [];
         const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|goose-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
 
         function flushEntry() {
-          if (currentRole && currentText.length > 0) {
-            entries.push({ type: currentRole, content: currentText.join("\n").trim() });
+          if (!currentRole || currentText.length === 0) { currentText = []; return; }
+          const text = currentText.join("\n").trim();
+          if (!text) { currentText = []; return; }
+          if (currentRole === "tool_use") {
+            const toolId = `goose_tool_${toolCallIndex++}`;
+            const nameMatch = text.match(/(?:calling|using|tool[_\s]*(?:call|use))\s+(\S+)/i);
+            const toolName = nameMatch ? nameMatch[1] : "unknown_tool";
+            logEntries.push({ type: "assistant", message: { content: [{ type: "tool_use", id: toolId, name: toolName, input: {} }] } });
+            logEntries.push({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: toolId, content: text }] } });
+          } else if (currentRole === "assistant") {
+            logEntries.push({ type: "assistant", message: { content: [{ type: "text", text }] } });
+            turnCount++;
           }
           currentText = [];
         }
+
+        // Init entry
+        logEntries.push({ type: "system", subtype: "init", model: null, session_id: null });
 
         for (const line of lines) {
           if (AWF_INFRA_RE.test(line)) continue;
@@ -249,10 +264,9 @@ engine:
             mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
           }
 
-          // Detect tool use blocks (Goose marks them with ─ or tool indicators)
           if (/^─{3,}|^━{3,}/.test(line)) {
             flushEntry();
-            currentRole = "separator";
+            currentRole = null;
             continue;
           }
           if (/^(calling|using|tool[_\s]*(call|use|result))\b/i.test(line.trim())) {
@@ -267,38 +281,16 @@ engine:
             continue;
           }
           if (/^(user|human)\s*[>:]/i.test(line.trim())) {
-            if (currentRole !== "user") { flushEntry(); currentRole = "user"; }
-            currentText.push(line);
+            flushEntry();
+            currentRole = null;
             continue;
           }
-          currentText.push(line);
+          if (currentRole) currentText.push(line);
         }
         flushEntry();
 
-        const totalLines = lines.filter(l => l.trim()).length;
-        const toolCalls = entries.filter(e => e.type === "tool_use").length;
-        const assistantBlocks = entries.filter(e => e.type === "assistant").length;
-
-        let md = "### Goose Agent Log Summary\n\n";
-        md += `| Metric | Value |\n|--------|-------|\n`;
-        md += `| Total lines | ${totalLines} |\n`;
-        md += `| Assistant blocks | ${assistantBlocks} |\n`;
-        md += `| Tool calls | ${toolCalls} |\n`;
-        md += `| MCP failures | ${mcpFailures.length} |\n`;
-        md += `| Max turns hit | ${maxTurnsHit} |\n\n`;
-
-        if (entries.length > 0) {
-          md += "<details><summary>Conversation</summary>\n\n";
-          for (const entry of entries.slice(0, 50)) {
-            if (entry.type === "separator") continue;
-            const label = entry.type === "tool_use" ? "🔧 Tool" : entry.type === "assistant" ? "🤖 Assistant" : "👤 User";
-            const content = entry.content.length > 500 ? entry.content.slice(0, 500) + "..." : entry.content;
-            md += `**${label}**\n\`\`\`\n${content}\n\`\`\`\n\n`;
-          }
-          md += "</details>\n";
-        }
-
-        return { markdown: md, logEntries: entries, mcpFailures, maxTurnsHit };
+        logEntries.push({ type: "result", num_turns: turnCount, usage: {} });
+        return { markdown: "parsed", logEntries, mcpFailures, maxTurnsHit };
       }
 ---
 
