@@ -168,9 +168,15 @@ Test workflow`
 		t.Error("External detector AWF step must prepend npm PATH setup (RUNNER_TOOL_CACHE) so engine CLIs are on PATH")
 	}
 
-	// The upload step must include detection_result.json
+	// The upload step must include the structured result and run logs.
 	if !strings.Contains(detectionSection, "detection_result.json") {
 		t.Error("External detector path must upload detection_result.json")
+	}
+	if !strings.Contains(detectionSection, "detection-runlog.jsonl") {
+		t.Error("External detector path must upload detection-runlog.jsonl")
+	}
+	if !strings.Contains(detectionSection, "conclude-runlog.jsonl") {
+		t.Error("External detector path must upload conclude-runlog.jsonl")
 	}
 
 	// The detection guard and detection_conclusion step must still exist (gate contract preserved)
@@ -211,6 +217,9 @@ Test workflow`
 	}
 	if !strings.Contains(detectionSection, "--output /tmp/gh-aw/threat-detection/detection_result.json") {
 		t.Error("External detector path must pass --output /tmp/gh-aw/threat-detection/detection_result.json to threat-detect")
+	}
+	if !strings.Contains(detectionSection, "--log-file "+constants.ThreatDetectionRunlogPath) {
+		t.Errorf("External detector path must pass --log-file %s to threat-detect", constants.ThreatDetectionRunlogPath)
 	}
 
 	// The external detector must pass --step-summary pointing to the sandbox-writable path.
@@ -263,8 +272,10 @@ Test workflow`
 			uploadStep = detectionSection[uploadStepStart : uploadStepStart+1+uploadStepEnd]
 		}
 		if !strings.Contains(uploadStep, "          path: |\n") ||
-			!strings.Contains(uploadStep, "            "+constants.ThreatDetectionStepSummaryPath+"\n") {
-			t.Errorf("External detector path must include %s in upload artifact path block", constants.ThreatDetectionStepSummaryPath)
+			!strings.Contains(uploadStep, "            "+constants.ThreatDetectionStepSummaryPath+"\n") ||
+			!strings.Contains(uploadStep, "            "+constants.ThreatDetectionRunlogPath+"\n") ||
+			!strings.Contains(uploadStep, "            "+constants.ThreatDetectionConcludeRunlogPath+"\n") {
+			t.Errorf("External detector path must include structured run logs and %s in upload artifact path block", constants.ThreatDetectionStepSummaryPath)
 		}
 	}
 

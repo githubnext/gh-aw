@@ -6,6 +6,7 @@ set -euo pipefail
 RESULT_FILE="${1:-/tmp/gh-aw/threat-detection/detection_result.json}"
 RESULT_DIR="$(dirname "${RESULT_FILE}")"
 DETECTION_LOG_FILE="${DETECTION_LOG_FILE:-${RESULT_DIR}/detection.log}"
+CONCLUDE_RUNLOG_FILE="${RESULT_DIR}/conclude-runlog.jsonl"
 
 # threat-detect conclude handles every branch of the conclusion contract
 # (skipped run, missing/malformed result file, warn-mode vs strict-mode
@@ -30,4 +31,5 @@ fi
 
 exec threat-detect conclude \
   --result-file "${RESULT_FILE}" \
-  --detection-log "${DETECTION_LOG_FILE}"
+  --detection-log "${DETECTION_LOG_FILE}" \
+  --log-file "${CONCLUDE_RUNLOG_FILE}"

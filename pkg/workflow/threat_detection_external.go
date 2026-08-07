@@ -380,9 +380,10 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// invokes the engine binary as a subprocess and relies on PATH to locate it.
 	npmPathSetup := GetNpmBinPathSetup()
 	threatDetectCmd := fmt.Sprintf(
-		"%s && threat-detect --engine %s --output %s --step-summary %s %s",
+		"%s && threat-detect --engine %s --log-file %s --output %s --step-summary %s %s",
 		npmPathSetup,
 		engineID,
+		shellEscapeArg(constants.ThreatDetectionRunlogPath),
 		shellEscapeArg(constants.ThreatDetectionResultPath),
 		shellEscapeArg(constants.ThreatDetectionStepSummaryPath),
 		shellEscapeArg(constants.ThreatDetectionDir),
@@ -508,6 +509,8 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 		"          name: " + detectionArtifactName + "\n",
 		"          path: |\n",
 		"            " + constants.ThreatDetectionResultPath + "\n",
+		"            " + constants.ThreatDetectionRunlogPath + "\n",
+		"            " + constants.ThreatDetectionConcludeRunlogPath + "\n",
 		"            " + constants.ThreatDetectionLogPath + "\n",
 		"            " + constants.ThreatDetectionStepSummaryPath + "\n",
 		"          if-no-files-found: ignore\n",

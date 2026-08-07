@@ -42,6 +42,7 @@ type AuditData struct {
 	MCPServerHealth         *MCPServerHealth         `json:"mcp_server_health,omitempty"`
 	Jobs                    []JobData                `json:"jobs,omitempty"`
 	DownloadedFiles         []FileInfo               `json:"downloaded_files"`
+	ThreatDetectionRunlog   []map[string]any         `json:"threat_detection_runlog,omitempty"`
 	MissingTools            []MissingToolReport      `json:"missing_tools,omitempty"`
 	MissingData             []MissingDataReport      `json:"missing_data,omitempty"`
 	Noops                   []NoopReport             `json:"noops,omitempty"`
@@ -270,6 +271,7 @@ func buildAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogM
 	jobs := buildAuditJobs(processedRun.JobDetails)
 	errors := extractAuditErrors(run)
 	downloadedFiles := extractDownloadedFiles(run.LogsPath)
+	threatDetectionRunlog := extractThreatDetectionRunlog(run.LogsPath)
 	toolUsage := buildAuditToolUsage(metrics, mcpToolUsage)
 	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
 	taskDomain, behaviorFingerprint, agenticAssessments := buildAuditAssessments(processedRun, metricsData, toolUsage, createdItems, overview.AwContext)
@@ -284,6 +286,7 @@ func buildAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogM
 		metricsData:           metricsData,
 		jobs:                  jobs,
 		downloadedFiles:       downloadedFiles,
+		threatDetectionRunlog: threatDetectionRunlog,
 		errors:                errors,
 		toolUsage:             toolUsage,
 		createdItems:          createdItems,
@@ -445,6 +448,7 @@ type auditDataInputs struct {
 	metricsData           MetricsData
 	jobs                  []JobData
 	downloadedFiles       []FileInfo
+	threatDetectionRunlog []map[string]any
 	errors                []ErrorInfo
 	toolUsage             []ToolUsageInfo
 	createdItems          []CreatedItemReport
@@ -495,6 +499,7 @@ func assembleAuditData(inputs auditDataInputs) AuditData {
 		MCPServerHealth:         mcpServerHealth,
 		Jobs:                    inputs.jobs,
 		DownloadedFiles:         inputs.downloadedFiles,
+		ThreatDetectionRunlog:   inputs.threatDetectionRunlog,
 		MissingTools:            inputs.processedRun.MissingTools,
 		MissingData:             inputs.processedRun.MissingData,
 		Noops:                   inputs.processedRun.Noops,
@@ -575,6 +580,40 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 
 	auditReportLog.Printf("Extracted %d files from logs directory", len(files))
 	return files
+}
+
+// extractThreatDetectionRunlog reads structured external threat-detection events
+// from the detection artifact so audit JSON can be filtered by event type.
+func extractThreatDetectionRunlog(logsPath string) []map[string]any {
+	if logsPath == "" {
+		return nil
+	}
+
+	f, err := os.Open(filepath.Join(logsPath, filepath.Base(constants.ThreatDetectionRunlogPath)))
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var events []map[string]any
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var event map[string]any
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			auditReportLog.Printf("Skipping invalid threat detection run log line: %v", err)
+			continue
+		}
+		events = append(events, event)
+	}
+	if err := scanner.Err(); err != nil {
+		auditReportLog.Printf("Error reading threat detection run log: %v", err)
+	}
+	return events
 }
 
 // safeOutputItemsManifestFilename is the name of the manifest artifact file containing

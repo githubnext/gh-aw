@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
@@ -1216,6 +1217,18 @@ func TestDescribeFileAdditionalPatterns(t *testing.T) {
 				"File description should match expected value")
 		})
 	}
+}
+
+func TestExtractThreatDetectionRunlog(t *testing.T) {
+	dir := t.TempDir()
+	content := "{\"event\":\"run_start\"}\ninvalid\n{\"event\":\"attempt_no_verdict\",\"attempt\":1}\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, filepath.Base(constants.ThreatDetectionRunlogPath)), []byte(content), 0600))
+
+	events := extractThreatDetectionRunlog(dir)
+	require.Len(t, events, 2)
+	assert.Equal(t, "run_start", events[0]["event"])
+	assert.Equal(t, "attempt_no_verdict", events[1]["event"])
+	assert.InDelta(t, 1, events[1]["attempt"], 0)
 }
 
 func TestExtractCreatedItemsFromManifest(t *testing.T) {

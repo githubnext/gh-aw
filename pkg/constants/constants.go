@@ -526,6 +526,14 @@ const ThreatDetectionDir = TmpGhAwDir + "/threat-detection"
 // a four-field JSON verdict to this path via --output; threat-detect conclude reads it.
 const ThreatDetectionResultPath = TmpGhAwDir + "/threat-detection/detection_result.json"
 
+// ThreatDetectionRunlogPath is the structured JSONL event log written by the external
+// threat-detect binary while it evaluates a workflow.
+const ThreatDetectionRunlogPath = TmpGhAwDir + "/threat-detection/detection-runlog.jsonl"
+
+// ThreatDetectionConcludeRunlogPath is the structured JSONL event log written by
+// threat-detect conclude while it determines the final detection outcome.
+const ThreatDetectionConcludeRunlogPath = TmpGhAwDir + "/threat-detection/conclude-runlog.jsonl"
+
 // ThreatDetectionStepSummaryPath is the path used as the step-summary target inside the
 // AWF sandbox for the external threat-detect binary. The sandbox cannot write to the
 // runner's real GITHUB_STEP_SUMMARY path (the _runner_file_commands directory is not

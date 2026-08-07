@@ -107,8 +107,8 @@ func TestConcludeThreatDetectionScript_MissingBinaryStrictMode(t *testing.T) {
 }
 
 // TestConcludeThreatDetectionScript_InvokesThreatDetectConclude verifies the
-// script delegates to `threat-detect conclude` with both --result-file and
-// an explicit --detection-log, defaulting the log path to
+// script delegates to `threat-detect conclude` with --result-file, --log-file,
+// and an explicit --detection-log, defaulting the log path to
 // <result-file-dir>/detection.log.
 func TestConcludeThreatDetectionScript_InvokesThreatDetectConclude(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -153,8 +153,12 @@ func TestConcludeThreatDetectionScript_InvokesThreatDetectConclude(t *testing.T)
 		t.Fatalf("failed to read call log: %v", err)
 	}
 	expectedLog := filepath.Join(tmpDir, "detection.log")
+	expectedRunlog := filepath.Join(tmpDir, "conclude-runlog.jsonl")
 	if !strings.Contains(string(callData), "conclude --result-file "+resultFile+" --detection-log "+expectedLog) {
 		t.Fatalf("expected threat-detect conclude invocation with default detection log, got: %s", callData)
+	}
+	if !strings.Contains(string(callData), "--log-file "+expectedRunlog) {
+		t.Fatalf("expected threat-detect conclude invocation with run log, got: %s", callData)
 	}
 }
 
