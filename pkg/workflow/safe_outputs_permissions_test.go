@@ -1014,6 +1014,26 @@ func TestComputePermissionsForSafeOutputs_Checkout(t *testing.T) {
 	}
 }
 
+func TestComputePermissionsForSafeOutputs_CheckoutDoesNotDowngradeContentsWrite(t *testing.T) {
+	// create-pull-request contributes contents: write; a checkout step in safe-outputs.steps
+	// must not downgrade that to contents: read.
+	safeOutputs := &SafeOutputsConfig{
+		CreatePullRequests: &CreatePullRequestsConfig{},
+		Steps: []any{
+			map[string]any{
+				"uses": "actions/checkout@v4",
+				"with": map[string]any{"repository": "example/target"},
+			},
+		},
+	}
+	permissions := ComputePermissionsForSafeOutputs(safeOutputs)
+	require.NotNil(t, permissions)
+
+	level, exists := permissions.Get(PermissionContents)
+	assert.True(t, exists, "Expected contents permission to be set")
+	assert.Equal(t, PermissionWrite, level, "Checkout auto-detection must not downgrade contents: write to contents: read")
+}
+
 func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 	tests := []struct {
 		name        string

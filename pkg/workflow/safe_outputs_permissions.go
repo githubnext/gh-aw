@@ -157,9 +157,13 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig, excludePer
 	// Auto-detect checkout actions in user-provided steps and add contents: read.
 	// Without this, private-repository checkouts in safe-output steps would fail
 	// because the safe_outputs job would not include a contents permission.
+	// Only add contents: read when no contents permission is already present; a
+	// handler-derived contents: write must not be downgraded to read.
 	if stepsRequireContentsRead(safeOutputs.Steps) {
-		safeOutputsPermissionsLog.Print("Auto-detected checkout action in steps; adding contents: read")
-		permissions.Set(PermissionContents, PermissionRead)
+		if _, exists := permissions.Get(PermissionContents); !exists {
+			safeOutputsPermissionsLog.Print("Auto-detected checkout action in steps; adding contents: read")
+			permissions.Set(PermissionContents, PermissionRead)
+		}
 	}
 
 	// If safeOutputs is configured but no permissions were accumulated (all handlers staged),

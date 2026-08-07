@@ -63,12 +63,13 @@ const mockCore = {
           expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "false"),
           expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("None of the commands")));
       }),
-      it("should pass when command is first word after whitespace", async () => {
+      it("should fail when command has leading whitespace", async () => {
         ((process.env.GH_AW_COMMANDS = JSON.stringify(["helper"])),
           (mockContext.eventName = "issue_comment"),
           (mockContext.payload = { comment: { body: "  \n  /helper analyze this code" } }),
           await eval(`(async () => { ${checkCommandPositionScript}; await main(); })()`),
-          expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true"));
+          expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "false"),
+          expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("None of the commands")));
       }),
       it("should pass for non-comment events", async () => {
         ((process.env.GH_AW_COMMANDS = JSON.stringify(["test-bot"])),

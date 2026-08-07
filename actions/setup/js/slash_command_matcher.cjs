@@ -9,7 +9,7 @@
  * @returns {string}
  */
 function parseSlashCommand(text) {
-  const match = /^\/([a-zA-Z0-9][a-zA-Z0-9._-]*)(?=$|\s)/.exec(String(text).trim());
+  const match = /^\/([a-zA-Z0-9][a-zA-Z0-9._-]*)(?=$|\s)/.exec(String(text));
   return match ? match[1] : "";
 }
 

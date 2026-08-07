@@ -156,10 +156,10 @@ func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
 	})
 }
 
-// TestSpec_PublicAPI_GetObjectiveLabels validates that GetObjectiveLabels
+// TestSpec_PublicAPI_FilterObjectiveLabels validates that FilterObjectiveLabels
 // returns the subset of issue labels that have defined objective values,
 // preserving original order.
-func TestSpec_PublicAPI_GetObjectiveLabels(t *testing.T) {
+func TestSpec_PublicAPI_FilterObjectiveLabels(t *testing.T) {
 	om := &github.ObjectiveMapping{
 		LabelToValue: map[string]int{
 			"bug":           github.ObjectiveValueBug,
@@ -168,33 +168,33 @@ func TestSpec_PublicAPI_GetObjectiveLabels(t *testing.T) {
 	}
 
 	t.Run("returns only labels with defined values", func(t *testing.T) {
-		got := om.GetObjectiveLabels([]string{"bug", "good first issue"})
+		got := om.FilterObjectiveLabels([]string{"bug", "good first issue"})
 		assert.Equal(t, []string{"bug"}, got,
 			"only labels with defined objective values should be returned")
 	})
 
 	t.Run("preserves original input order", func(t *testing.T) {
-		got := om.GetObjectiveLabels([]string{"high-priority", "unknown", "bug"})
+		got := om.FilterObjectiveLabels([]string{"high-priority", "unknown", "bug"})
 		assert.Equal(t, []string{"high-priority", "bug"}, got,
 			"returned labels should preserve their original order")
 	})
 
 	t.Run("no matching labels returns empty", func(t *testing.T) {
-		got := om.GetObjectiveLabels([]string{"unknown"})
+		got := om.FilterObjectiveLabels([]string{"unknown"})
 		assert.Empty(t, got, "no matching labels should yield an empty result")
 	})
 }
 
-// TestSpec_PublicAPI_ValidateLabelExists validates that ValidateLabelExists
+// TestSpec_PublicAPI_HasObjectiveLabel validates that HasObjectiveLabel
 // reports whether a label has a defined objective value.
-func TestSpec_PublicAPI_ValidateLabelExists(t *testing.T) {
+func TestSpec_PublicAPI_HasObjectiveLabel(t *testing.T) {
 	om := &github.ObjectiveMapping{
 		LabelToValue: map[string]int{"bug": github.ObjectiveValueBug},
 	}
 
-	assert.True(t, om.ValidateLabelExists("bug"),
+	assert.True(t, om.HasObjectiveLabel("bug"),
 		"a defined label should report as existing")
-	assert.False(t, om.ValidateLabelExists("unknown"),
+	assert.False(t, om.HasObjectiveLabel("unknown"),
 		"an undefined label should report as not existing")
 }
 
@@ -263,8 +263,8 @@ func TestSpec_Functions_DefaultObjectiveMapping(t *testing.T) {
 		"the documented default mapping summary should match")
 }
 
-// TestSpec_Functions_LoadObjectiveMappingFromConfig validates that, absent any
-// environment or config-file override, LoadObjectiveMappingFromConfig falls
+// TestSpec_Functions_LoadObjectiveMapping validates that, absent any
+// environment or config-file override, LoadObjectiveMapping falls
 // back to the built-in defaults (precedence step 3 in the README).
 //
 // This test deliberately does not set OBJECTIVE_MAPPING_JSON; in the absence of
@@ -272,8 +272,8 @@ func TestSpec_Functions_DefaultObjectiveMapping(t *testing.T) {
 func TestSpec_ConfigPrecedence_DefaultFallback(t *testing.T) {
 	t.Setenv("OBJECTIVE_MAPPING_JSON", "")
 
-	om := github.LoadObjectiveMappingFromConfig()
-	require.NotNil(t, om, "LoadObjectiveMappingFromConfig should never return nil")
+	om := github.LoadObjectiveMapping()
+	require.NotNil(t, om, "LoadObjectiveMapping should never return nil")
 	assert.Equal(t, github.MultiLabelLogicMax, om.MultiLabelLogic,
 		"the default fallback mapping should use \"max\" logic")
 }
