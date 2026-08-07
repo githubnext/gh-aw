@@ -2,8 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
-const { searchOlderEntitiesByMarker } = require("./close_older_search_helpers.cjs");
+const { MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
+const { createCloseOlderHandler, searchOlderIssueLikeEntities } = require("./close_older_handler_factory.cjs");
 
 /**
  * Maximum number of older issues to close
@@ -34,37 +34,16 @@ const API_DELAY_MS = 500;
  * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>, created_at: string}>>} Matching issues
  */
 async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber, callerWorkflowId, closeOlderKey, additionalExcludeNumbers) {
-  return searchOlderEntitiesByMarker({
+  return searchOlderIssueLikeEntities({
+    github,
     owner,
     repo,
     workflowId,
     excludeNumber,
-    entityType: "issue",
+    isPullRequest: false,
     callerWorkflowId,
     closeOlderKey,
     additionalExcludeNumbers,
-    entityQualifier: "is:issue",
-    executeSearch: searchQuery =>
-      github.rest.search.issuesAndPullRequests({
-        q: searchQuery,
-        per_page: 50,
-      }),
-    getItems: result => result?.data?.items,
-    mapItem: item => ({
-      number: item.number,
-      title: item.title,
-      html_url: item.html_url,
-      labels: item.labels || [],
-      created_at: item.created_at,
-    }),
-    additionalFilter: (item, extra) => {
-      if (item.pull_request) {
-        extra.pullRequestCount = (extra.pullRequestCount || 0) + 1;
-        return false;
-      }
-      return true;
-    },
-    extraLabels: [["pullRequestCount", "Excluded pull requests"]],
   });
 }
 
@@ -144,6 +123,17 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
 *This action was performed automatically by the [\`${workflowName}\`](${runUrl}) workflow.*`;
 }
 
+const closeOlderIssuesHandler = createCloseOlderHandler({
+  entityType: "issue",
+  entityTypePlural: "issues",
+  entityKey: "Issue",
+  urlKey: "html_url",
+  getMessage: getCloseOlderIssueMessage,
+  addComment: addIssueComment,
+  closeEntity: closeIssueAsNotPlanned,
+  delayMs: API_DELAY_MS,
+});
+
 /**
  * Close older issues that match the workflow-id marker
  * @param {any} github - GitHub REST API instance
@@ -161,32 +151,10 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
 async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl, callerWorkflowId, closeOlderKey, currentRunIssueNumbers) {
-  const result = await closeOlderEntities(github, owner, repo, workflowId, newIssue, workflowName, runUrl, {
-    entityType: "issue",
-    entityTypePlural: "issues",
-    // Use a closure so callerWorkflowId, closeOlderKey, and currentRunIssueNumbers are
-    // forwarded to searchOlderIssues without going through the closeOlderEntities
-    // extraArgs mechanism (which appends excludeNumber last)
-    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId, closeOlderKey, currentRunIssueNumbers),
-    getCloseMessage: params =>
-      getCloseOlderIssueMessage({
-        newIssueUrl: params.newEntityUrl,
-        newIssueNumber: params.newEntityNumber,
-        workflowName: params.workflowName,
-        runUrl: params.runUrl,
-      }),
-    addComment: addIssueComment,
-    closeEntity: closeIssueAsNotPlanned,
-    delayMs: API_DELAY_MS,
-    getEntityId: entity => entity.number,
-    getEntityUrl: entity => entity.html_url,
-  });
-
-  // Map to issue-specific return type
-  return result.map(item => ({
-    number: item.number,
-    html_url: item.html_url || "",
-  }));
+  // Use a closure so callerWorkflowId, closeOlderKey, and currentRunIssueNumbers are
+  // forwarded to searchOlderIssues without going through the closeOlderEntities
+  // extraArgs mechanism (which appends excludeNumber last)
+  return closeOlderIssuesHandler(github, owner, repo, workflowId, newIssue, workflowName, runUrl, (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId, closeOlderKey, currentRunIssueNumbers));
 }
 
 module.exports = {
