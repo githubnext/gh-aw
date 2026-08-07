@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -607,9 +606,9 @@ func wrapRunWithJSONOutput(inner func() error, workflowNames []string, opts RunO
 				results[i].Error = runErr.Error()
 			}
 		}
-		jsonBytes, err := json.MarshalIndent(results, "", "  ")
+		jsonBytes, err := marshalIndentJSONOrWrap(results, "workflow run results")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return runErr

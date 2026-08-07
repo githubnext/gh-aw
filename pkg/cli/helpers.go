@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -128,4 +129,15 @@ func sourceRepoLabel(repo string) string {
 		return "(no source field)"
 	}
 	return repo
+}
+
+// marshalIndentJSONOrWrap marshals v as indented JSON, wrapping any error with a
+// short description of what was being marshaled so failures are easier to debug.
+// The context string should name the value, e.g. "outcomes report".
+func marshalIndentJSONOrWrap(v any, context string) ([]byte, error) {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal %s to JSON: %w", context, err)
+	}
+	return data, nil
 }

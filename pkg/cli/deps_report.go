@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -244,9 +243,9 @@ func DisplayDependencyReportJSON(report *DependencyReport) error {
 	output["recommendations"] = recommendations
 
 	// Marshal and output to stdout
-	jsonData, err := json.MarshalIndent(output, "", "  ")
+	jsonData, err := marshalIndentJSONOrWrap(output, "dependency report")
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
+		return err
 	}
 
 	fmt.Fprintln(os.Stdout, string(jsonData))

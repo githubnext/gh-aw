@@ -2,7 +2,6 @@ package cli
 
 import (
 	"cmp"
-	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -279,9 +278,9 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 
 	// Output results
 	if config.JSONOutput {
-		jsonBytes, err := json.MarshalIndent(health, "", "  ")
+		jsonBytes, err := marshalIndentJSONOrWrap(health, "workflow health report")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(jsonBytes))
 		return nil
@@ -322,9 +321,9 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 
 // outputHealthJSON outputs health summary in JSON format
 func outputHealthJSON(summary HealthSummary) error {
-	jsonBytes, err := json.MarshalIndent(summary, "", "  ")
+	jsonBytes, err := marshalIndentJSONOrWrap(summary, "health summary")
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
+		return err
 	}
 	fmt.Fprintln(os.Stdout, string(jsonBytes))
 	return nil

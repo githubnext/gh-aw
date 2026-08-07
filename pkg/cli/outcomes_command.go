@@ -191,9 +191,9 @@ func RunOutcomes(ctx context.Context, config OutcomesConfig) error {
 			Items:    reports,
 			Summary:  outcomeSummary,
 		}
-		out, err := json.MarshalIndent(data, "", "  ")
+		out, err := marshalIndentJSONOrWrap(data, "outcomes report")
 		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, string(out))
 		return nil
