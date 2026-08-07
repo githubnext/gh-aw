@@ -685,10 +685,31 @@ Custom secret: my-secret-123456789012`;
 
     it("should extract Authorization tokens from Codex TOML configuration", () => {
       const configPath = path.join(tempDir, "config.toml");
-      fs.writeFileSync(configPath, '[mcp_servers.github]\nhttp_headers = { Authorization = "codex-gateway-token-xyz789" }\n');
+      const token = "codex-gateway-token-xyz789";
+      const authHeader = ["Bearer", token].join(" ");
+      fs.writeFileSync(configPath, `[mcp_servers.github]\nurl = "http://127.0.0.1:8080/github"\nhttp_headers = { Authorization = "${authHeader}" }\n`);
 
       const { extractMCPGatewayTokens } = require("./redact_secrets.cjs");
-      expect(extractMCPGatewayTokens([configPath])).toContain("codex-gateway-token-xyz789");
+      const tokens = extractMCPGatewayTokens([configPath]);
+      expect(tokens).toContain(authHeader);
+      expect(tokens).toContain(token);
+    });
+
+    it("should extract lowercase authorization keys from Codex TOML configuration", () => {
+      const configPath = path.join(tempDir, "config-lowercase.toml");
+      fs.writeFileSync(configPath, '[mcp_servers.github]\nhttp_headers = { authorization = "codex-lowercase-token-abc123" }\n');
+
+      const { extractMCPGatewayTokens } = require("./redact_secrets.cjs");
+      expect(extractMCPGatewayTokens([configPath])).toContain("codex-lowercase-token-abc123");
+    });
+
+    it("should ignore short Authorization values even when bearer-prefixed", () => {
+      const configPath = path.join(tempDir, "config-short.toml");
+      const authHeader = ["Bearer", "abc"].join(" ");
+      fs.writeFileSync(configPath, `[mcp_servers.github]\nhttp_headers = { Authorization = "${authHeader}" }\n`);
+
+      const { extractMCPGatewayTokens } = require("./redact_secrets.cjs");
+      expect(extractMCPGatewayTokens([configPath])).toEqual([]);
     });
 
     it("should extract both the full Bearer header value and the bare token", () => {

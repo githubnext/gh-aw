@@ -99,6 +99,12 @@ const MCP_GATEWAY_CONFIG_PATHS = [
 ];
 
 /**
+ * Minimum credential length required before an Authorization value is treated
+ * as a gateway token. Guards against redacting short placeholder values.
+ */
+const MIN_GATEWAY_TOKEN_LENGTH = 6;
+
+/**
  * Extracts MCP gateway bearer tokens from known configuration files.
  * The gateway token is dynamically minted and has no recognisable prefix,
  * so it cannot be caught by the built-in regex patterns.  We read the
@@ -110,6 +116,24 @@ const MCP_GATEWAY_CONFIG_PATHS = [
 function extractMCPGatewayTokens(configPaths) {
   /** @type {Set<string>} */
   const tokens = new Set();
+
+  /**
+   * Records an Authorization header value plus, for a bearer header, the bare
+   * credential so the token is redacted even when logged without the prefix.
+   * @param {unknown} value - Raw Authorization header value
+   */
+  const addAuthorizationValue = value => {
+    if (typeof value !== "string") return;
+    const trimmed = value.trim();
+    const bearerMatch = /^[Bb]earer\s+(.+)$/.exec(trimmed);
+    // The minimum-length guard applies to the credential itself, never to the
+    // bearer prefix, so short values cannot slip through by being prefixed.
+    const credential = bearerMatch ? bearerMatch[1].trim() : trimmed;
+    if (credential.length < MIN_GATEWAY_TOKEN_LENGTH) return;
+    tokens.add(trimmed);
+    tokens.add(credential);
+  };
+
   for (const configPath of configPaths) {
     try {
       if (!fs.existsSync(configPath)) continue;
@@ -118,35 +142,16 @@ function extractMCPGatewayTokens(configPaths) {
       try {
         config = /** @type {Record<string, any>} */ JSON.parse(raw);
       } catch {
-        for (const match of raw.matchAll(/\bAuthorization\s*=\s*"([^"]+)"/g)) {
-          const auth = match[1].trim();
-          if (auth.length >= 6) {
-            tokens.add(auth);
-            if (/^[Bb]earer /.test(auth)) {
-              const tokenPart = auth.slice(7).trim();
-              if (tokenPart.length >= 6) {
-                tokens.add(tokenPart);
-              }
-            }
-          }
+        // Codex writes TOML (`http_headers = { Authorization = "..." }`); the key
+        // is matched case-insensitively to tolerate formatting differences.
+        for (const match of raw.matchAll(/\bAuthorization\s*=\s*"([^"]+)"/gi)) {
+          addAuthorizationValue(match[1]);
         }
         continue;
       }
       const servers = /** @type {Record<string, any>} */ config.mcpServers || {};
       for (const server of Object.values(servers)) {
-        const auth = /** @type {string|undefined} */ server?.headers?.Authorization;
-        if (typeof auth === "string" && auth.trim().length >= 6) {
-          const trimmed = auth.trim();
-          tokens.add(trimmed);
-          // Also add just the credential portion when the value is a "Bearer <token>" header
-          // so the bare token is redacted even when it appears without the "Bearer " prefix.
-          if (/^[Bb]earer /.test(trimmed)) {
-            const tokenPart = trimmed.slice(7).trim();
-            if (tokenPart.length >= 6) {
-              tokens.add(tokenPart);
-            }
-          }
-        }
+        addAuthorizationValue(server?.headers?.Authorization);
       }
     } catch {
       // Silently skip unreadable or malformed files — absence of the gateway
