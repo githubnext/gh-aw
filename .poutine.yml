@@ -6,3 +6,16 @@ rulesConfig:
   pr_runs_on_self_hosted:
     allowed_runners:
       - ubuntu-slim  # GitHub's new built-in runner (not self-hosted)
+
+# Acknowledge findings that are not relevant in this repository.
+# Note: poutine has no inline `# poutine:ignore` comment mechanism; the `skip`
+# section below is the only supported suppression mechanism.
+skip:
+  # The reusable workflow_call smoke tests check out a caller-supplied ref and then
+  # run shell scripts staged under ${RUNNER_TEMP}/gh-aw/actions. Those scripts are
+  # emitted by the compiler into the lock file itself, not read from the checked-out
+  # (potentially untrusted) code, so they cannot be influenced by the checkout.
+  - rule: untrusted_checkout_exec
+    path:
+      - .github/workflows/smoke-workflow-call.lock.yml
+      - .github/workflows/smoke-workflow-call-with-inputs.lock.yml
