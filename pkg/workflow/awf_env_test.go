@@ -319,6 +319,3 @@ func TestMainAgentRunUsesStandardCreditsExpressionNotDetectionExpression(t *test
 	assert.NotContains(t, stepContent, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS",
 		"main-agent run must not use detection credits expression")
 }
-
-// TestGetAWFCommandPrefixNetworkIsolation tests that GetAWFCommandPrefix returns the correct
-// command based on security mode: strict (default, no sudo) or legacy (sudo -E awf).

@@ -3,9 +3,11 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { syncRuntimePromptTemplates } from "./test_prompt_templates.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+syncRuntimePromptTemplates(import.meta.url);
 
 describe("add_comment", () => {
   let mockCore;
