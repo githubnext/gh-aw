@@ -31,11 +31,27 @@ func TestInstallCopilotCLIScriptUsesToolcacheBeforeDownload(t *testing.T) {
 	require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
 
 	curlLog := filepath.Join(tempDir, "curl.log")
+	installLog := filepath.Join(tempDir, "install.log")
+	installedWrapper := filepath.Join(tempDir, "installed-copilot")
 	sudoScript := filepath.Join(fakeBinDir, "sudo")
 	curlScript := filepath.Join(fakeBinDir, "curl")
 
 	require.NoError(t, os.WriteFile(sudoScript, []byte(`#!/usr/bin/env bash
 if [ "${1:-}" = "chown" ]; then
+  exit 0
+fi
+if [ "${1:-}" = "install" ]; then
+  shift
+  mode=""
+  if [ "${1:-}" = "-m" ]; then
+    mode="$2"
+    shift 2
+  fi
+  src="$1"
+  dest="$2"
+  echo "install:${mode}:${dest}" >> "`+installLog+`"
+  cp "$src" "`+installedWrapper+`"
+  chmod "$mode" "`+installedWrapper+`"
   exit 0
 fi
 exec "$@"
@@ -62,6 +78,13 @@ exit 97
 	githubPathContent, err := os.ReadFile(githubPath)
 	require.NoError(t, err, "Expected the script to append the cached bin dir to GITHUB_PATH")
 	assert.Contains(t, string(githubPathContent), toolcacheBin, "cached Copilot bin directory should be exported for later steps")
+
+	installLogContent, err := os.ReadFile(installLog)
+	require.NoError(t, err, "Expected cached toolcache activation to install the absolute-path wrapper")
+	assert.Contains(t, string(installLogContent), "install:0755:/usr/local/bin/copilot")
+	wrapperContent, err := os.ReadFile(installedWrapper)
+	require.NoError(t, err, "Expected wrapper content to be copied by fake sudo install")
+	assert.Contains(t, string(wrapperContent), `exec "`+cachedCopilot+`" "$@"`)
 }
 
 func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *testing.T) {
@@ -100,11 +123,20 @@ func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *te
 	require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
 
 	curlLog := filepath.Join(tempDir, "curl.log")
+	installedWrapper := filepath.Join(tempDir, "installed-copilot")
 	sudoScript := filepath.Join(fakeBinDir, "sudo")
 	curlScript := filepath.Join(fakeBinDir, "curl")
 
 	require.NoError(t, os.WriteFile(sudoScript, []byte(`#!/usr/bin/env bash
 if [ "${1:-}" = "chown" ]; then
+  exit 0
+fi
+if [ "${1:-}" = "install" ]; then
+  shift
+  if [ "${1:-}" = "-m" ]; then
+    shift 2
+  fi
+  cp "$1" "`+installedWrapper+`"
   exit 0
 fi
 exec "$@"
@@ -231,7 +263,7 @@ exit 99
 			require.NoError(t, err, "install_copilot_cli.sh should succeed in rootless mode with toolcache and no sudo: %s", output)
 
 			assert.Contains(t, string(output), "Using cached GitHub Copilot CLI", "script should use cached copilot CLI")
-			assert.Contains(t, string(output), "GITHUB_PATH not set — installing wrapper at "+filepath.Join(homeDir, ".local", "bin", "copilot"))
+			assert.Contains(t, string(output), "Installing wrapper at "+filepath.Join(homeDir, ".local", "bin", "copilot"))
 			assert.FileExists(t, filepath.Join(homeDir, ".local", "bin", "copilot"))
 			assert.NoFileExists(t, sudoLog, "sudo should not be called in rootless mode")
 		})
@@ -273,11 +305,20 @@ func TestInstallCopilotCLIScriptFallsBackToBakedInDefaultWhenCompatUnavailable(t
 	require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
 
 	curlLog := filepath.Join(tempDir, "curl.log")
+	installedWrapper := filepath.Join(tempDir, "installed-copilot")
 	sudoScript := filepath.Join(fakeBinDir, "sudo")
 	curlScript := filepath.Join(fakeBinDir, "curl")
 
 	require.NoError(t, os.WriteFile(sudoScript, []byte(`#!/usr/bin/env bash
 if [ "${1:-}" = "chown" ]; then
+  exit 0
+fi
+if [ "${1:-}" = "install" ]; then
+  shift
+  if [ "${1:-}" = "-m" ]; then
+    shift 2
+  fi
+  cp "$1" "`+installedWrapper+`"
   exit 0
 fi
 exec "$@"
