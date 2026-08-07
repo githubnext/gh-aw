@@ -267,7 +267,7 @@ func (c *Compiler) validateBashCommandAllowlistSupport(tools map[string]any, eng
 	if capabilities.BashCommandAllowlist {
 		return nil
 	}
-	if !hasBashExplicitRestriction(tools) {
+	if !HasBashExplicitRestriction(tools) {
 		return nil
 	}
 	if capabilities.BashDisable && hasBashFullyDisabled(tools) {
@@ -284,12 +284,12 @@ func (c *Compiler) validateBashCommandAllowlistSupport(tools map[string]any, eng
 		engine.GetID())
 }
 
-// hasBashExplicitRestriction reports true when the tools map contains a bash configuration
+// HasBashExplicitRestriction reports true when the tools map contains a bash configuration
 // that represents an explicit restriction: bash: false, bash: [], or a non-wildcard command list.
 // Only absent/nil bash, bash: true, and wildcard lists (["*"], [":*"]) return false.
-// This function is used for compile-time validation only.
+// This function is used for compile-time validation and by the `gh aw fix` codemods.
 // See hasBashRestrictedAllowlist for the variant used in MCP CLI command injection.
-func hasBashExplicitRestriction(tools map[string]any) bool {
+func HasBashExplicitRestriction(tools map[string]any) bool {
 	if tools == nil {
 		return false
 	}
