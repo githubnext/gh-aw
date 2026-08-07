@@ -131,6 +131,7 @@ type EngineCapabilitiesDefinition struct {
 	NativeAgentFile      bool `yaml:"native-agent-file,omitempty"`
 	BareMode             bool `yaml:"bare-mode,omitempty"`
 	BashCommandAllowlist bool `yaml:"bash-command-allowlist,omitempty"`
+	BashDisable          bool `yaml:"bash-disable,omitempty"`
 }
 
 // ToRuntimeCapabilities converts the declarative capabilities definition into the
@@ -144,6 +145,7 @@ func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities
 		NativeAgentFile:      d.NativeAgentFile,
 		BareMode:             d.BareMode,
 		BashCommandAllowlist: d.BashCommandAllowlist,
+		BashDisable:          d.BashDisable,
 	}
 }
 
