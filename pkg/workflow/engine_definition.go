@@ -249,11 +249,11 @@ type EngineBehaviorDefinition struct {
 	// LogParser is the JavaScript source of a log-parser function for the engine.
 	// When non-empty, the script is written to
 	// ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_log_parser.cjs before the post-agent
-	// log-parsing step runs.  The script must export a parseLog(logContent) function
+	// log-parsing step runs.  The script must define a parseLog(logContent) function
 	// that returns {markdown, logEntries, mcpFailures, maxTurnsHit} — the same
 	// contract used by the built-in engine parsers (e.g. parse_claude_log.cjs).
-	// A createEngineLogParser wrapper is automatically prepended so the author only
-	// needs to provide the parsing function body.
+	// A createEngineLogParser wrapper is automatically appended so the author only
+	// needs to provide the parsing function; the wrapper handles exports and bootstrap.
 	LogParser string `yaml:"log-parser,omitempty"`
 }
 

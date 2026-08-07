@@ -1104,6 +1104,7 @@ jobs:
           GHAW_HARNESS_SCRIPT_3c7b9f1a_EOF
           chmod 755 "${RUNNER_TEMP}/gh-aw/actions/crush_harness.cjs"
       - name: Write Crush log parser script
+        if: always()
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/actions"
           cat <<'GHAW_LOG_PARSER_SCRIPT_5d2e8b3f_EOF' > "${RUNNER_TEMP}/gh-aw/actions/crush_log_parser.cjs"

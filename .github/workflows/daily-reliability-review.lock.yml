@@ -850,6 +850,7 @@ jobs:
           fi
           chmod 600 "$CONFIG"
       - name: Write OpenCode log parser script
+        if: always()
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/actions"
           cat <<'GHAW_LOG_PARSER_SCRIPT_5d2e8b3f_EOF' > "${RUNNER_TEMP}/gh-aw/actions/opencode_log_parser.cjs"

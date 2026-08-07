@@ -13456,7 +13456,7 @@
                 },
                 "log-parser": {
                   "type": "string",
-                  "description": "JavaScript source of a log-parser function for the engine. When set, the script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_log_parser.cjs and used in the post-agent log-parsing step. The script must export a parseLog(logContent) function that returns {markdown, logEntries, mcpFailures, maxTurnsHit}. A createEngineLogParser wrapper from log_parser_shared.cjs is automatically prepended so the author only provides the parsing function body. This enables behavior-defined engines (e.g. crush, opencode, goose, aider) to produce normalized events files like built-in engine parsers."
+                  "description": "JavaScript source of a log-parser function for the engine. When set, the script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_log_parser.cjs and used in the post-agent log-parsing step. The script must define a parseLog(logContent) function (not export it) that returns {markdown, logEntries, mcpFailures, maxTurnsHit}. A createEngineLogParser wrapper from log_parser_shared.cjs is automatically appended so the author only provides the parsing function; the wrapper handles exports and bootstrap. This enables behavior-defined engines (e.g. crush, opencode, goose, aider) to produce normalized events files like built-in engine parsers."
                 }
               },
               "additionalProperties": false

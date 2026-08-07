@@ -78,6 +78,8 @@ func TestBehaviorDefinedEngineLogParser_WriteStep(t *testing.T) {
 		logParserStepContent := strings.Join(steps[0], "\n")
 		assert.Contains(t, logParserStepContent, "Write TestParser log parser script")
 		assert.Contains(t, logParserStepContent, "testparser_log_parser.cjs")
+		// Write step must run unconditionally so the parse step can always require() the file
+		assert.Contains(t, logParserStepContent, "if: always()")
 	})
 
 	t.Run("wrapped script contains createEngineLogParser", func(t *testing.T) {
@@ -165,10 +167,11 @@ func TestBehaviorDefinedEngineLogParser_HeredocDelimiterSafety(t *testing.T) {
 	engine, err := NewBehaviorDefinedEngine(def)
 	require.NoError(t, err)
 
-	// GetLogParserScriptId still returns non-empty (it doesn't validate content)
-	assert.NotEmpty(t, engine.GetLogParserScriptId())
+	// GetLogParserScriptId returns "" when the script contains the heredoc delimiter,
+	// keeping it consistent with buildLogParserWriteStep (which also returns nil).
+	assert.Empty(t, engine.GetLogParserScriptId(), "script ID should be empty when script contains heredoc delimiter")
 
-	// But the write step should be nil due to heredoc safety check
+	// The write step should also be nil due to heredoc safety check
 	step := engine.buildLogParserWriteStep()
 	assert.Nil(t, step, "write step should be nil when script contains heredoc delimiter")
 }
