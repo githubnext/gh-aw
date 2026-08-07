@@ -3058,6 +3058,94 @@ func TestBuildExternalDetectorWorkflowDataMaxAICreditsNotInheritedFromMainAgent(
 	}
 }
 
+func TestResolveExternalDetectorEngineConfigInheritsVersionFromMainEngine(t *testing.T) {
+	// Regression test: when no safe-outputs.threat-detection.engine override is configured,
+	// the external detector path must still install the same pinned engine version as the
+	// main agent job (e.g. a version declared as the default on a behavior-defined engine's
+	// shared definition, applied to the main EngineConfig.Version at import time). Previously
+	// the external detector always built a bare &EngineConfig{ID: engineID}, silently
+	// discarding Version and installing the package's "latest" release instead.
+	t.Run("no override present inherits Version/Config/Args/HarnessScript/Driver", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "opencode",
+			EngineConfig: &EngineConfig{
+				ID:            "opencode",
+				Version:       "1.2.14",
+				Config:        "some-config",
+				Args:          []string{"--flag"},
+				HarnessScript: "harness.cjs",
+				Driver:        "driver.cjs",
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		got := resolveExternalDetectorEngineConfig(data, "opencode")
+		if got.Version != "1.2.14" {
+			t.Errorf("expected Version to be inherited as 1.2.14, got %q", got.Version)
+		}
+		if got.Config != "some-config" {
+			t.Errorf("expected Config to be inherited, got %q", got.Config)
+		}
+		if len(got.Args) != 1 || got.Args[0] != "--flag" {
+			t.Errorf("expected Args to be inherited, got %v", got.Args)
+		}
+		if got.HarnessScript != "harness.cjs" {
+			t.Errorf("expected HarnessScript to be inherited, got %q", got.HarnessScript)
+		}
+		if got.Driver != "driver.cjs" {
+			t.Errorf("expected Driver to be inherited, got %q", got.Driver)
+		}
+		if got.ID != "opencode" {
+			t.Errorf("expected ID to be opencode, got %q", got.ID)
+		}
+	})
+
+	t.Run("explicit override takes precedence over main engine config", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "opencode",
+			EngineConfig: &EngineConfig{
+				ID:      "opencode",
+				Version: "1.2.14",
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					EngineConfig: &EngineConfig{
+						ID:      "codex",
+						Version: "2.0.0",
+					},
+				},
+			},
+		}
+
+		got := resolveExternalDetectorEngineConfig(data, "codex")
+		if got.Version != "2.0.0" {
+			t.Errorf("expected explicit override Version 2.0.0 to win, got %q", got.Version)
+		}
+		if got.ID != "codex" {
+			t.Errorf("expected ID codex, got %q", got.ID)
+		}
+	})
+
+	t.Run("no main engine config falls back to bare ID", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "copilot",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		got := resolveExternalDetectorEngineConfig(data, "copilot")
+		if got.ID != "copilot" {
+			t.Errorf("expected ID copilot, got %q", got.ID)
+		}
+		if got.Version != "" {
+			t.Errorf("expected empty Version, got %q", got.Version)
+		}
+	})
+}
+
 func TestSetupThreatDetectionPromptSummarySuppressedOnExternalPath(t *testing.T) {
 	// The setup step renders a prompt that the external detector never uses (threat-detect
 	// renders and publishes its own prompt), so its step summary write must be suppressed to
