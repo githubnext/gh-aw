@@ -1691,8 +1691,8 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-          rm -f /tmp/gh-aw/threat-detection/step-summary.md
-          touch /tmp/gh-aw/threat-detection/step-summary.md
+          rm -f /tmp/gh-aw/step-summary.md
+          touch /tmp/gh-aw/step-summary.md
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -1876,7 +1876,7 @@ jobs:
           awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"} --env-all --exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN --exclude-env ACTIONS_ID_TOKEN_REQUEST_URL --exclude-env COPILOT_GITHUB_TOKEN --log-level info --skip-pull \
             -- /bin/bash -c 'set +o histexpand; export no_proxy="${NO_PROXY:-}" && : "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true && cd "${GITHUB_WORKSPACE}" && opencode run --print-logs --log-level DEBUG "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' 2>&1 | tee -a /tmp/gh-aw/threat-detection/detection.log
         env:
-          GITHUB_STEP_SUMMARY: /tmp/gh-aw/threat-detection/step-summary.md
+          GITHUB_STEP_SUMMARY: /tmp/gh-aw/step-summary.md
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           GH_AW_ENGINE_VERSION: 1.2.14
           GH_AW_LLM_PROVIDER: github
@@ -1895,8 +1895,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
         run: |
-          if [ -s /tmp/gh-aw/threat-detection/step-summary.md ]; then
-            cat /tmp/gh-aw/threat-detection/step-summary.md
+          if [ -s /tmp/gh-aw/step-summary.md ]; then
+            cat /tmp/gh-aw/step-summary.md
           fi
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage

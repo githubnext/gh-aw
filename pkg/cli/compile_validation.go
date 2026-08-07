@@ -252,6 +252,7 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 			Type:    e.Type,
 			Message: stringutil.SanitizeErrorMessage(e.Message),
 			Line:    e.Line,
+			File:    e.File,
 		}
 	}
 
