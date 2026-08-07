@@ -49,6 +49,61 @@ describe("require-fetch-response-body-try-catch", () => {
     });
   });
 
+  it("valid: variable reassigned to a non-fetch-derived value before the read is not flagged (CommonJS)", () => {
+    // The reaching write (the last write before the read) is the safe reassignment,
+    // not the earlier bare `await fetch(...)` write — so this path is not risky.
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [
+        `async function f(needsFallback) {
+          let response = await fetch(url1);
+          if (needsFallback) {
+            response = await getCachedResponse();
+          }
+          const data = await response.json();
+        }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: single const-aliased bare-fetch response is flagged (CommonJS)", () => {
+    cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() {
+            const response = await fetch(url);
+            const r = response;
+            const data = await r.json();
+          }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() {
+            const response = await fetch(url);
+            const r = response;
+            try {
+              const data = await r.json();
+            } catch (err) {
+              // TODO: handle a malformed/errored fetch response body for this call.
+              throw new Error(
+                "Failed to read fetch response json(): " + (err instanceof Error ? err.message : String(err)),
+                { cause: err },
+              );
+            }
+          }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("valid: non-fetch object methods named json/text are ignored (CommonJS)", () => {
     cjsRuleTester.run("require-fetch-response-body-try-catch", requireFetchResponseBodyTryCatchRule, {
       valid: [`async function f() { const data = await someOtherThing.json(); }`, `async function f() { const data = await someOtherThing.text(); }`],
