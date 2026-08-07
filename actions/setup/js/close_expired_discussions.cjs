@@ -2,58 +2,9 @@
 // <reference types="@actions/github-script" />
 
 const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs");
-const { generateExpiredEntityFooter, getExpiredEntityCautionAlert } = require("./generate_footer.cjs");
-const { formatDateInProjectTimeZone } = require("./project_timezone.cjs");
-const { sanitizeContent } = require("./sanitize_content.cjs");
+const { addDiscussionComment, closeDiscussionAsOutdated, createClosedRecord, createExpiredEntityHandler } = require("./expired_entity_handler_factory.cjs");
 const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
-
-/**
- * Add comment to a GitHub Discussion using GraphQL
- * @param {any} github - GitHub GraphQL instance
- * @param {string} discussionId - Discussion node ID
- * @param {string} message - Comment body
- * @returns {Promise<{id: string, url: string}>} Comment details
- */
-async function addDiscussionComment(github, discussionId, message) {
-  const result = await github.graphql(
-    `
-    mutation($dId: ID!, $body: String!) {
-      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-        comment { 
-          id 
-          url
-        }
-      }
-    }`,
-    { dId: discussionId, body: sanitizeContent(message) }
-  );
-
-  return result.addDiscussionComment.comment;
-}
-
-/**
- * Close a GitHub Discussion as OUTDATED using GraphQL
- * @param {any} github - GitHub GraphQL instance
- * @param {string} discussionId - Discussion node ID
- * @returns {Promise<{id: string, url: string}>} Discussion details
- */
-async function closeDiscussionAsOutdated(github, discussionId) {
-  const result = await github.graphql(
-    `
-    mutation($dId: ID!) {
-      closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
-        discussion { 
-          id
-          url
-        }
-      }
-    }`,
-    { dId: discussionId }
-  );
-
-  return result.closeDiscussion.discussion;
-}
 
 /**
  * Check if a discussion already has an expiration comment and fetch its closed state
@@ -106,60 +57,46 @@ async function main() {
     summaryHeading: "Expired Discussions Cleanup",
     enableDedupe: true, // Discussions may have duplicates across pages
     includeSkippedHeading: true,
-    processEntity: async discussion => {
-      core.info(`  Checking for existing expiration comment and closed state on discussion #${discussion.number}`);
-      const { hasComment, isClosed } = await hasExpirationComment(github, discussion.id);
+    processEntity: createExpiredEntityHandler({
+      workflowName,
+      workflowId,
+      runUrl,
+      entityNoun: "discussion",
+      entityLabel: "Discussion",
+      core,
+      footerSuffix: "\n\n<!-- gh-aw-closed -->",
+      beforeComment: async discussion => {
+        core.info(`  Checking for existing expiration comment and closed state on discussion #${discussion.number}`);
+        const { hasComment, isClosed } = await hasExpirationComment(github, discussion.id);
 
-      if (isClosed) {
-        core.warning(`  Discussion #${discussion.number} is already closed, skipping`);
-        return {
-          status: "skipped",
-          record: {
-            number: discussion.number,
-            url: discussion.url,
-            title: discussion.title,
-          },
-        };
-      }
+        if (isClosed) {
+          core.warning(`  Discussion #${discussion.number} is already closed, skipping`);
+          return {
+            status: "skipped",
+            record: createClosedRecord(discussion),
+          };
+        }
 
-      if (hasComment) {
-        core.warning(`  Discussion #${discussion.number} already has an expiration comment, skipping to avoid duplicate`);
+        if (hasComment) {
+          core.warning(`  Discussion #${discussion.number} already has an expiration comment, skipping to avoid duplicate`);
 
-        core.info(`  Attempting to close discussion #${discussion.number} without adding another comment`);
-        await closeDiscussionAsOutdated(github, discussion.id);
-        core.info(`  ✓ Discussion closed successfully`);
+          core.info(`  Attempting to close discussion #${discussion.number} without adding another comment`);
+          await closeDiscussionAsOutdated(github, discussion.id);
+          core.info(`  ✓ Discussion closed successfully`);
 
-        return {
-          status: "skipped",
-          record: {
-            number: discussion.number,
-            url: discussion.url,
-            title: discussion.title,
-          },
-        };
-      }
+          return {
+            status: "closed",
+            record: createClosedRecord(discussion),
+          };
+        }
 
-      const cautionAlert = getExpiredEntityCautionAlert(workflowName, runUrl);
-      const expirationText = `This discussion was automatically closed because it expired on ${formatDateInProjectTimeZone(discussion.expirationDate) || discussion.expirationDate.toISOString()}.`;
-      const closingMessage = (cautionAlert ? cautionAlert + "\n\n" : "") + expirationText + generateExpiredEntityFooter(workflowName, runUrl, workflowId) + "\n\n<!-- gh-aw-closed -->";
-
-      core.info(`  Adding closing comment to discussion #${discussion.number}`);
-      await addDiscussionComment(github, discussion.id, closingMessage);
-      core.info(`  ✓ Comment added successfully`);
-
-      core.info(`  Closing discussion #${discussion.number} as outdated`);
-      await closeDiscussionAsOutdated(github, discussion.id);
-      core.info(`  ✓ Discussion closed successfully`);
-
-      return {
-        status: "closed",
-        record: {
-          number: discussion.number,
-          url: discussion.url,
-          title: discussion.title,
-        },
-      };
-    },
+        return undefined;
+      },
+      beforeCommentLog: discussion => `  Adding closing comment to discussion #${discussion.number}`,
+      beforeCloseLog: discussion => `  Closing discussion #${discussion.number} as outdated`,
+      addComment: (discussion, message) => addDiscussionComment(github, discussion.id, message),
+      closeEntity: discussion => closeDiscussionAsOutdated(github, discussion.id),
+    }),
   });
 }
 
