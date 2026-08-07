@@ -145,6 +145,14 @@ type EngineCapabilities struct {
 	// When false, a restricted tools.bash allowlist is silently ignored at runtime,
 	// so the compiler emits an error to prevent the allowlist illusion.
 	BashCommandAllowlist bool
+
+	// BashDisable reports whether the engine can fully refuse all bash/shell tool calls
+	// when tools.bash is completely disabled (tools.bash: false, or tools.bash: []).
+	// This is a coarser capability than BashCommandAllowlist: an engine may be unable to
+	// enforce a partial per-command allowlist yet still be able to turn shell execution
+	// off entirely (e.g. Codex's `features.shell_tool=false` config flag). When true, the
+	// compiler allows a fully-disabled tools.bash even if BashCommandAllowlist is false.
+	BashDisable bool
 }
 
 // CapabilityProvider detects what capabilities an engine supports.
