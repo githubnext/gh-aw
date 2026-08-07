@@ -108,6 +108,12 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 7: Engine execution (AWF, no network)
 		steps = append(steps, c.buildDetectionEngineExecutionStep(data)...)
 
+		// Step 7a: Echo detection step summary so the GitHub runner can mask any secrets.
+		// The AWF execution step writes the detection agent's step-summary content to
+		// ThreatDetectionStepSummaryPath (overriding $GITHUB_STEP_SUMMARY at the step level).
+		// Echoing the file content here lets the runner apply its secret-masking pass.
+		steps = append(steps, c.buildDetectionStepSummaryEchoStep()...)
+
 		// Step 8: Custom post-steps if configured (run after engine execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
 			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
@@ -444,6 +450,25 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 		"          name: " + detectionArtifactName + "\n",
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
 		"          if-no-files-found: ignore\n",
+	}
+}
+
+// buildDetectionStepSummaryEchoStep creates a step that echoes the detection engine's
+// step-summary file content so the GitHub runner can mask any sensitive values it contains.
+//
+// The detection engine execution step overrides $GITHUB_STEP_SUMMARY at the step level
+// to ThreatDetectionStepSummaryPath so the AWF chroot can write to a reachable path.
+// This step then echoes the file content; the runner will apply secret masking to the output.
+func (c *Compiler) buildDetectionStepSummaryEchoStep() []string {
+	summaryPath := constants.ThreatDetectionStepSummaryPath
+	return []string{
+		"      - name: Echo detection step summary\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        continue-on-error: true\n",
+		"        run: |\n",
+		fmt.Sprintf("          if [ -s %s ]; then\n", shellEscapeArg(summaryPath)),
+		fmt.Sprintf("            cat %s\n", shellEscapeArg(summaryPath)),
+		"          fi\n",
 	}
 }
 

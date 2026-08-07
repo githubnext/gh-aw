@@ -25,6 +25,7 @@ name: "Smoke Agent: all/none"
 engine: claude
 strict: true
 tools:
+  bash: false
   github:
     mode: local
     allowed-repos: "all"
