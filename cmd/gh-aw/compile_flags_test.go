@@ -29,4 +29,19 @@ func TestCompileCommandShortFlags(t *testing.T) {
 	if grantFlag.DefValue != "false" {
 		t.Fatalf("expected --grant default to be false, got %s", grantFlag.DefValue)
 	}
+
+	forceRefreshContainerPinsFlag := compileCmd.Flags().Lookup("force-refresh-container-pins")
+	if forceRefreshContainerPinsFlag == nil {
+		t.Fatal("expected --force-refresh-container-pins flag on compile command")
+	}
+	if forceRefreshContainerPinsFlag.DefValue != "false" {
+		t.Fatalf("expected --force-refresh-container-pins default to be false, got %s", forceRefreshContainerPinsFlag.DefValue)
+	}
+}
+
+func TestCompileOptionsPropagateForceRefreshContainerPins(t *testing.T) {
+	config := (&compileCmdOptions{forceRefreshContainerPins: true}).toCompileConfig(nil)
+	if !config.ForceRefreshContainerPins {
+		t.Fatal("expected ForceRefreshContainerPins to be propagated to CompileConfig")
+	}
 }
