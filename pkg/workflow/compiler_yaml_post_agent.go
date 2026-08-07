@@ -245,9 +245,15 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 		c.generateArcDindArtifactConsolidationStep(yaml)
 	}
 
-	// Generate single unified artifact upload with all collected paths.
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
+
+	// Generate dedicated firewall/MCP observability artifact uploads so security
+	// reviews and debugging tools can fetch these logs directly even when they do
+	// not download the full agent artifact.
+	c.generateObservabilityArtifactUploads(yaml, data, agentArtifactPrefix)
+
+	// Generate single unified artifact upload with all collected paths.
 	compilerYamlLog.Printf("Emitting unified agent artifact upload with %d path(s)", len(artifactPaths))
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix)
 

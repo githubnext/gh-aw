@@ -73,6 +73,12 @@ Please navigate to example.com and take a screenshot.
 	if !strings.Contains(lockContentStr, "- name: Upload agent artifacts") {
 		t.Error("Expected 'Upload agent artifacts' step to be in generated workflow")
 	}
+	if !strings.Contains(lockContentStr, "- name: Upload MCP observability logs") {
+		t.Error("Expected dedicated MCP observability artifact upload step to be in generated workflow")
+	}
+	if !strings.Contains(lockContentStr, "name: mcp-logs") {
+		t.Error("Expected dedicated MCP observability artifact to be named 'mcp-logs'")
+	}
 
 	// Verify the upload step uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
 	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a") {
@@ -173,6 +179,12 @@ This workflow does not use Playwright but should still have MCP logs upload.
 	// Verify MCP logs path EXISTS in unified artifact upload even when no Playwright is used
 	if !strings.Contains(lockContentStr, "- name: Upload agent artifacts") {
 		t.Error("Expected 'Upload agent artifacts' step to be present")
+	}
+	if !strings.Contains(lockContentStr, "- name: Upload MCP observability logs") {
+		t.Error("Expected dedicated MCP observability artifact upload step to be present")
+	}
+	if !strings.Contains(lockContentStr, "name: mcp-logs") {
+		t.Error("Expected dedicated MCP observability artifact to be named 'mcp-logs'")
 	}
 
 	if !strings.Contains(lockContentStr, "/tmp/gh-aw/mcp-logs/") {

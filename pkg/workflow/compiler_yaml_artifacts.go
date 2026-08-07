@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -55,4 +56,56 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 	yaml.WriteString("          if-no-files-found: ignore\n")
 
 	compilerYamlArtifactsLog.Printf("Generated unified artifact upload step with %d paths", len(paths))
+}
+
+// generateObservabilityArtifactUploads emits small, dedicated observability artifacts
+// for the firewall and MCP gateway logs in addition to the unified agent artifact.
+// Keeping these logs in named artifacts makes post-run security/debug analysis
+// resilient to consumers that request only a specific observability artifact set.
+func (c *Compiler) generateObservabilityArtifactUploads(yaml *strings.Builder, data *WorkflowData, prefix string) {
+	mcpLogsDir := constants.TmpMcpLogsDir
+	if isArcDindTopology(data) {
+		mcpLogsDir = constants.GhAwRootDir + "/mcp-logs/"
+	}
+	c.generateDedicatedArtifactUpload(yaml, "Upload MCP observability logs", prefix+constants.MCPLogsArtifactName, []string{mcpLogsDir})
+
+	if !isFirewallEnabled(data) {
+		return
+	}
+
+	firewallPaths := []string{
+		constants.AWFProxyLogsDir + "/",
+		constants.AWFAuditDir + "/",
+		constants.AWFReflectFilePath,
+		constants.AWFConfigFilePath,
+	}
+	if isArcDindTopology(data) {
+		firewallPaths = []string{
+			constants.AWFProxyLogsDirExpr + "/",
+			constants.AWFAuditDirExpr + "/",
+			constants.AWFReflectFilePathExpr,
+			constants.AWFConfigFilePathExpr,
+		}
+	}
+	c.generateDedicatedArtifactUpload(yaml, "Upload firewall observability logs", prefix+constants.FirewallAuditArtifactName, firewallPaths)
+}
+
+func (c *Compiler) generateDedicatedArtifactUpload(yaml *strings.Builder, stepName string, artifactName string, paths []string) {
+	if len(paths) == 0 {
+		return
+	}
+
+	c.stepOrderTracker.RecordArtifactUpload(stepName, paths)
+
+	fmt.Fprintf(yaml, "      - name: %s\n", stepName)
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", c.getActionPin("actions/upload-artifact"))
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          name: %s\n", artifactName)
+	yaml.WriteString("          path: |\n")
+	for _, path := range paths {
+		fmt.Fprintf(yaml, "            %s\n", path)
+	}
+	yaml.WriteString("          if-no-files-found: ignore\n")
 }

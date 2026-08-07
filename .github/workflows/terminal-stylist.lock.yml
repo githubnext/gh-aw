@@ -1041,6 +1041,27 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
+      - name: Upload MCP observability logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mcp-logs
+          path: |
+            /tmp/gh-aw/mcp-logs/
+          if-no-files-found: ignore
+      - name: Upload firewall observability logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: firewall-audit-logs
+          path: |
+            /tmp/gh-aw/sandbox/firewall/logs/
+            /tmp/gh-aw/sandbox/firewall/audit/
+            /tmp/gh-aw/sandbox/firewall/awf-reflect.json
+            /tmp/gh-aw/awf-config.json
+          if-no-files-found: ignore
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true

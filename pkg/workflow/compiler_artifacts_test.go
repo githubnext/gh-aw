@@ -317,6 +317,63 @@ This workflow should generate a unified artifact upload step that includes the p
 	t.Log("Unified artifact upload step verified successfully (includes prompt)")
 }
 
+func TestDedicatedFirewallObservabilityArtifactUpload(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "firewall-observability-artifact-test")
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+network:
+  allowed:
+    - defaults
+tools:
+  github:
+    allowed: [get_repository]
+engine: claude
+strict: false
+---
+
+# Test Firewall Observability Upload
+
+This workflow should retain firewall observability logs as a dedicated artifact.
+`
+
+	testFile := filepath.Join(tmpDir, "test-firewall-observability.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockYAML := string(lockContent)
+
+	if !strings.Contains(lockYAML, "- name: Upload firewall observability logs") {
+		t.Error("Expected dedicated firewall observability artifact upload step")
+	}
+	if !strings.Contains(lockYAML, "name: firewall-audit-logs") {
+		t.Error("Expected dedicated firewall artifact to be named 'firewall-audit-logs'")
+	}
+	for _, expectedPath := range []string{
+		"/tmp/gh-aw/sandbox/firewall/logs/",
+		"/tmp/gh-aw/sandbox/firewall/audit/",
+		"/tmp/gh-aw/sandbox/firewall/awf-reflect.json",
+		"/tmp/gh-aw/awf-config.json",
+	} {
+		if !strings.Contains(lockYAML, expectedPath) {
+			t.Errorf("Expected firewall observability upload to include %s", expectedPath)
+		}
+	}
+}
+
 func TestAmbientFoldersIncludedInActivationArtifact(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "ambient-folders-artifact-test")
 	sharedDir := filepath.Join(tmpDir, "shared")

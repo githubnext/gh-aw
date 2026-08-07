@@ -221,11 +221,13 @@ const AWFReflectFilePath = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json"
 // AWFReflectFilePathExpr is the host-side AWF /reflect output path resolved by Actions expression.
 const AWFReflectFilePathExpr = GhAwRootDir + "/sandbox/firewall/awf-reflect.json"
 
-// FirewallAuditArtifactName is the legacy artifact name that was previously used for dedicated
-// firewall audit log uploads. Firewall audit/observability logs are now included in the unified
-// agent artifact. This constant is retained for backward compatibility when downloading artifacts
-// from older workflow runs.
+// FirewallAuditArtifactName is the dedicated artifact name for firewall audit and proxy logs.
+// Firewall audit/observability logs are also included in the unified agent artifact.
 const FirewallAuditArtifactName = "firewall-audit-logs"
+
+// MCPLogsArtifactName is the dedicated artifact name for MCP gateway telemetry logs.
+// MCP observability logs are also included in the unified agent artifact.
+const MCPLogsArtifactName = "mcp-logs"
 
 // AWFDefaultLogLevel is the default log level for AWF
 const AWFDefaultLogLevel = "info"
