@@ -164,7 +164,7 @@ func RunOutcomes(ctx context.Context, config OutcomesConfig) error {
 	}
 
 	// Run the evaluations
-	mapping := github.LoadObjectiveMappingFromConfig()
+	mapping := github.LoadObjectiveMapping()
 	reports := EvaluateOutcomes(ctx, items, repo, mapping)
 	outcomeSummary := ComputeOutcomeSummary(reports, mapping)
 
