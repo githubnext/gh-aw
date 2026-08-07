@@ -18,7 +18,7 @@ import (
 )
 
 var projectLog = logger.New("cli:project")
-var projectCommandRunGH = workflow.RunGH
+var projectCommandRunGHInputContext = workflow.RunGHInputContext
 
 // ProjectConfig holds configuration for creating a GitHub Project
 type ProjectConfig struct {
@@ -239,7 +239,9 @@ func validateOwner(ctx context.Context, ownerType, owner string, verbose bool) e
 		query = `query($login: String!) { user(login: $login) { id login } }`
 	}
 
-	_, err := projectCommandRunGH("Validating owner...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner)
+	_, err := runProjectGraphQLQueryWithVariables(ctx, "Validating owner...", query, map[string]any{
+		"login": owner,
+	})
 	if err != nil {
 		if ownerType == "org" {
 			return fmt.Errorf("organization '%s' not found or not accessible", owner)
@@ -274,7 +276,9 @@ func getOwnerNodeId(ctx context.Context, ownerType, owner string, verbose bool) 
 		jqPath = ".data.user.id"
 	}
 
-	output, err := projectCommandRunGH("Getting owner ID...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner, "--jq", jqPath)
+	output, err := runProjectGraphQLQueryWithVariables(ctx, "Getting owner ID...", query, map[string]any{
+		"login": owner,
+	}, "--jq", jqPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get owner node ID: %w", err)
 	}
@@ -286,6 +290,20 @@ func getOwnerNodeId(ctx context.Context, ownerType, owner string, verbose bool) 
 
 	console.LogVerbose(verbose, "✓ Got node ID: "+nodeId)
 	return nodeId, nil
+}
+
+func runProjectGraphQLQueryWithVariables(ctx context.Context, spinnerMessage, query string, variables map[string]any, args ...string) ([]byte, error) {
+	requestBody := map[string]any{
+		"query":     query,
+		"variables": variables,
+	}
+	requestJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal GraphQL request: %w", err)
+	}
+
+	ghArgs := append([]string{"api", "graphql", "--input", "-"}, args...)
+	return projectCommandRunGHInputContext(ctx, spinnerMessage, bytes.NewReader(requestJSON), ghArgs...)
 }
 
 // createProject creates a GitHub Project V2
@@ -644,7 +662,6 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 	var query string
 	var jqProjectID, jqFields string
 
-	projectNumberArg := "number=" + strconv.Itoa(info.projectNumber)
 	if info.scope == "orgs" {
 		query = `query($login: String!, $number: Int!) {
 			organization(login: $login) {
@@ -686,14 +703,18 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 	}
 
 	// Get project ID
-	projectIDOutput, err := projectCommandRunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqProjectID)
+	variables := map[string]any{
+		"login":  info.ownerLogin,
+		"number": info.projectNumber,
+	}
+	projectIDOutput, err := runProjectGraphQLQueryWithVariables(ctx, "Getting project info...", query, variables, "--jq", jqProjectID)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project ID: %w", err)
 	}
 	projectID := strings.TrimSpace(string(projectIDOutput))
 
 	// Get fields
-	fieldsOutput, err := projectCommandRunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqFields)
+	fieldsOutput, err := runProjectGraphQLQueryWithVariables(ctx, "Getting project fields...", query, variables, "--jq", jqFields)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project fields: %w", err)
 	}
