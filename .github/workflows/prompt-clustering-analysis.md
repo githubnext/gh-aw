@@ -347,12 +347,31 @@ generate_report(cluster_analysis, vectorizer, kmeans)
      - Calculate success rate (merged vs closed)
      - Calculate average turn count
      - Identify representative examples
+   - Calculate overall merge rate across all analyzed PRs and compare each cluster to that baseline
+   - Flag outlier clusters where merge rate is at least 10 percentage points below overall merge rate and cluster size is at least 15 PRs
    
 5. **Insights**:
    - Which types of tasks are most common?
    - Which types have highest success rates?
    - Which types require most iterations?
    - Are there outliers (unusual tasks)?
+
+### Phase 4.5: Root-Cause Analysis for Low-Merge Clusters
+
+When an outlier cluster is detected (>=15 PRs and merge rate >=10 points below overall rate), perform a focused blocker investigation for the lowest-merge cluster.
+
+1. Select the lowest-merge outlier cluster and summarize:
+   - Cluster theme/keywords
+   - Cluster merge rate vs overall merge rate
+   - Number of PRs in cluster
+2. Use full PR data (`comments`, `reviews`, `reviewDecision`, changed files) to classify merge blockers per PR into categories:
+   - CI/test failure (including container/image build failures)
+   - Review friction (including digest pinning or security/compliance concerns)
+   - Scope/complexity mismatch
+   - Other/unknown
+3. For at least 10 PRs from that cluster (or all PRs if fewer), capture evidence snippets from review comments and decision metadata to support blocker classification.
+4. Compare blocker distribution against merged PRs in the same cluster to identify the dominant blocker pattern.
+5. Produce a "most likely primary blocker" conclusion with confidence (high/medium/low) and list 3 concrete mitigation actions.
 
 **Helper Functions**:
 
@@ -486,6 +505,7 @@ Create a comprehensive discussion report with:
    - Which types of tasks work best
    - Which types need improvement
    - Suggested prompt engineering improvements
+   - For the lowest-merge outlier cluster, identify the most likely blocker and targeted mitigation actions
 
 **Report Template**:
 
@@ -550,6 +570,21 @@ Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b
 2. **[Finding 2]**: [Description and data supporting this finding]
 3. **[Finding 3]**: [Description and data supporting this finding]
 
+### Lowest-Merge Cluster Root Cause
+
+- **Cluster**: [cluster id + theme]
+- **Merge Rate Gap**: [cluster rate]% vs [overall rate]% (gap: [X] points)
+- **Primary Blocker**: [CI failures / review friction / scope mismatch / other]
+- **Confidence**: [high/medium/low]
+- **Evidence PRs**: #[id], #[id], #[id]
+
+| Blocker Category | Count | Share | Notes |
+|------------------|-------|-------|-------|
+| CI/test failure | X | Y% | [notable failure pattern] |
+| Review friction | X | Y% | [notable review concern] |
+| Scope mismatch | X | Y% | [complexity signal] |
+| Other/unknown | X | Y% | [notes] |
+
 ### Recommendations
 
 Based on clustering analysis:
@@ -557,6 +592,7 @@ Based on clustering analysis:
 1. **[Recommendation 1]**: [Specific actionable recommendation]
 2. **[Recommendation 2]**: [Specific actionable recommendation]
 3. **[Recommendation 3]**: [Specific actionable recommendation]
+4. **[Outlier Cluster Recommendation]**: [Action specifically targeting the lowest-merge cluster blocker]
 
 </details>
 
@@ -633,6 +669,7 @@ A successful analysis:
 - ✅ Enriches with workflow metrics (turns, duration, cost)
 - ✅ Performs NLP clustering with 3-7 meaningful clusters
 - ✅ Identifies patterns and insights across clusters
+- ✅ Investigates the lowest-merge outlier cluster and reports a likely primary blocker when an outlier exists
 - ✅ Generates comprehensive discussion report with data table
 - ✅ Uses cache to avoid duplicate work
 - ✅ Provides actionable recommendations
