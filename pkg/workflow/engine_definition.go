@@ -353,6 +353,7 @@ type knownEngineImportsFile struct {
 }
 
 var (
+	knownEngineImportsMu   sync.Mutex
 	knownEngineImportsOnce sync.Once
 	knownEngineImports     map[string]string
 
@@ -361,7 +362,14 @@ var (
 	}
 )
 
+// knownEngineImportFor returns the shared import spec for a known external
+// engine. The first call fetches the catalog on demand and may block for up to
+// knownEngineImportsTimeout; fetch and parse failures are treated as an empty
+// catalog so engine validation remains unchanged.
 func knownEngineImportFor(id string) (string, bool) {
+	knownEngineImportsMu.Lock()
+	defer knownEngineImportsMu.Unlock()
+
 	knownEngineImportsOnce.Do(loadKnownEngineImports)
 	importPath, ok := knownEngineImports[strings.ToLower(id)]
 	return importPath, ok

@@ -18,6 +18,8 @@ var knownEngineImportsTestMu sync.Mutex
 func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr error) {
 	t.Helper()
 	knownEngineImportsTestMu.Lock()
+	knownEngineImportsMu.Lock()
+	defer knownEngineImportsMu.Unlock()
 
 	originalDownload := knownEngineImportsDownload
 
@@ -28,6 +30,9 @@ func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr err
 	knownEngineImports = nil
 
 	t.Cleanup(func() {
+		knownEngineImportsMu.Lock()
+		defer knownEngineImportsMu.Unlock()
+
 		knownEngineImportsDownload = originalDownload
 		knownEngineImportsOnce = sync.Once{}
 		knownEngineImports = nil
