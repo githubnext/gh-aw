@@ -748,7 +748,7 @@ jobs:
       - env:
           EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
-          PR_DIFF_MAX_LINES: "3000"
+          PR_DIFF_MAX_LINES: "2000"
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         name: Pre-fetch PR diff and review comments
