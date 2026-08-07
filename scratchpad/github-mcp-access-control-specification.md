@@ -1844,6 +1844,22 @@ Lockdown is an emergency or security stop that MUST NOT be weakened by other con
 
 See also: guard-policies-specification.md §Open Questions, decision record for question #3.
 
+### 9.6 Safeguards
+
+This subsection specifies normative failure-mode behavior for the case where guard-policy configuration is malformed (for example, an unparseable `allowed-repos` value, an invalid `min-integrity` literal, or `blocked-users`/`trusted-users`/`approval-labels` present without a required `min-integrity`).
+
+- Implementations MUST reject a workflow at compile time when its guard-policy configuration is malformed; a malformed guard policy MUST NOT be silently ignored or silently coerced to a default value that widens access (see §4.7, `validateGitHubGuardPolicy()`).
+- Implementations MUST fail closed on malformed guard-policy configuration: until the configuration error is fixed, the affected GitHub MCP tools MUST NOT be enabled, rather than falling back to an unrestricted ("all repos", `min-integrity: none`) policy.
+- Compilation error messages for malformed guard-policy configuration SHOULD identify the offending field, the value received, and the set of valid values or formats, so the misconfiguration can be corrected without consulting this specification.
+- Implementations MUST NOT partially apply a malformed guard policy (for example, enforcing `min-integrity` while ignoring an invalid `allowed-repos` value); validation MUST treat the guard policy as a single unit that either fully passes validation or causes compilation to fail.
+
+### 9.7 Open Questions
+
+1. **Should the `--strict` compile-time guard-policy dry-run report (§4.7, deferred design in guard-policies-specification.md Open Question #4) also surface the effective lockdown/guard-policy precedence outcome, so operators can see at a glance which fields are ignored?**
+
+   **Decision**: Yes. The `--strict` dry-run report MUST include a `lockdown` indicator alongside the reported `allowed-repos`/`min-integrity`/`blocked-users`/`trusted-users`/`approval-labels` values, so that operators reviewing the report can immediately see that guard-policy fields are ignored at runtime when `lockdown: true` is set (§9.5.1). This is implemented in `pkg/cli/compile_guard_policy_report.go`.
+   *Rationale*: A dry-run report that omits the lockdown/guard-policy precedence relationship would be misleading — it would list "permitted" repositories that are, in fact, never consulted at runtime because lockdown supersedes them. Surfacing the precedence outcome directly in the report keeps the report consistent with the runtime enforcement behavior it is meant to preview, and reuses the same conflict-detection logic (`hasGitHubLockdownGuardPolicyConflict()`) already used for the compile-time warning (§9.5.2).
+
 ---
 
 ## 10. Integration with MCP Gateway
