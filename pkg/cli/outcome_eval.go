@@ -453,7 +453,7 @@ func enrichOutcomeWithObjectiveValue(ctx context.Context, report *OutcomeReport,
 
 	// Compute objective value
 	objectiveValue := mapping.ComputeObjectiveValue(labelNames)
-	objectiveLabels := mapping.GetObjectiveLabels(labelNames)
+	objectiveLabels := mapping.FilterObjectiveLabels(labelNames)
 
 	report.ObjectiveValue = objectiveValue
 	report.ObjectiveLabels = objectiveLabels
@@ -464,7 +464,7 @@ func resolveOutcomeIntent(ctx context.Context, report OutcomeReport, repo string
 	resolver := intent.Resolver{
 		ResolverVersion: "outcome-eval-v1",
 		MatchLabels: func(labels []string) []string {
-			return mapping.GetObjectiveLabels(labels)
+			return mapping.FilterObjectiveLabels(labels)
 		},
 	}
 

@@ -14,6 +14,10 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
+const mcpGatewayCustomEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES"
+const mcpGatewayCustomEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_"
+const mcpGatewayCustomEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__"
+
 func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error {
 	// If the engine provides an MCP config-adapter script (e.g. Goose), write it to disk
 	// before starting the gateway so that start_mcp_gateway.cjs can execute it once the
@@ -28,8 +32,10 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	}
 	yaml.WriteString("      - name: Start MCP Gateway\n")
 	yaml.WriteString("        id: start-mcp-gateway\n")
+	ensureDefaultMCPGatewayConfig(workflowData)
+	gatewayConfig := workflowData.SandboxConfig.MCP
 	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
-	writeMCPGatewayStepEnv(yaml, mcpEnvVars, safeOutputsInputEnvVars)
+	writeMCPGatewayStepEnv(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayConfig.Env)
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-config\"\n")
@@ -37,8 +43,6 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/playwright\n")
 		yaml.WriteString("          chmod 777 /tmp/gh-aw/mcp-logs/playwright\n")
 	}
-	ensureDefaultMCPGatewayConfig(workflowData)
-	gatewayConfig := workflowData.SandboxConfig.MCP
 	port, domain, payloadDir, payloadPathPrefix, payloadSizeThreshold := resolveMCPGatewayValues(workflowData, gatewayConfig)
 	githubToolRaw, hasGitHub := tools["github"]
 	githubTool, _ := githubToolRaw.(map[string]any)
@@ -79,23 +83,58 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
-func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string) {
-	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 {
+func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string) {
+	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(gatewayEnvVars) == 0 {
 		return
 	}
 	yaml.WriteString("        env:\n")
+	customEnvVarNames := sliceutil.SortedKeys(gatewayEnvVars)
 	// Write MCP env vars first (sorted)
 	envVarNames := sliceutil.MapKeys(mcpEnvVars)
 	sort.Strings(envVarNames)
 	for _, envVarName := range envVarNames {
+		if _, overridden := gatewayEnvVars[envVarName]; overridden {
+			continue
+		}
+		if isReservedMCPGatewayTransportEnvVar(envVarName) {
+			continue
+		}
 		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, mcpEnvVars[envVarName])
 	}
 	// Write safe-outputs input env vars (sorted); these must also be present in the
 	// runner step environment so the docker -e flag can forward them to the container.
 	inputVarNames := sliceutil.SortedKeys(safeOutputsInputEnvVars)
 	for _, envVarName := range inputVarNames {
+		if _, overridden := gatewayEnvVars[envVarName]; overridden {
+			continue
+		}
+		if isReservedMCPGatewayTransportEnvVar(envVarName) {
+			continue
+		}
 		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, safeOutputsInputEnvVars[envVarName])
 	}
+	// Use compiler-controlled transport names so special environment variables such
+	// as BASH_ENV cannot affect the host shell before the run script starts.
+	if len(customEnvVarNames) > 0 {
+		customEnvNamesJSON, err := json.Marshal(customEnvVarNames)
+		if err != nil {
+			panic(fmt.Sprintf("BUG: failed to marshal MCP gateway environment variable names: %v", err))
+		}
+		yaml.WriteString(formatYAMLEnv("          ", mcpGatewayCustomEnvNamesVar, string(customEnvNamesJSON)))
+		for i, envVarName := range customEnvVarNames {
+			yaml.WriteString(formatYAMLEnv("          ", mcpGatewayCustomEnvTransportName(i), gatewayEnvVars[envVarName]))
+		}
+	}
+}
+
+func mcpGatewayCustomEnvTransportName(index int) string {
+	return fmt.Sprintf("%s%d", mcpGatewayCustomEnvTransportPrefix, index)
+}
+
+func isReservedMCPGatewayTransportEnvVar(name string) bool {
+	// GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES is reserved alongside, not within,
+	// the indexed GH_AW_MCP_GATEWAY_ENV_* transport namespace.
+	return name == mcpGatewayCustomEnvNamesVar || strings.HasPrefix(name, mcpGatewayCustomEnvTransportPrefix)
 }
 
 func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) (int, string, string, string, int) {
@@ -209,13 +248,6 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	}
 	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
 		yaml.WriteString("          export GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_MCP_SERVER_TOKEN\"\n")
-	}
-	if len(gatewayConfig.Env) > 0 {
-		envVarNames := sliceutil.MapKeys(gatewayConfig.Env)
-		sort.Strings(envVarNames)
-		for _, envVarName := range envVarNames {
-			fmt.Fprintf(yaml, "          export %s=%s\n", envVarName, gatewayConfig.Env[envVarName])
-		}
 	}
 }
 
@@ -402,11 +434,7 @@ func appendMCPGatewaySafeOutputsInputEnvFlags(containerCmd *strings.Builder, saf
 
 func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) {
 	if len(gatewayConfig.Env) > 0 {
-		envVarNames := sliceutil.MapKeys(gatewayConfig.Env)
-		sort.Strings(envVarNames)
-		for _, envVarName := range envVarNames {
-			containerCmd.WriteString(" -e " + envVarName)
-		}
+		containerCmd.WriteString(" " + mcpGatewayCustomEnvMarker)
 	}
 	if len(mcpEnvVars) == 0 {
 		return
