@@ -54,6 +54,7 @@ engine: copilot
 permissions:
   contents: read
 tools:
+  bash: false
   github:
     repos: public
     min-integrity: none

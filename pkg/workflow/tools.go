@@ -53,7 +53,18 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	if data.RunsOn == "" {
 		data.RunsOn = "runs-on: ubuntu-latest"
 	}
+	// Capture whether tools.bash was explicitly set to false before default-tool resolution
+	// removes the "bash" key entirely (unless overridden by required git commands). This lets
+	// us distinguish "bash explicitly refused" from "bash never configured", which both end up
+	// with an absent "bash" key after applyDefaultTools.
+	bashExplicitlyFalse := false
+	if bashVal, hasBash := data.Tools["bash"]; hasBash {
+		if boolVal, isBool := bashVal.(bool); isBool && !boolVal {
+			bashExplicitlyFalse = true
+		}
+	}
 	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs, data.SandboxConfig, data.NetworkPermissions)
+	data.BashDisabled = isBashFullyDisabled(data.Tools, bashExplicitlyFalse)
 	data.ParsedTools = NewTools(data.Tools)
 
 	// Explicitly empty permissions ({}) means user wants no permissions — do not apply defaults.
@@ -496,6 +507,26 @@ func (c *Compiler) injectWorkflowDispatchForIssue(onSection string) string {
 func (c *Compiler) replaceIssueNumberReferences(yamlContent string) string {
 	// Replace all occurrences of github.event.issue.number with inputs.issue_number
 	return strings.ReplaceAll(yamlContent, "github.event.issue.number", "inputs.issue_number")
+}
+
+// isBashFullyDisabled reports whether the final (post-default-resolution) tools map represents
+// a complete refusal of bash/shell execution, i.e. tools.bash: false, or tools.bash: [] (empty
+// allowlist). wasExplicitlyFalse must be computed by the caller from the tools map *before*
+// applyDefaultTools runs, since a "bash: false" that is not overridden by required git commands
+// results in the "bash" key being removed entirely — the same final state as "bash" never being
+// configured at all. Only the explicit-false signal lets us tell these two cases apart.
+// bash: [] (empty array), by contrast, survives applyDefaultTools unchanged, so it can be
+// detected directly from the resolved tools map.
+func isBashFullyDisabled(tools map[string]any, wasExplicitlyFalse bool) bool {
+	if bashVal, hasBash := tools["bash"]; hasBash {
+		if bashCommands, ok := bashVal.([]any); ok {
+			return len(bashCommands) == 0
+		}
+		return false
+	}
+	// "bash" key is absent: either it was explicitly disabled (and not overridden by required
+	// git commands), or it was never configured. Only the former counts as "fully disabled".
+	return wasExplicitlyFalse
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present

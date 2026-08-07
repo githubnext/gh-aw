@@ -145,6 +145,14 @@ type EngineCapabilities struct {
 	// When false, a restricted tools.bash allowlist is silently ignored at runtime,
 	// so the compiler emits an error to prevent the allowlist illusion.
 	BashCommandAllowlist bool
+
+	// BashDisable reports whether the engine can fully refuse all bash/shell tool calls
+	// when tools.bash is completely disabled (tools.bash: false, or tools.bash: []).
+	// This is a coarser capability than BashCommandAllowlist: an engine may be unable to
+	// enforce a partial per-command allowlist yet still be able to turn shell execution
+	// off entirely (e.g. Codex's `features.shell_tool=false` config flag). When true, the
+	// compiler allows a fully-disabled tools.bash even if BashCommandAllowlist is false.
+	BashDisable bool
 }
 
 // CapabilityProvider detects what capabilities an engine supports.
@@ -598,6 +606,20 @@ func (r *EngineRegistry) GetEngine(id string) (CodingAgentEngine, error) {
 	}
 	agenticEngineLog.Printf("Found engine: id=%s, name=%s", id, engine.GetDisplayName())
 	return engine, nil
+}
+
+// EnginesWithCapability returns a sorted list of engine IDs for which the given capability
+// predicate returns true. It is used to build accurate, registry-driven lists of supported
+// engines in error messages and documentation so those lists stay correct as engines evolve.
+func (r *EngineRegistry) EnginesWithCapability(predicate func(EngineCapabilities) bool) []string {
+	var ids []string
+	for id, engine := range r.engines {
+		if predicate(engine.GetCapabilities()) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // GetSupportedEngines returns a list of all supported engine IDs

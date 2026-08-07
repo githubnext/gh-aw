@@ -28,9 +28,15 @@
 package workflow
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -131,6 +137,7 @@ type EngineCapabilitiesDefinition struct {
 	NativeAgentFile      bool `yaml:"native-agent-file,omitempty"`
 	BareMode             bool `yaml:"bare-mode,omitempty"`
 	BashCommandAllowlist bool `yaml:"bash-command-allowlist,omitempty"`
+	BashDisable          bool `yaml:"bash-disable,omitempty"`
 }
 
 // ToRuntimeCapabilities converts the declarative capabilities definition into the
@@ -144,6 +151,7 @@ func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities
 		NativeAgentFile:      d.NativeAgentFile,
 		BareMode:             d.BareMode,
 		BashCommandAllowlist: d.BashCommandAllowlist,
+		BashDisable:          d.BashDisable,
 	}
 }
 
@@ -331,6 +339,139 @@ type ResolvedEngineTarget struct {
 	Runtime    CodingAgentEngine // resolved adapter from the EngineRegistry
 }
 
+const (
+	knownEngineImportsOwner          = "github"
+	knownEngineImportsRepo           = "gh-aw"
+	knownEngineImportsPath           = ".github/aw/engines.json"
+	knownEngineImportsRef            = "refs/heads/main"
+	knownEngineImportsTimeout        = 3 * time.Second
+	knownEngineImportsMaxBytes int64 = 1 << 20
+)
+
+type knownEngineImportEntry struct {
+	ID     string `json:"id"`
+	Import string `json:"import"`
+}
+
+type knownEngineImportsFile struct {
+	Engines []knownEngineImportEntry `json:"engines"`
+}
+
+var (
+	knownEngineImportsMu     sync.Mutex
+	knownEngineImportsLoaded bool
+	knownEngineImports       map[string]string
+
+	knownEngineImportsRawBaseURL = "https://raw.githubusercontent.com"
+	knownEngineImportsHTTPClient = func() *http.Client {
+		return &http.Client{Timeout: knownEngineImportsTimeout}
+	}
+	knownEngineImportsDownload = func(ctx context.Context) ([]byte, error) {
+		return downloadKnownEngineImports(ctx, knownEngineImportsRawURL())
+	}
+)
+
+func knownEngineImportsRawURL() string {
+	return strings.TrimRight(knownEngineImportsRawBaseURL, "/") + "/" + strings.Join([]string{
+		knownEngineImportsOwner,
+		knownEngineImportsRepo,
+		knownEngineImportsRef,
+		knownEngineImportsPath,
+	}, "/")
+}
+
+func downloadKnownEngineImports(ctx context.Context, rawURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := knownEngineImportsHTTPClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			engineCatalogLog.Printf("Known engine import catalog close failed: %v", closeErr)
+		}
+	}()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+
+	return io.ReadAll(io.LimitReader(resp.Body, knownEngineImportsMaxBytes))
+}
+
+// knownEngineImportFor returns the shared import spec for a known external
+// engine. The first call fetches the catalog on demand and may block for up to
+// knownEngineImportsTimeout; fetch and parse failures are treated as an empty
+// catalog so engine validation remains unchanged.
+func knownEngineImportFor(id string) (string, bool) {
+	knownEngineImportsMu.Lock()
+	if knownEngineImportsLoaded {
+		importPath, ok := knownEngineImports[strings.ToLower(id)]
+		knownEngineImportsMu.Unlock()
+		return importPath, ok
+	}
+	download := knownEngineImportsDownload
+	knownEngineImportsMu.Unlock()
+
+	// Avoid holding the catalog mutex during the network fetch. Concurrent cold
+	// callers may each fetch once, but only the first completed result is cached.
+	loaded := loadKnownEngineImports(download)
+
+	knownEngineImportsMu.Lock()
+	defer knownEngineImportsMu.Unlock()
+	if !knownEngineImportsLoaded {
+		knownEngineImports = loaded
+		knownEngineImportsLoaded = true
+	}
+
+	importPath, ok := knownEngineImports[strings.ToLower(id)]
+	return importPath, ok
+}
+
+func loadKnownEngineImports(download func(context.Context) ([]byte, error)) map[string]string {
+	loaded := map[string]string{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), knownEngineImportsTimeout)
+	defer cancel()
+
+	content, err := download(ctx)
+	if err != nil {
+		engineCatalogLog.Printf("Known engine import catalog unavailable: %v", err)
+		return loaded
+	}
+
+	var catalog knownEngineImportsFile
+	if err := json.Unmarshal(content, &catalog); err != nil {
+		engineCatalogLog.Printf("Known engine import catalog invalid: %v", err)
+		return loaded
+	}
+
+	for _, engine := range catalog.Engines {
+		id := strings.ToLower(strings.TrimSpace(engine.ID))
+		importPath := strings.TrimSpace(engine.Import)
+		if id == "" || importPath == "" {
+			continue
+		}
+		loaded[id] = knownEngineImportWithCompilerRef(importPath)
+	}
+	return loaded
+}
+
+func knownEngineImportWithCompilerRef(importPath string) string {
+	if strings.Contains(importPath, "@") {
+		return importPath
+	}
+	ref := versionToGitRef(GetVersion())
+	if ref == "" {
+		return importPath
+	}
+	return importPath + "@" + ref
+}
+
 // NewEngineCatalog creates an EngineCatalog that wraps the given EngineRegistry and
 // pre-registers the built-in engine definitions (claude, codex, copilot, gemini, pi)
 // loaded from the embedded Markdown files in data/engines/*.md.
@@ -422,6 +563,11 @@ func (c *EngineCatalog) Resolve(id string, config *EngineConfig) (*ResolvedEngin
 			enginesStr,
 			suggestions[0],
 			constants.DocsEnginesURL)
+	}
+
+	if importPath, ok := knownEngineImportFor(id); ok {
+		errMsg += fmt.Sprintf("\n\nTip: %q is a known engine with a shared definition file. Import it before using this engine:\n\nimports:\n  - %s",
+			id, importPath)
 	}
 
 	return nil, errors.New(errMsg)

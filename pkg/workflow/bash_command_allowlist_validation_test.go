@@ -32,20 +32,19 @@ func TestValidateBashCommandAllowlistSupport(t *testing.T) {
 			shouldError: true,
 			errorMsg:    "does not support bash command allow-listing",
 		},
-		// Codex engine - explicit deny configs should also error
+		// Codex engine - full refusal (bash: false, bash: []) is supported via BashDisable
+		// (features.shell_tool=false), even though per-command allowlisting is not.
 		{
-			name:        "codex with bash: false should error",
+			name:        "codex with bash: false should succeed",
 			engineID:    "codex",
 			tools:       map[string]any{"bash": false},
-			shouldError: true,
-			errorMsg:    "does not support bash command allow-listing",
+			shouldError: false,
 		},
 		{
-			name:        "codex with empty bash list should error",
+			name:        "codex with empty bash list should succeed",
 			engineID:    "codex",
 			tools:       map[string]any{"bash": []any{}},
-			shouldError: true,
-			errorMsg:    "does not support bash command allow-listing",
+			shouldError: false,
 		},
 		// Codex engine - wildcard or absent should succeed
 		{
@@ -153,6 +152,30 @@ func TestEngineBashCommandAllowlistCapability(t *testing.T) {
 			got := engine.GetCapabilities().BashCommandAllowlist
 			assert.Equal(t, tt.supported, got,
 				"engine %q BashCommandAllowlist capability mismatch", tt.engineID)
+		})
+	}
+}
+
+func TestEngineBashDisableCapability(t *testing.T) {
+	tests := []struct {
+		engineID  string
+		supported bool
+	}{
+		{"claude", false},
+		{"copilot", false},
+		{"gemini", false},
+		{"codex", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.engineID, func(t *testing.T) {
+			registry := GetGlobalEngineRegistry()
+			engine, err := registry.GetEngine(tt.engineID)
+			require.NoError(t, err)
+
+			got := engine.GetCapabilities().BashDisable
+			assert.Equal(t, tt.supported, got,
+				"engine %q BashDisable capability mismatch", tt.engineID)
 		})
 	}
 }

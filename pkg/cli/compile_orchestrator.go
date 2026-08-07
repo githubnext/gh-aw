@@ -14,6 +14,7 @@ import (
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
+var compileUpdateContainerPins = updateContainerPins
 
 // CompileWorkflows compiles workflows based on the provided configuration
 func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.WorkflowData, error) {
@@ -108,6 +109,10 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	}
 
 	// Create and configure compiler
+	if err := maybeForceRefreshContainerPins(ctx, config, workflowDir); err != nil {
+		return nil, err
+	}
+
 	compiler := createAndConfigureCompiler(config)
 	compiler.SetContext(ctx)
 
@@ -148,4 +153,25 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 
 	// Compile all workflow files in directory
 	return compileAllFilesInDirectory(ctx, compiler, config, workflowDir, stats, &validationResults)
+}
+
+func maybeForceRefreshContainerPins(ctx context.Context, config CompileConfig, workflowDir string) error {
+	if !config.ForceRefreshContainerPins {
+		return nil
+	}
+	if config.NoEmit {
+		if config.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping --force-refresh-container-pins because --no-emit is set"))
+		}
+		return nil
+	}
+
+	compileOrchestratorLog.Print("Refreshing container image digest pins before compilation")
+	if _, err := compileUpdateContainerPins(ctx, defaultContainerPinUpdateDeps(), workflowDir, config.Verbose, containerPinUpdateOptions{
+		refreshExisting:     true,
+		failOnResolveErrors: true,
+	}); err != nil {
+		return fmt.Errorf("failed to refresh container pins: %w", err)
+	}
+	return nil
 }

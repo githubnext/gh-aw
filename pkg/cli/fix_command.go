@@ -324,7 +324,12 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 			continue
 		}
 
-		newContent, applied, err := codemod.Apply(currentContent, currentResult.Frontmatter)
+		newContent, applied, err := func() (string, bool, error) {
+			if codemod.ApplyWithContext != nil {
+				return codemod.ApplyWithContext(currentContent, currentResult.Frontmatter, filePath)
+			}
+			return codemod.Apply(currentContent, currentResult.Frontmatter)
+		}()
 		if err != nil {
 			fixLog.Printf("Codemod %s failed: %v", codemod.ID, err)
 			wrappedErr := fmt.Errorf("codemod %s failed: %w", codemod.ID, err)

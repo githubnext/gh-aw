@@ -263,25 +263,33 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 // Engines that do not map these configurations to their own CLI syntax silently ignore them,
 // creating the dangerous illusion of restriction where none exists.
 func (c *Compiler) validateBashCommandAllowlistSupport(tools map[string]any, engine CodingAgentEngine) error {
-	if engine.GetCapabilities().BashCommandAllowlist {
+	capabilities := engine.GetCapabilities()
+	if capabilities.BashCommandAllowlist {
 		return nil
 	}
-	if !hasBashExplicitRestriction(tools) {
+	if !HasBashExplicitRestriction(tools) {
+		return nil
+	}
+	if capabilities.BashDisable && hasBashFullyDisabled(tools) {
+		// The engine cannot enforce a per-command allowlist, but tools.bash here requests a
+		// complete refusal of all bash commands (bash: false, or bash: []), which the engine
+		// can honor directly (e.g. Codex's features.shell_tool=false), so this is safe to allow.
+		agentValidationLog.Printf("Engine %s fully disables bash instead of enforcing an allowlist", engine.GetID())
 		return nil
 	}
 	agentValidationLog.Printf("Engine %s does not support bash command allowlist, emitting error", engine.GetID())
 	return fmt.Errorf("engine '%s' does not support bash command allow-listing: tools.bash with specific commands is silently ignored at runtime for this engine. "+
-		"Use 'bash: [\"*\"]' to allow all commands or remove the tools.bash entry. "+
-		"To restrict bash commands, switch to an engine that supports this feature (copilot, claude, or gemini)",
+		"Use 'bash: [\"*\"]' to allow all commands, 'bash: false' to fully disable bash, or remove the tools.bash entry. "+
+		"To restrict bash commands to a specific allowlist, switch to an engine that supports this feature (copilot, claude, or gemini)",
 		engine.GetID())
 }
 
-// hasBashExplicitRestriction reports true when the tools map contains a bash configuration
+// HasBashExplicitRestriction reports true when the tools map contains a bash configuration
 // that represents an explicit restriction: bash: false, bash: [], or a non-wildcard command list.
 // Only absent/nil bash, bash: true, and wildcard lists (["*"], [":*"]) return false.
-// This function is used for compile-time validation only.
+// This function is used for compile-time validation and by the `gh aw fix` codemods.
 // See hasBashRestrictedAllowlist for the variant used in MCP CLI command injection.
-func hasBashExplicitRestriction(tools map[string]any) bool {
+func HasBashExplicitRestriction(tools map[string]any) bool {
 	if tools == nil {
 		return false
 	}
@@ -307,6 +315,30 @@ func hasBashExplicitRestriction(tools map[string]any) bool {
 		}
 	}
 	return true
+}
+
+// hasBashFullyDisabled reports true when the tools map's bash configuration represents a
+// complete refusal of all bash commands: bash: false, or bash: [] (empty allowlist). Unlike
+// hasBashExplicitRestriction, this excludes non-empty, non-wildcard command lists, which require
+// per-command allowlist support (EngineCapabilities.BashCommandAllowlist) to enforce safely.
+// It is used to decide whether EngineCapabilities.BashDisable is sufficient to allow an explicit
+// bash restriction that would otherwise be rejected by validateBashCommandAllowlistSupport.
+func hasBashFullyDisabled(tools map[string]any) bool {
+	if tools == nil {
+		return false
+	}
+	bashConfig, hasBash := tools["bash"]
+	if !hasBash || bashConfig == nil {
+		return false
+	}
+	if asBool, ok := bashConfig.(bool); ok {
+		return !asBool
+	}
+	bashCommands, ok := bashConfig.([]any)
+	if !ok {
+		return false
+	}
+	return len(bashCommands) == 0
 }
 
 // validateWorkflowRunBranches validates workflow_run trigger requirements.
