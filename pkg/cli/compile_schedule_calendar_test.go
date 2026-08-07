@@ -309,6 +309,29 @@ func TestDisplayScheduleCalendar_ContainsAllDayLabels(t *testing.T) {
 	}
 }
 
+func TestDisplayScheduleCalendar_UnicodeDayLabelAlignment(t *testing.T) {
+	originalDayNames := calendarDayNames
+	calendarDayNames[0] = "月曜"
+	t.Cleanup(func() {
+		calendarDayNames = originalDayNames
+	})
+
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	t.Cleanup(func() {
+		os.Stderr = oldStderr
+	})
+
+	displayScheduleCalendar([]*WorkflowStats{{Workflow: "wf.lock.yml", Schedules: []string{"0 12 * * *"}}})
+
+	w.Close()
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+
+	assert.Contains(t, buf.String(), "月曜 ")
+}
+
 func TestDisplayScheduleCalendar_ContainsAllHourHeaders(t *testing.T) {
 	statsList := []*WorkflowStats{
 		{Workflow: "wf.lock.yml", Schedules: []string{"0 0 * * 1"}},
