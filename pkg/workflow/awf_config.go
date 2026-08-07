@@ -71,7 +71,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -80,6 +79,7 @@ import (
 	"github.com/github/gh-aw/pkg/jsonutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/syncutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
@@ -89,23 +89,19 @@ var awfConfigSchema string
 var awfConfigLog = logger.New("workflow:awf_config")
 
 // Cached compiled AWF config schema to avoid recompiling on every validation.
-var (
-	compiledAWFConfigSchemaOnce sync.Once
-	compiledAWFConfigSchema     *jsonschema.Schema
-	awfConfigSchemaCompileError error
-)
+var compiledAWFConfigSchemaLoader syncutil.OnceLoader[*jsonschema.Schema]
 
 // getCompiledAWFConfigSchema returns the compiled AWF config schema, compiling once and caching.
 func getCompiledAWFConfigSchema() (*jsonschema.Schema, error) {
-	compiledAWFConfigSchemaOnce.Do(func() {
+	return compiledAWFConfigSchemaLoader.Get(func() (*jsonschema.Schema, error) {
 		awfConfigLog.Print("Compiling AWF config schema (first time)")
 		schemaURL := fmt.Sprintf("https://github.com/github/gh-aw-firewall/releases/download/%s/awf-config.schema.json", constants.DefaultFirewallVersion)
-		compiledAWFConfigSchema, awfConfigSchemaCompileError = compileSchema(awfConfigSchema, schemaURL)
-		if awfConfigSchemaCompileError == nil {
+		schema, err := compileSchema(awfConfigSchema, schemaURL)
+		if err == nil {
 			awfConfigLog.Print("AWF config schema compiled successfully")
 		}
+		return schema, err
 	})
-	return compiledAWFConfigSchema, awfConfigSchemaCompileError
 }
 
 // validateAWFConfigJSON validates the provided AWF config JSON string against the
