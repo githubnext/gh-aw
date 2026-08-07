@@ -83,6 +83,33 @@ func emitGitHubLockdownGuardPolicyWarning(compiler *Compiler, tools *Tools, mark
 	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", githubLockdownGuardPolicyWarningMessage))
 }
 
+const githubMinIntegrityNoneBashWarningMessage = `'tools.github.min-integrity' is set to 'none' without 'tools.bash: false'. ` +
+	`External users may execute arbitrary commands in the sandbox. ` +
+	`Set 'tools.bash: false' to restrict command execution.`
+
+// emitMinIntegrityNoneBashWarning emits a warning when min-integrity is none and bash is not explicitly disabled.
+// This is called in non-strict mode (strict mode rejects this combination as an error).
+func emitMinIntegrityNoneBashWarning(compiler *Compiler, tools *Tools, markdownPath string) {
+	if tools == nil || tools.GitHub == nil {
+		return
+	}
+	if tools.GitHub.MinIntegrity != GitHubIntegrityNone {
+		return
+	}
+	// Check if bash is explicitly disabled (AllowedCommands is non-nil empty slice)
+	if tools.Bash != nil && tools.Bash.AllowedCommands != nil && len(tools.Bash.AllowedCommands) == 0 {
+		return
+	}
+
+	if compiler == nil {
+		return
+	}
+
+	toolsValidationLog.Printf("Emitting min-integrity: none bash warning for workflow: %s", markdownPath)
+	compiler.IncrementWarningCount()
+	fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", githubMinIntegrityNoneBashWarningMessage))
+}
+
 // validateGitHubGuardPolicy validates the GitHub guard policy configuration.
 // Guard policy fields (allowed-repos, min-integrity) are specified flat under github:.
 // Note: 'repos' is a deprecated alias for 'allowed-repos'.

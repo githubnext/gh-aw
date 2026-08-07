@@ -131,6 +131,34 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 		}
 	}
 
+	// Require bash: false when min-integrity is none.
+	// When min-integrity is none, any external user can trigger the workflow and execute
+	// arbitrary commands in the sandbox. Requiring bash: false mitigates this risk.
+	if githubValue, hasGitHub := toolsMap["github"]; hasGitHub {
+		if githubMap, ok := githubValue.(map[string]any); ok {
+			if minIntegrity, exists := githubMap["min-integrity"]; exists {
+				if minIntegrityStr, ok := minIntegrity.(string); ok && minIntegrityStr == "none" {
+					bashValue, hasBash := toolsMap["bash"]
+					bashDisabled := false
+					if hasBash {
+						if boolVal, ok := bashValue.(bool); ok && !boolVal {
+							bashDisabled = true
+						}
+					}
+					if !bashDisabled {
+						strictModeValidationLog.Printf("min-integrity: none without bash: false rejected in strict mode")
+						return NewValidationError(
+							"tools.bash",
+							"not explicitly disabled",
+							"strict mode: when 'tools.github.min-integrity' is set to 'none', 'tools.bash: false' is required to prevent external users from executing arbitrary commands in the sandbox",
+							"Add 'bash: false' to the tools section:\n\ntools:\n  bash: false\n  github:\n    min-integrity: none",
+						)
+					}
+				}
+			}
+		}
+	}
+
 	// Check if cache-memory is configured with scope: repo
 	cacheMemoryValue, hasCacheMemory := toolsMap["cache-memory"]
 	if hasCacheMemory {

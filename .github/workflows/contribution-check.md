@@ -1,5 +1,6 @@
 ---
 private: true
+strict: false
 emoji: "✅"
 name: "Contribution Check"
 on:

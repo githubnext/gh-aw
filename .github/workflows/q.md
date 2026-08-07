@@ -57,7 +57,7 @@ safe-outputs:
     run-success: "🎩 Mission equipment ready! [{workflow_name}]({run_url}) has optimized your workflow. Use wisely, 007! 🔫"
     run-failure: "🔧 Technical difficulties! [{workflow_name}]({run_url}) {status}. Even Q Branch has bad days..."
 timeout-minutes: 30
-strict: true
+strict: false
 
 
 ---

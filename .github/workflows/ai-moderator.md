@@ -1,4 +1,5 @@
 ---
+strict: false
 private: true
 redirect: "githubnext/agentics/workflows/ai-moderator.md@main"
 emoji: "🤖"

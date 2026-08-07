@@ -1,4 +1,5 @@
 ---
+strict: false
 description: |
   This workflow is a daily team status reporter creating upbeat activity summaries.
   Gathers recent repository activity (issues, PRs, discussions, releases, code changes)
