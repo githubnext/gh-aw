@@ -1,4 +1,7 @@
 ---
+runtimes:
+  uv:
+    version: latest
 engine:
   id: pydantic-ai
   version: "0.1.0"
@@ -27,8 +30,10 @@ engine:
         anthropic: api.anthropic.com
         openai: api.openai.com
     execution:
-      command-name: pai
+      command-name: uv
       args:
+        - run
+        - pai
         - run
       step-name: Execute Pydantic AI CLI
       model-env-var: PAI_MODEL
