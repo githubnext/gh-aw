@@ -315,8 +315,10 @@ Test workflow`
 		}
 	}
 
-	// The step-summary file must also be included in the artifact upload so it is preserved
-	// even if the append step is skipped.
+	// The step-summary file must NOT be included in the artifact upload: it is derived from
+	// untrusted agent-influenced content and is already appended directly to
+	// $GITHUB_STEP_SUMMARY by the "Append detection step summary" step above, so persisting
+	// it as a downloadable artifact would be an unnecessary secret-exfiltration path.
 	uploadStepStart := strings.Index(detectionSection, "      - name: Upload threat detection artifact\n")
 	if uploadStepStart == -1 {
 		t.Error("External detector path must include upload threat detection artifact step")
@@ -326,16 +328,18 @@ Test workflow`
 		if uploadStepEnd != -1 {
 			uploadStep = detectionSection[uploadStepStart : uploadStepStart+1+uploadStepEnd]
 		}
-		if !strings.Contains(uploadStep, "          path: |\n") ||
-			!strings.Contains(uploadStep, "            "+constants.ThreatDetectionStepSummaryPath+"\n") {
-			t.Errorf("External detector path must include %s in upload artifact path block", constants.ThreatDetectionStepSummaryPath)
+		if !strings.Contains(uploadStep, "          path: "+constants.ThreatDetectionResultPath+"\n") {
+			t.Errorf("External detector path must upload %s", constants.ThreatDetectionResultPath)
 		}
-		// The raw engine log (detection.log) must NOT be uploaded on the external detector
-		// path: it can contain the full untrusted agent transcript passed to the detection
-		// engine, and persisting it as a downloadable artifact would be a secret-exfiltration
-		// path. Only the structured verdict and step-summary are uploaded.
+		// The raw engine log (detection.log) and step-summary must NOT be uploaded on the
+		// external detector path: both can contain content derived from the untrusted agent
+		// transcript passed to the detection engine, and persisting them as a downloadable
+		// artifact would be a secret-exfiltration path. Only the structured verdict is uploaded.
 		if strings.Contains(uploadStep, constants.ThreatDetectionLogPath) {
 			t.Errorf("External detector path must NOT include %s in upload artifact path block (secret-exfil risk)", constants.ThreatDetectionLogPath)
+		}
+		if strings.Contains(uploadStep, constants.ThreatDetectionStepSummaryPath) {
+			t.Errorf("External detector path must NOT include %s in upload artifact path block (secret-exfil risk)", constants.ThreatDetectionStepSummaryPath)
 		}
 	}
 

@@ -495,15 +495,16 @@ func extractStepEnvLines(step GitHubActionStep) []string {
 }
 
 // buildUploadDetectionArtifactStep creates a step that uploads the structured verdict
-// file (detection_result.json) and step-summary as the detection artifact. Used when
+// file (detection_result.json) as the detection artifact. Used when
 // features: gh-aw-detection: true is set; the inline path uses buildUploadDetectionLogStep.
 //
-// The raw engine log (detection.log) is intentionally NOT uploaded here: it can contain
-// the full untrusted agent transcript/output that was passed to the detection engine
-// (including secrets the agent may have echoed), and uploading it to a workflow artifact
-// would create a secret-exfiltration path. The engine log stays on the runner's
-// filesystem and is only ever inspected in-job (e.g. by the conclude step), never
-// persisted as a downloadable artifact.
+// Neither the raw engine log (detection.log) nor the step-summary are uploaded here:
+// both can contain content derived from the untrusted agent transcript/output that was
+// passed to the detection engine (including secrets the agent may have echoed), and
+// persisting either to a downloadable workflow artifact would create a secret-exfiltration
+// path. They stay on the runner's filesystem — the log is only ever inspected in-job (e.g.
+// by the conclude step), and the step-summary is appended directly to $GITHUB_STEP_SUMMARY
+// by buildDetectionStepSummaryAppendStep — neither is persisted as a downloadable artifact.
 func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string {
 	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
 	return []string{
@@ -512,9 +513,7 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
-		"          path: |\n",
-		"            " + constants.ThreatDetectionResultPath + "\n",
-		"            " + constants.ThreatDetectionStepSummaryPath + "\n",
+		"          path: " + constants.ThreatDetectionResultPath + "\n",
 		"          if-no-files-found: ignore\n",
 	}
 }

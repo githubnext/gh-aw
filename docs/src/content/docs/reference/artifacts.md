@@ -14,7 +14,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `agent` | `constants.AgentArtifactName`<br/>Source: `pkg/constants/job_constants.go` | Multi-file | Unified agent job outputs (logs, safe outputs, token usage summary) |
 | `activation` | `constants.ActivationArtifactName` | Multi-file | Activation job output (`aw_info.json`, `prompt.txt`, rate limits) |
 | `firewall-audit-logs` | `constants.FirewallAuditArtifactName`<br/>Source: `pkg/constants/constants.go` | Multi-file | AWF firewall audit/observability logs (token usage, network policy, audit trail) |
-| `detection` | `constants.DetectionArtifactName` | Single-file (inline engine) / Multi-file (external `gh-aw-detection` engine) | Inline engine: `detection.log` only. External `gh-aw-detection` engine (`features: gh-aw-detection: true`): `detection_result.json` + step-summary — `detection.log` is intentionally **not** uploaded (see below) |
+| `detection` | `constants.DetectionArtifactName` | Single-file | Inline engine: `detection.log`. External `gh-aw-detection` engine (`features: gh-aw-detection: true`): `detection_result.json` only — `detection.log` and the step-summary are intentionally **not** uploaded (see below) |
 | `safe-output` | `constants.SafeOutputArtifactName` | Legacy/back-compat | Historical standalone safe output artifact (`safe_output.jsonl`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `agent-output` | `constants.AgentOutputArtifactName` | Legacy/back-compat | Historical standalone agent output artifact (`agent_output.json`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `aw-info` | — | Single-file | Engine configuration (`aw_info.json`) |
@@ -165,7 +165,7 @@ The `activation` artifact contains activation job outputs:
 The `detection` artifact contains `detection.log`, the threat-detection analysis output. Legacy name: `threat-detection.log`.
 
 > [!IMPORTANT]
-> When the external `gh-aw-detection` feature (`features: gh-aw-detection: true`) is enabled, `detection.log` is **not** uploaded. That raw engine log can contain the full untrusted agent transcript that was passed to the detection engine (including secrets the agent may have echoed), so uploading it as a downloadable artifact would be a secret-exfiltration path. On that path the `detection` artifact only contains `detection_result.json` (the structured verdict) and the detection step-summary.
+> When the external `gh-aw-detection` feature (`features: gh-aw-detection: true`) is enabled, neither `detection.log` nor the detection step-summary are uploaded. Both can contain content derived from the untrusted agent transcript that was passed to the detection engine (including secrets the agent may have echoed), so uploading either as a downloadable artifact would be a secret-exfiltration path. On that path the `detection` artifact only contains `detection_result.json` (the structured verdict); the step-summary is instead appended directly to the job's `$GITHUB_STEP_SUMMARY`.
 
 ## `experiment`
 
@@ -241,7 +241,7 @@ Artifact names changed between upload-artifact v4 and v5. The `gh aw logs` and `
 | `prompt.txt` | `prompt` | `prompt.txt` |
 | `threat-detection.log` | `detection` | `detection.log` |
 
-Single-file artifacts are automatically flattened to root level regardless of their artifact directory name. Multi-file artifacts (`firewall-audit-logs`, `agent`, `activation`, `experiment`, and `detection` when produced by the external `gh-aw-detection` engine) retain their directory structure.
+Single-file artifacts are automatically flattened to root level regardless of their artifact directory name. Multi-file artifacts (`firewall-audit-logs`, `agent`, `activation`, `experiment`) retain their directory structure.
 
 ## Workflow Call Prefixes
 
