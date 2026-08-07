@@ -14,7 +14,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `agent` | `constants.AgentArtifactName`<br/>Source: `pkg/constants/job_constants.go` | Multi-file | Unified agent job outputs (logs, safe outputs, token usage summary) |
 | `activation` | `constants.ActivationArtifactName` | Multi-file | Activation job output (`aw_info.json`, `prompt.txt`, rate limits) |
 | `firewall-audit-logs` | `constants.FirewallAuditArtifactName`<br/>Source: `pkg/constants/constants.go` | Multi-file | AWF firewall audit/observability logs (token usage, network policy, audit trail) |
-| `detection` | `constants.DetectionArtifactName` | Single-file | Inline engine: `detection.log`. External `gh-aw-detection` engine (`features: gh-aw-detection: true`): `detection_result.json` only — `detection.log` is intentionally **not** uploaded (see below) |
+| `detection` | `constants.DetectionArtifactName` | Conditional | Inline engine: single-file `detection.log`. External `gh-aw-detection` engine (`features: gh-aw-detection: true`): multi-file `detection_result.json` + `step-summary.md`; `detection.log` is intentionally **not** uploaded (see below) |
 | `safe-output` | `constants.SafeOutputArtifactName` | Legacy/back-compat | Historical standalone safe output artifact (`safe_output.jsonl`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `agent-output` | `constants.AgentOutputArtifactName` | Legacy/back-compat | Historical standalone agent output artifact (`agent_output.json`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `aw-info` | — | Single-file | Engine configuration (`aw_info.json`) |
@@ -162,10 +162,13 @@ The `activation` artifact contains activation job outputs:
 
 ## `detection`
 
-The `detection` artifact contains `detection.log`, the threat-detection analysis output. Legacy name: `threat-detection.log`.
+The `detection` artifact is conditional:
+
+- Inline engine (default): `detection.log`, the threat-detection analysis output. Legacy name: `threat-detection.log`.
+- External `gh-aw-detection` engine (`features: gh-aw-detection: true`): `detection_result.json` and `step-summary.md`.
 
 > [!IMPORTANT]
-> When the external `gh-aw-detection` feature (`features: gh-aw-detection: true`) is enabled, `detection.log` is not uploaded: it can contain content derived from the untrusted agent transcript that was passed to the detection engine (including secrets the agent may have echoed), so uploading it as a downloadable artifact would be a secret-exfiltration path. On that path the `detection` artifact only contains `detection_result.json` (the structured verdict). The external `threat-detect` binary (v0.4.5+) no longer produces any step-summary output at all, so there is nothing to append or upload for that path.
+> When the external `gh-aw-detection` feature (`features: gh-aw-detection: true`) is enabled, `detection.log` is not uploaded: it can contain content derived from the untrusted agent transcript that was passed to the detection engine (including secrets the agent may have echoed), so uploading it as a downloadable artifact would be a secret-exfiltration path. On that path the `detection` artifact contains `detection_result.json` (the structured verdict) and `step-summary.md`.
 
 ## `experiment`
 
@@ -239,9 +242,9 @@ Artifact names changed between upload-artifact v4 and v5. The `gh aw logs` and `
 | `safe_output.jsonl` | `safe-output` | `safe_output.jsonl` |
 | `agent_output.json` | `agent-output` | `agent_output.json` |
 | `prompt.txt` | `prompt` | `prompt.txt` |
-| `threat-detection.log` | `detection` | `detection.log` |
+| `threat-detection.log` | `detection` | `detection.log` (inline engine only) |
 
-Single-file artifacts are automatically flattened to root level regardless of their artifact directory name. Multi-file artifacts (`firewall-audit-logs`, `agent`, `activation`, `experiment`) retain their directory structure.
+Single-file artifacts are automatically flattened to root level regardless of their artifact directory name. Multi-file artifacts (`firewall-audit-logs`, `agent`, `activation`, `experiment`, and `detection` when the external `gh-aw-detection` engine is enabled) retain their directory structure.
 
 ## Workflow Call Prefixes
 
