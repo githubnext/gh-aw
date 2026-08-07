@@ -172,11 +172,12 @@ const DefaultMCPSDKVersion Version = "1.24.0"
 // DefaultGitHubScriptVersion is the default version of the actions/github-script action
 const DefaultGitHubScriptVersion Version = "v9"
 
-// DefaultThreatDetectVersion is the default version of the gh-aw-threat-detection binary.
-// This version is downloaded from GitHub Releases when `features: gh-aw-detection: true`
-// is set in the workflow frontmatter, enabling the external threat-detect binary path instead
-// of the inline engine execution path.
-const DefaultThreatDetectVersion Version = "v0.4.0"
+// DefaultThreatDetectVersion is the version of the gh-aw-threat-detection binary to install.
+// When set to "latest", the install script resolves the actual release tag from the GitHub API
+// at runtime. This is used when `features: gh-aw-detection: true` is set in the workflow
+// frontmatter, enabling the external threat-detect binary path instead of the inline engine
+// execution path.
+const DefaultThreatDetectVersion Version = "latest"
 
 // GhSkillsMinVersion is the minimum gh CLI version required for frontmatter skill support
 // (installing gh extensions via `gh extension install`). Workflows that install frontmatter
