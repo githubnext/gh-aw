@@ -28,3 +28,13 @@
 - 5 orphaned custom agents unchanged again (create-safe-output-type, interactive-agent-designer, grumpy-reviewer, custom-engine-implementation, w3c-specification-writer).
 - cache-memory adoption flat at 98 (no growth since last run) — plateaued after earlier rise from 75.
 - max-tool-denials flat at 66, max-continuations flat at 11, network config flat at 152.
+
+## Run 31147540181 (2026-08-07)
+- Total workflows grew 275->276; copilot-engine detection refined (132 files match "engine: copilot$" or "id: copilot$" combined, up from prior narrower 38-count metric which undercounted shorthand `engine: copilot` usage — methodology note, not real growth).
+- --share flag: still stuck at 1 (this research workflow only) — persistent gap across 6+ runs now.
+- engine.args usage: reverted to 0 (previous run showed 3; recheck shows those were false-positive proximity matches, not true engine.args blocks) — treat prior "3" reading as measurement noise, true value is 0 across all runs.
+- engine.agent flag: newly measured this run — 11 workflows use engine.agent (daily-credit-limit-test, smoke-service-ports, agent-performance-analyzer, archie, contribution-check, daily-assign-issue-to-user, daily-file-diet, daily-max-ai-credits-test, glossary-maintainer, technical-doc-writer, workflow-generator).
+- Custom agents: 11 defined (up from 9), 6 referenced (adr-writer, ci-cleaner, contribution-checker, technical-doc-writer x2, agentic-workflows x2, interactive-agent-designer referenced via .agent.md? recheck) - same 5 orphaned agents persist unchanged for 6+ runs: create-safe-output-type, interactive-agent-designer, grumpy-reviewer, custom-engine-implementation, w3c-specification-writer.
+- cache-memory adoption flat at 99 (plateaued, same as last run).
+- max-tool-denials flat at 67, max-continuations flat at 11, network config flat at 152.
+- No new Copilot CLI features detected in codebase since last run.
