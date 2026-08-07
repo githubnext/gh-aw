@@ -111,13 +111,6 @@ func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData) []string {
 	return additional
 }
 
-func canReuseThreatDetectionEngineConfigForExternalDetector(data *WorkflowData, engineID string) bool {
-	return data.SafeOutputs != nil &&
-		data.SafeOutputs.ThreatDetection != nil &&
-		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
-		(data.SafeOutputs.ThreatDetection.EngineConfig.ID == "" || data.SafeOutputs.ThreatDetection.EngineConfig.ID == engineID)
-}
-
 // mergeThreatDetectionEngineEnv composes detection engine env vars from the main
 // engine env and detection-specific overrides.
 //
@@ -163,7 +156,10 @@ func buildExternalDetectorWorkflowData(data *WorkflowData, engineID string) *Wor
 
 // resolveExternalDetectorEngineConfig determines the EngineConfig used to install and
 // execute the engine on the external detector path. Precedence:
-//  1. An explicit safe-outputs.threat-detection.engine override — cloned as-is.
+//  1. An explicit safe-outputs.threat-detection.engine override — cloned with its ID
+//     normalized to the resolved detection engine ID (handles cases like the pi->copilot
+//     detection normalization where the override's declared ID differs from the engine
+//     actually used).
 //  2. No override configured and the resolved detection engine matches the main
 //     engine — inherit Version/Config/Args/HarnessScript/Driver from the main engine
 //     config. This mirrors the inline detection path (buildDetectionEngineExecutionStep)
@@ -173,13 +169,13 @@ func buildExternalDetectorWorkflowData(data *WorkflowData, engineID string) *Wor
 //     package's "latest" version.
 //  3. Otherwise, a minimal config containing only the resolved engine ID.
 func resolveExternalDetectorEngineConfig(data *WorkflowData, engineID string) *EngineConfig {
-	if canReuseThreatDetectionEngineConfigForExternalDetector(data, engineID) {
-		return cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
-	}
 	hasThreatDetectionEngineOverride := data.SafeOutputs != nil &&
 		data.SafeOutputs.ThreatDetection != nil &&
 		data.SafeOutputs.ThreatDetection.EngineConfig != nil
-	if !hasThreatDetectionEngineOverride && data.EngineConfig != nil {
+	if hasThreatDetectionEngineOverride {
+		return cloneThreatDetectionEngineConfig(engineID, data.SafeOutputs.ThreatDetection.EngineConfig)
+	}
+	if data.EngineConfig != nil {
 		return &EngineConfig{
 			ID:            engineID,
 			Version:       data.EngineConfig.Version,
