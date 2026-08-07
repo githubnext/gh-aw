@@ -125,7 +125,7 @@ engine:
 
           if (parsed) {
             const entry = {
-              type: parsed.type || parsed.msg || "log",
+              type: parsed.type != null ? String(parsed.type) : "log",
               level: parsed.level || "INFO",
               service: parsed.service || "",
               message: parsed.msg || parsed.message || "",

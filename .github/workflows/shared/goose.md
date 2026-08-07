@@ -261,7 +261,7 @@ engine:
             currentText.push(line);
             continue;
           }
-          if (/^(assistant|goose)\s*[>:]/i.test(line.trim()) || /^\s*>\s/.test(line)) {
+          if (/^(assistant|goose)\s*[>:]/i.test(line.trim())) {
             if (currentRole !== "assistant") { flushEntry(); currentRole = "assistant"; }
             currentText.push(line);
             continue;
