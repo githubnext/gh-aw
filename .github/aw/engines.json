@@ -2,31 +2,31 @@
   "engines": [
     {
       "id": "aider",
-      "import": "github/gh-aw/.github/workflows/shared/aider.md@main"
+      "import": "github/gh-aw/.github/workflows/shared/aider.md@e3caca541fa7311d84947e25d3a7bfe4be3b431f"
     },
     {
       "id": "crush",
-      "import": "github/gh-aw/.github/workflows/shared/crush.md@main"
+      "import": "github/gh-aw/.github/workflows/shared/crush.md@e3caca541fa7311d84947e25d3a7bfe4be3b431f"
     },
     {
       "id": "cursor",
-      "import": "github/gh-aw/.github/workflows/shared/cursor.md@main"
+      "import": "github/gh-aw/.github/workflows/shared/cursor.md@e3caca541fa7311d84947e25d3a7bfe4be3b431f"
     },
     {
       "id": "custom",
-      "import": "github/gh-aw/.github/workflows/shared/genaiscript.md@main"
+      "import": "github/gh-aw/.github/workflows/shared/genaiscript.md@e3caca541fa7311d84947e25d3a7bfe4be3b431f"
     },
     {
       "id": "goose",
-      "import": "github/gh-aw/.github/workflows/shared/goose.md@main"
+      "import": "github/gh-aw/.github/workflows/shared/goose.md@e3caca541fa7311d84947e25d3a7bfe4be3b431f"
     },
     {
       "id": "kiro",
-      "import": "github/gh-aw/.github/workflows/shared/kiro.md@main"
+      "import": "github/gh-aw/.github/workflows/shared/kiro.md@e3caca541fa7311d84947e25d3a7bfe4be3b431f"
     },
     {
       "id": "opencode",
-      "import": "github/gh-aw/.github/workflows/shared/opencode.md@main"
+      "import": "github/gh-aw/.github/workflows/shared/opencode.md@e3caca541fa7311d84947e25d3a7bfe4be3b431f"
     }
   ]
 }

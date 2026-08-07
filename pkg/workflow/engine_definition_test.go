@@ -4,7 +4,11 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
+	"regexp"
 	"sync"
 	"testing"
 
@@ -14,6 +18,8 @@ import (
 )
 
 var knownEngineImportsTestMu sync.Mutex
+
+const knownEngineImportTestRef = "e3caca541fa7311d84947e25d3a7bfe4be3b431f"
 
 func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr error) {
 	t.Helper()
@@ -142,13 +148,13 @@ func TestEngineCatalog_Resolve_UnknownEngine(t *testing.T) {
 func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 	withKnownEngineImportsForTest(t, []byte(`{
 		"engines": [
-			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md@main"},
-			{"id": "crush", "import": "github/gh-aw/.github/workflows/shared/crush.md@main"},
-			{"id": "cursor", "import": "github/gh-aw/.github/workflows/shared/cursor.md@main"},
-			{"id": "aider", "import": "github/gh-aw/.github/workflows/shared/aider.md@main"},
-			{"id": "goose", "import": "github/gh-aw/.github/workflows/shared/goose.md@main"},
-			{"id": "kiro", "import": "github/gh-aw/.github/workflows/shared/kiro.md@main"},
-			{"id": "custom", "import": "github/gh-aw/.github/workflows/shared/genaiscript.md@main"}
+			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md@`+knownEngineImportTestRef+`"},
+			{"id": "crush", "import": "github/gh-aw/.github/workflows/shared/crush.md@`+knownEngineImportTestRef+`"},
+			{"id": "cursor", "import": "github/gh-aw/.github/workflows/shared/cursor.md@`+knownEngineImportTestRef+`"},
+			{"id": "aider", "import": "github/gh-aw/.github/workflows/shared/aider.md@`+knownEngineImportTestRef+`"},
+			{"id": "goose", "import": "github/gh-aw/.github/workflows/shared/goose.md@`+knownEngineImportTestRef+`"},
+			{"id": "kiro", "import": "github/gh-aw/.github/workflows/shared/kiro.md@`+knownEngineImportTestRef+`"},
+			{"id": "custom", "import": "github/gh-aw/.github/workflows/shared/genaiscript.md@`+knownEngineImportTestRef+`"}
 		]
 	}`), nil)
 
@@ -160,37 +166,47 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 		{
 			name:           "opencode tip",
 			engineID:       "opencode",
-			wantImportPath: "github/gh-aw/.github/workflows/shared/opencode.md@main",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/opencode.md@" + knownEngineImportTestRef,
+		},
+		{
+			name:           "opencode case-insensitive tip",
+			engineID:       "OpenCode",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/opencode.md@" + knownEngineImportTestRef,
 		},
 		{
 			name:           "crush tip",
 			engineID:       "crush",
-			wantImportPath: "github/gh-aw/.github/workflows/shared/crush.md@main",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/crush.md@" + knownEngineImportTestRef,
+		},
+		{
+			name:           "crush case-insensitive tip",
+			engineID:       "CRUSH",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/crush.md@" + knownEngineImportTestRef,
 		},
 		{
 			name:           "cursor tip",
 			engineID:       "cursor",
-			wantImportPath: "github/gh-aw/.github/workflows/shared/cursor.md@main",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/cursor.md@" + knownEngineImportTestRef,
 		},
 		{
 			name:           "aider tip",
 			engineID:       "aider",
-			wantImportPath: "github/gh-aw/.github/workflows/shared/aider.md@main",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/aider.md@" + knownEngineImportTestRef,
 		},
 		{
 			name:           "goose tip",
 			engineID:       "goose",
-			wantImportPath: "github/gh-aw/.github/workflows/shared/goose.md@main",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/goose.md@" + knownEngineImportTestRef,
 		},
 		{
 			name:           "kiro tip",
 			engineID:       "kiro",
-			wantImportPath: "github/gh-aw/.github/workflows/shared/kiro.md@main",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/kiro.md@" + knownEngineImportTestRef,
 		},
 		{
 			name:           "custom tip",
 			engineID:       "custom",
-			wantImportPath: "github/gh-aw/.github/workflows/shared/genaiscript.md@main",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/genaiscript.md@" + knownEngineImportTestRef,
 		},
 	}
 	for _, tt := range tests {
@@ -214,7 +230,7 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 func TestEngineCatalog_Resolve_UnknownNoTip(t *testing.T) {
 	withKnownEngineImportsForTest(t, []byte(`{
 		"engines": [
-			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md@main"}
+			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md@`+knownEngineImportTestRef+`"}
 		]
 	}`), nil)
 
@@ -239,6 +255,72 @@ func TestEngineCatalog_Resolve_KnownImportDownloadFailureNoTip(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid engine")
 	require.NotContains(t, err.Error(), "Tip:", "download failures should be silent")
+}
+
+func TestKnownEngineImportsFile_MatchesSharedEngineFiles(t *testing.T) {
+	catalogPath := filepath.Join("..", "..", knownEngineImportsPath)
+	content, err := os.ReadFile(catalogPath)
+	require.NoError(t, err)
+
+	var catalog knownEngineImportsFile
+	require.NoError(t, json.Unmarshal(content, &catalog))
+
+	byID := map[string]string{}
+	for _, engine := range catalog.Engines {
+		require.NotEmpty(t, engine.ID)
+		require.NotEmpty(t, engine.Import)
+		require.NotContains(t, engine.Import, "@main", "known engine imports should be pinned")
+		byID[engine.ID] = engine.Import
+	}
+
+	registry := NewEngineRegistry()
+	for _, id := range registry.GetSupportedEngines() {
+		require.NotContains(t, byID, id, "known external engine catalog should not duplicate built-ins")
+	}
+
+	sharedDir := filepath.Join("..", "..", ".github", "workflows", "shared")
+	sharedEngines := sharedExternalEngines(t, sharedDir, registry.GetSupportedEngines())
+	for id, relPath := range sharedEngines {
+		importPath, ok := byID[id]
+		require.True(t, ok, "shared external engine %q in %s should be listed in %s", id, relPath, knownEngineImportsPath)
+		require.Contains(t, importPath, relPath+"@", "import for %q should reference its shared file", id)
+	}
+}
+
+func sharedExternalEngines(t *testing.T, sharedDir string, builtIns []string) map[string]string {
+	t.Helper()
+
+	builtInSet := map[string]bool{}
+	for _, id := range builtIns {
+		builtInSet[id] = true
+	}
+
+	files, err := filepath.Glob(filepath.Join(sharedDir, "*.md"))
+	require.NoError(t, err)
+
+	engines := map[string]string{}
+	engineObjectID := regexp.MustCompile(`(?ms)^engine:\s*\n(?:  .*\n)*?  id:\s*"?([^"\s#]+)"?`)
+	engineInlineID := regexp.MustCompile(`(?m)^engine:\s*"?([^"\s#]+)"?`)
+	for _, file := range files {
+		content, err := os.ReadFile(file)
+		require.NoError(t, err)
+
+		id := ""
+		if match := engineObjectID.FindSubmatch(content); match != nil {
+			id = string(match[1])
+		} else if match := engineInlineID.FindSubmatch(content); match != nil {
+			id = string(match[1])
+		}
+		if id == "" || builtInSet[id] {
+			continue
+		}
+
+		relPath, err := filepath.Rel(filepath.Join("..", ".."), file)
+		require.NoError(t, err)
+		engines[id] = filepath.ToSlash(relPath)
+	}
+
+	return engines
 }
 
 // TestEngineCatalog_Resolve_ConfigPassthrough verifies that the EngineConfig passed to
