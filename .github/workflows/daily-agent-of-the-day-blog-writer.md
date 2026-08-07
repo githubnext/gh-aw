@@ -96,10 +96,8 @@ You write one short blog entry per weekday for the `gh-aw` docs blog spotlightin
 - Keep writing vivid and varied — avoid repetitive or robotic voice.
 - Keep the post to a **maximum 5-minute read** (target 450–900 words).
 - Stay corporate appropriate and compliant with Microsoft/GitHub policies.
-- Use sub-agents:
-  - one to generate a blogger persona,
-  - one to write the story in GitHub blog style using that persona,
-  - one to optimize SEO metadata (`seoDescription`, `linkedPostText`).
+- Generate blogger persona, story draft, and SEO metadata in this same agent session.
+- Do not call sub-agent/task tools for this workflow.
 - Use `agentic-workflows` `logs` and `audit` results as live evidence and include links to referenced issues/PRs.
 - If a chart image is available, include it in the post.
 - The `create_pull_request` patch must contain only text changes under `docs/src/content/docs/**`; never include binary assets in the PR patch — use `upload-asset` for those.
@@ -138,19 +136,19 @@ If no remote image URL is available but `docs/public/blog-combined.png` exists, 
 
 Do not stage the PNG with `git add` and do not include any binary files in the PR.
 
-### 4) Generate persona and draft content through sub-agents
+### 4) Generate persona and draft content
 
-1. Call `persona-generator` to produce a fresh blogger persona.
-2. Call `story-writer` with:
-   - persona output,
+1. Create a fresh blogger persona.
+2. Write the story in GitHub blog style using:
+   - persona,
    - chosen workflow,
    - extracted run evidence,
    - issue/PR links,
    - optional chart URL.
-3. Call `seo-optimizer` to generate:
+3. Generate:
    - `seoDescription` (max 160 chars, SERP-friendly),
    - `linkedPostText` (short, clickable link text for post cards/social snippets).
-   - If `seoDescription` is over 160 characters, rewrite it before continuing.
+4. If `seoDescription` is over 160 characters, rewrite it before continuing.
 
 ### 5) Create blog post file
 
@@ -212,54 +210,3 @@ Never end with plain text only and no safe-output call.
 - No policy-unsafe or non-corporate language.
 - Keep it concise, energetic, and developer-friendly.
 - Vary rhythm and phrasing between runs.
-
-#### agent: `persona-generator`
----
-description: Generates a rotating, policy-safe blogger persona for daily workflow storytelling
-model: mai-code
----
-Produce a short persona profile for a GitHub blog voice.
-
-Output format:
-- Name:
-- Tone:
-- Signature style traits (3 bullets):
-- Avoid list (2 bullets to avoid robotic/repetitive writing):
-
-Constraints:
-- Corporate appropriate.
-- Professional and friendly.
-- Distinct from generic AI assistant voice.
-- Do not include slang that could violate workplace norms.
-
-#### agent: `story-writer`
----
-description: Writes a lively, evidence-grounded Agent of the Day story in GitHub blog style
-model: large
----
-Write a concise blog post body in GitHub blog style using the provided persona and evidence.
-
-Requirements:
-- 450–900 words max.
-- Vary sentence length and paragraph rhythm.
-- Use concrete details from provided logs/audit evidence only.
-- Include issue/PR links naturally in the narrative.
-- Stay policy-safe and corporate appropriate.
-- Keep it useful and readable for developers.
-
-Return only markdown body content (no frontmatter).
-
-#### agent: `seo-optimizer`
----
-description: Produces SEO metadata for Astro blog cards and link previews
-model: mai-code
----
-Generate:
-1) `seoDescription`: <= 160 characters, search-optimized, accurate.
-2) `linkedPostText`: <= 80 characters, compelling but professional.
-
-Rules:
-- Must align with the real post content.
-- No hypey clickbait, no unverifiable claims.
-- Maintain GitHub/Microsoft corporate tone.
-- Hard limit: never return `seoDescription` longer than 160 characters.
