@@ -18,6 +18,13 @@ var knownEngineImportsTestMu sync.Mutex
 func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr error) {
 	t.Helper()
 	knownEngineImportsTestMu.Lock()
+	cleanupRegistered := false
+	defer func() {
+		if !cleanupRegistered {
+			knownEngineImportsTestMu.Unlock()
+		}
+	}()
+
 	knownEngineImportsMu.Lock()
 	defer knownEngineImportsMu.Unlock()
 
@@ -38,6 +45,7 @@ func withKnownEngineImportsForTest(t *testing.T, content []byte, downloadErr err
 		knownEngineImports = nil
 		knownEngineImportsTestMu.Unlock()
 	})
+	cleanupRegistered = true
 }
 
 // TestNewEngineCatalog_BuiltIns checks that all built-in engines are registered

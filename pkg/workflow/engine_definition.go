@@ -367,16 +367,22 @@ var (
 // knownEngineImportsTimeout; fetch and parse failures are treated as an empty
 // catalog so engine validation remains unchanged.
 func knownEngineImportFor(id string) (string, bool) {
+	knownEngineImportsOnce.Do(loadKnownEngineImports)
+
 	knownEngineImportsMu.Lock()
 	defer knownEngineImportsMu.Unlock()
 
-	knownEngineImportsOnce.Do(loadKnownEngineImports)
 	importPath, ok := knownEngineImports[strings.ToLower(id)]
 	return importPath, ok
 }
 
 func loadKnownEngineImports() {
-	knownEngineImports = map[string]string{}
+	loaded := map[string]string{}
+	defer func() {
+		knownEngineImportsMu.Lock()
+		defer knownEngineImportsMu.Unlock()
+		knownEngineImports = loaded
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), knownEngineImportsTimeout)
 	defer cancel()
@@ -399,7 +405,7 @@ func loadKnownEngineImports() {
 		if id == "" || importPath == "" {
 			continue
 		}
-		knownEngineImports[id] = importPath
+		loaded[id] = importPath
 	}
 }
 
