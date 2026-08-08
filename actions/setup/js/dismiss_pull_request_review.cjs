@@ -9,6 +9,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
+const { SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "dismiss_pull_request_review";
@@ -245,10 +246,7 @@ async function main(config = {}) {
             repo: `${owner}/${repo}`,
           };
         }
-        if (getReviewError && typeof getReviewError.message === "string") {
-          getReviewError.message = `Failed to fetch review ${reviewId} on ${owner}/${repo}#${pullRequestNumber}: ` + getReviewError.message;
-        }
-        throw getReviewError;
+        throw new Error(`${SAFE_OUTPUT_E099}: Failed to fetch review ${reviewId} on ${owner}/${repo}#${pullRequestNumber}: ${getErrorMessage(getReviewError)}`);
       }
 
       const reviewAuthorLogin = review?.user?.login;

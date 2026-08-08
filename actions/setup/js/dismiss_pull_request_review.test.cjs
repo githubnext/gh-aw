@@ -396,6 +396,7 @@ describe("dismiss_pull_request_review", () => {
     });
 
     expect(result.success).toBe(false);
+    expect(result.error).toContain("E099");
     expect(result.error).toContain("Failed to fetch review 123 on test-owner/test-repo#42");
     expect(result.error).toContain("Internal Server Error");
     expect(mockDismissReview).not.toHaveBeenCalled();
