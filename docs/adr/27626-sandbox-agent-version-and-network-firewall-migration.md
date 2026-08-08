@@ -58,7 +58,7 @@ Add a top-level sibling key `sandbox.awf-version` (or similar) rather than nesti
 1. The `network.firewall` codemod **MUST** produce a `sandbox.agent` block for every non-absent value of `network.firewall`, including `true`, `false`, `null`, `"disable"`, and object forms.
 2. When `network.firewall` is `true` or `null`, the codemod **MUST** emit `sandbox.agent: awf`.
 3. When `network.firewall` is `false` or `"disable"`, the codemod **MUST** emit `sandbox.agent: false` and **MUST NOT** emit a `version` key under `sandbox.agent`.
-4. When `network.firewall` is an object containing a `version` key, the codemod **MUST** emit a `sandbox.agent` object block with `id: awf` and `version: "<migrated-value>"`.
+4. When `network.firewall` is an object containing a `version` key, the codemod **MUST** emit a `sandbox.agent` object block with `version: "<migrated-value>"` (the `id` field is optional and defaults implicitly to `awf`; see ADR-51282).
 5. The codemod **MUST NOT** add a `sandbox` block when one already exists in the frontmatter.
 6. Numeric version values encountered during migration **MUST** be normalized to their string representation before being written as `sandbox.agent.version`.
 

@@ -294,7 +294,7 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 			"tools.github.bounded-queries",
 			string(agentType),
 			"bounded-queries requires the AWF sandbox (sandbox.agent)",
-			"Enable the sandbox when using bounded-queries:\n\nsandbox:\n  agent:\ntools:\n  github:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal\n\nSee: "+string(constants.DocsSandboxURL),
+			"Enable the sandbox when using bounded-queries:\n\nsandbox:\n  agent: {}\ntools:\n  github:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal\n\nSee: "+string(constants.DocsSandboxURL),
 		)
 	}
 

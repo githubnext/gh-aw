@@ -84,6 +84,35 @@ sandbox:
 	assert.Contains(t, result, "version: v0.25.0")
 }
 
+func TestSandboxAgentIDRemoval_IDOnlyRemovesEmptyAgentAndSandbox(t *testing.T) {
+	codemod := getSandboxAgentIDRemovalCodemod()
+
+	content := `---
+on: workflow_dispatch
+sandbox:
+  agent:
+    id: awf
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"sandbox": map[string]any{
+			"agent": map[string]any{
+				"id": "awf",
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.NotContains(t, result, "  agent:")
+	assert.NotContains(t, result, "sandbox:")
+}
+
 func TestSandboxAgentIDRemoval_NoSandboxField(t *testing.T) {
 	codemod := getSandboxAgentIDRemovalCodemod()
 

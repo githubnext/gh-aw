@@ -18,7 +18,11 @@ func getSandboxAgentIDRemovalCodemod() Codemod {
 				return content, false, nil
 			}
 			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				return removeFieldFromBlock(lines, "id", "agent")
+				transformed, modified := removeFieldFromBlock(lines, "id", "agent")
+				if modified {
+					transformed = removeParentBlockIfTrulyEmpty(transformed, "sandbox")
+				}
+				return transformed, modified
 			})
 			if applied {
 				sandboxAgentIDRemovalCodemodLog.Print("Removed redundant sandbox.agent.id: awf")
