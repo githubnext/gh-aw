@@ -246,6 +246,28 @@ describe("add_labels", () => {
       expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Crash on upload", confidence: "HIGH" }, { labelId: "LABEL_enhancement" }]);
     });
 
+    it("should return a standardized error code when issue node_id is missing on issue-intent path", async () => {
+      const handler = await main({ max: 10, issue_intent: true });
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          title: "Test issue title",
+          labels: [],
+        },
+      });
+
+      const result = await handler(
+        {
+          item_number: 456,
+          labels: [{ name: "bug", rationale: "Crash on upload", confidence: "HIGH" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E099");
+      expect(result.error).toContain("Failed to resolve GraphQL node ID");
+    });
+
     it("should accept issue_number as an alias for item_number", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];

@@ -35,6 +35,7 @@ const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 const { normalizeIssueIntentLabelInputs, buildIssueIntentLabelUpdates } = require("./issue_intents.cjs");
 const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
+const { SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 
 /**
  * @param {{ rationale?: string, confidence?: string, suggest?: boolean } | null | undefined} spec
@@ -344,7 +345,7 @@ const main = createCountGatedHandler({
 
           const issueNodeId = issueData?.node_id;
           if (!issueNodeId) {
-            throw new Error(`Failed to resolve GraphQL node ID for ${contextType} #${itemNumber}`);
+            throw new Error(`${SAFE_OUTPUT_E099}: Failed to resolve GraphQL node ID for ${contextType} #${itemNumber}`);
           }
 
           // The GraphQL updateIssue mutation only accepts Issue node IDs, and
