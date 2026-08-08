@@ -38,8 +38,6 @@ engine:
         openai: api.openai.com
     execution:
       command-name: pai
-      args:
-        - --no-stream
       step-name: Execute Pydantic AI CLI
       model-env-var: PAI_MODEL
       write-timestamp: true
@@ -74,12 +72,13 @@ engine:
       env.OPENAI_BASE_URL = "http://172.30.0.30:10002";
 
       const args = [...commandArgs];
-      // The api-proxy steers requests by matching the full `provider/model` name, so the
-      // routing prefix must survive into the request body: `pai` sends the model name
-      // verbatim, minus the `openai-chat:` provider marker that selects its
-      // OpenAI-compatible client. The proxy exposes Copilot Claude models under their
-      // dotted IDs, so `copilot/claude-sonnet-4-5` becomes `copilot/claude-sonnet-4.5`.
-      const model = env.PAI_MODEL?.replace(/^((?:[^/]+\/)?claude-(?:haiku|sonnet|opus)-\d+)-(\d+)$/, "$1.$2");
+      // `pai` sends the model name verbatim, minus the `openai-chat:` provider marker
+      // that selects its OpenAI-compatible client, so the bare model ID reaches the
+      // api-proxy — which steers to the configured provider by the port it is reached
+      // on, not by a prefix in the model name: Copilot rejects `copilot/<model>` with
+      // `model_not_supported`. The proxy exposes Copilot Claude models under their
+      // dotted IDs, so `copilot/claude-sonnet-4-5` becomes `claude-sonnet-4.5`.
+      const model = env.PAI_MODEL?.replace(/^.*\//, "").replace(/^(claude-(?:haiku|sonnet|opus)-\d+)-(\d+)$/, "$1.$2");
       if (model) {
         args.push("-m", `openai-chat:${model}`);
       }
@@ -103,10 +102,9 @@ engine:
         // the `pai` CLI can be given MCP servers: each gateway server becomes an
         // `MCP` capability entry and the spec file is passed via `pai -a <file>`.
         // An agent spec must declare a `model`, but the harness always appends
-        // `-m openai-chat:<provider>/<model>` when the workflow declares a model, which
-        // takes precedence. The value below is only a valid-by-construction fallback for
-        // workflows that do not declare a model; it carries the `copilot/` routing prefix
-        // the api-proxy needs to steer the request.
+        // `-m openai-chat:<model>` when the workflow declares a model, which takes
+        // precedence. The value below is only a valid-by-construction fallback for
+        // workflows that do not declare a model.
         const fs = require("fs");
         const path = require("path");
 
@@ -150,7 +148,7 @@ engine:
 
         const configPath = path.join(workspace, ".pydantic-ai", "agent.json");
         fs.mkdirSync(path.dirname(configPath), { recursive: true });
-        fs.writeFileSync(configPath, JSON.stringify({ model: "openai-chat:copilot/gpt-5", capabilities }, null, 2), { mode: 0o600 });
+        fs.writeFileSync(configPath, JSON.stringify({ model: "openai-chat:gpt-5", capabilities }, null, 2), { mode: 0o600 });
         fs.chmodSync(configPath, 0o600);
         console.log(`Wrote ${capabilities.length} MCP server(s) to ${configPath}`);
     log-parser: |
@@ -240,13 +238,17 @@ imports:
 ```
 
 `model` must use `provider/model` format. Supported providers are `copilot`,
-`anthropic`, and `openai`. Requests are routed through the AWF proxy, which
-steers them by matching the full `provider/model` name, so the model is passed
-with `-m openai-chat:<provider>/<model>`: `openai-chat:` selects the Pydantic AI
-OpenAI-compatible client and is not part of the model name sent upstream, while
-`<provider>/<model>` reaches the proxy intact. Copilot Claude aliases such as
+`anthropic`, and `openai`. Requests are routed through the AWF api-proxy, which
+steers to the configured provider by the port it is reached on, so the provider
+segment is dropped and the bare model ID is passed with `-m openai-chat:<model>`
+(`openai-chat:` selects the Pydantic AI OpenAI-compatible client and is not part
+of the model name sent upstream). Copilot Claude aliases such as
 `claude-sonnet-4-5` are normalized to the dotted model IDs exposed by the
 proxy, such as `claude-sonnet-4.5`.
+
+Responses are streamed. The proxy's aggregated non-streaming body omits
+`object` and `choices[].index`, which Pydantic AI rejects during response
+validation, so `--no-stream` is deliberately not passed.
 
 MCP servers are rendered into a Pydantic AI agent spec at
 `.pydantic-ai/agent.json` and passed with `-a`, so safe outputs flow through
