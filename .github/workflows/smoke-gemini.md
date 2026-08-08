@@ -77,8 +77,7 @@ evals:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: Gemini Engine Validation

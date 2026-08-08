@@ -18,8 +18,7 @@ engine:
 strict: true
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 timeout-minutes: 5
 network: {}
 safe-outputs:

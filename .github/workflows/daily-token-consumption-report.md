@@ -12,8 +12,7 @@ permissions:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tracker-id: daily-token-consumption-report
 engine:
   id: goose

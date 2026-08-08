@@ -63,8 +63,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Daily Rendering Scripts Verifier

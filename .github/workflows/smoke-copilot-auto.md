@@ -29,8 +29,7 @@ features:
   gh-aw-detection: false
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: Auto Haiku

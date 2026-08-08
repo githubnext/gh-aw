@@ -34,8 +34,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 evals:
   - id: observability_data_analyzed
     question: Did the agent analyze logging and telemetry coverage for AWF firewall and MCP Gateway?

@@ -75,8 +75,7 @@ features:
   gh-aw-detection: false
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 For all events, call the tools in this exact order:

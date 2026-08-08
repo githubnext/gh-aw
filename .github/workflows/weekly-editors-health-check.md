@@ -46,8 +46,7 @@ safe-outputs:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Weekly Editors Health Check

@@ -16,8 +16,7 @@ permissions:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tracker-id: daily-spdd-spec-planner
 engine:
   id: copilot

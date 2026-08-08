@@ -13,8 +13,7 @@ permissions:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tracker-id: security-red-team
 engine:
   id: opencode

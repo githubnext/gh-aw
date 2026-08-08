@@ -11,8 +11,7 @@ permissions:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 imports:
 - uses: shared/daily-audit-base.md
   with:

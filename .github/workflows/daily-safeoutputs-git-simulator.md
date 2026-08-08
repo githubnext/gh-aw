@@ -12,8 +12,7 @@ permissions:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 engine: claude
 strict: true
 tools:

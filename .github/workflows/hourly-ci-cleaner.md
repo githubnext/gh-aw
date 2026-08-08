@@ -35,8 +35,7 @@ tools:
   edit:
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 if: needs.check_ci_status.outputs.ci_needs_fix == 'true'
 jobs:
   check_ci_status:

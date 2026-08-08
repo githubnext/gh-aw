@@ -116,8 +116,7 @@ jobs:
           retention-days: 7
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 steps:
   - name: Download VulnHunter bundle artifact
     uses: actions/download-artifact@v8.0.1

@@ -34,8 +34,7 @@ imports:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tools:
   cli-proxy: true
   github:

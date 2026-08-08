@@ -29,8 +29,7 @@ safe-outputs:
 timeout-minutes: 10
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: Claude on GitHub Provider PR Summary

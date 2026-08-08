@@ -20,8 +20,7 @@ tracker-id: daily-graft-intelligence
 timeout-minutes: 20
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 imports:
   - uses: shared/daily-issue-base.md
     with:

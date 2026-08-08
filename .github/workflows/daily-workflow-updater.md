@@ -17,8 +17,7 @@ permissions:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tracker-id: daily-workflow-updater
 engine:
   id: copilot

@@ -23,8 +23,7 @@ network:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 imports:
   - shared/github-guard-policy.md
 

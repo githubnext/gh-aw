@@ -18,8 +18,7 @@ permissions:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tracker-id: daily-multi-device-docs-tester
 max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
 model: copilot/gpt-5.4

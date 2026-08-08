@@ -33,6 +33,7 @@ tools:
   edit:
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
     mounts:
       - "/usr/bin/make:/usr/bin/make:ro"

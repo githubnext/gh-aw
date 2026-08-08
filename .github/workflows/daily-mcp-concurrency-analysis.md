@@ -46,8 +46,7 @@ strict: true
 timeout-minutes: 45
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tools:
   bash:
   - cat pkg/workflow/js/safe_outputs_tools.json

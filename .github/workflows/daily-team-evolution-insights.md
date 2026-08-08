@@ -15,8 +15,7 @@ permissions:
 
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tracker-id: daily-team-evolution-insights
 engine:
   id: goose

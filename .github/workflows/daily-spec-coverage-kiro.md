@@ -11,8 +11,7 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 tracker-id: daily-spec-coverage-kiro
 engine:
   id: kiro

@@ -102,8 +102,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 evals:
   - id: lint_issues_identified
     question: Does the agent output confirm that yamllint issues were identified and analyzed in the generated lock files?

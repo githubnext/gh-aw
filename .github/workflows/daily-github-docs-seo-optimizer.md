@@ -42,8 +42,7 @@ evals:
     question: Did the agent report an actionable documentation recommendation or explain why no update was needed?
 sandbox:
   agent:
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Daily GitHub Docs SEO Optimizer
