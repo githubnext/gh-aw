@@ -14,7 +14,7 @@ global.core = {
   setFailed: () => {},
 };
 
-const { extractInlineSubAgents, writeInlineSubAgents, preserveSubAgentFrontmatter } = require("./extract_inline_sub_agents.cjs");
+const { extractInlineSubAgents, writeInlineSubAgents, preserveSubAgentFrontmatter, closeUnterminatedSubAgentMarkers } = require("./extract_inline_sub_agents.cjs");
 
 // Helper: returns a ## agent: `name` start marker line.
 const agentMarker = name => `## agent: \`${name}\``;
@@ -193,6 +193,32 @@ describe("extractInlineSubAgents", () => {
       // the reassembled main prompt unless the boundary is another inline block.
       expect(mainContent).not.toContain("Tail.");
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// closeUnterminatedSubAgentMarkers — unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("closeUnterminatedSubAgentMarkers", () => {
+  const agentEndMarker = name => `## end agent: \`${name}\``;
+
+  it("adds an explicit end marker at EOF for an unterminated sub-agent", () => {
+    const content = ["Main.", "", agentMarker("helper"), "Agent content."].join("\n");
+
+    expect(closeUnterminatedSubAgentMarkers(content)).toBe(["Main.", "", agentMarker("helper"), "Agent content.", "", agentEndMarker("helper"), ""].join("\n"));
+  });
+
+  it("adds an explicit end marker before the next H2 boundary", () => {
+    const content = ["Main.", "", agentMarker("helper"), "Agent content.", "## skill: `reporting`", "Skill content."].join("\n");
+
+    expect(closeUnterminatedSubAgentMarkers(content)).toBe(["Main.", "", agentMarker("helper"), "Agent content.", "", agentEndMarker("helper"), "## skill: `reporting`", "Skill content."].join("\n"));
+  });
+
+  it("leaves an explicitly terminated sub-agent unchanged", () => {
+    const content = ["Main.", "", agentMarker("helper"), "Agent content.", agentEndMarker("helper"), "", "Tail."].join("\n");
+
+    expect(closeUnterminatedSubAgentMarkers(content)).toBe(content);
   });
 });
 

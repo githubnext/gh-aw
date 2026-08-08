@@ -14,7 +14,7 @@ global.core = {
   setFailed: () => {},
 };
 
-const { extractInlineSkills, writeInlineSkills, filterInlineSkillFrontmatter } = require("./extract_inline_skills.cjs");
+const { extractInlineSkills, writeInlineSkills, filterInlineSkillFrontmatter, closeUnterminatedSkillMarkers } = require("./extract_inline_skills.cjs");
 
 // Helper: returns a ## skill: `name` start marker line.
 const skillMarker = name => `## skill: \`${name}\``;
@@ -193,6 +193,32 @@ describe("extractInlineSkills", () => {
       // the reassembled main prompt unless the boundary is another inline block.
       expect(mainContent).not.toContain("Tail.");
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// closeUnterminatedSkillMarkers — unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("closeUnterminatedSkillMarkers", () => {
+  const skillEndMarker = name => `## end skill: \`${name}\``;
+
+  it("adds an explicit end marker at EOF for an unterminated skill", () => {
+    const content = ["Main.", "", skillMarker("reporting"), "Skill content."].join("\n");
+
+    expect(closeUnterminatedSkillMarkers(content)).toBe(["Main.", "", skillMarker("reporting"), "Skill content.", "", skillEndMarker("reporting"), ""].join("\n"));
+  });
+
+  it("adds an explicit end marker before the next H2 boundary", () => {
+    const content = ["Main.", "", skillMarker("reporting"), "Skill content.", "## agent: `helper`", "Agent content."].join("\n");
+
+    expect(closeUnterminatedSkillMarkers(content)).toBe(["Main.", "", skillMarker("reporting"), "Skill content.", "", skillEndMarker("reporting"), "## agent: `helper`", "Agent content."].join("\n"));
+  });
+
+  it("leaves an explicitly terminated skill unchanged", () => {
+    const content = ["Main.", "", skillMarker("reporting"), "Skill content.", skillEndMarker("reporting"), "", "Tail."].join("\n");
+
+    expect(closeUnterminatedSkillMarkers(content)).toBe(content);
   });
 });
 
