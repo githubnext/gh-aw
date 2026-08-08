@@ -15,24 +15,6 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 tracker-id: architecture-guardian
-experiments:
-  sub_agent_strategy:
-    variants: [sub_agents, single_agent]
-    description: "Test whether inlining violation classification in the main agent reduces AI credit spend vs using a Rig custom harness"
-    hypothesis: "H0: single_agent does not change ai_credits_spent vs sub_agents. H1: single_agent reduces ai_credits_spent by ≥15% by eliminating Rig harness overhead"
-    metric: ai_credits_spent
-    secondary_metrics: [run_duration_ms, violation_count_delta]
-    guardrail_metrics:
-      - name: run_failure_rate
-        direction: min
-        threshold: 0.10
-      - name: empty_output_rate
-        direction: min
-        threshold: 0.05
-    min_samples: 30
-    weight: [50, 50]
-    start_date: "2026-06-13"
-    issue: 39062
 imports:
   - uses: shared/skip-if-issue-open.md
     with:
@@ -44,8 +26,6 @@ imports:
       labels: [architecture, automated-analysis, cookie]
       assignees: [copilot]
   - shared/otlp.md
-skills:
-  - githubnext/rig/skills/rig/SKILL.md@0ba73e37355f92adca11f9d596eb709e77f25332
 sandbox:
   agent:
     runtime: gvisor
@@ -200,7 +180,6 @@ If `noop` is `true`, call the `noop` safe-output tool and stop:
 
 ## Step 2: Classify Violations by Severity
 
-{{#if experiments.sub_agent_strategy == 'single_agent' }}
 Read the metrics JSON already loaded in Step 1. Apply the following rules using the `thresholds` values directly:
 
 - **BLOCKER**: `import_cycles` non-empty → import cycle; `files[].lines > thresholds.file_lines_blocker` → oversized file
@@ -208,9 +187,6 @@ Read the metrics JSON already loaded in Step 1. Apply the following rules using 
 - **INFO**: `files[].export_count > thresholds.max_exports` → excessive exports
 
 Build `blockers`, `warnings`, and `infos` arrays from this analysis and proceed to Step 3.
-{{else}}
-Use a Rig custom harness to read `/tmp/gh-aw/agent/arch-metrics.json` and return the categorized violation list. Discover the launcher with `find "${RUNNER_TEMP}/gh-aw" -path "*/skills/rig/rig.ts" | head -1`, then run `node <rig-launcher>` with an inline Rig program configured with `copilotEngine()` that applies thresholds and returns the categorized violations. If the harness returns `{"noop": true}`, skip to the noop call in Step 3.
-{{/if}}
 
 ## Step 3: Post Report
 
@@ -226,7 +202,7 @@ Call the `noop` safe-output tool:
 
 Create an issue with a structured report. Only create ONE issue (the `max: 1` limit applies and an existing open issue skips the run via `skip-if-match`).
 
-Use the `blockers`, `warnings`, and `infos` arrays returned by the Rig harness to populate the violation rows in each section. Replace all `[PLACEHOLDER]` values with actual data, and replace `N` with actual counts.
+Use the `blockers`, `warnings`, and `infos` arrays built in Step 2 to populate the violation rows in each section. Replace all `[PLACEHOLDER]` values with actual data, and replace `N` with actual counts.
 
 **Issue title**: Architecture Violations Detected — [DATE]
 
@@ -290,49 +266,4 @@ Thresholds (from `.architecture.yml` or defaults):
 - [ ] Close this issue once all violations are resolved
 
 > 🏛️ *To configure thresholds, add a `.architecture.yml` file to the repository root.*
-```
-## Rig Custom Harness Usage
-
-When the `sub_agents` experiment variant is active, use a Rig custom harness for violation classification:
-
-1. Discover the installed launcher path:
-   - `find "${RUNNER_TEMP}/gh-aw" -path "*/skills/rig/rig.ts" | head -1`
-2. Build compact JSON input from `/tmp/gh-aw/agent/arch-metrics.json` (metrics only — do not pass raw file paths or large blobs).
-3. Run the harness with `node <rig-launcher>`, feeding an inline Rig program that:
-   - configures `copilotEngine()`
-   - applies threshold rules to `files`, `import_cycles`, and `thresholds` fields
-   - returns categorized violations as JSON
-4. If the harness returns `{"noop": true}`, proceed to the noop safe-output call.
-
-Harness guardrails:
-- pass only the pre-computed metrics JSON — never raw source files
-- use a small model unless evidence shows quality loss
-- one harness invocation per run (no retries without a concrete parse/runtime error)
-
-## Rig Harness Output Contract
-
-Each Rig harness invocation must return JSON only:
-
-```json
-{
-  "noop": false,
-  "blockers": [
-    {"file": "path/to/file.go", "reason": "N lines (limit: 1000)"},
-    {"file": "import_cycle", "reason": "cycle description"}
-  ],
-  "warnings": [
-    {"file": "path/to/file.go", "reason": "N lines (limit: 500)"},
-    {"file": "path/to/file.go::FunctionName", "reason": "N lines (limit: 80)"}
-  ],
-  "infos": [
-    {"file": "path/to/file.go", "reason": "N exported identifiers (limit: 10)"}
-  ],
-  "thresholds": {
-    "file_lines_blocker": 1000,
-    "file_lines_warning": 500,
-    "function_lines": 80,
-    "max_exports": 10
-  },
-  "files_analyzed": 0
-}
 ```
