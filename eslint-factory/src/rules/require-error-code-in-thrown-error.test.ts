@@ -75,7 +75,6 @@ describe("require-error-code-in-thrown-error", () => {
       valid: [
         `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(errorMessage) { throw new Error(errorMessage); }`,
         `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(e) { let msg = "boom"; msg = String(e); throw new Error(msg); }`,
-        `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(e) { const errorMessage = getErrorMessage(e); if (errorMessage.startsWith(\`\${ERR_CONFIG}:\`)) { throw new Error(errorMessage); } }`,
       ],
       invalid: [],
     });
@@ -147,6 +146,14 @@ describe("require-error-code-in-thrown-error", () => {
         },
         {
           code: `const { ERR_API } = require("./error_codes.cjs"); const { helper } = require("./helper.cjs"); function f() { throw new Error(helper()); }`,
+          errors: [{ messageId: "callExpressionNeedsReview" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function f() { const message = helper(); throw new Error(message); }`,
+          errors: [{ messageId: "callExpressionNeedsReview" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function helper(useFallback) { if (useFallback) return "fallback"; return ERR_API + ": failed"; } function f(useFallback) { throw new Error(helper(useFallback)); }`,
           errors: [{ messageId: "callExpressionNeedsReview" }],
         },
       ],

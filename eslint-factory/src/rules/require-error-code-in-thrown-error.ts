@@ -85,7 +85,7 @@ export const requireErrorCodeInThrownErrorRule = createRule({
       if (node.type === AST_NODE_TYPES.Identifier) {
         const resolved = resolveWriteOnceInitializerChain(node, sourceCode);
         if (resolved === node) return unresolvedIdentifierResult;
-        if (!isAuditableMessageExpression(resolved)) return "hasCode";
+        if (!isAuditableMessageExpression(resolved)) return resolved.type === AST_NODE_TYPES.CallExpression ? "needsReview" : "hasCode";
         return messageReferencesErrorCode(resolved) ? "hasCode" : "missingCode";
       }
       return "missingCode";
@@ -112,8 +112,13 @@ export const requireErrorCodeInThrownErrorRule = createRule({
 
       if (!body) return null;
       if (body.type !== AST_NODE_TYPES.BlockStatement) return [body];
-      const returns = body.body.flatMap(statement => (statement.type === AST_NODE_TYPES.ReturnStatement && statement.argument ? [statement.argument] : []));
-      return returns.length === 1 ? returns : null;
+      const returnIndex = body.body.findIndex(statement => statement.type === AST_NODE_TYPES.ReturnStatement);
+      if (returnIndex === -1) return null;
+      if (body.body.findIndex((statement, index) => index !== returnIndex && statement.type === AST_NODE_TYPES.ReturnStatement) !== -1) return null;
+      if (body.body.slice(0, returnIndex).some(statement => statement.type !== AST_NODE_TYPES.VariableDeclaration)) return null;
+      if (body.body.slice(returnIndex + 1).length > 0) return null;
+      const statement = body.body[returnIndex];
+      return statement.type === AST_NODE_TYPES.ReturnStatement && statement.argument ? [statement.argument] : null;
     }
 
     function isErrorConstructorViaScope(callee: TSESTree.Identifier): boolean {
