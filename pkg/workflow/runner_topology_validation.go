@@ -33,6 +33,7 @@ func validateArcDindRootless(workflowData *WorkflowData) error {
 		if effectiveVersion == "" {
 			effectiveVersion = string(constants.DefaultFirewallVersion)
 		}
+		runnerTopologyValidationLog.Printf("AWF version %s below arc-dind minimum %s", effectiveVersion, constants.AWFArcDindMinVersion)
 		return fmt.Errorf(
 			"runner.topology is arc-dind but AWF version %q is below minimum %q; set firewall.version or sandbox.agent.version to %s or newer",
 			effectiveVersion,
@@ -57,6 +58,7 @@ func validateArcDindRootless(workflowData *WorkflowData) error {
 			continue
 		}
 		if violations := findRootRequiringPatterns(check.content); len(violations) > 0 {
+			runnerTopologyValidationLog.Printf("Root-requiring operations found in %s: %s", check.name, strings.Join(violations, ", "))
 			return fmt.Errorf(
 				"runner.topology is arc-dind but %s contain root-requiring operations (%s); "+
 					"ARC runners do not have root access — remove sudo and privileged commands, "+
@@ -66,6 +68,7 @@ func validateArcDindRootless(workflowData *WorkflowData) error {
 		}
 	}
 
+	runnerTopologyValidationLog.Print("Rootless validation passed for arc-dind topology")
 	return nil
 }
 

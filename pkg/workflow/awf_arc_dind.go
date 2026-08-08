@@ -7,13 +7,17 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var arcDindPathLog = logger.New("workflow:awf_arc_dind")
 
 func rewriteArcDindPath(path string) string {
 	return strings.ReplaceAll(path, constants.TmpGhAwDir, awfArcDindRootPathExpr)
 }
 
 func rewriteArcDindEngineCommand(command string) string {
+	arcDindPathLog.Print("Rewriting engine command for arc-dind topology")
 	rewritten := rewriteArcDindPath(command)
 	return fmt.Sprintf("export HOME=%s\n%s", awfArcDindHomePathExpr, rewritten)
 }
@@ -50,17 +54,23 @@ func buildAWFImageTagWithDigests(imageTag string, workflowData *WorkflowData) st
 	}
 
 	parts := []string{imageTag}
+	var missing []string
 	for _, spec := range specs {
 		digest := lookupContainerDigest(spec.image, workflowData)
 		if digest == "" {
+			missing = append(missing, spec.name)
 			continue
 		}
 		parts = append(parts, spec.name+"="+digest)
+	}
+	if len(missing) > 0 {
+		arcDindPathLog.Printf("No cached digest found for images: %s", strings.Join(missing, ", "))
 	}
 
 	if len(parts) == 1 {
 		return imageTag
 	}
+	arcDindPathLog.Printf("Built AWF image tag with %d digest(s) for tag %s", len(parts)-1, imageTag)
 	return strings.Join(parts, ",")
 }
 
