@@ -123,7 +123,7 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
 
       "Program:exit"() {
         for (const { node, operator, sides } of comparisons) {
-          const problems = sides.filter(side => side.kind === "inline" || !validated.has(side.variable));
+          const problems = sides.filter(side => (side.kind === "var" ? !validated.has(side.variable) : true));
           if (problems.length === 0) continue;
 
           if (problems.length === 1) {
