@@ -138,7 +138,11 @@ func renderRequestedStepSummary(opts auditJobRunOptions) {
 
 func renderFailingStepSummary(opts auditJobRunOptions) {
 	failingStepPath := filepath.Join(opts.outputDir, fmt.Sprintf("job-%d-step-*-failed.log", opts.jobID))
-	matches, _ := filepath.Glob(failingStepPath)
+	matches, err := filepath.Glob(failingStepPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not search for failing step logs: %v", err)))
+		return
+	}
 	for _, match := range matches {
 		fmt.Fprintf(os.Stderr, "  - %s (first failing step)\n", match)
 	}
