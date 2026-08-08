@@ -2998,11 +2998,6 @@ engine:
       # (optional)
       model-env-provider-prefix: "example-value"
 
-      # Separator inserted between the provider prefix and the model name when rewriting
-      # provider/model values. Defaults to "/".
-      # (optional)
-      model-env-provider-separator: "example-value"
-
       # (optional)
       model-flag: "example-value"
 

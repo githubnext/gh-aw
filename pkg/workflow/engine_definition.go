@@ -205,16 +205,11 @@ type EngineExecutionDefinition struct {
 	StepName               string   `yaml:"step-name,omitempty"`
 	ModelEnvVarName        string   `yaml:"model-env-var,omitempty"`
 	ModelEnvProviderPrefix string   `yaml:"model-env-provider-prefix,omitempty"`
-	// ModelEnvProviderSeparator is the separator placed between the provider
-	// prefix and the model name when rewriting `provider/model` values.
-	// Defaults to "/" when empty (e.g. "openai/gpt-5"); engines such as
-	// Pydantic AI expect ":" instead (e.g. "openai:gpt-5").
-	ModelEnvProviderSeparator string `yaml:"model-env-provider-separator,omitempty"`
-	ModelFlag                 string `yaml:"model-flag,omitempty"`
-	MCPConfigEnvVar           string `yaml:"mcp-config-env-var,omitempty"`
-	MCPConfigFlag             string `yaml:"mcp-config-flag,omitempty"`
-	WriteTimestamp            bool   `yaml:"write-timestamp,omitempty"`
-	ProviderEnvMode           string `yaml:"provider-env-mode,omitempty"`
+	ModelFlag              string   `yaml:"model-flag,omitempty"`
+	MCPConfigEnvVar        string   `yaml:"mcp-config-env-var,omitempty"`
+	MCPConfigFlag          string   `yaml:"mcp-config-flag,omitempty"`
+	WriteTimestamp         bool     `yaml:"write-timestamp,omitempty"`
+	ProviderEnvMode        string   `yaml:"provider-env-mode,omitempty"`
 	// Env holds additional static environment variables to inject into the
 	// execution step.  Values are rendered verbatim and are not filtered
 	// through the secrets allowlist, so they must not contain secret values.

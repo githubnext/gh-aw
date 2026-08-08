@@ -13412,10 +13412,6 @@
                     "model-env-provider-prefix": {
                       "type": "string"
                     },
-                    "model-env-provider-separator": {
-                      "type": "string",
-                      "description": "Separator inserted between the provider prefix and the model name when rewriting provider/model values. Defaults to \"/\"."
-                    },
                     "model-flag": {
                       "type": "string"
                     },
