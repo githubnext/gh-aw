@@ -483,6 +483,7 @@ func generateGVisorInstallStep() GitHubActionStep {
 	version := constants.DefaultGVisorVersion
 	return GitHubActionStep([]string{
 		"      - name: Install gVisor (runsc)",
+		"        # runner-guard:ignore RGS-012 -- pinned release, SHA-512 verified artifacts, download-only step (no outbound secret transmission).",
 		"        run: |",
 		"          set -euo pipefail",
 		"",

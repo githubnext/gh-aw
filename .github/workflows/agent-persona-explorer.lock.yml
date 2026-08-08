@@ -605,6 +605,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install gVisor (runsc)
+        # runner-guard:ignore RGS-012 -- pinned release, SHA-512 verified artifacts, download-only step (no outbound secret transmission).
         run: |
           set -euo pipefail
 
