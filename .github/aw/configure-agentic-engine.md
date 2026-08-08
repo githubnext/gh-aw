@@ -60,6 +60,7 @@ Do not implement the engine until each contract is known. If the available GitHu
 | MCP servers must become CLI flags or a runtime overlay | `execution.mcp-config-env-var` and `behaviors.harness-script` |
 | Runtime endpoint discovery or custom invocation | `behaviors.harness-script` using `awf_reflect.cjs` |
 | No native MCP client | `engine.mcp: false` |
+| CLI emits logs the built-in parsers cannot normalize | `behaviors.log-parser` |
 
 Use a `config-adapter` only to transform generated MCP configuration. Use a `harness-script` when endpoint selection, model transformation, prompt delivery, or CLI invocation requires runtime logic.
 
@@ -134,6 +135,7 @@ engine:
 ## Field guide
 
 - `engine.id` is the public identifier used by workflow authors in `engine: <id>`.
+- `version` sets the default CLI version applied when a workflow references this engine without specifying `engine.version`; distinct from `behaviors.installation.version`, which pins the version actually installed on the runner.
 - `display-name` and `description` should be human-readable because they surface in validation and docs.
 - `runtime-id` is only needed when the definition reuses a different registered runtime adapter.
 - `experimental: true` should be set for engines that are not yet considered stable.
@@ -145,6 +147,7 @@ engine:
 - `behaviors.config-file` writes engine config before execution; use `json-merge` when the file must merge with rendered MCP content.
 - `behaviors.execution` defines the command, fixed args, model binding, MCP binding, and timestamp behavior.
 - `behaviors.mcp.config-path` points to the file where rendered MCP configuration should be written.
+- `behaviors.log-parser` supplies a JavaScript `parseLog(logContent)` function (not exported directly — a shared wrapper handles exports and bootstrap) run in the post-agent log-parsing step. It must return `{markdown, logEntries, mcpFailures, maxTurnsHit}` so behavior-defined engines produce normalized events files like built-in engine parsers.
 
 ## Auth and provider rules
 
