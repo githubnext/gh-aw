@@ -134,6 +134,7 @@ describe("require-error-code-in-thrown-error", () => {
       valid: [
         `const { ERR_API } = require("./error_codes.cjs"); function helper() { return "ERR_API: failed to fetch"; } function f() { throw new Error(helper()); }`,
         `const { ERR_CONFIG } = require("./error_codes.cjs"); const helper = () => ERR_CONFIG + ": invalid config"; function f() { throw new Error(helper()); }`,
+        `const { ERR_API } = require("./error_codes.cjs"); function helper() { const message = ERR_API + ": failed to fetch"; return message; } function f() { throw new Error(helper()); }`,
       ],
       invalid: [
         {

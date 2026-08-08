@@ -76,13 +76,11 @@ export const requireErrorCodeInThrownErrorRule = createRule({
       if (node.type === AST_NODE_TYPES.CallExpression) {
         const returns = resolveSimpleLocalCallReturns(node);
         if (!returns) return "needsReview";
-        let sawAuditableReturn = false;
         for (const returnExpr of returns) {
-          sawAuditableReturn = true;
           const returnResult = auditMessageExpression(returnExpr, "needsReview");
           if (returnResult !== "hasCode") return returnResult;
         }
-        return sawAuditableReturn ? "hasCode" : "needsReview";
+        return "hasCode";
       }
       if (node.type === AST_NODE_TYPES.Identifier) {
         const resolved = resolveWriteOnceInitializerChain(node, sourceCode);
@@ -114,10 +112,8 @@ export const requireErrorCodeInThrownErrorRule = createRule({
 
       if (!body) return null;
       if (body.type !== AST_NODE_TYPES.BlockStatement) return [body];
-      if (body.body.length !== 1) return null;
-      const statement = body.body[0];
-      if (statement.type !== AST_NODE_TYPES.ReturnStatement || !statement.argument) return null;
-      return [statement.argument];
+      const returns = body.body.flatMap(statement => (statement.type === AST_NODE_TYPES.ReturnStatement && statement.argument ? [statement.argument] : []));
+      return returns.length === 1 ? returns : null;
     }
 
     function isErrorConstructorViaScope(callee: TSESTree.Identifier): boolean {
