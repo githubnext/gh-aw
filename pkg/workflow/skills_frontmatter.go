@@ -119,12 +119,9 @@ func validateSkillSpecValue(skillSpec string, idx int) error {
 		)
 	}
 
-	if err := gitutil.ValidateGitRef(ref); err != nil {
-		return fmt.Errorf("skills[%d] has an invalid ref %q: %w", idx, ref, err)
-	}
-	if !skillRefCharsRegexp.MatchString(ref) {
+	if !skillRefCharsRegexp.MatchString(ref) || strings.Contains(ref, "..") {
 		return fmt.Errorf(
-			"skills[%d] ref %q contains unsupported characters; refs may only contain letters, digits, '.', '_', '-', and '/' (got %q)",
+			"skills[%d] ref %q contains unsupported characters; refs may only contain letters, digits, '.', '_', '-', and '/', must start with a letter or digit, and must not contain '..' (got %q)",
 			idx,
 			ref,
 			skillSpec,

@@ -32,7 +32,10 @@ func withCapturedStderr(t *testing.T, fn func()) string {
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	os.Stderr = w
-	defer func() { os.Stderr = old }()
+	defer func() {
+		os.Stderr = old
+		_ = w.Close()
+	}()
 
 	fn()
 
