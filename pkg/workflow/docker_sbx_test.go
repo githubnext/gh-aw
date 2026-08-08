@@ -446,6 +446,30 @@ func TestDockerSbxValidation_SudoFalseRejected(t *testing.T) {
 	require.ErrorContains(t, err, "docker-sbx", "error must mention docker-sbx")
 }
 
+// TestDockerSbxValidation_RuntimeInstallFalseAllowsPreinstalledRuntime verifies that
+// preinstalled docker-sbx runners can skip installation without requiring sudo: true.
+func TestDockerSbxValidation_RuntimeInstallFalseAllowsPreinstalledRuntime(t *testing.T) {
+	falseVal := false
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID:                    "awf",
+				Runtime:               AgentRuntimeDockerSbx,
+				NetworkIsolation:      true, // sudo omitted / false
+				SudoExplicitlyEnabled: false,
+				RuntimeInstall:        &falseVal,
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: "v0.28.0"},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.NoError(t, err, "docker-sbx with runtime-install: false should allow preinstalled runtimes without sudo: true")
+}
+
 // TestDockerSbxValidation_DefaultVersionRejected verifies that docker-sbx is rejected
 // when the effective AWF version predates --container-runtime support.
 func TestDockerSbxValidation_DefaultVersionRejected(t *testing.T) {
@@ -630,6 +654,50 @@ sandbox:
 	assert.Less(t, refreshPos, execPos, "credential refresh must come before agent execution step")
 }
 
+// TestDockerSbxFrontmatterExtractionRuntimeInstallFalse verifies direct workflow
+// frontmatter accepts runtime-install: false and still emits credential refresh.
+func TestDockerSbxFrontmatterExtractionRuntimeInstallFalse(t *testing.T) {
+	workflowsDir := t.TempDir()
+
+	markdown := `---
+on:
+  workflow_dispatch:
+engine: copilot
+strict: false
+network:
+  allowed:
+    - "example.com"
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    runtime-install: false
+    version: v0.28.0
+---
+
+# Test preinstalled docker-sbx Runtime
+`
+
+	testFile := filepath.Join(workflowsDir, "test-docker-sbx-runtime-install-false.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0o644)
+	require.NoError(t, err)
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "compilation with runtime-install: false must succeed without sandbox.agent.sudo")
+
+	lockContent, err := os.ReadFile(filepath.Join(workflowsDir, "test-docker-sbx-runtime-install-false.lock.yml"))
+	require.NoError(t, err)
+	lockStr := string(lockContent)
+
+	assert.NotContains(t, lockStr, "Check KVM availability", "compiled workflow must omit KVM check when runtime-install: false")
+	assert.NotContains(t, lockStr, "Check Docker Hub secrets", "compiled workflow must omit Docker Hub secrets check when runtime-install: false")
+	assert.NotContains(t, lockStr, "Install docker-sbx", "compiled workflow must omit docker-sbx install when runtime-install: false")
+	assert.NotContains(t, lockStr, "Start docker-sbx daemon", "compiled workflow must omit sbx daemon step when runtime-install: false")
+	assert.NotContains(t, lockStr, "pre-flight smoke test", "compiled workflow must omit pre-flight step when runtime-install: false")
+	assert.Contains(t, lockStr, "Refresh sbx credentials", "compiled workflow must still include credential refresh when runtime-install: false")
+}
+
 // TestDockerSbxShellScriptContent verifies that the shell scripts referenced by
 // the step generators exist and contain the expected key operations.
 func TestDockerSbxShellScriptContent(t *testing.T) {
@@ -777,8 +845,8 @@ func TestIsRuntimeInstallEnabled(t *testing.T) {
 
 // TestDockerSbxRuntimeInstallFalseOmitsInstallSteps verifies that when
 // runtime-install: false is set, the five installation steps (KVM check, secrets
-// check, install, daemon, pre-flight) are omitted but the credential refresh step
-// is still emitted by the compiler (it does not require sudo).
+// check, install, daemon, pre-flight) are omitted from the install-step builder.
+// Credential refresh is validated separately in TestDockerSbxFrontmatterExtractionRuntimeInstallFalse.
 func TestDockerSbxRuntimeInstallFalseOmitsInstallSteps(t *testing.T) {
 	falseVal := false
 	workflowData := &WorkflowData{

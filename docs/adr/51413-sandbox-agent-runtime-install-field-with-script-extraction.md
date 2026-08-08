@@ -1,8 +1,8 @@
 # ADR-51413: sandbox.agent.runtime-install Field with Shell Script Extraction
 
 **Date**: 2026-08-08
-**Status**: Draft
-**Deciders**: pelikhan, copilot-swe-agent
+**Status**: Accepted
+**Deciders**: pelikhan, app/copilot-swe-agent
 
 ---
 
@@ -51,4 +51,4 @@ This would require all existing callers to explicitly add an `uses: …/sandbox-
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent]. Status: Accepted.*

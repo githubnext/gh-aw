@@ -31,9 +31,9 @@ func TestGenerateGVisorInstallStep(t *testing.T) {
 	assert.NotContains(t, content, "latest", "must NOT reference the mutable 'latest' release")
 }
 
-// TestSudoGVisorInstallScriptContent verifies that the sudo_gvisor_install.sh
+// TestGVisorInstallScriptContent verifies that the sudo_gvisor_install.sh
 // shell script exists and contains the expected key operations.
-func TestSudoGVisorInstallScriptContent(t *testing.T) {
+func TestGVisorInstallScriptContent(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	script := filepath.Join(wd, "..", "..", "actions", "setup", "sh", "sudo_gvisor_install.sh")
