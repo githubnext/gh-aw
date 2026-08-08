@@ -38,6 +38,7 @@ tools:
 imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
+  - shared/reporting.md
 pre-agent-steps:
   - name: Preload linter source and cache context
     run: |

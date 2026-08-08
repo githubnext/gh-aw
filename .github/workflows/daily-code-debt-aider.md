@@ -36,6 +36,7 @@ timeout-minutes: 30
 imports:
   - shared/aider.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Code Debt Cleanup — Aider

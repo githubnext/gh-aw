@@ -19,6 +19,7 @@ sandbox:
     sudo: false
 
 imports:
+- shared/reporting.md
 - shared/otlp.md
 safe-outputs:
   create-pull-request:

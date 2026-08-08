@@ -117,6 +117,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: ci_state_checked
     question: Did the agent check whether CI was failing on the main branch?

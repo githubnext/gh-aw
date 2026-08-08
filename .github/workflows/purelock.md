@@ -30,6 +30,7 @@ tools:
 imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
+  - shared/reporting.md
 if: needs.purelock_precompute.outputs.has_candidates == 'true'
 jobs:
   purelock_precompute:

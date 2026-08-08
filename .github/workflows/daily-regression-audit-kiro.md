@@ -44,6 +44,7 @@ timeout-minutes: 25
 imports:
   - shared/kiro.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Regression Audit — Kiro

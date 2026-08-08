@@ -22,6 +22,7 @@ network:
     - github
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   cli-proxy: true
   bash: ["*"]
