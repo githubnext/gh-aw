@@ -32,10 +32,43 @@ describe("require-invalid-date-check-before-compare", () => {
       invalid: [
         {
           code: `if (new Date(run.started_at ?? 0) > new Date(existing.started_at ?? 0)) { latestByName.set(run.name, run); }`,
-          errors: [
-            { messageId: "requireInvalidDateCheck", data: { subject: "An inline `new Date(...)` expression", operator: ">", getTimeTarget: "it" } },
-            { messageId: "requireInvalidDateCheck", data: { subject: "An inline `new Date(...)` expression", operator: ">", getTimeTarget: "it" } },
-          ],
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "Both operands of this comparison", operator: ">", getTimeTarget: "each value" } }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: only one side of the comparison is an unvalidated inline new Date()", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `if (new Date(run.started_at) > threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "An inline `new Date(...)` expression", operator: ">", getTimeTarget: "it" } }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: Date.now() arithmetic with a non-literal operand is not guaranteed finite", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const cutoff = new Date(Date.now() - windowMs); if (cutoff < other) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'cutoff'", operator: "<", getTimeTarget: "cutoff" } }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: same variable name declared in a different function scope is not treated as validated", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function a() { const d = new Date(x); if (Number.isNaN(d.getTime())) return; if (d > t) {} } function b() { const d = new Date(y); if (d > t) {} }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: ">", getTimeTarget: "d" } }],
         },
       ],
     });
@@ -47,14 +80,22 @@ describe("require-invalid-date-check-before-compare", () => {
         `const d = new Date(input); if (Number.isNaN(d.getTime())) { throw new Error("bad date"); } if (d < threshold) { doIt(); }`,
         `const d = new Date(input); if (!Number.isNaN(d.getTime()) && d > threshold) { doIt(); }`,
         `const d = new Date(input); if (isNaN(d.getTime())) { return; } if (d >= threshold) { doIt(); }`,
+        `const d = new Date(input); if (isNaN(d.getTime()) || d > threshold) { doIt(); }`,
       ],
       invalid: [],
     });
   });
 
-  it("valid: new Date() with no args or Date.now()-derived args are always finite", () => {
+  it("valid: new Date() with no args or the exact Date.now() call are always finite", () => {
     cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
-      valid: [`const now = new Date(); if (now > threshold) { doIt(); }`, `const cutoff = new Date(Date.now() - windowMs); if (cutoff < other) { doIt(); }`],
+      valid: [`const now = new Date(); if (now > threshold) { doIt(); }`, `const cutoff = new Date(Date.now()); if (cutoff < other) { doIt(); }`],
+      invalid: [],
+    });
+  });
+
+  it("valid: same variable name validated independently in each function scope", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [`function a() { const d = new Date(x); if (Number.isNaN(d.getTime())) return; if (d > t) {} } function b() { const d = new Date(y); if (Number.isNaN(d.getTime())) return; if (d > t) {} }`],
       invalid: [],
     });
   });
