@@ -355,7 +355,7 @@ engine:
     initial-delay-ms: 10000
     backoff-multiplier: 2
     max-delay-ms: 180000
-    watchdog-timeout-ms: 120000
+    watchdog-timeout: 120
 ```
 
 All four fields accept a literal integer or a GitHub Actions expression (e.g. `${{ vars.MY_RETRIES }}`):
@@ -366,7 +366,7 @@ All four fields accept a literal integer or a GitHub Actions expression (e.g. `$
 | `initial-delay-ms` | `5000` | Delay in ms before the first retry |
 | `backoff-multiplier` | `2` | Multiplier applied to the delay after each retry |
 | `max-delay-ms` | `60000` | Maximum delay cap in ms |
-| `watchdog-timeout-ms` | `120000` | Post-result idle watchdog timeout before terminating a quiet process |
+| `watchdog-timeout` | `120` | Post-result idle watchdog timeout in seconds before terminating a quiet process |
 
 You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control, including `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` for the post-result watchdog. Explicit `engine.env` values take precedence over `engine.harness` sub-key values.
 

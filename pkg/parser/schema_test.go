@@ -364,14 +364,14 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessWatch
 		"engine": map[string]any{
 			"id": "copilot",
 			"harness": map[string]any{
-				"watchdog-timeout-ms": 120000,
+				"watchdog-timeout": 120,
 			},
 		},
 	}
 
 	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/engine-harness-watchdog-timeout-valid-test.md")
 	if err != nil {
-		t.Fatalf("expected valid engine.harness.watchdog-timeout-ms to pass schema validation, got: %v", err)
+		t.Fatalf("expected valid engine.harness.watchdog-timeout to pass schema validation, got: %v", err)
 	}
 
 	invalidFrontmatter := map[string]any{
@@ -379,14 +379,14 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessWatch
 		"engine": map[string]any{
 			"id": "copilot",
 			"harness": map[string]any{
-				"watchdog-timeout-ms": 0,
+				"watchdog-timeout": 0,
 			},
 		},
 	}
 
 	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/engine-harness-watchdog-timeout-invalid-test.md")
 	if err == nil {
-		t.Fatal("expected non-positive engine.harness.watchdog-timeout-ms to fail schema validation")
+		t.Fatal("expected non-positive engine.harness.watchdog-timeout to fail schema validation")
 	}
 }
 

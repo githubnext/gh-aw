@@ -538,11 +538,11 @@ func TestExtractEngineConfig(t *testing.T) {
 				"engine": map[string]any{
 					"id": "copilot",
 					"harness": map[string]any{
-						"max-retries":         6,
-						"initial-delay-ms":    10000,
-						"backoff-multiplier":  2,
-						"max-delay-ms":        180000,
-						"watchdog-timeout-ms": 120000,
+						"max-retries":        6,
+						"initial-delay-ms":   10000,
+						"backoff-multiplier": 2,
+						"max-delay-ms":       180000,
+						"watchdog-timeout":   120,
 					},
 				},
 			},
@@ -562,11 +562,11 @@ func TestExtractEngineConfig(t *testing.T) {
 				"engine": map[string]any{
 					"id": "claude",
 					"harness": map[string]any{
-						"max-retries":         "${{ vars.RETRY_COUNT }}",
-						"initial-delay-ms":    "${{ vars.RETRY_DELAY }}",
-						"backoff-multiplier":  "${{ vars.BACKOFF }}",
-						"max-delay-ms":        "${{ vars.MAX_DELAY }}",
-						"watchdog-timeout-ms": "${{ vars.WATCHDOG_TIMEOUT_MS }}",
+						"max-retries":        "${{ vars.RETRY_COUNT }}",
+						"initial-delay-ms":   "${{ vars.RETRY_DELAY }}",
+						"backoff-multiplier": "${{ vars.BACKOFF }}",
+						"max-delay-ms":       "${{ vars.MAX_DELAY }}",
+						"watchdog-timeout":   "${{ vars.WATCHDOG_TIMEOUT_SEC }}",
 					},
 				},
 			},
@@ -577,7 +577,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				HarnessInitialDelayMs:    "${{ vars.RETRY_DELAY }}",
 				HarnessBackoffMultiplier: "${{ vars.BACKOFF }}",
 				HarnessMaxDelayMs:        "${{ vars.MAX_DELAY }}",
-				HarnessWatchdogTimeoutMs: "${{ vars.WATCHDOG_TIMEOUT_MS }}",
+				HarnessWatchdogTimeoutMs: "${{ (vars.WATCHDOG_TIMEOUT_SEC) * 1000 }}",
 			},
 		},
 		{

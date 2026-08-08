@@ -2495,16 +2495,16 @@ engine:
     # Format 2: string
     max-delay-ms: "example-value"
 
-    # Post-result idle watchdog timeout in ms. Accepts a literal integer or a
+    # Post-result idle watchdog timeout in seconds. Accepts a literal integer or a
     # GitHub Actions expression.
     # (optional)
     # Accepted formats:
 
     # Format 1: integer
-    watchdog-timeout-ms: 1
+    watchdog-timeout: 1
 
     # Format 2: string
-    watchdog-timeout-ms: "example-value"
+    watchdog-timeout: "example-value"
 
   # Custom environment variables to pass to the AI engine, including secret
   # overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})
