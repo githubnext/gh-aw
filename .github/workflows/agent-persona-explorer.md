@@ -37,6 +37,7 @@ experiments:
 # Note: max-turns not available for default Copilot engine (Claude only)
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 tools:
   cli-proxy: true

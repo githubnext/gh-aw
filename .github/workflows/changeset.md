@@ -56,6 +56,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 evals:
   - id: changeset-created
