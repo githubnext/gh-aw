@@ -7,12 +7,22 @@
  * `git push`.
  */
 
-const { ERR_API } = require("./error_codes.cjs");
+const { ERR_API, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { loadTemporaryIdMapFromResolved, replaceTemporaryIdReferencesInPatch, TEMPORARY_ID_CANDIDATE_REFERENCE_PATTERN } = require("./temporary_id.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { backfillCommitObjects } = require("./git_helpers.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const ERROR_CODE_PREFIX_RE = /^(?:ERR_[A-Z_]+|E\d{3}):\s*/;
+/**
+ * Strip the single leading `ERR_*: ` or `E001: ` sentinel from a message.
+ * Each sentinel error in this file carries exactly one such prefix, so one
+ * removal is sufficient; the wrapper can then add its own prefix without
+ * emitting a duplicate code.
+ */
+function stripLeadingErrorCode(msg) {
+  return msg.replace(ERROR_CODE_PREFIX_RE, "");
+}
 const OID_PATTERN = /^[0-9a-f]{40}$/i;
 
 /**
@@ -300,7 +310,7 @@ function validateSynthesizedFileChanges(additions, deletions, validationConfig) 
 
   const maxFilesRaw = Number.parseInt(String(validationConfig.max_patch_files ?? ""), 10);
   if (Number.isFinite(maxFilesRaw) && maxFilesRaw > 0 && uniquePaths.length > maxFilesRaw) {
-    throw new PushSignedCommitsPolicyViolation(`E003: Signed-commit payload exceeds max-patch-files (${maxFilesRaw}). ` + `Synthesized payload touches ${uniquePaths.length} file(s): ${uniquePaths.join(", ")}`);
+    throw new PushSignedCommitsPolicyViolation(`${ERR_VALIDATION}: E003: Signed-commit payload exceeds max-patch-files (${maxFilesRaw}). ` + `Synthesized payload touches ${uniquePaths.length} file(s): ${uniquePaths.join(", ")}`);
   }
 
   const maxSizeKbRaw = Number.parseInt(String(validationConfig.max_patch_size ?? ""), 10);
@@ -308,7 +318,7 @@ function validateSynthesizedFileChanges(additions, deletions, validationConfig) 
     const additionsBytes = additions.reduce((total, entry) => total + Buffer.from(entry.contents, "base64").length, 0);
     const additionsKb = Math.ceil(additionsBytes / 1024);
     if (additionsKb > maxSizeKbRaw) {
-      throw new PushSignedCommitsPolicyViolation(`E003: Signed-commit payload exceeds max-patch-size (${maxSizeKbRaw} KB). ` + `Synthesized payload additions total ${additionsKb} KB`);
+      throw new PushSignedCommitsPolicyViolation(`${ERR_VALIDATION}: E003: Signed-commit payload exceeds max-patch-size (${maxSizeKbRaw} KB). ` + `Synthesized payload additions total ${additionsKb} KB`);
     }
   }
 
@@ -317,7 +327,7 @@ function validateSynthesizedFileChanges(additions, deletions, validationConfig) 
     protected_files_policy: validationConfig.protected_files_policy ?? "request_review",
   });
   if (protection.action !== "allow") {
-    throw new PushSignedCommitsPolicyViolation(`Signed-commit payload violates file-protection policy (${protection.action}): ${protection.files.join(", ")}`);
+    throw new PushSignedCommitsPolicyViolation(`${ERR_VALIDATION}: Signed-commit payload violates file-protection policy (${protection.action}): ${protection.files.join(", ")}`);
   }
 }
 
@@ -395,7 +405,7 @@ async function pushSignedCommits({
   // so skip it entirely and fall directly through to git push.
   if (!baseRef) {
     if (allowGitPushFallback === false) {
-      throw new Error(`pushSignedCommits: cannot push branch '${branch}' without a baseRef when git push fallback is disabled. ` + `Seed the branch with a signed commit first, then retry.`);
+      throw new Error(`${ERR_VALIDATION}: pushSignedCommits: cannot push branch '${branch}' without a baseRef when git push fallback is disabled. ` + `Seed the branch with a signed commit first, then retry.`);
     }
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
     try {
@@ -405,7 +415,7 @@ async function pushSignedCommits({
     } catch (pushErr) {
       const pushErrMsg = getErrorMessage(pushErr);
       throw new Error(
-        `pushSignedCommits: failed to push orphan branch '${branch}' (first commit). ` +
+        `${ERR_SYSTEM}: pushSignedCommits: failed to push orphan branch '${branch}' (first commit). ` +
           `If the repository requires signed commits, the branch must be seeded manually with a signed commit before this workflow can push to it. ` +
           `Run the following commands locally (requires a GPG key configured with Git):\n\n` +
           `  git switch --orphan ${branch}\n` +
@@ -515,7 +525,7 @@ async function pushSignedCommits({
             // Ignore cleanup failures.
           }
           const continueOutput = `${rebaseResult.stdout || ""}\n${rebaseResult.stderr || ""}`;
-          throw new Error(`pushSignedCommits: resolved a rebase conflict for branch '${branch}' but could not continue the rebase. ` + `Root cause: ${continueOutput.trim()}`);
+          throw new Error(`${ERR_SYSTEM}: pushSignedCommits: resolved a rebase conflict for branch '${branch}' but could not continue the rebase. ` + `Root cause: ${continueOutput.trim()}`);
         }
       } else if (isPartialCloneObjectFailure(combinedOutput)) {
         // Always abort the in-progress rebase before attempting recovery.
@@ -559,13 +569,13 @@ async function pushSignedCommits({
             }
             const retryOutput = `${rebaseResult.stdout || ""}\n${rebaseResult.stderr || ""}`;
             throw new Error(
-              `pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}) even after backfilling the required commit objects. ` +
+              `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}) even after backfilling the required commit objects. ` +
                 `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${retryOutput.trim()}`
             );
           }
         } else {
           throw new Error(
-            `pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}); ` +
+            `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}); ` +
               `the required commit objects could not be backfilled from a shallow/partial clone. ` +
               `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${combinedOutput.trim()}`
           );
@@ -576,7 +586,9 @@ async function pushSignedCommits({
         } catch {
           // Ignore cleanup failures.
         }
-        throw new Error(`pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}). ` + `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${combinedOutput.trim()}`);
+        throw new Error(
+          `${ERR_SYSTEM}: pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}). ` + `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${combinedOutput.trim()}`
+        );
       }
     }
     const { stdout: rebasedRevListOut } = await exec.getExecOutput("git", ["rev-list", "--parents", "--topo-order", "--reverse", `${firstGraphqlParentOid}..HEAD`], { cwd });
@@ -606,7 +618,7 @@ async function pushSignedCommits({
       if (fields.length > 2) {
         const sha = fields[0];
         core.warning(`pushSignedCommits: merge commit ${sha} detected, refusing unsigned push fallback`);
-        throw new PushSignedCommitsUnsupportedShape("merge commit detected");
+        throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: merge commit detected`);
       }
     }
 
@@ -659,7 +671,7 @@ async function pushSignedCommits({
           // mode 160000 = gitlink (submodule); GitHub GraphQL createCommitOnBranch does not support submodules
           if (srcMode === "160000") {
             core.warning(`pushSignedCommits: submodule change detected in ${filePath}, refusing unsigned push fallback`);
-            throw new PushSignedCommitsUnsupportedShape("submodule change detected");
+            throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: submodule change detected`);
           }
           deletions.push({ path: filePath });
         } else if (status && status.startsWith("R")) {
@@ -672,11 +684,11 @@ async function pushSignedCommits({
           deletions.push({ path: filePath });
           if (srcMode === "160000" || dstMode === "160000") {
             core.warning(`pushSignedCommits: submodule change detected in ${filePath} -> ${renamedPath}, refusing unsigned push fallback`);
-            throw new PushSignedCommitsUnsupportedShape("submodule change detected");
+            throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: submodule change detected`);
           }
           if (dstMode === "120000") {
             core.warning(`pushSignedCommits: symlink ${renamedPath} cannot be pushed as a signed commit, refusing unsigned push fallback`);
-            throw new PushSignedCommitsUnsupportedShape("symlink file mode requires git push fallback");
+            throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: symlink file mode requires git push fallback`);
           }
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${renamedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
@@ -692,11 +704,11 @@ async function pushSignedCommits({
           }
           if (dstMode === "160000") {
             core.warning(`pushSignedCommits: submodule change detected in ${copiedPath}, refusing unsigned push fallback`);
-            throw new PushSignedCommitsUnsupportedShape("submodule change detected");
+            throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: submodule change detected`);
           }
           if (dstMode === "120000") {
             core.warning(`pushSignedCommits: symlink ${copiedPath} cannot be pushed as a signed commit, refusing unsigned push fallback`);
-            throw new PushSignedCommitsUnsupportedShape("symlink file mode requires git push fallback");
+            throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: symlink file mode requires git push fallback`);
           }
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${copiedPath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
@@ -707,11 +719,11 @@ async function pushSignedCommits({
           // Added or Modified
           if (dstMode === "160000") {
             core.warning(`pushSignedCommits: submodule change detected in ${filePath}, refusing unsigned push fallback`);
-            throw new PushSignedCommitsUnsupportedShape("submodule change detected");
+            throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: submodule change detected`);
           }
           if (dstMode === "120000") {
             core.warning(`pushSignedCommits: symlink ${filePath} cannot be pushed as a signed commit, refusing unsigned push fallback`);
-            throw new PushSignedCommitsUnsupportedShape("symlink file mode requires git push fallback");
+            throw new PushSignedCommitsUnsupportedShape(`${ERR_VALIDATION}: symlink file mode requires git push fallback`);
           }
           if (dstMode === "100755") {
             core.warning(`pushSignedCommits: executable bit on ${filePath} will be lost in signed commit (GitHub GraphQL does not support mode 100755)`);
@@ -830,7 +842,7 @@ async function pushSignedCommits({
   } catch (err) {
     if (err instanceof PushSignedCommitsUnsupportedShape) {
       throw new Error(
-        `pushSignedCommits: refusing unsigned push for branch '${branch}': ${getErrorMessage(err)}. ` +
+        `${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${stripLeadingErrorCode(getErrorMessage(err))}. ` +
           `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
           `submodule entries (mode 160000), or executable bits (mode 100755). ` +
           `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
@@ -839,10 +851,10 @@ async function pushSignedCommits({
       );
     }
     if (err instanceof PushSignedCommitsPolicyViolation) {
-      throw new Error(`pushSignedCommits: refusing unsigned push for branch '${branch}': ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${stripLeadingErrorCode(getErrorMessage(err))}`, { cause: err });
     }
     if (allowGitPushFallback === false) {
-      throw new Error(`pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_API}: pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${getErrorMessage(err)}`);
     const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken });

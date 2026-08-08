@@ -23,6 +23,8 @@ describe("require-error-code-in-thrown-error", () => {
         `const { ERR_NOT_FOUND } = require("./error_codes.cjs"); throw new Error(\`\${ERR_NOT_FOUND}: Issue #1 not found\`);`,
         `const { ERR_API } = require("./error_codes.cjs"); throw new Error(ERR_API + ": failed to fetch");`,
         `const { ERR_VALIDATION } = require("./error_codes.cjs"); throw new Error("ERR_VALIDATION: missing field");`,
+        `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} throw new CustomError(\`\${ERR_API}: failed to fetch\`);`,
+        `const { ERR_API } = require("./error_codes.cjs"); class A extends Error {} class B extends A {} throw new B(ERR_API + ": failed to fetch");`,
       ],
       invalid: [],
     });
@@ -38,6 +40,18 @@ describe("require-error-code-in-thrown-error", () => {
         },
         {
           code: `const { ERR_API } = require("./error_codes.cjs"); function f(id) { throw new Error("Cannot mark issue as duplicate of " + id); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f() { throw new CustomError("failed to fetch"); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); class A extends Error {} class B extends A {} function f() { throw new B("failed to fetch"); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function f() { throw new CustomError("failed to fetch"); } class CustomError extends Error {}`,
           errors: [{ messageId: "missingErrorCode" }],
         },
       ],
@@ -94,6 +108,24 @@ describe("require-error-code-in-thrown-error", () => {
     cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
       valid: [`const { ERR_API } = require("./error_codes.cjs"); function f() { throw someError; }`, `const { ERR_API } = require("./error_codes.cjs"); function f() { throw new TypeError("bad type"); }`],
       invalid: [],
+    });
+  });
+
+  it("valid: shadowed constructor (parameter shadows outer class) is not flagged", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [
+        // 'CustomError' as a parameter shadows the top-level class — cannot determine it extends Error
+        `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f(CustomError) { throw new CustomError("not an Error subclass here"); }`,
+        // Two separate functions each declaring a local 'CustomError' — they shadow each other, only the outer class would otherwise leak
+        `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f(x) { class CustomError { constructor(m) {} } throw new CustomError("plain class, not Error"); }`,
+      ],
+      invalid: [
+        // Outer class is NOT shadowed — scope lookup still finds the Error subclass and flags it
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f() { throw new CustomError("unshadowed, must be flagged"); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+      ],
     });
   });
 });

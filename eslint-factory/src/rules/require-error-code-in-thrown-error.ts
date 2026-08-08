@@ -55,12 +55,51 @@ export const requireErrorCodeInThrownErrorRule = createRule({
       return {};
     }
 
+    type Scope = ReturnType<typeof sourceCode.getScope>;
+
+    function findVariableInScopeChain(scope: Scope, name: string) {
+      let current: Scope | null = scope;
+      while (current) {
+        const variable = current.variables.find(v => v.name === name);
+        if (variable) return variable;
+        current = current.upper;
+      }
+      return null;
+    }
+
+    function isErrorConstructorViaScope(callee: TSESTree.Identifier): boolean {
+      const visited = new Set<object>();
+
+      function check(name: string, scope: Scope): boolean {
+        if (name === "Error") return true;
+
+        const variable = findVariableInScopeChain(scope, name);
+        if (!variable) return false;
+
+        for (const def of variable.defs) {
+          if (def.type !== "ClassName") continue;
+          const classNode = def.node as TSESTree.ClassDeclaration;
+          if (visited.has(classNode)) continue;
+          visited.add(classNode);
+
+          if (!classNode.superClass || classNode.superClass.type !== AST_NODE_TYPES.Identifier) continue;
+
+          const superScope = sourceCode.getScope(classNode.superClass);
+          if (check(classNode.superClass.name, superScope)) return true;
+        }
+
+        return false;
+      }
+
+      return check(callee.name, sourceCode.getScope(callee));
+    }
+
     return {
       ThrowStatement(node: TSESTree.ThrowStatement) {
         const arg = node.argument;
         if (!arg || arg.type !== AST_NODE_TYPES.NewExpression) return;
         const callee = arg.callee;
-        if (callee.type !== AST_NODE_TYPES.Identifier || callee.name !== "Error") return;
+        if (callee.type !== AST_NODE_TYPES.Identifier || !isErrorConstructorViaScope(callee)) return;
         const messageArg = arg.arguments[0];
         if (!messageArg) return;
         if (messageArg.type !== AST_NODE_TYPES.TemplateLiteral && messageArg.type !== AST_NODE_TYPES.Literal && messageArg.type !== AST_NODE_TYPES.Identifier && messageArg.type !== AST_NODE_TYPES.BinaryExpression) {
