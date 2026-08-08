@@ -35,23 +35,16 @@ const DETECTION_LOG_PATH = "/tmp/gh-aw/threat-detection/detection.log";
 const MAX_LOG_BYTES = 1024 * 1024; // 1 MiB
 
 /**
- * Renders the detection log file to stdout wrapped in GitHub Actions macros.
+ * Reads a log file (with size capping), applies built-in redaction, and
+ * renders it to stdout wrapped in GitHub Actions group + stop-commands macros.
  *
- * The output sequence is:
- *   ::group::Detection Log
- *   ::stop-commands::<token>
- *   <redacted log content>
- *   ::<token>::
- *   ::endgroup::
- *
- * @param {string} [logPath] - Path to the log file; defaults to DETECTION_LOG_PATH.
+ * @param {string} filePath   - Absolute path to the log file to render.
+ * @param {string} groupTitle - Label shown in the collapsible group header.
  * @returns {Promise<void>}
  */
-async function main(logPath) {
-  const filePath = logPath || DETECTION_LOG_PATH;
-
+async function renderLogFromFile(filePath, groupTitle) {
   if (!fs.existsSync(filePath)) {
-    core.info("Detection log not found, skipping render: " + filePath);
+    core.info("Log not found, skipping render: " + filePath);
     return;
   }
 
@@ -59,29 +52,31 @@ async function main(logPath) {
   try {
     stat = lstatGuard(filePath);
   } catch (error) {
-    core.warning("Failed to stat detection log: " + getErrorMessage(error));
+    core.warning("Failed to stat log: " + getErrorMessage(error));
     return;
   }
 
   if (stat === null) {
-    core.warning("Detection log is a symbolic link, skipping render: " + filePath);
+    core.warning("Log is a symbolic link, skipping render: " + filePath);
     return;
   }
 
   if (!stat.isFile()) {
-    core.warning("Detection log is not a regular file, skipping render: " + filePath);
+    core.warning("Log is not a regular file, skipping render: " + filePath);
     return;
   }
 
   if (stat.size === 0) {
-    core.info("Detection log is empty, skipping render");
+    core.info("Log is empty, skipping render: " + filePath);
     return;
   }
 
   let content;
   try {
     if (stat.size > MAX_LOG_BYTES) {
-      core.warning("Detection log exceeds " + MAX_LOG_BYTES + " bytes (" + stat.size + " bytes); truncating to first " + MAX_LOG_BYTES + " bytes");
+      core.warning(
+        "Log exceeds " + MAX_LOG_BYTES + " bytes (" + stat.size + " bytes); truncating to first " + MAX_LOG_BYTES + " bytes: " + filePath
+      );
       const fd = fs.openSync(filePath, "r");
       try {
         const buf = Buffer.alloc(MAX_LOG_BYTES);
@@ -94,16 +89,26 @@ async function main(logPath) {
       content = fs.readFileSync(filePath, "utf8");
     }
   } catch (error) {
-    core.warning("Failed to read detection log: " + getErrorMessage(error));
+    core.warning("Failed to read log: " + getErrorMessage(error));
     return;
   }
 
   // Apply in-line redaction of built-in credential patterns before emitting.
   const { content: redacted } = redactBuiltInPatterns(content);
 
-  renderLogToStdout("Detection Log", redacted);
+  renderLogToStdout(groupTitle, redacted);
 
-  core.info("Detection log rendered (" + stat.size + " bytes)");
+  core.info("Log rendered (" + stat.size + " bytes): " + filePath);
 }
 
-module.exports = { main, DETECTION_LOG_PATH, MAX_LOG_BYTES };
+/**
+ * Renders the detection log file to stdout wrapped in GitHub Actions macros.
+ *
+ * @param {string} [logPath] - Path to the log file; defaults to DETECTION_LOG_PATH.
+ * @returns {Promise<void>}
+ */
+async function main(logPath) {
+  await renderLogFromFile(logPath || DETECTION_LOG_PATH, "Detection Log");
+}
+
+module.exports = { main, renderLogFromFile, DETECTION_LOG_PATH, MAX_LOG_BYTES };

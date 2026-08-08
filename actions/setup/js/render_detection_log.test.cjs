@@ -53,14 +53,14 @@ describe("render_detection_log.cjs", () => {
     it("is a no-op when the log file does not exist", async () => {
       await module.main("/nonexistent/path/detection.log");
       expect(capturedStdout()).toBe("");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Detection log not found"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not found"));
     });
 
     it("is a no-op when the log file is empty", async () => {
       fs.writeFileSync(logPath, "", "utf8");
       await module.main(logPath);
       expect(capturedStdout()).toBe("");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Detection log is empty"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("empty"));
     });
 
     it("wraps content in ::group:: and ::endgroup::", async () => {
@@ -157,6 +157,36 @@ describe("render_detection_log.cjs", () => {
   describe("DETECTION_LOG_PATH constant", () => {
     it("exports the expected constant", () => {
       expect(module.DETECTION_LOG_PATH).toBe("/tmp/gh-aw/threat-detection/detection.log");
+    });
+  });
+
+  describe("renderLogFromFile()", () => {
+    it("renders with a custom group title", async () => {
+      fs.writeFileSync(logPath, "custom group content\n", "utf8");
+      await module.renderLogFromFile(logPath, "Custom Group");
+
+      const out = capturedStdout();
+      expect(out).toMatch(/^::group::Custom Group\n/);
+      expect(out).toContain("custom group content");
+      expect(out).toContain("::endgroup::\n");
+    });
+
+    it("is a no-op when the file does not exist", async () => {
+      await module.renderLogFromFile("/nonexistent/file.log", "My Group");
+      expect(capturedStdout()).toBe("");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("not found"));
+    });
+
+    it("truncates and still wraps output in group macros", async () => {
+      const overLimit = Buffer.alloc(1024 * 1024 + 1, "y");
+      fs.writeFileSync(logPath, overLimit);
+      await module.renderLogFromFile(logPath, "Big Log");
+
+      const out = capturedStdout();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("truncating"));
+      expect(out).toMatch(/^::group::Big Log\n/);
+      expect(out).toContain("::endgroup::\n");
+      expect(out.length).toBeLessThan(1024 * 1024 + 500);
     });
   });
 });
