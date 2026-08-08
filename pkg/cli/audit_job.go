@@ -41,8 +41,7 @@ func auditJobRun(opts auditJobRunOptions) error {
 	if err := extractAuditJobDetails(opts, jobLogContent); err != nil {
 		return err
 	}
-	renderAuditJobSummary(opts, jobLogPath)
-	return nil
+	return renderAuditJobSummary(opts, jobLogPath)
 }
 
 func fetchAuditJobLog(opts auditJobRunOptions) (string, string, error) {
@@ -114,9 +113,9 @@ func extractFirstFailingStepOutput(opts auditJobRunOptions, jobLogContent string
 	return nil
 }
 
-func renderAuditJobSummary(opts auditJobRunOptions, jobLogPath string) {
+func renderAuditJobSummary(opts auditJobRunOptions, jobLogPath string) error {
 	if opts.jsonOutput {
-		return
+		return nil
 	}
 	absOutputDir, _ := filepath.Abs(opts.outputDir)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Job audit complete. Logs saved to "+absOutputDir))
@@ -124,9 +123,9 @@ func renderAuditJobSummary(opts auditJobRunOptions, jobLogPath string) {
 	fmt.Fprintf(os.Stderr, "  - %s (full job log)\n", jobLogPath)
 	if opts.stepNumber > 0 {
 		renderRequestedStepSummary(opts)
-		return
+		return nil
 	}
-	renderFailingStepSummary(opts)
+	return renderFailingStepSummary(opts)
 }
 
 func renderRequestedStepSummary(opts auditJobRunOptions) {
@@ -136,16 +135,16 @@ func renderRequestedStepSummary(opts auditJobRunOptions) {
 	}
 }
 
-func renderFailingStepSummary(opts auditJobRunOptions) {
+func renderFailingStepSummary(opts auditJobRunOptions) error {
 	failingStepPath := filepath.Join(opts.outputDir, fmt.Sprintf("job-%d-step-*-failed.log", opts.jobID))
 	matches, err := filepath.Glob(failingStepPath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not search for failing step logs: %v", err)))
-		return
+		return fmt.Errorf("could not search for failing step logs: %w", err)
 	}
 	for _, match := range matches {
 		fmt.Fprintf(os.Stderr, "  - %s (first failing step)\n", match)
 	}
+	return nil
 }
 
 // extractStepOutput extracts the output of a specific step from job logs

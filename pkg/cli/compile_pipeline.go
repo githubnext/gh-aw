@@ -714,15 +714,21 @@ type purgeTrackingData struct {
 
 // collectPurgeData collects existing files for purge operations
 func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) (*purgeTrackingData, error) {
+	return collectPurgeDataWithPatterns(workflowsDir, mdFiles, verbose, "*.lock.yml", "*.invalid.yml")
+}
+
+// collectPurgeDataWithPatterns is the testable implementation of collectPurgeData.
+// lockPattern and invalidPattern are appended to workflowsDir for the glob calls.
+func collectPurgeDataWithPatterns(workflowsDir string, mdFiles []string, verbose bool, lockPattern, invalidPattern string) (*purgeTrackingData, error) {
 	data := &purgeTrackingData{}
 
 	// Find all existing files
 	var err error
-	data.existingLockFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
+	data.existingLockFiles, err = filepath.Glob(filepath.Join(workflowsDir, lockPattern))
 	if err != nil {
 		return nil, fmt.Errorf("failed to glob existing .lock.yml files in %s: %w", workflowsDir, err)
 	}
-	data.existingInvalidFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.invalid.yml"))
+	data.existingInvalidFiles, err = filepath.Glob(filepath.Join(workflowsDir, invalidPattern))
 	if err != nil {
 		return nil, fmt.Errorf("failed to glob existing .invalid.yml files in %s: %w", workflowsDir, err)
 	}
