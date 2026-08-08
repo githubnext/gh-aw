@@ -770,16 +770,6 @@ describe("runtime_import", () => {
         expect(result).not.toContain("## end");
       });
     }),
-    describe("closeUnterminatedInlineMarkers", () => {
-      it("should close an unterminated skill before a following agent in the same import", () => {
-        const content = "## skill: `reporting`\nSkill content.\n## agent: `helper`\nAgent content.\n";
-        const result = closeUnterminatedInlineMarkers(content);
-
-        expect(result).toContain("## end skill: `reporting`");
-        expect(result).toContain("## end agent: `helper`");
-        expect(result.indexOf("## end skill: `reporting`")).toBeLessThan(result.indexOf("## agent: `helper`"));
-      });
-    }),
     describe("processRuntimeImports", () => {
       (it("should process single runtime-import macro", async () => {
         fs.writeFileSync(path.join(workflowsDir, "import.md"), "Imported content");
@@ -1203,6 +1193,17 @@ describe("runtime_import", () => {
         it("should handle surrounding spaces but reject line terminators", () => {
           expect(isSafeExpression("  github.actor  ")).toBe(true);
           expect(isSafeExpression("\ngithub.repository\n")).toBe(false);
+        });
+      });
+
+      describe("closeUnterminatedInlineMarkers", () => {
+        it("should close an unterminated skill before a following agent in the same import", () => {
+          const content = "## skill: `reporting`\nSkill content.\n## agent: `helper`\nAgent content.\n";
+          const result = closeUnterminatedInlineMarkers(content);
+
+          expect(result).toContain("## end skill: `reporting`");
+          expect(result).toContain("## end agent: `helper`");
+          expect(result.indexOf("## end skill: `reporting`")).toBeLessThan(result.indexOf("## agent: `helper`"));
         });
       });
 
