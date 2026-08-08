@@ -56,8 +56,11 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		assert.Contains(t, content, "sbx policy reset", "must reset sbx policy")
 		assert.Contains(t, content, "sbx policy init allow-all", "must init sbx allow-all policy")
 		assert.Contains(t, content, "docker/sandbox-templates:shell-docker", "must pre-pull template image")
-		assert.Contains(t, content, `export DOCKER_CONFIG="$(mktemp -d)"`, "must isolate Docker auth in a temporary config")
+		assert.Contains(t, content, `DOCKER_CONFIG="$(mktemp -d)"`, "must isolate Docker auth in a temporary config")
+		assert.Contains(t, content, `export DOCKER_CONFIG`, "must export isolated Docker auth directory")
 		assert.Contains(t, content, `trap 'rm -rf "${DOCKER_CONFIG}"' EXIT`, "must clean up temporary Docker auth on exit")
+		assert.Contains(t, content, `for _ in $(seq 1 10); do`, "must avoid unused loop variables in daemon polling loops")
+		assert.NotContains(t, content, `for i in $(seq 1 10); do`, "must not use unused loop variable names")
 		// Secrets must be passed via env, not inline in the run: block
 		assert.Contains(t, content, "DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}", "must use env for DOCKER_PAT")
 		assert.Contains(t, content, "DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}", "must use env for DOCKER_USERNAME")

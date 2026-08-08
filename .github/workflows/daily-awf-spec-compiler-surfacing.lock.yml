@@ -578,12 +578,13 @@ jobs:
           DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}
         run: |
           set -euo pipefail
-          export DOCKER_CONFIG="$(mktemp -d)"
+          DOCKER_CONFIG="$(mktemp -d)"
+          export DOCKER_CONFIG
           trap 'rm -rf "${DOCKER_CONFIG}"' EXIT
           echo "::group::Start sbx daemon"
           nohup sbx daemon start > /tmp/sbx-daemon.log 2>&1 &
           # Poll until daemon is running (up to 10 s).
-          for i in $(seq 1 10); do
+          for _ in $(seq 1 10); do
             if sbx daemon status 2>/dev/null | grep -q -i running; then
               echo "sbx daemon is running"
               break
@@ -600,7 +601,7 @@ jobs:
           sbx policy reset --force || true
           sbx policy init allow-all
           nohup sbx daemon start > /tmp/sbx-daemon.log 2>&1 &
-          for i in $(seq 1 10); do
+          for _ in $(seq 1 10); do
             if sbx daemon status 2>/dev/null | grep -q -i running; then
               echo "sbx daemon restarted"
               break

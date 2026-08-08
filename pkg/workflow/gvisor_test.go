@@ -22,6 +22,8 @@ func TestGenerateGVisorInstallStep(t *testing.T) {
 	content := strings.Join(step, "\n")
 
 	assert.Contains(t, content, "Install gVisor (runsc)", "step should have a recognizable name")
+	assert.Contains(t, content, "runner-guard:ignore RGS-012",
+		"step should include runner-guard suppression for verified gVisor download false-positive")
 
 	// Architecture detection: must use uname -m, not hardcoded amd64/arm64.
 	assert.Contains(t, content, "uname -m", "must detect architecture via uname -m")
