@@ -43,6 +43,8 @@ export const requireErrorCodeInThrownErrorRule = createRule({
     messages: {
       missingErrorCode:
         "This file imports error_codes.cjs but this thrown Error message does not reference a standardized error code (e.g. ERR_API, ERR_NOT_FOUND). Prefix the message with an imported ERR_* constant for consistency with other errors in this file.",
+      callExpressionNeedsReview:
+        "This file imports error_codes.cjs but this thrown Error message comes from a helper call that cannot be statically verified to reference an error code. Add a visible ERR_* prefix at the throw site or review the helper and suppress this warning intentionally.",
     },
   },
   defaultOptions: [],
@@ -65,6 +67,57 @@ export const requireErrorCodeInThrownErrorRule = createRule({
         current = current.upper;
       }
       return null;
+    }
+
+    type MessageAuditResult = "hasCode" | "missingCode" | "needsReview";
+
+    function auditMessageExpression(node: TSESTree.Node, unresolvedIdentifierResult: MessageAuditResult = "hasCode"): MessageAuditResult {
+      if (messageReferencesErrorCode(node)) return "hasCode";
+      if (node.type === AST_NODE_TYPES.CallExpression) {
+        const returns = resolveSimpleLocalCallReturns(node);
+        if (!returns) return "needsReview";
+        let sawAuditableReturn = false;
+        for (const returnExpr of returns) {
+          sawAuditableReturn = true;
+          const returnResult = auditMessageExpression(returnExpr, "needsReview");
+          if (returnResult !== "hasCode") return returnResult;
+        }
+        return sawAuditableReturn ? "hasCode" : "needsReview";
+      }
+      if (node.type === AST_NODE_TYPES.Identifier) {
+        const resolved = resolveWriteOnceInitializerChain(node, sourceCode);
+        if (resolved === node) return unresolvedIdentifierResult;
+        if (!isAuditableMessageExpression(resolved)) return "hasCode";
+        return messageReferencesErrorCode(resolved) ? "hasCode" : "missingCode";
+      }
+      return "missingCode";
+    }
+
+    function isAuditableMessageExpression(node: TSESTree.Node): boolean {
+      return node.type === AST_NODE_TYPES.TemplateLiteral || node.type === AST_NODE_TYPES.Literal || node.type === AST_NODE_TYPES.Identifier || (node.type === AST_NODE_TYPES.BinaryExpression && node.operator === "+");
+    }
+
+    function resolveSimpleLocalCallReturns(node: TSESTree.CallExpression): TSESTree.Expression[] | null {
+      if (node.callee.type !== AST_NODE_TYPES.Identifier) return null;
+      const variable = findVariableInScopeChain(sourceCode.getScope(node.callee), node.callee.name);
+      if (!variable || variable.defs.length !== 1) return null;
+      const def = variable.defs[0];
+
+      let body: TSESTree.BlockStatement | TSESTree.Expression | null = null;
+      if (def.type === "FunctionName") {
+        body = (def.node as TSESTree.FunctionDeclaration).body;
+      } else if (def.type === "Variable" && def.node.init && (def.node.init.type === AST_NODE_TYPES.FunctionExpression || def.node.init.type === AST_NODE_TYPES.ArrowFunctionExpression)) {
+        body = def.node.init.body;
+      } else {
+        return null;
+      }
+
+      if (!body) return null;
+      if (body.type !== AST_NODE_TYPES.BlockStatement) return [body];
+      if (body.body.length !== 1) return null;
+      const statement = body.body[0];
+      if (statement.type !== AST_NODE_TYPES.ReturnStatement || !statement.argument) return null;
+      return [statement.argument];
     }
 
     function isErrorConstructorViaScope(callee: TSESTree.Identifier): boolean {
@@ -102,29 +155,16 @@ export const requireErrorCodeInThrownErrorRule = createRule({
         if (callee.type !== AST_NODE_TYPES.Identifier || !isErrorConstructorViaScope(callee)) return;
         const messageArg = arg.arguments[0];
         if (!messageArg) return;
-        if (messageArg.type !== AST_NODE_TYPES.TemplateLiteral && messageArg.type !== AST_NODE_TYPES.Literal && messageArg.type !== AST_NODE_TYPES.Identifier && messageArg.type !== AST_NODE_TYPES.BinaryExpression) {
+        if (!isAuditableMessageExpression(messageArg) && messageArg.type !== AST_NODE_TYPES.CallExpression) {
           return;
         }
 
-        if (messageReferencesErrorCode(messageArg)) return;
-
-        if (messageArg.type === AST_NODE_TYPES.Identifier) {
-          // Resolve write-once local initializers so a message built from an
-          // ERR_* constant is recognized even when it is held in a plain-named
-          // variable (e.g. `const errorMsg = `${ERR_SYSTEM}: ...`;`).
-          const resolved = resolveWriteOnceInitializerChain(messageArg, sourceCode);
-          // Unresolvable values (parameters, reassigned bindings, call results,
-          // values from a guarded branch) stay silent: false positives are worse
-          // than silence for this consistency rule.
-          if (resolved.type !== AST_NODE_TYPES.TemplateLiteral && resolved.type !== AST_NODE_TYPES.Literal && (resolved.type !== AST_NODE_TYPES.BinaryExpression || resolved.operator !== "+")) {
-            return;
-          }
-          if (messageReferencesErrorCode(resolved)) return;
-        }
+        const auditResult = auditMessageExpression(messageArg);
+        if (auditResult === "hasCode") return;
 
         context.report({
           node: arg,
-          messageId: "missingErrorCode",
+          messageId: auditResult === "needsReview" ? "callExpressionNeedsReview" : "missingErrorCode",
         });
       },
     };

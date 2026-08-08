@@ -128,4 +128,27 @@ describe("require-error-code-in-thrown-error", () => {
       ],
     });
   });
+
+  it("handles helper call message arguments explicitly", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [
+        `const { ERR_API } = require("./error_codes.cjs"); function helper() { return "ERR_API: failed to fetch"; } function f() { throw new Error(helper()); }`,
+        `const { ERR_CONFIG } = require("./error_codes.cjs"); const helper = () => ERR_CONFIG + ": invalid config"; function f() { throw new Error(helper()); }`,
+      ],
+      invalid: [
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function helper() { return "failed to fetch"; } function f() { throw new Error(helper()); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function helper(reason) { return reason; } function f(reason) { throw new Error(helper(reason)); }`,
+          errors: [{ messageId: "callExpressionNeedsReview" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); const { helper } = require("./helper.cjs"); function f() { throw new Error(helper()); }`,
+          errors: [{ messageId: "callExpressionNeedsReview" }],
+        },
+      ],
+    });
+  });
 });
