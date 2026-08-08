@@ -189,7 +189,11 @@ func ParseTagRefTSV(line string) (sha, objType string, err error) {
 	return sha, objType, nil
 }
 
-// resolveFromGitHub uses gh CLI to resolve the SHA for an action@version
+// resolveFromGitHub uses gh CLI to resolve the SHA for an action@version.
+// It first attempts to resolve as a tag via the git/refs/tags endpoint (which
+// also handles annotated-tag peeling). If the tag lookup fails — indicating the
+// ref is a branch name or an arbitrary commit ref — it falls back to the commits
+// endpoint, which accepts branch names, tag names, and SHAs.
 func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version string) (string, error) {
 	// Extract base repository (for actions like "github/codeql-action/upload-sarif")
 	baseRepo := gitutil.ExtractBaseRepo(repo)
@@ -214,7 +218,11 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 	ForceGHHostEnv(cmd, "github.com")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)
+		// Tag lookup failed. The ref may be a branch name rather than a tag.
+		// Fall back to the commits endpoint, which resolves both branch and tag
+		// names as well as SHAs, so that authors can pin to branches (e.g. "main").
+		resolverLog.Printf("Tag lookup for %s@%s failed (%v); falling back to commits endpoint", repo, version, err)
+		return r.resolveRefViaCommitsEndpoint(ctx, baseRepo, repo, version)
 	}
 
 	sha, objType, err := ParseTagRefTSV(string(output))
@@ -243,6 +251,29 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 	}
 	resolverLog.Printf("Resolved %s@%s to %s SHA: %s", repo, version, objType, sha)
 
+	return sha, nil
+}
+
+// resolveRefViaCommitsEndpoint resolves a branch name, tag name, or arbitrary ref
+// to its commit SHA using the GitHub API commits endpoint
+// (GET /repos/{owner}/{repo}/commits/{ref}), which accepts all ref types.
+// This is the fallback used when the tags-specific endpoint returns an error.
+func (r *ActionResolver) resolveRefViaCommitsEndpoint(ctx context.Context, baseRepo, repo, version string) (string, error) {
+	commitsPath := fmt.Sprintf("/repos/%s/commits/%s", baseRepo, version)
+	resolverLog.Printf("Querying commits endpoint: %s", commitsPath)
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	cmd := ExecGHContext(callCtx, "api", commitsPath, "--jq", ".sha")
+	ForceGHHostEnv(cmd, "github.com")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)
+	}
+	sha := strings.TrimSpace(string(output))
+	if !gitutil.IsValidFullSHA(sha) {
+		return "", fmt.Errorf("unexpected response resolving %s@%s: got %q (expected 40-char hex SHA)", repo, version, sha)
+	}
+	resolverLog.Printf("Resolved %s@%s to commit SHA %s via commits endpoint", repo, version, sha)
 	return sha, nil
 }
 

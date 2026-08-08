@@ -52,14 +52,44 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 		require.ErrorContains(t, err, "without '..' traversal segments")
 	})
 
-	t.Run("rejects non-sha refs", func(t *testing.T) {
+	t.Run("accepts non-sha refs (branch/tag)", func(t *testing.T) {
 		err := validateFrontmatterSkills(map[string]any{
 			"skills": []any{
 				"githubnext/skills@main",
+				"githubnext/skills/review/security@v1.2.3",
+				"githubnext/skills@release/1.0",
+			},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("accepts remote spec with no ref specified", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				"githubnext/skills@",
+				"githubnext/skills/review/security@",
+			},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("rejects invalid remote spec shape", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				"owner@main",
 			},
 		})
 		require.Error(t, err)
-		require.ErrorContains(t, err, "40-char-sha")
+		require.ErrorContains(t, err, "owner/repo@<ref>")
+	})
+
+	t.Run("rejects ref with unsafe characters", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				"githubnext/skills@main; rm -rf /",
+			},
+		})
+		require.Error(t, err)
 	})
 
 	t.Run("rejects 39-char sha", func(t *testing.T) {
@@ -88,7 +118,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		require.ErrorContains(t, err, "40-char-sha")
+		require.ErrorContains(t, err, "does not support expressions")
 	})
 
 	t.Run("accepts empty skills array", func(t *testing.T) {

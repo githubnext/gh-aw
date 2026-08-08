@@ -31,8 +31,6 @@ tools:
     mode: gh-proxy
   agentic-workflows:
   bash: true
-skills:
-  - githubnext/rig/skills/rig/SKILL.md@0ba73e37355f92adca11f9d596eb709e77f25332
 safe-outputs:
   mentions: false
   allowed-github-references: []
@@ -334,23 +332,14 @@ Also review proxy/CLI feature readiness for each sampled workflow:
 
 When one or more are missing, include a recommendation to enable them and rewrite raw `gh aw` shell instructions into explicit `agentic-workflows` MCP-tool usage.
 
-## Rig Custom Harness Usage
+## Deep-Dive Analysis
 
-After the deterministic Python script finishes, use a Rig custom harness for **at most 2 sampled runs** (only when at least 2 sampled runs exist):
+After the deterministic Python script finishes, perform a deeper review yourself for **at most 2 sampled runs** (only when at least 2 sampled runs exist):
 
-1. Discover the installed launcher path:
-   - `find "${RUNNER_TEMP}/gh-aw" -path "*/skills/rig/rig.ts" | head -1`
-2. For each selected run, build a compact JSON input from `run-<id>.json` plus deterministic analysis metrics.
-3. Run the harness with `node <rig-launcher>`, feeding an inline Rig program that:
-   - configures `copilotEngine()`
-   - takes only compact JSON input (never raw full prompt text)
-   - returns JSON with at most 3 opportunities using `category`, `finding`, `evidence`, and `impact`
-4. Aggregate and deduplicate harness outputs, then do final prioritization yourself.
-
-Harness guardrails:
-- no raw request bodies in harness input
-- use a small model unless deterministic evidence shows quality loss
-- one harness run per sampled run (no retries without a concrete parse/runtime error)
+1. For each selected run, review `run-<id>.json` alongside the deterministic analysis metrics already computed.
+2. Identify at most 3 opportunities per run, each described with `category`, `finding`, `evidence`, and `impact`.
+3. Base findings only on the compact structured metrics already gathered — never re-read raw full prompt text.
+4. Aggregate and deduplicate opportunities across the sampled runs, then do final prioritization.
 
 ## Execution Budget Guardrails
 
@@ -499,9 +488,9 @@ Do not use `noop` merely because the sample is small or imperfect. Create exactl
 
 If `create_issue` returns a body-size validation error, shorten the details and retry with a compact body that preserves Executive Summary, Highest-Leverage Changes, Key Metrics, and References.
 
-## Rig Harness Output Contract
+## Deep-Dive Analysis Output Shape
 
-Each Rig harness invocation must return JSON only:
+Structure each per-run finding as:
 
 ```json
 {
