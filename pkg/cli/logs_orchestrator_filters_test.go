@@ -80,6 +80,42 @@ func TestApplyRunFilters_Engine(t *testing.T) {
 	}
 }
 
+// TestApplyRunFilters_Runtime exercises both the matching and non-matching runtime cases.
+func TestApplyRunFilters_Runtime(t *testing.T) {
+	tests := []struct {
+		name          string
+		awInfo        string
+		filterRuntime string
+		wantSkip      bool
+	}{
+		{
+			name:          "matching runtime passes",
+			awInfo:        `{"agent_runtime":"gvisor"}`,
+			filterRuntime: "gvisor",
+			wantSkip:      false,
+		},
+		{
+			name:          "non-matching runtime skipped",
+			awInfo:        `{"agent_runtime":"docker-sbx"}`,
+			filterRuntime: "gvisor",
+			wantSkip:      true,
+		},
+		{
+			name:          "missing aw_info skipped",
+			awInfo:        "", // no file
+			filterRuntime: "gvisor",
+			wantSkip:      true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := makeDownloadResult(t, tt.awInfo)
+			skip := applyRunFilters(context.Background(), result, runFilterOpts{runtime: tt.filterRuntime}, false)
+			assert.Equal(t, tt.wantSkip, skip)
+		})
+	}
+}
+
 // TestApplyRunFilters_NoStaged verifies that --exclude-staged skips staged runs.
 func TestApplyRunFilters_NoStaged(t *testing.T) {
 	tests := []struct {
