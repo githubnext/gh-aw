@@ -353,10 +353,6 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	return engineSetting, engineConfig, model, allEngines, nil
 }
 
-// applyEngineImportDefaults merges import-derived engine defaults into engineConfig.
-// It mutates the provided config when non-nil and returns the effective pointer.
-// Callers must always use the returned value because a new config may be allocated
-// when the input engineConfig is nil.
 type engineImportDefaultsOptions struct {
 	engineConfig                *EngineConfig
 	model                       string
@@ -369,6 +365,10 @@ type engineImportDefaultsOptions struct {
 	preservedMaxTurnCacheMisses int
 }
 
+// applyEngineImportDefaults merges import-derived engine defaults into engineConfig.
+// It mutates the provided config when non-nil and returns the effective pointer.
+// Callers must always use the returned value because a new config may be allocated
+// when the input engineConfig is nil.
 func (c *Compiler) applyEngineImportDefaults(opts engineImportDefaultsOptions) (*EngineConfig, string) {
 	engineConfig := opts.engineConfig
 	model := opts.model
