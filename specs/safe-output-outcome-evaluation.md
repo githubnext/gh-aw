@@ -976,6 +976,8 @@ val evaluateOutcome :
 | `P14` API-Error-Not-Terminal | `TestFormalAPIErrorNotTerminal` | An authoritative PR fetch error produces `error`, never a terminal outcome |
 | `P15` Zero-Touch-Requires-No-Reviews | `TestFormalZeroTouchRequiresNoReviews` | `zero_touch` requires zero non-bot comments and zero reviews |
 
+`P13` covers the worker's configurable evaluation delay and is intentionally outside this in-process evaluator suite.
+
 ---
 
 ## Generated Test Suite

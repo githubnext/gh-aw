@@ -11,8 +11,8 @@ import (
 )
 
 var outcomeEvalPRLog = logger.New("cli:outcome_eval_pr")
-var createPullRequestGHAPIGet = ghAPIGet
-var createPullRequestGHAPIGetArray = ghAPIGetArray
+var outcomeEvalPRGHAPIGet = ghAPIGet
+var outcomeEvalPRGHAPIGetArray = ghAPIGetArray
 
 // findPRByTimestamp searches for a PR created by github-actions[bot] around the given timestamp.
 // This is a fallback for when the manifest doesn't record the PR number.
@@ -76,7 +76,7 @@ func evalCreatePullRequest(ctx context.Context, item CreatedItemReport, repoOver
 		return report
 	}
 
-	data, err := createPullRequestGHAPIGet(ctx, fmt.Sprintf("pulls/%d", num), repo)
+	data, err := outcomeEvalPRGHAPIGet(ctx, fmt.Sprintf("pulls/%d", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -107,7 +107,7 @@ func evalCreatePullRequest(ctx context.Context, item CreatedItemReport, repoOver
 	}
 
 	// Count human comments (non-bot)
-	comments, err := createPullRequestGHAPIGetArray(ctx, fmt.Sprintf("issues/%d/comments", num), repo)
+	comments, err := outcomeEvalPRGHAPIGetArray(ctx, fmt.Sprintf("issues/%d/comments", num), repo)
 	if err == nil {
 		for _, c := range comments {
 			user, _ := c["user"].(map[string]any)
@@ -119,7 +119,7 @@ func evalCreatePullRequest(ctx context.Context, item CreatedItemReport, repoOver
 	}
 
 	// Count reviews (used for ZeroTouch, stored separately from edits to avoid conflation)
-	reviews, err := createPullRequestGHAPIGetArray(ctx, fmt.Sprintf("pulls/%d/reviews", num), repo)
+	reviews, err := outcomeEvalPRGHAPIGetArray(ctx, fmt.Sprintf("pulls/%d/reviews", num), repo)
 	if err == nil {
 		report.HumanReviews = len(reviews)
 	}

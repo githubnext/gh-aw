@@ -252,18 +252,18 @@ func TestFormalPRMergeAcceptance(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oldGet := createPullRequestGHAPIGet
-			oldGetArray := createPullRequestGHAPIGetArray
+			oldGet := outcomeEvalPRGHAPIGet
+			oldGetArray := outcomeEvalPRGHAPIGetArray
 			t.Cleanup(func() {
-				createPullRequestGHAPIGet = oldGet
-				createPullRequestGHAPIGetArray = oldGetArray
+				outcomeEvalPRGHAPIGet = oldGet
+				outcomeEvalPRGHAPIGetArray = oldGetArray
 			})
-			createPullRequestGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+			outcomeEvalPRGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 				assert.Equal(t, "pulls/1", endpoint)
 				assert.Equal(t, "owner/repo", repo)
 				return tc.pr, nil
 			}
-			createPullRequestGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+			outcomeEvalPRGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
 				return nil, nil
 			}
 			report := evalCreatePullRequest(context.Background(), CreatedItemReport{
@@ -273,6 +273,10 @@ func TestFormalPRMergeAcceptance(t *testing.T) {
 				"P5: PR state must yield %s", tc.wantResult)
 			assert.Equal(t, tc.wantDetail, report.Detail,
 				"P5: PR state must set detail %q", tc.wantDetail)
+			if tc.wantResult != OutcomeAccepted {
+				assert.False(t, report.ZeroTouch,
+					"P5: a non-accepted PR must not be marked zero-touch")
+			}
 		})
 	}
 }
@@ -280,9 +284,9 @@ func TestFormalPRMergeAcceptance(t *testing.T) {
 // TestFormalAPIErrorNotTerminal verifies that an authoritative PR fetch error
 // produces an error result rather than a terminal acceptance or rejection.
 func TestFormalAPIErrorNotTerminal(t *testing.T) {
-	oldGet := createPullRequestGHAPIGet
-	t.Cleanup(func() { createPullRequestGHAPIGet = oldGet })
-	createPullRequestGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+	oldGet := outcomeEvalPRGHAPIGet
+	t.Cleanup(func() { outcomeEvalPRGHAPIGet = oldGet })
+	outcomeEvalPRGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 		return nil, errors.New("gh api: 503 Service Unavailable")
 	}
 
@@ -316,6 +320,13 @@ func TestFormalZeroTouchRequiresNoReviews(t *testing.T) {
 			wantZeroTouch: false,
 		},
 		{
+			name: "bot comment",
+			comments: []map[string]any{
+				{"user": map[string]any{"login": "github-actions[bot]"}},
+			},
+			wantZeroTouch: true,
+		},
+		{
 			name:          "review",
 			reviews:       []map[string]any{{"user": map[string]any{"login": "octocat"}}},
 			wantZeroTouch: false,
@@ -323,16 +334,16 @@ func TestFormalZeroTouchRequiresNoReviews(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oldGet := createPullRequestGHAPIGet
-			oldGetArray := createPullRequestGHAPIGetArray
+			oldGet := outcomeEvalPRGHAPIGet
+			oldGetArray := outcomeEvalPRGHAPIGetArray
 			t.Cleanup(func() {
-				createPullRequestGHAPIGet = oldGet
-				createPullRequestGHAPIGetArray = oldGetArray
+				outcomeEvalPRGHAPIGet = oldGet
+				outcomeEvalPRGHAPIGetArray = oldGetArray
 			})
-			createPullRequestGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+			outcomeEvalPRGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 				return map[string]any{"merged": true, "state": "closed"}, nil
 			}
-			createPullRequestGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+			outcomeEvalPRGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
 				switch endpoint {
 				case "issues/1/comments":
 					return tc.comments, nil
