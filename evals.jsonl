@@ -2,3 +2,5 @@
 {"id":"pr_created_or_noop","question":"Was a PR created with spelling corrections, or was noop used when no misspellings were found?","answer":"YES","model":"evals","timestamp":"2026-08-06T04:19:38.019Z","runid":"31070605769"}
 {"id":"spellcheck_completed","question":"Did the agent run American English spellcheck on AstroStyleLite docs content?","answer":"YES","model":"evals","timestamp":"2026-08-07T04:10:16.381Z","runid":"31146247136"}
 {"id":"pr_created_or_noop","question":"Was a PR created with spelling corrections, or was noop used when no misspellings were found?","answer":"YES","model":"evals","timestamp":"2026-08-07T04:10:16.381Z","runid":"31146247136"}
+{"id":"spellcheck_completed","question":"Did the agent run American English spellcheck on AstroStyleLite docs content?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-08T03:43:41.088Z","runid":"31237707033"}
+{"id":"pr_created_or_noop","question":"Was a PR created with spelling corrections, or was noop used when no misspellings were found?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-08T03:43:41.088Z","runid":"31237707033"}
