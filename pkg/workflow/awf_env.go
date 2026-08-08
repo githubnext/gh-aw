@@ -43,7 +43,7 @@ func applyDefaultMaxAICreditsEnvToMap(env map[string]string, workflowData *Workf
 // GitHub Actions runtime expression to that variable, so the ${{ }} expression
 // lives on one clean, dedicated line rather than being embedded inside the JSON.
 //
-// shellEscapeArgWithVarPreserved is then used to double-quote the JSON arg while
+// shellEscapeArgWithVarsPreserved is then used to double-quote the JSON arg while
 // preserving the ${varName} reference for bash expansion and escaping bare $ signs
 // (e.g. "$schema" → "\$schema").
 func injectMaxAICreditsExpression(awfConfigJSON string, expr string) string {

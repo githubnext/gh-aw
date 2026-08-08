@@ -164,6 +164,11 @@ evals:
   - id: subagent_model_goal_met
     question: Does the agent output show that the objective for experiment subagent_model was successfully completed?
 
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 # Smoke Test: Copilot Engine Validation (AOAI Entra BYOK)

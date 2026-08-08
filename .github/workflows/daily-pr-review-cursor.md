@@ -11,7 +11,9 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tracker-id: daily-pr-review-cursor
 engine:
   id: cursor

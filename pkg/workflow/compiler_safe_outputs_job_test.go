@@ -230,6 +230,36 @@ func TestBuildConsolidatedSafeOutputsJobConcurrencyGroup(t *testing.T) {
 	}
 }
 
+func TestAddHandlerManagerOutputs(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			AssignToAgent:       &AssignToAgentConfig{},
+			CreateAgentSessions: &CreateAgentSessionConfig{},
+			UploadArtifact:      &UploadArtifactConfig{MaxUploads: 2},
+			CreateIssues:        &CreateIssuesConfig{},
+			CreatePullRequests:  &CreatePullRequestsConfig{},
+			AddComments:         &AddCommentsConfig{},
+		},
+	}
+	outputs := make(map[string]string)
+
+	addHandlerManagerOutputs(data, outputs)
+	addNamedSafeOutputHandlerOutputs(data, outputs)
+
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.processed_count }}", outputs["process_safe_outputs_processed_count"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.assign_to_agent_assigned }}", outputs["assign_to_agent_assigned"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_errors }}", outputs["assign_to_agent_assignment_errors"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_error_count }}", outputs["assign_to_agent_assignment_error_count"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.session_number }}", outputs["create_agent_session_session_number"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.session_url }}", outputs["create_agent_session_session_url"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.upload_artifact_count }}", outputs["upload_artifact_count"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.slot_0_tmp_id }}", outputs["upload_artifact_slot_0_tmp_id"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.slot_1_tmp_id }}", outputs["upload_artifact_slot_1_tmp_id"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.created_issue_number }}", outputs["created_issue_number"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.created_pr_url }}", outputs["created_pr_url"])
+	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.comment_id }}", outputs["comment_id"])
+}
+
 func TestBuildConsolidatedSafeOutputsJobNeedsIncludesConfiguredDependencies(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()

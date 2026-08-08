@@ -126,7 +126,9 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 evals:
   - id: geo_audit_performed
     question: Did the agent audit the README and documentation site using the geo-optimizer skill?

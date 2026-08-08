@@ -31,6 +31,14 @@ describe("generateGitPatch", () => {
     });
   });
 
+  it("does not embed invalid base commit metadata", async () => {
+    const { embedBaseCommit } = await import("./generate_git_patch.cjs");
+
+    const patchContent = "From abc123 Mon Sep 17 00:00:00 2001\nFrom: Test\n";
+
+    expect(embedBaseCommit(patchContent, "main\nX-Injected: true")).toBe(patchContent);
+  });
+
   it("should return error when no commits can be found", async () => {
     delete process.env.GITHUB_SHA;
     process.env.GITHUB_WORKSPACE = "/tmp/test-repo";

@@ -63,22 +63,24 @@ func getWorkspaceCommandPrefixFor(config *EngineConfig) string {
 //     is not required for model routing).
 func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	provider := e.ResolveLLMProvider(workflowData)
-	if provider == LLMProviderGitHub && hasCopilotRequestsWritePermission(workflowData) {
-		copilotInstallLog.Print("Skipping secret validation step: permissions.copilot-requests=write enabled, using GitHub Actions token")
-		return GitHubActionStep{}
-	}
-	if engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBaseURL) ||
-		engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderAPIKey) ||
-		engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBearerToken) {
-		copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
-		return GitHubActionStep{}
-	}
-	return BuildDefaultSecretValidationStep(
-		workflowData,
-		llmProviderSecretNames(provider),
-		"GitHub Copilot CLI",
-		llmProviderDocsURL(provider),
-	)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: llmProviderSecretNames(provider),
+		EngineName:  "GitHub Copilot CLI",
+		DocsURL:     llmProviderDocsURL(provider),
+		Skip: func(workflowData *WorkflowData) bool {
+			if provider == LLMProviderGitHub && hasCopilotRequestsWritePermission(workflowData) {
+				copilotInstallLog.Print("Skipping secret validation step: permissions.copilot-requests=write enabled, using GitHub Actions token")
+				return true
+			}
+			if engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBaseURL) ||
+				engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderAPIKey) ||
+				engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBearerToken) {
+				copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
+				return true
+			}
+			return false
+		},
+	})
 }
 
 // GetSecretFailureMessage returns a Copilot-specific guidance message shown in the agentic

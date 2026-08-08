@@ -61,6 +61,12 @@ describe("collect_ndjson_output.cjs", () => {
             },
           },
           add_comment: { defaultMax: 1, fields: { body: { required: !0, type: "string", sanitize: !0, maxLength: 65e3 }, item_number: { issueOrPRNumber: !0 } } },
+          add_labels: { defaultMax: 5, fields: { labels: { required: !0, type: "array" }, item_number: { issueNumberOrTemporaryId: !0 } } },
+          assign_milestone: {
+            defaultMax: 1,
+            customValidation: "requiresOneOf:milestone_number,milestone_title",
+            fields: { issue_number: { issueNumberOrTemporaryId: !0 }, milestone_number: { optionalPositiveInteger: !0 }, milestone_title: { type: "string", sanitize: !0, maxLength: 128 } },
+          },
           create_pull_request: {
             defaultMax: 1,
             fields: {
@@ -258,7 +264,7 @@ describe("collect_ndjson_output.cjs", () => {
     it("should preserve Slack mrkdwn links in custom safe-job string inputs", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const slackText = "Tracking issue: <https://github.com/octo-org/octo-repo/issues/123|Build failure — Build github/gh-aw#456>";
-      const ndjsonContent = JSON.stringify({ type: "post_to_slack", text: slackText });
+      const ndjsonContent = JSON.stringify({ type: "post_to_slack", text: slackText, channel: "security-alerts" });
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       fs.writeFileSync("/tmp/gh-aw/safeoutputs/config.json", JSON.stringify({ post_to_slack: { inputs: { text: { type: "string", required: true } } } }));
@@ -268,6 +274,7 @@ describe("collect_ndjson_output.cjs", () => {
       expect(outputCall).toBeDefined();
       const parsedOutput = JSON.parse(outputCall[1]);
       (expect(parsedOutput.errors).toHaveLength(0), expect(parsedOutput.items).toEqual([{ type: "post_to_slack", text: slackText }]));
+      expect(parsedOutput.items[0]).not.toHaveProperty("channel");
     }),
     it("should reject items with unexpected output types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
@@ -881,9 +888,9 @@ describe("collect_ndjson_output.cjs", () => {
           const parsedOutput = JSON.parse(outputCall[1]);
           (expect(parsedOutput.items).toHaveLength(1),
             expect(parsedOutput.items[0].type).toBe("create_issue"),
-            expect(parsedOutput.items[0].priority).toBe(5),
-            expect(parsedOutput.items[0].urgent).toBe(!0),
-            expect(parsedOutput.items[0].assignee).toBe(null),
+            expect(parsedOutput.items[0]).not.toHaveProperty("priority"),
+            expect(parsedOutput.items[0]).not.toHaveProperty("urgent"),
+            expect(parsedOutput.items[0]).not.toHaveProperty("assignee"),
             expect(parsedOutput.errors).toHaveLength(0));
         }),
         it("should attempt repair but fail gracefully with excessive malformed JSON", async () => {
@@ -928,12 +935,7 @@ describe("collect_ndjson_output.cjs", () => {
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
           const parsedOutput = JSON.parse(outputCall[1]);
-          (expect(parsedOutput.items).toHaveLength(1),
-            expect(parsedOutput.items[0].type).toBe("create_issue"),
-            expect(parsedOutput.items[0].metadata).toBeDefined(),
-            expect(parsedOutput.items[0].metadata.project).toBe("test"),
-            expect(parsedOutput.items[0].metadata.tags).toEqual(["important", "urgent"]),
-            expect(parsedOutput.errors).toHaveLength(0));
+          (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].type).toBe("create_issue"), expect(parsedOutput.items[0]).not.toHaveProperty("metadata"), expect(parsedOutput.errors).toHaveLength(0));
         }),
         it("should handle complex backslash scenarios with graceful failure", async () => {
           const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
@@ -1052,7 +1054,7 @@ describe("collect_ndjson_output.cjs", () => {
           (expect(parsedOutput.items).toHaveLength(1),
             expect(parsedOutput.items[0].type).toBe("create_issue"),
             expect(parsedOutput.items[0].title).toBe("Combined issues"),
-            expect(parsedOutput.items[0].priority).toBe(1),
+            expect(parsedOutput.items[0]).not.toHaveProperty("priority"),
             expect(parsedOutput.errors).toHaveLength(0));
         }));
     }),

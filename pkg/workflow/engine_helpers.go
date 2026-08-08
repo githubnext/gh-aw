@@ -251,6 +251,27 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 	return GitHubActionStep(stepLines)
 }
 
+// EngineSecretValidationConfig describes how an engine validates its required
+// authentication secrets.
+type EngineSecretValidationConfig struct {
+	SecretNames []string
+	EngineName  string
+	DocsURL     string
+	Skip        func(*WorkflowData) bool
+}
+
+// BuildEngineSecretValidationStep applies an engine-specific skip policy and
+// delegates rendering to BuildDefaultSecretValidationStep.
+func BuildEngineSecretValidationStep(workflowData *WorkflowData, config EngineSecretValidationConfig) GitHubActionStep {
+	if config.Skip != nil && config.Skip(workflowData) {
+		return GitHubActionStep{}
+	}
+	if len(config.SecretNames) == 0 {
+		return GitHubActionStep{}
+	}
+	return BuildDefaultSecretValidationStep(workflowData, config.SecretNames, config.EngineName, config.DocsURL)
+}
+
 // BuildDefaultSecretValidationStep returns a secret validation step for the given engine
 // configuration, or an empty step when a custom command is specified. This consolidates
 // the common guard+delegate pattern shared across all engine GetSecretValidationStep

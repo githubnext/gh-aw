@@ -30,7 +30,9 @@ safe-outputs:
 timeout-minutes: 30
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 imports:
   - shared/otlp.md
 evals:

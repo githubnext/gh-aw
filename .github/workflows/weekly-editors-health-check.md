@@ -44,6 +44,11 @@ safe-outputs:
     reviewers: [copilot]
     expires: 7d
 
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 # Weekly Editors Health Check

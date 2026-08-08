@@ -353,7 +353,7 @@ function validateOptionalPositiveInteger(value, fieldName, lineNum) {
  * @param {any} value - Value to validate
  * @param {string} fieldName - Field name for error messages
  * @param {number} lineNum - Line number for error messages
- * @returns {{isValid: boolean, error?: string}}
+ * @returns {{isValid: boolean, normalizedValue?: number|string, error?: string}}
  */
 function validateIssueOrPRNumber(value, fieldName, lineNum) {
   if (value === undefined) {
@@ -365,7 +365,7 @@ function validateIssueOrPRNumber(value, fieldName, lineNum) {
       error: `Line ${lineNum}: ${fieldName} must be a number or string`,
     };
   }
-  return { isValid: true };
+  return { isValid: true, normalizedValue: value };
 }
 
 /**
@@ -451,6 +451,17 @@ function validateField(value, fieldName, validation, itemType, lineNum, options)
   // Handle issueOrPRNumber validation
   if (validation.issueOrPRNumber) {
     return validateIssueOrPRNumber(value, `${itemType} '${fieldName}'`, lineNum);
+  }
+
+  if (Array.isArray(validation.type)) {
+    const actualType = Array.isArray(value) ? "array" : typeof value;
+    if (!validation.type.includes(actualType)) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} '${fieldName}' must be one of: ${validation.type.join(", ")}`,
+      };
+    }
+    return { isValid: true, normalizedValue: value };
   }
 
   // Handle type validation
@@ -703,7 +714,10 @@ function validateItem(item, itemType, lineNum, options) {
     return { isValid: true, normalizedItem: item };
   }
 
-  const normalizedItem = { ...item };
+  // Build the downstream payload from the declared contract. The raw item is
+  // agent-controlled, so forwarding undeclared fields would let consumers act
+  // on values that were never validated.
+  const normalizedItem = { type: item.type };
   const errors = [];
 
   // Run custom validation first if defined
@@ -729,6 +743,14 @@ function validateItem(item, itemType, lineNum, options) {
       }
     } else if (result.normalizedValue !== undefined) {
       normalizedItem[fieldName] = result.normalizedValue;
+    } else if (fieldValue !== undefined) {
+      let validationKind = Object.keys(validation).sort().join(",") || "unspecified";
+      if (validation.type) {
+        const validationType = Array.isArray(validation.type) ? validation.type.join("|") : validation.type;
+        validationKind = `type=${validationType}`;
+      }
+      const fieldValueType = Array.isArray(fieldValue) ? "array" : typeof fieldValue;
+      errors.push(`Line ${lineNum}: ${itemType} '${fieldName}' validation (${validationKind}) accepted ${fieldValueType} but did not produce a normalized value`);
     }
   }
 

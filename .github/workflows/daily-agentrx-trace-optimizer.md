@@ -32,7 +32,9 @@ network:
   allowed: [defaults, python-native, github]
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tools:
   agentic-workflows: true
   bash: true

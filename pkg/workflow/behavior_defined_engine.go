@@ -153,14 +153,15 @@ func (e *BehaviorDefinedEngine) GetSecretValidationStep(workflowData *WorkflowDa
 		seen[binding.Secret] = struct{}{}
 		secrets = append(secrets, binding.Secret)
 	}
-	if len(secrets) == 0 {
-		return GitHubActionStep{}
-	}
 	documentationURL := ""
 	if behavior.Installation != nil {
 		documentationURL = behavior.Installation.DocumentationURL
 	}
-	return BuildDefaultSecretValidationStep(workflowData, secrets, e.definition.DisplayName, documentationURL)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: secrets,
+		EngineName:  e.definition.DisplayName,
+		DocsURL:     documentationURL,
+	})
 }
 
 func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
