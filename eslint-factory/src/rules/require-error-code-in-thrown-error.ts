@@ -112,11 +112,15 @@ export const requireErrorCodeInThrownErrorRule = createRule({
 
       if (!body) return null;
       if (body.type !== AST_NODE_TYPES.BlockStatement) return [body];
-      const returnIndex = body.body.findIndex(statement => statement.type === AST_NODE_TYPES.ReturnStatement);
+      let returnIndex = -1;
+      for (let index = 0; index < body.body.length; index++) {
+        if (body.body[index].type !== AST_NODE_TYPES.ReturnStatement) continue;
+        if (returnIndex !== -1) return null;
+        returnIndex = index;
+      }
       if (returnIndex === -1) return null;
-      if (body.body.findIndex((statement, index) => index !== returnIndex && statement.type === AST_NODE_TYPES.ReturnStatement) !== -1) return null;
       if (body.body.slice(0, returnIndex).some(statement => statement.type !== AST_NODE_TYPES.VariableDeclaration)) return null;
-      if (body.body.slice(returnIndex + 1).length > 0) return null;
+      if (returnIndex + 1 < body.body.length) return null;
       const statement = body.body[returnIndex];
       return statement.type === AST_NODE_TYPES.ReturnStatement && statement.argument ? [statement.argument] : null;
     }
