@@ -4,7 +4,6 @@ on: workflow_dispatch
 engine: copilot
 sandbox:
   agent:
-    id: awf
     mounts:
       - "/host/data:/data:ro"
       - "/usr/local/bin/custom-tool:/usr/local/bin/custom-tool:ro"

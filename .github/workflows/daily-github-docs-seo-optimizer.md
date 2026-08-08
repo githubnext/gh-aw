@@ -42,7 +42,6 @@ evals:
     question: Did the agent report an actionable documentation recommendation or explain why no update was needed?
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 ---

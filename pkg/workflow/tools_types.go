@@ -377,7 +377,7 @@ type GitHubToolConfig struct {
 	// BoundedQueries configures the AWF bounded-query subsystem for cross-repository
 	// private data access. When set, the agent may answer finite, pre-approved questions
 	// about the listed repositories without receiving raw source code.
-	// Requires the AWF sandbox (sandbox.agent.id: awf) and AWF v0.27.44+.
+	// Requires the AWF sandbox (sandbox.agent) and AWF v0.27.44+.
 	BoundedQueries *BoundedQueriesConfig `yaml:"bounded-queries,omitempty"`
 }
 

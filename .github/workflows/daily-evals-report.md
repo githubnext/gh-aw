@@ -17,7 +17,6 @@ engine:
 tracker-id: daily-evals-report
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 features:

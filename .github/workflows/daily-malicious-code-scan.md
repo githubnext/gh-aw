@@ -36,7 +36,6 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 evals:

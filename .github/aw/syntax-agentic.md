@@ -294,12 +294,11 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
   - String format: `"default"` (default sandbox), `"awf"` (Agent Workflow Firewall)
-  - Object format to pin an AWF version (strict mode requires explicit `id: awf`):
+  - Object format to pin an AWF version:
 
     ```yaml
     sandbox:
       agent:
-        id: awf                     # Required in strict mode
         version: "v0.25.29"         # Optional: pin AWF version
         model-fallback: false       # Optional: disable model fallback (default true); set false for BYOK Azure OpenAI to prevent deployment-name rewriting
         token-steering: false       # Optional: disable API proxy token steering to preserve the configured provider and model
@@ -316,10 +315,10 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
   - **`sandbox.agent.sudo`** (boolean) controls whether AWF runs in root mode. Default is `false`: AWF runs rootless in network-isolation egress mode (`--network-isolation`), with MCP sidecars attached as bridge containers on the internal `awf-net` network. Set `sudo: true` for the legacy root mode; in strict mode explicit `sudo: true` is an error (warning otherwise).
   - **`sandbox.agent.runtime`** (string) selects an extra-isolation container runtime for the agent: `gvisor` (runs under gVisor's `runsc` for kernel-level isolation) or `docker-sbx` (Docker sbx microVM with KVM hypervisor-level isolation; needs `DOCKER_PAT`/`DOCKER_USERNAME` secrets and a KVM-capable runner). Both require `sudo: true` and are incompatible with `runner.topology: arc-dind`.
-  - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
+  - **Strict mode**: Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime. Omitting `id` is valid and equivalent to setting `id: awf`.
 
 - **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
-  - **`tools.github.bounded-queries`** (object, AWF v0.27.44+) configures the AWF bounded-query subsystem for cross-repository private data access. When present, the agent may answer finite, pre-approved questions about the listed repositories using the generated `bounded-query` skill — without receiving raw source code. This is the preferred pattern for cross-repository workflows. Requires the AWF sandbox (`sandbox.agent.id: awf`). The query runtime is independent from `sandbox.agent.runtime`, and every query runs in a fresh backend-specific sandbox. All optional fields use AWF defaults when omitted.
+  - **`tools.github.bounded-queries`** (object, AWF v0.27.44+) configures the AWF bounded-query subsystem for cross-repository private data access. When present, the agent may answer finite, pre-approved questions about the listed repositories using the generated `bounded-query` skill — without receiving raw source code. This is the preferred pattern for cross-repository workflows. Requires the AWF sandbox (`sandbox.agent`). The query runtime is independent from `sandbox.agent.runtime`, and every query runs in a fresh backend-specific sandbox. All optional fields use AWF defaults when omitted.
 
     ```yaml
     tools:
@@ -335,9 +334,6 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
           memory-limit: 512m      # optional; e.g. 512m, 2g; default: AWF default
           interpreter: python3    # optional; default: AWF default
           max-invocations: 32     # optional; default: AWF default
-    sandbox:
-      agent:
-        id: awf
     ```
 
     Sensitivity levels control how much information the agent may extract from the repository per run:

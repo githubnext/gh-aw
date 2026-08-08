@@ -43,7 +43,6 @@ imports:
       reviewers: [copilot]
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 steps:

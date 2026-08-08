@@ -14,7 +14,6 @@ network:
 # This example shows how to use a custom command to replace the standard AWF binary
 sandbox:
   agent:
-    id: awf  # Agent identifier (awf)
     command: "docker run --rm -it my-custom-awf-image"  # Custom command replaces AWF binary download
     args:
       - "--custom-logging"  # Additional arguments appended to AWF command
@@ -54,7 +53,6 @@ This workflow demonstrates the custom agent configuration capabilities for **AWF
 ```yaml
 sandbox:
   agent:
-    id: awf
     command: "docker run --rm my-custom-awf"
     args: ["--debug-mode", "--verbose"]
     env:

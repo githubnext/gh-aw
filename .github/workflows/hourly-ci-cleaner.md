@@ -35,7 +35,6 @@ tools:
   edit:
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 if: needs.check_ci_status.outputs.ci_needs_fix == 'true'

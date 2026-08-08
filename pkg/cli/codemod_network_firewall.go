@@ -68,7 +68,6 @@ func sandboxAgentLinesFromFirewall(fieldValue any) []string {
 				return []string{
 					"sandbox:",
 					"  agent:",
-					"    id: awf  # Migrated from deprecated network setting",
 					"    version: " + formatSandboxVersionYAML(version),
 				}
 			}
@@ -243,7 +242,6 @@ func sandboxAgentLinesForExistingSandbox(fieldValue any) []string {
 			if version, ok := normalizeFirewallVersion(versionValue); ok {
 				return []string{
 					"agent:",
-					"  id: awf  # Migrated from deprecated network setting",
 					"  version: " + formatSandboxVersionYAML(version),
 				}
 			}

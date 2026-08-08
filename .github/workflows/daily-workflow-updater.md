@@ -17,7 +17,6 @@ permissions:
 
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 tracker-id: daily-workflow-updater

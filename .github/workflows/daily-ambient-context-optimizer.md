@@ -22,7 +22,6 @@ network:
   allowed: [defaults, github]
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 tools:

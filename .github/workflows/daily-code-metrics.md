@@ -17,7 +17,6 @@ engine:
 model: copilot/claude-sonnet-4.5
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 tools:

@@ -3754,7 +3754,7 @@ tools:
     features: "example-value"
 
     # AWF bounded-query configuration for cross-repository private data access (AWF
-    # v0.27.44+). Requires the AWF sandbox (sandbox.agent.id: awf). Query execution is
+    # v0.27.44+). Requires the AWF sandbox (sandbox.agent). Query execution is
     # independent from the primary agent sandbox, and every query runs in a fresh
     # backend-specific sandbox.
     # (optional)

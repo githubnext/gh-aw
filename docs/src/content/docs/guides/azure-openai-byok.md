@@ -142,7 +142,6 @@ disable AWF model fallback for that workflow:
 ```aw wrap
 sandbox:
   agent:
-    id: awf
     model-fallback: false
 ```
 

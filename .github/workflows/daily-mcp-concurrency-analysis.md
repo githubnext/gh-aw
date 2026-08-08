@@ -46,7 +46,6 @@ strict: true
 timeout-minutes: 45
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 tools:

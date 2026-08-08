@@ -33,7 +33,6 @@ tools:
   edit:
 sandbox:
   agent:
-    id: awf
     sudo: false
     mounts:
       - "/usr/bin/make:/usr/bin/make:ro"

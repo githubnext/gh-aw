@@ -159,7 +159,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 				"docker-sbx requires sandbox.agent.sudo: true",
 				"The docker-sbx install step needs root access to install docker-sbx and fix KVM "+
 					"device permissions. Add 'sudo: true' to your sandbox.agent configuration:\n\n"+
-					"sandbox:\n  agent:\n    id: awf\n    runtime: docker-sbx\n    sudo: true",
+					"sandbox:\n  agent:\n    runtime: docker-sbx\n    sudo: true",
 			)
 		}
 
@@ -293,8 +293,8 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 		return NewValidationError(
 			"tools.github.bounded-queries",
 			string(agentType),
-			"bounded-queries requires the AWF sandbox (sandbox.agent.id: awf)",
-			"Set sandbox.agent.id: awf when using bounded-queries:\n\nsandbox:\n  agent:\n    id: awf\ntools:\n  github:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal\n\nSee: "+string(constants.DocsSandboxURL),
+			"bounded-queries requires the AWF sandbox (sandbox.agent)",
+			"Enable the sandbox when using bounded-queries:\n\nsandbox:\n  agent:\ntools:\n  github:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal\n\nSee: "+string(constants.DocsSandboxURL),
 		)
 	}
 

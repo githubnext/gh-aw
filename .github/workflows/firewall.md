@@ -21,7 +21,6 @@ network:
   
 sandbox:
   agent:
-    id: awf
     sudo: false
 imports:
   - shared/otlp.md

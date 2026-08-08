@@ -22,7 +22,6 @@ network:
     - fonts
 sandbox:
   agent:
-    id: awf
     sudo: false
 timeout-minutes: 20
 strict: false

@@ -29,7 +29,6 @@ safe-outputs:
 timeout-minutes: 10
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 ---

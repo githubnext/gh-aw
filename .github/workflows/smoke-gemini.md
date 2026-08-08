@@ -77,7 +77,6 @@ evals:
 
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 ---

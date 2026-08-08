@@ -282,7 +282,7 @@ sandbox:
 	assert.Contains(t, result, "sandbox:", "Should preserve existing sandbox block")
 	assert.Contains(t, result, "mcp: true", "Should preserve existing sandbox settings")
 	assert.Contains(t, result, "agent:", "Should add sandbox.agent object")
-	assert.Contains(t, result, "id: awf", "Should set sandbox.agent.id")
+	assert.NotContains(t, result, "id: awf", "Should not emit redundant sandbox.agent.id")
 	assert.Contains(t, result, `version: "0.9"`, "Should migrate firewall.version to sandbox.agent.version")
 }
 
@@ -480,7 +480,7 @@ network:
 	assert.True(t, applied)
 	assert.NotContains(t, result, "firewall:", "Should remove firewall field")
 	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
-	assert.Contains(t, result, "id: awf", "Should create sandbox.agent object")
+	assert.NotContains(t, result, "id: awf", "Should not emit redundant sandbox.agent.id")
 	assert.Contains(t, result, `version: "v1.2.3"`, "Should preserve firewall.version as sandbox.agent.version")
 }
 

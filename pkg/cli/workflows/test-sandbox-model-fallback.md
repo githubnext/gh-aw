@@ -7,7 +7,6 @@ permissions:
 engine: copilot
 sandbox:
   agent:
-    id: awf
     model-fallback: false
 ---
 

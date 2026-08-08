@@ -116,7 +116,6 @@ jobs:
           retention-days: 7
 sandbox:
   agent:
-    id: awf
     runtime: docker-sbx
     sudo: true
 steps:
