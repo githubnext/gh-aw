@@ -32,7 +32,7 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.224"
+const DefaultClaudeCodeVersion Version = "2.1.226"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -51,7 +51,7 @@ const DefaultCodexVersion Version = "0.147.0"
 const DefaultGeminiVersion Version = "0.39.1"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.84.0"
+const DefaultPiVersion Version = "0.84.1"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v1.8.0"
