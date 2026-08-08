@@ -43,11 +43,7 @@ Wait a few minutes for policy propagation, then re-run.
 
 ### Actions Restrictions Reported During Init
 
-The CLI validates three permission layers. Fix restrictions in Repository Settings → Actions → General:
-
-1. **Actions disabled**: Enable Actions ([docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository))
-2. **Local-only**: Switch to "Allow all actions" or enable GitHub-created actions ([docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#managing-github-actions-permissions-for-your-repository))
-3. **Selective allowlist**: Enable "Allow actions created by GitHub" checkbox ([docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#allowing-select-actions-and-reusable-workflows-to-run))
+The CLI validates three permission layers in Repository Settings → Actions → General: enable Actions, switch from local-only restrictions to allowing GitHub-created or all actions, and, if you're using a selective allowlist, enable GitHub-created actions as well. See the [repository Actions settings docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository) and [allowlist details](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#allowing-select-actions-and-reusable-workflows-to-run).
 
 > [!NOTE]
 > Organization policies override repository settings. Contact admins if settings are grayed out.
@@ -150,9 +146,7 @@ When integrating OpenCode-compatible engines, runs can complete without ever inv
 }
 ```
 
-Key gotchas:
-
-OpenCode does not auto-discover MCP servers, so declare an explicit top-level `mcp` block with routed URLs such as `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`. Use `agent.build.permission` (singular); `permissions` is silently ignored and leaves tools unavailable. `external_directory` defaults to `ask`, which becomes an implicit deny in non-interactive runs, so set it to `allow` only when you truly need access outside the workspace.
+OpenCode does not auto-discover MCP servers, so declare an explicit top-level `mcp` block with routed URLs such as `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`. Use `agent.build.permission` (singular), not `permissions`, and set `external_directory: allow` only when you truly need access outside the workspace because the default `ask` behaves like a deny in non-interactive runs.
 
 For direct Copilot endpoints (`api.githubcopilot.com`), do **not** append `/v1`. For other OpenAI-compatible providers, use the provider's documented base path so `/chat/completions` is appended correctly. Keep the local proxy URL (`http://host.docker.internal:10004`) unchanged.
 
@@ -240,8 +234,7 @@ Delete conflicting fields in Projects UI and recreate.
 
 ## Engine-Specific Issues
 
-- **Copilot CLI not found:** verify compilation succeeded — compiled workflows include CLI installation steps.
-- **Model not available:** use the default (`engine: copilot`) or specify an available model (`engine: {id: copilot, model: gpt-4}`).
+If the Copilot CLI is missing, first verify compilation succeeded because compiled workflows install it automatically. If a model is unavailable, fall back to the default (`engine: copilot`) or choose one your environment exposes, such as `engine: {id: copilot, model: gpt-4}`.
 
 ### Copilot License or Inference Access Issues
 
@@ -264,21 +257,17 @@ If this fails, contact your organization administrator to enable Copilot for the
 
 ### Copilot Engine Prerequisites on GHES
 
-Before running Copilot-based workflows on GHES, verify:
+Before running Copilot-based workflows on GHES, verify three things: site admins have enabled GitHub Connect, enterprise Copilot licensing, and outbound HTTPS to `api.githubcopilot.com` and `api.enterprise.githubcopilot.com`; enterprise or org admins have assigned a Copilot seat to the `COPILOT_GITHUB_TOKEN` owner and allowed usage by policy; and the workflow targets the enterprise endpoint:
 
-- **Site admin:** GitHub Connect enabled (links GHES to github.com for Copilot cloud services), enterprise-level Copilot licensing activated, and outbound HTTPS allowed to `api.githubcopilot.com` and `api.enterprise.githubcopilot.com`.
-- **Enterprise/org admin:** a Copilot seat assigned to the `COPILOT_GITHUB_TOKEN` owner, and the org Copilot policy permits usage.
-- **Workflow config:**
-
-  ```aw wrap
-  engine:
-    id: copilot
-    api-target: api.enterprise.githubcopilot.com
-  network:
-    allowed:
-      - defaults
-      - api.enterprise.githubcopilot.com
-  ```
+```aw wrap
+engine:
+  id: copilot
+  api-target: api.enterprise.githubcopilot.com
+network:
+  allowed:
+    - defaults
+    - api.enterprise.githubcopilot.com
+```
 
 See [Enterprise API Endpoint](/gh-aw/reference/engines/#enterprise-api-endpoint-api-target) for GHEC/GHES `api-target` values.
 
@@ -308,13 +297,11 @@ network:
 
 ## Context Expression Issues
 
-- **Unauthorized expression:** use only [allowed expressions](/gh-aw/reference/templating/) (`github.event.issue.number`, `github.repository`, `steps.sanitized.outputs.text`). `secrets.*` and `env.*` are disallowed.
-- **Sanitized context empty:** `steps.sanitized.outputs.text` requires issue/PR/comment events (`on: issues:`), not `push:` or similar triggers.
+Use only [allowed expressions](/gh-aw/reference/templating/) such as `github.event.issue.number`, `github.repository`, and `steps.sanitized.outputs.text`; `secrets.*` and `env.*` are disallowed. If `steps.sanitized.outputs.text` is empty, confirm the workflow runs on issue, PR, or comment events rather than `push:`.
 
 ## Build and Test Issues
 
-- **Documentation build fails:** clean install (`cd docs && rm -rf node_modules package-lock.json && npm install && npm run build`) and check for malformed frontmatter, MDX syntax errors, or broken links.
-- **Tests failing after changes:** run `make fmt && make lint && make test-unit` before iterating.
+If the docs build fails, do a clean install (`cd docs && rm -rf node_modules package-lock.json && npm install && npm run build`) and check for malformed frontmatter, MDX syntax errors, or broken links. If tests fail after changes, run `make fmt && make lint && make test-unit` before iterating.
 
 ## Network and Connectivity Issues
 
@@ -411,8 +398,8 @@ DEBUG_COLORS=0 DEBUG=* gh aw compile 2>&1 | tee debug.log  # capture to file
 
 ## Operational Runbooks
 
-See [Workflow Health Monitoring Runbook](https://github.com/github/gh-aw/blob/main/.github/aw/runbooks/workflow-health.md) for diagnosing errors.
+For a step-by-step diagnostic checklist, see the [Workflow Health Monitoring Runbook](https://github.com/github/gh-aw/blob/main/.github/aw/runbooks/workflow-health.md).
 
 ## Getting Help
 
-Review [reference docs](/gh-aw/reference/workflow-structure/), search [existing issues](https://github.com/github/gh-aw/issues), or create an issue. See [Error Reference](/gh-aw/troubleshooting/errors/) and [Frontmatter Reference](/gh-aw/reference/frontmatter/).
+Start with the [reference docs](/gh-aw/reference/workflow-structure/), [Error Reference](/gh-aw/troubleshooting/errors/), and [Frontmatter Reference](/gh-aw/reference/frontmatter/). If that doesn't resolve the issue, search [existing issues](https://github.com/github/gh-aw/issues) or open a new one.
