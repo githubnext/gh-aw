@@ -156,6 +156,17 @@ func (c *ActionCache) PruneOrphanedEntries(referencedKeys map[string]struct{}) i
 // in knownImages. It returns the number of entries that were removed.
 // This is used to keep actions-lock.json consistent with the set of images
 // actually referenced by the compiled lock files.
+//
+// gh-aw-firewall (AWF) images are intentionally exempt from pruning: these are the
+// most security-load-bearing images (they confine the agent sandbox), and bumping
+// constants.DefaultFirewallVersion in this repo routinely leaves the *previous*
+// default version unreferenced by any local lock file. Pruning that entry would
+// silently drop it from the embedded pin catalog (pkg/actionpins/data/action_pins.json,
+// synced via "make sync-action-pins") the next time this binary is built, breaking
+// digest pinning for any consumer workflow that explicitly pins to that now-previous
+// version (see gh-aw#51248, a repeat of gh-aw#38561 / #43307 / #44040). Keeping
+// historical firewall pins around is cheap (a few KB per version) and ensures the
+// pin, once resolved, is never lost again.
 func (c *ActionCache) PruneStaleContainerPins(knownImages map[string]struct {
 }) int {
 	if c.ContainerPins == nil {
@@ -163,12 +174,17 @@ func (c *ActionCache) PruneStaleContainerPins(knownImages map[string]struct {
 	}
 	pruned := 0
 	for image := range c.ContainerPins {
-		if !setutil.Contains(knownImages, image) {
-			delete(c.ContainerPins, image)
-			c.dirty = true
-			pruned++
-			actionCacheLog.Printf("Pruned stale container pin for image=%s", image)
+		if setutil.Contains(knownImages, image) {
+			continue
 		}
+		if strings.HasPrefix(image, constants.DefaultFirewallRegistry+"/") {
+			actionCacheLog.Printf("Skipping prune of gh-aw-firewall container pin for image=%s (historical pins are retained)", image)
+			continue
+		}
+		delete(c.ContainerPins, image)
+		c.dirty = true
+		pruned++
+		actionCacheLog.Printf("Pruned stale container pin for image=%s", image)
 	}
 	return pruned
 }

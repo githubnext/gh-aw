@@ -253,3 +253,137 @@ Test workflow.`
 		t.Errorf("Expected AWF config JSON to include build-tools=%s", buildToolsDigest)
 	}
 }
+
+// TestCompileWorkflow_AllManifestContainersArePinned is the golden/compile test
+// suggested in gh-aw#51248: rather than enumerating a fixed list of expected
+// images (which previous regression tests did, and which can silently miss a
+// newly-unpinned image), this test parses the actual gh-aw-manifest emitted for
+// a firewall-enabled workflow with several container-backed tools and asserts
+// that *every* entry in containers[] carries a non-empty digest/pinned_image.
+//
+// This is a repeat of gh-aw#38561 / #43307 / #44040: gh-aw-firewall images have
+// silently lost their digest pin multiple times across releases while other
+// container families kept theirs.
+func TestCompileWorkflow_AllManifestContainersArePinned(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: claude
+network:
+  allowed:
+    - defaults
+tools:
+  github:
+    mode: gh-proxy
+  web-fetch:
+---
+
+# Test
+Test workflow.`
+
+	tmpDir := testutil.TempDir(t, "docker-all-containers-pinned-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	yaml, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	manifest, err := ExtractGHAWManifestFromLockFile(string(yaml))
+	if err != nil {
+		t.Fatalf("Failed to parse gh-aw-manifest: %v", err)
+	}
+	if manifest == nil {
+		t.Fatal("Expected a gh-aw-manifest header in the compiled lock file")
+	}
+	if len(manifest.Containers) == 0 {
+		t.Fatal("Expected at least one container entry in the gh-aw-manifest")
+	}
+
+	var unpinned []string
+	for _, c := range manifest.Containers {
+		if c.Digest == "" || c.PinnedImage == "" {
+			unpinned = append(unpinned, c.Image)
+		}
+	}
+	if len(unpinned) > 0 {
+		t.Errorf("Expected every manifest container entry to carry digest/pinned_image, but %d were unpinned: %v", len(unpinned), unpinned)
+	}
+
+	if len(manifest.ResolutionFailures) > 0 {
+		t.Errorf("Expected no resolution failures for default-version containers, got: %+v", manifest.ResolutionFailures)
+	}
+}
+
+// TestCompileWorkflow_UnresolvedFirewallImageRecordsResolutionFailure is a
+// regression test for gh-aw#51248: when a gh-aw-firewall image has no cached or
+// embedded digest pin (e.g. a workflow explicitly pins a version that predates
+// the current default and has never been resolved locally), the compiler must
+// not silently emit the bare tag with no trace. It must record a resolution
+// failure in the manifest so the gap is auditable, matching the issue's
+// complaint that "resolution_failures in the manifest does not mention these
+// images".
+func TestCompileWorkflow_UnresolvedFirewallImageRecordsResolutionFailure(t *testing.T) {
+	const unresolvedVersion = "v0.1.2-unresolved-test"
+	imageTag := strings.TrimPrefix(unresolvedVersion, "v")
+
+	frontmatter := `---
+on: workflow_dispatch
+engine: claude
+sandbox:
+  agent:
+    id: awf
+    version: ` + unresolvedVersion + `
+network:
+  allowed:
+    - defaults
+---
+
+# Test
+Test workflow.`
+
+	tmpDir := testutil.TempDir(t, "docker-firewall-unresolved-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	yaml, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	manifest, err := ExtractGHAWManifestFromLockFile(string(yaml))
+	if err != nil {
+		t.Fatalf("Failed to parse gh-aw-manifest: %v", err)
+	}
+	if manifest == nil {
+		t.Fatal("Expected a gh-aw-manifest header in the compiled lock file")
+	}
+
+	agentImage := constants.DefaultFirewallRegistry + "/agent:" + imageTag
+	found := false
+	for _, f := range manifest.ResolutionFailures {
+		if f.Repo == agentImage {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected a resolution failure recorded for unpinned gh-aw-firewall image %s, got: %+v", agentImage, manifest.ResolutionFailures)
+	}
+}
