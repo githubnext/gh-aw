@@ -43,7 +43,7 @@ experiments:
     description: "Tests whether the structure of Semgrep findings output (bullet list vs. grouped sections vs. prose vs. Simplified Technical English (STE)) affects code scanning alert creation rate and output completeness."
     hypothesis: "H0: no change in alert creation rate across formats. H1: structured_sections produces ≥15% more alerts successfully created vs. baseline bullet_list; ste improves completeness via clearer, simpler language."
     metric: alert_creation_rate
-    secondary_metrics: [run_duration_ms, output_length_chars, findings_reported]
+    secondary_metrics: [run_duration_ms, output_length_chars, findings_reported, "eval:output_format_adherence"]
     guardrail_metrics:
       - name: run_success_rate
         threshold: ">=0.85"
@@ -58,6 +58,8 @@ evals:
     question: Did the agent complete a Semgrep security scan and report on the findings?
   - id: alert_created_or_noop
     question: Was a code scanning alert created for real security findings, or does the agent output confirm no vulnerabilities were found?
+  - id: output_format_adherence
+    question: Does the findings report match the writing style expected for the assigned semgrep_output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 
 ---
 

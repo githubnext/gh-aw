@@ -136,8 +136,9 @@ Use `${{ experiments.tone }}` tone when writing the issue body.
 1. **One dimension** per experiment.
 2. **Falsifiable hypothesis**.
 3. **Primary metric** measurable from workflow run data (artifacts, outputs, duration, tokens). Prefer `eval:<id>` / `evals.<id>` when success is best measured as a YES/NO question.
-4. **Guardrail metrics** — things that must not degrade. Use `direction: min` + bare number for lower-is-better rates, or `">=0.95"` for higher-is-better.
-5. **Sample size estimate** per variant.
+4. **Pair the experiment with an eval.** Add at least one `evals:` question that checks whether the assigned variant's intended effect actually shows up in the output (e.g., "does the report follow the STE writing rules?"), and reference it from `metric` or `secondary_metrics` as `eval:<id>`. Purely quantitative metrics (token count, duration, engagement score) don't verify *why* an effect happened — the paired eval does.
+5. **Guardrail metrics** — things that must not degrade. Use `direction: min` + bare number for lower-is-better rates, or `">=0.95"` for higher-is-better.
+6. **Sample size estimate** per variant.
 
 Prefer high-frequency workflows for faster significance.
 

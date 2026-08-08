@@ -50,6 +50,7 @@ experiments:
     - output_token_count
     - run_duration_ms
     - run_success_rate
+    - "eval:output_format_adherence"
     start_date: "2026-05-16"
     tags:
     - output-quality
@@ -106,6 +107,8 @@ evals:
     question: Did the agent analyze compiler code files for quality standards such as readability and maintainability?
   - id: discussion_created_or_noop
     question: Was a discussion or report created with quality findings, or was noop used when all analyzed files met the quality standards?
+  - id: output_format_adherence
+    question: Does the report match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

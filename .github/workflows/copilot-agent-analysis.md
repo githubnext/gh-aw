@@ -24,7 +24,7 @@ experiments:
     description: "Test whether a prose-style discussion summary or a Simplified Technical English (STE) summary reduces AI credit consumption vs. the current table-centric structured format without sacrificing completeness."
     hypothesis: "H0: no change in ai_credits_used. H1: prose or ste format reduces ai_credits_used by >=15% while keeping empty_discussion_rate <=5%"
     metric: ai_credits_used
-    secondary_metrics: [run_duration_seconds, output_length_chars]
+    secondary_metrics: [run_duration_seconds, output_length_chars, "eval:output_format_adherence"]
     guardrail_metrics:
       - name: empty_discussion_rate
         direction: min
@@ -68,6 +68,8 @@ evals:
     question: Did the agent analyze GitHub Copilot coding agent usage patterns in pull requests?
   - id: insights_report_produced
     question: Was a report produced with insights on agent effectiveness and behavior patterns?
+  - id: output_format_adherence
+    question: Does the discussion summary match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 ---
 # Copilot Agent PR Analysis
 

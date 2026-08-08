@@ -32,7 +32,7 @@ experiments:
     description: "Tests whether report verbosity, structure, or Simplified Technical English (STE) phrasing affect token cost and discussion engagement"
     hypothesis: "H0: no change in discussion engagement or token cost. H1: executive_brief reduces token usage by ≥20% without reducing engagement; annotated_brief improves actionability; ste improves clarity while reducing token usage."
     metric: token_count
-    secondary_metrics: [discussion_reactions, discussion_replies, output_char_length, run_duration_ms]
+    secondary_metrics: [discussion_reactions, discussion_replies, output_char_length, run_duration_ms, "eval:output_format_goal_met"]
     guardrail_metrics:
       - name: empty_output_rate
         threshold: "==0"
@@ -96,7 +96,7 @@ imports:
   - shared/default-ai-credits-pricing.md
 evals:
   - id: output_format_goal_met
-    question: Does the agent output show that the objective for experiment output_format was successfully completed?
+    question: Does the report's writing style match the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
   - id: tasks-extracted
     question: Does the agent output show that actionable tasks were identified from the analyzed discussions?
   - id: labels-applied

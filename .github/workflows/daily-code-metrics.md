@@ -50,7 +50,7 @@ experiments:
     description: "Tests whether a concise executive summary report or a Simplified Technical English (STE) report drives higher reader engagement than the current full-detail 6-chart report."
     hypothesis: "H0: no change in discussion engagement rate. H1: executive_summary variant increases discussion reactions+comments by ≥20% due to improved readability; ste variant improves readability further via simplified language."
     metric: discussion_engagement_score
-    secondary_metrics: [output_token_count, run_duration_seconds, chart_count]
+    secondary_metrics: [output_token_count, run_duration_seconds, chart_count, "eval:output_format_adherence"]
     guardrail_metrics:
       - name: report_empty_rate
         threshold: "<=0"
@@ -93,6 +93,8 @@ evals:
     question: Did the agent collect daily code metrics for the repository?
   - id: metrics_report_created
     question: Was a report or discussion created with code metrics trends and repository health indicators?
+  - id: output_format_adherence
+    question: Does the report match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

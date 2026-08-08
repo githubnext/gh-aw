@@ -37,7 +37,7 @@ experiments:
     description: "Test whether hiding report details behind a <details> block, presenting them inline, or writing in Simplified Technical English (STE) affects discussion engagement"
     hypothesis: "H0: no change in discussion engagement score. H1: inline format produces ≥20% higher reactions+replies by making charts and recommendations immediately visible; ste format improves engagement via clearer, simpler language."
     metric: discussion_engagement_score
-    secondary_metrics: [output_length_chars, run_duration_ms]
+    secondary_metrics: [output_length_chars, run_duration_ms, "eval:output_format_adherence"]
     guardrail_metrics:
       - name: empty_output_rate
         threshold: "==0"
@@ -65,6 +65,8 @@ evals:
     question: Did the workflow analyze the prefetched issues data and generate a clustered daily issues report with metrics and trends?
   - id: discussion-created
     question: Was a daily issues discussion created successfully with the report findings and recommendations?
+  - id: output_format_adherence
+    question: Does the report match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
