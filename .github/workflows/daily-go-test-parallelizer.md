@@ -43,6 +43,8 @@ evals:
     question: Did the agent analyze Go tests to identify a safe candidate for t.Parallel?
   - id: pr_created_or_noop
     question: Did the agent create a pull request for a safe test change, or use noop when no safe change was available?
+imports:
+  - shared/reporting.md
 ---
 
 # Daily Go Test Parallelizer

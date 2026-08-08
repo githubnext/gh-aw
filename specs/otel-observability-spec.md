@@ -945,7 +945,6 @@ context is added to outcome spans or links.
 - `docs/src/content/docs/reference/open-telemetry.mdx`
 - `docs/src/content/docs/reference/frontmatter.md`
 - `docs/src/content/docs/reference/mcp-gateway.md`
-- `specs/aw-harness.md`
 - `specs/safe-output-outcome-evaluation.md`
 
 ---

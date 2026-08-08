@@ -42,6 +42,7 @@ imports:
   - shared/mcp/sentry.md
   - shared/mcp/grafana.md
   - shared/trends.md
+  - shared/reporting.md
 ---
 
 # Workflow Portfolio Analyst

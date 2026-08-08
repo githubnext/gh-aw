@@ -34,6 +34,7 @@ imports:
   - ../skills/jqschema/SKILL.md
 
   - shared/otlp.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults

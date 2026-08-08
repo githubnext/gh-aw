@@ -4,7 +4,7 @@ package cli
 
 // Formal compliance tests for the safe output outcome evaluation engine.
 //
-// These tests cover predicates P1–P12 derived from the formal model in
+// These tests cover predicates P1–P12, P14, and P15 derived from the formal model in
 // specs/safe-output-outcome-evaluation.md.
 //
 // Formal notation cross-references:
@@ -227,45 +227,141 @@ func TestFormalBotActorProvenance(t *testing.T) {
 func TestFormalPRMergeAcceptance(t *testing.T) {
 	cases := []struct {
 		name       string
-		result     OutcomeResult
-		detail     string
-		wantStatus OutcomeStatus
-		wantSignal string
+		pr         map[string]any
+		wantResult OutcomeResult
+		wantDetail string
 	}{
 		{
 			name:       "merged PR → accepted",
-			result:     OutcomeAccepted,
-			detail:     "merged",
-			wantStatus: OutcomeStatusAccepted,
-			wantSignal: "merged",
+			pr:         map[string]any{"merged": true, "state": "closed"},
+			wantResult: OutcomeAccepted,
+			wantDetail: "merged",
 		},
 		{
 			name:       "closed PR without merge → rejected",
-			result:     OutcomeRejected,
-			detail:     "closed without merge",
-			wantStatus: OutcomeStatusRejected,
-			wantSignal: "closed_without_merge",
+			pr:         map[string]any{"merged": false, "state": "closed"},
+			wantResult: OutcomeRejected,
+			wantDetail: "closed without merge",
 		},
 		{
 			name:       "open PR → pending",
-			result:     OutcomePending,
-			detail:     "open",
-			wantStatus: OutcomeStatusPending,
-			wantSignal: "open",
+			pr:         map[string]any{"merged": false, "state": "open"},
+			wantResult: OutcomePending,
+			wantDetail: "open",
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			report := OutcomeReport{
-				Type:   "create_pull_request",
-				Result: tc.result,
-				Detail: tc.detail,
+			oldGet := outcomeEvalPRGHAPIGet
+			oldGetArray := outcomeEvalPRGHAPIGetArray
+			t.Cleanup(func() {
+				outcomeEvalPRGHAPIGet = oldGet
+				outcomeEvalPRGHAPIGetArray = oldGetArray
+			})
+			outcomeEvalPRGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+				assert.Equal(t, "pulls/1", endpoint)
+				assert.Equal(t, "owner/repo", repo)
+				return tc.pr, nil
 			}
-			eval := normalizeOutcomeEvaluation(report)
-			assert.Equal(t, tc.wantStatus, eval.OutcomeStatus,
-				"P5: PR state (%q) must yield OutcomeStatus=%s", tc.detail, tc.wantStatus)
-			assert.Equal(t, tc.wantSignal, eval.Signal,
-				"P5: PR state (%q) must set signal %q", tc.detail, tc.wantSignal)
+			outcomeEvalPRGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+				return nil, nil
+			}
+			report := evalCreatePullRequest(context.Background(), CreatedItemReport{
+				Type: "create_pull_request", Number: 1, Repo: "owner/repo",
+			}, "owner/repo")
+			assert.Equal(t, tc.wantResult, report.Result,
+				"P5: PR state must yield %s", tc.wantResult)
+			assert.Equal(t, tc.wantDetail, report.Detail,
+				"P5: PR state must set detail %q", tc.wantDetail)
+			if tc.wantResult != OutcomeAccepted {
+				assert.False(t, report.ZeroTouch,
+					"P5: a non-accepted PR must not be marked zero-touch")
+			}
+		})
+	}
+}
+
+// TestFormalAPIErrorNotTerminal verifies that an authoritative PR fetch error
+// produces an error result rather than a terminal acceptance or rejection.
+func TestFormalAPIErrorNotTerminal(t *testing.T) {
+	oldGet := outcomeEvalPRGHAPIGet
+	t.Cleanup(func() { outcomeEvalPRGHAPIGet = oldGet })
+	outcomeEvalPRGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+		return nil, errors.New("gh api: 503 Service Unavailable")
+	}
+
+	report := evalCreatePullRequest(context.Background(), CreatedItemReport{
+		Type: "create_pull_request", Number: 1, Repo: "owner/repo",
+	}, "owner/repo")
+
+	assert.Equal(t, OutcomeError, report.Result,
+		"P14: an API error must not produce a terminal outcome")
+	assert.NotEmpty(t, report.EvalError, "P14: an API error must be recorded")
+}
+
+// TestFormalZeroTouchRequiresNoReviews verifies that an accepted PR is
+// zero-touch only when it has no non-bot comments and no reviews.
+func TestFormalZeroTouchRequiresNoReviews(t *testing.T) {
+	cases := []struct {
+		name          string
+		comments      []map[string]any
+		reviews       []map[string]any
+		wantZeroTouch bool
+	}{
+		{
+			name:          "no comments or reviews",
+			wantZeroTouch: true,
+		},
+		{
+			name: "human comment",
+			comments: []map[string]any{
+				{"user": map[string]any{"login": "octocat"}},
+			},
+			wantZeroTouch: false,
+		},
+		{
+			name: "bot comment",
+			comments: []map[string]any{
+				{"user": map[string]any{"login": "github-actions[bot]"}},
+			},
+			wantZeroTouch: true,
+		},
+		{
+			name:          "review",
+			reviews:       []map[string]any{{"user": map[string]any{"login": "octocat"}}},
+			wantZeroTouch: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			oldGet := outcomeEvalPRGHAPIGet
+			oldGetArray := outcomeEvalPRGHAPIGetArray
+			t.Cleanup(func() {
+				outcomeEvalPRGHAPIGet = oldGet
+				outcomeEvalPRGHAPIGetArray = oldGetArray
+			})
+			outcomeEvalPRGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+				return map[string]any{"merged": true, "state": "closed"}, nil
+			}
+			outcomeEvalPRGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+				switch endpoint {
+				case "issues/1/comments":
+					return tc.comments, nil
+				case "pulls/1/reviews":
+					return tc.reviews, nil
+				default:
+					t.Fatalf("unexpected endpoint %q", endpoint)
+					return nil, nil
+				}
+			}
+
+			report := evalCreatePullRequest(context.Background(), CreatedItemReport{
+				Type: "create_pull_request", Number: 1, Repo: "owner/repo",
+			}, "owner/repo")
+
+			assert.Equal(t, OutcomeAccepted, report.Result, "P15: test PR must be accepted")
+			assert.Equal(t, tc.wantZeroTouch, report.ZeroTouch,
+				"P15: zero_touch requires no non-bot comments and no reviews")
 		})
 	}
 }

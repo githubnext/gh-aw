@@ -53,6 +53,7 @@ safe-outputs:
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while raising regression tests."
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: investigation-completed
     question: Did the agent investigate the pull request and identify any root-cause issues or missing test coverage?

@@ -150,6 +150,25 @@ func isDockerSbxRuntime(workflowData *WorkflowData) bool {
 	return agentConfig.Runtime == AgentRuntimeDockerSbx
 }
 
+// isRuntimeInstallEnabled returns true when runtime installation steps should be
+// generated (the default). Returns false only when sandbox.agent.runtime-install is
+// explicitly set to false AND a runtime (gVisor or docker-sbx) is configured.
+// When no runtime is set, the field has no effect and true is returned.
+func isRuntimeInstallEnabled(workflowData *WorkflowData) bool {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.Disabled {
+		return true
+	}
+	// Noop when no runtime is specified.
+	if agentConfig.Runtime == "" {
+		return true
+	}
+	if agentConfig.RuntimeInstall != nil && !*agentConfig.RuntimeInstall {
+		return false
+	}
+	return true
+}
+
 func isAWFNetworkIsolationEnabled(workflowData *WorkflowData) bool {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig == nil || agentConfig.Disabled {

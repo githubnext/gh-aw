@@ -45,6 +45,7 @@ timeout-minutes: 20
 imports:
   - shared/cursor.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Schema Consistency Audit — Cursor

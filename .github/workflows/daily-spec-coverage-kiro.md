@@ -44,6 +44,7 @@ timeout-minutes: 20
 imports:
   - shared/kiro.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Spec Coverage Review — Kiro

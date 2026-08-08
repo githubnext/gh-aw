@@ -3637,9 +3637,14 @@
                     },
                     "runtime": {
                       "type": "string",
-                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation \u2014 requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Incompatible with runner.topology: arc-dind.",
+                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation \u2014 when runtime-install is left enabled, it requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Incompatible with runner.topology: arc-dind.",
                       "enum": ["gvisor", "docker-sbx"],
                       "examples": ["gvisor", "docker-sbx"]
+                    },
+                    "runtime-install": {
+                      "type": "boolean",
+                      "description": "Controls generation of sandbox runtime installation steps for gVisor and docker-sbx. Defaults to true. Set to false when the runtime is already installed on the runner; docker-sbx credential refresh still runs.",
+                      "examples": [false]
                     },
                     "config": {
                       "type": "object",

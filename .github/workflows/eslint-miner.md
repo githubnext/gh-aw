@@ -63,6 +63,8 @@ evals:
     question: Did the agent analyze JavaScript or TypeScript patterns to identify a useful ESLint rule?
   - id: rule_pr_created_or_noop
     question: Did the agent create a pull request for a new ESLint rule, or use noop when no suitable rule was found?
+imports:
+  - shared/reporting.md
 ---
 
 # ESLint Miner

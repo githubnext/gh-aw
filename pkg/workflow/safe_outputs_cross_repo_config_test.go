@@ -51,7 +51,7 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 			},
 			expectedRepo:  "org/primary-repo",
 			expectedRepos: []string{"org/primary-repo", "org/secondary-repo"},
-			expectedRefs:  nil,
+			expectedRefs:  []string{defaultDispatchWorkflowAllowedRef},
 			expectedToken: "",
 		},
 		{
@@ -79,7 +79,7 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 			},
 			expectedRepo:  "",
 			expectedRepos: nil,
-			expectedRefs:  nil,
+			expectedRefs:  []string{defaultDispatchWorkflowAllowedRef},
 			expectedToken: "",
 		},
 	}
@@ -95,6 +95,17 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 			assert.Equal(t, tt.expectedToken, cfg.GitHubToken, "GitHubToken mismatch")
 		})
 	}
+}
+
+func TestDispatchWorkflowConfigShorthandUsesDefaultBranchRef(t *testing.T) {
+	compiler := NewCompiler()
+
+	cfg := compiler.parseDispatchWorkflowConfig(map[string]any{
+		"dispatch-workflow": []any{"worker"},
+	})
+
+	require.NotNil(t, cfg)
+	assert.Equal(t, []string{defaultDispatchWorkflowAllowedRef}, cfg.AllowedRefs)
 }
 
 // TestCreateCodeScanningAlertConfigTargetRepo verifies that create-code-scanning-alert
