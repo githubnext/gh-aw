@@ -667,6 +667,7 @@ func TestDockerSbxShellScriptContent(t *testing.T) {
 				"DOCKER_PAT_VAL", "DOCKER_USERNAME_VAL",
 				"DOCKER_CONFIG", "mktemp",
 				"for _ in $(seq 1 10); do",
+				"exit 1", // must fail fast when daemon does not start
 			},
 		},
 		{
