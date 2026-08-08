@@ -34,6 +34,7 @@ experiments:
 tracker-id: breaking-change-checker
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 tools:
   cli-proxy: true

@@ -30,6 +30,7 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 tools:
   agentic-workflows:

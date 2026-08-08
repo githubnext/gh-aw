@@ -117,8 +117,7 @@ jobs:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 steps:
   - name: Download VulnHunter bundle artifact
     uses: actions/download-artifact@v8.0.1

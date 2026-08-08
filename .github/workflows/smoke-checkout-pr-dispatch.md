@@ -46,8 +46,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: workflow_dispatch + aw_context PR Branch Checkout
