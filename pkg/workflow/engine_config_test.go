@@ -538,10 +538,11 @@ func TestExtractEngineConfig(t *testing.T) {
 				"engine": map[string]any{
 					"id": "copilot",
 					"harness": map[string]any{
-						"max-retries":        6,
-						"initial-delay-ms":   10000,
-						"backoff-multiplier": 2,
-						"max-delay-ms":       180000,
+						"max-retries":         6,
+						"initial-delay-ms":    10000,
+						"backoff-multiplier":  2,
+						"max-delay-ms":        180000,
+						"watchdog-timeout-ms": 120000,
 					},
 				},
 			},
@@ -552,6 +553,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				HarnessInitialDelayMs:    "10000",
 				HarnessBackoffMultiplier: "2",
 				HarnessMaxDelayMs:        "180000",
+				HarnessWatchdogTimeoutMs: "120000",
 			},
 		},
 		{
@@ -560,10 +562,11 @@ func TestExtractEngineConfig(t *testing.T) {
 				"engine": map[string]any{
 					"id": "claude",
 					"harness": map[string]any{
-						"max-retries":        "${{ vars.RETRY_COUNT }}",
-						"initial-delay-ms":   "${{ vars.RETRY_DELAY }}",
-						"backoff-multiplier": "${{ vars.BACKOFF }}",
-						"max-delay-ms":       "${{ vars.MAX_DELAY }}",
+						"max-retries":         "${{ vars.RETRY_COUNT }}",
+						"initial-delay-ms":    "${{ vars.RETRY_DELAY }}",
+						"backoff-multiplier":  "${{ vars.BACKOFF }}",
+						"max-delay-ms":        "${{ vars.MAX_DELAY }}",
+						"watchdog-timeout-ms": "${{ vars.WATCHDOG_TIMEOUT_MS }}",
 					},
 				},
 			},
@@ -574,6 +577,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				HarnessInitialDelayMs:    "${{ vars.RETRY_DELAY }}",
 				HarnessBackoffMultiplier: "${{ vars.BACKOFF }}",
 				HarnessMaxDelayMs:        "${{ vars.MAX_DELAY }}",
+				HarnessWatchdogTimeoutMs: "${{ vars.WATCHDOG_TIMEOUT_MS }}",
 			},
 		},
 		{
@@ -664,6 +668,9 @@ func TestExtractEngineConfig(t *testing.T) {
 				}
 				if config.HarnessMaxDelayMs != test.expectedConfig.HarnessMaxDelayMs {
 					t.Errorf("Expected config.HarnessMaxDelayMs '%s', got '%s'", test.expectedConfig.HarnessMaxDelayMs, config.HarnessMaxDelayMs)
+				}
+				if config.HarnessWatchdogTimeoutMs != test.expectedConfig.HarnessWatchdogTimeoutMs {
+					t.Errorf("Expected config.HarnessWatchdogTimeoutMs '%s', got '%s'", test.expectedConfig.HarnessWatchdogTimeoutMs, config.HarnessWatchdogTimeoutMs)
 				}
 
 				if len(config.Env) != len(test.expectedConfig.Env) {

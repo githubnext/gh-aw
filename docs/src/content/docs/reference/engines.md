@@ -343,7 +343,7 @@ The `use` value must be a bare filename — no directory separators, no `..`, an
 | Must start with `[A-Za-z0-9_]` | `harness.js` | `-harness.cjs` |
 | Must end with `.js`, `.cjs`, or `.mjs` | `wrapper.cjs` | `harness.sh` |
 
-### Harness Retry Policy
+### Harness Retry and Post-result Watchdog Policy
 
 The built-in Copilot, Claude, and Codex harnesses default to **3 retries** after the initial run (4 total attempts), with exponential backoff starting at 5 s (capped at 60 s). Use sub-keys under `engine.harness` to widen the retry window without replacing the harness:
 
@@ -355,6 +355,7 @@ engine:
     initial-delay-ms: 10000
     backoff-multiplier: 2
     max-delay-ms: 180000
+    watchdog-timeout-ms: 120000
 ```
 
 All four fields accept a literal integer or a GitHub Actions expression (e.g. `${{ vars.MY_RETRIES }}`):
@@ -365,8 +366,9 @@ All four fields accept a literal integer or a GitHub Actions expression (e.g. `$
 | `initial-delay-ms` | `5000` | Delay in ms before the first retry |
 | `backoff-multiplier` | `2` | Multiplier applied to the delay after each retry |
 | `max-delay-ms` | `60000` | Maximum delay cap in ms |
+| `watchdog-timeout-ms` | `120000` | Post-result idle watchdog timeout before terminating a quiet process |
 
-You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control. Explicit `engine.env` values take precedence over `engine.harness` sub-key values.
+You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control, including `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` for the post-result watchdog. Explicit `engine.env` values take precedence over `engine.harness` sub-key values.
 
 ### Copilot SDK Support
 

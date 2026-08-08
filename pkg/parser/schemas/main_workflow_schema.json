@@ -12797,6 +12797,18 @@
                         }
                       ],
                       "description": "Maximum delay cap in ms. Accepts a literal integer or a GitHub Actions expression."
+                    },
+                    "watchdog-timeout-ms": {
+                      "oneOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "description": "Post-result idle watchdog timeout in ms. Accepts a literal integer or a GitHub Actions expression."
                     }
                   },
                   "additionalProperties": false
