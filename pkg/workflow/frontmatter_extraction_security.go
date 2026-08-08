@@ -282,6 +282,14 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract runtime-install (controls generation of runtime install steps)
+	if runtimeInstallVal, hasRuntimeInstall := agentObj["runtime-install"]; hasRuntimeInstall {
+		if runtimeInstallBool, ok := runtimeInstallVal.(bool); ok {
+			agentConfig.RuntimeInstall = &runtimeInstallBool
+			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.runtime-install: %t", runtimeInstallBool)
+		}
+	}
+
 	// Extract legacy-security (opt-in to legacy sudo/iptables mode)
 	if legacyVal, hasLegacy := agentObj["legacy-security"]; hasLegacy {
 		if legacyStr, ok := legacyVal.(string); ok && legacyStr == "enable" {
