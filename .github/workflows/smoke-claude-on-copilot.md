@@ -30,8 +30,7 @@ timeout-minutes: 10
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: Claude on GitHub Inference PR Summary

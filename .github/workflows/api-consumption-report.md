@@ -18,6 +18,7 @@ engine:
     tool-timeout: 10m
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 tools:
   cache-memory: true

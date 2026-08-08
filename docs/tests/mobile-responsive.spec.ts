@@ -362,4 +362,74 @@ test.describe('Mobile and Responsive Layout', () => {
 
     await context.close();
   });
+
+  // Regression test for the 2026-08-08 multi-device docs test report.
+  // The home page quick-start CTA must stay tappable on mobile breakpoints,
+  // including after the navigation menu has been opened and dismissed, so that
+  // no leftover overlay intercepts touch or keyboard activation.
+  const mobileCtaViewports = [
+    { name: '360px Mobile', width: 360, height: 800 },
+    { name: 'iPhone 16 (Mobile)', width: 393, height: 852 },
+    { name: '428px Mobile', width: 428, height: 926 },
+  ];
+
+  for (const viewport of mobileCtaViewports) {
+    test(`home page quick-start CTA stays tappable after opening and dismissing the menu at ${viewport.name}`, async ({
+      browser,
+    }) => {
+      const context = await browser.newContext({
+        viewport: { width: viewport.width, height: viewport.height },
+        javaScriptEnabled: true,
+      });
+      const page = await context.newPage();
+
+      await page.goto('/gh-aw/');
+      await page.waitForLoadState('networkidle');
+
+      const cta = page.locator('.hero a.sl-link-button.primary').first();
+      await expect(cta).toBeVisible();
+      await expect(cta).toHaveAttribute('href', '/gh-aw/setup/quick-start/');
+
+      // The CTA must be the topmost element at its centre point, i.e. nothing
+      // (hero canvas, overlay, sticky header) intercepts the tap.
+      const expectCtaHittable = async () => {
+        await expect(cta).toBeInViewport();
+        const box = await cta.boundingBox();
+        expect(box).not.toBeNull();
+        if (!box) return;
+        const isTopmost = await page.evaluate(
+          ([x, y]) => {
+            const el = document.elementFromPoint(x, y);
+            const ctaEl = document.querySelector('.hero a.sl-link-button.primary');
+            if (!el || !ctaEl) return false;
+            return el === ctaEl || ctaEl.contains(el);
+          },
+          [box.x + box.width / 2, box.y + box.height / 2] as [number, number],
+        );
+        expect(isTopmost).toBe(true);
+      };
+
+      await expectCtaHittable();
+
+      // Open the mobile navigation menu, then dismiss it by clicking outside.
+      const hamburgerBtn = page.locator('.hamburger-btn');
+      await expect(hamburgerBtn).toBeVisible();
+      await hamburgerBtn.click();
+
+      const dropdown = page.locator('.tablet-dropdown');
+      await expect(dropdown).toBeVisible();
+
+      await page.keyboard.press('Escape');
+      await expect(dropdown).toBeHidden();
+      await expect(hamburgerBtn).toHaveAttribute('aria-expanded', 'false');
+
+      // After dismissal the CTA must still be tappable and must navigate.
+      await expectCtaHittable();
+      await cta.click();
+      await page.waitForLoadState('networkidle');
+      await expect(page).toHaveURL(/\/gh-aw\/setup\/quick-start\//);
+
+      await context.close();
+    });
+  }
 });

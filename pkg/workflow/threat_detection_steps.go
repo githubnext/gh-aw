@@ -84,6 +84,9 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// Step 11: Run threat-detect under AWF with a read-write mount for the result file
 		steps = append(steps, c.buildExternalDetectorExecutionStep(data)...)
 
+		// Step 11a: Render detection.log to the Actions log wrapped in group/stop-commands macros.
+		steps = append(steps, c.buildRenderDetectionLogStep(data)...)
+
 		// Step 12: Custom post-steps if configured (run after detection execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
 			steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
@@ -108,6 +111,9 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		// ThreatDetectionStepSummaryPath (overriding $GITHUB_STEP_SUMMARY at the step level).
 		// Echoing the file content here lets the runner apply its secret-masking pass.
 		steps = append(steps, c.buildDetectionStepSummaryEchoStep()...)
+
+		// Step 7b: Render detection.log to the Actions log wrapped in group/stop-commands macros.
+		steps = append(steps, c.buildRenderDetectionLogStep(data)...)
 
 		// Step 8: Custom post-steps if configured (run after engine execution)
 		if len(data.SafeOutputs.ThreatDetection.PostSteps) > 0 {
@@ -475,6 +481,30 @@ func (c *Compiler) buildDetectionStepSummaryEchoStep() []string {
 		fmt.Sprintf("            cat %s\n", shellEscapeArg(summaryPath)),
 		"          fi\n",
 	}
+}
+
+// buildRenderDetectionLogStep creates a step that reads detection.log and pipes
+// it to stdout wrapped in GitHub Actions group and stop-commands macros so that:
+//   - the output is folded into a collapsible section in the Actions log UI, and
+//   - any workflow-command-shaped lines in the log are not interpreted by the runner.
+//
+// Secret redaction (built-in patterns + MCP gateway tokens) is applied before
+// the content is written, providing a defence-in-depth layer on top of the
+// file-level redaction performed by redact_secrets.cjs.
+func (c *Compiler) buildRenderDetectionLogStep(data *WorkflowData) []string {
+	steps := []string{
+		"      - name: Render detection log\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('" + SetupActionDestination + "/render_detection_log.cjs');\n",
+		"            await main();\n",
+	}
+	return steps
 }
 
 // buildInstallThreatDetectStep creates a step that installs the threat-detect binary

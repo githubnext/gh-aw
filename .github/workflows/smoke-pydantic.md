@@ -49,8 +49,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: Pydantic AI Engine Validation
@@ -62,9 +61,8 @@ sandbox:
 
 ## Test Requirements
 
-1. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-pydantic-${{ github.run_id }}.txt` with content "Smoke test passed for Pydantic AI" (create the directory if it doesn't exist)
-2. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-3. **Repository Access Testing**: Run `git log --oneline -1` in the repository checkout and confirm a commit is reported
+1. **Model Connectivity Testing**: Answer the question "What is 2 + 2?" in a single short line.
+2. **MCP Tool Testing**: Confirm that the `safeoutputs` MCP tools are available to you.
 
 ## Output
 

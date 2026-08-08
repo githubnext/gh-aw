@@ -858,6 +858,10 @@ process.exit(1);`,
   });
 
   describe("resolvePostResultWatchdogIdleTimeoutMs", () => {
+    it("uses a 2-minute shared default", () => {
+      expect(DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS).toBe(120000);
+    });
+
     it("returns the default when no env var is set", () => {
       expect(resolvePostResultWatchdogIdleTimeoutMs({})).toBe(DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS);
     });

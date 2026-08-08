@@ -85,6 +85,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 evals:
   - id: cli_inspected
