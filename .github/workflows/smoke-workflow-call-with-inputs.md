@@ -43,8 +43,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Smoke Test: Workflow Call with Inputs
