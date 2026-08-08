@@ -133,7 +133,7 @@ func prepareWorkflowRun(ctx context.Context, workflowIdOrName string, opts RunOp
 	if err := validateWorkflowForRun(workflowIdOrName, opts); err != nil {
 		return nil, err
 	}
-	enableState, err := handleWorkflowEnablement(workflowIdOrName, opts)
+	enableState, err := handleWorkflowEnablement(ctx, workflowIdOrName, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -214,11 +214,11 @@ func warnLocalWorkflowStatus(workflowFile string) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Consider pushing your changes before running the workflow"))
 }
 
-func handleWorkflowEnablement(workflowIdOrName string, opts RunOptions) (workflowEnableState, error) {
+func handleWorkflowEnablement(ctx context.Context, workflowIdOrName string, opts RunOptions) (workflowEnableState, error) {
 	if !opts.Enable {
 		return workflowEnableState{}, nil
 	}
-	wf, err := getWorkflowStatus(workflowIdOrName, opts.RepoOverride, opts.Verbose)
+	wf, err := getWorkflowStatus(ctx, workflowIdOrName, opts.RepoOverride, opts.Verbose)
 	if err != nil {
 		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check workflow status: %v", err)))

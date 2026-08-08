@@ -112,6 +112,7 @@ jobs:
       daily_ai_credits_guardrail_status: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_guardrail_status || '' }}
       daily_ai_credits_threshold: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_threshold || '' }}
       daily_ai_credits_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_total_effective_tokens || '' }}
+      docker_sbx_secrets_result: ${{ steps.docker-sbx-secrets.outputs.verification_result }}
       engine_id: ${{ steps.generate_aw_info.outputs.engine_id }}
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
@@ -222,6 +223,13 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Check Docker Hub secrets for docker-sbx
+        id: docker-sbx-secrets
+        env:
+          DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}
+          DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_SBX_SECRETS_SOFT_FAIL: 'true'
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/docker_sbx_secrets_check.sh"
       - name: Check for OAuth tokens
         id: check-oauth-tokens
         run: bash "${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh"
@@ -414,7 +422,8 @@ jobs:
 
   agent:
     needs: activation
-    if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
+    if: >
+      (needs.activation.outputs.daily_ai_credits_exceeded != 'true') && (needs.activation.outputs.docker_sbx_secrets_result != 'failed')
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -576,6 +585,7 @@ jobs:
       - name: Check KVM availability for docker-sbx
         run: bash "${RUNNER_TEMP}/gh-aw/actions/docker_sbx_kvm_check.sh"
       - name: Check Docker Hub secrets for docker-sbx
+        id: docker-sbx-secrets
         env:
           DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}
           DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}
@@ -1245,7 +1255,8 @@ jobs:
     if: >
       always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
       needs.activation.outputs.oauth_token_check_failed == 'true' || needs.activation.outputs.stale_lock_file_failed == 'true' ||
-      needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.daily_ai_credits_exceeded == 'true')
+      needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.docker_sbx_secrets_result == 'failed' ||
+      needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1465,6 +1476,7 @@ jobs:
           GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "12"
           GH_AW_ENGINE_ID: "codex"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
+          GH_AW_DOCKER_SBX_SECRETS_RESULT: ${{ needs.activation.outputs.docker_sbx_secrets_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens || '' }}
           GH_AW_AI_CREDITS_RATE_LIMIT_ERROR: ${{ needs.agent.outputs.ai_credits_rate_limit_error || 'false' }}

@@ -26,6 +26,7 @@ func (c *Compiler) addActivationFeedbackAndValidationSteps(ctx *activationJobBui
 	}
 	c.addActivationReactionStep(ctx)
 	c.addActivationSecretValidationStep(ctx)
+	c.addActivationDockerSbxSecretsCheckStep(ctx)
 	c.addActivationOAuthTokenCheckStep(ctx)
 	c.addActivationCrossRepoGuidanceStep(ctx)
 	return nil

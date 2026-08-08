@@ -222,7 +222,7 @@ func TestRemoveWorkflows(t *testing.T) {
 }
 
 func TestStatusWorkflows(t *testing.T) {
-	err := StatusWorkflows("test-pattern", false, false, "", "", "")
+	err := StatusWorkflows(t.Context(), "test-pattern", false, false, "", "", "")
 
 	// Should not error since it's a stub implementation
 	if err != nil {
@@ -385,8 +385,8 @@ Test workflow for command existence.`
 			_, err := CompileWorkflows(context.Background(), config)
 			return err
 		}, false, "CompileWorkflows"},
-		{func() error { return RemoveWorkflows("nonexistent", false, "") }, false, "RemoveWorkflows"},                // Should handle missing directory gracefully
-		{func() error { return StatusWorkflows("nonexistent", false, false, "", "", "") }, false, "StatusWorkflows"}, // Should handle missing directory gracefully
+		{func() error { return RemoveWorkflows("nonexistent", false, "") }, false, "RemoveWorkflows"},                             // Should handle missing directory gracefully
+		{func() error { return StatusWorkflows(t.Context(), "nonexistent", false, false, "", "", "") }, false, "StatusWorkflows"}, // Should handle missing directory gracefully
 		{func() error {
 			return RunWorkflowOnGitHub(context.Background(), "", RunOptions{})
 		}, true, "RunWorkflowOnGitHub"}, // Should error with empty workflow name
@@ -985,13 +985,13 @@ func TestRunWorkflowOnGitHubWithEnable(t *testing.T) {
 func TestGetWorkflowStatus(t *testing.T) {
 
 	// Test with non-existent workflow
-	_, err := getWorkflowStatus("nonexistent-workflow", "", false)
+	_, err := getWorkflowStatus(t.Context(), "nonexistent-workflow", "", false)
 	if err == nil {
 		t.Error("getWorkflowStatus should return error for non-existent workflow")
 	}
 
 	// Test with empty workflow name
-	_, err = getWorkflowStatus("", "", false)
+	_, err = getWorkflowStatus(t.Context(), "", "", false)
 	if err == nil {
 		t.Error("getWorkflowStatus should return error for empty workflow name")
 	}

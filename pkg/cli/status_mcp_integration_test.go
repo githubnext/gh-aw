@@ -15,7 +15,7 @@ import (
 func TestGetWorkflowStatuses_MCPIntegration(t *testing.T) {
 	// This test requires being run from the repository root
 	// since it needs .github/workflows directory
-	statuses, err := GetWorkflowStatuses("", "", "", "")
+	statuses, err := GetWorkflowStatuses(t.Context(), "", "", "", "")
 
 	// We expect either:
 	// - No error and a valid (possibly empty) slice
@@ -45,7 +45,7 @@ func TestGetWorkflowStatuses_MCPIntegration(t *testing.T) {
 // TestGetWorkflowStatuses_WithPattern tests filtering by pattern
 func TestGetWorkflowStatuses_WithPattern(t *testing.T) {
 	// Get all statuses first
-	allStatuses, err := GetWorkflowStatuses("", "", "", "")
+	allStatuses, err := GetWorkflowStatuses(t.Context(), "", "", "", "")
 	if err != nil {
 		t.Skipf("Skipping test: not in a repository with workflows: %v", err)
 		return
@@ -61,7 +61,7 @@ func TestGetWorkflowStatuses_WithPattern(t *testing.T) {
 	pattern := firstWorkflowName[:min(3, len(firstWorkflowName))] // Use first 3 chars as pattern
 
 	// Get filtered statuses
-	filteredStatuses, err := GetWorkflowStatuses(pattern, "", "", "")
+	filteredStatuses, err := GetWorkflowStatuses(t.Context(), pattern, "", "", "")
 	require.NoError(t, err, "GetWorkflowStatuses with pattern should not error")
 
 	// Verify that filtered results are a subset
@@ -79,7 +79,7 @@ func TestGetWorkflowStatuses_WithPattern(t *testing.T) {
 
 // TestGetWorkflowStatuses_MCPJSONStructure verifies the JSON structure
 func TestGetWorkflowStatuses_MCPJSONStructure(t *testing.T) {
-	statuses, err := GetWorkflowStatuses("", "", "", "")
+	statuses, err := GetWorkflowStatuses(t.Context(), "", "", "", "")
 	if err != nil {
 		t.Skipf("Skipping test: not in a repository with workflows: %v", err)
 		return
