@@ -1,4 +1,5 @@
 ---
+name: skillz-integration
 description: Run and integrate Skillz MCP server with Docker for skill execution.
 ---
 
