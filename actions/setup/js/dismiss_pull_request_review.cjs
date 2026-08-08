@@ -246,7 +246,9 @@ async function main(config = {}) {
             repo: `${owner}/${repo}`,
           };
         }
-        throw new Error(`${SAFE_OUTPUT_E099}: Failed to fetch review ${reviewId} on ${owner}/${repo}#${pullRequestNumber}: ${getErrorMessage(getReviewError)}`);
+        throw new Error(`${SAFE_OUTPUT_E099}: Failed to fetch review ${reviewId} on ${owner}/${repo}#${pullRequestNumber}: ${getErrorMessage(getReviewError)}`, {
+          cause: getReviewError,
+        });
       }
 
       const reviewAuthorLogin = review?.user?.login;
