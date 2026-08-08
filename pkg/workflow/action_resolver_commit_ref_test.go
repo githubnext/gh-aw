@@ -20,18 +20,19 @@ func TestResolveGhAwRefFullSHAShortCircuit(t *testing.T) {
 }
 
 // TestResolveCommitRefSHACancelledContext verifies that the shared commit-ref
-// helper surfaces command failures (rather than the errNotFullCommitSHA
-// sentinel) when the gh invocation itself fails.
+// helper surfaces command failures (rather than notFullCommitSHAError) when
+// the gh invocation itself fails.
 func TestResolveCommitRefSHACancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	sha, raw, err := resolveCommitRefSHA(ctx, "github/gh-aw", "main")
+	sha, err := resolveCommitRefSHA(ctx, "github/gh-aw", "main")
 	if err == nil {
-		t.Fatalf("expected error with cancelled context, got sha=%q raw=%q", sha, raw)
+		t.Fatalf("expected error with cancelled context, got sha=%q", sha)
 	}
-	if errors.Is(err, errNotFullCommitSHA) {
-		t.Errorf("command failure should not report errNotFullCommitSHA, got %v", err)
+	var badSHA *notFullCommitSHAError
+	if errors.As(err, &badSHA) {
+		t.Errorf("command failure should not report notFullCommitSHAError, got %v", err)
 	}
 	if sha != "" {
 		t.Errorf("expected empty SHA on error, got %q", sha)

@@ -260,10 +260,11 @@ func (r *ActionResolver) resolveFromGitHub(ctx context.Context, repo, version st
 // (GET /repos/{owner}/{repo}/commits/{ref}), which accepts all ref types.
 // This is the fallback used when the tags-specific endpoint returns an error.
 func (r *ActionResolver) resolveRefViaCommitsEndpoint(ctx context.Context, baseRepo, repo, version string) (string, error) {
-	sha, raw, err := resolveCommitRefSHA(ctx, baseRepo, version)
+	sha, err := resolveCommitRefSHA(ctx, baseRepo, version)
 	if err != nil {
-		if errors.Is(err, errNotFullCommitSHA) {
-			return "", fmt.Errorf("unexpected response resolving %s@%s: got %q (expected 40-char hex SHA)", repo, version, raw)
+		var badSHA *notFullCommitSHAError
+		if errors.As(err, &badSHA) {
+			return "", fmt.Errorf("unexpected response resolving %s@%s: got %q (expected 40-char hex SHA)", repo, version, badSHA.response)
 		}
 		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)
 	}
@@ -271,9 +272,16 @@ func (r *ActionResolver) resolveRefViaCommitsEndpoint(ctx context.Context, baseR
 	return sha, nil
 }
 
-// errNotFullCommitSHA is returned by resolveCommitRefSHA when the GitHub API
+// notFullCommitSHAError is returned by resolveCommitRefSHA when the GitHub API
 // responded successfully but the payload was not a full 40-character commit SHA.
-var errNotFullCommitSHA = errors.New("expected 40-char hex SHA")
+// It carries the raw response so callers can emit context-specific diagnostics.
+type notFullCommitSHAError struct {
+	response string
+}
+
+func (e *notFullCommitSHAError) Error() string {
+	return fmt.Sprintf("got %q (expected 40-char hex SHA)", e.response)
+}
 
 // resolveCommitRefSHA resolves a branch name, tag name, or SHA in repoSlug
 // (formatted as "owner/repo") to its full 40-character commit SHA using the
@@ -281,10 +289,9 @@ var errNotFullCommitSHA = errors.New("expected 40-char hex SHA")
 // accepts all ref types. It centralizes timeout handling, gh invocation, host
 // forcing, and SHA validation for all commit-ref resolution call sites.
 //
-// It returns the resolved SHA plus the trimmed command output so callers can
-// emit context-specific diagnostics. When the response is not a full SHA the
-// returned error wraps errNotFullCommitSHA.
-func resolveCommitRefSHA(ctx context.Context, repoSlug, ref string) (sha string, raw string, err error) {
+// When the response is not a full SHA the returned error is a
+// *notFullCommitSHAError carrying the raw response.
+func resolveCommitRefSHA(ctx context.Context, repoSlug, ref string) (string, error) {
 	commitsPath := fmt.Sprintf("/repos/%s/commits/%s", repoSlug, ref)
 	resolverLog.Printf("Querying commits endpoint: %s", commitsPath)
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -293,13 +300,13 @@ func resolveCommitRefSHA(ctx context.Context, repoSlug, ref string) (sha string,
 	ForceGHHostEnv(cmd, "github.com")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", "", enrichGHError(err)
+		return "", enrichGHError(err)
 	}
-	raw = strings.TrimSpace(string(output))
-	if !gitutil.IsValidFullSHA(raw) {
-		return "", raw, errNotFullCommitSHA
+	sha := strings.TrimSpace(string(output))
+	if !gitutil.IsValidFullSHA(sha) {
+		return "", &notFullCommitSHAError{response: sha}
 	}
-	return raw, raw, nil
+	return sha, nil
 }
 
 // peelTagObject resolves a single annotated-tag object to its underlying object by
@@ -336,10 +343,11 @@ func ResolveGhAwRef(ctx context.Context, ref string) (string, error) {
 		return ref, nil
 	}
 	resolverLog.Printf("Resolving --gh-aw-ref %q to commit SHA via GitHub API", ref)
-	sha, raw, err := resolveCommitRefSHA(ctx, "github/gh-aw", ref)
+	sha, err := resolveCommitRefSHA(ctx, "github/gh-aw", ref)
 	if err != nil {
-		if errors.Is(err, errNotFullCommitSHA) {
-			return "", fmt.Errorf("unexpected response resolving gh-aw ref %q: got %q (expected 40-char hex SHA)", ref, raw)
+		var badSHA *notFullCommitSHAError
+		if errors.As(err, &badSHA) {
+			return "", fmt.Errorf("unexpected response resolving gh-aw ref %q: got %q (expected 40-char hex SHA)", ref, badSHA.response)
 		}
 		return "", fmt.Errorf("failed to resolve gh-aw ref %q to SHA: %w", ref, err)
 	}
