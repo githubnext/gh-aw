@@ -43,6 +43,8 @@ Use the explicit end marker when:
 
 Without an explicit end marker, the block still ends at the next `##` heading or EOF, matching the original behavior.
 
+When a sub-agent block is brought in via `{{#runtime-import ...}}` and has no explicit end marker of its own, the runtime import resolver automatically inserts one at the point the implicit boundary would otherwise fall, so the imported block can never expand to swallow content spliced in after it (a subsequent import, or the rest of the workflow body). Authoring an explicit end marker is still recommended for clarity, but this makes every runtime import import-safe by default.
+
 ### Name constraints
 
 - Must start with a lowercase letter (`a–z`)

@@ -223,6 +223,76 @@ function extractInlineSkills(content) {
 }
 
 /**
+ * Ensures every "## skill: `name`" start marker in content has a matching
+ * explicit "## end skill: `name`" marker, inserting one at the block's
+ * implicit boundary (next H2 heading or EOF) for any start marker that
+ * doesn't already have one.
+ *
+ * This is intended for content that is about to be spliced into a larger
+ * document (for example a runtime-imported file). Without it, a skill block
+ * that relies on implicit closing would expand to swallow whatever content
+ * follows it once spliced in — including unrelated content from subsequent
+ * imports or the main workflow body — instead of stopping where it would
+ * have stopped when the file was considered on its own.
+ *
+ * Blocks that already have an explicit end marker are left untouched. The
+ * boundary computed here matches exactly what {@link extractInlineSkills}
+ * would already infer for implicit blocks, so this is a no-op with respect to
+ * extraction results when the content is not spliced elsewhere.
+ *
+ * @param {string} content - Markdown that may contain "## skill:" blocks.
+ * @returns {string} Content with implicit end markers made explicit.
+ */
+function closeUnterminatedSkillMarkers(content) {
+  const startMatches = [...content.matchAll(START_MARKER_RE)];
+  if (startMatches.length === 0) return content;
+
+  const h2Positions = [...content.matchAll(H2_HEADING_RE)].map(m => m.index).filter(i => i !== undefined);
+  const endMarkers = [...content.matchAll(END_MARKER_RE)].filter(m => m.index !== undefined).map(m => ({ name: m[1], start: /** @type {number} */ m.index }));
+  const usedEnd = new Array(endMarkers.length).fill(false);
+
+  /** @type {Array<{pos: number, name: string}>} */
+  const insertions = [];
+
+  for (let i = 0; i < startMatches.length; i++) {
+    const m = startMatches[i];
+    if (m.index === undefined) continue;
+
+    const name = m[1];
+    let lineEnd = m.index + m[0].length;
+    if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
+
+    const windowEnd = i + 1 < startMatches.length ? /** @type {number} */ startMatches[i + 1].index : content.length;
+
+    let matchedEnd;
+    for (let ei = 0; ei < endMarkers.length; ei++) {
+      const e = endMarkers[ei];
+      if (usedEnd[ei] || e.name !== name || e.start < lineEnd || e.start >= windowEnd) continue;
+      matchedEnd = e;
+      usedEnd[ei] = true;
+      break;
+    }
+
+    if (matchedEnd === undefined) {
+      const contentEnd = h2Positions.find(pos => pos >= lineEnd) ?? content.length;
+      insertions.push({ pos: contentEnd, name });
+    }
+  }
+
+  if (insertions.length === 0) return content;
+
+  // Insert from the end of the string backwards so earlier offsets stay valid.
+  insertions.sort((a, b) => b.pos - a.pos);
+  let result = content;
+  for (const { pos, name } of insertions) {
+    const needsLeadingNewline = pos > 0 && result[pos - 1] !== "\n";
+    const marker = `${needsLeadingNewline ? "\n" : ""}\n## end skill: \`${name}\`\n`;
+    result = result.slice(0, pos) + marker + result.slice(pos);
+  }
+  return result;
+}
+
+/**
  * Returns the target directory (relative to skillsBaseDir) and filename extension
  * for inline skill files based on the engine ID.
  *
@@ -315,4 +385,4 @@ function writeInlineSkills(content, workspaceDir, skillsBaseDir, engineId) {
   return mainContent;
 }
 
-module.exports = { extractInlineSkills, writeInlineSkills, getEngineSkillTarget, filterInlineSkillFrontmatter };
+module.exports = { extractInlineSkills, writeInlineSkills, getEngineSkillTarget, filterInlineSkillFrontmatter, closeUnterminatedSkillMarkers };
