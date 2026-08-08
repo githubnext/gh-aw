@@ -54,7 +54,7 @@ const AGENT_START_BOUNDARY_RE = /^##[ \t]+agent:[ \t]+`(?:[a-z][a-z0-9_-]*)`[ \t
 const H2_HEADING_RE = /^##[ \t]/gm;
 
 function throwUnknownEndMarker(content, orphan) {
-  throw unknownInlineEndMarkerError(content, orphan, "[extractInlineSkills]", "skill");
+  throw unknownInlineEndMarkerError(content, orphan, "skill");
 }
 
 /**

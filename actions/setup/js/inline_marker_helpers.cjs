@@ -15,8 +15,8 @@ function lineNumberAtOffset(content, offset) {
   return (content.slice(0, offset).match(/\n/g) || []).length + 1;
 }
 
-function unknownInlineEndMarkerError(content, orphan, prefix, noun) {
-  return new Error(`${prefix} end marker for unknown ${noun} "${orphan.name}" at line ${lineNumberAtOffset(content, orphan.start)} (no matching start marker with that name)`);
+function unknownInlineEndMarkerError(content, orphan, noun) {
+  return new Error(`end marker for unknown ${noun} "${orphan.name}" at line ${lineNumberAtOffset(content, orphan.start)} (no matching start marker with that name)`);
 }
 
 module.exports = { collectInlineEndMarkers, lineNumberAtOffset, unknownInlineEndMarkerError };
