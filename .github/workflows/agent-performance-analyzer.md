@@ -759,4 +759,3 @@ Execute all phases systematically and maintain an objective, data-driven approac
 ## Behavior Pattern Classification
 
 When classifying per-agent behavior patterns in Phase 3, use only these recognized labels: `over-creation`, `under-creation`, `repetition`, `scope-creep`, `inconsistency`. Return an empty list for agents with no detected patterns, and base classifications only on the compact per-agent profile data already gathered (output counts, success rates, resource usage).
-```
