@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -40,14 +41,17 @@ type WorkflowStatus struct {
 // GetWorkflowStatuses retrieves workflow status information and returns it as a slice.
 // This function is designed for programmatic access (e.g., from MCP server).
 // For CLI usage, use StatusWorkflows which handles output formatting.
-func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOverride string) ([]WorkflowStatus, error) {
+func GetWorkflowStatuses(ctx context.Context, pattern string, ref string, labelFilter string, repoOverride string) ([]WorkflowStatus, error) {
 	statusLog.Printf("Getting workflow statuses: pattern=%s, ref=%s, labelFilter=%s, repo=%s", pattern, ref, labelFilter, repoOverride)
 
 	// Get GitHub workflows data
 	statusLog.Print("Fetching GitHub workflow status")
-	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, false)
+	githubWorkflows, err := fetchGitHubWorkflows(ctx, repoOverride, false)
 	if err != nil {
 		statusLog.Printf("Failed to fetch GitHub workflows: %v", err)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		githubWorkflows = make(map[string]*GitHubWorkflow)
 	} else {
 		statusLog.Printf("Successfully fetched %d GitHub workflows", len(githubWorkflows))
@@ -56,9 +60,12 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 	// Fetch latest workflow runs for ref if specified
 	var latestRunsByWorkflow map[string]*WorkflowRun
 	if ref != "" {
-		latestRunsByWorkflow, err = fetchLatestRunsByRef(ref, repoOverride, false)
+		latestRunsByWorkflow, err = fetchLatestRunsByRef(ctx, ref, repoOverride, false)
 		if err != nil {
 			statusLog.Printf("Failed to fetch workflow runs for ref %s: %v", ref, err)
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			latestRunsByWorkflow = make(map[string]*WorkflowRun)
 		} else {
 			statusLog.Printf("Successfully fetched %d workflow runs for ref %s", len(latestRunsByWorkflow), ref)
@@ -240,7 +247,7 @@ func buildRemoteWorkflowStatuses(pattern string, githubWorkflows map[string]*Git
 	return statuses
 }
 
-func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, repoOverride string) error {
+func StatusWorkflows(ctx context.Context, pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, repoOverride string) error {
 	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, ref=%s, labelFilter=%s, repo=%s", pattern, jsonOutput, ref, labelFilter, repoOverride)
 	if verbose && !jsonOutput {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking status of workflow files"))
@@ -255,11 +262,11 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 	}
 
 	// Get workflow statuses
-	statuses, err := GetWorkflowStatuses(pattern, ref, labelFilter, repoOverride)
+	statuses, err := GetWorkflowStatuses(ctx, pattern, ref, labelFilter, repoOverride)
 	if err != nil {
 		statusLog.Printf("Failed to get workflow statuses: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-		return nil
+		return err
 	}
 
 	// Additional verbose output after successful fetch
@@ -482,7 +489,7 @@ func isCompiledUpToDateWithCache(workflowPath, lockFilePath string, cache *parse
 }
 
 // fetchLatestRunsByRef fetches the latest workflow run for each workflow from a specific ref (branch or tag)
-func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[string]*WorkflowRun, error) {
+func fetchLatestRunsByRef(ctx context.Context, ref string, repoOverride string, verbose bool) (map[string]*WorkflowRun, error) {
 	statusLog.Printf("Fetching latest workflow runs for ref: %s, repo: %s", ref, repoOverride)
 
 	// Start spinner for network operation (only if not in verbose mode)
@@ -496,7 +503,7 @@ func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[st
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(ctx, args...)
 	output, err := cmd.Output()
 
 	if err != nil {

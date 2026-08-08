@@ -17,6 +17,7 @@ describe("handle_agent_failure", () => {
   let fetchModelPricingFromModelsDev;
   let buildMissingModelPricingContext;
   let buildSecretVerificationContext;
+  let buildDockerSbxSecretsContext;
   let buildAssignmentErrorsContext;
   let buildAssignCopilotFailureContext;
   let getActionFailureIssueExpiresHours;
@@ -49,6 +50,7 @@ describe("handle_agent_failure", () => {
       fetchModelPricingFromModelsDev,
       buildMissingModelPricingContext,
       buildSecretVerificationContext,
+      buildDockerSbxSecretsContext,
       buildAssignmentErrorsContext,
       buildAssignCopilotFailureContext,
       getActionFailureIssueExpiresHours,
@@ -74,10 +76,18 @@ describe("handle_agent_failure", () => {
       expect(getActionFailureIssueExpiresHours()).toBe(48);
     });
 
-    it("returns default for invalid values", () => {
+    it("returns 0 (disabled) when the compiler explicitly opts out of expiration", () => {
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "0";
-      expect(getActionFailureIssueExpiresHours()).toBe(168);
+      expect(getActionFailureIssueExpiresHours()).toBe(0);
+    });
+
+    it("returns default for invalid values", () => {
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "invalid";
+      expect(getActionFailureIssueExpiresHours()).toBe(168);
+    });
+
+    it("returns default for malformed values with numeric prefixes", () => {
+      process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "0invalid";
       expect(getActionFailureIssueExpiresHours()).toBe(168);
     });
   });
@@ -702,6 +712,117 @@ describe("handle_agent_failure", () => {
       expect(parentCreateCall.headers).toEqual({ "X-GitHub-Api-Version": "2022-11-28" });
       expect(createCommentMock).not.toHaveBeenCalled();
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"[aw] Failed runs"') }));
+    });
+
+    it("creates a new parent issue when the existing parent issue has expired", async () => {
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn(async ({ title }) => ({
+        data: {
+          number: title === "[aw] Failed runs" ? 300 : 301,
+          html_url: `https://github.com/owner/repo/issues/${title === "[aw] Failed runs" ? 300 : 301}`,
+          node_id: title === "[aw] Failed runs" ? "I_parent_new" : "I_child",
+        },
+      }));
+      const expiredParentBody = "This issue tracks failures.\n\n> - [x] expires <!-- gh-aw-expires: 2000-01-01T00:00:00.000Z --> on Jan 1, 2000, 12:00 AM UTC";
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("is:pr")) {
+          return { data: { total_count: 0, items: [] } };
+        }
+        if (q.includes('"[aw] Failed runs"')) {
+          return {
+            data: {
+              total_count: 1,
+              items: [{ number: 199, html_url: "https://github.com/owner/repo/issues/199", node_id: "I_parent_old", body: expiredParentBody }],
+            },
+          };
+        }
+        return { data: { total_count: 0, items: [] } };
+      });
+
+      process.env.GH_AW_GROUP_REPORTS = "true";
+
+      const graphqlMock = vi.fn(async () => ({ repository: { issue: { subIssues: { totalCount: 0 } } } }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: graphqlMock,
+      };
+
+      await main();
+
+      // github.rest.issues.create is always invoked with a single options object
+      // (see github.rest.issues.create({...}) call sites in handle_agent_failure.cjs),
+      // so destructuring the first call argument yields the options object itself.
+      const parentCreateCall = createIssueMock.mock.calls.map(([call]) => call).find(call => call.title === "[aw] Failed runs");
+      expect(parentCreateCall).toBeDefined();
+      expect(parentCreateCall.body).toContain("previous parent issue #199");
+      // Expired parent must not be reused: getSubIssueCount must not be queried
+      // for the expired parent #199, since the expiration check short-circuits first.
+      expect(graphqlMock).not.toHaveBeenCalledWith(expect.stringContaining("subIssues"), expect.objectContaining({ issueNumber: 199 }));
+    });
+
+    it("does not abort grouped handling when fetching parent issue body fails", async () => {
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn(async ({ title }) => ({
+        data: {
+          number: title === "[aw] Failed runs" ? 300 : 301,
+          html_url: `https://github.com/owner/repo/issues/${title === "[aw] Failed runs" ? 300 : 301}`,
+          node_id: title === "[aw] Failed runs" ? "I_parent_new" : "I_child",
+        },
+      }));
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("is:pr")) {
+          return { data: { total_count: 0, items: [] } };
+        }
+        if (q.includes('"[aw] Failed runs"')) {
+          return {
+            data: {
+              total_count: 1,
+              items: [{ number: 199, html_url: "https://github.com/owner/repo/issues/199", node_id: "I_parent_old", body: null }],
+            },
+          };
+        }
+        return { data: { total_count: 0, items: [] } };
+      });
+      const getIssueMock = vi.fn(async () => {
+        throw new Error("transient API failure");
+      });
+      const graphqlMock = vi.fn(async () => ({ repository: { issue: { subIssues: { totalCount: 1 } } } }));
+
+      process.env.GH_AW_GROUP_REPORTS = "true";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            get: getIssueMock,
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: graphqlMock,
+      };
+
+      await main();
+
+      expect(getIssueMock).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 199 }));
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Could not fetch parent issue #199 body"));
+      const parentCreateCall = createIssueMock.mock.calls.map(([call]) => call).find(call => call.title === "[aw] Failed runs");
+      expect(parentCreateCall).toBeUndefined();
+      expect(createIssueMock).toHaveBeenCalledOnce();
+      expect(createCommentMock).not.toHaveBeenCalled();
     });
 
     it("escapes workflow IDs before searching for legacy XML marker matches", async () => {
@@ -1368,6 +1489,7 @@ describe("handle_agent_failure", () => {
         branch: "main",
         pull_request_info: "",
         secret_verification_context: "",
+        docker_sbx_secrets_context: "",
         credential_auth_error_context: "",
         inference_access_error_context: "",
         mcp_policy_error_context: "",
@@ -1408,6 +1530,32 @@ describe("handle_agent_failure", () => {
       expect(buildSecretVerificationContext("", copilotMessage)).toBe("");
       expect(buildSecretVerificationContext("success", copilotMessage)).toBe("");
       expect(buildSecretVerificationContext("", "")).toBe("");
+    });
+
+    describe("buildDockerSbxSecretsContext", () => {
+      it("returns empty string when docker-sbx secret verification did not fail", () => {
+        expect(buildDockerSbxSecretsContext("")).toBe("");
+        expect(buildDockerSbxSecretsContext("success")).toBe("");
+      });
+
+      it("renders docker-sbx setup guidance from the dedicated markdown template", () => {
+        const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+        try {
+          process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
+          const result = buildDockerSbxSecretsContext("failed");
+
+          expect(result).toContain("Docker sbx is not configured");
+          expect(result).toContain("DOCKER_USERNAME");
+          expect(result).toContain("DOCKER_PAT");
+          expect(result).toContain("sandbox.agent.runtime: docker-sbx");
+        } finally {
+          if (originalPromptsDir === undefined) {
+            delete process.env.GH_AW_PROMPTS_DIR;
+          } else {
+            process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+          }
+        }
+      });
     });
 
     describe("buildAssignmentErrorsContext", () => {

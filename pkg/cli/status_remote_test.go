@@ -97,7 +97,7 @@ func TestGetWorkflowStatuses_WithRepoFlag_SkipsLocalFiles(t *testing.T) {
 	// there is no local .github/workflows directory. The GitHub API call will
 	// fail (no real token in tests) but that is swallowed and an empty result
 	// is returned rather than a "no .github/workflows directory found" error.
-	statuses, err := GetWorkflowStatuses("", "", "", "owner/repo")
+	statuses, err := GetWorkflowStatuses(t.Context(), "", "", "", "owner/repo")
 	require.NoError(t, err, "GetWorkflowStatuses with --repo should not propagate a 'missing local dir' error")
 	// statuses may be nil (no API mock) or an empty slice; either is acceptable.
 	_ = statuses
@@ -107,7 +107,7 @@ func TestGetWorkflowStatuses_WithRepoFlag_SkipsLocalFiles(t *testing.T) {
 // with --repo returns a clear error, since label information is not exposed by
 // the GitHub Actions workflow API.
 func TestGetWorkflowStatuses_LabelFilterWithRepo(t *testing.T) {
-	_, err := GetWorkflowStatuses("", "", "my-label", "owner/repo")
+	_, err := GetWorkflowStatuses(t.Context(), "", "", "my-label", "owner/repo")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "--label filter is not supported with --repo")
 }

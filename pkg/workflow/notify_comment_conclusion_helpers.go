@@ -220,6 +220,9 @@ func (c *Compiler) buildAgentFailureCoreVars(data *WorkflowData, mainJobName str
 			envVars = append(envVars, fmt.Sprintf("          GH_AW_ENGINE_SECRET_FAILURE_MESSAGE: %q\n", msg))
 		}
 	}
+	if isDockerSbxRuntime(data) {
+		envVars = append(envVars, fmt.Sprintf("          GH_AW_DOCKER_SBX_SECRETS_RESULT: ${{ needs.%s.outputs.docker_sbx_secrets_result }}\n", constants.ActivationJobName))
+	}
 	if ShouldGeneratePRCheckoutStep(data) {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.%s.outputs.checkout_pr_success }}\n", mainJobName))
 	}
@@ -486,6 +489,10 @@ func (c *Compiler) buildConclusionJobCondition(data *WorkflowData, mainJobName s
 	if engine, err := c.getAgenticEngine(data.AI); err == nil && EngineHasValidateSecretStep(engine, data) {
 		secretVerificationFailed := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.secret_verification_result", constants.ActivationJobName)), BuildStringLiteral("failed"))
 		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, secretVerificationFailed)
+	}
+	if isDockerSbxRuntime(data) {
+		dockerSbxSecretsFailed := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.docker_sbx_secrets_result", constants.ActivationJobName)), BuildStringLiteral("failed"))
+		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, dockerSbxSecretsFailed)
 	}
 	if hasMaxDailyAICGuardrail(data) {
 		dailyAICExceeded := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.daily_ai_credits_exceeded", constants.ActivationJobName)), BuildStringLiteral("true"))

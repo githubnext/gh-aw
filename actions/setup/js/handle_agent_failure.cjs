@@ -55,13 +55,24 @@ const ALLOWED_FILES_ERROR_RE = /^(?<summary>.*outside the allowed-files list) \(
 
 /**
  * Parse action failure issue expiration from environment.
- * @returns {number} Expiration in hours (defaults to 168 when unset/invalid)
+ *
+ * A value of "0" is an explicit signal from the compiler that no maintenance
+ * workflow will exist to enforce expiration, so expiration must be disabled
+ * (no expiration marker is written to failure issues). Missing/invalid values
+ * fall back to the 168-hour default for backwards compatibility with older
+ * generated lock files that always set a positive value.
+ * @returns {number} Expiration in hours (0 means disabled; defaults to 168 when unset/invalid)
  */
 function getActionFailureIssueExpiresHours() {
   const raw = process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS || "";
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isInteger(parsed) && parsed > 0) {
-    return parsed;
+  if (raw === "") {
+    return DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
+  }
+  if (raw === "0") {
+    return 0;
+  }
+  if (/^[1-9]\d*$/.test(raw)) {
+    return Number(raw);
   }
   return DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
 }
@@ -248,6 +259,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasMissingData) categories.push("missing_data");
   if (options.hasCacheMissMisconfiguration) categories.push("cache_miss_misconfiguration");
   if (options.secretVerificationFailed) categories.push("secret_verification_failed");
+  if (options.hasDockerSbxSecretsFailed) categories.push("docker_sbx_secrets_missing");
   if (options.inferenceAccessError) categories.push("inference_access_error");
   if (options.mcpPolicyError) categories.push("mcp_policy_error");
   if (options.modelNotSupportedError) categories.push("model_not_supported_error");
@@ -297,6 +309,7 @@ function buildFailureMatchCategories(options) {
  * @param {boolean} options.hasAssignmentErrors
  * @param {boolean} options.http400ResponseError
  * @param {boolean} options.unknownModelAICredits
+ * @param {boolean} [options.hasDockerSbxSecretsFailed]
  * @param {boolean} [options.missingModelPricingError]
  * @param {string} [options.missingModelPricingModelName]
  * @returns {string}
@@ -323,6 +336,7 @@ function buildFailureIssueTitle(options) {
   if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
   if (options.hasOAuthTokenCheckFailed) return `[aw] ${workflowName} has OAuth token misconfiguration`;
   if (options.hasStaleLockFileFailed) return `[aw] ${workflowName} has stale lock file`;
+  if (options.hasDockerSbxSecretsFailed) return `[aw] ${workflowName} is missing docker-sbx Docker Hub secrets`;
   if (options.isTimedOut) return `[aw] ${workflowName} timed out`;
   if (options.hasToolDenialsExceeded) return `[aw] ${workflowName} exceeded tool denial limit`;
   if (options.hasCacheMissMisconfiguration) return `[aw] ${workflowName} has cache-memory miss misconfiguration`;
@@ -590,24 +604,55 @@ async function ensureParentIssue(previousParentNumber = null, ownerOverride, rep
       const existingIssue = searchResult.data.items[0];
       core.info(`Found existing parent issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
-      // Check the sub-issue count
-      const subIssueCount = await getSubIssueCount(owner, repo, existingIssue.number);
+      // Enforce the parent issue's own expiration marker: an expired parent
+      // must not keep receiving new sub-issues, mirroring isReusableFailureIssue's
+      // handling of individual per-run failure issues.
+      let existingBody;
+      if (typeof existingIssue.body === "string") {
+        existingBody = existingIssue.body;
+      } else {
+        // The search API response may omit or truncate the body field; fetch the
+        // full issue to reliably read the expiration marker.
+        try {
+          const issueResult = await github.rest.issues.get({
+            owner,
+            repo,
+            issue_number: existingIssue.number,
+          });
+          existingBody = issueResult.data.body || "";
+        } catch (error) {
+          core.warning(`Could not fetch parent issue #${existingIssue.number} body: ${getErrorMessage(error)}. Continuing without expiration marker check.`);
+          existingBody = "";
+        }
+      }
+      const parentExpirationDate = extractExpirationDate(existingBody);
 
-      if (subIssueCount !== null && subIssueCount >= MAX_SUB_ISSUES) {
-        core.warning(`Parent issue #${existingIssue.number} has ${subIssueCount} sub-issues (max: ${MAX_SUB_ISSUES})`);
-        core.info(`Creating a new parent issue (previous parent #${existingIssue.number} is full)`);
+      if (parentExpirationDate && parentExpirationDate.getTime() <= Date.now()) {
+        core.info(`Parent issue #${existingIssue.number} has expired (expired ${parentExpirationDate.toISOString()})`);
+        core.info(`Creating a new parent issue (previous parent #${existingIssue.number} has expired)`);
 
         // Fall through to create a new parent issue, passing the previous parent number
         previousParentNumber = existingIssue.number;
       } else {
-        // Parent issue is within limits, return it
-        if (subIssueCount !== null) {
-          core.info(`Parent issue has ${subIssueCount} sub-issues (within limit of ${MAX_SUB_ISSUES})`);
+        // Check the sub-issue count
+        const subIssueCount = await getSubIssueCount(owner, repo, existingIssue.number);
+
+        if (subIssueCount !== null && subIssueCount >= MAX_SUB_ISSUES) {
+          core.warning(`Parent issue #${existingIssue.number} has ${subIssueCount} sub-issues (max: ${MAX_SUB_ISSUES})`);
+          core.info(`Creating a new parent issue (previous parent #${existingIssue.number} is full)`);
+
+          // Fall through to create a new parent issue, passing the previous parent number
+          previousParentNumber = existingIssue.number;
+        } else {
+          // Parent issue is within limits, return it
+          if (subIssueCount !== null) {
+            core.info(`Parent issue has ${subIssueCount} sub-issues (within limit of ${MAX_SUB_ISSUES})`);
+          }
+          return {
+            number: existingIssue.number,
+            node_id: existingIssue.node_id,
+          };
         }
-        return {
-          number: existingIssue.number,
-          node_id: existingIssue.node_id,
-        };
       }
     }
   } catch (error) {
@@ -2545,6 +2590,18 @@ function buildSecretVerificationContext(secretVerificationResult, engineSecretFa
 }
 
 /**
+ * Build a docker-sbx setup context from the dedicated runtime guidance template.
+ * @param {string} dockerSbxSecretsResult
+ * @returns {string}
+ */
+function buildDockerSbxSecretsContext(dockerSbxSecretsResult) {
+  if (dockerSbxSecretsResult !== "failed") {
+    return "";
+  }
+  return renderPromptTemplate("docker_sbx_secrets_missing.md");
+}
+
+/**
  * Check whether agent-stdio.log contains a terminal_reason: "completed" result entry,
  * indicating the agent finished its task successfully despite a non-zero job exit code.
  * Log lines may be prefixed with a timestamp (e.g. "2026-04-27T21:45:00.080Z  {JSON}").
@@ -3136,6 +3193,7 @@ async function main() {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const secretVerificationResult = process.env.GH_AW_SECRET_VERIFICATION_RESULT || "";
+    const dockerSbxSecretsResult = process.env.GH_AW_DOCKER_SBX_SECRETS_RESULT || "";
     const engineSecretFailureMessage = process.env.GH_AW_ENGINE_SECRET_FAILURE_MESSAGE || "";
     const assignmentErrors = process.env.GH_AW_ASSIGNMENT_ERRORS || "";
     const assignmentErrorCount = process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0";
@@ -3443,13 +3501,16 @@ async function main() {
     // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete
     // OR a cache-miss was detected after cache restore succeeded (configuration problem)
     // OR the agent reported missing tools or missing data (treated as agent failures by default)
-    // OR the secret validation step failed (engine secret missing).
+    // OR the secret validation step failed (engine secret missing)
+    // OR docker-sbx is configured but its required Docker Hub secrets are missing.
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
     const hasSecretVerificationFailed = secretVerificationResult === "failed";
+    const hasDockerSbxSecretsFailed = dockerSbxSecretsResult === "failed";
     if (
       agentConclusion !== "failure" &&
       !isTimedOut &&
       !hasSecretVerificationFailed &&
+      !hasDockerSbxSecretsFailed &&
       !hasAssignmentErrors &&
       !hasAssignCopilotFailures &&
       !hasSkillInstallFailures &&
@@ -3471,7 +3532,7 @@ async function main() {
       !hasToolDenialsExceeded
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/oauth-token-check/stale-lock-file/daily-workflow-aic/ai-credits/max-ai-credits-exceeded/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded/secret-verification errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/oauth-token-check/stale-lock-file/daily-workflow-aic/ai-credits/max-ai-credits-exceeded/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded/secret-verification/docker-sbx-secret errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
@@ -3575,6 +3636,7 @@ async function main() {
       unknownModelAICredits,
       missingModelPricingError,
       missingModelPricingModelName,
+      hasDockerSbxSecretsFailed,
     });
     const failureCategories = buildFailureMatchCategories({
       agentConclusion,
@@ -3593,6 +3655,7 @@ async function main() {
       hasMissingData,
       hasCacheMissMisconfiguration,
       secretVerificationFailed: hasSecretVerificationFailed,
+      hasDockerSbxSecretsFailed,
       inferenceAccessError,
       mcpPolicyError,
       modelNotSupportedError,
@@ -3806,6 +3869,7 @@ async function main() {
           workflow_source_url: workflowSourceURL,
           secret_verification_failed: String(hasSecretVerificationFailed),
           secret_verification_context: buildSecretVerificationContext(secretVerificationResult, engineSecretFailureMessage),
+          docker_sbx_secrets_context: buildDockerSbxSecretsContext(dockerSbxSecretsResult),
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
@@ -4032,6 +4096,7 @@ async function main() {
           pull_request_info: pullRequest ? `  \n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
           secret_verification_failed: String(hasSecretVerificationFailed),
           secret_verification_context: buildSecretVerificationContext(secretVerificationResult, engineSecretFailureMessage),
+          docker_sbx_secrets_context: buildDockerSbxSecretsContext(dockerSbxSecretsResult),
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
@@ -4188,6 +4253,7 @@ module.exports = {
   detectAndHandleFailureCascade,
   findRecentFailureIssues,
   buildSecretVerificationContext,
+  buildDockerSbxSecretsContext,
   CASCADE_WINDOW_MINUTES,
   CASCADE_WINDOW_MS,
   CASCADE_THRESHOLD,

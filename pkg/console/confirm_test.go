@@ -3,6 +3,7 @@
 package console
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -10,15 +11,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConfirmAction(t *testing.T) {
-	// Note: This test can't fully test the interactive behavior without mocking
-	// the terminal input, but we can verify the function signature and basic setup
+// TestConfirmAction_NonTTY verifies that ConfirmAction falls back to the
+// text-based confirmation prompt when stderr is not a terminal (as is the
+// case in `go test` runs), reading the response from os.Stdin.
+func TestConfirmAction_NonTTY(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantResult bool
+		wantErr    bool
+	}{
+		{name: "yes", input: "y\n", wantResult: true},
+		{name: "no", input: "n\n", wantResult: false},
+		{name: "invalid", input: "maybe\n", wantErr: true},
+	}
 
-	t.Run("function signature", func(t *testing.T) {
-		// This test just verifies the function exists and has the right signature
-		// Actual interactive testing would require a mock terminal
-		_ = ConfirmAction
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldStdin := os.Stdin
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			t.Cleanup(func() { os.Stdin = oldStdin })
+			t.Cleanup(func() { r.Close() })
+			os.Stdin = r
+
+			go func() {
+				_, _ = w.WriteString(tt.input)
+				w.Close()
+			}()
+
+			result, err := ConfirmAction("Delete all workflows?", "Yes, delete", "Cancel")
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantResult, result)
+			}
+		})
+	}
 }
 
 func TestShowTextConfirm(t *testing.T) {
@@ -37,7 +67,11 @@ func TestShowTextConfirm(t *testing.T) {
 		{name: "NO uppercase", input: "NO\n", wantResult: false},
 		{name: "no full", input: "no\n", wantResult: false},
 		{name: "2 for negative", input: "2\n", wantResult: false},
+		{name: "single letter uppercase Y", input: "Y\n", wantResult: true},
+		{name: "single letter uppercase N", input: "N\n", wantResult: false},
+		{name: "whitespace padded yes", input: "  y  \n", wantResult: true},
 		{name: "invalid input", input: "maybe\n", wantErr: true, errContains: "invalid input"},
+		{name: "empty input EOF", input: "", wantErr: true, errContains: "invalid input"},
 	}
 
 	for _, tt := range tests {

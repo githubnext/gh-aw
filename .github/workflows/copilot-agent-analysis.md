@@ -20,17 +20,17 @@ strict: true
 
 experiments:
   output_format:
-    variants: [structured, prose]
-    description: "Test whether a prose-style discussion summary reduces AI credit consumption vs. the current table-centric structured format without sacrificing completeness."
-    hypothesis: "H0: no change in ai_credits_used. H1: prose format reduces ai_credits_used by >=15% while keeping empty_discussion_rate <=5%"
+    variants: [structured, prose, ste]
+    description: "Test whether a prose-style discussion summary or a Simplified Technical English (STE) summary reduces AI credit consumption vs. the current table-centric structured format without sacrificing completeness."
+    hypothesis: "H0: no change in ai_credits_used. H1: prose or ste format reduces ai_credits_used by >=15% while keeping empty_discussion_rate <=5%"
     metric: ai_credits_used
-    secondary_metrics: [run_duration_seconds, output_length_chars]
+    secondary_metrics: [run_duration_seconds, output_length_chars, "eval:output_format_adherence"]
     guardrail_metrics:
       - name: empty_discussion_rate
         direction: min
         threshold: 0.05
     min_samples: 30
-    weight: [50, 50]
+    weight: [34, 33, 33]
     start_date: "2026-06-08"
     analysis_type: t_test
     tags: [cost-efficiency, output-quality, daily-report]
@@ -68,6 +68,8 @@ evals:
     question: Did the agent analyze GitHub Copilot coding agent usage patterns in pull requests?
   - id: insights_report_produced
     question: Was a report produced with insights on agent effectiveness and behavior patterns?
+  - id: output_format_adherence
+    question: Does the discussion summary match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 ---
 # Copilot Agent PR Analysis
 
@@ -271,6 +273,23 @@ In the last 24 hours, Copilot agent created [count] PRs (`agent_prs_total`), of 
 
 - [Key insight 1: single most actionable observation — omit bullet entirely if nothing notable]
 - [Key insight 2: secondary pattern or trend worth flagging — omit bullet entirely if nothing notable]
+```
+{{/if}}
+{{#if experiments.output_format == 'ste' }}
+**Simplified Technical English (STE) Variant Body Template**:
+
+Write the body in Simplified Technical English (STE):
+- Use short sentences. Limit each sentence to 20 words or fewer.
+- Write one instruction or fact per sentence.
+- Use active voice and present tense. Do not use passive voice.
+- Use simple, familiar words. Do not use jargon.
+- Spell out each acronym on first use.
+
+```markdown
+The agent created [count] PRs in the last 24 hours (`agent_prs_total`). [count] PRs were merged (`agent_prs_merged`). The merge rate is [percentage]%. The average PR duration is [time]. Each PR has an average of [count] human comments. [One short sentence on the 3-day trend, only if the success rate changed by more than 10% — otherwise omit.] [One short sentence naming notable PRs by number, only if failures, closures, or PRs open more than 24 hours exist — otherwise omit.]
+
+- [Key insight 1: one short sentence, the most actionable observation — omit if nothing notable]
+- [Key insight 2: one short sentence, a secondary pattern — omit if nothing notable]
 ```
 {{/if}}
 

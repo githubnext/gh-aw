@@ -104,6 +104,18 @@ func TestLoadRepoConfig_ActionFailureIssueExpires(t *testing.T) {
 	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
 	assert.Equal(t, 72, cfg.Maintenance.ActionFailureIssueExpires, "action_failure_issue_expires should be parsed from aw.json")
 	assert.Equal(t, 72, cfg.ActionFailureIssueExpiresHours(), "accessor should return configured expiration")
+	assert.True(t, cfg.IsActionFailureIssueExpiresExplicit(), "explicit action_failure_issue_expires should be flagged as explicit")
+}
+
+func TestLoadRepoConfig_ActionFailureIssueExpiresNotExplicitWhenUnset(t *testing.T) {
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"maintenance": {"runs_on": "ubuntu-latest"}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err, "valid aw.json should load without error")
+	require.NotNil(t, cfg.Maintenance, "maintenance config should be set")
+	assert.Equal(t, DefaultActionFailureIssueExpiresHours, cfg.ActionFailureIssueExpiresHours(), "accessor should fall back to default")
+	assert.False(t, cfg.IsActionFailureIssueExpiresExplicit(), "action_failure_issue_expires should not be flagged explicit when absent from aw.json")
 }
 
 func TestLoadRepoConfig_MaintenanceCompileConfig(t *testing.T) {
