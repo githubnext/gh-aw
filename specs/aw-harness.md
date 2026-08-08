@@ -22,7 +22,7 @@ This document specifies the **AW Harness** (`aw_harness.cjs`), a Node.js executi
 
 This is an internal design specification for the GitHub gh-aw project. It is not a W3C standard, nor is it on the W3C standards track. The document describes the **intended** architecture, contracts, and implementation plan for `aw_harness.cjs`.
 
-> ⚠️ **Implementation Status**: As of the last audit (2026-06-21), `aw_harness.cjs` has **not been found** in the repository at the expected location `actions/setup/js/aw_harness.cjs`. This specification is **aspirational** — it describes the target design. The implementation work items are tracked in §10.8. Until `aw_harness.cjs` is present at the expected path, `engine: aw` is not available for production workflows. Feedback and corrections **SHOULD** be submitted via the project's standard pull request process.
+> ⚠️ **Implementation Status**: As of 2026-08-08, an `aw-harness/` TypeScript build scaffold exists and produces `aw-harness/dist/aw_harness.cjs`. The runtime implementation and staging to `actions/setup/js/aw_harness.cjs` have not started; consequently, `engine: aw` is not available for production workflows. The implementation work items and their status are tracked in §10.8. Feedback and corrections **SHOULD** be submitted via the project's standard pull request process.
 
 ---
 
@@ -70,12 +70,12 @@ This specification does not cover:
 
 - The compilation of workflow Markdown to GitHub Actions YAML (handled by `gh-aw` proper).
 - Safe-outputs post-processing and threat detection (handled by post-agent jobs, unchanged).
-- The Pi SDK internals (`pi-agent-core`, `pi-ai`).
+- The Pi SDK internals (`@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`).
 - LLM provider internals or credential rotation.
 
 ### 1.2 Background and Motivation
 
-The Pi agent ecosystem (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`) provides a composable, extension-based SDK for building agentic applications. By implementing all gh-aw-specific capabilities as Pi extensions, those extensions become:
+The Pi agent ecosystem (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`) provides a composable, extension-based SDK for building agentic applications. By implementing all gh-aw-specific capabilities as Pi extensions, those extensions become:
 
 - **Reusable** — They work with standalone Pi CLI and any Pi SDK application.
 - **Composable** — Users can add their own extensions alongside the provided set.
@@ -159,8 +159,8 @@ The AW Harness is the topmost layer within the gh-aw container. The following AS
 │  │  │                                                  │ │   │
 │  │  │  ┌──────────────────────────────────────────┐   │ │   │
 │  │  │  │  Pi SDK (createAgentSession)             │   │ │   │
-│  │  │  │  ├─ pi-agent-core (agent loop, events)   │   │ │   │
-│  │  │  │  ├─ pi-ai → provider env vars → LLM providers │   │ │   │
+│  │  │  │  ├─ @earendil-works/pi-agent-core (agent loop, events)   │   │ │   │
+│  │  │  │  ├─ @earendil-works/pi-ai → provider env vars → LLM providers │   │ │   │
 │  │  │  │  └─ compaction, steering, auto-retry      │   │ │   │
 │  │  │  └──────────────────────────────────────────┘   │ │   │
 │  │  │  ┌──────────────────────────────────────────┐   │ │   │
@@ -921,9 +921,9 @@ actions/setup/js/
 
 ```
 aw-harness/
-├── package.json                  # deps: pi-coding-agent, pi-agent-core, pi-ai
-├── tsconfig.json                 # target: es2024, module: es2022
-├── build.ts                      # esbuild → dist/aw_harness.cjs
+├── package.json                  # deps: @earendil-works/pi-coding-agent, @earendil-works/pi-agent-core, @earendil-works/pi-ai
+├── tsconfig.json                 # target: es2024, module: NodeNext
+├── esbuild.config.mjs            # esbuild → dist/aw_harness.cjs
 ├── src/
 │   ├── index.ts                  # Entry point: read config.json + prompt.txt → create session → run
 │   ├── loader.ts                 # config.json + prompt.txt → config + prompt string
@@ -981,7 +981,7 @@ A `make aw-harness` Makefile target **SHOULD** be added that runs esbuild and co
 
 The following ordered work items describe the implementation sequence:
 
-1. **Scaffold project** — Initialize TypeScript project in `aw-harness/`. Configure package.json with Pi SDK deps (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`). Set up tsconfig for ES2024/Node 24. Configure esbuild bundle → `dist/aw_harness.cjs`.
+1. **Scaffold project** — Initialize TypeScript project in `aw-harness/`. Configure package.json with Pi SDK deps (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`). Set up tsconfig for ES2024/Node 24. Configure esbuild bundle → `dist/aw_harness.cjs`.
 
 2. **Implement provider setup extension** — Pi extension that registers LLM providers via `pi.registerProvider()` using provider credentials injected by AWF into the container environment. Also detects provider-specific base URL env vars (e.g., `ANTHROPIC_BASE_URL`, `OPENAI_BASE_URL`) and uses them as the provider endpoint when present.
 
@@ -1012,13 +1012,31 @@ The following ordered work items describe the implementation sequence:
 
 13. **Add build to Makefile** — Add `make aw-harness` target that runs esbuild and copies `aw_harness.cjs` to `actions/setup/js/`.
 
+#### Implementation Status (verified 2026-08-08)
+
+| Work item | Status |
+|---|---|
+| 1. Scaffold project | Done — `aw-harness/` builds `dist/aw_harness.cjs`. |
+| 2. Provider setup extension | Not started |
+| 3. Loader | Not started |
+| 4. Entry point | Not started |
+| 5. User extension loader | Not started |
+| 6. Context engine | Not started |
+| 7. Cost tracker extension | Not started |
+| 8. Steering extension | Not started |
+| 9. Repair extension | Not started |
+| 10. Observability extension | Not started |
+| 11. Tests | Not started |
+| 12. Example workflows | Not started |
+| 13. Makefile build target | Not started |
+
 ### 10.9 Pi SDK Version Pinning
 
 > *(This section is normative.)*
 
 To ensure reproducible builds and prevent breaking changes from upstream Pi SDK releases, the `aw-harness` package **MUST** pin Pi SDK dependencies to exact or tightly-bounded semver ranges. The following requirements apply:
 
-- The `package.json` for `aw-harness` **MUST** specify Pi SDK packages (`@earendil-works/pi-coding-agent`, `pi-agent-core`, `pi-ai`) with an exact version (`"1.2.3"`) or a patch-bounded range (`"~1.2.3"`). Unbounded minor-version ranges (`"^1.2.3"`) **MUST NOT** be used for Pi SDK core packages, because minor releases may introduce breaking API changes to `ExtensionAPI` or `AgentSession`.
+- The `package.json` for `aw-harness` **MUST** specify Pi SDK packages (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`) with an exact version (`"1.2.3"`) or a patch-bounded range (`"~1.2.3"`). Unbounded minor-version ranges (`"^1.2.3"`) **MUST NOT** be used for Pi SDK core packages, because minor releases may introduce breaking API changes to `ExtensionAPI` or `AgentSession`.
 
 - The `package-lock.json` (or equivalent lock file) **MUST** be committed alongside `package.json` to guarantee deterministic installs in CI.
 
@@ -1033,14 +1051,14 @@ To ensure reproducible builds and prevent breaking changes from upstream Pi SDK 
   "name": "aw-harness",
   "version": "0.1.0",
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "~0.8.0",
-    "pi-agent-core": "~0.8.0",
-    "pi-ai": "~0.8.0"
+    "@earendil-works/pi-coding-agent": "0.84.1",
+    "@earendil-works/pi-agent-core": "0.84.1",
+    "@earendil-works/pi-ai": "0.84.1"
   }
 }
 ```
 
-> [!NOTE] Replace `~0.8.0` with the verified minimum Pi SDK release that provides the `ExtensionAPI` and `AgentSession` interfaces required by this specification. Update this comment and the pinned version when upgrading.
+> [!NOTE] `0.84.1` is the scaffold's verified minimum Pi SDK release. Update this version after verifying the required `ExtensionAPI` and `AgentSession` interfaces.
 
 ---
 
@@ -1058,13 +1076,15 @@ To ensure reproducible builds and prevent breaking changes from upstream Pi SDK 
 
 **Token and secret handling.** Provider credentials (e.g., `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`) **MUST NOT** be logged to stderr or embedded in JSONL events. Implementations **MUST** treat all credential env vars as opaque secrets.
 
+**Architecture alignment.** Before implementing this harness, its security controls **MUST** be reviewed against [Security Architecture Specification](security-architecture-spec.md) to ensure that credential handling, proxy boundaries, and extension isolation remain consistent.
+
 ### 11.2 Safeguards
 
 This section specifies normative failure-mode responses that a conforming implementation **MUST** provide. Each safeguard defines a failure mode and its required normative response.
 
 #### 11.2.1 Pi SDK Failure to Load
 
-**Failure mode:** The Pi SDK package (`@earendil-works/pi-coding-agent`) or one of its core dependencies (`pi-agent-core`, `pi-ai`) cannot be loaded at harness startup (e.g., missing from bundle, corrupted installation, incompatible Node.js version).
+**Failure mode:** The Pi SDK package (`@earendil-works/pi-coding-agent`) or one of its core dependencies (`@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`) cannot be loaded at harness startup (e.g., missing from bundle, corrupted installation, incompatible Node.js version).
 
 **Normative response:** *(verified by [T-AW-006](#t-aw-006-pi-sdk-failure-to-load), §12)*
 
@@ -1230,10 +1250,10 @@ Bradner, S., "Key words for use in RFCs to Indicate Requirement Levels", BCP 14,
 **[Pi SDK]**
 `@earendil-works/pi-coding-agent` — Pi agent SDK providing `createAgentSession()`, `Agent`, `AgentTool`, and `ExtensionAPI`.
 
-**[pi-agent-core]**
+**[@earendil-works/pi-agent-core]**
 Core agent loop, event dispatch, and message history management for Pi SDK.
 
-**[pi-ai]**
+**[@earendil-works/pi-ai]**
 Pi AI provider abstraction layer, supporting OpenAI-compatible backends.
 
 **[esbuild]**

@@ -63,9 +63,9 @@ To add a fixture covering a specific compliance scenario:
 
 ### Available Additional Fixtures
 
-| Fixture Name | Purpose | Test IDs |
-|---|---|---|
-| `run_summary_zero_et.json` | Run with missing/zero ET (artifact not downloaded) | T-FC-022 |
-| `run_summary_failed.json` | Run with `conclusion: "failure"` for Bernoulli sampling | T-FC-035 |
-| `run_summary_high_et.json` | Run with very high ET (≥ 1,000,000) for overflow checks | T-ET-006 |
-| `run_summary_cancelled.json` | Run with `conclusion: "cancelled"` (included in sample but not a Bernoulli success; ET is zero because the run did not complete) | T-FC-036 |
+| Fixture Name | Purpose | Test IDs | Last verified |
+|---|---|---|---|
+| `run_summary_zero_et.json` | Run with missing/zero ET (artifact not downloaded) | T-FC-022 | 2026-08-08 |
+| `run_summary_failed.json` | Run with `conclusion: "failure"` for Bernoulli sampling | T-FC-035 | 2026-08-08 |
+| `run_summary_high_et.json` | Run with very high ET (≥ 1,000,000) for overflow checks | T-ET-006 | 2026-08-08 |
+| `run_summary_cancelled.json` | Run with `conclusion: "cancelled"` (included in sample but not a Bernoulli success; ET is zero because the run did not complete) | T-FC-036 | 2026-08-08 |

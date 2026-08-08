@@ -1,0 +1,21 @@
+{
+  "name": "aw-harness",
+  "version": "0.1.0",
+  "description": "AW execution harness for GitHub Agentic Workflows",
+  "main": "dist/aw_harness.cjs",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "clean": "rm -rf dist"
+  },
+  "private": true,
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "0.84.1",
+    "@earendil-works/pi-ai": "0.84.1",
+    "@earendil-works/pi-coding-agent": "0.84.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.0.13",
+    "esbuild": "0.28.1",
+    "typescript": "7.0.2"
+  }
+}
