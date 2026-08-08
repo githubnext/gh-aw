@@ -88,7 +88,7 @@ engine:
       process.stdout.write(result.stdout || "");
       process.stderr.write(result.stderr || "");
       if (result.error || result.status !== 0) {
-        throw new Error("Pydantic AI execution failed");
+        throw new Error(`Pydantic AI execution failed: ${result.error?.message || `exit code ${result.status}`}`);
       }
     mcp:
       config-path: .pydantic-ai/agent.json
