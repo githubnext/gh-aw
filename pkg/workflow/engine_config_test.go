@@ -577,7 +577,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				HarnessInitialDelayMs:    "${{ vars.RETRY_DELAY }}",
 				HarnessBackoffMultiplier: "${{ vars.BACKOFF }}",
 				HarnessMaxDelayMs:        "${{ vars.MAX_DELAY }}",
-				HarnessWatchdogTimeoutMs: "${{ (vars.WATCHDOG_TIMEOUT_SEC) * 1000 }}",
+				HarnessWatchdogTimeoutMs: "${{ vars.WATCHDOG_TIMEOUT_SEC }}",
 			},
 		},
 		{

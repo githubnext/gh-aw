@@ -358,7 +358,9 @@ engine:
     watchdog-timeout: 120
 ```
 
-All four fields accept a literal integer or a GitHub Actions expression (e.g. `${{ vars.MY_RETRIES }}`):
+All five fields accept a literal integer or a GitHub Actions expression (e.g. `${{ vars.MY_RETRIES }}`).
+For `watchdog-timeout`, the value is treated as seconds when it is a literal integer.
+When an expression is used, it must already be in milliseconds (GitHub Actions expressions do not support arithmetic operators):
 
 | Sub-key | Default | Description |
 |---|---|---|
