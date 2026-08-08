@@ -529,6 +529,9 @@ err := cli.RunHealth(cli.HealthConfig{
 - `github.com/github/gh-aw/pkg/intent` — intent attribution and resolution for mapping PRs and issues to labelled intent records
 - `github.com/github/gh-aw/pkg/modelsdev` — model pricing lookup backed by the public `models.dev` catalog
 - `github.com/github/gh-aw/pkg/setutil` — set operations backed by `map[K]struct{}`
+- `github.com/github/gh-aw/pkg/colorwriter` — color-profile-aware writers and ANSI degradation for terminal output
+- `github.com/github/gh-aw/pkg/ctxutil` — non-nil `context.Context` fallback for optional context options
+- `github.com/github/gh-aw/pkg/githubapi` — go-gh REST client options with repository-standard defaults
 
 **Test-only**:
 - `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by CLI package tests
