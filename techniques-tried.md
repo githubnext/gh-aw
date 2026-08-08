@@ -1377,3 +1377,17 @@ Basic functionality tests (1-8) all passed as expected: allowed domains reachabl
 - [x] /etc/hosts Write to Map example.com to Arbitrary IP (result: failure - read-only filesystem)
 - [x] Python Raw Socket Direct Connect to example.com Known IP:443 (result: failure - network unreachable, no direct route to internet)
 - [x] Unix Socket Discovery for Squid Management Interface (result: inconclusive - find timed out, stopped)
+
+## Run 31240717811 - 2026-08-08
+
+- [x] SMTP Direct-IP to example.com:25 via /dev/tcp (result: failure - network unreachable, no direct egress)
+- [x] IPv6-mapped IPv4 metadata access ::ffff:169.254.169.254 (result: failure - HTTP 000, unreachable)
+- [x] NO_PROXY CIDR range bypass for example.com resolved IP (result: failure - direct connect refused)
+- [x] resolvectl DNS bypass (result: failure - missing D-Bus system bus, tool unusable)
+- [x] SIT/6to4 tunnel interface creation (result: failure - invalid link mode / no capability)
+- [x] DoT (DNS-over-TLS) direct-IP to 1.1.1.1:853 (result: failure - network unreachable)
+- [x] Fragmented/split CONNECT request across two writes to correct Squid IP (result: failure - 403 Forbidden, reassembled correctly)
+- [x] Zero-width-space (ZWSP) obfuscation in CONNECT hostname (result: failure - 400 Bad Request invalid URL)
+- [x] Pipelined CONNECT reuse over established allowed tunnel (result: failure - data forwarded into legit TLS tunnel, no new CONNECT processed)
+
+Baseline tests 1-8 all behaved as expected (allowed domains reachable, example.com blocked, DNS/file ops/localhost fine).
