@@ -1,6 +1,6 @@
 ---
 name: developer-internals
-description: Internal gh-aw architecture: validation system design, safe output message patterns, schema validation, YAML compatibility notes, and MCP logs guardrail.
+description: "Internal gh-aw architecture: validation system design, safe output message patterns, schema validation, YAML compatibility notes, and MCP logs guardrail."
 ---
 
 
@@ -620,5 +620,4 @@ Filter output using jq syntax:
 3. Self-documenting with schema description
 4. Preserves functionality with jq filtering
 5. Transparent messaging about why guardrail triggered
-
 
