@@ -526,4 +526,4 @@ gh aw compile --actionlint --zizmor --poutine
 - [Workflow Health Monitoring Runbook](../../aw/runbooks/workflow-health.md) - Step-by-step investigation procedures
 - [Common Issues Reference](../../../docs/src/content/docs/troubleshooting/common-issues.md) - Frequently encountered issues
 - [Error Reference](../../../docs/src/content/docs/troubleshooting/errors.md) - Error codes and solutions
-- [GitHub MCP Server Documentation](../../../skills/github-mcp-server/SKILL.md) - Tool configuration reference
+- [GitHub MCP Server Documentation](../github-mcp-server/SKILL.md) - Tool configuration reference

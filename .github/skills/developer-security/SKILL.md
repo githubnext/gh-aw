@@ -1,6 +1,6 @@
 ---
 name: developer-security
-description: Security best practices for gh-aw workflows and Go code: template injection prevention, shell script security, supply chain hardening, and static analysis integration.
+description: "Security best practices for gh-aw workflows and Go code: template injection prevention, shell script security, supply chain hardening, and static analysis integration."
 ---
 
 
@@ -384,5 +384,4 @@ gh aw compile --strict --actionlint --zizmor --poutine
 - [ ] actionlint passes (no errors)
 - [ ] zizmor passes (High/Critical addressed)
 - [ ] poutine passes (supply chain secure)
-
 

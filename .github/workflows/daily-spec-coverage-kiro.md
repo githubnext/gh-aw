@@ -16,7 +16,7 @@ sandbox:
 tracker-id: daily-spec-coverage-kiro
 engine:
   id: kiro
-model: kiro/claude-sonnet-4-5
+model: kiro/claude-sonnet-4.5
 strict: true
 network:
   allowed:
