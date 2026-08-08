@@ -10,8 +10,27 @@ const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_cod
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
 /**
- * @typedef {{ type: string, fileName: string, sha: string, size: number, targetFileName: string, url?: string }} UploadAssetItem
+ * @typedef {{ type: string, path?: string, fileName: string, sha: string, size: number, targetFileName: string, url?: string }} UploadAssetItem
  */
+
+/**
+ * @param {string} githubServer
+ * @param {string} repo
+ * @param {string} branchName
+ * @param {string} targetFileName
+ * @returns {string}
+ */
+function buildAssetUrl(githubServer, repo, branchName, targetFileName) {
+  try {
+    const serverHostname = new URL(githubServer).hostname;
+    if (serverHostname === "github.com") {
+      return `https://github.com/${repo}/blob/${branchName}/${targetFileName}?raw=true`;
+    }
+  } catch {
+    // Fall through to the GHES-compatible raw URL.
+  }
+  return `${githubServer}/${repo}/raw/${branchName}/${targetFileName}`;
+}
 
 async function main() {
   // Check if we're in staged mode
@@ -58,6 +77,7 @@ async function main() {
   let uploadCount = 0;
   let missingAssetCount = 0;
   let hasChanges = false;
+  const processedAssets = [];
 
   try {
     // Check if orphaned branch already exists, if not create it
@@ -85,15 +105,23 @@ async function main() {
 
     // Process each asset
     for (const asset of uploadItems) {
-      const { fileName, sha, size, targetFileName } = asset;
+      const declaredPath = typeof asset.path === "string" ? asset.path : "";
+      const pathFileName = declaredPath ? path.basename(declaredPath) : "";
+      const rawFileName = typeof asset.fileName === "string" ? asset.fileName : pathFileName;
+      const fileName = path.basename(rawFileName);
 
-      if (!fileName || !sha || !targetFileName) {
+      if (!fileName || (asset.fileName && asset.fileName !== fileName)) {
+        core.setFailed(`${ERR_VALIDATION}: Invalid asset filename: ${JSON.stringify(asset)}`);
+        return;
+      }
+      if (!pathFileName && (!asset.sha || !asset.targetFileName)) {
         core.setFailed(`${ERR_VALIDATION}: Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
         return;
       }
 
       // Check if file exists in the staged-assets directory
-      const assetSourcePath = path.join(assetsDir, fileName);
+      const stagedFileName = pathFileName ? `${crypto.createHash("sha256").update(declaredPath).digest("hex")}${path.extname(fileName).toLowerCase()}` : fileName;
+      const assetSourcePath = path.join(assetsDir, stagedFileName);
       if (!fs.existsSync(assetSourcePath)) {
         core.warning(`${ERR_SYSTEM}: Asset file not found: ${assetSourcePath} — skipping`);
         missingAssetCount++;
@@ -104,14 +132,30 @@ async function main() {
       const fileContent = fs.readFileSync(assetSourcePath);
       const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
 
-      if (computedSha !== sha) {
-        core.setFailed(`${ERR_VALIDATION}: SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+      if (asset.sha && computedSha !== asset.sha) {
+        core.setFailed(`${ERR_VALIDATION}: SHA mismatch for ${fileName}: expected ${asset.sha}, got ${computedSha}`);
         return;
       }
+
+      const generatedTargetFileName = `${computedSha}${path.extname(fileName).toLowerCase()}`;
+      // In path mode, the source path and content are re-derived from trusted staged state,
+      // so always compute the target filename server-side and ignore any agent-supplied value.
+      const targetFileName = pathFileName ? generatedTargetFileName : asset.targetFileName || generatedTargetFileName;
+      if (targetFileName !== path.basename(targetFileName)) {
+        core.setFailed(`${ERR_VALIDATION}: Invalid asset target filename: ${targetFileName}`);
+        return;
+      }
+
+      const size = fileContent.length;
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
+      const url = buildAssetUrl(githubServer, repo, normalizedBranchName, targetFileName);
+      const processedAsset = { fileName, sha: computedSha, size, targetFileName, url };
 
       // Check if file already exists in the branch
       if (fs.existsSync(targetFileName)) {
         core.info(`Asset ${targetFileName} already exists, skipping`);
+        processedAssets.push(processedAsset);
         continue;
       }
 
@@ -124,6 +168,7 @@ async function main() {
 
         uploadCount++;
         hasChanges = true;
+        processedAssets.push(processedAsset);
 
         core.info(`Added asset: ${targetFileName} (${size} bytes)`);
       } catch (error) {
@@ -149,10 +194,8 @@ async function main() {
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
       }
 
-      for (const asset of uploadItems) {
-        if (asset.fileName && asset.sha && asset.size && asset.url) {
-          core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
-        }
+      for (const asset of processedAssets) {
+        core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
       }
       await core.summary.write();
     } else {

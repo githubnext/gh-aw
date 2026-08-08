@@ -3,8 +3,9 @@
 package workflow
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAWFSupportsExcludeEnv(t *testing.T) {
@@ -125,7 +126,6 @@ func TestAWFSupportsCliProxy(t *testing.T) {
 }
 
 // TestAWFSupportsAllowHostPorts tests the awfSupportsAllowHostPorts version gate function.
-
 func TestAWFSupportsAllowHostPorts(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -178,7 +178,6 @@ func TestAWFSupportsAllowHostPorts(t *testing.T) {
 }
 
 // TestAWFSupportsDockerHostPathPrefix tests the awfSupportsDockerHostPathPrefix version gate.
-
 func TestAWFSupportsDockerHostPathPrefix(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -262,7 +261,6 @@ func TestAWFSupportsTokenSteering(t *testing.T) {
 }
 
 // TestAWFSupportsChrootConfig tests the awfSupportsChrootConfig version gate.
-
 func TestAWFSupportsChrootConfig(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -310,7 +308,6 @@ func TestAWFSupportsChrootConfig(t *testing.T) {
 }
 
 // TestAWFSupportsAPIProxyProviders tests the awfSupportsAPIProxyProviders version gate.
-
 func TestAWFSupportsAPIProxyProviders(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -356,7 +353,3 @@ func TestAWFSupportsAPIProxyProviders(t *testing.T) {
 		})
 	}
 }
-
-// TestBuildAWFCommand_IncludesChrootInjectScript verifies that BuildAWFCommand
-// includes the chroot injection script in the generated run step when the AWF
-// version supports it.

@@ -701,6 +701,10 @@ jobs:
                   },
                   "pull_request_number": {
                     "issueOrPRNumber": true
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
                   }
                 }
               },

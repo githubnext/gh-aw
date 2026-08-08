@@ -69,7 +69,6 @@ func TestBuildAWFArgsAuditDir(t *testing.T) {
 // TestBuildAWFArgsAllowHostPorts tests that BuildAWFArgs includes --allow-host-ports
 // with port 80, 443, and the MCP gateway port so the AWF agent container can reach
 // the gateway through the firewall's iptables rules.
-
 func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 	t.Run("includes default MCP gateway port 8080", func(t *testing.T) {
 		config := AWFCommandConfig{
@@ -190,7 +189,6 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 
 // TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs
 // only when features.awf-diagnostic-logs is enabled.
-
 func TestBuildAWFArgsDiagnosticLogs(t *testing.T) {
 	baseWorkflow := func(features map[string]any) *WorkflowData {
 		return &WorkflowData{
@@ -236,7 +234,6 @@ func TestBuildAWFArgsDiagnosticLogs(t *testing.T) {
 
 // TestBuildAWFArgsMemoryLimit tests that BuildAWFArgs passes --memory-limit
 // when sandbox.agent.memory is configured in the workflow frontmatter
-
 func TestBuildAWFArgsMemoryLimit(t *testing.T) {
 	t.Run("includes --memory-limit flag when memory is configured", func(t *testing.T) {
 		workflowData := &WorkflowData{

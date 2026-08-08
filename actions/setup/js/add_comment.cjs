@@ -35,6 +35,93 @@ const HANDLER_TYPE = "add_comment";
 const WILDCARD_TARGET_FIELDS = ["item_number", "issue_number", "pull_request_number", "pr_number", "pr", "pull_number"];
 
 /**
+ * Parse trusted comment IDs supplied by workflow configuration.
+ * @param {unknown} value
+ * @returns {Set<string>}
+ */
+function parseAllowedCommentIds(value) {
+  const values = [];
+  const visit = item => {
+    if (Array.isArray(item)) {
+      for (const child of item) visit(child);
+      return;
+    }
+    if (typeof item === "number" && Number.isInteger(item) && item > 0) {
+      values.push(String(item));
+      return;
+    }
+    if (typeof item !== "string") {
+      return;
+    }
+    const trimmed = item.trim();
+    if (!trimmed) {
+      return;
+    }
+    if (trimmed.startsWith("[") || trimmed.startsWith('"')) {
+      try {
+        visit(JSON.parse(trimmed));
+        return;
+      } catch {
+        // Fall through to delimiter parsing.
+      }
+    }
+    for (const part of trimmed.split(/[,\s]+/)) {
+      if (/^[1-9]\d*$/.test(part)) {
+        values.push(part);
+      }
+    }
+  };
+  visit(value);
+  return new Set(values);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {{success: true, commentId: number} | {success: false, error: string}}
+ */
+function parsePositiveCommentId(value) {
+  const commentId = Number(value);
+  if (!Number.isInteger(commentId) || commentId <= 0) {
+    return { success: false, error: "comment_id must be a positive integer" };
+  }
+  return { success: true, commentId };
+}
+
+/**
+ * Validate an agent-supplied comment_id against the trusted workflow allowlist.
+ * @param {unknown} value
+ * @param {any} config
+ * @param {string} commentTarget
+ * @returns {{success: true, commentId: number} | {success: false, error: string}}
+ */
+function resolveAllowedCommentId(value, config, commentTarget) {
+  const parsed = parsePositiveCommentId(value);
+  if (!parsed.success) {
+    return parsed;
+  }
+  if (commentTarget !== "*") {
+    return {
+      success: false,
+      error: "comment_id is only allowed when safe-outputs.add-comment.target is '*' and the ID is listed in safe-outputs.add-comment.allows-comment-ids",
+    };
+  }
+  const allowedCommentIds = parseAllowedCommentIds(config.allows_comment_ids ?? config["allows-comment-ids"]);
+  if (allowedCommentIds.size === 0) {
+    return {
+      success: false,
+      error: "comment_id requires safe-outputs.add-comment.allows-comment-ids to list trusted comment IDs",
+    };
+  }
+  if (!allowedCommentIds.has(String(parsed.commentId))) {
+    return {
+      success: false,
+      error: "comment_id is not listed in safe-outputs.add-comment.allows-comment-ids",
+    };
+  }
+  return parsed;
+}
+
+/**
  * Deduplicate an array of strings using case-insensitive comparison, preserving original casing and order.
  * @param {string[]} aliases
  * @returns {string[]}
@@ -504,17 +591,60 @@ async function main(config = {}) {
     // Determine target number and type
     let itemNumber;
     let isDiscussion = false;
+    /** @type {any} */
+    let commentIdToReuse = null;
+    const explicitCommentIdRaw = message.comment_id ?? message.commentId ?? message["comment-id"];
+    const hasExplicitCommentId = explicitCommentIdRaw !== undefined && explicitCommentIdRaw !== null && String(explicitCommentIdRaw).trim() !== "";
+    if (hasExplicitCommentId) {
+      const allowedCommentId = resolveAllowedCommentId(explicitCommentIdRaw, config, commentTarget);
+      if (!allowedCommentId.success) {
+        return {
+          success: false,
+          error: allowedCommentId.error,
+        };
+      }
+      commentIdToReuse = allowedCommentId.commentId;
+    }
 
     // Check if item_number or issue_number was explicitly provided in the message.
     // item_number takes precedence over issue_number when both are present.
     // pr-number is accepted as an alias for item_number for robustness.
-    const itemTargetResult = resolveSafeOutputIssueTarget({ message, tempIdMap: temporaryIdMap, repoParts, handlerType: HANDLER_TYPE, aliases: ["item_number", "issue_number", "pr-number"] });
-    if (!itemTargetResult.success) return itemTargetResult;
+    /** @type {{ success: boolean, number?: number | null, deferred?: boolean, error?: string }} */
+    let itemTargetResult = { success: true, number: null };
+    if (hasExplicitCommentId) {
+      try {
+        const { data: existingComment } = await githubClient.rest.issues.getComment({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          comment_id: commentIdToReuse,
+        });
+        const targetURL = existingComment?.issue_url || "";
+        const match = String(targetURL).match(/\/issues\/(\d+)(?:[#/?]|$)/);
+        if (match) {
+          itemNumber = Number(match[1]);
+        }
+        if (!Number.isInteger(itemNumber) || itemNumber <= 0) {
+          return {
+            success: false,
+            error: `Could not derive issue or pull request number for allowed comment_id ${commentIdToReuse}`,
+          };
+        }
+        core.info(`Using allowed existing comment ID: ${commentIdToReuse}`);
+      } catch (err) {
+        return {
+          success: false,
+          error: `Failed to fetch allowed comment_id ${commentIdToReuse}: ${getErrorMessage(err)}`,
+        };
+      }
+    } else {
+      itemTargetResult = resolveSafeOutputIssueTarget({ message, tempIdMap: temporaryIdMap, repoParts, handlerType: HANDLER_TYPE, aliases: ["item_number", "issue_number", "pr-number"] });
+      if (!itemTargetResult.success) return itemTargetResult;
+    }
 
-    if (itemTargetResult.number !== null) {
+    if (itemTargetResult.number != null) {
       itemNumber = itemTargetResult.number;
       core.info(`Using explicitly provided target number (item_number/issue_number/pr-number): #${itemNumber}`);
-    } else {
+    } else if (!hasExplicitCommentId) {
       // Check if this is a discussion context
       const isDiscussionContext = effectiveContext.eventName === "discussion" || effectiveContext.eventName === "discussion_comment";
 
@@ -609,7 +739,7 @@ async function main(config = {}) {
     const parentAuthors = [];
     if (!mentionsDisabled) {
       if (!isDiscussion) {
-        if (itemTargetResult.number !== null) {
+        if (itemTargetResult.number != null || hasExplicitCommentId) {
           // Explicit item_number/issue_number: fetch the issue/PR to get its author
           try {
             const { data: issueData } = await githubClient.rest.issues.get({
@@ -776,9 +906,6 @@ async function main(config = {}) {
       core.warning("Ignoring empty discussion reply_to_id after normalization");
     }
 
-    // add_comment uses snake_case fields. camelCase and kebab-case aliases are
-    // accepted for compatibility with forwarded/legacy payload variants.
-    const explicitCommentIdRaw = message.comment_id ?? message.commentId ?? message["comment-id"];
     const rawTarget = message.target;
     const allowedTargets = ["status", "issue", "discussion"];
     if (rawTarget !== undefined && !allowedTargets.includes(rawTarget)) {
@@ -786,17 +913,7 @@ async function main(config = {}) {
     }
     const isStatusCommentTarget = rawTarget === "status";
     const statusCommentIdRaw = process.env.GH_AW_COMMENT_ID || "";
-    /** @type {any} */
-    let commentIdToReuse = null;
-    if (explicitCommentIdRaw !== undefined && explicitCommentIdRaw !== null && String(explicitCommentIdRaw).trim() !== "") {
-      commentIdToReuse = Number(explicitCommentIdRaw);
-      if (!Number.isInteger(commentIdToReuse) || commentIdToReuse <= 0) {
-        return {
-          success: false,
-          error: "comment_id must be a positive integer",
-        };
-      }
-    } else if (isStatusCommentTarget) {
+    if (commentIdToReuse === null && isStatusCommentTarget) {
       const parsedStatusCommentId = Number(statusCommentIdRaw);
       if (Number.isInteger(parsedStatusCommentId) && parsedStatusCommentId > 0) {
         commentIdToReuse = parsedStatusCommentId;
@@ -832,7 +949,7 @@ async function main(config = {}) {
         // reply as a threaded comment to the triggering comment instead of posting top-level.
         // GitHub Discussions only supports two nesting levels, so if the triggering comment is
         // itself a reply, we resolve the top-level parent's node ID to use as replyToId.
-        const hasExplicitItemNumber = itemTargetResult.number !== null;
+        const hasExplicitItemNumber = itemTargetResult.number != null;
         let replyToId;
         if (context.eventName === "discussion_comment" && !hasExplicitItemNumber) {
           // When triggered by a discussion_comment event, thread the reply under the triggering comment.
@@ -850,7 +967,7 @@ async function main(config = {}) {
         }
         comment = await commentOnDiscussion(githubClient, repoParts.owner, repoParts.repo, itemNumber, processedBody, replyToId);
       } else {
-        const shouldReplyToTriggeringPRReviewComment = effectiveContext.eventName === "pull_request_review_comment" && itemTargetResult.number === null;
+        const shouldReplyToTriggeringPRReviewComment = !hasExplicitCommentId && effectiveContext.eventName === "pull_request_review_comment" && itemTargetResult.number == null;
         const triggeringReviewCommentId = Number(effectiveContext.payload?.comment?.id);
 
         if (shouldReplyToTriggeringPRReviewComment && Number.isInteger(triggeringReviewCommentId) && triggeringReviewCommentId > 0) {
@@ -905,7 +1022,7 @@ async function main(config = {}) {
 
       // If 404 and item_number was explicitly provided and we tried as issue/PR,
       // retry as a discussion (the user may have provided a discussion number)
-      if (is404 && !isDiscussion && itemTargetResult.number !== null) {
+      if (is404 && !isDiscussion && itemTargetResult.number != null) {
         core.info(`Item #${itemNumber} not found as issue/PR, retrying as discussion...`);
 
         try {
