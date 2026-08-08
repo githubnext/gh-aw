@@ -300,6 +300,7 @@ Import caching is crucial for performance and cycle detection. The `ImportCache`
 - `github.com/github/gh-aw/pkg/setutil` — set membership helpers used in import BFS traversal and cycle detection
 - `github.com/github/gh-aw/pkg/sliceutil` — slice helper utilities for validation and merging
 - `github.com/github/gh-aw/pkg/stringutil` — string normalization and ANSI/format helpers
+- `github.com/github/gh-aw/pkg/syncutil` — thread-safe one-shot caching (used for lazy JSON schema compilation)
 
 **Test-only**:
 - `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by parser package tests
