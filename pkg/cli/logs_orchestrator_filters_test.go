@@ -106,6 +106,12 @@ func TestApplyRunFilters_Runtime(t *testing.T) {
 			filterRuntime: "gvisor",
 			wantSkip:      true,
 		},
+		{
+			name:          "empty agent_runtime is skipped",
+			awInfo:        `{"agent_runtime":""}`,
+			filterRuntime: "gvisor",
+			wantSkip:      true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

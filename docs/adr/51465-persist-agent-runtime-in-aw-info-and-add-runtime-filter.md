@@ -1,8 +1,8 @@
 # ADR-51465: Persist Agent Runtime in aw_info.json and Add --runtime Filter to logs/audit
 
 **Date**: 2026-08-08
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: pelikhan, app/copilot-swe-agent
 
 ---
 
@@ -45,4 +45,4 @@ This was rejected because it adds file proliferation and forces the CLI to read 
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent]. Finalized after addressing PR #51465 review feedback (audit runtime validation and shared filter reuse).*

@@ -161,6 +161,9 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 			[]string{"Add --experiment <name> to filter by experiment name alongside --variant"},
 		))
 	}
+	if err := validateLogsRuntime(opts.runtimeFilter); err != nil {
+		return auditCommandOptions{}, err
+	}
 	// Auto-include the usage artifact (which now contains evals) when --evals is
 	// specified and the user has narrowed the artifact set (non-empty --artifacts).
 	// When --artifacts is empty the default is "all", which already includes usage,
@@ -571,11 +574,8 @@ func shouldSkipAuditRun(runID int64, runOutputDir, experimentFilter, variantFilt
 	if runtimeFilter != "" {
 		awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
 		awInfo, awInfoErr := parseAwInfo(awInfoPath, false)
-		detectedRuntime := ""
-		if awInfoErr == nil && awInfo != nil {
-			detectedRuntime = awInfo.AgentRuntime
-		}
-		if detectedRuntime != runtimeFilter {
+		runtimeMatches, detectedRuntime := matchRuntimeFilter(awInfo, awInfoErr, runtimeFilter)
+		if !runtimeMatches {
 			if detectedRuntime == "" {
 				detectedRuntime = "unknown"
 			}
