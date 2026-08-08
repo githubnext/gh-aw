@@ -179,14 +179,14 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 	// is declared for the engine's CLI itself.
 	if behavior.Installation == nil {
 		if behavior.HarnessScript == "" {
-			return nil
+			return buildAWFInstallationSteps(workflowData)
 		}
 		return BuildNpmEngineInstallStepsWithAWF([]GitHubActionStep{GenerateNodeJsSetupStep()}, workflowData)
 	}
 
 	install := behavior.Installation
 	if install.PackageManager != "npm" {
-		return nil
+		return buildAWFInstallationSteps(workflowData)
 	}
 	version := install.Version
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {

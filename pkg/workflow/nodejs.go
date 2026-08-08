@@ -112,6 +112,48 @@ func buildStandardNpmEngineInstallSteps(
 	)
 }
 
+func buildAWFInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	if !isFirewallEnabled(workflowData) {
+		return nil
+	}
+
+	var steps []GitHubActionStep
+
+	firewallConfig := getFirewallConfig(workflowData)
+	agentConfig := getAgentConfig(workflowData)
+	var awfVersion string
+	if firewallConfig != nil {
+		awfVersion = firewallConfig.Version
+	}
+
+	// gVisor must be installed and registered BEFORE AWF starts the agent container.
+	if isGVisorRuntime(workflowData) {
+		steps = append(steps, generateGVisorInstallStep())
+	}
+
+	// docker-sbx must be installed, authenticated, and smoke-tested BEFORE AWF
+	// starts so the microVM runtime is ready when AWF launches the agent.
+	if isDockerSbxRuntime(workflowData) {
+		steps = append(steps, generateDockerSbxKVMCheckStep())
+		steps = append(steps, generateDockerSbxSecretsCheckStep())
+		steps = append(steps, generateDockerSbxInstallStep())
+		steps = append(steps, generateDockerSbxAuthAndDaemonStep())
+		steps = append(steps, generateDockerSbxPreFlightStep())
+	}
+
+	awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
+	if len(awfInstall) > 0 {
+		steps = append(steps, awfInstall)
+	}
+
+	// Install Docker Compose plugin for ARC/DinD runners where it may not be pre-installed.
+	if isArcDindTopology(workflowData) {
+		steps = append(steps, generateDockerComposeInstallStep())
+	}
+
+	return steps
+}
+
 // BuildNpmEngineInstallStepsWithAWF injects an AWF installation step between the Node.js
 // setup step and the CLI install steps when the firewall is enabled. This eliminates the
 // duplicated AWF-injection pattern shared by Claude, Gemini, and Copilot engines.
@@ -134,40 +176,8 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 		steps = append(steps, npmSteps[0]) // Node.js setup step
 	}
 
-	// Inject AWF installation after Node.js setup but before the CLI install steps
-	if isFirewallEnabled(workflowData) {
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfVersion string
-		if firewallConfig != nil {
-			awfVersion = firewallConfig.Version
-		}
-
-		// gVisor must be installed and registered BEFORE AWF starts the agent container.
-		if isGVisorRuntime(workflowData) {
-			steps = append(steps, generateGVisorInstallStep())
-		}
-
-		// docker-sbx must be installed, authenticated, and smoke-tested BEFORE AWF
-		// starts so the microVM runtime is ready when AWF launches the agent.
-		if isDockerSbxRuntime(workflowData) {
-			steps = append(steps, generateDockerSbxKVMCheckStep())
-			steps = append(steps, generateDockerSbxSecretsCheckStep())
-			steps = append(steps, generateDockerSbxInstallStep())
-			steps = append(steps, generateDockerSbxAuthAndDaemonStep())
-			steps = append(steps, generateDockerSbxPreFlightStep())
-		}
-
-		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
-		if len(awfInstall) > 0 {
-			steps = append(steps, awfInstall)
-		}
-
-		// Install Docker Compose plugin for ARC/DinD runners where it may not be pre-installed.
-		if isArcDindTopology(workflowData) {
-			steps = append(steps, generateDockerComposeInstallStep())
-		}
-	}
+	// Inject AWF installation after Node.js setup but before the CLI install steps.
+	steps = append(steps, buildAWFInstallationSteps(workflowData)...)
 
 	if len(npmSteps) > 1 {
 		steps = append(steps, npmSteps[1:]...) // CLI installation and subsequent steps

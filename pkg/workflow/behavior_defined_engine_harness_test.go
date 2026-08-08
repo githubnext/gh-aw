@@ -10,6 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func joinInstallSteps(steps []GitHubActionStep) string {
+	var b strings.Builder
+	for _, step := range steps {
+		b.WriteString(strings.Join(step, "\n"))
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
 // newHarnessEngineDefinition returns a minimal EngineDefinition with harness-script set.
 func newHarnessEngineDefinition() *EngineDefinition {
 	return &EngineDefinition{
@@ -206,6 +215,90 @@ func TestBehaviorDefinedEngineNoHarnessScript(t *testing.T) {
 	assert.Contains(t, execStepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "direct execution must include inline prompt substitution")
 	assert.NotContains(t, execStepContent, "GH_AW_NODE_EXEC", "should not use node harness when harness-script is absent")
 	assert.NotContains(t, execStepContent, "GHAW_HARNESS_SCRIPT_EOF", "no harness write step should be present")
+}
+
+func TestBehaviorDefinedEngineGetInstallationSteps_AWFInstallForNonNpmPaths(t *testing.T) {
+	firewallWorkflowData := &WorkflowData{
+		Name: "test",
+		NetworkPermissions: &NetworkPermissions{
+			Allowed:  []string{"defaults"},
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+	}
+
+	t.Run("non_npm_installation_includes_awf_install_step", func(t *testing.T) {
+		def := &EngineDefinition{
+			ID:          "pipengine",
+			DisplayName: "Pip Engine",
+			Behaviors: &EngineBehaviorDefinition{
+				Installation: &EngineInstallationDefinition{
+					PackageManager: "pip",
+					PackageName:    "example",
+					StepName:       "Install example",
+				},
+				Execution: &EngineExecutionDefinition{
+					CommandName: "example",
+					StepName:    "Execute example",
+				},
+			},
+		}
+		engine, err := NewBehaviorDefinedEngine(def)
+		require.NoError(t, err)
+
+		steps := engine.GetInstallationSteps(firewallWorkflowData)
+		require.NotEmpty(t, steps)
+		installStepsText := joinInstallSteps(steps)
+		assert.Contains(t, installStepsText, "Install AWF binary")
+		assert.Contains(t, installStepsText, "install_awf_binary.sh")
+	})
+
+	t.Run("no_installation_and_no_harness_includes_awf_install_step", func(t *testing.T) {
+		def := &EngineDefinition{
+			ID:          "noinstall",
+			DisplayName: "No Install",
+			Behaviors: &EngineBehaviorDefinition{
+				Execution: &EngineExecutionDefinition{
+					CommandName: "noinstall",
+					StepName:    "Execute noinstall",
+				},
+			},
+		}
+		engine, err := NewBehaviorDefinedEngine(def)
+		require.NoError(t, err)
+
+		steps := engine.GetInstallationSteps(firewallWorkflowData)
+		require.NotEmpty(t, steps)
+		installStepsText := joinInstallSteps(steps)
+		assert.Contains(t, installStepsText, "Install AWF binary")
+		assert.Contains(t, installStepsText, "install_awf_binary.sh")
+	})
+
+	t.Run("custom_command_still_skips_installation", func(t *testing.T) {
+		def := &EngineDefinition{
+			ID:          "pipenginecustom",
+			DisplayName: "Pip Engine Custom",
+			Behaviors: &EngineBehaviorDefinition{
+				Installation: &EngineInstallationDefinition{
+					PackageManager: "pip",
+					PackageName:    "example",
+					StepName:       "Install example",
+				},
+				Execution: &EngineExecutionDefinition{
+					CommandName: "example",
+					StepName:    "Execute example",
+				},
+			},
+		}
+		engine, err := NewBehaviorDefinedEngine(def)
+		require.NoError(t, err)
+
+		steps := engine.GetInstallationSteps(&WorkflowData{
+			Name:               "test",
+			NetworkPermissions: firewallWorkflowData.NetworkPermissions,
+			EngineConfig:       &EngineConfig{Command: "custom"},
+		})
+		assert.Nil(t, steps)
+	})
 }
 
 // TestBehaviorDefinedEngineRenderMCPConfig verifies that the MCP gateway startup command
