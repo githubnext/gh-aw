@@ -22,6 +22,7 @@ Load these additional files only when relevant:
 - [visual-regression.md](visual-regression.md)
 - [serena-tool.md](serena-tool.md)
 - [linter-workflows.md](linter-workflows.md)
+- [agent-runtime-instructions.md](agent-runtime-instructions.md) for changes involving Docker, gVisor, Docker sbx, ARC DinD, self-hosted runners, or `sandbox.agent.runtime-install`
 
 ## Scope
 

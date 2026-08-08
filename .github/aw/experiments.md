@@ -136,8 +136,9 @@ Use `${{ experiments.tone }}` tone when writing the issue body.
 1. **One dimension** per experiment.
 2. **Falsifiable hypothesis**.
 3. **Primary metric** measurable from workflow run data (artifacts, outputs, duration, tokens). Prefer `eval:<id>` / `evals.<id>` when success is best measured as a YES/NO question.
-4. **Guardrail metrics** — things that must not degrade. Use `direction: min` + bare number for lower-is-better rates, or `">=0.95"` for higher-is-better.
-5. **Sample size estimate** per variant.
+4. **Pair the experiment with an eval.** Add at least one `evals:` question that checks whether the assigned variant's intended effect actually shows up in the output (e.g., "does the report follow the STE writing rules?"), and reference it from `metric` or `secondary_metrics` as `eval:<id>`. Purely quantitative metrics (token count, duration, engagement score) don't verify *why* an effect happened — the paired eval does.
+5. **Guardrail metrics** — things that must not degrade. Use `direction: min` + bare number for lower-is-better rates, or `">=0.95"` for higher-is-better.
+6. **Sample size estimate** per variant.
 
 Prefer high-frequency workflows for faster significance.
 
@@ -151,7 +152,7 @@ Prefer high-frequency workflows for faster significance.
 experiments:
   prompt_style: [concise, detailed]
   reasoning_depth: [shallow, deep]
-  output_format: [bullets, prose, table]
+  output_format: [bullets, prose, table, ste]
   tone: [formal, casual]
 ```
 
@@ -162,6 +163,8 @@ Use `{{#if experiments.prompt_style == "concise" }}` blocks to swap prompt instr
 **Typical metrics**: output quality, AI credits, success rate, output length.
 
 When `metric` references `eval:<id>` or `evals.<id>`, declare that eval question under `evals:`. `gh aw experiments analyze` will then show both the metric question text and observed eval YES/NO/UNKNOWN results.
+
+`ste` (Simplified Technical English) is a text-style variant worth testing alongside `bullets`/`prose`/`table`. It constrains the prompt to a small set of writing rules — short sentences (≤20 words), one instruction or fact per sentence, active voice, present tense, familiar vocabulary, and spelled-out acronyms on first use — to test whether simplified phrasing improves readability, engagement, or token efficiency versus richer prose/table formats.
 
 ### Engine & Model
 
