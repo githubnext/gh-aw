@@ -8,8 +8,7 @@ set +o histexpand
 # Usage: install_threat_detect_binary.sh VERSION [--rootless]
 #
 # Arguments:
-#   VERSION    - threat-detect version to install (e.g., v0.2.2) or "latest" to
-#                resolve and install the latest release from GitHub
+#   VERSION    - threat-detect version to install (e.g., v0.2.2) or "latest"
 #   --rootless - Install to ~/.local/bin without sudo; appends that directory to
 #                $GITHUB_PATH so subsequent steps find the binary.  Use this on
 #                ARC/DinD runners that enforce allowPrivilegeEscalation: false.
@@ -54,14 +53,6 @@ if [ -z "$THREAT_DETECT_VERSION" ]; then
   echo "ERROR: threat-detect version is required"
   echo "Usage: $0 VERSION [--rootless]"
   exit 1
-fi
-
-# Use GitHub Releases' latest-download redirect to avoid an unauthenticated GitHub
-# API request, which can fail when the API rate limit is exhausted.
-if [ "$THREAT_DETECT_VERSION" = "latest" ]; then
-  THREAT_DETECT_RELEASE_PATH="latest/download"
-else
-  THREAT_DETECT_RELEASE_PATH="download/${THREAT_DETECT_VERSION}"
 fi
 
 # In rootless mode, install into the user's home directory instead of /usr/local/bin
@@ -112,8 +103,12 @@ case "$OS" in
     ;;
 esac
 
-# Download URLs
-BASE_URL="https://github.com/${THREAT_DETECT_REPO}/releases/${THREAT_DETECT_RELEASE_PATH}"
+# Download release assets directly rather than resolving a release through the GitHub API.
+if [ "$THREAT_DETECT_VERSION" = "latest" ]; then
+  BASE_URL="https://github.com/${THREAT_DETECT_REPO}/releases/latest/download"
+else
+  BASE_URL="https://github.com/${THREAT_DETECT_REPO}/releases/download/${THREAT_DETECT_VERSION}"
+fi
 CHECKSUMS_URL="${BASE_URL}/checksums.txt"
 
 # Platform-portable SHA256 function

@@ -149,17 +149,19 @@ assert_failure "Unknown OS is rejected" FreeBSD x86_64 "Unsupported operating sy
 echo "Test 7: unknown Linux architecture fails fast..."
 assert_failure "Unknown Linux architecture is rejected" Linux riscv64 "Unsupported Linux architecture"
 
-# Test 8: latest release download must not use the rate-limited GitHub API.
-echo "Test 8: latest uses release download redirects without the GitHub API..."
+# Test 8: latest release assets must be downloaded directly without the GitHub API.
+echo "Test 8: latest release assets use direct downloads without the GitHub API..."
 run_installer Linux x86_64 latest
 if [ "${RUN_STATUS}" -ne 0 ]; then
   fail "Latest release installer succeeds" "installer exited with ${RUN_STATUS}: ${RUN_OUTPUT}"
 elif ! echo "${RUN_URLS}" | grep -qF "https://github.com/github/gh-aw-threat-detection/releases/latest/download/checksums.txt"; then
-  fail "Latest release installer uses release download redirect" "expected latest download URL, got: ${RUN_URLS}"
+  fail "Latest release installer downloads checksums directly" "expected latest release checksum URL, got: ${RUN_URLS}"
+elif ! echo "${RUN_URLS}" | grep -qF "https://github.com/github/gh-aw-threat-detection/releases/latest/download/threat-detect-linux-amd64"; then
+  fail "Latest release installer downloads the binary directly" "expected latest release binary URL, got: ${RUN_URLS}"
 elif echo "${RUN_URLS}" | grep -qF "api.github.com"; then
   fail "Latest release installer avoids GitHub API" "unexpected API URL: ${RUN_URLS}"
 else
-  pass "Latest release installer uses release download redirects without GitHub API"
+  pass "Latest release installer uses direct downloads without GitHub API"
 fi
 
 echo
