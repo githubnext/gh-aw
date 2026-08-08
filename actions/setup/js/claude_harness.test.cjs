@@ -22,6 +22,7 @@ const {
   buildMissingToolPermissionIssuePayload,
   resolveRetryConfig,
   resolveStartupRetryLimit,
+  shouldSoftFailInvocationCap,
 } = require("./claude_harness.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
@@ -519,6 +520,33 @@ process.exit(1);
       expect(result.status).toBe(1);
       expect(calls.length).toBe(1);
       expect(result.stderr).toContain("maximum LLM invocations exceeded — not retrying");
+    });
+
+    it("soft-fails maximum LLM invocation exhaustion when opted in", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({ args: process.argv.slice(2) }) + "\\n", "utf8");
+process.stderr.write('{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (50 / 50)."}}\\n');
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        extraEnv: {
+          GH_AW_SOFT_FAIL_INVOCATION_CAP: "true",
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/agent/soft-fail-safeoutputs.jsonl",
+          GH_AW_SAFEOUTPUTS_CLI: "/bin/true",
+        },
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.length).toBe(1);
+      expect(result.stderr).toContain("invocation cap soft-fail enabled");
+    });
+
+    it("only enables invocation-cap soft-fail for the exact opt-in value", () => {
+      expect(shouldSoftFailInvocationCap({ GH_AW_SOFT_FAIL_INVOCATION_CAP: "true" })).toBe(true);
+      expect(shouldSoftFailInvocationCap({ GH_AW_SOFT_FAIL_INVOCATION_CAP: "false" })).toBe(false);
+      expect(shouldSoftFailInvocationCap({})).toBe(false);
     });
 
     it("returns true for normal partial-execution retry", () => {

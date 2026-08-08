@@ -395,6 +395,38 @@ func TestDailyFormalSpecVerifierHasToolBudgetAwareness(t *testing.T) {
 	}
 }
 
+func TestDesignDecisionGateHasInvocationCapFallback(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "design-decision-gate.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	parsed, err := parser.ExtractFrontmatterFromContent(workflow)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow frontmatter: %v", err)
+	}
+	if parsed.Frontmatter["max-turns"] != 50 && parsed.Frontmatter["max-turns"] != uint64(50) {
+		t.Fatalf("Expected design-decision-gate max-turns to be 50, got %#v", parsed.Frontmatter["max-turns"])
+	}
+	env, ok := parsed.Frontmatter["env"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected design-decision-gate to define env")
+	}
+	if env["GH_AW_SOFT_FAIL_INVOCATION_CAP"] != "true" {
+		t.Fatalf("Expected design-decision-gate to opt into invocation-cap soft-fail, got %#v", env["GH_AW_SOFT_FAIL_INVOCATION_CAP"])
+	}
+	if !strings.Contains(workflow, "call `report_incomplete` with reason `invocation_cap_risk`") {
+		t.Fatal("Expected design-decision-gate to require report_incomplete when nearing the invocation cap")
+	}
+}
+
 func TestLayoutSpecMaintainerHasToolBudgetAwareness(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {

@@ -30,7 +30,9 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-max-turns: 20
+env:
+  GH_AW_SOFT_FAIL_INVOCATION_CAP: "true"
+max-turns: 50
 model: claude-sonnet-4-6
 engine:
   id: claude
@@ -166,7 +168,7 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 - **Pull Request**: #${{ github.event.pull_request.number || github.event.inputs.pr_number }}
 - **Event**: ${{ github.event_name }}
 - **Actor**: ${{ github.actor }}
-- **Hard Turn Budget**: 20 turns maximum — stop as soon as you can issue a safe output
+- **Hard Turn Budget**: 50 turns maximum — stop as soon as you can issue a safe output
 
 ### Turn Budget Allocation
 
@@ -178,7 +180,7 @@ You are the Design Decision Gate, an AI agent that enforces a culture of "decide
 | Fetch linked issue ADR (only if referenced) | 1 | one GitHub MCP call at most |
 | Generate draft ADR or verify alignment | 2 | write ADR content or compare diff |
 | Commit draft + post comment (or post comment only) | 1 | push-to-pull-request-branch + add-comment |
-| **Total** | **≤ 7** | *(turns 8–20 in reserve: for fallback, unexpected data gaps, or complex ADR generation)* |
+| **Total** | **≤ 7** | *(turns 8–50 in reserve: for fallback, unexpected data gaps, or complex ADR generation)* |
 
 Stop at the first step where you have sufficient information to emit a safe output. Do not advance to the next step unless required data is missing.
 
@@ -191,7 +193,7 @@ Stop and emit a safe output **immediately** when any of the following is true:
 - **ADR found, divergence**: Divergences identified → call `add-comment` (divergence list) and **stop**.
 - **No ADR, decision inferable**: Draft ADR generated → call `push-to-pull-request-branch` + `add-comment` and **stop**.
 - **No ADR, decision not inferable**: Decision cannot be inferred from PR evidence → call `add-comment` explaining what context is missing and **stop**.
-- **Turn 19 reached**: If you are on turn 19 and have not yet called a safe output, emit the best available output immediately on turn 20 — do not start a new investigation step. Turn 20 is the hard limit enforced by the engine.
+- **Turn 45 reached**: If you are on turn 45 and have not yet called a safe output, emit the best available output immediately. If you have actionable partial ADR findings, call `add-comment` with those findings and clearly label the report incomplete. If you cannot produce a useful comment, call `report_incomplete` with reason `invocation_cap_risk` and details summarizing evidence gathered plus the remaining blocker. Do not start a new investigation step.
 
 ### Mandatory Efficiency Rules
 
@@ -207,7 +209,7 @@ Stop and emit a safe output **immediately** when any of the following is true:
    - Missing `pr.diff` → `mcp__github__get_pull_request_diff` (only if `diff_available` is `true` in the summary; if `false`, the diff exceeds the 300-file API limit — use `pr-files.json` instead and do **not** call the diff API)
    - Missing `adr-prefetch-summary.json` → compute manually from PR files and labels
 3. Do **not** perform broad exploration. Only fetch extra data if a required field is missing from pre-fetched files.
-4. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, or `noop`) and then stop.
+4. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, `report_incomplete`, or `noop`) and then stop.
 5. If you have enough evidence to decide, stop immediately. Do not gather optional data.
 
 ## Gate Quality Bar
@@ -381,7 +383,7 @@ Read the `adr-report-templates` skill and post a comment using `add-comment` wit
 
 ## Important: Always Call a Safe Output
 
-**You MUST always call at least one safe output tool.** If none of the above steps result in an action, call `noop` with an explanation:
+**You MUST always call at least one safe output tool.** If you are blocked before producing a complete ADR decision, call `report_incomplete` with the partial evidence and blocker. If none of the above steps result in an action and you are not blocked, call `noop` with an explanation:
 
 ```json
 {"noop": {"message": "No action needed: [brief explanation of what was found and why no action was required]"}}

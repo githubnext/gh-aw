@@ -49,7 +49,7 @@ const {
   normalizeReflectProviderName,
   resolveProviderEndpointFromReflect,
 } = require("./awf_reflect.cjs");
-const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
+const { emitInfrastructureIncomplete, emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
@@ -217,6 +217,17 @@ function shouldRetryWithContinue({ attempt, maxRetries, exitCode, hasOutput, isN
     return false;
   }
   return true;
+}
+
+/**
+ * Whether this workflow opted into treating pooled LLM invocation-cap exhaustion
+ * as a structured incomplete result instead of a hard agent failure.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {boolean}
+ */
+function shouldSoftFailInvocationCap(env = process.env) {
+  return env.GH_AW_SOFT_FAIL_INVOCATION_CAP === "true";
 }
 
 /**
@@ -499,6 +510,17 @@ async function main() {
       if (shouldTreatAICreditsExceededAsSuccess) {
         log(`attempt ${attempt + 1}: AI credits budget enforced — exiting 0 (budget control, not an error)`);
         lastExitCode = 0;
+      } else if (nonRetryableGuard.maxRunsExceeded && shouldSoftFailInvocationCap(process.env) && !isAuthenticationFailed) {
+        if (safeOutputsPath && hasExpectedSafeOutputs(safeOutputsPath, { logger: log })) {
+          log(`attempt ${attempt + 1}: invocation cap reached after task-level safe output — exiting 0`);
+        } else {
+          emitInfrastructureIncomplete("Maximum LLM invocations were exhausted before the workflow could complete. The workflow opted into soft-failing invocation-cap exhaustion; any partial safe outputs already emitted were preserved.", {
+            safeOutputsPath,
+            logger: log,
+          });
+          log(`attempt ${attempt + 1}: invocation cap soft-fail enabled — emitted report_incomplete and exiting 0`);
+        }
+        lastExitCode = 0;
       }
       break;
     }
@@ -626,6 +648,7 @@ if (typeof module !== "undefined" && module.exports) {
     emitMissingToolPermissionIssue,
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
+    shouldSoftFailInvocationCap,
     resolveRetryConfig,
     resolveStartupRetryLimit,
     applyModelFallback,
