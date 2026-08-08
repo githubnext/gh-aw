@@ -512,7 +512,7 @@ async function main() {
         lastExitCode = 0;
       } else if (nonRetryableGuard.maxRunsExceeded && shouldSoftFailInvocationCap(process.env) && !isAuthenticationFailed) {
         if (safeOutputsPath && hasExpectedSafeOutputs(safeOutputsPath, { logger: log })) {
-          log(`attempt ${attempt + 1}: invocation cap reached after task-level safe output — exiting 0`);
+          log(`attempt ${attempt + 1}: invocation cap soft-fail enabled — task-level safe output already present; exiting 0`);
         } else {
           emitInfrastructureIncomplete("Maximum LLM invocations were exhausted before the workflow could complete. The workflow opted into soft-failing invocation-cap exhaustion; any partial safe outputs already emitted were preserved.", {
             safeOutputsPath,
