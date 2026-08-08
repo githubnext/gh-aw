@@ -20,7 +20,9 @@ strict: true
 tracker-id: daily-issues-report
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tools:
   cli-proxy: true
   github:

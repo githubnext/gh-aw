@@ -39,7 +39,9 @@ network:
     - "api.github.com"
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tools:
   cache-memory: true
   cli-proxy: true

@@ -132,6 +132,11 @@ steps:
 
         core.info(`Parsed ${papers.length} papers, ${newPapers.length} new`);
 
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 # arXiv Paper Researcher: GitHub Agentic Workflows

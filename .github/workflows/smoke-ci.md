@@ -73,6 +73,11 @@ timeout-minutes: 5
 strict: true
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 For all events, call the tools in this exact order:

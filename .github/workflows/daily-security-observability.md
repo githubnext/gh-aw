@@ -167,7 +167,9 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 evals:
   - id: security_data_analyzed
     question: Did the agent analyze firewall traffic and DIFC integrity-filtered events for the reporting period?

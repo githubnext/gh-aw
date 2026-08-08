@@ -22,7 +22,9 @@ network:
   allowed: [defaults, github]
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tools:
   cli-proxy: true
   github:
