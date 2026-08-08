@@ -74,9 +74,7 @@ async function renderLogFromFile(filePath, groupTitle) {
   let content;
   try {
     if (stat.size > MAX_LOG_BYTES) {
-      core.warning(
-        "Log exceeds " + MAX_LOG_BYTES + " bytes (" + stat.size + " bytes); truncating to first " + MAX_LOG_BYTES + " bytes: " + filePath
-      );
+      core.warning("Log exceeds " + MAX_LOG_BYTES + " bytes (" + stat.size + " bytes); truncating to first " + MAX_LOG_BYTES + " bytes: " + filePath);
       const fd = fs.openSync(filePath, "r");
       try {
         const buf = Buffer.alloc(MAX_LOG_BYTES);
