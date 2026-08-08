@@ -79,7 +79,7 @@ engine:
       // verbatim, minus the `openai-chat:` provider marker that selects its
       // OpenAI-compatible client. The proxy exposes Copilot Claude models under their
       // dotted IDs, so `copilot/claude-sonnet-4-5` becomes `copilot/claude-sonnet-4.5`.
-      const model = env.PAI_MODEL?.replace(/^(.*claude-(?:haiku|sonnet|opus)-\d+)-(\d+)$/, "$1.$2");
+      const model = env.PAI_MODEL?.replace(/^((?:[^/]+\/)?claude-(?:haiku|sonnet|opus)-\d+)-(\d+)$/, "$1.$2");
       if (model) {
         args.push("-m", `openai-chat:${model}`);
       }
