@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -2767,7 +2768,7 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 			if !strings.Contains(stepContent, `cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"`) {
 				t.Fatalf("Expected AWF setup to stage the Copilot CLI binary in its mounted directory, got:\n%s", stepContent)
 			}
-			mountedCopilotPath := constants.GhAwRootDirShell + "/bin/copilot"
+			mountedCopilotPath := `"` + constants.GhAwRootDirShell + `/bin/copilot"`
 			if !strings.Contains(stepContent, "copilot_harness.cjs "+mountedCopilotPath) {
 				t.Fatalf("Expected harness to use mounted Copilot CLI path %q, got:\n%s", mountedCopilotPath, stepContent)
 			}
@@ -2860,6 +2861,37 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 			t.Errorf("Expected step to fix ownership for $HOME/.copilot in custom engine.command mode, got:\n%s", stepContent)
 		}
 	})
+}
+
+func TestCopilotBinaryPathSetupStagesActivatedToolcacheBinary(t *testing.T) {
+	runnerTemp := filepath.Join(t.TempDir(), "self hosted runner temp")
+	toolcacheBin := filepath.Join(t.TempDir(), "custom toolcache", "copilot-cli", "1.2.3", "x64", "bin")
+	if err := os.MkdirAll(toolcacheBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cachedCopilot := filepath.Join(toolcacheBin, "copilot")
+	if err := os.WriteFile(cachedCopilot, []byte("#!/usr/bin/env bash\nprintf 'copilot %s\\n' \"$1\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	command := copilotBinaryPathSetup + "\n\"$GH_AW_COPILOT_BIN\" --version"
+	cmd := exec.Command("bash", "-c", command)
+	cmd.Env = append(os.Environ(),
+		"RUNNER_TEMP="+runnerTemp,
+		"PATH="+toolcacheBin+":"+os.Getenv("PATH"),
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Expected activated toolcache binary to be staged and executable: %v\n%s", err, output)
+	}
+	if got := strings.TrimSpace(string(output)); got != "copilot --version" {
+		t.Fatalf("Expected staged cached Copilot CLI output, got %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(runnerTemp, "gh-aw", "bin", "copilot")); err != nil {
+		t.Fatalf("Expected Copilot CLI at mounted runner path: %v", err)
+	}
 }
 
 func TestCopilotEngineNoAskUser(t *testing.T) {

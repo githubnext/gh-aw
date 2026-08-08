@@ -341,7 +341,7 @@ func (e *CopilotEngine) resolveCopilotCommand(workflowData *WorkflowData, sandbo
 		// Every AWF runtime receives RUNNER_TEMP/gh-aw as a read-only mount. Standard,
 		// gVisor, and docker-sbx runs stage the activated binary in the execution step;
 		// ARC/DinD stages it during installation so the remote daemon can see it.
-		return constants.GhAwRootDirShell + "/bin/copilot", ""
+		return `"` + constants.GhAwRootDirShell + `/bin/copilot"`, ""
 	}
 	// Non-sandbox mode: use standard copilot command
 	return "copilot", ""
