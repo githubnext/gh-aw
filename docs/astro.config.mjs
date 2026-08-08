@@ -441,6 +441,7 @@ export default defineConfig({
 						{ label: 'Safe Outputs (Ephemerals)', link: '/reference/ephemerals/' },
 						{ label: 'Safe Outputs (Footers)', link: '/reference/footers/' },
 						{ label: 'Sandbox', link: '/reference/sandbox/' },
+						{ label: 'Sandbox (Agent Runtimes)', link: '/reference/agent-runtimes/' },
 						{ label: 'Self-Hosted Runners', link: '/reference/self-hosted-runners/' },
 						{ label: 'Sandbox (MCP Gateway)', link: '/reference/mcp-gateway/' },
 						{ label: 'Sandbox (Network Access)', link: '/reference/network/' },
