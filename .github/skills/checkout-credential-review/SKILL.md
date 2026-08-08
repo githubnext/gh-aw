@@ -9,14 +9,14 @@ Use this skill when reviewing or writing code in `pkg/workflow/`, `actions/setup
 
 ## Background
 
-Each entry in a workflow's `checkout:` block may declare its own credentials (`github-token:`, `github-app:`), and the compiler wires those into the corresponding `actions/checkout` step ([pkg/workflow/checkout_step_generator.go](pkg/workflow/checkout_step_generator.go)). Generated checkouts always set `persist-credentials: false`, so the on-disk repo retains **no** credentials after the step finishes — only `actions/checkout`'s own internal token is used during the clone, and it is scrubbed in its post-step.
+Each entry in a workflow's `checkout:` block may declare its own credentials (`github-token:`, `github-app:`), and the compiler wires those into the corresponding `actions/checkout` step ([pkg/workflow/checkout_step_generator.go](../../../pkg/workflow/checkout_step_generator.go)). Generated checkouts always set `persist-credentials: false`, so the on-disk repo retains **no** credentials after the step finishes — only `actions/checkout`'s own internal token is used during the clone, and it is scrubbed in its post-step.
 
 A separate step that wants to authenticate later must either (a) re-inject a token at command level (e.g. `git -c http.extraheader=...`) or (b) be passed the per-checkout token via env. The compiler does *not* automatically thread per-checkout `github-token`s into downstream steps.
 
 Two important contexts deliberately run with **no git credentials**:
 
 - The **safe-outputs MCP server** and its handlers (`generate_git_bundle.cjs`, `generate_git_patch.cjs`, `create_pull_request.cjs`). Errors in these paths explicitly say "the safe-outputs MCP server has no credentials for private repositories" — fetch/push will fail for private repos.
-- The **agent runtime** after `actions/checkout`. The agent prompt in [actions/setup/md/safe_outputs_push_to_pr_branch.md](actions/setup/md/safe_outputs_push_to_pr_branch.md) explicitly tells the model not to attempt `git fetch`, `git pull`, `git push`, or any other authenticated git operation, and to report unavailable branches rather than try to fetch them.
+- The **agent runtime** after `actions/checkout`. The agent prompt in [actions/setup/md/safe_outputs_push_to_pr_branch.md](../../../actions/setup/md/safe_outputs_push_to_pr_branch.md) explicitly tells the model not to attempt `git fetch`, `git pull`, `git push`, or any other authenticated git operation, and to report unavailable branches rather than try to fetch them.
 
 ## Review checklist
 
@@ -30,7 +30,7 @@ When you see a new `git`, `gh`, `execFileSync('git'…)`, or compiled `run:` blo
 
 ## Related
 
-- [docs/src/content/docs/reference/checkout.md](docs/src/content/docs/reference/checkout.md) — "Git Credentials After Checkout"
-- [docs/sparseness.md](docs/sparseness.md) — sparse/blobless credential lifecycle
-- [pkg/workflow/checkout_step_generator.go](pkg/workflow/checkout_step_generator.go) — token wiring per checkout
-- [actions/setup/md/safe_outputs_push_to_pr_branch.md](actions/setup/md/safe_outputs_push_to_pr_branch.md) — agent-facing guidance
+- [docs/src/content/docs/reference/checkout.md](../../../docs/src/content/docs/reference/checkout.md) — "Git Credentials After Checkout"
+- [docs/sparseness.md](../../../docs/sparseness.md) — sparse/blobless credential lifecycle
+- [pkg/workflow/checkout_step_generator.go](../../../pkg/workflow/checkout_step_generator.go) — token wiring per checkout
+- [actions/setup/md/safe_outputs_push_to_pr_branch.md](../../../actions/setup/md/safe_outputs_push_to_pr_branch.md) — agent-facing guidance

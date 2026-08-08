@@ -60,12 +60,17 @@ labels: []
   # Array of strings
 
 # Optional list of skill references to install during activation. Supports remote
-# repository-wide installs (`owner/repo@<sha>`), remote path-scoped installs
-# (`owner/repo/skill/path@<sha>`), and local path references (e.g. `skills/rig` or
-# `.github/skills/my-skill`). Remote static references must be pinned to a full
-# 40-character lowercase commit SHA. Local paths are installed with --from-local
-# at runtime and are rewritten to a remote repospec by `gh aw add`. GitHub Actions
-# expressions (`${{ ... }}`) are also accepted and are evaluated at runtime.
+# repository-wide installs (`owner/repo@<ref>`), remote path-scoped installs
+# (`owner/repo/skill/path@<ref>`), and local path references (e.g. `skills/rig` or
+# `.github/skills/my-skill`). `<ref>` may be a branch, tag, or full 40-character
+# lowercase commit SHA; non-SHA refs are resolved and rewritten to the matching commit
+# SHA at compile time. If resolution fails (e.g. no network access or authentication),
+# the compiler keeps the original unpinned ref and emits a warning. Omitting the ref
+# (`owner/repo@`) installs from the
+# repository's default branch and is not pinned, which triggers a compiler warning.
+# Local paths are installed with --from-local at runtime and are rewritten to a
+# remote repospec by `gh aw add`. GitHub Actions expressions (`${{ ... }}`) are also
+# accepted and are evaluated at runtime.
 # Entries may also be objects to configure per-skill authentication via
 # github-token or github-app.
 # (optional)

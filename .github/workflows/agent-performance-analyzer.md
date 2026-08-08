@@ -33,8 +33,6 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
-skills:
-  - githubnext/rig/skills/rig/SKILL.md@0ba73e37355f92adca11f9d596eb709e77f25332
 safe-outputs:
   create-issue:
     expires: 2d
@@ -114,7 +112,7 @@ Treat `copilot-swe-agent` as a built-in team member in attribution/engagement fi
 **CI vs. agentic workflow distinction:** Workflows such as `CWI`, `CGO`, `CI`, `CJS`, and `CPI` are plain CI workflows — not agentic workflows. An `action_required` conclusion on a CI workflow means GitHub is waiting for a maintainer to approve a pull-request workflow run (a GitHub Actions permission gate), **not** an agentic activation-refused. Do not count CI-workflow `action_required` runs as agentic AR. Report them separately under "CI approval-pending" and note that the fix is to approve the Copilot-bot's workflow runs at the org level or in the PR, not an agent-side change.
 
 ### Phase 1: Data Collection (10m)
-1. Load shared metrics/memory files (use a Rig custom harness for metrics extraction with the listed paths).
+1. Load shared metrics/memory files (read each listed path and parse its contents; treat missing files as absent).
 2. Gather recent agent outputs (issues/PRs/discussions/comments + metadata).
 3. Review workflow runs/logs for decisions, errors, and resource use.
 4. Build per-agent profiles.
@@ -125,7 +123,7 @@ Treat `copilot-swe-agent` as a built-in team member in attribution/engagement fi
 7. Compare resource efficiency across agents.
 
 ### Phase 3: Pattern Detection (5m)
-8. Use a Rig custom harness for behavior classification on profiles.
+8. Classify behavior patterns for each agent profile (see recognized labels below).
 9. Analyze collaboration quality and conflicts.
 10. Assess ecosystem coverage gaps/redundancy.
 
@@ -758,48 +756,6 @@ Execute all phases systematically and maintain an objective, data-driven approac
 - Use `bash` with `gh` for GitHub reads and to inspect `/tmp/gh-aw/repo-memory/default/` contents.
 - If required data stays inaccessible after 1-2 materially different attempts, call `report_incomplete` with the blocker instead of ending with prose only.
 - If the analysis completes but there is nothing actionable to create or update, call `noop` with a short summary of what you checked.
-## Rig Custom Harness Usage
+## Behavior Pattern Classification
 
-Use Rig custom harnesses for the two AI-intensive analysis steps:
-
-**Phase 1 — Metrics extraction**: Discover the launcher with `find "${RUNNER_TEMP}/gh-aw" -path "*/skills/rig/rig.ts" | head -1`, then run `node <rig-launcher>` with an inline Rig program that:
-- configures `copilotEngine()`
-- receives a compact JSON input listing the repo-memory file paths to read
-- reads each file and returns a single structured JSON object keyed by basename
-
-**Phase 3 — Pattern detection**: Run a second Rig harness invocation with an inline program that:
-- configures `copilotEngine()`
-- receives compact per-agent profile JSON (output counts, success rates, resource usage)
-- classifies behavioral patterns and returns structured JSON
-
-Harness guardrails:
-- pass only compact structured inputs — never raw file content in full
-- use a small model unless evidence shows quality loss
-- one harness invocation per analysis phase (no retries without a concrete parse/runtime error)
-
-## Rig Harness Output Contract
-
-**Metrics extraction harness** returns:
-
-```json
-{
-  "<basename>": { /* parsed file content or null */ }
-}
-```
-
-**Pattern detection harness** returns:
-
-```json
-{
-  "<agent-name>": ["over-creation", "inconsistency"],
-  "<agent-name-b>": []
-}
-```
-
-Recognized pattern labels: `over-creation`, `under-creation`, `repetition`, `scope-creep`, `inconsistency`.
-
-Rules:
-- return `null` for any file that does not exist or cannot be read
-- return an empty array for agents with no detected patterns
-- use only provided compact evidence
-```
+When classifying per-agent behavior patterns in Phase 3, use only these recognized labels: `over-creation`, `under-creation`, `repetition`, `scope-creep`, `inconsistency`. Return an empty list for agents with no detected patterns, and base classifications only on the compact per-agent profile data already gathered (output counts, success rates, resource usage).
