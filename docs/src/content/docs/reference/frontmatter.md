@@ -248,8 +248,9 @@ Supported entry formats:
 `github-token` must be an expression such as `${{ secrets.NAME }}` or
 `${{ needs.auth.outputs.token }}`.
 `<ref>` may be a branch, tag, or 40-character lowercase commit SHA. Non-SHA
-refs are resolved and rewritten to the matching commit SHA at compile time
-(the compiled `.lock.yml` always pins the resolved SHA). Omitting the ref
+refs are resolved and rewritten to the matching commit SHA at compile time.
+If resolution fails (for example, due to missing network access or authentication),
+the compiler keeps the original unpinned ref and emits a warning. Omitting the ref
 (`owner/repo@`) installs from the repository's default branch on every run
 and is not pinned; the compiler emits a warning recommending an explicit ref.
 
