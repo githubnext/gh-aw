@@ -12,7 +12,11 @@ function collectInlineEndMarkers(content, endMarkerRe) {
 }
 
 function lineNumberAtOffset(content, offset) {
-  return content.slice(0, offset).split("\n").length;
+  let line = 1;
+  for (let i = 0; i < offset; i++) {
+    if (content[i] === "\n") line++;
+  }
+  return line;
 }
 
 function unknownInlineEndMarkerError(content, orphan, prefix, noun) {
