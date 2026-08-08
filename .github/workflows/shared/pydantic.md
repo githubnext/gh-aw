@@ -66,11 +66,14 @@ engine:
       const localBin = join(homedir(), ".local", "bin");
       const env = { ...process.env, PATH: `${localBin}:${process.env.PATH || ""}` };
       delete env.COPILOT_GITHUB_TOKEN;
-      // `pai` reads its credentials from the environment, so the placeholder key the
-      // AWF api-proxy expects has to be substituted here, inside the sandbox: the
-      // proxy treats a request whose key matches its own OPENAI_API_KEY as BYOK and
-      // forwards it upstream instead of steering it to the configured provider.
+      // The AWF api-proxy selects the upstream provider by the port the client connects
+      // to and injects the real credentials itself, ignoring the inbound key. AWF rewrites
+      // OPENAI_BASE_URL inside the sandbox to the proxy's OpenAI port, which forwards to
+      // api.openai.com, so `pai` — which is configured only through the environment — is
+      // pointed at the port that steers to the configured provider instead, the same
+      // endpoint Aider and OpenCode use, with the usual placeholder key.
       env.OPENAI_API_KEY = "awf-copilot-proxy";
+      env.OPENAI_BASE_URL = "http://172.30.0.30:10002";
 
       const args = [...commandArgs];
       // The proxy exposes Copilot Claude models under their dotted IDs.
@@ -244,11 +247,12 @@ MCP servers are rendered into a Pydantic AI agent spec at
 `.pydantic-ai/agent.json` and passed with `-a`, so safe outputs flow through
 the standard `safeoutputs` server automatically.
 
-`pai` reads its credentials from the environment, so a harness script assembles
-the command line and substitutes the AWF proxy placeholder API key inside the
-sandbox. Setting the placeholder on the execution step instead would make the
-proxy itself adopt it as a BYOK OpenAI key and forward requests upstream rather
-than steering them to the configured provider.
+`pai` is configured only through the environment, so a harness script assembles
+the command line and points its OpenAI-compatible client at the AWF api-proxy
+port that steers requests to the configured provider. The proxy picks the
+upstream provider from the port it is reached on, and AWF rewrites
+`OPENAI_BASE_URL` inside the sandbox to the port that forwards to OpenAI, so the
+harness overrides it along with the placeholder API key.
 
 The CLI is installed with `pip install --user pydantic-ai==<engine version>`
 before the agent runs.
