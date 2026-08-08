@@ -30,6 +30,7 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		require.NotEmpty(t, step, "secrets check step must not be empty")
 		content := strings.Join(step, "\n")
 		assert.Contains(t, content, "Check Docker Hub secrets for docker-sbx", "must have correct step name")
+		assert.Contains(t, content, "id: docker-sbx-secrets", "must expose step outputs")
 		assert.Contains(t, content, "docker_sbx_secrets_check.sh", "must reference secrets check script")
 		assert.Contains(t, content, "DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}", "must pass DOCKER_PAT via env")
 		assert.Contains(t, content, "DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}", "must pass DOCKER_USERNAME via env")
@@ -620,6 +621,11 @@ sandbox:
 	assert.Contains(t, lockStr, "Check KVM availability", "compiled workflow must include KVM availability check")
 	// Secrets check step must be present.
 	assert.Contains(t, lockStr, "Check Docker Hub secrets", "compiled workflow must include Docker Hub secrets check")
+	assert.Contains(t, lockStr, "docker_sbx_secrets_result: ${{ steps.docker-sbx-secrets.outputs.verification_result }}", "activation job must expose docker-sbx secret check result")
+	assert.Contains(t, lockStr, "DOCKER_SBX_SECRETS_SOFT_FAIL: 'true'", "activation docker-sbx secret check must soft-fail")
+	assert.Contains(t, lockStr, "needs.activation.outputs.docker_sbx_secrets_result != 'failed'", "agent job must skip when docker-sbx secrets are missing")
+	assert.Contains(t, lockStr, "needs.activation.outputs.docker_sbx_secrets_result == 'failed'", "conclusion job must run when docker-sbx secrets are missing")
+	assert.Contains(t, lockStr, "GH_AW_DOCKER_SBX_SECRETS_RESULT: ${{ needs.activation.outputs.docker_sbx_secrets_result }}", "conclusion job must receive docker-sbx secret check result")
 	// docker-sbx install step must be present.
 	assert.Contains(t, lockStr, "Install docker-sbx", "compiled workflow must include docker-sbx install step")
 	// Auth and daemon step must be present.
@@ -691,7 +697,8 @@ sandbox:
 	lockStr := string(lockContent)
 
 	assert.NotContains(t, lockStr, "Check KVM availability", "compiled workflow must omit KVM check when runtime-install: false")
-	assert.NotContains(t, lockStr, "Check Docker Hub secrets", "compiled workflow must omit Docker Hub secrets check when runtime-install: false")
+	assert.Contains(t, lockStr, "Check Docker Hub secrets", "compiled workflow must include activation Docker Hub secrets check when runtime-install: false")
+	assert.Contains(t, lockStr, "docker_sbx_secrets_result: ${{ steps.docker-sbx-secrets.outputs.verification_result }}", "activation job must expose docker-sbx secret check result when runtime-install: false")
 	assert.NotContains(t, lockStr, "Install docker-sbx", "compiled workflow must omit docker-sbx install when runtime-install: false")
 	assert.NotContains(t, lockStr, "Start docker-sbx daemon", "compiled workflow must omit sbx daemon step when runtime-install: false")
 	assert.NotContains(t, lockStr, "pre-flight smoke test", "compiled workflow must omit pre-flight step when runtime-install: false")
@@ -718,7 +725,7 @@ func TestDockerSbxShellScriptContent(t *testing.T) {
 		{
 			script: "docker_sbx_secrets_check.sh",
 			contains: []string{
-				"DOCKER_PAT_VAL", "DOCKER_USERNAME_VAL", "exit 1",
+				"DOCKER_PAT_VAL", "DOCKER_USERNAME_VAL", "DOCKER_SBX_SECRETS_SOFT_FAIL", "verification_result=failed", "exit 1",
 			},
 		},
 		{
