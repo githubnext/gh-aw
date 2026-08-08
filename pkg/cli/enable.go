@@ -290,8 +290,14 @@ func DisableAllWorkflowsExcept(repoSlug string, exceptWorkflows []string, verbos
 	}
 
 	// Get all .yml and .yaml files
-	ymlFiles, _ := filepath.Glob(filepath.Join(workflowsDir, "*.yml"))
-	yamlFiles, _ := filepath.Glob(filepath.Join(workflowsDir, "*.yaml"))
+	ymlFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.yml"))
+	if err != nil {
+		return fmt.Errorf("failed to glob .yml files in %s: %w", workflowsDir, err)
+	}
+	yamlFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.yaml"))
+	if err != nil {
+		return fmt.Errorf("failed to glob .yaml files in %s: %w", workflowsDir, err)
+	}
 	allYAMLFiles := append(ymlFiles, yamlFiles...)
 
 	enableLog.Printf("Found %d YAML workflow files", len(allYAMLFiles))

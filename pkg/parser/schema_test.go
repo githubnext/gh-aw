@@ -356,6 +356,40 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessPatte
 	}
 }
 
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineHarnessWatchdogTimeout(t *testing.T) {
+	t.Parallel()
+
+	validFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id": "copilot",
+			"harness": map[string]any{
+				"watchdog-timeout": 120,
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(validFrontmatter, "/tmp/gh-aw/engine-harness-watchdog-timeout-valid-test.md")
+	if err != nil {
+		t.Fatalf("expected valid engine.harness.watchdog-timeout to pass schema validation, got: %v", err)
+	}
+
+	invalidFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id": "copilot",
+			"harness": map[string]any{
+				"watchdog-timeout": 0,
+			},
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFrontmatter, "/tmp/gh-aw/engine-harness-watchdog-timeout-invalid-test.md")
+	if err == nil {
+		t.Fatal("expected non-positive engine.harness.watchdog-timeout to fail schema validation")
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineDriverPattern(t *testing.T) {
 	t.Parallel()
 
