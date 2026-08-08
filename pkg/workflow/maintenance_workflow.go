@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -16,6 +16,7 @@ import (
 )
 
 var maintenanceLog = logger.New("workflow:maintenance_workflow")
+var actionFailureIssueExpiryLineRegex = regexp.MustCompile(`(?m)^(\s*GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS:\s*")[1-9]\d*(")\s*$`)
 
 // generateInstallCLISteps generates YAML steps to install or build the gh-aw CLI.
 // In dev mode: builds from source using Setup Go + Build gh-aw (./gh-aw binary available)
@@ -514,9 +515,6 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData, repoConfig *RepoC
 // are never affected by this function, because an explicit configuration
 // always makes scanWorkflowsForExpires report hasExpires=true.
 func disableDefaultActionFailureExpiryMarkers(workflowDataList []*WorkflowData, workflowDir string) {
-	defaultLine := fmt.Sprintf("GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: %q", strconv.Itoa(DefaultActionFailureIssueExpiresHours))
-	disabledLine := `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "0"`
-
 	for _, workflowData := range workflowDataList {
 		if workflowData == nil || workflowData.WorkflowID == "" {
 			continue
@@ -527,14 +525,11 @@ func disableDefaultActionFailureExpiryMarkers(workflowDataList []*WorkflowData, 
 			// Lock file may not exist (e.g. --no-emit compiles); nothing to patch.
 			continue
 		}
-		if !strings.Contains(string(content), defaultLine) {
-			continue
-		}
-		updated := strings.ReplaceAll(string(content), defaultLine, disabledLine)
+		updated := actionFailureIssueExpiryLineRegex.ReplaceAllString(string(content), `${1}0${2}`)
 		if updated == string(content) {
 			continue
 		}
-		if err := os.WriteFile(lockFile, []byte(updated), 0o644); err != nil {
+		if err := os.WriteFile(lockFile, []byte(updated), constants.FilePermPublic); err != nil {
 			maintenanceLog.Printf("Warning: failed to disable action-failure expiry marker in %s: %v", lockFile, err)
 			continue
 		}
@@ -544,15 +539,13 @@ func disableDefaultActionFailureExpiryMarkers(workflowDataList []*WorkflowData, 
 
 // anyWorkflowMayReportFailureAsIssue returns true unless every workflow in the
 // list explicitly disables safe-outputs.report-failure-as-issue. The setting
-// defaults to enabled (true) when unset, so an empty or all-nil-SafeOutputs
-// list is treated as "may report" as well.
+// defaults to enabled (true) when unset, but an empty list cannot report
+// failures and therefore returns false.
 func anyWorkflowMayReportFailureAsIssue(workflowDataList []*WorkflowData) bool {
-	sawAny := false
 	for _, workflowData := range workflowDataList {
 		if workflowData == nil {
 			continue
 		}
-		sawAny = true
 		if workflowData.SafeOutputs == nil || workflowData.SafeOutputs.ReportFailureAsIssue == nil {
 			return true
 		}
@@ -560,5 +553,5 @@ func anyWorkflowMayReportFailureAsIssue(workflowDataList []*WorkflowData) bool {
 			return true
 		}
 	}
-	return !sawAny
+	return false
 }

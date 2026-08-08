@@ -68,9 +68,11 @@ function getActionFailureIssueExpiresHours() {
   if (raw === "") {
     return DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
   }
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isInteger(parsed) && parsed >= 0) {
-    return parsed;
+  if (raw === "0") {
+    return 0;
+  }
+  if (/^[1-9]\d*$/.test(raw)) {
+    return Number(raw);
   }
   return DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
 }
@@ -608,12 +610,17 @@ async function ensureParentIssue(previousParentNumber = null, ownerOverride, rep
       } else {
         // The search API response may omit or truncate the body field; fetch the
         // full issue to reliably read the expiration marker.
-        const issueResult = await github.rest.issues.get({
-          owner,
-          repo,
-          issue_number: existingIssue.number,
-        });
-        existingBody = issueResult.data.body || "";
+        try {
+          const issueResult = await github.rest.issues.get({
+            owner,
+            repo,
+            issue_number: existingIssue.number,
+          });
+          existingBody = issueResult.data.body || "";
+        } catch (error) {
+          core.warning(`Could not fetch parent issue #${existingIssue.number} body: ${getErrorMessage(error)}. Continuing without expiration marker check.`);
+          existingBody = "";
+        }
       }
       const parentExpirationDate = extractExpirationDate(existingBody);
 

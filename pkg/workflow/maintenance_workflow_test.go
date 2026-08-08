@@ -429,6 +429,19 @@ func TestScanWorkflowsForExpires_TriggerReason(t *testing.T) {
 		require.Equal(t, 0, minExpires)
 		require.Empty(t, triggerReason)
 	})
+
+	t.Run("explicit action-failure expiry with no workflows does not trigger", func(t *testing.T) {
+		repoConfig := &RepoConfig{
+			Maintenance: &MaintenanceConfig{
+				ActionFailureIssueExpires:         72,
+				ActionFailureIssueExpiresExplicit: true,
+			},
+		}
+		hasExpires, minExpires, triggerReason := scanWorkflowsForExpires(nil, repoConfig)
+		require.False(t, hasExpires)
+		require.Equal(t, 0, minExpires)
+		require.Empty(t, triggerReason)
+	})
 }
 
 func TestGenerateMaintenanceWorkflow_DisablesImplicitActionFailureExpiryMarker(t *testing.T) {
@@ -499,6 +512,39 @@ func TestGenerateMaintenanceWorkflow_PreservesActionFailureExpiryMarkerWhenAnoth
 	preserved, err := os.ReadFile(lockFile)
 	require.NoError(t, err)
 	require.Contains(t, string(preserved), `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "168"`)
+}
+
+func TestGenerateMaintenanceWorkflow_DisablesImplicitActionFailureExpiryMarkerWhenMaintenanceDisabled(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	lockFile := filepath.Join(tmpDir, "sample.lock.yml")
+	lockContent := "name: Sample\njobs:\n  conclusion:\n    steps:\n      - env:\n          GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: \"168\"\n"
+	require.NoError(t, os.WriteFile(lockFile, []byte(lockContent), 0o644))
+
+	err := GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+		WorkflowDataList: []*WorkflowData{
+			{
+				Name:        "Sample",
+				WorkflowID:  "sample",
+				SafeOutputs: &SafeOutputsConfig{},
+			},
+		},
+		WorkflowDir: tmpDir,
+		RepoConfig: &RepoConfig{
+			MaintenanceDisabled: true,
+		},
+		Version:    "dev",
+		ActionMode: ActionModeDev,
+	})
+	require.NoError(t, err)
+
+	_, statErr := os.Stat(filepath.Join(tmpDir, "agentics-maintenance.yml"))
+	require.True(t, os.IsNotExist(statErr), "agentics-maintenance.yml should not be generated when maintenance is disabled")
+
+	patched, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+	require.Contains(t, string(patched), `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "0"`, "implicit default marker should be disabled when maintenance is disabled")
+	require.NotContains(t, string(patched), `GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "168"`)
 }
 
 func TestGenerateMaintenanceWorkflow_CreatesWorkflowDirRecursively(t *testing.T) {
