@@ -501,7 +501,7 @@ A conforming implementation SHOULD:
 <a id="sync-notes"></a>
 ## Sync Notes
 
-The canonical gh-aw harness implementation for this specification is centered in:
+The canonical gh-aw implementation for this specification is centered in:
 
 - `actions/setup/js/copilot_sdk_driver.cjs`
 - `actions/setup/js/copilot_sdk_session.cjs`

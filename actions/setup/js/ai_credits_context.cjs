@@ -291,7 +291,6 @@ function parseAICreditsErrorInfoFromAuditLog(auditJsonlPathOverride) {
  * Detects a `max_ai_credits_exceeded` signal from a single firewall audit log entry.
  * Checks for the explicit `max_ai_credits_exceeded` boolean field, its camelCase variant,
  * or a `budget_exceeded` event with `reason: "hard_limit"` and `forced_termination: true`
- * as written by the aw-harness upon hard-limit abort (§11.2.2).
  * Only inspects top-level fields to avoid false positives from nested provider responses.
  *
  * @param {unknown} entry
