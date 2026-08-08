@@ -74,9 +74,12 @@ describe("handle_agent_failure", () => {
       expect(getActionFailureIssueExpiresHours()).toBe(48);
     });
 
-    it("returns default for invalid values", () => {
+    it("returns 0 (disabled) when the compiler explicitly opts out of expiration", () => {
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "0";
-      expect(getActionFailureIssueExpiresHours()).toBe(168);
+      expect(getActionFailureIssueExpiresHours()).toBe(0);
+    });
+
+    it("returns default for invalid values", () => {
       process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = "invalid";
       expect(getActionFailureIssueExpiresHours()).toBe(168);
     });
@@ -702,6 +705,59 @@ describe("handle_agent_failure", () => {
       expect(parentCreateCall.headers).toEqual({ "X-GitHub-Api-Version": "2022-11-28" });
       expect(createCommentMock).not.toHaveBeenCalled();
       expect(searchMock).toHaveBeenCalledWith(expect.objectContaining({ q: expect.stringContaining('"[aw] Failed runs"') }));
+    });
+
+    it("creates a new parent issue when the existing parent issue has expired", async () => {
+      const createCommentMock = vi.fn();
+      const createIssueMock = vi.fn(async ({ title }) => ({
+        data: {
+          number: title === "[aw] Failed runs" ? 300 : 301,
+          html_url: `https://github.com/owner/repo/issues/${title === "[aw] Failed runs" ? 300 : 301}`,
+          node_id: title === "[aw] Failed runs" ? "I_parent_new" : "I_child",
+        },
+      }));
+      const expiredParentBody = "This issue tracks failures.\n\n> - [x] expires <!-- gh-aw-expires: 2000-01-01T00:00:00.000Z --> on Jan 1, 2000, 12:00 AM UTC";
+      const searchMock = vi.fn(async ({ q }) => {
+        if (q.includes("is:pr")) {
+          return { data: { total_count: 0, items: [] } };
+        }
+        if (q.includes('"[aw] Failed runs"')) {
+          return {
+            data: {
+              total_count: 1,
+              items: [{ number: 199, html_url: "https://github.com/owner/repo/issues/199", node_id: "I_parent_old", body: expiredParentBody }],
+            },
+          };
+        }
+        return { data: { total_count: 0, items: [] } };
+      });
+
+      process.env.GH_AW_GROUP_REPORTS = "true";
+
+      const graphqlMock = vi.fn(async () => ({ repository: { issue: { subIssues: { totalCount: 0 } } } }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: searchMock,
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: graphqlMock,
+      };
+
+      await main();
+
+      const parentCreateCall = createIssueMock.mock.calls.map(([call]) => call).find(call => call.title === "[aw] Failed runs");
+      expect(parentCreateCall).toBeDefined();
+      expect(parentCreateCall.body).toContain("previous parent issue #199");
+      // Expired parent must not be reused: getSubIssueCount must not be queried
+      // for the expired parent #199, since the expiration check short-circuits first.
+      expect(graphqlMock).not.toHaveBeenCalledWith(expect.stringContaining("subIssues"), expect.objectContaining({ issueNumber: 199 }));
     });
 
     it("escapes workflow IDs before searching for legacy XML marker matches", async () => {
