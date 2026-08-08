@@ -343,7 +343,18 @@
       "avg_agent_duration_minutes": 263,
       "success_rate": 0.767,
       "note": "rolling 24h window from 08-06 18:28Z; author app/copilot-swe-agent only (1 additional PR on a copilot/* branch authored by pelikhan excluded); 17 of 47 PRs still open (all <24h old); success_rate over 30 completed; avg_duration created->merged; 4 human interactions (2 issue comments + 0 reviews... precisely: 2 PRs each with 2 human issue comments, #51097 and #51102) across 47 PRs, gh api graphql alias batching still rejected by CLI proxy wrapper ('accepts 1 arg(s)') so comments collected via per-PR gh pr view calls instead; success_rate down 84.9%->76.7% (-8.2%, within 10% threshold); avg_duration up sharply 128->263min (+105%); no WIP-placeholder closures, all 7 closed PRs had substantive bodies; no PRs open >24h"
+    },
+    {
+      "date": "2026-08-08",
+      "total_prs": 69,
+      "merged_prs": 45,
+      "closed_prs": 21,
+      "open_prs": 3,
+      "avg_comments": 1.43,
+      "avg_agent_duration_minutes": 150,
+      "success_rate": 0.682,
+      "note": "rolling 24h window from 08-07 18:19Z; author app/copilot-swe-agent only; 3 of 69 PRs still open (all <2h old); success_rate over 66 completed; avg_duration created->merged; 99 human issue comments across 69 PRs (via per-PR REST API, GraphQL alias batching still broken); success_rate down 76.7%->68.2% (-8.5pp), 3rd consecutive down day from 84.9% on 08-06; avg_comments up sharply vs near-zero recent days, driven by 2 outlier PRs (#51242 pydantic-ai fix: 20 comments, #51282 sandbox.agent default: 14 comments); 7 of 21 closures were [WIP] placeholder closures; no PRs open >24h"
     }
   ],
-  "last_updated": "2026-08-07"
+  "last_updated": "2026-08-08"
 }
