@@ -70,6 +70,9 @@ steps:
       # A cold model (not yet loaded) can cause the OpenAI-compatible /v1/chat/completions
       # endpoint to return 503 Service Unavailable on the agent's first requests, which
       # exhausts the Copilot CLI's built-in retry budget and fails the whole run.
+      # The probe must hit /v1/chat/completions -- the exact endpoint the agent uses --
+      # because a successful native /api/generate call does not guarantee the
+      # OpenAI-compatible route is serving the model yet.
       echo "Warming up model '$OLLAMA_MODEL'..."
       mkdir -p /tmp/gh-aw
       BODY_FILE=/tmp/gh-aw/ollama-warmup-response.json
@@ -81,8 +84,8 @@ steps:
         CURL_EXIT=0
         curl -sS -o "$BODY_FILE" -w '%{http_code}' --max-time 60 \
           -H 'Content-Type: application/json' \
-          http://localhost:11434/api/generate \
-          -d "{\"model\":\"${OLLAMA_MODEL}\",\"prompt\":\"hi\",\"stream\":false}" \
+          http://localhost:11434/v1/chat/completions \
+          -d "{\"model\":\"${OLLAMA_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1,\"stream\":false}" \
           > "$STATUS_FILE" || CURL_EXIT=$?
         HTTP_STATUS="$(cat "$STATUS_FILE" 2>/dev/null)"
         if [ "$HTTP_STATUS" = "200" ]; then
