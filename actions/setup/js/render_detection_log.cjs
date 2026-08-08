@@ -22,6 +22,7 @@
 
 "use strict";
 
+const crypto = require("crypto");
 const fs = require("fs");
 const { redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
 const { maskSecret } = require("./actions_secret_masking.cjs");
@@ -82,20 +83,35 @@ async function main(logPath) {
     maskSecret(token);
   }
 
-  // Use a random token so nested stop-commands pairs do not interfere.
-  const stopToken = "detection-log-" + Math.random().toString(36).slice(2);
-
-  // Emit group wrapper + stop-commands + content + endtoken + endgroup.
-  process.stdout.write("::group::Detection Log\n");
-  process.stdout.write("::stop-commands::" + stopToken + "\n");
-  process.stdout.write(redacted);
-  if (!redacted.endsWith("\n")) {
-    process.stdout.write("\n");
-  }
-  process.stdout.write("::" + stopToken + "::\n");
-  process.stdout.write("::endgroup::\n");
+  renderToStdout("Detection Log", redacted);
 
   core.info("Detection log rendered (" + stat.size + " bytes)");
 }
 
-module.exports = { main, DETECTION_LOG_PATH };
+/**
+ * Wraps `content` in GitHub Actions group + stop-commands macros and writes it
+ * to stdout.  The stop-commands token is generated with `crypto` so that nested
+ * pairs do not interfere.
+ *
+ * @param {string} groupName - Label shown in the collapsible group header.
+ * @param {string} content   - Already-redacted text to emit.
+ */
+function renderToStdout(groupName, content) {
+  // Use a cryptographically random token so nested stop-commands pairs do not
+  // interfere.
+  const stopToken = "render-" + crypto.randomBytes(12).toString("hex");
+
+  process.stdout.write("::group::" + groupName + "\n");
+  process.stdout.write("::stop-commands::" + stopToken + "\n");
+  try {
+    process.stdout.write(content);
+    if (!content.endsWith("\n")) {
+      process.stdout.write("\n");
+    }
+  } finally {
+    process.stdout.write("::" + stopToken + "::\n");
+    process.stdout.write("::endgroup::\n");
+  }
+}
+
+module.exports = { main, renderToStdout, DETECTION_LOG_PATH };
