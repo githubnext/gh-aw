@@ -169,7 +169,12 @@ describe("extractInlineSkills", () => {
 
   it("throws on an orphan end marker whose name has no matching start", () => {
     const content = ["Main.", "", skillMarker("reporting"), "Content.", skillEndMarker("repporting")].join("\n");
-    expect(() => extractInlineSkills(content)).toThrow(/repporting/);
+    expect(() => extractInlineSkills(content)).toThrow(/repporting.*line 5/);
+  });
+
+  it("throws on a standalone end marker with no skill starts", () => {
+    const content = ["Main.", "", skillEndMarker("reporting")].join("\n");
+    expect(() => extractInlineSkills(content)).toThrow(/reporting.*line 3/);
   });
 
   it("throws when the end marker names a different skill than the one it could close", () => {
@@ -181,9 +186,10 @@ describe("extractInlineSkills", () => {
     const malformed = ["## end skill:", "## end skill: reporting", "### end skill: `reporting`"];
     for (const line of malformed) {
       const content = "Main.\n\n" + skillMarker("reporting") + "\nContent.\n" + line + "\nTail.";
-      const { skills } = extractInlineSkills(content);
+      const { mainContent, skills } = extractInlineSkills(content);
       expect(skills).toHaveLength(1);
       expect(skills[0].name).toBe("reporting");
+      expect(mainContent).not.toContain("Tail.");
     }
   });
 });

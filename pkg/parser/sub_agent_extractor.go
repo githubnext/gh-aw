@@ -209,6 +209,9 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 	subAgentLog.Printf("Extracting inline sub-agents from markdown (length: %d)", len(markdown))
 	allStarts := subAgentSeparatorRegex.FindAllStringSubmatchIndex(markdown, -1)
 	if len(allStarts) == 0 {
+		if err := validateNoInlineSectionEndMarkers(markdown, subAgentEndRegex); err != nil {
+			return "", nil, fmt.Errorf("invalid inline sub-agent end marker: %w", err)
+		}
 		subAgentLog.Print("No inline sub-agent markers found")
 		return markdown, nil, nil
 	}

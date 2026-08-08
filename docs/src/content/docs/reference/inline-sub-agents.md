@@ -15,7 +15,7 @@ Start a sub-agent block with a level-2 heading in the following form:
 ## agent: `name`
 ```
 
-The block continues until a matching `## end agent: \`name\`` marker, or the next `##` heading, or end of file — whichever comes first. The end marker is optional.
+When a matching `## end agent: \`name\`` marker is present, the block continues until that marker even if the block contains other `##` headings. Without an explicit end marker, the block continues until the next `##` heading or end of file.
 
 ### Explicit end marker
 

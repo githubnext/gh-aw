@@ -7,6 +7,7 @@ global.core = core;
 const {
   processRuntimeImports,
   processRuntimeImport,
+  closeUnterminatedInlineMarkers,
   hasFrontMatter,
   removeXMLComments,
   neutralizeSystemTags,
@@ -740,34 +741,42 @@ describe("runtime_import", () => {
           fs.writeFileSync(path.join(tempDir, "outside.md"), "Outside content");
           // Use ../../ to escape .github/workflows and go up to the temp directory
           await expect(processRuntimeImport("../../outside.md", !1, tempDir)).rejects.toThrow("Security: Path");
-        }),
-        it("should implicitly close an unterminated inline skill block so it cannot swallow spliced-in content", async () => {
-          const content = "## skill: `reporting`\n\nGuidelines here.\n";
-          fs.writeFileSync(path.join(workflowsDir, "unterminated-skill.md"), content);
-          const result = await processRuntimeImport("unterminated-skill.md", !1, tempDir);
-          expect(result).toContain("## skill: `reporting`");
-          expect(result).toContain("## end skill: `reporting`");
-        }),
-        it("should implicitly close an unterminated inline sub-agent block so it cannot swallow spliced-in content", async () => {
-          const content = "## agent: `helper`\n\nAgent instructions.\n";
-          fs.writeFileSync(path.join(workflowsDir, "unterminated-agent.md"), content);
-          const result = await processRuntimeImport("unterminated-agent.md", !1, tempDir);
-          expect(result).toContain("## agent: `helper`");
-          expect(result).toContain("## end agent: `helper`");
-        }),
-        it("should leave an already explicitly closed inline skill block unchanged", async () => {
-          const content = "## skill: `reporting`\n\nGuidelines here.\n\n## end skill: `reporting`\n";
-          fs.writeFileSync(path.join(workflowsDir, "terminated-skill.md"), content);
-          const result = await processRuntimeImport("terminated-skill.md", !1, tempDir);
-          expect(result.match(/## end skill: `reporting`/g)).toHaveLength(1);
-        }),
-        it("should not add end markers when no skill/agent markers are present", async () => {
-          const content = "# Just a heading\n\nSome content.\n";
-          fs.writeFileSync(path.join(workflowsDir, "no-markers.md"), content);
-          const result = await processRuntimeImport("no-markers.md", !1, tempDir);
-          expect(result).toBe(content);
-          expect(result).not.toContain("## end");
         }));
+      it("should implicitly close an unterminated inline skill block so it cannot swallow spliced-in content", async () => {
+        const content = "## skill: `reporting`\n\nGuidelines here.\n";
+        fs.writeFileSync(path.join(workflowsDir, "unterminated-skill.md"), content);
+        const result = await processRuntimeImport("unterminated-skill.md", !1, tempDir);
+        expect(result).toContain("## skill: `reporting`");
+        expect(result).toContain("## end skill: `reporting`");
+      });
+      it("should implicitly close an unterminated inline sub-agent block so it cannot swallow spliced-in content", async () => {
+        const content = "## agent: `helper`\n\nAgent instructions.\n";
+        fs.writeFileSync(path.join(workflowsDir, "unterminated-agent.md"), content);
+        const result = await processRuntimeImport("unterminated-agent.md", !1, tempDir);
+        expect(result).toContain("## agent: `helper`");
+        expect(result).toContain("## end agent: `helper`");
+      });
+      it("should leave an already explicitly closed inline skill block unchanged", async () => {
+        const content = "## skill: `reporting`\n\nGuidelines here.\n\n## end skill: `reporting`\n";
+        fs.writeFileSync(path.join(workflowsDir, "terminated-skill.md"), content);
+        const result = await processRuntimeImport("terminated-skill.md", !1, tempDir);
+        expect(result.match(/## end skill: `reporting`/g)).toHaveLength(1);
+      });
+      it("should not add end markers when no skill/agent markers are present", async () => {
+        const content = "# Just a heading\n\nSome content.\n";
+        fs.writeFileSync(path.join(workflowsDir, "no-markers.md"), content);
+        const result = await processRuntimeImport("no-markers.md", !1, tempDir);
+        expect(result).toBe(content);
+        expect(result).not.toContain("## end");
+      });
+      it("should close an unterminated skill before a following agent in the same import", () => {
+        const content = "## skill: `reporting`\nSkill content.\n## agent: `helper`\nAgent content.\n";
+        const result = closeUnterminatedInlineMarkers(content);
+
+        expect(result).toContain("## end skill: `reporting`");
+        expect(result).toContain("## end agent: `helper`");
+        expect(result.indexOf("## end skill: `reporting`")).toBeLessThan(result.indexOf("## agent: `helper`"));
+      });
     }),
     describe("processRuntimeImports", () => {
       (it("should process single runtime-import macro", async () => {

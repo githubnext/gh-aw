@@ -66,6 +66,22 @@ func collectInlineSectionEndMarkers(markdown string, endRegex *regexp.Regexp) []
 	return markers
 }
 
+func inlineSectionLineNumber(markdown string, offset int) int {
+	return 1 + strings.Count(markdown[:offset], "\n")
+}
+
+func unknownInlineSectionEndMarkerError(markdown string, marker inlineSectionEndMarker) error {
+	return fmt.Errorf("end marker for unknown section %q at line %d (no matching start marker with that name)", marker.name, inlineSectionLineNumber(markdown, marker.start))
+}
+
+func validateNoInlineSectionEndMarkers(markdown string, endRegex *regexp.Regexp) error {
+	endMarkers := collectInlineSectionEndMarkers(markdown, endRegex)
+	if len(endMarkers) == 0 {
+		return nil
+	}
+	return unknownInlineSectionEndMarkerError(markdown, endMarkers[0])
+}
+
 // extractInlineSections collects all sections delimited by marker positions in
 // markdown. The caller provides allStarts (already validated non-empty), the
 // endRegex used to recognize explicit end markers for this section type (e.g.
@@ -149,7 +165,7 @@ func extractInlineSections[T any](markdown string, allStarts [][]int, endRegex, 
 
 	for ei, used := range usedEnd {
 		if !used {
-			return "", nil, fmt.Errorf("end marker for unknown section %q (no matching start marker with that name)", endMarkers[ei].name)
+			return "", nil, unknownInlineSectionEndMarkerError(markdown, endMarkers[ei])
 		}
 	}
 

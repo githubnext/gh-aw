@@ -421,6 +421,17 @@ func TestExtractInlineSubAgents_OrphanEndMarker_Error(t *testing.T) {
 
 	require.Error(t, err, "orphan end marker should produce an error")
 	require.ErrorContains(t, err, "plannerr", "error should mention the orphan end marker's name")
+	require.ErrorContains(t, err, "line 5", "error should mention where the orphan end marker was found")
+}
+
+func TestExtractInlineSubAgents_StandaloneEndMarker_Error(t *testing.T) {
+	markdown := "Intro.\n\n" + agentEndLine("planner")
+
+	_, _, err := ExtractInlineSubAgents(markdown)
+
+	require.Error(t, err, "standalone end marker should produce an error")
+	require.ErrorContains(t, err, "planner")
+	require.ErrorContains(t, err, "line 3")
 }
 
 func TestExtractInlineSubAgents_EndMarkerForWrongAgentNotConsumed(t *testing.T) {

@@ -169,7 +169,12 @@ describe("extractInlineSubAgents", () => {
 
   it("throws on an orphan end marker whose name has no matching start", () => {
     const content = ["Main.", "", agentMarker("planner"), "Content.", agentEndMarker("plannerr")].join("\n");
-    expect(() => extractInlineSubAgents(content)).toThrow(/plannerr/);
+    expect(() => extractInlineSubAgents(content)).toThrow(/plannerr.*line 5/);
+  });
+
+  it("throws on a standalone end marker with no agent starts", () => {
+    const content = ["Main.", "", agentEndMarker("planner")].join("\n");
+    expect(() => extractInlineSubAgents(content)).toThrow(/planner.*line 3/);
   });
 
   it("throws when the end marker names a different agent than the one it could close", () => {
@@ -181,9 +186,10 @@ describe("extractInlineSubAgents", () => {
     const malformed = ["## end agent:", "## end agent: planner", "### end agent: `planner`"];
     for (const line of malformed) {
       const content = "Main.\n\n" + agentMarker("planner") + "\nContent.\n" + line + "\nTail.";
-      const { agents } = extractInlineSubAgents(content);
+      const { mainContent, agents } = extractInlineSubAgents(content);
       expect(agents).toHaveLength(1);
       expect(agents[0].name).toBe("planner");
+      expect(mainContent).not.toContain("Tail.");
     }
   });
 });

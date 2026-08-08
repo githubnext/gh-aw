@@ -1406,6 +1406,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
+  closeUnterminatedInlineMarkers,
   hasFrontMatter,
   removeXMLComments,
   neutralizeSystemTags,

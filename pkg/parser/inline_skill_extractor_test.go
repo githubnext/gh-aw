@@ -393,6 +393,17 @@ func TestExtractInlineSkills_OrphanEndMarker_Error(t *testing.T) {
 
 	require.Error(t, err, "orphan end marker should produce an error")
 	require.ErrorContains(t, err, "repporting", "error should mention the orphan end marker's name")
+	require.ErrorContains(t, err, "line 5", "error should mention where the orphan end marker was found")
+}
+
+func TestExtractInlineSkills_StandaloneEndMarker_Error(t *testing.T) {
+	markdown := "Intro.\n\n" + skillEndLine("reporting")
+
+	_, _, err := ExtractInlineSkills(markdown)
+
+	require.Error(t, err, "standalone end marker should produce an error")
+	require.ErrorContains(t, err, "reporting")
+	require.ErrorContains(t, err, "line 3")
 }
 
 func TestExtractInlineSkills_EndMarkerBeforeMatchingStart_Ignored(t *testing.T) {
