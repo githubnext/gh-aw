@@ -647,7 +647,7 @@ engine:
 
 ### Inline Sub-Agents
 
-Named agent definitions embedded directly in a workflow markdown file, without requiring a separate file in `.github/agents/`. Each sub-agent block starts with a `## agent: \`name\`` heading, contains optional YAML frontmatter (for model selection and a description), and ends at the next `##` heading or end of file. At compile time, inline sub-agent blocks are extracted to locations the engine can access natively. Supported for the Copilot engine. Sub-agent names must start with a lowercase letter and may only contain `a–z`, `0–9`, `_`, and `-`. See [Inline Sub-Agents Reference](/gh-aw/reference/inline-sub-agents/).
+Named agent definitions embedded directly in a workflow markdown file, without requiring a separate file in `.github/agents/`. Each sub-agent block starts with a `## agent: \`name\`` heading, contains optional YAML frontmatter (for model selection and a description), and ends at a matching `## end agent: \`name\`` marker if present, or otherwise at the next `##` heading or end of file. At compile time, inline sub-agent blocks are extracted to locations the engine can access natively. Supported for the Copilot engine. Sub-agent names must start with a lowercase letter and may only contain `a–z`, `0–9`, `_`, and `-`. See [Inline Sub-Agents Reference](/gh-aw/reference/inline-sub-agents/).
 
 ```aw wrap
 engine:

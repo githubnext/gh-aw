@@ -123,6 +123,59 @@ describe("extractInlineSubAgents", () => {
       expect(agents).toHaveLength(0);
     }
   });
+
+  // ── Explicit end marker ("## end agent: `name`") ───────────────────────────
+
+  const agentEndMarker = name => `## end agent: \`${name}\``;
+
+  it("explicit end marker resumes main content after it", () => {
+    const content = ["Before.", "", agentMarker("planner"), "---", "engine: copilot", "---", "You are a planner.", agentEndMarker("planner"), "", "After."].join("\n");
+    const { mainContent, agents } = extractInlineSubAgents(content);
+
+    expect(agents).toHaveLength(1);
+    expect(agents[0].name).toBe("planner");
+    expect(agents[0].content).toBe("---\nengine: copilot\n---\nYou are a planner.");
+    expect(mainContent).toBe("Before.\n\nAfter.");
+  });
+
+  it("explicit end marker allows nested H2 headings inside the agent", () => {
+    const content = ["Main.", "", agentMarker("guide"), "## Section A", "Content A.", "## Section B", "Content B.", agentEndMarker("guide"), "", "Tail."].join("\n");
+    const { mainContent, agents } = extractInlineSubAgents(content);
+
+    expect(agents).toHaveLength(1);
+    expect(agents[0].content).toBe("## Section A\nContent A.\n## Section B\nContent B.");
+    expect(mainContent).toBe("Main.\n\nTail.");
+  });
+
+  it("supports mixing explicit and implicit end boundaries across agents", () => {
+    const content = ["Main.", "", agentMarker("bounded"), "Bounded.", agentEndMarker("bounded"), "", "Interlude.", "", agentMarker("unbounded"), "Unbounded."].join("\n");
+    const { mainContent, agents } = extractInlineSubAgents(content);
+
+    expect(agents).toHaveLength(2);
+    expect(agents[0]).toEqual({ name: "bounded", content: "Bounded." });
+    expect(agents[1]).toEqual({ name: "unbounded", content: "Unbounded." });
+    expect(mainContent).toBe("Main.\n\nInterlude.");
+  });
+
+  it("throws on an orphan end marker whose name has no matching start", () => {
+    const content = ["Main.", "", agentMarker("planner"), "Content.", agentEndMarker("plannerr")].join("\n");
+    expect(() => extractInlineSubAgents(content)).toThrow(/plannerr/);
+  });
+
+  it("throws when the end marker names a different agent than the one it could close", () => {
+    const content = ["Main.", "", agentMarker("first"), "First content.", agentEndMarker("second")].join("\n");
+    expect(() => extractInlineSubAgents(content)).toThrow(/second/);
+  });
+
+  it("falls back to implicit H2 boundary when end marker is malformed", () => {
+    const malformed = ["## end agent:", "## end agent: planner", "### end agent: `planner`"];
+    for (const line of malformed) {
+      const content = "Main.\n\n" + agentMarker("planner") + "\nContent.\n" + line + "\nTail.";
+      const { agents } = extractInlineSubAgents(content);
+      expect(agents).toHaveLength(1);
+      expect(agents[0].name).toBe("planner");
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

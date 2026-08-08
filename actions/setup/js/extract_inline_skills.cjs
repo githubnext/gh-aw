@@ -15,9 +15,14 @@
 //   ## skill: `name`       Opens a skill block.  name must start with a
 //                          lowercase letter and contain only lowercase letters,
 //                          digits, hyphens, or underscores (safe for filenames).
+//   ## end skill: `name`   Optional. Explicitly closes the block opened by the
+//                          matching "## skill: `name`" marker.
 //
-// A skill block ends at the next level-2 Markdown heading (## ...) or EOF.
-// There is no explicit end marker — any H2 heading closes the skill block.
+// A skill block ends at a matching "## end skill: `name`" marker if one is
+// present, or otherwise at the next level-2 Markdown heading (## ...) or EOF.
+// The explicit end marker lets a skill block be embedded in the middle of a
+// document (for example via an import) without swallowing unrelated content
+// that follows it, and lets the block itself contain nested "##" headings.
 //
 // Supported frontmatter fields (all others are stripped with a warning)
 // ─────────────────────────────────────────────────────────────────────
@@ -36,8 +41,12 @@ const SUPPORTED_FRONTMATTER_FIELDS = ["description"];
 // Regex for the start marker: ## skill: `name` (lowercase identifier)
 const START_MARKER_RE = /^##[ \t]+skill:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
 
+// Regex for the optional explicit end marker: ## end skill: `name`
+const END_MARKER_RE = /^##[ \t]+end[ \t]+skill:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
+
 // Regex that matches the start of any level-2 Markdown heading (## ).
-// Used to find the boundary where each skill block ends.
+// Used to find the boundary where each skill block ends when no explicit end
+// marker is present.
 const H2_HEADING_RE = /^##[ \t]/gm;
 
 /**
@@ -111,10 +120,18 @@ function filterInlineSkillFrontmatter(content, skillName) {
 /**
  * Extracts inline skills from markdown content.
  *
- * Returns the main content (everything before the first ## skill: marker, with
- * trailing newlines stripped) and an array of extracted skills.
+ * Returns the reassembled main content (with skill blocks removed) and an
+ * array of extracted skills.
  *
- * A skill block extends from its start marker to the next H2 heading or EOF.
+ * A skill block extends from its start marker to a matching "## end skill:
+ * `name`" marker if present, or otherwise to the next H2 heading or EOF. When
+ * a skill is closed by an explicit end marker, any text following it (up to
+ * the next start marker or EOF) is preserved in the main content rather than
+ * discarded.
+ *
+ * Throws if an end marker's name does not correspond to any start marker of
+ * the same name found within its search window (an "orphan" end marker),
+ * which is almost always an authoring mistake such as a typo.
  *
  * @param {string} content - Markdown with potential inline skill blocks.
  * @returns {{ mainContent: string, skills: Array<{name: string, content: string}> }}
@@ -126,21 +143,33 @@ function extractInlineSkills(content) {
     return { mainContent: content, skills: [] };
   }
 
-  // Main content is everything before the first start marker (trailing newlines stripped).
-  const firstMatch = startMatches[0];
-  if (firstMatch.index === undefined) {
-    return { mainContent: content, skills: [] };
-  }
-  const mainContent = content.slice(0, firstMatch.index).replace(/\n+$/, "");
-
-  // Collect all H2 heading positions for block boundary detection.
+  // Collect all H2 heading positions for the implicit block boundary fallback.
   const h2Positions = [...content.matchAll(H2_HEADING_RE)].map(m => m.index).filter(i => i !== undefined);
+
+  // Collect all explicit end markers (name, start offset, end offset).
+  const endMarkers = [...content.matchAll(END_MARKER_RE)]
+    .filter(m => m.index !== undefined)
+    .map(m => {
+      let lineEnd = /** @type {number} */ m.index + m[0].length;
+      if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
+      return { name: m[1], start: /** @type {number} */ m.index, end: lineEnd };
+    });
+  const usedEnd = new Array(endMarkers.length).fill(false);
 
   /** @type {Array<{name: string, content: string}>} */
   const skills = [];
+  /** @type {string[]} */
+  const mainParts = [];
+  let cursor = 0;
+  let prevExplicit = true; // text before the first marker is always kept
 
-  for (const m of startMatches) {
+  for (let i = 0; i < startMatches.length; i++) {
+    const m = startMatches[i];
     if (m.index === undefined) continue;
+
+    if (prevExplicit) {
+      mainParts.push(content.slice(cursor, m.index));
+    }
 
     const name = m[1];
 
@@ -148,12 +177,47 @@ function extractInlineSkills(content) {
     let lineEnd = m.index + m[0].length;
     if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
 
-    // Content ends at the next H2 heading after the start marker line, or EOF.
-    const contentEnd = h2Positions.find(pos => pos >= lineEnd) ?? content.length;
+    const windowEnd = i + 1 < startMatches.length ? /** @type {number} */ startMatches[i + 1].index : content.length;
 
-    const skillContent = content.slice(lineEnd, contentEnd).trim();
+    let matchedEnd;
+    for (let ei = 0; ei < endMarkers.length; ei++) {
+      const e = endMarkers[ei];
+      if (usedEnd[ei] || e.name !== name || e.start < lineEnd || e.start >= windowEnd) continue;
+      matchedEnd = e;
+      usedEnd[ei] = true;
+      break;
+    }
+
+    let skillContent;
+    let newCursor;
+    const explicit = matchedEnd !== undefined;
+    if (explicit) {
+      skillContent = content.slice(lineEnd, matchedEnd.start).trim();
+      newCursor = matchedEnd.end;
+    } else {
+      const contentEnd = h2Positions.find(pos => pos >= lineEnd) ?? content.length;
+      skillContent = content.slice(lineEnd, contentEnd).trim();
+      newCursor = contentEnd;
+    }
+
     skills.push({ name, content: skillContent });
+    cursor = newCursor;
+    prevExplicit = explicit;
   }
+
+  if (prevExplicit) {
+    mainParts.push(content.slice(cursor));
+  }
+
+  const orphan = endMarkers.find((_, ei) => !usedEnd[ei]);
+  if (orphan) {
+    throw new Error(`[extractInlineSkills] end marker for unknown skill "${orphan.name}" (no matching start marker with that name)`);
+  }
+
+  const mainContent = mainParts
+    .join("")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\n+$/, "");
 
   return { mainContent, skills };
 }
