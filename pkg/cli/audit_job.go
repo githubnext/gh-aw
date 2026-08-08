@@ -117,7 +117,10 @@ func renderAuditJobSummary(opts auditJobRunOptions, jobLogPath string) error {
 	if opts.jsonOutput {
 		return nil
 	}
-	absOutputDir, _ := filepath.Abs(opts.outputDir)
+	absOutputDir := opts.outputDir
+	if abs, err := filepath.Abs(opts.outputDir); err == nil {
+		absOutputDir = abs
+	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Job audit complete. Logs saved to "+absOutputDir))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nDownloaded files:"))
 	fmt.Fprintf(os.Stderr, "  - %s (full job log)\n", jobLogPath)

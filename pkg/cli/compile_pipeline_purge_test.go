@@ -16,7 +16,7 @@ func TestCollectPurgeDataWithPatterns_BadLockPattern(t *testing.T) {
 	require.ErrorIs(t, err, filepath.ErrBadPattern)
 }
 
-func TestCollectPurgeDataWithPatterns_BadInvalidPattern(t *testing.T) {
+func TestCollectPurgeDataWithPatterns_BadSecondPattern(t *testing.T) {
 	dir := t.TempDir()
 	_, err := collectPurgeDataWithPatterns(dir, nil, false, "*.lock.yml", "[")
 	require.Error(t, err)
