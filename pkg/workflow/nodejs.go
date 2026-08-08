@@ -177,7 +177,9 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 	// With --rootless, the binary is at ~/.local/bin/copilot; otherwise /usr/local/bin/copilot.
 	// On ARC/DinD, the AWF command references ${RUNNER_TEMP}/gh-aw/bin/copilot which is
 	// daemon-visible, so we copy from wherever the install script placed it.
-	if isFirewallEnabled(workflowData) && isArcDindTopology(workflowData) {
+	// Skipped when no npm steps were supplied: the caller installs no CLI at all
+	// (e.g. an engine preinstalled in the runtime image) and there is nothing to copy.
+	if len(npmSteps) > 0 && isFirewallEnabled(workflowData) && isArcDindTopology(workflowData) {
 		copyStep := GitHubActionStep([]string{
 			"      - name: Copy Copilot CLI to daemon-visible path",
 			"        run: |",

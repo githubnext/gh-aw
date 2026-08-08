@@ -177,16 +177,22 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 	// harness through Node.js, so Node.js (and, when the firewall is enabled, the AWF
 	// binary) must always be installed even when no package-manager based installation
 	// is declared for the engine's CLI itself.
+	//
+	// Engines that declare no installation (or a non-npm one, e.g. Pydantic AI which is
+	// preinstalled in the runtime image) still execute through the AWF binary when the
+	// firewall/sandbox is enabled, so the AWF installation step must be emitted for them
+	// too. Passing no npm steps yields only the AWF (and sandbox runtime) setup steps,
+	// and yields no steps at all when the firewall is disabled.
 	if behavior.Installation == nil {
 		if behavior.HarnessScript == "" {
-			return nil
+			return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
 		}
 		return BuildNpmEngineInstallStepsWithAWF([]GitHubActionStep{GenerateNodeJsSetupStep()}, workflowData)
 	}
 
 	install := behavior.Installation
 	if install.PackageManager != "npm" {
-		return nil
+		return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
 	}
 	version := install.Version
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
