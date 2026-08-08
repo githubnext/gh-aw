@@ -38,3 +38,15 @@
 - cache-memory adoption flat at 99 (plateaued, same as last run).
 - max-tool-denials flat at 67, max-continuations flat at 11, network config flat at 152.
 - No new Copilot CLI features detected in codebase since last run.
+
+## Run 31238532089 (2026-08-08)
+- Total workflows 283 (up from 276); copilot-engine-block workflows: 185 broad match ("engine: copilot" or "id: copilot"), 97 with explicit `id: copilot:` extended form.
+- --share flag: still stuck at 1 (this research workflow only) — persistent gap across 7+ runs now. RECOMMEND: stop re-flagging every run, treat as accepted low-priority/non-issue since no workflow currently needs conversation-sharing.
+- engine.args: confirmed still 0 across all copilot workflows (re-verified with direct grep under engine: blocks) — persistent gap, 3+ runs confirmed as real zero.
+- add-dir custom usage: 0 real workflows use it (only doc references in this research workflow itself).
+- disable-builtin-mcps: 1 real usage (auto-triage-issues.md) besides this research workflow's doc text.
+- Custom agents: 11 defined, orphaned set UNCHANGED for 7+ runs: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer (4 confirmed zero-reference). interactive-agent-designer now has 1 reference (previously orphaned) — resolved.
+- cache-memory adoption: 78 (recheck; prior runs reported ~99, methodology drift again on this metric — needs a stable single regex going forward: `cache-memory:` at start of line).
+- max-tool-denials: 65 (flat), network config: 159 (flat/slight rise), sandbox: 254 (majority default), model overrides: 102 (higher than earlier readings — methodology likely counting `model:` in MCP/tool configs, not just engine.model).
+- No new Copilot CLI Go features detected since last run (same file set: copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, etc.)
+- RECOMMENDATION SHIFT: metrics for cache-memory and model-override have inconsistent regex methodology across runs, causing false "trend" signals. Future runs should use a fixed canonical grep pattern documented once, rather than re-deriving each time.
