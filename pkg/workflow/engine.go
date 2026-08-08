@@ -97,7 +97,7 @@ type EngineConfig struct {
 	// Defaults to the repository workspace (GITHUB_WORKSPACE) when empty.
 	Cwd string
 
-	// Harness retry policy fields — templatable integers (literal value or ${{ expr }}).
+	// Harness policy fields — templatable integers (literal value or ${{ expr }}).
 	// When set, the value is injected as the corresponding GH_AW_HARNESS_* env var so
 	// that all harness scripts (copilot, claude, codex) can read it from the environment.
 	// The harness falls back to its built-in default when the env var is absent.
@@ -106,6 +106,7 @@ type EngineConfig struct {
 	HarnessInitialDelayMs    string // engine.harness.initial-delay-ms   → GH_AW_HARNESS_INITIAL_DELAY_MS
 	HarnessBackoffMultiplier string // engine.harness.backoff-multiplier → GH_AW_HARNESS_BACKOFF_MULTIPLIER
 	HarnessMaxDelayMs        string // engine.harness.max-delay-ms       → GH_AW_HARNESS_MAX_DELAY_MS
+	HarnessWatchdogTimeoutMs string // engine.harness.watchdog-timeout (seconds) → GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS
 }
 
 // InlineEngineDriver represents an inline engine.driver source block that gh-aw materializes
@@ -526,6 +527,9 @@ func applyEngineHarnessField(config *EngineConfig, engineObj map[string]any) {
 		}
 		if v, ok := h["max-delay-ms"]; ok {
 			config.HarnessMaxDelayMs = parseMaxTurnsValue(v)
+		}
+		if v, ok := h["watchdog-timeout"]; ok {
+			config.HarnessWatchdogTimeoutMs = parseHarnessWatchdogTimeoutValue(v)
 		}
 	}
 }
