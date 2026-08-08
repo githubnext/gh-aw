@@ -517,10 +517,12 @@ jobs:
           ARCH=$(uname -m)
           URL="https://storage.googleapis.com/gvisor/releases/release/20250707.0/${ARCH}"
           echo "Downloading runsc 20250707.0 for ${ARCH}..."
+          # runner-guard:ignore RGS-012 -- pinned version + SHA-512-verified download of a fixed artifact into a file; no data leaves the runner.
           curl -fsSL "${URL}/runsc" -o /tmp/runsc
           curl -fsSL "${URL}/runsc.sha512" -o /tmp/runsc.sha512
           echo "Verifying SHA-512 for runsc..."
           (cd /tmp && sha512sum -c runsc.sha512)
+          # runner-guard:ignore RGS-012 -- pinned version + SHA-512-verified download of a fixed artifact into a file; no data leaves the runner.
           curl -fsSL "${URL}/containerd-shim-runsc-v1" -o /tmp/containerd-shim-runsc-v1
           curl -fsSL "${URL}/containerd-shim-runsc-v1.sha512" -o /tmp/containerd-shim-runsc-v1.sha512
           echo "Verifying SHA-512 for containerd-shim-runsc-v1..."
