@@ -22,10 +22,9 @@
 
 "use strict";
 
-const crypto = require("crypto");
 const fs = require("fs");
-const { redactBuiltInPatterns, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
-const { maskSecret } = require("./actions_secret_masking.cjs");
+const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
+const { renderLogToStdout } = require("./render_log_to_stdout.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** Default path to the detection engine log file. */
@@ -76,42 +75,9 @@ async function main(logPath) {
   // Apply in-line redaction of built-in credential patterns before emitting.
   const { content: redacted } = redactBuiltInPatterns(content);
 
-  // Mask MCP gateway tokens at the runner level so the runner's own masking
-  // pass will also replace them in subsequent output within this step.
-  const gatewayTokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS);
-  for (const token of gatewayTokens) {
-    maskSecret(token);
-  }
-
-  renderToStdout("Detection Log", redacted);
+  renderLogToStdout("Detection Log", redacted);
 
   core.info("Detection log rendered (" + stat.size + " bytes)");
 }
 
-/**
- * Wraps `content` in GitHub Actions group + stop-commands macros and writes it
- * to stdout.  The stop-commands token is generated with `crypto` so that nested
- * pairs do not interfere.
- *
- * @param {string} groupName - Label shown in the collapsible group header.
- * @param {string} content   - Already-redacted text to emit.
- */
-function renderToStdout(groupName, content) {
-  // Use a cryptographically random token so nested stop-commands pairs do not
-  // interfere.
-  const stopToken = "render-" + crypto.randomBytes(12).toString("hex");
-
-  process.stdout.write("::group::" + groupName + "\n");
-  process.stdout.write("::stop-commands::" + stopToken + "\n");
-  try {
-    process.stdout.write(content);
-    if (!content.endsWith("\n")) {
-      process.stdout.write("\n");
-    }
-  } finally {
-    process.stdout.write("::" + stopToken + "::\n");
-    process.stdout.write("::endgroup::\n");
-  }
-}
-
-module.exports = { main, renderToStdout, DETECTION_LOG_PATH };
+module.exports = { main, DETECTION_LOG_PATH };
