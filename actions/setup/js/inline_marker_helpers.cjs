@@ -5,9 +5,6 @@ function collectInlineEndMarkers(content, endMarkerRe) {
     .filter(m => m.index !== undefined)
     .map(m => {
       const markerStart = m.index;
-      if (markerStart === undefined) {
-        throw new Error("internal error: inline end marker match is missing an index");
-      }
       let lineEnd = markerStart + m[0].length;
       if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
       return { name: m[1], start: markerStart, end: lineEnd };
