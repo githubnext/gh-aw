@@ -56,17 +56,12 @@ if [ -z "$THREAT_DETECT_VERSION" ]; then
   exit 1
 fi
 
-# Resolve "latest" to the actual release tag via the GitHub API
+# Use GitHub Releases' latest-download redirect to avoid an unauthenticated GitHub
+# API request, which can fail when the API rate limit is exhausted.
 if [ "$THREAT_DETECT_VERSION" = "latest" ]; then
-  echo "Resolving latest threat-detect version from GitHub API..."
-  THREAT_DETECT_VERSION=$(curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 \
-    "https://api.github.com/repos/${THREAT_DETECT_REPO}/releases/latest" | \
-    grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-  if [ -z "$THREAT_DETECT_VERSION" ]; then
-    echo "ERROR: Could not resolve latest threat-detect version from GitHub API" >&2
-    exit 1
-  fi
-  echo "Resolved latest threat-detect version: ${THREAT_DETECT_VERSION}"
+  THREAT_DETECT_RELEASE_PATH="latest/download"
+else
+  THREAT_DETECT_RELEASE_PATH="download/${THREAT_DETECT_VERSION}"
 fi
 
 # In rootless mode, install into the user's home directory instead of /usr/local/bin
@@ -118,7 +113,7 @@ case "$OS" in
 esac
 
 # Download URLs
-BASE_URL="https://github.com/${THREAT_DETECT_REPO}/releases/download/${THREAT_DETECT_VERSION}"
+BASE_URL="https://github.com/${THREAT_DETECT_REPO}/releases/${THREAT_DETECT_RELEASE_PATH}"
 CHECKSUMS_URL="${BASE_URL}/checksums.txt"
 
 # Platform-portable SHA256 function

@@ -17,11 +17,12 @@ TESTS_FAILED=0
 pass() { echo "PASS: $1"; TESTS_PASSED=$((TESTS_PASSED + 1)); }
 fail() { echo "FAIL: $1"; echo "  $2"; TESTS_FAILED=$((TESTS_FAILED + 1)); }
 
-# run_installer OS ARCH -> runs the installer in an isolated sandbox.
+# run_installer OS ARCH VERSION -> runs the installer in an isolated sandbox.
 # Sets globals: RUN_OUTPUT (stdout+stderr), RUN_STATUS (exit code), RUN_ASSET (downloaded asset name).
 run_installer() {
   local fake_os="$1"
   local fake_arch="$2"
+  local version="$3"
 
   local sandbox
   sandbox=$(mktemp -d)
@@ -57,6 +58,7 @@ payload='#!/usr/bin/env bash
 echo "fake threat-detect"'
 
 name="${url##*/}"
+echo "${url}" >>"${SANDBOX_URL_LOG}"
 if [ "$name" = "checksums.txt" ]; then
   hash=$(printf '%s\n' "$payload" | sha256sum | awk '{print $1}')
   for asset in threat-detect-linux-amd64 threat-detect-linux-arm64; do
@@ -71,13 +73,16 @@ EOF
   chmod +x "${sandbox}/bin/uname" "${sandbox}/bin/curl"
 
   local asset_log="${sandbox}/asset.log"
+  local url_log="${sandbox}/url.log"
   : >"${asset_log}"
+  : >"${url_log}"
 
   RUN_OUTPUT=$(cd "${sandbox}" && env PATH="${sandbox}/bin:${PATH}" HOME="${sandbox}" \
-    SANDBOX_ASSET_LOG="${asset_log}" GITHUB_PATH="" \
-    bash "${INSTALL_SCRIPT}" v0.4.0 --rootless 2>&1)
+    SANDBOX_ASSET_LOG="${asset_log}" SANDBOX_URL_LOG="${url_log}" GITHUB_PATH="" \
+    bash "${INSTALL_SCRIPT}" "${version}" --rootless 2>&1)
   RUN_STATUS=$?
   RUN_ASSET=$(cat "${asset_log}")
+  RUN_URLS=$(cat "${url_log}")
 
   rm -rf "${sandbox}"
 }
@@ -88,7 +93,7 @@ assert_asset() {
   local fake_arch="$3"
   local expected="$4"
 
-  run_installer "${fake_os}" "${fake_arch}"
+  run_installer "${fake_os}" "${fake_arch}" v0.4.0
   if [ "${RUN_STATUS}" -ne 0 ]; then
     fail "${description}" "installer exited with ${RUN_STATUS}: ${RUN_OUTPUT}"
   elif [ "${RUN_ASSET}" = "${expected}" ]; then
@@ -104,7 +109,7 @@ assert_failure() {
   local fake_arch="$3"
   local expected_msg="$4"
 
-  run_installer "${fake_os}" "${fake_arch}"
+  run_installer "${fake_os}" "${fake_arch}" v0.4.0
   if [ "${RUN_STATUS}" -eq 0 ]; then
     fail "${description}" "installer unexpectedly succeeded: ${RUN_OUTPUT}"
   elif ! echo "${RUN_OUTPUT}" | grep -qF "${expected_msg}"; then
@@ -143,6 +148,19 @@ assert_failure "Unknown OS is rejected" FreeBSD x86_64 "Unsupported operating sy
 # Test 7: unknown architecture fails with an actionable message
 echo "Test 7: unknown Linux architecture fails fast..."
 assert_failure "Unknown Linux architecture is rejected" Linux riscv64 "Unsupported Linux architecture"
+
+# Test 8: latest release download must not use the rate-limited GitHub API.
+echo "Test 8: latest uses release download redirects without the GitHub API..."
+run_installer Linux x86_64 latest
+if [ "${RUN_STATUS}" -ne 0 ]; then
+  fail "Latest release installer succeeds" "installer exited with ${RUN_STATUS}: ${RUN_OUTPUT}"
+elif ! echo "${RUN_URLS}" | grep -qF "https://github.com/github/gh-aw-threat-detection/releases/latest/download/checksums.txt"; then
+  fail "Latest release installer uses release download redirect" "expected latest download URL, got: ${RUN_URLS}"
+elif echo "${RUN_URLS}" | grep -qF "api.github.com"; then
+  fail "Latest release installer avoids GitHub API" "unexpected API URL: ${RUN_URLS}"
+else
+  pass "Latest release installer uses release download redirects without GitHub API"
+fi
 
 echo
 echo "==============================="
