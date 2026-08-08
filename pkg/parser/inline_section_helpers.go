@@ -85,7 +85,7 @@ func collectInlineSectionEndMarkers(markdown string, endRegex *regexp.Regexp) []
 // is returned if an end marker references a name that does not correspond to
 // any start marker of the same type (an "orphan" end marker), which is almost
 // always an authoring mistake (e.g. a typo in the name).
-func extractInlineSections[T any](markdown string, allStarts [][]int, endRegex *regexp.Regexp, makeItem func(name, content string) T) (mainMarkdown string, items []T, err error) {
+func extractInlineSections[T any](markdown string, allStarts [][]int, endRegex, preserveImplicitBoundaryRegex *regexp.Regexp, makeItem func(name, content string) T) (mainMarkdown string, items []T, err error) {
 	h2Positions := collectH2Positions(markdown)
 	endMarkers := collectInlineSectionEndMarkers(markdown, endRegex)
 	usedEnd := make([]bool, len(endMarkers))
@@ -123,6 +123,7 @@ func extractInlineSections[T any](markdown string, allStarts [][]int, endRegex *
 		var content string
 		var newCursor int
 		explicit := matchedEnd != nil
+		preserveImplicitBoundary := false
 		if explicit {
 			content = strings.TrimSpace(markdown[lineEnd:matchedEnd.start])
 			newCursor = matchedEnd.end
@@ -131,12 +132,15 @@ func extractInlineSections[T any](markdown string, allStarts [][]int, endRegex *
 			contentEnd := nextH2After(lineEnd, h2Positions, len(markdown))
 			content = strings.TrimSpace(markdown[lineEnd:contentEnd])
 			newCursor = contentEnd
+			if preserveImplicitBoundaryRegex != nil && preserveImplicitBoundaryRegex.MatchString(markdown[contentEnd:]) {
+				preserveImplicitBoundary = true
+			}
 			inlineSectionLog.Printf("Extracted inline section %q (%d bytes of content, implicit end)", name, len(content))
 		}
 
 		items = append(items, makeItem(name, content))
 		cursor = newCursor
-		prevExplicit = explicit
+		prevExplicit = explicit || preserveImplicitBoundary
 	}
 	if prevExplicit {
 		mainParts = append(mainParts, markdown[cursor:])

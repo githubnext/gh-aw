@@ -75,6 +75,16 @@ describe("extractInlineSubAgents", () => {
     expect(agents[0].content).not.toContain("outside the agent block");
   });
 
+  it("preserves an implicit boundary before an inline skill", () => {
+    const content = ["Main.", "", agentMarker("planner"), "Planner.", "", "## skill: `reporting`", "Reporting."].join("\n");
+
+    const { mainContent, agents } = extractInlineSubAgents(content);
+
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toEqual({ name: "planner", content: "Planner." });
+    expect(mainContent).toBe("Main.\n\n## skill: `reporting`\nReporting.");
+  });
+
   it("next agent marker (H2) ends the previous agent block", () => {
     const content = ["Main.", "", agentMarker("planner"), "Planner.", "", agentMarker("executor"), "Executor."].join("\n");
 

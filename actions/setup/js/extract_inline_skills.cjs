@@ -44,6 +44,9 @@ const START_MARKER_RE = /^##[ \t]+skill:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
 // Regex for the optional explicit end marker: ## end skill: `name`
 const END_MARKER_RE = /^##[ \t]+end[ \t]+skill:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
 
+// Regex for an inline sub-agent marker exactly at an implicit H2 boundary.
+const AGENT_START_BOUNDARY_RE = /^##[ \t]+agent:[ \t]+`(?:[a-z][a-z0-9_-]*)`[ \t]*(?:\n|$)/;
+
 // Regex that matches the start of any level-2 Markdown heading (## ).
 // Used to find the boundary where each skill block ends when no explicit end
 // marker is present.
@@ -191,6 +194,7 @@ function extractInlineSkills(content) {
     let skillContent;
     let newCursor;
     const explicit = matchedEnd !== undefined;
+    let preserveAfterImplicitBoundary = false;
     if (explicit) {
       skillContent = content.slice(lineEnd, matchedEnd.start).trim();
       newCursor = matchedEnd.end;
@@ -198,11 +202,14 @@ function extractInlineSkills(content) {
       const contentEnd = h2Positions.find(pos => pos >= lineEnd) ?? content.length;
       skillContent = content.slice(lineEnd, contentEnd).trim();
       newCursor = contentEnd;
+      if (AGENT_START_BOUNDARY_RE.test(content.slice(contentEnd))) {
+        preserveAfterImplicitBoundary = true;
+      }
     }
 
     skills.push({ name, content: skillContent });
     cursor = newCursor;
-    prevExplicit = explicit;
+    prevExplicit = explicit || preserveAfterImplicitBoundary;
   }
 
   if (prevExplicit) {

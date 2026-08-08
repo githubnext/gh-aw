@@ -181,6 +181,11 @@ type InlineSubAgent struct {
 //   - Optional trailing whitespace
 var subAgentSeparatorRegex = regexp.MustCompile("(?m)^##[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$")
 
+// subAgentBoundaryRegex is applied to a substring that starts at an implicit H2
+// boundary. Keep it start-anchored without multiline mode or capture groups so
+// it only recognizes an agent marker exactly at that boundary.
+var subAgentBoundaryRegex = regexp.MustCompile("^##[ \t]+agent:[ \t]+`[a-z][a-z0-9_-]*`[ \t]*(?:\n|$)")
+
 // subAgentEndRegex matches the optional explicit end marker for an inline
 // sub-agent block: "## end agent: `name`". It mirrors the start marker's name
 // rules. When present, it closes the sub-agent block exactly at that heading
@@ -213,7 +218,7 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 		return "", nil, err
 	}
 
-	mainMarkdown, agents, err = extractInlineSections(markdown, allStarts, subAgentEndRegex, func(name, content string) InlineSubAgent {
+	mainMarkdown, agents, err = extractInlineSections(markdown, allStarts, subAgentEndRegex, inlineSkillBoundaryRegex, func(name, content string) InlineSubAgent {
 		subAgentLog.Printf("Extracted sub-agent %q (content length: %d)", name, len(content))
 		return InlineSubAgent{Name: name, Content: content}
 	})

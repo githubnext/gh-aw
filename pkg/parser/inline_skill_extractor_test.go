@@ -244,6 +244,26 @@ func TestExtractInlineSkills_SkillEndsAtNextH2(t *testing.T) {
 	assert.NotContains(t, skills[0].Content, "outside the skill block", "content after H2 must not appear in skill")
 }
 
+func TestExtractInlineSkills_PreservesImplicitBoundaryBeforeAgent(t *testing.T) {
+	markdown := strings.Join([]string{
+		"Main.",
+		"",
+		skillLine("planner"),
+		"Planner prompt.",
+		"",
+		agentLine("executor"),
+		"Executor prompt.",
+	}, "\n")
+
+	mainMarkdown, skills, err := ExtractInlineSkills(markdown)
+
+	require.NoError(t, err, "skill followed by agent should parse without error")
+	require.Len(t, skills, 1)
+	assert.Equal(t, "planner", skills[0].Name)
+	assert.Equal(t, "Planner prompt.", skills[0].Content)
+	assert.Equal(t, "Main.\n\n"+agentLine("executor")+"\nExecutor prompt.", mainMarkdown, "implicit agent boundary should be preserved for sub-agent extraction")
+}
+
 func TestExtractInlineSkills_SkillEndsAtNextSkillH2(t *testing.T) {
 	// A new ## skill: `name` marker (which is itself an H2) also ends the previous skill.
 	markdown := strings.Join([]string{
