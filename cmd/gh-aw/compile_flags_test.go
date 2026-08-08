@@ -40,6 +40,7 @@ func TestCompileCommandShortFlags(t *testing.T) {
 }
 
 func TestCompileOptionsPropagateForceRefreshContainerPins(t *testing.T) {
+	t.Parallel()
 	config := (&compileCmdOptions{forceRefreshContainerPins: true}).toCompileConfig(nil)
 	if !config.ForceRefreshContainerPins {
 		t.Fatal("expected ForceRefreshContainerPins to be propagated to CompileConfig")

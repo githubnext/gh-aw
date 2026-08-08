@@ -216,6 +216,11 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 	// Drop RGS-004 findings for jobs that are gated behind gh-aw's activation job chain.
 	// runner-guard evaluates jobs in isolation and does not follow needs: edges.
 	output.Findings = filterRunnerGuardFindings(output.Findings, gitRoot)
+
+	// Drop RGS-012 findings for the compiler-generated gVisor install step, which downloads a
+	// pinned, SHA-512-verified artifact and never exfiltrates secrets.
+	output.Findings = filterGvisorInstallFindings(output.Findings, gitRoot)
+
 	totalFindings = len(output.Findings)
 	if totalFindings == 0 {
 		return 0, nil
