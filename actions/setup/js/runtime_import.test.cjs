@@ -769,6 +769,8 @@ describe("runtime_import", () => {
         expect(result).toBe(content);
         expect(result).not.toContain("## end");
       });
+    }),
+    describe("closeUnterminatedInlineMarkers", () => {
       it("should close an unterminated skill before a following agent in the same import", () => {
         const content = "## skill: `reporting`\nSkill content.\n## agent: `helper`\nAgent content.\n";
         const result = closeUnterminatedInlineMarkers(content);

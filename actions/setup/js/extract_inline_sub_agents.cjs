@@ -49,10 +49,6 @@ const SKILL_START_BOUNDARY_RE = /^##[ \t]+skill:[ \t]+`(?:[a-z][a-z0-9_-]*)`[ \t
 // marker is present.
 const H2_HEADING_RE = /^##[ \t]/gm;
 
-function throwUnknownEndMarker(content, orphan) {
-  throw unknownInlineEndMarkerError(content, orphan, "agent");
-}
-
 /**
  * Preserves sub-agent frontmatter exactly as authored.
  *
@@ -92,7 +88,7 @@ function extractInlineSubAgents(content) {
 
   if (startMatches.length === 0) {
     if (endMarkers.length > 0) {
-      throwUnknownEndMarker(content, endMarkers[0]);
+      throw unknownInlineEndMarkerError(content, endMarkers[0], "agent");
     }
     return { mainContent: content, agents: [] };
   }
@@ -162,7 +158,7 @@ function extractInlineSubAgents(content) {
 
   const orphan = endMarkers.find((_, ei) => !usedEnd[ei]);
   if (orphan) {
-    throwUnknownEndMarker(content, orphan);
+    throw unknownInlineEndMarkerError(content, orphan, "agent");
   }
 
   const mainContent = mainParts

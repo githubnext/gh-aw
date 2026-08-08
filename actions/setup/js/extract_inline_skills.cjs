@@ -53,10 +53,6 @@ const AGENT_START_BOUNDARY_RE = /^##[ \t]+agent:[ \t]+`(?:[a-z][a-z0-9_-]*)`[ \t
 // marker is present.
 const H2_HEADING_RE = /^##[ \t]/gm;
 
-function throwUnknownEndMarker(content, orphan) {
-  throw unknownInlineEndMarkerError(content, orphan, "skill");
-}
-
 /**
  * Filters skill frontmatter to only retain supported fields.
  *
@@ -150,7 +146,7 @@ function extractInlineSkills(content) {
 
   if (startMatches.length === 0) {
     if (endMarkers.length > 0) {
-      throwUnknownEndMarker(content, endMarkers[0]);
+      throw unknownInlineEndMarkerError(content, endMarkers[0], "skill");
     }
     return { mainContent: content, skills: [] };
   }
@@ -220,7 +216,7 @@ function extractInlineSkills(content) {
 
   const orphan = endMarkers.find((_, ei) => !usedEnd[ei]);
   if (orphan) {
-    throwUnknownEndMarker(content, orphan);
+    throw unknownInlineEndMarkerError(content, orphan, "skill");
   }
 
   const mainContent = mainParts
