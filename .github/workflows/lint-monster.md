@@ -82,6 +82,7 @@ safe-outputs:
 
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

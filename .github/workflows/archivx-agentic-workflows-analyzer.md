@@ -40,6 +40,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 evals:
   - id: animated_diagram_generated

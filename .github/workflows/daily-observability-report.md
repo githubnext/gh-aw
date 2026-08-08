@@ -34,6 +34,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
+    id: awf
     sudo: false
 evals:
   - id: observability_data_analyzed

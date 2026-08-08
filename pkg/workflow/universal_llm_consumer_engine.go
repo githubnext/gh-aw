@@ -160,10 +160,11 @@ func extractToolsConfig(workflowData *WorkflowData) (*ToolsConfig, map[string]an
 func (e *UniversalLLMConsumerEngine) GetUniversalSecretValidationStep(workflowData *WorkflowData, engineName, docsURL string) GitHubActionStep {
 	backend := e.resolveBackend(workflowData)
 	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
-	if len(profile.coreSecretNames) == 0 {
-		return GitHubActionStep{}
-	}
-	return BuildDefaultSecretValidationStep(workflowData, profile.coreSecretNames, engineName, docsURL)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: profile.coreSecretNames,
+		EngineName:  engineName,
+		DocsURL:     docsURL,
+	})
 }
 
 func (e *UniversalLLMConsumerEngine) ApplyUniversalProviderEnv(env map[string]string, workflowData *WorkflowData, firewallEnabled bool) {

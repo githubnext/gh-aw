@@ -164,6 +164,11 @@ func TestContainerPinMarshalSortedOutput(t *testing.T) {
 
 // TestPruneStaleContainerPins verifies that PruneStaleContainerPins removes
 // entries not present in the known-image set and preserves entries that are.
+//
+// gh-aw-firewall (AWF) images are a deliberate exception: they are exempt from
+// pruning even when no longer referenced by any local lock file, so that bumping
+// constants.DefaultFirewallVersion never drops the previous version's embedded
+// digest pin (regression of gh-aw#38561 / #43307 / #44040 / #51248).
 func TestPruneStaleContainerPins(t *testing.T) {
 	cache := NewActionCache(t.TempDir())
 
@@ -171,6 +176,7 @@ func TestPruneStaleContainerPins(t *testing.T) {
 	cache.SetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.0", "sha256:old", "ghcr.io/github/gh-aw-firewall/agent:0.27.0@sha256:old")
 	cache.SetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.2", "sha256:new", "ghcr.io/github/gh-aw-firewall/agent:0.27.2@sha256:new")
 	cache.SetContainerPin("node:lts-alpine", "sha256:node", "node:lts-alpine@sha256:node")
+	cache.SetContainerPin("stale-registry.example.com/other:v1", "sha256:stale", "stale-registry.example.com/other:v1@sha256:stale")
 
 	// Lock files now only reference the new AWF version and the node image.
 	knownImages := map[string]struct{}{
@@ -179,14 +185,19 @@ func TestPruneStaleContainerPins(t *testing.T) {
 	}
 
 	pruned := cache.PruneStaleContainerPins(knownImages)
-	assert.Equal(t, 1, pruned, "exactly one stale pin should be pruned")
+	assert.Equal(t, 1, pruned, "only the non-firewall stale pin should be pruned")
 
-	// Old version should be gone.
-	_, ok := cache.GetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.0")
-	assert.False(t, ok, "stale old-version pin should be removed")
+	// gh-aw-firewall images are exempt from pruning, so the old version must survive.
+	pin, ok := cache.GetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.0")
+	require.True(t, ok, "stale old-version gh-aw-firewall pin must be retained")
+	assert.Equal(t, "sha256:old", pin.Digest)
+
+	// Non-firewall stale pin should be gone.
+	_, ok = cache.GetContainerPin("stale-registry.example.com/other:v1")
+	assert.False(t, ok, "stale non-firewall pin should be removed")
 
 	// Current versions should still be present.
-	pin, ok := cache.GetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.2")
+	pin, ok = cache.GetContainerPin("ghcr.io/github/gh-aw-firewall/agent:0.27.2")
 	require.True(t, ok, "current pin should be kept")
 	assert.Equal(t, "sha256:new", pin.Digest)
 

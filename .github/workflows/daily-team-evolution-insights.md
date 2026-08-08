@@ -15,8 +15,8 @@ permissions:
 
 sandbox:
   agent:
+    id: awf
     sudo: false
-
 tracker-id: daily-team-evolution-insights
 engine:
   id: goose
@@ -72,6 +72,8 @@ Use the GitHub MCP server to collect:
 - **Issues**: Recent issues (created, updated, or commented on)
 - **Discussions**: Recent discussions and their activity
 - **Reviews**: Code review activity and feedback patterns
+
+> **Fallback**: If the GitHub MCP tools/extension fail to load (e.g. a "Failed to start extension 'github'" warning), a `github` CLI wrapper command is also available on PATH as an alternative way to reach the same GitHub MCP tools. Run `github --help` to list the available commands (e.g. `list_commits`, `list_pull_requests`, `list_issues`) and use `github <command> --param value` to fetch the same data before giving up and reporting a missing tool.
 
 ### 2. Analyze Patterns
 

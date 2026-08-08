@@ -144,6 +144,8 @@ safe-outputs:
     close-older-issues: true
     title-prefix: "[sighthound] "
   noop:
+imports:
+  - shared/reporting.md
 ---
 
 # Sighthound Security Scan Triage

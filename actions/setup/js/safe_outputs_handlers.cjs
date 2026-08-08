@@ -159,6 +159,75 @@ function parseAllowedBranchPatterns(value) {
 }
 
 /**
+ * Parse trusted comment IDs supplied by workflow configuration.
+ * @param {unknown} value
+ * @returns {Set<string>}
+ */
+function parseAllowedCommentIds(value) {
+  const values = [];
+  const visit = item => {
+    if (Array.isArray(item)) {
+      for (const child of item) visit(child);
+      return;
+    }
+    if (typeof item === "number" && Number.isInteger(item) && item > 0) {
+      values.push(String(item));
+      return;
+    }
+    if (typeof item !== "string") {
+      return;
+    }
+    const trimmed = item.trim();
+    if (!trimmed) {
+      return;
+    }
+    if (trimmed.startsWith("[") || trimmed.startsWith('"')) {
+      try {
+        visit(JSON.parse(trimmed));
+        return;
+      } catch {
+        // Fall through to delimiter parsing.
+      }
+    }
+    for (const part of trimmed.split(/[,\s]+/)) {
+      if (/^[1-9]\d*$/.test(part)) {
+        values.push(part);
+      }
+    }
+  };
+  visit(value);
+  return new Set(values);
+}
+
+/**
+ * Validate an agent-supplied add_comment.comment_id against the trusted workflow allowlist.
+ * Does not mutate the supplied entry; the caller is responsible for applying the normalized value.
+ * @param {Record<string, any>} entry
+ * @param {Record<string, any>} addCommentConfig
+ * @returns {{error: {content: Array<{type: "text", text: string}>, isError: true}} | {error: null, commentId: number | undefined}}
+ */
+function validateAllowedAddCommentId(entry, addCommentConfig) {
+  if (entry.comment_id === undefined || entry.comment_id === null || String(entry.comment_id).trim() === "") {
+    return { error: null, commentId: undefined };
+  }
+  if (addCommentConfig.target !== "*") {
+    return { error: buildIntentErrorResponse("add_comment comment_id is only allowed when safe-outputs.add-comment.target is '*' and the ID is listed in safe-outputs.add-comment.allows-comment-ids.") };
+  }
+  const commentId = Number(entry.comment_id);
+  if (!Number.isInteger(commentId) || commentId <= 0) {
+    return { error: buildIntentErrorResponse("add_comment comment_id must be a positive integer.") };
+  }
+  const allowedCommentIds = parseAllowedCommentIds(addCommentConfig.allows_comment_ids ?? addCommentConfig["allows-comment-ids"]);
+  if (allowedCommentIds.size === 0) {
+    return { error: buildIntentErrorResponse("add_comment comment_id requires safe-outputs.add-comment.allows-comment-ids to list trusted comment IDs.") };
+  }
+  if (!allowedCommentIds.has(String(commentId))) {
+    return { error: buildIntentErrorResponse("add_comment comment_id is not listed in safe-outputs.add-comment.allows-comment-ids.") };
+  }
+  return { error: null, commentId };
+}
+
+/**
  * @param {string} branch
  * @param {string[]} allowedPatterns
  * @returns {boolean}
@@ -231,6 +300,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * @type {Map<string, number>}
    */
   const operationCounts = new Map();
+  const uploadedAssetPaths = new Set();
 
   /**
    * Return the explicitly user-configured max for a safe-output type, or null if not set / unlimited.
@@ -461,6 +531,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (!isInWorkspace && !isInTmp) {
       throw new Error(`${ERR_CONFIG}: File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
     }
+    if (uploadedAssetPaths.has(absolutePath)) {
+      throw new Error(`${ERR_VALIDATION}: Duplicate upload_asset source path is not allowed: ${filePath}`);
+    }
 
     // Validate file exists
     if (!fs.existsSync(filePath)) {
@@ -526,8 +599,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const fileName = path.basename(filePath);
     const fileExt = path.extname(fileName).toLowerCase();
 
-    // Copy file to assets directory with original name
-    const targetPath = path.join(assetsDir, fileName);
+    // Key the staged file by its declared source path so same-basename assets
+    // cannot overwrite each other before the privileged publishing job.
+    const stagedFileName = `${crypto.createHash("sha256").update(filePath).digest("hex")}${fileExt}`;
+    const targetPath = path.join(assetsDir, stagedFileName);
     try {
       fs.copyFileSync(filePath, targetPath);
     } catch (err) {
@@ -564,6 +639,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     };
 
     appendSafeOutputCounted(entry);
+    uploadedAssetPaths.add(absolutePath);
 
     return {
       content: [
@@ -1955,6 +2031,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Build the entry with a temporary_id
     const entry = { ...(args || {}), type: "add_comment" };
+    const commentIdValidationResult = validateAllowedAddCommentId(entry, addCommentConfig);
+    if (commentIdValidationResult.error) {
+      return commentIdValidationResult.error;
+    }
+    if (commentIdValidationResult.commentId === undefined) {
+      // entry was spread from args, so a blank/whitespace comment_id (rather than an
+      // absent one) could still be sitting on entry; strip it so downstream code never
+      // sees an unvalidated raw value.
+      delete entry.comment_id;
+    } else {
+      entry.comment_id = commentIdValidationResult.commentId;
+    }
     const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
     if (wildcardTargetValidationError) {
       return wildcardTargetValidationError;

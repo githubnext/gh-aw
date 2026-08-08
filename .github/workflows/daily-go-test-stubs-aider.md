@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
+    id: awf
     sudo: false
 tracker-id: daily-go-test-stubs-aider
 engine:
@@ -34,6 +35,7 @@ timeout-minutes: 30
 imports:
   - shared/aider.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Go Test Stubs — Aider

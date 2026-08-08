@@ -19,6 +19,7 @@ engine:
 max-tool-denials: 3
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 sandbox:
   agent:
     sudo: false

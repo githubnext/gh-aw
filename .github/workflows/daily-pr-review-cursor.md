@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
+    id: awf
     sudo: false
 tracker-id: daily-pr-review-cursor
 engine:
@@ -42,6 +43,7 @@ timeout-minutes: 20
 imports:
   - shared/cursor.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily PR Code Quality Review — Cursor

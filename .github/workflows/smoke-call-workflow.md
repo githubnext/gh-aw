@@ -35,6 +35,10 @@ tools:
   cli-proxy: true
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke Test: Call Workflow Orchestrator

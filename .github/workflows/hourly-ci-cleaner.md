@@ -37,13 +37,6 @@ sandbox:
   agent:
     id: awf
     sudo: false
-    mounts:
-      - "/usr/bin/make:/usr/bin/make:ro"
-      - "/usr/bin/go:/usr/bin/go:ro"
-      - "/usr/local/bin/node:/usr/local/bin/node:ro"
-      - "/usr/local/bin/npm:/usr/local/bin/npm:ro"
-      - "/usr/local/lib/node_modules:/usr/local/lib/node_modules:ro"
-      - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
 if: needs.check_ci_status.outputs.ci_needs_fix == 'true'
 jobs:
   check_ci_status:
@@ -124,6 +117,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: ci_state_checked
     question: Did the agent check whether CI was failing on the main branch?

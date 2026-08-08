@@ -100,10 +100,7 @@ func collectSeenMapCandidates(pass *analysis.Pass, body *ast.BlockStmt) map[type
 			if stmt.Tok.String() != ":=" {
 				return true
 			}
-			for i, lhs := range stmt.Lhs {
-				if i >= len(stmt.Rhs) {
-					break
-				}
+			for _, lhs := range stmt.Lhs {
 				ident, ok := lhs.(*ast.Ident)
 				if !ok || ident.Name == "_" {
 					continue
@@ -112,7 +109,7 @@ func collectSeenMapCandidates(pass *analysis.Pass, body *ast.BlockStmt) map[type
 				if obj == nil {
 					continue
 				}
-				if isMapStringBool(pass.TypesInfo.TypeOf(ident)) && isMapStringBoolExpr(stmt.Rhs[i]) {
+				if isMapStringBool(pass.TypesInfo.TypeOf(ident)) {
 					candidates[obj] = ident
 				}
 			}
@@ -194,39 +191,6 @@ func isMapStringBool(t types.Type) bool {
 	}
 	val, ok := m.Elem().(*types.Basic)
 	return ok && val.Kind() == types.Bool
-}
-
-// isMapStringBoolExpr reports whether expr is a make(map[string]bool, ...) call
-// or a map[string]bool{...} composite literal.
-func isMapStringBoolExpr(expr ast.Expr) bool {
-	switch e := expr.(type) {
-	case *ast.CallExpr:
-		ident, ok := e.Fun.(*ast.Ident)
-		if !ok || ident.Name != "make" {
-			return false
-		}
-		if len(e.Args) == 0 {
-			return false
-		}
-		return isMapStringBoolTypeExpr(e.Args[0])
-	case *ast.CompositeLit:
-		return isMapStringBoolTypeExpr(e.Type)
-	}
-	return false
-}
-
-// isMapStringBoolTypeExpr reports whether the AST node represents map[string]bool.
-func isMapStringBoolTypeExpr(expr ast.Expr) bool {
-	mapType, ok := expr.(*ast.MapType)
-	if !ok {
-		return false
-	}
-	keyIdent, ok := mapType.Key.(*ast.Ident)
-	if !ok || keyIdent.Name != "string" {
-		return false
-	}
-	valIdent, ok := mapType.Value.(*ast.Ident)
-	return ok && valIdent.Name == "bool"
 }
 
 // isBoolTrue reports whether expr is the boolean literal true.

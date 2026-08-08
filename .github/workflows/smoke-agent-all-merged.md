@@ -19,8 +19,8 @@ permissions:
 
 sandbox:
   agent:
+    id: awf
     sudo: false
-
 name: "Smoke Agent: all/merged"
 engine: claude
 strict: true

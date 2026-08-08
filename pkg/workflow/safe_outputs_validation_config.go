@@ -81,10 +81,15 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"add_comment": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"body":        {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"item_number": {IssueOrPRNumber: true},
-			"reply_to_id": {Type: "string", MaxLength: 256}, // Optional: node ID of discussion comment to reply to (threading)
-			"repo":        {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"item_number":  {IssueOrPRNumber: true},
+			"pr_number":    {IssueOrPRNumber: true},
+			"pr":           {IssueOrPRNumber: true},
+			"temporary_id": {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
+			"reply_to_id":  {Type: "string", MaxLength: 256}, // Optional: node ID of discussion comment to reply to (threading)
+			"target":       {Type: "string", Enum: []string{"status"}},
+			"comment_id":   {OptionalPositiveInteger: true},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
 	"comment_memory": {
@@ -99,13 +104,14 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"create_pull_request": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"title":  {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":   {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"branch": {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
-			"base":   {Type: "string", Sanitize: true, MaxLength: 128},
-			"labels": {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
-			"draft":  {Type: "boolean"},
-			"repo":   {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"title":        {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"branch":       {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"base":         {Type: "string", Sanitize: true, MaxLength: 128},
+			"labels":       {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
+			"draft":        {Type: "boolean"},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"temporary_id": {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
 		},
 	},
 	"add_labels": {
@@ -212,6 +218,8 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"update_branch":       {Type: "boolean"},
 			"draft":               {Type: "boolean"},
 			"pull_request_number": {IssueOrPRNumber: true},
+			"pr_number":           {IssueOrPRNumber: true},
+			"pr":                  {IssueOrPRNumber: true},
 			"repo":                {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
@@ -231,6 +239,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"message":             {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"pull_request_number": {IssueOrPRNumber: true},
 			"branch":              {Type: "string", Sanitize: true, MaxLength: 256}, // Optional: stripped before MCP call; validated for type/length when present.
+			"repo":                {Type: "string", MaxLength: 256},
 		},
 	},
 	"create_pull_request_review_comment": {
@@ -293,6 +302,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"body":         {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"issue_number": {OptionalPositiveInteger: true},
+			"duplicate_of": {IssueOrPRNumber: true},
 			"rationale":    {Type: "string", Sanitize: true, MaxLength: 280, StripOnError: true},
 			"confidence":   {Type: "string", Enum: []string{"LOW", "MEDIUM", "HIGH"}, StripOnError: true},
 			"suggest":      {Type: "boolean"},
@@ -337,6 +347,33 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"path": {Required: true, Type: "string"},
 		},
 	},
+	"upload_artifact": {
+		DefaultMax: 10,
+		Fields: map[string]FieldValidation{
+			"path":         {Type: "string"},
+			"filters":      {Type: "object"},
+			"temporary_id": {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
+		},
+	},
+	"push_repo_memory": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"memory_id": {Type: "string", Sanitize: true, MaxLength: 128},
+		},
+	},
+	"create_check_run": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"conclusion":          {Required: true, Type: "string", Enum: []string{"success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"}},
+			"title":               {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
+			"summary":             {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"text":                {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"pull_request_number": {IssueOrPRNumber: true},
+			"pr_number":           {IssueOrPRNumber: true},
+			"pr":                  {IssueOrPRNumber: true},
+			"pull_number":         {IssueOrPRNumber: true},
+		},
+	},
 	"noop": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
@@ -366,23 +403,31 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"update_project": {
 		DefaultMax: 10,
 		Fields: map[string]FieldValidation{
-			"project":        {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://[^/]+/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
-			"content_type":   {Type: "string", Enum: []string{"issue", "pull_request", "draft_issue"}},
-			"content_number": {IssueNumberOrTemporaryID: true},
-			"issue":          {OptionalPositiveInteger: true}, // Legacy
-			"pull_request":   {OptionalPositiveInteger: true}, // Legacy
-			"draft_title":    {Type: "string", Sanitize: true, MaxLength: 256},
-			"draft_body":     {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
-			"fields":         {Type: "object"},
+			"project":           {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^(https://[^/]+/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9_]{3,12})$", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42) or temporary project ID (e.g., #aw_project1)"},
+			"operation":         {Type: "string", Enum: []string{"create_fields", "create_view"}},
+			"content_type":      {Type: "string", Enum: []string{"issue", "pull_request", "draft_issue"}},
+			"content_number":    {IssueNumberOrTemporaryID: true},
+			"target_repo":       {Type: "string", Pattern: "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"},
+			"issue":             {OptionalPositiveInteger: true}, // Legacy
+			"pull_request":      {OptionalPositiveInteger: true}, // Legacy
+			"draft_title":       {Type: "string", Sanitize: true, MaxLength: 256},
+			"draft_body":        {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"draft_issue_id":    {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
+			"temporary_id":      {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
+			"fields":            {Type: "object"},
+			"field_definitions": {Type: "array"},
+			"view":              {Type: "object"},
+			"create_if_missing": {Type: "boolean"},
 		},
 	},
 	"create_project": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"title":      {Type: "string", Sanitize: true, MaxLength: 256},
-			"owner":      {Type: "string", Sanitize: true, MaxLength: 128},
-			"owner_type": {Type: "string", Enum: []string{"org", "user"}},
-			"item_url":   {Type: "string", Sanitize: true, MaxLength: 512},
+			"title":        {Type: "string", Sanitize: true, MaxLength: 256},
+			"owner":        {Type: "string", Sanitize: true, MaxLength: 128},
+			"owner_type":   {Type: "string", Enum: []string{"org", "user"}},
+			"item_url":     {Type: "string", Sanitize: true, MaxLength: 512},
+			"temporary_id": {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
 		},
 	},
 	"create_project_status_update": {

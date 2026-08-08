@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
+    id: awf
     sudo: false
 tracker-id: daily-schema-audit-cursor
 engine:
@@ -44,6 +45,7 @@ timeout-minutes: 20
 imports:
   - shared/cursor.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Schema Consistency Audit — Cursor

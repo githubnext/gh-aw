@@ -17,7 +17,9 @@ engine:
 model: copilot/claude-sonnet-4.5
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tools:
   cli-proxy: true
   github:

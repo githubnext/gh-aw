@@ -36,6 +36,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
+    id: awf
     sudo: false
 evals:
   - id: scan_completed

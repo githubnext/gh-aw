@@ -12,6 +12,8 @@
 
 // SEC-004: No sanitize needed - "body" is only used as example text
 
+const { ERR_VALIDATION } = require("./error_codes.cjs");
+
 /**
  * Generate an enhanced error message with actionable guidance for missing parameters
  * @param {string[]} missingFields - Array of missing field names
@@ -21,12 +23,12 @@
  */
 function generateEnhancedErrorMessage(missingFields, toolName, inputSchema) {
   if (!missingFields || missingFields.length === 0) {
-    return "Invalid arguments";
+    return `${ERR_VALIDATION}: Invalid arguments`;
   }
 
   // Base error message
   const fieldsList = missingFields.map(m => `'${m}'`).join(", ");
-  let message = `Invalid arguments: missing or empty ${fieldsList}\n`;
+  let message = `${ERR_VALIDATION}: Invalid arguments: missing or empty ${fieldsList}\n`;
 
   // Add guidance for each missing field
   if (inputSchema && inputSchema.properties) {

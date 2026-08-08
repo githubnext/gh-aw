@@ -153,14 +153,15 @@ func (e *BehaviorDefinedEngine) GetSecretValidationStep(workflowData *WorkflowDa
 		seen[binding.Secret] = struct{}{}
 		secrets = append(secrets, binding.Secret)
 	}
-	if len(secrets) == 0 {
-		return GitHubActionStep{}
-	}
 	documentationURL := ""
 	if behavior.Installation != nil {
 		documentationURL = behavior.Installation.DocumentationURL
 	}
-	return BuildDefaultSecretValidationStep(workflowData, secrets, e.definition.DisplayName, documentationURL)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: secrets,
+		EngineName:  e.definition.DisplayName,
+		DocsURL:     documentationURL,
+	})
 }
 
 func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
@@ -178,14 +179,19 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 	// is declared for the engine's CLI itself.
 	if behavior.Installation == nil {
 		if behavior.HarnessScript == "" {
-			return nil
+			// Engines that install their CLI through `pre-agent-steps` (e.g. Pydantic AI)
+			// declare no installation block at all, but the agent still runs inside the
+			// firewall sandbox, so the AWF binary must be installed.
+			return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
 		}
 		return BuildNpmEngineInstallStepsWithAWF([]GitHubActionStep{GenerateNodeJsSetupStep()}, workflowData)
 	}
 
 	install := behavior.Installation
 	if install.PackageManager != "npm" {
-		return nil
+		// Non-npm installations are performed by the engine's own steps, but the AWF
+		// binary is still required to run the agent inside the firewall sandbox.
+		return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
 	}
 	version := install.Version
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {

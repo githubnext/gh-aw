@@ -101,7 +101,9 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 evals:
   - id: files_analyzed
     question: Did the agent analyze compiler code files for quality standards such as readability and maintainability?

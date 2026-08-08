@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -550,7 +551,7 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T)
 	stepContent := strings.Join([]string(steps[0]), "\n")
 	// The harness is invoked as: <outer-node> copilot_harness.cjs <runtime-cmd> <driver> <copilot-binary>
 	// Verify the runtime argument passed to the harness is GH_AW_NODE_EXEC (native Node, not ts-node).
-	if !strings.Contains(stepContent, `copilot_harness.cjs "$GH_AW_NODE_EXEC"`) {
+	if !strings.Contains(stepContent, `copilot_harness.cjs" "$GH_AW_NODE_EXEC"`) {
 		t.Fatalf("Expected TypeScript SDK driver to pass GH_AW_NODE_EXEC as runtime to harness, got:\n%s", stepContent)
 	}
 	if strings.Contains(stepContent, "ts-node") {
@@ -2767,15 +2768,15 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 			if !strings.Contains(stepContent, `cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"`) {
 				t.Fatalf("Expected AWF setup to stage the Copilot CLI binary in its mounted directory, got:\n%s", stepContent)
 			}
-			mountedCopilotPath := constants.GhAwRootDirShell + "/bin/copilot"
-			if !strings.Contains(stepContent, "copilot_harness.cjs "+mountedCopilotPath) {
+			mountedCopilotPath := `"` + constants.GhAwRootDirShell + `/bin/copilot"`
+			if !strings.Contains(stepContent, `copilot_harness.cjs" `+mountedCopilotPath) {
 				t.Fatalf("Expected harness to use mounted Copilot CLI path %q, got:\n%s", mountedCopilotPath, stepContent)
 			}
 			mount := `--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"`
 			if !strings.Contains(stepContent, mount) {
 				t.Fatalf("Expected AWF to mount the staged Copilot CLI directory, got:\n%s", stepContent)
 			}
-			if strings.Contains(stepContent, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
+			if strings.Contains(stepContent, `copilot_harness.cjs" `+constants.CopilotBinaryPath) {
 				t.Fatalf("Expected harness to avoid the fixed Copilot CLI path %q, got:\n%s", constants.CopilotBinaryPath, stepContent)
 			}
 		})
@@ -2847,7 +2848,7 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 
 		stepContent := strings.Join([]string(steps[0]), "\n")
 
-		if !strings.Contains(stepContent, "copilot_harness.cjs /tmp/gh-aw/engine-command.sh") {
+		if !strings.Contains(stepContent, `copilot_harness.cjs" /tmp/gh-aw/engine-command.sh`) {
 			t.Errorf("Expected driver to run serialized engine command script, got:\n%s", stepContent)
 		}
 		if !strings.Contains(stepContent, "cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'") {
@@ -2860,6 +2861,83 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 			t.Errorf("Expected step to fix ownership for $HOME/.copilot in custom engine.command mode, got:\n%s", stepContent)
 		}
 	})
+}
+
+func TestCopilotGeneratedHarnessCommandSupportsSpacedRunnerPaths(t *testing.T) {
+	engine := NewCopilotEngine()
+	runnerTemp := filepath.Join(t.TempDir(), "self hosted runner temp")
+	toolcacheBin := filepath.Join(t.TempDir(), "custom toolcache", "copilot-cli", "1.2.3", "x64", "bin")
+	if err := os.MkdirAll(toolcacheBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cachedCopilot := filepath.Join(toolcacheBin, "copilot")
+	if err := os.WriteFile(cachedCopilot, []byte("#!/usr/bin/env bash\nprintf 'copilot %s\\n' \"$1\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	nodeDir := filepath.Join(t.TempDir(), "custom node runtime")
+	if err := os.MkdirAll(nodeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	nodePath := filepath.Join(nodeDir, "node")
+	if err := os.WriteFile(nodePath, []byte("#!/usr/bin/env bash\nprintf '<%s>\\n' \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	harnessPath := filepath.Join(runnerTemp, "gh-aw", "actions", "copilot_harness.cjs")
+	mountedCopilotPath := filepath.Join(runnerTemp, "gh-aw", "bin", "copilot")
+	sdkDriverPath := filepath.Join(runnerTemp, "gh-aw", "actions", "copilot_sdk_driver.cjs")
+
+	testCases := []struct {
+		name         string
+		workflowData *WorkflowData
+		wantArgs     []string
+	}{
+		{
+			name:         "CLI",
+			workflowData: &WorkflowData{EngineConfig: &EngineConfig{ID: "copilot"}},
+			wantArgs:     []string{harnessPath, mountedCopilotPath},
+		},
+		{
+			name:         "SDK",
+			workflowData: &WorkflowData{EngineConfig: &EngineConfig{ID: "copilot", CopilotSDK: true}},
+			wantArgs:     []string{harnessPath, nodePath, sdkDriverPath, mountedCopilotPath},
+		},
+		{
+			name:         "SDK arbitrary driver",
+			workflowData: &WorkflowData{EngineConfig: &EngineConfig{ID: "copilot", CopilotSDK: true, Driver: "custom-driver"}},
+			wantArgs:     []string{harnessPath, "custom-driver", mountedCopilotPath},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			commandName, _ := engine.resolveCopilotCommand(tc.workflowData, true)
+			command := copilotBinaryPathSetup + "\n" + engine.buildCopilotExecPrefix(tc.workflowData, commandName)
+			cmd := exec.Command("bash", "-c", command)
+			cmd.Env = append(os.Environ(),
+				"GH_AW_NODE_BIN="+nodePath,
+				"RUNNER_TEMP="+runnerTemp,
+				"PATH="+toolcacheBin+":"+os.Getenv("PATH"),
+			)
+
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("Expected generated harness command to preserve spaced paths: %v\n%s", err, output)
+			}
+			var wantOutput strings.Builder
+			for _, arg := range tc.wantArgs {
+				wantOutput.WriteString("<" + arg + ">\n")
+			}
+			if got := string(output); got != wantOutput.String() {
+				t.Fatalf("Expected generated harness arguments:\n%s\ngot:\n%s", wantOutput.String(), got)
+			}
+			if _, err := os.Stat(mountedCopilotPath); err != nil {
+				t.Fatalf("Expected Copilot CLI at mounted runner path: %v", err)
+			}
+		})
+	}
 }
 
 func TestCopilotEngineNoAskUser(t *testing.T) {

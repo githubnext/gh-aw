@@ -16,6 +16,7 @@ network:
     - defaults
 imports:
   - shared/squad.md
+  - shared/reporting.md
 tools:
   bash: true
   github:

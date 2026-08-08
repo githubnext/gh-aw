@@ -238,6 +238,26 @@ func TestGenerateSafeOutputsConfigAddsDataFlagsForBodyHandlers(t *testing.T) {
 	assert.Equal(t, true, addComment["data_enabled"])
 }
 
+func TestGenerateSafeOutputsConfigForwardsAllowedCommentIDs(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		AddComments: &AddCommentsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			Target:               "*",
+			AllowedCommentIDs:    []string{"${{ needs.prepare.outputs.comment_ids }}"},
+		},
+	}
+	data := &WorkflowData{SafeOutputs: cfg}
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	addComment, ok := parsed["add_comment"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "*", addComment["target"])
+	assert.Equal(t, "${{ needs.prepare.outputs.comment_ids }}", addComment["allows_comment_ids"])
+}
+
 func TestGenerateSafeOutputsConfigAddsRuntimeDataSchemaExpression(t *testing.T) {
 	cfg := &SafeOutputsConfig{
 		DataEnabled:          true,

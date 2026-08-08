@@ -20,6 +20,8 @@ safe-outputs:
     # - ai_credits_rate_limit_error: AI rate limits
     # - mcp_policy_error: MCP policy violations
   create-issue:
+imports:
+  - shared/reporting.md
 ---
 
 # Example: Failure Category Filtering

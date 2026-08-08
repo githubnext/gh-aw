@@ -18,6 +18,7 @@ network:
     - defaults
 imports:
   - shared/squad.md
+  - shared/reporting.md
 tools:
   github:
     mode: gh-proxy

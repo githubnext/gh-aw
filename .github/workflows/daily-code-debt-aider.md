@@ -11,7 +11,9 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tracker-id: daily-code-debt-aider
 engine:
   id: aider
@@ -34,6 +36,7 @@ timeout-minutes: 30
 imports:
   - shared/aider.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Code Debt Cleanup — Aider

@@ -102,12 +102,11 @@ func (e *CodexEngine) GetSupportedEnvVarKeys() []string {
 // GetSecretValidationStep returns the secret validation step for the Codex engine.
 // Returns an empty step if custom command is specified.
 func (e *CodexEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	return BuildDefaultSecretValidationStep(
-		workflowData,
-		[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
-		"Codex",
-		"https://github.github.com/gh-aw/reference/engines/#openai-codex",
-	)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+		EngineName:  "Codex",
+		DocsURL:     "https://github.github.com/gh-aw/reference/engines/#openai-codex",
+	})
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
@@ -151,17 +150,19 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		}
 
 		// gVisor must be installed and registered BEFORE AWF starts the agent container.
-		if isGVisorRuntime(workflowData) {
+		if isGVisorRuntime(workflowData) && isRuntimeInstallEnabled(workflowData) {
 			steps = append(steps, generateGVisorInstallStep())
 		}
 
 		// docker-sbx must be installed, authenticated, and smoke-tested BEFORE AWF.
 		if isDockerSbxRuntime(workflowData) {
-			steps = append(steps, generateDockerSbxKVMCheckStep())
-			steps = append(steps, generateDockerSbxSecretsCheckStep())
-			steps = append(steps, generateDockerSbxInstallStep())
-			steps = append(steps, generateDockerSbxAuthAndDaemonStep())
-			steps = append(steps, generateDockerSbxPreFlightStep())
+			if isRuntimeInstallEnabled(workflowData) {
+				steps = append(steps, generateDockerSbxKVMCheckStep())
+				steps = append(steps, generateDockerSbxSecretsCheckStep())
+				steps = append(steps, generateDockerSbxInstallStep())
+				steps = append(steps, generateDockerSbxAuthAndDaemonStep())
+				steps = append(steps, generateDockerSbxPreFlightStep())
+			}
 		}
 
 		// Install AWF binary (or skip if custom command is specified)

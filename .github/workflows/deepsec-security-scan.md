@@ -110,6 +110,7 @@ steps:
       } > "$AGENT_ROOT/context.md"
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: deepsec_scan_completed
     question: Did the agent complete the prepared DeepSec scan workflow or explicitly noop when credentials or actionable findings were unavailable?

@@ -44,6 +44,10 @@ safe-outputs:
     reviewers: [copilot]
     expires: 7d
 
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Weekly Editors Health Check

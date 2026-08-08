@@ -144,18 +144,20 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 		}
 
 		// gVisor must be installed and registered BEFORE AWF starts the agent container.
-		if isGVisorRuntime(workflowData) {
+		if isGVisorRuntime(workflowData) && isRuntimeInstallEnabled(workflowData) {
 			steps = append(steps, generateGVisorInstallStep())
 		}
 
 		// docker-sbx must be installed, authenticated, and smoke-tested BEFORE AWF
 		// starts so the microVM runtime is ready when AWF launches the agent.
 		if isDockerSbxRuntime(workflowData) {
-			steps = append(steps, generateDockerSbxKVMCheckStep())
-			steps = append(steps, generateDockerSbxSecretsCheckStep())
-			steps = append(steps, generateDockerSbxInstallStep())
-			steps = append(steps, generateDockerSbxAuthAndDaemonStep())
-			steps = append(steps, generateDockerSbxPreFlightStep())
+			if isRuntimeInstallEnabled(workflowData) {
+				steps = append(steps, generateDockerSbxKVMCheckStep())
+				steps = append(steps, generateDockerSbxSecretsCheckStep())
+				steps = append(steps, generateDockerSbxInstallStep())
+				steps = append(steps, generateDockerSbxAuthAndDaemonStep())
+				steps = append(steps, generateDockerSbxPreFlightStep())
+			}
 		}
 
 		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)

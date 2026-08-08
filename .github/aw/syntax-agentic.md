@@ -315,40 +315,11 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     ```
 
   - **`sandbox.agent.sudo`** (boolean) controls whether AWF runs in root mode. Default is `false`: AWF runs rootless in network-isolation egress mode (`--network-isolation`), with MCP sidecars attached as bridge containers on the internal `awf-net` network. Set `sudo: true` for the legacy root mode; in strict mode explicit `sudo: true` is an error (warning otherwise).
-  - **`sandbox.agent.runtime`** (string) selects an extra-isolation container runtime for the agent: `gvisor` (runs under gVisor's `runsc` for kernel-level isolation) or `docker-sbx` (Docker sbx microVM with KVM hypervisor-level isolation; needs `DOCKER_PAT`/`DOCKER_USERNAME` secrets and a KVM-capable runner). Both require `sudo: true` and are incompatible with `runner.topology: arc-dind`.
+  - **`sandbox.agent.runtime`** (string) selects an extra-isolation container runtime for the agent: `gvisor` (runs under gVisor's `runsc` for kernel-level isolation) or `docker-sbx` (Docker sbx microVM with KVM hypervisor-level isolation). Both are incompatible with `runner.topology: arc-dind`. gVisor's generated host installer uses `sudo`, but `sandbox.agent.sudo` should remain false. Docker sbx requires `sudo: true`, `DOCKER_PAT`/`DOCKER_USERNAME` secrets, and a KVM-capable runner when runtime installation is enabled.
+  - **`sandbox.agent.runtime-install`** (boolean) controls generated gVisor or Docker sbx provisioning and defaults to `true`. Set it to `false` only when the runner is pre-provisioned; Docker sbx credential refresh still runs. False wins when imported workflows merge this field. See [agent-runtime-instructions.md](agent-runtime-instructions.md) for requirements and troubleshooting.
   - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
 
 - **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
-  - **`tools.github.bounded-queries`** (object, AWF v0.27.44+) configures the AWF bounded-query subsystem for cross-repository private data access. When present, the agent may answer finite, pre-approved questions about the listed repositories using the generated `bounded-query` skill — without receiving raw source code. This is the preferred pattern for cross-repository workflows. Requires the AWF sandbox (`sandbox.agent.id: awf`). The query runtime is independent from `sandbox.agent.runtime`, and every query runs in a fresh backend-specific sandbox. All optional fields use AWF defaults when omitted.
-
-    ```yaml
-    tools:
-      github:
-        bounded-queries:
-          private-repos:
-            - repo: my-org/public-docs
-              sensitivity: public         # public | internal | confidential | sealed
-            - repo: my-org/internal-service
-              sensitivity: internal
-          runtime: docker         # optional; docker | gvisor | sbx; default: AWF default
-          timeout: 30             # optional; seconds; default: AWF default
-          memory-limit: 512m      # optional; e.g. 512m, 2g; default: AWF default
-          interpreter: python3    # optional; default: AWF default
-          max-invocations: 32     # optional; default: AWF default
-    sandbox:
-      agent:
-        id: awf
-    ```
-
-    Sensitivity levels control how much information the agent may extract from the repository per run:
-    - `public`: unmetered disclosure budget; still operationally and schema-bounded, but no per-run cap on extracted bits.
-    - `internal`: 64 bits/run disclosure budget; use for repos with internal-audience content.
-    - `confidential`: 8 bits/run disclosure budget; use for restricted-within-org content.
-    - `sealed`: 0 bits/run; the query executes but cannot fund any answer — effectively a dry-run assertion. Do not use `sealed` when you need the agent to return information from the repository.
-
-    The staging credential used to access private repositories must remain host-side and is never written to the lock file or exposed to the agent. Use bounded queries when the question has a finite, bounded answer; prefer this over granting a cross-repository token or checking out the private repository into the primary workspace.
-
-    The `sbx` query runtime is experimental and capability-gated. AWF performs a fail-closed host preflight and does not fall back to Docker or gVisor. Docker Sandboxes v0.37.1 currently lacks mandatory per-VM network-none, PID, disk, file-size, and explicit guest mount-target controls, and no digest-pinned AWF Python-only template is available, so current hosts are rejected until those capabilities are present. This does not affect the independently selected primary agent sandbox.
 
 - **`safe-outputs:`** - Safe output processing configuration. See [safe-outputs.md](safe-outputs.md) for complete documentation of all output types: `create-issue`, `create-discussion`, `add-comment`, `create-pull-request`, `push-to-pull-request-branch`, `close-issue`, `close-discussion`, `update-issue`, `update-pull-request`, `add-labels`, `remove-labels`, `replace-label`, `dispatch-workflow`, `call-workflow`, `create-code-scanning-alert`, `upload-asset`, `upload-artifact`, `assign-to-agent`, `assign-to-user`, and more.
 

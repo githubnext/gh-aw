@@ -154,6 +154,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
+    id: awf
     sudo: false
 evals:
   - id: issue-created

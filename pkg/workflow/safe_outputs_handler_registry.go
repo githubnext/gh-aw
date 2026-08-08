@@ -86,6 +86,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtr("discussions", c.Discussions).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
+			AddTemplatableStringSlice("allows_comment_ids", c.AllowedCommentIDs).
 			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "add-comment", c.GitHubToken)).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
 			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).

@@ -63,22 +63,24 @@ func getWorkspaceCommandPrefixFor(config *EngineConfig) string {
 //     is not required for model routing).
 func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	provider := e.ResolveLLMProvider(workflowData)
-	if provider == LLMProviderGitHub && hasCopilotRequestsWritePermission(workflowData) {
-		copilotInstallLog.Print("Skipping secret validation step: permissions.copilot-requests=write enabled, using GitHub Actions token")
-		return GitHubActionStep{}
-	}
-	if engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBaseURL) ||
-		engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderAPIKey) ||
-		engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBearerToken) {
-		copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
-		return GitHubActionStep{}
-	}
-	return BuildDefaultSecretValidationStep(
-		workflowData,
-		llmProviderSecretNames(provider),
-		"GitHub Copilot CLI",
-		llmProviderDocsURL(provider),
-	)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: llmProviderSecretNames(provider),
+		EngineName:  "GitHub Copilot CLI",
+		DocsURL:     llmProviderDocsURL(provider),
+		Skip: func(workflowData *WorkflowData) bool {
+			if provider == LLMProviderGitHub && hasCopilotRequestsWritePermission(workflowData) {
+				copilotInstallLog.Print("Skipping secret validation step: permissions.copilot-requests=write enabled, using GitHub Actions token")
+				return true
+			}
+			if engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBaseURL) ||
+				engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderAPIKey) ||
+				engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBearerToken) {
+				copilotInstallLog.Print("Skipping COPILOT_GITHUB_TOKEN validation: BYOK provider credentials are configured")
+				return true
+			}
+			return false
+		},
+	})
 }
 
 // GetSecretFailureMessage returns a Copilot-specific guidance message shown in the agentic
@@ -477,45 +479,12 @@ func generateDockerComposeInstallStep() GitHubActionStep {
 //     not call setHostGatewayIP(), which breaks --add-host host.docker.internal:host-gateway.
 //   - Downloads both runsc and containerd-shim-runsc-v1; the shim is required for Docker's
 //     containerd integration.
+//   - Script source: actions/setup/sh/sudo_gvisor_install.sh (requires sudo).
 func generateGVisorInstallStep() GitHubActionStep {
 	version := constants.DefaultGVisorVersion
 	return GitHubActionStep([]string{
 		"      - name: Install gVisor (runsc)",
-		"        run: |",
-		"          set -euo pipefail",
-		"",
-		`          echo "::group::Install gVisor (runsc)"`,
-		`          ARCH=$(uname -m)`,
-		`          URL="https://storage.googleapis.com/gvisor/releases/release/` + version + `/${ARCH}"`,
-		`          echo "Downloading runsc ` + version + ` for ${ARCH}..."`,
-		`          curl -fsSL "${URL}/runsc" -o /tmp/runsc`,
-		`          curl -fsSL "${URL}/runsc.sha512" -o /tmp/runsc.sha512`,
-		`          echo "Verifying SHA-512 for runsc..."`,
-		`          (cd /tmp && sha512sum -c runsc.sha512)`,
-		`          curl -fsSL "${URL}/containerd-shim-runsc-v1" -o /tmp/containerd-shim-runsc-v1`,
-		`          curl -fsSL "${URL}/containerd-shim-runsc-v1.sha512" -o /tmp/containerd-shim-runsc-v1.sha512`,
-		`          echo "Verifying SHA-512 for containerd-shim-runsc-v1..."`,
-		`          (cd /tmp && sha512sum -c containerd-shim-runsc-v1.sha512)`,
-		`          sudo install -m 755 /tmp/runsc /usr/local/bin/runsc`,
-		`          sudo install -m 755 /tmp/containerd-shim-runsc-v1 /usr/local/bin/containerd-shim-runsc-v1`,
-		`          runsc --version`,
-		`          echo "::endgroup::"`,
-		"",
-		`          echo "::group::Register runsc as Docker runtime"`,
-		`          sudo runsc install`,
-		`          # IMPORTANT: Must use restart (not reload).`,
-		`          # Docker's SIGHUP reload does NOT call setHostGatewayIP(), so`,
-		`          # --add-host host.docker.internal:host-gateway breaks for any`,
-		`          # container started after a reload-only config change.`,
-		`          sudo systemctl restart docker`,
-		`          echo "Docker runtimes:"`,
-		`          docker info --format '{{.Runtimes}}' || docker info | grep -i runtime`,
-		`          echo "::endgroup::"`,
-		"",
-		`          echo "::group::Verify gVisor works"`,
-		`          docker pull hello-world`,
-		`          docker run --rm --runtime=runsc hello-world`,
-		`          echo "✅ gVisor runtime verified"`,
-		`          echo "::endgroup::"`,
+		"        # runner-guard:ignore RGS-012 -- pinned release, SHA-512 verified artifacts, download-only step (no outbound secret transmission).",
+		`        run: bash "${RUNNER_TEMP}/gh-aw/actions/sudo_gvisor_install.sh" ` + version,
 	})
 }

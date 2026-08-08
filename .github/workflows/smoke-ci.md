@@ -73,6 +73,10 @@ timeout-minutes: 5
 strict: true
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 For all events, call the tools in this exact order:

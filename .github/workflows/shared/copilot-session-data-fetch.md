@@ -28,6 +28,8 @@ tools:
     - "cat *"
     - "grep *"
     - "wc *"
+    - "head *"
+    - "tee *"
 
 steps:
   - name: Install gh CLI
@@ -36,8 +38,8 @@ steps:
 
   - name: Fetch Copilot session data
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     run: |
       # Create output directories
       mkdir -p /tmp/gh-aw/agent/session-data
@@ -132,6 +134,13 @@ steps:
         RUNS_TO_FETCH="${RUNNER_TEMP:-/tmp}/copilot-session-runs-${TODAY}.txt"
         jq -r '.[] | select(.status == "completed" and .conclusion != "action_required") | "\(.id) \(.head_branch)"' /tmp/gh-aw/agent/session-data/sessions-list.json > "$RUNS_TO_FETCH"
 
+        FETCH_STATUS_LOG="${RUNNER_TEMP:-/tmp}/copilot-session-fetch-status-${TODAY}.log"
+        rm -f "$FETCH_STATUS_LOG"
+        API_ERROR_COUNT=0
+        NO_JOBS_COUNT=0
+        EMPTY_LOG_COUNT=0
+        NO_MATCH_COUNT=0
+
         while read -r run_id branch; do
           if [ -n "$run_id" ]; then
             echo "Downloading session log for run $run_id (branch: $branch)"
@@ -177,16 +186,48 @@ steps:
               conversation_out="/tmp/gh-aw/agent/session-data/logs/${run_id}-conversation.txt"
               rm -f "$conversation_tmp" "$conversation_out"
 
-              for job_id in $(gh api "repos/$GITHUB_REPOSITORY/actions/runs/${run_id}/jobs" \
-                --jq '.jobs[].id' 2>/dev/null || true); do
+              jobs_err="${RUNNER_TEMP:-/tmp}/copilot-session-jobs-${run_id}.err"
+              rm -f "$jobs_err"
+              jobs_rc=0
+              job_ids="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/${run_id}/jobs" \
+                --jq '.jobs[].id' 2>"$jobs_err")" || jobs_rc=$?
+
+              if [ -z "$job_ids" ]; then
+                if [ "$jobs_rc" -ne 0 ]; then
+                  reason="$(head -c 300 "$jobs_err" 2>/dev/null | tr '\n' ' ')"
+                  echo "  Failed to list jobs for run $run_id (exit=$jobs_rc): ${reason:-no error output}" | tee -a "$FETCH_STATUS_LOG"
+                  API_ERROR_COUNT=$((API_ERROR_COUNT + 1))
+                else
+                  echo "  No jobs found for run $run_id" | tee -a "$FETCH_STATUS_LOG"
+                  NO_JOBS_COUNT=$((NO_JOBS_COUNT + 1))
+                fi
+              fi
+              rm -f "$jobs_err"
+
+              for job_id in $job_ids; do
                 raw_log="/tmp/gh-aw/agent/session-data/logs/${run_id}-${job_id}-raw.log"
+                raw_log_err="${RUNNER_TEMP:-/tmp}/copilot-session-log-${run_id}-${job_id}.err"
+                rm -f "$raw_log_err"
+                log_rc=0
                 gh api "repos/$GITHUB_REPOSITORY/actions/jobs/${job_id}/logs" \
-                  > "$raw_log" 2>/dev/null || true
+                  > "$raw_log" 2>"$raw_log_err" || log_rc=$?
 
                 if [ -f "$raw_log" ] && [ -s "$raw_log" ]; then
-                  grep "\[cca-engine\] turn=" "$raw_log" >> "$conversation_tmp" 2>/dev/null || true
+                  if grep "\[cca-engine\] turn=" "$raw_log" >> "$conversation_tmp" 2>/dev/null; then
+                    :
+                  else
+                    echo "  Job $job_id log downloaded (no [cca-engine] turn= lines; likely a CI/gate job, not the agent job)" | tee -a "$FETCH_STATUS_LOG"
+                    NO_MATCH_COUNT=$((NO_MATCH_COUNT + 1))
+                  fi
+                elif [ "$log_rc" -ne 0 ]; then
+                  reason="$(head -c 300 "$raw_log_err" 2>/dev/null | tr '\n' ' ')"
+                  echo "  Failed to download log for job $job_id (run $run_id, exit=$log_rc): ${reason:-no error output}" | tee -a "$FETCH_STATUS_LOG"
+                  API_ERROR_COUNT=$((API_ERROR_COUNT + 1))
+                else
+                  echo "  Log for job $job_id (run $run_id) was empty" | tee -a "$FETCH_STATUS_LOG"
+                  EMPTY_LOG_COUNT=$((EMPTY_LOG_COUNT + 1))
                 fi
-                rm -f "$raw_log" 2>/dev/null || true
+                rm -f "$raw_log" "$raw_log_err" 2>/dev/null || true
               done
 
               if [ -s "$conversation_tmp" ]; then
@@ -207,6 +248,10 @@ steps:
         EVENTS_COUNT=$(find /tmp/gh-aw/agent/session-data/logs/ -type f -name "*-events.jsonl" | wc -l)
         CONVERSATION_COUNT=$(find /tmp/gh-aw/agent/session-data/logs/ -type f -name "*-conversation.txt" | wc -l)
         echo "Session logs downloaded: $LOG_RUN_COUNT of $AGENT_COUNT agent runs ($EVENTS_COUNT events.jsonl, $CONVERSATION_COUNT transcript fallbacks)"
+
+        if [ "$CONVERSATION_COUNT" -eq 0 ] && [ "$EVENTS_COUNT" -eq 0 ] && [ "$AGENT_COUNT" -gt 0 ]; then
+          echo "::warning::No transcripts retrieved for any of the $AGENT_COUNT agent runs (API errors: $API_ERROR_COUNT, no jobs found: $NO_JOBS_COUNT, empty logs: $EMPTY_LOG_COUNT, no matching lines: $NO_MATCH_COUNT). If API errors dominate, this may indicate the token in use lacks access to download job logs for Copilot coding-agent runs (permission error), a transient network/rate-limit issue, or the runs were deleted (404); check the per-run reasons logged above. If permission errors are the cause, configure the GH_AW_GITHUB_TOKEN secret with a PAT that has actions:read on this repository."
+        fi
 
         if [ "$AGENT_COUNT" -gt 0 ] && [ "$LOG_RUN_COUNT" -lt "$AGENT_COUNT" ]; then
           echo "::warning::$((AGENT_COUNT - LOG_RUN_COUNT)) of $AGENT_COUNT agent runs have no retrievable session log; proceeding with $LOG_RUN_COUNT available logs"
@@ -258,7 +303,9 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 
 The fetcher first downloads non-expired GitHub Actions artifacts for each completed real agent run (status = `completed`, conclusion ≠ `action_required`) and extracts any `events.jsonl` files. When no structured events artifact is available, it falls back to raw GitHub Actions job logs and extracts `[cca-engine] turn=` lines as a transcript. CI gate runs (`action_required`) are skipped because they have no agent conversation.
 
-If a real agent run has neither an `events.jsonl` artifact nor a transcript fallback, the fetch step emits a GitHub Actions warning and continues with the available logs.
+If a real agent run has neither an `events.jsonl` artifact nor a transcript fallback, the fetch step emits a GitHub Actions warning and continues with the available logs. Every per-run failure (job listing error, log download error, empty log, or a downloaded log with no matching `[cca-engine]` lines) is logged individually with its specific reason, and a summary warning breaks down the failure counts by category (API errors, no jobs found, empty logs, no matching lines) so the actual cause is visible instead of a silently empty `logs/` directory. API errors are counted by non-zero `gh api` exit code and can stem from permission errors, rate limiting, or deleted runs — check the per-run log lines for the specific reason rather than assuming a permissions issue.
+
+**Known root cause of empty transcripts**: downloading job logs for GitHub Copilot coding-agent runs (the special `dynamic/copilot-swe-agent/copilot` workflow path) via `gh api repos/{owner}/{repo}/actions/jobs/{job_id}/logs` can fail with an authorization error when using the default `GITHUB_TOKEN`, even with `actions: read` permission — mirroring the same OAuth requirement documented below for `gh agent-task view --log`. The fetch step now authenticates with `secrets.GH_AW_GITHUB_TOKEN` (falling back to `secrets.GITHUB_TOKEN` if unset) so that, once a PAT with `actions:read` is configured as `GH_AW_GITHUB_TOKEN`, job-log downloads for these runs succeed.
 
 The `gh agent-task view --log` approach that was previously used **requires an OAuth token** that the default `GITHUB_TOKEN` does not provide, and relied on extracting a numeric session ID from the branch name — which stopped working when Copilot switched to descriptive branch slugs (e.g., `copilot/fix-mcp-gateway-docker-daemon-access`).
 
@@ -322,7 +369,7 @@ cat /tmp/gh-aw/agent/session-data/logs/29001106791-conversation.txt
 
 - Automatically imports the `jqschema` skill for schema generation (via transitive import closure)
 - Uses GitHub Actions API to fetch workflow runs from `copilot/*` branches
-- **Fetches structured `events.jsonl` from GitHub Actions artifacts**, then falls back to conversation transcripts from GitHub Actions job logs using `actions: read` permission (standard `GITHUB_TOKEN` is sufficient)
+- **Fetches structured `events.jsonl` from GitHub Actions artifacts**, then falls back to conversation transcripts from GitHub Actions job logs using `actions: read` permission. For most repository workflow runs the standard `GITHUB_TOKEN` is sufficient; downloading job logs from GitHub Copilot coding-agent runs specifically may require a PAT configured as the `GH_AW_GITHUB_TOKEN` repository secret (the fetch step falls back to `GITHUB_TOKEN` automatically if that secret is unset)
 - Cross-platform date calculation (works on both GNU and BSD date commands)
 - Cache-memory tool is automatically configured for data persistence
 

@@ -3,6 +3,7 @@
 
 /** @type {typeof import("fs")} */
 const fs = require("fs");
+const path = require("path");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
@@ -19,7 +20,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
-const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
+const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatWarningPresentation } = require("./threat_detection_warning.cjs");
 const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
@@ -113,11 +114,37 @@ function parsePositiveInteger(value) {
  * @returns {Promise<string[]>}
  */
 async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef) {
-  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..${bundleRef}`], gitOptions);
-  return bundleDiffResult.stdout
-    .split("\n")
-    .map(f => f.trim())
-    .filter(Boolean);
+  const bundleDiffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..${bundleRef}`], gitOptions);
+  return bundleDiffResult.stdout.split("\0").filter(Boolean);
+}
+
+/**
+ * Measure the expanded blob size of files changed by the applied agent commits.
+ * Deleted files contribute zero bytes because no new content is being introduced.
+ *
+ * @param {Record<string, unknown>} gitOptions
+ * @param {string[]} files
+ * @returns {number}
+ */
+function getChangedBlobSizeBytes(gitOptions, files) {
+  let total = 0;
+  const cwd = typeof gitOptions.cwd === "string" && gitOptions.cwd ? gitOptions.cwd : process.cwd();
+  const resolvedCwd = path.resolve(cwd);
+  for (const file of files) {
+    const filePath = path.resolve(resolvedCwd, file);
+    if (filePath !== resolvedCwd && !filePath.startsWith(`${resolvedCwd}${path.sep}`)) {
+      continue;
+    }
+    try {
+      const stats = fs.statSync(filePath);
+      if (stats.isFile()) {
+        total += stats.size;
+      }
+    } catch {
+      // Deleted files have no expanded content to add to the limit.
+    }
+  }
+  return total;
 }
 
 /**
@@ -432,15 +459,8 @@ async function main(config = {}) {
     // Validate patch/bundle size against `max_patch_size`.
     //
     // Size-check source of truth, in order of preference:
-    //   1. `message.diff_size` — the incremental net diff size recorded at
-    //      patch/bundle generation time (this is the correct quantity to cap:
-    //      how much the PR branch will actually change as a result of the push).
-    //   2. For bundle transport: the on-disk bundle file size.
-    //   3. For patch transport: the format-patch file size.
-    //
-    // Using `diff_size` when present fixes the long-running branch case where
-    // the transport file accumulates per-commit metadata + per-commit diffs and
-    // can be many MB even when each iteration only changes a few KB.
+    // Use the uncompressed patch representation for both transport modes.
+    // Bundle size is compressed and can undercount highly compressible changes.
     if (!isEmpty) {
       const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
       const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
@@ -455,21 +475,8 @@ async function main(config = {}) {
       }
       const bundleSizeKb = Math.ceil(bundleSizeBytes / 1024);
 
-      const diffSizeBytesRaw = message.diff_size;
-      const haveDiffSize = typeof diffSizeBytesRaw === "number" && diffSizeBytesRaw >= 0;
-
-      let sizeForCheckBytes;
-      let sizeLabel;
-      if (haveDiffSize) {
-        sizeForCheckBytes = diffSizeBytesRaw;
-        sizeLabel = "Incremental diff size";
-      } else if (hasBundleFile) {
-        sizeForCheckBytes = bundleSizeBytes;
-        sizeLabel = "Bundle size";
-      } else {
-        sizeForCheckBytes = patchSizeBytes;
-        sizeLabel = "Patch size";
-      }
+      const sizeForCheckBytes = patchSizeBytes;
+      const sizeLabel = "Patch size";
       const sizeForCheckKb = Math.ceil(sizeForCheckBytes / 1024);
 
       if (hasBundleFile) {
@@ -481,14 +488,7 @@ async function main(config = {}) {
 
       if (sizeForCheckKb > maxSizeKb) {
         let msg;
-        if (haveDiffSize) {
-          const transportLabel = hasBundleFile ? `Bundle size: ${bundleSizeKb} KB` : `Patch file size: ${patchSizeKb} KB`;
-          msg = `Incremental diff size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB). ${transportLabel}.`;
-        } else if (hasBundleFile) {
-          msg = `Bundle size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-        } else {
-          msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-        }
+        msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
         return { success: false, error: msg };
       }
 
@@ -965,8 +965,8 @@ async function main(config = {}) {
       // Pin patch application to the recorded base commit captured at patch-generation time.
       // This avoids applying a patch generated from an older branch tip onto a newer remote tip.
       // If the commit is unavailable (e.g. cross-repo/missing object), continue with current HEAD.
-      if (!hasBundleFile && message.base_commit) {
-        const recordedBaseCommit = normalizeCommitSHA(message.base_commit);
+      if (!hasBundleFile) {
+        const recordedBaseCommit = extractPatchBaseCommit(patchContent);
         if (recordedBaseCommit) {
           core.info(`Patch route base_commit resolved: ${recordedBaseCommit}`);
           try {
@@ -992,8 +992,6 @@ async function main(config = {}) {
           } catch (baseCommitError) {
             core.warning(`Unable to use recorded base_commit ${recordedBaseCommit}; applying patch on current branch HEAD: ${getErrorMessage(baseCommitError)}`);
           }
-        } else if (String(message.base_commit).trim()) {
-          core.warning(`Ignoring invalid base_commit value for patch apply: ${String(message.base_commit).trim()}`);
         }
       }
 
@@ -1218,11 +1216,8 @@ async function main(config = {}) {
       // (see github/agentic-workflows#539)
       let agentChangedFiles = [];
       {
-        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", `${rangeBaseRef}..HEAD`], baseGitOpts);
-        const actualFiles = diffResult.stdout
-          .split("\n")
-          .map(f => f.trim())
-          .filter(Boolean);
+        const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${rangeBaseRef}..HEAD`], baseGitOpts);
+        const actualFiles = diffResult.stdout.split("\0").filter(Boolean);
         agentChangedFiles = actualFiles;
         if (actualFiles.length > 0) {
           core.info(`Post-apply verification: ${actualFiles.length} file(s) actually modified`);
@@ -1239,6 +1234,15 @@ async function main(config = {}) {
             core.warning(`Post-apply: Protected file protection triggered (fallback-to-issue): ${postApplyProtection.files.join(", ")}`);
             await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
             return await createProtectedFilesFallbackIssue(postApplyProtection.files);
+          }
+
+          const changedBlobSizeBytes = getChangedBlobSizeBytes(baseGitOpts, actualFiles);
+          const changedBlobSizeKb = Math.ceil(changedBlobSizeBytes / 1024);
+          core.info(`Changed content size: ${changedBlobSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+          if (changedBlobSizeKb > maxSizeKb) {
+            const msg = `Changed content size (${changedBlobSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+            await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
+            return { success: false, error: msg };
           }
         }
       }

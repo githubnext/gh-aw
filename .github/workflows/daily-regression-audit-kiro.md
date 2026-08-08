@@ -12,6 +12,7 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
+    id: awf
     sudo: false
 tracker-id: daily-regression-audit-kiro
 engine:
@@ -43,6 +44,7 @@ timeout-minutes: 25
 imports:
   - shared/kiro.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Regression Audit — Kiro

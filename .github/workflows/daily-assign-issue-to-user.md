@@ -18,7 +18,9 @@ engine:
 max-tool-denials: 3
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tools:
   cli-proxy: true
   github:

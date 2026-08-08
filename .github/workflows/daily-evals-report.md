@@ -17,7 +17,9 @@ engine:
 tracker-id: daily-evals-report
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 features:
   gh-aw-detection: true
 timeout-minutes: 45

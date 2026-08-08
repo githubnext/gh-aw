@@ -19,6 +19,7 @@ engine:
 imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   cli-proxy: true
   github:

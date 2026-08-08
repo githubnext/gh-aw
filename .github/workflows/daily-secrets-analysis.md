@@ -13,8 +13,8 @@ permissions:
 
 sandbox:
   agent:
+    id: awf
     sudo: false
-
 engine:
   id: copilot
   copilot-sdk: true

@@ -40,6 +40,10 @@ evals:
     question: Did the agent analyze GitHub Docs for opportunities to improve Agentic Workflows recommendations in Copilot CLI?
   - id: recommendation_reported
     question: Did the agent report an actionable documentation recommendation or explain why no update was needed?
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Daily GitHub Docs SEO Optimizer

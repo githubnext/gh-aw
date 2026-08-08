@@ -46,6 +46,7 @@ strict: true
 timeout-minutes: 45
 sandbox:
   agent:
+    id: awf
     sudo: false
 tools:
   bash:

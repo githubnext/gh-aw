@@ -52,6 +52,10 @@ safe-outputs:
 timeout-minutes: 15
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke Test: Kiro Engine Validation

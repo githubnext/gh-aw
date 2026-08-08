@@ -118,7 +118,7 @@ describe("mcp_enhanced_errors.cjs", () => {
       };
       const result = generateEnhancedErrorMessage(["item_number"], "add_comment", schema);
 
-      expect(result).toContain("Invalid arguments: missing or empty 'item_number'");
+      expect(result).toContain("ERR_VALIDATION: Invalid arguments: missing or empty 'item_number'");
       expect(result).toContain("Required parameter 'item_number': The issue, pull request, or discussion number to comment on.");
       expect(result).toContain("Example:");
       expect(result).toContain('"item_number": 123');
@@ -136,7 +136,7 @@ describe("mcp_enhanced_errors.cjs", () => {
       };
       const result = generateEnhancedErrorMessage(["title", "body"], "create_issue", schema);
 
-      expect(result).toContain("Invalid arguments: missing or empty 'title', 'body'");
+      expect(result).toContain("ERR_VALIDATION: Invalid arguments: missing or empty 'title', 'body'");
       expect(result).toContain("Required parameter 'title': Issue title.");
       expect(result).toContain("Required parameter 'body': Issue body.");
       expect(result).toContain("Example:");
@@ -152,25 +152,25 @@ describe("mcp_enhanced_errors.cjs", () => {
       };
       const result = generateEnhancedErrorMessage(["field1"], "test_tool", schema);
 
-      expect(result).toContain("Invalid arguments: missing or empty 'field1'");
+      expect(result).toContain("ERR_VALIDATION: Invalid arguments: missing or empty 'field1'");
       expect(result).toContain("Example:");
     });
 
     it("should handle empty missing fields array", () => {
       const result = generateEnhancedErrorMessage([], "test_tool", {});
-      expect(result).toBe("Invalid arguments");
+      expect(result).toBe("ERR_VALIDATION: Invalid arguments");
     });
 
     it("should handle null missing fields", () => {
       const result = generateEnhancedErrorMessage(null, "test_tool", {});
-      expect(result).toBe("Invalid arguments");
+      expect(result).toBe("ERR_VALIDATION: Invalid arguments");
     });
 
     it("should handle schema without properties", () => {
       const schema = { type: "object", required: ["field1"] };
       const result = generateEnhancedErrorMessage(["field1"], "test_tool", schema);
 
-      expect(result).toContain("Invalid arguments: missing or empty 'field1'");
+      expect(result).toContain("ERR_VALIDATION: Invalid arguments: missing or empty 'field1'");
       expect(result).toContain("Example:");
     });
   });

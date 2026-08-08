@@ -198,15 +198,11 @@ func (e *PiEngine) GetSupportedEnvVarKeys() []string {
 func (e *PiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	backend := resolvePiBackend(workflowData)
 	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
-	if len(profile.coreSecretNames) == 0 {
-		return GitHubActionStep{}
-	}
-	return BuildDefaultSecretValidationStep(
-		workflowData,
-		profile.coreSecretNames,
-		"Pi",
-		"https://github.github.com/gh-aw/reference/engines/#pi",
-	)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: profile.coreSecretNames,
+		EngineName:  "Pi",
+		DocsURL:     "https://github.github.com/gh-aw/reference/engines/#pi",
+	})
 }
 
 // GetInstallationSteps returns the GitHub Actions steps needed to install the Pi CLI.

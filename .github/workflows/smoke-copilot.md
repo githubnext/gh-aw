@@ -172,6 +172,10 @@ evals:
   - id: issue-created
     question: Was a smoke test issue created with test results? Look for a create_issue output containing 'Smoke Test' in the title.
 
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke Test: Copilot Engine Validation

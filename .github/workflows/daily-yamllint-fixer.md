@@ -102,6 +102,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
+    id: awf
     sudo: false
 evals:
   - id: lint_issues_identified
