@@ -745,9 +745,62 @@ This appendix is generated from the current non-test Go source files in this pac
 
 <!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
 
+### Additional exported top-level functions (verified 2026-08-08)
+
+| File | Function | Signature | Description |
+|------|----------|-----------|-------------|
+| `actions_build_command.go` | `ActionsBuildCommand` | `func ActionsBuildCommand() error` | Builds all custom GitHub Actions by bundling JavaScript dependencies. |
+| `actions_build_command.go` | `ActionsCleanCommand` | `func ActionsCleanCommand() error` | Removes generated `index.js` files from all actions. |
+| `actions_build_command.go` | `ActionsValidateCommand` | `func ActionsValidateCommand() error` | Validates all `action.yml` files. |
+| `ci.go` | `IsRunningInCI` | `func IsRunningInCI() bool` | Checks if the process is running in a CI environment. |
+| `compile_external_tools.go` | `RunGrantOnLockFiles` | `func RunGrantOnLockFiles(lockFiles []string, verbose bool, strict bool) error` | Runs the `grant` tool against lock files derived from `gh-aw-manifest` headers. |
+| `compile_external_tools.go` | `RunGrypeOnLockFiles` | `func RunGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error` | Runs Grype against pinned images referenced by lock files, deduplicated and cached per image. |
+| `compile_external_tools.go` | `RunPoutineOnDirectory` | `func RunPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error` | Scans all workflows in a directory once with Poutine. |
+| `compile_external_tools.go` | `RunRunnerGuardOnDirectory` | `func RunRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) error` | Scans all workflows in a directory once with runner-guard. |
+| `compile_external_tools.go` | `RunShellcheckOnLockFiles` | `func RunShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error` | Runs shellcheck across lock files; returns nil when shellcheck is unavailable. |
+| `compile_external_tools.go` | `RunSyftOnLockFiles` | `func RunSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error` | Generates SBOMs with Syft from images referenced by lock file manifests. |
+| `compile_external_tools.go` | `RunYamllintOnFiles` | `func RunYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error` | Runs yamllint once across all provided lock files. |
+| `compile_external_tools.go` | `RunZizmorOnFiles` | `func RunZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error` | Runs zizmor once across all provided lock files. |
+| `copilot_agent_logs.go` | `ParseCopilotCodingAgentLogMetrics` | `func ParseCopilotCodingAgentLogMetrics(logContent string, verbose bool) workflow.LogMetrics` | Parses GitHub Copilot coding agent logs, which use a different format than Copilot CLI logs. |
+| `docker_images.go` | `IsDockerAvailable` | `func IsDockerAvailable(ctx context.Context) bool` | Checks if the Docker daemon is running and accessible. |
+| `docker_images.go` | `IsDockerImageAvailable` | `func IsDockerImageAvailable(ctx context.Context, image string) bool` | Checks if a Docker image is available locally. |
+| `docker_images.go` | `IsDockerImageDownloading` | `func IsDockerImageDownloading(image string) bool` | Checks if a Docker image is currently being downloaded. |
+| `docker_images.go` | `StartDockerImageDownload` | `func StartDockerImageDownload(ctx context.Context, image string) (bool, func() error)` | Starts a background Docker image pull and returns a wait function for its result. |
+| `domains_command.go` | `RunListDomains` | `func RunListDomains(jsonOutput bool) error` | Lists all workflows with their domain configuration summary. |
+| `domains_command.go` | `RunWorkflowDomains` | `func RunWorkflowDomains(workflowArg string, jsonOutput bool) error` | Lists all effective domains for a specific workflow. |
+| `drain3_train.go` | `TrainDrain3Weights` | `func TrainDrain3Weights(processedRuns []ProcessedRun, outputDir string, verbose bool) error` | Trains Drain3 anomaly-detection weights from processed runs; invoked by `logs --train`. |
+| `enable.go` | `DisableWorkflowsByNames` | `func DisableWorkflowsByNames(ctx context.Context, workflowNames []string, repoOverride string) error` | Disables workflows by specific names, or all workflows if none are provided. |
+| `enable.go` | `EnableWorkflowsByNames` | `func EnableWorkflowsByNames(ctx context.Context, workflowNames []string, repoOverride string) error` | Enables workflows by specific names, or all workflows if none are provided. |
+| `fix_codemods.go` | `GetAllCodemods` | `func GetAllCodemods() []Codemod` | Returns all available codemods in the registry. |
+| `fix_command.go` | `RunFix` | `func RunFix(config FixConfig) error` | Runs the `fix` command with the given configuration. |
+| `generate_action_metadata_command.go` | `GenerateActionMetadataCommand` | `func GenerateActionMetadataCommand() error` | Generates `action.yml` and README.md files for JavaScript modules. |
+| `hash_command.go` | `RunHashFrontmatter` | `func RunHashFrontmatter(workflowPath string) error` | Computes and prints the frontmatter hash for a workflow. |
+| `includes.go` | `FetchIncludeFromSource` | `func FetchIncludeFromSource(ctx context.Context, includePath string, baseSpec *WorkflowSpec, verbose bool) ([]byte, string, error)` | Fetches include content and its `#fragment` section from a local or remote source. |
+| `list_workflows_command.go` | `RunListWorkflows` | `func RunListWorkflows(ctx context.Context, repo, path, pattern string, verbose bool, jsonOutput bool, labelFilter string) error` | Lists workflows without checking their GitHub Actions status. |
+| `logs_artifact_set.go` | `ResolveArtifactFilter` | `func ResolveArtifactFilter(sets []string) []string` | Resolves named artifact sets to a filter list; returns nil for `ArtifactSetAll`. |
+| `logs_artifact_set.go` | `ValidArtifactSetNames` | `func ValidArtifactSetNames() []string` | Returns the valid artifact set names, derived dynamically from the artifact-set map. |
+| `logs_artifact_set.go` | `ValidateArtifactSets` | `func ValidateArtifactSets(sets []string) error` | Validates artifact set names, returning an error listing any unrecognized names. |
+| `logs_metrics.go` | `ExtractLogMetricsFromRun` | `func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics` | Extracts log metrics from a processed run's log directory. |
+| `mcp_safe_update_cache.go` | `CollectLockFileManifests` | `func CollectLockFileManifests(workflowsDir string) map[string]*workflow.GHAWManifest` | Collects manifests from lock files so they cannot be tampered with by the agent. |
+| `mcp_safe_update_cache.go` | `WritePriorManifestFile` | `func WritePriorManifestFile(cache map[string]*workflow.GHAWManifest) (string, error)` | Writes a prior-manifest cache file and returns its path; caller must remove it when done. |
+| `outcomes_history.go` | `RunOutcomesHistory` | `func RunOutcomesHistory(config OutcomesHistoryConfig) error` | Runs the outcomes-history report for a given configuration. |
+| `project_command.go` | `RunProjectNew` | `func RunProjectNew(ctx context.Context, config ProjectConfig) error` | Executes the project creation logic. |
+| `remove_command.go` | `RemoveWorkflows` | `func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error` | Removes workflows matching a pattern. |
+| `run_interactive.go` | `RunSpecificWorkflowInteractively` | `func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) error` | Runs a known workflow interactively, collecting inputs if the workflow defines any. |
+| `run_interactive.go` | `RunWorkflowInteractively` | `func RunWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) error` | Runs a workflow in interactive mode. |
+| `run_workflow_validation.go` | `IsRunnable` | `func IsRunnable(markdownPath string) (bool, error)` | Checks whether the compiled `.lock.yml` for a workflow is runnable. |
+| `setup_repository.go` | `RunSetupAuth` | `func RunSetupAuth(opts SetupAuthOptions) error` | Runs the repository authentication setup flow. |
+| `setup_repository.go` | `RunSetupRepositoryCheck` | `func RunSetupRepositoryCheck(opts SetupRepositoryCheckOptions) error` | Runs the repository setup readiness check. |
+| `trial_runner.go` | `RunWorkflowTrials` | `func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOptions) error` | Executes trial runs for one or more workflows. |
+| `update_actions.go` | `UpdateActions` | `func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump bool, coolDown time.Duration) error` | Updates pinned GitHub Actions references, bumping SHAs and cooldown state. |
+| `update_actions.go` | `UpdateActionsInWorkflowFiles` | `func UpdateActionsInWorkflowFiles(ctx context.Context, workflowsDir, engineOverride string, verbose, disableReleaseBump bool, noCompile bool, coolDown time.Duration, approve bool) error` | Scans workflow files and updates `actions/*` references. |
+| `validators.go` | `ValidateWorkflowName` | `func ValidateWorkflowName(s string) error` | Ensures a workflow name is non-empty and contains only alphanumeric characters, hyphens, and underscores. |
+
+Method-form symbols on exported types (e.g. `(*FileTracker).TrackCreated`, `(*DomainBuckets).SetAllowedDomains`, `(*ToolGraph).AddSequence`) are already documented in the "Additional functions and methods" table above; the entries here cover only package-level functions that were not yet listed.
+
 ## Source Synchronization
 
-Reviewed against recent source updates on 2026-07-17; no additional public-contract deltas were identified beyond the sections above.
+Reviewed against recent source updates on 2026-08-08; the "Additional exported top-level functions" table above was added after diffing the full exported-symbol list against this README. No other public-contract deltas were identified beyond the sections above.
 
 ---
 
