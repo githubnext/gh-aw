@@ -52,6 +52,10 @@ func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 	// Add all evals steps: engine install, engine execution, parse, redact, upload.
 	steps = append(steps, c.buildEvalsJobSteps(data)...)
 
+	if c.actionMode.IsDev() {
+		steps = append(steps, c.generateRestoreActionsSetupStep())
+	}
+
 	// Determine job dependencies.
 	// Evals always depends on agent and activation, and additionally on detection when the detection job is enabled.
 	// This allows evals to run in parallel with safe_outputs.
