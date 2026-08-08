@@ -71,7 +71,17 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	if err != nil {
 		return nil, err
 	}
-	engineConfig, model = c.applyEngineImportDefaults(engineConfig, model, engineSetting, importsResult, importedEngineDefinitions, preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses)
+	engineConfig, model = c.applyEngineImportDefaults(engineImportDefaultsOptions{
+		engineConfig:                engineConfig,
+		model:                       model,
+		engineSetting:               engineSetting,
+		importsResult:               importsResult,
+		importedEngineDefinitions:   importedEngineDefinitions,
+		preservedMaxTurns:           preservedMaxTurns,
+		preservedMaxAICredits:       preservedMaxAICredits,
+		preservedMaxRuns:            preservedMaxRuns,
+		preservedMaxTurnCacheMisses: preservedMaxTurnCacheMisses,
+	})
 	agenticEngine, configSteps, err := c.resolveEngineRuntimeConfig(engineSetting, engineConfig)
 	if err != nil {
 		return nil, err
@@ -343,95 +353,99 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	return engineSetting, engineConfig, model, allEngines, nil
 }
 
+type engineImportDefaultsOptions struct {
+	engineConfig                *EngineConfig
+	model                       string
+	engineSetting               string
+	importsResult               *parser.ImportsResult
+	importedEngineDefinitions   []string
+	preservedMaxTurns           string
+	preservedMaxAICredits       int64
+	preservedMaxRuns            int
+	preservedMaxTurnCacheMisses int
+}
+
 // applyEngineImportDefaults merges import-derived engine defaults into engineConfig.
 // It mutates the provided config when non-nil and returns the effective pointer.
 // Callers must always use the returned value because a new config may be allocated
 // when the input engineConfig is nil.
-func (c *Compiler) applyEngineImportDefaults(
-	engineConfig *EngineConfig,
-	model string,
-	engineSetting string,
-	importsResult *parser.ImportsResult,
-	importedEngineDefinitions []string,
-	preservedMaxTurns string,
-	preservedMaxAICredits int64,
-	preservedMaxRuns int,
-	preservedMaxTurnCacheMisses int,
-) (*EngineConfig, string) {
+func (c *Compiler) applyEngineImportDefaults(opts engineImportDefaultsOptions) (*EngineConfig, string) {
+	engineConfig := opts.engineConfig
+	model := opts.model
 	if engineConfig == nil {
-		engineConfig = &EngineConfig{ID: engineSetting}
+		engineConfig = &EngineConfig{ID: opts.engineSetting}
 	}
-	if preservedMaxTurns != "" {
-		engineConfig.MaxTurns = preservedMaxTurns
+	if opts.preservedMaxTurns != "" {
+		engineConfig.MaxTurns = opts.preservedMaxTurns
 	}
-	if preservedMaxAICredits != 0 {
-		engineConfig.MaxAICredits = preservedMaxAICredits
+	if opts.preservedMaxAICredits != 0 {
+		engineConfig.MaxAICredits = opts.preservedMaxAICredits
 	}
-	if preservedMaxRuns > 0 {
-		engineConfig.MaxRuns = preservedMaxRuns
+	if opts.preservedMaxRuns > 0 {
+		engineConfig.MaxRuns = opts.preservedMaxRuns
 	}
-	if preservedMaxTurnCacheMisses > 0 {
-		engineConfig.MaxTurnCacheMisses = preservedMaxTurnCacheMisses
+	if opts.preservedMaxTurnCacheMisses > 0 {
+		engineConfig.MaxTurnCacheMisses = opts.preservedMaxTurnCacheMisses
 	}
-	if engineConfig.MaxTurns == "" && importsResult.MergedMaxTurns != "" {
+	if engineConfig.MaxTurns == "" && opts.importsResult.MergedMaxTurns != "" {
 		var importedMaxTurns any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxTurns), &importedMaxTurns); err == nil {
+		if err := json.Unmarshal([]byte(opts.importsResult.MergedMaxTurns), &importedMaxTurns); err == nil {
 			if parsed := parseMaxTurnsValue(importedMaxTurns); parsed != "" {
 				engineConfig.MaxTurns = parsed
 				orchestratorEngineLog.Printf("Applied max-turns from import")
 			}
 		}
 	}
-	if engineConfig.MaxToolDenials == "" && importsResult.MergedMaxToolDenials != "" {
+	if engineConfig.MaxToolDenials == "" && opts.importsResult.MergedMaxToolDenials != "" {
 		var importedMaxToolDenials any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxToolDenials), &importedMaxToolDenials); err == nil {
+		if err := json.Unmarshal([]byte(opts.importsResult.MergedMaxToolDenials), &importedMaxToolDenials); err == nil {
 			if parsed := parseMaxToolDenialsValue(importedMaxToolDenials); parsed != "" {
 				engineConfig.MaxToolDenials = parsed
 				orchestratorEngineLog.Printf("Applied max-tool-denials from import")
 			}
 		}
 	}
-	if engineConfig.MaxRuns <= 0 && importsResult.MergedMaxRuns != "" {
+	if engineConfig.MaxRuns <= 0 && opts.importsResult.MergedMaxRuns != "" {
 		var importedMaxRuns any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxRuns), &importedMaxRuns); err == nil {
+		if err := json.Unmarshal([]byte(opts.importsResult.MergedMaxRuns), &importedMaxRuns); err == nil {
 			if parsed := parseMaxRunsValue(importedMaxRuns); parsed > 0 {
 				engineConfig.MaxRuns = parsed
 				orchestratorEngineLog.Printf("Applied max-runs from import")
 			}
 		}
 	}
-	if engineConfig.MaxAICredits == 0 && importsResult.MergedMaxAICredits != "" {
+	if engineConfig.MaxAICredits == 0 && opts.importsResult.MergedMaxAICredits != "" {
 		var importedMaxAICredits any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxAICredits), &importedMaxAICredits); err == nil {
+		if err := json.Unmarshal([]byte(opts.importsResult.MergedMaxAICredits), &importedMaxAICredits); err == nil {
 			if parsed := parseMaxAICreditsValue(importedMaxAICredits); parsed != 0 {
 				engineConfig.MaxAICredits = parsed
 				orchestratorEngineLog.Printf("Applied max-ai-credits from import")
 			}
 		}
 	}
-	if engineConfig.MaxTurnCacheMisses <= 0 && importsResult.MergedMaxTurnCacheMisses != "" {
+	if engineConfig.MaxTurnCacheMisses <= 0 && opts.importsResult.MergedMaxTurnCacheMisses != "" {
 		var importedMaxTurnCacheMisses any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxTurnCacheMisses), &importedMaxTurnCacheMisses); err == nil {
+		if err := json.Unmarshal([]byte(opts.importsResult.MergedMaxTurnCacheMisses), &importedMaxTurnCacheMisses); err == nil {
 			if parsed := parseMaxTurnCacheMissesValue(importedMaxTurnCacheMisses); parsed > 0 {
 				engineConfig.MaxTurnCacheMisses = parsed
 				orchestratorEngineLog.Printf("Applied max-turn-cache-misses from import")
 			}
 		}
 	}
-	if engineConfig.MCPToolTimeout == "" && importsResult.MergedEngineMCPToolTimeout != "" {
-		engineConfig.MCPToolTimeout = importsResult.MergedEngineMCPToolTimeout
+	if engineConfig.MCPToolTimeout == "" && opts.importsResult.MergedEngineMCPToolTimeout != "" {
+		engineConfig.MCPToolTimeout = opts.importsResult.MergedEngineMCPToolTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.tool-timeout from import: %s", engineConfig.MCPToolTimeout)
 	}
-	if engineConfig.MCPSessionTimeout == "" && importsResult.MergedEngineMCPSessionTimeout != "" {
-		engineConfig.MCPSessionTimeout = importsResult.MergedEngineMCPSessionTimeout
+	if engineConfig.MCPSessionTimeout == "" && opts.importsResult.MergedEngineMCPSessionTimeout != "" {
+		engineConfig.MCPSessionTimeout = opts.importsResult.MergedEngineMCPSessionTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.session-timeout from import: %s", engineConfig.MCPSessionTimeout)
 	}
-	if model == "" && importsResult.MergedEngineModel != "" {
-		model = importsResult.MergedEngineModel
+	if model == "" && opts.importsResult.MergedEngineModel != "" {
+		model = opts.importsResult.MergedEngineModel
 		orchestratorEngineLog.Printf("Applied model preference from import: %s", model)
 	}
 	if engineConfig.Version == "" && engineConfig.ID != "" {
-		if def := findImportedEngineDefinition(importedEngineDefinitions, engineConfig.ID); def != nil && def.Version != "" {
+		if def := findImportedEngineDefinition(opts.importedEngineDefinitions, engineConfig.ID); def != nil && def.Version != "" {
 			engineConfig.Version = def.Version
 			orchestratorEngineLog.Printf("Applied default engine version from engine definition %q: %s", engineConfig.ID, engineConfig.Version)
 		}
