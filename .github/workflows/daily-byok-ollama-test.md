@@ -144,7 +144,9 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 models:
   default-ai-credits-pricing:
     input: 0.000001

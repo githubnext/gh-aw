@@ -335,7 +335,9 @@ steps:
 
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tools:
   cli-proxy: true
   playwright:

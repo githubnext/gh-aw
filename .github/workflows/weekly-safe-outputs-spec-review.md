@@ -22,10 +22,10 @@ network:
     - github
 
 sandbox:
-  agent:  # Firewall enabled
+  agent:
     id: awf
-    sudo: false
-
+    runtime: docker-sbx
+    sudo: true
 imports:
   - shared/github-guard-policy.md
 

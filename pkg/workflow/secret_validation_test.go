@@ -436,6 +436,43 @@ func TestEngineSecretValidationSkippedWhenEnvironmentConfigured(t *testing.T) {
 	}
 }
 
+func TestBuildEngineSecretValidationStep(t *testing.T) {
+	t.Run("applies skip policy before rendering", func(t *testing.T) {
+		step := BuildEngineSecretValidationStep(&WorkflowData{}, EngineSecretValidationConfig{
+			SecretNames: []string{"COPILOT_GITHUB_TOKEN"},
+			EngineName:  "GitHub Copilot CLI",
+			DocsURL:     "https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+			Skip: func(*WorkflowData) bool {
+				return true
+			},
+		})
+
+		require.Empty(t, step, "expected skip policy to suppress validation step")
+	})
+
+	t.Run("skips empty secret list", func(t *testing.T) {
+		step := BuildEngineSecretValidationStep(&WorkflowData{}, EngineSecretValidationConfig{
+			EngineName: "Engine Without Secrets",
+			DocsURL:    "https://docs.example.com",
+		})
+
+		require.Empty(t, step, "expected empty secret list to suppress validation step")
+	})
+
+	t.Run("renders configured validation step", func(t *testing.T) {
+		step := BuildEngineSecretValidationStep(&WorkflowData{}, EngineSecretValidationConfig{
+			SecretNames: []string{"COPILOT_GITHUB_TOKEN"},
+			EngineName:  "GitHub Copilot CLI",
+			DocsURL:     "https://github.github.com/gh-aw/reference/engines/#github-copilot-default",
+		})
+
+		require.NotEmpty(t, step, "expected configured validation step")
+		stepContent := strings.Join(step, "\n")
+		assert.Contains(t, stepContent, "Validate COPILOT_GITHUB_TOKEN secret")
+		assert.Contains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
+	})
+}
+
 func TestBuildDefaultSecretValidationStepHandlesNilWorkflowData(t *testing.T) {
 	step := BuildDefaultSecretValidationStep(
 		nil,

@@ -15,8 +15,9 @@ permissions:
 
 sandbox:
   agent:
-    sudo: false
-
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 engine:
   id: claude
   mcp:

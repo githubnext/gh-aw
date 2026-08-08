@@ -27,6 +27,11 @@ safe-outputs:
     max: 1
     hide-older-comments: true
 timeout-minutes: 10
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 # Smoke Test: Claude on GitHub Provider PR Summary

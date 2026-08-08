@@ -19,8 +19,9 @@ permissions:
 
 sandbox:
   agent:
-    sudo: false
-
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 name: "Smoke Agent: public/approved"
 engine: claude
 strict: true
