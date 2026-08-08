@@ -55,8 +55,10 @@ engine:
         // Pydantic AI agent spec (https://ai.pydantic.dev), which is the only way
         // the `pai` CLI can be given MCP servers: each gateway server becomes an
         // `MCP` capability entry and the spec file is passed via `pai -a <file>`.
-        // The `model` field is mandatory in an agent spec but is always overridden
-        // by the `-m` flag the compiler adds when the workflow declares a model.
+        // An agent spec must declare a `model`, but the compiler always appends
+        // `-m "$PAI_MODEL"` when the workflow declares a model, which takes
+        // precedence. The value below is only a valid-by-construction fallback for
+        // workflows that do not declare a model.
         const fs = require("fs");
         const path = require("path");
 
