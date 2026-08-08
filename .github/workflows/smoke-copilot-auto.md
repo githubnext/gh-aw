@@ -27,6 +27,10 @@ safe-outputs:
 timeout-minutes: 5
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke Test: Auto Haiku

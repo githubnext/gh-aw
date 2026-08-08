@@ -126,6 +126,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
+    id: awf
     sudo: false
 evals:
   - id: geo_audit_performed

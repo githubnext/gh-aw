@@ -55,7 +55,9 @@ experiments:
 timeout-minutes: 45
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tools:
   bash:
   - "*"

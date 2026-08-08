@@ -396,7 +396,10 @@ func compileAllFilesInDirectory(
 	// Handle purge logic: collect existing files before compilation
 	var purgeData *purgeTrackingData
 	if config.Purge {
-		purgeData = collectPurgeData(workflowsDir, mdFiles, config.Verbose)
+		purgeData, err = collectPurgeData(workflowsDir, mdFiles, config.Verbose)
+		if err != nil {
+			return nil, fmt.Errorf("failed to collect existing files for purge: %w", err)
+		}
 	}
 
 	// Enable validation automatically when force-refresh-action-pins is used
@@ -710,12 +713,25 @@ type purgeTrackingData struct {
 }
 
 // collectPurgeData collects existing files for purge operations
-func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) *purgeTrackingData {
+func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) (*purgeTrackingData, error) {
+	return collectPurgeDataWithPatterns(workflowsDir, mdFiles, verbose, "*.lock.yml", "*.invalid.yml")
+}
+
+// collectPurgeDataWithPatterns is the testable implementation of collectPurgeData.
+// lockPattern and invalidPattern are appended to workflowsDir for the glob calls.
+func collectPurgeDataWithPatterns(workflowsDir string, mdFiles []string, verbose bool, lockPattern, invalidPattern string) (*purgeTrackingData, error) {
 	data := &purgeTrackingData{}
 
 	// Find all existing files
-	data.existingLockFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
-	data.existingInvalidFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.invalid.yml"))
+	var err error
+	data.existingLockFiles, err = filepath.Glob(filepath.Join(workflowsDir, lockPattern))
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob existing .lock.yml files in %s: %w", workflowsDir, err)
+	}
+	data.existingInvalidFiles, err = filepath.Glob(filepath.Join(workflowsDir, invalidPattern))
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob existing .invalid.yml files in %s: %w", workflowsDir, err)
+	}
 
 	// Create expected files list
 	for _, mdFile := range mdFiles {
@@ -732,7 +748,7 @@ func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) *purg
 		}
 	}
 
-	return data
+	return data, nil
 }
 
 // runPurgeOperations runs all purge operations

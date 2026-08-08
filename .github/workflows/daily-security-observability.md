@@ -167,6 +167,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
+    id: awf
     sudo: false
 evals:
   - id: security_data_analyzed

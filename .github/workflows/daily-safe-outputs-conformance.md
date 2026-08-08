@@ -35,6 +35,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
+    id: awf
     sudo: false
 evals:
   - id: conformance_checked

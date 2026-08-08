@@ -102,12 +102,11 @@ func (e *CodexEngine) GetSupportedEnvVarKeys() []string {
 // GetSecretValidationStep returns the secret validation step for the Codex engine.
 // Returns an empty step if custom command is specified.
 func (e *CodexEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	return BuildDefaultSecretValidationStep(
-		workflowData,
-		[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
-		"Codex",
-		"https://github.github.com/gh-aw/reference/engines/#openai-codex",
-	)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+		EngineName:  "Codex",
+		DocsURL:     "https://github.github.com/gh-aw/reference/engines/#openai-codex",
+	})
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {

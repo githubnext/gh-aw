@@ -15,8 +15,8 @@ permissions:
 
 sandbox:
   agent:
+    id: awf
     sudo: false
-
 engine:
   id: claude
   mcp:

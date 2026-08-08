@@ -205,7 +205,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
 // Post-result watchdog: shared constants and timeout resolver used by all harnesses.
 // These are kept here so both copilot_harness and codex_harness stay in sync.
 const MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS = 50;
-const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 2 * 60 * 1000;
 /** Maximum allowed value for GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS to prevent the watchdog from being
  *  effectively disabled by an excessively large override (e.g. a stray zero). */
 const MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS = 10 * 60 * 1000;

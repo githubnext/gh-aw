@@ -687,7 +687,16 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "comment_id": {
+                    "optionalPositiveInteger": true
+                  },
                   "item_number": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr_number": {
                     "issueOrPRNumber": true
                   },
                   "reply_to_id": {
@@ -697,6 +706,16 @@ jobs:
                   "repo": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "target": {
+                    "type": "string",
+                    "enum": [
+                      "status"
+                    ]
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   }
                 }
               },
@@ -825,6 +844,10 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  },
                   "title": {
                     "required": true,
                     "type": "string",
@@ -936,15 +959,25 @@ jobs:
                       "draft_issue"
                     ]
                   },
+                  "create_if_missing": {
+                    "type": "boolean"
+                  },
                   "draft_body": {
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "draft_issue_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  },
                   "draft_title": {
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 256
+                  },
+                  "field_definitions": {
+                    "type": "array"
                   },
                   "fields": {
                     "type": "object"
@@ -952,16 +985,34 @@ jobs:
                   "issue": {
                     "optionalPositiveInteger": true
                   },
+                  "operation": {
+                    "type": "string",
+                    "enum": [
+                      "create_fields",
+                      "create_view"
+                    ]
+                  },
                   "project": {
                     "required": true,
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 512,
-                    "pattern": "^https://[^/]+/(orgs|users)/[^/]+/projects/\\d+",
-                    "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                    "pattern": "^(https://[^/]+/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9_]{3,12})$",
+                    "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42) or temporary project ID (e.g., #aw_project1)"
                   },
                   "pull_request": {
                     "optionalPositiveInteger": true
+                  },
+                  "target_repo": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$"
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  },
+                  "view": {
+                    "type": "object"
                   }
                 }
               }
@@ -1921,6 +1972,16 @@ jobs:
           if [ -s /tmp/gh-aw/step-summary.md ]; then
             cat /tmp/gh-aw/step-summary.md
           fi
+      - name: Render detection log
+        if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/render_detection_log.cjs');
+            await main();
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage
         if: always()

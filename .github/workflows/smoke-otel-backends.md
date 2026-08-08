@@ -47,6 +47,10 @@ imports:
   - shared/datadog.md
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke OTEL

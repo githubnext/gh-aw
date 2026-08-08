@@ -41,6 +41,12 @@ func (c *Compiler) validateSafeOutputsAllowedLabelsGlobScope(config *SafeOutputs
 		configs = append(configs, labelledConfig{"safe-outputs.create-pull-request.allowed-labels", config.CreatePullRequests.AllowedLabels})
 	}
 
+	if len(configs) == 0 {
+		safeOutputsAllowedLabelsValidationLog.Print("No allowed-labels fields configured, skipping glob-scope validation")
+		return nil
+	}
+	safeOutputsAllowedLabelsValidationLog.Printf("Validating allowed-labels glob scope for %d field(s)", len(configs))
+
 	for _, lc := range configs {
 		for _, pattern := range lc.labels {
 			if strings.TrimSpace(pattern) == "*" {

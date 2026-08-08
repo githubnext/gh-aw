@@ -52,6 +52,10 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke Test: Multiple Pull Request Creation

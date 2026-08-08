@@ -41,6 +41,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
+    id: awf
     sudo: false
 ---
 

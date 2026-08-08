@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
 sandbox:
   agent:
+    id: awf
     sudo: false
 tracker-id: daily-pr-review-cursor
 engine:

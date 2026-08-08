@@ -84,16 +84,14 @@ func (e *ClaudeEngine) GetSupportedEnvVarKeys() []string {
 // Returns an empty step if custom command is specified or if Anthropic WIF is configured.
 func (e *ClaudeEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	provider := e.ResolveLLMProvider(workflowData)
-	if provider == LLMProviderAnthropic && isAnthropicWIF(workflowData) {
-		return GitHubActionStep{}
-	}
-	providerSecrets := llmProviderSecretNames(provider)
-	return BuildDefaultSecretValidationStep(
-		workflowData,
-		providerSecrets,
-		"Claude Code",
-		llmProviderDocsURL(provider),
-	)
+	return BuildEngineSecretValidationStep(workflowData, EngineSecretValidationConfig{
+		SecretNames: llmProviderSecretNames(provider),
+		EngineName:  "Claude Code",
+		DocsURL:     llmProviderDocsURL(provider),
+		Skip: func(workflowData *WorkflowData) bool {
+			return provider == LLMProviderAnthropic && isAnthropicWIF(workflowData)
+		},
+	})
 }
 
 // isAnthropicWIF returns true when the workflow is configured to use Anthropic

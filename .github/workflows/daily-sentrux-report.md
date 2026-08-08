@@ -12,8 +12,8 @@ permissions:
 
 sandbox:
   agent:
+    id: awf
     sudo: false
-
 imports:
   - uses: shared/daily-audit-base.md
     with:

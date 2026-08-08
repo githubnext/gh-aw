@@ -7,8 +7,11 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var guardPolicyReportLog = logger.New("cli:compile_guard_policy_report")
 
 // guardPolicyDryRunReport summarizes the effective GitHub guard-policy
 // configuration for a single compiled workflow. It is produced in --strict
@@ -82,6 +85,7 @@ func formatGuardPolicyReposScope(scope workflow.GitHubReposScope) string {
 // fields are configured (nothing to report).
 func buildGuardPolicyDryRunReport(workflowName string, github *workflow.GitHubToolConfig) *guardPolicyDryRunReport {
 	if github == nil || !hasGuardPolicyFields(github) {
+		guardPolicyReportLog.Print("No guard-policy fields configured, skipping dry-run report")
 		return nil
 	}
 
@@ -137,6 +141,7 @@ func formatGuardPolicyDryRunReport(report *guardPolicyDryRunReport) string {
 // policy configured. It is a no-op otherwise.
 func printGuardPolicyDryRunReport(workflowName string, workflowData *workflow.WorkflowData, strict bool) {
 	if !strict || workflowData == nil || workflowData.ParsedTools == nil {
+		guardPolicyReportLog.Print("Strict mode disabled or tools not parsed, skipping guard-policy dry-run report")
 		return
 	}
 
@@ -145,5 +150,6 @@ func printGuardPolicyDryRunReport(workflowName string, workflowData *workflow.Wo
 		return
 	}
 
+	guardPolicyReportLog.Printf("Printing guard-policy dry-run report for workflow: %s", workflowName)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(formatGuardPolicyDryRunReport(report)))
 }

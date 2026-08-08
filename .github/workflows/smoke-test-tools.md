@@ -54,6 +54,10 @@ imports:
   - shared/token-telemetry-check.md
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke Test: Agent Container Tools

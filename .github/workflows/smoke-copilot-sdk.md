@@ -35,6 +35,10 @@ safe-outputs:
 timeout-minutes: 10
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke Test: Copilot SDK Engine Validation

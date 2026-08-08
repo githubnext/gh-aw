@@ -116,6 +116,7 @@ jobs:
           retention-days: 7
 sandbox:
   agent:
+    id: awf
     sudo: false
 steps:
   - name: Download VulnHunter bundle artifact

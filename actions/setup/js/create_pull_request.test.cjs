@@ -55,6 +55,7 @@ function ensureDefaultDisclosureHeaderPrompt() {
 beforeEach(() => {
   cleanupCanonicalTransports();
   ensureDefaultDisclosureHeaderPrompt();
+  process.env.GH_AW_PROMPTS_DIR = promptsSourceDir;
 });
 afterEach(() => {
   cleanupCanonicalTransports();
@@ -2848,6 +2849,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
   // Minimal valid format-patch output
   const PATCH_CONTENT =
     `From a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2 Mon Sep 17 00:00:00 2001\n` +
+    `X-GH-AW-Base-Commit: ${MOCK_BASE_COMMIT_SHA}\n` +
     `From: Test Author <test@example.com>\n` +
     `Date: Wed, 26 Mar 2026 12:00:00 +0000\n` +
     `Subject: [PATCH] Test change\n\n` +
@@ -2868,7 +2870,6 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     process.env.GH_AW_WORKFLOW_ID = "test-workflow";
     process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
     process.env.GITHUB_BASE_REF = "main";
-
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-fallback-test-"));
     patchFilePath = path.join(tempDir, "test.patch");
     fs.writeFileSync(patchFilePath, PATCH_CONTENT, "utf8");
@@ -2963,7 +2964,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     return false;
   }
 
-  it("should create the PR branch from normalized base_commit before applying the patch when available", async () => {
+  it("should create the PR branch from the patch-embedded base commit when available", async () => {
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
       getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
@@ -2979,7 +2980,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
     expect(checkoutWithBaseCommit).toBeTruthy();
   });
 
-  it("should ignore invalid base_commit values when creating the branch", async () => {
+  it("should ignore agent-supplied base_commit values when creating the branch", async () => {
     global.exec = {
       exec: vi.fn().mockResolvedValue(0),
       getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
@@ -2991,7 +2992,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     expect(result.success).toBe(true);
     expect(global.exec.exec).not.toHaveBeenCalledWith("git", ["cat-file", "-e", "not-a-sha --bad"]);
-    expect(global.core.warning).toHaveBeenCalledWith("Ignoring invalid base_commit value for patch apply: not-a-sha --bad");
+    expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("base_commit"));
   });
 
   it("should fall back to base branch when base_commit is unavailable", async () => {
@@ -3221,6 +3222,8 @@ describe("create_pull_request - patch apply fallback to original base commit", (
   });
 
   it("should return error when no base_commit is provided and git am --3way fails", async () => {
+    const patchWithoutBaseCommit = PATCH_CONTENT.replace(`X-GH-AW-Base-Commit: ${MOCK_BASE_COMMIT_SHA}\n`, "");
+    fs.writeFileSync(canonicalPatchPath("test-branch"), patchWithoutBaseCommit, "utf8");
     global.exec = {
       exec: vi.fn().mockImplementation((cmd, args) => {
         if (isGitAm3Way(cmd, args)) {
@@ -3241,7 +3244,7 @@ describe("create_pull_request - patch apply fallback to original base commit", (
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Failed to apply patch");
-    expect(global.core.warning).toHaveBeenCalledWith("No base_commit recorded in safe output entry - fallback not possible");
+    expect(global.core.warning).toHaveBeenCalledWith("No base_commit embedded in patch - fallback not possible");
   });
 
   it("should reuse existing remote branch when preserve-branch-name and recreate-ref are true (force-delete then recreate)", async () => {

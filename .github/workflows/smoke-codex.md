@@ -92,6 +92,10 @@ checkout:
     current: true
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    sudo: false
 ---
 
 # Smoke Test: Codex Engine Validation

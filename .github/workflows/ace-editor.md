@@ -44,6 +44,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 tools:
   cli-proxy: true

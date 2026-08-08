@@ -18,6 +18,7 @@ engine:
 strict: true
 sandbox:
   agent:
+    id: awf
     sudo: false
 timeout-minutes: 5
 network: {}

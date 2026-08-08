@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -305,6 +306,28 @@ func TestUpdatePullRequestValidationConfig(t *testing.T) {
 	}
 }
 
+func TestUpdateProjectAcceptsProjectURLOrTemporaryID(t *testing.T) {
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"update_project"}, nil, false, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSON() error = %v", err)
+	}
+
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+
+	project := parsed["update_project"].Fields["project"]
+	for _, expected := range []string{
+		"https://[^/]+/(orgs|users)/[^/]+/projects/\\d+",
+		"#?aw_[A-Za-z0-9_]{3,12}",
+	} {
+		if !strings.Contains(project.Pattern, expected) {
+			t.Fatalf("update_project.project pattern %q does not contain %q", project.Pattern, expected)
+		}
+	}
+}
+
 func TestUpdateIssueValidationConfig(t *testing.T) {
 	config, ok := ValidationConfig["update_issue"]
 	if !ok {
@@ -409,6 +432,35 @@ func TestValidationConfigConsistency(t *testing.T) {
 		// Verify defaultMax is positive
 		if config.DefaultMax <= 0 {
 			t.Errorf("Type %q has invalid defaultMax: %d", typeName, config.DefaultMax)
+		}
+	}
+}
+
+func TestValidationConfigCoversToolInputSchemas(t *testing.T) {
+	var tools []struct {
+		Name        string `json:"name"`
+		InputSchema struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"inputSchema"`
+	}
+	if err := json.Unmarshal([]byte(safeOutputsToolsJSONContent), &tools); err != nil {
+		t.Fatalf("failed to parse safe outputs tool schema: %v", err)
+	}
+
+	metadataFields := map[string]bool{"secrecy": true, "integrity": true}
+	for _, tool := range tools {
+		config, ok := ValidationConfig[tool.Name]
+		if !ok {
+			t.Errorf("%s tool is missing from ValidationConfig", tool.Name)
+			continue
+		}
+		for fieldName := range tool.InputSchema.Properties {
+			if metadataFields[fieldName] {
+				continue
+			}
+			if _, ok := config.Fields[fieldName]; !ok {
+				t.Errorf("%s tool input %q is missing from ValidationConfig", tool.Name, fieldName)
+			}
 		}
 	}
 }

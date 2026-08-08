@@ -38,8 +38,8 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// Auto-detect ARC/DinD split daemon topology at runtime: probe DOCKER_HOST for a
 	// tcp:// scheme and pass it through to AWF via --docker-host.
 	// All behaviors avoid requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
-	// When AWF also supports chroot config (v0.27.1+), the Python patch body is embedded inside
-	// the same if-block so the script only contains one DOCKER_HOST condition check.
+	// When AWF also supports chroot config (v0.27.1+), the chroot patch logic is embedded
+	// inside the same if-block so the script only contains one DOCKER_HOST condition check.
 	arcDindPrefixProbe := ""
 	arcDindDockerHostProbe := fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
