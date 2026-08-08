@@ -2980,11 +2980,11 @@ func TestBuildDetectionEngineExecutionStepArcDindTopology(t *testing.T) {
 		// Note: constants.GhAwRootDirShell+"/bin/copilot" also appears in the staging step's
 		// copy command ("cp /usr/local/bin/copilot ..."), so checking the harness line
 		// directly avoids a false positive from the staging step.
-		harnessArcDindPath := `copilot_harness.cjs "` + constants.GhAwRootDirShell + `/bin/copilot"`
+		harnessArcDindPath := `copilot_harness.cjs" "` + constants.GhAwRootDirShell + `/bin/copilot"`
 		if !strings.Contains(allSteps, harnessArcDindPath) {
 			t.Errorf("expected copilot_harness.cjs to be invoked with daemon-visible path %q for arc-dind;\ngot:\n%s", harnessArcDindPath, allSteps)
 		}
-		if strings.Contains(allSteps, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
+		if strings.Contains(allSteps, `copilot_harness.cjs" `+constants.CopilotBinaryPath) {
 			t.Errorf("copilot_harness.cjs must NOT be invoked with %q for arc-dind (ENOENT inside chroot);\ngot:\n%s", constants.CopilotBinaryPath, allSteps)
 		}
 	})
@@ -3015,11 +3015,11 @@ func TestBuildDetectionEngineExecutionStepArcDindTopology(t *testing.T) {
 		if !strings.Contains(allSteps, `cp "$GH_AW_COPILOT_SRC" "$GH_AW_COPILOT_BIN"`) {
 			t.Errorf("expected detection execution to stage the Copilot CLI binary in its mounted directory;\ngot:\n%s", allSteps)
 		}
-		mountedCopilotPath := `copilot_harness.cjs "` + constants.GhAwRootDirShell + `/bin/copilot"`
+		mountedCopilotPath := `copilot_harness.cjs" "` + constants.GhAwRootDirShell + `/bin/copilot"`
 		if !strings.Contains(allSteps, mountedCopilotPath) {
 			t.Errorf("expected detection harness to use mounted Copilot CLI path %q;\ngot:\n%s", mountedCopilotPath, allSteps)
 		}
-		if strings.Contains(allSteps, "copilot_harness.cjs "+constants.CopilotBinaryPath) {
+		if strings.Contains(allSteps, `copilot_harness.cjs" `+constants.CopilotBinaryPath) {
 			t.Errorf("expected detection harness to avoid fixed path %q;\ngot:\n%s", constants.CopilotBinaryPath, allSteps)
 		}
 	})

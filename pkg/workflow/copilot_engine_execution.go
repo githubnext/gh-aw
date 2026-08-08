@@ -366,15 +366,16 @@ func (e *CopilotEngine) buildCopilotExecPrefix(workflowData *WorkflowData, comma
 	if harnessScriptName == "" {
 		return commandName
 	}
+	harnessScriptPath := fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, harnessScriptName)
 	runtimeResolutionCommand := nodeRuntimeResolutionCommand
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
 		runtimeResolutionCommand = nodeRuntimeResolutionCommandForCopilotSDK
-		return e.buildCopilotSDKExecPrefix(workflowData, commandName, harnessScriptName, runtimeResolutionCommand)
+		return e.buildCopilotSDKExecPrefix(workflowData, commandName, harnessScriptPath, runtimeResolutionCommand)
 	}
-	return fmt.Sprintf(`%s %s/%s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, commandName)
+	return fmt.Sprintf(`%s %s %s`, runtimeResolutionCommand, harnessScriptPath, commandName)
 }
 
-func (e *CopilotEngine) buildCopilotSDKExecPrefix(workflowData *WorkflowData, commandName, harnessScriptName, runtimeResolutionCommand string) string {
+func (e *CopilotEngine) buildCopilotSDKExecPrefix(workflowData *WorkflowData, commandName, harnessScriptPath, runtimeResolutionCommand string) string {
 	sdkDriverScriptName := "copilot_sdk_driver.cjs"
 	customSDKDriverConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Driver != ""
 	if customSDKDriverConfigured {
@@ -389,7 +390,7 @@ func (e *CopilotEngine) buildCopilotSDKExecPrefix(workflowData *WorkflowData, co
 		if customSDKDriverConfigured && strings.Contains(sdkDriverScriptName, "/") {
 			driverRuntimeCmd = `"${GITHUB_WORKSPACE}/` + sdkDriverScriptName + `"`
 		}
-		return fmt.Sprintf(`%s %s/%s %s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, driverRuntimeCmd, commandName)
+		return fmt.Sprintf(`%s %s %s %s`, runtimeResolutionCommand, harnessScriptPath, driverRuntimeCmd, commandName)
 	}
 	driverPath := fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, sdkDriverScriptName)
 	if customSDKDriverConfigured {
@@ -399,7 +400,7 @@ func (e *CopilotEngine) buildCopilotSDKExecPrefix(workflowData *WorkflowData, co
 		driverPath = `"${GITHUB_WORKSPACE}/` + sdkDriverScriptName + `"`
 	}
 	// Language script: harness runs <runtime> <setup-action-dir>/<harness> <runtime> <driver-path> <copilot-binary>
-	return fmt.Sprintf(`%s %s/%s %s %s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, driverRuntimeCmd, driverPath, commandName)
+	return fmt.Sprintf(`%s %s %s %s %s`, runtimeResolutionCommand, harnessScriptPath, driverRuntimeCmd, driverPath, commandName)
 }
 
 func (e *CopilotEngine) buildCopilotCommand(workflowData *WorkflowData, copilotArgs []string, execPrefix, customCommandScriptSetup, logFile, mkdirCommands string, isBYOKMode bool) (string, string) {
