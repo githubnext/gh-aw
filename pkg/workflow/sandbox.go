@@ -81,6 +81,7 @@ type AgentSandboxConfig struct {
 	ModelFallback         *TemplatableBool                      `yaml:"model-fallback,omitempty"` // AWF API proxy model fallback enable/disable flag (optional)
 	TokenSteering         *bool                                 `yaml:"token-steering,omitempty"` // AWF API proxy token steering enable/disable flag (optional)
 	Targets               map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"`        // Per-provider API proxy target overrides keyed by provider name (e.g. "openai", "anthropic")
+	RuntimeInstall        *bool                                 `yaml:"runtime-install,omitempty"` // Controls generation of runtime installation steps (gVisor/docker-sbx). Default: true. Noop when runtime is not set.
 }
 
 // AiCreditsPricingConfig holds per-token pricing rates ($/1M tokens) used as a fallback
