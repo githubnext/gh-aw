@@ -412,7 +412,7 @@ func TestResolveForecastWorkflowsFromRemote_RateLimitFallsBackToPartialResults(t
 
 	attempts := 0
 	var backoffs []time.Duration
-	forecastFetchGitHubWorkflows = func(repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+	forecastFetchGitHubWorkflows = func(_ context.Context, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
 		attempts++
 		return nil, errors.New("API rate limit exceeded")
 	}

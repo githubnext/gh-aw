@@ -3,13 +3,112 @@
 package cli
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestHelperProcess is the subprocess entry point for fake-gh tests.
+// It is invoked by the test binary itself (via os.Executable) when
+// GO_TEST_HELPER_PROCESS=1 is set, so we can provide a blocking "gh"
+// that hangs indefinitely until killed by context cancellation.
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_TEST_HELPER_PROCESS") != "1" {
+		return
+	}
+	// Block forever — the parent will kill us via context cancellation.
+	select {}
+}
+
+// makeFakeGH writes a tiny fake "gh" executable into dir that just
+// re-invokes the current test binary in TestHelperProcess mode.
+func makeFakeGH(t *testing.T, dir string) {
+	t.Helper()
+	self, err := os.Executable()
+	require.NoError(t, err)
+
+	if runtime.GOOS == "windows" {
+		// .bat wrapper that re-runs the test binary in helper mode
+		script := fmt.Sprintf("@echo off\r\n\"%s\" -test.run=TestHelperProcess -test.v 2>nul\r\n", self)
+		err = os.WriteFile(filepath.Join(dir, "gh.bat"), []byte(script), 0o755)
+	} else {
+		script := fmt.Sprintf("#!/bin/sh\nGO_TEST_HELPER_PROCESS=1 exec \"%s\" -test.run=TestHelperProcess -test.v \"$@\"\n", self)
+		err = os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755)
+	}
+	require.NoError(t, err)
+}
+
+// withFakeBlockingGH prepends dir to PATH so that workflow.ExecGHContext
+// picks up the blocking fake gh instead of the real one.
+func withFakeBlockingGH(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	makeFakeGH(t, dir)
+
+	orig := os.Getenv("PATH")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+orig)
+
+	// Also clear GH_TOKEN / GITHUB_TOKEN so ExecGHContext doesn't try to
+	// set up authentication (which requires the real gh binary).
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+}
+
+// TestFetchGitHubWorkflows_ContextCancellation verifies that cancelling the
+// context while the gh subprocess is blocked causes fetchGitHubWorkflows to
+// return promptly with a context error.
+func TestFetchGitHubWorkflows_ContextCancellation(t *testing.T) {
+	if _, err := exec.LookPath("sh"); runtime.GOOS != "windows" && err != nil {
+		t.Skip("sh not available")
+	}
+
+	withFakeBlockingGH(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel immediately so the subprocess is killed as soon as it starts.
+	cancel()
+
+	start := time.Now()
+	_, err := fetchGitHubWorkflows(ctx, "", false)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded),
+		"expected context error, got: %v", err)
+	assert.Less(t, elapsed, 5*time.Second, "fetchGitHubWorkflows should return promptly on cancellation")
+}
+
+// TestFetchLatestRunsByRef_ContextCancellation verifies that cancelling the
+// context while the gh subprocess (run list) is blocked causes
+// fetchLatestRunsByRef to return promptly with a context error.
+func TestFetchLatestRunsByRef_ContextCancellation(t *testing.T) {
+	if _, err := exec.LookPath("sh"); runtime.GOOS != "windows" && err != nil {
+		t.Skip("sh not available")
+	}
+
+	withFakeBlockingGH(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	start := time.Now()
+	_, err := fetchLatestRunsByRef(ctx, "main", "", false)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded),
+		"expected context error, got: %v", err)
+	assert.Less(t, elapsed, 5*time.Second, "fetchLatestRunsByRef should return promptly on cancellation")
+}
 
 func TestIsWorkflowFile(t *testing.T) {
 	tests := []struct {

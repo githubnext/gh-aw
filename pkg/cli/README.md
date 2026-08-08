@@ -137,8 +137,8 @@ The `cli` package is intentionally large and command-oriented. The tables below 
 | `RunUpdateWorkflows` | `func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error` | CLI wrapper for updating sourced workflows. |
 | `UpdateWorkflows` | `func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error` | Updates workflows with `source:` frontmatter from upstream definitions. |
 | `NewStatusCommand` | `func NewStatusCommand() *cobra.Command` | Constructs the `gh aw status` command. |
-| `GetWorkflowStatuses` | `func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOverride string) ([]WorkflowStatus, error)` | Returns workflow status data for programmatic callers. |
-| `StatusWorkflows` | `func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, repoOverride string) error` | Renders workflow status to terminal or JSON. |
+| `GetWorkflowStatuses` | `func GetWorkflowStatuses(ctx context.Context, pattern string, ref string, labelFilter string, repoOverride string) ([]WorkflowStatus, error)` | Returns workflow status data for programmatic callers. |
+| `StatusWorkflows` | `func StatusWorkflows(ctx context.Context, pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, repoOverride string) error` | Renders workflow status to terminal or JSON. |
 | `InitRepository` | `func InitRepository(opts InitOptions) error` | Initializes repository-local gh-aw support files. |
 | `CreateWorkflowMarkdownFile` | `func CreateWorkflowMarkdownFile(workflowName string, verbose bool, force bool, engine string) error` | Creates a new workflow markdown file. |
 | `ResolveWorkflowPath` | `func ResolveWorkflowPath(workflowFile string) (string, error)` | Resolves a workflow identifier to a local file path. |

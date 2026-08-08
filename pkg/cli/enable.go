@@ -81,7 +81,7 @@ func toggleWorkflowsByNames(ctx context.Context, workflowNames []string, enable 
 
 	// Get GitHub workflows status for comparison; warn but continue if unavailable
 	enableLog.Print("Fetching GitHub workflows status for comparison")
-	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, false)
+	githubWorkflows, err := fetchGitHubWorkflows(ctx, repoOverride, false)
 	if err != nil {
 		enableLog.Printf("Failed to fetch GitHub workflows: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Unable to fetch GitHub workflows (gh CLI may not be authenticated): %v", err)))

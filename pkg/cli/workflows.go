@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -68,7 +69,7 @@ type GitHubWorkflow struct {
 }
 
 // fetchGitHubWorkflows fetches workflow information from GitHub
-func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+func fetchGitHubWorkflows(ctx context.Context, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
 	workflowsLog.Printf("Fetching GitHub workflows: repoOverride=%s", repoOverride)
 
 	// Start spinner for network operation (only if not in verbose mode)
@@ -81,7 +82,7 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(ctx, args...)
 	output, err := cmd.Output()
 
 	if err != nil {
@@ -176,14 +177,14 @@ func extractWorkflowNameFromPath(path string) string {
 }
 
 // getWorkflowStatus gets the status of a single workflow by name
-func getWorkflowStatus(workflowIdOrName string, repoOverride string, verbose bool) (*GitHubWorkflow, error) {
+func getWorkflowStatus(ctx context.Context, workflowIdOrName string, repoOverride string, verbose bool) (*GitHubWorkflow, error) {
 	workflowsLog.Printf("Getting workflow status: workflow=%s", workflowIdOrName)
 
 	// Extract workflow name for lookup
 	filename := normalizeWorkflowID(workflowIdOrName)
 
 	// Get all GitHub workflows
-	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, verbose)
+	githubWorkflows, err := fetchGitHubWorkflows(ctx, repoOverride, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch GitHub workflows: %w", err)
 	}

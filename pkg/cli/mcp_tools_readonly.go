@@ -47,7 +47,7 @@ Returns a JSON array where each element has the following structure:
 		mcpLog.Printf("Executing status tool: pattern=%s", args.Pattern)
 
 		// Call GetWorkflowStatuses directly instead of spawning subprocess
-		statuses, err := GetWorkflowStatuses(args.Pattern, "", "", "")
+		statuses, err := GetWorkflowStatuses(ctx, args.Pattern, "", "", "")
 		if err != nil {
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to get workflow statuses", map[string]any{"error": err.Error()})
 		}

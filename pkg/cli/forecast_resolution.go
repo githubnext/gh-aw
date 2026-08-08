@@ -22,7 +22,9 @@ const (
 )
 
 var (
-	forecastFetchGitHubWorkflows      = fetchGitHubWorkflows
+	forecastFetchGitHubWorkflows = func(ctx context.Context, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+		return fetchGitHubWorkflows(ctx, repoOverride, verbose)
+	}
 	forecastListWorkflowRunsPaginated = listWorkflowRunsWithPagination
 	forecastRateLimitSleep            = func(ctx context.Context, delay time.Duration) error {
 		timer := time.NewTimer(delay)
@@ -110,7 +112,7 @@ func fetchWorkflowsWithBackoff(ctx context.Context, ids []string, repoOverride s
 	var lastErr error
 
 	for attempt := 1; attempt <= forecastRateLimitMaxAttempts; attempt++ {
-		githubWorkflows, err := forecastFetchGitHubWorkflows(repoOverride, verbose)
+		githubWorkflows, err := forecastFetchGitHubWorkflows(ctx, repoOverride, verbose)
 		if err == nil {
 			return githubWorkflows, nil
 		}
