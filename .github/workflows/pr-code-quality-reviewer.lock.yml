@@ -621,10 +621,10 @@ jobs:
           fallback() {
             echo "::warning::Docker sandbox (docker sbx) could not be used; falling back to the standard Docker container runtime."
             echo "GH_AW_SBX_AVAILABLE=" >> "$GITHUB_ENV"
+            exit 0
           }
           if ! test -e /dev/kvm || [[ -z "${DOCKER_PAT_VAL}" || -z "${DOCKER_USERNAME_VAL}" ]]; then
             fallback
-            exit 0
           fi
           if ! curl -fsSL https://get.docker.com | sudo REPO_ONLY=1 sh ||
              ! sudo apt-get install -y docker-sbx ||
@@ -642,7 +642,6 @@ jobs:
              ! printf '%s' "${DOCKER_PAT_VAL}" | sbx login --username "${DOCKER_USERNAME_VAL}" --password-stdin ||
              ! docker pull docker/sandbox-templates:shell-docker; then
             fallback
-            exit 0
           fi
           echo "GH_AW_SBX_AVAILABLE=true" >> "$GITHUB_ENV"
       - name: Install AWF binary

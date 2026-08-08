@@ -92,7 +92,9 @@ On GitHub-hosted Ubuntu runners, workflows that configure `sandbox.agent` withou
 Sandbox cannot be installed or used, the workflow emits a warning and continues
 with the standard Docker container runtime. Set `sandbox.agent.runtime` explicitly
 to override this behavior; self-hosted and local runners keep their existing
-runtime defaults.
+runtime defaults. Docker Sandbox uses `host.docker.internal` to reach the MCP
+gateway, so its gateway binds to the runner network interface and remains
+protected by its generated API key.
 
 ### AWF (Agent Workflow Firewall)
 

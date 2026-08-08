@@ -22,7 +22,7 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		assert.Contains(t, content, "GH_AW_SBX_AVAILABLE", "must communicate runtime availability to execution")
 		assert.Contains(t, content, "::warning::Docker sandbox (docker sbx) could not be used", "must warn when docker-sbx cannot be used")
 		assert.Contains(t, content, "standard Docker container runtime", "must identify the fallback runtime")
-		assert.Contains(t, content, "fallback\n            exit 0", "default setup must not fail when docker-sbx is unavailable")
+		assert.Contains(t, content, `echo "GH_AW_SBX_AVAILABLE=" >> "$GITHUB_ENV"`+"\n            exit 0", "default setup must not fail when docker-sbx is unavailable")
 		assert.Contains(t, content, "sbx daemon start", "must start docker-sbx before selecting it")
 	})
 
