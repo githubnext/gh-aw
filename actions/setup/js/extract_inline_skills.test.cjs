@@ -189,6 +189,8 @@ describe("extractInlineSkills", () => {
       const { mainContent, skills } = extractInlineSkills(content);
       expect(skills).toHaveLength(1);
       expect(skills[0].name).toBe("reporting");
+      // Legacy implicit H2 closing discards content after the boundary from
+      // the reassembled main prompt unless the boundary is another inline block.
       expect(mainContent).not.toContain("Tail.");
     }
   });

@@ -189,6 +189,8 @@ describe("extractInlineSubAgents", () => {
       const { mainContent, agents } = extractInlineSubAgents(content);
       expect(agents).toHaveLength(1);
       expect(agents[0].name).toBe("planner");
+      // Legacy implicit H2 closing discards content after the boundary from
+      // the reassembled main prompt unless the boundary is another inline block.
       expect(mainContent).not.toContain("Tail.");
     }
   });

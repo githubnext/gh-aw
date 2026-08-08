@@ -19,4 +19,4 @@ function unknownInlineEndMarkerError(content, orphan, prefix, noun) {
   return new Error(`${prefix} end marker for unknown ${noun} "${orphan.name}" at line ${lineNumberAtOffset(content, orphan.start)} (no matching start marker with that name)`);
 }
 
-module.exports = { collectInlineEndMarkers, unknownInlineEndMarkerError };
+module.exports = { collectInlineEndMarkers, lineNumberAtOffset, unknownInlineEndMarkerError };
