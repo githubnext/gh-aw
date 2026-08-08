@@ -1,15 +1,17 @@
 ---
 runtimes:
-  uv:
-    version: latest
+  python:
+    version: "3.12"
 pre-agent-steps:
-  - name: Predownload Pydantic AI CLI
-    run: uv run pai --version
+  - name: Preinstall Pydantic AI CLI
+    run: |
+      python3 -m pip install --quiet --user --disable-pip-version-check "pydantic-ai==$GH_AW_ENGINE_VERSION"
+      "$HOME/.local/bin/pai" --version
 engine:
   id: pydantic-ai
-  version: "0.1.0"
+  version: "2.26.0"
   display-name: Pydantic AI
-  description: Pydantic AI headless coding agent CLI with MCP support
+  description: Pydantic AI CLI (pai) running one-shot prompts with MCP tool support
   experimental: true
   mcp: true
   provider:
@@ -28,21 +30,79 @@ engine:
         - raw.githubusercontent.com
         - api.github.com
         - objects.githubusercontent.com
+        - pypi.org
+        - files.pythonhosted.org
       provider-domains:
         copilot: api.githubcopilot.com
         anthropic: api.anthropic.com
         openai: api.openai.com
     execution:
-      command-name: uv
+      command-name: pai
       args:
-        - run
-        - pai
-        - run
+        - --no-stream
       step-name: Execute Pydantic AI CLI
       model-env-var: PAI_MODEL
-      mcp-config-env-var: GH_AW_MCP_CONFIG
+      model-env-provider-prefix: openai-chat
+      model-env-provider-separator: ":"
+      model-flag: -m
+      mcp-config-flag: -a
       write-timestamp: true
       provider-env-mode: universal-llm-consumer
+    mcp:
+      config-path: .pydantic-ai/agent.json
+      config-adapter: |
+        // Converts the MCP gateway's standard HTTP-based configuration into a
+        // Pydantic AI agent spec (https://ai.pydantic.dev), which is the only way
+        // the `pai` CLI can be given MCP servers: each gateway server becomes an
+        // `MCP` capability entry and the spec file is passed via `pai -a <file>`.
+        // The `model` field is mandatory in an agent spec but is always overridden
+        // by the `-m` flag the compiler adds when the workflow declares a model.
+        const fs = require("fs");
+        const path = require("path");
+
+        const requireEnvVar = name => {
+          const value = process.env[name];
+          if (!value) throw new Error(`${name} environment variable is required`);
+          return value;
+        };
+
+        const gatewayOutputPath = requireEnvVar("MCP_GATEWAY_OUTPUT");
+        const workspace = requireEnvVar("GITHUB_WORKSPACE");
+        const gatewayDomain = process.env.MCP_GATEWAY_DOMAIN || "host.docker.internal";
+        const gatewayPort = requireEnvVar("MCP_GATEWAY_PORT");
+        const gatewayURL = `http://${gatewayDomain}:${gatewayPort}`;
+
+        let cliServers;
+        try {
+          cliServers = new Set(JSON.parse(process.env.GH_AW_MCP_CLI_SERVERS || "[]"));
+        } catch (error) {
+          throw new Error(`Failed to parse GH_AW_MCP_CLI_SERVERS: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
+        const gatewayOutput = JSON.parse(fs.readFileSync(gatewayOutputPath, "utf8"));
+        const rawServers = gatewayOutput.mcpServers;
+        const servers = rawServers && typeof rawServers === "object" && !Array.isArray(rawServers) ? rawServers : {};
+
+        const capabilities = [];
+        for (const [name, entry] of Object.entries(servers)) {
+          if (cliServers.has(name) || !entry || typeof entry !== "object") continue;
+          if (typeof entry.url !== "string") {
+            console.log(`Skipping MCP server ${name}: the Pydantic AI CLI only supports HTTP MCP servers`);
+            continue;
+          }
+          const mcp = {
+            id: name,
+            url: entry.url.replace(/^http:\/\/[^/]+\/mcp\//, `${gatewayURL}/mcp/`),
+          };
+          if (entry.headers && typeof entry.headers === "object") mcp.headers = entry.headers;
+          capabilities.push({ MCP: mcp });
+        }
+
+        const configPath = path.join(workspace, ".pydantic-ai", "agent.json");
+        fs.mkdirSync(path.dirname(configPath), { recursive: true });
+        fs.writeFileSync(configPath, JSON.stringify({ model: "openai-chat:gpt-5", capabilities }, null, 2), { mode: 0o600 });
+        fs.chmodSync(configPath, 0o600);
+        console.log(`Wrote ${capabilities.length} MCP server(s) to ${configPath}`);
     log-parser: |
       function parseLog(logContent) {
         const lines = logContent.split("\n");
@@ -118,9 +178,8 @@ engine:
 <!--
 # Pydantic AI
 
-Shared engine definition for [Pydantic AI](https://ai.pydantic.dev), the
-headless AI coding agent. Import this file and set `engine: id: pydantic-ai`
-to use it:
+Shared engine definition for the [Pydantic AI](https://ai.pydantic.dev) CLI
+(`pai`). Import this file and set `engine: id: pydantic-ai` to use it:
 
 ```yaml
 engine:
@@ -131,10 +190,14 @@ imports:
 ```
 
 `model` must use `provider/model` format. Supported providers are `copilot`,
-`anthropic`, and `openai`. Requests are routed through the AWF proxy.
+`anthropic`, and `openai`. Requests are routed through the AWF proxy, so the
+model is rewritten to the `openai-chat:<model>` form the Pydantic AI CLI
+expects and passed with `-m`.
 
-The engine reads MCP server configuration from `GH_AW_MCP_CONFIG`, so
-safe outputs flow through the standard `safeoutputs` server automatically.
+MCP servers are rendered into a Pydantic AI agent spec at
+`.pydantic-ai/agent.json` and passed with `-a`, so safe outputs flow through
+the standard `safeoutputs` server automatically.
 
-Pydantic AI is preinstalled in the runtime image.
+The CLI is installed with `pip install --user pydantic-ai==<engine version>`
+before the agent runs.
 -->

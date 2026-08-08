@@ -574,7 +574,11 @@ func (e *BehaviorDefinedEngine) applyBehaviorDefinedModelEnv(exec *EngineExecuti
 	modelVal := workflowData.Model
 	if exec.ModelEnvProviderPrefix != "" {
 		if parts := strings.SplitN(modelVal, "/", 2); len(parts) == 2 {
-			modelVal = exec.ModelEnvProviderPrefix + "/" + parts[1]
+			separator := exec.ModelEnvProviderSeparator
+			if separator == "" {
+				separator = "/"
+			}
+			modelVal = exec.ModelEnvProviderPrefix + separator + parts[1]
 		}
 	}
 	env[exec.ModelEnvVarName] = modelVal
