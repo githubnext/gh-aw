@@ -28,6 +28,7 @@ network:
 
 imports:
   - shared/mcp/ruflo.md
+  - shared/reporting.md
 
 tools:
   startup-timeout: 300

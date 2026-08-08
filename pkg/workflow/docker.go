@@ -250,6 +250,25 @@ func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, 
 		}
 		result[i] = img
 		pins[i] = GHAWManifestContainer{Image: img}
+
+		// gh-aw-firewall images that fail to resolve a digest pin are the most
+		// security-load-bearing containers (they confine the agent sandbox), so
+		// record the miss as a resolution failure for lock-file auditing instead
+		// of silently shipping an unpinned tag (see gh-aw#51248).
+		if workflowData != nil && strings.HasPrefix(img, constants.DefaultFirewallRegistry+"/") {
+			dockerLog.Printf("No digest pin found for gh-aw-firewall image: %s", img)
+			// Split on the last colon so a registry:port prefix (unlikely for AWF
+			// images, but generically correct) isn't mistaken for the tag separator.
+			repo, tag := img, ""
+			if idx := strings.LastIndex(img, ":"); idx >= 0 {
+				repo, tag = img[:idx], img[idx+1:]
+			}
+			workflowData.ActionResolutionFailures = append(workflowData.ActionResolutionFailures, GHAWManifestResolutionFailure{
+				Repo:      repo,
+				Ref:       tag,
+				ErrorType: "container_pin_not_found",
+			})
+		}
 	}
 	return result, pins
 }
