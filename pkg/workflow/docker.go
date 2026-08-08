@@ -257,9 +257,15 @@ func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, 
 		// of silently shipping an unpinned tag (see gh-aw#51248).
 		if workflowData != nil && strings.HasPrefix(img, constants.DefaultFirewallRegistry+"/") {
 			dockerLog.Printf("No digest pin found for gh-aw-firewall image: %s", img)
+			// Split on the last colon so a registry:port prefix (unlikely for AWF
+			// images, but generically correct) isn't mistaken for the tag separator.
+			repo, tag := img, ""
+			if idx := strings.LastIndex(img, ":"); idx >= 0 {
+				repo, tag = img[:idx], img[idx+1:]
+			}
 			workflowData.ActionResolutionFailures = append(workflowData.ActionResolutionFailures, GHAWManifestResolutionFailure{
-				Repo:      img,
-				Ref:       img,
+				Repo:      repo,
+				Ref:       tag,
 				ErrorType: "container_pin_not_found",
 			})
 		}

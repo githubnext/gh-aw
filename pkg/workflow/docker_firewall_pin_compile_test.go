@@ -375,15 +375,15 @@ Test workflow.`
 		t.Fatal("Expected a gh-aw-manifest header in the compiled lock file")
 	}
 
-	agentImage := constants.DefaultFirewallRegistry + "/agent:" + imageTag
+	agentRepo := constants.DefaultFirewallRegistry + "/agent"
 	found := false
 	for _, f := range manifest.ResolutionFailures {
-		if f.Repo == agentImage {
+		if f.Repo == agentRepo && f.Ref == imageTag {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected a resolution failure recorded for unpinned gh-aw-firewall image %s, got: %+v", agentImage, manifest.ResolutionFailures)
+		t.Errorf("Expected a resolution failure recorded for unpinned gh-aw-firewall image %s:%s, got: %+v", agentRepo, imageTag, manifest.ResolutionFailures)
 	}
 }
