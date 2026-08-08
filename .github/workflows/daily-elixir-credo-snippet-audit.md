@@ -43,7 +43,9 @@ imports:
       reviewers: [copilot]
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 steps:
   - name: Install Credo tooling project
     run: |

@@ -75,6 +75,11 @@ evals:
   - id: sub_agent_strategy_goal_met
     question: Does the agent output show that the objective for experiment sub_agent_strategy was successfully completed?
 
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 # Smoke Test: Gemini Engine Validation

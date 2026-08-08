@@ -20,8 +20,9 @@ permissions:
 
 sandbox:
   agent:
-    sudo: false
-
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 tracker-id: daily-syntax-error-quality
 engine:
   id: copilot

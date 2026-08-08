@@ -154,7 +154,9 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 evals:
   - id: issue-created
     question: Did the agent create an issue with skill improvement suggestions?

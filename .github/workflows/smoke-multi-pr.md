@@ -52,6 +52,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 # Smoke Test: Multiple Pull Request Creation

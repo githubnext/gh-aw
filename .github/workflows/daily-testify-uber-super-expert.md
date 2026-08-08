@@ -56,7 +56,9 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
