@@ -44,6 +44,40 @@ describe("require-error-code-in-thrown-error", () => {
     });
   });
 
+  it("valid: identifiers whose write-once initializer carries an error code are not flagged", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [
+        `const { ERR_SYSTEM } = require("./error_codes.cjs"); function f(result) { const errorMsg = \`\${ERR_SYSTEM}: \${result.stderr}\`; throw new Error(errorMsg); }`,
+        `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(p) { const msg = \`\${ERR_CONFIG}: Source tools file not found at: \${p}\`; throw new Error(msg); }`,
+        `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(p) { const inner = \`\${ERR_CONFIG}: bad\`; const outer = inner; throw new Error(outer); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: identifiers whose value cannot be statically resolved are not flagged", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [
+        `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(errorMessage) { throw new Error(errorMessage); }`,
+        `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(e) { let msg = "boom"; msg = String(e); throw new Error(msg); }`,
+        `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(e) { const errorMessage = getErrorMessage(e); if (errorMessage.startsWith(\`\${ERR_CONFIG}:\`)) { throw new Error(errorMessage); } }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: identifiers whose write-once initializer lacks an error code are still flagged", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function f() { const msg = "no code here"; throw new Error(msg); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+      ],
+    });
+  });
+
   it("invalid: non-Error throws and other constructs are ignored", () => {
     cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
       valid: [`const { ERR_API } = require("./error_codes.cjs"); function f() { throw someError; }`, `const { ERR_API } = require("./error_codes.cjs"); function f() { throw new TypeError("bad type"); }`],
