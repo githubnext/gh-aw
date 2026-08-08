@@ -891,6 +891,15 @@ CloseStickyReopenRejection ≜
   ∀ item : close_issue ∪ close_pull_request :
     current.state = "closed" ⟹ result = "accepted" ∧
     current.state = "open"   ⟹ result = "rejected"
+
+APIErrorNotTerminal ≜
+  ∀ pr : PullRequest, err : APIError :
+    fetch(pr) = err ⟹ outcome = "error"
+
+ZeroTouchRequiresNoReviews ≜
+  ∀ pr : PullRequest :
+    pr.zeroTouch ⟹ pr.outcome = "accepted" ∧
+      pr.humanComments = 0 ∧ pr.humanReviews = 0
 ```
 
 **F* pre/post contracts** (selected):
@@ -964,12 +973,14 @@ val evaluateOutcome :
 | `P10` Derived-Metrics-Consistency | `TestFormalDerivedMetricsConsistency` | acceptance_rate and waste_rate formulas; division-by-zero safety |
 | `P11` OTel-Graceful-Degradation | `TestFormalOTelGracefulDegradation` | OTLP failure still writes audit log; outcome not discarded |
 | `P12` Conformance-Class-Coverage | `TestFormalConformanceClassCoverage` | Class A/C test existence invariant structure |
+| `P14` API-Error-Not-Terminal | `TestFormalAPIErrorNotTerminal` | An authoritative PR fetch error produces `error`, never a terminal outcome |
+| `P15` Zero-Touch-Requires-No-Reviews | `TestFormalZeroTouchRequiresNoReviews` | `zero_touch` requires zero non-bot comments and zero reviews |
 
 ---
 
 ## Generated Test Suite
 
-The 12 test functions above are implemented in
+The 14 test functions above are implemented in
 `pkg/cli/outcome_eval_formal_test.go` using the Go `testify` library.
 All tests carry the `//go:build !integration` tag so they run in the default
 unit-test suite without any special flags.
@@ -984,7 +995,7 @@ Each test function:
 Run the full formal suite:
 
 ```sh
-go test ./pkg/cli/ -run 'TestFormalOutcomeDomainInvariant|TestFormalAPIFailurePending|TestFormal404Classification|TestFormalBotActorProvenance|TestFormalPRMergeAcceptance|TestFormalIssueBotCloseLifecycle|TestFormalLabelStickiness|TestFormalUpdateSnapshotComparison|TestFormalCloseStickyReopenRejection|TestFormalDerivedMetricsConsistency|TestFormalOTelGracefulDegradation|TestFormalConformanceClassCoverage' -v
+go test ./pkg/cli/ -run 'TestFormalOutcomeDomainInvariant|TestFormalAPIFailurePending|TestFormal404Classification|TestFormalBotActorProvenance|TestFormalPRMergeAcceptance|TestFormalIssueBotCloseLifecycle|TestFormalLabelStickiness|TestFormalUpdateSnapshotComparison|TestFormalCloseStickyReopenRejection|TestFormalDerivedMetricsConsistency|TestFormalOTelGracefulDegradation|TestFormalConformanceClassCoverage|TestFormalAPIErrorNotTerminal|TestFormalZeroTouchRequiresNoReviews' -v
 ```
 
 ### Formal Notation Cross-References
