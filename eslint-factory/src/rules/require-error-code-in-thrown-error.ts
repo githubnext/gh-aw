@@ -1,4 +1,5 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { resolveWriteOnceInitializerChain } from "./command-initializer-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -116,6 +117,20 @@ export const requireErrorCodeInThrownErrorRule = createRule({
         }
 
         if (messageReferencesErrorCode(messageArg)) return;
+
+        if (messageArg.type === AST_NODE_TYPES.Identifier) {
+          // Resolve write-once local initializers so a message built from an
+          // ERR_* constant is recognized even when it is held in a plain-named
+          // variable (e.g. `const errorMsg = `${ERR_SYSTEM}: ...`;`).
+          const resolved = resolveWriteOnceInitializerChain(messageArg, sourceCode);
+          // Unresolvable values (parameters, reassigned bindings, call results,
+          // values from a guarded branch) stay silent: false positives are worse
+          // than silence for this consistency rule.
+          if (resolved.type !== AST_NODE_TYPES.TemplateLiteral && resolved.type !== AST_NODE_TYPES.Literal && (resolved.type !== AST_NODE_TYPES.BinaryExpression || resolved.operator !== "+")) {
+            return;
+          }
+          if (messageReferencesErrorCode(resolved)) return;
+        }
 
         context.report({
           node: arg,

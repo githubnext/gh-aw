@@ -712,6 +712,7 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 - `github.com/github/gh-aw/pkg/importinpututil` — input-value resolution and formatting for `@import` directives
 - `github.com/github/gh-aw/pkg/repoutil` — repository slug parsing and normalization
 - `github.com/github/gh-aw/pkg/setutil` — set operations backed by `map[K]struct{}`
+- `github.com/github/gh-aw/pkg/ctxutil` — non-nil `context.Context` fallback for optional context options
 
 **Test-only**:
 - `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by workflow package tests
