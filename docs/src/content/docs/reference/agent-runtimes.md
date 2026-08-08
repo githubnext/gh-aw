@@ -205,6 +205,8 @@ Add these Actions secrets to the repository or organization:
 | `DOCKER_USERNAME` | Docker Hub account used by both the Docker and sbx CLIs |
 | `DOCKER_PAT` | Docker Hub personal access token used to pull the sandbox template |
 
+`DOCKER_PAT` is required for Docker sbx, including when `runtime-install: false`, because the compiled workflow refreshes sbx credentials immediately before agent execution. Use a Docker Hub personal access token rather than a password, and make sure it can pull `docker/sandbox-templates:shell-docker`.
+
 ### Docker sbx runner requirements
 
 The runner needs:
