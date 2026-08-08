@@ -3,7 +3,7 @@
 //
 // The steps emitted are (in order):
 //  1. KVM availability check – fails fast when nested virtualisation is absent.
-//  2. Docker Hub secrets check – fails fast when DOCKER_PAT / DOCKER_USERNAME are missing.
+//  2. Docker Hub secrets check – verifies DOCKER_PAT / DOCKER_USERNAME are present.
 //  3. sbx installation      – adds the Docker apt repo and installs the docker-sbx package.
 //  4. sbx auth & daemon     – authenticates with Docker Hub, starts the daemon, resets and
 //     re-initialises the allow-all policy, then pre-pulls the template image.
@@ -38,15 +38,31 @@ func generateDockerSbxKVMCheckStep() GitHubActionStep {
 	})
 }
 
-// generateDockerSbxSecretsCheckStep creates a fail-fast step that verifies the
-// DOCKER_PAT and DOCKER_USERNAME secrets are present before attempting sbx install.
+// generateDockerSbxSecretsCheckStep creates a step that verifies the DOCKER_PAT
+// and DOCKER_USERNAME secrets are present before attempting sbx install.
 func generateDockerSbxSecretsCheckStep() GitHubActionStep {
 	dockerSbxInstallLog.Print("Generating docker-sbx Docker Hub secrets check step")
 	return GitHubActionStep([]string{
 		"      - name: Check Docker Hub secrets for docker-sbx",
+		"        id: docker-sbx-secrets",
 		"        env:",
 		"          DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}",
 		"          DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}",
+		`        run: bash "${RUNNER_TEMP}/gh-aw/actions/docker_sbx_secrets_check.sh"`,
+	})
+}
+
+// generateDockerSbxActivationSecretsCheckStep creates a soft-failing activation
+// step that records whether docker-sbx can run without failing the workflow.
+func generateDockerSbxActivationSecretsCheckStep() GitHubActionStep {
+	dockerSbxInstallLog.Print("Generating docker-sbx activation Docker Hub secrets check step")
+	return GitHubActionStep([]string{
+		"      - name: Check Docker Hub secrets for docker-sbx",
+		"        id: docker-sbx-secrets",
+		"        env:",
+		"          DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}",
+		"          DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}",
+		"          DOCKER_SBX_SECRETS_SOFT_FAIL: 'true'",
 		`        run: bash "${RUNNER_TEMP}/gh-aw/actions/docker_sbx_secrets_check.sh"`,
 	})
 }
