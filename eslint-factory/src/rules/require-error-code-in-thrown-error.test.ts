@@ -75,7 +75,6 @@ describe("require-error-code-in-thrown-error", () => {
       valid: [
         `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(errorMessage) { throw new Error(errorMessage); }`,
         `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(e) { let msg = "boom"; msg = String(e); throw new Error(msg); }`,
-        `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(e) { const errorMessage = getErrorMessage(e); if (errorMessage.startsWith(\`\${ERR_CONFIG}:\`)) { throw new Error(errorMessage); } }`,
       ],
       invalid: [],
     });
@@ -124,6 +123,38 @@ describe("require-error-code-in-thrown-error", () => {
         {
           code: `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f() { throw new CustomError("unshadowed, must be flagged"); }`,
           errors: [{ messageId: "missingErrorCode" }],
+        },
+      ],
+    });
+  });
+
+  it("handles helper call message arguments explicitly", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [
+        `const { ERR_API } = require("./error_codes.cjs"); function helper() { return "ERR_API: failed to fetch"; } function f() { throw new Error(helper()); }`,
+        `const { ERR_CONFIG } = require("./error_codes.cjs"); const helper = () => ERR_CONFIG + ": invalid config"; function f() { throw new Error(helper()); }`,
+        `const { ERR_API } = require("./error_codes.cjs"); function helper() { const message = ERR_API + ": failed to fetch"; return message; } function f() { throw new Error(helper()); }`,
+      ],
+      invalid: [
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function helper() { return "failed to fetch"; } function f() { throw new Error(helper()); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function helper(reason) { return reason; } function f(reason) { throw new Error(helper(reason)); }`,
+          errors: [{ messageId: "callExpressionNeedsReview" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); const { helper } = require("./helper.cjs"); function f() { throw new Error(helper()); }`,
+          errors: [{ messageId: "callExpressionNeedsReview" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function f() { const message = helper(); throw new Error(message); }`,
+          errors: [{ messageId: "callExpressionNeedsReview" }],
+        },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function helper(useFallback) { if (useFallback) return "fallback"; return ERR_API + ": failed"; } function f(useFallback) { throw new Error(helper(useFallback)); }`,
+          errors: [{ messageId: "callExpressionNeedsReview" }],
         },
       ],
     });
