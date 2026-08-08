@@ -92,7 +92,6 @@ For less common ecosystems (Swift, PHP, Dart, Haskell, Perl, fonts, Deno, Elixir
 | "run commands/tests" | `bash` tool (default unless restricted) |
 | "browse web pages/docs" | `web-fetch` and/or `web-search` |
 | "test UI flows" | `playwright` |
-| "finite question about private repo" | `tools.github.bounded-queries` (AWF v0.27.44+, preferred over cross-repo tokens) |
 
 ## Pattern Heuristics
 
@@ -151,4 +150,4 @@ Never suggest committing plaintext tokens.
 | "just respond to a comment" | no pre-fetch needed (event payload is enough) |
 | "process each item individually" | suggest sub-agent pattern with `model: small` |
 | "weekly digest", "compliance report", "license review", "policy audit" | pre-fetch with `gh` + `jq` into `/tmp/gh-aw/data/`; point prompt to those files |
-| "finite question about a private repo", "check if private repo has X" | `tools.github.bounded-queries` (preferred over cross-repo token/checkout) |
+
