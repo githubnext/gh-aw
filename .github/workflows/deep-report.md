@@ -28,18 +28,18 @@ strict: true
 
 experiments:
   output_format:
-    variants: [full_briefing, executive_brief, annotated_brief]
-    description: "Tests whether report verbosity and structure affect token cost and discussion engagement"
-    hypothesis: "H0: no change in discussion engagement or token cost. H1: executive_brief reduces token usage by ≥20% without reducing engagement; annotated_brief improves actionability."
+    variants: [full_briefing, executive_brief, annotated_brief, ste]
+    description: "Tests whether report verbosity, structure, or Simplified Technical English (STE) phrasing affect token cost and discussion engagement"
+    hypothesis: "H0: no change in discussion engagement or token cost. H1: executive_brief reduces token usage by ≥20% without reducing engagement; annotated_brief improves actionability; ste improves clarity while reducing token usage."
     metric: token_count
-    secondary_metrics: [discussion_reactions, discussion_replies, output_char_length, run_duration_ms]
+    secondary_metrics: [discussion_reactions, discussion_replies, output_char_length, run_duration_ms, "eval:output_format_goal_met"]
     guardrail_metrics:
       - name: empty_output_rate
         threshold: "==0"
       - name: issue_creation_success_rate
         threshold: ">=0.8"
     min_samples: 15
-    weight: [34, 33, 33]
+    weight: [25, 25, 25, 25]
     start_date: "2026-05-06"
     analysis_type: mann_whitney
     tags: [output-format, token-cost, engagement, daily]
@@ -96,7 +96,7 @@ imports:
   - shared/default-ai-credits-pricing.md
 evals:
   - id: output_format_goal_met
-    question: Does the agent output show that the objective for experiment output_format was successfully completed?
+    question: Does the report's writing style match the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
   - id: tasks-extracted
     question: Does the agent output show that actionable tasks were identified from the analyzed discussions?
   - id: labels-applied
@@ -302,6 +302,17 @@ Generate a **condensed intelligence brief with inline citations** with these sec
 1. **🔍 Executive Summary** — 3 sentences with at least one cited source link per sentence.
 2. **🚨 Top 5 Findings** — Flat bullet list, one line each, each ending with `([source](url))`.
 3. **✅ Actionable Agentic Tasks** — Exactly 7 items as before, each linking its evidence.
+{{#elseif experiments.output_format == 'ste'}}
+Generate a **Simplified Technical English (STE) brief** with these sections only. Follow STE rules throughout:
+- Use short sentences. Limit each sentence to 20 words or fewer.
+- Write one fact or instruction per sentence.
+- Use active voice and present tense.
+- Use simple, familiar words. Do not use jargon.
+- Spell out each acronym on first use.
+
+1. **🔍 Executive Summary** — 3 short sentences: overall health, top finding, urgent action.
+2. **🚨 Top 5 Findings** — Flat bullet list. Each bullet is one short sentence, most impactful first.
+3. **✅ Actionable Agentic Tasks** — Exactly 7 items as before, each written as one short, direct instruction.
 {{else}}
 Generate an intelligence briefing with the following sections:
 

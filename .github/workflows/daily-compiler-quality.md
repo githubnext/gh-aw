@@ -36,13 +36,13 @@ max-tool-denials: 3
 experiments:
   output_format:
     analysis_type: mann_whitney
-    description: Tests whether a concise executive-summary report outperforms the current exhaustive per-file report on discussion engagement and token efficiency
+    description: Tests whether a concise executive-summary report or a Simplified Technical English (STE) report outperforms the current exhaustive per-file report on discussion engagement and token efficiency
     guardrail_metrics:
     - name: run_success_rate
       threshold: ">=0.85"
     - name: empty_output_rate
       threshold: <=0.05
-    hypothesis: "H0: no change in discussion engagement. H1: concise variant achieves equal engagement with ≥30% fewer output tokens"
+    hypothesis: "H0: no change in discussion engagement. H1: concise variant achieves equal engagement with ≥30% fewer output tokens; ste variant achieves equal or better engagement via simplified language."
     issue: 32390
     metric: discussion_engagement_score
     min_samples: 20
@@ -50,6 +50,7 @@ experiments:
     - output_token_count
     - run_duration_ms
     - run_success_rate
+    - "eval:output_format_adherence"
     start_date: "2026-05-16"
     tags:
     - output-quality
@@ -58,9 +59,11 @@ experiments:
     variants:
     - detailed
     - concise
+    - ste
     weight:
-    - 50
-    - 50
+    - 34
+    - 33
+    - 33
 name: Daily Compiler Quality Check
 strict: true
 timeout-minutes: 30
@@ -106,6 +109,8 @@ evals:
     question: Did the agent analyze compiler code files for quality standards such as readability and maintainability?
   - id: discussion_created_or_noop
     question: Was a discussion or report created with quality findings, or was noop used when all analyzed files met the quality standards?
+  - id: output_format_adherence
+    question: Does the report match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -632,6 +637,36 @@ Based on historical analysis, these files consistently score below 70:
 ### Recommended Action
 Priority: add godoc comments (estimated 30 min).
 [Replace with the single highest-priority actionable recommendation from today's analysis]
+{{/if}}
+{{#if experiments.output_format == 'ste' }}
+Write every sentence below using Simplified Technical English (STE) rules:
+- Use short sentences. Limit each sentence to 20 words or fewer.
+- Write one fact per sentence.
+- Use active voice and present tense.
+- Use simple, familiar words. Do not use jargon.
+- Spell out each acronym on first use.
+
+### Summary Table
+
+| File | Score | Rating | Top Issue |
+|------|-------|--------|-----------|
+| compiler_orchestrator.go | 82/100 | ✅ Good | File size 859 lines |
+| compiler_jobs.go | 78/100 | ✅ Good | Missing docstrings |
+| compiler_yaml.go | 68/100 | ⚠️ Acceptable | Weak error wrapping |
+[One row per file analyzed today — replace example rows with actual Serena analysis results]
+
+**Avg score**: 76/100 · **Files meeting threshold**: 2/3
+[Replace with real average score and threshold count from today's analysis]
+
+### Top 3 Issues
+1. File size is too large. Split `compiler_orchestrator.go` (859 lines).
+2. Three exported functions have no godoc comment.
+3. `compiler_yaml.go` has weak error context.
+[Replace with the actual top 3 issues identified across all analyzed files, each as one short sentence]
+
+### Recommended Action
+Add godoc comments. This takes about 30 minutes.
+[Replace with the single highest-priority actionable recommendation from today's analysis, written as one short sentence]
 {{/if}}
 
 ---
