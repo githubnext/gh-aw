@@ -4,3 +4,5 @@
 {"id":"issues_created_or_noop","question":"Were issues created to improve tool descriptions for errored calls, or was noop used when no errors were found?","answer":"YES","model":"evals","timestamp":"2026-08-06T23:00:09.198Z","runid":"31129069192"}
 {"id":"errored_calls_analyzed","question":"Did the agent analyze gateway logs for errored safe output tool calls?","answer":"YES","model":"evals","timestamp":"2026-08-07T21:15:37.938Z","runid":"31218614882"}
 {"id":"issues_created_or_noop","question":"Were issues created to improve tool descriptions for errored calls, or was noop used when no errors were found?","answer":"YES","model":"evals","timestamp":"2026-08-07T21:15:37.938Z","runid":"31218614882"}
+{"id":"errored_calls_analyzed","question":"Did the agent analyze gateway logs for errored safe output tool calls?","answer":"YES","model":"evals","timestamp":"2026-08-08T21:23:21.131Z","runid":"31278294614"}
+{"id":"issues_created_or_noop","question":"Were issues created to improve tool descriptions for errored calls, or was noop used when no errors were found?","answer":"YES","model":"evals","timestamp":"2026-08-08T21:23:21.131Z","runid":"31278294614"}
