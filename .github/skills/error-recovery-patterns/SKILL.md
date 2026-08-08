@@ -1,4 +1,5 @@
 ---
+name: error-recovery-patterns
 description: Design gh-aw error handling, retry, recovery, and debugging flows.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: http_mcp_headers
+name: http-mcp-headers
 description: Implement secret-safe HTTP headers for MCP transport in gh-aw.
 ---
 
