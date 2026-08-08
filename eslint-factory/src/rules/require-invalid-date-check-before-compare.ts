@@ -31,7 +31,13 @@ function isPotentiallyInvalidDateConstruction(node: TSESTree.NewExpression): boo
 /** Returns true when the call expression is `Number.isNaN(x.getTime())` or `isNaN(x.getTime())`. */
 function isGetTimeNaNCheck(node: TSESTree.CallExpression): boolean {
   const isNaNGlobal = node.callee.type === AST_NODE_TYPES.Identifier && node.callee.name === "isNaN";
-  const isNaNStatic = node.callee.type === AST_NODE_TYPES.MemberExpression && node.callee.object.type === AST_NODE_TYPES.Identifier && node.callee.object.name === "Number" && !node.callee.computed && node.callee.property.type === AST_NODE_TYPES.Identifier && node.callee.property.name === "isNaN";
+  const isNaNStatic =
+    node.callee.type === AST_NODE_TYPES.MemberExpression &&
+    node.callee.object.type === AST_NODE_TYPES.Identifier &&
+    node.callee.object.name === "Number" &&
+    !node.callee.computed &&
+    node.callee.property.type === AST_NODE_TYPES.Identifier &&
+    node.callee.property.name === "isNaN";
 
   if (!isNaNGlobal && !isNaNStatic) return false;
   if (node.arguments.length !== 1) return false;
@@ -69,7 +75,8 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
     },
     schema: [],
     messages: {
-      requireInvalidDateCheck: "{{subject}} may be an Invalid Date and is compared with a relational operator ({{operator}}) without ever being checked via Number.isNaN({{getTimeTarget}}.getTime()). An unparseable date silently fails every comparison instead of surfacing an error.",
+      requireInvalidDateCheck:
+        "{{subject}} may be an Invalid Date and is compared with a relational operator ({{operator}}) without ever being checked via Number.isNaN({{getTimeTarget}}.getTime()). An unparseable date silently fails every comparison instead of surfacing an error.",
     },
   },
   defaultOptions: [],

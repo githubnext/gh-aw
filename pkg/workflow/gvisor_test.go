@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestGenerateGVisorInstallStep verifies that the gVisor install step contains
-// the expected content from the reference implementation.
+// TestGenerateGVisorInstallStep verifies that the gVisor install step references
+// the correct shell script with the pinned version and required runner-guard suppression.
 func TestGenerateGVisorInstallStep(t *testing.T) {
 	step := generateGVisorInstallStep()
 	require.NotEmpty(t, step, "gVisor install step must not be empty")
@@ -24,43 +24,48 @@ func TestGenerateGVisorInstallStep(t *testing.T) {
 	assert.Contains(t, content, "Install gVisor (runsc)", "step should have a recognizable name")
 	assert.Contains(t, content, "runner-guard:ignore RGS-012",
 		"step should include runner-guard suppression for verified gVisor download false-positive")
-
-	// Architecture detection: must use uname -m, not hardcoded amd64/arm64.
-	assert.Contains(t, content, "uname -m", "must detect architecture via uname -m")
-	assert.NotContains(t, content, "amd64", "must NOT remap architecture to amd64")
-	assert.NotContains(t, content, "arm64", "must NOT remap architecture to arm64")
-
-	// Both binaries must be downloaded.
-	assert.Contains(t, content, "runsc", "must download runsc binary")
-	assert.Contains(t, content, "containerd-shim-runsc-v1", "must download containerd-shim-runsc-v1")
-
-	// Must use gVisor's official download URL.
-	assert.Contains(t, content, "storage.googleapis.com/gvisor", "must use official gVisor download URL")
-
-	// Must use a pinned release (not "latest") for reproducible supply-chain-safe installs.
+	assert.Contains(t, content, "sudo_gvisor_install.sh", "step must reference the sudo gVisor install script")
+	assert.Contains(t, content, "${RUNNER_TEMP}/gh-aw/actions/", "must use RUNNER_TEMP script path")
 	assert.Contains(t, content, constants.DefaultGVisorVersion,
-		"must use pinned gVisor release, not a mutable pointer like 'latest'")
-	assert.NotContains(t, content, "/latest/", "must NOT use the mutable 'latest' release path")
+		"must pass pinned gVisor release version to the script")
+	assert.NotContains(t, content, "latest", "must NOT reference the mutable 'latest' release")
+}
 
-	// Both binaries must be integrity-verified via SHA-512 before sudo install.
-	assert.Contains(t, content, "runsc.sha512", "must download SHA-512 for runsc")
-	assert.Contains(t, content, "containerd-shim-runsc-v1.sha512", "must download SHA-512 for containerd-shim-runsc-v1")
-	assert.Contains(t, content, "sha512sum -c", "must verify SHA-512 checksums before installing")
+// TestGVisorInstallScriptContent verifies that the sudo_gvisor_install.sh
+// shell script exists and contains the expected key operations.
+func TestGVisorInstallScriptContent(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	script := filepath.Join(wd, "..", "..", "actions", "setup", "sh", "sudo_gvisor_install.sh")
+	content, err := os.ReadFile(script)
+	require.NoError(t, err, "sudo_gvisor_install.sh must exist")
+	s := string(content)
 
-	// Must install binaries to system path (requires sudo).
-	assert.Contains(t, content, "sudo install", "must install binaries with sudo")
-	assert.Contains(t, content, "/usr/local/bin/runsc", "must install runsc to /usr/local/bin")
+	// Must detect architecture dynamically, not hardcode amd64/arm64.
+	assert.Contains(t, s, "uname -m", "must detect architecture via uname -m")
+	assert.NotContains(t, s, "amd64", "must NOT remap architecture to amd64")
+	assert.NotContains(t, s, "arm64", "must NOT remap architecture to arm64")
 
-	// Must register the runtime with Docker.
-	assert.Contains(t, content, "sudo runsc install", "must register runsc with Docker via runsc install")
+	// Both binaries must be downloaded and integrity-verified.
+	assert.Contains(t, s, "runsc", "must download runsc binary")
+	assert.Contains(t, s, "containerd-shim-runsc-v1", "must download containerd-shim-runsc-v1")
+	assert.Contains(t, s, "storage.googleapis.com/gvisor", "must use official gVisor download URL")
+	assert.Contains(t, s, "runsc.sha512", "must download SHA-512 for runsc")
+	assert.Contains(t, s, "containerd-shim-runsc-v1.sha512", "must download SHA-512 for containerd-shim-runsc-v1")
+	assert.Contains(t, s, "sha512sum -c", "must verify SHA-512 checksums before installing")
 
-	// Must use systemctl restart (NOT reload) to restart Docker.
-	assert.Contains(t, content, "systemctl restart docker", "must restart Docker with systemctl restart")
-	assert.NotContains(t, content, "systemctl reload docker", "must NOT use systemctl reload (breaks host-gateway DNS)")
+	// Must install with sudo (hence the sudo_ prefix).
+	assert.Contains(t, s, "sudo install", "must install binaries with sudo")
+	assert.Contains(t, s, "/usr/local/bin/runsc", "must install runsc to /usr/local/bin")
+	assert.Contains(t, s, "sudo runsc install", "must register runsc with Docker via runsc install")
 
-	// Must verify the runtime works (pre-pull to avoid network dependency during test run).
-	assert.Contains(t, content, "docker pull hello-world", "must pre-pull hello-world image")
-	assert.Contains(t, content, "docker run --rm --runtime=runsc", "must verify gVisor runtime with a test container")
+	// Must restart Docker (not reload).
+	assert.Contains(t, s, "systemctl restart docker", "must restart Docker with systemctl restart")
+	assert.NotContains(t, s, "systemctl reload docker", "must NOT use systemctl reload (breaks host-gateway DNS)")
+
+	// Must verify the runtime works end-to-end.
+	assert.Contains(t, s, "docker pull hello-world", "must pre-pull hello-world image")
+	assert.Contains(t, s, "docker run --rm --runtime=runsc", "must verify gVisor runtime with a test container")
 }
 
 // TestGVisorInstallStepOrderInBuildNpmEngineInstallStepsWithAWF verifies that the
