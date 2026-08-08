@@ -273,7 +273,7 @@ func TestParseFrontmatterSection_InvalidSkillsRef(t *testing.T) {
 on: workflow_dispatch
 engine: copilot
 skills:
-  - githubnext/skills@main
+  - githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de
 ---
 
 # Workflow
@@ -288,7 +288,7 @@ skills:
 	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.True(t,
-		strings.Contains(err.Error(), "40-char-sha") || strings.Contains(err.Error(), "does not match pattern"),
+		strings.Contains(err.Error(), "truncated or malformed") || strings.Contains(err.Error(), "does not match pattern"),
 		"expected skills validation error, got: %v", err,
 	)
 }
@@ -316,7 +316,7 @@ skills:
 	require.Error(t, err, "expected error: GitHub Actions expressions are not allowed in skills refs")
 	assert.Nil(t, result)
 	assert.True(t,
-		strings.Contains(err.Error(), "40-char-sha") || strings.Contains(err.Error(), "does not match pattern"),
+		strings.Contains(err.Error(), "does not support expressions") || strings.Contains(err.Error(), "does not match pattern"),
 		"expected skills validation error, got: %v", err,
 	)
 }

@@ -6,22 +6,42 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var skillsFrontmatterLog = logger.New("workflow:skills_frontmatter")
 
-var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
+// skillRepoPathRegexp matches the repository (and optional skill sub-path) portion
+// of a remote skill spec, e.g. "owner/repo" or "owner/repo/skill/path".
+var skillRepoPathRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$`)
+
+// skillRefCharsRegexp restricts non-SHA refs (branch/tag names) to a safe character
+// set. This is deliberately more permissive than a SHA (branch names may contain "/"
+// for hierarchical names such as "release/1.0") while still preventing shell/argument
+// injection when the ref is later passed to "gh" subprocesses.
+var skillRefCharsRegexp = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_./-]*$`)
+
 var localSkillPathRegexp = regexp.MustCompile(`^(?:\./)?(?:\.[A-Za-z0-9_-][A-Za-z0-9_.-]*|[A-Za-z0-9_-][A-Za-z0-9_.-]*)(?:/(?:\.[A-Za-z0-9_-][A-Za-z0-9_.-]*|[A-Za-z0-9_-][A-Za-z0-9_.-]*))*$`)
 var skillsGitHubTokenExpressionRegexp = regexp.MustCompile(`^\$\{\{\s*(secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*|needs\.[A-Za-z_][A-Za-z0-9_]*\.outputs\.[A-Za-z_][A-Za-z0-9_]*)\s*\}\}$`)
+
+// looksLikeAmbiguousSHA reports whether ref is composed entirely of hex characters
+// with a length between 7 and 40 (inclusive) but is not itself a valid, canonical
+// (lowercase, 40-char) full SHA. Such values are rejected as skill refs because they
+// could be mistaken for (or silently truncate to) a real commit SHA, which is a
+// well-known ref-confusion/collision risk; authors should use the full 40-character
+// lowercase SHA or a clearly non-SHA branch/tag name instead.
+func looksLikeAmbiguousSHA(ref string) bool {
+	return len(ref) >= 7 && len(ref) <= 40 && gitutil.IsHexString(ref) && !gitutil.IsValidFullSHA(ref)
+}
 
 // isLocalSkillRef reports whether spec is a local skill reference — a
 // repository-relative path that should be installed with --from-local at
 // runtime. A spec is treated as local when it:
 //   - is not empty,
 //   - does not begin with "${{" (not a GitHub Actions expression), and
-//   - contains no "@" separator (and therefore cannot be a fully-pinned
-//     remote reference such as "owner/repo/path@<40-char-sha>").
+//   - contains no "@" separator (and therefore cannot be a remote reference
+//     such as "owner/repo/path@<ref>" or "owner/repo/path@<40-char-sha>").
 func isLocalSkillRef(spec string) bool {
 	spec = strings.TrimSpace(spec)
 	return spec != "" && !strings.HasPrefix(spec, "${{") && !strings.Contains(spec, "@")
@@ -36,14 +56,15 @@ type SkillReference struct {
 }
 
 func validateSkillSpecValue(skillSpec string, idx int) error {
-	if strings.TrimSpace(skillSpec) == "" {
+	trimmed := strings.TrimSpace(skillSpec)
+	if trimmed == "" {
 		return fmt.Errorf("skills[%d] must be a non-empty string. Example: skills[%d]: \"owner/repo@abc1234...\"", idx, idx)
 	}
 	// Local path references (no "@" and not an expression) are allowed; they
 	// are installed with --from-local at runtime and rewritten to a remote
 	// repospec by "gh aw add".
 	if isLocalSkillRef(skillSpec) {
-		if !localSkillPathRegexp.MatchString(strings.TrimSpace(skillSpec)) {
+		if !localSkillPathRegexp.MatchString(trimmed) {
 			return fmt.Errorf(
 				"skills[%d] local paths must be repository-relative without '..' traversal segments (got %q). Example: skills[%d]: \"./skills/my-skill\"",
 				idx,
@@ -53,14 +74,63 @@ func validateSkillSpecValue(skillSpec string, idx int) error {
 		}
 		return nil
 	}
-	if !skillSpecRegexp.MatchString(skillSpec) {
+
+	// GitHub Actions expressions are not supported as skill refs: they cannot be
+	// syntax-validated or resolved to a SHA at compile time.
+	if strings.Contains(trimmed, "${{") {
 		return fmt.Errorf(
-			"skills[%d] must use owner/repo@<40-char-sha> or owner/repo/skill/path@<40-char-sha> (got %q). Example: skills[%d]: \"owner/repo@abcdef1234567890abcdef1234567890abcdef12\"",
+			"skills[%d] must use owner/repo@<ref> or owner/repo/skill/path@<ref> and does not support expressions (got %q). Example: skills[%d]: \"owner/repo@main\" or skills[%d]: \"owner/repo@abcdef1234567890abcdef1234567890abcdef12\"",
 			idx,
 			skillSpec,
 			idx,
+			idx,
 		)
 	}
+
+	repoPath, ref, hasAt := strings.Cut(trimmed, "@")
+	if !hasAt || !skillRepoPathRegexp.MatchString(repoPath) {
+		return fmt.Errorf(
+			"skills[%d] must use owner/repo@<ref> or owner/repo/skill/path@<ref> (got %q). Example: skills[%d]: \"owner/repo@main\" or skills[%d]: \"owner/repo@abcdef1234567890abcdef1234567890abcdef12\"",
+			idx,
+			skillSpec,
+			idx,
+			idx,
+		)
+	}
+
+	// An empty ref ("owner/repo@") explicitly opts out of pinning: the skill is
+	// installed from the repository's default branch. This is allowed, but
+	// triggers a compile-time warning recommending an explicit ref (see
+	// emitSkillPinningWarnings).
+	if ref == "" {
+		return nil
+	}
+
+	if gitutil.IsValidFullSHA(ref) {
+		return nil
+	}
+
+	if looksLikeAmbiguousSHA(ref) {
+		return fmt.Errorf(
+			"skills[%d] ref %q looks like a truncated or malformed commit SHA (got %q); use the full 40-character lowercase SHA or a branch/tag name",
+			idx,
+			ref,
+			skillSpec,
+		)
+	}
+
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return fmt.Errorf("skills[%d] has an invalid ref %q: %w", idx, ref, err)
+	}
+	if !skillRefCharsRegexp.MatchString(ref) {
+		return fmt.Errorf(
+			"skills[%d] ref %q contains unsupported characters; refs may only contain letters, digits, '.', '_', '-', and '/' (got %q)",
+			idx,
+			ref,
+			skillSpec,
+		)
+	}
+
 	return nil
 }
 

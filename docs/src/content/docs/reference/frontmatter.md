@@ -237,8 +237,8 @@ Supported entry formats:
 
 - String form (shared authentication):
   - `skills/name` or `.github/skills/name` (local development path; installed with `--from-local`)
-  - `owner/repo@<40-char-sha>`
-  - `owner/repo/skill/path@<40-char-sha>`
+  - `owner/repo@<ref>`
+  - `owner/repo/skill/path@<ref>`
 - Object form (per-skill authentication):
   - `skill` (required)
   - `github-token` (optional)
@@ -247,12 +247,16 @@ Supported entry formats:
 `github-token` and `github-app` are mutually exclusive for each object entry.
 `github-token` must be an expression such as `${{ secrets.NAME }}` or
 `${{ needs.auth.outputs.token }}`.
-Static external references must be pinned to a 40-character lowercase commit SHA.
+`<ref>` may be a branch, tag, or 40-character lowercase commit SHA. Non-SHA
+refs are resolved and rewritten to the matching commit SHA at compile time
+(the compiled `.lock.yml` always pins the resolved SHA). Omitting the ref
+(`owner/repo@`) installs from the repository's default branch on every run
+and is not pinned; the compiler emits a warning recommending an explicit ref.
 
 ```yaml wrap
 skills:
-  # Shared auth via workflow-level activation token
-  - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+  # Shared auth via workflow-level activation token; sha-pinned automatically at compile time
+  - mattpocock/skills/tdd@main
 
   # Per-skill PAT (or fallback) for private skill repositories
   - skill: mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28
