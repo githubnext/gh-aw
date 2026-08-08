@@ -33,6 +33,10 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// and --mount "${RUNNER_TEMP}/...") are appended raw below so that shell variable
 	// expansion is not suppressed by single-quoting.
 	awfArgs := BuildAWFArgs(config)
+	awfArgsText := shellJoinArgs(awfArgs)
+	if isDefaultDockerSbxRuntime(config.WorkflowData) {
+		awfArgsText += ` ${GH_AW_SBX_AVAILABLE:+--container-runtime sbx}`
+	}
 	firewallConfig := getFirewallConfig(config.WorkflowData)
 
 	// Auto-detect ARC/DinD split daemon topology at runtime: probe DOCKER_HOST for a
@@ -312,7 +316,7 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			shellJoinArgs(awfArgs),
+			awfArgsText,
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
 	} else if config.PathSetup != "" {
@@ -340,7 +344,7 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			shellJoinArgs(awfArgs),
+			awfArgsText,
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
 	} else if configFileSetup != "" {
@@ -367,7 +371,7 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			shellJoinArgs(awfArgs),
+			awfArgsText,
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
 	} else {
@@ -392,7 +396,7 @@ fi`,
 			expandableArgs,
 			toolCacheMountRef,
 			arcDindDockerHostRef,
-			shellJoinArgs(awfArgs),
+			awfArgsText,
 			shellWrappedCommand,
 			shellEscapeArg(config.LogFile))
 	}
@@ -439,7 +443,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// docker-sbx: tell AWF to launch the agent inside a Docker sbx microVM instead
 	// of as a standard Docker Compose service. Guard on the effective AWF version so
 	// older binaries do not receive an unknown flag.
-	if isDockerSbxRuntime(config.WorkflowData) && awfSupportsContainerRuntime(firewallConfig) {
+	if isDockerSbxRuntime(config.WorkflowData) && !isDefaultDockerSbxRuntime(config.WorkflowData) && awfSupportsContainerRuntime(firewallConfig) {
 		awfArgs = append(awfArgs, "--container-runtime", "sbx")
 		awfHelpersLog.Print("Added --container-runtime sbx for docker-sbx microVM runtime")
 	} else if isDockerSbxRuntime(config.WorkflowData) {

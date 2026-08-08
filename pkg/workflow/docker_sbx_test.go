@@ -16,6 +16,16 @@ import (
 // TestGenerateDockerSbxInstallSteps verifies that all four docker-sbx install step
 // generators produce non-empty output with the expected key content.
 func TestGenerateDockerSbxInstallSteps(t *testing.T) {
+	t.Run("default setup falls back to Docker", func(t *testing.T) {
+		step := generateDefaultDockerSbxSetupStep()
+		content := strings.Join(step, "\n")
+		assert.Contains(t, content, "GH_AW_SBX_AVAILABLE", "must communicate runtime availability to execution")
+		assert.Contains(t, content, "::warning::Docker sandbox (docker sbx) could not be used", "must warn when docker-sbx cannot be used")
+		assert.Contains(t, content, "standard Docker container runtime", "must identify the fallback runtime")
+		assert.Contains(t, content, "fallback\n            exit 0", "default setup must not fail when docker-sbx is unavailable")
+		assert.Contains(t, content, "sbx daemon start", "must start docker-sbx before selecting it")
+	})
+
 	t.Run("KVM check step", func(t *testing.T) {
 		step := generateDockerSbxKVMCheckStep()
 		require.NotEmpty(t, step, "KVM check step must not be empty")
@@ -103,6 +113,11 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 			"raw secrets expression must not appear in shell commands")
 		assert.NotContains(t, runBody, "${{ secrets.DOCKER_USERNAME }}",
 			"raw secrets expression must not appear in shell commands")
+	})
+
+	t.Run("default credential refresh skips Docker fallback", func(t *testing.T) {
+		content := strings.Join(generateDefaultDockerSbxCredentialRefreshStep(), "\n")
+		assert.Contains(t, content, `${GH_AW_SBX_AVAILABLE:-}`)
 	})
 }
 
@@ -248,6 +263,25 @@ func TestDockerSbxAWFArgsAbsentByDefault(t *testing.T) {
 	args := BuildAWFArgs(config)
 	argStr := strings.Join(args, " ")
 	assert.NotContains(t, argStr, "--container-runtime", "AWF args must not include --container-runtime when no runtime is set")
+}
+
+func TestDockerSbxDefaultSelection(t *testing.T) {
+	assert.True(t, useDockerSbxByDefault("runs-on: ubuntu-latest"))
+	assert.True(t, useDockerSbxByDefault("runs-on: ubuntu-24.04"))
+	assert.False(t, useDockerSbxByDefault("runs-on: self-hosted"))
+	assert.False(t, useDockerSbxByDefault("runs-on: windows-latest"))
+	assert.False(t, useDockerSbxByDefault("runs-on:\n  - ubuntu-latest"))
+}
+
+func TestDefaultDockerSbxUsesRuntimeFallbackFlag(t *testing.T) {
+	data := &WorkflowData{
+		EngineConfig:       &EngineConfig{ID: "copilot"},
+		NetworkPermissions: &NetworkPermissions{Firewall: &FirewallConfig{Enabled: true}},
+		SandboxConfig:      &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx, RuntimeDefaulted: true}},
+	}
+	command := BuildAWFCommand(AWFCommandConfig{EngineName: "copilot", WorkflowData: data})
+	assert.Contains(t, command, "${GH_AW_SBX_AVAILABLE:+--container-runtime sbx}")
+	assert.NotContains(t, strings.Join(BuildAWFArgs(AWFCommandConfig{EngineName: "copilot", WorkflowData: data}), " "), "--container-runtime")
 }
 
 // TestDockerSbxAWFArgsVersionGated verifies that --container-runtime sbx is omitted when

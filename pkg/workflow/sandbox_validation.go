@@ -152,7 +152,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 
 		// docker-sbx install step requires root access; sudo: true is mandatory.
-		if !agentConfig.SudoExplicitlyEnabled {
+		if !agentConfig.SudoExplicitlyEnabled && !agentConfig.RuntimeDefaulted {
 			return NewValidationError(
 				"sandbox.agent.runtime",
 				string(AgentRuntimeDockerSbx),

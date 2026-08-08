@@ -67,6 +67,7 @@ type AgentSandboxConfig struct {
 	Version               string                                `yaml:"version,omitempty"`        // AWF version override used to install and run the matching firewall version
 	Platform              string                                `yaml:"platform,omitempty"`       // AWF platform.type override (github.com, ghes, ghec, ghec-self-hosted)
 	Runtime               AgentRuntime                          `yaml:"runtime,omitempty"`        // Container runtime for the agent container (e.g., "gvisor")
+	RuntimeDefaulted      bool                                  `yaml:"-"`                        // True when docker-sbx was selected as the GitHub-hosted runner default.
 	NetworkIsolation      bool                                  `yaml:"sudo,omitempty"`           // Internal: true = isolation mode (AWF --network-isolation). Frontmatter sudo: false (or omitted) maps to NetworkIsolation=true; sudo: true maps to NetworkIsolation=false.
 	SudoExplicitlyEnabled bool                                  `yaml:"-"`                        // True when sudo: true was explicitly set in frontmatter. Used to emit an error (strict) or warning (non-strict) at compile time.
 	LegacySecurity        bool                                  `yaml:"-"`                        // True when legacy-security: enable was set in frontmatter. Enables sudo, host-access, and iptables-based mode.

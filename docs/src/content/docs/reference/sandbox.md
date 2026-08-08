@@ -85,6 +85,15 @@ sandbox:
 
 ## Coding Agent Sandbox Types
 
+### Runtime default on GitHub-hosted runners
+
+On GitHub-hosted Ubuntu runners, workflows that configure `sandbox.agent` without
+`sandbox.agent.runtime` try Docker Sandbox (`docker sbx`) by default. If Docker
+Sandbox cannot be installed or used, the workflow emits a warning and continues
+with the standard Docker container runtime. Set `sandbox.agent.runtime` explicitly
+to override this behavior; self-hosted and local runners keep their existing
+runtime defaults.
+
 ### AWF (Agent Workflow Firewall)
 
 AWF is the default coding agent sandbox that provides network egress control through domain-based access controls. Network permissions are configured through the top-level [`network`](/gh-aw/reference/network/) field.

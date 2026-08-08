@@ -450,6 +450,9 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// causing "user is not authenticated to Docker" errors when AWF calls `sbx create`.
 	if isDockerSbxRuntime(data) {
 		refreshStep := generateDockerSbxCredentialRefreshStep()
+		if isDefaultDockerSbxRuntime(data) {
+			refreshStep = generateDefaultDockerSbxCredentialRefreshStep()
+		}
 		for _, line := range refreshStep {
 			yaml.WriteString(line)
 			yaml.WriteString("\n")

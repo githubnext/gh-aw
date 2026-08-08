@@ -157,11 +157,15 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 
 		// docker-sbx must be installed, authenticated, and smoke-tested BEFORE AWF.
 		if isDockerSbxRuntime(workflowData) {
-			steps = append(steps, generateDockerSbxKVMCheckStep())
-			steps = append(steps, generateDockerSbxSecretsCheckStep())
-			steps = append(steps, generateDockerSbxInstallStep())
-			steps = append(steps, generateDockerSbxAuthAndDaemonStep())
-			steps = append(steps, generateDockerSbxPreFlightStep())
+			if isDefaultDockerSbxRuntime(workflowData) {
+				steps = append(steps, generateDefaultDockerSbxSetupStep())
+			} else {
+				steps = append(steps, generateDockerSbxKVMCheckStep())
+				steps = append(steps, generateDockerSbxSecretsCheckStep())
+				steps = append(steps, generateDockerSbxInstallStep())
+				steps = append(steps, generateDockerSbxAuthAndDaemonStep())
+				steps = append(steps, generateDockerSbxPreFlightStep())
+			}
 		}
 
 		// Install AWF binary (or skip if custom command is specified)

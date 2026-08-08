@@ -150,6 +150,11 @@ func isDockerSbxRuntime(workflowData *WorkflowData) bool {
 	return agentConfig.Runtime == AgentRuntimeDockerSbx
 }
 
+func isDefaultDockerSbxRuntime(workflowData *WorkflowData) bool {
+	agentConfig := getAgentConfig(workflowData)
+	return agentConfig != nil && agentConfig.Runtime == AgentRuntimeDockerSbx && agentConfig.RuntimeDefaulted
+}
+
 func isAWFNetworkIsolationEnabled(workflowData *WorkflowData) bool {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig == nil || agentConfig.Disabled {

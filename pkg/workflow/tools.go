@@ -53,6 +53,13 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	if data.RunsOn == "" {
 		data.RunsOn = "runs-on: ubuntu-latest"
 	}
+	if data.SandboxConfig != nil && data.SandboxConfig.Agent != nil &&
+		!data.SandboxConfig.Agent.Disabled && data.SandboxConfig.Agent.Runtime == "" &&
+		useDockerSbxByDefault(data.RunsOn) {
+		data.SandboxConfig.Agent.Runtime = AgentRuntimeDockerSbx
+		data.SandboxConfig.Agent.RuntimeDefaulted = true
+		toolsLog.Printf("Using docker-sbx as the default runtime for GitHub-hosted runner %q", data.RunsOn)
+	}
 	// Capture whether tools.bash was explicitly set to false before default-tool resolution
 	// removes the "bash" key entirely (unless overridden by required git commands). This lets
 	// us distinguish "bash explicitly refused" from "bash never configured", which both end up

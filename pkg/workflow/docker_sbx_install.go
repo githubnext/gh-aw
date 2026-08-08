@@ -20,6 +20,46 @@ import "github.com/github/gh-aw/pkg/logger"
 // compilation. Enable with DEBUG=workflow:docker_sbx_install (or workflow:*).
 var dockerSbxInstallLog = logger.New("workflow:docker_sbx_install")
 
+// generateDefaultDockerSbxSetupStep attempts the GitHub-hosted runner default
+// without making the workflow unavailable when the runner cannot support it.
+func generateDefaultDockerSbxSetupStep() GitHubActionStep {
+	return GitHubActionStep([]string{
+		"      - name: Configure Docker sandbox runtime",
+		"        env:",
+		"          DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}",
+		"          DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}",
+		"        run: |",
+		"          set -uo pipefail",
+		"          fallback() {",
+		`            echo "::warning::Docker sandbox (docker sbx) could not be used; falling back to the standard Docker container runtime."`,
+		`            echo "GH_AW_SBX_AVAILABLE=" >> "$GITHUB_ENV"`,
+		"          }",
+		`          if ! test -e /dev/kvm || [[ -z "${DOCKER_PAT_VAL}" || -z "${DOCKER_USERNAME_VAL}" ]]; then`,
+		"            fallback",
+		"            exit 0",
+		"          fi",
+		"          if ! curl -fsSL https://get.docker.com | sudo REPO_ONLY=1 sh ||",
+		"             ! sudo apt-get install -y docker-sbx ||",
+		"             ! sudo chmod 666 /dev/kvm ||",
+		"             ! sbx version ||",
+		`             ! sh -c 'nohup sbx daemon start > /tmp/sbx-daemon.log 2>&1 &' ||`,
+		"             ! sh -c 'for _ in $(seq 1 10); do sbx daemon status 2>/dev/null | grep -qi running && exit 0; sleep 1; done; exit 1' ||",
+		"             ! printf '%s' \"${DOCKER_PAT_VAL}\" | docker login --username \"${DOCKER_USERNAME_VAL}\" --password-stdin ||",
+		"             ! printf '%s' \"${DOCKER_PAT_VAL}\" | sbx login --username \"${DOCKER_USERNAME_VAL}\" --password-stdin ||",
+		"             ! sbx daemon stop ||",
+		"             ! sbx policy reset --force ||",
+		"             ! sbx policy init allow-all ||",
+		`             ! sh -c 'nohup sbx daemon start > /tmp/sbx-daemon.log 2>&1 &' ||`,
+		"             ! sh -c 'for _ in $(seq 1 10); do sbx daemon status 2>/dev/null | grep -qi running && exit 0; sleep 1; done; exit 1' ||",
+		"             ! printf '%s' \"${DOCKER_PAT_VAL}\" | sbx login --username \"${DOCKER_USERNAME_VAL}\" --password-stdin ||",
+		"             ! docker pull docker/sandbox-templates:shell-docker; then",
+		"            fallback",
+		"            exit 0",
+		"          fi",
+		`          echo "GH_AW_SBX_AVAILABLE=true" >> "$GITHUB_ENV"`,
+	})
+}
+
 // generateDockerSbxKVMCheckStep creates a fail-fast step that verifies the runner
 // has KVM support before spending time on sbx installation.
 func generateDockerSbxKVMCheckStep() GitHubActionStep {
@@ -147,18 +187,31 @@ func generateDockerSbxAuthAndDaemonStep() GitHubActionStep {
 // by the policy-reset cycle, so a fresh login right before execution prevents
 // "user is not authenticated to Docker" errors when AWF calls `sbx create`.
 func generateDockerSbxCredentialRefreshStep() GitHubActionStep {
+	return generateDockerSbxCredentialRefreshStepWithAvailabilityCheck(false)
+}
+
+func generateDefaultDockerSbxCredentialRefreshStep() GitHubActionStep {
+	return generateDockerSbxCredentialRefreshStepWithAvailabilityCheck(true)
+}
+
+func generateDockerSbxCredentialRefreshStepWithAvailabilityCheck(onlyWhenAvailable bool) GitHubActionStep {
 	dockerSbxInstallLog.Print("Generating docker-sbx credential refresh step (pre-AWF re-authentication)")
-	return GitHubActionStep([]string{
+	step := GitHubActionStep([]string{
 		"      - name: Refresh sbx credentials",
 		"        env:",
 		"          DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}",
 		"          DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}",
 		"        run: |",
+	})
+	if onlyWhenAvailable {
+		step = append(step, `          if [[ "${GH_AW_SBX_AVAILABLE:-}" != "true" ]]; then exit 0; fi`)
+	}
+	return append(step,
 		`          # Re-authenticate sbx immediately before AWF runs.`,
 		`          # Docker Hub OAuth tokens from sbx login can expire between steps.`,
 		`          printf '%s' "$DOCKER_PAT_VAL" | sbx login --username "$DOCKER_USERNAME_VAL" --password-stdin`,
 		`          echo "✅ sbx credentials refreshed"`,
-	})
+	)
 }
 
 // generateDockerSbxPreFlightStep creates a step that verifies the sbx stack works

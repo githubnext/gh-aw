@@ -429,3 +429,16 @@ func isCustomImageRunner(runsOn string) bool {
 	// Multi-line value (array or object form) — always treat as custom image runner.
 	return true
 }
+
+// useDockerSbxByDefault reports whether an unspecified agent runtime can use the
+// Docker sandbox default. Docker sbx requires Linux/KVM, so this is intentionally
+// limited to known GitHub-hosted Ubuntu labels.
+func useDockerSbxByDefault(runsOn string) bool {
+	const keyPrefix = "runs-on: "
+	value, ok := strings.CutPrefix(runsOn, keyPrefix)
+	if !ok {
+		return false
+	}
+	value = strings.TrimSpace(strings.ToLower(value))
+	return strings.HasPrefix(value, "ubuntu-")
+}
