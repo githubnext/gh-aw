@@ -49,8 +49,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 # Guard Policy Smoke Test: scoped/approved (scoped patterns)

@@ -14,8 +14,7 @@ permissions:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 engine:
   id: copilot
   copilot-sdk: true

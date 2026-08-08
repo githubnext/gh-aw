@@ -42,8 +42,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

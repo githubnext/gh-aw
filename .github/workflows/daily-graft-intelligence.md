@@ -21,8 +21,7 @@ timeout-minutes: 20
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 imports:
   - uses: shared/daily-issue-base.md
     with:

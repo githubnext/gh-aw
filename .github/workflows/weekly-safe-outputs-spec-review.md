@@ -24,8 +24,7 @@ network:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 imports:
   - shared/github-guard-policy.md
 
