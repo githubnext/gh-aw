@@ -46,8 +46,8 @@ Not all features are available across all engines. The table below summarizes pe
 
 | Feature | Copilot | Claude | Codex | Gemini | Pi |
 |---------|:-------:|:------:|:-----:|:------:|:--:|
-| `max-turns` (AWF invocation cap; `max-runs` deprecated) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `max-turns` | ❌ | ✅ | ❌ | ❌ | ❌ |
+| `max-turns` (top-level AWF invocation cap; `max-runs` deprecated) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `engine.max-turns` (deprecated nested alias) | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `tools.web-fetch` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `tools.web-search` | via MCP | via MCP | ✅ (opt-in) | via MCP | via MCP |
