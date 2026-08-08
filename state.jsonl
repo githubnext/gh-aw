@@ -41,3 +41,4 @@
 {"run_id":"31047978460","timestamp":"2026-08-05T21:18:17.399Z","assignments":{"log_fetch_strategy":"eager"}}
 {"run_id":"31129069192","timestamp":"2026-08-06T22:36:55.933Z","assignments":{"log_fetch_strategy":"lazy"}}
 {"run_id":"31218614882","timestamp":"2026-08-07T21:06:20.527Z","assignments":{"log_fetch_strategy":"eager"}}
+{"run_id":"31278294614","timestamp":"2026-08-08T21:02:00.319Z","assignments":{"log_fetch_strategy":"lazy"}}
