@@ -77,7 +77,9 @@ export const requireErrorCodeInThrownErrorRule = createRule({
           // Unresolvable values (parameters, reassigned bindings, call results,
           // values from a guarded branch) stay silent: false positives are worse
           // than silence for this consistency rule.
-          if (resolved.type !== AST_NODE_TYPES.TemplateLiteral && resolved.type !== AST_NODE_TYPES.Literal && resolved.type !== AST_NODE_TYPES.BinaryExpression) return;
+          if (resolved.type !== AST_NODE_TYPES.TemplateLiteral && resolved.type !== AST_NODE_TYPES.Literal && (resolved.type !== AST_NODE_TYPES.BinaryExpression || resolved.operator !== "+")) {
+            return;
+          }
           if (messageReferencesErrorCode(resolved)) return;
         }
 

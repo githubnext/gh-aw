@@ -49,6 +49,7 @@ describe("require-error-code-in-thrown-error", () => {
       valid: [
         `const { ERR_SYSTEM } = require("./error_codes.cjs"); function f(result) { const errorMsg = \`\${ERR_SYSTEM}: \${result.stderr}\`; throw new Error(errorMsg); }`,
         `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(p) { const msg = \`\${ERR_CONFIG}: Source tools file not found at: \${p}\`; throw new Error(msg); }`,
+        `const { ERR_API } = require("./error_codes.cjs"); function f() { const msg = ERR_API + ": boom"; throw new Error(msg); }`,
         `const { ERR_CONFIG } = require("./error_codes.cjs"); function f(p) { const inner = \`\${ERR_CONFIG}: bad\`; const outer = inner; throw new Error(outer); }`,
       ],
       invalid: [],
@@ -74,7 +75,18 @@ describe("require-error-code-in-thrown-error", () => {
           code: `const { ERR_API } = require("./error_codes.cjs"); function f() { const msg = "no code here"; throw new Error(msg); }`,
           errors: [{ messageId: "missingErrorCode" }],
         },
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); function f() { const msg = "no code" + " here"; throw new Error(msg); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
       ],
+    });
+  });
+
+  it("valid: identifiers whose write-once initializer is not message-like stay silent", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [`const { ERR_API } = require("./error_codes.cjs"); function f(left, right) { const msg = left - right; throw new Error(msg); }`],
+      invalid: [],
     });
   });
 
