@@ -62,25 +62,25 @@ const (
 
 // AgentSandboxConfig represents the agent sandbox configuration
 type AgentSandboxConfig struct {
-	ID                    string                                `yaml:"id,omitempty"`             // Agent ID: "awf" or "srt" (replaces Type in new object format)
-	Type                  SandboxType                           `yaml:"type,omitempty"`           // Sandbox type: "awf" or "srt" (legacy, use ID instead)
-	Version               string                                `yaml:"version,omitempty"`        // AWF version override used to install and run the matching firewall version
-	Platform              string                                `yaml:"platform,omitempty"`       // AWF platform.type override (github.com, ghes, ghec, ghec-self-hosted)
-	Runtime               AgentRuntime                          `yaml:"runtime,omitempty"`        // Container runtime for the agent container (e.g., "gvisor")
-	NetworkIsolation      bool                                  `yaml:"sudo,omitempty"`           // Internal: true = isolation mode (AWF --network-isolation). Frontmatter sudo: false (or omitted) maps to NetworkIsolation=true; sudo: true maps to NetworkIsolation=false.
-	SudoExplicitlyEnabled bool                                  `yaml:"-"`                        // True when sudo: true was explicitly set in frontmatter. Used to emit an error (strict) or warning (non-strict) at compile time.
-	LegacySecurity        bool                                  `yaml:"-"`                        // True when legacy-security: enable was set in frontmatter. Enables sudo, host-access, and iptables-based mode.
-	Disabled              bool                                  `yaml:"-"`                        // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
-	DisableReason         string                                `yaml:"-"`                        // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
-	Config                *SandboxRuntimeConfig                 `yaml:"config,omitempty"`         // Custom SRT config (optional)
-	Command               string                                `yaml:"command,omitempty"`        // Custom command to replace AWF or SRT installation
-	Args                  []string                              `yaml:"args,omitempty"`           // Additional arguments to append to the command
-	Env                   map[string]string                     `yaml:"env,omitempty"`            // Environment variables to set on the step
-	Mounts                []string                              `yaml:"mounts,omitempty"`         // Container mounts to add for AWF (format: "source:dest:mode")
-	Memory                string                                `yaml:"memory,omitempty"`         // Memory limit for the AWF container (e.g., "4g", "8g")
-	ModelFallback         *TemplatableBool                      `yaml:"model-fallback,omitempty"` // AWF API proxy model fallback enable/disable flag (optional)
-	TokenSteering         *bool                                 `yaml:"token-steering,omitempty"` // AWF API proxy token steering enable/disable flag (optional)
-	Targets               map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"`        // Per-provider API proxy target overrides keyed by provider name (e.g. "openai", "anthropic")
+	ID                    string                                `yaml:"id,omitempty"`              // Agent ID: "awf" or "srt" (replaces Type in new object format)
+	Type                  SandboxType                           `yaml:"type,omitempty"`            // Sandbox type: "awf" or "srt" (legacy, use ID instead)
+	Version               string                                `yaml:"version,omitempty"`         // AWF version override used to install and run the matching firewall version
+	Platform              string                                `yaml:"platform,omitempty"`        // AWF platform.type override (github.com, ghes, ghec, ghec-self-hosted)
+	Runtime               AgentRuntime                          `yaml:"runtime,omitempty"`         // Container runtime for the agent container (e.g., "gvisor")
+	NetworkIsolation      bool                                  `yaml:"sudo,omitempty"`            // Internal: true = isolation mode (AWF --network-isolation). Frontmatter sudo: false (or omitted) maps to NetworkIsolation=true; sudo: true maps to NetworkIsolation=false.
+	SudoExplicitlyEnabled bool                                  `yaml:"-"`                         // True when sudo: true was explicitly set in frontmatter. Used to emit an error (strict) or warning (non-strict) at compile time.
+	LegacySecurity        bool                                  `yaml:"-"`                         // True when legacy-security: enable was set in frontmatter. Enables sudo, host-access, and iptables-based mode.
+	Disabled              bool                                  `yaml:"-"`                         // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
+	DisableReason         string                                `yaml:"-"`                         // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
+	Config                *SandboxRuntimeConfig                 `yaml:"config,omitempty"`          // Custom SRT config (optional)
+	Command               string                                `yaml:"command,omitempty"`         // Custom command to replace AWF or SRT installation
+	Args                  []string                              `yaml:"args,omitempty"`            // Additional arguments to append to the command
+	Env                   map[string]string                     `yaml:"env,omitempty"`             // Environment variables to set on the step
+	Mounts                []string                              `yaml:"mounts,omitempty"`          // Container mounts to add for AWF (format: "source:dest:mode")
+	Memory                string                                `yaml:"memory,omitempty"`          // Memory limit for the AWF container (e.g., "4g", "8g")
+	ModelFallback         *TemplatableBool                      `yaml:"model-fallback,omitempty"`  // AWF API proxy model fallback enable/disable flag (optional)
+	TokenSteering         *bool                                 `yaml:"token-steering,omitempty"`  // AWF API proxy token steering enable/disable flag (optional)
+	Targets               map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"`         // Per-provider API proxy target overrides keyed by provider name (e.g. "openai", "anthropic")
 	RuntimeInstall        *bool                                 `yaml:"runtime-install,omitempty"` // Controls generation of runtime installation steps (gVisor/docker-sbx). Default: true. Noop when runtime is not set.
 }
 
@@ -314,6 +314,28 @@ func mergeImportedSandboxAgentMounts(sandboxConfig *SandboxConfig, importedMount
 	}
 
 	sandboxConfig.Agent.Mounts = sliceutil.MergeUnique(importedMounts, sandboxConfig.Agent.Mounts...)
+	return sandboxConfig
+}
+
+// mergeImportedSandboxAgentRuntimeInstall applies the runtime-install override
+// from imported workflows. When any import sets runtime-install: false the main
+// workflow's agent config inherits false (the restrictive value wins). A nil value
+// (field not set in any import) leaves the main workflow's own setting intact.
+func mergeImportedSandboxAgentRuntimeInstall(sandboxConfig *SandboxConfig, importedRuntimeInstall *bool) *SandboxConfig {
+	if importedRuntimeInstall == nil {
+		return sandboxConfig
+	}
+	if sandboxConfig == nil {
+		sandboxConfig = &SandboxConfig{}
+	}
+	if sandboxConfig.Agent == nil {
+		sandboxConfig.Agent = &AgentSandboxConfig{}
+	}
+	// Only apply when the imported value is false (restrictive wins) or when the
+	// main workflow has not explicitly set the field.
+	if !*importedRuntimeInstall || sandboxConfig.Agent.RuntimeInstall == nil {
+		sandboxConfig.Agent.RuntimeInstall = importedRuntimeInstall
+	}
 	return sandboxConfig
 }
 

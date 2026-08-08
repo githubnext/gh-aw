@@ -150,17 +150,19 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		}
 
 		// gVisor must be installed and registered BEFORE AWF starts the agent container.
-		if isGVisorRuntime(workflowData) {
+		if isGVisorRuntime(workflowData) && isRuntimeInstallEnabled(workflowData) {
 			steps = append(steps, generateGVisorInstallStep())
 		}
 
 		// docker-sbx must be installed, authenticated, and smoke-tested BEFORE AWF.
 		if isDockerSbxRuntime(workflowData) {
-			steps = append(steps, generateDockerSbxKVMCheckStep())
-			steps = append(steps, generateDockerSbxSecretsCheckStep())
-			steps = append(steps, generateDockerSbxInstallStep())
-			steps = append(steps, generateDockerSbxAuthAndDaemonStep())
-			steps = append(steps, generateDockerSbxPreFlightStep())
+			if isRuntimeInstallEnabled(workflowData) {
+				steps = append(steps, generateDockerSbxKVMCheckStep())
+				steps = append(steps, generateDockerSbxSecretsCheckStep())
+				steps = append(steps, generateDockerSbxInstallStep())
+				steps = append(steps, generateDockerSbxAuthAndDaemonStep())
+				steps = append(steps, generateDockerSbxPreFlightStep())
+			}
 		}
 
 		// Install AWF binary (or skip if custom command is specified)
