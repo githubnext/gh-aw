@@ -122,6 +122,21 @@ describe("render_detection_log.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("bytes"));
     });
 
+    it("truncates content when the log exceeds MAX_LOG_BYTES", async () => {
+      // Write 1 MiB + 1 byte of content to trigger truncation.
+      const overLimit = Buffer.alloc(1024 * 1024 + 1, "x");
+      fs.writeFileSync(logPath, overLimit);
+      await module.main(logPath);
+
+      const out = capturedStdout();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("truncating"));
+      // Output must still be wrapped in group macros.
+      expect(out).toMatch(/^::group::Detection Log\n/);
+      expect(out).toContain("::endgroup::\n");
+      // Rendered content must not exceed the cap (plus small framing overhead).
+      expect(out.length).toBeLessThan(1024 * 1024 + 500);
+    });
+
     it("skips and warns when the log file is a symbolic link", async () => {
       const realFile = path.join(tempDir, "real.log");
       fs.writeFileSync(realFile, "secret content\n", "utf8");

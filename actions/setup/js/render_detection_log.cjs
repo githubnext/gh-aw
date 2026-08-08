@@ -31,6 +31,9 @@ const { lstatGuard } = require("./symlink_guard.cjs");
 /** Default path to the detection engine log file. */
 const DETECTION_LOG_PATH = "/tmp/gh-aw/threat-detection/detection.log";
 
+/** Maximum number of bytes read from the log file before truncation. */
+const MAX_LOG_BYTES = 1024 * 1024; // 1 MiB
+
 /**
  * Renders the detection log file to stdout wrapped in GitHub Actions macros.
  *
@@ -77,7 +80,19 @@ async function main(logPath) {
 
   let content;
   try {
-    content = fs.readFileSync(filePath, "utf8");
+    if (stat.size > MAX_LOG_BYTES) {
+      core.warning("Detection log exceeds " + MAX_LOG_BYTES + " bytes (" + stat.size + " bytes); truncating to first " + MAX_LOG_BYTES + " bytes");
+      const fd = fs.openSync(filePath, "r");
+      try {
+        const buf = Buffer.alloc(MAX_LOG_BYTES);
+        const bytesRead = fs.readSync(fd, buf, 0, MAX_LOG_BYTES, 0);
+        content = buf.slice(0, bytesRead).toString("utf8");
+      } finally {
+        fs.closeSync(fd);
+      }
+    } else {
+      content = fs.readFileSync(filePath, "utf8");
+    }
   } catch (error) {
     core.warning("Failed to read detection log: " + getErrorMessage(error));
     return;
@@ -91,4 +106,4 @@ async function main(logPath) {
   core.info("Detection log rendered (" + stat.size + " bytes)");
 }
 
-module.exports = { main, DETECTION_LOG_PATH };
+module.exports = { main, DETECTION_LOG_PATH, MAX_LOG_BYTES };
