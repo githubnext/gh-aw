@@ -104,6 +104,15 @@ type MaintenanceConfig struct {
 	// failure issues opened by the conclusion job. Defaults to 168 (7 days).
 	ActionFailureIssueExpires int `json:"action_failure_issue_expires,omitempty"`
 
+	// ActionFailureIssueExpiresExplicit records whether action_failure_issue_expires
+	// was explicitly present in aw.json, as opposed to falling back to the
+	// implicit 168-hour default. This distinction matters because the implicit
+	// default must not, by itself, force generation of agentics-maintenance.yml
+	// (see scanWorkflowsForExpires); only an explicit opt-in does. Populated by
+	// the JSON loader below, not by json.Unmarshal (the field is unexported from
+	// the schema on purpose).
+	ActionFailureIssueExpiresExplicit bool `json:"-"`
+
 	// LabelTriggers controls all label-triggered jobs (disable_agentic_workflow,
 	// label_apply_safe_outputs, etc.).
 	// The value is treated as an opt-in flag: only true enables the jobs.
@@ -290,7 +299,15 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(raw.Maintenance, &mc); err != nil {
 		return fmt.Errorf("invalid maintenance configuration: %w", err)
 	}
-	repoConfigLog.Printf("Maintenance field parsed as object: runsOn=%v, issueExpires=%d", mc.RunsOn, mc.ActionFailureIssueExpires)
+	// Detect whether action_failure_issue_expires was explicitly present in the
+	// source JSON, distinct from falling back to the implicit 168-hour default.
+	var mcPresence map[string]json.RawMessage
+	if err := json.Unmarshal(raw.Maintenance, &mcPresence); err == nil {
+		if _, ok := mcPresence["action_failure_issue_expires"]; ok {
+			mc.ActionFailureIssueExpiresExplicit = true
+		}
+	}
+	repoConfigLog.Printf("Maintenance field parsed as object: runsOn=%v, issueExpires=%d, issueExpiresExplicit=%v", mc.RunsOn, mc.ActionFailureIssueExpires, mc.ActionFailureIssueExpiresExplicit)
 	r.Maintenance = &mc
 	return nil
 }
@@ -443,6 +460,14 @@ func (r *RepoConfig) ActionFailureIssueExpiresHours() int {
 		return r.Maintenance.ActionFailureIssueExpires
 	}
 	return DefaultActionFailureIssueExpiresHours
+}
+
+// IsActionFailureIssueExpiresExplicit returns true when aw.json explicitly sets
+// maintenance.action_failure_issue_expires, as opposed to relying on the
+// implicit 168-hour default. Only an explicit value is treated as an opt-in
+// trigger for generating agentics-maintenance.yml.
+func (r *RepoConfig) IsActionFailureIssueExpiresExplicit() bool {
+	return r != nil && r.Maintenance != nil && r.Maintenance.ActionFailureIssueExpiresExplicit
 }
 
 // cronFieldRange describes the allowed numeric range for a cron field.
