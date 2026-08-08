@@ -6,6 +6,8 @@ import (
 
 var dispatchWorkflowLog = logger.New("workflow:dispatch_workflow")
 
+const defaultDispatchWorkflowAllowedRef = "refs/heads/${{ github.event.repository.default_branch }}"
+
 // DispatchWorkflowConfig holds configuration for dispatching workflows from agent output
 type DispatchWorkflowConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
@@ -34,6 +36,7 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 			}
 			// Set default max to 1
 			dispatchWorkflowConfig.Max = defaultIntStr(1)
+			dispatchWorkflowConfig.AllowedRefs = []string{defaultDispatchWorkflowAllowedRef}
 			return dispatchWorkflowConfig
 		}
 
@@ -64,6 +67,9 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 			dispatchWorkflowConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", dispatchWorkflowLog)
 			dispatchWorkflowConfig.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", dispatchWorkflowLog)
 			dispatchWorkflowConfig.AllowedRefs = ParseStringArrayOrExprFromConfig(configMap, "allowed-refs", dispatchWorkflowLog)
+			if dispatchWorkflowConfig.AllowedRefs == nil {
+				dispatchWorkflowConfig.AllowedRefs = []string{defaultDispatchWorkflowAllowedRef}
+			}
 
 			// Cap max at 50 (absolute maximum allowed) – only for literal integer values
 			if maxVal := templatableIntValue(dispatchWorkflowConfig.Max); maxVal > 50 {
