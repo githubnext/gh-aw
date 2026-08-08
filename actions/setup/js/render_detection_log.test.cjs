@@ -77,7 +77,7 @@ describe("render_detection_log.cjs", () => {
       await module.main(logPath);
 
       const out = capturedStdout();
-      const stopMatch = out.match(/::stop-commands::(detection-log-[a-z0-9]+)\n/);
+      const stopMatch = out.match(/::stop-commands::(render-[a-f0-9]+)\n/);
       expect(stopMatch).not.toBeNull();
 
       const token = stopMatch[1];
@@ -113,13 +113,24 @@ describe("render_detection_log.cjs", () => {
 
       const out = capturedStdout();
       // The stop-token end marker must appear at the start of its own line.
-      expect(out).toMatch(/\n::detection-log-/);
+      expect(out).toMatch(/\n::render-/);
     });
 
     it("logs the rendered byte count via core.info", async () => {
       fs.writeFileSync(logPath, "data\n", "utf8");
       await module.main(logPath);
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("bytes"));
+    });
+
+    it("skips and warns when the log file is a symbolic link", async () => {
+      const realFile = path.join(tempDir, "real.log");
+      fs.writeFileSync(realFile, "secret content\n", "utf8");
+      const symlinkPath = path.join(tempDir, "symlink.log");
+      fs.symlinkSync(realFile, symlinkPath);
+
+      await module.main(symlinkPath);
+      expect(capturedStdout()).toBe("");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("symbolic link"));
     });
 
     it("uses the default DETECTION_LOG_PATH when no argument is supplied and file is absent", async () => {

@@ -26,6 +26,7 @@ const fs = require("fs");
 const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
 const { renderLogToStdout } = require("./render_log_to_stdout.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { lstatGuard } = require("./symlink_guard.cjs");
 
 /** Default path to the detection engine log file. */
 const DETECTION_LOG_PATH = "/tmp/gh-aw/threat-detection/detection.log";
@@ -53,9 +54,19 @@ async function main(logPath) {
 
   let stat;
   try {
-    stat = fs.statSync(filePath);
+    stat = lstatGuard(filePath);
   } catch (error) {
     core.warning("Failed to stat detection log: " + getErrorMessage(error));
+    return;
+  }
+
+  if (stat === null) {
+    core.warning("Detection log is a symbolic link, skipping render: " + filePath);
+    return;
+  }
+
+  if (!stat.isFile()) {
+    core.warning("Detection log is not a regular file, skipping render: " + filePath);
     return;
   }
 
