@@ -248,7 +248,7 @@ It has the highest cold-start cost, consumes more memory and disk, requires Dock
 
 **`KVM kernel module is not loaded` or `/dev/kvm is missing`:** The runner does not provide hardware virtualization. Enable nested virtualization and pass `/dev/kvm` through to the runner, or select gVisor or Docker. Frontmatter cannot add KVM capability. With `runtime-install: false`, this generated check is skipped, but sbx execution still fails if KVM is unavailable.
 
-**Permission denied for `/dev/kvm`:** Confirm the runner can execute passwordless `sudo` and that its security policy permits the generated `chmod 666 /dev/kvm`. If that policy is unacceptable, do not use Docker sbx.
+**Permission denied for `/dev/kvm`:** With runtime installation enabled, confirm the runner can execute passwordless `sudo` and that its security policy permits the generated `chmod 666 /dev/kvm`. With `runtime-install: false`, gh-aw does not run that `chmod`, so provision the runner image or pod so the runner user can access `/dev/kvm` before the workflow starts. If neither access model is acceptable, do not use Docker sbx.
 
 **`DOCKER_PAT` or `DOCKER_USERNAME` is empty:** Define both Actions secrets in the scope available to the workflow. Secrets are not passed to workflows triggered from untrusted forks, so Docker sbx is unsuitable for such runs unless the trigger and credential model are changed safely.
 
@@ -309,7 +309,7 @@ The separate runner and daemon filesystems make paths, tool caches, sockets, and
 
 **Compilation rejects `sudo` or `apt-get install`:** Move system packages into the runner image or DinD image. ARC DinD workflows are validated as rootless and must not bootstrap host packages during the job.
 
-**`Docker daemon is not accessible` from the MCP gateway:** If a Unix socket is mounted at a nonstandard path, set `GH_AW_DOCKER_SOCK_PATH` and `GH_AW_DOCKER_SOCK_GID` in the runner pod. Both values are required. See [Docker socket override for split-daemon topologies](/gh-aw/reference/self-hosted-runners/#docker-socket-override-for-split-daemon-topologies).
+**`Docker daemon is not accessible` from the MCP gateway:** If a Unix socket is mounted at a nonstandard path, set `GH_AW_DOCKER_SOCK_PATH` in the runner pod. The gateway derives the socket group ID with `stat` when possible; set `GH_AW_DOCKER_SOCK_GID` only when that detection fails or the socket is not visible during setup. See [Docker socket override for split-daemon topologies](/gh-aw/reference/self-hosted-runners/#docker-socket-override-for-split-daemon-topologies).
 
 **The agent sees an empty workspace or mount source does not exist:** Confirm both containers share `/home/runner/_work`, `GITHUB_WORKSPACE` is under that volume, and `runner.topology: arc-dind` was present when the lock file was compiled.
 
