@@ -119,7 +119,6 @@ safe-outputs:
     dispatch-workflow:
       workflows:
         - haiku-printer
-      allowed-refs: [refs/heads/main]
       max: 1
     create-check-run:
       name: "Smoke Copilot"

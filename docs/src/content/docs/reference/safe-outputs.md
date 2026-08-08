@@ -1220,7 +1220,7 @@ safe-outputs:
 - **`target-repo`** (optional) - Target repository in `owner/repo` format for cross-repository dispatch.
 - **`allowed-repos`** (optional) - Allowlist of cross-repository dispatch targets. Required when `target-repo` points to a different repository. Supports repository slugs and wildcards such as `org/*`, or a GitHub Actions expression string (e.g. `"${{ inputs['allowed-repos'] }}"`) for dynamic allowlists.
 - **`target-ref`** (optional) - Git ref to dispatch on. In `workflow_call` relay scenarios, the compiler injects this automatically so the dispatch uses the target repository's branch or tag instead of the caller's `GITHUB_REF`.
-- **`allowed-refs`** (optional) - List of ref glob patterns that the agent is allowed to supply via `message.ref` at runtime. Supports arrays and GitHub Actions expressions resolving to a comma-separated list (e.g. `"${{ inputs['allowed-refs'] }}"`). When this field is omitted, per-call `message.ref` overrides are rejected. Branch shorthand (`feature/*`) is automatically expanded to `refs/heads/feature/*`; `tags/v*` is expanded to `refs/tags/v*`; full `refs/…` patterns are used as-is.
+- **`allowed-refs`** (optional) - List of ref glob patterns that the agent is allowed to supply via `message.ref` at runtime. Supports arrays and GitHub Actions expressions resolving to a comma-separated list (e.g. `"${{ inputs['allowed-refs'] }}"`). When omitted, the repository default branch is allowed. Branch shorthand (`feature/*`) is automatically expanded to `refs/heads/feature/*`; `tags/v*` is expanded to `refs/tags/v*`; full `refs/…` patterns are used as-is.
 
 #### Validation Rules
 
@@ -1247,10 +1247,10 @@ When an agent needs to dispatch CI against a branch it just created, it can supp
 }
 ```
 
-For `message.ref` to be accepted, `allowed-refs` must be configured. The ref is normalized before matching: bare branch names are expanded to `refs/heads/<name>`, `tags/…` to `refs/tags/…`, and full `refs/…` values are used as-is. Dispatches with a `message.ref` that does not match any pattern in `allowed-refs` are rejected at runtime.
+The repository default branch is allowed when `allowed-refs` is omitted. The ref is normalized before matching: bare branch names are expanded to `refs/heads/<name>`, `tags/…` to `refs/tags/…`, and full `refs/…` values are used as-is. Dispatches with a `message.ref` that does not match any configured pattern are rejected at runtime.
 
 Ref resolution priority:
-1. `message.ref` (highest — per-call override, requires `allowed-refs`)
+1. `message.ref` (highest — per-call override, restricted by configured or implicit `allowed-refs`)
 2. `target-ref` from configuration
 3. `GITHUB_HEAD_REF` (PR head branch)
 4. `GITHUB_REF` or `context.ref` (push/default branch)
