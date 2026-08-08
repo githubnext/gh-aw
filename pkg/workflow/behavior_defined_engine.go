@@ -531,10 +531,14 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionEnv(exec *EngineExe
 		"RUNNER_TEMP":      "${{ runner.temp }}",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	maps.Copy(env, exec.Env)
 	if exec.ProviderEnvMode == behaviorProviderEnvModeUniversalLLMConsumer {
 		e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
 	}
+	// The engine's own execution env is applied last so it can override the generic
+	// provider env. Engines whose CLI reads credentials from the environment (rather
+	// than from flags or a config file) need this to substitute the AWF proxy
+	// placeholder key for the real provider token.
+	maps.Copy(env, exec.Env)
 	e.applyBehaviorDefinedMCPEnv(exec, workflowData, env)
 	for _, binding := range e.definition.Auth {
 		if binding.Secret != "" {

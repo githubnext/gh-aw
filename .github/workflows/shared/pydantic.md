@@ -48,6 +48,12 @@ engine:
       mcp-config-flag: -a
       write-timestamp: true
       provider-env-mode: universal-llm-consumer
+      env:
+        # `pai` reads its credentials from the environment, so the real provider token
+        # must be replaced with the AWF api-proxy placeholder key. The proxy performs
+        # token steering and injects the real credential upstream; forwarding the raw
+        # token instead makes the proxy treat the request as BYOK and it is rejected.
+        OPENAI_API_KEY: awf-copilot-proxy
     mcp:
       config-path: .pydantic-ai/agent.json
       config-adapter: |
