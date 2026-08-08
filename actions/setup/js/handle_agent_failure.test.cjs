@@ -752,6 +752,9 @@ describe("handle_agent_failure", () => {
 
       await main();
 
+      // github.rest.issues.create is always invoked with a single options object
+      // (see github.rest.issues.create({...}) call sites in handle_agent_failure.cjs),
+      // so destructuring the first call argument yields the options object itself.
       const parentCreateCall = createIssueMock.mock.calls.map(([call]) => call).find(call => call.title === "[aw] Failed runs");
       expect(parentCreateCall).toBeDefined();
       expect(parentCreateCall.body).toContain("previous parent issue #199");

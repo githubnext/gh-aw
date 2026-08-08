@@ -602,8 +602,12 @@ async function ensureParentIssue(previousParentNumber = null, ownerOverride, rep
       // Enforce the parent issue's own expiration marker: an expired parent
       // must not keep receiving new sub-issues, mirroring isReusableFailureIssue's
       // handling of individual per-run failure issues.
-      let existingBody = typeof existingIssue.body === "string" ? existingIssue.body : "";
-      if (!existingBody) {
+      let existingBody;
+      if (typeof existingIssue.body === "string") {
+        existingBody = existingIssue.body;
+      } else {
+        // The search API response may omit or truncate the body field; fetch the
+        // full issue to reliably read the expiration marker.
         const issueResult = await github.rest.issues.get({
           owner,
           repo,
