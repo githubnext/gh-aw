@@ -4,9 +4,13 @@ function collectInlineEndMarkers(content, endMarkerRe) {
   return [...content.matchAll(endMarkerRe)]
     .filter(m => m.index !== undefined)
     .map(m => {
-      let lineEnd = /** @type {number} */ m.index + m[0].length;
+      const markerStart = m.index;
+      if (markerStart === undefined) {
+        throw new Error("internal error: inline end marker match is missing an index");
+      }
+      let lineEnd = markerStart + m[0].length;
       if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
-      return { name: m[1], start: /** @type {number} */ m.index, end: lineEnd };
+      return { name: m[1], start: markerStart, end: lineEnd };
     });
 }
 
