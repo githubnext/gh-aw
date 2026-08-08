@@ -37,8 +37,8 @@ network:
 sandbox:
   agent:
     id: awf
-    sudo: false
-
+    runtime: docker-sbx
+    sudo: true
 tools:
   cli-proxy: true
   agentic-workflows:

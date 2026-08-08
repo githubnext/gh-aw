@@ -54,6 +54,11 @@ imports:
   - shared/token-telemetry-check.md
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 # Smoke Test: Agent Container Tools

@@ -35,6 +35,11 @@ tools:
   cli-proxy: true
 features:
   gh-aw-detection: false
+sandbox:
+  agent:
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 ---
 
 # Smoke Test: Call Workflow Orchestrator

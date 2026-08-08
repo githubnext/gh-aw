@@ -35,7 +35,9 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    sudo: false
+    id: awf
+    runtime: docker-sbx
+    sudo: true
 evals:
   - id: conformance_checked
     question: Did the agent run a conformance check against the Safe Outputs specification implementation?
