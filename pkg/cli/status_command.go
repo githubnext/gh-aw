@@ -49,6 +49,9 @@ func GetWorkflowStatuses(ctx context.Context, pattern string, ref string, labelF
 	githubWorkflows, err := fetchGitHubWorkflows(ctx, repoOverride, false)
 	if err != nil {
 		statusLog.Printf("Failed to fetch GitHub workflows: %v", err)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		githubWorkflows = make(map[string]*GitHubWorkflow)
 	} else {
 		statusLog.Printf("Successfully fetched %d GitHub workflows", len(githubWorkflows))
@@ -60,6 +63,9 @@ func GetWorkflowStatuses(ctx context.Context, pattern string, ref string, labelF
 		latestRunsByWorkflow, err = fetchLatestRunsByRef(ctx, ref, repoOverride, false)
 		if err != nil {
 			statusLog.Printf("Failed to fetch workflow runs for ref %s: %v", ref, err)
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			latestRunsByWorkflow = make(map[string]*WorkflowRun)
 		} else {
 			statusLog.Printf("Successfully fetched %d workflow runs for ref %s", len(latestRunsByWorkflow), ref)
@@ -260,7 +266,7 @@ func StatusWorkflows(ctx context.Context, pattern string, verbose bool, jsonOutp
 	if err != nil {
 		statusLog.Printf("Failed to get workflow statuses: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-		return nil
+		return err
 	}
 
 	// Additional verbose output after successful fetch
