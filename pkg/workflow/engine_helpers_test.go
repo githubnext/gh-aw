@@ -55,6 +55,46 @@ func TestResolveEngineID(t *testing.T) {
 	}
 }
 
+func TestApplyEngineHarnessRetryEnv(t *testing.T) {
+	t.Run("injects harness policy env vars including watchdog timeout", func(t *testing.T) {
+		env := map[string]string{}
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				HarnessMaxRetries:        "6",
+				HarnessInitialDelayMs:    "10000",
+				HarnessBackoffMultiplier: "2",
+				HarnessMaxDelayMs:        "180000",
+				HarnessWatchdogTimeoutMs: "120000",
+			},
+		}
+
+		applyEngineHarnessRetryEnv(env, workflowData)
+
+		assert.Equal(t, "6", env["GH_AW_HARNESS_MAX_RETRIES"])
+		assert.Equal(t, "10000", env["GH_AW_HARNESS_INITIAL_DELAY_MS"])
+		assert.Equal(t, "2", env["GH_AW_HARNESS_BACKOFF_MULTIPLIER"])
+		assert.Equal(t, "180000", env["GH_AW_HARNESS_MAX_DELAY_MS"])
+		assert.Equal(t, "120000", env["GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS"])
+	})
+
+	t.Run("engine.env override still wins after harness policy env injection", func(t *testing.T) {
+		env := map[string]string{}
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				HarnessWatchdogTimeoutMs: "120000",
+				Env: map[string]string{
+					"GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS": "90000",
+				},
+			},
+		}
+
+		applyEngineHarnessRetryEnv(env, workflowData)
+		applyEngineAndAgentEnv(env, workflowData, nil)
+
+		assert.Equal(t, "90000", env["GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS"])
+	})
+}
+
 func TestBuildStandardNpmEngineInstallStepsNoCooldown(t *testing.T) {
 	steps := BuildStandardNpmEngineInstallStepsNoCooldown(
 		"@github/copilot",

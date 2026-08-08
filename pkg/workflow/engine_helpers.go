@@ -147,7 +147,7 @@ func applyEngineMaxTurnsEnv(env map[string]string, workflowData *WorkflowData) {
 }
 
 // applyEngineHarnessRetryEnv injects GH_AW_HARNESS_* environment variables from
-// the engine frontmatter retry policy fields (engine.harness.max-retries, etc.).
+// the engine frontmatter harness policy fields (engine.harness.max-retries, etc.).
 // Only fields that are explicitly set are injected; absent fields let the harness
 // fall back to its built-in defaults. Must be called before applyEngineAndAgentEnv
 // so that explicit engine.env overrides take precedence.
@@ -167,6 +167,9 @@ func applyEngineHarnessRetryEnv(env map[string]string, workflowData *WorkflowDat
 	}
 	if cfg.HarnessMaxDelayMs != "" {
 		env["GH_AW_HARNESS_MAX_DELAY_MS"] = cfg.HarnessMaxDelayMs
+	}
+	if cfg.HarnessWatchdogTimeoutMs != "" {
+		env["GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS"] = cfg.HarnessWatchdogTimeoutMs
 	}
 }
 
