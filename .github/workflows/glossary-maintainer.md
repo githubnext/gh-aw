@@ -32,6 +32,7 @@ imports:
   - shared/mcp/open-ontologies.md
 
   - shared/otlp.md
+  - shared/reporting.md
 safe-outputs:
   create-pull-request:
     expires: 2d

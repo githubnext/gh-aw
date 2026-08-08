@@ -20,6 +20,7 @@ tools:
 imports:
   - shared/charts-with-trending.md
   - shared/otlp.md
+  - shared/reporting.md
 safe-outputs:
   upload-artifact:
     max-uploads: 3

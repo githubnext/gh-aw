@@ -35,6 +35,7 @@ timeout-minutes: 30
 imports:
   - shared/aider.md
   - shared/otlp.md
+  - shared/reporting.md
 ---
 
 # Daily Go Test Stubs — Aider

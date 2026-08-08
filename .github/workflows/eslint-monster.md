@@ -81,6 +81,7 @@ safe-outputs:
   noop:
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: eslint_diagnostics_analyzed
     question: Did the agent analyze the ESLint factory diagnostics and group actionable findings?
