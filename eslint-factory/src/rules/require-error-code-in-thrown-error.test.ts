@@ -119,7 +119,13 @@ describe("require-error-code-in-thrown-error", () => {
         // Two separate functions each declaring a local 'CustomError' — they shadow each other, only the outer class would otherwise leak
         `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f(x) { class CustomError { constructor(m) {} } throw new CustomError("plain class, not Error"); }`,
       ],
-      invalid: [],
+      invalid: [
+        // Outer class is NOT shadowed — scope lookup still finds the Error subclass and flags it
+        {
+          code: `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f() { throw new CustomError("unshadowed, must be flagged"); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+      ],
     });
   });
 });

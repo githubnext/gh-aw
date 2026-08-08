@@ -14,7 +14,12 @@ const { backfillCommitObjects } = require("./git_helpers.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const ERROR_CODE_PREFIX_RE = /^(?:ERR_[A-Z_]+|E\d{3}):\s*/;
-/** Strip a leading `ERR_*: ` or `E001: ` sentinel from a message. */
+/**
+ * Strip the single leading `ERR_*: ` or `E001: ` sentinel from a message.
+ * Each sentinel error in this file carries exactly one such prefix, so one
+ * removal is sufficient; the wrapper can then add its own prefix without
+ * emitting a duplicate code.
+ */
 function stripLeadingErrorCode(msg) {
   return msg.replace(ERROR_CODE_PREFIX_RE, "");
 }
