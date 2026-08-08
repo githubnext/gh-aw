@@ -33,6 +33,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { collectInlineEndMarkers, unknownInlineEndMarkerError } = require("./inline_marker_helpers.cjs");
 
 // Regex for the start marker: ## agent: `name` (lowercase identifier)
 const START_MARKER_RE = /^##[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
@@ -48,22 +49,8 @@ const SKILL_START_BOUNDARY_RE = /^##[ \t]+skill:[ \t]+`(?:[a-z][a-z0-9_-]*)`[ \t
 // marker is present.
 const H2_HEADING_RE = /^##[ \t]/gm;
 
-function collectEndMarkers(content) {
-  return [...content.matchAll(END_MARKER_RE)]
-    .filter(m => m.index !== undefined)
-    .map(m => {
-      let lineEnd = /** @type {number} */ m.index + m[0].length;
-      if (lineEnd < content.length && content[lineEnd] === "\n") lineEnd++;
-      return { name: m[1], start: /** @type {number} */ m.index, end: lineEnd };
-    });
-}
-
-function lineNumberAtOffset(content, offset) {
-  return content.slice(0, offset).split("\n").length;
-}
-
 function throwUnknownEndMarker(content, orphan) {
-  throw new Error(`[extractInlineSubAgents] end marker for unknown agent "${orphan.name}" at line ${lineNumberAtOffset(content, orphan.start)} (no matching start marker with that name)`);
+  throw unknownInlineEndMarkerError(content, orphan, "[extractInlineSubAgents]", "agent");
 }
 
 /**
@@ -101,7 +88,7 @@ function preserveSubAgentFrontmatter(content) {
  */
 function extractInlineSubAgents(content) {
   const startMatches = [...content.matchAll(START_MARKER_RE)];
-  const endMarkers = collectEndMarkers(content);
+  const endMarkers = collectInlineEndMarkers(content, END_MARKER_RE);
 
   if (startMatches.length === 0) {
     if (endMarkers.length > 0) {
@@ -212,7 +199,7 @@ function closeUnterminatedSubAgentMarkers(content) {
   if (startMatches.length === 0) return content;
 
   const h2Positions = [...content.matchAll(H2_HEADING_RE)].map(m => m.index).filter(i => i !== undefined);
-  const endMarkers = collectEndMarkers(content);
+  const endMarkers = collectInlineEndMarkers(content, END_MARKER_RE);
   const usedEnd = new Array(endMarkers.length).fill(false);
 
   /** @type {Array<{pos: number, name: string}>} */
