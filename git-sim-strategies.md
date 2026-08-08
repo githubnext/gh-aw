@@ -377,3 +377,28 @@ content there could realistically breach 4096 KB).
 - **Next index: 188** = tiny-shallow-single-micro-diverged-merge_msg (closes the
   shallow-single-micro tier fully, 9/9). Then HISTORY=shallow moves to FILES=few
   (idx189+).
+
+## Run 2026-08-08: idx188-191 (shallow-single-micro CLOSED; shallow-single-small opened)
+
+- **idx188 diverged-merge_msg: PASS.** Closes shallow-single-micro tier 9/9. two-dot
+  1f/1.566KB vs three-dot 2f/2.21KB (+0.644KB phantom). ff(old→new tip) rc0; both-
+  direction main↔feature rc1 (genuine divergence). parent=1/merges=empty, filename
+  leak `0001-Merge-branch-topic-xyz-into-feature.patch` reconfirmed.
+- **⚠ ENUMERATION CORRECTION:** prior note assumed idx189+ moves to FILES=few — WRONG.
+  `files=(i//45)%4` only advances every 45 indices; FILES=single spans the FULL
+  180-224 range within each history block (180=start of shallow block, +44=224).
+  idx189-191 are still FILES=single, with PATCH advancing micro(180-188)→small
+  (189-197). Confirmed by direct recompute: idx189 commit=0,branch=0,patch=1,files=0,
+  history=1,size=0 = clean-single, small, single, shallow, tiny.
+- **idx189 clean-single (small,single): PASS.** 1f/51.22KB (50KB payload), bundle
+  38.64KB (~24.6% smaller). parent=1/merges=empty.
+- **idx190 clean-multi (small,single, same-file 3-commit append): PASS.** Newline-
+  wrapped (fold -w100) chunks → ratio 1.028x vs single-commit baseline (53.69 vs
+  52.23 KB) — CONFIRMS append-shape law: wrapped/multi-line append stays ~1x; only
+  a genuinely single unwrapped long line reflows to ~3x. Shape matters more than
+  raw size for the multi-commit same-file multiplier risk.
+- **idx191 clean-merge_msg (small,single): PASS.** 1f/50.05KB, filename leak
+  `0001-Merge-branch-topic-xyz-into-feature.patch` reconfirmed, parent=1/merges=empty.
+- **Zero real fail/error/rejected across 192 cells.**
+- **Next index: 192** = tiny-shallow-single-small-ahead-single (continues
+  shallow-single-small tier: ahead×3 + diverged×3 remain, idx192-197).
