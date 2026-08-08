@@ -760,6 +760,21 @@ jobs:
                     "maxLength": 1024
                   }
                 }
+              },
+              "upload_artifact": {
+                "defaultMax": 10,
+                "fields": {
+                  "filters": {
+                    "type": "object"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  }
+                }
               }
             }
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

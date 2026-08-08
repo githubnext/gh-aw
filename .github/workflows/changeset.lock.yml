@@ -702,6 +702,10 @@ jobs:
                   },
                   "pull_request_number": {
                     "issueOrPRNumber": true
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
                   }
                 }
               },
@@ -739,6 +743,12 @@ jobs:
                       "append",
                       "prepend"
                     ]
+                  },
+                  "pr": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr_number": {
+                    "issueOrPRNumber": true
                   },
                   "pull_request_number": {
                     "issueOrPRNumber": true

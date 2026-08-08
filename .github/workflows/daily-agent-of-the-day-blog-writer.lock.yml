@@ -715,6 +715,10 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  },
                   "title": {
                     "required": true,
                     "type": "string",
@@ -777,6 +781,16 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  }
+                }
+              },
+              "push_repo_memory": {
+                "defaultMax": 1,
+                "fields": {
+                  "memory_id": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
                   }
                 }
               },

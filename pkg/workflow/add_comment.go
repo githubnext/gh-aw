@@ -18,6 +18,7 @@ type AddCommentsConfig struct {
 	Target                 string   `yaml:"target,omitempty"`                    // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 	TargetRepoSlug         string   `yaml:"target-repo,omitempty"`               // Target repository in format "owner/repo" for cross-repository comments
 	AllowedRepos           []string `yaml:"allowed-repos,omitempty"`             // List of additional repositories that comments can be added to (additionally to the target-repo)
+	AllowedCommentIDs      []string `yaml:"allows-comment-ids,omitempty"`        // Trusted allowlist of issue/PR comment IDs the agent may update when target is "*"
 	HideOlderComments      *string  `yaml:"hide-older-comments,omitempty"`       // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
 	HideOlderCommentsMatch []string `yaml:"hide-older-comments-match,omitempty"` // Internal list populated from hide-older-comments.match and passed to the JS handler as exact workflow ID matches
 	AllowedReasons         []string `yaml:"allowed-reasons,omitempty"`           // List of allowed reasons for hiding older comments (default: all reasons allowed)
@@ -61,6 +62,10 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 	// Pre-process list fields that also accept a GitHub Actions expression string.
 	if err := preprocessStringArrayFieldAsTemplatable(configData, "allowed-repos", addCommentLog); err != nil {
 		addCommentLog.Printf("Invalid allowed-repos value: %v", err)
+		return nil
+	}
+	if err := preprocessStringArrayFieldAsTemplatable(configData, "allows-comment-ids", addCommentLog); err != nil {
+		addCommentLog.Printf("Invalid allows-comment-ids value: %v", err)
 		return nil
 	}
 

@@ -958,7 +958,16 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "comment_id": {
+                    "optionalPositiveInteger": true
+                  },
                   "item_number": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr_number": {
                     "issueOrPRNumber": true
                   },
                   "reply_to_id": {
@@ -968,6 +977,16 @@ jobs:
                   "repo": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "target": {
+                    "type": "string",
+                    "enum": [
+                      "status"
+                    ]
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   }
                 }
               },
@@ -1092,6 +1111,16 @@ jobs:
                   }
                 }
               },
+              "push_repo_memory": {
+                "defaultMax": 1,
+                "fields": {
+                  "memory_id": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  }
+                }
+              },
               "report_incomplete": {
                 "defaultMax": 5,
                 "fields": {
@@ -1105,6 +1134,21 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
+                  }
+                }
+              },
+              "upload_artifact": {
+                "defaultMax": 10,
+                "fields": {
+                  "filters": {
+                    "type": "object"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   }
                 }
               }

@@ -838,6 +838,16 @@ jobs:
                   }
                 }
               },
+              "push_repo_memory": {
+                "defaultMax": 1,
+                "fields": {
+                  "memory_id": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  }
+                }
+              },
               "report_incomplete": {
                 "defaultMax": 5,
                 "fields": {
@@ -851,6 +861,21 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
+                  }
+                }
+              },
+              "upload_artifact": {
+                "defaultMax": 10,
+                "fields": {
+                  "filters": {
+                    "type": "object"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   }
                 }
               },

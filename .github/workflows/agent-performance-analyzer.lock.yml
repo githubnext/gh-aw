@@ -733,7 +733,16 @@ jobs:
                     "sanitize": true,
                     "maxLength": 65000
                   },
+                  "comment_id": {
+                    "optionalPositiveInteger": true
+                  },
                   "item_number": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr": {
+                    "issueOrPRNumber": true
+                  },
+                  "pr_number": {
                     "issueOrPRNumber": true
                   },
                   "reply_to_id": {
@@ -743,6 +752,16 @@ jobs:
                   "repo": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "target": {
+                    "type": "string",
+                    "enum": [
+                      "status"
+                    ]
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   }
                 }
               },
@@ -864,6 +883,16 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 65000
+                  }
+                }
+              },
+              "push_repo_memory": {
+                "defaultMax": 1,
+                "fields": {
+                  "memory_id": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
                   }
                 }
               },

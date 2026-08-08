@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
@@ -351,7 +352,19 @@ describe("safe_outputs_handlers", () => {
 
       // File must be staged under RUNNER_TEMP, not hardcoded /tmp
       const expectedDir = path.join(testRunnerTemp, "gh-aw", "safeoutputs", "assets");
-      expect(fs.existsSync(path.join(expectedDir, "chart.png"))).toBe(true);
+      const stagedFileName = `${crypto.createHash("sha256").update(testFile).digest("hex")}.png`;
+      expect(fs.existsSync(path.join(expectedDir, stagedFileName))).toBe(true);
+    });
+
+    it("should reject duplicate upload_asset source paths", () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test";
+      const testFile = path.join(testWorkspaceDir, "duplicate.png");
+      fs.writeFileSync(testFile, "first content");
+      const args = { path: testFile };
+
+      handlers.uploadAssetHandler(args);
+
+      expect(() => handlers.uploadAssetHandler(args)).toThrow("Duplicate upload_asset source path is not allowed");
     });
 
     it("should throw error if GH_AW_ASSETS_BRANCH not set", () => {
@@ -2332,6 +2345,72 @@ describe("safe_outputs_handlers", () => {
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toContain("requires item_number");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should allow comment_id from allows-comment-ids when add_comment target is '*'", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        add_comment: {
+          target: "*",
+          allows_comment_ids: ["12345", "67890"],
+        },
+      });
+
+      const result = wildcardHandlers.addCommentHandler({ body: "Update an existing status-style comment.", comment_id: "12345" });
+
+      expect(result).toHaveProperty("content");
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment", comment_id: 12345 }));
+    });
+
+    it("should reject comment_id that is not listed in allows-comment-ids", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        add_comment: {
+          target: "*",
+          allows_comment_ids: ["12345"],
+        },
+      });
+
+      const result = wildcardHandlers.addCommentHandler({ body: "Update an existing status-style comment.", comment_id: "67890" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("allows-comment-ids");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should reject comment_id when add_comment target is not '*'", () => {
+      const targetingHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        add_comment: {
+          target: "triggering",
+          allows_comment_ids: ["12345"],
+        },
+      });
+
+      const result = targetingHandlers.addCommentHandler({ item_number: 42, body: "Update an existing status-style comment.", comment_id: "12345" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("target is '*'");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should reject comment_id when allows-comment-ids is empty", () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        add_comment: {
+          target: "*",
+        },
+      });
+
+      const result = wildcardHandlers.addCommentHandler({ body: "Update an existing status-style comment.", comment_id: "12345" });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("allows-comment-ids");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 

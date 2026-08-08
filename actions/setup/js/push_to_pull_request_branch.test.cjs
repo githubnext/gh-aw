@@ -5,6 +5,7 @@ import * as os from "os";
 
 const { getPatchPathForBranch, getPatchPathForBranchInRepo } = require("./git_patch_utils.cjs");
 const { getBundlePathForBranch, getBundlePathForBranchInRepo } = require("./generate_git_bundle.cjs");
+const promptsSourceDir = path.resolve(__dirname, "../md");
 
 // The privileged handler derives patch/bundle paths from `branch` (and `repo`)
 // via resolveTransportPaths, so tests must write transport files at the
@@ -38,6 +39,7 @@ function cleanupCanonicalTransports() {
 
 beforeEach(() => {
   cleanupCanonicalTransports();
+  process.env.GH_AW_PROMPTS_DIR = promptsSourceDir;
 });
 afterEach(() => {
   cleanupCanonicalTransports();
@@ -309,7 +311,7 @@ describe("push_to_pull_request_branch.cjs", () => {
    * message branch. The privileged handler always re-derives the patch path
    * from the validated branch, so tests must write at that canonical location.
    */
-  function createPatchFile(branch, content = null) {
+  function createPatchFile(branch, content = null, baseCommit = "") {
     const patchPath = canonicalPatchPath(branch);
     const defaultPatch = `From abc123 Mon Sep 17 00:00:00 2001
 From: Test Author <test@example.com>
@@ -328,7 +330,12 @@ index 0000000..abc1234
 --
 2.34.1
 `;
-    fs.writeFileSync(patchPath, content !== null ? content : defaultPatch);
+    let patchContent = content !== null ? content : defaultPatch;
+    if (baseCommit) {
+      const firstNewline = patchContent.indexOf("\n");
+      patchContent = `${patchContent.slice(0, firstNewline + 1)}X-GH-AW-Base-Commit: ${baseCommit}\n${patchContent.slice(firstNewline + 1)}`;
+    }
+    fs.writeFileSync(patchPath, patchContent);
     return patchPath;
   }
 
@@ -903,9 +910,9 @@ index 0000000..abc1234
       expect(result.after_state).toEqual({ head_sha: "abc123" });
     });
 
-    it("should reset to message.base_commit before applying patch transport", async () => {
-      const patchPath = createPatchFile("should-reset-to-message-base-commit-before-applying-patch-tr");
+    it("should reset to the patch-embedded base commit before applying patch transport", async () => {
       const recordedBaseCommit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+      const patchPath = createPatchFile("should-reset-to-message-base-commit-before-applying-patch-tr", null, recordedBaseCommit);
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
       const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue("abc123");
@@ -913,7 +920,7 @@ index 0000000..abc1234
       try {
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ base_commit: recordedBaseCommit, branch: "should-reset-to-message-base-commit-before-applying-patch-tr" }, {});
+        const result = await handler({ branch: "should-reset-to-message-base-commit-before-applying-patch-tr" }, {});
 
         expect(result.success).toBe(true);
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["cat-file", "-e", recordedBaseCommit], expect.any(Object));
@@ -924,9 +931,9 @@ index 0000000..abc1234
       }
     });
 
-    it("should fall back to current HEAD when base_commit is unavailable for patch transport", async () => {
-      const patchPath = createPatchFile("should-fall-back-to-current-head-when-base-commit-is-unavail");
+    it("should fall back to current HEAD when the patch-embedded base commit is unavailable", async () => {
       const recordedBaseCommit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+      const patchPath = createPatchFile("should-fall-back-to-current-head-when-base-commit-is-unavail", null, recordedBaseCommit);
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
       mockExec.exec.mockImplementation(async (cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "cat-file" && args[1] === "-e" && args[2] === recordedBaseCommit) {
@@ -941,7 +948,7 @@ index 0000000..abc1234
       try {
         const module = await loadModule();
         const handler = await module.main({});
-        const result = await handler({ base_commit: recordedBaseCommit, branch: "should-fall-back-to-current-head-when-base-commit-is-unavail" }, {});
+        const result = await handler({ branch: "should-fall-back-to-current-head-when-base-commit-is-unavail" }, {});
 
         expect(result.success).toBe(true);
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["reset", "--hard", recordedBaseCommit], expect.any(Object));
@@ -951,7 +958,7 @@ index 0000000..abc1234
       }
     });
 
-    it("should ignore invalid message.base_commit for patch transport", async () => {
+    it("should ignore agent-supplied base_commit for patch transport", async () => {
       const patchPath = createPatchFile("should-ignore-invalid-message-base-commit-for-patch-transpor");
       mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
 
@@ -962,7 +969,7 @@ index 0000000..abc1234
       expect(result.success).toBe(true);
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["cat-file", "-e", "not-a-sha --bad"], expect.any(Object));
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["reset", "--hard", "not-a-sha --bad"], expect.any(Object));
-      expect(mockCore.warning).toHaveBeenCalledWith("Ignoring invalid base_commit value for patch apply: not-a-sha --bad");
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("base_commit"));
     });
 
     it("should use pushed commit SHA returned by pushSignedCommits for activation comment commit link", async () => {
@@ -2059,11 +2066,7 @@ index 0000000..abc1234
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
     });
 
-    it("should prefer message.diff_size (incremental net diff) over patch file size", async () => {
-      // Simulate the long-running branch case: a large format-patch file
-      // (e.g. 2 MB of cumulative commit metadata + per-commit diffs) but a
-      // tiny incremental net diff (e.g. 5 KB of actual changes since
-      // origin/<branch>). The size check must use diff_size and accept the push.
+    it("should ignore message.diff_size and enforce the patch file size", async () => {
       const largePatch = "x".repeat(2 * 1024 * 1024); // 2 MB format-patch file
       const patchPath = createPatchFile("should-prefer-message-diff-size-incremental-net-diff-over-pa", largePatch);
 
@@ -2073,25 +2076,19 @@ index 0000000..abc1234
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
       const result = await handler({ diff_size: 5 * 1024, branch: "should-prefer-message-diff-size-incremental-net-diff-over-pa" }, {});
 
-      expect(result.success).toBe(true);
-      expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
-      // Verify the size check used the incremental (diff_size) value, not the
-      // 2 MB file size.
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental diff size: 5 KB"));
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Patch size");
     });
 
-    it("should reject when message.diff_size exceeds max size even if file size is small", async () => {
-      // Inverse case: small file (defensive — shouldn't happen in practice)
-      // but a recorded large diff_size should still cause rejection. This
-      // proves diff_size is the source of truth for the size check.
+    it("should ignore an oversized message.diff_size when the patch is within limits", async () => {
       const patchPath = createPatchFile("should-reject-when-message-diff-size-exceeds-max-size-even-i"); // small valid patch
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
       const result = await handler({ diff_size: 2 * 1024 * 1024, branch: "should-reject-when-message-diff-size-exceeds-max-size-even-i" }, {});
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("exceeds maximum");
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
     });
 
     it("should fall back to patch file size when message.diff_size is not provided", async () => {
@@ -2109,9 +2106,7 @@ index 0000000..abc1234
       expect(result.error).toContain("exceeds maximum");
     });
 
-    it("should enforce max_patch_size against bundle size when bundle transport is used", async () => {
-      // Bundle transport still includes a patch for policy checks, but the size
-      // guard falls back to bundle size when diff_size is not provided.
+    it("should enforce max_patch_size against the uncompressed patch for bundle transport", async () => {
       const bundlePath = canonicalBundlePath("should-enforce-max-patch-size-against-bundle-size-when-bundl");
       const patchPath = createPatchFile("should-enforce-max-patch-size-against-bundle-size-when-bundl", "small patch content");
       // 2 MB dummy bundle file (contents don't matter; only size is checked)
@@ -2121,15 +2116,11 @@ index 0000000..abc1234
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
       const result = await handler({ branch: "should-enforce-max-patch-size-against-bundle-size-when-bundl" }, {});
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("exceeds maximum");
-      expect(result.error).toMatch(/Bundle size|Incremental diff size/);
+      expect(result.success).toBe(true);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Patch size: 1 KB"));
     });
 
-    it("should prefer diff_size over bundle file size for the limit check", async () => {
-      // Bundle is 2 MB on disk, but the incremental net diff is only 5 KB:
-      // the check must accept the push (limit reflects the real change, not the
-      // compressed transport size).
+    it("should ignore diff_size for bundle size checks", async () => {
       const bundlePath = canonicalBundlePath("should-prefer-diff-size-over-bundle-file-size-for-the-limit-");
       const patchPath = createPatchFile("should-prefer-diff-size-over-bundle-file-size-for-the-limit-", "small patch content");
       fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
@@ -2142,7 +2133,32 @@ index 0000000..abc1234
 
       expect(result.success).toBe(true);
       expect(mockCore.info).toHaveBeenCalledWith("Patch size validation passed");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Incremental diff size: 5 KB"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Patch size: 1 KB"));
+    });
+
+    it("should enforce max_patch_size against expanded post-apply content", async () => {
+      const branch = "should-reject-expanded-post-apply-content";
+      const patchPath = createPatchFile(branch, "small git binary patch");
+      const changedFilePath = path.join(process.cwd(), "test.txt");
+      fs.writeFileSync(changedFilePath, Buffer.alloc(2 * 1024 * 1024));
+      mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
+        const argList = Array.isArray(args) ? args : [];
+        if (cmd === "git" && argList[0] === "diff" && argList[1] === "--name-only") {
+          return { exitCode: 0, stdout: "test.txt\0", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "abc123\n", stderr: "" };
+      });
+
+      try {
+        const module = await loadModule();
+        const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
+        const result = await handler({ branch }, {});
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Changed content size");
+      } finally {
+        fs.rmSync(changedFilePath, { force: true });
+      }
     });
   });
 
@@ -2257,7 +2273,7 @@ index 0000000..abc1234
             return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
           }
           if (cmd === "git" && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
-            return Promise.resolve({ exitCode: 0, stdout: `${actualFiles.join("\n")}\n`, stderr: "" });
+            return Promise.resolve({ exitCode: 0, stdout: `${actualFiles.join("\0")}\0`, stderr: "" });
           }
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
@@ -2273,8 +2289,8 @@ index 0000000..abc1234
         expect(mockCore.info).toHaveBeenCalledWith("Pre-apply bundle verification: 4 file(s) detected from bundle transport");
 
         const diffCalls = mockExec.getExecOutput.mock.calls.filter(([, args]) => Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames");
-        expect(diffCalls.map(([, args]) => args[3])).toContain("remote-head..refs/bundles/push-feature-branch");
-        expect(diffCalls.map(([, args]) => args[3])).toContain("remote-head..HEAD");
+        expect(diffCalls.map(([, args]) => args[4])).toContain("remote-head..refs/bundles/push-feature-branch");
+        expect(diffCalls.map(([, args]) => args[4])).toContain("remote-head..HEAD");
       } finally {
         pushSignedSpy.mockRestore();
       }
@@ -2963,7 +2979,7 @@ ${diffs}
       const patchPath = createPatchFile("should-accept-files-that-match-the-allowed-files-pattern", createPatchWithFiles(".changeset/my-feature-fix.md"));
       mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
-          return { exitCode: 0, stdout: ".changeset/my-feature-fix.md\n", stderr: "" };
+          return { exitCode: 0, stdout: ".changeset/my-feature-fix.md\0", stderr: "" };
         }
         return { exitCode: 0, stdout: "abc123\n", stderr: "" };
       });
@@ -2998,7 +3014,7 @@ ${diffs}
       const patchPath = createPatchFile("should-allow-a-protected-file-when-both-allowed-files-matche", createPatchWithFiles("package.json"));
       mockExec.getExecOutput.mockImplementation(async (cmd, args) => {
         if (cmd === "git" && Array.isArray(args) && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
-          return { exitCode: 0, stdout: "package.json\n", stderr: "" };
+          return { exitCode: 0, stdout: "package.json\0", stderr: "" };
         }
         return { exitCode: 0, stdout: "abc123\n", stderr: "" };
       });
