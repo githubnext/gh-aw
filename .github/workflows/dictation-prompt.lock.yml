@@ -594,6 +594,10 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  },
                   "title": {
                     "required": true,
                     "type": "string",

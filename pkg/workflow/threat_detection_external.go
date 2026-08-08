@@ -378,13 +378,16 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// Prepend npm PATH setup so that npm-installed engine CLIs (e.g. claude, codex)
 	// can be found inside the AWF container's chroot environment. threat-detect
 	// invokes the engine binary as a subprocess and relies on PATH to locate it.
+	//
+	// The --step-summary flag was removed from threat-detect (v0.4.5+): the binary
+	// no longer writes any step-summary output (see
+	// github/gh-aw-threat-detection#792), so the flag is intentionally omitted here.
 	npmPathSetup := GetNpmBinPathSetup()
 	threatDetectCmd := fmt.Sprintf(
-		"%s && threat-detect --engine %s --output %s --step-summary %s %s",
+		"%s && threat-detect --engine %s --output %s %s",
 		npmPathSetup,
 		engineID,
 		shellEscapeArg(constants.ThreatDetectionResultPath),
-		shellEscapeArg(constants.ThreatDetectionStepSummaryPath),
 		shellEscapeArg(constants.ThreatDetectionDir),
 	)
 
@@ -494,10 +497,15 @@ func extractStepEnvLines(step GitHubActionStep) []string {
 	return envLines
 }
 
-// buildUploadDetectionArtifactStep creates a step that uploads both the structured
-// verdict file (detection_result.json) and the detection log (detection.log) as the
-// detection artifact. Used when features: gh-aw-detection: true is set; the inline
-// path uses buildUploadDetectionLogStep which only uploads detection.log.
+// buildUploadDetectionArtifactStep creates a step that uploads the structured verdict
+// file (detection_result.json) as the detection artifact. Used when
+// features: gh-aw-detection: true is set; the inline path uses buildUploadDetectionLogStep.
+//
+// The raw engine log (detection.log) is intentionally NOT uploaded here: it can contain
+// content derived from the untrusted agent transcript/output that was passed to the
+// detection engine (including secrets the agent may have echoed), and persisting it to a
+// downloadable workflow artifact would create a secret-exfiltration path. It stays on the
+// runner's filesystem and is only ever inspected in-job (e.g. by the conclude step).
 func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string {
 	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName
 	return []string{
@@ -506,27 +514,8 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
-		"          path: |\n",
-		"            " + constants.ThreatDetectionResultPath + "\n",
-		"            " + constants.ThreatDetectionLogPath + "\n",
-		"            " + constants.ThreatDetectionStepSummaryPath + "\n",
+		"          path: " + constants.ThreatDetectionResultPath + "\n",
 		"          if-no-files-found: ignore\n",
-	}
-}
-
-// buildDetectionStepSummaryAppendStep creates a host-side step that appends the
-// detection step-summary file to the real $GITHUB_STEP_SUMMARY. The file was written
-// by threat-detect inside the AWF sandbox via --step-summary; this step runs on the
-// host where GITHUB_STEP_SUMMARY points to the real runner file-command path.
-// The step is a no-op when the file is empty (threat-detect wrote nothing).
-func (c *Compiler) buildDetectionStepSummaryAppendStep() []string {
-	return []string{
-		"      - name: Append detection step summary\n",
-		"        if: always()\n",
-		"        run: |\n",
-		fmt.Sprintf("          if [ -s %s ]; then\n", shellEscapeArg(constants.ThreatDetectionStepSummaryPath)),
-		fmt.Sprintf("            cat %s >> \"$GITHUB_STEP_SUMMARY\"\n", shellEscapeArg(constants.ThreatDetectionStepSummaryPath)),
-		"          fi\n",
 	}
 }
 

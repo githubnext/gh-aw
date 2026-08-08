@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 
@@ -127,11 +128,7 @@ func resolveEffectiveBashTools(content string, frontmatter map[string]any, fileP
 
 	// Merge external tools into the top-level tools map, line by line (each line is a JSON object).
 	effective := make(map[string]any)
-	if topTools != nil {
-		for k, v := range topTools {
-			effective[k] = v
-		}
-	}
+	maps.Copy(effective, topTools)
 	for line := range strings.SplitSeq(allExternalTools, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || line == "{}" {
