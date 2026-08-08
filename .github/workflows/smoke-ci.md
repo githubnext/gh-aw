@@ -76,8 +76,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 ---
 
 For all events, call the tools in this exact order:

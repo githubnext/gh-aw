@@ -59,6 +59,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
+    runtime: gvisor
     sudo: false
 evals:
   - id: workflow_runs_audited

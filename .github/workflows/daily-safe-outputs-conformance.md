@@ -36,8 +36,7 @@ imports:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 evals:
   - id: conformance_checked
     question: Did the agent run a conformance check against the Safe Outputs specification implementation?

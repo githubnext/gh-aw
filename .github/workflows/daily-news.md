@@ -57,8 +57,7 @@ network:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
-    sudo: true
+    sudo: false
 safe-outputs:
   upload-artifact:
     max-uploads: 3
