@@ -110,4 +110,16 @@ describe("require-error-code-in-thrown-error", () => {
       invalid: [],
     });
   });
+
+  it("valid: shadowed constructor (parameter shadows outer class) is not flagged", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [
+        // 'CustomError' as a parameter shadows the top-level class — cannot determine it extends Error
+        `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f(CustomError) { throw new CustomError("not an Error subclass here"); }`,
+        // Two separate functions each declaring a local 'CustomError' — they shadow each other, only the outer class would otherwise leak
+        `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f(x) { class CustomError { constructor(m) {} } throw new CustomError("plain class, not Error"); }`,
+      ],
+      invalid: [],
+    });
+  });
 });

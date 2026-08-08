@@ -31,17 +31,6 @@ function messageReferencesErrorCode(node: TSESTree.Node): boolean {
   return false;
 }
 
-function getLocalSuperclassName(node: TSESTree.ClassDeclaration): string | null {
-  if (!node.id || !node.superClass || node.superClass.type !== AST_NODE_TYPES.Identifier) {
-    return null;
-  }
-  return node.superClass.name;
-}
-
-function isAstNode(value: unknown): value is TSESTree.Node {
-  return typeof value === "object" && value !== null && typeof (value as { type?: unknown }).type === "string";
-}
-
 export const requireErrorCodeInThrownErrorRule = createRule({
   name: "require-error-code-in-thrown-error",
   meta: {
@@ -61,55 +50,56 @@ export const requireErrorCodeInThrownErrorRule = createRule({
     const sourceCode = context.sourceCode;
     const fullText = sourceCode.getText();
     const importsErrorCodes = /require\(\s*["']\.\/error_codes\.cjs["']\s*\)/.test(fullText);
-    const localClassExtends = new Map<string, string>();
 
     if (!importsErrorCodes) {
       return {};
     }
 
-    function isErrorConstructor(name: string): boolean {
-      const seen = new Set<string>();
-      let current: string | undefined = name;
+    type Scope = ReturnType<typeof sourceCode.getScope>;
+
+    function findVariableInScopeChain(scope: Scope, name: string) {
+      let current: Scope | null = scope;
       while (current) {
-        if (current === "Error") return true;
-        if (seen.has(current)) return false;
-        seen.add(current);
-        current = localClassExtends.get(current);
+        const variable = current.variables.find(v => v.name === name);
+        if (variable) return variable;
+        current = current.upper;
       }
-      return false;
+      return null;
     }
 
-    function collectLocalClassExtends(node: TSESTree.Node, seen = new WeakSet<object>()) {
-      if (seen.has(node)) return;
-      seen.add(node);
-      if (node.type === AST_NODE_TYPES.ClassDeclaration) {
-        const superclassName = getLocalSuperclassName(node);
-        if (superclassName && node.id) {
-          localClassExtends.set(node.id.name, superclassName);
+    function isErrorConstructorViaScope(callee: TSESTree.Identifier): boolean {
+      const visited = new Set<object>();
+
+      function check(name: string, scope: Scope): boolean {
+        if (name === "Error") return true;
+
+        const variable = findVariableInScopeChain(scope, name);
+        if (!variable) return false;
+
+        for (const def of variable.defs) {
+          if (def.type !== "ClassName") continue;
+          const classNode = def.node as TSESTree.ClassDeclaration;
+          if (visited.has(classNode)) continue;
+          visited.add(classNode);
+
+          if (!classNode.superClass || classNode.superClass.type !== AST_NODE_TYPES.Identifier) continue;
+
+          const superScope = sourceCode.getScope(classNode.superClass);
+          if (check(classNode.superClass.name, superScope)) return true;
         }
+
+        return false;
       }
 
-      for (const [key, value] of Object.entries(node as unknown as Record<string, unknown>)) {
-        if (key === "parent") continue;
-        if (Array.isArray(value)) {
-          for (const child of value) {
-            if (isAstNode(child)) collectLocalClassExtends(child, seen);
-          }
-        } else if (isAstNode(value)) {
-          collectLocalClassExtends(value, seen);
-        }
-      }
+      return check(callee.name, sourceCode.getScope(callee));
     }
 
     return {
-      Program(node: TSESTree.Program) {
-        collectLocalClassExtends(node);
-      },
       ThrowStatement(node: TSESTree.ThrowStatement) {
         const arg = node.argument;
         if (!arg || arg.type !== AST_NODE_TYPES.NewExpression) return;
         const callee = arg.callee;
-        if (callee.type !== AST_NODE_TYPES.Identifier || !isErrorConstructor(callee.name)) return;
+        if (callee.type !== AST_NODE_TYPES.Identifier || !isErrorConstructorViaScope(callee)) return;
         const messageArg = arg.arguments[0];
         if (!messageArg) return;
         if (messageArg.type !== AST_NODE_TYPES.TemplateLiteral && messageArg.type !== AST_NODE_TYPES.Literal && messageArg.type !== AST_NODE_TYPES.Identifier && messageArg.type !== AST_NODE_TYPES.BinaryExpression) {

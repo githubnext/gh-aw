@@ -13,6 +13,11 @@ const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { backfillCommitObjects } = require("./git_helpers.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const ERROR_CODE_PREFIX_RE = /^(?:ERR_[A-Z_]+|E\d{3}):\s*/;
+/** Strip a leading `ERR_*: ` or `E001: ` sentinel from a message. */
+function stripLeadingErrorCode(msg) {
+  return msg.replace(ERROR_CODE_PREFIX_RE, "");
+}
 const OID_PATTERN = /^[0-9a-f]{40}$/i;
 
 /**
@@ -832,7 +837,7 @@ async function pushSignedCommits({
   } catch (err) {
     if (err instanceof PushSignedCommitsUnsupportedShape) {
       throw new Error(
-        `${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${getErrorMessage(err)}. ` +
+        `${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${stripLeadingErrorCode(getErrorMessage(err))}. ` +
           `GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), ` +
           `submodule entries (mode 160000), or executable bits (mode 100755). ` +
           `Rewrite the commits to use only regular files (mode 100644) with no merge commits, ` +
@@ -841,7 +846,7 @@ async function pushSignedCommits({
       );
     }
     if (err instanceof PushSignedCommitsPolicyViolation) {
-      throw new Error(`${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_VALIDATION}: pushSignedCommits: refusing unsigned push for branch '${branch}': ${stripLeadingErrorCode(getErrorMessage(err))}`, { cause: err });
     }
     if (allowGitPushFallback === false) {
       throw new Error(`${ERR_API}: pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });
