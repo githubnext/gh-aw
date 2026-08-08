@@ -8,7 +8,8 @@ set +o histexpand
 # Usage: install_threat_detect_binary.sh VERSION [--rootless]
 #
 # Arguments:
-#   VERSION    - threat-detect version to install (e.g., v0.2.2) or "latest"
+#   VERSION    - threat-detect version to install (e.g., v0.2.2) or "latest" to
+#                install the latest release via GitHub's latest-release download endpoint
 #   --rootless - Install to ~/.local/bin without sudo; appends that directory to
 #                $GITHUB_PATH so subsequent steps find the binary.  Use this on
 #                ARC/DinD runners that enforce allowPrivilegeEscalation: false.
