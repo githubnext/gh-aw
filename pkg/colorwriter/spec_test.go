@@ -103,10 +103,12 @@ func TestSpec_Implementation_DoesNotImportLogger(t *testing.T) {
 	require.NoError(t, err)
 
 	fset := token.NewFileSet()
+	checked := 0
 	for _, file := range files {
 		if strings.HasSuffix(file, "_test.go") {
 			continue
 		}
+		checked++
 
 		parsed, err := parser.ParseFile(fset, file, nil, parser.ImportsOnly)
 		require.NoError(t, err, "parse %s", file)
@@ -117,4 +119,5 @@ func TestSpec_Implementation_DoesNotImportLogger(t *testing.T) {
 			require.NotEqual(t, "github.com/github/gh-aw/pkg/logger", path, "%s must remain a low-level dependency of pkg/logger", file)
 		}
 	}
+	require.Positive(t, checked, "expected at least one non-test Go file in colorwriter")
 }
