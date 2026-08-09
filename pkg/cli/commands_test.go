@@ -222,6 +222,10 @@ func TestRemoveWorkflows(t *testing.T) {
 }
 
 func TestStatusWorkflows(t *testing.T) {
+	// Change to the repository root so that the local .github/workflows
+	// directory is found regardless of the test binary's working directory.
+	chdirToRepoRoot(t)
+
 	err := StatusWorkflows(t.Context(), "test-pattern", false, false, "", "", "")
 
 	// Should not error since it's a stub implementation
