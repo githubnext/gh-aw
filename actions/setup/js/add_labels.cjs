@@ -232,14 +232,31 @@ const main = createCountGatedHandler({
         });
         if (requiredLabels.length > 0) {
           const itemLabels = (item.labels || []).map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || ""));
-          if (!requiredLabels.every(r => itemLabels.includes(r))) {
+          const missingLabels = requiredLabels.filter(r => !itemLabels.includes(r));
+          if (missingLabels.length > 0) {
             core.info(`Skipping add_labels for ${contextType} #${itemNumber}: does not match required-labels filter (${requiredLabels.join(", ")})`);
-            return { success: false, skipped: true, error: `Item does not match required-labels filter` };
+            return {
+              success: false,
+              skipped: true,
+              reasonCode: "REQUIRED_LABELS_MISMATCH",
+              reason: "Required labels missing",
+              error: "Item does not match required-labels filter",
+              target: { repo: itemRepo, number: itemNumber },
+              safeDetails: { requiredLabels, missingLabels },
+            };
           }
         }
         if (requiredTitlePrefix && !item.title?.startsWith(requiredTitlePrefix)) {
           core.info(`Skipping add_labels for ${contextType} #${itemNumber}: title does not start with required prefix "${requiredTitlePrefix}"`);
-          return { success: false, skipped: true, error: `Item title does not start with required prefix` };
+          return {
+            success: false,
+            skipped: true,
+            reasonCode: "REQUIRED_TITLE_PREFIX_MISMATCH",
+            reason: "Required title prefix missing",
+            error: "Item title does not start with required prefix",
+            target: { repo: itemRepo, number: itemNumber },
+            safeDetails: { requiredTitlePrefix },
+          };
         }
       }
 

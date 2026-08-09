@@ -14,6 +14,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
+const { buildNoopConclusionSummary } = require("./conclusion_summary.cjs");
 
 /**
  * Collect generated asset URLs from safe output jobs
@@ -158,16 +159,7 @@ async function main() {
   // If it's disabled, and there's no comment to update but we have noop messages, write to step summary.
   if (!appendOnlyComments && !commentId && noopMessages.length > 0) {
     core.info("No comment ID found, writing noop messages to step summary");
-
-    let summaryContent = "## No-Op Messages\n\n";
-    summaryContent += "The following messages were logged for transparency:\n\n";
-
-    if (noopMessages.length === 1) {
-      summaryContent += noopMessages[0];
-    } else {
-      summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
-    }
-
+    const summaryContent = buildNoopConclusionSummary(noopMessages, { runUrl });
     await core.summary.addRaw(summaryContent).write();
     core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
     return;

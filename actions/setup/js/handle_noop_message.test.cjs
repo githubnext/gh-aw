@@ -197,6 +197,9 @@ safe-outputs:
     const { main } = await import("./handle_noop_message.cjs?t=" + Date.now());
     await main();
 
+    const summary = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summary).toContain("<summary>✅ Conclusion Summary (1 no-op message)</summary>");
+    expect(summary).toContain("**Target:** [Workflow run](https://github.com/test-owner/test-repo/actions/runs/123)");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("report-as-issue is disabled"));
     expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
   });
