@@ -75,3 +75,41 @@ func TestCheckStatusAndOfferRun_ContextCancelled(t *testing.T) {
 		t.Fatalf("expected context cancellation error, got %v", err)
 	}
 }
+
+func TestShouldOfferAddedWorkflowRun(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cfg  AddInteractiveConfig
+		want bool
+	}{
+		{
+			name: "no add result",
+			cfg:  AddInteractiveConfig{},
+			want: false,
+		},
+		{
+			name: "workflow dispatch unavailable",
+			cfg: AddInteractiveConfig{
+				addResult: &AddWorkflowsResult{HasWorkflowDispatch: false},
+			},
+			want: false,
+		},
+		{
+			name: "workflow dispatch available",
+			cfg: AddInteractiveConfig{
+				addResult: &AddWorkflowsResult{HasWorkflowDispatch: true},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, tt.cfg.shouldOfferAddedWorkflowRun())
+		})
+	}
+}
