@@ -182,6 +182,26 @@ function formatCodeList(values) {
 }
 
 /**
+ * Format a summary-safe diagnostic field without coupling the renderer to a handler.
+ * @param {string} key
+ * @returns {string}
+ */
+function formatSafeDetailLabel(key) {
+  const aliases = { requiredLabels: "Required", missingLabels: "Missing" };
+  return aliases[key] || key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/^./, character => character.toUpperCase());
+}
+
+/**
+ * @param {any} value
+ * @returns {string|undefined}
+ */
+function formatSafeDetailValue(value) {
+  if (Array.isArray(value)) return formatCodeList(value);
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return `\`${String(value)}\``;
+  return undefined;
+}
+
+/**
  * Build a canonical entity URL from a repository slug and number when a handler
  * did not report an explicit URL. GitHub redirects `/issues/<n>` to the pull
  * request when the number refers to a pull request, so this works for both.
@@ -239,13 +259,11 @@ function formatOutcomeDiagnostics(result, message, error, outcome) {
     diagnostics += `**Reason:** ${reason}\n\n`;
   }
   const safeDetails = result?.safeDetails && typeof result.safeDetails === "object" ? result.safeDetails : undefined;
-  const required = formatCodeList(safeDetails?.requiredLabels);
-  const missing = formatCodeList(safeDetails?.missingLabels);
-  if (required) {
-    diagnostics += `**Required:** ${required}\n\n`;
-  }
-  if (missing) {
-    diagnostics += `**Missing:** ${missing}\n\n`;
+  for (const [key, value] of Object.entries(safeDetails || {})) {
+    const formattedValue = formatSafeDetailValue(value);
+    if (formattedValue) {
+      diagnostics += `**${formatSafeDetailLabel(key)}:** ${formattedValue}\n\n`;
+    }
   }
   if (!reason && !reasonCode && error) {
     diagnostics += `**Error:** \`${toSummarySafeErrorCode(error)}\` (see the job logs for details)\n\n`;

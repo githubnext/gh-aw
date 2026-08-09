@@ -261,9 +261,28 @@ describe("safe_output_summary", () => {
       });
 
       expect(summary).toContain("⚠️ Add Comment - Skipped (Message 2)");
-      expect(summary).not.toContain("Success");
+      expect(summary).not.toContain("- Success");
+      expect(summary).not.toContain("- Failed");
       expect(summary).toContain("**Reason:** Target is locked");
       expect(summary).not.toContain("raw API details");
+    });
+
+    it("renders handler-independent safe detail fields", () => {
+      const summary = generateSafeOutputSummary({
+        type: "dispatch_workflow",
+        messageIndex: 3,
+        success: false,
+        result: {
+          success: false,
+          skipped: true,
+          reason: "Branch is not allowed",
+          safeDetails: { allowedBranches: ["main", "release"], protected: true },
+        },
+        message: {},
+      });
+
+      expect(summary).toContain("**Allowed Branches:** `main`, `release`");
+      expect(summary).toContain("**Protected:** `true`");
     });
 
     it("should display secrecy field when present in message", () => {
@@ -1033,6 +1052,7 @@ describe("safe_output_summary", () => {
           messageIndex: 1,
           success: false,
           skipped: true,
+          delegated: true,
           reason: "Handled by standalone step",
         },
       ];

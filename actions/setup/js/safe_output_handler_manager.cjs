@@ -12,7 +12,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
-const { computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
+const { classifySafeOutputResult, computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
@@ -623,9 +623,6 @@ function rollbackReviewResultsForPR(results, repo, prNumber, errorMessage) {
  * the skip must be back-propagated here so the Processing Summary reflects the actual
  * outcome (skipped) rather than a misleading success count.
  *
- * Note: uses `skipReason` (not `reason`) so that the step-summary generator does not
- * treat these entries as delegated-step skips and omit them from the output.
- *
  * @param {Array<{type: string, success: boolean, skipped?: boolean, skipReason?: string}>} results - Processing results to mutate
  * @param {string} skipReason - Human-readable reason for the skip
  */
@@ -835,6 +832,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           messageIndex: i,
           success: false,
           skipped: true,
+          delegated: true,
           reason: "Handled by standalone step",
         });
         continue;
@@ -869,6 +867,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           messageIndex: i,
           success: false,
           skipped: true,
+          delegated: true,
           reason: "Handled by custom safe output job",
         });
         continue;
@@ -1653,10 +1652,10 @@ async function main() {
     const reportOnlyFailureCount = reportOnlyFailures.length;
     const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
-    const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
-    const skippedCustomJobResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by custom safe output job");
+    const skippedStandaloneResults = processingResult.results.filter(r => r.delegated && r.reason === "Handled by standalone step");
+    const skippedCustomJobResults = processingResult.results.filter(r => r.delegated && r.reason === "Handled by custom safe output job");
     const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
-    const skippedHandlerResults = processingResult.results.filter(r => r.skipped && !r.reason && !r.deferred && !r.cancelled);
+    const skippedHandlerResults = processingResult.results.filter(r => classifySafeOutputResult(r) === "skipped");
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);

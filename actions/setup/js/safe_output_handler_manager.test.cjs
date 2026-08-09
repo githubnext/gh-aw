@@ -248,6 +248,24 @@ describe("Safe Output Handler Manager", () => {
       });
     });
 
+    it("omits only explicitly delegated skips from outcome counts", () => {
+      expect(
+        computeSafeOutputsStatus([
+          { type: "add_comment", success: false, skipped: true, reason: "Policy skipped this output" },
+          { type: "noop", success: false, skipped: true, delegated: true, reason: "Handled by standalone step" },
+        ])
+      ).toEqual({
+        itemsSucceeded: 0,
+        itemsApplied: 0,
+        itemsSkipped: 1,
+        itemsWarnings: 0,
+        itemsCancelled: 0,
+        itemsDeferred: 0,
+        itemsFailed: 0,
+        status: "completed_with_skips",
+      });
+    });
+
     it("computes failure item status when all active results failed", () => {
       expect(
         computeSafeOutputsStatus([

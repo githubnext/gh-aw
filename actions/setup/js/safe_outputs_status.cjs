@@ -29,9 +29,10 @@ function pickOutcomeField(result, field) {
  * @returns {SafeOutputOutcome}
  */
 function classifySafeOutputResult(result) {
-  if (result?.skipped && result?.reason && result?.result === undefined) return "delegated";
+  if (result?.delegated === true) return "delegated";
   if (pickOutcomeField(result, "cancelled")) return "cancelled";
   if (pickOutcomeField(result, "deferred")) return "deferred";
+  // A skipped operation did not apply a mutation, even when it carries a warning.
   if (pickOutcomeField(result, "skipped")) return "skipped";
   if (pickOutcomeField(result, "warning")) return "warning";
   if (pickOutcomeField(result, "success")) return "success";
