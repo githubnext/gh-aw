@@ -58,6 +58,9 @@ func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 	if !ok {
 		return
 	}
+	if !coverage.ShouldApply(pass, outer.Pos(), *hotThreshold) {
+		return
+	}
 	if reportRedundantRoundTrip(pass, outer, inner, outerUnderlying, innerUnderlying, innerArgUnderlying) {
 		return
 	}
@@ -106,9 +109,6 @@ func reportRedundantRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, o
 	if !isStringType(outerUnderlying) || !isByteSliceType(innerUnderlying) || !isStringType(innerArgUnderlying) {
 		return false
 	}
-	if !coverage.ShouldApply(pass, outer.Pos(), *hotThreshold) {
-		return false
-	}
 	argText := astutil.NodeText(pass.Fset, inner.Args[0])
 	pass.ReportRangef(outer,
 		"string([]byte(%s)) is a redundant round-trip; the inner []byte conversion copies the string unnecessarily",
@@ -119,9 +119,6 @@ func reportRedundantRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, o
 
 func reportWastefulCloneRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, outerUnderlying, innerUnderlying, innerArgUnderlying types.Type) {
 	if !isByteSliceType(outerUnderlying) || !isStringType(innerUnderlying) || !isByteSliceType(innerArgUnderlying) {
-		return
-	}
-	if !coverage.ShouldApply(pass, outer.Pos(), *hotThreshold) {
 		return
 	}
 	argText := astutil.NodeText(pass.Fset, inner.Args[0])
