@@ -395,7 +395,7 @@ function generateOutcomeOverview(results) {
     const outcome = classifySafeOutputResult(result);
     if (outcome === "delegated") continue;
     const handlerResult = result?.result && typeof result.result === "object" ? result.result : {};
-    const reason = handlerResult.reason || handlerResult.reasonCode || handlerResult.errorCode || (outcome === "failed" ? toSummarySafeErrorCode(result.error) : "");
+    const reason = handlerResult.reason || result.reason || handlerResult.reasonCode || result.reasonCode || handlerResult.errorCode || result.errorCode || (outcome === "failed" ? toSummarySafeErrorCode(result.error) : "");
     const key = `${outcome}\0${result.type}\0${reason}`;
     const current = groups.get(key) || {
       outcome: OUTCOME_DISPLAY[outcome]?.status || outcome,
@@ -409,7 +409,11 @@ function generateOutcomeOverview(results) {
   if (groups.size === 0) return "";
   let table = "| Outcome | Type | Count | Reason |\n|---|---|---:|---|\n";
   for (const group of groups.values()) {
-    table += `| ${group.outcome} | ${group.type} | ${group.count} | ${group.reason || ""} |\n`;
+    const reason = String(group.reason || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/\|/g, "\\|")
+      .replace(/\r?\n/g, "<br>");
+    table += `| ${group.outcome} | ${group.type} | ${group.count} | ${reason} |\n`;
   }
   return `${table}\n`;
 }

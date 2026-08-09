@@ -1000,12 +1000,8 @@ describe("safe_output_summary", () => {
           messageIndex: 5,
           success: false,
           cancelled: true,
-          result: {
-            success: false,
-            cancelled: true,
-            reasonCode: "THREAT_DETECTED",
-            reason: "Threat policy cancelled the output",
-          },
+          errorCode: "THREAT_DETECTED",
+          reason: "Threat policy cancelled the output | blocked\nby policy",
         },
       ];
       const messages = [{}, {}, {}, {}, {}, {}];
@@ -1017,6 +1013,7 @@ describe("safe_output_summary", () => {
       expect(summaryContent).toContain("Applied: **1** · Skipped: **2** · Warnings: **0** · Failed: **1** · Cancelled: **1** · Deferred: **1**");
       expect(summaryContent).toContain("| Skipped | Add Comment | 1 | Required labels missing |");
       expect(summaryContent).toContain("| Failed | Dispatch Workflow | 1 | ERR_PERMISSION |");
+      expect(summaryContent).toContain("| Cancelled | Merge Pull Request | 1 | Threat policy cancelled the output \\| blocked<br>by policy |");
       expect(summaryContent).toContain("⚠️ Add Comment - Skipped (Message 2)");
       expect(summaryContent).toContain("❌ Dispatch Workflow - Failed (Message 4)");
       expect(summaryContent).toContain("⏸️ Upload Artifact - Deferred (Message 5)");

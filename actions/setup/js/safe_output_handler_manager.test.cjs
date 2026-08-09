@@ -1315,6 +1315,23 @@ describe("Safe Output Handler Manager", () => {
       expect(linkResult.deferred).toBe(false);
     });
 
+    it.each([
+      ["returned failure", () => ({ success: false, error: "Retry failed" })],
+      ["thrown error", () => Promise.reject(new Error("Retry failed"))],
+    ])("should classify a deferred retry %s as failed", async (_name, retryResult) => {
+      const handler = vi.fn().mockResolvedValueOnce({ deferred: true, error: "Unresolved temporary ID" }).mockImplementationOnce(retryResult);
+      const result = await processMessages(new Map([["link_sub_issue", handler]]), [{ type: "link_sub_issue", parent_issue_number: "aw_parent12", sub_issue_number: 42 }]);
+
+      expect(result.results[0]).toMatchObject({
+        type: "link_sub_issue",
+        success: false,
+        deferred: false,
+        error: "Retry failed",
+        result: { success: false, deferred: false, error: "Retry failed" },
+      });
+      expect(isFailedProcessingResult(result.results[0])).toBe(true);
+    });
+
     it("should track outputs created during deferred retry with unresolved temp IDs", async () => {
       const messages = [
         {

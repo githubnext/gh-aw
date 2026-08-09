@@ -1130,11 +1130,17 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         if (result && result.success === false && !result.deferred) {
           const errorMsg = result.error || "Handler returned success: false";
           core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${errorMsg}`);
-          // Update the result to error
+          // Replace the deferred record so terminal retry failures classify as failed.
           const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
           if (resultIndex >= 0) {
-            results[resultIndex].success = false;
-            results[resultIndex].error = errorMsg;
+            results[resultIndex] = {
+              type: deferred.type,
+              messageIndex: deferred.messageIndex,
+              success: false,
+              deferred: false,
+              error: errorMsg,
+              result: { ...result, success: false, deferred: false, error: errorMsg },
+            };
           }
           continue;
         }
@@ -1190,11 +1196,19 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           logCreatedItemFromResult(onItemCreated, deferred.type, result);
         }
       } catch (error) {
-        core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${getErrorMessage(error)}`);
-        // Update the result to error
+        const errorMsg = getErrorMessage(error);
+        core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${errorMsg}`);
+        // Replace the deferred record so terminal retry exceptions classify as failed.
         const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
         if (resultIndex >= 0) {
-          results[resultIndex].error = getErrorMessage(error);
+          results[resultIndex] = {
+            type: deferred.type,
+            messageIndex: deferred.messageIndex,
+            success: false,
+            deferred: false,
+            error: errorMsg,
+            result: { success: false, deferred: false, error: errorMsg },
+          };
         }
       }
     }
