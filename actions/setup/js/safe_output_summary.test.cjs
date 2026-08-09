@@ -22,8 +22,18 @@ globalThis.core = mockCore;
 const { generateSafeOutputSummary, writeSafeOutputSummaries } = await import("./safe_output_summary.cjs");
 
 describe("safe_output_summary", () => {
+  const originalGithubRepository = process.env.GITHUB_REPOSITORY;
+
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (originalGithubRepository === undefined) {
+      delete process.env.GITHUB_REPOSITORY;
+    } else {
+      process.env.GITHUB_REPOSITORY = originalGithubRepository;
+    }
   });
 
   describe("generateSafeOutputSummary", () => {
@@ -447,6 +457,61 @@ describe("safe_output_summary", () => {
       });
 
       expect(summary).toContain("**Target:** [owner/repo#5](https://github.com/owner/repo/issues/5)");
+    });
+
+    it.each([
+      ["create_check_run", { check_run_url: "https://github.com/owner/repo/runs/1" }],
+      ["autofix_code_scanning_alert", { autofixUrl: "https://github.com/owner/repo/security/code-scanning/2" }],
+      ["upload_artifact", { artifactUrl: "https://github.com/owner/repo/actions/runs/3/artifacts/4" }],
+    ])("should link to explicit %s handler URL fields", (type, result) => {
+      const summary = generateSafeOutputSummary({
+        type,
+        messageIndex: 1,
+        success: true,
+        result,
+        message: {},
+      });
+
+      expect(summary).toContain("**Target:**");
+      expect(summary).toContain(Object.values(result)[0]);
+    });
+
+    it("should derive an entity link from the message repository when the result omits it", () => {
+      const summary = generateSafeOutputSummary({
+        type: "assign_milestone",
+        messageIndex: 1,
+        success: true,
+        result: { issue_number: 8 },
+        message: { target_repo: "owner/repo" },
+      });
+
+      expect(summary).toContain("**Target:** [owner/repo#8](https://github.com/owner/repo/issues/8)");
+    });
+
+    it("should derive an entity link from GITHUB_REPOSITORY when result and message omit the repo", () => {
+      process.env.GITHUB_REPOSITORY = "env/repo";
+
+      const summary = generateSafeOutputSummary({
+        type: "assign_milestone",
+        messageIndex: 1,
+        success: true,
+        result: { issue_number: 9 },
+        message: {},
+      });
+
+      expect(summary).toContain("**Target:** [env/repo#9](https://github.com/env/repo/issues/9)");
+    });
+
+    it("should link to the project URL from update_project messages with sparse results", () => {
+      const summary = generateSafeOutputSummary({
+        type: "update_project",
+        messageIndex: 1,
+        success: true,
+        result: { success: true },
+        message: { project: "https://github.com/orgs/owner/projects/10" },
+      });
+
+      expect(summary).toContain("**Target:** [https://github.com/orgs/owner/projects/10](https://github.com/orgs/owner/projects/10)");
     });
 
     it("should render plain text when the entity URL is not an http(s) URL", () => {

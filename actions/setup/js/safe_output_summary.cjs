@@ -66,6 +66,12 @@ const RESULT_URL_FIELDS = [
 ];
 
 /**
+ * Message fields that may carry a target URL when a handler result is sparse.
+ * @type {string[]}
+ */
+const MESSAGE_URL_FIELDS = [...RESULT_URL_FIELDS, "project", "project_url"];
+
+/**
  * Result fields that may carry the number of the entity a handler acted upon,
  * in priority order.
  * @type {string[]}
@@ -77,6 +83,13 @@ const RESULT_NUMBER_FIELDS = ["number", "issue_number", "pull_request_number", "
  * @type {string[]}
  */
 const RESULT_REPO_FIELDS = ["repo", "repoSlug", "repository"];
+
+/**
+ * Message fields that may carry a repository slug (`owner/repo`) when a handler
+ * result is sparse.
+ * @type {string[]}
+ */
+const MESSAGE_REPO_FIELDS = ["repo", "target_repo", "repoSlug", "repository"];
 
 /**
  * Return the first non-empty value among the given fields of an object.
@@ -174,13 +187,16 @@ function buildEntityUrl(repo, number) {
  * A single regular `**Target:**` line is emitted so that every safe-output type
  * surfaces a link to the entity it acted upon.
  * @param {any} result - The handler result
+ * @param {any} message - The original message
  * @returns {string} Markdown for the target line (may be empty)
  */
-function formatTargetLine(result) {
-  const number = pickFirstField(result, RESULT_NUMBER_FIELDS);
-  const repo = pickFirstField(result, RESULT_REPO_FIELDS);
-  const url = pickFirstField(result, RESULT_URL_FIELDS) || buildEntityUrl(repo, number);
-  const link = formatLink(url, formatEntityRef(repo, number));
+function formatTargetLine(result, message) {
+  const number = pickFirstField(result, RESULT_NUMBER_FIELDS) ?? pickFirstField(message, RESULT_NUMBER_FIELDS);
+  const explicitRepo = pickFirstField(result, RESULT_REPO_FIELDS) ?? pickFirstField(message, MESSAGE_REPO_FIELDS);
+  const fallbackRepo = explicitRepo ?? process.env.GITHUB_REPOSITORY;
+  const explicitUrl = pickFirstField(result, RESULT_URL_FIELDS) || pickFirstField(message, MESSAGE_URL_FIELDS);
+  const url = explicitUrl || buildEntityUrl(fallbackRepo, number);
+  const link = formatLink(url, formatEntityRef(explicitUrl ? explicitRepo : fallbackRepo, number));
   return link ? `**Target:** ${link}\n\n` : "";
 }
 
@@ -263,7 +279,7 @@ function generateSafeOutputSummary(options) {
     }
   } else if (success && result) {
     // Add a regular link to the entity the handler acted upon
-    summary += formatTargetLine(result);
+    summary += formatTargetLine(result, message);
     if (result.temporaryId) {
       summary += `**Temporary ID:** \`${result.temporaryId}\`\n\n`;
     }
