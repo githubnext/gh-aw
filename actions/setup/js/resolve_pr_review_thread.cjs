@@ -251,6 +251,41 @@ function isIntegrationAccessError(error) {
 }
 
 /**
+ * Check whether an error indicates the referenced GraphQL node no longer exists.
+ * Review thread node IDs can become stale between the agent turn and the safe-outputs
+ * replay (thread already resolved, deleted, or superseded), which surfaces as a
+ * "Could not resolve to a node" or "Not Found" error. These are treated as skippable.
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isMissingNodeError(error) {
+  /** @type {string[]} */
+  const messages = [getErrorMessage(error)];
+  /** @type {string[]} */
+  const types = [];
+
+  if (error && typeof error === "object" && "errors" in error && Array.isArray(error.errors)) {
+    for (const graphQLError of error.errors) {
+      if (typeof graphQLError?.message === "string") {
+        messages.push(graphQLError.message);
+      }
+      if (typeof graphQLError?.type === "string") {
+        types.push(graphQLError.type);
+      }
+    }
+  }
+
+  if (types.some(type => type.toUpperCase() === "NOT_FOUND")) {
+    return true;
+  }
+
+  return messages.some(message => {
+    const normalized = message.toLowerCase();
+    return normalized.includes("could not resolve to a node") || normalized.includes("not found");
+  });
+}
+
+/**
  * Main handler factory for resolve_pull_request_review_thread
  * Returns a message handler function that processes individual resolve messages.
  *
@@ -323,7 +358,22 @@ async function main(config = {}) {
       }
 
       // Look up the thread's PR number and repository
-      const threadInfo = await getThreadPullRequestInfo(githubClient, threadId);
+      /** @type {Awaited<ReturnType<typeof getThreadPullRequestInfo>>} */
+      let threadInfo;
+      try {
+        threadInfo = await getThreadPullRequestInfo(githubClient, threadId);
+      } catch (error) {
+        if (isMissingNodeError(error)) {
+          core.info(`Review thread ${threadId} could not be resolved (${getErrorMessage(error)}) — already resolved or stale; skipping`);
+          return {
+            success: true,
+            thread_id: threadId,
+            is_resolved: true,
+            skipped: true,
+          };
+        }
+        throw error;
+      }
       if (threadInfo.status === "missing") {
         core.info(`Review thread ${threadId} not found — already resolved or stale; skipping`);
         return {
@@ -478,6 +528,15 @@ async function main(config = {}) {
       try {
         resolveResult = await resolveReviewThreadAPI(githubClient, resolvedThreadId);
       } catch (error) {
+        if (isMissingNodeError(error)) {
+          core.info(`Review thread ${resolvedThreadId} could not be resolved (${getErrorMessage(error)}) — already resolved or stale; skipping`);
+          return {
+            success: true,
+            thread_id: resolvedThreadId,
+            is_resolved: true,
+            skipped: true,
+          };
+        }
         if (isIntegrationAccessError(error)) {
           const warningMessage =
             `Skipping resolve_pull_request_review_thread for ${resolvedThreadId}: configuration mismatch ` +
