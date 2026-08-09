@@ -119,6 +119,10 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected --output-format stream-json in CLI args: %s", stepContent)
 	}
 
+	if !strings.Contains(stepContent, "--add-dir /tmp/gh-aw/agent/") {
+		t.Errorf("Expected default agent temp directory access in CLI args: %s", stepContent)
+	}
+
 	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Errorf("Expected ANTHROPIC_API_KEY environment variable in step: %s", stepContent)
 	}

@@ -223,6 +223,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 // and the allowed-tools string (reused for the comment annotation).
 func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithMountedCLIs map[string]any, logFile string) (claudeArgs []string, mcpConfigArg string, allowedTools string) {
 	claudeArgs = append(claudeArgs, "--print", "--no-chrome")
+	claudeArgs = append(claudeArgs, "--add-dir", constants.TmpGhAwAgentDir)
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		claudeLog.Printf("Setting max turns: %s", workflowData.EngineConfig.MaxTurns)
