@@ -75,8 +75,7 @@ docs/public/wasm/wasm_exec.js
 .env.*.backup
 
 coverage.html
-coverage/
-!pkg/linters/internal/coverage/
+/coverage/
 logs/
 
 # Benchmark results
