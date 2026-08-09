@@ -46,7 +46,24 @@ function toSummarySafeErrorCode(error) {
  * entity type, so every known name is checked to keep summaries regular.
  * @type {string[]}
  */
-const RESULT_URL_FIELDS = ["url", "html_url", "issue_url", "pull_request_url", "discussion_url", "comment_url", "reply_url", "review_url", "item_url", "commit_url", "check_run_url", "projectUrl", "autofixUrl", "artifactUrl", "run_url", "workflow_run_url"];
+const RESULT_URL_FIELDS = [
+  "url",
+  "html_url",
+  "issue_url",
+  "pull_request_url",
+  "discussion_url",
+  "comment_url",
+  "reply_url",
+  "review_url",
+  "item_url",
+  "commit_url",
+  "check_run_url",
+  "projectUrl",
+  "autofixUrl",
+  "artifactUrl",
+  "run_url",
+  "workflow_run_url",
+];
 
 /**
  * Result fields that may carry the number of the entity a handler acted upon,
