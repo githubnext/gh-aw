@@ -50,3 +50,16 @@
 - max-tool-denials: 65 (flat), network config: 159 (flat/slight rise), sandbox: 254 (majority default), model overrides: 102 (higher than earlier readings — methodology likely counting `model:` in MCP/tool configs, not just engine.model).
 - No new Copilot CLI Go features detected since last run (same file set: copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, etc.)
 - RECOMMENDATION SHIFT: metrics for cache-memory and model-override have inconsistent regex methodology across runs, causing false "trend" signals. Future runs should use a fixed canonical grep pattern documented once, rather than re-deriving each time.
+
+## Run 31293794264 (2026-08-09)
+- Total workflows 284 (up from 283); copilot-engine canonical count 132 (stable methodology: `^engine: copilot$` or `^id: copilot$`).
+- --share flag: still stuck at 1 (this research workflow only) — persistent gap across 8+ runs. Confirmed as accepted low-priority non-issue.
+- engine.args: confirmed still 0 — persistent, stable zero across 4+ direct re-verifications.
+- add-dir custom usage: 0 real workflows (only this research workflow's own doc references).
+- disable-builtin-mcps: 1 real usage (auto-triage-issues.md), unchanged.
+- Orphaned custom agents UNCHANGED for 8+ runs: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, interactive-agent-designer, w3c-specification-writer (5 total, 0 references each).
+- cache-memory adoption: 78 (flat vs last run using same canonical regex — plateaued, no methodology drift this time).
+- max-tool-denials: 65 (flat), max-continuations: 11 (flat), network config: 159 (flat), sandbox: 255 (flat/slight rise with new workflows).
+- model overrides for copilot engine: 0 confirmed with corrected regex (prior "102" reading was measurement noise from counting MCP/tool `model:` fields, not engine.model — resolved as false positive).
+- No new Copilot CLI Go features detected in codebase since last run (same file set unchanged).
+- RECOMMENDATION: The 5 orphaned custom agents have now been stable/unreferenced for 8 consecutive runs — recommend either wiring them into a workflow or removing them, rather than continuing to flag every run.
