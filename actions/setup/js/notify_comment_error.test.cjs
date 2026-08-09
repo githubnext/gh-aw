@@ -56,6 +56,7 @@ const mockCore = {
           GH_AW_SAFE_OUTPUT_MESSAGES: process.env.GH_AW_SAFE_OUTPUT_MESSAGES,
           GH_AW_SAFE_OUTPUT_JOBS: process.env.GH_AW_SAFE_OUTPUT_JOBS,
           GH_AW_SAFE_OUTPUTS_RESULT: process.env.GH_AW_SAFE_OUTPUTS_RESULT,
+          GH_AW_AGENT_OUTPUT: process.env.GH_AW_AGENT_OUTPUT,
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL,
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL,
           GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL: process.env.GH_AW_OUTPUT_CREATE_PULL_REQUEST_PULL_REQUEST_URL,
@@ -69,6 +70,27 @@ const mockCore = {
         });
       }),
       describe("when comment ID is not provided", () => {
+        it("should write a regular linked conclusion summary for noop messages", async () => {
+          const tempDir = fs.mkdtempSync("/tmp/gh-aw-conclusion-summary-");
+          const outputPath = path.join(tempDir, "agent-output.json");
+          fs.writeFileSync(outputPath, JSON.stringify({ items: [{ type: "noop", message: "No changes were needed." }] }));
+          try {
+            delete process.env.GH_AW_COMMENT_ID;
+            process.env.GH_AW_AGENT_OUTPUT = outputPath;
+            process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+            process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+            process.env.GH_AW_AGENT_CONCLUSION = "success";
+
+            await eval(`(async () => { ${notifyCommentScript}; await main(); })()`);
+
+            const summary = mockCore.summary.addRaw.mock.calls[0][0];
+            expect(summary).toContain("<summary>✅ Conclusion Summary (1 no-op message)</summary>");
+            expect(summary).toContain("**Target:** [Workflow run](https://github.com/owner/repo/actions/runs/123)");
+          } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+          }
+        });
+
         it("should skip comment update", async () => {
           (delete process.env.GH_AW_COMMENT_ID,
             (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
