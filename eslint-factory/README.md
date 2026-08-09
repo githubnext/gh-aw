@@ -47,6 +47,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-return-after-core-setfailed`](#require-return-after-core-setfailed) | Require a control-transfer statement after `core.setFailed()` |
 | [`require-execsync-try-catch`](#require-execsync-try-catch) | Require try/catch around `execSync(...)` calls from `child_process` |
 | [`require-execfilesync-try-catch`](#require-execfilesync-try-catch) | Require try/catch around `execFileSync(...)` calls from `child_process` |
+| [`require-spawn-error-listener`](#require-spawn-error-listener) | Require an `'error'` event listener on async `spawn(...)` child processes |
 | [`require-spawnsync-error-check`](#require-spawnsync-error-check) | Require checking `result.error` after `spawnSync` calls |
 | [`prefer-get-error-message-over-string`](#prefer-get-error-message-over-string) | Prefer `getErrorMessage(err)` over `String(err)` when interpolating a caught error |
 | [`require-rmsync-try-catch`](#require-rmsync-try-catch) | Require try/catch around `fs.rmSync` calls |
@@ -616,6 +617,25 @@ Why: `execFileSync` has identical throw-on-failure semantics to `execSync` — i
 - Calls already inside an enclosing `try { ... } catch { ... }` block.
 
 **Out of scope:** `execFile` (the async, callback-based sibling) is intentionally excluded. The async form accepts a callback and does not throw synchronously; errors are delivered through the callback or the returned `ChildProcess` event emitter, so a synchronous try/catch provides no protection.
+
+### `require-spawn-error-listener`
+
+Require child processes created with async `spawn()` to register an `'error'` event listener.
+
+Why: when `spawn()` cannot launch the executable (for example `ENOENT` or `EACCES`), Node emits an `'error'` event on the returned `ChildProcess` instead of throwing synchronously. Without an attached listener, that event is unhandled and crashes the action.
+
+**Detected forms (when bound to `child_process` / `node:child_process`):**
+- `const { spawn } = require("child_process"); const child = spawn(...)`
+- `const cp = require("child_process"); const child = cp.spawn(...)`
+- `import { spawn } from "child_process"; const child = spawn(...)`
+
+The rule then looks for `child.on("error", ...)` or `child.once("error", ...)` on that same variable anywhere it is referenced, including nested callbacks in the same file.
+
+**Out of scope:**
+- Assignment-expression forms such as `child = spawn(...)`
+- Inline chains such as `spawn(...).on("error", ...)`
+- Passing the child process to a helper function that registers the listener later
+- `spawn` identifiers that are not bound to Node's `child_process` module
 
 ### `prefer-get-error-message-over-string`
 
