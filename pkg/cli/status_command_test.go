@@ -547,7 +547,16 @@ func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
 func TestStatusWorkflows_WithRepoOverride(t *testing.T) {
 	// This test verifies that the function accepts the repoOverride parameter
 	// and doesn't error out. It should work in the current repository context.
-	err := StatusWorkflows(t.Context(), "", false, true, "", "", "")
+	// Change to the repository root so that the local .github/workflows
+	// directory is found regardless of the test binary's working directory.
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	repoRoot := filepath.Join(originalDir, "..", "..")
+	t.Chdir(repoRoot)
+
+	err = StatusWorkflows(t.Context(), "", false, true, "", "", "")
 	if err != nil {
 		t.Errorf("StatusWorkflows with empty repoOverride should not error: %v", err)
 	}
