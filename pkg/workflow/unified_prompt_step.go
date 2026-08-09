@@ -354,7 +354,6 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	}
 
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          # poutine:ignore untrusted_checkout_exec\n")
 	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh\"\n")
 	yaml.WriteString("          {\n")
 
