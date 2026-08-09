@@ -1332,6 +1332,30 @@ describe("Safe Output Handler Manager", () => {
       expect(isFailedProcessingResult(result.results[0])).toBe(true);
     });
 
+    it("preserves summary-safe diagnostics when a deferred retry is skipped", async () => {
+      const skippedResult = {
+        success: false,
+        skipped: true,
+        reasonCode: "REQUIRED_LABELS_MISMATCH",
+        reason: "Required labels missing",
+        target: { repo: "owner/repo", number: 123 },
+        safeDetails: { missingLabels: ["automation"] },
+      };
+      const handler = vi.fn().mockResolvedValueOnce({ deferred: true, error: "Unresolved temporary ID" }).mockResolvedValueOnce(skippedResult);
+      const result = await processMessages(new Map([["link_sub_issue", handler]]), [{ type: "link_sub_issue", parent_issue_number: "aw_parent12", sub_issue_number: 42 }]);
+
+      expect(result.results[0]).toMatchObject({
+        type: "link_sub_issue",
+        messageIndex: 0,
+        success: false,
+        skipped: true,
+        reasonCode: "REQUIRED_LABELS_MISMATCH",
+        reason: "Required labels missing",
+        result: skippedResult,
+      });
+      expect(isFailedProcessingResult(result.results[0])).toBe(false);
+    });
+
     it("should track outputs created during deferred retry with unresolved temp IDs", async () => {
       const messages = [
         {

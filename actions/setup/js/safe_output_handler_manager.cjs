@@ -705,6 +705,28 @@ function setSafeOutputsStatusOutputs(status) {
 }
 
 /**
+ * @param {string} type
+ * @param {number} messageIndex
+ * @param {Record<string, any>} result
+ * @returns {Record<string, any>}
+ */
+function buildSkippedResult(type, messageIndex, result) {
+  const message = result.reason || result.warning || result.error || "Handler returned skipped: true";
+  return {
+    type,
+    messageIndex,
+    success: result.success === true,
+    skipped: true,
+    ...(result.warning ? { warning: result.warning } : {}),
+    ...(result.reason ? { reason: result.reason } : {}),
+    ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
+    ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+    error: message,
+    result,
+  };
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
@@ -920,18 +942,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       if (result && result.skipped === true && !result.deferred) {
         const msg = result.reason || result.warning || result.error || "Handler returned skipped: true";
         core.info(`⏭ Message ${i + 1} (${messageType}) skipped — ${msg}`);
-        results.push({
-          type: messageType,
-          messageIndex: i,
-          success: result.success === true,
-          skipped: true,
-          ...(result.warning ? { warning: result.warning } : {}),
-          ...(result.reason ? { reason: result.reason } : {}),
-          ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
-          ...(result.errorCode ? { errorCode: result.errorCode } : {}),
-          error: msg,
-          result,
-        });
+        results.push(buildSkippedResult(messageType, i, result));
         continue;
       }
 
@@ -1110,18 +1121,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           core.info(`⏭ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) skipped — ${msg}`);
           const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
           if (resultIndex >= 0) {
-            results[resultIndex] = {
-              type: deferred.type,
-              messageIndex: deferred.messageIndex,
-              success: result.success === true,
-              skipped: true,
-              ...(result.warning ? { warning: result.warning } : {}),
-              ...(result.reason ? { reason: result.reason } : {}),
-              ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
-              ...(result.errorCode ? { errorCode: result.errorCode } : {}),
-              error: msg,
-              result,
-            };
+            results[resultIndex] = buildSkippedResult(deferred.type, deferred.messageIndex, result);
           }
           continue;
         }
