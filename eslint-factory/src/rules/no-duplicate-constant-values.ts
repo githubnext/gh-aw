@@ -12,6 +12,11 @@ const MIN_NUMERIC_DUPLICATE_GROUP_SIZE = 3;
 // so unrelated constants coincidentally sharing `true`/`false` are at least as likely as the
 // numeric case above. Apply the same minimum-group-size guard to avoid false positives.
 const MIN_BOOLEAN_DUPLICATE_GROUP_SIZE = 3;
+// `null` has exactly 1 possible value, an even smaller space than booleans, so unrelated
+// placeholder or not-yet-initialized constants coincidentally sharing `null` are at least as
+// likely as the boolean case above. Apply the same minimum-group-size guard.
+const MIN_NULL_DUPLICATE_GROUP_SIZE = 3;
+const NULL_VALUE_KEY = "object:null";
 
 function getStaticValueKey(node: TSESTree.Expression): string | null {
   if (node.type === AST_NODE_TYPES.Literal) {
@@ -30,6 +35,13 @@ function getStaticValueKey(node: TSESTree.Expression): string | null {
   }
 
   return null;
+}
+
+function getMinDuplicateGroupSize(valueKey: string): number {
+  if (valueKey.startsWith("number:")) return MIN_NUMERIC_DUPLICATE_GROUP_SIZE;
+  if (valueKey.startsWith("boolean:")) return MIN_BOOLEAN_DUPLICATE_GROUP_SIZE;
+  if (valueKey === NULL_VALUE_KEY) return MIN_NULL_DUPLICATE_GROUP_SIZE;
+  return 2;
 }
 
 export const noDuplicateConstantValuesRule = createRule({
@@ -83,7 +95,7 @@ export const noDuplicateConstantValuesRule = createRule({
       },
       "Program:exit"() {
         for (const [valueKey, declarations] of constantsByValue) {
-          const minGroupSize = valueKey.startsWith("number:") ? MIN_NUMERIC_DUPLICATE_GROUP_SIZE : valueKey.startsWith("boolean:") ? MIN_BOOLEAN_DUPLICATE_GROUP_SIZE : 2;
+          const minGroupSize = getMinDuplicateGroupSize(valueKey);
           const shouldReportDuplicates = declarations.length >= minGroupSize;
           if (!shouldReportDuplicates) continue;
 

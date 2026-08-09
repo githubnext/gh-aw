@@ -114,6 +114,29 @@ test.describe('Mobile and Responsive Layout', () => {
     await expect(page.locator('#main-content')).toHaveCount(1);
   });
 
+  for (const viewport of [
+    { name: 'mobile', width: 390, height: 844 },
+    { name: 'tablet', width: 768, height: 1024 },
+    { name: 'large tablet', width: 834, height: 1194 },
+    { name: 'tablet landscape', width: 1024, height: 768 },
+  ]) {
+    test(`should navigate through the responsive header menu on ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto('/gh-aw/');
+      await page.waitForLoadState('networkidle');
+
+      const menuButton = page.locator('.hamburger-btn');
+      await expect(menuButton).toBeVisible();
+      await menuButton.click();
+      await expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+
+      const quickStartLink = page.locator('.tablet-dropdown .dropdown-link[href$="setup/quick-start/"]:visible');
+      await expect(quickStartLink).toBeVisible();
+      await quickStartLink.click();
+      await expect(page).toHaveURL(/\/gh-aw\/setup\/quick-start\/$/);
+    });
+  }
+
   for (const formFactor of formFactors) {
     test.describe(`${formFactor.name}`, () => {
       test.beforeEach(async ({ page }) => {

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -50,6 +51,7 @@ const logsCommandExampleTemplate = `  # Basic usage
   %[1]s logs --engine claude           # Filter logs by claude engine
   %[1]s logs --engine codex            # Filter logs by codex engine
   %[1]s logs --engine copilot          # Filter logs by copilot engine
+  %[1]s logs --runtime gvisor          # Filter logs by sandbox agent runtime
   %[1]s logs --firewall                # Filter logs with firewall enabled
   %[1]s logs --no-firewall             # Filter logs without firewall
   %[1]s logs --safe-output missing-tool     # Filter logs with missing-tool messages
@@ -187,6 +189,7 @@ func loadStdinLogsOptions(cmd *cobra.Command) (StdinLogsOptions, error) {
 	return StdinLogsOptions{
 		OutputDir:         values.OutputDir,
 		Engine:            values.Engine,
+		Runtime:           values.Runtime,
 		RepoOverride:      values.RepoOverride,
 		Verbose:           values.Verbose,
 		ToolGraph:         values.ToolGraph,
@@ -246,6 +249,7 @@ func loadCommonLogsOptions(cmd *cobra.Command) (LogsDownloadOptions, error) {
 		EndDate:           endDate,
 		OutputDir:         getStringFlag(cmd, "output"),
 		Engine:            getStringFlag(cmd, "engine"),
+		Runtime:           getStringFlag(cmd, "runtime"),
 		Ref:               getStringFlag(cmd, "ref"),
 		BeforeRunID:       getInt64Flag(cmd, "before-run-id"),
 		AfterRunID:        getInt64Flag(cmd, "after-run-id"),
@@ -304,7 +308,22 @@ func validateLogsOptions(options LogsDownloadOptions) error {
 	if err := validateLogsEngine(options.Engine); err != nil {
 		return err
 	}
+	if err := validateLogsRuntime(options.Runtime); err != nil {
+		return err
+	}
 	return validateReportFileFlags(options.ReportFile, options.Format, options.JSONOutput)
+}
+
+func validateLogsRuntime(runtime string) error {
+	if runtime == "" {
+		return nil
+	}
+	logsCommandLog.Printf("Validating runtime parameter: %s", runtime)
+	validRuntimes := []string{string(workflow.AgentRuntimeGVisor), string(workflow.AgentRuntimeDockerSbx)}
+	if slices.Contains(validRuntimes, runtime) {
+		return nil
+	}
+	return fmt.Errorf("invalid runtime value '%s'. Must be one of: %s", runtime, strings.Join(validRuntimes, ", "))
 }
 
 func validateLogsEngine(engine string) error {
@@ -372,6 +391,7 @@ func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	addOutputFlag(logsCmd, defaultLogsOutputDir)
 	addEngineFilterFlag(logsCmd)
+	logsCmd.Flags().String("runtime", "", "Filter to runs using a specific sandbox agent runtime (e.g., gvisor, docker-sbx)")
 	logsCmd.Flags().String("ref", "", "Filter runs by branch or tag name (e.g., main, v1.0.0)")
 	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")

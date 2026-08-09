@@ -10,10 +10,15 @@
 // are delimited by level-2 Markdown headings:
 //
 //	## agent: `name`        ← opens a sub-agent block
+//	## end agent: `name`    ← optional, explicitly closes the block
 //
-// An agent block ends at the next level-2 Markdown heading (## ...) or end
+// An agent block ends at a matching "## end agent: `name`" marker if one is
+// present, or otherwise at the next level-2 Markdown heading (## ...) or end
 // of file. The name must be a lowercase identifier (letters, digits, hyphens,
-// underscores; must start with a letter).
+// underscores; must start with a letter). The explicit end marker is useful
+// when a sub-agent block is embedded in the middle of a document (for
+// example via an import) so that unrelated content following it is not
+// swallowed into the block.
 //
 // Both the agent marker and any subsequent H2 section heading render as visible
 // section headings in any Markdown preview (GitHub, VS Code, etc.).
@@ -176,13 +181,27 @@ type InlineSubAgent struct {
 //   - Optional trailing whitespace
 var subAgentSeparatorRegex = regexp.MustCompile("(?m)^##[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$")
 
+// subAgentBoundaryRegex is applied to a substring that starts at an implicit H2
+// boundary. Keep it start-anchored without multiline mode or capture groups so
+// it only recognizes an agent marker exactly at that boundary.
+var subAgentBoundaryRegex = regexp.MustCompile("^##[ \t]+agent:[ \t]+`[a-z][a-z0-9_-]*`[ \t]*(?:\n|$)")
+
+// subAgentEndRegex matches the optional explicit end marker for an inline
+// sub-agent block: "## end agent: `name`". It mirrors the start marker's name
+// rules. When present, it closes the sub-agent block exactly at that heading
+// instead of at the next H2 heading or EOF.
+var subAgentEndRegex = regexp.MustCompile("(?m)^##[ \t]+end[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$")
+
 // ExtractInlineSubAgents splits markdown into the main workflow section and any
 // inline sub-agent definitions.
 //
 // It scans the markdown body for ## agent: `name` start markers. Content before
 // the first start marker is returned as mainMarkdown (trimmed of trailing
-// newlines). Each start marker opens a sub-agent whose content spans to the
-// next level-2 Markdown heading (## ...) or EOF — whichever comes first.
+// newlines). Each start marker opens a sub-agent whose content spans to a
+// matching ## end agent: `name` marker if one is present, or otherwise to the
+// next level-2 Markdown heading (## ...) or EOF — whichever comes first. When
+// an explicit end marker closes a sub-agent, any text following it (up to the
+// next start marker or EOF) is preserved as main markdown.
 //
 // If no start markers are found the original markdown is returned unchanged and
 // agents is nil.
@@ -190,6 +209,9 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 	subAgentLog.Printf("Extracting inline sub-agents from markdown (length: %d)", len(markdown))
 	allStarts := subAgentSeparatorRegex.FindAllStringSubmatchIndex(markdown, -1)
 	if len(allStarts) == 0 {
+		if err := validateNoInlineSectionEndMarkers(markdown, subAgentEndRegex); err != nil {
+			return "", nil, fmt.Errorf("invalid inline sub-agent end marker: %w", err)
+		}
 		subAgentLog.Print("No inline sub-agent markers found")
 		return markdown, nil, nil
 	}
@@ -199,10 +221,13 @@ func ExtractInlineSubAgents(markdown string) (mainMarkdown string, agents []Inli
 		return "", nil, err
 	}
 
-	mainMarkdown, agents = extractInlineSections(markdown, allStarts, func(name, content string) InlineSubAgent {
+	mainMarkdown, agents, err = extractInlineSections(markdown, allStarts, subAgentEndRegex, inlineSkillBoundaryRegex, func(name, content string) InlineSubAgent {
 		subAgentLog.Printf("Extracted sub-agent %q (content length: %d)", name, len(content))
 		return InlineSubAgent{Name: name, Content: content}
 	})
+	if err != nil {
+		return "", nil, fmt.Errorf("invalid inline sub-agent end marker: %w", err)
+	}
 	subAgentLog.Printf("Extraction complete: %d sub-agent(s), main markdown length: %d", len(agents), len(mainMarkdown))
 	return mainMarkdown, agents, nil
 }

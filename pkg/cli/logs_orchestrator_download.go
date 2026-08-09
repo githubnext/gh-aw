@@ -59,6 +59,7 @@ func prepareLogsDownload(ctx context.Context, opts LogsDownloadOptions) (logsDow
 		fetchAllInRange: opts.StartDate != "" || opts.EndDate != "",
 		filters: runFilterOpts{
 			engine:            opts.Engine,
+			runtime:           opts.Runtime,
 			noStaged:          opts.NoStaged,
 			firewallOnly:      opts.FirewallOnly,
 			noFirewall:        opts.NoFirewall,
