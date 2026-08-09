@@ -9,15 +9,11 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/colorprofile"
-	"github.com/github/gh-aw/pkg/logger"
 )
-
-var colorwriterLog = logger.New("colorwriter:colorprofile_writer")
 
 // New returns an io.Writer that adapts color output based on the provided
 // environment variables (e.g. NO_COLOR, COLORTERM, TERM).
 func New(w io.Writer, environ []string) io.Writer {
-	colorwriterLog.Printf("New: creating color-profile writer, environ_len=%d", len(environ))
 	return colorprofile.NewWriter(w, environ)
 }
 
@@ -35,7 +31,6 @@ func Degrade(s string, environ []string) string {
 	var buf strings.Builder
 	profile := colorprofile.Env(environ)
 	if noColorEnabled(environ) {
-		colorwriterLog.Print("Degrade: NO_COLOR enabled, forcing NoTTY profile")
 		profile = colorprofile.NoTTY
 	}
 	w := &colorprofile.Writer{
@@ -46,7 +41,6 @@ func Degrade(s string, environ []string) string {
 	// and strings.Builder writes cannot fail, so a write error would indicate an
 	// unexpected future behavior change; fall back to the original string then.
 	if _, err := io.WriteString(w, s); err != nil {
-		colorwriterLog.Printf("Degrade: color profile write failed, returning original string: %v", err)
 		return s
 	}
 	return buf.String()
