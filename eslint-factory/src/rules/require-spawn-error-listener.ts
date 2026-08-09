@@ -1,17 +1,11 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { isChildProcessImportBinding, isChildProcessObjectBinding, isRequireChildProcess } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
-// Unqualified function name used when spawn is destructured from child_process.
 const SPAWN_NAME = "spawn";
 
-// Known namespace aliases for the child_process module.
-const CHILD_PROCESS_OBJECTS = new Set(["childProcess", "child_process"]);
-
-type ScopeType = ReturnType<TSESLint.SourceCode["getScope"]>;
-type ScopeVariable = ScopeType["variables"][number];
-
-function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.Node, varName: string): ScopeVariable | undefined {
+function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.Node, varName: string): TSESLint.Scope.Variable | undefined {
   let scope: ReturnType<typeof sourceCode.getScope> | null = sourceCode.getScope(node);
   while (scope) {
     const variable = scope.set.get(varName);
@@ -21,31 +15,52 @@ function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSE
   return undefined;
 }
 
+function isSpawnBinding(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
+  let scope: ReturnType<typeof sourceCode.getScope> | null = sourceCode.getScope(scopeNode);
+  while (scope) {
+    const variable = scope.set.get(identifierName);
+    if (variable && variable.defs.length > 0) {
+      for (const def of variable.defs) {
+        if (isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportSpecifier) {
+          const specifier = def.node as TSESTree.ImportSpecifier;
+          const importedName = specifier.imported.type === AST_NODE_TYPES.Identifier ? specifier.imported.name : null;
+          if (importedName === SPAWN_NAME) return true;
+        }
+
+        if (def.type !== "Variable") continue;
+        const declarator = def.node as TSESTree.VariableDeclarator;
+
+        if (declarator.id.type === AST_NODE_TYPES.ObjectPattern && isRequireChildProcess(declarator.init)) {
+          for (const prop of declarator.id.properties) {
+            if (prop.type !== AST_NODE_TYPES.Property) continue;
+            if (prop.key.type !== AST_NODE_TYPES.Identifier || prop.key.name !== SPAWN_NAME) continue;
+            const boundName = prop.value.type === AST_NODE_TYPES.Identifier ? prop.value.name : null;
+            if (boundName === identifierName) return true;
+          }
+        }
+      }
+      return false;
+    }
+    scope = scope.upper;
+  }
+  return false;
+}
+
 /**
- * Returns true when the expression is a call to the async `spawn` (either bare
- * or namespaced). Does not match `spawnSync`/`spawnImpl`-style aliases.
- * Matched forms:
- *   spawn(cmd, args, opts)
- *   childProcess.spawn(cmd, args, opts)
- *   child_process.spawn(cmd, args, opts)
+ * Returns true when the expression is a call to the async `spawn` sourced from
+ * the `child_process` module. Does not match `spawnSync` or unrelated local
+ * functions/imports named `spawn`.
  */
-function isSpawnCall(node: TSESTree.Expression): boolean {
+function isSpawnCall(node: TSESTree.Expression, sourceCode: TSESLint.SourceCode): boolean {
   if (node.type !== AST_NODE_TYPES.CallExpression) return false;
   const callee = node.callee;
 
-  if (callee.type === AST_NODE_TYPES.Identifier && callee.name === SPAWN_NAME) {
-    return true;
+  if (callee.type === AST_NODE_TYPES.Identifier) {
+    return isSpawnBinding(callee.name, callee, sourceCode);
   }
 
-  if (
-    callee.type === AST_NODE_TYPES.MemberExpression &&
-    !callee.computed &&
-    callee.object.type === AST_NODE_TYPES.Identifier &&
-    CHILD_PROCESS_OBJECTS.has(callee.object.name) &&
-    callee.property.type === AST_NODE_TYPES.Identifier &&
-    callee.property.name === SPAWN_NAME
-  ) {
-    return true;
+  if (callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.object.type === AST_NODE_TYPES.Identifier && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === SPAWN_NAME) {
+    return isChildProcessObjectBinding(callee.object.name, callee.object, sourceCode);
   }
 
   return false;
@@ -73,7 +88,7 @@ export const requireSpawnErrorListenerRule = createRule({
         "Node emits an 'error' event on the returned ChildProcess instead of throwing synchronously or rejecting a promise. " +
         "With no 'error' listener registered, that event becomes an uncaught exception that crashes the process. " +
         "Scope: this rule only checks variable declarator initializers (`const child = spawn(...)`) and looks for a " +
-        "`child.on(\"error\", ...)` / `child.once(\"error\", ...)` call anywhere in the enclosing function; it does not analyze " +
+        '`child.on("error", ...)` / `child.once("error", ...)` call anywhere in the enclosing function; it does not analyze ' +
         "assignment expressions (`child = spawn(...)`) or inline chains (`spawn(...).on(...)`).",
     },
     schema: [],
@@ -90,7 +105,7 @@ export const requireSpawnErrorListenerRule = createRule({
     return {
       VariableDeclarator(node: TSESTree.VariableDeclarator) {
         if (!node.init) return;
-        if (!isSpawnCall(node.init)) return;
+        if (!isSpawnCall(node.init, sourceCode)) return;
         if (node.id.type !== AST_NODE_TYPES.Identifier) return;
 
         const varName = node.id.name;
