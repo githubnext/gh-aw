@@ -472,6 +472,16 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// double-quote expansion. These args are appended raw in BuildAWFCommand to ensure
 	// ${GITHUB_WORKSPACE} and ${RUNNER_TEMP} are expanded by the runner's shell.
 
+	// Mount the /tmp/gh-aw runtime tree read-write so the agentic engine can write
+	// logs, cache-memory, and other runtime artifacts there (e.g. Codex/Copilot logs,
+	// threat-detection files). This is distinct from the ${RUNNER_TEMP}/gh-aw setup
+	// tree above, which stays read-only. Matches constants.DefaultTmpGhAwMount already
+	// used for containerized MCP servers (see mcp_renderer_builtin.go) so the same
+	// read-write access is guaranteed for every sandbox runtime (chroot, gVisor,
+	// docker-sbx), not just topologies where /tmp/gh-aw happens to be writable by
+	// default via the host filesystem.
+	awfArgs = append(awfArgs, "--mount", constants.DefaultTmpGhAwMount)
+
 	// Add custom mounts from agent config if specified
 	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 		// Sort mounts for consistent output

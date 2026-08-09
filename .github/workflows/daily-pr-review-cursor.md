@@ -72,12 +72,17 @@ Keep each per-PR analysis to 3–5 bullet points.
 
 ## Step 3 — Produce report issue
 
+Use the `reporting` skill to format the report body. Use `###` (or lower) headers only — never
+`#` or `##`. Keep the overall quality signal and PR table visible at the top; wrap the full
+per-PR findings in a `<details><summary><b>Full Findings</b></summary>` block.
+
 Use the `create_issue` safe-output tool to post a daily report:
 
 - **Title**: `[pr-review] Daily PR Code Quality Review — ${{ github.run_id }}`
-- **Body**: A markdown table or list with:
-  - PR number + link
-  - Top issues found (or "No issues" if clean)
-  - Overall quality signal: 🟢 (≤1 issue/PR) / 🟡 (2–3 issues/PR) / 🔴 (>3 issues/PR)
+- **Body**:
+  - `### Summary` with a markdown table of PR number + link, top issue count, and overall
+    quality signal: 🟢 (≤1 issue/PR) / 🟡 (2–3 issues/PR) / 🔴 (>3 issues/PR)
+  - `<details><summary><b>Full Findings</b></summary>` wrapping the detailed per-PR issue lists
+    (or "No issues" if clean)
 
 If no open PRs were found, call the `noop` MCP tool with `"No open PRs to review today."`.

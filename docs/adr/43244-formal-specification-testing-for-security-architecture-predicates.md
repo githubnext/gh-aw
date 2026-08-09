@@ -1,8 +1,8 @@
 # ADR-43244: Formal Specification Testing for Security Architecture Predicates
 
 **Date**: 2026-07-04
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: @pelikhan
 
 ---
 
@@ -13,6 +13,21 @@ The gh-aw 7-layer security architecture is defined in `specs/security-architectu
 ### Decision
 
 We will add `pkg/workflow/security_architecture_formal_test.go` containing 10 `TestFormal_P*` functions—one per predicate—that call production code directly with no stubs, plus four file-local formal helpers (`formalConformanceMonotonicity`, `formalJobOrderValid`, `formalTokenAbsentFromEnv`, `formalValidationBlocksEmit`) for predicates whose invariants span multiple call sites. This makes the formal spec continuously verifiable in CI under the default (non-integration) build tag.
+
+### Predicate-to-Test Traceability
+
+| Predicate | Formal test |
+| --- | --- |
+| P1 InputNotDirectlyInterpolated | `TestFormal_P1_InputSanitizationRequired` |
+| P2 NoDirectAgentWrite | `TestFormal_P2_AgentHasNoWritePermissions` |
+| P3 NetworkRestricted | `TestFormal_P3_NetworkDomainAllowlist` |
+| P4 LeastPrivilege | `TestFormal_P4_DefaultPermissionsMinimal` |
+| P5 AgentSandboxed | `TestFormal_P5_AgentMustRunInSandbox` |
+| P6 FailSecure | `TestFormal_P6_SecurityFailureHaltsExecution` |
+| P7 Monotonicity | `TestFormal_P7_ConformanceLevelMonotonicity` |
+| P8 JobOrder | `TestFormal_P8_JobDependencyChainOrder` |
+| P9 CompileValidates | `TestFormal_P9_CompilationValidatesBeforeEmit` |
+| P10 TokenIsolation | `TestFormal_P10_WriteTokenIsolatedToSafeOutput` |
 
 ### Alternatives Considered
 
@@ -45,4 +60,4 @@ Security invariants could be enforced at runtime in production code via `panic` 
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Accepted by @pelikhan on 2026-08-09.*
