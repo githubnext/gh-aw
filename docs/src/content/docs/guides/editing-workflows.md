@@ -14,7 +14,7 @@ See [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/) for guidance 
 
 ## Editing Without Recompilation
 
-You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling. That includes task instructions, output templates, conditional guidance, context, and examples.
+You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling. That includes instructions, output templates, conditional guidance, context, and examples.
 
 ### Example: Adding Instructions
 
@@ -45,20 +45,10 @@ Read issue #${{ github.event.issue.number }} and add appropriate labels.
 
 ## Labeling Criteria
 
-Apply these labels based on content:
-- `bug`: Issues describing incorrect behavior with reproduction steps
-- `enhancement`: Feature requests or improvements
-- `question`: Help requests or clarifications needed
-- `documentation`: Documentation updates or corrections
-
-For priority, consider:
-- `high-priority`: Security issues, critical bugs, blocking issues
-- `medium-priority`: Important features, non-critical bugs
-- `low-priority`: Nice-to-have improvements, minor enhancements
+Apply labels for bugs, enhancements, questions, and documentation updates. For priority, use `high-priority` for security or blocking issues, `medium-priority` for important but non-critical work, and `low-priority` for minor improvements.
 ```
 
-✅ This change takes effect immediately without recompilation.
-In `github/gh-aw`, still run `make recompile` before committing so CI sees fresh `.lock.yml` files alongside the markdown change.
+✅ This change takes effect immediately without recompilation. In `github/gh-aw`, still run `make recompile` before committing so CI sees fresh `.lock.yml` files alongside the markdown change.
 
 ## Editing With Recompilation Required
 
@@ -141,16 +131,13 @@ Use a fixed seed whenever deterministic schedule output matters, especially for 
 
 ## Quick Rule of Thumb
 
-- Edit the markdown body for instruction changes.
-- Recompile after any frontmatter change.
-- Use `--schedule-seed` or a project `make recompile` target when fuzzy schedules must compile deterministically across contributors.
-- Use sanitized step outputs instead of raw user input in expressions.
+Edit the markdown body for instruction changes, and recompile after any frontmatter change. Use `--schedule-seed` or a project `make recompile` target when fuzzy schedules must compile deterministically across contributors, and use sanitized step outputs instead of raw user input in expressions.
 
 ## Related Documentation
 
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall file organization
-- [Frontmatter Reference](/gh-aw/reference/frontmatter/) - All configuration options
-- [Markdown Reference](/gh-aw/reference/markdown/) - Writing effective instructions
-- [Compilation Process](/gh-aw/reference/compilation-process/) - How compilation works
-- [Templating](/gh-aw/reference/templating/) - Expression syntax and substitution
-- [Workshop](https://github.com/githubnext/gh-aw-workshop) - Hands-on exercises for building and editing workflows
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) for file organization
+- [Frontmatter Reference](/gh-aw/reference/frontmatter/) for configuration options
+- [Markdown Reference](/gh-aw/reference/markdown/) for writing instructions
+- [Compilation Process](/gh-aw/reference/compilation-process/) for compilation details
+- [Templating](/gh-aw/reference/templating/) for expression syntax
+- [Workshop](https://github.com/githubnext/gh-aw-workshop) for hands-on exercises
