@@ -18,6 +18,7 @@ import (
 // runFilterOpts bundles the filter flags passed to applyRunFilters.
 type runFilterOpts struct {
 	engine            string
+	runtime           string
 	noStaged          bool
 	firewallOnly      bool
 	noFirewall        bool
@@ -38,6 +39,17 @@ func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string) (bo
 	return awInfo.EngineID == filterEngine, awInfo.EngineID
 }
 
+// matchRuntimeFilter checks whether the run recorded in awInfo matches the
+// requested sandbox agent runtime filter string (e.g., "gvisor", "docker-sbx").
+// It returns (matches, detectedRuntime). detectedRuntime is "" when awInfo is
+// unavailable or carries no agent_runtime.
+func matchRuntimeFilter(awInfo *AwInfo, awInfoErr error, filterRuntime string) (bool, string) {
+	if awInfoErr != nil || awInfo == nil || awInfo.AgentRuntime == "" {
+		return false, ""
+	}
+	return awInfo.AgentRuntime == filterRuntime, awInfo.AgentRuntime
+}
+
 // applyRunFilters applies all configured run filters to a DownloadResult.
 // It parses aw_info.json once (lazily) when any filter that needs it is active.
 // Returns true when the run should be skipped / excluded from results.
@@ -45,7 +57,7 @@ func applyRunFilters(ctx context.Context, result DownloadResult, opts runFilterO
 	// Parse aw_info.json once for all filters that need it (optimization).
 	var awInfo *AwInfo
 	var awInfoErr error
-	if opts.engine != "" || opts.noStaged || opts.firewallOnly || opts.noFirewall {
+	if opts.engine != "" || opts.runtime != "" || opts.noStaged || opts.firewallOnly || opts.noFirewall {
 		awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
 		awInfo, awInfoErr = parseAwInfo(awInfoPath, verbose)
 	}
@@ -60,6 +72,21 @@ func applyRunFilters(ctx context.Context, result DownloadResult, opts runFilterO
 			logsOrchestratorLog.Printf("Skipping run %d: engine filter=%s, detected=%s", result.Run.DatabaseID, opts.engine, detectedEngineID)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: engine '%s' does not match filter '%s'", result.Run.DatabaseID, detectedEngineID, opts.engine)))
+			}
+			return true
+		}
+	}
+
+	// Apply runtime filtering if specified.
+	if opts.runtime != "" {
+		runtimeMatches, detectedRuntime := matchRuntimeFilter(awInfo, awInfoErr, opts.runtime)
+		if !runtimeMatches {
+			if detectedRuntime == "" {
+				detectedRuntime = "unknown"
+			}
+			logsOrchestratorLog.Printf("Skipping run %d: runtime filter=%s, detected=%s", result.Run.DatabaseID, opts.runtime, detectedRuntime)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: runtime '%s' does not match filter '%s'", result.Run.DatabaseID, detectedRuntime, opts.runtime)))
 			}
 			return true
 		}

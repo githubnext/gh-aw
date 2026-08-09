@@ -14,7 +14,7 @@ global.core = {
   setFailed: () => {},
 };
 
-const { extractInlineSkills, writeInlineSkills, filterInlineSkillFrontmatter } = require("./extract_inline_skills.cjs");
+const { extractInlineSkills, writeInlineSkills, filterInlineSkillFrontmatter, closeUnterminatedSkillMarkers } = require("./extract_inline_skills.cjs");
 
 // Helper: returns a ## skill: `name` start marker line.
 const skillMarker = name => `## skill: \`${name}\``;
@@ -75,6 +75,16 @@ describe("extractInlineSkills", () => {
     expect(skills[0].content).not.toContain("outside the skill block");
   });
 
+  it("preserves an implicit boundary before an inline sub-agent", () => {
+    const content = ["Main.", "", skillMarker("planner"), "Planner.", "", "## agent: `executor`", "Executor."].join("\n");
+
+    const { mainContent, skills } = extractInlineSkills(content);
+
+    expect(skills).toHaveLength(1);
+    expect(skills[0]).toEqual({ name: "planner", content: "Planner." });
+    expect(mainContent).toBe("Main.\n\n## agent: `executor`\nExecutor.");
+  });
+
   it("next skill marker (H2) ends the previous skill block", () => {
     const content = ["Main.", "", skillMarker("planner"), "Planner.", "", skillMarker("executor"), "Executor."].join("\n");
 
@@ -122,6 +132,93 @@ describe("extractInlineSkills", () => {
       expect(mainContent).toBe(content);
       expect(skills).toHaveLength(0);
     }
+  });
+
+  // ── Explicit end marker ("## end skill: `name`") ──────────────────────────
+
+  const skillEndMarker = name => `## end skill: \`${name}\``;
+
+  it("explicit end marker resumes main content after it", () => {
+    const content = ["Before.", "", skillMarker("reporting"), "---", "description: x", "---", "Body.", skillEndMarker("reporting"), "", "After."].join("\n");
+    const { mainContent, skills } = extractInlineSkills(content);
+
+    expect(skills).toHaveLength(1);
+    expect(skills[0].name).toBe("reporting");
+    expect(skills[0].content).toBe("---\ndescription: x\n---\nBody.");
+    expect(mainContent).toBe("Before.\n\nAfter.");
+  });
+
+  it("explicit end marker allows nested H2 headings inside the skill", () => {
+    const content = ["Main.", "", skillMarker("guide"), "## Section A", "Content A.", "## Section B", "Content B.", skillEndMarker("guide"), "", "Tail."].join("\n");
+    const { mainContent, skills } = extractInlineSkills(content);
+
+    expect(skills).toHaveLength(1);
+    expect(skills[0].content).toBe("## Section A\nContent A.\n## Section B\nContent B.");
+    expect(mainContent).toBe("Main.\n\nTail.");
+  });
+
+  it("supports mixing explicit and implicit end boundaries across skills", () => {
+    const content = ["Main.", "", skillMarker("bounded"), "Bounded.", skillEndMarker("bounded"), "", "Interlude.", "", skillMarker("unbounded"), "Unbounded."].join("\n");
+    const { mainContent, skills } = extractInlineSkills(content);
+
+    expect(skills).toHaveLength(2);
+    expect(skills[0]).toEqual({ name: "bounded", content: "Bounded." });
+    expect(skills[1]).toEqual({ name: "unbounded", content: "Unbounded." });
+    expect(mainContent).toBe("Main.\n\nInterlude.");
+  });
+
+  it("throws on an orphan end marker whose name has no matching start", () => {
+    const content = ["Main.", "", skillMarker("reporting"), "Content.", skillEndMarker("repporting")].join("\n");
+    expect(() => extractInlineSkills(content)).toThrow(/repporting.*line 5/);
+  });
+
+  it("throws on a standalone end marker with no skill starts", () => {
+    const content = ["Main.", "", skillEndMarker("reporting")].join("\n");
+    expect(() => extractInlineSkills(content)).toThrow(/reporting.*line 3/);
+  });
+
+  it("throws when the end marker names a different skill than the one it could close", () => {
+    const content = ["Main.", "", skillMarker("first"), "First content.", skillEndMarker("second")].join("\n");
+    expect(() => extractInlineSkills(content)).toThrow(/second/);
+  });
+
+  it("falls back to implicit H2 boundary when end marker is malformed", () => {
+    const malformed = ["## end skill:", "## end skill: reporting", "### end skill: `reporting`"];
+    for (const line of malformed) {
+      const content = "Main.\n\n" + skillMarker("reporting") + "\nContent.\n" + line + "\nTail.";
+      const { mainContent, skills } = extractInlineSkills(content);
+      expect(skills).toHaveLength(1);
+      expect(skills[0].name).toBe("reporting");
+      // Legacy implicit H2 closing discards content after the boundary from
+      // the reassembled main prompt unless the boundary is another inline block.
+      expect(mainContent).not.toContain("Tail.");
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// closeUnterminatedSkillMarkers — unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("closeUnterminatedSkillMarkers", () => {
+  const skillEndMarker = name => `## end skill: \`${name}\``;
+
+  it("adds an explicit end marker at EOF for an unterminated skill", () => {
+    const content = ["Main.", "", skillMarker("reporting"), "Skill content."].join("\n");
+
+    expect(closeUnterminatedSkillMarkers(content)).toBe(["Main.", "", skillMarker("reporting"), "Skill content.", "", skillEndMarker("reporting"), ""].join("\n"));
+  });
+
+  it("adds an explicit end marker before the next H2 boundary", () => {
+    const content = ["Main.", "", skillMarker("reporting"), "Skill content.", "## agent: `helper`", "Agent content."].join("\n");
+
+    expect(closeUnterminatedSkillMarkers(content)).toBe(["Main.", "", skillMarker("reporting"), "Skill content.", "", skillEndMarker("reporting"), "## agent: `helper`", "Agent content."].join("\n"));
+  });
+
+  it("leaves an explicitly terminated skill unchanged", () => {
+    const content = ["Main.", "", skillMarker("reporting"), "Skill content.", skillEndMarker("reporting"), "", "Tail."].join("\n");
+
+    expect(closeUnterminatedSkillMarkers(content)).toBe(content);
   });
 });
 

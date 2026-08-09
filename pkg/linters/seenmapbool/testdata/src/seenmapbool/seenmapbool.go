@@ -56,6 +56,18 @@ func GoodBoolMapWithFalse() {
 	_ = flags
 }
 
+func GoodBoolMapLiteralWithFalse() {
+	// The false value is embedded directly in the initial composite literal.
+	flags := map[string]bool{"enabled": true, "disabled": false}
+	_ = flags
+}
+
+func GoodBoolMapVarLiteralWithFalse() {
+	// Same, declared with var inside a function body.
+	var flags = map[string]bool{"enabled": true, "disabled": false}
+	_ = flags
+}
+
 func BadSetBoolInClosure() []string {
 	// Set-map declared inside a closure must be reported exactly once.
 	unique := func(in []string) []string {

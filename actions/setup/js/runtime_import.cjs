@@ -9,11 +9,33 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { isTruthy } = require("./is_truthy.cjs");
+const { closeUnterminatedSkillMarkers } = require("./extract_inline_skills.cjs");
+const { closeUnterminatedSubAgentMarkers } = require("./extract_inline_sub_agents.cjs");
 
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
 const http = require("http");
+
+/**
+ * Makes any "## skill:"/"## agent:" block in a runtime-imported chunk of
+ * content self-terminating before it is spliced into the larger prompt.
+ *
+ * Runtime imports are resolved and spliced into the surrounding document
+ * before inline skill/sub-agent extraction runs (see interpolate_prompt.cjs).
+ * If an imported file relies on implicit closing (next H2 heading or EOF)
+ * for a skill/agent block, that block would expand past the imported file's
+ * own boundary once spliced in and swallow whatever follows it — content
+ * from the importing workflow's main body or from subsequent imports.
+ * Making the end marker explicit here keeps every runtime import
+ * self-contained regardless of where it ends up in the assembled document.
+ *
+ * @param {string} content - Resolved content of a single runtime import (file or URL).
+ * @returns {string} Content with implicit skill/agent end markers made explicit.
+ */
+function closeUnterminatedInlineMarkers(content) {
+  return closeUnterminatedSubAgentMarkers(closeUnterminatedSkillMarkers(content));
+}
 
 /**
  * Checks if a file starts with front matter (---\n)
@@ -819,6 +841,11 @@ async function processUrlImport(url, optional, startLine, endLine) {
     content = processExpressions(content, `URL ${url}`);
   }
 
+  // Close any unterminated "## skill:"/"## agent:" block so this import
+  // cannot swallow content that gets spliced in after it (see
+  // closeUnterminatedInlineMarkers above).
+  content = closeUnterminatedInlineMarkers(content);
+
   return content;
 }
 
@@ -1137,6 +1164,11 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
     content = processExpressions(content, `File ${filepath}`);
   }
 
+  // Close any unterminated "## skill:"/"## agent:" block so this import
+  // cannot swallow content that gets spliced in after it (see
+  // closeUnterminatedInlineMarkers above).
+  content = closeUnterminatedInlineMarkers(content);
+
   return content;
 }
 
@@ -1374,6 +1406,7 @@ async function processRuntimeImports(content, workspaceDir, importedFiles = new 
 module.exports = {
   processRuntimeImports,
   processRuntimeImport,
+  closeUnterminatedInlineMarkers,
   hasFrontMatter,
   removeXMLComments,
   neutralizeSystemTags,

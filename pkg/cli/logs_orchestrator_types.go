@@ -12,6 +12,7 @@ type LogsDownloadOptions struct {
 	EndDate           string
 	OutputDir         string
 	Engine            string
+	Runtime           string
 	Ref               string
 	BeforeRunID       int64
 	AfterRunID        int64
@@ -40,6 +41,7 @@ type StdinLogsOptions struct {
 	RunURLs           []string
 	OutputDir         string
 	Engine            string
+	Runtime           string
 	RepoOverride      string
 	Verbose           bool
 	ToolGraph         bool

@@ -57,6 +57,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_AWF_VERSION = "";
     process.env.GH_AW_INFO_AWMG_VERSION = "";
     process.env.GH_AW_INFO_FIREWALL_TYPE = "";
+    process.env.GH_AW_INFO_AGENT_RUNTIME = "";
     process.env.GH_AW_INFO_FRONTMATTER_SOURCE = "";
     process.env.GH_AW_INFO_FRONTMATTER_EMOJI = "";
     process.env.GH_AW_INFO_BODY_MODIFIED = "";
@@ -228,6 +229,21 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.firewall_enabled).toBe(true);
     expect(awInfo.awf_version).toBe("v0.23.0");
     expect(awInfo.steps.firewall).toBe("squid");
+  });
+
+  it("should set agent_runtime from env var", async () => {
+    process.env.GH_AW_INFO_AGENT_RUNTIME = "gvisor";
+    await main(mockCore, mockContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.agent_runtime).toBe("gvisor");
+  });
+
+  it("should default agent_runtime to empty string when not set", async () => {
+    await main(mockCore, mockContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.agent_runtime).toBe("");
   });
 
   it("should fail when model name contains an unresolved GitHub Actions expression", async () => {

@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
-
-	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 // resolveFrontmatterSkillRefs pins non-SHA remote skill refs (owner/repo[/path]@ref) to
@@ -45,33 +42,28 @@ func (c *Compiler) resolveFrontmatterSkillRefs(data *WorkflowData, markdownPath 
 // failures degrade to a warning and the original, unpinned spec is kept so
 // compilation can proceed.
 func (c *Compiler) resolveSkillRefSpec(data *WorkflowData, markdownPath, spec string, idx int) string {
-	trimmed := strings.TrimSpace(spec)
-	if trimmed == "" || strings.HasPrefix(trimmed, "${{") || isLocalSkillRef(trimmed) {
+	parsed := parseSkillRefSpec(spec)
+	if !parsed.isRemote {
 		return spec
 	}
 
-	repoPath, ref, hasAt := strings.Cut(trimmed, "@")
-	if !hasAt {
-		return spec
-	}
-
-	if ref == "" {
+	if parsed.ref == "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			fmt.Sprintf(
 				"skills[%d] %q has no ref pinned; the skill will be installed from the repository's default branch on every run. "+
 					"Pin a branch, tag, or commit SHA for reproducible builds, e.g. skills[%d]: \"%s@main\".",
-				idx, trimmed, idx, repoPath)))
+				idx, parsed.trimmed, idx, parsed.repoPath)))
 		c.IncrementWarningCount()
 		return spec
 	}
 
-	if gitutil.IsValidFullSHA(ref) {
-		skillsFrontmatterLog.Printf("skills[%d] %q is already SHA-pinned", idx, trimmed)
+	if parsed.isFullSHA {
+		skillsFrontmatterLog.Printf("skills[%d] %q is already SHA-pinned", idx, parsed.trimmed)
 		return spec
 	}
 
 	if data.ActionResolver == nil {
-		skillsFrontmatterLog.Printf("skills[%d]: no action resolver available, skipping SHA pinning for %q", idx, trimmed)
+		skillsFrontmatterLog.Printf("skills[%d]: no action resolver available, skipping SHA pinning for %q", idx, parsed.trimmed)
 		return spec
 	}
 
@@ -80,18 +72,18 @@ func (c *Compiler) resolveSkillRefSpec(data *WorkflowData, markdownPath, spec st
 		ctx = context.Background()
 	}
 
-	sha, err := data.ActionResolver.ResolveSHA(ctx, repoPath, ref)
+	sha, err := data.ActionResolver.ResolveSHA(ctx, parsed.repoPath, parsed.ref)
 	if err != nil {
-		skillsFrontmatterLog.Printf("skills[%d]: failed to resolve ref %q for %q to a SHA: %v", idx, ref, repoPath, err)
+		skillsFrontmatterLog.Printf("skills[%d]: failed to resolve ref %q for %q to a SHA: %v", idx, parsed.ref, parsed.repoPath, err)
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
 			fmt.Sprintf(
 				"skills[%d]: failed to resolve ref %q for %q to a commit SHA (%v); the workflow will use the unpinned ref as-is.",
-				idx, ref, repoPath, err)))
+				idx, parsed.ref, parsed.repoPath, err)))
 		c.IncrementWarningCount()
 		return spec
 	}
 
-	pinned := fmt.Sprintf("%s@%s", repoPath, sha)
-	skillsFrontmatterLog.Printf("skills[%d]: pinned %q to %q", idx, trimmed, pinned)
+	pinned := fmt.Sprintf("%s@%s", parsed.repoPath, sha)
+	skillsFrontmatterLog.Printf("skills[%d]: pinned %q to %q", idx, parsed.trimmed, pinned)
 	return pinned
 }

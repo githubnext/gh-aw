@@ -26,6 +26,7 @@ func (r *countingResolver) ResolveSHA(_ context.Context, _, _ string) (string, e
 }
 
 func TestBuildByRepoIndex_GroupsByRepoAndSortsDescending(t *testing.T) {
+	t.Parallel()
 	pins := []ActionPin{
 		{Repo: "actions/checkout", Version: "v4.0.0", SHA: "sha-v4"},
 		{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"},
