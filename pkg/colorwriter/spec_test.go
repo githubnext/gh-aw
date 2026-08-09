@@ -4,8 +4,14 @@ package colorwriter_test
 
 import (
 	"bytes"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -90,5 +96,35 @@ func TestSpec_PublicAPI_Degrade(t *testing.T) {
 			}
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+func TestColorwriterPackage_DoesNotImportLogger(t *testing.T) {
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "runtime.Caller should locate this test file")
+
+	pkgDir := filepath.Dir(thisFile)
+	files, err := filepath.Glob(filepath.Join(pkgDir, "*.go"))
+	require.NoError(t, err)
+
+	fset := token.NewFileSet()
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		parsed, parseErr := parser.ParseFile(fset, file, nil, parser.ImportsOnly)
+		require.NoError(t, parseErr, "parse imports in %s", filepath.Base(file))
+
+		for _, imp := range parsed.Imports {
+			importPath, unquoteErr := strconv.Unquote(imp.Path.Value)
+			require.NoError(t, unquoteErr, "unquote import path in %s", filepath.Base(file))
+			assert.NotEqual(
+				t,
+				"github.com/github/gh-aw/pkg/logger",
+				importPath,
+				"%s must not import pkg/logger to avoid an import cycle",
+				filepath.Base(file),
+			)
+		}
 	}
 }
