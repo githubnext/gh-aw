@@ -258,6 +258,7 @@ func TestParseSkillRefSpec(t *testing.T) {
 	}{
 		{name: "local path", spec: "./skills/my-skill", local: true},
 		{name: "bare expression", spec: "${{ github.sha }}", expression: true},
+		{name: "expression in path without @", spec: "skills/${{ inputs.name }}", expression: true},
 		{name: "expression", spec: "githubnext/skills@${{ github.sha }}", expression: true},
 		{name: "malformed remote", spec: "githubnext@main"},
 		{name: "unpinned remote", spec: " githubnext/skills@ ", remote: true, repoPath: "githubnext/skills"},

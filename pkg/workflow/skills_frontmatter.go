@@ -54,12 +54,12 @@ func parseSkillRefSpec(spec string) parsedSkillRefSpec {
 	if parsed.trimmed == "" {
 		return parsed
 	}
-	if !strings.HasPrefix(parsed.trimmed, "${{") && !strings.Contains(parsed.trimmed, "@") {
-		parsed.isLocal = true
-		return parsed
-	}
 	if strings.Contains(parsed.trimmed, "${{") {
 		parsed.isExpression = true
+		return parsed
+	}
+	if !strings.Contains(parsed.trimmed, "@") {
+		parsed.isLocal = true
 		return parsed
 	}
 
