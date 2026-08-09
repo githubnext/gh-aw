@@ -244,6 +244,26 @@ func TestExtractInlineSkills_SkillEndsAtNextH2(t *testing.T) {
 	assert.NotContains(t, skills[0].Content, "outside the skill block", "content after H2 must not appear in skill")
 }
 
+func TestExtractInlineSkills_PreservesImplicitBoundaryBeforeAgent(t *testing.T) {
+	markdown := strings.Join([]string{
+		"Main.",
+		"",
+		skillLine("planner"),
+		"Planner prompt.",
+		"",
+		agentLine("executor"),
+		"Executor prompt.",
+	}, "\n")
+
+	mainMarkdown, skills, err := ExtractInlineSkills(markdown)
+
+	require.NoError(t, err, "skill followed by agent should parse without error")
+	require.Len(t, skills, 1)
+	assert.Equal(t, "planner", skills[0].Name)
+	assert.Equal(t, "Planner prompt.", skills[0].Content)
+	assert.Equal(t, "Main.\n\n"+agentLine("executor")+"\nExecutor prompt.", mainMarkdown, "implicit agent boundary should be preserved for sub-agent extraction")
+}
+
 func TestExtractInlineSkills_SkillEndsAtNextSkillH2(t *testing.T) {
 	// A new ## skill: `name` marker (which is itself an H2) also ends the previous skill.
 	markdown := strings.Join([]string{
@@ -273,4 +293,200 @@ func TestExtractInlineSkills_MainMarkdownTrailingNewlinesStripped(t *testing.T) 
 
 	require.NoError(t, err, "should parse without error")
 	assert.Equal(t, "Line 1.\nLine 2.", mainMarkdown, "trailing newlines should be stripped from main markdown")
+}
+
+// skillEndLine returns a "## end skill: `name`" end marker line for tests.
+func skillEndLine(name string) string {
+	return fmt.Sprintf("## end skill: `%s`", name)
+}
+
+func TestExtractInlineSkills_ExplicitEndMarker_ResumesMainMarkdown(t *testing.T) {
+	// An explicit end marker closes the skill and lets content that follows
+	// (up to the next start marker or EOF) resume as main markdown, instead
+	// of being silently dropped.
+	markdown := strings.Join([]string{
+		"Before the import.",
+		"",
+		skillLine("reporting"),
+		"---",
+		"description: Report formatting guidelines",
+		"---",
+		"Use collapsible details blocks.",
+		skillEndLine("reporting"),
+		"",
+		"After the import.",
+	}, "\n")
+
+	mainMarkdown, skills, err := ExtractInlineSkills(markdown)
+
+	require.NoError(t, err, "explicit end marker should parse without error")
+	require.Len(t, skills, 1, "should extract one skill")
+	assert.Equal(t, "reporting", skills[0].Name)
+	assert.Equal(t, "---\ndescription: Report formatting guidelines\n---\nUse collapsible details blocks.", skills[0].Content)
+	assert.Equal(t, "Before the import.\n\nAfter the import.", mainMarkdown, "content after the end marker should resume as main markdown")
+}
+
+func TestExtractInlineSkills_ExplicitEndMarker_CanContainH2Headings(t *testing.T) {
+	// With an explicit end marker, the skill content is bounded exactly by
+	// name, so it is free to contain its own H2 headings.
+	markdown := strings.Join([]string{
+		"Main.",
+		"",
+		skillLine("guide"),
+		"## Section A",
+		"Content A.",
+		"## Section B",
+		"Content B.",
+		skillEndLine("guide"),
+		"",
+		"Tail.",
+	}, "\n")
+
+	mainMarkdown, skills, err := ExtractInlineSkills(markdown)
+
+	require.NoError(t, err, "explicit end marker with nested H2 should parse without error")
+	require.Len(t, skills, 1)
+	assert.Equal(t, "guide", skills[0].Name)
+	assert.Equal(t, "## Section A\nContent A.\n## Section B\nContent B.", skills[0].Content)
+	assert.Equal(t, "Main.\n\nTail.", mainMarkdown)
+}
+
+func TestExtractInlineSkills_MultipleSkillsWithMixedEndMarkers(t *testing.T) {
+	// One skill uses an explicit end marker, the other relies on the
+	// implicit next-H2-or-EOF fallback.
+	markdown := strings.Join([]string{
+		"Main.",
+		"",
+		skillLine("bounded"),
+		"Bounded content.",
+		skillEndLine("bounded"),
+		"",
+		"Interlude.",
+		"",
+		skillLine("unbounded"),
+		"Unbounded content.",
+	}, "\n")
+
+	mainMarkdown, skills, err := ExtractInlineSkills(markdown)
+
+	require.NoError(t, err, "mixed end marker usage should parse without error")
+	require.Len(t, skills, 2)
+	assert.Equal(t, "bounded", skills[0].Name)
+	assert.Equal(t, "Bounded content.", skills[0].Content)
+	assert.Equal(t, "unbounded", skills[1].Name)
+	assert.Equal(t, "Unbounded content.", skills[1].Content)
+	assert.Equal(t, "Main.\n\nInterlude.", mainMarkdown, "gap after the explicitly-closed skill should resume as main markdown")
+}
+
+func TestExtractInlineSkills_OrphanEndMarker_Error(t *testing.T) {
+	// An end marker with no matching start marker name is an authoring
+	// mistake (e.g. a typo) and must be reported as an error.
+	markdown := strings.Join([]string{
+		"Main.",
+		"",
+		skillLine("reporting"),
+		"Content.",
+		skillEndLine("repporting"), // typo: does not match "reporting"
+	}, "\n")
+
+	_, _, err := ExtractInlineSkills(markdown)
+
+	require.Error(t, err, "orphan end marker should produce an error")
+	require.ErrorContains(t, err, "repporting", "error should mention the orphan end marker's name")
+	require.ErrorContains(t, err, "line 5", "error should mention where the orphan end marker was found")
+}
+
+func TestExtractInlineSkills_StandaloneEndMarker_Error(t *testing.T) {
+	markdown := "Intro.\n\n" + skillEndLine("reporting")
+
+	_, _, err := ExtractInlineSkills(markdown)
+
+	require.Error(t, err, "standalone end marker should produce an error")
+	require.ErrorContains(t, err, "reporting")
+	require.ErrorContains(t, err, "line 3")
+}
+
+func TestExtractInlineSkills_EndMarkerBeforeMatchingStart_Ignored(t *testing.T) {
+	// An end marker that appears textually before any start marker with the
+	// same name cannot close anything and must be reported as an orphan.
+	markdown := skillEndLine("late") + "\n\nContent.\n\n" + skillLine("late") + "\nActual content."
+
+	_, _, err := ExtractInlineSkills(markdown)
+
+	require.Error(t, err, "end marker preceding its start marker should be an orphan error")
+	require.ErrorContains(t, err, "late")
+}
+
+func TestExtractInlineSkills_EndMarkerForWrongSkillNotConsumed(t *testing.T) {
+	// An end marker naming a different (but valid) skill must not close the
+	// current skill early; it is an orphan relative to any skill it could
+	// match within its own window.
+	markdown := strings.Join([]string{
+		"Main.",
+		"",
+		skillLine("first"),
+		"First content.",
+		skillEndLine("second"),
+	}, "\n")
+
+	_, _, err := ExtractInlineSkills(markdown)
+
+	require.Error(t, err, "mismatched end marker name should be an orphan error")
+	require.ErrorContains(t, err, "second")
+}
+
+func TestExtractInlineSkills_EndMarkerNameVariantsRecognized(t *testing.T) {
+	tests := []struct {
+		name      string
+		skillName string
+	}{
+		{"with hyphens", "my-skill"},
+		{"with underscores", "my_skill"},
+		{"with digits", "skill1"},
+		{"single letter", "a"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			markdown := "Main.\n\n" + skillLine(tt.skillName) + "\nContent.\n" + skillEndLine(tt.skillName) + "\n\nTail."
+			mainMarkdown, skills, err := ExtractInlineSkills(markdown)
+
+			require.NoError(t, err, "valid end marker for %q should parse without error", tt.skillName)
+			require.Len(t, skills, 1)
+			assert.Equal(t, tt.skillName, skills[0].Name)
+			assert.Equal(t, "Content.", skills[0].Content)
+			assert.Equal(t, "Main.\n\nTail.", mainMarkdown)
+		})
+	}
+}
+
+func TestExtractInlineSkills_EndMarkerInvalidVariantsNotRecognizedAsEnd(t *testing.T) {
+	// Malformed end markers are not recognized as end markers at all; they
+	// are treated as ordinary H2 headings, so the skill falls back to the
+	// implicit next-H2-or-EOF boundary.
+	tests := []struct {
+		name string
+		line string
+	}{
+		{"missing name", "## end skill:"},
+		{"name not in backticks", "## end skill: reporting"},
+		{"wrong heading level", "### end skill: `reporting`"},
+		{"missing end keyword", "## Notes"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			markdown := "Main.\n\n" + skillLine("reporting") + "\nContent.\n" + tt.line + "\nTail."
+			_, skills, err := ExtractInlineSkills(markdown)
+
+			require.NoError(t, err, "malformed end marker should not error")
+			require.Len(t, skills, 1)
+			assert.Equal(t, "reporting", skills[0].Name)
+			if strings.HasPrefix(tt.line, "##") && !strings.HasPrefix(tt.line, "###") {
+				assert.Equal(t, "Content.", skills[0].Content, "content should stop at the fallback H2 boundary")
+			} else {
+				assert.Contains(t, skills[0].Content, "Content.", "content should include text since no H2 boundary was found")
+			}
+		})
+	}
 }

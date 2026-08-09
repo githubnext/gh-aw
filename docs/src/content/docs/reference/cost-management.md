@@ -482,6 +482,8 @@ See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax
 
 Move large instruction blocks out of the main prompt body using inline skills. At runtime, each `## skill:` block is extracted and written to engine-specific skill locations — the agent can invoke the skill on demand instead of receiving the guidance upfront, keeping the ambient context slim.
 
+Each block ends at a matching `## end skill: \`name\`` marker if present, or otherwise at the next `##` heading or EOF. Add the explicit end marker when the skill is imported into the middle of a document, so content following it is not swallowed into the skill block.
+
 Treat the main prompt as an execution plan and sub-skills as deferred detail:
 
 - Main prompt: concise plan, sequencing, and decision points.
