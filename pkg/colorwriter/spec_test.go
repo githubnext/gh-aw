@@ -4,8 +4,13 @@ package colorwriter_test
 
 import (
 	"bytes"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -91,4 +96,28 @@ func TestSpec_PublicAPI_Degrade(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestSpec_Implementation_DoesNotImportLogger(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	require.NoError(t, err)
+
+	fset := token.NewFileSet()
+	checked := 0
+	for _, file := range files {
+		if strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+		checked++
+
+		parsed, err := parser.ParseFile(fset, file, nil, parser.ImportsOnly)
+		require.NoError(t, err, "parse %s", file)
+
+		for _, imp := range parsed.Imports {
+			path, err := strconv.Unquote(imp.Path.Value)
+			require.NoError(t, err, "unquote import in %s", file)
+			require.NotEqual(t, "github.com/github/gh-aw/pkg/logger", path, "%s must remain a low-level dependency of pkg/logger", file)
+		}
+	}
+	require.Positive(t, checked, "expected at least one non-test Go file in colorwriter")
 }

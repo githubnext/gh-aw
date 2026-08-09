@@ -19,9 +19,9 @@ var Analyzer = analyzerutil.New("globwalkignorederror", "reports filepath.Glob a
 
 // checkedFuncs maps package import path to the set of function names within
 // that package whose discarded error return should be flagged.
-var checkedFuncs = map[string]map[string]bool{
-	"path/filepath": {"Glob": true},
-	"os":            {"ReadDir": true},
+var checkedFuncs = map[string]map[string]struct{}{
+	"path/filepath": {"Glob": {}},
+	"os":            {"ReadDir": {}},
 }
 
 func run(pass *analysis.Pass) (any, error) {
@@ -72,7 +72,10 @@ func analyzeGlobWalkAssign(pass *analysis.Pass, n ast.Node, generatedFiles filec
 		return
 	}
 	funcs, ok := checkedFuncs[pkgName.Imported().Path()]
-	if !ok || !funcs[sel.Sel.Name] {
+	if !ok {
+		return
+	}
+	if _, checked := funcs[sel.Sel.Name]; !checked {
 		return
 	}
 	position := pass.Fset.PositionFor(call.Pos(), false)

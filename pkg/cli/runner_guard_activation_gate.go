@@ -38,7 +38,7 @@ type runnerGuardWorkflow struct {
 // dependencies, has an if: condition referencing author_association. Workflows without such
 // a gate keep their findings.
 func filterRunnerGuardFindings(findings []runnerGuardFinding, gitRoot string) []runnerGuardFinding {
-	gatedJobsByFile := make(map[string]map[string]bool)
+	gatedJobsByFile := make(map[string]map[string]struct{})
 	filtered := make([]runnerGuardFinding, 0, len(findings))
 
 	for _, finding := range findings {
@@ -53,7 +53,7 @@ func filterRunnerGuardFindings(findings []runnerGuardFinding, gitRoot string) []
 			gatedJobsByFile[finding.File] = gatedJobs
 		}
 
-		if gatedJobs[finding.JobID] {
+		if _, isGated := gatedJobs[finding.JobID]; isGated {
 			runnerGuardLog.Printf("Suppressing %s finding for gated job %q in %s", finding.RuleID, finding.JobID, finding.File)
 			continue
 		}
@@ -107,8 +107,8 @@ func resolveRunnerGuardFilePath(gitRoot string, file string) string {
 // protected by an author_association check, either directly on the job's if: condition or
 // transitively through the needs: graph. An empty set is returned when the workflow cannot
 // be read or parsed, so that findings are preserved rather than silently dropped.
-func authorAssociationGatedJobs(path string) map[string]bool {
-	gated := make(map[string]bool)
+func authorAssociationGatedJobs(path string) map[string]struct{} {
+	gated := make(map[string]struct{})
 	if path == "" {
 		return gated
 	}
@@ -132,11 +132,11 @@ func authorAssociationGatedJobs(path string) map[string]bool {
 	for range len(workflow.Jobs) {
 		changed := false
 		for jobID, job := range workflow.Jobs {
-			if gated[jobID] {
+			if _, isGated := gated[jobID]; isGated {
 				continue
 			}
 			if hasAuthorAssociationCheck(job.If) || anyJobGated(gated, jobNeeds(job.Needs)) {
-				gated[jobID] = true
+				gated[jobID] = struct{}{}
 				changed = true
 			}
 		}
@@ -154,9 +154,9 @@ func hasAuthorAssociationCheck(condition string) bool {
 }
 
 // anyJobGated reports whether any of the named jobs is in the gated set.
-func anyJobGated(gated map[string]bool, needs []string) bool {
+func anyJobGated(gated map[string]struct{}, needs []string) bool {
 	for _, need := range needs {
-		if gated[need] {
+		if _, isGated := gated[need]; isGated {
 			return true
 		}
 	}

@@ -77,10 +77,10 @@ func TestAuthorAssociationGatedJobs(t *testing.T) {
 
 		gated := authorAssociationGatedJobs(filepath.Join(gitRoot, ".github", "workflows", "gated.lock.yml"))
 
-		assert.True(t, gated["pre_activation"])
-		assert.True(t, gated["activation"])
-		assert.True(t, gated["agent"])
-		assert.True(t, gated["conclusion"])
+		assert.Contains(t, gated, "pre_activation")
+		assert.Contains(t, gated, "activation")
+		assert.Contains(t, gated, "agent")
+		assert.Contains(t, gated, "conclusion")
 	})
 
 	t.Run("workflow without a gate has no gated jobs", func(t *testing.T) {

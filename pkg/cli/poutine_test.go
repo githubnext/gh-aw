@@ -322,6 +322,9 @@ func TestEnsurePoutineConfig(t *testing.T) {
 			"pr_runs_on_self_hosted:",
 			"allowed_runners:",
 			"- ubuntu-slim",
+			"skip:",
+			"- rule: untrusted_checkout_exec",
+			"job: activation",
 		}
 
 		for _, expected := range expectedStrings {

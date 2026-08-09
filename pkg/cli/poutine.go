@@ -42,7 +42,8 @@ type poutineOutput struct {
 	} `json:"rules"`
 }
 
-// ensurePoutineConfig creates .poutine.yml to configure allowed runners if it doesn't exist
+// ensurePoutineConfig creates .poutine.yml to configure allowed runners and
+// acknowledged findings if it doesn't exist
 func ensurePoutineConfig(gitRoot string) error {
 	configPath := filepath.Join(gitRoot, ".poutine.yml")
 
@@ -62,6 +63,17 @@ rulesConfig:
   pr_runs_on_self_hosted:
     allowed_runners:
       - ubuntu-slim  # GitHub's new built-in runner (not self-hosted)
+
+# Acknowledge findings that do not apply to gh-aw generated workflows.
+# poutine has no inline ignore comment mechanism; skips must be declared here.
+skip:
+  # The generated "activation" job runs helper scripts from
+  # "$RUNNER_TEMP/gh-aw/actions/*.sh". Those scripts are extracted from the
+  # pinned gh-aw action, not from the repository checkout, so they cannot be
+  # controlled by an untrusted contributor. The rule still fires because the
+  # workflow declares an untrusted trigger (for example workflow_call).
+  - rule: untrusted_checkout_exec
+    job: activation
 `
 
 	// Write the config file

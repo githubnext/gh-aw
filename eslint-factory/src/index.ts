@@ -18,6 +18,7 @@ import { requireMkdirSyncTryCatchRule } from "./rules/require-mkdirsync-try-catc
 import { requireRmSyncTryCatchRule } from "./rules/require-rmsync-try-catch";
 import { requireReturnAfterCoreSetFailedRule } from "./rules/require-return-after-core-setfailed";
 import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-check";
+import { requireSpawnErrorListenerRule } from "./rules/require-spawn-error-listener";
 import { requireNewUrlTryCatchRule } from "./rules/require-new-url-try-catch";
 import { preferCoreLoggingRule } from "./rules/prefer-core-logging";
 import { noCoreErrorThenProcessExitRule } from "./rules/no-core-error-then-process-exit";
@@ -67,6 +68,7 @@ const plugin = {
     "require-parseInt-radix": requireParseIntRadixRule,
     "require-return-after-core-setfailed": requireReturnAfterCoreSetFailedRule,
     "require-spawnsync-error-check": requireSpawnSyncErrorCheckRule,
+    "require-spawn-error-listener": requireSpawnErrorListenerRule,
     "require-new-url-try-catch": requireNewUrlTryCatchRule,
     "prefer-core-logging": preferCoreLoggingRule,
     "no-core-error-then-process-exit": noCoreErrorThenProcessExitRule,

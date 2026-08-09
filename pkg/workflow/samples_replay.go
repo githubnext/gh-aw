@@ -42,7 +42,7 @@ func collectSampleEntries(config *SafeOutputsConfig) []SampleEntry {
 			args := make(map[string]any, len(sample))
 			var sidecars map[string]any
 			for k, v := range sample {
-				if sidecarKeys[k] {
+				if _, isSidecar := sidecarKeys[k]; isSidecar {
 					if sidecars == nil {
 						sidecars = make(map[string]any)
 					}

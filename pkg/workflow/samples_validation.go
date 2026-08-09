@@ -29,12 +29,12 @@ const sampleRuntimeExpressionPlaceholder = "aw_sample"
 // that are NOT passed to the MCP tool's `tools/call` arguments. They are stripped
 // from the sample before schema validation and consumed by the replay driver
 // (e.g. to pre-stage a branch + patch on disk).
-var sampleSidecarFields = map[string]map[string]bool{
+var sampleSidecarFields = map[string]map[string]struct{}{
 	"create_pull_request": {
-		"patch": true,
+		"patch": {},
 	},
 	"push_to_pull_request_branch": {
-		"patch": true,
+		"patch": {},
 	},
 }
 
@@ -409,10 +409,10 @@ func schemaNumberAsInt(schema map[string]any, key string) (int, bool) {
 // stripSidecarFields returns a shallow copy of sample with sidecar keys removed.
 // The original map is never modified, even when no sidecars are configured —
 // callers may mutate the returned map without affecting the caller's input.
-func stripSidecarFields(sample map[string]any, sidecars map[string]bool) map[string]any {
+func stripSidecarFields(sample map[string]any, sidecars map[string]struct{}) map[string]any {
 	out := make(map[string]any, len(sample))
 	for k, v := range sample {
-		if sidecars[k] {
+		if _, isSidecar := sidecars[k]; isSidecar {
 			continue
 		}
 		out[k] = v
