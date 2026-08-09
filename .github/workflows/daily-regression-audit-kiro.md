@@ -86,14 +86,19 @@ Use `list_issues` on `${{ github.repository }}` with `labels: ["bug","regression
 
 ## Step 5 — Report
 
+Use the `reporting` skill to format the report body. Use `###` (or lower) headers only — never
+`#` or `##`. Keep the failure rate and recommended action visible at the top; wrap the full
+failure pattern details and raw job log excerpts in a
+`<details><summary><b>Failure Details</b></summary>` block.
+
 Use the `create_issue` safe-output tool to post the daily audit:
 
 - **Title**: `[regression] Daily CI Regression Audit — ${{ github.run_id }}`
-- **Body**: Summarize
-  - CI failure rate (last 20 runs)
-  - Top failure patterns or "No regressions detected"
-  - Open regression/bug issues
-  - Recommended action (investigate / monitor / no action)
+- **Body**:
+  - `### Summary` with CI failure rate (last 20 runs) and recommended action (investigate /
+    monitor / no action)
+  - `<details><summary><b>Failure Details</b></summary>` wrapping top failure patterns (or "No
+    regressions detected") and open regression/bug issues
 
 If CI is fully healthy (failure rate < 10%, no streak, no new patterns), call `noop` with
 `"CI health is good — no regressions detected."`.

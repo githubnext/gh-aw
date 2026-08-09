@@ -320,7 +320,10 @@ Output: exactly one line of valid JSON — no other text:
 description: Discussion body structure and formatting rules for the arXiv research output
 ---
 
-Use `###` or lower for all headers inside the discussion body. Never use `#` or `##`.
+Use the `reporting` skill's header and progressive-disclosure conventions. Use `###` or lower
+for all headers inside the discussion body — never `#` or `##`. Keep the summary and actionable
+opportunities visible; wrap the full papers-analyzed table (and any other long/verbose list) in a
+`<details><summary><b>...</b></summary>` block.
 
 Discussion body structure:
 
@@ -345,11 +348,14 @@ N papers screened, M relevant, K opportunities identified.
 
 ---
 
-### Papers Analyzed
+<details>
+<summary><b>Papers Analyzed</b></summary>
 
 | Paper | Published | Relevant | Area |
 |---|---|---|---|
 | [Title](URL) | YYYY-MM-DD | Yes / No | area or — |
+
+</details>
 
 ---
 
