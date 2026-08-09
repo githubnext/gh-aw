@@ -291,8 +291,9 @@ func (c *Compiler) processLegacyPromptImports(data *WorkflowData) (userPromptChu
 }
 
 // writePromptBashStep writes a YAML step that runs a bash script from the gh-aw actions directory
-// with the GH_AW_PROMPT env var set. The poutine:ignore suppression is included to address
-// untrusted_checkout_exec findings for scripts executed from RUNNER_TEMP.
+// with the GH_AW_PROMPT env var set. The poutine:ignore comment documents why the
+// untrusted_checkout_exec finding does not apply; poutine itself has no inline ignore mechanism,
+// so the finding is suppressed through the skip section of .poutine.yml.
 func writePromptBashStep(yaml *strings.Builder, name, script string) {
 	fmt.Fprintf(yaml, "      - name: %s\n", name)
 	yaml.WriteString("        env:\n")
