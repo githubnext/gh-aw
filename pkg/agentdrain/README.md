@@ -31,6 +31,14 @@ The package is designed for two related tasks: training on known-good runs and a
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
+| `(*Coordinator).AllClusters` | `func (c *Coordinator) AllClusters() map[string][]Cluster` | Returns a stage-to-cluster snapshot for every managed miner. |
+| `(*Coordinator).LoadWeightsJSON` | `func (c *Coordinator) LoadWeightsJSON(data []byte) error` | Restores all stage miners from a combined JSON blob produced by `SaveWeightsJSON`. |
+| `(*Coordinator).SaveSnapshots` | `func (c *Coordinator) SaveSnapshots() (map[string][]byte, error)` | Serializes each stage miner to per-stage JSON snapshots. |
+| `(*Coordinator).SaveWeightsJSON` | `func (c *Coordinator) SaveWeightsJSON() ([]byte, error)` | Serializes all stage snapshots into one combined JSON document. |
+| `(*AnomalyDetector).Analyze` | `func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Cluster) *AnomalyReport` | Produces an anomaly report for a match result and cluster context. |
+| `(*Masker).Mask` | `func (m *Masker) Mask(line string) string` | Applies all configured mask rules and returns the normalized line. |
+| `(*Miner).Clusters` | `func (m *Miner) Clusters() []Cluster` | Returns a safe snapshot of all known clusters in the miner. |
+| `(*Miner).Train` | `func (m *Miner) Train(line string) (*MatchResult, error)` | Trains the miner on a raw line and returns the resulting match. |
 | `DefaultConfig` | `func DefaultConfig() Config` | Returns the production default miner configuration and default masking rules. |
 | `FlattenEvent` | `func FlattenEvent(evt AgentEvent, excludeFields []string) string` | Converts an event into deterministic `key=value` tokens with stage first and excluded fields omitted. |
 | `NewAnomalyDetector` | `func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) (*AnomalyDetector, error)` | Validates thresholds and constructs an anomaly detector. |

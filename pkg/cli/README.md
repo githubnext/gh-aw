@@ -561,7 +561,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | Constants | 77 |
 | Variables | 2 |
 | Functions and methods | 214 |
-| Additional symbols documented in this appendix | 168 |
+| Additional symbols documented in this appendix | 195 |
 
 ### Additional types
 
@@ -624,6 +624,20 @@ This appendix is generated from the current non-test Go source files in this pac
 | `run_interactive.go` | `RunWorkflowOptions` | `type RunWorkflowOptions struct { WorkflowName string Verbose bool EngineOverride string RepoOverride string RefOverride string AutoMergePRs bool Push bool DryRun bool }` | RunWorkflowOptions holds parameters for RunSpecificWorkflowInteractively. |
 | `token_usage_types.go` | `SubagentModelActual` | `type SubagentModelActual struct { Model string `json:"model"` Provider string `json:"provider,omitempty"` Requests int `json:"requests"` }` | SubagentModelActual captures model usage observed in token-usage logs. |
 | `token_usage_types.go` | `SubagentModelRequest` | `type SubagentModelRequest struct { AgentName string `json:"agent_name"` RequestedModel string `json:"requested_model"` InvocationCount int `json:"invocation_count"` EffectiveModel string `json:"effective_model,omitempty"` ReasonCode string `json:"reason_code,omitempty"` }` | SubagentModelRequest captures requested/effective model attribution for a sub-agent. |
+| `audit_report.go` | `AuditData` | `type AuditData struct { ... }` | AuditData is the top-level audit report payload assembled from all extracted artifacts and analyses. |
+| `audit_diff.go` | `AuditDiff` | `type AuditDiff struct { ... }` | AuditDiff captures between-run differences for firewall, MCP, and run-level metrics. |
+| `audit_cross_run.go` | `CrossRunAuditReport` | `type CrossRunAuditReport struct { ... }` | CrossRunAuditReport summarizes trends and comparisons across multiple workflow runs. |
+| `audit_diff.go` | `DiffEntryBase` | `type DiffEntryBase struct { ... }` | DiffEntryBase contains shared status/anomaly fields used by diff entries. |
+| `domain_buckets.go` | `AnalysisBase` | `type AnalysisBase struct { ... }` | AnalysisBase provides shared domain/request counters for firewall and domain analyses. |
+| `logs_report_firewall.go` | `FirewallSummaryBase` | `type FirewallSummaryBase struct { ... }` | FirewallSummaryBase is the shared summary schema for firewall report rendering. |
+| `experiments_analyze_statistics.go` | `MetricEvalResults` | `type MetricEvalResults struct { ... }` | MetricEvalResults tracks yes/no/unknown evaluation outcomes for one metric. |
+| `logs_models.go` | `SkillActivation` | `type SkillActivation struct { ... }` | SkillActivation captures skill invocation telemetry extracted from logs. |
+| `setup_repository.go` | `SetupAuthResult` | `type SetupAuthResult struct { ... }` | SetupAuthResult reports whether repository authentication checks succeeded. |
+| `setup_repository.go` | `SetupRepositoryCheckResult` | `type SetupRepositoryCheckResult struct { ... }` | SetupRepositoryCheckResult captures setup preflight checks for repository/checkout state. |
+| `syft.go` | `SyftScanResult` | `type SyftScanResult struct { ... }` | SyftScanResult contains summarized SBOM scan output metadata. |
+| `token_usage_types.go` | `TokenCoreMetrics` | `type TokenCoreMetrics struct { ... }` | TokenCoreMetrics stores normalized token counts used in usage reporting. |
+| `upgrade_command.go` | `UpgradeConfig` | `type UpgradeConfig struct { ... }` | UpgradeConfig controls upgrade command behavior and optional automation. |
+| `trial_types.go` | `WorkflowTrialResult` | `type WorkflowTrialResult struct { ... }` | WorkflowTrialResult stores the outcome and extracted artifacts for a workflow trial run. |
 | `update_workflows.go` | `UpdateWorkflowsOptions` | `type UpdateWorkflowsOptions struct { WorkflowNames []string AllowMajor bool Force bool Yes bool Verbose bool EngineOverride string WorkflowsDir string NoStopAfter bool StopAfter string NoMerge bool DisableReleaseBump bool DisableSecurityScanner bool NoCompile bool NoRedirect bool CoolDown time.Duration }` | UpdateWorkflowsOptions configures workflow update behavior. |
 | `view_command.go` | `ViewOptions` | `type ViewOptions struct { Owner string Repo string Hostname string OutputDir string Verbose bool }` | ViewOptions holds configuration for the view command. |
 
@@ -662,6 +676,14 @@ This appendix is generated from the current non-test Go source files in this pac
 | `mcp_registry_types.go` | `const` | `ArgumentTypePositional` | `const ArgumentTypePositional = "positional"` | Argument type constants |
 | `mcp_registry_types.go` | `const` | `StatusActive` | `const StatusActive = "active"` | Status constants for server status |
 | `mcp_registry_types.go` | `const` | `StatusInactive` | `const StatusInactive = "inactive"` | Status constants for server status |
+| `docker_images.go` | `const` | `GrantImage` | `const GrantImage = "anchore/grant:v0.6.8@sha256:..."` | GrantImage is the pinned image used to run Grant license scanning. |
+| `docker_images.go` | `const` | `GrypeImage` | `const GrypeImage = "anchore/grype:v0.116.1@sha256:..."` | GrypeImage is the pinned image used to run Grype vulnerability scanning. |
+| `docker_images.go` | `const` | `ShellcheckImage` | `const ShellcheckImage = "koalaman/shellcheck:v0.10.0@sha256:..."` | ShellcheckImage is the pinned image used for shellcheck validation. |
+| `docker_images.go` | `const` | `SyftImage` | `const SyftImage = "anchore/syft:v1.50.0@sha256:..."` | SyftImage is the pinned image used for Syft SBOM generation. |
+| `docker_images.go` | `const` | `YamllintImage` | `const YamllintImage = "pipelinecomponents/yamllint:latest@sha256:..."` | YamllintImage is the pinned image used for yamllint checks. |
+| `flags.go` | `const` | `EngineFlagFilterUsage` | `const EngineFlagFilterUsage = "Filter logs by AI engine (...)"` | EngineFlagFilterUsage is the CLI help text for `--engine` log filtering. |
+| `flags.go` | `const` | `EngineFlagOverrideUsage` | `const EngineFlagOverrideUsage = "Override AI engine (...)"` | EngineFlagOverrideUsage is the CLI help text for `--engine-override`. |
+| `outcome_eval.go` | `const` | `OutcomeLifecycleClose` | `const OutcomeLifecycleClose OutcomeResult = "lifecycle_close"` | OutcomeLifecycleClose represents lifecycle close events in normalized outcome reporting. |
 | `outcome_eval.go` | `const` | `OutcomeAccepted` | `const OutcomeAccepted OutcomeResult = "accepted"` | Exported constant declared in `outcome_eval.go`. |
 | `outcome_eval.go` | `const` | `OutcomeError` | `const OutcomeError OutcomeResult = "error"` | Exported constant declared in `outcome_eval.go`. |
 | `outcome_eval.go` | `const` | `OutcomeIgnored` | `const OutcomeIgnored OutcomeResult = "ignored"` | Exported constant declared in `outcome_eval.go`. |
@@ -677,6 +699,8 @@ This appendix is generated from the current non-test Go source files in this pac
 | `outcome_evaluation.go` | `const` | `OutcomeStatusIgnored` | `const OutcomeStatusIgnored OutcomeStatus = "ignored"` | Exported constant declared in `outcome_evaluation.go`. |
 | `outcome_evaluation.go` | `const` | `OutcomeStatusPending` | `const OutcomeStatusPending OutcomeStatus = "pending"` | Exported constant declared in `outcome_evaluation.go`. |
 | `outcome_evaluation.go` | `const` | `OutcomeStatusRejected` | `const OutcomeStatusRejected OutcomeStatus = "rejected"` | Exported constant declared in `outcome_evaluation.go`. |
+| `outcome_evaluation.go` | `const` | `OutcomeStatusLifecycle` | `const OutcomeStatusLifecycle OutcomeStatus = "lifecycle"` | OutcomeStatusLifecycle marks lifecycle safe-output outcomes. |
+| `outcome_evaluation.go` | `const` | `OutcomeStatusLifecycleClose` | `const OutcomeStatusLifecycleClose OutcomeStatus = "lifecycle_close"` | OutcomeStatusLifecycleClose marks lifecycle-close safe-output outcomes. |
 | `outcome_evaluation.go` | `const` | `OutcomeStatusSkipped` | `const OutcomeStatusSkipped OutcomeStatus = "skipped"` | Exported constant declared in `outcome_evaluation.go`. |
 | `outcome_evaluation.go` | `const` | `OutcomeStatusUnknown` | `const OutcomeStatusUnknown OutcomeStatus = "unknown"` | Exported constant declared in `outcome_evaluation.go`. |
 | `shell_completion.go` | `const` | `ShellBash` | `const ShellBash ShellType = "bash"` | Exported constant declared in `shell_completion.go`. |
@@ -718,6 +742,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | `firewall_log.go` | `(*FirewallAnalysis).AddMetrics` | `func (*FirewallAnalysis).AddMetrics(other LogAnalysis)` | AddMetrics adds metrics from another analysis |
 | `fix_codemods.go` | `(*GuidedError).Unwrap` | `func (*GuidedError).Unwrap() error` | Exported function or method declared in `fix_codemods.go`. |
 | `fix_codemods.go` | `GetCodemods` | `func GetCodemods(disabledIDs []string) ([]Codemod, error)` | GetCodemods returns all codemods except any explicitly disabled by ID. |
+| `frontmatter_editor.go` | `RemoveTopLevelFieldFromFrontmatter` | `func RemoveTopLevelFieldFromFrontmatter(content, fieldName string) (string, error)` | RemoveTopLevelFieldFromFrontmatter removes a root-level frontmatter key while preserving YAML structure. |
 | `gateway_logs_timeline.go` | `BuildUnifiedTimeline` | `func BuildUnifiedTimeline(logDir string, verbose bool) ([]UnifiedTimelineEvent, error)` | BuildUnifiedTimeline collects all JSONL events from the MCP Gateway, the AWF firewall, the agent session, and the AWF API proxy in logDir, merges them into a single slice, and sorts the slice in ascending wall-clock ord… |
 | `import_url_fetcher.go` | `FetchImportURL` | `func FetchImportURL(ctx context.Context, rawURL string, opts FetchOptions) (*FetchedResource, error)` | FetchImportURL fetches rawURL and returns its content and canonicalized Content-Type. |
 | `interactive.go` | `CreateWorkflowInteractively` | `func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbose bool, force bool) error` | CreateWorkflowInteractively prompts the user to build a workflow interactively |
@@ -730,7 +755,9 @@ This appendix is generated from the current non-test Go source files in this pac
 | `mcp_registry.go` | `NewMCPRegistryClient` | `func NewMCPRegistryClient(registryURL string) *MCPRegistryClient` | NewMCPRegistryClient creates a new MCP registry client |
 | `mcp_schema.go` | `AddSchemaDefault` | `func AddSchemaDefault(schema *jsonschema.Schema, propertyName string, value any) error` | AddSchemaDefault adds a default value to a property in a JSON schema. |
 | `mcp_schema.go` | `GenerateSchema` | `func GenerateSchema[T any]() (*jsonschema.Schema, error)` | GenerateSchema generates a JSON schema from a Go struct type. |
-| `model_costs.go` | `FindOrFetchModelPricing` | `func FindOrFetchModelPricing(ctx context.Context, provider, model string) (map[string]float64, bool)` | FindOrFetchModelPricing resolves per-token pricing for the given provider/model. |
+| `update_merge.go` | `MergeWorkflowContent` | `func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec, localWorkflowPath string, verbose bool) (string, bool, error)` | MergeWorkflowContent performs marker-aware merging for source-managed workflow updates. |
+| `compile_external_tools.go` | `RunActionlintOnFiles` | `func RunActionlintOnFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error` | RunActionlintOnFiles runs actionlint over generated lock files. |
+| `add_interactive_orchestrator.go` | `RunAddInteractive` | `func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error` | RunAddInteractive drives the interactive `gh aw add` installation flow. |
 | `outcome_domain_breakdown.go` | `ComputeDomainBreakdowns` | `func ComputeDomainBreakdowns(reports []OutcomeReport) []DomainBreakdown` | ComputeDomainBreakdowns aggregates outcome metrics by label/domain. |
 | `packages.go` | `ExtractWorkflowPrivateSetting` | `func ExtractWorkflowPrivateSetting(content string) (bool, bool)` | ExtractWorkflowPrivateSetting extracts the private field from workflow content string. |
 | `pr_automerge.go` | `AutoMergePullRequestsLegacy` | `func AutoMergePullRequestsLegacy(repoSlug string, verbose bool) error` | AutoMergePullRequestsLegacy is the legacy function that auto-merges all open PRs (used by trial command for backward compatibility) |
