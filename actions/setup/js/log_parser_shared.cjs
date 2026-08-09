@@ -826,7 +826,15 @@ function convertCopilotEventsToLegacyLogEntries(logEntries) {
   };
 
   const normalizeToolName = (rawToolName, mcpServerName) => {
-    const toolName = typeof rawToolName === "string" && rawToolName.trim() ? rawToolName.trim() : "unknown";
+    let toolName = typeof rawToolName === "string" && rawToolName.trim() ? rawToolName.trim() : "unknown";
+    // The Copilot CLI emits the builtin shell tool as lowercase "bash", but the
+    // shared formatters (formatToolUse, commandSummary bullet list) special-case
+    // the capitalized "Bash" name used by Claude. Normalize so Copilot's bash
+    // calls get the same command formatting instead of falling through to the
+    // generic tool renderer.
+    if (toolName.toLowerCase() === "bash") {
+      toolName = "Bash";
+    }
     if (toolName.startsWith("mcp__")) {
       return toolName;
     }
