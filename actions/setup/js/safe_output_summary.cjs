@@ -41,6 +41,133 @@ function toSummarySafeErrorCode(error) {
 }
 
 /**
+ * Result fields that may carry the URL of the entity a handler acted upon,
+ * in priority order. Handlers use different field names depending on the
+ * entity type, so every known name is checked to keep summaries regular.
+ * @type {string[]}
+ */
+const RESULT_URL_FIELDS = ["url", "html_url", "issue_url", "pull_request_url", "discussion_url", "comment_url", "reply_url", "review_url", "item_url", "commit_url", "projectUrl", "run_url", "workflow_run_url"];
+
+/**
+ * Result fields that may carry the number of the entity a handler acted upon,
+ * in priority order.
+ * @type {string[]}
+ */
+const RESULT_NUMBER_FIELDS = ["number", "issue_number", "pull_request_number", "discussion_number", "pr_number", "issueNumber", "sub_issue_number", "parent_issue_number", "milestone_number"];
+
+/**
+ * Result fields that may carry the repository slug (`owner/repo`) of the entity.
+ * @type {string[]}
+ */
+const RESULT_REPO_FIELDS = ["repo", "repoSlug", "repository"];
+
+/**
+ * Return the first non-empty value among the given fields of an object.
+ * @param {any} obj - Object to inspect
+ * @param {string[]} fields - Field names in priority order
+ * @returns {any} The first defined, non-null, non-empty value, or undefined
+ */
+function pickFirstField(obj, fields) {
+  if (!obj || typeof obj !== "object") {
+    return undefined;
+  }
+  for (const field of fields) {
+    const value = obj[field];
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Render a markdown link for an entity, falling back to plain text when no
+ * usable http(s) URL is available.
+ * @param {any} url - Entity URL
+ * @param {string} [text] - Link text (defaults to the URL itself)
+ * @returns {string|undefined} Markdown link, plain text, or undefined when nothing to show
+ */
+function formatLink(url, text) {
+  const isHttpUrl = typeof url === "string" && /^https?:\/\//.test(url);
+  if (isHttpUrl) {
+    return `[${text || url}](${url})`;
+  }
+  return text || undefined;
+}
+
+/**
+ * Build the display text for an entity reference (e.g. `owner/repo#123` or `#123`).
+ * @param {any} repo - Repository slug
+ * @param {any} number - Entity number
+ * @returns {string|undefined} Display text, or undefined when no number is available
+ */
+function formatEntityRef(repo, number) {
+  if (number === undefined || number === null || number === "") {
+    return undefined;
+  }
+  return `${repo ? `${repo}` : ""}#${number}`;
+}
+
+/**
+ * Normalize a list of labels, which may be plain strings or GitHub label objects,
+ * into a comma-separated list of label names.
+ * @param {any} labels - Labels from a result or message
+ * @returns {string|undefined} Comma-separated label names, or undefined when empty
+ */
+function formatLabels(labels) {
+  if (!Array.isArray(labels)) {
+    return undefined;
+  }
+  const names = labels
+    .map(label => {
+      if (typeof label === "string") {
+        return label;
+      }
+      if (label && typeof label === "object" && typeof label.name === "string") {
+        return label.name;
+      }
+      return undefined;
+    })
+    .filter(name => typeof name === "string" && name.length > 0);
+  return names.length > 0 ? names.join(", ") : undefined;
+}
+
+/**
+ * Build a canonical entity URL from a repository slug and number when a handler
+ * did not report an explicit URL. GitHub redirects `/issues/<n>` to the pull
+ * request when the number refers to a pull request, so this works for both.
+ * @param {any} repo - Repository slug (`owner/repo`)
+ * @param {any} number - Entity number
+ * @returns {string|undefined} A canonical URL, or undefined when it cannot be built
+ */
+function buildEntityUrl(repo, number) {
+  if (typeof repo !== "string" || !/^[^/\s]+\/[^/\s]+$/.test(repo)) {
+    return undefined;
+  }
+  const numeric = typeof number === "number" ? number : parseInt(String(number ?? ""), 10);
+  if (!Number.isInteger(numeric) || numeric <= 0) {
+    return undefined;
+  }
+  const serverUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+  return `${serverUrl}/${repo}/issues/${numeric}`;
+}
+
+/**
+ * Render the entity link line shown for a successfully processed safe output.
+ * A single regular `**Target:**` line is emitted so that every safe-output type
+ * surfaces a link to the entity it acted upon.
+ * @param {any} result - The handler result
+ * @returns {string} Markdown for the target line (may be empty)
+ */
+function formatTargetLine(result) {
+  const number = pickFirstField(result, RESULT_NUMBER_FIELDS);
+  const repo = pickFirstField(result, RESULT_REPO_FIELDS);
+  const url = pickFirstField(result, RESULT_URL_FIELDS) || buildEntityUrl(repo, number);
+  const link = formatLink(url, formatEntityRef(repo, number));
+  return link ? `**Target:** ${link}\n\n` : "";
+}
+
+/**
  * Generate a step summary for a single safe-output message
  * @param {Object} options - Summary generation options
  * @param {string} options.type - The safe-output type (e.g., "create_issue", "create_project")
@@ -96,19 +223,15 @@ function generateSafeOutputSummary(options) {
     // Explain why the fallback occurred and show the created fallback target
     if (fallbackType === "pull_request") {
       summary += `> ℹ️ Direct push to the original pull request branch was not possible (diverged/non-fast-forward). A fallback pull request was created instead.\n\n`;
-      if (result.pull_request_url) {
-        summary += `**Fallback Pull Request:** ${result.pull_request_url}\n\n`;
-      }
-      if (result.pull_request_number != null && result.repo) {
-        summary += `**Location:** ${result.repo}#${result.pull_request_number}\n\n`;
+      const link = formatLink(result.pull_request_url, formatEntityRef(result.repo, result.pull_request_number));
+      if (link) {
+        summary += `**Fallback Pull Request:** ${link}\n\n`;
       }
     } else {
       summary += `> ℹ️ Pull request creation was blocked due to protected file changes. A review issue was created instead.\n\n`;
-      if (result.issue_url) {
-        summary += `**Fallback Issue:** ${result.issue_url}\n\n`;
-      }
-      if (result.issue_number != null && result.repo) {
-        summary += `**Location:** ${result.repo}#${result.issue_number}\n\n`;
+      const link = formatLink(result.issue_url, formatEntityRef(result.repo, result.issue_number));
+      if (link) {
+        summary += `**Fallback Issue:** ${link}\n\n`;
       }
     }
     if (result.branch_name) {
@@ -122,28 +245,20 @@ function generateSafeOutputSummary(options) {
       }
     }
   } else if (success && result) {
-    // Add result-specific information based on type
-    if (result.url) {
-      summary += `**URL:** ${result.url}\n\n`;
-    }
-    if (result.repo && result.number) {
-      summary += `**Location:** ${result.repo}#${result.number}\n\n`;
-    }
-    if (result.projectUrl) {
-      summary += `**Project URL:** ${result.projectUrl}\n\n`;
-    }
+    // Add a regular link to the entity the handler acted upon
+    summary += formatTargetLine(result);
     if (result.temporaryId) {
       summary += `**Temporary ID:** \`${result.temporaryId}\`\n\n`;
     }
 
     // Add original message details if available
-    if (message) {
-      if (message.title) {
-        summary += `**Title:** ${message.title}\n\n`;
-      }
-      if (message.labels && Array.isArray(message.labels)) {
-        summary += `**Labels:** ${message.labels.join(", ")}\n\n`;
-      }
+    const title = result.title || message?.title;
+    if (title) {
+      summary += `**Title:** ${title}\n\n`;
+    }
+    const labels = formatLabels(result.labelsAdded || result.labels || message?.labels);
+    if (labels) {
+      summary += `**Labels:** ${labels}\n\n`;
     }
   } else if (error) {
     // Show only an allowlisted error code; raw exception text and message content are
@@ -198,9 +313,13 @@ async function writeSafeOutputSummaries(results, messages) {
     }
   }
 
-  let summaryContent = `## Safe Output Processing Summary\n\n`;
-  summaryContent += `Processed ${results.length} safe-output message(s).\n\n`;
   const status = computeSafeOutputsStatus(results);
+  const statusEmoji = status.status === "success" ? "✅" : status.status === "partial_success" ? "⚠️" : "❌";
+
+  // Lead with a collapsible section so this block matches the look of the other
+  // run-summary sections (e.g. threat detection).
+  let summaryContent = `<details>\n<summary>${statusEmoji} Safe Output Processing Summary (${status.itemsSucceeded} succeeded, ${status.itemsFailed} failed)</summary>\n\n`;
+  summaryContent += `Processed ${results.length} safe-output message(s).\n\n`;
   summaryContent += `Status: **${status.status}**\n\n`;
   summaryContent += `Items succeeded: **${status.itemsSucceeded}**\n\n`;
   summaryContent += `Items failed: **${status.itemsFailed}**\n\n`;
@@ -229,6 +348,8 @@ async function writeSafeOutputSummaries(results, messages) {
       error: result.error,
     });
   }
+
+  summaryContent += `</details>\n\n`;
 
   try {
     await core.summary.addRaw(redactStepSummaryContent(summaryContent)).write();

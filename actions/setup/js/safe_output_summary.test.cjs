@@ -197,7 +197,7 @@ describe("safe_output_summary", () => {
 
       const summary = generateSafeOutputSummary(options);
 
-      expect(summary).toContain("Project URL");
+      expect(summary).toContain("**Target:**");
       expect(summary).toContain("https://github.com/orgs/owner/projects/123");
     });
 
@@ -378,6 +378,88 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("public");
       expect(summary).toContain("Integrity:");
       expect(summary).toContain("low");
+    });
+
+    it("should link to the closed pull request for close_pull_request results", () => {
+      const summary = generateSafeOutputSummary({
+        type: "close_pull_request",
+        messageIndex: 1,
+        success: true,
+        result: {
+          pull_request_number: 445738,
+          pull_request_url: "https://github.com/owner/repo/pull/445738",
+        },
+        message: {},
+      });
+
+      expect(summary).toContain("[#445738](https://github.com/owner/repo/pull/445738)");
+    });
+
+    it("should link to the review comment reply for reply_to_pull_request_review_comment results", () => {
+      const summary = generateSafeOutputSummary({
+        type: "reply_to_pull_request_review_comment",
+        messageIndex: 1,
+        success: true,
+        result: {
+          comment_id: 42,
+          reply_url: "https://github.com/owner/repo/pull/1#discussion_r42",
+        },
+        message: {},
+      });
+
+      expect(summary).toContain("**Target:**");
+      expect(summary).toContain("https://github.com/owner/repo/pull/1#discussion_r42");
+    });
+
+    it("should render label objects by name instead of [object Object]", () => {
+      const summary = generateSafeOutputSummary({
+        type: "add_labels",
+        messageIndex: 1,
+        success: true,
+        result: { repo: "owner/repo", number: 5 },
+        message: { labels: [{ name: "bug" }, { name: "enhancement" }] },
+      });
+
+      expect(summary).not.toContain("[object Object]");
+      expect(summary).toContain("bug, enhancement");
+    });
+
+    it("should prefer labels reported by the handler result", () => {
+      const summary = generateSafeOutputSummary({
+        type: "add_labels",
+        messageIndex: 1,
+        success: true,
+        result: { repo: "owner/repo", number: 5, labelsAdded: ["triage"] },
+        message: { labels: ["ignored"] },
+      });
+
+      expect(summary).toContain("triage");
+      expect(summary).not.toContain("ignored");
+    });
+
+    it("should derive an entity link from repo and number when no URL is reported", () => {
+      const summary = generateSafeOutputSummary({
+        type: "add_labels",
+        messageIndex: 1,
+        success: true,
+        result: { repo: "owner/repo", number: 5, labelsAdded: ["bug"] },
+        message: {},
+      });
+
+      expect(summary).toContain("**Target:** [owner/repo#5](https://github.com/owner/repo/issues/5)");
+    });
+
+    it("should render plain text when the entity URL is not an http(s) URL", () => {
+      const summary = generateSafeOutputSummary({
+        type: "add_labels",
+        messageIndex: 1,
+        success: true,
+        result: { repo: "owner/repo", number: 5, url: "javascript:alert(1)" },
+        message: {},
+      });
+
+      expect(summary).toContain("**Target:** owner/repo#5");
+      expect(summary).not.toContain("javascript:alert(1)");
     });
 
     it("should show fallback issue status when create_pull_request falls back to issue", () => {
@@ -699,6 +781,23 @@ describe("safe_output_summary", () => {
       expect(summaryContent).toContain("Items failed: **0**");
       expect(summaryContent).toContain("Create Issue");
       expect(summaryContent).toContain("Create Project");
+    });
+
+    it("should wrap the whole section in a collapsible details block", async () => {
+      const results = [
+        {
+          type: "create_issue",
+          messageIndex: 0,
+          success: true,
+          result: { repo: "owner/repo", number: 123, url: "https://github.com/owner/repo/issues/123" },
+        },
+      ];
+
+      await writeSafeOutputSummaries(results, [{ title: "Issue 1" }]);
+
+      const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryContent.startsWith("<details>\n<summary>✅ Safe Output Processing Summary")).toBe(true);
+      expect(summaryContent.trimEnd().endsWith("</details>")).toBe(true);
     });
 
     it("should include partial success item counts in the summary", async () => {
