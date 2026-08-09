@@ -88,12 +88,17 @@ jq '[.. | objects | select(has("properties") and (has("required") | not)) | path
 
 ## Step 4 — Report
 
+Use the `reporting` skill to format the report body. Use `###` (or lower) headers only — never
+`#` or `##`. Keep the overall status visible at the top; wrap the full list of unreferenced
+`$defs` and objects missing `required` in a
+`<details><summary><b>Full Findings</b></summary>` block.
+
 Use the `create_issue` safe-output tool to post the audit:
 
 - **Title**: `[schema-audit] Daily Schema Consistency Report — ${{ github.run_id }}`
-- **Body**: Summarize
-  - Unreferenced `$defs` count and names
-  - Objects missing `required` arrays
-  - Overall status: 🟢 (no issues) / 🟡 (minor) / 🔴 (action needed)
+- **Body**:
+  - `### Summary` with overall status: 🟢 (no issues) / 🟡 (minor) / 🔴 (action needed)
+  - `<details><summary><b>Full Findings</b></summary>` wrapping unreferenced `$defs` count and
+    names, and objects missing `required` arrays
 
 If all checks pass with no issues, call `noop` with `"Schema consistency audit passed — no issues found."`.
