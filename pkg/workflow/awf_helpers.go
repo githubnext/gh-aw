@@ -100,10 +100,12 @@ type AWFCommandConfig struct {
 }
 
 func shouldUseWorkflowCallNetworkAllowedInput(data *WorkflowData) bool {
-	return data != nil &&
+	result := data != nil &&
 		data.NetworkPermissions != nil &&
 		data.NetworkPermissions.AllowedInput &&
 		hasWorkflowCallTrigger(data.On)
+	awfHelpersLog.Printf("shouldUseWorkflowCallNetworkAllowedInput: result=%v", result)
+	return result
 }
 
 func buildModelsJSONPathExportScript(isArcDind bool) string {
@@ -111,11 +113,13 @@ func buildModelsJSONPathExportScript(isArcDind bool) string {
 	if isArcDind {
 		modelsJSONPathExpr = awfArcDindRootPathExpr + "/models.json"
 	}
+	awfHelpersLog.Printf("buildModelsJSONPathExportScript: isArcDind=%v, path=%s", isArcDind, modelsJSONPathExpr)
 	return fmt.Sprintf(`export GH_AW_MODELS_JSON_PATH="%s"`, modelsJSONPathExpr)
 }
 
 func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 	ecosystemDomains := getLoadedEcosystemDomains()
+	awfHelpersLog.Printf("buildWorkflowCallNetworkAllowedUpdateScript: ecosystems=%d, compoundEcosystems=%d", len(ecosystemDomains), len(compoundEcosystems))
 	ecosystemMap := make(map[string][]string, safeAllocationCapacity(len(ecosystemDomains), len(compoundEcosystems)))
 	for ecosystem := range ecosystemDomains {
 		ecosystemMap[ecosystem] = getEcosystemDomains(ecosystem)
@@ -126,6 +130,7 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 
 	ecosystemJSON, err := json.Marshal(ecosystemMap)
 	if err != nil {
+		awfHelpersLog.Printf("buildWorkflowCallNetworkAllowedUpdateScript: failed to marshal ecosystem map: %v", err)
 		return "", fmt.Errorf("marshal network allowed ecosystem map: %w", err)
 	}
 

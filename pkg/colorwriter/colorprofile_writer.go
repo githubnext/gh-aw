@@ -1,5 +1,9 @@
 //go:build !js && !wasm
 
+// Package colorwriter is a low-level dependency of pkg/logger (which uses it
+// to build its stderr writer). Do not import pkg/logger or add debug logging
+// via it in this file: doing so creates an import cycle (logger ->
+// colorwriter -> logger) and breaks the build.
 package colorwriter
 
 import (

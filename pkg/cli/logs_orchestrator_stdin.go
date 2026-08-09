@@ -151,6 +151,7 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) e
 
 	filters := runFilterOpts{
 		engine:            opts.Engine,
+		runtime:           opts.Runtime,
 		noStaged:          opts.NoStaged,
 		firewallOnly:      opts.FirewallOnly,
 		noFirewall:        opts.NoFirewall,

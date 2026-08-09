@@ -248,6 +248,36 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 
 }
 
+func TestParseSkillRefSpec(t *testing.T) {
+	const sha = "1f181b37d3fe5862ab590648f25a292e345b5de6"
+	tests := []struct {
+		name                               string
+		spec                               string
+		local, expression, remote, fullSHA bool
+		repoPath, ref                      string
+	}{
+		{name: "local path", spec: "./skills/my-skill", local: true},
+		{name: "bare expression", spec: "${{ github.sha }}", expression: true},
+		{name: "expression in path without @", spec: "skills/${{ inputs.name }}", expression: true},
+		{name: "expression", spec: "githubnext/skills@${{ github.sha }}", expression: true},
+		{name: "malformed remote", spec: "githubnext@main"},
+		{name: "unpinned remote", spec: " githubnext/skills@ ", remote: true, repoPath: "githubnext/skills"},
+		{name: "SHA-pinned remote", spec: "githubnext/skills@" + sha, remote: true, fullSHA: true, repoPath: "githubnext/skills", ref: sha},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed := parseSkillRefSpec(tt.spec)
+			require.Equal(t, tt.local, parsed.isLocal)
+			require.Equal(t, tt.expression, parsed.isExpression)
+			require.Equal(t, tt.remote, parsed.isRemote)
+			require.Equal(t, tt.fullSHA, parsed.isFullSHA)
+			require.Equal(t, tt.repoPath, parsed.repoPath)
+			require.Equal(t, tt.ref, parsed.ref)
+		})
+	}
+}
+
 func TestParseRawSkillReferences_ParsesGitHubApp(t *testing.T) {
 	refs := parseRawSkillReferences([]any{
 		map[string]any{

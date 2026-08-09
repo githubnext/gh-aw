@@ -13,11 +13,13 @@ var virtualFiles map[string][]byte
 // The keys should be file paths relative to the workflow directory
 // (e.g. "shared/elastic-tools.md").
 func SetVirtualFiles(files map[string][]byte) {
+	parserLog.Printf("SetVirtualFiles: registering %d virtual files", len(files))
 	virtualFiles = files
 }
 
 // ClearVirtualFiles removes all virtual files.
 func ClearVirtualFiles() {
+	parserLog.Print("ClearVirtualFiles: clearing virtual filesystem")
 	virtualFiles = nil
 }
 
@@ -38,13 +40,16 @@ func init() {
 		defer builtinVirtualFilesMu.RUnlock()
 		builtinContent, builtinOK := builtinVirtualFiles[path]
 		if builtinOK {
+			parserLog.Printf("readFileFunc: resolved builtin virtual file: %s", path)
 			return builtinContent, nil
 		}
 		if virtualFiles != nil {
 			if content, ok := virtualFiles[path]; ok {
+				parserLog.Printf("readFileFunc: resolved user virtual file: %s", path)
 				return content, nil
 			}
 		}
+		parserLog.Printf("readFileFunc: file not found in virtual filesystem: %s", path)
 		return nil, fmt.Errorf("file not found in virtual filesystem: %s", path)
 	}
 }

@@ -31,6 +31,7 @@ func anomalyScore(isNew, lowSim, rare bool) float64 {
 }
 
 func TestAnomalyDetector_Analyze(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		simThreshold      float64
@@ -569,6 +570,7 @@ func TestAnalyze_NilResult(t *testing.T) {
 }
 
 func TestAnalyze_FlagMutualExclusivity(t *testing.T) {
+	t.Parallel()
 	d, err := NewAnomalyDetector(0.4, 2)
 	require.NoError(t, err, "NewAnomalyDetector should succeed")
 
