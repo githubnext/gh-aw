@@ -224,6 +224,18 @@ describe("resolve_pr_review_thread", () => {
     expect(result.error).toContain("Internal server error");
   });
 
+  it("should still fail for unrelated 'not found' errors such as a missing repository", async () => {
+    mockGraphql.mockImplementation(() => Promise.reject(new Error("Repository not found")));
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({ type: "resolve_pull_request_review_thread", thread_id: "PRRT_kwDOABCD123456" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Repository not found");
+  });
+
   it("should resolve a review comment node ID by finding its parent thread", async () => {
     mockGraphql.mockImplementation(query => {
       if (query.includes("resolveReviewThread")) {

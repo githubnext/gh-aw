@@ -280,8 +280,11 @@ function isMissingNodeError(error) {
   }
 
   return messages.some(message => {
-    const normalized = message.toLowerCase();
-    return normalized.includes("could not resolve to a node") || normalized.includes("not found");
+    const normalized = message.trim().toLowerCase();
+    // Match the stale-node GraphQL error, or Octokit's bare "Not Found" 404 message.
+    // Deliberately avoid a loose "not found" substring match so unrelated errors
+    // (e.g. "Repository not found") still surface as real failures.
+    return normalized.includes("could not resolve to a node") || normalized === "not found";
   });
 }
 
