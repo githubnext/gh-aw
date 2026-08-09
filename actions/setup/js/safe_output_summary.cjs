@@ -10,7 +10,7 @@
 
 const { displayFileContent } = require("./display_file_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { computeSafeOutputsStatus } = require("./safe_outputs_status.cjs");
+const { classifySafeOutputResult, computeSafeOutputsStatus, pickOutcomeField } = require("./safe_outputs_status.cjs");
 const ERROR_CODES = require("./error_codes.cjs");
 const { redactStepSummaryContent } = require("./redact_secrets.cjs");
 
@@ -24,6 +24,15 @@ const SUMMARY_SAFE_ERROR_CODES = new Set(Object.values(ERROR_CODES));
 
 /** @type {string} Rendered when an error carries no allowlisted code prefix */
 const UNCLASSIFIED_ERROR_CODE = "UNCLASSIFIED";
+
+const OUTCOME_DISPLAY = {
+  cancelled: { emoji: "🚫", status: "Cancelled" },
+  deferred: { emoji: "⏸️", status: "Deferred" },
+  skipped: { emoji: "⚠️", status: "Skipped" },
+  warning: { emoji: "⚠️", status: "Warning" },
+  success: { emoji: "✅", status: "Success" },
+  failed: { emoji: "❌", status: "Failed" },
+};
 
 /**
  * Reduces an error message to an allowlisted error code so that raw exception text
@@ -163,6 +172,16 @@ function formatLabels(labels) {
 }
 
 /**
+ * Render a list of safe detail values as inline code.
+ * @param {any} values
+ * @returns {string|undefined}
+ */
+function formatCodeList(values) {
+  if (!Array.isArray(values) || values.length === 0) return undefined;
+  return values.map(value => `\`${String(value)}\``).join(", ");
+}
+
+/**
  * Build a canonical entity URL from a repository slug and number when a handler
  * did not report an explicit URL. GitHub redirects `/issues/<n>` to the pull
  * request when the number refers to a pull request, so this works for both.
@@ -191,13 +210,58 @@ function buildEntityUrl(repo, number) {
  * @returns {string} Markdown for the target line (may be empty)
  */
 function formatTargetLine(result, message) {
-  const number = pickFirstField(result, RESULT_NUMBER_FIELDS) ?? pickFirstField(message, RESULT_NUMBER_FIELDS);
-  const explicitRepo = pickFirstField(result, RESULT_REPO_FIELDS) ?? pickFirstField(message, MESSAGE_REPO_FIELDS);
+  const target = result?.target && typeof result.target === "object" ? result.target : undefined;
+  const number = pickFirstField(target, RESULT_NUMBER_FIELDS) ?? pickFirstField(result, RESULT_NUMBER_FIELDS) ?? pickFirstField(message, RESULT_NUMBER_FIELDS);
+  const explicitRepo = pickFirstField(target, RESULT_REPO_FIELDS) ?? pickFirstField(result, RESULT_REPO_FIELDS) ?? pickFirstField(message, MESSAGE_REPO_FIELDS);
   const fallbackRepo = explicitRepo ?? process.env.GITHUB_REPOSITORY;
-  const explicitUrl = pickFirstField(result, RESULT_URL_FIELDS) || pickFirstField(message, MESSAGE_URL_FIELDS);
+  const explicitUrl = pickFirstField(target, RESULT_URL_FIELDS) || pickFirstField(result, RESULT_URL_FIELDS) || pickFirstField(message, MESSAGE_URL_FIELDS);
   const url = explicitUrl || buildEntityUrl(fallbackRepo, number);
   const link = formatLink(url, formatEntityRef(explicitUrl ? explicitRepo : fallbackRepo, number));
   return link ? `**Target:** ${link}\n\n` : "";
+}
+
+/**
+ * Render summary-safe diagnostics supplied by a handler.
+ * @param {any} result
+ * @param {any} message
+ * @param {string|undefined} error
+ * @param {string} outcome
+ * @returns {string}
+ */
+function formatOutcomeDiagnostics(result, message, error, outcome) {
+  let diagnostics = formatTargetLine(result, message);
+  const reasonCode = result?.reasonCode || result?.errorCode;
+  const reason = result?.reason || (outcome === "warning" ? result?.warning : undefined);
+  if (reasonCode) {
+    diagnostics += `**Reason Code:** \`${reasonCode}\`\n\n`;
+  }
+  if (reason) {
+    diagnostics += `**Reason:** ${reason}\n\n`;
+  }
+  const safeDetails = result?.safeDetails && typeof result.safeDetails === "object" ? result.safeDetails : undefined;
+  const required = formatCodeList(safeDetails?.requiredLabels);
+  const missing = formatCodeList(safeDetails?.missingLabels);
+  if (required) {
+    diagnostics += `**Required:** ${required}\n\n`;
+  }
+  if (missing) {
+    diagnostics += `**Missing:** ${missing}\n\n`;
+  }
+  if (!reason && !reasonCode && error) {
+    diagnostics += `**Error:** \`${toSummarySafeErrorCode(error)}\` (see the job logs for details)\n\n`;
+  }
+  return diagnostics;
+}
+
+/**
+ * @param {string} type
+ * @returns {string}
+ */
+function formatDisplayType(type) {
+  return type
+    .split("_")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 /**
@@ -209,16 +273,17 @@ function formatTargetLine(result, message) {
  * @param {any} options.result - The result from the handler
  * @param {any} options.message - The original message
  * @param {string} [options.error] - Error message if processing failed
+ * @param {boolean} [options.skipped] - Whether the message was skipped
+ * @param {boolean} [options.cancelled] - Whether the message was cancelled
+ * @param {boolean} [options.deferred] - Whether the message was deferred
+ * @param {string} [options.warning] - Warning message if processing produced a warning
  * @returns {string} - Markdown content for the step summary
  */
 function generateSafeOutputSummary(options) {
   const { type, messageIndex, success, result, message, error } = options;
 
   // Format the type for display (e.g., "create_issue" -> "Create Issue")
-  const displayType = type
-    .split("_")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const displayType = formatDisplayType(type);
 
   // Detect fallback outcomes for code-push types.
   // Prefer explicit fallback_type when available; infer only for backward compatibility.
@@ -227,9 +292,12 @@ function generateSafeOutputSummary(options) {
   const inferredFallbackType = isFallback && (result.pull_request_url || result.pull_request_number != null) ? "pull_request" : "issue";
   const fallbackType = isFallback && result?.fallback_type ? result.fallback_type : inferredFallbackType;
 
-  // Choose emoji and status based on success and fallback
-  const emoji = isDuplicateDrop ? "⚠️" : isFallback ? "⚠️" : success ? "✅" : "❌";
-  const status = isDuplicateDrop ? "Duplicate Dropped" : isFallback ? (fallbackType === "pull_request" ? "Fallback Pull Request Created" : "Fallback Issue Created") : success ? "Success" : "Failed";
+  const outcome = classifySafeOutputResult(options);
+  const outcomeDisplay = OUTCOME_DISPLAY[outcome] || OUTCOME_DISPLAY.failed;
+
+  // Choose emoji and status based on normalized outcome and fallback
+  const emoji = isDuplicateDrop ? "⚠️" : isFallback ? "⚠️" : outcomeDisplay.emoji;
+  const status = isDuplicateDrop ? "Duplicate Dropped" : isFallback ? (fallbackType === "pull_request" ? "Fallback Pull Request Created" : "Fallback Issue Created") : outcomeDisplay.status;
 
   // Start building the summary
   let summary = `<details>\n<summary>${emoji} ${displayType} - ${status} (Message ${messageIndex})</summary>\n\n`;
@@ -277,7 +345,7 @@ function generateSafeOutputSummary(options) {
         summary += `**Title:** ${message.title}\n\n`;
       }
     }
-  } else if (success && result) {
+  } else if (outcome === "success" && result) {
     // Add a regular link to the entity the handler acted upon
     summary += formatTargetLine(result, message);
     if (result.temporaryId) {
@@ -293,10 +361,8 @@ function generateSafeOutputSummary(options) {
     if (labels) {
       summary += `**Labels:** ${labels}\n\n`;
     }
-  } else if (error) {
-    // Show only an allowlisted error code; raw exception text and message content are
-    // omitted because they can embed URLs, payloads, or credentials.
-    summary += `**Error:** \`${toSummarySafeErrorCode(error)}\` (see the job logs for details)\n\n`;
+  } else if (outcome !== "success") {
+    summary += formatOutcomeDiagnostics(result, message, error, outcome);
   }
 
   // Display secrecy and integrity security metadata fields if present in the message.
@@ -307,6 +373,7 @@ function generateSafeOutputSummary(options) {
     if (message.secrecy !== undefined && message.secrecy !== null) {
       summary += `**Secrecy:** \`${message.secrecy}\`\n\n`;
     }
+
     if (message.integrity !== undefined && message.integrity !== null) {
       summary += `**Integrity:** \`${message.integrity}\`\n\n`;
     }
@@ -315,6 +382,36 @@ function generateSafeOutputSummary(options) {
   summary += `</details>\n\n`;
 
   return summary;
+}
+
+/**
+ * Generate a compact grouped overview table for processed safe-output results.
+ * @param {Array<Object>} results
+ * @returns {string}
+ */
+function generateOutcomeOverview(results) {
+  const groups = new Map();
+  for (const result of results) {
+    const outcome = classifySafeOutputResult(result);
+    if (outcome === "delegated") continue;
+    const handlerResult = result?.result && typeof result.result === "object" ? result.result : {};
+    const reason = handlerResult.reason || handlerResult.reasonCode || handlerResult.errorCode || (outcome === "failed" ? toSummarySafeErrorCode(result.error) : "");
+    const key = `${outcome}\0${result.type}\0${reason}`;
+    const current = groups.get(key) || {
+      outcome: OUTCOME_DISPLAY[outcome]?.status || outcome,
+      type: formatDisplayType(result.type || "unknown"),
+      count: 0,
+      reason,
+    };
+    current.count += 1;
+    groups.set(key, current);
+  }
+  if (groups.size === 0) return "";
+  let table = "| Outcome | Type | Count | Reason |\n|---|---|---:|---|\n";
+  for (const group of groups.values()) {
+    table += `| ${group.outcome} | ${group.type} | ${group.count} | ${group.reason || ""} |\n`;
+  }
+  return `${table}\n`;
 }
 
 /**
@@ -347,15 +444,15 @@ async function writeSafeOutputSummaries(results, messages) {
   }
 
   const status = computeSafeOutputsStatus(results);
-  const statusEmoji = status.status === "success" ? "✅" : status.status === "partial_success" ? "⚠️" : "❌";
+  const statusEmoji = status.itemsFailed > 0 ? "❌" : status.itemsSkipped > 0 || status.itemsWarnings > 0 || status.itemsCancelled > 0 || status.itemsDeferred > 0 ? "⚠️" : "✅";
 
   // Lead with a collapsible section so this block matches the look of the other
   // run-summary sections (e.g. threat detection).
-  let summaryContent = `<details>\n<summary>${statusEmoji} Safe Output Processing Summary (${status.itemsSucceeded} succeeded, ${status.itemsFailed} failed)</summary>\n\n`;
+  let summaryContent = `<details>\n<summary>${statusEmoji} Safe Output Processing Summary (${status.itemsApplied} applied, ${status.itemsSkipped} skipped, ${status.itemsFailed} failed)</summary>\n\n`;
   summaryContent += `Processed ${results.length} safe-output message(s).\n\n`;
   summaryContent += `Status: **${status.status}**\n\n`;
-  summaryContent += `Items succeeded: **${status.itemsSucceeded}**\n\n`;
-  summaryContent += `Items failed: **${status.itemsFailed}**\n\n`;
+  summaryContent += `Applied: **${status.itemsApplied}** · Skipped: **${status.itemsSkipped}** · Warnings: **${status.itemsWarnings}** · Failed: **${status.itemsFailed}** · Cancelled: **${status.itemsCancelled}** · Deferred: **${status.itemsDeferred}**\n\n`;
+  summaryContent += generateOutcomeOverview(results);
 
   // Generate summary for each result
   for (const result of results) {
@@ -365,7 +462,7 @@ async function writeSafeOutputSummaries(results, messages) {
     // handler itself returns { success: false, skipped: true } for a handler-side condition
     // (e.g. "no issue fields available"). Handler-returned skips still appear in the summary
     // so their diagnostic signal is preserved without the job failing.
-    if (result.skipped && result.reason) {
+    if (classifySafeOutputResult(result) === "delegated") {
       continue;
     }
 
@@ -379,6 +476,10 @@ async function writeSafeOutputSummaries(results, messages) {
       result: result.result,
       message: message,
       error: result.error,
+      skipped: result.skipped,
+      cancelled: result.cancelled,
+      deferred: result.deferred,
+      warning: result.warning,
     });
   }
 
@@ -393,6 +494,7 @@ async function writeSafeOutputSummaries(results, messages) {
 }
 
 module.exports = {
+  generateOutcomeOverview,
   generateSafeOutputSummary,
   writeSafeOutputSummaries,
 };

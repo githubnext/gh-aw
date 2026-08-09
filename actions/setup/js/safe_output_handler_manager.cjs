@@ -691,10 +691,15 @@ function partitionFailureResults(results) {
 /**
  * Export item-level safe-output status as GitHub Actions outputs.
  *
- * @param {{itemsSucceeded: number, itemsFailed: number, status: string}} status
+ * @param {{itemsSucceeded: number, itemsApplied?: number, itemsSkipped?: number, itemsWarnings?: number, itemsCancelled?: number, itemsDeferred?: number, itemsFailed: number, status: string}} status
  */
 function setSafeOutputsStatusOutputs(status) {
   core.setOutput("items_succeeded", String(status.itemsSucceeded));
+  core.setOutput("items_applied", String(status.itemsApplied ?? status.itemsSucceeded));
+  core.setOutput("items_skipped", String(status.itemsSkipped ?? 0));
+  core.setOutput("items_warnings", String(status.itemsWarnings ?? 0));
+  core.setOutput("items_cancelled", String(status.itemsCancelled ?? 0));
+  core.setOutput("items_deferred", String(status.itemsDeferred ?? 0));
   core.setOutput("items_failed", String(status.itemsFailed));
   core.setOutput("status", status.status);
 }
@@ -908,17 +913,24 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Call the message handler with the individual message and resolved temp IDs
       const result = await messageHandler(effectiveMessage, resolvedTemporaryIds, temporaryIdMap);
 
-      // Check if the handler explicitly returned a skipped result (e.g. if_no_changes: warn/ignore).
-      // Skipped results should NOT trigger fail-fast cancellation of subsequent messages.
-      if (result && result.success === false && result.skipped === true && !result.deferred) {
-        const msg = result.error || "Handler returned success: false with skipped: true";
+      // Check if the handler explicitly returned a skipped result (e.g. policy filters,
+      // no-op warnings, or if_no_changes: warn/ignore). Skipped results should NOT
+      // trigger fail-fast cancellation of subsequent messages, and any summary-safe
+      // diagnostics supplied by the handler must be preserved.
+      if (result && result.skipped === true && !result.deferred) {
+        const msg = result.reason || result.warning || result.error || "Handler returned skipped: true";
         core.info(`⏭ Message ${i + 1} (${messageType}) skipped — ${msg}`);
         results.push({
           type: messageType,
           messageIndex: i,
-          success: false,
+          success: result.success === true,
           skipped: true,
+          ...(result.warning ? { warning: result.warning } : {}),
+          ...(result.reason ? { reason: result.reason } : {}),
+          ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
+          ...(result.errorCode ? { errorCode: result.errorCode } : {}),
           error: msg,
+          result,
         });
         continue;
       }
@@ -1092,6 +1104,27 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
         // Call the handler again with updated temp ID map
         const result = await deferred.handler(deferred.message, resolvedTemporaryIds, temporaryIdMap);
+
+        if (result && result.skipped === true && !result.deferred) {
+          const msg = result.reason || result.warning || result.error || "Handler returned skipped: true";
+          core.info(`⏭ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) skipped — ${msg}`);
+          const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
+          if (resultIndex >= 0) {
+            results[resultIndex] = {
+              type: deferred.type,
+              messageIndex: deferred.messageIndex,
+              success: result.success === true,
+              skipped: true,
+              ...(result.warning ? { warning: result.warning } : {}),
+              ...(result.reason ? { reason: result.reason } : {}),
+              ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
+              ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+              error: msg,
+              result,
+            };
+          }
+          continue;
+        }
 
         // Check if the handler explicitly returned a failure
         if (result && result.success === false && !result.deferred) {

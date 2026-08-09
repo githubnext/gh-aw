@@ -219,8 +219,32 @@ describe("Safe Output Handler Manager", () => {
 
       expect(status).toEqual({
         itemsSucceeded: 2,
+        itemsApplied: 2,
+        itemsSkipped: 1,
+        itemsWarnings: 0,
+        itemsCancelled: 1,
+        itemsDeferred: 1,
         itemsFailed: 1,
         status: "partial_success",
+      });
+    });
+
+    it("computes skipped and warning counts without counting them as applied mutations", () => {
+      expect(
+        computeSafeOutputsStatus([
+          { type: "add_comment", success: true, result: { success: true, skipped: true, warning: "Target locked" } },
+          { type: "add_labels", success: false, skipped: true, result: { success: false, skipped: true, reasonCode: "REQUIRED_LABELS_MISMATCH" } },
+          { type: "create_issue", success: true },
+        ])
+      ).toEqual({
+        itemsSucceeded: 1,
+        itemsApplied: 1,
+        itemsSkipped: 2,
+        itemsWarnings: 0,
+        itemsCancelled: 0,
+        itemsDeferred: 0,
+        itemsFailed: 0,
+        status: "completed_with_skips",
       });
     });
 
@@ -232,6 +256,11 @@ describe("Safe Output Handler Manager", () => {
         ])
       ).toEqual({
         itemsSucceeded: 0,
+        itemsApplied: 0,
+        itemsSkipped: 0,
+        itemsWarnings: 0,
+        itemsCancelled: 0,
+        itemsDeferred: 0,
         itemsFailed: 2,
         status: "failure",
       });
@@ -245,6 +274,11 @@ describe("Safe Output Handler Manager", () => {
       });
 
       expect(core.setOutput).toHaveBeenCalledWith("items_succeeded", "10");
+      expect(core.setOutput).toHaveBeenCalledWith("items_applied", "10");
+      expect(core.setOutput).toHaveBeenCalledWith("items_skipped", "0");
+      expect(core.setOutput).toHaveBeenCalledWith("items_warnings", "0");
+      expect(core.setOutput).toHaveBeenCalledWith("items_cancelled", "0");
+      expect(core.setOutput).toHaveBeenCalledWith("items_deferred", "0");
       expect(core.setOutput).toHaveBeenCalledWith("items_failed", "5");
       expect(core.setOutput).toHaveBeenCalledWith("status", "partial_success");
     });
@@ -612,6 +646,36 @@ describe("Safe Output Handler Manager", () => {
       expect(result.results[0].messageIndex).toBe(0);
       expect(result.results[1].type).toBe("create_issue");
       expect(result.results[1].messageIndex).toBe(1);
+    });
+
+    it("preserves summary-safe diagnostics from skipped handler results", async () => {
+      const messages = [{ type: "add_comment", item_number: 123 }];
+      const skippedResult = {
+        success: false,
+        skipped: true,
+        reasonCode: "REQUIRED_LABELS_MISMATCH",
+        reason: "Required labels missing",
+        error: "Item does not match required-labels filter",
+        target: { repo: "owner/repo", number: 123 },
+        safeDetails: {
+          requiredLabels: ["automation", "n-plus-1"],
+          missingLabels: ["automation"],
+        },
+      };
+      const handler = vi.fn().mockResolvedValue(skippedResult);
+
+      const result = await processMessages(new Map([["add_comment", handler]]), messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results[0]).toMatchObject({
+        type: "add_comment",
+        messageIndex: 0,
+        success: false,
+        skipped: true,
+        reasonCode: "REQUIRED_LABELS_MISMATCH",
+        reason: "Required labels missing",
+        result: skippedResult,
+      });
     });
 
     it("should abort non-reviewable outputs in detection warning mode", async () => {
