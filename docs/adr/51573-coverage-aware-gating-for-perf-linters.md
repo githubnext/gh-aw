@@ -1,7 +1,7 @@
 # ADR-51573: Coverage-Aware Gating for Performance-Oriented Custom Linters
 
 **Date**: 2026-08-09
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---

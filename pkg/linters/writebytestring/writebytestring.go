@@ -113,6 +113,10 @@ func analyzeWriteCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 		return
 	}
 
+	if !coverage.ShouldApply(pass, call.Pos(), *hotThreshold) {
+		return
+	}
+
 	sText := astutil.NodeText(pass.Fset, strArg)
 	wText := astutil.NodeText(pass.Fset, sel.X)
 	if sText == "" || wText == "" {
@@ -121,9 +125,6 @@ func analyzeWriteCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 
 	sExpr := buildStringExpr(pass, strArg, sText)
 	writerArg := buildWriterArg(pass, sel.X, wText)
-	if !coverage.ShouldApply(pass, call.Pos(), *hotThreshold) {
-		return
-	}
 
 	pass.Report(analysis.Diagnostic{
 		Pos:            call.Pos(),
