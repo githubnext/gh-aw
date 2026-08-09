@@ -89,13 +89,17 @@ and titles.
 
 ## Step 5 — Report
 
+Use the `reporting` skill to format the report body. Use `###` (or lower) headers only — never
+`#` or `##`. Keep recommended next actions visible at the top; wrap the full list of broken
+cross-references, files missing frontmatter, and related issues in a
+`<details><summary><b>Full Findings</b></summary>` block.
+
 Use the `create_issue` safe-output tool to post the daily report:
 
 - **Title**: `[spec-coverage] Daily Spec Coverage Report — ${{ github.run_id }}`
-- **Body**: Summarize
-  - Broken cross-references found
-  - Files without description frontmatter
-  - Open issues mentioning spec gaps
-  - Recommended next actions (if any)
+- **Body**:
+  - `### Summary` with recommended next actions (if any)
+  - `<details><summary><b>Full Findings</b></summary>` wrapping broken cross-references found,
+    files without description frontmatter, and open issues mentioning spec gaps
 
 If all checks pass, call `noop` with `"Spec coverage audit passed — no gaps found."`.
