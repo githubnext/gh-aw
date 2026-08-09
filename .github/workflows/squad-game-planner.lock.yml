@@ -219,7 +219,6 @@ jobs:
           GH_AW_AGENT_FOLDERS: ".agents .github .github/agents .squad"
           GH_AW_AGENT_FILES: "AGENTS.md"
         run: |
-          # poutine:ignore untrusted_checkout_exec
           bash "${RUNNER_TEMP}/gh-aw/actions/save_base_github_folders.sh"
       - name: Check workflow lock file
         id: check-lock-file
@@ -249,7 +248,6 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          # poutine:ignore untrusted_checkout_exec
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
           cat << 'GH_AW_PROMPT_b230f8de05bb626e_EOF'
@@ -353,13 +351,11 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # poutine:ignore untrusted_checkout_exec
           bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          # poutine:ignore untrusted_checkout_exec
           bash "${RUNNER_TEMP}/gh-aw/actions/print_prompt_summary.sh"
       - name: Detect existing Squad installation
         id: squad-installation
@@ -387,7 +383,6 @@ jobs:
         env:
           GH_AW_AMBIENT_FOLDERS: ".squad .github/agents"
         run: |
-          # poutine:ignore untrusted_checkout_exec
           mkdir -p /tmp/gh-aw/ambient-folders
           for folder in $GH_AW_AMBIENT_FOLDERS; do
             src="$GITHUB_WORKSPACE/$folder"
@@ -512,7 +507,6 @@ jobs:
         env:
           GH_AW_AMBIENT_FOLDERS: ".squad .github/agents"
         run: |
-          # poutine:ignore untrusted_checkout_exec
           for folder in $GH_AW_AMBIENT_FOLDERS; do
             src="/tmp/gh-aw/ambient-folders/$folder"
             dst="$GITHUB_WORKSPACE/$folder"
@@ -569,7 +563,6 @@ jobs:
         env:
           GH_AW_AMBIENT_FOLDERS: ".squad .github/agents"
         run: |
-          # poutine:ignore untrusted_checkout_exec
           for folder in $GH_AW_AMBIENT_FOLDERS; do
             src="/tmp/gh-aw/ambient-folders/$folder"
             dst="$GITHUB_WORKSPACE/$folder"
