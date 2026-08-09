@@ -7,7 +7,7 @@
 
 const { resolveTargetRepoConfig, resolveAndValidateRepo, validateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { getIssueDetails, addIssueThreadComment, closeIssue: closeIssueRest } = require("./close_rest_helpers.cjs");
 const { createCloseEntityHandler, buildCommentBody, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -108,48 +108,6 @@ async function markIssueAsDuplicate(github, duplicateNodeId, canonicalOwner, can
 }
 
 /**
- * Get issue details using REST API
- * @param {any} github - GitHub REST API instance
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} issueNumber - Issue number
- * @returns {Promise<{number: number, title: string, labels: Array<{name: string}>, html_url: string, state: string}>} Issue details
- */
-async function getIssueDetails(github, owner, repo, issueNumber) {
-  const { data: issue } = await github.rest.issues.get({
-    owner,
-    repo,
-    issue_number: issueNumber,
-  });
-
-  if (!issue) {
-    throw new Error(`${ERR_NOT_FOUND}: Issue #${issueNumber} not found in ${owner}/${repo}`);
-  }
-
-  return issue;
-}
-
-/**
- * Add comment to a GitHub Issue using REST API
- * @param {any} github - GitHub REST API instance
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} issueNumber - Issue number
- * @param {string} message - Comment body
- * @returns {Promise<{id: number, html_url: string}>} Comment details
- */
-async function addIssueComment(github, owner, repo, issueNumber, message) {
-  const { data: comment } = await github.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: issueNumber,
-    body: message,
-  });
-
-  return comment;
-}
-
-/**
  * Close a GitHub Issue using REST API
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
@@ -159,13 +117,7 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
  * @returns {Promise<{number: number, html_url: string, title: string, node_id: string}>} Issue details
  */
 async function closeIssue(github, owner, repo, issueNumber, stateReason, intentMetadata, useIssueIntent) {
-  const baseParams = {
-    owner,
-    repo,
-    issue_number: issueNumber,
-    state: "closed",
-    state_reason: (stateReason || "COMPLETED").toLowerCase(),
-  };
+  const normalizedStateReason = (stateReason || "COMPLETED").toLowerCase();
 
   const hasIntentMetadata = Boolean(intentMetadata && Object.keys(intentMetadata).length > 0);
   if (useIssueIntent && hasIntentMetadata) {
@@ -175,7 +127,7 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason, intentM
         repo,
         issue_number: issueNumber,
         state: { value: "closed", ...intentMetadata },
-        state_reason: baseParams.state_reason,
+        state_reason: normalizedStateReason,
       });
       return issue;
     } catch (error) {
@@ -183,9 +135,7 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason, intentM
     }
   }
 
-  const { data: issue } = await github.rest.issues.update(baseParams);
-
-  return issue;
+  return await closeIssueRest(github, owner, repo, issueNumber, normalizedStateReason);
 }
 
 /**
@@ -302,7 +252,7 @@ async function main(config = {}) {
         return buildCommentBody(sanitizedBody, triggeringIssueNumber, triggeringPRNumber);
       },
 
-      addComment: addIssueComment,
+      addComment: addIssueThreadComment,
 
       closeEntity(github, owner, repo, entityNumber, item) {
         // Determine effective state_reason, validating against permitted values when applicable.

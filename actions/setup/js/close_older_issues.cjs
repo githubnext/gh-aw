@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { addIssueThreadComment, closeIssue } = require("./close_rest_helpers.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 const { searchOlderEntitiesByMarker } = require("./close_older_search_helpers.cjs");
 
@@ -81,19 +82,14 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
   core.info(`Adding comment to issue #${issueNumber} in ${owner}/${repo}`);
   core.info(`  Comment length: ${message.length} characters`);
 
-  const result = await github.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: issueNumber,
-    body: sanitizeContent(message),
-  });
+  const comment = await addIssueThreadComment(github, owner, repo, issueNumber, sanitizeContent(message));
 
-  core.info(`  ✓ Comment created successfully with ID: ${result.data.id}`);
-  core.info(`  Comment URL: ${result.data.html_url}`);
+  core.info(`  ✓ Comment created successfully with ID: ${comment.id}`);
+  core.info(`  Comment URL: ${comment.html_url}`);
 
   return {
-    id: result.data.id,
-    html_url: result.data.html_url,
+    id: comment.id,
+    html_url: comment.html_url,
   };
 }
 
@@ -108,20 +104,14 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
 async function closeIssueAsNotPlanned(github, owner, repo, issueNumber) {
   core.info(`Closing issue #${issueNumber} in ${owner}/${repo} as "not planned"`);
 
-  const result = await github.rest.issues.update({
-    owner,
-    repo,
-    issue_number: issueNumber,
-    state: "closed",
-    state_reason: "not_planned",
-  });
+  const issue = await closeIssue(github, owner, repo, issueNumber, "not_planned");
 
-  core.info(`  ✓ Issue #${result.data.number} closed successfully`);
-  core.info(`  Issue URL: ${result.data.html_url}`);
+  core.info(`  ✓ Issue #${issue.number} closed successfully`);
+  core.info(`  Issue URL: ${issue.html_url}`);
 
   return {
-    number: result.data.number,
-    html_url: result.data.html_url,
+    number: issue.number,
+    html_url: issue.html_url,
   };
 }
 

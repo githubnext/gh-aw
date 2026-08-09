@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { addIssueThreadComment, closePullRequest: closePullRequestRest } = require("./close_rest_helpers.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 const { searchOlderEntitiesByMarker } = require("./close_older_search_helpers.cjs");
 
@@ -78,19 +79,14 @@ async function addPullRequestComment(github, owner, repo, prNumber, message) {
   core.info(`Adding comment to pull request #${prNumber} in ${owner}/${repo}`);
   core.info(`  Comment length: ${message.length} characters`);
 
-  const result = await github.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: prNumber,
-    body: sanitizeContent(message),
-  });
+  const comment = await addIssueThreadComment(github, owner, repo, prNumber, sanitizeContent(message));
 
-  core.info(`  ✓ Comment created successfully with ID: ${result.data.id}`);
-  core.info(`  Comment URL: ${result.data.html_url}`);
+  core.info(`  ✓ Comment created successfully with ID: ${comment.id}`);
+  core.info(`  Comment URL: ${comment.html_url}`);
 
   return {
-    id: result.data.id,
-    html_url: result.data.html_url,
+    id: comment.id,
+    html_url: comment.html_url,
   };
 }
 
@@ -105,19 +101,14 @@ async function addPullRequestComment(github, owner, repo, prNumber, message) {
 async function closePullRequest(github, owner, repo, prNumber) {
   core.info(`Closing pull request #${prNumber} in ${owner}/${repo}`);
 
-  const result = await github.rest.pulls.update({
-    owner,
-    repo,
-    pull_number: prNumber,
-    state: "closed",
-  });
+  const pr = await closePullRequestRest(github, owner, repo, prNumber);
 
-  core.info(`  ✓ Pull request #${result.data.number} closed successfully`);
-  core.info(`  Pull request URL: ${result.data.html_url}`);
+  core.info(`  ✓ Pull request #${pr.number} closed successfully`);
+  core.info(`  Pull request URL: ${pr.html_url}`);
 
   return {
-    number: result.data.number,
-    html_url: result.data.html_url,
+    number: pr.number,
+    html_url: pr.html_url,
   };
 }
 

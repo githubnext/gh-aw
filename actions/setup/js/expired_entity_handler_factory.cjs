@@ -4,6 +4,7 @@
 const { generateExpiredEntityFooter, getExpiredEntityCautionAlert } = require("./generate_footer.cjs");
 const { formatDateInProjectTimeZone } = require("./project_timezone.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { addIssueThreadComment: addIssueThreadCommentRest, closeIssue: closeIssueRest, closePullRequest: closePullRequestRest } = require("./close_rest_helpers.cjs");
 
 /**
  * @param {string} label
@@ -53,14 +54,7 @@ function createExpiredEntityClosingMessage({ entity, entityNoun, workflowName, w
  * @returns {Promise<any>} Comment details
  */
 async function addIssueThreadComment(github, owner, repo, issueNumber, message) {
-  const result = await github.rest.issues.createComment({
-    owner: owner,
-    repo: repo,
-    issue_number: issueNumber,
-    body: sanitizeContent(message),
-  });
-
-  return result.data;
+  return await addIssueThreadCommentRest(github, owner, repo, issueNumber, sanitizeContent(message));
 }
 
 /**
@@ -72,15 +66,7 @@ async function addIssueThreadComment(github, owner, repo, issueNumber, message) 
  * @returns {Promise<any>} Issue details
  */
 async function closeIssue(github, owner, repo, issueNumber) {
-  const result = await github.rest.issues.update({
-    owner: owner,
-    repo: repo,
-    issue_number: issueNumber,
-    state: "closed",
-    state_reason: "not_planned",
-  });
-
-  return result.data;
+  return await closeIssueRest(github, owner, repo, issueNumber, "not_planned");
 }
 
 /**
@@ -92,14 +78,7 @@ async function closeIssue(github, owner, repo, issueNumber) {
  * @returns {Promise<any>} Pull request details
  */
 async function closePullRequest(github, owner, repo, prNumber) {
-  const result = await github.rest.pulls.update({
-    owner: owner,
-    repo: repo,
-    pull_number: prNumber,
-    state: "closed",
-  });
-
-  return result.data;
+  return await closePullRequestRest(github, owner, repo, prNumber);
 }
 
 /**
