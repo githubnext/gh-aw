@@ -48,6 +48,16 @@ interface ResolvedTemporaryIds {
 interface HandlerSuccessResult {
   /** Indicates the operation was successful */
   success: true;
+  /** True when the handler intentionally skipped/no-oped without applying a mutation */
+  skipped?: boolean;
+  /** Machine-readable summary-safe reason code */
+  reasonCode?: string;
+  /** Human-readable summary-safe reason */
+  reason?: string;
+  /** Summary-safe target metadata */
+  target?: { repo?: string; number?: number; url?: string };
+  /** Additional summary-safe diagnostic fields */
+  safeDetails?: Record<string, any>;
   /** Additional result properties (number, url, temporaryId, etc.) */
   [key: string]: any;
 }
@@ -59,7 +69,21 @@ interface HandlerErrorResult {
   /** Indicates the operation failed */
   success: false;
   /** Error message describing what went wrong */
-  error: string;
+  error?: string;
+  /** True when the handler intentionally skipped/no-oped without applying a mutation */
+  skipped?: boolean;
+  /** True when the handler deferred processing for a later retry */
+  deferred?: boolean;
+  /** True when processing was cancelled by policy or upstream failure */
+  cancelled?: boolean;
+  /** Machine-readable summary-safe reason code */
+  reasonCode?: string;
+  /** Human-readable summary-safe reason */
+  reason?: string;
+  /** Summary-safe target metadata */
+  target?: { repo?: string; number?: number; url?: string };
+  /** Additional summary-safe diagnostic fields */
+  safeDetails?: Record<string, any>;
   /** Additional result properties (skipped, etc.) */
   [key: string]: any;
 }

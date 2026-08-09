@@ -519,7 +519,7 @@ func localSkillSparseCheckoutTopLevelDirs(data *WorkflowData) []string {
 	result := make([]string, 0, len(refs))
 	for _, ref := range refs {
 		spec := strings.TrimSpace(ref.Skill)
-		if !isLocalSkillRef(spec) {
+		if !parseSkillRefSpec(spec).isLocal {
 			continue
 		}
 		normalized := strings.TrimPrefix(strings.ReplaceAll(spec, "\\", "/"), "./")

@@ -1226,3 +1226,72 @@ func TestAuditCommandExperimentAndVariantFlagsAreAccepted(t *testing.T) {
 		assert.NotContains(t, err.Error(), "unknown flag", "flags --experiment and --variant must be registered")
 	}
 }
+
+func TestAuditCommandInvalidRuntimeIsRejected(t *testing.T) {
+	// Mirrors TestAuditCommandVariantWithoutExperiment: --runtime should be
+	// eagerly validated (like the logs command) rather than silently skipping
+	// every run on a typo.
+	cmd := NewAuditCommand()
+	cmd.SetArgs([]string{"1234567890", "--runtime", "not-a-real-runtime"})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	err := cmd.Execute()
+	require.Error(t, err, "invalid --runtime value should return an error")
+	require.ErrorContains(t, err, "invalid runtime value", "error message should explain the invalid value")
+}
+
+// TestShouldSkipAuditRun_Runtime verifies that shouldSkipAuditRun's runtime
+// filter matches the shared matchRuntimeFilter contract used by the logs
+// orchestrator: matching runtime is not skipped, non-matching or missing
+// runtime is skipped, with an "unknown" fallback label for the skip message.
+func TestShouldSkipAuditRun_Runtime(t *testing.T) {
+	cases := []struct {
+		name          string
+		awInfoContent string // empty means no aw_info.json file
+		runtimeFilter string
+		wantSkip      bool
+	}{
+		{
+			name:          "matching runtime is not skipped",
+			awInfoContent: `{"agent_runtime": "gvisor"}`,
+			runtimeFilter: "gvisor",
+			wantSkip:      false,
+		},
+		{
+			name:          "non-matching runtime is skipped",
+			awInfoContent: `{"agent_runtime": "docker-sbx"}`,
+			runtimeFilter: "gvisor",
+			wantSkip:      true,
+		},
+		{
+			name:          "missing aw_info.json is skipped",
+			awInfoContent: "",
+			runtimeFilter: "gvisor",
+			wantSkip:      true,
+		},
+		{
+			name:          "empty agent_runtime is skipped",
+			awInfoContent: `{"agent_runtime": ""}`,
+			runtimeFilter: "gvisor",
+			wantSkip:      true,
+		},
+		{
+			name:          "no runtime filter never skips",
+			awInfoContent: `{"agent_runtime": "docker-sbx"}`,
+			runtimeFilter: "",
+			wantSkip:      false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			if tc.awInfoContent != "" {
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw_info.json"), []byte(tc.awInfoContent), 0644))
+			}
+
+			gotSkip := shouldSkipAuditRun(1234567890, tmpDir, "", "", tc.runtimeFilter)
+			assert.Equal(t, tc.wantSkip, gotSkip)
+		})
+	}
+}

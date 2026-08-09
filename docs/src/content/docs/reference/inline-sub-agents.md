@@ -15,7 +15,35 @@ Start a sub-agent block with a level-2 heading in the following form:
 ## agent: `name`
 ```
 
-The block continues until the next `##` heading or end of file. There is no explicit closing marker.
+When a matching `## end agent: \`name\`` marker is present, the block continues until that marker even if the block contains other `##` headings. Without an explicit end marker, the block continues until the next `##` heading or end of file.
+
+### Explicit end marker
+
+Add a closing heading to bound the block explicitly instead of relying on the next `##` heading or EOF:
+
+```markdown
+## agent: `name`
+...
+## end agent: `name`
+```
+
+```markdown
+## agent: `file-summarizer`
+---
+description: Summarizes files
+---
+You are a file summarization assistant.
+## end agent: `file-summarizer`
+```
+
+Use the explicit end marker when:
+
+- The sub-agent block is embedded in the middle of a document — for example, brought in via an [import](/gh-aw/reference/imports/) — so content that follows it is not accidentally swallowed into the block.
+- The sub-agent's own instructions need to contain `##` headings (structured guidance, section breaks, etc.) without those headings being mistaken for the block's boundary.
+
+Without an explicit end marker, the block still ends at the next `##` heading or EOF, matching the original behavior.
+
+When a sub-agent block is brought in via `{{#runtime-import ...}}` and has no explicit end marker of its own, the runtime import resolver automatically inserts one at the point the implicit boundary would otherwise fall, so the imported block can never expand to swallow content spliced in after it (a subsequent import, or the rest of the workflow body). Authoring an explicit end marker is still recommended for clarity, but this makes every runtime import import-safe by default.
 
 ### Name constraints
 
@@ -101,7 +129,7 @@ The sub-agent block at the bottom is extracted before the workflow runs and has 
 
 ## Example: Multiple Sub-Agents in One Workflow
 
-A single workflow file may contain more than one sub-agent block. Each block starts with its own `## agent: \`name\`` heading and ends at the next `##` heading or EOF.
+A single workflow file may contain more than one sub-agent block. Each block starts with its own `## agent: \`name\`` heading and ends at a matching `## end agent: \`name\`` marker, the next `##` heading, or EOF.
 
 ```aw wrap
 ## agent: `summarizer`

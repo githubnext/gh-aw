@@ -12,6 +12,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { reduceModelNameToIdentifier } = require("./model_aliases.cjs");
+const { buildNoopConclusionSummary } = require("./conclusion_summary.cjs");
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
@@ -185,27 +186,23 @@ async function main() {
 
     // --- Staged mode: preview only, do not post ---
     if (isStagedMode()) {
-      let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
-      summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
-      for (let i = 0; i < noopItems.length; i++) {
-        const item = noopItems[i];
-        summaryContent += `### Message ${i + 1}\n`;
-        summaryContent += `${item.message}\n\n`;
-        summaryContent += "---\n\n";
-      }
+      const summaryContent = buildNoopConclusionSummary(
+        noopItems.map(item => item.message),
+        { runUrl: process.env.GH_AW_RUN_URL, staged: true }
+      );
       await core.summary.addRaw(summaryContent).write();
       core.info("📝 No-op message preview written to step summary");
       return;
     }
 
     // --- Write step summary ---
-    let summaryContent = "\n\n## No-Op Messages\n\n";
-    summaryContent += "The following messages were logged for transparency:\n\n";
-    for (let i = 0; i < noopItems.length; i++) {
-      const item = noopItems[i];
-      core.info(`No-op message ${i + 1}: ${item.message}`);
-      summaryContent += `- ${item.message}\n`;
+    for (let index = 0; index < noopItems.length; index++) {
+      core.info(`No-op message ${index + 1}: ${noopItems[index].message}`);
     }
+    const summaryContent = buildNoopConclusionSummary(
+      noopItems.map(item => item.message),
+      { runUrl: process.env.GH_AW_RUN_URL }
+    );
     await core.summary.addRaw(summaryContent).write();
 
     // Export for downstream steps/jobs

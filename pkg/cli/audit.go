@@ -36,6 +36,7 @@ type AuditOptions struct {
 	ArtifactSets     []string
 	ExperimentFilter string
 	VariantFilter    string
+	RuntimeFilter    string
 	EvalsOnly        bool
 }
 
@@ -71,7 +72,8 @@ var auditCommandExample = `  ` + string(constants.CLIExtensionPrefix) + ` audit 
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --repo owner/repo  # Audit run from a specific repository
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891         # Diff two runs (base vs comparison)
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 1234567892  # Diff base against multiple runs
-  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --format markdown  # Markdown diff output for PR comments`
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 1234567891 --format markdown  # Markdown diff output for PR comments
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --runtime gvisor   # Skip run unless sandbox agent runtime matches`
 
 type auditCommandOptions struct {
 	outputDir        string
@@ -84,6 +86,7 @@ type auditCommandOptions struct {
 	stdin            bool
 	experimentFilter string
 	variantFilter    string
+	runtimeFilter    string
 	evalsOnly        bool
 }
 
@@ -112,6 +115,7 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
 	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")
+	cmd.Flags().String("runtime", "", "Filter to runs using a specific sandbox agent runtime (e.g., gvisor, docker-sbx)")
 	cmd.Flags().Bool("evals", false, "Filter to runs containing evals results (evals.jsonl); automatically downloads the usage artifact (which includes evals) when --artifacts is narrowed")
 	RegisterDirFlagCompletion(cmd, "output")
 }
@@ -149,12 +153,16 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 	opts.stdin, _ = cmd.Flags().GetBool("stdin")
 	opts.experimentFilter, _ = cmd.Flags().GetString("experiment")
 	opts.variantFilter, _ = cmd.Flags().GetString("variant")
+	opts.runtimeFilter, _ = cmd.Flags().GetString("runtime")
 	opts.evalsOnly, _ = cmd.Flags().GetBool("evals")
 	if opts.variantFilter != "" && opts.experimentFilter == "" {
 		return auditCommandOptions{}, errors.New(console.FormatErrorWithSuggestions(
 			"--variant requires --experiment to be specified",
 			[]string{"Add --experiment <name> to filter by experiment name alongside --variant"},
 		))
+	}
+	if err := validateLogsRuntime(opts.runtimeFilter); err != nil {
+		return auditCommandOptions{}, err
 	}
 	// Auto-include the usage artifact (which now contains evals) when --evals is
 	// specified and the user has narrowed the artifact set (non-empty --artifacts).
@@ -218,6 +226,7 @@ func runAuditSingle(ctx context.Context, runIDOrURL string, opts auditCommandOpt
 		ArtifactSets:     opts.artifacts,
 		ExperimentFilter: opts.experimentFilter,
 		VariantFilter:    opts.variantFilter,
+		RuntimeFilter:    opts.runtimeFilter,
 		EvalsOnly:        opts.evalsOnly,
 	})
 }
@@ -320,6 +329,7 @@ type auditRunConfig struct {
 	artifactFilter   []string
 	experimentFilter string
 	variantFilter    string
+	runtimeFilter    string
 	evalsOnly        bool
 	// evalsArtifactRequested is true when evals were requested via --evals or
 	// explicit --artifacts evals, and is used to trigger legacy dedicated-evals
@@ -386,7 +396,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	run = applyAuditMetrics(run, results)
 	processedRun := buildProcessedAuditRun(run, results)
 	saveAuditRunSummary(cfg.outputDir, run, processedRun, results, cfg.verbose)
-	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
+	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter, cfg.runtimeFilter) {
 		return nil
 	}
 	if shouldSkipForEvals(ctx, cfg, run) {
@@ -413,6 +423,7 @@ func newAuditRunConfig(runID int64, opts AuditOptions) (auditRunConfig, error) {
 		artifactFilter:         ResolveArtifactFilter(opts.ArtifactSets),
 		experimentFilter:       opts.ExperimentFilter,
 		variantFilter:          opts.VariantFilter,
+		runtimeFilter:          opts.RuntimeFilter,
 		evalsOnly:              opts.EvalsOnly,
 		evalsArtifactRequested: isEvalsArtifactRequested(opts.EvalsOnly, opts.ArtifactSets),
 	}, nil
@@ -506,7 +517,7 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (bool
 	if cfg.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached run summary for run %d (processed at %s)", cfg.runID, summary.ProcessedAt.Format(time.RFC3339))))
 	}
-	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter) {
+	if shouldSkipAuditRun(cfg.runID, cfg.outputDir, cfg.experimentFilter, cfg.variantFilter, cfg.runtimeFilter) {
 		return true, nil
 	}
 	// When evals are requested but evals are not present locally (e.g., the run was
@@ -552,16 +563,27 @@ func processedRunFromSummary(summary *RunSummary, runOutputDir string) Processed
 	return processedRun
 }
 
-func shouldSkipAuditRun(runID int64, runOutputDir, experimentFilter, variantFilter string) bool {
-	if experimentFilter == "" {
-		return false
+func shouldSkipAuditRun(runID int64, runOutputDir, experimentFilter, variantFilter, runtimeFilter string) bool {
+	if experimentFilter != "" {
+		expData := extractExperimentData(runOutputDir)
+		if !experimentMatchesFilter(expData, experimentFilter, variantFilter) {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(formatExperimentSkipMessage(runID, experimentFilter, variantFilter)))
+			return true
+		}
 	}
-	expData := extractExperimentData(runOutputDir)
-	if experimentMatchesFilter(expData, experimentFilter, variantFilter) {
-		return false
+	if runtimeFilter != "" {
+		awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
+		awInfo, awInfoErr := parseAwInfo(awInfoPath, false)
+		runtimeMatches, detectedRuntime := matchRuntimeFilter(awInfo, awInfoErr, runtimeFilter)
+		if !runtimeMatches {
+			if detectedRuntime == "" {
+				detectedRuntime = "unknown"
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: runtime '%s' does not match filter '%s'", runID, detectedRuntime, runtimeFilter)))
+			return true
+		}
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(formatExperimentSkipMessage(runID, experimentFilter, variantFilter)))
-	return true
+	return false
 }
 
 func prepareAuditWorkflowRun(ctx context.Context, cfg auditRunConfig) (WorkflowRun, error) {

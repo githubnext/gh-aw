@@ -52,6 +52,10 @@ func RunGHInputContext(ctx context.Context, spinnerMessage string, input io.Read
 	return nil, errors.New("gh CLI not available in Wasm")
 }
 
+// enrichGHError is a pass-through stub in Wasm builds; gh CLI subprocesses are
+// never executed, so there is no stderr to append.
+func enrichGHError(err error) error { return err }
+
 func ghUnavailableCommand(ctx context.Context) *exec.Cmd {
 	ctx = ctxutil.OrBackground(ctx)
 	return exec.CommandContext(ctx, "echo", "gh CLI not available in Wasm")

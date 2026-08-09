@@ -161,7 +161,7 @@ const DefaultPlaywrightMCPVersion Version = "0.0.79"
 // Used when tools.playwright.mode is "cli" to install the CLI tool instead of the MCP server.
 // Keep this version outside the default 3-day npm release-age cooldown window enforced by
 // generated Playwright CLI install steps. See TestDefaultPlaywrightCLIVersionOutsideCooldownWindow.
-const DefaultPlaywrightCLIVersion Version = "0.1.17"
+const DefaultPlaywrightCLIVersion Version = "0.1.18"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.62.1"

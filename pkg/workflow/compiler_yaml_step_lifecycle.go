@@ -136,7 +136,14 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		firewallType = "squid"
 	}
 
-	compilerYamlStepLifecycleLog.Printf("Generating aw_info step: engine=%s, modelConfigured=%t, version=%s, firewallEnabled=%t, staged=%s", engineID, modelConfigured, version, firewallEnabled, stagedValue)
+	// Sandbox agent runtime (e.g., "gvisor", "docker-sbx"), stored in aw_info.json
+	// for observability and used by the logs/audit --runtime filter.
+	agentRuntime := ""
+	if data.SandboxConfig != nil && data.SandboxConfig.Agent != nil {
+		agentRuntime = string(data.SandboxConfig.Agent.Runtime)
+	}
+
+	compilerYamlStepLifecycleLog.Printf("Generating aw_info step: engine=%s, modelConfigured=%t, version=%s, firewallEnabled=%t, staged=%s, agentRuntime=%s", engineID, modelConfigured, version, firewallEnabled, stagedValue, agentRuntime)
 
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        id: generate_aw_info\n")
@@ -175,6 +182,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
+	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_RUNTIME: \"%s\"\n", agentRuntime)
 	if data.Source != "" {
 		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", data.Source)
 		// Body-modified defaults to false at compile time; update flows may override this
