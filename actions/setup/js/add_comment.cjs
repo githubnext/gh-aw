@@ -565,6 +565,8 @@ async function main(config = {}) {
       return {
         success: false,
         skipped: true,
+        reasonCode: "MAX_COUNT_REACHED",
+        reason: "Max count reached",
         error: `Max count of ${maxCount} reached`,
       };
     }
@@ -682,6 +684,8 @@ async function main(config = {}) {
               return {
                 success: false,
                 skipped: true,
+                reasonCode: "NO_CONTEXT",
+                reason: "No target context available",
                 error: targetResult.error,
               };
             }
@@ -696,6 +700,8 @@ async function main(config = {}) {
             return {
               success: false,
               skipped: true,
+              reasonCode: "NO_CONTEXT",
+              reason: "No target context available",
               error: targetResult.error,
             };
           }
@@ -716,14 +722,31 @@ async function main(config = {}) {
         });
         if (requiredLabels.length > 0) {
           const itemLabels = (filterItem.labels || []).map(/** @param {any} l */ l => (typeof l === "string" ? l : l.name || ""));
-          if (!requiredLabels.every(r => itemLabels.includes(r))) {
+          const missingLabels = requiredLabels.filter(r => !itemLabels.includes(r));
+          if (missingLabels.length > 0) {
             core.info(`Skipping add_comment for #${itemNumber}: does not match required-labels filter (${requiredLabels.join(", ")})`);
-            return { success: false, skipped: true, error: `Item does not match required-labels filter` };
+            return {
+              success: false,
+              skipped: true,
+              reasonCode: "REQUIRED_LABELS_MISMATCH",
+              reason: "Required labels missing",
+              error: "Item does not match required-labels filter",
+              target: { repo: itemRepo, number: itemNumber },
+              safeDetails: { requiredLabels, missingLabels },
+            };
           }
         }
         if (requiredTitlePrefix && !filterItem.title?.startsWith(requiredTitlePrefix)) {
           core.info(`Skipping add_comment for #${itemNumber}: title does not start with required prefix "${requiredTitlePrefix}"`);
-          return { success: false, skipped: true, error: `Item title does not start with required prefix` };
+          return {
+            success: false,
+            skipped: true,
+            reasonCode: "REQUIRED_TITLE_PREFIX_MISMATCH",
+            reason: "Required title prefix missing",
+            error: "Item title does not start with required prefix",
+            target: { repo: itemRepo, number: itemNumber },
+            safeDetails: { requiredTitlePrefix },
+          };
         }
       } catch (err) {
         core.warning(`Could not fetch item #${itemNumber} to check filters: ${getErrorMessage(err)}`);
@@ -1049,6 +1072,9 @@ async function main(config = {}) {
               success: true,
               warning: `Target not found: ${discussionErrorMessage}`,
               skipped: true,
+              reasonCode: "TARGET_NOT_FOUND",
+              reason: "Target not found",
+              target: { repo: itemRepo, number: itemNumber },
             };
           }
 
@@ -1063,6 +1089,9 @@ async function main(config = {}) {
             return {
               success: false,
               skipped: true,
+              reasonCode: "DISCUSSIONS_TOKEN_SCOPE_MISMATCH",
+              reason: "GitHub token cannot add comments to discussions",
+              target: { repo: itemRepo, number: itemNumber },
               error: warningMessage,
             };
           }
@@ -1083,6 +1112,9 @@ async function main(config = {}) {
           success: true,
           warning: `Target not found: ${errorMessage}`,
           skipped: true,
+          reasonCode: "TARGET_NOT_FOUND",
+          reason: "Target not found",
+          target: { repo: itemRepo, number: itemNumber },
         };
       }
 
@@ -1093,6 +1125,9 @@ async function main(config = {}) {
           success: true,
           warning: `Target is locked: ${errorMessage}`,
           skipped: true,
+          reasonCode: "TARGET_LOCKED",
+          reason: "Target is locked",
+          target: { repo: itemRepo, number: itemNumber },
         };
       }
 

@@ -211,6 +211,80 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("https://github.com/orgs/owner/projects/123");
     });
 
+    it("renders skipped policy diagnostics without classifying the item as failed", () => {
+      const summary = generateSafeOutputSummary({
+        type: "add_comment",
+        messageIndex: 1,
+        success: false,
+        skipped: true,
+        result: {
+          success: false,
+          skipped: true,
+          reasonCode: "REQUIRED_LABELS_MISMATCH",
+          reason: "Required labels missing",
+          target: {
+            repo: "github/github",
+            number: 434183,
+            url: "https://github.com/github/github/issues/434183",
+          },
+          safeDetails: {
+            requiredLabels: ["automation", "n-plus-1"],
+            missingLabels: ["automation", "n-plus-1"],
+          },
+        },
+        message: {},
+      });
+
+      expect(summary).toContain("⚠️ Add Comment - Skipped (Message 1)");
+      expect(summary).not.toContain("Failed");
+      expect(summary).toContain("[github/github#434183](https://github.com/github/github/issues/434183)");
+      expect(summary).toContain("**Reason Code:** `REQUIRED_LABELS_MISMATCH`");
+      expect(summary).toContain("**Reason:** Required labels missing");
+      expect(summary).toContain("**Required:** `automation`, `n-plus-1`");
+      expect(summary).toContain("**Missing:** `automation`, `n-plus-1`");
+    });
+
+    it("renders success true skipped warning outcomes as skipped rather than success", () => {
+      const summary = generateSafeOutputSummary({
+        type: "add_comment",
+        messageIndex: 2,
+        success: true,
+        result: {
+          success: true,
+          skipped: true,
+          warning: "Target is locked: raw API details are omitted",
+          reasonCode: "TARGET_LOCKED",
+          reason: "Target is locked",
+          target: { repo: "owner/repo", number: 5 },
+        },
+        message: {},
+      });
+
+      expect(summary).toContain("⚠️ Add Comment - Skipped (Message 2)");
+      expect(summary).not.toContain("- Success");
+      expect(summary).not.toContain("- Failed");
+      expect(summary).toContain("**Reason:** Target is locked");
+      expect(summary).not.toContain("raw API details");
+    });
+
+    it("renders handler-independent safe detail fields", () => {
+      const summary = generateSafeOutputSummary({
+        type: "dispatch_workflow",
+        messageIndex: 3,
+        success: false,
+        result: {
+          success: false,
+          skipped: true,
+          reason: "Branch is not allowed",
+          safeDetails: { allowedBranches: ["main", "release"], protected: true },
+        },
+        message: {},
+      });
+
+      expect(summary).toContain("**Allowed Branches:** `main`, `release`");
+      expect(summary).toContain("**Protected:** `true`");
+    });
+
     it("should display secrecy field when present in message", () => {
       const options = {
         type: "create_issue",
@@ -842,8 +916,7 @@ describe("safe_output_summary", () => {
       expect(summaryContent).toContain("Safe Output Processing Summary");
       expect(summaryContent).toContain("Processed 2 safe-output message(s)");
       expect(summaryContent).toContain("Status: **success**");
-      expect(summaryContent).toContain("Items succeeded: **2**");
-      expect(summaryContent).toContain("Items failed: **0**");
+      expect(summaryContent).toContain("Applied: **2** · Skipped: **0** · Warnings: **0** · Failed: **0** · Cancelled: **0** · Deferred: **0**");
       expect(summaryContent).toContain("Create Issue");
       expect(summaryContent).toContain("Create Project");
     });
@@ -887,8 +960,83 @@ describe("safe_output_summary", () => {
 
       const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
       expect(summaryContent).toContain("Status: **partial_success**");
-      expect(summaryContent).toContain("Items succeeded: **1**");
-      expect(summaryContent).toContain("Items failed: **1**");
+      expect(summaryContent).toContain("Applied: **1** · Skipped: **0** · Warnings: **0** · Failed: **1** · Cancelled: **0** · Deferred: **0**");
+    });
+
+    it("writes aggregate counts and grouped overview matching per-item classifications", async () => {
+      const results = [
+        {
+          type: "add_comment",
+          messageIndex: 0,
+          success: true,
+          result: { success: true, repo: "owner/repo", number: 1 },
+        },
+        {
+          type: "add_comment",
+          messageIndex: 1,
+          success: false,
+          skipped: true,
+          error: "Required labels missing",
+          result: {
+            success: false,
+            skipped: true,
+            reasonCode: "REQUIRED_LABELS_MISMATCH",
+            reason: "Required labels missing",
+            target: { repo: "owner/repo", number: 2 },
+            safeDetails: { requiredLabels: ["automation"], missingLabels: ["automation"] },
+          },
+        },
+        {
+          type: "add_labels",
+          messageIndex: 2,
+          success: true,
+          skipped: true,
+          warning: "Target locked",
+          result: {
+            success: true,
+            skipped: true,
+            reasonCode: "TARGET_LOCKED",
+            reason: "Target is locked",
+            target: { repo: "owner/repo", number: 3 },
+          },
+        },
+        {
+          type: "dispatch_workflow",
+          messageIndex: 3,
+          success: false,
+          error: "ERR_PERMISSION: denied",
+          result: null,
+        },
+        {
+          type: "upload_artifact",
+          messageIndex: 4,
+          success: false,
+          deferred: true,
+          result: { success: false, deferred: true },
+        },
+        {
+          type: "merge_pull_request",
+          messageIndex: 5,
+          success: false,
+          cancelled: true,
+          errorCode: "THREAT_DETECTED",
+          reason: "Threat policy cancelled the output | blocked\nby policy",
+        },
+      ];
+      const messages = [{}, {}, {}, {}, {}, {}];
+
+      await writeSafeOutputSummaries(results, messages);
+
+      const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryContent).toContain("Status: **partial_success**");
+      expect(summaryContent).toContain("Applied: **1** · Skipped: **2** · Warnings: **0** · Failed: **1** · Cancelled: **1** · Deferred: **1**");
+      expect(summaryContent).toContain("| Skipped | Add Comment | 1 | Required labels missing |");
+      expect(summaryContent).toContain("| Failed | Dispatch Workflow | 1 | ERR_PERMISSION |");
+      expect(summaryContent).toContain("| Cancelled | Merge Pull Request | 1 | Threat policy cancelled the output \\| blocked<br>by policy |");
+      expect(summaryContent).toContain("⚠️ Add Comment - Skipped (Message 2)");
+      expect(summaryContent).toContain("❌ Dispatch Workflow - Failed (Message 4)");
+      expect(summaryContent).toContain("⏸️ Upload Artifact - Deferred (Message 5)");
+      expect(summaryContent).toContain("🚫 Merge Pull Request - Cancelled (Message 6)");
     });
 
     it("should skip results handled by standalone steps", async () => {
@@ -904,6 +1052,7 @@ describe("safe_output_summary", () => {
           messageIndex: 1,
           success: false,
           skipped: true,
+          delegated: true,
           reason: "Handled by standalone step",
         },
       ];
