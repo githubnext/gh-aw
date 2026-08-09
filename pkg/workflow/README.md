@@ -746,7 +746,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | Constants | 151 |
 | Variables | 43 |
 | Functions and methods | 670 |
-| Additional symbols documented in this appendix | 829 |
+| Additional symbols documented in this appendix | 856 |
 
 ### Additional types
 
@@ -895,6 +895,24 @@ This appendix is generated from the current non-test Go source files in this pac
 | `workflow_data.go` | `SkipIfCheckFailingConfig` | `type SkipIfCheckFailingConfig struct { Include []string // check names to include (empty = all checks) Exclude []string // check names to exclude Branch string // optional branch name to check (defaults to triggering ref or PR base branch) AllowPending bool // if true, pending/in-progress checks are not treated as failing (default: treat pending as failing) }` | SkipIfCheckFailingConfig holds the configuration for skip-if-check-failing conditions |
 | `workflow_data.go` | `SkipIfMatchConfig` | `type SkipIfMatchConfig struct { Query string // GitHub search query to check before running workflow Max int // Maximum number of matches before skipping (defaults to 1) Scope string // Scope for the query: "none" disables auto repo:owner/repo scoping }` | SkipIfMatchConfig holds the configuration for skip-if-match conditions |
 | `workflow_data.go` | `SkipIfNoMatchConfig` | `type SkipIfNoMatchConfig struct { Query string // GitHub search query to check before running workflow Min int // Minimum number of matches required to proceed (defaults to 1) Scope string // Scope for the query: "none" disables auto repo:owner/repo scoping }` | SkipIfNoMatchConfig holds the configuration for skip-if-no-match conditions |
+| `awf_config.go` | `AWFBoundedQueriesConfig` | `type AWFBoundedQueriesConfig struct { Enabled bool PrivateRepos []*AWFBoundedQueryPrivateRepo Runtime BoundedQueryRuntime Timeout int MemoryLimit string Interpreter string MaxInvocations int }` | AWFBoundedQueriesConfig models compiled bounded-query settings in AWF config output. |
+| `awf_config.go` | `AWFBoundedQueryPrivateRepo` | `type AWFBoundedQueryPrivateRepo struct { Repo string Sensitivity string }` | AWFBoundedQueryPrivateRepo describes one approved private repository for bounded queries. |
+| `sandbox.go` | `AiCreditsPricingConfig` | `type AiCreditsPricingConfig struct { Input float64 Output float64 CachedInput *float64 CacheWrite *float64 }` | AiCreditsPricingConfig defines per-token pricing inputs used for AI-credit accounting. |
+| `tools_types.go` | `BoundedQueriesConfig` | `type BoundedQueriesConfig struct { PrivateRepos []*BoundedQueryPrivateRepo Runtime BoundedQueryRuntime Timeout *int MemoryLimit string Interpreter string MaxInvocations *int ParseError string }` | BoundedQueriesConfig defines user-facing bounded-query tool configuration. |
+| `tools_types.go` | `BoundedQueryPrivateRepo` | `type BoundedQueryPrivateRepo struct { Repo string Sensitivity string }` | BoundedQueryPrivateRepo describes one private repository entry in bounded-query config. |
+| `tools_types.go` | `BoundedQueryRuntime` | `type BoundedQueryRuntime string` | BoundedQueryRuntime enumerates supported bounded-query runtimes. |
+| `repo_config.go` | `ContainerPinTarget` | `type ContainerPinTarget struct { Image string Digest string }` | ContainerPinTarget maps a source image to a pinned digest replacement. |
+| `engine_definition.go` | `EngineNetworkDefinition` | `type EngineNetworkDefinition struct { Defaults []string ProviderDomains map[string]string DefaultProvider string }` | EngineNetworkDefinition defines network-domain defaults for declarative engines. |
+| `engine_helpers.go` | `EngineSecretValidationConfig` | `type EngineSecretValidationConfig struct { SecretNames []string EngineName string DocsURL string Skip func(*WorkflowData) bool }` | EngineSecretValidationConfig configures shared engine-secret validation steps. |
+| `agentic_engine.go` | `HarnessRunner` | `type HarnessRunner interface { GetHarnessScriptName() string }` | HarnessRunner is implemented by engines that execute via harness scripts. |
+| `agentic_engine.go` | `InferenceProviderResolver` | `type InferenceProviderResolver interface { ResolveLLMProvider(workflowData *WorkflowData) LLMProvider }` | InferenceProviderResolver resolves the effective inference provider for a workflow run. |
+| `engine.go` | `InlineEngineDriver` | `type InlineEngineDriver struct { Runtime string Source string MultipleRuntime bool }` | InlineEngineDriver describes a parsed inline engine driver definition. |
+| `llm_provider.go` | `LLMProvider` | `type LLMProvider string` | LLMProvider identifies the model provider selected for an engine invocation. |
+| `agentic_engine.go` | `MCPConfigAdapterProvider` | `type MCPConfigAdapterProvider interface { GetMCPConfigAdapterWriteStep() GitHubActionStep GetMCPConfigAdapterFilename() string }` | MCPConfigAdapterProvider is implemented by engines that ship MCP config-adapter scripts. |
+| `agentic_engine.go` | `MCPProxyEngine` | `type MCPProxyEngine interface { Engine CapabilityProvider }` | MCPProxyEngine marks engines that support MCP proxy integration. |
+| `nodejs.go` | `NPMInstallOptions` | `type NPMInstallOptions struct { IncludeNodeSetup bool IsGlobal bool RunInstallScripts bool CooldownEnabled bool }` | NPMInstallOptions controls Node.js/npm bootstrap behavior in generated jobs. |
+| `frontmatter_types.go` | `OTLPWorkloadIdentityConfig` | `type OTLPWorkloadIdentityConfig struct { Provider string Audience string ServiceAccount string }` | OTLPWorkloadIdentityConfig holds workload-identity metadata for OTLP exporters. |
+| `safe_outputs_parser.go` | `SafeOutputAllowedLabelsConfig` | `type SafeOutputAllowedLabelsConfig struct { AllowedLabels []string }` | SafeOutputAllowedLabelsConfig configures optional safe-output label allowlists. |
 
 ### Additional constants and variables
 
@@ -1081,15 +1099,24 @@ This appendix is generated from the current non-test Go source files in this pac
 | `lock_schema.go` | `var` | `SupportedSchemaVersions` | `var SupportedSchemaVersions = []LockSchemaVersion{ LockSchemaV1, LockSchemaV2, LockSchemaV3, LockSchemaV4, }` | SupportedSchemaVersions lists all schema versions this build can consume |
 | `mcp_github_config.go` | `var` | `DefaultDisapprovalReactions` | `var DefaultDisapprovalReactions = []string{"THUMBS_DOWN", "CONFUSED"}` | DefaultDisapprovalReactions are the default disapproval reactions injected when the integrity-reactions feature flag is enabled but no explicit disapproval-reactions are set. |
 | `mcp_github_config.go` | `var` | `DefaultEndorsementReactions` | `var DefaultEndorsementReactions = []string{"THUMBS_UP", "HEART"}` | DefaultEndorsementReactions are the default endorsement reactions injected when the integrity-reactions feature flag is enabled but no explicit endorsement-reactions are set. |
+| `mcp_github_default_fields.go` | `var` | `GitHubMCPDefaultFields` | `var GitHubMCPDefaultFields = map[string][]string{...}` | GitHubMCPDefaultFields defines default response fields injected for selected GitHub MCP operations. |
+| `mcp_github_default_fields.go` | `const` | `GitHubMCPFeatureFieldsParam` | `const GitHubMCPFeatureFieldsParam = "fields_param"` | GitHubMCPFeatureFieldsParam names the feature-flag key that enables default field-parameter injection. |
 | `npm_validation_errors.go` | `var` | `ErrNpmNotAvailable` | `var ErrNpmNotAvailable = errors.New("npm not available")` | ErrNpmNotAvailable is returned by validateNpxPackages when npm is not installed on the system. |
 | `safe_outputs_validation_config.go` | `var` | `ValidationConfig` | `var ValidationConfig = map[string]TypeValidationConfig{ "create_issue": { DefaultMax: 1, Fields: map[s…` | ValidationConfig contains all safe output type validation rules This is the single source of truth for validation rules |
 | `script_registry.go` | `var` | `DefaultScriptRegistry` | `var DefaultScriptRegistry = NewScriptRegistry()` | DefaultScriptRegistry is the global script registry used by the workflow package. |
+| `tools_types.go` | `const` | `BoundedQueryRuntimeDocker` | `const BoundedQueryRuntimeDocker BoundedQueryRuntime = "docker"` | BoundedQueryRuntimeDocker selects Docker runtime for bounded-query tool execution. |
+| `tools_types.go` | `const` | `BoundedQueryRuntimeGVisor` | `const BoundedQueryRuntimeGVisor BoundedQueryRuntime = "gvisor"` | BoundedQueryRuntimeGVisor selects gVisor runtime for bounded-query tool execution. |
+| `tools_types.go` | `const` | `BoundedQueryRuntimeSbx` | `const BoundedQueryRuntimeSbx BoundedQueryRuntime = "sbx"` | BoundedQueryRuntimeSbx selects sbx runtime for bounded-query tool execution. |
 | `yaml_options.go` | `var` | `DefaultMarshalOptions` | `var DefaultMarshalOptions = []yaml.EncodeOption{ yaml.Indent(2), yaml.UseLiteralStyleIfMultiline(true), }` | DefaultMarshalOptions provides standard YAML formatting options used throughout gh-aw for workflow and frontmatter generation. |
 
 ### Additional functions and methods
 
 | File | Symbol | Declaration | Description |
 |------|--------|-------------|-------------|
+| `engine_helpers.go` | `BuildEngineSecretValidationStep` | `func BuildEngineSecretValidationStep(workflowData *WorkflowData, config EngineSecretValidationConfig) GitHubActionStep` | BuildEngineSecretValidationStep builds the reusable secret-validation step for engine credentials. |
+| `engine_registry.go` | `(*EngineRegistry).EnginesWithCapability` | `func (r *EngineRegistry) EnginesWithCapability(predicate func(EngineCapabilities) bool) []string` | EnginesWithCapability returns sorted engine IDs that satisfy a capability predicate. |
+| `agent_validation.go` | `HasBashExplicitRestriction` | `func HasBashExplicitRestriction(tools map[string]any) bool` | HasBashExplicitRestriction reports whether `tools.bash` has an explicit restriction value. |
+| `repo_config.go` | `(*RepoConfig).IsActionFailureIssueExpiresExplicit` | `func (r *RepoConfig) IsActionFailureIssueExpiresExplicit() bool` | IsActionFailureIssueExpiresExplicit reports whether maintenance expiry was explicitly set in repo config. |
 | `action_cache.go` | `(*ActionCache).Delete` | `func (*ActionCache).Delete(repo, version string)` | Delete removes the cache entry for the given repo and version. |
 | `action_cache.go` | `(*ActionCache).DeleteByKey` | `func (*ActionCache).DeleteByKey(key string)` | DeleteByKey removes the cache entry with the given raw map key. |
 | `action_cache.go` | `(*ActionCache).DeleteContainerPin` | `func (*ActionCache).DeleteContainerPin(image string)` | DeleteContainerPin removes the pin for the given image tag. |
