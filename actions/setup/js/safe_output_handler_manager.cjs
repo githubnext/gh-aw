@@ -12,7 +12,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
-const { computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
+const { classifySafeOutputResult, computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
@@ -623,9 +623,6 @@ function rollbackReviewResultsForPR(results, repo, prNumber, errorMessage) {
  * the skip must be back-propagated here so the Processing Summary reflects the actual
  * outcome (skipped) rather than a misleading success count.
  *
- * Note: uses `skipReason` (not `reason`) so that the step-summary generator does not
- * treat these entries as delegated-step skips and omit them from the output.
- *
  * @param {Array<{type: string, success: boolean, skipped?: boolean, skipReason?: string}>} results - Processing results to mutate
  * @param {string} skipReason - Human-readable reason for the skip
  */
@@ -691,12 +688,39 @@ function partitionFailureResults(results) {
 /**
  * Export item-level safe-output status as GitHub Actions outputs.
  *
- * @param {{itemsSucceeded: number, itemsFailed: number, status: string}} status
+ * @param {{itemsSucceeded: number, itemsApplied?: number, itemsSkipped?: number, itemsWarnings?: number, itemsCancelled?: number, itemsDeferred?: number, itemsFailed: number, status: string}} status
  */
 function setSafeOutputsStatusOutputs(status) {
   core.setOutput("items_succeeded", String(status.itemsSucceeded));
+  core.setOutput("items_applied", String(status.itemsApplied ?? status.itemsSucceeded));
+  core.setOutput("items_skipped", String(status.itemsSkipped ?? 0));
+  core.setOutput("items_warnings", String(status.itemsWarnings ?? 0));
+  core.setOutput("items_cancelled", String(status.itemsCancelled ?? 0));
+  core.setOutput("items_deferred", String(status.itemsDeferred ?? 0));
   core.setOutput("items_failed", String(status.itemsFailed));
   core.setOutput("status", status.status);
+}
+
+/**
+ * @param {string} type
+ * @param {number} messageIndex
+ * @param {Record<string, any>} result
+ * @returns {Record<string, any>}
+ */
+function buildSkippedResult(type, messageIndex, result) {
+  const message = result.reason || result.warning || result.error || "Handler returned skipped: true";
+  return {
+    type,
+    messageIndex,
+    success: result.success === true,
+    skipped: true,
+    ...(result.warning ? { warning: result.warning } : {}),
+    ...(result.reason ? { reason: result.reason } : {}),
+    ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
+    ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+    error: message,
+    result,
+  };
 }
 
 /**
@@ -808,6 +832,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           messageIndex: i,
           success: false,
           skipped: true,
+          delegated: true,
           reason: "Handled by standalone step",
         });
         continue;
@@ -842,6 +867,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           messageIndex: i,
           success: false,
           skipped: true,
+          delegated: true,
           reason: "Handled by custom safe output job",
         });
         continue;
@@ -908,18 +934,14 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
       // Call the message handler with the individual message and resolved temp IDs
       const result = await messageHandler(effectiveMessage, resolvedTemporaryIds, temporaryIdMap);
 
-      // Check if the handler explicitly returned a skipped result (e.g. if_no_changes: warn/ignore).
-      // Skipped results should NOT trigger fail-fast cancellation of subsequent messages.
-      if (result && result.success === false && result.skipped === true && !result.deferred) {
-        const msg = result.error || "Handler returned success: false with skipped: true";
+      // Check if the handler explicitly returned a skipped result (e.g. policy filters,
+      // no-op warnings, or if_no_changes: warn/ignore). Skipped results should NOT
+      // trigger fail-fast cancellation of subsequent messages, and any summary-safe
+      // diagnostics supplied by the handler must be preserved.
+      if (result && result.skipped === true && !result.deferred) {
+        const msg = result.reason || result.warning || result.error || "Handler returned skipped: true";
         core.info(`⏭ Message ${i + 1} (${messageType}) skipped — ${msg}`);
-        results.push({
-          type: messageType,
-          messageIndex: i,
-          success: false,
-          skipped: true,
-          error: msg,
-        });
+        results.push(buildSkippedResult(messageType, i, result));
         continue;
       }
 
@@ -1093,15 +1115,31 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
         // Call the handler again with updated temp ID map
         const result = await deferred.handler(deferred.message, resolvedTemporaryIds, temporaryIdMap);
 
+        if (result && result.skipped === true && !result.deferred) {
+          const msg = result.reason || result.warning || result.error || "Handler returned skipped: true";
+          core.info(`⏭ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) skipped — ${msg}`);
+          const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
+          if (resultIndex >= 0) {
+            results[resultIndex] = buildSkippedResult(deferred.type, deferred.messageIndex, result);
+          }
+          continue;
+        }
+
         // Check if the handler explicitly returned a failure
         if (result && result.success === false && !result.deferred) {
           const errorMsg = result.error || "Handler returned success: false";
           core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${errorMsg}`);
-          // Update the result to error
+          // Replace the deferred record so terminal retry failures classify as failed.
           const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
           if (resultIndex >= 0) {
-            results[resultIndex].success = false;
-            results[resultIndex].error = errorMsg;
+            results[resultIndex] = {
+              type: deferred.type,
+              messageIndex: deferred.messageIndex,
+              success: false,
+              deferred: false,
+              error: errorMsg,
+              result: { ...result, success: false, deferred: false, error: errorMsg },
+            };
           }
           continue;
         }
@@ -1157,11 +1195,19 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
           logCreatedItemFromResult(onItemCreated, deferred.type, result);
         }
       } catch (error) {
-        core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${getErrorMessage(error)}`);
-        // Update the result to error
+        const errorMsg = getErrorMessage(error);
+        core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${errorMsg}`);
+        // Replace the deferred record so terminal retry exceptions classify as failed.
         const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
         if (resultIndex >= 0) {
-          results[resultIndex].error = getErrorMessage(error);
+          results[resultIndex] = {
+            type: deferred.type,
+            messageIndex: deferred.messageIndex,
+            success: false,
+            deferred: false,
+            error: errorMsg,
+            result: { success: false, deferred: false, error: errorMsg },
+          };
         }
       }
     }
@@ -1606,10 +1652,10 @@ async function main() {
     const reportOnlyFailureCount = reportOnlyFailures.length;
     const cancelledCount = processingResult.results.filter(r => r.cancelled).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
-    const skippedStandaloneResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
-    const skippedCustomJobResults = processingResult.results.filter(r => r.skipped && r.reason === "Handled by custom safe output job");
+    const skippedStandaloneResults = processingResult.results.filter(r => r.delegated && r.reason === "Handled by standalone step");
+    const skippedCustomJobResults = processingResult.results.filter(r => r.delegated && r.reason === "Handled by custom safe output job");
     const skippedNoHandlerResults = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));
-    const skippedHandlerResults = processingResult.results.filter(r => r.skipped && !r.reason && !r.deferred && !r.cancelled);
+    const skippedHandlerResults = processingResult.results.filter(r => classifySafeOutputResult(r) === "skipped");
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);
