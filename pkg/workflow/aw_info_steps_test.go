@@ -129,3 +129,87 @@ This workflow tests that Claude has firewall enabled by default when network is 
 		})
 	}
 }
+
+func TestAwInfoStepsAgentRuntime(t *testing.T) {
+	tests := []struct {
+		name            string
+		workflowContent string
+		expectRuntime   string
+		description     string
+	}{
+		{
+			name: "gvisor runtime configured",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+sandbox:
+  agent:
+    id: awf
+    runtime: gvisor
+---
+
+# Test gvisor runtime
+
+This workflow tests that sandbox.agent.runtime is stored in aw_info.json.
+`,
+			expectRuntime: "gvisor",
+			description:   "Should have agent runtime gvisor when sandbox.agent.runtime is set to gvisor",
+		},
+		{
+			name: "no runtime configuration",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+---
+
+# Test no runtime
+
+This workflow tests that agent runtime is empty when not configured.
+`,
+			expectRuntime: "",
+			description:   "Should have empty agent runtime when sandbox.agent.runtime is not set",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for test files
+			tmpDir := testutil.TempDir(t, "aw-info-runtime-test")
+
+			// Create test file
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.workflowContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile workflow
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := stringutil.MarkdownToLockFile(testFile)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read generated lock file: %v", err)
+			}
+
+			lockStr := string(lockContent)
+
+			// Verify agent runtime env var
+			expectedRuntimeLine := `GH_AW_INFO_AGENT_RUNTIME: "` + tt.expectRuntime + `"`
+			if !strings.Contains(lockStr, expectedRuntimeLine) {
+				t.Errorf("%s\nExpected agent runtime line: %s\nNot found in generated workflow", tt.description, expectedRuntimeLine)
+			}
+		})
+	}
+}
