@@ -74,6 +74,34 @@ describe("require-invalid-date-check-before-compare", () => {
     });
   });
 
+  it("invalid: guard written after the comparison does not protect it", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const d = new Date(input); if (d > threshold) { doIt(); } if (Number.isNaN(d.getTime())) { return; }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: ">", getTimeTarget: "d" } }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: guard nested in an unrelated conditional branch does not protect the comparison", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const d = new Date(input); if (someUnrelatedFlag) { if (Number.isNaN(d.getTime())) { return; } } if (d > threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: ">", getTimeTarget: "d" } }],
+        },
+        {
+          code: `const d = new Date(input); for (const item of items) { if (Number.isNaN(d.getTime())) { return; } } if (d > threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: ">", getTimeTarget: "d" } }],
+        },
+      ],
+    });
+  });
+
   it("valid: validated with Number.isNaN(d.getTime()) before comparison", () => {
     cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
       valid: [
@@ -81,6 +109,8 @@ describe("require-invalid-date-check-before-compare", () => {
         `const d = new Date(input); if (!Number.isNaN(d.getTime()) && d > threshold) { doIt(); }`,
         `const d = new Date(input); if (isNaN(d.getTime())) { return; } if (d >= threshold) { doIt(); }`,
         `const d = new Date(input); if (isNaN(d.getTime()) || d > threshold) { doIt(); }`,
+        `const d = new Date(input); if (Number.isNaN(d.getTime())) { throw new Error("bad date"); } else if (d > threshold) { doIt(); }`,
+        `const d = new Date(input); if (Number.isNaN(d.getTime())) { return; } for (const item of items) { if (d > item.at) { doIt(); } }`,
       ],
       invalid: [],
     });
