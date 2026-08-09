@@ -754,7 +754,7 @@ func buildEngineCommandScriptSetup(command string) string {
 	// configuration authored in-repo; preserve shell semantics and forward driver args.
 	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset +o histexpand\nset -eo pipefail\n%s \"$@\"\n", command)
 	heredocDelimiter := "GH_AW_ENGINE_COMMAND_EOF"
-	for strings.Contains(scriptContent, heredocDelimiter) { //nolint:stringsconcatloop -- trivial cold path, runs 0 times in normal operation
+	for strings.Contains(scriptContent, heredocDelimiter) { //nolint:stringsconcatloop // trivial cold path, runs 0 times in normal operation
 		heredocDelimiter += "_X"
 	}
 
