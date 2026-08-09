@@ -261,21 +261,34 @@ function isIntegrationAccessError(error) {
 function isMissingNodeError(error) {
   /** @type {string[]} */
   const messages = [getErrorMessage(error)];
-  /** @type {string[]} */
-  const types = [];
+  /** @type {Array<{type?: unknown, message?: unknown, path?: unknown}>} */
+  const graphQLErrors = [];
 
   if (error && typeof error === "object" && "errors" in error && Array.isArray(error.errors)) {
     for (const graphQLError of error.errors) {
+      graphQLErrors.push(graphQLError);
       if (typeof graphQLError?.message === "string") {
         messages.push(graphQLError.message);
-      }
-      if (typeof graphQLError?.type === "string") {
-        types.push(graphQLError.type);
       }
     }
   }
 
-  if (types.some(type => type.toUpperCase() === "NOT_FOUND")) {
+  const hasNodeScopedNotFoundType = graphQLErrors.some(graphQLError => {
+    if (typeof graphQLError?.type !== "string" || graphQLError.type.toUpperCase() !== "NOT_FOUND") {
+      return false;
+    }
+    const hasNodeScopedMessage = typeof graphQLError?.message === "string" && graphQLError.message.toLowerCase().includes("could not resolve to a node");
+    const hasNodeScopedPath =
+      Array.isArray(graphQLError?.path) &&
+      graphQLError.path.some(pathPart => {
+        if (typeof pathPart !== "string") return false;
+        const normalized = pathPart.toLowerCase();
+        // GraphQL paths for stale-thread mutation failures are rooted at "resolveReviewThread".
+        return normalized === "node" || normalized === "resolvereviewthread";
+      });
+    return hasNodeScopedMessage || hasNodeScopedPath;
+  });
+  if (hasNodeScopedNotFoundType) {
     return true;
   }
 
