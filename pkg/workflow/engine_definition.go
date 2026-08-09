@@ -459,7 +459,7 @@ func loadKnownEngineImports(download func(context.Context) ([]byte, error)) map[
 	for _, engine := range catalog.Engines {
 		id := strings.ToLower(strings.TrimSpace(engine.ID))
 		importPath := strings.TrimSpace(engine.Import)
-		if id == "" || importPath == "" {
+		if id == "" || importPath == "" { //nolint:tolowerequalfold
 			continue
 		}
 		loaded[id] = knownEngineImportWithCompilerRef(importPath)
