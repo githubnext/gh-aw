@@ -27,6 +27,7 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 
 	if !workflowFound {
 		c.showWorkflowStatusUnavailableInstructions()
+		c.showFinalInstructions()
 		return nil
 	}
 
@@ -48,7 +49,11 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 
 	runNow, err := confirmRunAddedWorkflow(ctx)
 	if err != nil {
-		return nil // Not critical, just skip
+		if console.IsCancelled(err) {
+			c.showFinalInstructions()
+			return nil
+		}
+		return err
 	}
 
 	if !runNow {
@@ -139,7 +144,6 @@ func (c *AddInteractiveConfig) checkWorkflowStatusAttempt(attempt int) bool {
 func (c *AddInteractiveConfig) showWorkflowStatusUnavailableInstructions() {
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify workflow status."))
 	fmt.Fprintf(os.Stderr, "You can check status with: %s status\n", string(constants.CLIExtensionPrefix))
-	c.showFinalInstructions()
 }
 
 func (c *AddInteractiveConfig) shouldOfferAddedWorkflowRun() bool {
