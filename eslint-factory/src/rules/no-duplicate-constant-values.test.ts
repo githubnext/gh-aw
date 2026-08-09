@@ -29,6 +29,7 @@ describe("no-duplicate-constant-values", () => {
         `const DEFAULT_HTTP_TIMEOUT_MS = 15000; const TOOL_CALL_TIMEOUT_BUFFER_MS = 15000; const NOTIFY_TIMEOUT_MS = 10000; const KEEPALIVE_PING_INTERVAL_MS = 10000;`,
         `const FIRST_ENABLED = true; const SECOND_ENABLED = true;`,
         `const FIRST_ENABLED = false; const SECOND_ENABLED = false;`,
+        `const FIRST_VALUE = null; const SECOND_VALUE = null;`,
       ],
       invalid: [],
     });
@@ -81,6 +82,21 @@ describe("no-duplicate-constant-values", () => {
           errors: [
             { messageId: "duplicateConstantValue", data: { name: "SECOND_ENABLED", originalName: "FIRST_ENABLED", value: "true" } },
             { messageId: "duplicateConstantValue", data: { name: "THIRD_ENABLED", originalName: "FIRST_ENABLED", value: "true" } },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("requires at least three matching null constants before reporting duplicates", () => {
+    ruleTester.run("no-duplicate-constant-values", noDuplicateConstantValuesRule, {
+      valid: [`const FIRST_VALUE = null; const SECOND_VALUE = null;`],
+      invalid: [
+        {
+          code: `const FIRST_VALUE = null; const SECOND_VALUE = null; const THIRD_VALUE = null;`,
+          errors: [
+            { messageId: "duplicateConstantValue", data: { name: "SECOND_VALUE", originalName: "FIRST_VALUE", value: "null" } },
+            { messageId: "duplicateConstantValue", data: { name: "THIRD_VALUE", originalName: "FIRST_VALUE", value: "null" } },
           ],
         },
       ],

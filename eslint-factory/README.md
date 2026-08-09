@@ -63,7 +63,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 
 Inventory module-level `const` declarations with static primitive initializers and report each declaration after the first one that uses the same value in a file. The diagnostic names both constants and shows the duplicated value.
 
-The rule compares string, number, boolean, `null`, bigint, regular-expression, static template-literal, and signed numeric initializers. To avoid collisions in their small value spaces, it reports duplicate numeric and boolean values only when at least three module-level constants share them. Dynamic expressions, object and array literals, destructuring declarations, function-local declarations, and `let` or `var` declarations are ignored.
+The rule compares string, number, boolean, `null`, bigint, regular-expression, static template-literal, and signed numeric initializers. To avoid collisions in their small value spaces, it reports duplicate numeric, boolean, and `null` values only when at least three module-level constants share them. Dynamic expressions, object and array literals, destructuring declarations, function-local declarations, and `let` or `var` declarations are ignored.
 
 ### `no-github-request-interpolated-route`
 
