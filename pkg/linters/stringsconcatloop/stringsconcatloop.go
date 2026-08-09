@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -22,6 +23,16 @@ var pkgLog = logger.New("linters:stringsconcatloop")
 
 // Analyzer is the string-concat-in-loop analysis pass.
 var Analyzer = analyzerutil.New("stringsconcatloop", "reports string concatenation (+=  or x = x + y) inside for/range loops that should use strings.Builder", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+// String-concatenation-in-loop is the canonical example of a perf rule that
+// only matters on hot paths: the O(n²) cost is only worth paying attention to
+// when the loop actually executes during tests.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 // concatLoopMatch holds the components of a string-concatenation-in-loop
 // assignment identified by collectConcatLoopAssignment.
@@ -53,6 +64,9 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 		if !shouldReportLoopConcat(pass, m.loopNode, m.lhsExpr) {
+			continue
+		}
+		if !coverage.ShouldApply(pass, m.assign.Pos(), *hotThreshold) {
 			continue
 		}
 		pkgLog.Printf("flagging string concatenation in loop at %s", m.pos)

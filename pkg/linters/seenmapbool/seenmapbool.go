@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -19,6 +20,13 @@ var pkgLog = logger.New("linters:seenmapbool")
 
 // Analyzer is the seen-map-bool analysis pass.
 var Analyzer = analyzerutil.New("seenmapbool", "reports map[string]bool used as a set (values always true) where map[string]struct{} should be used instead", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
@@ -73,6 +81,9 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintIndex nolint.Di
 			continue
 		}
 		if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(declNode.Pos(), false), noLintIndex, "seenmapbool") {
+			continue
+		}
+		if !coverage.ShouldApply(pass, declNode.Pos(), *hotThreshold) {
 			continue
 		}
 		pkgLog.Printf("flagging map[string]bool used as set: %s", obj.Name())

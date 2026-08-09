@@ -11,12 +11,20 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the strings-join-one analysis pass.
 var Analyzer = analyzerutil.New("stringsjoinone", "reports strings.Join([]string{s}, sep) calls with a single-element slice literal where the separator is never used and the call is equivalent to just s", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
@@ -68,6 +76,9 @@ func analyzeJoinOne(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.Ge
 	// example, strings.Join([]string{s}, <-ch) receives from a channel before
 	// returning; replacing it with just s would remove that receive.
 	if !isSafeToDiscardSeparator(pass, joinCall.Args[1]) {
+		return
+	}
+	if !coverage.ShouldApply(pass, call.Pos(), *hotThreshold) {
 		return
 	}
 

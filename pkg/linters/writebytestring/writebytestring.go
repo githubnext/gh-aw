@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -44,6 +45,13 @@ var writerIface = func() *types.Interface {
 
 // Analyzer is the write-byte-string analysis pass.
 var Analyzer = analyzerutil.New("writebytestring", "reports w.Write([]byte(s)) calls where s is a string that can be replaced with io.WriteString(w, s)", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
@@ -113,6 +121,9 @@ func analyzeWriteCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 
 	sExpr := buildStringExpr(pass, strArg, sText)
 	writerArg := buildWriterArg(pass, sel.X, wText)
+	if !coverage.ShouldApply(pass, call.Pos(), *hotThreshold) {
+		return
+	}
 
 	pass.Report(analysis.Diagnostic{
 		Pos:            call.Pos(),

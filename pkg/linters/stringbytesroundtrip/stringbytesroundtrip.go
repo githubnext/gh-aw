@@ -15,12 +15,20 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the string-bytes-roundtrip analysis pass.
 var Analyzer = analyzerutil.New("stringbytesroundtrip", "reports string([]byte(s)) as a redundant round-trip when s is already a string, and []byte(string(b)) as a wasteful two-copy clone when b is already a []byte (prefer slices.Clone or bytes.Clone)", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
@@ -98,6 +106,9 @@ func reportRedundantRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, o
 	if !isStringType(outerUnderlying) || !isByteSliceType(innerUnderlying) || !isStringType(innerArgUnderlying) {
 		return false
 	}
+	if !coverage.ShouldApply(pass, outer.Pos(), *hotThreshold) {
+		return true
+	}
 	argText := astutil.NodeText(pass.Fset, inner.Args[0])
 	pass.ReportRangef(outer,
 		"string([]byte(%s)) is a redundant round-trip; the inner []byte conversion copies the string unnecessarily",
@@ -108,6 +119,9 @@ func reportRedundantRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, o
 
 func reportWastefulCloneRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, outerUnderlying, innerUnderlying, innerArgUnderlying types.Type) {
 	if !isByteSliceType(outerUnderlying) || !isStringType(innerUnderlying) || !isByteSliceType(innerArgUnderlying) {
+		return
+	}
+	if !coverage.ShouldApply(pass, outer.Pos(), *hotThreshold) {
 		return
 	}
 	argText := astutil.NodeText(pass.Fset, inner.Args[0])

@@ -26,3 +26,34 @@ For PR-driven linter generation (derive a rule from a specific pull request patt
   - `make golint-custom`
 
 `make golint-custom` builds `cmd/linters` and runs it against `./cmd/...` and `./pkg/...`.
+
+## Coverage-aware perf gating
+
+For linters that flag micro-optimizations (allocation/perf rules), only apply them on lines that
+tests actually exercise — "hot paths" — rather than on dead or rarely-executed code where the
+optimization brings no measurable benefit. Use the shared `pkg/linters/internal/coverage` package:
+
+1. In your analyzer file, register a `-hot-threshold` flag in `init()` (not as a var initializer,
+   to avoid an `Analyzer`/`run`/flag initialization cycle):
+
+   ```go
+   var hotThreshold *int
+
+   func init() {
+       hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+   }
+   ```
+
+2. Immediately before reporting a diagnostic, gate it with `coverage.ShouldApply`:
+
+   ```go
+   if !coverage.ShouldApply(pass, node.Pos(), *hotThreshold) {
+       return
+   }
+   ```
+
+`coverage.ShouldApply` is permissive by default: when no coverage profile is loaded via the
+`GH_AW_LINT_COVERAGE_PROFILE` environment variable, or when `hot-threshold` is `0`, it always
+returns `true`, preserving pre-coverage-aware behavior. Only wire this into linters whose fix has
+a genuine performance rationale (extra allocations, O(n²) behavior, etc.) — purely
+readability/style linters should not be coverage-gated.
