@@ -76,6 +76,7 @@ docs/public/wasm/wasm_exec.js
 
 coverage.html
 coverage/
+!pkg/linters/internal/coverage/
 logs/
 
 # Benchmark results
