@@ -14,20 +14,21 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 )
 
-func TestStatusWorkflows_JSONOutput(t *testing.T) {
-
-	// Save current directory
+// chdirToRepoRoot changes the working directory to the repository root for
+// the duration of the test, so that StatusWorkflows can find the local
+// .github/workflows directory regardless of the test binary's cwd. The
+// original directory is automatically restored when the test completes.
+func chdirToRepoRoot(t *testing.T) {
+	t.Helper()
 	originalDir, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Failed to get current directory: %v", err)
 	}
+	t.Chdir(filepath.Join(originalDir, "..", ".."))
+}
 
-	// Change to repository root
-	repoRoot := filepath.Join(originalDir, "..", "..")
-	if err := os.Chdir(repoRoot); err != nil {
-		t.Fatalf("Failed to change to repository root: %v", err)
-	}
-	defer os.Chdir(originalDir)
+func TestStatusWorkflows_JSONOutput(t *testing.T) {
+	chdirToRepoRoot(t)
 
 	// Test JSON output without pattern
 	t.Run("JSON output without pattern", func(t *testing.T) {
@@ -547,16 +548,9 @@ func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
 func TestStatusWorkflows_WithRepoOverride(t *testing.T) {
 	// This test verifies that the function accepts the repoOverride parameter
 	// and doesn't error out. It should work in the current repository context.
-	// Change to the repository root so that the local .github/workflows
-	// directory is found regardless of the test binary's working directory.
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	repoRoot := filepath.Join(originalDir, "..", "..")
-	t.Chdir(repoRoot)
+	chdirToRepoRoot(t)
 
-	err = StatusWorkflows(t.Context(), "", false, true, "", "", "")
+	err := StatusWorkflows(t.Context(), "", false, true, "", "", "")
 	if err != nil {
 		t.Errorf("StatusWorkflows with empty repoOverride should not error: %v", err)
 	}

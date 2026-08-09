@@ -224,13 +224,9 @@ func TestRemoveWorkflows(t *testing.T) {
 func TestStatusWorkflows(t *testing.T) {
 	// Change to the repository root so that the local .github/workflows
 	// directory is found regardless of the test binary's working directory.
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	t.Chdir(filepath.Join(originalDir, "..", ".."))
+	chdirToRepoRoot(t)
 
-	err = StatusWorkflows(t.Context(), "test-pattern", false, false, "", "", "")
+	err := StatusWorkflows(t.Context(), "test-pattern", false, false, "", "", "")
 
 	// Should not error since it's a stub implementation
 	if err != nil {
