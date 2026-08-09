@@ -1287,10 +1287,9 @@ async function main() {
           log(`attempt ${attempt + 1}: AI credits marker found in CLI output without trusted firewall audit confirmation — preserving normal failure handling`);
         }
         const shouldTreatAICreditsExceededAsSuccess = trustedAICreditsExceeded && !isAuthenticationFailed;
-        if (shouldTreatAICreditsExceededAsSuccess || nonRetryableGuard.awfAPIProxyBlockingRequests || isInvocationCapExceeded) {
+        if (shouldTreatAICreditsExceededAsSuccess || isInvocationCapExceeded) {
           const reasons = [];
           if (shouldTreatAICreditsExceededAsSuccess) reasons.push("AI credits budget exceeded");
-          if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
           if (isInvocationCapExceeded) {
             reasons.push("LLM invocation cap saturated — the pooled per-run budget is fully exhausted; retries cannot make progress");
           }
