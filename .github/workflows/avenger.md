@@ -16,7 +16,7 @@ permissions:
 env:
   GOTOOLCHAIN: auto
 tracker-id: avenger-ci
-max-turns: 25
+max-turns: 50
 model: claude-haiku-4-5
 engine:
   id: claude
@@ -233,7 +233,7 @@ git diff --cached --name-only | wc -l
 - **Be systematic**: Work through each step in sequence.
 - **Be efficient**: Avoid verbose analysis; act directly.
 - **One issue at a time**: Confirm the current step passes before moving to the next.
-- **Token Budget Awareness**: Hard limit is 25 turns. If approaching the limit, commit what you have and create the PR.
+- **Token Budget Awareness**: Hard limit is 50 turns. If approaching the limit, commit what you have and create the PR.
 
 ## Mandatory Exit Protocol
 
