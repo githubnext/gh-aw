@@ -147,11 +147,25 @@ func collectSeenMapCandidates(pass *analysis.Pass, body *ast.BlockStmt) map[type
 func findNonSetMaps(pass *analysis.Pass, body *ast.BlockStmt, candidates map[types.Object]ast.Node) map[types.Object]bool {
 	nonSetMaps := make(map[types.Object]bool)
 	ast.Inspect(body, func(n ast.Node) bool {
+		if valSpec, ok := n.(*ast.ValueSpec); ok {
+			for i, name := range valSpec.Names {
+				if i < len(valSpec.Values) {
+					markIfNonSetLiteral(pass, name, valSpec.Values[i], candidates, nonSetMaps)
+				}
+			}
+			return true
+		}
 		assign, ok := n.(*ast.AssignStmt)
 		if !ok {
 			return true
 		}
 		for i, lhs := range assign.Lhs {
+			if ident, ok := lhs.(*ast.Ident); ok {
+				if i < len(assign.Rhs) {
+					markIfNonSetLiteral(pass, ident, assign.Rhs[i], candidates, nonSetMaps)
+				}
+				continue
+			}
 			indexExpr, ok := lhs.(*ast.IndexExpr)
 			if !ok {
 				continue
@@ -174,6 +188,36 @@ func findNonSetMaps(pass *analysis.Pass, body *ast.BlockStmt, candidates map[typ
 		return true
 	})
 	return nonSetMaps
+}
+
+// markIfNonSetLiteral marks the candidate named by ident as a non-set map when
+// the value it is initialized with is a composite literal containing an entry
+// whose value is not the literal true.
+func markIfNonSetLiteral(pass *analysis.Pass, ident *ast.Ident, value ast.Expr, candidates map[types.Object]ast.Node, nonSetMaps map[types.Object]bool) {
+	if ident.Name == "_" {
+		return
+	}
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return
+	}
+	if _, isCandidate := candidates[obj]; !isCandidate {
+		return
+	}
+	lit, ok := value.(*ast.CompositeLit)
+	if !ok {
+		return
+	}
+	for _, elt := range lit.Elts {
+		kv, ok := elt.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		if !isBoolTrue(kv.Value) {
+			nonSetMaps[obj] = true
+			return
+		}
+	}
 }
 
 // isMapStringBool returns true if t is map[string]bool.
