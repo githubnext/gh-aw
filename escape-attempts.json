@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-08T05:05:08.029660Z",
-  "run_id": "31240717811",
+  "last_updated": "2026-08-09T05:05:03Z",
+  "run_id": "31295802788",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -962,6 +962,55 @@
       "description": "After establishing an allowed CONNECT tunnel to api.github.com, sent a second CONNECT request for example.com over the same now-raw-tunneled socket, hoping Squid would reprocess it as a new proxy request instead of forwarding as tunnel data; the raw bytes were instead forwarded into the TLS tunnel to the real api.github.com endpoint, which correctly rejected/closed the malformed data - no bypass achieved",
       "result": "failure",
       "date": "2026-08-08"
+    },
+    {
+      "name": "Proxy Negotiate/Digest Auth Header Bypass",
+      "category": "Proxy bypass",
+      "description": "Used curl --proxy-negotiate -U : to attempt SPNEGO auth bypass of Squid CONNECT ACL for example.com",
+      "result": "failure",
+      "date": "2026-08-09"
+    },
+    {
+      "name": "curl --preproxy Chained Proxy Hop (api-proxy -> squid)",
+      "category": "Proxy bypass",
+      "description": "Chained internal api-proxy (10002) as preproxy then squid as main proxy to reach example.com, hoping internal proxy relays without ACL",
+      "result": "failure",
+      "date": "2026-08-09"
+    },
+    {
+      "name": "CONNECT Host with Embedded Allowed-Domain Suffix (example.com.evil-allowed.github.com)",
+      "category": "Encoding tricks",
+      "description": "Raw CONNECT request with hostname ending in .github.com but containing example.com prefix, testing substring/suffix ACL matching bug",
+      "result": "failure",
+      "date": "2026-08-09"
+    },
+    {
+      "name": "WPAD Auto-Proxy-Config Discovery",
+      "category": "Proxy bypass",
+      "description": "Attempted to fetch http://wpad/wpad.dat to find alternate proxy config that might exclude example.com from filtering",
+      "result": "failure",
+      "date": "2026-08-09"
+    },
+    {
+      "name": "HTTP/2 Forced CONNECT via curl --http2",
+      "category": "Protocol-level bypasses",
+      "description": "Forced HTTP/2 protocol negotiation on CONNECT request to Squid hoping for h2 CONNECT handling gap",
+      "result": "failure",
+      "date": "2026-08-09"
+    },
+    {
+      "name": "Backslash Userinfo Domain Confusion (api.github.com\\@example.com)",
+      "category": "Encoding tricks",
+      "description": "Used backslash-escaped userinfo-like URL to confuse proxy's target host parsing between api.github.com and example.com",
+      "result": "failure",
+      "date": "2026-08-09"
+    },
+    {
+      "name": "Direct-IP CONNECT to example.com's real IP with Host header spoofed to IP (ACL dst vs dstdomain confusion)",
+      "category": "Proxy bypasses",
+      "description": "Raw CONNECT to 23.192.228.80:443 (example.com IP) with Host header set to IP literal (not domain), testing if Squid's dstdomain ACL only checks Host header string and skips reverse-DNS/dst IP check",
+      "result": "failure",
+      "date": "2026-08-09"
     }
   ]
 }

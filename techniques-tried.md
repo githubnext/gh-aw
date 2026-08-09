@@ -1391,3 +1391,13 @@ Basic functionality tests (1-8) all passed as expected: allowed domains reachabl
 - [x] Pipelined CONNECT reuse over established allowed tunnel (result: failure - data forwarded into legit TLS tunnel, no new CONNECT processed)
 
 Baseline tests 1-8 all behaved as expected (allowed domains reachable, example.com blocked, DNS/file ops/localhost fine).
+
+## Run 31295802788 - 2026-08-09
+
+- [x] Proxy Negotiate/Digest Auth Header Bypass (result: failure)
+- [x] curl --preproxy Chained Proxy Hop (api-proxy -> squid) (result: failure)
+- [x] CONNECT Host with Embedded Allowed-Domain Suffix (example.com.evil-allowed.github.com) (result: failure)
+- [x] WPAD Auto-Proxy-Config Discovery (result: failure)
+- [x] HTTP/2 Forced CONNECT via curl --http2 (result: failure)
+- [x] Backslash Userinfo Domain Confusion (result: failure)
+- [x] Direct-IP CONNECT to example.com real IP with Host header as IP literal (ACL dst vs dstdomain confusion) (result: failure)
