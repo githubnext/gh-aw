@@ -57,3 +57,14 @@ optimization brings no measurable benefit. Use the shared `pkg/linters/internal/
 returns `true`, preserving pre-coverage-aware behavior. Only wire this into linters whose fix has
 a genuine performance rationale (extra allocations, O(n²) behavior, etc.) — purely
 readability/style linters should not be coverage-gated.
+
+### Generating the coverage profile
+
+```bash
+go test -covermode=count -coverprofile=/tmp/coverage.out ./...
+export GH_AW_LINT_COVERAGE_PROFILE=/tmp/coverage.out
+make golint-custom
+```
+
+This profile is read once per linter-runner process. To lint only a specific subtree, scope
+the `go test` and `golint-custom` commands to the same package path.
