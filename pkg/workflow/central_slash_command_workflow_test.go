@@ -492,7 +492,7 @@ func TestBuildHelpCommandEntries_ReservedHelpCommandName(t *testing.T) {
 	require.Equal(t, "help", entries[0].Command)
 }
 
-func typeSetKeys(typeSet map[string]bool) []string {
+func typeSetKeys(typeSet map[string]struct{}) []string {
 	out := make([]string, 0, len(typeSet))
 	for key := range typeSet {
 		out = append(out, key)

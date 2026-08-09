@@ -106,7 +106,7 @@ func centralRoutingCommandNames(wd *WorkflowData) []string {
 	return nil
 }
 
-func collectCentralCommandRoutes(workflowDataList []*WorkflowData) (map[string][]slashCommandRoute, map[string][]slashCommandRoute, map[string]map[string]bool) {
+func collectCentralCommandRoutes(workflowDataList []*WorkflowData) (map[string][]slashCommandRoute, map[string][]slashCommandRoute, map[string]map[string]struct{}) {
 	slashRoutesByCommand, mergedEvents := collectCentralSlashCommandRoutes(workflowDataList)
 	labelRoutesByCommand := collectCentralLabelCommandRoutes(workflowDataList, mergedEvents)
 	return slashRoutesByCommand, labelRoutesByCommand, mergedEvents
@@ -128,9 +128,9 @@ func removeIfExists(path string) error {
 	return nil
 }
 
-func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[string][]slashCommandRoute, map[string]map[string]bool) {
+func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[string][]slashCommandRoute, map[string]map[string]struct{}) {
 	routesByCommand := make(map[string][]slashCommandRoute)
-	mergedEvents := make(map[string]map[string]bool)
+	mergedEvents := make(map[string]map[string]struct{})
 
 	for _, wd := range workflowDataList {
 		commandNames := centralRoutingCommandNames(wd)
@@ -153,10 +153,10 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 		// Merge workflow-level subscriptions using YAML-ready GitHub event names.
 		for _, event := range MergeEventsForYAML(filteredEvents) {
 			if mergedEvents[event.EventName] == nil {
-				mergedEvents[event.EventName] = make(map[string]bool)
+				mergedEvents[event.EventName] = make(map[string]struct{})
 			}
 			for _, t := range event.Types {
-				mergedEvents[event.EventName][t] = true
+				mergedEvents[event.EventName][t] = struct{}{}
 			}
 		}
 
@@ -200,7 +200,7 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 	return routesByCommand, mergedEvents
 }
 
-func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEvents map[string]map[string]bool) map[string][]slashCommandRoute {
+func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEvents map[string]map[string]struct{}) map[string][]slashCommandRoute {
 	routesByLabel := make(map[string][]slashCommandRoute)
 
 	for _, wd := range workflowDataList {
@@ -223,9 +223,9 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 
 		for _, eventName := range routeEvents {
 			if mergedEvents[eventName] == nil {
-				mergedEvents[eventName] = make(map[string]bool)
+				mergedEvents[eventName] = make(map[string]struct{})
 			}
-			mergedEvents[eventName]["labeled"] = true
+			mergedEvents[eventName]["labeled"] = struct{}{}
 		}
 
 		for _, labelName := range wd.LabelCommand {
@@ -342,7 +342,7 @@ func resolveCentralizedEventStatusComment(wd *WorkflowData, eventName string) bo
 func buildCentralSlashCommandWorkflowYAML(
 	slashRoutesByCommand map[string][]slashCommandRoute,
 	labelRoutesByCommand map[string][]slashCommandRoute,
-	mergedEvents map[string]map[string]bool,
+	mergedEvents map[string]map[string]struct{},
 	runsOn string,
 	setupActionRef string,
 	helpCommands []helpCommandEntry,
@@ -592,7 +592,7 @@ func writeCentralRouteTypeSummary(b *strings.Builder, routesByTrigger map[string
 	}
 }
 
-func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[string]map[string]bool) {
+func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[string]map[string]struct{}) {
 	b.WriteString(`    permissions:
       actions: write
       contents: read
@@ -608,7 +608,7 @@ func writeCentralSlashRoutePermissions(b *strings.Builder, mergedEvents map[stri
 	}
 }
 
-func needsPullRequestsPermission(mergedEvents map[string]map[string]bool) bool {
+func needsPullRequestsPermission(mergedEvents map[string]map[string]struct{}) bool {
 	// issue_comment and issues events can target pull requests (issue-backed PR payloads),
 	// and runtime branch resolution uses pulls.get for those cases.
 	pullRequestEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_comment", "pull_request_review_comment", "pull_request_review"}
@@ -710,7 +710,7 @@ func formatRunsOnSnippetForInlineValue(runsOn string) string {
 	return "\n" + strings.Join(lines, "\n")
 }
 
-func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map[string]bool) {
+func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map[string]struct{}) {
 	eventOrder := []string{
 		"issues",
 		"issue_comment",
