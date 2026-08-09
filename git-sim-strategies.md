@@ -402,3 +402,21 @@ content there could realistically breach 4096 KB).
 - **Zero real fail/error/rejected across 192 cells.**
 - **Next index: 192** = tiny-shallow-single-small-ahead-single (continues
   shallow-single-small tier: ahead×3 + diverged×3 remain, idx192-197).
+
+## Run 2026-08-09: idx192-195 (shallow-single-small ahead tier CLOSED + diverged-single)
+
+- **idx192 ahead-single: PASS.** 52.72KB/4f/2c. ff(old→new tip) rc0, merges=0/parent=1.
+- **idx193 ahead-multi: PASS.** Same-file 3-commit wrapped append: 54.03KB/4f/4c, ratio
+  ~1.03x vs single-baseline — reconfirms wrapped-text append stays ~1x even at
+  HISTORY=shallow+PATCH=small (idx190's law holds here too, not just at HISTORY=none).
+- **idx194 ahead-merge_msg: PASS.** 52.38KB/4f/2c. Filename leak
+  `0001-Merge-branch-topic-xyz-into-feature.patch` + parent=1/merges=empty reconfirmed.
+- **idx195 diverged-single: PASS.** two-dot 52.10KB/3f/2c (authoritative) vs three-dot
+  +515B/+1c phantom (main's commit). Tree `diff --name-only` opposite-polarity gotcha
+  reconfirmed (two-dot leaks history.md=3f, three-dot clean=2f). ff(old→new tip) rc0;
+  ff(main↔feature) both directions rc1 (genuine divergence) — irrelevant to push validity.
+- **shallow-single-small ahead tier CLOSED (192-194, 3/3).** diverged-multi/merge_msg
+  (2 cells) remain to close shallow-single-small tier fully.
+- **Zero real fail/error/rejected across 196 cells.**
+- **Next index: 196** = tiny-shallow-single-small-diverged-multi (closes
+  shallow-single-small tier: 196-197 remain, then PATCH advances to medium idx198+).
