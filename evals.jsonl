@@ -4,3 +4,5 @@
 {"id":"findings_reported_or_noop","question":"Did the agent report actionable image findings, or use noop when no findings required action?","answer":"YES","model":"evals","timestamp":"2026-08-07T06:31:04.143Z","runid":"31152189112"}
 {"id":"container_images_scanned","question":"Did the agent analyze container images for vulnerabilities, updates, and rejected licenses?","answer":"YES","model":"evals","timestamp":"2026-08-08T06:21:52.702Z","runid":"31242183814"}
 {"id":"findings_reported_or_noop","question":"Did the agent report actionable image findings, or use noop when no findings required action?","answer":"YES","model":"evals","timestamp":"2026-08-08T06:21:52.702Z","runid":"31242183814"}
+{"id":"container_images_scanned","question":"Did the agent analyze container images for vulnerabilities, updates, and rejected licenses?","answer":"NO","model":"evals","timestamp":"2026-08-09T06:13:49.611Z","runid":"31297209717"}
+{"id":"findings_reported_or_noop","question":"Did the agent report actionable image findings, or use noop when no findings required action?","answer":"NO","model":"evals","timestamp":"2026-08-09T06:13:49.611Z","runid":"31297209717"}
