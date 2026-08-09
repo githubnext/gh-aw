@@ -107,7 +107,7 @@ func reportRedundantRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, o
 		return false
 	}
 	if !coverage.ShouldApply(pass, outer.Pos(), *hotThreshold) {
-		return true
+		return false
 	}
 	argText := astutil.NodeText(pass.Fset, inner.Args[0])
 	pass.ReportRangef(outer,
