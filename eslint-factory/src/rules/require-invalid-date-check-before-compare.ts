@@ -61,6 +61,62 @@ function resolveVariable(sourceCode: TSESLint.SourceCode, identifier: TSESTree.I
   return null;
 }
 
+/**
+ * Returns true when reaching `child` from `parent` requires taking a conditional branch,
+ * i.e. `child` is not guaranteed to execute whenever `parent` is reached. Statement positions
+ * that always execute (an `if` test, the left operand of `&&`/`||`, a `try` block) are not
+ * treated as conditional; branch bodies, loop bodies, catch clauses, and function bodies are.
+ */
+function isConditionalEdge(parent: TSESTree.Node, child: TSESTree.Node): boolean {
+  switch (parent.type) {
+    case AST_NODE_TYPES.IfStatement:
+      return child === parent.consequent || child === parent.alternate;
+    case AST_NODE_TYPES.ConditionalExpression:
+      return child === parent.consequent || child === parent.alternate;
+    case AST_NODE_TYPES.LogicalExpression:
+      return child === parent.right;
+    case AST_NODE_TYPES.SwitchCase:
+      return parent.consequent.includes(child as TSESTree.Statement);
+    case AST_NODE_TYPES.TryStatement:
+      return child === parent.handler;
+    case AST_NODE_TYPES.ForStatement:
+    case AST_NODE_TYPES.ForInStatement:
+    case AST_NODE_TYPES.ForOfStatement:
+    case AST_NODE_TYPES.WhileStatement:
+    case AST_NODE_TYPES.DoWhileStatement:
+      return child === parent.body;
+    case AST_NODE_TYPES.FunctionDeclaration:
+    case AST_NODE_TYPES.FunctionExpression:
+    case AST_NODE_TYPES.ArrowFunctionExpression:
+      return child === parent.body;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Returns true when the guard node is guaranteed to have executed by the time the comparison
+ * node is evaluated: the guard must finish before the comparison starts in source order, and
+ * no conditional branch may be entered on the guard's path below the deepest node the two
+ * share. This rejects guards written after the risky comparison as well as guards nested in a
+ * sibling branch that only runs on some paths.
+ */
+function guardDominatesComparison(guardPath: TSESTree.Node[], comparisonPath: TSESTree.Node[]): boolean {
+  const guard = guardPath[guardPath.length - 1];
+  const comparison = comparisonPath[comparisonPath.length - 1];
+  if (guard.range[1] > comparison.range[0]) return false;
+
+  let divergence = 0;
+  while (divergence < guardPath.length && divergence < comparisonPath.length && guardPath[divergence] === comparisonPath[divergence]) {
+    divergence++;
+  }
+  // Guards and comparisons always share the Program node, so `divergence` is normally at least 1.
+  for (let i = Math.max(divergence, 1); i < guardPath.length; i++) {
+    if (isConditionalEdge(guardPath[i - 1], guardPath[i])) return false;
+  }
+  return true;
+}
+
 type ComparisonSide = { kind: "inline" } | { kind: "var"; variable: TSESLint.Scope.Variable };
 
 export const requireInvalidDateCheckBeforeCompareRule = createRule({
@@ -84,10 +140,18 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
     const sourceCode = context.sourceCode;
     // Variable -> declarator node, for variables assigned `new Date(nonTrivialArg)`.
     const dateVars = new Map<TSESLint.Scope.Variable, TSESTree.Node>();
-    // Variables confirmed validated via Number.isNaN(name.getTime()) / isNaN(name.getTime()).
-    const validated = new Set<TSESLint.Scope.Variable>();
+    // Variables confirmed validated via Number.isNaN(name.getTime()) / isNaN(name.getTime()),
+    // each recorded with its ancestor path so ordering and reachability can be checked later.
+    const guards = new Map<TSESLint.Scope.Variable, TSESTree.Node[][]>();
     // Relational comparisons to report once all traversal is done, keyed by the involved sides.
-    const comparisons: { node: TSESTree.BinaryExpression; operator: string; sides: ComparisonSide[] }[] = [];
+    const comparisons: { node: TSESTree.BinaryExpression; operator: string; sides: ComparisonSide[]; path: TSESTree.Node[] }[] = [];
+
+    /** Returns true when at least one recorded guard for the variable is guaranteed to run before the comparison. */
+    function isValidatedBefore(variable: TSESLint.Scope.Variable, comparisonPath: TSESTree.Node[]): boolean {
+      const paths = guards.get(variable);
+      if (paths === undefined) return false;
+      return paths.some(guardPath => guardDominatesComparison(guardPath, comparisonPath));
+    }
 
     return {
       VariableDeclarator(node) {
@@ -103,7 +167,11 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
           const obj = (arg.callee as TSESTree.MemberExpression).object;
           if (obj.type === AST_NODE_TYPES.Identifier) {
             const variable = resolveVariable(sourceCode, obj);
-            if (variable) validated.add(variable);
+            if (variable) {
+              const paths = guards.get(variable) ?? [];
+              paths.push([...sourceCode.getAncestors(node), node]);
+              guards.set(variable, paths);
+            }
           }
         }
       },
@@ -125,12 +193,12 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
             }
           }
         }
-        if (sides.length > 0) comparisons.push({ node, operator: node.operator, sides });
+        if (sides.length > 0) comparisons.push({ node, operator: node.operator, sides, path: [...sourceCode.getAncestors(node), node] });
       },
 
       "Program:exit"() {
-        for (const { node, operator, sides } of comparisons) {
-          const problems = sides.filter(side => (side.kind === "var" ? !validated.has(side.variable) : true));
+        for (const { node, operator, sides, path } of comparisons) {
+          const problems = sides.filter(side => (side.kind === "var" ? !isValidatedBefore(side.variable, path) : true));
           if (problems.length === 0) continue;
 
           if (problems.length === 1) {
