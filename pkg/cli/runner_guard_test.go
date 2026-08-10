@@ -384,6 +384,25 @@ func TestBuildRunnerGuardContainerScanPath(t *testing.T) {
 	}
 }
 
+func TestRunnerGuardDockerArgsPreservesDynamicValuesAsArguments(t *testing.T) {
+	volumeMount := "/tmp/checkout with spaces:/workdir"
+	containerScanPath := "./--help"
+
+	args := runnerGuardDockerArgs(volumeMount, containerScanPath)
+
+	require.Equal(t, []string{
+		"run",
+		"--rm",
+		"-v", volumeMount,
+		"-w", "/workdir",
+		RunnerGuardImage,
+		"scan",
+		containerScanPath,
+		"--format", "json",
+	}, args)
+	require.Contains(t, shellJoinArgs(append([]string{"docker"}, args...)), "'/tmp/checkout with spaces:/workdir'")
+}
+
 func TestRunRunnerGuardOnDirectoryRejectsPathsOutsideRepo(t *testing.T) {
 	outsideDir := filepath.Join(t.TempDir(), "outside")
 	require.NoError(t, os.MkdirAll(outsideDir, 0o755))
