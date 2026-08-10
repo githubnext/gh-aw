@@ -28,7 +28,7 @@ func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *Updat
 				{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
 				{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
 				{Name: "labels", Mode: FieldParsingKeyExistence, Dest: &cfg.Labels},
-				{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: &cfg.Footer},
+				updateEntityFooterField(&cfg.Footer),
 			}
 		},
 		func(cm map[string]any, cfg *UpdateDiscussionsConfig) {

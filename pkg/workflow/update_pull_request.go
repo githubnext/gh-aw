@@ -31,7 +31,7 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 				{Name: "title", Mode: FieldParsingBoolValue, Dest: &cfg.Title},
 				{Name: "body", Mode: FieldParsingBoolValue, Dest: &cfg.Body},
 				{Name: "update-branch", Mode: FieldParsingBoolValue, Dest: &cfg.UpdateBranch},
-				{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: &cfg.Footer},
+				updateEntityFooterField(&cfg.Footer),
 			}
 		}, func(configMap map[string]any, cfg *UpdatePullRequestsConfig) {
 			// Parse operation field

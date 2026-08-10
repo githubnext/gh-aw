@@ -1,16 +1,16 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-05-25
+> Last updated: 2026-08-10
 
 ## Overview
 
 This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a reference for developers working with the gh-aw codebase.
 
 **Statistics:**
-- **Lock files analyzed**: 235
+- **Lock files analyzed**: 284 (first 50 sampled this run per batch limit; remaining 234 not re-scanned)
 - **Unique GitHub Actions**: 27
-- **Artifact patterns**: 56
+- **Artifact patterns**: 60
 - **Job name patterns**: 40
 - **File path references**: 83
 
@@ -112,6 +112,14 @@ Artifacts uploaded/downloaded between workflow jobs:
 | `smokepi-experiment` | Smoke test job | Download step | Smoke test PI experiment artifact |
 | `smoketemporaryid-experiment` | Smoke test job | Download step | Smoke test temporary ID experiment artifact |
 | `typist-experiment` | Agent job | Download step | Typist experiment artifact |
+| `aic-usage-cache` | Usage analysis job | Download step | Aggregated agent usage cache data |
+| `copilot-centralization-analysis` | Copilot analysis job | Download step | Copilot centralization analysis experiment artifact |
+| `dailyagentrxtraceoptimizer-experiment` | Daily workflow job | Download step | Daily agent RX trace optimizer experiment artifact |
+| `awfailureinvestigator-experiment` | Agent job | Download step | Agentic workflow failure investigator experiment artifact |
+| `auditworkflows-experiment` | Agent job | Download step | Workflow audit experiment artifact |
+| `breakingchangechecker-experiment` | Agent job | Download step | Breaking change checker experiment artifact |
+| `usage` | Usage tracking job | Conclusion job | Aggregated token/cost usage data |
+| `evals` | Evals job | push_evals_state job | Evaluation run results |
 
 ## Common Job Names
 

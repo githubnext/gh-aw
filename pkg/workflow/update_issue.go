@@ -31,7 +31,7 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 				{Name: "status", Mode: FieldParsingKeyExistence, Dest: &cfg.Status},
 				{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
 				{Name: "body", Mode: FieldParsingBoolValue, Dest: &cfg.Body},
-				{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: &cfg.Footer},
+				updateEntityFooterField(&cfg.Footer),
 			}
 		}, func(configMap map[string]any, cfg *UpdateIssuesConfig) {
 			cfg.TitlePrefix = extractStringFromMap(configMap, "title-prefix", updateIssueLog)
