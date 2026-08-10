@@ -4,10 +4,14 @@
 
 mcp-servers:
   memory:
-    container: "mcp/memory"
+    command: "uvx"
     args:
-      - "-v"
-      - "/tmp/gh-aw/cache-memory:/app/dist"
+      - "--from"
+      - "mcp-memory-service"
+      - "memory"
+      - "server"
+    env:
+      MCP_MEMORY_BASE_DIR: "/tmp/gh-aw/cache-memory/server-memory"
     allowed:
       - store_memory
       - retrieve_memory
@@ -59,7 +63,7 @@ Store and retrieve information across workflow runs using the memory server.
 
 ### How It Works
 
-The memory MCP server stores data in `/tmp/gh-aw/cache-memory/`, which persists across runs via GitHub Actions cache. The Docker container mounts this directory to `/app/dist`.
+The memory MCP server stores data in `/tmp/gh-aw/cache-memory/server-memory/`, which persists across runs via GitHub Actions cache.
 
 Documentation: https://github.com/modelcontextprotocol/servers/tree/main/src/memory
 -->
