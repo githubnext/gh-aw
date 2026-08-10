@@ -1,0 +1,70 @@
+package actionpins
+
+import (
+	"fmt"
+	"regexp"
+
+	"github.com/github/gh-aw/pkg/console"
+)
+
+var containerDigestPinPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*@sha256:[a-f0-9]{64}$`)
+
+// applyActionPinMapping checks ctx.Mappings for a redirect of actionRepo@version and
+// returns the (possibly updated) repo and version. An informational message is printed
+// to stderr the first time each mapping is applied (deduplicated via ctx.Warnings).
+func applyActionPinMapping(actionRepo, version string, ctx *PinContext) (string, string) {
+	if len(ctx.Mappings) == 0 {
+		return actionRepo, version
+	}
+
+	cacheKey := FormatCacheKey(actionRepo, version)
+	mapped, ok := ctx.Mappings[cacheKey]
+	if !ok {
+		return actionRepo, version
+	}
+
+	mappedRepo := ExtractRepo(mapped)
+	mappedVersion := ExtractVersion(mapped)
+	if mappedRepo == "" || mappedVersion == "" {
+		actionPinsLog.Printf("Invalid action_pins mapping value %q for key %q (must be in format owner/repo@ref); skipping", mapped, cacheKey)
+		return actionRepo, version
+	}
+
+	// Emit informational message once per source key.
+	notifyKey := "map:" + cacheKey
+	msg := fmt.Sprintf("Action pin mapping applied: %s → %s", cacheKey, mapped)
+	actionPinsLog.Printf("%s", msg)
+	ctx.emitOnce(notifyKey, msg, console.FormatInfoMessage)
+
+	return mappedRepo, mappedVersion
+}
+
+// ApplyContainerPinMapping checks ctx.ContainerMappings for a redirect of image
+// and returns the (possibly updated) image reference. An informational message is
+// printed to stderr the first time each mapping is applied (deduplicated via
+// ctx.Warnings).
+func ApplyContainerPinMapping(image string, ctx *PinContext) string {
+	if ctx == nil || len(ctx.ContainerMappings) == 0 {
+		return image
+	}
+
+	mapped, ok := ctx.ContainerMappings[image]
+	if !ok {
+		return image
+	}
+
+	if !containerDigestPinPattern.MatchString(mapped) {
+		ctx.emitOnce("container-invalid:"+image,
+			fmt.Sprintf("container_pins: invalid replacement value %q for key %q (must use @sha256:<64 lowercase hex characters>); mapping skipped", mapped, image),
+			console.FormatWarningMessage)
+		return image
+	}
+
+	// Emit informational message once per source key.
+	notifyKey := "container-map:" + image
+	msg := fmt.Sprintf("Container pin mapping applied: %s → %s", image, mapped)
+	actionPinsLog.Printf("%s", msg)
+	ctx.emitOnce(notifyKey, msg, console.FormatInfoMessage)
+
+	return mapped
+}
