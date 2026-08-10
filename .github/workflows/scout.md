@@ -34,7 +34,7 @@ sandbox:
 engine: claude
 imports:
   - shared/reporting.md
-  - shared/mcp/arxiv.md
+  # Note: arxiv.md excluded — docker.io/mcp/arxiv-mcp-server has Critical/High CVEs (see #51713)
   - shared/mcp/tavily.md
   - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
