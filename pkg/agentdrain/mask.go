@@ -3,12 +3,8 @@ package agentdrain
 import (
 	"fmt"
 	"regexp"
-	"sort"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/setutil"
-	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var maskLog = logger.New("agentdrain:mask")
@@ -51,38 +47,4 @@ func (m *Masker) Mask(line string) string {
 		line = r.re.ReplaceAllString(line, r.replacement)
 	}
 	return line
-}
-
-// FlattenEvent converts an AgentEvent into a deterministic string suitable for
-// template mining. Field keys are sorted alphabetically; fields listed in
-// excludeFields are omitted. The result looks like:
-//
-//	stage=tool_call key1=val1 key2=val2
-func FlattenEvent(evt AgentEvent, excludeFields []string) string {
-	maskLog.Printf("Flattening event: stage=%s, fields=%d, exclude=%d", evt.Stage, len(evt.Fields), len(excludeFields))
-	excluded := make(map[string]struct {
-	}, len(excludeFields))
-	for _, f := range excludeFields {
-		excluded[f] = struct {
-		}{}
-	}
-
-	keys := sliceutil.FilterMapKeys(evt.Fields, func(k string, _ string) bool {
-		return !setutil.Contains(excluded, k)
-	})
-	sort.Strings(keys)
-
-	parts := make([]string, 0, len(keys)+1)
-	if evt.Stage != "" {
-		parts = append(parts, "stage="+evt.Stage)
-	}
-	for _, k := range keys {
-		parts = append(parts, k+"="+evt.Fields[k])
-	}
-	return strings.Join(parts, " ")
-}
-
-// Tokenize splits a log line on whitespace and returns the individual tokens.
-func Tokenize(line string) []string {
-	return strings.Fields(line)
 }

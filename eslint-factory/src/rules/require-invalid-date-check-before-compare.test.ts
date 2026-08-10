@@ -150,4 +150,30 @@ describe("require-invalid-date-check-before-compare", () => {
       invalid: [],
     });
   });
+
+  it("invalid: d.getTime() compared relationally without a NaN check", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const d = new Date(input); if (d.getTime() < threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: "<", getTimeTarget: "d" } }],
+        },
+        {
+          code: `if (new Date(run.started_at).getTime() > threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "An inline `new Date(...)` expression", operator: ">", getTimeTarget: "it" } }],
+        },
+      ],
+    });
+  });
+
+  it("valid: d.getTime() comparison guarded by Number.isNaN(d.getTime())", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [
+        `const d = new Date(input); if (Number.isNaN(d.getTime())) return; if (d.getTime() < threshold) { doIt(); }`,
+        `const expirationDate = getExpiration(); if (expirationDate && expirationDate.getTime() <= Date.now()) { doIt(); }`,
+      ],
+      invalid: [],
+    });
+  });
 });
