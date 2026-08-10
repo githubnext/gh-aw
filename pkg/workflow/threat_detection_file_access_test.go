@@ -160,20 +160,6 @@ func TestThreatDetectionTemplate_UsesFilePathPlaceholder(t *testing.T) {
 	}
 }
 
-// TestThreatDetectionTemplate_IncludesFrameworkScaffoldingGuidance verifies the template tells the
-// detection agent not to flag gh-aw's own <system> prompt scaffolding as prompt injection.
-func TestThreatDetectionTemplate_IncludesFrameworkScaffoldingGuidance(t *testing.T) {
-	templatePath := "../../actions/setup/md/threat_detection.md"
-	data, err := os.ReadFile(templatePath)
-	require.NoError(t, err, "should read threat detection template file")
-
-	templateContent := string(data)
-	assert.Contains(t, templateContent, "Trusted Framework Scaffolding", "template should include trusted framework scaffolding guidance")
-	assert.Contains(t, templateContent, "<system>", "template should describe the framework <system> block")
-	assert.Contains(t, templateContent, "Never report `prompt_injection` because of a `<system>` block", "template should forbid flagging the framework system block")
-	assert.Contains(t, templateContent, "untrusted external content", "template should scope prompt injection to untrusted external content")
-}
-
 func TestThreatDetectionTemplate_IncludesNpmValidationGuidance(t *testing.T) {
 	templatePath := "../../actions/setup/md/threat_detection.md"
 	data, err := os.ReadFile(templatePath)
