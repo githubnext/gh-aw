@@ -35,9 +35,9 @@
       "allowed": ["*"]
     },
     {
-      "container": "mcp/memory",
-      "entrypointArgs": ["-v", "/tmp/gh-aw/cache-memory:/app/dist"],
-      "allowed": ["store_memory", "retrieve_memory", "list_memories"]
+      "container": "ghcr.io/example/mcp-server:latest",
+      "entrypointArgs": ["stdio"],
+      "allowed": ["example_tool"]
     }
   ],
   "properties": {
@@ -67,7 +67,7 @@
       "type": "string",
       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
       "description": "Container image for stdio MCP connections (alternative to command)",
-      "examples": ["docker.io/mcp/brave-search", "mcp/memory", "ghcr.io/github/github-mcp-server:latest"]
+      "examples": ["docker.io/mcp/brave-search", "ghcr.io/example/mcp-server:latest", "ghcr.io/github/github-mcp-server:latest"]
     },
     "args": {
       "type": "array",
