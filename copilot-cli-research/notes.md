@@ -63,3 +63,13 @@
 - model overrides for copilot engine: 0 confirmed with corrected regex (prior "102" reading was measurement noise from counting MCP/tool `model:` fields, not engine.model — resolved as false positive).
 - No new Copilot CLI Go features detected in codebase since last run (same file set unchanged).
 - RECOMMENDATION: The 5 orphaned custom agents have now been stable/unreferenced for 8 consecutive runs — recommend either wiring them into a workflow or removing them, rather than continuing to flag every run.
+
+## Run 31354820498 (2026-08-10)
+- 9th consecutive run confirming same persistent gaps, no new movement:
+  - --share flag: still 1 (this workflow only), 9+ runs.
+  - engine.args: still 0, stable.
+  - add-dir custom: still 0 real workflows.
+  - disable-builtin-mcps: still 1 real usage (auto-triage-issues.md).
+  - Orphaned agents unchanged for 9 runs: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer (interactive-agent-designer now has 1 ref, resolved off orphan list last run and confirmed still referenced this run).
+- SKIPPING full issue creation this run per prior recommendation: findings are fully stable/duplicated across 8+ prior issues already filed. Filing a noop instead of a new near-duplicate issue to avoid issue-tracker noise.
+- Recommend: next research run should only file a new issue if (a) a new Copilot CLI feature appears in the Go codebase, or (b) any of the 4 orphaned agents get removed/wired-in, or (c) --share/engine.args adoption changes from 0/1.
