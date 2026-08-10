@@ -15,6 +15,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
@@ -24,6 +25,13 @@ var pkgLog = logger.New("linters:tolowerequalfold")
 
 // Analyzer is the tolower-equalfold analysis pass.
 var Analyzer = analyzerutil.New("tolowerequalfold", "reports case-insensitive string comparisons using strings.ToLower/ToUpper that should use strings.EqualFold", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
@@ -69,6 +77,9 @@ func run(pass *analysis.Pass) (any, error) {
 
 		if isEquivalentToEqualFold(pass, expr, caseConvAliases) {
 			if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(expr.Pos(), false), noLintIndex, "tolowerequalfold") {
+				return
+			}
+			if !coverage.ShouldApply(pass, expr.Pos(), *hotThreshold) {
 				return
 			}
 			pkgLog.Printf("flagging case-insensitive comparison at %s", pass.Fset.PositionFor(expr.Pos(), false))

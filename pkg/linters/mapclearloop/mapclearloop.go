@@ -12,12 +12,20 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the map-clear-loop analysis pass.
 var Analyzer = analyzerutil.New("mapclearloop", "reports range-over-map loops that delete every entry and can be replaced with clear(m)", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
@@ -73,6 +81,9 @@ func analyzeRangeStmt(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 		return
 	}
 	if !builtinVisibleAtPos(pass.Pkg, rangeStmt.Pos(), "clear") {
+		return
+	}
+	if !coverage.ShouldApply(pass, rangeStmt.Pos(), *hotThreshold) {
 		return
 	}
 
