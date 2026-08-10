@@ -220,11 +220,6 @@
       "digest": "sha256:6dc6bba6dfed97f4ad6eb8d23a5c98ef5b7fa6184937d54b2d675801cd9dd29e",
       "pinned_image": "mcp/arxiv-mcp-server@sha256:6dc6bba6dfed97f4ad6eb8d23a5c98ef5b7fa6184937d54b2d675801cd9dd29e"
     },
-    "mcp/ast-grep:latest": {
-      "image": "mcp/ast-grep:latest",
-      "digest": "sha256:5fc3f2e9dcf2c019e92662f608b8d89e12134ed6d91e6f5461de6efd506a1e72",
-      "pinned_image": "mcp/ast-grep:latest@sha256:5fc3f2e9dcf2c019e92662f608b8d89e12134ed6d91e6f5461de6efd506a1e72"
-    },
     "node:lts-alpine": {
       "image": "node:lts-alpine",
       "digest": "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43",

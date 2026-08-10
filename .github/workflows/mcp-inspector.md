@@ -43,6 +43,7 @@ imports:
   # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/mcp/microsoft-docs.md
   # Note: notion.md excluded — docker.io/mcp/notion has Critical/High CVEs (see #49517)
+  # Note: server-memory.md removed — mcp/memory has Critical/High CVEs and license violations (see #51716)
   - shared/mcp/sentry.md
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
