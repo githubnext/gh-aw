@@ -165,11 +165,6 @@
     }
   },
   "containers": {
-    "ghcr.io/fabio-rovai/open-ontologies:latest": {
-      "image": "ghcr.io/fabio-rovai/open-ontologies:latest",
-      "digest": "sha256:2932c10682eac29ccf840a6bd6c4c7c82c5ce770ad9e94697d44057187452530",
-      "pinned_image": "ghcr.io/fabio-rovai/open-ontologies:latest@sha256:2932c10682eac29ccf840a6bd6c4c7c82c5ce770ad9e94697d44057187452530"
-    },
     "ghcr.io/github/gh-aw-firewall/agent:0.27.44": {
       "image": "ghcr.io/github/gh-aw-firewall/agent:0.27.44",
       "digest": "sha256:0d727725c737b58c7bdf51f640cffb928385ec46517e0917c7f1a02f1bada8b4",
@@ -210,20 +205,25 @@
       "digest": "sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5",
       "pinned_image": "ghcr.io/github/serena-mcp-server:sha-891c160@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"
     },
-    "grafana/mcp-grafana": {
-      "image": "grafana/mcp-grafana",
-      "digest": "sha256:5efeafd01cd7e1aea9c4b0f03305951f2944db8f43e5ae290cce9578c977f241",
-      "pinned_image": "grafana/mcp-grafana@sha256:5efeafd01cd7e1aea9c4b0f03305951f2944db8f43e5ae290cce9578c977f241"
+    "grafana/mcp-grafana:1.0.0-alpine": {
+      "image": "grafana/mcp-grafana:1.0.0-alpine",
+      "digest": "sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198",
+      "pinned_image": "grafana/mcp-grafana:1.0.0-alpine@sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198"
     },
-    "mcp/arxiv-mcp-server": {
-      "image": "mcp/arxiv-mcp-server",
-      "digest": "sha256:6dc6bba6dfed97f4ad6eb8d23a5c98ef5b7fa6184937d54b2d675801cd9dd29e",
-      "pinned_image": "mcp/arxiv-mcp-server@sha256:6dc6bba6dfed97f4ad6eb8d23a5c98ef5b7fa6184937d54b2d675801cd9dd29e"
+    "mcp/context7": {
+      "image": "mcp/context7",
+      "digest": "sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836",
+      "pinned_image": "mcp/context7@sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836"
     },
     "node:lts-alpine": {
       "image": "node:lts-alpine",
       "digest": "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43",
       "pinned_image": "node:lts-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
+    },
+    "python:alpine": {
+      "image": "python:alpine",
+      "digest": "sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8",
+      "pinned_image": "python:alpine@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8"
     }
   }
 }
