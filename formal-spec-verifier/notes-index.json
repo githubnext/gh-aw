@@ -37,9 +37,9 @@
     },
     "specs/compiler-threat-detection-spec.md": {
       "slug": "compiler-threat-detection-spec",
-      "last_formalized": "2026-07-28-16-10-40",
-      "notation": "Z3 / F* / TLA+",
-      "predicate_count": 10,
+      "last_formalized": "2026-08-10-15-42-47",
+      "notation": "Z3 / F*",
+      "predicate_count": 12,
       "issue_number": null
     },
     "specs/forecast-compliance-fixtures/README.md": {
