@@ -29,5 +29,8 @@ func TestHelpFlagConsistency(t *testing.T) {
 			checkCmd(sub)
 		}
 	}
+	// Ensure the custom help command (registered via SetHelpCommand) is part of
+	// the command tree so it is covered by this check.
+	rootCmd.InitDefaultHelpCmd()
 	checkCmd(rootCmd)
 }
