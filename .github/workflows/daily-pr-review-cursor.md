@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🖱️"
-description: Daily review of recently opened pull requests for code quality issues using Cursor
+description: Daily review of recently opened pull requests for code quality issues
 on:
   schedule: daily
   workflow_dispatch:
@@ -15,8 +15,8 @@ sandbox:
     sudo: false
 tracker-id: daily-pr-review-cursor
 engine:
-  id: cursor
-model: cursor/auto
+  id: copilot
+  copilot-sdk: true
 strict: true
 network:
   allowed:
@@ -41,12 +41,11 @@ safe-outputs:
   missing-tool:
 timeout-minutes: 20
 imports:
-  - shared/cursor.md
   - shared/otlp.md
   - shared/reporting.md
 ---
 
-# Daily PR Code Quality Review — Cursor
+# Daily PR Code Quality Review
 
 Review recently opened pull requests for common code quality issues and produce a concise daily
 report.
