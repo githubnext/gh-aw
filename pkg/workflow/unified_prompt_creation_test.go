@@ -80,6 +80,7 @@ func TestGenerateUnifiedPromptCreationStep_TreatsUserContentAsData(t *testing.T)
 	assert.NotContains(t, generated, "cat <<", "Prompt creation must not emit heredocs")
 	assert.NotContains(t, generated, "create_prompt_first.sh")
 	assert.Contains(t, generated, "create_prompt.cjs")
+	assert.Contains(t, generated, "await main(core)")
 
 	var workflow struct {
 		Jobs map[string]struct {

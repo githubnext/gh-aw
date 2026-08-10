@@ -293,7 +293,7 @@ jobs:
             const { setupGlobals } = require(process.env.GH_AW_ACTIONS_DIR + '/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(process.env.GH_AW_ACTIONS_DIR + '/create_prompt.cjs');
-            await main();
+            await main(core);
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:

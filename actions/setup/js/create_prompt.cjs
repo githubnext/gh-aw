@@ -104,7 +104,11 @@ function renderPrompt(config, env, promptsDir) {
   return result;
 }
 
-async function main() {
+/**
+ * @param {typeof import('@actions/core')} core - GitHub Actions core library
+ * @returns {Promise<void>}
+ */
+async function main(core) {
   try {
     const promptPath = process.env.GH_AW_PROMPT;
     const configValue = process.env.GH_AW_PROMPT_CONFIG;

@@ -429,7 +429,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	yaml.WriteString("            const { setupGlobals } = require(process.env.GH_AW_ACTIONS_DIR + '/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	yaml.WriteString("            const { main } = require(process.env.GH_AW_ACTIONS_DIR + '/create_prompt.cjs');\n")
-	yaml.WriteString("            await main();\n")
+	yaml.WriteString("            await main(core);\n")
 
 	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
 

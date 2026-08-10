@@ -4,7 +4,6 @@ import os from "os";
 import path from "path";
 
 const core = { info: vi.fn(), setFailed: vi.fn() };
-global.core = core;
 
 const { main, parseConfig, renderPrompt, resolvePromptFile } = require("./create_prompt.cjs");
 
@@ -93,7 +92,7 @@ describe("create_prompt", () => {
       PAYLOAD: `$(touch ${canaryPath})\n\`false\`\n`,
     };
 
-    await main();
+    await main(core);
 
     expect(core.setFailed).not.toHaveBeenCalled();
     expect(fs.readFileSync(promptPath, "utf8")).toBe(process.env.PAYLOAD);
@@ -106,7 +105,7 @@ describe("create_prompt", () => {
     delete process.env.GH_AW_PROMPT_CONFIG;
     delete process.env.RUNNER_TEMP;
 
-    await main();
+    await main(core);
 
     expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_PROMPT environment variable is not set"));
   });
