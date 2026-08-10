@@ -34,6 +34,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	}
 
 	result = dedentTrailingOnCommentBlock(result)
+	frontmatterLog.Printf("Processed 'on' section: %d input lines, %d native label filter section(s)", len(lines), len(nativeLabelFilterSections))
 	return strings.Join(result, "\n")
 }
 
@@ -149,6 +150,7 @@ func (s *onSectionCleanupState) detectEventSection(info onSectionLine) (string, 
 }
 
 func (s *onSectionCleanupState) activateEventSection(section string, indent int) {
+	frontmatterLog.Printf("Entering event section %q at indent %d", section, indent)
 	s.resetTopLevelExtensionState()
 	s.inCommentBlock = false
 	s.commentBlockIndent = ""
@@ -668,6 +670,7 @@ func dedentTrailingOnCommentBlock(lines []string) []string {
 		}
 	}
 
+	frontmatterLog.Printf("Dedenting trailing 'on' comment block: lines %d-%d", start, last)
 	for i := start; i <= last; i++ {
 		lines[i] = strings.TrimLeft(lines[i], " \t")
 	}
