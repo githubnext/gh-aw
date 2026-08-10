@@ -8,3 +8,5 @@
 {"id":"feedback_produced","question":"Was feedback or a report produced identifying documentation gaps for non-Copilot users?","answer":"YES","model":"evals","timestamp":"2026-08-08T12:40:18.838Z","runid":"31257374489"}
 {"id":"docs_reviewed","question":"Did the agent review the project documentation from the perspective of a Claude Code user?","answer":"YES","model":"evals","timestamp":"2026-08-09T12:46:11.934Z","runid":"31313450165"}
 {"id":"feedback_produced","question":"Was feedback or a report produced identifying documentation gaps for non-Copilot users?","answer":"YES","model":"evals","timestamp":"2026-08-09T12:46:11.934Z","runid":"31313450165"}
+{"id":"docs_reviewed","question":"Did the agent review the project documentation from the perspective of a Claude Code user?","answer":"NO","model":"evals","timestamp":"2026-08-10T12:38:36.701Z","runid":"31388621726"}
+{"id":"feedback_produced","question":"Was feedback or a report produced identifying documentation gaps for non-Copilot users?","answer":"NO","model":"evals","timestamp":"2026-08-10T12:38:36.701Z","runid":"31388621726"}
