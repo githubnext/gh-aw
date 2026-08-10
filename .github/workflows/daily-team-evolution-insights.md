@@ -27,7 +27,6 @@ network:
     - defaults
     - github
 tools:
-  cli-proxy: true
   github:
     mode: local
     toolsets: [repos, issues, pull_requests, discussions]
@@ -73,7 +72,7 @@ Use the GitHub MCP server to collect:
 - **Discussions**: Recent discussions and their activity
 - **Reviews**: Code review activity and feedback patterns
 
-> **Fallback**: If the GitHub MCP tools/extension fail to load (e.g. a "Failed to start extension 'github'" warning), a `github` CLI wrapper command is also available on PATH as an alternative way to reach the same GitHub MCP tools. Run `github --help` to list the available commands (e.g. `list_commits`, `list_pull_requests`, `list_issues`) and use `github <command> --param value` to fetch the same data before giving up and reporting a missing tool.
+> **Fallback**: If the GitHub MCP tools/extension fail to load (e.g. a "Failed to start extension 'github'" warning), retry the request before giving up and reporting a missing tool.
 
 ### 2. Analyze Patterns
 
