@@ -1,0 +1,3 @@
+2026-08-10T15:00:00Z
+
+Note: this file was written to `/tmp/gh-aw/repo-memory/default/deep-report/` (one level deep), NOT the old `/tmp/gh-aw/repo-memory/default/memory/deep-report/` path — the old path is silently dropped by the `file-glob: ["*.md"]` slashless pattern (confirmed root cause, see `known_patterns.md`). If a future cycle reads this file successfully, the path fix worked. If a future cycle instead finds this file missing/stale, the underlying `.github/workflows/deep-report.md` prompt still needs correcting to point here permanently, and this write path is a workaround, not the fix.
