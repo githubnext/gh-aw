@@ -16,6 +16,7 @@ import (
 
 // TestParseWorkflowSpecWithWildcard tests parsing workflow specs with wildcards
 func TestParseWorkflowSpecWithWildcard(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		spec           string

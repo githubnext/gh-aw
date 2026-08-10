@@ -9,12 +9,10 @@
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "update_pull_request";
 
-const { updateBody } = require("./update_pr_description_helpers.cjs");
+const { buildUpdatedBody } = require("./update_pr_description_helpers.cjs");
 const { resolveTarget, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { buildCommonEntityUpdateData } = require("./update_entity_helpers.cjs");
-const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { fetchPullRequestState, mergePullRequestState } = require("./safe_output_execution_metadata.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
@@ -132,35 +130,14 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     });
     const currentBody = currentPR.body || "";
 
-    // Get workflow run URL for AI attribution.
-    // Use the original workflow repo (_workflowRepo) rather than context.repo, because
-    // context may be effectiveContext with repo overridden to a cross-repo target.
-    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
-    const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-    const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
-    const workflowRepo = _workflowRepo || context.repo;
-    const runUrl = buildWorkflowRunUrl(context, workflowRepo);
-
-    const historyUrl =
-      generateHistoryUrl({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        itemType: "pull_request",
-        workflowCallId: callerWorkflowId,
-        workflowId,
-        serverUrl: context.serverUrl,
-      }) || undefined;
-
-    // Use helper to update body (handles all operations including replace)
-    apiData.body = updateBody({
+    apiData.body = buildUpdatedBody({
+      context,
       currentBody,
       newContent: rawBody,
       operation,
-      workflowName,
-      runUrl,
-      workflowId,
-      includeFooter, // Pass footer flag to helper
-      historyUrl,
+      includeFooter,
+      workflowRepo: _workflowRepo,
+      itemType: "pull_request",
     });
 
     core.info(`Will update body (length: ${apiData.body.length})`);

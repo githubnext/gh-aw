@@ -1058,6 +1058,7 @@ func TestResolveWorkflows_FallsBackToWorkflowWhenNestedManifestMissing(t *testin
 }
 
 func TestParseRepositoryPackageSpec(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		spec            string
@@ -1162,6 +1163,7 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 }
 
 func TestIsSupportedPackageInstallablePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want bool
@@ -1202,6 +1204,7 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 }
 
 func TestExtractManifestIncludes(t *testing.T) {
+	t.Parallel()
 	includes, warnings := extractManifestIncludes([]any{
 		"workflows/review.md",
 		"agentic-workflows/review.md",
@@ -1220,6 +1223,7 @@ func TestExtractManifestIncludes(t *testing.T) {
 }
 
 func TestCodemodManifestFilesToIncludes(t *testing.T) {
+	t.Parallel()
 	converted := codemodManifestFilesToIncludes([]string{
 		"workflows/review.md",
 		".github/workflows/ci.yml",
@@ -1417,6 +1421,7 @@ files:
 }
 
 func TestIsSupportedSkillDirPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want bool
@@ -1447,6 +1452,7 @@ func TestIsSupportedSkillDirPath(t *testing.T) {
 }
 
 func TestIsSupportedAgentFilePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want bool
@@ -1478,6 +1484,7 @@ func TestIsSupportedAgentFilePath(t *testing.T) {
 }
 
 func TestExtractManifestSkillDirs(t *testing.T) {
+	t.Parallel()
 	t.Run("valid entries are accepted", func(t *testing.T) {
 		dirs, warnings := extractManifestSkillDirs([]any{"skills/review", "skills/triage"}, "aw.yml")
 		assert.Equal(t, []string{"skills/review", "skills/triage"}, dirs)
@@ -1506,6 +1513,7 @@ func TestExtractManifestSkillDirs(t *testing.T) {
 }
 
 func TestExtractManifestAgentFiles(t *testing.T) {
+	t.Parallel()
 	t.Run("valid entries are accepted", func(t *testing.T) {
 		files, warnings := extractManifestAgentFiles([]any{"agents/review.md", "agents/triage.md"}, "aw.yml")
 		assert.Equal(t, []string{"agents/review.md", "agents/triage.md"}, files)
@@ -2055,6 +2063,7 @@ files:
 }
 
 func TestIsGhAwRepository(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		repoSlug string
@@ -2197,6 +2206,7 @@ config:
 }
 
 func TestPrintBootstrapConfigTODO(t *testing.T) {
+	t.Parallel()
 	t.Run("noop when profile is nil", func(t *testing.T) {
 		var buf strings.Builder
 		printBootstrapConfigTODO(&buf, nil)

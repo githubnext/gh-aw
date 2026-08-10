@@ -3,11 +3,9 @@ package agentdrain
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var coordinatorLog = logger.New("agentdrain:coordinator")
@@ -150,10 +148,4 @@ func (c *Coordinator) LoadWeightsJSON(data []byte) error {
 		snapshots[stage] = []byte(raw)
 	}
 	return c.LoadSnapshots(snapshots)
-}
-
-// StageSequence converts a slice of AgentEvents into a space-separated string
-// of their stage names, e.g. "plan tool_call tool_result finish".
-func StageSequence(events []AgentEvent) string {
-	return strings.Join(sliceutil.Map(events, func(e AgentEvent) string { return e.Stage }), " ")
 }

@@ -11,7 +11,7 @@ const mockCore = {
 global.core = mockCore;
 
 // Import the module
-const { buildAIFooter, buildIslandStartMarker, buildIslandEndMarker, findIsland, updateBody } = await import("./update_pr_description_helpers.cjs");
+const { buildAIFooter, buildUpdatedBody, buildIslandStartMarker, buildIslandEndMarker, findIsland, updateBody } = await import("./update_pr_description_helpers.cjs");
 
 describe("update_pr_description_helpers.cjs", () => {
   beforeEach(() => {
@@ -42,6 +42,29 @@ describe("update_pr_description_helpers.cjs", () => {
       const footer = buildAIFooter("Test Workflow", "https://github.com/owner/repo/actions/runs/123");
       expect(typeof footer).toBe("string");
       expect(footer.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("buildUpdatedBody", () => {
+    it("uses the workflow repository for attribution and target repository for history", () => {
+      process.env.GH_AW_CALLER_WORKFLOW_ID = "caller-workflow";
+      const result = buildUpdatedBody({
+        context: {
+          repo: { owner: "target", repo: "repository" },
+          serverUrl: "https://github.example",
+          runId: 123,
+        },
+        currentBody: "Existing body",
+        newContent: "New body",
+        operation: "append",
+        includeFooter: true,
+        workflowRepo: { owner: "workflow", repo: "repository" },
+        itemType: "issue",
+      });
+
+      expect(result).toContain("https://github.example/workflow/repository/actions/runs/123");
+      expect(result).toContain("repo%3Atarget%2Frepository");
+      delete process.env.GH_AW_CALLER_WORKFLOW_ID;
     });
   });
 
