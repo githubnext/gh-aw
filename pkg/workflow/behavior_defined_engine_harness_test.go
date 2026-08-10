@@ -208,6 +208,30 @@ func TestBehaviorDefinedEngineNoHarnessScript(t *testing.T) {
 	assert.NotContains(t, execStepContent, "GHAW_HARNESS_SCRIPT_EOF", "no harness write step should be present")
 }
 
+func TestBehaviorDefinedEngineConfigFileDisablesSC2016(t *testing.T) {
+	def := &EngineDefinition{
+		ID:          "config",
+		DisplayName: "Config",
+		Behaviors: &EngineBehaviorDefinition{
+			ConfigFile: &EngineConfigFileDefinition{
+				Path:          ".config.json",
+				StepName:      "Write Config",
+				Content:       `{"$schema":"https://example.com/schema.json"}`,
+				MergeStrategy: behaviorConfigMergeJSON,
+			},
+		},
+	}
+	engine, err := NewBehaviorDefinedEngine(def)
+	require.NoError(t, err)
+
+	step := strings.Join(engine.buildConfigFileStep(), "\n")
+	assert.Contains(t, step, "# shellcheck disable=SC2016\n          BASE_CONFIG=")
+
+	def.Behaviors.ConfigFile.Content = `{"option":true}`
+	step = strings.Join(engine.buildConfigFileStep(), "\n")
+	assert.NotContains(t, step, "# shellcheck disable=SC2016")
+}
+
 // TestBehaviorDefinedEngineRenderMCPConfig verifies that the MCP gateway startup command
 // is always emitted, even for engines that declare no behaviors.mcp.config-path (e.g.
 // engines with `mcp: false`). Skipping it would leave the gateway container unstarted
