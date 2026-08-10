@@ -21,6 +21,36 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPromptPath } = require("./messages_core.cjs");
 
 /**
+ * Marker written in place of the framework-generated `<system>` block that is removed
+ * from the analyzed workflow prompt before threat detection reads it.
+ */
+const SYSTEM_BLOCK_REMOVED_MARKER = "[gh-aw framework system prompt block removed before analysis]";
+
+/**
+ * Removes the leading framework-generated `<system>...</system>` block from an agent prompt.
+ *
+ * The block is trusted only because of its position: gh-aw always emits it as the very first
+ * element of the generated prompt file. Any `<system>` markup appearing later in the file is
+ * left untouched so that attacker-supplied lookalike blocks remain visible to the analysis.
+ *
+ * @param {string} content Prompt file content
+ * @returns {string|null} The content without the leading system block, or null if there is none
+ */
+function stripFrameworkSystemBlock(content) {
+  const openMatch = /^\s*<system(?:\s[^>]*)?>/i.exec(content);
+  if (!openMatch) {
+    return null;
+  }
+  const afterOpen = openMatch[0].length;
+  const closeMatch = /<\/\s*system\s*>/i.exec(content.slice(afterOpen));
+  if (!closeMatch) {
+    return null;
+  }
+  const endIndex = afterOpen + closeMatch.index + closeMatch[0].length;
+  return `${SYSTEM_BLOCK_REMOVED_MARKER}\n${content.slice(endIndex).replace(/^\s*\n/, "")}`;
+}
+
+/**
  * Main entry point for setting up threat detection
  * @returns {Promise<void>}
  */
@@ -65,8 +95,23 @@ async function main() {
       promptFileInfo = `${promptPath} (unavailable)`;
       core.warning(`${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` + "Threat detection will continue with fallback workflow context.");
     } else {
-      core.info(`Prompt file found: ${promptPath} (${promptStats.size} bytes)`);
-      promptFileInfo = `${promptPath} (${promptStats.size} bytes)`;
+      // Remove gh-aw's own leading <system> block so the detection agent never sees the
+      // framework scaffolding (immutable security policy, safe-output instructions) as if it
+      // were content produced by the analyzed workflow.
+      let promptSize = promptStats.size;
+      try {
+        const rawPrompt = fs.readFileSync(promptPath, "utf-8");
+        const strippedPrompt = stripFrameworkSystemBlock(rawPrompt);
+        if (strippedPrompt !== null) {
+          fs.writeFileSync(promptPath, strippedPrompt);
+          promptSize = Buffer.byteLength(strippedPrompt);
+          core.info(`Removed framework system prompt block from ${promptPath}`);
+        }
+      } catch (err) {
+        core.warning(`${ERR_VALIDATION}: Failed to remove framework system prompt block from ${promptPath}: ${getErrorMessage(err)}. Continuing with the original prompt context.`);
+      }
+      core.info(`Prompt file found: ${promptPath} (${promptSize} bytes)`);
+      promptFileInfo = `${promptPath} (${promptSize} bytes)`;
     }
   }
 
@@ -193,4 +238,4 @@ async function main() {
   core.info("Threat detection setup completed");
 }
 
-module.exports = { main };
+module.exports = { main, stripFrameworkSystemBlock };
