@@ -231,6 +231,9 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_PATH_PREFIX=\"" + payloadPathPrefix + "\"\n")
 	}
 	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD=\"" + strconv.Itoa(payloadSizeThreshold) + "\"\n")
+	// Allow read-write access to the host paths our built-in MCP servers mount
+	// (workspace, gh-aw runtime dir, temp dir); see buildMCPGatewayAllowedMountRoots.
+	yaml.WriteString("          export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS=\"" + buildMCPGatewayAllowedMountRoots(gatewayConfig) + "\"\n")
 	yaml.WriteString("          export DEBUG=\"*\"\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
@@ -394,6 +397,57 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GITHUB_HEAD_REF")
 	containerCmd.WriteString(" -e GITHUB_BASE_REF")
 	containerCmd.WriteString(" -e RUNNER_TEMP")
+	containerCmd.WriteString(" -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
+}
+
+// buildMCPGatewayAllowedMountRoots computes the value of the gateway's
+// MCP_GATEWAY_ALLOWED_MOUNT_ROOTS environment variable. Since gh-aw-mcpg
+// enforces a trusted host-path mount policy before launching containerized
+// backend MCP servers (safe-outputs, agentic-workflows, ...), and defaults to
+// read-only access for $GITHUB_WORKSPACE and the working directory, we must
+// explicitly allow read-write access to the host paths our built-in MCP
+// servers mount (workspace, gh-aw runtime dir, temp dir) plus any custom
+// gateway mounts, or those servers fail to register with a "mount policy
+// violation" error.
+func buildMCPGatewayAllowedMountRoots(gatewayConfig *MCPGatewayRuntimeConfig) string {
+	rootModes := make(map[string]string)
+	addRoot := func(path, mode string) {
+		if path == "" {
+			return
+		}
+		if existing, ok := rootModes[path]; ok && (existing == "rw" || mode == "ro") {
+			return
+		}
+		rootModes[path] = mode
+	}
+
+	// Built-in MCP servers (safe-outputs, agentic-workflows) mount these paths;
+	// see mcp_renderer_builtin.go and constants.Default*Mount.
+	addRoot("${GITHUB_WORKSPACE}", "rw")
+	addRoot(constants.GhAwRootDirShell, "rw")
+	addRoot("/tmp", "rw")
+	addRoot("/usr/bin/gh", "ro")
+
+	if gatewayConfig != nil {
+		for _, mount := range gatewayConfig.Mounts {
+			parts := strings.SplitN(mount, ":", 3)
+			if len(parts) < 2 {
+				continue
+			}
+			mode := "ro"
+			if len(parts) == 3 && parts[2] == "rw" {
+				mode = "rw"
+			}
+			addRoot(parts[0], mode)
+		}
+	}
+
+	roots := sliceutil.SortedKeys(rootModes)
+	entries := make([]string, 0, len(roots))
+	for _, root := range roots {
+		entries = append(entries, root+":"+rootModes[root])
+	}
+	return strings.Join(entries, ",")
 }
 
 func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, hasGitHub bool, githubTool map[string]any, tools map[string]any) {
@@ -465,7 +519,7 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 		"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_GUARD_MIN_INTEGRITY", "GITHUB_MCP_GUARD_REPOS",
 		sinkVisibilityEnvVar,
 		"GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE",
-		"RUNNER_TEMP",
+		"RUNNER_TEMP", "MCP_GATEWAY_ALLOWED_MOUNT_ROOTS",
 		"GITHUB_TOKEN", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT",
 		"GITHUB_JOB", "GITHUB_ACTION", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH",
 		"GITHUB_ACTOR", "GITHUB_ACTOR_ID", "GITHUB_TRIGGERING_ACTOR",
