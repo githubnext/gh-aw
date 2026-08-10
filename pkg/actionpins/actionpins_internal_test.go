@@ -934,9 +934,26 @@ func TestApplyContainerPinMapping(t *testing.T) {
 						mapNotifications++
 					}
 				}
+
 				assert.Equal(t, tt.wantMapNotificationKeys, mapNotifications,
 					"number of container-map: warning keys should match")
 			}
 		})
 	}
+}
+
+func TestApplyContainerPinMapping_DeduplicatesInvalidWarnings(t *testing.T) {
+	ctx := &PinContext{
+		ContainerMappings: map[string]string{
+			"ghcr.io/owner/image:latest": "registry.acme.com/image:latest",
+		},
+	}
+
+	stderrOutput := testutil.CaptureStderr(t, func() {
+		ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+		ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+	})
+
+	assert.Equal(t, 1, strings.Count(stderrOutput, "invalid replacement value"))
+	assert.True(t, ctx.Warnings["container-invalid:ghcr.io/owner/image:latest"])
 }

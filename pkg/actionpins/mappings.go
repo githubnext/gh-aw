@@ -2,7 +2,6 @@ package actionpins
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -55,9 +54,9 @@ func ApplyContainerPinMapping(image string, ctx *PinContext) string {
 	}
 
 	if !containerDigestPinPattern.MatchString(mapped) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		ctx.emitOnce("container-invalid:"+image,
 			fmt.Sprintf("container_pins: invalid replacement value %q for key %q (must use @sha256:<64 lowercase hex characters>); mapping skipped", mapped, image),
-		))
+			console.FormatWarningMessage)
 		return image
 	}
 
