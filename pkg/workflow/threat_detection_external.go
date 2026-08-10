@@ -132,8 +132,10 @@ func (c *Compiler) buildPullAWFContainersStep(data *WorkflowData) []string {
 
 	images := collectDockerImages(detectionData.Tools, detectionData, c.actionMode)
 	if len(images) == 0 {
+		threatLog.Print("No AWF container images to pre-pull for detection job")
 		return nil
 	}
+	threatLog.Printf("Pre-pulling %d AWF container image(s) for detection job", len(images))
 
 	var b strings.Builder
 	generateDownloadDockerImagesStep(&b, images)
@@ -224,6 +226,7 @@ func (c *Compiler) buildInstallAWFForExternalDetectorStep(data *WorkflowData) []
 		version = firewallConfig.Version
 	}
 
+	threatLog.Printf("Building AWF installation step for external detector (version=%s)", version)
 	step := generateAWFInstallationStep(version, nil)
 	if len(step) == 0 {
 		return nil
@@ -297,6 +300,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	engineID := c.getExternalThreatDetectionEngineID(data)
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
+		threatLog.Printf("Failed to resolve detection engine %q for external detector execution: %v", engineID, err)
 		return []string{fmt.Sprintf("      # Failed to resolve detection engine %q: %v\n", engineID, err)}
 	}
 

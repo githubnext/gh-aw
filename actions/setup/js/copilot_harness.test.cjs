@@ -335,6 +335,12 @@ describe("copilot_harness.cjs", () => {
       expect(shouldRetry(result, 0)).toBe(false);
     });
 
+    it("retries AWF API proxy blocks instead of treating them as a guard condition", () => {
+      const result = { exitCode: 1, hasOutput: true, output: "awf api proxy is blocking requests for this run" };
+      expect(detectNonRetryableHarnessGuard(result.output).awfAPIProxyBlockingRequests).toBe(true);
+      expect(shouldRetry(result, 0)).toBe(true);
+    });
+
     it("does not retry the observed CAPIError 429 quota exceeded error even when session produced output", () => {
       const result = {
         exitCode: 1,

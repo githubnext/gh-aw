@@ -53,8 +53,10 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 				"Remove 'sudo: true' to use the secure default. " +
 				"See: https://github.github.com/gh-aw/reference/sandbox/"
 			if c.strictMode {
+				strictModeValidationLog.Print("Rejecting sandbox.agent.sudo: true in strict mode")
 				return fmt.Errorf("strict mode: %s", sudoTrueMsg)
 			}
+			strictModeValidationLog.Print("Warning about deprecated sandbox.agent.sudo: true in non-strict mode")
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(sudoTrueMsg))
 			c.IncrementWarningCount()
 		}
@@ -86,6 +88,7 @@ func (c *Compiler) validateStrictSandboxCustomization(sandboxConfig *SandboxConf
 
 	// Check MCP gateway internal fields
 	if mcp := sandboxConfig.MCP; mcp != nil {
+		strictModeValidationLog.Print("Checking sandbox.mcp internal fields against strict mode restrictions")
 		if mcp.Container != "" {
 			return internalSandboxFieldError("sandbox.mcp.container")
 		}
