@@ -674,17 +674,21 @@ func (e *BehaviorDefinedEngine) buildConfigFileStep() GitHubActionStep {
 		return nil
 	}
 	config := behavior.ConfigFile
+	shellcheckDirective := ""
+	if strings.Contains(config.Content, "$") {
+		shellcheckDirective = "# shellcheck disable=SC2016\n"
+	}
 	command := fmt.Sprintf(`umask 077
 mkdir -p "$(dirname "$GITHUB_WORKSPACE/%s")"
 CONFIG="$GITHUB_WORKSPACE/%s"
-BASE_CONFIG='%s'
+%sBASE_CONFIG='%s'
 if [ -f "$CONFIG" ]; then
   MERGED=$(jq -n --argjson base "$BASE_CONFIG" --argjson existing "$(cat "$CONFIG")" '$existing * $base')
   echo "$MERGED" > "$CONFIG"
 else
   echo "$BASE_CONFIG" > "$CONFIG"
 fi
-chmod 600 "$CONFIG"`, config.Path, config.Path, config.Content)
+chmod 600 "$CONFIG"`, config.Path, config.Path, shellcheckDirective, config.Content)
 	if config.MergeStrategy != behaviorConfigMergeJSON {
 		command = fmt.Sprintf(`umask 077
 mkdir -p "$(dirname "$GITHUB_WORKSPACE/%s")"
