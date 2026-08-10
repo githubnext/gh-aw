@@ -39,6 +39,8 @@ type SandboxConfig struct {
 	// New fields
 	Agent *AgentSandboxConfig      `yaml:"agent,omitempty"` // Agent sandbox configuration
 	MCP   *MCPGatewayRuntimeConfig `yaml:"mcp,omitempty"`   // MCP gateway configuration
+	// Enclaves are AWF-owned private repository executors exposed through mcpg.
+	Enclaves EnclavesConfig `yaml:"enclaves,omitempty" json:"enclaves,omitempty"`
 
 	// Legacy fields (for backward compatibility)
 	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "default" or "sandbox-runtime"

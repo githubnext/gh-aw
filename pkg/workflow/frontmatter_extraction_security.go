@@ -1,6 +1,10 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"encoding/json"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
 
 var frontmatterExtractionSecurityLog = logger.New("workflow:frontmatter_extraction_security")
 
@@ -121,9 +125,16 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 		config.MCP = c.extractMCPGatewayConfig(mcpVal)
 	}
 
-	// If we found agent field, return the new format config
-	if config.Agent != nil {
-		frontmatterExtractionSecurityLog.Print("Sandbox configured with new format (agent)")
+	if enclavesVal, hasEnclaves := sandboxObj["enclaves"]; hasEnclaves {
+		frontmatterExtractionSecurityLog.Print("Extracting enclave configuration")
+		config.Enclaves = extractEnclaveConfigs(enclavesVal)
+	}
+
+	// Agent and MCP already select the new sandbox format. Enclaves alone do not:
+	// continue parsing legacy type/config so adding enclaves cannot discard existing
+	// sandbox restrictions.
+	if config.Agent != nil || config.MCP != nil {
+		frontmatterExtractionSecurityLog.Print("Sandbox configured with new format")
 		return config
 	}
 
@@ -140,6 +151,28 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	}
 
 	return config
+}
+
+func extractEnclaveConfigs(value any) EnclavesConfig {
+	items, ok := value.([]any)
+	if !ok {
+		return EnclavesConfig{nil}
+	}
+	enclaves := make(EnclavesConfig, 0, len(items))
+	for _, item := range items {
+		data, err := json.Marshal(item)
+		if err != nil {
+			enclaves = append(enclaves, nil)
+			continue
+		}
+		var enclave EnclaveConfig
+		if err := json.Unmarshal(data, &enclave); err != nil {
+			enclaves = append(enclaves, nil)
+			continue
+		}
+		enclaves = append(enclaves, &enclave)
+	}
+	return enclaves
 }
 
 // extractAgentSandboxConfig extracts agent sandbox configuration

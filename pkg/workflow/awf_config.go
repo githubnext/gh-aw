@@ -171,7 +171,7 @@ type AWFConfigFile struct {
 	BoundedQueries *AWFBoundedQueriesConfig `json:"boundedQueries,omitempty"`
 
 	// Enclaves configures the unified AWF-owned script and agent enclave subsystem.
-	Enclaves map[string]any `json:"enclaves,omitempty"`
+	Enclaves []map[string]any `json:"enclaves,omitempty"`
 
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`

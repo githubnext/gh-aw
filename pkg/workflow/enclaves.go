@@ -26,94 +26,71 @@ const (
 var enclaveRepoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$`)
 
 // EnclavesConfig configures AWF-owned, finite-disclosure private repository executors.
-type EnclavesConfig struct {
-	Enabled      bool                    `json:"enabled,omitempty"`
-	PrivateRepos []*EnclavePrivateRepo   `json:"private-repos,omitempty"`
-	Executors    *EnclaveExecutorsConfig `json:"executors,omitempty"`
-}
+// Each executor type may appear at most once.
+type EnclavesConfig []*EnclaveConfig
 
-type EnclavePrivateRepo struct {
+type EnclaveRepository struct {
 	Repo        string `json:"repo"`
 	Sensitivity string `json:"sensitivity"`
 }
 
-type EnclaveExecutorsConfig struct {
-	Script *ScriptEnclaveExecutorConfig `json:"script,omitempty"`
-	Agent  *AgentEnclaveExecutorConfig  `json:"agent,omitempty"`
-}
-
-type ScriptEnclaveExecutorConfig struct {
-	Enabled        bool   `json:"enabled,omitempty"`
-	Runtime        string `json:"runtime,omitempty"`
-	Image          string `json:"image,omitempty"`
-	Network        string `json:"network,omitempty"`
-	Interpreter    string `json:"interpreter,omitempty"`
-	Timeout        int    `json:"timeout,omitempty"`
-	MemoryLimit    string `json:"memory-limit,omitempty"`
-	CPULimit       string `json:"cpu-limit,omitempty"`
-	PIDsLimit      int    `json:"pids-limit,omitempty"`
-	TmpfsLimit     string `json:"tmpfs-limit,omitempty"`
-	MaxOutputBytes int    `json:"max-output-bytes,omitempty"`
-	MaxScriptBytes int    `json:"max-script-bytes,omitempty"`
-	MaxInvocations int    `json:"max-invocations,omitempty"`
-}
-
-type AgentEnclaveExecutorConfig struct {
-	Enabled          bool   `json:"enabled,omitempty"`
-	Runtime          string `json:"runtime,omitempty"`
-	Image            string `json:"image,omitempty"`
-	Network          string `json:"network,omitempty"`
-	Engine           string `json:"engine,omitempty"`
-	Profile          string `json:"profile,omitempty"`
-	Model            string `json:"model,omitempty"`
-	Timeout          int    `json:"timeout,omitempty"`
-	MemoryLimit      string `json:"memory-limit,omitempty"`
-	CPULimit         string `json:"cpu-limit,omitempty"`
-	PIDsLimit        int    `json:"pids-limit,omitempty"`
-	TmpfsLimit       string `json:"tmpfs-limit,omitempty"`
-	MaxOutputBytes   int    `json:"max-output-bytes,omitempty"`
-	MaxTaskBytes     int    `json:"max-task-bytes,omitempty"`
-	MaxInvocations   int    `json:"max-invocations,omitempty"`
-	MaxModelRequests int    `json:"max-model-requests,omitempty"`
-	MaxModelTokens   int    `json:"max-model-tokens,omitempty"`
+type EnclaveConfig struct {
+	Type             string               `json:"type"`
+	Repositories     []*EnclaveRepository `json:"repositories"`
+	Runtime          string               `json:"runtime,omitempty"`
+	Image            string               `json:"image,omitempty"`
+	Timeout          int                  `json:"timeout,omitempty"`
+	MemoryLimit      string               `json:"memory-limit,omitempty"`
+	CPULimit         string               `json:"cpu-limit,omitempty"`
+	PIDsLimit        int                  `json:"pids-limit,omitempty"`
+	TmpfsLimit       string               `json:"tmpfs-limit,omitempty"`
+	MaxOutputBytes   int                  `json:"max-output-bytes,omitempty"`
+	MaxScriptBytes   int                  `json:"max-script-bytes,omitempty"`
+	MaxInvocations   int                  `json:"max-invocations,omitempty"`
+	Engine           string               `json:"engine,omitempty"`
+	Profile          string               `json:"profile,omitempty"`
+	Model            string               `json:"model,omitempty"`
+	MaxTaskBytes     int                  `json:"max-task-bytes,omitempty"`
+	MaxModelRequests int                  `json:"max-model-requests,omitempty"`
+	MaxModelTokens   int                  `json:"max-model-tokens,omitempty"`
 }
 
 func enclavesEnabled(workflowData *WorkflowData) bool {
-	return workflowData != nil && workflowData.Enclaves != nil && workflowData.Enclaves.Enabled
+	return workflowData != nil && len(workflowData.Enclaves) > 0
 }
 
 func enabledEnclaveTools(workflowData *WorkflowData) []string {
-	if !enclavesEnabled(workflowData) || workflowData.Enclaves.Executors == nil {
-		return nil
-	}
 	var tools []string
-	if script := workflowData.Enclaves.Executors.Script; script != nil && script.Enabled {
-		tools = append(tools, "enclave_run_script")
-	}
-	if agent := workflowData.Enclaves.Executors.Agent; agent != nil && agent.Enabled {
-		tools = append(tools, "enclave_run_agent")
+	for _, enclave := range workflowData.Enclaves {
+		if enclave == nil {
+			continue
+		}
+		switch enclave.Type {
+		case "script":
+			tools = append(tools, "enclave_run_script")
+		case "agent":
+			tools = append(tools, "enclave_run_agent")
+		}
 	}
 	return tools
 }
 
 func enclaveToolTimeout(workflowData *WorkflowData) int {
 	maxTimeout := 0
-	if !enclavesEnabled(workflowData) || workflowData.Enclaves.Executors == nil {
-		return 0
-	}
-	if script := workflowData.Enclaves.Executors.Script; script != nil && script.Enabled {
-		timeout := script.Timeout
-		if timeout == 0 {
-			timeout = defaultScriptEnclaveTimeout
+	for _, enclave := range workflowData.Enclaves {
+		if enclave == nil {
+			continue
 		}
-		maxTimeout = max(maxTimeout, timeout)
-	}
-	if agent := workflowData.Enclaves.Executors.Agent; agent != nil && agent.Enabled {
-		timeout := agent.Timeout
-		if timeout == 0 {
+		timeout := enclave.Timeout
+		if timeout == 0 && enclave.Type == "script" {
+			timeout = defaultScriptEnclaveTimeout
+		} else if timeout == 0 && enclave.Type == "agent" {
 			timeout = defaultAgentEnclaveTimeout
 		}
 		maxTimeout = max(maxTimeout, timeout)
+	}
+	if maxTimeout == 0 {
+		return 0
 	}
 	return maxTimeout + 30
 }
@@ -123,99 +100,93 @@ func validateEnclavesConfig(workflowData *WorkflowData) error {
 		return nil
 	}
 	if !isAWFNetworkIsolationEnabled(workflowData) {
-		return errors.New("enclaves requires AWF network isolation; set sandbox.agent.sudo: false or use sandbox.agent.runtime: docker-sbx")
+		return errors.New("sandbox.enclaves requires AWF network isolation; set sandbox.agent.sudo: false or use sandbox.agent.runtime: docker-sbx")
 	}
 	if workflowData.ParsedTools != nil &&
 		workflowData.ParsedTools.GitHub != nil &&
 		workflowData.ParsedTools.GitHub.BoundedQueries != nil {
-		return errors.New("enclaves cannot be combined with tools.github.bounded-queries")
+		return errors.New("sandbox.enclaves cannot be combined with tools.github.bounded-queries")
 	}
-	config := workflowData.Enclaves
-	if len(config.PrivateRepos) == 0 {
-		return errors.New("enclaves.private-repos must contain at least one repository when enclaves is enabled")
-	}
-	seen := make(map[string]struct{}, len(config.PrivateRepos))
-	for i, repo := range config.PrivateRepos {
-		if repo == nil {
-			return fmt.Errorf("enclaves.private-repos[%d] must be an object", i)
+	seenTypes := make(map[string]struct{}, len(workflowData.Enclaves))
+	repositorySensitivities := make(map[string]string)
+	for i, enclave := range workflowData.Enclaves {
+		if enclave == nil {
+			return fmt.Errorf("sandbox.enclaves[%d] must be an object", i)
 		}
-		parts := strings.SplitN(repo.Repo, "/", 2)
-		if !enclaveRepoPattern.MatchString(repo.Repo) || len(parts) != 2 || parts[1] == "." || parts[1] == ".." || strings.Contains(parts[1], "..") {
-			return fmt.Errorf("enclaves.private-repos[%d].repo must be a bare owner/repository slug", i)
+		if enclave.Type != "script" && enclave.Type != "agent" {
+			return fmt.Errorf("sandbox.enclaves[%d].type must be script or agent", i)
 		}
-
-		key := strings.ToLower(repo.Repo)
-		if _, ok := seen[key]; ok {
-			return fmt.Errorf("enclaves.private-repos contains duplicate repository %q", repo.Repo)
+		if _, ok := seenTypes[enclave.Type]; ok {
+			return fmt.Errorf("sandbox.enclaves contains duplicate executor type %q", enclave.Type)
 		}
-		seen[key] = struct{}{}
-		switch repo.Sensitivity {
-		case "public", "internal", "confidential", "sealed":
-		default:
-			return fmt.Errorf("enclaves.private-repos[%d].sensitivity must be public, internal, confidential, or sealed", i)
+		seenTypes[enclave.Type] = struct{}{}
+		if enclave.Type == "agent" && enclave.Model == "" {
+			return fmt.Errorf("sandbox.enclaves[%d].model is required for agent enclaves", i)
 		}
-	}
-	if len(enabledEnclaveTools(workflowData)) == 0 {
-		return errors.New("enclaves.executors must enable at least one of script or agent")
-	}
-	if agent := config.Executors.Agent; agent != nil && agent.Enabled && agent.Model == "" {
-		return errors.New("enclaves.executors.agent.model is required when the agent executor is enabled")
+		if len(enclave.Repositories) == 0 {
+			return fmt.Errorf("sandbox.enclaves[%d].repositories must contain at least one repository", i)
+		}
+		seenInEnclave := make(map[string]struct{}, len(enclave.Repositories))
+		for j, repo := range enclave.Repositories {
+			if repo == nil {
+				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d] must be an object", i, j)
+			}
+			parts := strings.SplitN(repo.Repo, "/", 2)
+			if !enclaveRepoPattern.MatchString(repo.Repo) || len(parts) != 2 || parts[1] == "." || parts[1] == ".." || strings.Contains(parts[1], "..") {
+				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d].repo must be a bare owner/repository slug", i, j)
+			}
+			key := strings.ToLower(repo.Repo)
+			if _, ok := seenInEnclave[key]; ok {
+				return fmt.Errorf("sandbox.enclaves[%d].repositories contains duplicate repository %q", i, repo.Repo)
+			}
+			seenInEnclave[key] = struct{}{}
+			switch repo.Sensitivity {
+			case "public", "internal", "confidential", "sealed":
+			default:
+				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d].sensitivity must be public, internal, confidential, or sealed", i, j)
+			}
+			if sensitivity, ok := repositorySensitivities[key]; ok && sensitivity != repo.Sensitivity {
+				return fmt.Errorf("repository %q must use the same sensitivity across enclave types", repo.Repo)
+			}
+			repositorySensitivities[key] = repo.Sensitivity
+		}
 	}
 	return nil
 }
 
-func buildAWFEnclavesConfig(config *EnclavesConfig) map[string]any {
-	if config == nil || !config.Enabled {
+func buildAWFEnclavesConfig(config EnclavesConfig) []map[string]any {
+	if len(config) == 0 {
 		return nil
 	}
-	result := map[string]any{"enabled": true}
-	privateRepos := make([]map[string]any, 0, len(config.PrivateRepos))
-	for _, repo := range config.PrivateRepos {
-		privateRepos = append(privateRepos, map[string]any{
-			"repo": repo.Repo, "sensitivity": repo.Sensitivity,
-		})
-	}
-	result["privateRepos"] = privateRepos
-	executors := make(map[string]any)
-	if config.Executors != nil {
-		if script := config.Executors.Script; script != nil {
-			values := map[string]any{"enabled": script.Enabled}
-			addEnclaveString(values, "runtime", script.Runtime)
-			addEnclaveString(values, "image", script.Image)
-			addEnclaveString(values, "network", script.Network)
-			addEnclaveString(values, "interpreter", script.Interpreter)
-			addEnclaveInt(values, "timeout", script.Timeout)
-			addEnclaveString(values, "memoryLimit", script.MemoryLimit)
-			addEnclaveString(values, "cpuLimit", script.CPULimit)
-			addEnclaveInt(values, "pidsLimit", script.PIDsLimit)
-			addEnclaveString(values, "tmpfsLimit", script.TmpfsLimit)
-			addEnclaveInt(values, "maxOutputBytes", script.MaxOutputBytes)
-			addEnclaveInt(values, "maxScriptBytes", script.MaxScriptBytes)
-			addEnclaveInt(values, "maxInvocations", script.MaxInvocations)
-			executors["script"] = values
+	result := make([]map[string]any, 0, len(config))
+	for _, enclave := range config {
+		values := map[string]any{"type": enclave.Type}
+		repositories := make([]map[string]any, 0, len(enclave.Repositories))
+		for _, repo := range enclave.Repositories {
+			repositories = append(repositories, map[string]any{"repo": repo.Repo, "sensitivity": repo.Sensitivity})
 		}
-		if agent := config.Executors.Agent; agent != nil {
-			values := map[string]any{"enabled": agent.Enabled}
-			addEnclaveString(values, "runtime", agent.Runtime)
-			addEnclaveString(values, "image", agent.Image)
-			addEnclaveString(values, "network", agent.Network)
-			addEnclaveString(values, "engine", agent.Engine)
-			addEnclaveString(values, "profile", agent.Profile)
-			addEnclaveString(values, "model", agent.Model)
-			addEnclaveInt(values, "timeout", agent.Timeout)
-			addEnclaveString(values, "memoryLimit", agent.MemoryLimit)
-			addEnclaveString(values, "cpuLimit", agent.CPULimit)
-			addEnclaveInt(values, "pidsLimit", agent.PIDsLimit)
-			addEnclaveString(values, "tmpfsLimit", agent.TmpfsLimit)
-			addEnclaveInt(values, "maxOutputBytes", agent.MaxOutputBytes)
-			addEnclaveInt(values, "maxTaskBytes", agent.MaxTaskBytes)
-			addEnclaveInt(values, "maxInvocations", agent.MaxInvocations)
-			addEnclaveInt(values, "maxModelRequests", agent.MaxModelRequests)
-			addEnclaveInt(values, "maxModelTokens", agent.MaxModelTokens)
-			executors["agent"] = values
+		values["repositories"] = repositories
+		addEnclaveString(values, "runtime", enclave.Runtime)
+		addEnclaveString(values, "image", enclave.Image)
+		addEnclaveInt(values, "timeout", enclave.Timeout)
+		addEnclaveString(values, "memoryLimit", enclave.MemoryLimit)
+		addEnclaveString(values, "cpuLimit", enclave.CPULimit)
+		addEnclaveInt(values, "pidsLimit", enclave.PIDsLimit)
+		addEnclaveString(values, "tmpfsLimit", enclave.TmpfsLimit)
+		addEnclaveInt(values, "maxOutputBytes", enclave.MaxOutputBytes)
+		addEnclaveInt(values, "maxInvocations", enclave.MaxInvocations)
+		if enclave.Type == "script" {
+			addEnclaveInt(values, "maxScriptBytes", enclave.MaxScriptBytes)
+		} else {
+			addEnclaveString(values, "engine", enclave.Engine)
+			addEnclaveString(values, "profile", enclave.Profile)
+			addEnclaveString(values, "model", enclave.Model)
+			addEnclaveInt(values, "maxTaskBytes", enclave.MaxTaskBytes)
+			addEnclaveInt(values, "maxModelRequests", enclave.MaxModelRequests)
+			addEnclaveInt(values, "maxModelTokens", enclave.MaxModelTokens)
 		}
+		result = append(result, values)
 	}
-	result["executors"] = executors
 	return result
 }
 
