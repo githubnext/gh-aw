@@ -14,6 +14,7 @@ const {
   isMaxTurnsExit,
   isNoDeferredMarkerError,
   isInvalidModelError,
+  isInvalidJsonBodyError,
   isSignalTerminationExitCode,
   shouldRetryWithContinue,
   countPermissionDeniedIssues,
@@ -266,6 +267,41 @@ describe("claude_harness.cjs", () => {
 
     it("returns false for a successful result output", () => {
       expect(isNoDeferredMarkerError('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
+    });
+  });
+
+  describe("isInvalidJsonBodyError", () => {
+    it("returns true for the canonical Anthropic 400 invalid-JSON message", () => {
+      const output = "API Error: 400 The request body is not valid JSON: unexpected character: line 1 column 1 (char 0)";
+      expect(isInvalidJsonBodyError(output)).toBe(true);
+    });
+
+    it("returns true for mixed-case variant", () => {
+      expect(isInvalidJsonBodyError("the REQUEST BODY IS NOT VALID json")).toBe(true);
+    });
+
+    it("returns true when the error appears inside a larger log block following a permission_denied", () => {
+      const output =
+        '{"type":"result","subtype":"permission_denied","decision_reason_type":"subcommandResults"}\n' +
+        "[claude-harness] 2026-08-10T12:33:00.000Z attempt 4 failed: exitCode=1\n" +
+        '{"type":"text","text":"API Error: 400 The request body is not valid JSON: unexpected character: line 1 column 1 (char 0)"}';
+      expect(isInvalidJsonBodyError(output)).toBe(true);
+    });
+
+    it("returns false for an overloaded_error output", () => {
+      expect(isInvalidJsonBodyError('{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}')).toBe(false);
+    });
+
+    it("returns false for a rate_limit_error output", () => {
+      expect(isInvalidJsonBodyError('{"type":"result","subtype":"success","is_error":true,"api_error_status":429}')).toBe(false);
+    });
+
+    it("returns false for an empty string", () => {
+      expect(isInvalidJsonBodyError("")).toBe(false);
+    });
+
+    it("returns false for a successful result output", () => {
+      expect(isInvalidJsonBodyError('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
     });
   });
 
