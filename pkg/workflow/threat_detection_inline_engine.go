@@ -17,6 +17,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
 		if data.SafeOutputs.ThreatDetection.EngineDisabled {
 			// Engine explicitly disabled with engine: false
+			threatLog.Print("Threat detection engine explicitly disabled via engine: false")
 			return []string{
 				"      # AI engine disabled for threat detection (engine: false)\n",
 			}
@@ -49,6 +50,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// Get the engine instance
 	engine, err := c.getAgenticEngine(engineSetting)
 	if err != nil {
+		threatLog.Printf("Detection engine %q not found, skipping execution: %v", engineSetting, err)
 		return []string{"      # Engine not found, skipping execution\n"}
 	}
 
@@ -113,6 +115,8 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		resolvedDetectionModel = extractPiModelID(resolvedDetectionModel)
 	}
 
+	threatLog.Printf("Resolved inline detection engine %q (original=%q) with model %q", engineSetting, originalEngineID, resolvedDetectionModel)
+
 	// Create minimal WorkflowData for threat detection.
 	// SandboxConfig with AWF enabled ensures the engine runs inside the firewall.
 	// NetworkPermissions.Allowed preserves only literal user-specified domains when Copilot
@@ -154,6 +158,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	// via BuildStandardNpmEngineInstallSteps) — a duplicate would trip
 	// JobManager.ValidateDuplicateSteps and hard-fail the compile.
 	if engineRequiresNodeHarness(engine) && !installStepsContainNodeSetup(installSteps) {
+		threatLog.Print("Injecting Node.js setup step for detection engine harness")
 		for _, line := range GenerateNodeJsSetupStep() {
 			steps = append(steps, line+"\n")
 		}

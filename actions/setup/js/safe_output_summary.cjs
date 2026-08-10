@@ -8,6 +8,10 @@
  * Each processed safe-output generates a summary enclosed in a <details> section.
  */
 
+// @safe-outputs-exempt SEC-005 — read-only step-summary renderer; displays repo/target_repo
+// fields from already-validated, already-processed safe-output messages for reporting
+// purposes only. Never performs a cross-repo write or derives an API call target from these fields.
+
 const { displayFileContent } = require("./display_file_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { classifySafeOutputResult, computeSafeOutputsStatus, pickOutcomeField } = require("./safe_outputs_status.cjs");
