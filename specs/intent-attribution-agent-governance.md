@@ -136,6 +136,25 @@ keys, the first-detected date, and the on-call maintainer as the default assigne
 ensures that aspirational migration language does not mask persistent, unaddressed
 configuration drift.
 
+**Counting scope**: The consecutive-run counter is scoped **per repository and per drifted
+key**. Consecutive runs are counted across successive CI runs of the drift-detection workflow
+within a single repository; runs in other repositories never advance a repository's counter,
+and each drifted key maintains an independent streak. A run in which a given key does not
+drift resets that key's counter to zero, so the counter measures *consecutive* occurrences
+rather than a cumulative total. A corrective PR clears all outstanding counters for the
+repository, and an explicit waiver clears the counter for the waived key only.
+
+For example: if key `intent.security` drifts in runs 1 and 2, does not drift in run 3, and
+drifts again in runs 4 and 5, no escalation occurs — the longest consecutive streak is 2. If
+instead it drifts in runs 1, 2, and 3, run 3 escalates to a compliance failure. If
+`intent.security` drifts in runs 1–3 while `intent.docs` drifts only in runs 2–3, run 3
+escalates `intent.security` alone.
+
+This norm is modeled and regression-tested by
+`pkg/intent/drift_escalation_formal_test.go` (`TestFormalDrift_*`), which pins the threshold,
+the reset semantics, the non-zero exit code, and the tracking-issue fields. The production
+CI drift check that persists the counter across runs is not yet implemented.
+
 ## Product boundary
 
 The system can establish:

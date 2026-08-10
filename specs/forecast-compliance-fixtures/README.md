@@ -69,3 +69,22 @@ To add a fixture covering a specific compliance scenario:
 | `run_summary_failed.json` | Run with `conclusion: "failure"` for Bernoulli sampling | T-FC-035 |
 | `run_summary_high_et.json` | Run with very high ET (≥ 1,000,000) for overflow checks | T-ET-006 |
 | `run_summary_cancelled.json` | Run with `conclusion: "cancelled"` (included in sample but not a Bernoulli success; ET is zero because the run did not complete) | T-FC-036 |
+
+### Section 12 Coverage Gaps
+
+The fixture files above cover only the scenarios that require a variant cached run summary.
+The remaining Section 12 test IDs of the parent specification are **not yet mapped to a
+fixture in this directory**; they are currently exercised by unit tests that construct their
+inputs in code:
+
+| Section 12 group | Test IDs | Fixture status |
+|---|---|---|
+| Flag validation | T-FC-001–T-FC-005 | Not fixture-backed — CLI argument parsing needs no run summary |
+| Workflow discovery | T-FC-010–T-FC-013, T-FC-030 | Not yet covered — would need lock-file and API-response fixtures |
+| Data sampling | T-FC-020, T-FC-021, T-FC-023 | Not yet covered — needs multi-run summary sets (window cutoff, empty sample) |
+| Monte Carlo engine | T-FC-031–T-FC-034, T-FC-037–T-FC-040 | Not yet covered individually; `run_summary_minimal.json` is the shared baseline input |
+| Episode grouping | T-FC-041–T-FC-044 | Not yet covered — needs run summaries sharing `headSha`/`headBranch` |
+| Output format | T-FC-050–T-FC-055 | Not fixture-backed — asserted against rendered console/JSON output |
+
+When a new fixture is added for any of the IDs above, move the row into the
+"Available Additional Fixtures" table and remove it from this gap list.

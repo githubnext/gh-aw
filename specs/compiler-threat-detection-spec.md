@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.20  
+**Version**: 1.0.21<br>
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.21` | `v0.83.6` (or newer) | No change to compiled `.lock.yml` semantics relative to `1.0.20`. The Section 6.4 suppression manifest (`rule`/`reason`/`expires` audit-trail entries for `threat-detection-suppress`) is specified but **not yet emitted** by the compiler; the normative shape is pinned by the conformance model in `pkg/workflow/threat_detection_suppression_formal_test.go` (Section 7.4). When the compiler begins emitting the manifest, this table MUST record the resulting `.lock.yml` schema change. |
 | `1.0.20` | `v0.83.6` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), `workflow_run` trigger branch scope enforcement (CTR-021), git subprocess argument-injection guards for remote import/download ref and path arguments (CTR-022), and bash command allowlist illusion rejection for engines lacking allowlist enforcement (CTR-023). No `.lock.yml` schema changes are introduced by CTR-022 or CTR-023; both are compile-time-only validations. |
 | `1.0.19` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). The `docker-sbx` runtime enforcement (CTR-004 scope) requires `sudo: true`, compatible runner topology, and a minimum AWF version; the credential refresh step emitted before agent execution is a security improvement with no new constraint on `.lock.yml` semantics. Playwright CLI mode (`tools.playwright.mode: cli`) is compiler-generated infrastructure with no new constraint on `.lock.yml` semantics. |
 | `1.0.18` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). The `docker-sbx` runtime enforcement (CTR-004 scope) requires `sudo: true`, compatible runner topology, and a minimum AWF version; the credential refresh step emitted before agent execution is a security improvement with no new constraint on `.lock.yml` semantics. Playwright CLI mode (`tools.playwright.mode: cli`) is compiler-generated infrastructure with no new constraint on `.lock.yml` semantics. |
@@ -310,7 +311,7 @@ When mappings change, this table MUST be updated in the same change set as the i
 
 ### 7.2 Mapping Audit (2026-07-31)
 
-Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: SPDD daily spec review cycle 2026-07-31 (rotation index 5–9 of 18, covering `specs/compiler-threat-detection-spec.md` among others). Security-relevant items evaluated: (1) **CTR-016/018/019/020/021 sync references**: each of these five rules was individually verified against current `pkg/workflow/` source locations — `safe_update_enforcement.go` (CTR-016), `strict_mode_update_check_validation.go` (CTR-018), `cache.go` + `expression_builder.go` (CTR-019), `pkg/parser/import_bfs.go` (CTR-020), `agent_validation.go` (CTR-021); all implementation references and test coverage targets in Section 7.1 are current and accurate; no drift detected. (2) **Section 6 Optimizer Failure Safeguards** (§6.6): the three failure modes (API unavailability, runner timeout, rate-limit exhaustion) are specified normatively but are not currently covered by a dedicated unit or integration test; flagged as a coverage gap for the next implementation cycle — a future PR should add tests in `pkg/workflow/` or an integration harness that exercises the `OPTIMIZER_DEGRADED`, `OPTIMIZER_TIMEOUT`, and `OPTIMIZER_RATE_LIMITED` diagnostic paths. No new threat class; no new CTR rule required this cycle.
+Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: SPDD daily spec review cycle 2026-07-31 (rotation index 5–9 of 18, covering `specs/compiler-threat-detection-spec.md` among others). Security-relevant items evaluated: (1) **CTR-016/018/019/020/021 sync references**: each of these five rules was individually verified against current `pkg/workflow/` source locations — `safe_update_enforcement.go` (CTR-016), `strict_mode_update_check_validation.go` (CTR-018), `cache.go` + `expression_builder.go` (CTR-019), `pkg/parser/import_bfs.go` (CTR-020), `agent_validation.go` (CTR-021); all implementation references and test coverage targets in Section 7.1 are current and accurate; no drift detected. (2) **Section 6 Optimizer Failure Safeguards** (§6.6): the three failure modes (API unavailability, runner timeout, rate-limit exhaustion) are specified normatively but are not currently covered by a dedicated unit or integration test; flagged as a coverage gap for the next implementation cycle — a future PR should add tests in `pkg/workflow/` or an integration harness that exercises the `OPTIMIZER_DEGRADED`, `OPTIMIZER_TIMEOUT`, and `OPTIMIZER_RATE_LIMITED` diagnostic paths. No new threat class; no new CTR rule required this cycle. **Update (1.0.21, 2026-08-10)**: this coverage gap is now closed at the conformance-model level — see Section 7.4 and `pkg/workflow/threat_detection_suppression_formal_test.go`; the production compiler/optimizer implementation remains outstanding and is tracked there.
 
 Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit d4872c2 (fix: disable Chromium sandbox for playwright-cli mode in CI containers), merged 2026-07-26. Security-relevant items evaluated: (1) **Playwright CLI mode** (`pkg/workflow/playwright_cli.go`): compiler adds `tools.playwright.mode: cli` support; in CLI mode, `@playwright/cli` is installed via npm and `playwright-cli install --skills` runs before the agent; the npm install step uses `RunInstallScripts: true` internally, but this is a compiler-controlled invocation for a single trusted package (`@playwright/cli`) rather than a user-controlled `runtimes.node.run-install-scripts: true` frontmatter flag — CTR-014 validates the latter only; no new threat class; no new CTR rule required. (2) **Playwright MCP deprecation warning** (`pkg/workflow/playwright_validation.go`): compiler emits a non-blocking deprecation warning when `tools.playwright` is in MCP mode; no new permissions or trust surface introduced; no new threat class; no new CTR rule required. (3) **Playwright Chromium `--no-sandbox` flag** (MCP mode, `pkg/workflow/mcp_config_playwright_renderer.go`): disabling Chromium's process sandbox is required for Chromium to reach `localhost` inside CI containers; this is a browser-process-level flag, not a workflow sandbox bypass; threat class is distinct from CTR-004 (workflow sandbox bypass) and is an expected and documented operational necessity for containerized Playwright; no new CTR rule required.
 
@@ -328,6 +329,37 @@ When adding, removing, or materially changing any `CTR-*` rule, the same pull re
 4. Lock file manifest schema and compiler emission logic for any new or changed suppression/manifest fields tied to the rule.
 
 If a CTR rule change lands without a matching lock file manifest update, CI policy **MUST** fail the change as out-of-sync. Recompilation of affected workflows **MUST** occur in the same change set when manifest shape changes.
+
+### 7.4 Optimizer Protocol Conformance Mapping
+
+Sections 6.4 (False-Positive Handling) and 6.6 (Optimizer Failure Safeguards) describe the
+behavior of the daily optimizer and of the `threat-detection-suppress` frontmatter key. The
+compiler does not yet parse `threat-detection-suppress`, does not yet emit a suppression
+manifest into `.lock.yml`, and the optimizer workflow does not yet emit `SLA_BREACH` or
+`OPTIMIZER_*` entries. Until that implementation lands, the normative thresholds and output
+shapes are pinned by an executable conformance model, mirroring the pattern used for
+`specs/awf-config-sources-spec.md` §7.
+
+| Normative requirement | Conformance model | Test IDs |
+|---|---|---|
+| §6.4 item 1 — `threat-detection-suppress` entry MUST carry `rule` and a non-empty `reason` | `pkg/workflow/threat_detection_suppression_formal_test.go` | `TestFormalCTR64_SuppressionRequiresReason` |
+| §6.4 item 2 — lock-file manifest audit trail (`rule`, `reason`, `expires`); unrecorded suppressions are unapproved | `pkg/workflow/threat_detection_suppression_formal_test.go` | `TestFormalCTR64_LockManifestRecordsSuppressionAuditTrail`, `TestFormalCTR64_SuppressionAbsentFromManifestIsUnapproved` |
+| §6.4 item 4 — `SLA_BREACH` emission after 10 business days with `rule`, `reason`, `age_business_days`, `owner`, `expires` | `pkg/workflow/threat_detection_suppression_formal_test.go` | `TestFormalCTR64_SLABreachEmissionShape`, `TestFormalCTR64_SLABoundaryAndExpiredSuppressions`, `TestFormalCTR64_BusinessDayAgeExcludesWeekends` |
+| §6.4 item 5 — escalation for MUST-level suppressions older than 20 business days | `pkg/workflow/threat_detection_suppression_formal_test.go` | `TestFormalCTR64_EscalationAfterTwentyBusinessDays` |
+| §6.4 item 6 — expired suppressions are treated as non-existent | `pkg/workflow/threat_detection_suppression_formal_test.go` | `TestFormalCTR64_ExpiredSuppressionIsInactive` |
+| §6.6 Failure Mode 1 — `OPTIMIZER_DEGRADED` shape, no PR from degraded runs, retry back-off policy | `pkg/workflow/threat_detection_suppression_formal_test.go` | `TestFormalCTR66_OptimizerDegradedDiagnosticShape`, `TestFormalCTR66_DegradedRetryBackoffPolicy` |
+| §6.6 Failure Mode 2 — `OPTIMIZER_TIMEOUT` shape and partial-artifact discard | `pkg/workflow/threat_detection_suppression_formal_test.go` | `TestFormalCTR66_OptimizerTimeoutDiagnosticShape` |
+| §6.6 Failure Mode 3 — `OPTIMIZER_RATE_LIMITED` shape; rate-limited runs are not completed cycles | `pkg/workflow/threat_detection_suppression_formal_test.go` | `TestFormalCTR66_OptimizerRateLimitedDiagnosticShape`, `TestFormalCTR66_HealthyRunIsUnaffected` |
+
+Run the model with:
+
+```bash
+go test -v -run "TestFormalCTR6" ./pkg/workflow/
+```
+
+When the compiler and optimizer implementations land, this table MUST be updated in the same
+pull request to cite the concrete implementation files alongside the conformance model, and
+Section 2 MUST record any resulting `.lock.yml` schema change.
 
 ---
 
@@ -391,6 +423,14 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.21 (2026-08-10)
+
+- Added Section 7.4 (Optimizer Protocol Conformance Mapping) cross-referencing each Section 6.4 and Section 6.6 normative requirement to the executable conformance model in `pkg/workflow/threat_detection_suppression_formal_test.go`
+- Added conformance model coverage for the Section 6.4 false-positive handling norms: `threat-detection-suppress` entries require a non-empty `reason`, lock-file manifest audit-trail shape (`rule`/`reason`/`expires`), unrecorded suppressions are unapproved, the 10-business-day `SLA_BREACH` emission shape (`rule`, `reason`, `age_business_days`, `owner`, `expires`), the 20-business-day escalation threshold, and expired-suppression handling
+- Closed the Section 6.6 coverage gap flagged in the 1.0.19 audit by adding `OPTIMIZER_DEGRADED`, `OPTIMIZER_TIMEOUT`, and `OPTIMIZER_RATE_LIMITED` diagnostic-shape tests plus the degraded-run retry back-off policy, mirroring the pattern used for `specs/awf-config-sources-spec.md` §7
+- Recorded in Section 2 and Section 7.4 that compiler parsing of `threat-detection-suppress` and optimizer emission of `SLA_BREACH`/`OPTIMIZER_*` entries remain unimplemented; no `.lock.yml` schema change is introduced by this version
+- Updated Section 2 spec-to-implementation sync table with version 1.0.21 entry
 
 ### 1.0.20 (2026-08-03)
 

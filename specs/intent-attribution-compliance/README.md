@@ -31,6 +31,32 @@ The minimum fixture set for conformance claims is:
 2. `ambiguous-root-closing-issues.yaml`
 3. `unlinked-pr-fail-closed.yaml`
 
+## Running Compliance Tests
+
+Each fixture is executed by `pkg/intent/compliance_fixtures_formal_test.go`. For CI parity
+with the other compliance fixture directories (`forecast-compliance-fixtures`,
+`github-mcp-access-control-compliance`), use the explicit invocations below.
+
+| Fixture | Covering tests | Command |
+|---|---|---|
+| `explicit-intent-wins.yaml` | `TestFormalFixture_ExplicitIntentWinsOverLinkedIssues`, `TestFormalFixture_ExplicitIntentOverridesSingleClosingIssue`, `TestFormalFixture_MappedExplicitStatusIsNotFailClosed` | `go test -v -run "TestFormalFixture_Explicit\|TestFormalFixture_Mapped" ./pkg/intent/` |
+| `ambiguous-root-closing-issues.yaml` | `TestFormalFixture_AmbiguousRootIssueSet`, `TestFormalFixture_AmbiguousResolvesToSafestPolicy`, `TestFormalFixture_AmbiguousOrderIndependence` | `go test -v -run "TestFormalFixture_Ambiguous" ./pkg/intent/` |
+| `unlinked-pr-fail-closed.yaml` | `TestFormalFixture_UnlinkedPullRequestFailsClosed`, `TestFormalFixture_UnlinkedResolvesToSafestPolicy`, `TestFormalFixture_UnlinkedWithEmptyLabelsSlice` | `go test -v -run "TestFormalFixture_Unlinked" ./pkg/intent/` |
+| all fixtures | `TestFormalFixture_SingleSourcePerRecordAcrossAllFixtures`, `TestFormalFixture_PolicyDeterminismAcrossRepeatedResolution` | `go test -v -run "TestFormalFixture" ./pkg/intent/` |
+
+To run with the race detector (recommended for CI):
+
+```bash
+go test -race -run "TestFormalFixture" ./pkg/intent/
+```
+
+The drift-escalation norm from the parent specification's "Sync Notes" section is modeled
+separately in `pkg/intent/drift_escalation_formal_test.go`:
+
+```bash
+go test -v -run "TestFormalDrift" ./pkg/intent/
+```
+
 ## Formal Model
 
 Let:

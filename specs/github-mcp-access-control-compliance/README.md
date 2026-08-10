@@ -115,6 +115,27 @@ normative specification (Appendix B):
 A `null` error code in `expected.error_code` means the scenario produces an `allow` decision
 and no error is returned.
 
+## Running Compliance Tests
+
+The formal conformance suite for this fixture directory lives in
+`pkg/workflow/github_mcp_access_control_formal_test.go`. To run every predicate-mapped test
+and the fixture runner:
+
+```bash
+go test -v -run "TestFormal" ./pkg/workflow/
+```
+
+To run with the race detector (recommended for CI):
+
+```bash
+go test -race -run "TestFormal" ./pkg/workflow/
+```
+
+> **Promotion status**: the parent document
+> [`scratchpad/github-mcp-access-control-specification.md`](../../scratchpad/github-mcp-access-control-specification.md)
+> has not been promoted out of `scratchpad/`. Update this note when the specification is
+> promoted to `specs/` or to the published documentation.
+
 ## Adding New Fixtures
 
 1. Copy the most relevant existing fixture file.
