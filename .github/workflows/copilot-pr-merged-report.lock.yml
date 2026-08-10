@@ -254,38 +254,29 @@ jobs:
         if: ${{ contains(toJSON(vars), '"GH_AW_RUNTIME_FEATURES":') }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/log_runtime_features_summary.sh"
       - name: Create prompt with built-in context
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl
+          GH_AW_PROMPT_CONFIG: "{\"items\":[{\"content_env\":\"GH_AW_PROMPT_CONTENT_0000\"},{\"file\":\"xpia.md\"},{\"file\":\"temp_folder_prompt.md\"},{\"file\":\"markdown.md\"},{\"file\":\"cache_memory_prompt.md\"},{\"file\":\"safe_outputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0001\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0002\"},{\"file\":\"mcp_cli_tools_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0003\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0004\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0005\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0006\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0007\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0008\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0009\"}]}"
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        run: |
-          bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
-          {
-          cat << 'GH_AW_PROMPT_0a369d02a1a664db_EOF'
-          <system>
-          GH_AW_PROMPT_0a369d02a1a664db_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
-          cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
-          cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
-          cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
-          cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_0a369d02a1a664db_EOF'
-          <safe-output-tools>
-          Tools: create_discussion, missing_tool, missing_data, noop
-          </safe-output-tools>
-          GH_AW_PROMPT_0a369d02a1a664db_EOF
-          cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_0a369d02a1a664db_EOF'
-          </system>
-          {{#runtime-import .github/workflows/shared/reporting.md}}
-          {{#runtime-import .github/workflows/shared/gh.md}}
-          {{#runtime-import .github/workflows/shared/copilot-pr-analysis-base.md}}
-          {{#runtime-import .github/workflows/shared/otlp.md}}
-          {{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}
-          {{#runtime-import .github/workflows/copilot-pr-merged-report.md}}
-          GH_AW_PROMPT_0a369d02a1a664db_EOF
-          } > "$GH_AW_PROMPT"
+          GH_AW_PROMPT_CONTENT_0000: "<system>\n"
+          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_discussion, missing_tool, missing_data, noop\n"
+          GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
+          GH_AW_PROMPT_CONTENT_0003: "</system>\n"
+          GH_AW_PROMPT_CONTENT_0004: "{{#runtime-import .github/workflows/shared/reporting.md}}\n"
+          GH_AW_PROMPT_CONTENT_0005: "{{#runtime-import .github/workflows/shared/gh.md}}\n"
+          GH_AW_PROMPT_CONTENT_0006: "{{#runtime-import .github/workflows/shared/copilot-pr-analysis-base.md}}\n"
+          GH_AW_PROMPT_CONTENT_0007: "{{#runtime-import .github/workflows/shared/otlp.md}}\n"
+          GH_AW_PROMPT_CONTENT_0008: "{{#runtime-import .github/workflows/shared/copilot-pr-data-fetch.md}}\n"
+          GH_AW_PROMPT_CONTENT_0009: "{{#runtime-import .github/workflows/copilot-pr-merged-report.md}}\n"
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/create_prompt.cjs');
+            await main();
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:

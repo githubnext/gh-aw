@@ -83,9 +83,9 @@ This is a test workflow with cache-memory enabled.
 		t.Error("Expected GH_AW_CACHE_DIR in substitution step")
 	}
 
-	// Test 3: Verify the template file is used (not inline text)
-	if !strings.Contains(lockStr, "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md") {
-		t.Error("Expected '${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md' reference in generated workflow")
+	// Test 3: Verify the template file is rendered by the JavaScript action.
+	if !strings.Contains(lockStr, "create_prompt.cjs") {
+		t.Error("Expected JavaScript prompt renderer in generated workflow")
 	}
 
 	// Test 4: Verify the instruction mentions persistent cache
@@ -625,9 +625,9 @@ This is a test workflow with playwright enabled.
 		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
-	// Test 2: Verify the cat command for playwright prompt file is included
-	if !strings.Contains(lockStr, "cat \"${RUNNER_TEMP}/gh-aw/prompts/playwright_prompt.md\"") {
-		t.Error("Expected cat command for playwright prompt file in generated workflow")
+	// Test 2: Verify the renderer configuration includes the playwright prompt file.
+	if !strings.Contains(lockStr, `\"file\":\"playwright_prompt.md\"`) {
+		t.Error("Expected playwright prompt file in renderer configuration")
 	}
 
 	t.Logf("Successfully verified playwright output directory instructions are included in generated workflow")
@@ -802,9 +802,9 @@ This is a test workflow with issue_comment trigger.
 		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
-	// Test 2: Verify the cat command for PR context prompt file is included
-	if !strings.Contains(lockStr, "cat \"${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md\"") {
-		t.Error("Expected cat command for PR context prompt file in generated workflow")
+	// Test 2: Verify the renderer configuration includes the PR context prompt file.
+	if !strings.Contains(lockStr, `\"file\":\"pr_context_prompt.md\"`) {
+		t.Error("Expected PR context prompt file in renderer configuration")
 	}
 
 	t.Logf("Successfully verified PR context instructions are included for issue_comment trigger")
