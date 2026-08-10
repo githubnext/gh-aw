@@ -138,7 +138,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		assert.NotContains(t, argsStr, "--enable-host-access", "Strict mode (default) should not emit --enable-host-access")
 	})
 
-	t.Run("emits service host ports in strict mode without host access", func(t *testing.T) {
+	t.Run("strict mode ignores services and warns when explicit ports are set", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -154,52 +154,21 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
       - 5432:5432
 `,
 				SandboxConfig: &SandboxConfig{
-					Agent: &AgentSandboxConfig{ID: "awf"},
+					Agent: &AgentSandboxConfig{ID: "awf", AllowHostPorts: []int{9200}},
 				},
 			},
 			AllowedDomains: "github.com",
 		}
 
-		args := BuildAWFArgs(config)
+		var args []string
+		stderr := captureStderr(func() {
+			args = BuildAWFArgs(config)
+		})
 		argsStr := strings.Join(args, " ")
 
-		assert.Contains(t, argsStr, "--allow-host-ports", "Services should emit --allow-host-ports in strict mode")
-		assert.Equal(t, "80,443,5432,8080", argValue(args, "--allow-host-ports"), "Should include defaults and the declared service host port")
+		assert.NotContains(t, argsStr, "--allow-host-ports", "--allow-host-ports requires --enable-host-access, so strict mode (the default) must not emit it")
 		assert.NotContains(t, argsStr, "--enable-host-access", "Strict mode should not imply broad host access")
-	})
-
-	t.Run("merges explicit and service host ports sorted and deduped", func(t *testing.T) {
-		config := AWFCommandConfig{
-			EngineName: "copilot",
-			WorkflowData: &WorkflowData{
-				Name:         "test-workflow",
-				EngineConfig: &EngineConfig{ID: "copilot"},
-				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Enabled: true},
-				},
-				Services: `services:
-  postgres:
-    image: postgres:18
-    ports:
-      - 5432:5432
-  redis:
-    image: redis:7
-    ports:
-      - 6379:6379
-`,
-				SandboxConfig: &SandboxConfig{
-					Agent: &AgentSandboxConfig{
-						ID:             "awf",
-						AllowHostPorts: []int{9200, 5432},
-					},
-				},
-			},
-			AllowedDomains: "github.com",
-		}
-
-		args := BuildAWFArgs(config)
-
-		assert.Equal(t, "80,443,5432,6379,8080,9200", argValue(args, "--allow-host-ports"), "Should sort and dedupe default, service, and explicit host ports")
+		assert.Contains(t, stderr, "sandbox.agent.allow-host-ports", "Should warn that allow-host-ports has no effect in strict mode")
 	})
 
 	t.Run("skips --allow-host-ports and warns when AWF version is too old", func(t *testing.T) {
@@ -217,7 +186,8 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
 						ID:             "awf",
-						AllowHostPorts: []int{9200},
+						LegacySecurity: true,
+						AllowHostPorts: []int{9000},
 					},
 				},
 			},
@@ -260,7 +230,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		assert.NotContains(t, argsStr, "--allow-host-ports", "Should skip --allow-host-ports in network isolation mode")
 	})
 
-	t.Run("legacy security keeps host access and includes service ports", func(t *testing.T) {
+	t.Run("legacy security keeps host access and merges explicit ports, ignoring services", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -279,6 +249,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 					Agent: &AgentSandboxConfig{
 						ID:             "awf",
 						LegacySecurity: true,
+						AllowHostPorts: []int{9000, 80},
 					},
 				},
 			},
@@ -289,30 +260,8 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 
 		assert.Contains(t, argsStr, "--enable-host-access", "Legacy mode should still emit broad host access")
-		assert.Equal(t, "80,443,5432,8080", argValue(args, "--allow-host-ports"), "Legacy mode should merge default and service ports")
+		assert.Equal(t, "80,443,8080,9000", argValue(args, "--allow-host-ports"), "Legacy mode should merge default and explicit ports; services are reached via --allow-host-service-ports, not a static allowlist")
 	})
-}
-
-func TestCollectServiceHostPorts(t *testing.T) {
-	tests := []struct {
-		name     string
-		portSpec string
-		want     []int
-	}{
-		{name: "host container mapping", portSpec: "5432:5432", want: []int{5432}},
-		{name: "bare port", portSpec: "5432", want: []int{5432}},
-		{name: "ip host container mapping", portSpec: "127.0.0.1:5432:5432", want: []int{5432}},
-		{name: "udp suffix ignored", portSpec: "5432:5432/udp", want: []int{5432}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			workflowData := &WorkflowData{
-				Services: "services:\n  db:\n    image: postgres:18\n    ports:\n      - " + tt.portSpec + "\n",
-			}
-
-			assert.Equal(t, tt.want, collectServiceHostPorts(workflowData))
-		})
-	}
 }
 
 // TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs

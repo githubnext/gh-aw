@@ -522,18 +522,29 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 
 		awfArgs = append(awfArgs, "--enable-host-access")
 		awfHelpersLog.Print("Added --enable-host-access for legacy security mode")
+
+		// --allow-host-ports requires --enable-host-access, so this is only ever
+		// emitted in legacy-security mode. AWF's strict security mode (the default)
+		// does not provide a route to host services even when --allow-host-ports is
+		// combined with --enable-host-access, so emitting it there would be both
+		// invalid (strict mode strips --enable-host-access on incompatible runtimes)
+		// and misleading (it would not make services reachable).
+		hostPorts := collectAllowedHostPorts(config.WorkflowData, agentConfig)
+		if len(hostPorts) > 0 {
+			if awfSupportsAllowHostPorts(firewallConfig) {
+				hostPortsValue := joinPorts(hostPorts)
+				awfArgs = append(awfArgs, "--allow-host-ports", hostPortsValue)
+				awfHelpersLog.Printf("Added --allow-host-ports %s", hostPortsValue)
+			} else {
+				warning := fmt.Sprintf("sandbox host ports require AWF %s or newer; skipping --allow-host-ports for AWF version %q", constants.AWFAllowHostPortsMinVersion, getAWFImageTag(firewallConfig))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+				awfHelpersLog.Printf("Warning: %s", warning)
+			}
+		}
 	} else {
 		awfHelpersLog.Print("Strict security: skipping host-access flag (default)")
-	}
-
-	hostPorts := collectAllowedHostPorts(config.WorkflowData, agentConfig, isLegacy)
-	if len(hostPorts) > 0 {
-		if awfSupportsAllowHostPorts(firewallConfig) {
-			hostPortsValue := joinPorts(hostPorts)
-			awfArgs = append(awfArgs, "--allow-host-ports", hostPortsValue)
-			awfHelpersLog.Printf("Added --allow-host-ports %s", hostPortsValue)
-		} else {
-			warning := fmt.Sprintf("sandbox host ports require AWF %s or newer; skipping --allow-host-ports for AWF version %q", constants.AWFAllowHostPortsMinVersion, getAWFImageTag(firewallConfig))
+		if agentConfig != nil && len(agentConfig.AllowHostPorts) > 0 {
+			warning := "sandbox.agent.allow-host-ports has no effect in strict security mode (the default); set sandbox.agent.legacy-security: enable to reach host ports"
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
 			awfHelpersLog.Printf("Warning: %s", warning)
 		}
@@ -607,25 +618,28 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	return awfArgs
 }
 
-func collectAllowedHostPorts(workflowData *WorkflowData, agentConfig *AgentSandboxConfig, includeDefaultPorts bool) []int {
-	ports := map[int]struct{}{}
-	for _, port := range collectServiceHostPorts(workflowData) {
-		ports[port] = struct{}{}
+// collectAllowedHostPorts merges the default host-access ports (80, 443, and the
+// MCP gateway port) with any explicit sandbox.agent.allow-host-ports values.
+//
+// This is only called in legacy-security mode: --allow-host-ports requires
+// --enable-host-access, which is legacy-only. GitHub Actions services: ports
+// are intentionally NOT derived here — AWF's --allow-host-service-ports flag
+// (see ExtractServicePortExpressions) is the correct mechanism for reaching
+// services, since it resolves the actual (possibly dynamically assigned) host
+// port at runtime via ${{ job.services['<id>'].ports['<port>'] }} expressions
+// rather than relying on a static port number.
+func collectAllowedHostPorts(workflowData *WorkflowData, agentConfig *AgentSandboxConfig) []int {
+	ports := map[int]struct{}{
+		80:  {},
+		443: {},
 	}
+	ports[getMCPGatewayPort(workflowData)] = struct{}{}
 	if agentConfig != nil {
 		for _, port := range agentConfig.AllowHostPorts {
 			if port >= minPort && port <= maxPort {
 				ports[port] = struct{}{}
 			}
 		}
-	}
-	if includeDefaultPorts || len(ports) > 0 {
-		ports[80] = struct{}{}
-		ports[443] = struct{}{}
-		ports[getMCPGatewayPort(workflowData)] = struct{}{}
-	}
-	if len(ports) == 0 {
-		return nil
 	}
 	result := make([]int, 0, len(ports))
 	for port := range ports {

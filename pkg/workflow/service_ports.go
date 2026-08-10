@@ -11,7 +11,6 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -31,6 +30,38 @@ const (
 	minPort = 1
 	maxPort = 65535
 )
+
+// awfDangerousHostPorts mirrors AWF's DANGEROUS_PORTS list (gh-aw-firewall
+// src/squid/policy-manifest.ts). These ports are never allowed via
+// --allow-host-ports, even with --enable-host-access: AWF blocks them at
+// both the iptables and Squid policy layers to prevent the agent sandbox
+// from reaching sensitive services directly. --allow-host-service-ports
+// intentionally bypasses this list because it restricts traffic to the host
+// gateway only (for GitHub Actions services:), but that flag requires
+// sandbox.agent.legacy-security: enable.
+var awfDangerousHostPorts = map[int]string{
+	22:    "SSH",
+	23:    "Telnet",
+	25:    "SMTP",
+	110:   "POP3",
+	143:   "IMAP",
+	445:   "SMB",
+	1433:  "MS SQL Server",
+	1521:  "Oracle DB",
+	3306:  "MySQL",
+	3389:  "RDP",
+	5432:  "PostgreSQL",
+	5984:  "CouchDB",
+	6379:  "Redis",
+	6984:  "CouchDB (SSL)",
+	8086:  "InfluxDB HTTP API",
+	8088:  "InfluxDB RPC",
+	9200:  "Elasticsearch HTTP API",
+	9300:  "Elasticsearch transport",
+	27017: "MongoDB",
+	27018: "MongoDB sharding",
+	28017: "MongoDB web interface",
+}
 
 // servicesYAMLWrapper is the top-level YAML wrapper for a services: block.
 // It provides typed access to the service container map while the YAML is parsed
@@ -134,90 +165,6 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 	result := strings.Join(expressions, ",")
 	servicePortsLog.Printf("Generated %d service port expressions", len(expressions))
 	return result, warnings
-}
-
-func collectServiceHostPorts(workflowData *WorkflowData) []int {
-	if workflowData == nil || workflowData.Services == "" {
-		return nil
-	}
-
-	var wrapper servicesYAMLWrapper
-	if err := yaml.Unmarshal([]byte(workflowData.Services), &wrapper); err != nil {
-		servicePortsLog.Printf("Failed to parse services YAML for host ports: %v", err)
-		return nil
-	}
-	if wrapper.Services == nil {
-		return nil
-	}
-
-	seen := map[int]struct{}{}
-	serviceIDs := sliceutil.SortedKeys(wrapper.Services)
-	for _, serviceID := range serviceIDs {
-		svc := wrapper.Services[serviceID]
-		if svc == nil || svc.Ports == nil {
-			continue
-		}
-		portsList, ok := svc.Ports.([]any)
-		if !ok {
-			continue
-		}
-		for _, portSpec := range portsList {
-			if port, ok := parseServiceHostPort(portSpec); ok {
-				seen[port] = struct{}{}
-			}
-		}
-	}
-
-	ports := make([]int, 0, len(seen))
-	for port := range seen {
-		ports = append(ports, port)
-	}
-	sort.Ints(ports)
-	return ports
-}
-
-func parseServiceHostPort(spec any) (int, bool) {
-	switch v := spec.(type) {
-	case int:
-		return validServiceHostPort(v)
-	case int64:
-		return validServiceHostPort(int(v))
-	case uint64:
-		return validServiceHostPort(int(v))
-	case float64:
-		p := int(v)
-		if float64(p) != v {
-			return 0, false
-		}
-		return validServiceHostPort(p)
-	case string:
-		portStr := strings.TrimSpace(v)
-		if portStr == "" {
-			return 0, false
-		}
-		if idx := strings.LastIndex(portStr, "/"); idx != -1 {
-			portStr = portStr[:idx]
-		}
-		parts := strings.Split(portStr, ":")
-		hostPart := parts[0]
-		if len(parts) >= 3 {
-			hostPart = parts[len(parts)-2]
-		}
-		port, err := strconv.Atoi(hostPart)
-		if err != nil {
-			return 0, false
-		}
-		return validServiceHostPort(port)
-	default:
-		return 0, false
-	}
-}
-
-func validServiceHostPort(port int) (int, bool) {
-	if port < minPort || port > maxPort {
-		return 0, false
-	}
-	return port, true
 }
 
 // parsePortSpec parses a single port specification and returns the container port(s).

@@ -846,7 +846,7 @@
             },
             "allow-host-ports": {
               "type": "array",
-              "desc": "Additional host TCP ports the agent may connect to.",
+              "desc": "Additional host TCP ports the agent may connect to when legacy-security is enabled.",
               "leaf": true
             }
           }

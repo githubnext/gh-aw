@@ -501,6 +501,9 @@ func validateAllowHostPorts(ports []int) error {
 		if port < minPort || port > maxPort {
 			return fmt.Errorf("invalid allow-host-ports value: %d. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [5432]", port)
 		}
+		if service, dangerous := awfDangerousHostPorts[port]; dangerous {
+			return fmt.Errorf("invalid allow-host-ports value: %d. This port is blocked by AWF as a dangerous port (%s) and cannot be reached via allow-host-ports even in legacy-security mode. To reach a service on this port, declare it under services: with a port mapping and enable sandbox.agent.legacy-security", port, service)
+		}
 	}
 	return nil
 }

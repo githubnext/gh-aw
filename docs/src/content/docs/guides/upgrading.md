@@ -54,7 +54,7 @@ This updates `.github/skills/agentic-workflows/SKILL.md` to the latest template,
 
 Run `git diff .github/workflows/` to verify the changes. Typical migrations include `sandbox: false` → `sandbox.agent: false`, `app:` → `github-app:`, `safe-inputs:` → `mcp-scripts:`, `daily at` → `daily around`, and removal of deprecated `network.firewall` and `mcp-scripts.mode` fields.
 
-Workflows that use GitHub Actions `services:` with published ports now compile sandbox allowlists for those host TCP ports automatically. If you previously moved service-dependent work outside the agent or enabled `legacy-security` only to reach a service, recompile the workflow and review the generated `--allow-host-ports` value.
+Workflows that use GitHub Actions `services:` with published ports remain reachable from the agent sandbox only when `sandbox.agent.legacy-security: enable` is set; recompiling regenerates the `--allow-host-service-ports` value used to reach those services.
 
 ## Step 4: Commit and Push
 

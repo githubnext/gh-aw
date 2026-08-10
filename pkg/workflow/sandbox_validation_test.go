@@ -346,7 +346,7 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
 			SandboxConfig: &SandboxConfig{
-				Agent: &AgentSandboxConfig{AllowHostPorts: []int{5432, 9200}},
+				Agent: &AgentSandboxConfig{AllowHostPorts: []int{8081, 9000}},
 			},
 		}
 
@@ -366,5 +366,20 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 		require.Error(t, err, "out-of-range allow-host-ports should fail validation")
 		assert.Contains(t, err.Error(), "invalid allow-host-ports value: 0")
 		assert.Contains(t, err.Error(), "Example: allow-host-ports: [5432]")
+	})
+
+	t.Run("dangerous allow-host-ports fails validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{AllowHostPorts: []int{5432}},
+			},
+		}
+
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err, "a dangerous port should fail validation")
+		assert.Contains(t, err.Error(), "invalid allow-host-ports value: 5432")
+		assert.Contains(t, err.Error(), "PostgreSQL")
+		assert.Contains(t, err.Error(), "services:")
 	})
 }
