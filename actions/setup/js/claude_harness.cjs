@@ -587,11 +587,15 @@ async function main() {
     // command. Retrying with --continue would resend the same corrupted on-disk
     // session state and reproduce the identical error, so force a fresh run and
     // permanently disable --continue for the remainder of this driver invocation.
-    if (isInvalidJsonBody && attempt < maxRetries && result.hasOutput) {
-      useContinueOnRetry = false;
-      continueDisabledPermanently = true;
-      log(`attempt ${attempt + 1}: invalid JSON request body (transport-level serialization bug, likely following a permission_denied) — retrying as fresh run (--continue disabled permanently, attempt ${attempt + 2}/${maxRetries + 1})`);
-      continue;
+    if (isInvalidJsonBody) {
+      if (attempt < maxRetries && result.hasOutput) {
+        useContinueOnRetry = false;
+        continueDisabledPermanently = true;
+        log(`attempt ${attempt + 1}: invalid JSON request body (transport-level serialization bug, likely following a permission_denied) — retrying as fresh run (--continue disabled permanently, attempt ${attempt + 2}/${maxRetries + 1})`);
+        continue;
+      }
+      log(`attempt ${attempt + 1}: invalid JSON request body — not retriable via --continue (failure_reason=harness_retry_path_invalid)`);
+      break;
     }
 
     // Retry when the session was partially executed (has output).

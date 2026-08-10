@@ -439,6 +439,43 @@ process.exit(0);
       expect(result.stderr).toContain("failure_reason=harness_retry_path_invalid");
     }, 50000);
 
+    it("uses a fresh retry and permanently disables --continue after a 400 invalid-JSON-body error on --continue", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+
+if (priorCalls === 0) {
+  process.stdout.write("partial execution before retry\\n");
+  process.exit(1);
+}
+
+if (priorCalls === 1) {
+  if (!args.includes("--continue")) {
+    process.stderr.write("expected --continue on first retry\\n");
+    process.exit(9);
+  }
+  process.stderr.write('{"type":"result","subtype":"error","is_error":true,"result":"400 The request body is not valid JSON"}\\n');
+  process.exit(1);
+}
+
+if (args.includes("--continue")) {
+  process.stderr.write("fresh retry unexpectedly used --continue\\n");
+  process.exit(9);
+}
+process.stdout.write("fresh retry succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true, false]);
+      expect(calls[2].args).toContain("fix the bug");
+      expect(result.stderr).toContain("invalid JSON request body");
+    }, 50000);
+
     it("strips user-supplied --continue on fresh retry after invalid continue-path detection", () => {
       const stubScript = `
 const fs = require("fs");
