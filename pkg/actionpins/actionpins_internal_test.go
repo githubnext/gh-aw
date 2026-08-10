@@ -394,9 +394,9 @@ func TestGetLatestActionPinReference_ReturnsFormattedReferenceOrEmpty(t *testing
 }
 
 func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
-	pin, ok := GetContainerPin("node:lts-alpine")
-	require.True(t, ok, "Expected embedded container pin for node:lts-alpine")
-	assert.Equal(t, "node:lts-alpine", pin.Image, "Expected image name to match key")
+	pin, ok := GetContainerPin("ghcr.io/github/gh-aw-node")
+	require.True(t, ok, "Expected embedded container pin for ghcr.io/github/gh-aw-node")
+	assert.Equal(t, "ghcr.io/github/gh-aw-node", pin.Image, "Expected image name to match key")
 	assert.NotEmpty(t, pin.Digest, "Expected digest to be populated")
 	assert.Contains(t, pin.PinnedImage, "@sha256:", "Expected pinned image to include digest")
 }

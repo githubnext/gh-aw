@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // TestMCPServersCompilation verifies that mcp-servers configuration is properly compiled into workflows
@@ -542,7 +544,7 @@ func TestNpxCommandAutoContainerization(t *testing.T) {
 			name:         "npx command with package arg",
 			command:      "npx",
 			args:         `["@sentry/mcp-server@0.33.0"]`,
-			wantImage:    "node:lts-alpine",
+			wantImage:    constants.DefaultGhAwNodeImage,
 			wantEntry:    "npx",
 			wantFirstArg: "@sentry/mcp-server@0.33.0",
 		},
@@ -550,7 +552,7 @@ func TestNpxCommandAutoContainerization(t *testing.T) {
 			name:         "npx command with -y flag and package",
 			command:      "npx",
 			args:         `["-y", "@modelcontextprotocol/server-memory"]`,
-			wantImage:    "node:lts-alpine",
+			wantImage:    constants.DefaultGhAwNodeImage,
 			wantEntry:    "npx",
 			wantFirstArg: "-y",
 		},

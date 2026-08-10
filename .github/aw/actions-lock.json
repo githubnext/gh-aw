@@ -229,11 +229,6 @@
       "image": "mcp/memory",
       "digest": "sha256:db0c2db07a44b6797eba7a832b1bda142ffc899588aae82c92780cbb2252407f",
       "pinned_image": "mcp/memory@sha256:db0c2db07a44b6797eba7a832b1bda142ffc899588aae82c92780cbb2252407f"
-    },
-    "node:lts-alpine": {
-      "image": "node:lts-alpine",
-      "digest": "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43",
-      "pinned_image": "node:lts-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
     }
   }
 }

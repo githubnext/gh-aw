@@ -552,8 +552,6 @@ func TestSpec_ContainerImages_Values(t *testing.T) {
 		actual   string
 		expected string
 	}{
-		// From spec: DefaultNodeAlpineLTSImage // "node:lts-alpine"
-		{name: "DefaultNodeAlpineLTSImage", actual: constants.DefaultNodeAlpineLTSImage, expected: "node:lts-alpine"},
 		// From spec: DefaultPythonAlpineLTSImage // "python:alpine"
 		{name: "DefaultPythonAlpineLTSImage", actual: constants.DefaultPythonAlpineLTSImage, expected: "python:alpine"},
 		// From spec: DefaultAlpineImage // "alpine:latest"

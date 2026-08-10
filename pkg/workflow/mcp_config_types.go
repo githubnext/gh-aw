@@ -18,7 +18,7 @@ type WellKnownContainer struct {
 func getWellKnownContainer(command string) *WellKnownContainer {
 	wellKnownContainers := map[string]*WellKnownContainer{
 		"npx": {
-			Image:      constants.DefaultNodeAlpineLTSImage,
+			Image:      constants.DefaultGhAwNodeImage,
 			Entrypoint: "npx",
 		},
 		"uvx": {

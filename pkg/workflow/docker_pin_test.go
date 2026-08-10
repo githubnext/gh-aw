@@ -19,9 +19,6 @@ func TestApplyContainerPins(t *testing.T) {
 	defaultFirewallAgentPin, ok := getEmbeddedContainerPin(defaultFirewallAgentImage)
 	require.True(t, ok, "embedded pin must exist for %s", defaultFirewallAgentImage)
 
-	nodeLtsAlpinePin, ok := getEmbeddedContainerPin("node:lts-alpine")
-	require.True(t, ok, "embedded pin must exist for node:lts-alpine")
-
 	ghAwNodePin, ok := getEmbeddedContainerPin(constants.DefaultGhAwNodeImage)
 	require.True(t, ok, "embedded pin must exist for %s", constants.DefaultGhAwNodeImage)
 
@@ -38,13 +35,6 @@ func TestApplyContainerPins(t *testing.T) {
 			pins:            nil,
 			expectedRefs:    []string{"example.com/custom:1.0.0", "alpine:3.20"},
 			expectedDigests: []string{"", ""},
-		},
-		{
-			name:            "embedded pin used when cache is absent",
-			images:          []string{"node:lts-alpine"},
-			pins:            nil,
-			expectedRefs:    []string{nodeLtsAlpinePin.PinnedImage},
-			expectedDigests: []string{nodeLtsAlpinePin.Digest},
 		},
 		{
 			name:            "embedded firewall pin used when cache is absent",
@@ -168,7 +158,7 @@ func TestCollectDockerImages_StoresInWorkflowData(t *testing.T) {
 
 // TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage verifies that enabling
 // safe-outputs adds the published gh-aw-node container to the default Docker pull
-// list and manifest data, while not falling back to node:lts-alpine.
+// list and manifest data without duplicating the image.
 func TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -192,10 +182,7 @@ func TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage(t *testing.T) {
 		PinnedImage: ghAwNodePin.PinnedImage,
 	}, "safe-outputs should add gh-aw-node to manifest container pins")
 
-	for _, img := range images {
-		assert.NotContains(t, img, constants.DefaultNodeAlpineLTSImage,
-			"safe-outputs should not add node:lts-alpine (or any digest-pinned form) to the Docker pull list")
-	}
+	assert.Len(t, images, 1, "safe-outputs should add gh-aw-node only once to the Docker pull list")
 }
 
 // TestMergeDockerImages verifies deduplication when merging two slices.
@@ -354,8 +341,8 @@ func TestResolveContainerImage_AppliesContainerPinMapping(t *testing.T) {
 				"other.registry.io/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
 			},
 		}
-		// node:lts-alpine is not in the mappings but has an embedded digest pin.
-		got := resolveContainerImage("node:lts-alpine", data)
+		// gh-aw-node is not in the mappings but has an embedded digest pin.
+		got := resolveContainerImage(constants.DefaultGhAwNodeImage, data)
 		assert.Contains(t, got, "sha256:",
 			"unmapped image should still be resolved through normal digest-pin path")
 	})
