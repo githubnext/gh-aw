@@ -4,7 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_CONFIG } = require("./error_codes.cjs");
+const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
  * @typedef {Object} PromptRenderItem
@@ -24,9 +24,14 @@ const { ERR_CONFIG } = require("./error_codes.cjs");
  * @returns {PromptRenderConfig}
  */
 function parseConfig(value) {
-  const parsed = JSON.parse(value);
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(`${ERR_PARSE}: Invalid GH_AW_PROMPT_CONFIG: ${getErrorMessage(error)}`);
+  }
   if (!parsed || !Array.isArray(parsed.items)) {
-    throw new Error("GH_AW_PROMPT_CONFIG must contain an items array");
+    throw new Error(`${ERR_CONFIG}: GH_AW_PROMPT_CONFIG must contain an items array`);
   }
   return parsed;
 }
@@ -40,12 +45,12 @@ function parseConfig(value) {
  */
 function resolvePromptFile(promptsDir, filename) {
   if (!filename || path.isAbsolute(filename)) {
-    throw new Error("Prompt file must be a relative path");
+    throw new Error(`${ERR_CONFIG}: Prompt file must be a relative path`);
   }
   const root = path.resolve(promptsDir);
   const resolved = path.resolve(root, filename);
   if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
-    throw new Error("Prompt file must stay within the prompt directory");
+    throw new Error(`${ERR_CONFIG}: Prompt file must stay within the prompt directory`);
   }
   return resolved;
 }
@@ -63,28 +68,37 @@ function renderPrompt(config, env, promptsDir) {
 
   for (const item of config.items) {
     if (!item || typeof item !== "object") {
-      throw new Error("Prompt render item must be an object");
+      throw new Error(`${ERR_CONFIG}: Prompt render item must be an object`);
     }
     if (item.condition_env && env[item.condition_env] !== "true") {
       continue;
     }
 
-    const hasContent = typeof item.content_env === "string";
-    const hasFile = typeof item.file === "string";
+    const contentEnv = item.content_env;
+    const filename = item.file;
+    const hasContent = typeof contentEnv === "string";
+    const hasFile = typeof filename === "string";
     if (hasContent === hasFile) {
-      throw new Error("Prompt render item must specify exactly one content_env or file");
+      throw new Error(`${ERR_CONFIG}: Prompt render item must specify exactly one content_env or file`);
     }
 
-    if (hasContent) {
-      if (!Object.prototype.hasOwnProperty.call(env, item.content_env)) {
-        throw new Error(`Prompt content environment variable is missing: ${item.content_env}`);
+    if (typeof contentEnv === "string") {
+      if (!Object.prototype.hasOwnProperty.call(env, contentEnv)) {
+        throw new Error(`${ERR_CONFIG}: Prompt content environment variable is missing: ${contentEnv}`);
       }
-      result += env[item.content_env] || "";
+      result += env[contentEnv] || "";
       continue;
     }
 
-    const promptFile = resolvePromptFile(promptsDir, item.file);
-    result += fs.readFileSync(promptFile, "utf8");
+    if (typeof filename !== "string") {
+      throw new Error(`${ERR_CONFIG}: Prompt render item file must be a string`);
+    }
+    const promptFile = resolvePromptFile(promptsDir, filename);
+    try {
+      result += fs.readFileSync(promptFile, "utf8");
+    } catch (error) {
+      throw new Error(`${ERR_SYSTEM}: Failed to read prompt file: ${getErrorMessage(error)}`);
+    }
   }
 
   return result;
@@ -96,13 +110,13 @@ async function main() {
     const configValue = process.env.GH_AW_PROMPT_CONFIG;
     const runnerTemp = process.env.RUNNER_TEMP;
     if (!promptPath) {
-      throw new Error("GH_AW_PROMPT environment variable is not set");
+      throw new Error(`${ERR_CONFIG}: GH_AW_PROMPT environment variable is not set`);
     }
     if (!configValue) {
-      throw new Error("GH_AW_PROMPT_CONFIG environment variable is not set");
+      throw new Error(`${ERR_CONFIG}: GH_AW_PROMPT_CONFIG environment variable is not set`);
     }
     if (!runnerTemp) {
-      throw new Error("RUNNER_TEMP environment variable is not set");
+      throw new Error(`${ERR_CONFIG}: RUNNER_TEMP environment variable is not set`);
     }
 
     const config = parseConfig(configValue);
