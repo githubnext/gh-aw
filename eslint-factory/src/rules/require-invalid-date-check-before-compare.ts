@@ -47,6 +47,19 @@ function isGetTimeNaNCheck(node: TSESTree.CallExpression): boolean {
 }
 
 /**
+ * Returns the receiver expression of a zero-argument `<expr>.getTime()` call, or null when the
+ * node is not such a call. Mirrors the extraction performed by `isGetTimeNaNCheck` so that
+ * comparisons written as `d.getTime() < threshold` are recognized the same way as `d < threshold`.
+ */
+function extractGetTimeReceiver(node: TSESTree.Node): TSESTree.Node | null {
+  if (node.type !== AST_NODE_TYPES.CallExpression || node.arguments.length !== 0) return null;
+  if (node.callee.type !== AST_NODE_TYPES.MemberExpression) return null;
+  const { property, computed } = node.callee;
+  if (computed || property.type !== AST_NODE_TYPES.Identifier || property.name !== "getTime") return null;
+  return node.callee.object;
+}
+
+/**
  * Resolves an identifier to its scope-bound `Variable`, walking up the scope chain.
  * Using the resolved `Variable` (rather than the bare name string) as a map key ensures
  * same-named locals in different functions are never conflated.
@@ -207,7 +220,10 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
         if (!RELATIONAL_OPERATORS.has(node.operator)) return;
 
         const sides: ComparisonSide[] = [];
-        for (const side of [node.left, node.right]) {
+        for (const operand of [node.left, node.right]) {
+          // `d.getTime() < x` carries the same Invalid Date hazard as `d < x` (NaN comparisons
+          // are always false), so unwrap the receiver and treat it as the comparison side.
+          const side = extractGetTimeReceiver(operand) ?? operand;
           // Direct relational use of an inline `new Date(...)` expression.
           if (side.type === AST_NODE_TYPES.NewExpression && isPotentiallyInvalidDateConstruction(side)) {
             sides.push({ kind: "inline" });

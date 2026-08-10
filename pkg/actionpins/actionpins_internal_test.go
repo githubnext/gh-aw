@@ -171,25 +171,22 @@ func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 		}, "Expected FormatPinnedActionReference to panic with specific message when SHA is empty")
 }
 
-func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
+func TestPinContextEmitOnce_InitializesAndDeduplicates(t *testing.T) {
 	t.Parallel()
-	t.Run("initializes nil warnings map", func(t *testing.T) {
-		ctx := &PinContext{}
 
-		initWarnings(ctx)
+	ctx := &PinContext{}
 
-		require.NotNil(t, ctx.Warnings, "Expected warnings map to be initialized")
-		assert.Empty(t, ctx.Warnings, "Expected initialized warnings map to be empty")
+	stderrOutput := testutil.CaptureStderr(t, func() {
+		ctx.emitOnce("new", "first", func(message string) string {
+			return "formatted: " + message
+		})
+		ctx.emitOnce("new", "second", func(message string) string {
+			return "formatted: " + message
+		})
 	})
 
-	t.Run("preserves existing warnings map", func(t *testing.T) {
-		ctx := &PinContext{Warnings: map[string]bool{"actions/checkout@v5": true}}
-
-		initWarnings(ctx)
-
-		require.NotNil(t, ctx.Warnings, "Expected warnings map to remain initialized")
-		assert.Equal(t, map[string]bool{"actions/checkout@v5": true}, ctx.Warnings, "Expected existing warnings to be preserved unchanged")
-	})
+	assert.Equal(t, map[string]bool{"new": true}, ctx.Warnings)
+	assert.Equal(t, "formatted: first\n", stderrOutput)
 }
 
 func TestFormatPinnedActionWithResolution_ConsistentVersionComment(t *testing.T) {
@@ -947,9 +944,28 @@ func TestApplyContainerPinMapping(t *testing.T) {
 						mapNotifications++
 					}
 				}
+
 				assert.Equal(t, tt.wantMapNotificationKeys, mapNotifications,
 					"number of container-map: warning keys should match")
 			}
 		})
 	}
+}
+
+func TestApplyContainerPinMapping_DeduplicatesInvalidWarnings(t *testing.T) {
+	t.Parallel()
+
+	ctx := &PinContext{
+		ContainerMappings: map[string]string{
+			"ghcr.io/owner/image:latest": "registry.acme.com/image:latest",
+		},
+	}
+
+	stderrOutput := testutil.CaptureStderr(t, func() {
+		ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+		ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+	})
+
+	assert.Equal(t, 1, strings.Count(stderrOutput, "invalid replacement value"))
+	assert.True(t, ctx.Warnings["container-invalid:ghcr.io/owner/image:latest"])
 }
