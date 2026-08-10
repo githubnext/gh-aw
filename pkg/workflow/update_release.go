@@ -19,7 +19,7 @@ func (c *Compiler) parseUpdateReleaseConfig(outputMap map[string]any) *UpdateRel
 		UpdateEntityRelease, "update-release", updateReleaseLog,
 		func(cfg *UpdateReleaseConfig) []UpdateEntityFieldSpec {
 			return []UpdateEntityFieldSpec{
-				{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: &cfg.Footer},
+				updateEntityFooterField(&cfg.Footer),
 			}
 		}, nil)
 }
