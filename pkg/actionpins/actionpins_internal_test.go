@@ -164,6 +164,8 @@ func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 }
 
 func TestPinContextEmitOnce_InitializesAndDeduplicates(t *testing.T) {
+	t.Parallel()
+
 	ctx := &PinContext{}
 
 	stderrOutput := testutil.CaptureStderr(t, func() {
@@ -943,6 +945,8 @@ func TestApplyContainerPinMapping(t *testing.T) {
 }
 
 func TestApplyContainerPinMapping_DeduplicatesInvalidWarnings(t *testing.T) {
+	t.Parallel()
+
 	ctx := &PinContext{
 		ContainerMappings: map[string]string{
 			"ghcr.io/owner/image:latest": "registry.acme.com/image:latest",

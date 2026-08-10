@@ -101,7 +101,7 @@ func mergeTemplate(existing, incoming []string, paramToken string) []string {
 
 // extractParams returns the token values at positions where the template has paramToken.
 func extractParams(tokens []string, template []string, paramToken string) []string {
-	params := []string{}
+	var params []string
 	for i, tok := range template {
 		if tok == paramToken && i < len(tokens) {
 			params = append(params, tokens[i])
