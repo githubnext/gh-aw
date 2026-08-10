@@ -23,6 +23,7 @@ RUN apk upgrade --no-cache \
     && npm_modules="$(npm root -g)/npm/node_modules" \
     && cp -rf "$tmpdir/node_modules/brace-expansion/." "$npm_modules/brace-expansion/" \
     && cp -rf "$tmpdir/node_modules/ip-address/." "$npm_modules/ip-address/" \
+    && node -e "require('ip-address')" \
     && cp -rf "$tmpdir/node_modules/tar/." "$npm_modules/tar/" \
     && cp -rf "$tmpdir/node_modules/undici/." "$npm_modules/undici/" \
     && rm -rf "$tmpdir" \
