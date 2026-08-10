@@ -665,7 +665,7 @@ func customHelpRunE(c *cobra.Command, args []string) error {
 }
 
 func newCustomHelpCmd() *cobra.Command {
-	return &cobra.Command{
+	helpCmd := &cobra.Command{
 		Use:   "help [command]",
 		Short: "Help about any command",
 		Long: `Help provides help for any command in the application.
@@ -674,6 +674,11 @@ Simply type ` + string(constants.CLIExtensionPrefix) + ` help [path to command] 
 Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all commands.`,
 		RunE: customHelpRunE,
 	}
+	helpCmd.InitDefaultHelpFlag()
+	if f := helpCmd.Flags().Lookup("help"); f != nil {
+		f.Usage = "Show help for " + string(constants.CLIExtensionPrefix) + " help"
+	}
+	return helpCmd
 }
 
 func configureRootCommand() {

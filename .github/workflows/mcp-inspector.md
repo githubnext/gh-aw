@@ -31,7 +31,7 @@ imports:
     with:
       title-prefix: "[mcp-inspector] "
       expires: 1d
-  - shared/mcp/arxiv.md
+  # Note: arxiv.md excluded — docker.io/mcp/arxiv-mcp-server has Critical/High CVEs (see #51713)
   - shared/mcp/ast-grep.md
   # Note: azure.md excluded due to schema validation issue with entrypointArgs
   # Note: brave.md excluded — docker.io/mcp/brave-search has Critical/High CVEs (see #48546)
@@ -43,8 +43,8 @@ imports:
   # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/mcp/microsoft-docs.md
   # Note: notion.md excluded — docker.io/mcp/notion has Critical/High CVEs (see #49517)
+  # Note: server-memory.md removed — mcp/memory has Critical/High CVEs and license violations (see #51716)
   - shared/mcp/sentry.md
-  - shared/mcp/server-memory.md
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
   - shared/mcp/serena-go.md

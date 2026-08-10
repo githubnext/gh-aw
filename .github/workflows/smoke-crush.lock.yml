@@ -980,6 +980,7 @@ jobs:
           umask 077
           mkdir -p "$(dirname "$GITHUB_WORKSPACE/.crush.json")"
           CONFIG="$GITHUB_WORKSPACE/.crush.json"
+          # shellcheck disable=SC2016
           BASE_CONFIG='{
             "$schema": "https://charm.land/crush.json",
             "options": {
@@ -1871,6 +1872,7 @@ jobs:
           umask 077
           mkdir -p "$(dirname "$GITHUB_WORKSPACE/.crush.json")"
           CONFIG="$GITHUB_WORKSPACE/.crush.json"
+          # shellcheck disable=SC2016
           BASE_CONFIG='{
             "$schema": "https://charm.land/crush.json",
             "options": {

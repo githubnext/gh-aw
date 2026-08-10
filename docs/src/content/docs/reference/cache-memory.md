@@ -66,19 +66,16 @@ tools:
 
 Mounts at `/tmp/gh-aw/cache-memory/` (default) or `/tmp/gh-aw/cache-memory-{id}/`. The `id` determines the folder name; `key` defaults to a workflow-scoped prefix derived from the sanitized workflow name.
 
-## Merging from Shared Workflows
+## Using with MCP Servers
 
 ```aw wrap
 ---
-imports:
-  - shared/mcp/server-memory.md
-
 tools:
   cache-memory: true
 ---
 ```
 
-Merge rules: **Single→Single** (local overrides), **Single→Multiple** (local converts to array), **Multiple→Multiple** (merge by `id`, local wins).
+MCP servers can persist temporary state by reading and writing files under `/tmp/gh-aw/cache-memory/` when `tools.cache-memory` is enabled. Configure the server directly in the workflow and point it at a subdirectory such as `/tmp/gh-aw/cache-memory/<server-name>/`.
 
 ## Behavior
 
