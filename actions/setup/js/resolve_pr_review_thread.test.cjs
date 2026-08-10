@@ -154,6 +154,104 @@ describe("resolve_pr_review_thread", () => {
     expect(mockGraphql).toHaveBeenCalledTimes(1);
   });
 
+  it("should succeed as a no-op when the lookup throws a stale-node GraphQL error", async () => {
+    mockGraphql.mockImplementation(() => {
+      const error = new Error("Request failed");
+      error.errors = [{ type: "NOT_FOUND", message: "Could not resolve to a node with the global id of 'PRRT_kwDOPc1QR87fJc0o'" }];
+      return Promise.reject(error);
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({ type: "resolve_pull_request_review_thread", thread_id: "PRRT_kwDOPc1QR87fJc0o" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.is_resolved).toBe(true);
+    expect(mockCore.error).not.toHaveBeenCalled();
+  });
+
+  it("should succeed as a no-op when the lookup throws a plain Not Found error", async () => {
+    mockGraphql.mockImplementation(() => Promise.reject(new Error("Not Found")));
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({ type: "resolve_pull_request_review_thread", thread_id: "PRRT_stale" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(mockCore.error).not.toHaveBeenCalled();
+  });
+
+  it("should succeed as a no-op when the resolve mutation reports a stale node", async () => {
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        const error = new Error("Could not resolve to a node with the global id of 'PRRT_kwDOABCD123456'");
+        return Promise.reject(error);
+      }
+      return Promise.resolve({
+        node: {
+          __typename: "PullRequestReviewThread",
+          id: "PRRT_kwDOABCD123456",
+          isResolved: false,
+          pullRequest: { number: 42, repository: { nameWithOwner: "test-owner/test-repo" } },
+        },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({ type: "resolve_pull_request_review_thread", thread_id: "PRRT_kwDOABCD123456" }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.is_resolved).toBe(true);
+    expect(mockCore.error).not.toHaveBeenCalled();
+  });
+
+  it("should still fail for unrelated lookup errors", async () => {
+    mockGraphql.mockImplementation(() => Promise.reject(new Error("Internal server error")));
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({ type: "resolve_pull_request_review_thread", thread_id: "PRRT_kwDOABCD123456" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Internal server error");
+  });
+
+  it("should still fail for unrelated 'not found' errors such as a missing repository", async () => {
+    mockGraphql.mockImplementation(() => Promise.reject(new Error("Repository not found")));
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({ type: "resolve_pull_request_review_thread", thread_id: "PRRT_kwDOABCD123456" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Repository not found");
+  });
+
+  it("should still fail for structured NOT_FOUND errors unrelated to stale thread nodes", async () => {
+    mockGraphql.mockImplementation(() => {
+      const error = new Error("Repository not found");
+      error.errors = [{ type: "NOT_FOUND", message: "Repository not found", path: ["repository"] }];
+      return Promise.reject(error);
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const result = await freshHandler({ type: "resolve_pull_request_review_thread", thread_id: "PRRT_kwDOABCD123456" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Repository not found");
+  });
+
   it("should resolve a review comment node ID by finding its parent thread", async () => {
     mockGraphql.mockImplementation(query => {
       if (query.includes("resolveReviewThread")) {
@@ -582,7 +680,7 @@ describe("resolve_pr_review_thread", () => {
   });
 
   it("should handle API errors gracefully", async () => {
-    mockGraphql.mockRejectedValue(new Error("Could not resolve. Thread not found."));
+    mockGraphql.mockRejectedValue(new Error("Internal server error while loading thread"));
 
     const message = {
       type: "resolve_pull_request_review_thread",
@@ -592,7 +690,7 @@ describe("resolve_pr_review_thread", () => {
     const result = await handler(message, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("Could not resolve");
+    expect(result.error).toContain("Internal server error");
   });
 
   it("should soft-skip when resolve mutation returns integration access error", async () => {
