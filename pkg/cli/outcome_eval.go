@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"slices"
 	"strings"
@@ -309,9 +310,19 @@ func ghAPIGetArray(ctx context.Context, endpoint string, repo string) ([]map[str
 }
 
 // ghAPIGraphQL calls the GitHub GraphQL API via gh cli and returns the parsed JSON.
-func ghAPIGraphQL(ctx context.Context, query string, repo string) (map[string]any, error) {
+// Values are passed as GraphQL variables rather than interpolated into the query text.
+func ghAPIGraphQL(ctx context.Context, query string, variables map[string]any, repo string) (map[string]any, error) {
 	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	args := []string{"api", "graphql", "-f", "query=" + query}
+	for _, name := range slices.Sorted(maps.Keys(variables)) {
+		switch value := variables[name].(type) {
+		case string:
+			// -f sends the value literally, avoiding gh's @file / {placeholder} expansion.
+			args = append(args, "-f", name+"="+value)
+		default:
+			args = append(args, "-F", fmt.Sprintf("%s=%v", name, value))
+		}
+	}
 	var output []byte
 	var err error
 	if host != "" {
@@ -512,9 +523,9 @@ func loadPullRequestIntentData(ctx context.Context, report OutcomeReport, repo s
 		return intent.PullRequestData{}, fmt.Errorf("invalid repo for root tracing: %s", repo)
 	}
 
-	query := fmt.Sprintf(`query {
-		repository(owner: "%s", name: "%s") {
-			pullRequest(number: %d) {
+	query := `query($owner: String!, $name: String!, $number: Int!) {
+		repository(owner: $owner, name: $name) {
+			pullRequest(number: $number) {
 				id
 				closingIssuesReferences(first: 10) {
 					nodes {
@@ -528,13 +539,14 @@ func loadPullRequestIntentData(ctx context.Context, report OutcomeReport, repo s
 				}
 			}
 		}
-	}`,
-		escapeGraphQLString(owner),
-		escapeGraphQLString(name),
-		prNumber,
-	)
+	}`
+	variables := map[string]any{
+		"owner":  owner,
+		"name":   name,
+		"number": prNumber,
+	}
 
-	result, err := objectiveMappingGHAPIGraphQL(ctx, query, repo)
+	result, err := objectiveMappingGHAPIGraphQL(ctx, query, variables, repo)
 	if err != nil {
 		return intent.PullRequestData{}, err
 	}

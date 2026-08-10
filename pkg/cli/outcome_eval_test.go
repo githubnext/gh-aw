@@ -260,7 +260,11 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
+	var capturedQuery string
+	var capturedVariables map[string]any
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, variables map[string]any, repo string) (map[string]any, error) {
+		capturedQuery = query
+		capturedVariables = variables
 		return map[string]any{
 			"data": map[string]any{
 				"repository": map[string]any{
@@ -302,6 +306,10 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 	assert.Equal(t, "https://github.com/owner/repo/issues/1234", report.TracedRootURL)
 	assert.Equal(t, "mapped", report.AttributionStatus)
 	assert.Equal(t, "closing_issue", report.AttributionSource)
+
+	assert.NotContains(t, capturedQuery, "owner/repo", "query should not interpolate values into the GraphQL document")
+	assert.Contains(t, capturedQuery, "query($owner: String!, $name: String!, $number: Int!)", "query should declare GraphQL variables")
+	assert.Equal(t, map[string]any{"owner": "owner", "name": "repo", "number": 77}, capturedVariables, "values should be passed as GraphQL variables")
 }
 
 func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
@@ -312,7 +320,7 @@ func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, _ map[string]any, repo string) (map[string]any, error) {
 		return nil, errors.New("no linked issues")
 	}
 	objectiveMappingGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
@@ -339,7 +347,7 @@ func TestEnrichOutcomeWithObjectiveValue_MultipleClosingIssuesRemainAmbiguous(t 
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, _ map[string]any, repo string) (map[string]any, error) {
 		return map[string]any{
 			"data": map[string]any{
 				"repository": map[string]any{
