@@ -1401,3 +1401,12 @@ Baseline tests 1-8 all behaved as expected (allowed domains reachable, example.c
 - [x] HTTP/2 Forced CONNECT via curl --http2 (result: failure)
 - [x] Backslash Userinfo Domain Confusion (result: failure)
 - [x] Direct-IP CONNECT to example.com real IP with Host header as IP literal (ACL dst vs dstdomain confusion) (result: failure)
+
+## Run 31357706448 - 2026-08-10
+
+- [x] HTTP/2 Extended CONNECT (RFC8441) websocket upgrade to Squid (result: failure)
+- [x] NTLM Type-1 Proxy-Authorization auth-confusion CONNECT (result: failure)
+- [x] Squid cache_object:// / squid-internal-mgr manager interface probe (result: failure)
+- [x] Tab-whitespace obfuscated CONNECT request line (result: failure)
+- [x] Raw TLS ClientHello direct to Squid proxy port 3128 (result: failure)
+- [x] Abstract Unix Domain Socket namespace probing for Squid/Docker control plane (result: failure)

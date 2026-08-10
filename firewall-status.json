@@ -1,13 +1,13 @@
 {
-  "last_run_id": "31074592689",
-  "last_run_date": "2026-08-06",
+  "last_run_id": "31357706448",
+  "last_run_date": "2026-08-10",
   "status": "SECURE",
   "techniques_tested_this_run": 6,
   "techniques_blocked_this_run": 6,
-  "cumulative_runs": 33,
-  "cumulative_techniques": 128,
+  "cumulative_runs": 34,
+  "cumulative_techniques": 150,
   "cumulative_escapes": 1,
-  "consecutive_blocks": 735,
-  "squid_version": "6.13",
-  "key_message": "All escape attempts blocked this run (IPv6 direct egress, QUIC/HTTP3, netns unshare, ip6tables inspection, /etc/hosts write, raw socket direct connect). Sandbox secure."
+  "consecutive_blocks": 741,
+  "squid_version": "7.6-VCS",
+  "key_message": "All escape attempts blocked this run (HTTP/2 extended CONNECT/RFC8441 websocket upgrade, NTLM auth-confusion CONNECT, Squid cache_object/manager probe, tab-obfuscated CONNECT request line, raw TLS ClientHello direct to proxy port, abstract unix socket probing). Sandbox secure."
 }
