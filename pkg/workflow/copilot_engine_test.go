@@ -549,9 +549,9 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T)
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	// The harness is invoked as: <outer-node> copilot_harness.cjs <runtime-cmd> <driver> <copilot-binary>
+	// The crash runner is invoked as: <runner> <outer-node> copilot_harness.cjs <runtime-cmd> <driver> <copilot-binary>
 	// Verify the runtime argument passed to the harness is GH_AW_NODE_EXEC (native Node, not ts-node).
-	if !strings.Contains(stepContent, `copilot_harness.cjs" "$GH_AW_NODE_EXEC"`) {
+	if !strings.Contains(stepContent, `copilot_harness_runner.sh" "$GH_AW_NODE_EXEC"`) {
 		t.Fatalf("Expected TypeScript SDK driver to pass GH_AW_NODE_EXEC as runtime to harness, got:\n%s", stepContent)
 	}
 	if strings.Contains(stepContent, "ts-node") {
@@ -2719,8 +2719,11 @@ func TestCopilotEngineHarnessScript(t *testing.T) {
 		if !strings.Contains(stepContent, "copilot_harness.cjs") {
 			t.Errorf("Expected copilot_harness.cjs in execution step, got:\n%s", stepContent)
 		}
-		if !strings.Contains(stepContent, nodeRuntimeResolutionCommand) {
+		if !strings.Contains(stepContent, nodeRuntimeResolutionSetupCommand) {
 			t.Errorf("Expected runtime node resolution logic in execution step, got:\n%s", stepContent)
+		}
+		if !strings.Contains(stepContent, "copilot_harness_runner.sh") {
+			t.Errorf("Expected execution step to use crash retry runner, got:\n%s", stepContent)
 		}
 
 		// Driver should appear before the copilot args
@@ -2886,8 +2889,15 @@ func TestCopilotGeneratedHarnessCommandSupportsSpacedRunnerPaths(t *testing.T) {
 	}
 
 	harnessPath := filepath.Join(runnerTemp, "gh-aw", "actions", "copilot_harness.cjs")
+	runnerPath := filepath.Join(runnerTemp, "gh-aw", "actions", "copilot_harness_runner.sh")
 	mountedCopilotPath := filepath.Join(runnerTemp, "gh-aw", "bin", "copilot")
 	sdkDriverPath := filepath.Join(runnerTemp, "gh-aw", "actions", "copilot_sdk_driver.cjs")
+	if err := os.MkdirAll(filepath.Dir(runnerPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(runnerPath, []byte("#!/usr/bin/env bash\nexec \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	testCases := []struct {
 		name         string

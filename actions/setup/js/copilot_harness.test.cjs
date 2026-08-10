@@ -44,6 +44,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  getReflectResourceSnapshot,
   generateCopilotConnectionToken,
   GEMINI_MODEL_NAME_PREFIX,
   isCAPIQuotaExceededError,
@@ -2323,6 +2324,65 @@ describe("copilot_harness.cjs", () => {
         expect(saved.endpoints[0].models).toEqual(["gpt-4o", "gpt-4o-mini"]);
       } finally {
         fs.rmSync(outputDir, { recursive: true, force: true });
+      }
+    });
+
+    it("logs resource snapshots around the reflect fetch", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ endpoints: [] }) }));
+      const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "awf-reflect-resource-test-"));
+      const logs = [];
+
+      try {
+        await fetchAWFReflect({
+          reflectUrl: "http://api-proxy:10000/reflect",
+          outputPath: path.join(outputDir, "awf-reflect.json"),
+          logger: msg => logs.push(msg),
+        });
+        expect(logs).toContainEqual(expect.stringContaining("awf-reflect: resources before fetch"));
+        expect(logs).toContainEqual(expect.stringContaining("awf-reflect: resources after fetch"));
+        expect(getReflectResourceSnapshot()).toEqual(
+          expect.objectContaining({
+            heapUsed: expect.any(Number),
+            rss: expect.any(Number),
+            external: expect.any(Number),
+          })
+        );
+      } finally {
+        fs.rmSync(outputDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe("crash retry runner", () => {
+    it("retries a signal-style harness exit and returns the recovered status", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-harness-runner-test-"));
+      const callsPath = path.join(tempDir, "calls");
+      const harnessPath = path.join(tempDir, "harness.sh");
+      const runnerPath = path.join(path.dirname(require.resolve("./copilot_harness.cjs")), "..", "sh", "copilot_harness_runner.sh");
+      fs.writeFileSync(
+        harnessPath,
+        `#!/usr/bin/env bash
+calls_path=$1
+count=0
+if [[ -f "$calls_path" ]]; then count=$(cat "$calls_path"); fi
+count=$((count + 1))
+printf '%s' "$count" > "$calls_path"
+if (( count == 1 )); then exit 139; fi
+exit 0
+`,
+        { mode: 0o755 }
+      );
+
+      try {
+        const result = spawnSync("bash", [runnerPath, "/bin/bash", harnessPath, callsPath], {
+          env: { ...process.env, GH_AW_HARNESS_CRASH_RETRIES: "1", GH_AW_HARNESS_CRASH_DELAY_MS: "0" },
+          encoding: "utf8",
+        });
+        expect(result.status).toBe(0);
+        expect(fs.readFileSync(callsPath, "utf8")).toBe("2");
+        expect(result.stderr).toContain("retrying fresh harness 1/1");
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
       }
     });
   });

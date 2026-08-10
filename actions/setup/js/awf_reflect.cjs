@@ -77,6 +77,40 @@ const REFLECT_PROVIDER_ALIASES = {
 const DEFAULT_REFLECT_LOGGER = /** @type {(msg: string) => void} */ (msg => process.stderr.write(`[awf-reflect] ${new Date().toISOString()} ${msg}\n`));
 
 /**
+ * Return a lightweight memory snapshot without making the reflect path depend
+ * on procfs or cgroup availability.
+ *
+ * @returns {{heapUsed: number, rss: number, external: number, cgroupCurrent: string, cgroupMax: string}}
+ */
+function getReflectResourceSnapshot() {
+  const memory = process.memoryUsage();
+  let cgroupCurrent = "unavailable";
+  let cgroupMax = "unavailable";
+  try {
+    cgroupCurrent = fs.readFileSync("/sys/fs/cgroup/memory.current", "utf8").trim();
+    cgroupMax = fs.readFileSync("/sys/fs/cgroup/memory.max", "utf8").trim();
+  } catch {
+    // procfs/cgroup files are optional on self-hosted runners.
+  }
+  return {
+    heapUsed: memory.heapUsed,
+    rss: memory.rss,
+    external: memory.external,
+    cgroupCurrent,
+    cgroupMax,
+  };
+}
+
+/**
+ * @param {(msg: string) => void} logger
+ * @param {string} phase
+ */
+function logReflectResourceSnapshot(logger, phase) {
+  const snapshot = getReflectResourceSnapshot();
+  logger(`awf-reflect: resources ${phase} heapUsed=${snapshot.heapUsed}B rss=${snapshot.rss}B external=${snapshot.external}B ` + `cgroupCurrent=${snapshot.cgroupCurrent} cgroupMax=${snapshot.cgroupMax}`);
+}
+
+/**
  * Normalize provider IDs used in reflect/provider resolution.
  *
  * @param {unknown} provider
@@ -302,6 +336,7 @@ async function fetchAWFReflect(options) {
   const writeFile = (options && options.writeFileSync) || fs.writeFileSync;
 
   logger(`awf-reflect: fetching ${reflectUrl} (timeout=${timeoutMs}ms)`);
+  logReflectResourceSnapshot(logger, "before fetch");
 
   const ac = new AbortController();
   let timedOut = false;
@@ -361,6 +396,7 @@ async function fetchAWFReflect(options) {
     };
   } finally {
     clearTimeout(timer);
+    logReflectResourceSnapshot(logger, "after fetch");
   }
 }
 
@@ -798,6 +834,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractModelIds,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    getReflectResourceSnapshot,
     getCatalogModelEntry,
     inferProviderTypeForModel,
     inferWireApiForModel,

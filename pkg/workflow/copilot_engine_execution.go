@@ -119,9 +119,10 @@ func buildCopilotMCPConfigExport(workflowData *WorkflowData) string {
 }
 
 const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi`
-const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommand + `; "$GH_AW_NODE_EXEC"`
+const nodeRuntimeResolutionSetupCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommand
+const nodeRuntimeResolutionCommand = nodeRuntimeResolutionSetupCommand + `; "$GH_AW_NODE_EXEC"`
 const nodePathSetupCommandForCopilotSDK = `GH_AW_WORKSPACE_NODE_MODULES="${GITHUB_WORKSPACE:-$PWD}/node_modules"; if [ -d "$GH_AW_WORKSPACE_NODE_MODULES" ]; then export NODE_PATH="${GH_AW_WORKSPACE_NODE_MODULES}${NODE_PATH:+:${NODE_PATH}}"; fi; ` + nodePathSetupCommand
-const nodeRuntimeResolutionCommandForCopilotSDK = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommandForCopilotSDK + `; "$GH_AW_NODE_EXEC"`
+const nodeRuntimeResolutionSetupCommandForCopilotSDK = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommandForCopilotSDK
 const copilotBinaryPathSetup = `GH_AW_COPILOT_SRC="$(command -v copilot 2>/dev/null || true)"
 if [ -z "$GH_AW_COPILOT_SRC" ] || [ ! -x "$GH_AW_COPILOT_SRC" ]; then
   echo "GitHub Copilot CLI executable not found on PATH after installation" >&2
@@ -367,12 +368,12 @@ func (e *CopilotEngine) buildCopilotExecPrefix(workflowData *WorkflowData, comma
 		return commandName
 	}
 	harnessScriptPath := fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, harnessScriptName)
-	runtimeResolutionCommand := nodeRuntimeResolutionCommand
+	runtimeResolutionCommand := nodeRuntimeResolutionSetupCommand
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
-		runtimeResolutionCommand = nodeRuntimeResolutionCommandForCopilotSDK
+		runtimeResolutionCommand = nodeRuntimeResolutionSetupCommandForCopilotSDK
 		return e.buildCopilotSDKExecPrefix(workflowData, commandName, harnessScriptPath, runtimeResolutionCommand)
 	}
-	return fmt.Sprintf(`%s %s %s`, runtimeResolutionCommand, harnessScriptPath, commandName)
+	return fmt.Sprintf(`%s; "%s/copilot_harness_runner.sh" "$GH_AW_NODE_EXEC" %s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptPath, commandName)
 }
 
 func (e *CopilotEngine) buildCopilotSDKExecPrefix(workflowData *WorkflowData, commandName, harnessScriptPath, runtimeResolutionCommand string) string {
@@ -390,7 +391,7 @@ func (e *CopilotEngine) buildCopilotSDKExecPrefix(workflowData *WorkflowData, co
 		if customSDKDriverConfigured && strings.Contains(sdkDriverScriptName, "/") {
 			driverRuntimeCmd = `"${GITHUB_WORKSPACE}/` + sdkDriverScriptName + `"`
 		}
-		return fmt.Sprintf(`%s %s %s %s`, runtimeResolutionCommand, harnessScriptPath, driverRuntimeCmd, commandName)
+		return fmt.Sprintf(`%s; "%s/copilot_harness_runner.sh" "$GH_AW_NODE_EXEC" %s %s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptPath, driverRuntimeCmd, commandName)
 	}
 	driverPath := fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, sdkDriverScriptName)
 	if customSDKDriverConfigured {
@@ -400,7 +401,7 @@ func (e *CopilotEngine) buildCopilotSDKExecPrefix(workflowData *WorkflowData, co
 		driverPath = `"${GITHUB_WORKSPACE}/` + sdkDriverScriptName + `"`
 	}
 	// Language script: harness runs <runtime> <setup-action-dir>/<harness> <runtime> <driver-path> <copilot-binary>
-	return fmt.Sprintf(`%s %s %s %s %s`, runtimeResolutionCommand, harnessScriptPath, driverRuntimeCmd, driverPath, commandName)
+	return fmt.Sprintf(`%s; "%s/copilot_harness_runner.sh" "$GH_AW_NODE_EXEC" %s %s %s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptPath, driverRuntimeCmd, driverPath, commandName)
 }
 
 func (e *CopilotEngine) buildCopilotCommand(workflowData *WorkflowData, copilotArgs []string, execPrefix, customCommandScriptSetup, logFile, mkdirCommands string, isBYOKMode bool) (string, string) {

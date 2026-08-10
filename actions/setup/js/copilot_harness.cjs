@@ -68,6 +68,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  getReflectResourceSnapshot,
   inferProviderTypeForModel,
   resolveMultiProviderFromReflect,
 } = require("./awf_reflect.cjs");
@@ -1486,6 +1487,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractDeniedCommands,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    getReflectResourceSnapshot,
     buildCopilotProxyAuthFailureDiagnostic,
     buildCopilotSDKChildEnv,
     envFlagEnabled,
