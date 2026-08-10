@@ -251,6 +251,57 @@ function isIntegrationAccessError(error) {
 }
 
 /**
+ * Check whether an error indicates the referenced GraphQL node no longer exists.
+ * Review thread node IDs can become stale between the agent turn and the safe-outputs
+ * replay (thread already resolved, deleted, or superseded), which surfaces as a
+ * "Could not resolve to a node" or "Not Found" error. These are treated as skippable.
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isMissingNodeError(error) {
+  /** @type {string[]} */
+  const messages = [getErrorMessage(error)];
+  /** @type {Array<{type?: unknown, message?: unknown, path?: unknown}>} */
+  const graphQLErrors = [];
+
+  if (error && typeof error === "object" && "errors" in error && Array.isArray(error.errors)) {
+    for (const graphQLError of error.errors) {
+      graphQLErrors.push(graphQLError);
+      if (typeof graphQLError?.message === "string") {
+        messages.push(graphQLError.message);
+      }
+    }
+  }
+
+  const hasNodeScopedNotFoundType = graphQLErrors.some(graphQLError => {
+    if (typeof graphQLError?.type !== "string" || graphQLError.type.toUpperCase() !== "NOT_FOUND") {
+      return false;
+    }
+    const hasNodeScopedMessage = typeof graphQLError?.message === "string" && graphQLError.message.toLowerCase().includes("could not resolve to a node");
+    const hasNodeScopedPath =
+      Array.isArray(graphQLError?.path) &&
+      graphQLError.path.some(pathPart => {
+        if (typeof pathPart !== "string") return false;
+        const normalized = pathPart.toLowerCase();
+        // GraphQL paths for stale-thread mutation failures are rooted at "resolveReviewThread".
+        return normalized === "node" || normalized === "resolvereviewthread";
+      });
+    return hasNodeScopedMessage || hasNodeScopedPath;
+  });
+  if (hasNodeScopedNotFoundType) {
+    return true;
+  }
+
+  return messages.some(message => {
+    const normalized = message.trim().toLowerCase();
+    // Match the stale-node GraphQL error, or Octokit's bare "Not Found" 404 message.
+    // Deliberately avoid a loose "not found" substring match so unrelated errors
+    // (e.g. "Repository not found") still surface as real failures.
+    return normalized.includes("could not resolve to a node") || normalized === "not found";
+  });
+}
+
+/**
  * Main handler factory for resolve_pull_request_review_thread
  * Returns a message handler function that processes individual resolve messages.
  *
@@ -323,7 +374,22 @@ async function main(config = {}) {
       }
 
       // Look up the thread's PR number and repository
-      const threadInfo = await getThreadPullRequestInfo(githubClient, threadId);
+      /** @type {Awaited<ReturnType<typeof getThreadPullRequestInfo>>} */
+      let threadInfo;
+      try {
+        threadInfo = await getThreadPullRequestInfo(githubClient, threadId);
+      } catch (error) {
+        if (isMissingNodeError(error)) {
+          core.info(`Review thread ${threadId} could not be resolved (${getErrorMessage(error)}) — already resolved or stale; skipping`);
+          return {
+            success: true,
+            thread_id: threadId,
+            is_resolved: true,
+            skipped: true,
+          };
+        }
+        throw error;
+      }
       if (threadInfo.status === "missing") {
         core.info(`Review thread ${threadId} not found — already resolved or stale; skipping`);
         return {
@@ -478,6 +544,15 @@ async function main(config = {}) {
       try {
         resolveResult = await resolveReviewThreadAPI(githubClient, resolvedThreadId);
       } catch (error) {
+        if (isMissingNodeError(error)) {
+          core.info(`Review thread ${resolvedThreadId} could not be resolved (${getErrorMessage(error)}) — already resolved or stale; skipping`);
+          return {
+            success: true,
+            thread_id: resolvedThreadId,
+            is_resolved: true,
+            skipped: true,
+          };
+        }
         if (isIntegrationAccessError(error)) {
           const warningMessage =
             `Skipping resolve_pull_request_review_thread for ${resolvedThreadId}: configuration mismatch ` +
