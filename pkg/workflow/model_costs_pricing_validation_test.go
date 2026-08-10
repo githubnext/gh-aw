@@ -77,38 +77,17 @@ func TestValidateDefaultAiCreditsPricing(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("small positive values are valid for free models", func(t *testing.T) {
+	t.Run("zero values are valid for free models", func(t *testing.T) {
+		zero := 0.0
 		err := validateDefaultAiCreditsPricing(&WorkflowData{
 			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
-				Input:  0.000001,
-				Output: 0.000001,
+				Input:       0,
+				Output:      0,
+				CachedInput: &zero,
+				CacheWrite:  &zero,
 			},
 		})
 		require.NoError(t, err)
-	})
-
-	t.Run("zero input is rejected", func(t *testing.T) {
-		err := validateDefaultAiCreditsPricing(&WorkflowData{
-			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
-				Input:  0,
-				Output: 1.0,
-			},
-		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "input")
-		assert.Contains(t, err.Error(), "positive")
-	})
-
-	t.Run("zero output is rejected", func(t *testing.T) {
-		err := validateDefaultAiCreditsPricing(&WorkflowData{
-			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
-				Input:  1.0,
-				Output: 0,
-			},
-		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "output")
-		assert.Contains(t, err.Error(), "positive")
 	})
 
 	t.Run("negative input is rejected", func(t *testing.T) {
@@ -120,10 +99,23 @@ func TestValidateDefaultAiCreditsPricing(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "input")
+		assert.Contains(t, err.Error(), "non-negative")
 	})
 
-	t.Run("zero cache_read is rejected when set", func(t *testing.T) {
-		v := 0.0
+	t.Run("negative output is rejected", func(t *testing.T) {
+		err := validateDefaultAiCreditsPricing(&WorkflowData{
+			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+				Input:  1.0,
+				Output: -1.0,
+			},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "output")
+		assert.Contains(t, err.Error(), "non-negative")
+	})
+
+	t.Run("negative cache_read is rejected when set", func(t *testing.T) {
+		v := -1.0
 		err := validateDefaultAiCreditsPricing(&WorkflowData{
 			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
 				Input:       1.0,
@@ -133,11 +125,11 @@ func TestValidateDefaultAiCreditsPricing(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cache_read")
-		assert.Contains(t, err.Error(), "positive")
+		assert.Contains(t, err.Error(), "non-negative")
 	})
 
-	t.Run("zero cache_write is rejected when set", func(t *testing.T) {
-		v := 0.0
+	t.Run("negative cache_write is rejected when set", func(t *testing.T) {
+		v := -1.0
 		err := validateDefaultAiCreditsPricing(&WorkflowData{
 			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
 				Input:      1.0,
@@ -147,7 +139,7 @@ func TestValidateDefaultAiCreditsPricing(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cache_write")
-		assert.Contains(t, err.Error(), "positive")
+		assert.Contains(t, err.Error(), "non-negative")
 	})
 
 	t.Run("nil cache_read and nil cache_write are allowed", func(t *testing.T) {

@@ -62,3 +62,22 @@ func TestContributionCheckWorkflowAllowsRequiredShellCommands(t *testing.T) {
 		assert.Containsf(t, lockText, token, "Compiled workflow must contain %s", token)
 	}
 }
+
+func TestContributionCheckWorkflowUsesZeroDefaultAICreditsPricing(t *testing.T) {
+	repoRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		t.Skipf("Skipping test: not in a git repository: %v", err)
+	}
+
+	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "contribution-check.md")
+	content, err := os.ReadFile(workflowPath)
+	require.NoError(t, err, "Should read contribution-check workflow")
+	assert.Contains(t, string(content), "default-ai-credits-pricing:\n    input: 0\n    output: 0",
+		"Workflow must provide zero fallback pricing for models absent from the pricing table")
+
+	lockPath := filepath.Join(repoRoot, ".github", "workflows", "contribution-check.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "Should read compiled contribution-check workflow")
+	assert.Contains(t, string(lockContent), `\"defaultAiCreditsPricing\":{\"input\":0,\"output\":0}`,
+		"Compiled workflow must pass zero fallback pricing to the API proxy")
+}

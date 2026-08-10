@@ -7,6 +7,10 @@ on:
   workflow_dispatch:
 max-daily-ai-credits: 10000
 timeout-minutes: 30
+models:
+  default-ai-credits-pricing:
+    input: 0
+    output: 0
 
 permissions:
   contents: read
