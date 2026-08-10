@@ -1,28 +1,15 @@
 ---
-mcp-servers:
-  arxiv:
-    container: "mcp/arxiv-mcp-server"
-    allowed:
-      - search_arxiv
-      - get_paper_details
-      - get_paper_pdf
----
-
-<!--
-
 # arXiv MCP Server
-# Access to arXiv research papers
+# SECURITY: docker.io/mcp/arxiv-mcp-server has Critical/High CVEs with no upstream fix available (issue #51713).
+# The container definition has been removed until a patched image is published upstream.
+# To re-enable, restore the mcp-servers block and update the pinned digest in actions-lock.json.
 #
-# Provides access to arXiv's extensive research paper repository
-# Documentation: https://hub.docker.com/r/mcp/arxiv-mcp-server
-#
-# Available tools:
+# Available tools (when enabled):
 #   - search_arxiv: Search for papers on arXiv by keywords, authors, or topics
 #   - get_paper_details: Get detailed metadata about a specific arXiv paper
 #   - get_paper_pdf: Retrieve the PDF content of an arXiv paper
 #
 # Usage:
 #   imports:
-#     - shared/arxiv-mcp.md
-
--->
+#     - shared/mcp/arxiv.md
+---

@@ -215,11 +215,6 @@
       "digest": "sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198",
       "pinned_image": "grafana/mcp-grafana:1.0.0-alpine@sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198"
     },
-    "mcp/arxiv-mcp-server": {
-      "image": "mcp/arxiv-mcp-server",
-      "digest": "sha256:6dc6bba6dfed97f4ad6eb8d23a5c98ef5b7fa6184937d54b2d675801cd9dd29e",
-      "pinned_image": "mcp/arxiv-mcp-server@sha256:6dc6bba6dfed97f4ad6eb8d23a5c98ef5b7fa6184937d54b2d675801cd9dd29e"
-    },
     "mcp/context7": {
       "image": "mcp/context7",
       "digest": "sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836",
