@@ -225,11 +225,6 @@
       "digest": "sha256:5fc3f2e9dcf2c019e92662f608b8d89e12134ed6d91e6f5461de6efd506a1e72",
       "pinned_image": "mcp/ast-grep:latest@sha256:5fc3f2e9dcf2c019e92662f608b8d89e12134ed6d91e6f5461de6efd506a1e72"
     },
-    "mcp/context7": {
-      "image": "mcp/context7",
-      "digest": "sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836",
-      "pinned_image": "mcp/context7@sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836"
-    },
     "mcp/memory": {
       "image": "mcp/memory",
       "digest": "sha256:db0c2db07a44b6797eba7a832b1bda142ffc899588aae82c92780cbb2252407f",
