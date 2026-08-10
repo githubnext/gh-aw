@@ -75,7 +75,7 @@ docs/public/wasm/wasm_exec.js
 .env.*.backup
 
 coverage.html
-coverage/
+/coverage/
 logs/
 
 # Benchmark results

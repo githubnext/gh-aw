@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -22,6 +23,13 @@ const bytesPkg = "bytes"
 
 // Analyzer is the bytes-compare-string analysis pass.
 var Analyzer = analyzerutil.New("bytescomparestring", "flags string(a) == string(b) and string(a) != string(b) as []byte comparisons written the long way; use bytes.Equal for clearer intent", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
@@ -68,6 +76,9 @@ func analyzeBinaryExpr(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 	lText := astutil.NodeText(pass.Fset, lhsArg)
 	rText := astutil.NodeText(pass.Fset, rhsArg)
 	if lText == "" || rText == "" {
+		return
+	}
+	if !coverage.ShouldApply(pass, bin.Pos(), *hotThreshold) {
 		return
 	}
 	qualifier, skipFix := bytesQualifier(pass, bin.Pos())

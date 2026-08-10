@@ -69,7 +69,28 @@ This package currently provides custom Go analyzers in the following subpackages
 - `uncheckedflushreturn` — reports `Flush()` method calls where the error return is discarded, which silently drops buffered data on failure.
 - `wgdonenotdeferred` — reports non-deferred `sync.WaitGroup.Done()` calls that can deadlock on panics or early returns.
 - `writebytestring` — reports `w.Write([]byte(s))` calls where `s` is a string, which can be replaced with `io.WriteString` to avoid an unnecessary `[]byte` allocation.
-- `internal` — shared helper packages for analyzers (file checks and `nolint` handling).
+- `internal` — shared helper packages for analyzers (file checks, `nolint` handling, and coverage-aware perf gating).
+
+## Coverage-aware perf gating
+
+Micro-optimizations flagged by allocation/perf linters (e.g. `stringsconcatloop`, `appendoneelement`,
+`appendbytestring`, `bytesbufferstring`, `bytescomparestring`, `lenstringsplit`, `mapclearloop`,
+`seenmapbool`, `sortslice`, `stringbytesroundtrip`, `stringsjoinone`, `tolowerequalfold`, and
+`writebytestring`) only matter on hot paths: applying them to code that tests never execute adds
+churn without a measurable benefit. These linters consult the shared
+`pkg/linters/internal/coverage` package, which loads a Go coverage profile (produced by
+`go test -covermode=count -coverprofile=<path>`) referenced by the `GH_AW_LINT_COVERAGE_PROFILE`
+environment variable and gates findings on the recorded execution hit count for the reported line.
+
+- When `GH_AW_LINT_COVERAGE_PROFILE` is unset (the default), coverage gating is a no-op and every
+  perf linter reports exactly as it did before coverage-awareness was introduced.
+- When a profile is loaded, a perf linter only reports a finding once the code path's execution
+  count is at least its `-hot-threshold` flag (default `1`: any recorded execution).
+- Pass `-<linter>.hot-threshold=0` to disable coverage gating for a specific linter even when a
+  profile is loaded.
+- Purely stylistic/readability linters (e.g. `stringsindexcontains`, `stringsindexhasprefix`,
+  `stringscountcontains`, `lenstringzero`) are intentionally **not** coverage-gated: they carry no
+  measurable performance difference, so "hot path" relevance does not apply to them.
 
 ## Public API
 
