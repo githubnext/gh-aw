@@ -165,11 +165,6 @@
     }
   },
   "containers": {
-    "ghcr.io/fabio-rovai/open-ontologies:latest": {
-      "image": "ghcr.io/fabio-rovai/open-ontologies:latest",
-      "digest": "sha256:2932c10682eac29ccf840a6bd6c4c7c82c5ce770ad9e94697d44057187452530",
-      "pinned_image": "ghcr.io/fabio-rovai/open-ontologies:latest@sha256:2932c10682eac29ccf840a6bd6c4c7c82c5ce770ad9e94697d44057187452530"
-    },
     "ghcr.io/github/gh-aw-firewall/agent:0.27.44": {
       "image": "ghcr.io/github/gh-aw-firewall/agent:0.27.44",
       "digest": "sha256:0d727725c737b58c7bdf51f640cffb928385ec46517e0917c7f1a02f1bada8b4",
