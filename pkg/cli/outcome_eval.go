@@ -326,7 +326,7 @@ func buildGraphQLArgs(query string, variables map[string]any) ([]string, error) 
 		case int, int32, int64, bool:
 			args = append(args, "-F", fmt.Sprintf("%s=%v", name, value))
 		default:
-			return nil, fmt.Errorf("ghAPIGraphQL: unsupported variable type %T for key %q", value, name)
+			return nil, fmt.Errorf("buildGraphQLArgs: unsupported variable type %T for key %q", value, name)
 		}
 	}
 	return args, nil
