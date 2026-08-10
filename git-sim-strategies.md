@@ -420,3 +420,53 @@ content there could realistically breach 4096 KB).
 - **Zero real fail/error/rejected across 196 cells.**
 - **Next index: 196** = tiny-shallow-single-small-diverged-multi (closes
   shallow-single-small tier: 196-197 remain, then PATCH advances to medium idx198+).
+## Run 2026-08-10: idx196-199 — ⚠ MAJOR FINDING: create_pull_request run-level quota=1
+
+- **idx198 clean-single (medium tier open): PASS.** 1f/204.9KB/1c (200KB target), ~4.0%
+  of 5120KB cap. Bundle 156.8KB (~25% smaller). This cell's `create_pull_request` call
+  ran FIRST among the 4 parallel sub-agents and succeeded, consuming the run's quota.
+- **idx196/197/199: ALL REJECTED/ERROR — but NOT a git-size finding.** All three hit
+  `Error [-32602] E002: create_pull_request limit reached — 1 of 1 already used this
+  run` — i.e. **this workflow's safe-outputs config caps create_pull_request at 1
+  SUCCESS per run**, and the 4-parallel-sub-agent fan-out design (Phase 2 of this
+  workflow) has every non-clean/error branch call create_pull_request as step 1. Only
+  the first to land wins; the other 3 fail identically regardless of SIZE/HISTORY/
+  FILES/PATCH/COMMIT. For idx196/197 (diverged), `push_to_pull_request_branch` then
+  ALSO failed independently: target='*' requires explicit `repo` AND
+  `pull_request_number`, neither of which a rejected create_pull_request can supply —
+  sub-agents correctly declined to fabricate a PR number rather than reuse an unrelated
+  cell's.
+- **This invalidates nothing about prior per-cell git-size laws** (idx196's own
+  measurement: 56.88KB/3c, two-dot vs three-dot delta 687B, ff rc0, wrap-append ~1x all
+  reconfirmed via local /tmp measurement even though the real PR was rejected; idx197
+  measured 51.4KB/2c, filename leak + parent=1/merges=empty reconfirmed; idx199 measured
+  205.16KB/3c, multi/single ratio 1.0097x reconfirmed) — those laws hold independently
+  of whether the real safe-output call succeeds.
+- **⚠ RETROACTIVE DOUBT on "196/196 ALL PASS" claim:** if this 1-per-run cap has been
+  stable since idx0, then EVERY prior daily batch of 4 cells (all of which include ≥1
+  non-clean/error BRANCH mode requiring a fresh create_pull_request, since branch cycles
+  clean/ahead/diverged every 3 indices) should ALSO have produced 3/4 rejections — yet
+  no prior run's notes recorded this. Two explanations: (a) the quota was raised/lowered
+  at some point (not yet confirmed which), or (b) some earlier sub-agent runs (esp.
+  before the "config-simulator subagent is truncated/unregistered → use general-purpose"
+  pivot noted above) self-reported "pass" from local git measurement alone WITHOUT
+  confirming the real tool call's response — i.e. earlier passes may not all be
+  verified. **Action for future runs: always confirm the actual safeoutputs tool
+  response (not just local git measurement) before marking a cell's create_pull_request/
+  push_to_pull_request_branch attempt as "pass".**
+- **Action for future batches:** since only ONE create_pull_request can succeed per run,
+  future batches of 4 cells will predictably waste 3 slots on this same quota rejection
+  UNLESS restructured. Options to consider next run: (1) have only 1 of the 4 sub-agents
+  attempt the REAL safe-output call while the other 3 do measurement-only (git format-
+  patch sizing) without invoking safeoutputs — record those 3 as measured-but-untested
+  for the safe-output dimension; (2) accept the quota rejections as an expected,
+  already-documented artifact and stop filing new issues for it (this issue is now
+  filed once; do not refile for the same root cause in future runs — check tested{}
+  before creating a new issue if the error is E002 quota again).
+- **Zero real per-cell git-size fail/error/rejected across 200 cells** (the 3 rejections
+  this run are 100% attributable to the run-level PR quota, not patch size/file count —
+  all 3 measured well under the 5120KB/200-file caps).
+- **Next index: 200** = tiny-shallow-single-medium-clean-merge_msg (continues
+  shallow-single-medium tier: ahead×3 + diverged×3 + clean-merge_msg remain, idx200-206).
+  **Recommend next run apply the measurement-only mitigation above for 3 of the 4 cells
+  to avoid refiling the same E002 finding.**
