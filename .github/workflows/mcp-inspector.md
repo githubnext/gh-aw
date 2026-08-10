@@ -44,7 +44,6 @@ imports:
   - shared/mcp/microsoft-docs.md
   # Note: notion.md excluded — docker.io/mcp/notion has Critical/High CVEs (see #49517)
   - shared/mcp/sentry.md
-  # Note: server-memory.md excluded — docker.io/mcp/memory has Critical/High CVEs (see #51716)
   - shared/mcp/slack.md
   - shared/mcp/tavily.md
   - shared/mcp/serena-go.md
