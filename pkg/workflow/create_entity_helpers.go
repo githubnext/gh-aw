@@ -48,6 +48,7 @@ func parseCreateEntityConfig[T any](
 		configData = nil
 	}
 	if preUnmarshal != nil && !preUnmarshal(configData) {
+		debugLog.Printf("preUnmarshal aborted parsing for %s", configKey)
 		return nil
 	}
 
@@ -72,11 +73,13 @@ func parseCreateEntityConfig[T any](
 
 	config := parseConfigScaffold(outputMap, configKey, debugLog, onError)
 	if config == nil {
+		debugLog.Printf("parseConfigScaffold returned nil config for %s", configKey)
 		return nil
 	}
 
 	if postUnmarshal != nil {
 		postUnmarshal(configData, config, expiresDisabled)
+		debugLog.Printf("postUnmarshal applied for %s (expiresDisabled=%t)", configKey, expiresDisabled)
 	}
 
 	return config
