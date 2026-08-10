@@ -14,7 +14,7 @@ func shellEscapeArg(arg string) string {
 	if arg == "" {
 		return "''"
 	}
-	if !strings.ContainsAny(arg, "()[]{}*?$`\"'\\|&;<> \t\r\n") {
+	if !strings.ContainsAny(arg, "!()[]{}*?$`\"'\\|&;<> \t\r\n") {
 		return arg
 	}
 	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
