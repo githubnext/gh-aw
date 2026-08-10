@@ -122,13 +122,13 @@ The formal conformance suite for this fixture directory lives in
 and the fixture runner:
 
 ```bash
-go test -v -run "TestFormal" ./pkg/workflow/
+go test -v -run "TestFormal_" ./pkg/workflow/
 ```
 
 To run with the race detector (recommended for CI):
 
 ```bash
-go test -race -run "TestFormal" ./pkg/workflow/
+go test -race -run "TestFormal_" ./pkg/workflow/
 ```
 
 > **Promotion status**: the parent document
