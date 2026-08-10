@@ -69,6 +69,15 @@ describe("require-mkdtempsync-try-catch", () => {
           ],
         },
         {
+          code: `const fs = require("fs"); const tmpDir = fs.mkdtempSync(prefix);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "prefix" },
+            },
+          ],
+        },
+        {
           code: `const fs = require("fs"); let tmpDir; tmpDir = fs.mkdtempSync(prefix);`,
           errors: [
             {
