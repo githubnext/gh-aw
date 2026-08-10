@@ -309,22 +309,38 @@ func ghAPIGetArray(ctx context.Context, endpoint string, repo string) ([]map[str
 	return result, nil
 }
 
-// ghAPIGraphQL calls the GitHub GraphQL API via gh cli and returns the parsed JSON.
-// Values are passed as GraphQL variables rather than interpolated into the query text.
-func ghAPIGraphQL(ctx context.Context, query string, variables map[string]any, repo string) (map[string]any, error) {
-	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
+// buildGraphQLArgs builds the `gh api graphql` argument list for a query and its
+// variables. It is a pure function so the CLI encoding can be unit tested in
+// isolation from the actual `gh` invocation. Variable keys are emitted in sorted
+// order for deterministic argument lists. String values use `-f` (raw field) so
+// gh's `@file` / `{placeholder}` expansion can't be triggered by interpolated
+// values; int and bool values use `-F` for correct GraphQL typing. Any other
+// variable type is rejected explicitly rather than silently formatted.
+func buildGraphQLArgs(query string, variables map[string]any) ([]string, error) {
 	args := []string{"api", "graphql", "-f", "query=" + query}
 	for _, name := range slices.Sorted(maps.Keys(variables)) {
 		switch value := variables[name].(type) {
 		case string:
 			// -f sends the value literally, avoiding gh's @file / {placeholder} expansion.
 			args = append(args, "-f", name+"="+value)
-		default:
+		case int, int32, int64, bool:
 			args = append(args, "-F", fmt.Sprintf("%s=%v", name, value))
+		default:
+			return nil, fmt.Errorf("ghAPIGraphQL: unsupported variable type %T for key %q", value, name)
 		}
 	}
+	return args, nil
+}
+
+// ghAPIGraphQL calls the GitHub GraphQL API via gh cli and returns the parsed JSON.
+// Values are passed as GraphQL variables rather than interpolated into the query text.
+func ghAPIGraphQL(ctx context.Context, query string, variables map[string]any, repo string) (map[string]any, error) {
+	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
+	args, err := buildGraphQLArgs(query, variables)
+	if err != nil {
+		return nil, err
+	}
 	var output []byte
-	var err error
 	if host != "" {
 		output, err = workflow.RunGHContextWithHost(ctx, "Checking outcome...", host, args...)
 	} else {
