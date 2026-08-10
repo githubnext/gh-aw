@@ -96,6 +96,26 @@ type UpdateEntityConfig struct {
 	// Type-specific fields are stored in the concrete config structs
 }
 
+// setUpdateEntityConfig assigns the parsed base configuration. Because entity-specific
+// config structs embed UpdateEntityConfig, this method is promoted to all of them,
+// which lets parseUpdateEntityConfigTyped assign the base config generically without
+// enumerating every entity type.
+func (u *UpdateEntityConfig) setUpdateEntityConfig(base UpdateEntityConfig) {
+	*u = base
+}
+
+// updateEntityConfigSetter is implemented by every entity-specific update config
+// through the promoted setUpdateEntityConfig method of the embedded UpdateEntityConfig.
+type updateEntityConfigSetter interface {
+	setUpdateEntityConfig(UpdateEntityConfig)
+}
+
+// updateEntityFooterField returns the field spec for the "footer" field, which is
+// parsed identically (as a templatable bool) by every update entity parser.
+func updateEntityFooterField(dest **string) UpdateEntityFieldSpec {
+	return UpdateEntityFieldSpec{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: dest}
+}
+
 // UpdateEntityJobParams holds the parameters needed to build an update entity job
 type UpdateEntityJobParams struct {
 	EntityType      UpdateEntityType
@@ -369,8 +389,10 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 //  5. Copies base config into entity-specific struct
 //  6. Returns typed config
 //
-// Type parameter:
+// Type parameters:
 //   - T: The entity-specific config type (must embed UpdateEntityConfig)
+//   - PT: *T, inferred automatically; constrained to types that embed UpdateEntityConfig
+//     so the base config can be assigned without enumerating entity types
 //
 // Parameters:
 //   - c: Compiler instance
@@ -397,7 +419,10 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 //	            }
 //	        }, nil)
 //	}
-func parseUpdateEntityConfigTyped[T any](
+func parseUpdateEntityConfigTyped[T any, PT interface {
+	*T
+	updateEntityConfigSetter
+}](
 	c *Compiler,
 	outputMap map[string]any,
 	entityType UpdateEntityType,
@@ -433,20 +458,8 @@ func parseUpdateEntityConfigTyped[T any](
 		return nil
 	}
 
-	// Use type assertion to set base config
-	// Since we can't use interface assertion with generics directly,
-	// we use type switch via any to assign the base config
-	cfgAny := any(cfg)
-	switch v := cfgAny.(type) {
-	case *UpdateIssuesConfig:
-		v.UpdateEntityConfig = *baseConfig
-	case *UpdateDiscussionsConfig:
-		v.UpdateEntityConfig = *baseConfig
-	case *UpdatePullRequestsConfig:
-		v.UpdateEntityConfig = *baseConfig
-	case *UpdateReleaseConfig:
-		v.UpdateEntityConfig = *baseConfig
-	}
+	// Assign the base config through the promoted setter on the embedded UpdateEntityConfig
+	PT(cfg).setUpdateEntityConfig(*baseConfig)
 
 	return cfg
 }

@@ -10,13 +10,11 @@ const HANDLER_TYPE = "update_issue";
 
 const { resolveTarget, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
-const { updateBody } = require("./update_pr_description_helpers.cjs");
+const { buildUpdatedBody } = require("./update_pr_description_helpers.cjs");
 const { buildCommonEntityUpdateData } = require("./update_entity_helpers.cjs");
 const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
-const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
@@ -82,35 +80,14 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
 
       const currentBody = currentIssue.body || "";
 
-      // Get workflow run URL for AI attribution.
-      // Use the original workflow repo (_workflowRepo) rather than context.repo, because
-      // context may be effectiveContext with repo overridden to a cross-repo target.
-      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
-      const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-      const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID || "";
-      const workflowRepo = _workflowRepo || context.repo;
-      const runUrl = buildWorkflowRunUrl(context, workflowRepo);
-
-      const historyUrl =
-        generateHistoryUrl({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          itemType: "issue",
-          workflowCallId: callerWorkflowId,
-          workflowId,
-          serverUrl: context.serverUrl,
-        }) || undefined;
-
-      // Use helper to update body (handles all operations including replace)
-      apiData.body = updateBody({
+      apiData.body = buildUpdatedBody({
+        context,
         currentBody,
         newContent: rawBody,
         operation,
-        workflowName,
-        runUrl,
-        workflowId,
-        includeFooter, // Pass footer flag to helper
-        historyUrl,
+        includeFooter,
+        workflowRepo: _workflowRepo,
+        itemType: "issue",
       });
 
       core.info(`Will update body (length: ${apiData.body.length})`);

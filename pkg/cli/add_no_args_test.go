@@ -62,6 +62,7 @@ func TestAddCommandRequiresArguments(t *testing.T) {
 
 // TestAddCommandWithWorkflow verifies that add command works with a workflow specification
 func TestAddCommandWithWorkflow(t *testing.T) {
+	t.Parallel()
 	// This test verifies that the command accepts arguments correctly
 	// We don't actually execute it since that would require network access
 
@@ -95,6 +96,7 @@ func TestAddCommandWithWorkflow(t *testing.T) {
 
 // TestAddCommandHelpText verifies the help text mentions the new command for creating workflows
 func TestAddCommandHelpText(t *testing.T) {
+	t.Parallel()
 	validateEngine := func(engine string) error { return nil }
 	cmd := NewAddCommand(validateEngine)
 
@@ -122,6 +124,7 @@ func TestAddCommandHelpText(t *testing.T) {
 
 // TestNewCommandAcceptsOptionalArgument verifies that new command accepts optional workflow name
 func TestNewCommandAcceptsOptionalArgument(t *testing.T) {
+	t.Parallel()
 	// Note: We can't easily test the actual command defined in main.go from here,
 	// but we can document the expected behavior
 
