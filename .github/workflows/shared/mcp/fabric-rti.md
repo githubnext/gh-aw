@@ -27,6 +27,11 @@ mcp-servers:
 <!--
 ## Microsoft Fabric Real-Time Intelligence (RTI) MCP Server
 
+> **Security note**: this server runs through `uvx`, which is auto-containerized with
+> `python:alpine`. That image currently ships CPython 3.14.7, which has High severity
+> CVEs with no fixed release available (see #51711). This configuration is therefore not
+> imported by any workflow in this repository until a patched Python image is published.
+
 This shared configuration provides the Microsoft Fabric Real-Time Intelligence (RTI) MCP Server with **read-only access** for AI-assisted data querying and analysis.
 
 The Fabric RTI MCP Server enables AI agents to interact with Microsoft Fabric RTI services by providing tools through the MCP interface, allowing for seamless data querying and analysis capabilities.
