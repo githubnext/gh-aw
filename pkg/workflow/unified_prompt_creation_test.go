@@ -96,6 +96,8 @@ func TestGenerateUnifiedPromptCreationStep_TreatsUserContentAsData(t *testing.T)
 	assert.Contains(t, step.Uses, "actions/github-script@")
 
 	script := step.With["script"]
+	assert.NotContains(t, script, "${{", "GitHub expressions must not enter JavaScript source")
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/actions", step.Env["GH_AW_ACTIONS_DIR"])
 	for _, payload := range payloads {
 		assert.NotContains(t, script, payload, "User-controlled content must not enter JavaScript source")
 	}

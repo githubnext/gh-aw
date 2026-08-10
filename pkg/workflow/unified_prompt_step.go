@@ -408,6 +408,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	yaml.WriteString("      - name: Create prompt with built-in context\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl\n")
@@ -425,7 +426,10 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	yaml.WriteString(generateGitHubScriptWithRequire("create_prompt.cjs"))
+	yaml.WriteString("            const { setupGlobals } = require(process.env.GH_AW_ACTIONS_DIR + '/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	yaml.WriteString("            const { main } = require(process.env.GH_AW_ACTIONS_DIR + '/create_prompt.cjs');\n")
+	yaml.WriteString("            await main();\n")
 
 	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
 
