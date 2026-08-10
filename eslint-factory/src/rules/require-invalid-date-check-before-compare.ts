@@ -117,6 +117,33 @@ function guardDominatesComparison(guardPath: TSESTree.Node[], comparisonPath: TS
   return true;
 }
 
+function endsWithControlFlowExit(statement: TSESTree.Statement): boolean {
+  if (statement.type === AST_NODE_TYPES.BlockStatement) {
+    const lastStatement = statement.body.at(-1);
+    return lastStatement !== undefined && endsWithControlFlowExit(lastStatement);
+  }
+  return statement.type === AST_NODE_TYPES.ReturnStatement || statement.type === AST_NODE_TYPES.ThrowStatement || statement.type === AST_NODE_TYPES.BreakStatement || statement.type === AST_NODE_TYPES.ContinueStatement;
+}
+
+/** Returns true when the invalid-date branch exits before execution can reach a later comparison. */
+function isExitingIfGuard(guardPath: TSESTree.Node[]): boolean {
+  const guard = guardPath.at(-1);
+  const parent = guardPath.at(-2);
+  return guard !== undefined && parent?.type === AST_NODE_TYPES.IfStatement && parent.test === guard && endsWithControlFlowExit(parent.consequent);
+}
+
+/** Returns true when the check's short-circuit branch directly gates the comparison expression. */
+function guardDirectlyGatesComparison(guardPath: TSESTree.Node[], comparisonPath: TSESTree.Node[]): boolean {
+  const guard = guardPath.at(-1);
+  const comparison = comparisonPath.at(-1);
+  if (guard === undefined || comparison === undefined) return false;
+
+  return guardPath.some(node => {
+    if (node.type !== AST_NODE_TYPES.LogicalExpression) return false;
+    return node.left.range[0] <= guard.range[0] && guard.range[1] <= node.left.range[1] && node.right.range[0] <= comparison.range[0] && comparison.range[1] <= node.right.range[1];
+  });
+}
+
 type ComparisonSide = { kind: "inline" } | { kind: "var"; variable: TSESLint.Scope.Variable };
 
 export const requireInvalidDateCheckBeforeCompareRule = createRule({
@@ -150,7 +177,7 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
     function isValidatedBefore(variable: TSESLint.Scope.Variable, comparisonPath: TSESTree.Node[]): boolean {
       const paths = guards.get(variable);
       if (paths === undefined) return false;
-      return paths.some(guardPath => guardDominatesComparison(guardPath, comparisonPath));
+      return paths.some(guardPath => guardDominatesComparison(guardPath, comparisonPath) && (isExitingIfGuard(guardPath) || guardDirectlyGatesComparison(guardPath, comparisonPath)));
     }
 
     return {

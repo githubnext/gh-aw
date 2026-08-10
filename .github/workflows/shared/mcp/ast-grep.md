@@ -1,8 +1,8 @@
 ---
 mcp-servers:
   ast-grep:
-    container: "mcp/ast-grep"
-    version: "latest"
+    command: "npx"
+    args: ["ast-grep-mcp@0.0.2"]
     allowed: ["*"]
 ---
 
@@ -38,4 +38,4 @@ The MCP server exposes ast-grep functionality through its MCP tools interface. W
 - Documentation: https://ast-grep.github.io/
 - Go patterns catalog: https://ast-grep.github.io/catalog/go/
 - Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html
-- Docker image: https://hub.docker.com/r/mcp/ast-grep
+- MCP package: https://www.npmjs.com/package/ast-grep-mcp

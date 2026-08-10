@@ -1,7 +1,7 @@
 ---
 mcp-servers:
   grafana:
-    container: "grafana/mcp-grafana"
+    container: "grafana/mcp-grafana:1.0.0-alpine"
     entrypointArgs:
       - "-t"
       - "stdio"
@@ -29,6 +29,11 @@ Required secrets:
 
 This shared component runs the Grafana MCP server in stdio mode with write
 operations disabled.
+
+The Alpine-based image variant (`-alpine`) is used instead of the default
+Debian bookworm-slim variant: the Debian base layer ships a large set of OS
+packages (perl-base, libc-bin, util-linux, ...) that carry unpatched CVEs and
+GPL/LGPL licenses rejected by the repository license policy.
 
 Allowed tools:
 - list_datasources

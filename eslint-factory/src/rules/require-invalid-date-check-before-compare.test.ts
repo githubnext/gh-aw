@@ -102,12 +102,26 @@ describe("require-invalid-date-check-before-compare", () => {
     });
   });
 
+  it("invalid: a non-exiting invalid-date guard does not protect the comparison", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const d = new Date(input); if (Number.isNaN(d.getTime())) { core.warning("bad date"); } if (d > threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: ">", getTimeTarget: "d" } }],
+        },
+      ],
+    });
+  });
+
   it("valid: validated with Number.isNaN(d.getTime()) before comparison", () => {
     cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
       valid: [
         `const d = new Date(input); if (Number.isNaN(d.getTime())) { throw new Error("bad date"); } if (d < threshold) { doIt(); }`,
+        `const d = new Date(input); if (Number.isNaN(d.getTime())) { return; } if (d >= threshold) { doIt(); }`,
+        `for (const item of items) { const d = new Date(input); if (Number.isNaN(d.getTime())) { continue; } if (d > item.at) { doIt(); } }`,
+        `for (const item of items) { const d = new Date(input); if (Number.isNaN(d.getTime())) { break; } if (d > item.at) { doIt(); } }`,
         `const d = new Date(input); if (!Number.isNaN(d.getTime()) && d > threshold) { doIt(); }`,
-        `const d = new Date(input); if (isNaN(d.getTime())) { return; } if (d >= threshold) { doIt(); }`,
         `const d = new Date(input); if (isNaN(d.getTime()) || d > threshold) { doIt(); }`,
         `const d = new Date(input); if (Number.isNaN(d.getTime())) { throw new Error("bad date"); } else if (d > threshold) { doIt(); }`,
         `const d = new Date(input); if (Number.isNaN(d.getTime())) { return; } for (const item of items) { if (d > item.at) { doIt(); } }`,
