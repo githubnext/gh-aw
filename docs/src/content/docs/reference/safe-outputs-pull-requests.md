@@ -5,22 +5,9 @@ sidebar:
   order: 801
 ---
 
-This page is the primary reference for pull-request-focused safe outputs:
+This page covers pull-request safe outputs: [`create-pull-request`](#pull-request-creation-create-pull-request), [`update-pull-request`](#pull-request-updates-update-pull-request), [`close-pull-request`](#close-pull-request-close-pull-request), [`merge-pull-request`](#merge-pull-request-merge-pull-request) (experimental), [`create-pull-request-review-comment`](#pr-review-comments-create-pull-request-review-comment), [`submit-pull-request-review`](#submit-pr-review-submit-pull-request-review), [`reply-to-pull-request-review-comment`](#reply-to-pr-review-comment-reply-to-pull-request-review-comment), [`resolve-pull-request-review-thread`](#resolve-pr-review-thread-resolve-pull-request-review-thread), [`push-to-pull-request-branch`](#push-to-pr-branch-push-to-pull-request-branch), and [`add-reviewer`](#add-reviewer-add-reviewer).
 
-- [`create-pull-request`](#pull-request-creation-create-pull-request)
-- [`update-pull-request`](#pull-request-updates-update-pull-request)
-- [`close-pull-request`](#close-pull-request-close-pull-request)
-- [`merge-pull-request`](#merge-pull-request-merge-pull-request) (experimental)
-- [`create-pull-request-review-comment`](#pr-review-comments-create-pull-request-review-comment)
-- [`submit-pull-request-review`](#submit-pr-review-submit-pull-request-review)
-- [`reply-to-pull-request-review-comment`](#reply-to-pr-review-comment-reply-to-pull-request-review-comment)
-- [`resolve-pull-request-review-thread`](#resolve-pr-review-thread-resolve-pull-request-review-thread)
-- [`push-to-pull-request-branch`](#push-to-pr-branch-push-to-pull-request-branch)
-- [`add-reviewer`](#add-reviewer-add-reviewer)
-
-Code-writing types (`create-pull-request` and `push-to-pull-request-branch`) enforce [Protected Files](#protected-files) by default.
-
-For all other safe-output types see [Safe Outputs](/gh-aw/reference/safe-outputs/).
+Code-writing types (`create-pull-request` and `push-to-pull-request-branch`) enforce [Protected Files](#protected-files) by default. For all other safe-output types, see [Safe Outputs](/gh-aw/reference/safe-outputs/).
 
 ## Pull Request Creation (`create-pull-request:`)
 
@@ -101,12 +88,7 @@ By default a random hex suffix is appended to the agent-provided branch name to 
 
 ### Other notes
 
-- `draft` is a **policy**, not a default — the agent cannot override it at runtime.
-- `auto-close-issue` (default `true`) appends `Fixes #N` to the PR description when the workflow is triggered from an issue. Set to `false` for partial-work or multi-PR flows.
-- `normalize-closing-keywords` strips wrapping backticks from recognized issue-closing keywords in the PR body (for example, `` `Closes #123` `` → `Closes #123`).
-- When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
-- PRs do not trigger CI by default. See [Triggering CI](/gh-aw/reference/triggering-ci/).
-- `create-pull-request` can be disabled at runtime without recompiling by setting the `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` GitHub Actions variable to `"false"` at repository, organization, or enterprise scope. See [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide).
+`draft` is a **policy**, not a default, so the agent cannot override it at runtime. `auto-close-issue` (default `true`) appends `Fixes #N` to the PR description when the workflow is triggered from an issue; set it to `false` for partial-work or multi-PR flows. `normalize-closing-keywords` strips wrapping backticks from recognized issue-closing keywords in the PR body (for example, `` `Closes #123` `` → `Closes #123`). When `create-pull-request` is configured, git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled. PRs do not trigger CI by default; see [Triggering CI](/gh-aw/reference/triggering-ci/). You can also disable `create-pull-request` at runtime without recompiling by setting the `GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST` GitHub Actions variable to `"false"` at repository, organization, or enterprise scope; see [Governance](/gh-aw/guides/governance/#disabling-create-pull-request-org-wide).
 
 ### How it works
 
@@ -438,12 +420,7 @@ Use `allowed-reviewers: [copilot]` to assign the Copilot PR reviewer bot. See [C
 
 ## Compile-Time Warnings for `target: "*"`
 
-When `target: "*"` is used, `gh aw compile` emits warnings for two common misconfigurations:
-
-- **Missing wildcard fetch** — no `checkout` block with a wildcard `fetch` pattern (e.g., `fetch: ["*"]`). Without this, the agent cannot access arbitrary PR branches at runtime and will fail with permission-like errors.
-- **No constraints** — neither `required-title-prefix` nor `required-labels` is set, which allows pushing to any PR in the repository with no additional gating.
-
-Both warnings are suppressed when the recommended configuration is in place:
+When `target: "*"` is used, `gh aw compile` warns about two common misconfigurations: missing wildcard fetch (`checkout.fetch: ["*"]`), which prevents access to arbitrary PR branches at runtime, and missing constraints (`required-title-prefix` or `required-labels`), which otherwise allows pushes to any PR in the repository. Both warnings are suppressed when the recommended configuration is in place:
 
 ```yaml wrap
 safe-outputs:
@@ -474,14 +451,7 @@ This protects against supply chain attacks where an AI agent could inadvertently
 
 ### What Is Protected
 
-The following are always protected regardless of policy (unless explicitly excluded):
-
-- **Package manifests**: `package.json`, `go.mod`, `go.sum`, `Gemfile`, `Pipfile`, `pyproject.toml`, and other runtime lockfiles.
-- **Security configuration**: `CODEOWNERS`, `DESIGN.md`.
-- **Agent instruction files**: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and other engine-specific instruction files.
-- **Common top-level documentation**: `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`. These files are frequently imported by agents as context, so they are protected by default.
-- **Specific protected directories**: `.github/`, `.agents/`, `.githooks/`, `.husky/`.
-- **Any top-level directory starting with `.`**: for example `.cursor/`, `.vscode/`, `.devcontainer/`, or any other hidden configuration directory at the repository root. This rule catches newly-created dot-directories without requiring an explicit list update.
+The following are always protected unless explicitly excluded: package manifests such as `package.json`, `go.mod`, `go.sum`, `Gemfile`, `Pipfile`, `pyproject.toml`, and other runtime lockfiles; security configuration files such as `CODEOWNERS` and `DESIGN.md`; agent instruction files such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and other engine-specific instruction files; common top-level documentation such as `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`, and `CODE_OF_CONDUCT.md`; specific protected directories such as `.github/`, `.agents/`, `.githooks/`, and `.husky/`; and any top-level directory starting with `.` such as `.cursor/`, `.vscode/`, or `.devcontainer/`. The final rule also protects newly created dot-directories without requiring a list update.
 
 ### Policy Options
 
@@ -691,6 +661,6 @@ Protection covers three categories:
 
 ## Related Documentation
 
-- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Checkout, target-repo, allowed-repos, and fork-authentication rules
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Complete safe output reference
-- [Triggering CI](/gh-aw/reference/triggering-ci/) - How PR-safe-outputs can request follow-up CI
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — checkout, `target-repo`, `allowed-repos`, and fork-authentication rules
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) — complete safe output reference
+- [Triggering CI](/gh-aw/reference/triggering-ci/) — how PR safe outputs can request follow-up CI
