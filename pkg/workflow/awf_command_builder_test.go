@@ -90,7 +90,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 
 		assert.Contains(t, argsStr, "--allow-host-ports", "Should include --allow-host-ports flag")
-		assert.Contains(t, argsStr, "80,443,8080", "Should allow default gateway port 8080 alongside 80 and 443")
+		assert.Equal(t, "80,443,8080", argValue(args, "--allow-host-ports"), "Should allow default gateway port 8080 alongside 80 and 443")
 	})
 
 	t.Run("uses custom MCP gateway port from sandbox config", func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		argsStr := strings.Join(args, " ")
 
 		assert.Contains(t, argsStr, "--allow-host-ports", "Should include --allow-host-ports flag")
-		assert.Contains(t, argsStr, "80,443,9090", "Should use custom gateway port from sandbox config")
+		assert.Equal(t, "80,443,9090", argValue(args, "--allow-host-ports"), "Should use custom gateway port from sandbox config")
 		assert.NotContains(t, argsStr, "8080", "Should not include default port when custom port is set")
 	})
 
@@ -138,7 +138,71 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		assert.NotContains(t, argsStr, "--enable-host-access", "Strict mode (default) should not emit --enable-host-access")
 	})
 
-	t.Run("skips --allow-host-ports when AWF version is too old", func(t *testing.T) {
+	t.Run("emits service host ports in strict mode without host access", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				Services: `services:
+  postgres:
+    image: postgres:18
+    ports:
+      - 5432:5432
+`,
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{ID: "awf"},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--allow-host-ports", "Services should emit --allow-host-ports in strict mode")
+		assert.Equal(t, "80,443,5432,8080", argValue(args, "--allow-host-ports"), "Should include defaults and the declared service host port")
+		assert.NotContains(t, argsStr, "--enable-host-access", "Strict mode should not imply broad host access")
+	})
+
+	t.Run("merges explicit and service host ports sorted and deduped", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				Services: `services:
+  postgres:
+    image: postgres:18
+    ports:
+      - 5432:5432
+  redis:
+    image: redis:7
+    ports:
+      - 6379:6379
+`,
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID:             "awf",
+						AllowHostPorts: []int{9200, 5432},
+					},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+
+		assert.Equal(t, "80,443,5432,6379,8080,9200", argValue(args, "--allow-host-ports"), "Should sort and dedupe default, service, and explicit host ports")
+	})
+
+	t.Run("skips --allow-host-ports and warns when AWF version is too old", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -150,14 +214,24 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 						Version: "v0.25.23",
 					},
 				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID:             "awf",
+						AllowHostPorts: []int{9200},
+					},
+				},
 			},
 			AllowedDomains: "github.com",
 		}
 
-		args := BuildAWFArgs(config)
+		var args []string
+		stderr := captureStderr(func() {
+			args = BuildAWFArgs(config)
+		})
 		argsStr := strings.Join(args, " ")
 
 		assert.NotContains(t, argsStr, "--allow-host-ports", "Should skip --allow-host-ports for AWF versions below minimum support")
+		assert.Contains(t, stderr, string(constants.AWFAllowHostPortsMinVersion), "Warning should name the minimum AWF version")
 	})
 
 	t.Run("skips host-access flags when network isolation is enabled", func(t *testing.T) {
@@ -185,6 +259,60 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		assert.NotContains(t, argsStr, "--enable-host-access", "Should skip --enable-host-access in network isolation mode")
 		assert.NotContains(t, argsStr, "--allow-host-ports", "Should skip --allow-host-ports in network isolation mode")
 	})
+
+	t.Run("legacy security keeps host access and includes service ports", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName: "copilot",
+			WorkflowData: &WorkflowData{
+				Name:         "test-workflow",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				Services: `services:
+  postgres:
+    image: postgres:18
+    ports:
+      - 5432:5432
+`,
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID:             "awf",
+						LegacySecurity: true,
+					},
+				},
+			},
+			AllowedDomains: "github.com",
+		}
+
+		args := BuildAWFArgs(config)
+		argsStr := strings.Join(args, " ")
+
+		assert.Contains(t, argsStr, "--enable-host-access", "Legacy mode should still emit broad host access")
+		assert.Equal(t, "80,443,5432,8080", argValue(args, "--allow-host-ports"), "Legacy mode should merge default and service ports")
+	})
+}
+
+func TestCollectServiceHostPorts(t *testing.T) {
+	tests := []struct {
+		name     string
+		portSpec string
+		want     []int
+	}{
+		{name: "host container mapping", portSpec: "5432:5432", want: []int{5432}},
+		{name: "bare port", portSpec: "5432", want: []int{5432}},
+		{name: "ip host container mapping", portSpec: "127.0.0.1:5432:5432", want: []int{5432}},
+		{name: "udp suffix ignored", portSpec: "5432:5432/udp", want: []int{5432}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Services: "services:\n  db:\n    image: postgres:18\n    ports:\n      - " + tt.portSpec + "\n",
+			}
+
+			assert.Equal(t, tt.want, collectServiceHostPorts(workflowData))
+		})
+	}
 }
 
 // TestBuildAWFArgsDiagnosticLogs tests that BuildAWFArgs includes --diagnostic-logs
@@ -673,4 +801,13 @@ func TestBuildAWFCommand_ServicePortsRequireLegacy(t *testing.T) {
 		cmd := BuildAWFCommand(config)
 		assert.NotContains(t, cmd, "--allow-host-service-ports", "Should NOT emit --allow-host-service-ports in strict mode")
 	})
+}
+
+func argValue(args []string, flag string) string {
+	for i, arg := range args {
+		if arg == flag && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
 }

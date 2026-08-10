@@ -843,6 +843,11 @@
               "desc": "Opt into legacy security mode.",
               "enum": ["enable"],
               "leaf": true
+            },
+            "allow-host-ports": {
+              "type": "array",
+              "desc": "Additional host TCP ports the agent may connect to.",
+              "leaf": true
             }
           }
         },

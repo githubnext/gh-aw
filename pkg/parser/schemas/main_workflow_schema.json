@@ -3600,6 +3600,16 @@
                       "type": "string",
                       "enum": ["enable"],
                       "description": "Opt into legacy security mode. When set to 'enable', AWF runs with sudo and --enable-host-access for backward compatibility. The default (omitted) uses strict security mode where AWF runs rootless without host-access flags."
+                    },
+                    "allow-host-ports": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 65535
+                      },
+                      "uniqueItems": true,
+                      "description": "Additional host TCP ports the agent may connect to. Ports published by `services:` are allowed automatically; use this only for ports not declared there."
                     }
                   },
                   "additionalProperties": false

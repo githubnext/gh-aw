@@ -11,6 +11,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -133,6 +134,90 @@ func ExtractServicePortExpressions(servicesYAML string) (string, []string) {
 	result := strings.Join(expressions, ",")
 	servicePortsLog.Printf("Generated %d service port expressions", len(expressions))
 	return result, warnings
+}
+
+func collectServiceHostPorts(workflowData *WorkflowData) []int {
+	if workflowData == nil || workflowData.Services == "" {
+		return nil
+	}
+
+	var wrapper servicesYAMLWrapper
+	if err := yaml.Unmarshal([]byte(workflowData.Services), &wrapper); err != nil {
+		servicePortsLog.Printf("Failed to parse services YAML for host ports: %v", err)
+		return nil
+	}
+	if wrapper.Services == nil {
+		return nil
+	}
+
+	seen := map[int]struct{}{}
+	serviceIDs := sliceutil.SortedKeys(wrapper.Services)
+	for _, serviceID := range serviceIDs {
+		svc := wrapper.Services[serviceID]
+		if svc == nil || svc.Ports == nil {
+			continue
+		}
+		portsList, ok := svc.Ports.([]any)
+		if !ok {
+			continue
+		}
+		for _, portSpec := range portsList {
+			if port, ok := parseServiceHostPort(portSpec); ok {
+				seen[port] = struct{}{}
+			}
+		}
+	}
+
+	ports := make([]int, 0, len(seen))
+	for port := range seen {
+		ports = append(ports, port)
+	}
+	sort.Ints(ports)
+	return ports
+}
+
+func parseServiceHostPort(spec any) (int, bool) {
+	switch v := spec.(type) {
+	case int:
+		return validServiceHostPort(v)
+	case int64:
+		return validServiceHostPort(int(v))
+	case uint64:
+		return validServiceHostPort(int(v))
+	case float64:
+		p := int(v)
+		if float64(p) != v {
+			return 0, false
+		}
+		return validServiceHostPort(p)
+	case string:
+		portStr := strings.TrimSpace(v)
+		if portStr == "" {
+			return 0, false
+		}
+		if idx := strings.LastIndex(portStr, "/"); idx != -1 {
+			portStr = portStr[:idx]
+		}
+		parts := strings.Split(portStr, ":")
+		hostPart := parts[0]
+		if len(parts) >= 3 {
+			hostPart = parts[len(parts)-2]
+		}
+		port, err := strconv.Atoi(hostPart)
+		if err != nil {
+			return 0, false
+		}
+		return validServiceHostPort(port)
+	default:
+		return 0, false
+	}
+}
+
+func validServiceHostPort(port int) (int, bool) {
+	if port < minPort || port > maxPort {
+		return 0, false
+	}
+	return port, true
 }
 
 // parsePortSpec parses a single port specification and returns the container port(s).

@@ -4,10 +4,12 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
@@ -506,7 +508,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Print("Added --diagnostic-logs because awf-diagnostic-logs feature flag is enabled")
 	}
 
-	// Legacy security mode: emit --legacy-security, --enable-host-access, and --allow-host-ports
+	// Legacy security mode: emit --legacy-security and --enable-host-access.
 	isLegacy := agentConfig != nil && agentConfig.LegacySecurity
 	if isLegacy {
 		if awfSupportsLegacySecurity(firewallConfig) {
@@ -520,19 +522,21 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 
 		awfArgs = append(awfArgs, "--enable-host-access")
 		awfHelpersLog.Print("Added --enable-host-access for legacy security mode")
-
-		if awfSupportsAllowHostPorts(firewallConfig) {
-			mcpGatewayPort := int(DefaultMCPGatewayPort)
-			if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
-				config.WorkflowData.SandboxConfig.MCP != nil && config.WorkflowData.SandboxConfig.MCP.Port > 0 {
-				mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
-			}
-			hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
-			awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
-			awfHelpersLog.Printf("Added --allow-host-ports %s for legacy security mode", hostPorts)
-		}
 	} else {
-		awfHelpersLog.Print("Strict security: skipping host-access flags (default)")
+		awfHelpersLog.Print("Strict security: skipping host-access flag (default)")
+	}
+
+	hostPorts := collectAllowedHostPorts(config.WorkflowData, agentConfig, isLegacy)
+	if len(hostPorts) > 0 {
+		if awfSupportsAllowHostPorts(firewallConfig) {
+			hostPortsValue := joinPorts(hostPorts)
+			awfArgs = append(awfArgs, "--allow-host-ports", hostPortsValue)
+			awfHelpersLog.Printf("Added --allow-host-ports %s", hostPortsValue)
+		} else {
+			warning := fmt.Sprintf("sandbox host ports require AWF %s or newer; skipping --allow-host-ports for AWF version %q", constants.AWFAllowHostPortsMinVersion, getAWFImageTag(firewallConfig))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+			awfHelpersLog.Printf("Warning: %s", warning)
+		}
 	}
 
 	// Skip pulling images since they are pre-downloaded
@@ -601,6 +605,50 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 
 	awfHelpersLog.Printf("Built %d AWF arguments", len(awfArgs))
 	return awfArgs
+}
+
+func collectAllowedHostPorts(workflowData *WorkflowData, agentConfig *AgentSandboxConfig, includeDefaultPorts bool) []int {
+	ports := map[int]struct{}{}
+	for _, port := range collectServiceHostPorts(workflowData) {
+		ports[port] = struct{}{}
+	}
+	if agentConfig != nil {
+		for _, port := range agentConfig.AllowHostPorts {
+			if port >= minPort && port <= maxPort {
+				ports[port] = struct{}{}
+			}
+		}
+	}
+	if includeDefaultPorts || len(ports) > 0 {
+		ports[80] = struct{}{}
+		ports[443] = struct{}{}
+		ports[getMCPGatewayPort(workflowData)] = struct{}{}
+	}
+	if len(ports) == 0 {
+		return nil
+	}
+	result := make([]int, 0, len(ports))
+	for port := range ports {
+		result = append(result, port)
+	}
+	sort.Ints(result)
+	return result
+}
+
+func getMCPGatewayPort(workflowData *WorkflowData) int {
+	if workflowData != nil && workflowData.SandboxConfig != nil &&
+		workflowData.SandboxConfig.MCP != nil && workflowData.SandboxConfig.MCP.Port > 0 {
+		return workflowData.SandboxConfig.MCP.Port
+	}
+	return int(DefaultMCPGatewayPort)
+}
+
+func joinPorts(ports []int) string {
+	parts := make([]string, len(ports))
+	for i, port := range ports {
+		parts[i] = strconv.Itoa(port)
+	}
+	return strings.Join(parts, ",")
 }
 
 // GetAWFCommandPrefix determines the AWF command to use (custom or standard).
