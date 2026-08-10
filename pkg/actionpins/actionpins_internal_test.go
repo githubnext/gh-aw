@@ -154,6 +154,14 @@ func TestLoadActionPinsData_LoadsContainerPins(t *testing.T) {
 	assert.Equal(t, "node:lts-alpine@sha256:deadbeef", data.Containers["node:lts-alpine"].PinnedImage)
 }
 
+func TestEmbeddedContainerPins_DoNotIncludeVulnerableAstGrepImage(t *testing.T) {
+	t.Parallel()
+
+	_, ok := GetContainerPin("mcp/ast-grep:latest")
+
+	assert.False(t, ok, "mcp/ast-grep:latest should not be embedded as a pinned container image")
+}
+
 func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 	t.Parallel()
 	assert.PanicsWithValue(t,
