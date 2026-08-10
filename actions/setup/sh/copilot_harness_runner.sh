@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Do not enable -e: signal-style harness exits must be inspected and retried.
 set -uo pipefail
 
 if (( $# < 3 )); then

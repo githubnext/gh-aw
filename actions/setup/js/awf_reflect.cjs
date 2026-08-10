@@ -107,7 +107,7 @@ function getReflectResourceSnapshot() {
  */
 function logReflectResourceSnapshot(logger, phase) {
   const snapshot = getReflectResourceSnapshot();
-  logger(`awf-reflect: resources ${phase} heapUsed=${snapshot.heapUsed}B rss=${snapshot.rss}B external=${snapshot.external}B ` + `cgroupCurrent=${snapshot.cgroupCurrent} cgroupMax=${snapshot.cgroupMax}`);
+  logger(`awf-reflect: resources ${phase} heapUsed=${snapshot.heapUsed}B rss=${snapshot.rss}B external=${snapshot.external}B cgroupCurrent=${snapshot.cgroupCurrent} cgroupMax=${snapshot.cgroupMax}`);
 }
 
 /**

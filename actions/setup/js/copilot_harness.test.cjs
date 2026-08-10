@@ -2345,6 +2345,8 @@ describe("copilot_harness.cjs", () => {
             heapUsed: expect.any(Number),
             rss: expect.any(Number),
             external: expect.any(Number),
+            cgroupCurrent: expect.any(String),
+            cgroupMax: expect.any(String),
           })
         );
       } finally {
