@@ -112,25 +112,16 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	// with "./" to prevent option injection. dockerPath is resolved from the allowlisted executable
 	// name "docker" via fileutil.ResolveExecutablePath. exec.Command passes args directly to the OS
 	// (no shell).
-	cmd := exec.Command(
-		dockerPath,
-		"run",
-		"--rm",
-		"-v", volumeMount,
-		"-w", "/workdir",
-		RunnerGuardImage,
-		"scan",
-		containerScanPath,
-		"--format", "json",
-	)
+	dockerArgs := runnerGuardDockerArgs(volumeMount, containerScanPath)
+	// #nosec G204 -- see the trust-boundary rationale above.
+	cmd := exec.Command(dockerPath, dockerArgs...)
 
 	// Always show that runner-guard is running (regular verbosity)
 	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running runner-guard taint analysis scanner"))
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir %s scan %s --format json",
-			gitRoot, RunnerGuardImage, containerScanPath)
+		dockerCmd := shellJoinArgs(append([]string{"docker"}, dockerArgs...))
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run runner-guard directly: "+dockerCmd))
 	}
 
@@ -150,6 +141,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 		if stdout.Len() > 0 {
 			fmt.Fprint(os.Stderr, stdout.String())
 		}
+
 		if stderr.Len() > 0 {
 			fmt.Fprint(os.Stderr, stderr.String())
 		}
@@ -186,6 +178,19 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	}
 
 	return nil
+}
+
+func runnerGuardDockerArgs(volumeMount, containerScanPath string) []string {
+	return []string{
+		"run",
+		"--rm",
+		"-v", volumeMount,
+		"-w", "/workdir",
+		RunnerGuardImage,
+		"scan",
+		containerScanPath,
+		"--format", "json",
+	}
 }
 
 // parseAndDisplayRunnerGuardOutput parses runner-guard JSON output and displays findings.
