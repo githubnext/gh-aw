@@ -6,3 +6,5 @@
 {"id":"failure_reported_or_noop","question":"Did the agent create an issue for an actionable integration failure, or use noop when no action was required?","answer":"YES","model":"evals","timestamp":"2026-08-08T05:04:23.245Z","runid":"31240698738"}
 {"id":"windows_integration_checked","question":"Did the agent assess the Windows CLI integration build and test workflow?","answer":"YES","model":"evals","timestamp":"2026-08-09T05:07:28.402Z","runid":"31295792358"}
 {"id":"failure_reported_or_noop","question":"Did the agent create an issue for an actionable integration failure, or use noop when no action was required?","answer":"YES","model":"evals","timestamp":"2026-08-09T05:07:28.402Z","runid":"31295792358"}
+{"id":"windows_integration_checked","question":"Did the agent assess the Windows CLI integration build and test workflow?","answer":"YES","model":"evals","timestamp":"2026-08-10T05:15:14.514Z","runid":"31357701616"}
+{"id":"failure_reported_or_noop","question":"Did the agent create an issue for an actionable integration failure, or use noop when no action was required?","answer":"YES","model":"evals","timestamp":"2026-08-10T05:15:14.514Z","runid":"31357701616"}
