@@ -174,6 +174,80 @@ func TestIsBotUser(t *testing.T) {
 	assert.False(t, isBotUser("mnkiefer"), "human user is not a bot")
 }
 
+func TestCountHumanComments(t *testing.T) {
+	comments := []map[string]any{
+		{"user": map[string]any{"login": "octocat"}},
+		{"user": map[string]any{"login": "github-actions[bot]"}},
+		{"user": map[string]any{"login": "copilot-swe-agent"}},
+		{"user": map[string]any{"login": "hubot"}},
+	}
+
+	assert.Equal(t, 2, countHumanComments(comments), "should count only non-bot comments")
+	assert.Equal(t, 0, countHumanComments(nil), "empty comment list")
+	assert.Equal(t, 1, countHumanComments([]map[string]any{{}}), "missing user preserves existing human classification")
+}
+
+func TestCountHumanCommentsAfter(t *testing.T) {
+	comments := []map[string]any{
+		{"created_at": "2026-05-12T00:00:00Z", "user": map[string]any{"login": "octocat"}},
+		{"created_at": "2026-05-12T00:01:00Z", "user": map[string]any{"login": "github-actions[bot]"}},
+		{"created_at": "2026-05-12T00:02:00Z", "user": map[string]any{"login": "monalisa"}},
+	}
+
+	assert.Equal(t, 1, countHumanCommentsAfter(comments, "2026-05-12T00:00:00Z"), "should count only later human replies")
+}
+
+func TestIsLatestCloseByBot(t *testing.T) {
+	cases := []struct {
+		name      string
+		events    []map[string]any
+		wantIsBot bool
+	}{
+		{
+			name: "latest close by bot",
+			events: []map[string]any{
+				{"event": "closed", "actor": map[string]any{"login": "octocat"}},
+				{"event": "reopened", "actor": map[string]any{"login": "octocat"}},
+				{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}},
+			},
+			wantIsBot: true,
+		},
+		{
+			name: "latest close by human",
+			events: []map[string]any{
+				{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}},
+				{"event": "reopened", "actor": map[string]any{"login": "octocat"}},
+				{"event": "closed", "actor": map[string]any{"login": "octocat"}},
+			},
+			wantIsBot: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			getEvents := func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+				require.Equal(t, "issues/42/events", endpoint)
+				require.Equal(t, "owner/repo", repo)
+				return tc.events, nil
+			}
+
+			closedByBot, err := isLatestCloseByBot(context.Background(), 42, "owner/repo", getEvents)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantIsBot, closedByBot, "should use the most recent close event")
+		})
+	}
+}
+
+func TestIsLatestCloseByBotRequiresCloseEvent(t *testing.T) {
+	getEvents := func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+		return []map[string]any{{"event": "reopened"}}, nil
+	}
+
+	closedByBot, err := isLatestCloseByBot(context.Background(), 42, "owner/repo", getEvents)
+	require.Error(t, err)
+	assert.False(t, closedByBot)
+}
+
 func TestExtractCommentID(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -221,6 +295,19 @@ func TestMedianFloat(t *testing.T) {
 	assert.InDelta(t, 3.0, medianFloat([]float64{1.0, 3.0, 5.0}), 1e-12, "odd count")
 	assert.InDelta(t, 2.5, medianFloat([]float64{1.0, 2.0, 3.0, 4.0}), 1e-12, "even count")
 	assert.InDelta(t, 3.0, medianFloat([]float64{5.0, 1.0, 3.0}), 1e-12, "unsorted")
+}
+
+func TestLabelsToStringsUseSharedConversion(t *testing.T) {
+	assert.Equal(t, []string{"bug", "feature"}, labelsToStringsFromNodes([]any{
+		map[string]any{"name": "bug"},
+		map[string]any{"name": "feature"},
+		map[string]any{"description": "missing name"},
+	}))
+	assert.Equal(t, []string{"bug", "feature"}, labelsToStringsFromMaps([]map[string]any{
+		{"name": "bug"},
+		{"name": "feature"},
+		{"description": "missing name"},
+	}))
 }
 
 func TestTimeBetween(t *testing.T) {

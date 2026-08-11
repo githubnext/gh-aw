@@ -3,6 +3,7 @@ import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-stri
 import { noThrowPlainObjectRule } from "./rules/no-throw-plain-object";
 import { noGithubRequestInterpolatedRouteRule } from "./rules/no-github-request-interpolated-route";
 import { noJsonStringifyErrorRule } from "./rules/no-json-stringify-error";
+import { noJsonStringifySetOrMapRule } from "./rules/no-json-stringify-set-or-map";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
 import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
@@ -54,6 +55,7 @@ const plugin = {
     "no-throw-plain-object": noThrowPlainObjectRule,
     "no-github-request-interpolated-route": noGithubRequestInterpolatedRouteRule,
     "no-json-stringify-error": noJsonStringifyErrorRule,
+    "no-json-stringify-set-or-map": noJsonStringifySetOrMapRule,
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
     "prefer-get-error-message": preferGetErrorMessageRule,
