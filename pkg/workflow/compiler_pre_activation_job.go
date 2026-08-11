@@ -30,7 +30,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
-		return nil, errors.New("setup action reference is required but could not be resolved")
+		return nil, errors.New("setup action reference is required but could not be resolved. Example: actions/setup-node@v4")
 	}
 
 	steps, permissions := c.buildPreActivationPermissions(data, setupActionRef)
@@ -674,7 +674,7 @@ func validatePreActivationJobConfig(jobs map[string]any, jobName string) (map[st
 
 	configMap, ok := preActivationJob.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("jobs.%s must be an object, got %T", jobName, preActivationJob)
+		return nil, fmt.Errorf("jobs.%s must be an object, got %T. Example: jobs: {%s: {steps: []}}", jobName, preActivationJob, jobName)
 	}
 
 	allowedFields := map[string]struct{}{
@@ -690,7 +690,7 @@ func validatePreActivationJobConfig(jobs map[string]any, jobName string) (map[st
 			)
 		}
 		if !setutil.Contains(allowedFields, field) {
-			return nil, fmt.Errorf("jobs.%s: unsupported field '%s' - only 'steps', 'outputs', and 'pre-steps' are allowed", jobName, field)
+			return nil, fmt.Errorf("jobs.%s: unsupported field '%s' - only 'steps', 'outputs', and 'pre-steps' are allowed. Example: jobs: {%s: {steps: []}}", jobName, field, jobName)
 		}
 	}
 	return configMap, nil
@@ -705,14 +705,14 @@ func extractPreActivationJobSteps(jobName string, configMap map[string]any) ([]s
 
 	stepsList, ok := stepsValue.([]any)
 	if !ok {
-		return nil, fmt.Errorf("jobs.%s.steps must be an array, got %T", jobName, stepsValue)
+		return nil, fmt.Errorf("jobs.%s.steps must be an array, got %T. Example: jobs: {%s: {steps: [{run: echo ready}]}}", jobName, stepsValue, jobName)
 	}
 
 	var steps []string
 	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("jobs.%s.steps[%d] must be an object, got %T", jobName, i, step)
+			return nil, fmt.Errorf("jobs.%s.steps[%d] must be an object, got %T. Example: jobs: {%s: {steps: [{run: echo ready}]}}", jobName, i, step, jobName)
 		}
 		stepYAML, err := ConvertStepToYAML(stepMap)
 		if err != nil {
@@ -733,7 +733,7 @@ func extractPreActivationJobOutputs(jobName string, configMap map[string]any) (m
 
 	outputsMap, ok := outputsValue.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("jobs.%s.outputs must be an object, got %T", jobName, outputsValue)
+		return nil, fmt.Errorf("jobs.%s.outputs must be an object, got %T. Example: jobs: {%s: {outputs: {ready: '${{ steps.check.outputs.ready }}'}}}", jobName, outputsValue, jobName)
 	}
 
 	// If the same output key is defined in both variants, the second one (pre_activation) wins.
@@ -741,7 +741,7 @@ func extractPreActivationJobOutputs(jobName string, configMap map[string]any) (m
 	for key, val := range outputsMap {
 		valStr, ok := val.(string)
 		if !ok {
-			return nil, fmt.Errorf("jobs.%s.outputs.%s must be a string, got %T", jobName, key, val)
+			return nil, fmt.Errorf("jobs.%s.outputs.%s must be a string, got %T. Example: jobs: {%s: {outputs: {%s: '${{ steps.check.outputs.value }}'}}}", jobName, key, val, jobName, key)
 		}
 		result[key] = valStr
 	}
@@ -839,14 +839,14 @@ func extractOnSteps(frontmatter map[string]any) ([]map[string]any, error) {
 
 	stepsList, ok := stepsValue.([]any)
 	if !ok {
-		return nil, fmt.Errorf("on.steps must be an array, got %T", stepsValue)
+		return nil, fmt.Errorf("on.steps must be an array, got %T. Example: on: {steps: [{run: echo ready}]}", stepsValue)
 	}
 
 	result := make([]map[string]any, 0, len(stepsList))
 	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("on.steps[%d] must be an object, got %T", i, step)
+			return nil, fmt.Errorf("on.steps[%d] must be an object, got %T. Example: on: {steps: [{run: echo ready}]}", i, step)
 		}
 		result = append(result, stepMap)
 	}
@@ -917,7 +917,7 @@ func extractOnRestoreMemory(frontmatter map[string]any) (bool, error) {
 
 	restoreMemory, ok := restoreMemoryValue.(bool)
 	if !ok {
-		return false, fmt.Errorf("on.restore-memory must be a boolean, got %T", restoreMemoryValue)
+		return false, fmt.Errorf("on.restore-memory must be a boolean, got %T. Example: on: {restore-memory: true}", restoreMemoryValue)
 	}
 
 	return restoreMemory, nil
@@ -935,14 +935,14 @@ func parseOnNeedsValues(onMap map[string]any) ([]string, error) {
 
 	needsList, ok := needsValue.([]any)
 	if !ok {
-		return nil, fmt.Errorf("on.needs must be an array, got %T", needsValue)
+		return nil, fmt.Errorf("on.needs must be an array, got %T. Example: on: {needs: [build]}", needsValue)
 	}
 
 	result := make([]string, 0, len(needsList))
 	for i, need := range needsList {
 		needStr, ok := need.(string)
 		if !ok {
-			return nil, fmt.Errorf("on.needs[%d] must be a string, got %T", i, need)
+			return nil, fmt.Errorf("on.needs[%d] must be a string, got %T. Example: on: {needs: [build]}", i, need)
 		}
 		result = append(result, needStr)
 	}

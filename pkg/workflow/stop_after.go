@@ -46,7 +46,7 @@ func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any, workflowDa
 		}
 		return "", nil
 	default:
-		return "", errors.New("invalid on: section format")
+		return "", errors.New("invalid on: section format. Example: on: {issues: {types: [opened]}}")
 	}
 }
 
@@ -233,7 +233,7 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 
 				queryStr, ok := queryVal.(string)
 				if !ok {
-					return nil, fmt.Errorf("skip-if-match 'query' field must be a string, got %T", queryVal)
+					return nil, fmt.Errorf("skip-if-match 'query' field must be a string, got %T. Example: skip-if-match: {query: 'is:pr is:open', max: 3}", queryVal)
 				}
 
 				// Extract max value (optional, defaults to 1)
@@ -253,7 +253,7 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 					}
 
 					if maxVal < 1 {
-						return nil, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d", maxVal)
+						return nil, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d. Example: skip-if-match: {query: 'is:pr is:open', max: 3}", maxVal)
 					}
 				}
 
@@ -269,12 +269,12 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 					Scope: scope,
 				}, nil
 			default:
-				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
+				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Example:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
 			}
 		}
 		return nil, nil
 	default:
-		return nil, errors.New("invalid on: section format")
+		return nil, errors.New("invalid on: section format. Example: on: {issues: {types: [opened]}}")
 	}
 }
 
@@ -319,7 +319,7 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 
 				queryStr, ok := queryVal.(string)
 				if !ok {
-					return nil, fmt.Errorf("skip-if-no-match 'query' field must be a string, got %T", queryVal)
+					return nil, fmt.Errorf("skip-if-no-match 'query' field must be a string, got %T. Example: skip-if-no-match: {query: 'is:pr is:open', min: 3}", queryVal)
 				}
 
 				// Extract min value (optional, defaults to 1)
@@ -339,7 +339,7 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 					}
 
 					if minVal < 1 {
-						return nil, fmt.Errorf("skip-if-no-match 'min' field must be at least 1, got %d", minVal)
+						return nil, fmt.Errorf("skip-if-no-match 'min' field must be at least 1, got %d. Example: skip-if-no-match: {query: 'is:pr is:open', min: 3}", minVal)
 					}
 				}
 
@@ -355,7 +355,7 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 					Scope: scope,
 				}, nil
 			default:
-				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Examples:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
+				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Example:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
 			}
 		}
 		return nil, nil

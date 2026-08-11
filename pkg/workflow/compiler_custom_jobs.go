@@ -722,7 +722,7 @@ func extractBuiltinJobNeedsAugmentation(jobName string, configMap map[string]any
 		}
 		return needs, nil
 	default:
-		return nil, fmt.Errorf("jobs.%s.needs must be a string or array of strings, got %T", jobName, needsValue)
+		return nil, fmt.Errorf("jobs.%s.needs must be a string or array of strings, got %T. Example: jobs: {%s: {needs: agent}}", jobName, needsValue, jobName)
 	}
 }
 
@@ -734,7 +734,7 @@ func extractBuiltinJobIfAugmentation(jobName string, configMap map[string]any) (
 
 	ifCondition, ok := ifValue.(string)
 	if !ok {
-		return "", fmt.Errorf("jobs.%s.if must be a string, got %T", jobName, ifValue)
+		return "", fmt.Errorf("jobs.%s.if must be a string, got %T. Example: jobs: {%s: {if: '${{ success() }}'}}", jobName, ifValue, jobName)
 	}
 
 	// Strip "if: " prefix to match the Job.If contract (bare expression, no prefix).
@@ -764,7 +764,7 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 
 		configMap, ok := rawConfig.(map[string]any)
 		if !ok {
-			return fmt.Errorf("jobs.%s must be an object, got %T", configuredJobName, rawConfig)
+			return fmt.Errorf("jobs.%s must be an object, got %T. Example: jobs: {%s: {steps: []}}", configuredJobName, rawConfig, configuredJobName)
 		}
 
 		augmentedNeeds, err := extractBuiltinJobNeedsAugmentation(configuredJobName, configMap)
@@ -793,7 +793,7 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 			} else if augmentedIf != "" || hasPermissions {
 				augmentedField = configuredJobName
 			}
-			return fmt.Errorf("jobs.%s: cannot augment %q because this workflow does not generate that job", augmentedField, targetJobName)
+			return fmt.Errorf("jobs.%s: cannot augment %q because this workflow does not generate that job. Example: jobs: {%s: {steps: []}}", augmentedField, targetJobName, configuredJobName)
 		}
 
 		if hasPermissions {
@@ -806,10 +806,10 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 		for _, rawNeed := range augmentedNeeds {
 			need := normalizeBuiltinJobAlias(rawNeed)
 			if need == targetJobName {
-				return fmt.Errorf("jobs.%s.needs: %q cannot depend on itself", configuredJobName, rawNeed)
+				return fmt.Errorf("jobs.%s.needs: %q cannot depend on itself. Example: jobs: {%s: {needs: agent}}", configuredJobName, rawNeed, configuredJobName)
 			}
 			if _, known := allJobs[need]; !known {
-				return fmt.Errorf("jobs.%s.needs: unknown job %q", configuredJobName, rawNeed)
+				return fmt.Errorf("jobs.%s.needs: unknown job %q. Example: jobs: {%s: {needs: agent}}", configuredJobName, rawNeed, configuredJobName)
 			}
 			normalizedNeeds = append(normalizedNeeds, need)
 		}
@@ -1073,14 +1073,14 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 
 	stepsList, ok := raw.([]any)
 	if !ok {
-		return nil, fmt.Errorf("%s for job '%s' must be an array of step objects", fieldName, jobName)
+		return nil, fmt.Errorf("%s for job '%s' must be an array of step objects. Example: jobs: {%s: {%s: [{run: echo ready}]}}", fieldName, jobName, jobName, fieldName)
 	}
 
 	pinnedSteps := make([]string, 0, len(stepsList))
 	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("%s for job '%s' contains invalid step at index %d: expected object", fieldName, jobName, i)
+			return nil, fmt.Errorf("%s for job '%s' contains invalid step at index %d: expected object. Example: jobs: {%s: {%s: [{run: echo ready}]}}", fieldName, jobName, i, jobName, fieldName)
 		}
 
 		typedStep, err := MapToStep(stepMap)

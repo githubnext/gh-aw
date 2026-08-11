@@ -35,7 +35,7 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 		for i, item := range arr {
 			itemMap, ok := item.(map[string]any)
 			if !ok {
-				return nil, fmt.Errorf("checkout[%d]: expected object, got %T", i, item)
+				return nil, fmt.Errorf("checkout[%d]: expected object, got %T. Example: checkout: [{repository: github/gh-aw}]", i, item)
 			}
 			cfg, err := checkoutConfigFromMap(itemMap)
 			if err != nil {
@@ -44,7 +44,7 @@ func ParseCheckoutConfigs(raw any) ([]*CheckoutConfig, error) {
 			configs = append(configs, cfg)
 		}
 	} else {
-		return nil, fmt.Errorf("checkout must be an object or an array of objects, got %T", raw)
+		return nil, fmt.Errorf("checkout must be an object or an array of objects, got %T. Example: checkout: {repository: github/gh-aw}", raw)
 	}
 
 	// Validate that at most one logical checkout target has current: true.
@@ -83,7 +83,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if v, ok := m["repository"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.repository must be a string")
+			return nil, errors.New("checkout.repository must be a string. Example: checkout: {repository: github/gh-aw}")
 		}
 		cfg.Repository = s
 	}
@@ -91,7 +91,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if v, ok := m["ref"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.ref must be a string")
+			return nil, errors.New("checkout.ref must be a string. Example: checkout: {ref: main}")
 		}
 		cfg.Ref = s
 	}
@@ -99,7 +99,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if v, ok := m["path"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.path must be a string")
+			return nil, errors.New("checkout.path must be a string. Example: checkout: {path: source}")
 		}
 		cfg.PathExplicit = true
 		// Normalize "." to empty string: both mean the workspace root and
@@ -114,14 +114,14 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if v, ok := m["github-token"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.github-token must be a string")
+			return nil, errors.New("checkout.github-token must be a string. Example: checkout: {github-token: '${{ secrets.GITHUB_TOKEN }}'}")
 		}
 		cfg.GitHubToken = s
 	} else if v, ok := m["token"]; ok {
 		// Backward compatibility: "token" is accepted but "github-token" is preferred
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.token must be a string")
+			return nil, errors.New("checkout.token must be a string. Example: checkout: {token: '${{ secrets.CHECKOUT_TOKEN }}'}")
 		}
 		cfg.GitHubToken = s
 	}
@@ -130,7 +130,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if v, ok := m["github-app"]; ok {
 		appMap, ok := v.(map[string]any)
 		if !ok {
-			return nil, errors.New("checkout.github-app must be an object")
+			return nil, errors.New("checkout.github-app must be an object. Example: checkout: {github-app: {app-id: 123, private-key: '${{ secrets.APP_PRIVATE_KEY }}'}}")
 		}
 		cfg.GitHubApp = parseAppConfig(appMap)
 		if cfg.GitHubApp.AppID == "" || cfg.GitHubApp.PrivateKey == "" {
@@ -142,7 +142,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	parseSafeOutputAppConfig := func(fieldName string, value any) (*GitHubAppConfig, error) {
 		appMap, ok := value.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("checkout.%s must be an object", fieldName)
+			return nil, fmt.Errorf("checkout.%s must be an object. Example: checkout: {%s: {owner: github}}", fieldName, fieldName)
 		}
 		appConfig := parseAppConfig(appMap)
 		if appConfig.AppID == "" || appConfig.PrivateKey == "" {
@@ -183,22 +183,22 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 			cfg.FetchDepth = &depth
 		case float64:
 			if n != float64(int64(n)) {
-				return nil, errors.New("checkout.fetch-depth must be an integer")
+				return nil, errors.New("checkout.fetch-depth must be an integer. Example: checkout: {fetch-depth: 1}")
 			}
 			depth := int(n)
 			cfg.FetchDepth = &depth
 		default:
-			return nil, errors.New("checkout.fetch-depth must be an integer")
+			return nil, errors.New("checkout.fetch-depth must be an integer. Example: checkout: {fetch-depth: 1}")
 		}
 		if cfg.FetchDepth != nil && *cfg.FetchDepth < 0 {
-			return nil, errors.New("checkout.fetch-depth must be >= 0")
+			return nil, errors.New("checkout.fetch-depth must be at least 0. Example: checkout: {fetch-depth: 0}")
 		}
 	}
 
 	if v, ok := m["sparse-checkout"]; ok {
 		s, ok := v.(string)
 		if !ok {
-			return nil, errors.New("checkout.sparse-checkout must be a string")
+			return nil, errors.New("checkout.sparse-checkout must be a string. Example: checkout: {sparse-checkout: src}")
 		}
 		cfg.SparseCheckout = s
 	}
@@ -214,14 +214,14 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 				cfg.Submodules = "false"
 			}
 		default:
-			return nil, errors.New("checkout.submodules must be a string or boolean")
+			return nil, errors.New("checkout.submodules must be a string or boolean. Example: checkout: {submodules: recursive}")
 		}
 	}
 
 	if v, ok := m["lfs"]; ok {
 		b, ok := v.(bool)
 		if !ok {
-			return nil, errors.New("checkout.lfs must be a boolean")
+			return nil, errors.New("checkout.lfs must be a boolean. Example: checkout: {lfs: true}")
 		}
 		cfg.LFS = b
 	}
@@ -229,7 +229,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if v, ok := m["current"]; ok {
 		b, ok := v.(bool)
 		if !ok {
-			return nil, errors.New("checkout.current must be a boolean")
+			return nil, errors.New("checkout.current must be a boolean. Example: checkout: {current: true}")
 		}
 		cfg.Current = b
 	}
@@ -239,7 +239,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 		case string:
 			// Single string shorthand: treat as a one-element list
 			if strings.TrimSpace(fv) == "" {
-				return nil, errors.New("checkout.fetch string value must not be empty")
+				return nil, errors.New("checkout.fetch string value must not be empty. Example: checkout: {fetch: main}")
 			}
 			cfg.Fetch = []string{fv}
 		case []any:
@@ -247,23 +247,23 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 			for i, item := range fv {
 				s, ok := item.(string)
 				if !ok {
-					return nil, fmt.Errorf("checkout.fetch[%d] must be a string, got %T", i, item)
+					return nil, fmt.Errorf("checkout.fetch[%d] must be a string, got %T. Example: checkout: {fetch: [main]}", i, item)
 				}
 				if strings.TrimSpace(s) == "" {
-					return nil, fmt.Errorf("checkout.fetch[%d] must not be empty", i)
+					return nil, fmt.Errorf("checkout.fetch[%d] must not be empty. Example: checkout: {fetch: [main]}", i)
 				}
 				refs = append(refs, s)
 			}
 			cfg.Fetch = refs
 		default:
-			return nil, errors.New("checkout.fetch must be a string or an array of strings")
+			return nil, errors.New("checkout.fetch must be a string or an array of strings. Example: checkout: {fetch: [main, release]}")
 		}
 	}
 
 	if v, ok := m["wiki"]; ok {
 		b, ok := v.(bool)
 		if !ok {
-			return nil, errors.New("checkout.wiki must be a boolean")
+			return nil, errors.New("checkout.wiki must be a boolean. Example: checkout: {wiki: true}")
 		}
 		cfg.Wiki = b
 	}
@@ -271,7 +271,7 @@ func checkoutConfigFromMap(m map[string]any) (*CheckoutConfig, error) {
 	if v, ok := m["force-clean-git-credentials"]; ok {
 		b, ok := v.(bool)
 		if !ok {
-			return nil, errors.New("checkout.force-clean-git-credentials must be a boolean")
+			return nil, errors.New("checkout.force-clean-git-credentials must be a boolean. Example: checkout: {force-clean-git-credentials: true}")
 		}
 		cfg.CleanGitCredentials = b
 	}

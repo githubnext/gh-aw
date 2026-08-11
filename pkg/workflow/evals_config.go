@@ -77,7 +77,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		if questionsRaw, ok := v["questions"]; ok {
 			questionsList, ok := questionsRaw.([]any)
 			if !ok {
-				return nil, fmt.Errorf("evals.questions: must be a list of question objects, got %T", questionsRaw)
+				return nil, fmt.Errorf("evals.questions: must be a list of question objects, got %T. Example: evals: {questions: [{id: builds, question: Does the code compile?}]}", questionsRaw)
 			}
 			questions, err := parseEvalDefinitions(questionsList)
 			if err != nil {
@@ -90,7 +90,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		if modelRaw, ok := v["model"]; ok {
 			modelStr, ok := modelRaw.(string)
 			if !ok {
-				return nil, fmt.Errorf("evals.model: must be a string, got %T", modelRaw)
+				return nil, fmt.Errorf("evals.model: must be a string, got %T. Example: evals: {model: small, questions: [{id: builds, question: Does the code compile?}]}", modelRaw)
 			}
 			cfg.Model = strings.TrimSpace(modelStr)
 		}
@@ -101,7 +101,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		}
 
 	default:
-		return nil, errors.New("evals: must be a list of questions or an object with a questions list")
+		return nil, errors.New("evals: must be a list of questions or an object with a questions list. Example: evals: [{id: builds, question: Does the code compile?}]")
 	}
 
 	if err := validateEvals(cfg); err != nil {
@@ -124,7 +124,7 @@ func parseEvalDefinitions(items []any) ([]EvalDefinition, error) {
 	for i, item := range items {
 		m, ok := item.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("item %d must be an object with id and question fields", i)
+			return nil, fmt.Errorf("item %d must be an object with id and question fields. Example: evals: [{id: builds, question: Does the code compile?}]", i)
 		}
 		def, err := parseEvalDefinition(m, i)
 		if err != nil {
@@ -141,20 +141,20 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 	questionRaw, hasQuestion := m["question"]
 
 	if !hasID {
-		return EvalDefinition{}, fmt.Errorf("item %d: missing required field 'id'", idx)
+		return EvalDefinition{}, fmt.Errorf("item %d: missing required field 'id'. Example: evals: [{id: builds, question: Does the code compile?}]", idx)
 	}
 	if !hasQuestion {
-		return EvalDefinition{}, fmt.Errorf("item %d: missing required field 'question'", idx)
+		return EvalDefinition{}, fmt.Errorf("item %d: missing required field 'question'. Example: evals: [{id: builds, question: Does the code compile?}]", idx)
 	}
 
 	id, ok := idRaw.(string)
 	if !ok || strings.TrimSpace(id) == "" {
-		return EvalDefinition{}, fmt.Errorf("item %d: 'id' must be a non-empty string", idx)
+		return EvalDefinition{}, fmt.Errorf("item %d: 'id' must be a non-empty string. Example: evals: [{id: builds, question: Does the code compile?}]", idx)
 	}
 
 	question, ok := questionRaw.(string)
 	if !ok || strings.TrimSpace(question) == "" {
-		return EvalDefinition{}, fmt.Errorf("item %d: 'question' must be a non-empty string", idx)
+		return EvalDefinition{}, fmt.Errorf("item %d: 'question' must be a non-empty string. Example: evals: [{id: builds, question: Does the code compile?}]", idx)
 	}
 
 	def := EvalDefinition{
@@ -166,7 +166,7 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 	if modelRaw, ok := m["model"]; ok {
 		modelStr, ok := modelRaw.(string)
 		if !ok {
-			return EvalDefinition{}, fmt.Errorf("item %d: 'model' must be a string, got %T", idx, modelRaw)
+			return EvalDefinition{}, fmt.Errorf("item %d: 'model' must be a string, got %T. Example: evals: [{id: builds, question: Does the code compile?, model: small}]", idx, modelRaw)
 		}
 		def.Model = strings.TrimSpace(modelStr)
 	}
@@ -180,7 +180,7 @@ func validateEvals(cfg *EvalsConfig) error {
 		return nil
 	}
 	if len(cfg.Questions) == 0 {
-		return errors.New("evals: at least one question is required when evals is configured")
+		return errors.New("evals: at least one question is required when evals is configured. Example: evals: [{id: builds, question: Does the code compile?}]")
 	}
 
 	seen := make(map[string]struct{}, len(cfg.Questions))
@@ -191,7 +191,7 @@ func validateEvals(cfg *EvalsConfig) error {
 		seen[q.ID] = struct{}{}
 
 		if strings.TrimSpace(q.Question) == "" {
-			return fmt.Errorf("evals: question for id %q must be non-empty", q.ID)
+			return fmt.Errorf("evals: question for id %q must be non-empty. Example: evals: [{id: builds, question: Does the code compile?}]", q.ID)
 		}
 	}
 	return nil
