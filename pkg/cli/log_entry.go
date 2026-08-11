@@ -149,12 +149,13 @@ func (g GatewayLogEntry) EntryTimestamp() string { return g.Timestamp }
 // EntrySource implements LogEntry.
 func (g GatewayLogEntry) EntrySource() LogEntrySource { return LogSourceGateway }
 
-// EntryLevel implements LogEntry.
+// EntryLevel implements LogEntry. It mirrors the error classification used
+// by gateway log metrics processing (see processGatewayLogEntry), treating
+// Status == "error", a non-empty Error, or Level == "error" as failure
+// signals, and normalizes the result to the interface's two documented
+// levels (LogLevelInfo / LogLevelError).
 func (g GatewayLogEntry) EntryLevel() string {
-	if g.Level != "" {
-		return g.Level
-	}
-	return levelFromAllowed(g.Error == "" && g.Status != LogLevelError)
+	return levelFromAllowed(g.Status != "error" && g.Error == "" && g.Level != "error")
 }
 
 // EntryMessage implements LogEntry.

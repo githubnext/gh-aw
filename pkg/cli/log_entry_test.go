@@ -1,3 +1,5 @@
+//go:build !integration
+
 package cli
 
 import (
@@ -128,6 +130,31 @@ func TestLogEntryInterfaceAccessors(t *testing.T) {
 			expectedLevel:     LogLevelError,
 			expectedMessage:   "connection timeout",
 		},
+		{
+			name: "gateway log entry reports error level when status is error even with info level",
+			entry: GatewayLogEntry{
+				Timestamp: "2024-01-12T10:00:02Z",
+				Level:     LogLevelInfo,
+				Status:    "error",
+				Event:     "tool_call",
+				Message:   "call failed",
+			},
+			expectedTimestamp: "2024-01-12T10:00:02Z",
+			expectedSource:    LogSourceGateway,
+			expectedLevel:     LogLevelError,
+			expectedMessage:   "call failed",
+		},
+		{
+			name: "gateway log entry with all-blank fields returns empty message",
+			entry: GatewayLogEntry{
+				Timestamp: "2024-01-12T10:00:03Z",
+				Level:     LogLevelInfo,
+			},
+			expectedTimestamp: "2024-01-12T10:00:03Z",
+			expectedSource:    LogSourceGateway,
+			expectedLevel:     LogLevelInfo,
+			expectedMessage:   "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -170,4 +197,7 @@ func TestFormatEpochTimestampKeepsNonEpochValues(t *testing.T) {
 	assert.Equal(t, "2024-01-12T10:00:00Z", formatEpochTimestamp("2024-01-12T10:00:00Z"))
 	assert.Empty(t, formatEpochTimestamp(""))
 	assert.Equal(t, "-", formatEpochTimestamp("-"))
+	// A zero epoch is a valid timestamp, not a placeholder like "-" or "", so
+	// it is normalized like any other numeric epoch value.
+	assert.Equal(t, "1970-01-01T00:00:00Z", formatEpochTimestamp("0"))
 }
