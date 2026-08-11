@@ -301,8 +301,8 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 }
 
 func markArtifactDownloaded(outputDir, artifactName string) error {
-	if artifactName == "" || filepath.Base(artifactName) != artifactName {
-		return fmt.Errorf("invalid artifact name %q", artifactName)
+	if err := validateArtifactName(artifactName); err != nil {
+		return err
 	}
 	markerDir := filepath.Join(outputDir, downloadedArtifactsMarkerDir)
 	if err := os.MkdirAll(markerDir, constants.DirPermPublic); err != nil {

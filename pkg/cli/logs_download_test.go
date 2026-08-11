@@ -328,7 +328,8 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 		os.Stderr = originalStderr
 	})
 
-	err = downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: t.TempDir()}, []string{"usage"})
+	outputDir := t.TempDir()
+	err = downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: outputDir}, []string{"usage"})
 	require.NoError(t, err)
 
 	require.NoError(t, writer.Close())
@@ -339,6 +340,92 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 	argsLog, err := os.ReadFile(argsLogPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(argsLog), "run download 12345 --name usage")
+	assert.Contains(t, string(argsLog), "--dir ")
+	assert.NotContains(t, string(argsLog), "--dir "+filepath.Join(outputDir, "usage"))
+}
+
+func TestDownloadRunArtifacts_IsolatesAndFlattensOverlappingArtifacts(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	fakeGHScript := `#!/bin/sh
+if [ "$1" = "api" ]; then
+  printf '%s\n' "usage"
+  printf '%s\n' "agent"
+  exit 0
+fi
+name=""
+dir=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --name) name="$2"; shift 2 ;;
+    --dir) dir="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$dir"
+if [ -e "$dir/shared.json" ]; then
+  exit 1
+fi
+printf '%s' "$name" > "$dir/shared.json"
+if [ "$name" = "agent" ]; then
+  mkdir -p "$dir/mcp-logs" "$dir/sandbox/firewall/logs"
+  printf '%s' '{}' > "$dir/mcp-logs/rpc-messages.jsonl"
+  printf '%s' 'request' > "$dir/sandbox/firewall/logs/access.log"
+fi
+`
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	outputDir := t.TempDir()
+	err := downloadRunArtifacts(
+		context.Background(),
+		downloadArtifactsOptions{runID: 12345, outputDir: outputDir, owner: "github", repo: "gh-aw", artifactFilter: []string{"usage", "agent"}},
+	)
+	// This is the regression gate: both isolated downloads and final flattening
+	// must tolerate overlapping shared.json files without aborting.
+	require.NoError(t, err)
+
+	assert.FileExists(t, filepath.Join(outputDir, "shared.json"))
+	assert.FileExists(t, filepath.Join(outputDir, "mcp-logs", "rpc-messages.jsonl"))
+	assert.FileExists(t, filepath.Join(outputDir, "sandbox", "firewall", "logs", "access.log"))
+	assert.NoDirExists(t, filepath.Join(outputDir, "agent"))
+}
+
+func TestDownloadArtifactsByName_DoesNotCacheFailedStagingDirectory(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	statePath := filepath.Join(fakeBinDir, "state")
+	fakeGHScript := `#!/bin/sh
+dir=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dir) dir="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$dir"
+if [ ! -e "` + statePath + `" ]; then
+  : > "` + statePath + `"
+  printf '%s' 'partial' > "$dir/partial.txt"
+  exit 1
+fi
+printf '%s' 'complete' > "$dir/complete.txt"
+`
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	outputDir := t.TempDir()
+	err := downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: outputDir}, []string{"usage"})
+	// downloadArtifactsByName deliberately logs command failures and continues;
+	// the regression check is that failed staging content is removed and does not
+	// satisfy the cache.
+	require.NoError(t, err)
+	assert.NoDirExists(t, filepath.Join(outputDir, "usage"))
+	assert.Equal(t, []string{"usage"}, findMissingFilterEntries([]string{"usage"}, outputDir))
+
+	err = downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: outputDir}, []string{"usage"})
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(outputDir, "usage", "complete.txt"))
 }
 
 func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
@@ -373,9 +460,9 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 		"    fi\n" +
 		"    shift\n" +
 		"  done\n" +
-		"  mkdir -p \"$dir/$name\"\n" +
-		"  printf '%s' '{\"engine_id\":\"claude\"}' > \"$dir/$name/aw_info.json\"\n" +
-		"  : > \"$dir/.fallback-download-$name\"\n" +
+		"  mkdir -p \"$dir\"\n" +
+		"  printf '%s' '{\"engine_id\":\"claude\"}' > \"$dir/aw_info.json\"\n" +
+		"  : > \"" + tmpDir + "/.fallback-download-$name\"\n" +
 		"  exit 0\n" +
 		"fi\n" +
 		"exit 1\n"
@@ -398,6 +485,50 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(argsLog), "api --paginate repos/github/gh-aw/actions/runs/12345/artifacts")
 	assert.Contains(t, string(argsLog), "run download 12345 --name abc123-activation")
+}
+
+func TestDownloadRunArtifacts_UsesAwInfoFromUsageArtifact(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "usage-aw-info-*")
+
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+	fakeGHScript := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLogPath + "\"\n" +
+		"if [ \"$1\" = \"api\" ]; then\n" +
+		"  printf '%s\\n' \"usage\"\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"if [ \"$1\" = \"run\" ] && [ \"$2\" = \"download\" ]; then\n" +
+		"  name=\"\"\n" +
+		"  dir=\"\"\n" +
+		"  while [ $# -gt 0 ]; do\n" +
+		"    if [ \"$1\" = \"--name\" ]; then name=\"$2\"; shift 2; continue; fi\n" +
+		"    if [ \"$1\" = \"--dir\" ]; then dir=\"$2\"; shift 2; continue; fi\n" +
+		"    shift\n" +
+		"  done\n" +
+		"  mkdir -p \"$dir\"\n" +
+		"  if [ \"$name\" = \"usage\" ]; then\n" +
+		"    printf '%s' '{\"engine_id\":\"claude\"}' > \"$dir/aw_info.json\"\n" +
+		"    printf '%s' '{\"tokens\":1}' > \"$dir/usage.jsonl\"\n" +
+		"    exit 0\n" +
+		"  fi\n" +
+		"fi\n" +
+		"exit 1\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: tmpDir, verbose: false, owner: "github", repo: "gh-aw", artifactFilter: []string{"usage"}})
+	require.NoError(t, err)
+
+	awInfo, err := os.ReadFile(filepath.Join(tmpDir, "aw_info.json"))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"engine_id":"claude"}`, string(awInfo))
+
+	argsLog, err := os.ReadFile(argsLogPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(argsLog), "run download 12345 --name usage")
+	assert.NotContains(t, string(argsLog), "--name activation")
 }
 
 func TestDownloadRunArtifactsFallbackWhenListFails(t *testing.T) {
@@ -429,8 +560,8 @@ func TestDownloadRunArtifactsFallbackWhenListFails(t *testing.T) {
 		"    shift\n" +
 		"  done\n" +
 		"  if [ \"$name\" = \"usage\" ]; then\n" +
-		"    mkdir -p \"$dir/$name\"\n" +
-		"    printf '%s' '{\"tokens\":1}' > \"$dir/$name/usage.jsonl\"\n" +
+		"    mkdir -p \"$dir\"\n" +
+		"    printf '%s' '{\"tokens\":1}' > \"$dir/usage.jsonl\"\n" +
 		"  fi\n" +
 		"  exit 0\n" +
 		"fi\n" +

@@ -130,7 +130,17 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 	shouldLogProgress := IsRunningInCI() || opts.verbose
 
 	for _, name := range names {
-		args := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", opts.outputDir}
+		if err := validateArtifactName(name); err != nil {
+			return err
+		}
+		// Stage next to the output directory so promotion can use an atomic same-filesystem rename.
+		stagingDir, err := os.MkdirTemp(filepath.Dir(opts.outputDir), "."+filepath.Base(opts.outputDir)+"-"+name+"-")
+		if err != nil {
+			return fmt.Errorf("failed to create staging directory for artifact %q: %w", name, err)
+		}
+
+		artifactDir := filepath.Join(opts.outputDir, name)
+		args := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", stagingDir}
 		if repoFlag != "" {
 			args = append(args, "-R", repoFlag)
 		}
@@ -143,6 +153,7 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 		cmd := workflow.ExecGHContext(ctx, args...)
 		cmdOutput, cmdErr := cmd.CombinedOutput()
 		if cmdErr != nil {
+			_ = os.RemoveAll(stagingDir)
 			logsDownloadLog.Printf("Failed to download artifact %q: %v (%s)", name, cmdErr, string(cmdOutput))
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifact %q: %v", name, cmdErr)))
@@ -150,12 +161,27 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 			// Non-fatal: continue downloading other artifacts
 		} else {
 			logsDownloadLog.Printf("Downloaded artifact %q", name)
+			if err := os.RemoveAll(artifactDir); err != nil {
+				_ = os.RemoveAll(stagingDir)
+				return fmt.Errorf("failed to remove existing artifact directory %q: %w", artifactDir, err)
+			}
+			if err := os.Rename(stagingDir, artifactDir); err != nil {
+				_ = os.RemoveAll(stagingDir)
+				return fmt.Errorf("failed to promote artifact %q from staging: %w", name, err)
+			}
 			if err := markArtifactDownloaded(opts.outputDir, name); err != nil {
 				return err
 			}
 		}
 	}
 
+	return nil
+}
+
+func validateArtifactName(name string) error {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) || filepath.Base(name) != name {
+		return fmt.Errorf("invalid artifact name %q", name)
+	}
 	return nil
 }
 
@@ -173,6 +199,10 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 	repoFlag := buildRepoFlag(opts.owner, opts.repo, opts.hostname)
 
 	for _, name := range criticalArtifactNames {
+		if err := validateArtifactName(name); err != nil {
+			logsDownloadLog.Printf("Skipping invalid critical artifact name: %v", err)
+			continue
+		}
 		// Skip artifacts not included in the active filter.
 		if !artifactMatchesFilter(name, opts.artifactFilter) {
 			logsDownloadLog.Printf("Skipping critical artifact %q (not in artifact filter)", name)
@@ -184,7 +214,14 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 			continue
 		}
 
-		retryArgs := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", opts.outputDir}
+		// Stage next to the output directory so promotion can use an atomic same-filesystem rename.
+		stagingDir, err := os.MkdirTemp(filepath.Dir(opts.outputDir), "."+filepath.Base(opts.outputDir)+"-"+name+"-")
+		if err != nil {
+			logsDownloadLog.Printf("Failed to create staging directory for critical artifact %q: %v", name, err)
+			continue
+		}
+
+		retryArgs := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", stagingDir}
 		if repoFlag != "" {
 			retryArgs = append(retryArgs, "-R", repoFlag)
 		}
@@ -197,12 +234,23 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 		retryCmd := workflow.ExecGHContext(ctx, retryArgs...)
 		retryOutput, retryErr := retryCmd.CombinedOutput()
 		if retryErr != nil {
+			_ = os.RemoveAll(stagingDir)
 			logsDownloadLog.Printf("Failed to download artifact %q individually: %v (%s)", name, retryErr, string(retryOutput))
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not download artifact %q: %v", name, retryErr)))
 			}
 		} else {
 			logsDownloadLog.Printf("Successfully downloaded artifact %q individually", name)
+			if err := os.RemoveAll(artifactDir); err != nil {
+				_ = os.RemoveAll(stagingDir)
+				logsDownloadLog.Printf("Failed to remove existing critical artifact directory %q: %v", artifactDir, err)
+				continue
+			}
+			if err := os.Rename(stagingDir, artifactDir); err != nil {
+				_ = os.RemoveAll(stagingDir)
+				logsDownloadLog.Printf("Failed to promote critical artifact %q from staging: %v", name, err)
+				continue
+			}
 			// Marker write failures are non-fatal in the retry path: retryCriticalArtifacts
 			// is a best-effort recovery after a partial bulk download, so a missing marker
 			// only causes a redundant re-download on the next run (not data loss).

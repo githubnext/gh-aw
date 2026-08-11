@@ -169,6 +169,14 @@ func flattenArtifactTree(sourceDir, artifactDir, outputDir, label string, verbos
 				return fmt.Errorf("failed to create parent directory for %s: %w", destPath, err)
 			}
 
+			if fileutil.FileExists(destPath) {
+				logsDownloadLog.Printf("Skipping duplicate flattened file %s from %s; destination already exists", relPath, label)
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Skipped duplicate flattened file: "+relPath))
+				}
+				return nil
+			}
+
 			if err := os.Rename(path, destPath); err != nil {
 				return fmt.Errorf("failed to move file %s to %s: %w", path, destPath, err)
 			}
