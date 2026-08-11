@@ -371,7 +371,7 @@ describe("upload_assets.cjs", () => {
 
     it("should fetch, rebase, and retry after a concurrent push", async () => {
       prepareAsset();
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 1, stdout: "", stderr: "! [rejected] assets/test-workflow -> assets/test-workflow (fetch first)" }).mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" });
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 1, stdout: "! [rejected] assets/test-workflow -> assets/test-workflow (fetch first)", stderr: "" }).mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" });
 
       await executeScript();
 
@@ -383,7 +383,7 @@ describe("upload_assets.cjs", () => {
 
     it("should stop after three failed push attempts", async () => {
       prepareAsset();
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "non-fast-forward" });
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "! [rejected] assets/test-workflow -> assets/test-workflow (non-fast-forward)", stderr: "" });
 
       await executeScript();
 
@@ -407,7 +407,7 @@ describe("upload_assets.cjs", () => {
 
     it("should abort the rebase and rethrow when rebase fails with conflicts", async () => {
       prepareAsset();
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 1, stdout: "", stderr: "non-fast-forward" });
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 1, stdout: "! [rejected] assets/test-workflow -> assets/test-workflow (non-fast-forward)", stderr: "" });
       mockExec.exec.mockImplementation(async (command, args) => {
         if (isGitCommand(command, args, "rebase") && args[1] !== "--abort") {
           throw new Error("CONFLICT (content): Merge conflict in test.png");

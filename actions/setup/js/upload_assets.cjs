@@ -195,7 +195,7 @@ async function main() {
           if (pushResult.exitCode === 0) {
             break;
           }
-          const pushError = [pushResult.stderr, pushResult.stdout].filter(Boolean).join("\n").trim() || `git push exited with code ${pushResult.exitCode}`;
+          const pushError = [pushResult.stdout, pushResult.stderr].filter(Boolean).join("\n").trim() || `git push exited with code ${pushResult.exitCode}`;
           const isNonFastForward = /non-fast-forward|fetch first/i.test(pushError);
           if (!isNonFastForward || attempt === maxPushAttempts) {
             throw new Error(pushError);
