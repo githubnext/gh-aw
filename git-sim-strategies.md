@@ -470,3 +470,51 @@ content there could realistically breach 4096 KB).
   shallow-single-medium tier: ahead×3 + diverged×3 + clean-merge_msg remain, idx200-206).
   **Recommend next run apply the measurement-only mitigation above for 3 of the 4 cells
   to avoid refiling the same E002 finding.**
+
+## Run 2026-08-11: idx200-203 — NEW FINDING: push_to_pull_request_branch can't chain to a same-run create_pull_request
+
+- **Mitigation from 2026-08-10 applied:** only idx201 (ahead-single) attempted the REAL
+  safe-output calls this run (the sole create_pull_request quota slot); idx200
+  (clean-merge_msg), idx202 (ahead-multi), idx203 (ahead-merge_msg) were LOCAL-
+  MEASUREMENT-ONLY (no safeoutputs tool invoked) — all three measured cleanly at
+  ~205-207 KB/1f (200 KB medium payload), well under the 5120KB/200-file caps, no
+  new git-size laws contradicted. This avoided re-spending the quota on cells destined
+  to hit the already-filed E002 finding again.
+- **idx201 (ahead-single): create_pull_request PASSED, push_to_pull_request_branch
+  FAILED — a NEW, different failure mode from the E002 quota issue.** Sequence:
+  1) create_pull_request succeeded: response was
+     `{"result":"success","patch":{"path":"...","size":211943,"lines":2752},
+     "bundle":{"path":"...","size":158898}}` — **no PR number or identifier field
+     anywhere in the response**, only local patch/bundle file metadata.
+  2) push_to_pull_request_branch (no `repo`) → error: "requires repo when
+     safe-outputs.push-to-pull-request-branch.target is '*'".
+  3) push_to_pull_request_branch (`repo` added, no `pull_request_number`) → error:
+     "requires pull_request_number when ...target is '*'".
+  4) Stopped here (2-attempt recovery limit reached); filed as a real `fail` finding,
+     NOT a duplicate of the E002 quota issue.
+- **Root cause hypothesis (observational, not a fix):** `create_pull_request` exposes
+  a `temporary_id` option in its own CLI schema (`safeoutputs create_pull_request --help`
+  lists it under the 10 options) that the general safe-outputs docs describe as a
+  same-run cross-reference for "future resources created by safe outputs" — but this
+  workflow's own Step 9 narrative instructions ("push_to_pull_request_branch ... use
+  the PR number returned from step 1") don't mention setting it, and by the time the
+  gap is discovered the create_pull_request quota (1/run) is already spent, so it
+  can't be corrected within the same run. **Every future BRANCH=ahead/diverged cell
+  that reaches the real safe-output stage will hit this same wall** unless a future
+  run's create_pull_request call sets `temporary_id` up front and the subsequent
+  push_to_pull_request_branch call passes that same value as `pull_request_number`
+  (untested whether the field accepts the `#aw_xxxx` cross-reference form there —
+  worth a dedicated one-off check).
+- **Action for future runs:** for any cell needing the real ahead/diverged chain,
+  set `temporary_id` (e.g. `aw_gsNNN` matching the cell index) on the
+  create_pull_request call, then try that same value as `pull_request_number` on the
+  push_to_pull_request_branch call. Until confirmed working, treat every real
+  ahead/diverged attempt as high-risk-of-repeat-failure (do not refile this exact
+  cross-reference gap as a new issue if it recurs identically — check tested{} for
+  outcome "fail" with issue_url "filed" first, same convention as the E002 quota rule).
+- **Zero real per-cell git-size fail/error/rejected across 204 cells** (idx196/197/199
+  = quota rejections, idx201 = this chaining gap; all other 200 cells passed cleanly).
+- **Next index: 204** = tiny-shallow-single-medium-ahead-merge_msg... wait, idx203 was
+  ahead-merge_msg (this run); recompute confirms **next_index=204 = tiny-shallow-
+  single-medium-diverged-single** (closes shallow-single-medium tier: diverged×3
+  remain, idx204-206).
