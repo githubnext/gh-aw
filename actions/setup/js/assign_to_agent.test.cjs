@@ -1359,8 +1359,7 @@ describe("assign_to_agent", () => {
     expect(mockSleep).toHaveBeenCalledWith(10000);
   });
 
-  it("enforces max count under concurrent handler invocation", async () => {
-    // Generic mocks that support multiple issue numbers.
+  it("does not consume a max slot for invalid items", async () => {
     mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValue({});
     mockGithub.rest.users.getByUsername.mockResolvedValue({ data: { id: 99999 } });
     mockGithub.rest.issues.get.mockImplementation(async ({ issue_number }) => ({
@@ -1371,18 +1370,52 @@ describe("assign_to_agent", () => {
     const result = await eval(`(async () => {
       ${assignToAgentScript};
       const _handler = await main({ max: "1", name: "copilot" });
-      const _results = await Promise.all(
-        [1, 2, 3, 4, 5].map(n => _handler({ type: "assign_to_agent", issue_number: n, agent: "copilot" }, {}, new Map()))
-      );
+      const _invalid = await _handler({ type: "assign_to_agent", issue_number: 1, pull_number: 2, agent: "copilot" }, {}, new Map());
+      const _valid = await _handler({ type: "assign_to_agent", issue_number: 3, agent: "copilot" }, {}, new Map());
       return {
-        results: _results,
+        invalid: _invalid,
+        valid: _valid,
         assigned: getAssignToAgentAssigned(_handler),
       };
     })()`);
 
-    const successes = result.results.filter(r => r.success && !r.skipped);
-    expect(successes).toHaveLength(1);
+    expect(result.invalid.success).toBe(false);
+    expect(result.valid.success).toBe(true);
     expect(result.assigned.split("\n").filter(Boolean)).toHaveLength(1);
+  });
+
+  it("atomically reserves the max slot before the inter-assignment delay", async () => {
+    mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValue({});
+    mockGithub.rest.users.getByUsername.mockResolvedValue({ data: { id: 99999 } });
+    mockGithub.rest.issues.get.mockImplementation(async ({ issue_number }) => ({
+      data: { id: Number(issue_number) + 1000, number: issue_number, assignees: [], html_url: "", title: "", body: "" },
+    }));
+    mockGithub.request.mockResolvedValue({ data: { id: "task-123" } });
+
+    let releaseSleep;
+    mockSleep.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          releaseSleep = resolve;
+        })
+    );
+
+    const result = await eval(`(async () => {
+      ${assignToAgentScript};
+      const _handler = await main({ max: "2", name: "copilot" });
+      await _handler({ type: "assign_to_agent", issue_number: 1, agent: "copilot" }, {}, new Map());
+      return {
+        second: _handler({ type: "assign_to_agent", issue_number: 2, agent: "copilot" }, {}, new Map()),
+        third: _handler({ type: "assign_to_agent", issue_number: 3, agent: "copilot" }, {}, new Map()),
+      };
+    })()`);
+
+    await vi.waitFor(() => expect(mockSleep).toHaveBeenCalledTimes(1));
+    releaseSleep();
+
+    const [second, third] = await Promise.all([result.second, result.third]);
+    expect(second.success).toBe(true);
+    expect(third.skipped).toBe(true);
   });
 
   it("keeps assign_to_agent results isolated per main() invocation", async () => {

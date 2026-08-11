@@ -259,21 +259,6 @@ async function main(config = {}) {
       return { success: true, skipped: true };
     }
 
-    // Atomically reserve the max-count slot before any awaits.
-    if (processedCount >= maxCount) {
-      core.info(`⏭ Max count (${maxCount}) reached, skipping agent assignment`);
-      const agentNameForSkip = message.agent ?? defaultAgent;
-      allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentNameForSkip, owner: null, repo: null, success: false, skipped: true });
-      return { success: false, skipped: true };
-    }
-    processedCount++;
-
-    // Add delay between consecutive assignments to avoid spawning too many agents at once
-    if (processedCount > 1) {
-      core.info("Waiting 10 seconds before processing next agent assignment...");
-      await sleep(10000);
-    }
-
     const agentName = message.agent ?? defaultAgent;
     const intentMetadata = issueIntentEnabled ? normalizeIssueIntentMetadata(message) : {};
     const model = defaultModel;
@@ -296,7 +281,6 @@ async function main(config = {}) {
         const normalized = normalizeTemporaryId(issueNumStr);
         if (!temporaryIdMap.has(normalized)) {
           core.info(`Deferring assign_to_agent — temporary ID ${message.issue_number} not yet resolved`);
-          processedCount--;
           return { success: false, deferred: true };
         }
       }
@@ -422,6 +406,20 @@ async function main(config = {}) {
       core.error(`Agent "${agentName}" is not in the allowed list. Allowed agents: ${allowedAgents.join(", ")}`);
       allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
       return { success: false, error };
+    }
+
+    // Atomically reserve the max-count slot before beginning an assignment attempt.
+    if (processedCount >= maxCount) {
+      core.info(`⏭ Max count (${maxCount}) reached, skipping agent assignment`);
+      allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, skipped: true });
+      return { success: false, skipped: true };
+    }
+    processedCount++;
+
+    // Add delay between consecutive assignments to avoid spawning too many agents at once
+    if (processedCount > 1) {
+      core.info("Waiting 10 seconds before processing next agent assignment...");
+      await sleep(10000);
     }
 
     try {
