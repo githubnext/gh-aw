@@ -2361,7 +2361,7 @@ index 0000000..abc1234
             return Promise.resolve({ exitCode: 0, stdout: "remote-head\n", stderr: "" });
           }
           if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
-            return Promise.resolve({ exitCode: 0, stdout: "false\n", stderr: "" });
+            return Promise.resolve({ exitCode: 0, stdout: "true\n", stderr: "" });
           }
           if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && args[2].startsWith("refs/heads/") && options && options.ignoreReturnCode) {
             return Promise.resolve({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref refs/heads/feature-branch" });
@@ -2385,7 +2385,7 @@ index 0000000..abc1234
         expect(result.success).toBe(true);
         expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundlePath], expect.any(Object));
         expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", bundlePath, "HEAD:refs/bundles/push-feature-branch"], expect.objectContaining({ ignoreReturnCode: true }));
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", prerequisiteSha], expect.any(Object));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", prerequisiteSha], expect.any(Object));
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", bundlePath, "HEAD:refs/bundles/push-feature-branch"], expect.any(Object));
       } finally {
         pushSignedSpy.mockRestore();
