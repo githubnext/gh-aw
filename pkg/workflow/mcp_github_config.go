@@ -640,6 +640,10 @@ func getGitHubFeatures(githubTool map[string]any) string {
 	// Default: enable fields_param when the server version supports it (v1.6.0+).
 	// On v1.8.0+ the fields parameter is available by default, so the flag is a no-op.
 	version := getGitHubDockerImageVersion(githubTool)
+	if strings.HasPrefix(version, "sha-") || version == "main" || version == "nightly" || version == "edge" {
+		githubConfigLog.Printf("GitHub MCP features (default non-semver channel): fields_param")
+		return GitHubMCPFeatureFieldsParam
+	}
 	if versionAtLeast(version, string(constants.DefaultGitHubMCPServerVersion), "v1.6.0") {
 		githubConfigLog.Printf("GitHub MCP features (default v1.6.0+): fields_param")
 		return GitHubMCPFeatureFieldsParam

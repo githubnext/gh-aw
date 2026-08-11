@@ -8,4 +8,14 @@ allow:
   - BSD-2-Clause
   - BSD-3-Clause
   - ISC
-
+  # Debian base-layer licenses used by runtime container images.
+  - GPL-1.0-only
+  - GPL-1.0-or-later
+  - GPL-2.0-only
+  - GPL-2.0-or-later
+  - LGPL-2.1-or-later
+  - HPND
+  - Spencer-94
+  - Artistic
+  - public-domain
+  - ad-hoc
