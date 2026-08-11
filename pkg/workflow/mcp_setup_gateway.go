@@ -50,6 +50,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 		engine:               engine,
 		workflowData:         workflowData,
 		gatewayConfig:        gatewayConfig,
+		tools:                tools,
 		hasGitHub:            hasGitHub,
 		githubTool:           githubTool,
 		port:                 port,
@@ -173,6 +174,7 @@ type writeMCPGatewayExportsOptions struct {
 	engine               CodingAgentEngine
 	workflowData         *WorkflowData
 	gatewayConfig        *MCPGatewayRuntimeConfig
+	tools                map[string]any
 	hasGitHub            bool
 	githubTool           map[string]any
 	port                 int
@@ -186,6 +188,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	engine := opts.engine
 	workflowData := opts.workflowData
 	gatewayConfig := opts.gatewayConfig
+	tools := opts.tools
 	hasGitHub := opts.hasGitHub
 	githubTool := opts.githubTool
 	port := opts.port
@@ -231,6 +234,9 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_PATH_PREFIX=\"" + payloadPathPrefix + "\"\n")
 	}
 	yaml.WriteString("          export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD=\"" + strconv.Itoa(payloadSizeThreshold) + "\"\n")
+	// Allow read-write access to the host paths our built-in MCP servers mount
+	// (workspace, safe-outputs runtime dir, temp dir); see buildMCPGatewayAllowedMountRoots.
+	yaml.WriteString("          export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS=\"" + buildMCPGatewayAllowedMountRoots(tools, gatewayConfig) + "\"\n")
 	yaml.WriteString("          export DEBUG=\"*\"\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
@@ -394,6 +400,168 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GITHUB_HEAD_REF")
 	containerCmd.WriteString(" -e GITHUB_BASE_REF")
 	containerCmd.WriteString(" -e RUNNER_TEMP")
+	containerCmd.WriteString(" -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS")
+}
+
+// buildMCPGatewayAllowedMountRoots computes the value of the gateway's
+// MCP_GATEWAY_ALLOWED_MOUNT_ROOTS environment variable. Since gh-aw-mcpg
+// enforces a trusted host-path mount policy before launching containerized
+// backend MCP servers (safe-outputs, agentic-workflows, custom mcp-servers, ...),
+// and defaults to read-only access for $GITHUB_WORKSPACE and the working
+// directory, we must explicitly allow read-write access to the host paths our
+// built-in MCP servers mount (workspace, safe-outputs runtime dir, temp dir)
+// plus every other host mount surface the compiler supports: custom gateway
+// mounts (sandbox.mcp.mounts), per-server "mounts" arrays (mcp-servers.<name>.mounts,
+// tools.github.mounts, ...), and "-v"/"--volume" flags embedded in a server's
+// "args"/"entrypointArgs". Once this variable is set, mcpg treats it as the
+// complete policy, so any host mount the compiler configures for a backend MCP
+// server must be reflected here or that server fails to register with a
+// "mount policy violation" error.
+func buildMCPGatewayAllowedMountRoots(tools map[string]any, gatewayConfig *MCPGatewayRuntimeConfig) string {
+	rootModes := make(map[string]string)
+	addRoot := func(path, mode string) {
+		if path == "" {
+			return
+		}
+		if existing, ok := rootModes[path]; ok && (existing == "rw" || mode == "ro") {
+			return
+		}
+		rootModes[path] = mode
+	}
+	addMount := func(mount string) {
+		source, mode, ok := parseMCPGatewayAllowlistMount(mount)
+		if !ok {
+			return
+		}
+		addRoot(source, mode)
+	}
+
+	// Built-in MCP servers (safe-outputs, agentic-workflows) mount these paths;
+	// see mcp_renderer_builtin.go and constants.Default*Mount. Only the
+	// safe-outputs runtime subdirectory needs read-write access; the rest of the
+	// gh-aw runtime tree (generated action scripts, etc.) stays read-only so
+	// backend MCP containers cannot tamper with it.
+	addRoot("${GITHUB_WORKSPACE}", "rw")
+	addRoot(constants.GhAwRootDirShell, "ro")
+	addRoot(constants.GhAwRootDirShell+"/safeoutputs", "rw")
+	addRoot("/tmp", "rw")
+	addRoot("/usr/bin/gh", "ro")
+
+	if gatewayConfig != nil {
+		for _, mount := range gatewayConfig.Mounts {
+			addMount(mount)
+		}
+	}
+
+	for _, mount := range collectMCPServerConfiguredMounts(tools) {
+		addMount(mount)
+	}
+
+	roots := sliceutil.SortedKeys(rootModes)
+	entries := make([]string, 0, len(roots))
+	for _, root := range roots {
+		entries = append(entries, root+":"+rootModes[root])
+	}
+	return strings.Join(entries, ",")
+}
+
+// parseMCPGatewayAllowlistMount parses a "source:dest[:mode]" mount string (Docker
+// bind-mount / MCP Gateway mount syntax) and returns the host source path and the
+// effective access mode. Docker treats a mount without an explicit mode as
+// read-write, so mode-less mounts must not be downgraded to "ro" here.
+//
+// Mount sources may use a backslash-escaped "\${VAR}" form (e.g. in imported
+// partials, to survive GitHub Actions expression interpolation during import
+// merging); the gateway/runtime unescapes this to "${VAR}" before substitution,
+// so we normalize it here too, or the allowlist would gain a spurious entry
+// that never matches the real mounted path.
+func parseMCPGatewayAllowlistMount(mount string) (string, string, bool) {
+	mount = strings.ReplaceAll(mount, `\$`, "$")
+	parts := strings.SplitN(mount, ":", 3)
+	if len(parts) < 2 || parts[0] == "" {
+		return "", "", false
+	}
+	mode := "rw"
+	if len(parts) == 3 && parts[2] == "ro" {
+		mode = "ro"
+	}
+	return parts[0], mode, true
+}
+
+// collectMCPServerConfiguredMounts scans every configured MCP server (built-in
+// and custom, e.g. tools.github, tools.playwright, mcp-servers.<name>) for host
+// mount sources the compiler will pass into that server's container, so they
+// can be reflected in the gateway's trusted mount allowlist. This covers
+// explicit "mounts" arrays as well as "-v"/"--volume" flags embedded in
+// "args"/"entrypointArgs" for containerized servers.
+func collectMCPServerConfiguredMounts(tools map[string]any) []string {
+	var mounts []string
+	for _, toolValue := range tools {
+		toolConfig, ok := toolValue.(map[string]any)
+		if !ok {
+			continue
+		}
+		mounts = append(mounts, extractMCPMountsField(toolConfig["mounts"])...)
+		mounts = append(mounts, extractMCPVolumeArgMounts(toolConfig["args"])...)
+		mounts = append(mounts, extractMCPVolumeArgMounts(toolConfig["entrypointArgs"])...)
+	}
+	return mounts
+}
+
+// extractMCPMountsField normalizes a raw "mounts" field value (as produced by
+// YAML/JSON frontmatter parsing) into a slice of "source:dest[:mode]" strings.
+func extractMCPMountsField(mountsRaw any) []string {
+	switch v := mountsRaw.(type) {
+	case []any:
+		mounts := make([]string, 0, len(v))
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				mounts = append(mounts, str)
+			}
+		}
+		return mounts
+	case []string:
+		return v
+	default:
+		return nil
+	}
+}
+
+// extractMCPVolumeArgMounts scans a raw "args"/"entrypointArgs" field value for
+// Docker "-v"/"--volume" flags (both "-v host:dest:mode" and
+// "--volume=host:dest:mode" forms) and returns the mount specs they declare.
+func extractMCPVolumeArgMounts(argsRaw any) []string {
+	var args []string
+	switch v := argsRaw.(type) {
+	case []any:
+		args = make([]string, 0, len(v))
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				args = append(args, str)
+			}
+		}
+	case []string:
+		args = v
+	default:
+		return nil
+	}
+
+	var mounts []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-v" || arg == "--volume":
+			if i+1 < len(args) {
+				mounts = append(mounts, args[i+1])
+				i++
+			}
+		case strings.HasPrefix(arg, "--volume="):
+			mounts = append(mounts, strings.TrimPrefix(arg, "--volume="))
+		case strings.HasPrefix(arg, "-v="):
+			mounts = append(mounts, strings.TrimPrefix(arg, "-v="))
+		}
+	}
+	return mounts
 }
 
 func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, hasGitHub bool, githubTool map[string]any, tools map[string]any) {
@@ -465,7 +633,7 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 		"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_GUARD_MIN_INTEGRITY", "GITHUB_MCP_GUARD_REPOS",
 		sinkVisibilityEnvVar,
 		"GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE",
-		"RUNNER_TEMP",
+		"RUNNER_TEMP", "MCP_GATEWAY_ALLOWED_MOUNT_ROOTS",
 		"GITHUB_TOKEN", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT",
 		"GITHUB_JOB", "GITHUB_ACTION", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH",
 		"GITHUB_ACTOR", "GITHUB_ACTOR_ID", "GITHUB_TRIGGERING_ACTOR",
