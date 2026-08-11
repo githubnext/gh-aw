@@ -25,7 +25,7 @@ func TestBuildCacheMemoryPromptSection_SingleDefaultCache(t *testing.T) {
 	require.NotNil(t, section, "Should return a prompt section for single default cache")
 	assert.True(t, section.IsFile, "Should use template file for single default cache")
 	assert.Equal(t, cacheMemoryPromptFile, section.Content, "Should reference cache memory prompt file")
-	assert.Empty(t, section.ShellCondition, "Should have no shell condition")
+	assert.Empty(t, section.ConditionEnvVar, "Should have no condition")
 
 	// Verify environment variables
 	require.NotNil(t, section.EnvVars, "Should have environment variables")

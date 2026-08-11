@@ -118,6 +118,33 @@ All host binaries are available without explicit mounts: system utilities, `gh`,
 > [!WARNING]
 > Docker socket is hidden for security. Agents cannot spawn containers.
 
+#### Host Service Ports (`services:`)
+
+The AWF sandbox reaches GitHub Actions `services:` containers through `--allow-host-service-ports`, which resolves each service's actual (possibly dynamically assigned) host port at runtime. This mechanism, and the explicit `allow-host-ports` escape hatch below, both require `sandbox.agent.legacy-security: enable`: AWF's strict (default) security mode does not provide a route to host services, even when host-access flags are combined.
+
+```yaml wrap
+sandbox:
+  agent:
+    legacy-security: enable
+
+services:
+  postgres:
+    image: postgres:18
+    ports:
+      - 5432:5432
+```
+
+For host daemons that are not declared in `services:`, add an explicit allowlist (also legacy-security only):
+
+```yaml wrap
+sandbox:
+  agent:
+    legacy-security: enable
+    allow-host-ports: [9000]
+```
+
+Use `allow-host-ports` only for ports that cannot be represented by `services:`. The compiler rejects values outside the TCP port range `1` through `65535`, and rejects ports AWF always blocks as dangerous (e.g. `22`, `3306`, `5432`, `6379`, `9200`) — reach those through `services:` instead.
+
 #### Environment Variables
 
 AWF passes all environment variables via `--env-all`. The host `PATH` is captured as `AWF_HOST_PATH` and restored inside the container, preserving setup action tool paths.

@@ -118,6 +118,12 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
+	if agentConfig != nil && len(agentConfig.AllowHostPorts) > 0 {
+		if err := validateAllowHostPorts(agentConfig.AllowHostPorts); err != nil {
+			return err
+		}
+	}
+
 	// Validate gVisor runtime compatibility
 	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeGVisor {
 		// gVisor is incompatible with ARC/DinD topology: the runner has no access to the
@@ -486,6 +492,18 @@ func validateAgentMemoryLimit(memory string) error {
 			"memory value is not a valid limit. Expected a positive integer without leading zeros followed by a unit: b, k, m, or g (e.g. \"4g\", \"512m\")",
 			fmt.Sprintf("Use a valid memory limit format:\n\nsandbox:\n  agent:\n    memory: 4g  # examples: 512m, 4g, 8g\n\nSee: %s", constants.DocsSandboxURL),
 		)
+	}
+	return nil
+}
+
+func validateAllowHostPorts(ports []int) error {
+	for _, port := range ports {
+		if port < minPort || port > maxPort {
+			return fmt.Errorf("invalid allow-host-ports value: %d. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [5432]", port)
+		}
+		if service, dangerous := awfDangerousHostPorts[port]; dangerous {
+			return fmt.Errorf("invalid allow-host-ports value: %d. This port is blocked by AWF as a dangerous port (%s) and cannot be reached via allow-host-ports even in legacy-security mode. To reach a service on this port, declare it under services: with a port mapping and enable sandbox.agent.legacy-security", port, service)
+		}
 	}
 	return nil
 }
