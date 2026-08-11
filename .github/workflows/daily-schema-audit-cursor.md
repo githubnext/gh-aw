@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🖱️"
-description: Daily audit of JSON schema consistency across workflow definitions using Cursor
+description: Daily audit of JSON schema consistency across workflow definitions
 on:
   schedule: daily
   workflow_dispatch:
@@ -15,8 +15,8 @@ sandbox:
     sudo: false
 tracker-id: daily-schema-audit-cursor
 engine:
-  id: cursor
-model: cursor/auto
+  id: copilot
+  copilot-sdk: true
 strict: true
 network:
   allowed:
@@ -43,12 +43,11 @@ safe-outputs:
   missing-tool:
 timeout-minutes: 20
 imports:
-  - shared/cursor.md
   - shared/otlp.md
   - shared/reporting.md
 ---
 
-# Daily Schema Consistency Audit — Cursor
+# Daily Schema Consistency Audit
 
 Scan the workflow schema and key JSON config files in this repository for consistency drift and
 missing required fields.

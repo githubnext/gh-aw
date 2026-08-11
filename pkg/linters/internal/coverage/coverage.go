@@ -37,7 +37,7 @@ var (
 // callers fall back to permissive behaviour.
 func load() {
 	once.Do(func() {
-		path := os.Getenv(envVar)
+		path := os.Getenv(envVar) //nolint:osgetenvlibrary
 		if path == "" {
 			return
 		}
