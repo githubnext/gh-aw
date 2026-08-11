@@ -333,7 +333,6 @@ Test workflow.
 			tmpFile.Close()
 
 			compiler := NewCompiler()
-			compiler.SetSkipValidation(true)
 
 			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
 			if err != nil {
