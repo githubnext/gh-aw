@@ -127,7 +127,7 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		repoURL, err := url.Parse(repo)
 		if err != nil {
 			specLog.Printf("Failed to parse GitHub URL: %v", err)
-			return nil, fmt.Errorf("could not parse GitHub URL %q: %w. Use a URL like https://github.com/owner/repo", repo, err)
+			return nil, fmt.Errorf("could not parse GitHub URL %q (use a URL like https://github.com/owner/repo): %w", repo, err)
 		}
 
 		// Extract owner/repo from path
@@ -145,7 +145,7 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		currentRepo, err := GetCurrentRepoSlug()
 		if err != nil {
 			specLog.Printf("Failed to get current repo: %v", err)
-			return nil, fmt.Errorf("failed to get current repository info: %w. Run this command from inside a git repository with a GitHub remote, or specify 'owner/repo' explicitly", err)
+			return nil, fmt.Errorf("failed to get current repository info (run this command from inside a git repository with a GitHub remote, or specify 'owner/repo' explicitly): %w", err)
 		}
 		repo = currentRepo
 		specLog.Printf("Resolved current repo: %s", repo)
@@ -181,7 +181,7 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	parsedURL, err := url.Parse(spec)
 	if err != nil {
 		specLog.Printf("Failed to parse URL: %v", err)
-		return nil, fmt.Errorf("could not parse URL %q: %w. Use a URL like https://github.com/owner/repo/blob/main/workflows/workflow.md", spec, err)
+		return nil, fmt.Errorf("could not parse URL %q (use a URL like https://github.com/owner/repo/blob/main/workflows/workflow.md): %w", spec, err)
 	}
 
 	if parsedURL.Host == "" {
@@ -294,7 +294,7 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 		// Non-GitHub HTTP(S) URL: return a generic URL spec whose content will be
 		// fetched at resolution time and dispatched on Content-Type.
 		if urlErr != nil {
-			return nil, fmt.Errorf("could not parse URL %q: %w. Use a fully qualified http(s) URL", spec, urlErr)
+			return nil, fmt.Errorf("could not parse URL %q (use a fully qualified http(s) URL): %w", spec, urlErr)
 		}
 		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 			return nil, fmt.Errorf("URL scheme %q is not supported. Only http and https are supported. Example: https://example.com/workflow.md", parsedURL.Scheme)

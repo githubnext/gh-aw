@@ -179,7 +179,7 @@ func loadRepositoryPackageManifestFile(ctx context.Context, owner, repo, package
 	content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, manifestPath, ref, host)
 	if err != nil {
 		if !isRepositoryFileNotFound(err) {
-			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w. Check the repository, ref, and network connectivity", manifestPath, owner, repo, ref, err)
+			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s (check the repository, ref, and network connectivity): %w", manifestPath, owner, repo, ref, err)
 		}
 		if packagePath != "" {
 			return "", nil, fmt.Errorf("%w: repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q. Add %s or use an explicit workflow path", errRepositoryPackageManifestNotFound, packageID, packagePath, manifestPath)
@@ -597,7 +597,7 @@ func resolvePackageSkillFiles(ctx context.Context, owner, repo, packagePath, ref
 					warnings = append(warnings, fmt.Sprintf("Skill directory %q is missing required %s marker file", skillDir, packageSkillMarkerFile))
 					continue
 				}
-				return nil, nil, fmt.Errorf("failed to validate skill marker %q: %w. Check the repository, ref, and network connectivity", markerPath, err)
+				return nil, nil, fmt.Errorf("failed to validate skill marker %q (check the repository, ref, and network connectivity): %w", markerPath, err)
 			}
 		}
 		skillName := filepath.Base(skillDir)
@@ -609,7 +609,7 @@ func resolvePackageSkillFiles(ctx context.Context, owner, repo, packagePath, ref
 				warnings = append(warnings, fmt.Sprintf("Skill directory %q not found in package, skipping", skillDir))
 				continue
 			}
-			return nil, nil, fmt.Errorf("failed to list files in skill directory %q: %w. Check the repository, ref, and network connectivity", skillDir, err)
+			return nil, nil, fmt.Errorf("failed to list files in skill directory %q (check the repository, ref, and network connectivity): %w", skillDir, err)
 		}
 		for _, file := range files {
 			skillFiles = append(skillFiles, resolvedPackageSkillFile{
@@ -641,7 +641,7 @@ func resolvePackageAgentFiles(ctx context.Context, owner, repo, packagePath, ref
 			if isRepositoryFileNotFound(err) {
 				continue
 			}
-			return nil, nil, fmt.Errorf("failed to scan agents directory %q: %w. Check the repository, ref, and network connectivity", agentsDir, err)
+			return nil, nil, fmt.Errorf("failed to scan agents directory %q (check the repository, ref, and network connectivity): %w", agentsDir, err)
 		}
 		for _, f := range files {
 			if strings.HasSuffix(strings.ToLower(f), ".md") {
@@ -663,7 +663,7 @@ func scanPackageSkillDirs(ctx context.Context, owner, repo, packagePath, ref, ho
 			if isRepositoryFileNotFound(err) {
 				continue
 			}
-			return nil, fmt.Errorf("failed to scan skills directory %q: %w. Check the repository, ref, and network connectivity", skillsDir, err)
+			return nil, fmt.Errorf("failed to scan skills directory %q (check the repository, ref, and network connectivity): %w", skillsDir, err)
 		}
 		for _, subdir := range subdirs {
 			markerPath := joinRepositoryPackagePath(subdir, packageSkillMarkerFile)
@@ -686,7 +686,7 @@ func scanRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, pac
 			if isRepositoryFileNotFound(err) {
 				continue
 			}
-			return nil, fmt.Errorf("failed to scan %q in %s/%s@%s: %w. Check the repository, ref, and network connectivity", sourcePath, owner, repo, ref, err)
+			return nil, fmt.Errorf("failed to scan %q in %s/%s@%s (check the repository, ref, and network connectivity): %w", sourcePath, owner, repo, ref, err)
 		}
 
 		for _, file := range files {
@@ -721,7 +721,7 @@ func resolveRepositoryPackageDocsPath(ctx context.Context, owner, repo, packageP
 	} else if isRepositoryFileNotFound(err) {
 		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q. Add a README.md describing the package", packageID, readmePath)
 	} else {
-		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s: %w. Check the repository, ref, and network connectivity", readmePath, owner, repo, ref, err)
+		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s (check the repository, ref, and network connectivity): %w", readmePath, owner, repo, ref, err)
 	}
 }
 

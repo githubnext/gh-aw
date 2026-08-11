@@ -25,7 +25,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Extract custom steps and outputs from jobs.pre-activation if present.
 	customSteps, customOutputs, err := c.extractPreActivationCustomFields(data.Jobs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract pre-activation custom fields: %w. Check that jobs.pre_activation and jobs.activation only use 'steps', 'outputs', and 'pre-steps' fields", err)
+		return nil, fmt.Errorf("failed to extract pre-activation custom fields (check that jobs.pre_activation and jobs.activation only use 'steps', 'outputs', and 'pre-steps' fields): %w", err)
 	}
 
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
@@ -379,7 +379,7 @@ func (c *Compiler) injectPreActivationOnSteps(data *WorkflowData, steps, customS
 	for i, stepMap := range data.OnSteps {
 		stepYAML, err := ConvertStepToYAML(stepMap)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to convert on.steps[%d] to YAML: %w. Ensure each step is a valid GitHub Actions step object with 'name', 'uses', or 'run' fields", i, err)
+			return nil, nil, fmt.Errorf("failed to convert on.steps[%d] to YAML (ensure the step is a valid GitHub Actions step object with 'name', 'uses', or 'run' fields): %w", i, err)
 		}
 		steps = append(steps, stepYAML)
 		if id, ok := stepMap["id"].(string); ok && id != "" {
@@ -716,7 +716,7 @@ func extractPreActivationJobSteps(jobName string, configMap map[string]any) ([]s
 		}
 		stepYAML, err := ConvertStepToYAML(stepMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert jobs.%s.steps[%d] to YAML: %w. Ensure the step is a valid GitHub Actions step object with 'name', 'uses', or 'run' fields", jobName, i, err)
+			return nil, fmt.Errorf("failed to convert jobs.%s.steps[%d] to YAML (ensure the step is a valid GitHub Actions step object with 'name', 'uses', or 'run' fields): %w", jobName, i, err)
 		}
 		steps = append(steps, stepYAML)
 	}
