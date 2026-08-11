@@ -284,7 +284,8 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // and fails). GITHUB_SHA is the commit the agent started from and every
           // object it needs is already present in the checkout.
           const dispatchedSha = normalizeCommitSHA(githubSha);
-          if (defaultBranchRef && dispatchedSha && dispatchedSha !== tipRef && isAncestorCommit(dispatchedSha, tipRef, cwd) && !isAncestorCommit(dispatchedSha, defaultBranchRef, cwd)) {
+          const tipSha = execGitSync(["rev-parse", tipRef], { cwd }).trim();
+          if (defaultBranchRef && dispatchedSha && dispatchedSha !== tipSha && isAncestorCommit(dispatchedSha, tipRef, cwd) && !isAncestorCommit(dispatchedSha, defaultBranchRef, cwd)) {
             baseRef = dispatchedSha;
             debugLog(`Strategy 1 (full): GITHUB_SHA ${dispatchedSha} is not contained in ${defaultBranchRef} (non-default-branch run); using it as the patch base instead of the merge-base`);
           } else if (defaultBranchRef) {

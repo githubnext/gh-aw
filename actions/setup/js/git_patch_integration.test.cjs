@@ -997,6 +997,47 @@ describe("git patch integration tests", () => {
       }
     });
 
+    it("should fall back to merge-base when GITHUB_SHA equals the agent branch tip (no agent commits yet)", async () => {
+      // Simulate workflow_dispatch from a branch that is ahead of main, where the
+      // agent branch was created from it but no commits have been made yet, so
+      // GITHUB_SHA equals the agent branch tip. Basing the patch on GITHUB_SHA in
+      // this case would produce an empty patch; the merge-base fallback must be
+      // used instead so the dispatched branch's commits are still visible.
+      execGit(["checkout", "-b", "dispatch-branch-2"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "dispatch3.txt"), "dispatched work 3\n");
+      execGit(["add", "dispatch3.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Dispatched branch commit 3"], { cwd: workingRepo });
+
+      const dispatchedSha = execGit(["rev-parse", "HEAD"], { cwd: workingRepo }).stdout.trim();
+
+      // Agent branch created from the dispatched commit, but no agent commits yet.
+      execGit(["checkout", "-b", "agent-fix/no-commits-yet"], { cwd: workingRepo });
+
+      execGit(["fetch", "origin", "main"], { cwd: workingRepo });
+
+      const origSha = process.env.GITHUB_SHA;
+      process.env.GITHUB_SHA = dispatchedSha;
+      const restore = setTestEnv(workingRepo);
+      try {
+        const result = await generateGitPatch("agent-fix/no-commits-yet", "main", { mode: "full" });
+
+        expect(result.success).toBe(true);
+        // Must not use GITHUB_SHA as the base (that would be a zero-commit patch);
+        // the merge-base with main is used instead.
+        expect(result.baseCommit).not.toBe(dispatchedSha);
+
+        const patchContent = fs.readFileSync(result.patchPath, "utf8");
+        expect(patchContent).toContain("Dispatched branch commit 3");
+      } finally {
+        if (origSha === undefined) {
+          delete process.env.GITHUB_SHA;
+        } else {
+          process.env.GITHUB_SHA = origSha;
+        }
+        restore();
+      }
+    });
+
     it("should still use the merge-base in full mode when GITHUB_SHA is on the default branch", async () => {
       const mainSha = execGit(["rev-parse", "main"], { cwd: workingRepo }).stdout.trim();
 
@@ -1060,6 +1101,39 @@ describe("git patch integration tests", () => {
 
         expect(result.success).toBe(true);
         expect(result.baseCommit).toBe(dispatchedSha);
+      } finally {
+        if (origSha === undefined) {
+          delete process.env.GITHUB_SHA;
+        } else {
+          process.env.GITHUB_SHA = origSha;
+        }
+        restore();
+      }
+    });
+
+    it("should fall back to merge-base for the bundle when GITHUB_SHA equals the agent branch tip (no agent commits yet)", async () => {
+      execGit(["checkout", "-b", "bundle-dispatch-branch-2"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "bundle-dispatch2.txt"), "dispatched work 2\n");
+      execGit(["add", "bundle-dispatch2.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Bundle dispatched branch commit 2"], { cwd: workingRepo });
+
+      const dispatchedSha = execGit(["rev-parse", "HEAD"], { cwd: workingRepo }).stdout.trim();
+
+      // Agent branch created from the dispatched commit, but no agent commits yet.
+      execGit(["checkout", "-b", "agent-bundle-branch-no-commits"], { cwd: workingRepo });
+
+      execGit(["fetch", "origin", "main"], { cwd: workingRepo });
+
+      const origSha = process.env.GITHUB_SHA;
+      process.env.GITHUB_SHA = dispatchedSha;
+      const restore = setTestEnv(workingRepo);
+      try {
+        const result = await generateGitBundle("agent-bundle-branch-no-commits", "main", { mode: "full" });
+
+        expect(result.success).toBe(true);
+        // Must not use GITHUB_SHA as the base (that would be a zero-commit bundle);
+        // the merge-base with main is used instead.
+        expect(result.baseCommit).not.toBe(dispatchedSha);
       } finally {
         if (origSha === undefined) {
           delete process.env.GITHUB_SHA;

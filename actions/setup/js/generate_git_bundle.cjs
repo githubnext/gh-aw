@@ -218,7 +218,8 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
             // and on a partial clone it needs base-side objects that were never fetched.
             // GITHUB_SHA is the commit the agent started from and is fully local.
             const dispatchedSha = normalizeCommitSHA(githubSha);
-            if (hasLocalDefaultBranch && dispatchedSha && dispatchedSha !== branchName && isAncestorCommit(dispatchedSha, branchName, cwd) && !isAncestorCommit(dispatchedSha, `origin/${defaultBranch}`, cwd)) {
+            const branchTipSha = execGitSync(["rev-parse", branchName], { cwd }).trim();
+            if (hasLocalDefaultBranch && dispatchedSha && dispatchedSha !== branchTipSha && isAncestorCommit(dispatchedSha, branchName, cwd) && !isAncestorCommit(dispatchedSha, `origin/${defaultBranch}`, cwd)) {
               baseRef = dispatchedSha;
               debugLog(`Strategy 1 (full): GITHUB_SHA ${dispatchedSha} is not contained in origin/${defaultBranch} (non-default-branch run); using it as the bundle base instead of the merge-base`);
             } else if (hasLocalDefaultBranch) {
