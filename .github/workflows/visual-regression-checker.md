@@ -72,6 +72,7 @@ steps:
     run: |
       MAX_WAIT=90
       WAITED=0
+      # runner-guard:ignore RGS-012 -- loopback-only port probe for the docs server started in this job; no external network or secret data is involved.
       until (echo > /dev/tcp/127.0.0.1/4321) > /dev/null 2>&1; do
         if [ -f /tmp/gh-aw/agent/server.pid ] && ! kill -0 "$(cat /tmp/gh-aw/agent/server.pid)" 2>/dev/null; then
           echo "Docs server process exited before opening port 4321" >&2
@@ -88,6 +89,7 @@ steps:
         sleep 3
       done
       WAITED=0
+      # runner-guard:ignore RGS-012 -- localhost readiness request to the docs server started above; response is discarded and no secrets are sent.
       until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
         WAITED=$((WAITED + 3))
         if [ $WAITED -ge $MAX_WAIT ]; then
