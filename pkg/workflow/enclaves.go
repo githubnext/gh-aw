@@ -22,6 +22,8 @@ const (
 	enclaveMCPReadinessTimeoutMS  = 120000
 	defaultScriptEnclaveTimeout   = 30
 	defaultAgentEnclaveTimeout    = 120
+	maxEnclaveTimingBucketSeconds = 600
+	enclaveMCPTransportAllowance  = 30
 )
 
 var enclaveRepoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$`)
@@ -125,7 +127,7 @@ func enclaveToolTimeout(workflowData *WorkflowData) int {
 	if maxTimeout == 0 {
 		return 0
 	}
-	return maxTimeout + 30
+	return max(maxTimeout+enclaveMCPTransportAllowance, maxEnclaveTimingBucketSeconds+enclaveMCPTransportAllowance)
 }
 
 func validateEnclavesConfig(workflowData *WorkflowData) error {
