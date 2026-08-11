@@ -602,7 +602,7 @@ jobs:
           DOCKER_PAT_VAL: ${{ secrets.DOCKER_PAT }}
           DOCKER_USERNAME_VAL: ${{ secrets.DOCKER_USERNAME }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/docker_sbx_daemon.sh"
-      - name: docker-sbx pre-flight smoke test
+      - name: Run docker-sbx pre-flight smoke test
         run: bash "${RUNNER_TEMP}/gh-aw/actions/docker_sbx_preflight.sh"
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.44
