@@ -12,7 +12,7 @@ The gh-aw workflow compiler reads human-authored workflow definitions (`.md` fro
 
 ### Decision
 
-We will add a text-based post-processing step (`preserveRunnerGuardStepSuppressions`) to the workflow compiler that copies `runner-guard:ignore` directive comments from the frontmatter YAML to the matching named step in the generated YAML output. The function maps each directive to the step name immediately following it in the frontmatter, then injects that comment above the same-named step in the generated YAML. To prevent unsafe propagation, suppressions are only injected when the step name appears exactly once in both the frontmatter and the generated output.
+We will add a text-based post-processing step (`preserveRunnerGuardStepSuppressions`) to the workflow compiler that copies `runner-guard:ignore` directive comments from the frontmatter YAML to the matching step in the generated YAML output. Both supported directive forms are recognised: a standalone comment on the line above a step, and an inline trailing comment on the step's first line. Each step is identified by its name when it has one, and by its first line's content otherwise, so unnamed `- uses:`/`- run:` steps are covered as well. Block scalar payloads (`run: |`, `run: >`) are excluded from the scan in both documents, so directives and `- name:` lines embedded in shell scripts are never treated as structural YAML. To prevent unsafe propagation, suppressions are only injected when the step identity appears exactly once in both the frontmatter and the generated output, and directives that annotate an ambiguous (repeated) step identity are dropped rather than attributed to an arbitrary step.
 
 ### Alternatives Considered
 
@@ -31,12 +31,12 @@ Runner Guard could be configured with a blanket exception for the entire model i
 - Ambiguous cases (duplicate step names, runner-guard comments embedded inside shell scripts) are detected and silently skipped, preventing incorrect suppression propagation.
 
 #### Negative
-- The propagation mechanism is name-based: renaming a step in the frontmatter without updating the corresponding suppression comment will silently drop the suppression from the next generated lock file.
+- The propagation mechanism is identity-based: renaming a step (or changing its first line) in the frontmatter without updating the corresponding suppression comment will silently drop the suppression from the next generated lock file.
 - The post-processing step inspects and rewrites the generated YAML as raw text rather than parsing it structurally, making it sensitive to formatting changes in the compiler's YAML output.
 
 #### Neutral
 - Lock files must be regenerated whenever frontmatter suppression comments are added, removed, or modified.
-- The feature ships with unit tests covering three edge cases: successful propagation, script-embedded comment ignored, and duplicate step name ignored.
+- The feature ships with unit tests covering propagation for named, unnamed and inline-annotated steps, plus script-embedded comments, duplicate step names and ambiguous directives being ignored.
 
 ---
 
