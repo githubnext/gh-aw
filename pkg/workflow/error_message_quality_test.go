@@ -162,6 +162,86 @@ func TestErrorMessageQuality(t *testing.T) {
 			shouldNotBeVague: true,
 		},
 		{
+			name: "checkout field type error includes example",
+			testFunc: func() error {
+				_, err := ParseCheckoutConfigs(map[string]any{"lfs": "yes"})
+				return err
+			},
+			shouldContain: []string{
+				"checkout.lfs must be a boolean",
+				"Example:",
+				"lfs: true",
+			},
+			shouldNotBeVague: true,
+		},
+		{
+			name: "safe-outputs data schema error includes example",
+			testFunc: func() error {
+				_, err := simplifyDataSchemaNode(map[string]any{
+					"type":                 "object",
+					"properties":           map[string]any{"verdict": "string"},
+					"additionalProperties": "no",
+				}, "safe-outputs.data", true)
+				return err
+			},
+			shouldContain: []string{
+				"additionalProperties: must be boolean",
+				"Example:",
+				"additionalProperties: false",
+			},
+			shouldNotBeVague: true,
+		},
+		{
+			name: "model identifier error includes example",
+			testFunc: func() error {
+				_, err := ParseModelIdentifier("")
+				return err
+			},
+			shouldContain: []string{
+				"model identifier must not be empty",
+				"Expected",
+				"Example:",
+			},
+			shouldNotBeVague: true,
+		},
+		{
+			name: "skip-if-match query type error includes example",
+			testFunc: func() error {
+				c := NewCompiler()
+				frontmatter := map[string]any{
+					"on": map[string]any{
+						"skip-if-match": map[string]any{
+							"query": 123, // Wrong type: integer instead of string
+						},
+					},
+				}
+				_, err := c.extractSkipIfMatchFromOn(frontmatter)
+				return err
+			},
+			shouldContain: []string{
+				"skip-if-match 'query' field must be a string",
+				"Example:",
+				"query:",
+			},
+			shouldNotBeVague: true,
+		},
+		{
+			name: "engine.driver extension error includes suggestion with example",
+			testFunc: func() error {
+				c := NewCompiler()
+				return c.validateEngineDriver(&WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot", Driver: "driver.exe"},
+				})
+			},
+			shouldContain: []string{
+				"engine.driver has unsupported extension",
+				"Suggestion:",
+				"Example:",
+				"driver:",
+			},
+			shouldNotBeVague: true,
+		},
+		{
 			name: "MCP property type error shows actual type with %T",
 			testFunc: func() error {
 				tools := map[string]any{
