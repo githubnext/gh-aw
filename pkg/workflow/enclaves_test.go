@@ -27,18 +27,18 @@ func enclaveWorkflowData(script, agent bool, scriptTimeout, agentTimeout int) *W
 	}
 	if script {
 		data.Enclaves = append(data.Enclaves, &EnclaveConfig{
-			Type: "script", Timeout: scriptTimeout, Repositories: enclaveTestRepositories(),
+			Script: &ScriptEnclaveConfig{}, Timeout: scriptTimeout, Repos: enclaveTestRepos(),
 		})
 	}
 	if agent {
 		data.Enclaves = append(data.Enclaves, &EnclaveConfig{
-			Type: "agent", Model: "gpt-5", Timeout: agentTimeout, Repositories: enclaveTestRepositories(),
+			Agent: &AgentEnclaveConfig{Model: "gpt-5"}, Timeout: agentTimeout, Repos: enclaveTestRepos(),
 		})
 	}
 	return data
 }
 
-func enclaveTestRepositories() []*EnclaveRepository {
+func enclaveTestRepos() []*EnclaveRepository {
 	return []*EnclaveRepository{{
 		Repo: "octo-org/private-service", Sensitivity: "confidential",
 	}}
@@ -93,7 +93,7 @@ func TestValidateEnclavesRejectsBoundedQueries(t *testing.T) {
 func TestValidateEnclavesRejectsDuplicateTypes(t *testing.T) {
 	data := enclaveWorkflowData(true, false, 30, 0)
 	data.Enclaves = append(data.Enclaves, &EnclaveConfig{
-		Type: "script", Repositories: enclaveTestRepositories(),
+		Script: &ScriptEnclaveConfig{}, Repos: enclaveTestRepos(),
 	})
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
@@ -102,7 +102,7 @@ func TestValidateEnclavesRejectsDuplicateTypes(t *testing.T) {
 
 func TestValidateEnclavesRequiresConsistentRepositorySensitivity(t *testing.T) {
 	data := enclaveWorkflowData(true, true, 30, 120)
-	data.Enclaves[1].Repositories[0].Sensitivity = "sealed"
+	data.Enclaves[1].Repos[0].Sensitivity = "sealed"
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "must use the same sensitivity across enclave types")
@@ -110,42 +110,44 @@ func TestValidateEnclavesRequiresConsistentRepositorySensitivity(t *testing.T) {
 
 func TestValidateEnclavesRequiresAgentModelOnly(t *testing.T) {
 	data := enclaveWorkflowData(false, true, 0, 120)
-	data.Enclaves[0].Model = ""
+	data.Enclaves[0].Agent.Model = ""
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "model is required for agent enclaves")
+	assert.Contains(t, err.Error(), "agent.model is required")
 
 	script := enclaveWorkflowData(true, false, 30, 0)
 	assert.NoError(t, validateEnclavesConfig(script))
 }
 
-func TestExtractEnclavesPreservesLegacySandboxConfig(t *testing.T) {
-	compiler := NewCompiler()
-	config := compiler.extractSandboxConfig(map[string]any{
-		"sandbox": map[string]any{
-			"type": "awf",
-			"config": map[string]any{
-				"filesystem": map[string]any{
-					"denyRead": []any{"/private"},
+func TestParseTopLevelKeyedEnclaves(t *testing.T) {
+	config, err := ParseFrontmatterConfig(map[string]any{
+		"enclaves": []any{
+			map[string]any{
+				"script": nil,
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
 				},
-			},
-			"enclaves": []any{
-				map[string]any{
-					"type": "script",
-					"repositories": []any{
-						map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
-					},
-				},
+				"timeout": 45,
 			},
 		},
 	})
-	require.NotNil(t, config)
-	assert.Equal(t, SandboxTypeAWF, config.Type)
-	require.NotNil(t, config.Config)
-	require.NotNil(t, config.Config.Filesystem)
-	assert.Equal(t, []string{"/private"}, config.Config.Filesystem.DenyRead)
+	require.NoError(t, err)
 	require.Len(t, config.Enclaves, 1)
-	assert.Equal(t, "script", config.Enclaves[0].Type)
+	require.NotNil(t, config.Enclaves[0].Script)
+	assert.Equal(t, 45, config.Enclaves[0].Timeout)
+	require.Len(t, config.Enclaves[0].Repos, 1)
+}
+
+func TestEnclaveConfigRejectsAmbiguousDiscriminator(t *testing.T) {
+	data := enclaveWorkflowData(false, false, 0, 0)
+	data.Enclaves = EnclavesConfig{{
+		Script: &ScriptEnclaveConfig{},
+		Agent:  &AgentEnclaveConfig{Model: "gpt-5"},
+		Repos:  enclaveTestRepos(),
+	}}
+	err := validateEnclavesConfig(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exactly one of script or agent")
 }
 
 func TestBuildAWFConfigJSONEnclaves(t *testing.T) {
@@ -160,11 +162,12 @@ func TestBuildAWFConfigJSONEnclaves(t *testing.T) {
 	enclaves := config["enclaves"].([]any)
 	script := enclaves[0].(map[string]any)
 	agent := enclaves[1].(map[string]any)
-	assert.Equal(t, "script", script["type"])
+	scriptConfig := script["script"].(map[string]any)
+	agentConfig := agent["agent"].(map[string]any)
+	assert.Empty(t, scriptConfig)
 	assert.InDelta(t, 45, script["timeout"], 0)
-	assert.Equal(t, "agent", agent["type"])
-	assert.Equal(t, "gpt-5", agent["model"])
-	assert.Contains(t, script, "repositories")
+	assert.Equal(t, "gpt-5", agentConfig["model"])
+	assert.Contains(t, script, "repos")
 	assert.NotContains(t, script, "enabled")
 	assert.NotContains(t, script, "network")
 	assert.NotContains(t, script, "interpreter")
@@ -215,12 +218,12 @@ sandbox:
     id: awf
     sudo: false
     version: latest
-  enclaves:
-    - type: script
-      repositories:
-        - repo: octo-org/private-service
-          sensitivity: confidential
-      timeout: 45
+enclaves:
+  - script:
+    repos:
+      - repo: octo-org/private-service
+        sensitivity: confidential
+    timeout: 45
 ---
 
 Use the enclave script executor.
@@ -239,7 +242,7 @@ Use the enclave script executor.
 	require.Greater(t, awf, -1)
 	assert.Less(t, gateway, awf)
 	assert.Contains(t, lock, `"awf-enclave"`)
-	assert.Contains(t, lock, `\"enclaves\":[{\"repositories\":[{\"repo\":\"octo-org/private-service\",\"sensitivity\":\"confidential\"}],\"timeout\":45,\"type\":\"script\"}]`)
+	assert.Contains(t, lock, `\"enclaves\":[{\"repos\":[{\"repo\":\"octo-org/private-service\",\"sensitivity\":\"confidential\"}],\"script\":{},\"timeout\":45}]`)
 	assert.NotContains(t, lock, "Start Enclave MCP")
 	assert.NotContains(t, lock, "start_enclave")
 }

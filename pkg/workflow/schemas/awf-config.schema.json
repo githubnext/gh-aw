@@ -777,12 +777,21 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["type", "repositories"],
+            "required": ["script", "repos"],
             "properties": {
-              "type": {
-                "const": "script"
+              "script": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "maxScriptBytes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65536,
+                    "default": 65536
+                  }
+                }
               },
-              "repositories": {
+              "repos": {
                 "type": "array",
                 "minItems": 1,
                 "items": {
@@ -845,12 +854,6 @@
                 "maximum": 8192,
                 "default": 8192
               },
-              "maxScriptBytes": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 65536,
-                "default": 65536
-              },
               "maxInvocations": {
                 "type": "integer",
                 "minimum": 1,
@@ -862,12 +865,50 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["type", "repositories", "model"],
+            "required": ["agent", "repos"],
             "properties": {
-              "type": {
-                "const": "agent"
+              "agent": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["model"],
+                "properties": {
+                  "engine": {
+                    "type": "string",
+                    "enum": ["copilot", "claude", "codex", "gemini"],
+                    "default": "copilot"
+                  },
+                  "profile": {
+                    "type": "string",
+                    "enum": ["openai", "anthropic"],
+                    "default": "openai"
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$"
+                  },
+                  "maxTaskBytes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65536,
+                    "default": 4096
+                  },
+                  "maxModelRequests": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64,
+                    "default": 8
+                  },
+                  "maxModelTokens": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 32768,
+                    "default": 1024
+                  }
+                }
               },
-              "repositories": {
+              "repos": {
                 "type": "array",
                 "minItems": 1,
                 "items": {
@@ -896,22 +937,6 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 500
-              },
-              "engine": {
-                "type": "string",
-                "enum": ["copilot", "claude", "codex", "gemini"],
-                "default": "copilot"
-              },
-              "profile": {
-                "type": "string",
-                "enum": ["openai", "anthropic"],
-                "default": "openai"
-              },
-              "model": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200,
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$"
               },
               "timeout": {
                 "type": "integer",
@@ -946,29 +971,11 @@
                 "maximum": 8192,
                 "default": 8192
               },
-              "maxTaskBytes": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 65536,
-                "default": 4096
-              },
               "maxInvocations": {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 1000,
                 "default": 8
-              },
-              "maxModelRequests": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 64,
-                "default": 8
-              },
-              "maxModelTokens": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 32768,
-                "default": 1024
               }
             }
           }

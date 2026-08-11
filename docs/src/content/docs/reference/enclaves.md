@@ -3,7 +3,7 @@ title: Private repository enclaves
 description: Configure unified AWF script and agent enclaves through the trusted MCP gateway.
 ---
 
-The `sandbox.enclaves` array enables finite-disclosure access to approved private repositories. The compiler registers `enclave_run_script` or `enclave_run_agent` from the entry types present on the `awf-enclave` MCP route. Omit the array to disable enclaves.
+The top-level `enclaves` array enables finite-disclosure access to approved private repositories. The compiler registers `enclave_run_script` or `enclave_run_agent` from the keyed entries present on the `awf-enclave` MCP route. Omit the array to disable enclaves.
 
 Enclaves require AWF network isolation. Configure `sandbox.agent.sudo: false` (or the `docker-sbx` runtime) so the compiler launches mcpg in bridge mode and AWF can attach it to the isolated topology.
 
@@ -12,18 +12,18 @@ sandbox:
   agent:
     id: awf
     sudo: false
-  enclaves:
-    - type: script
-      repositories:
-        - repo: octo-org/private-service
-          sensitivity: confidential
-      timeout: 45
-    - type: agent
-      repositories:
-        - repo: octo-org/private-service
-          sensitivity: confidential
+enclaves:
+  - script:
+    repos:
+      - repo: octo-org/private-service
+        sensitivity: confidential
+    timeout: 45
+  - agent:
       model: gpt-5
-      timeout: 180
+    repos:
+      - repo: octo-org/private-service
+        sensitivity: confidential
+    timeout: 180
 ```
 
 Each type can appear at most once. When the same repository appears in both entries, its sensitivity must match because its information budget is shared across executor types. AWF fixes the script enclave network and interpreter and the agent enclave network internally; workflows cannot override those security invariants.

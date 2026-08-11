@@ -72,7 +72,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		NetworkPermissions:         engineSetup.networkPermissions,
 		SandboxConfig:              applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
 		RunnerConfig:               extractRunnerConfig(result.Frontmatter),
-		Enclaves:                   extractEnclavesConfig(engineSetup.sandboxConfig),
+		Enclaves:                   extractEnclavesConfig(result.Frontmatter),
 		NeedsTextOutput:            toolsResult.needsTextOutput,
 		ToolsTimeout:               toolsResult.toolsTimeout,
 		ToolsStartupTimeout:        toolsResult.toolsStartupTimeout,
@@ -215,11 +215,20 @@ func (c *Compiler) buildInitialWorkflowData(
 	return workflowData
 }
 
-func extractEnclavesConfig(sandbox *SandboxConfig) EnclavesConfig {
-	if sandbox == nil {
+func extractEnclavesConfig(frontmatter map[string]any) EnclavesConfig {
+	raw, ok := frontmatter["enclaves"]
+	if !ok {
 		return nil
 	}
-	return sandbox.Enclaves
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return EnclavesConfig{nil}
+	}
+	var enclaves EnclavesConfig
+	if err := json.Unmarshal(data, &enclaves); err != nil {
+		return EnclavesConfig{nil}
+	}
+	return enclaves
 }
 
 func extractLSPConfig(parsedFrontmatter *FrontmatterConfig, frontmatter map[string]any) map[string]LSPServerConfig {
