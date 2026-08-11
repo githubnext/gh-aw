@@ -453,7 +453,7 @@ func TestFindMissingFilterEntriesAllMarkerSatisfiesFiltered(t *testing.T) {
 }
 
 func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
-	for _, name := range []string{"../activation", ".", ".."} {
+	for _, name := range []string{"../activation", `..\activation`, ".", ".."} {
 		t.Run(name, func(t *testing.T) {
 			err := markArtifactDownloaded(t.TempDir(), name)
 			require.Error(t, err)
