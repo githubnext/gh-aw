@@ -31,6 +31,42 @@ const (
 	maxPort = 65535
 )
 
+// awfDangerousHostPorts mirrors AWF's DANGEROUS_PORTS list (gh-aw-firewall
+// src/squid/policy-manifest.ts) as of the pinned AWF release
+// constants.DefaultFirewallVersion (v0.27.44). These ports are never allowed
+// via --allow-host-ports, even with --enable-host-access: AWF blocks them at
+// both the iptables and Squid policy layers to prevent the agent sandbox
+// from reaching sensitive services directly. --allow-host-service-ports
+// intentionally bypasses this list because it restricts traffic to the host
+// gateway only (for GitHub Actions services:), but that flag requires
+// sandbox.agent.legacy-security: enable.
+//
+// If the pinned AWF version is bumped and its DANGEROUS_PORTS list changes,
+// update this map to match; there is no automated sync with upstream.
+var awfDangerousHostPorts = map[int]string{
+	22:    "SSH",
+	23:    "Telnet",
+	25:    "SMTP",
+	110:   "POP3",
+	143:   "IMAP",
+	445:   "SMB",
+	1433:  "MS SQL Server",
+	1521:  "Oracle DB",
+	3306:  "MySQL",
+	3389:  "RDP",
+	5432:  "PostgreSQL",
+	5984:  "CouchDB",
+	6379:  "Redis",
+	6984:  "CouchDB (SSL)",
+	8086:  "InfluxDB HTTP API",
+	8088:  "InfluxDB RPC",
+	9200:  "Elasticsearch HTTP API",
+	9300:  "Elasticsearch transport",
+	27017: "MongoDB",
+	27018: "MongoDB sharding",
+	28017: "MongoDB web interface",
+}
+
 // servicesYAMLWrapper is the top-level YAML wrapper for a services: block.
 // It provides typed access to the service container map while the YAML is parsed
 // via goccy/go-yaml with field-level annotations.

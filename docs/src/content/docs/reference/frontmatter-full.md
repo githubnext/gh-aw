@@ -2227,6 +2227,13 @@ sandbox:
     # (optional)
     legacy-security: "enable"
 
+    # Additional host TCP ports the agent may connect to when legacy-security is
+    # enabled. Ports published by `services:` are reached via
+    # --allow-host-service-ports instead; use this only for host daemons not
+    # declared there.
+    # (optional)
+    allow-host-ports: []
+
   # Legacy custom Sandbox Runtime configuration (use agent.config instead). Note:
   # Network configuration is controlled by the top-level 'network' field, not here.
   # (optional)

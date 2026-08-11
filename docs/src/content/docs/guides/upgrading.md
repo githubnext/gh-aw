@@ -54,6 +54,8 @@ This updates `.github/skills/agentic-workflows/SKILL.md` to the latest template,
 
 Run `git diff .github/workflows/` to verify the changes. Typical migrations include `sandbox: false` → `sandbox.agent: false`, `app:` → `github-app:`, `safe-inputs:` → `mcp-scripts:`, `daily at` → `daily around`, and removal of deprecated `network.firewall` and `mcp-scripts.mode` fields.
 
+Workflows that use GitHub Actions `services:` with published ports remain reachable from the agent sandbox only when `sandbox.agent.legacy-security: enable` is set; recompiling regenerates the `--allow-host-service-ports` value used to reach those services.
+
 ## Step 4: Commit and Push
 
 Stage and commit your changes:
