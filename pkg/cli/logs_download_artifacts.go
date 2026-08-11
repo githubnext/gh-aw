@@ -164,7 +164,7 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 }
 
 func validateArtifactName(name string) error {
-	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) || filepath.Base(name) != name {
 		return fmt.Errorf("invalid artifact name %q", name)
 	}
 	return nil
