@@ -952,6 +952,119 @@ describe("git patch integration tests", () => {
       }
     });
 
+    it("should base the full-mode patch on GITHUB_SHA when dispatched from a non-default branch", async () => {
+      // Simulate workflow_dispatch from a branch that is ahead of main: the
+      // dispatched branch has commits that are not on main, and the agent adds
+      // one commit on top of it.
+      execGit(["checkout", "-b", "dispatch-branch"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "dispatch1.txt"), "dispatched work 1\n");
+      execGit(["add", "dispatch1.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Dispatched branch commit 1"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "dispatch2.txt"), "dispatched work 2\n");
+      execGit(["add", "dispatch2.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Dispatched branch commit 2"], { cwd: workingRepo });
+
+      const dispatchedSha = execGit(["rev-parse", "HEAD"], { cwd: workingRepo }).stdout.trim();
+
+      // Agent branch created from the dispatched commit with a single commit
+      execGit(["checkout", "-b", "agent-fix/example"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "agent.txt"), "agent change\n");
+      execGit(["add", "agent.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Agent commit on dispatched branch"], { cwd: workingRepo });
+
+      execGit(["fetch", "origin", "main"], { cwd: workingRepo });
+
+      const origSha = process.env.GITHUB_SHA;
+      process.env.GITHUB_SHA = dispatchedSha;
+      const restore = setTestEnv(workingRepo);
+      try {
+        const result = await generateGitPatch("agent-fix/example", "main", { mode: "full" });
+
+        expect(result.success).toBe(true);
+        expect(result.baseCommit).toBe(dispatchedSha);
+
+        const patchContent = fs.readFileSync(result.patchPath, "utf8");
+        expect(patchContent).toContain("Agent commit on dispatched branch");
+        expect(patchContent).not.toContain("Dispatched branch commit 1");
+        expect(patchContent).not.toContain("Dispatched branch commit 2");
+      } finally {
+        if (origSha === undefined) {
+          delete process.env.GITHUB_SHA;
+        } else {
+          process.env.GITHUB_SHA = origSha;
+        }
+        restore();
+      }
+    });
+
+    it("should still use the merge-base in full mode when GITHUB_SHA is on the default branch", async () => {
+      const mainSha = execGit(["rev-parse", "main"], { cwd: workingRepo }).stdout.trim();
+
+      execGit(["checkout", "-b", "default-dispatch-branch"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "agent1.txt"), "agent change 1\n");
+      execGit(["add", "agent1.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Agent commit one"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "agent2.txt"), "agent change 2\n");
+      execGit(["add", "agent2.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Agent commit two"], { cwd: workingRepo });
+
+      execGit(["fetch", "origin", "main"], { cwd: workingRepo });
+
+      const origSha = process.env.GITHUB_SHA;
+      process.env.GITHUB_SHA = mainSha;
+      const restore = setTestEnv(workingRepo);
+      try {
+        const result = await generateGitPatch("default-dispatch-branch", "main", { mode: "full" });
+
+        expect(result.success).toBe(true);
+        expect(result.baseCommit).toBe(mainSha);
+
+        const patchContent = fs.readFileSync(result.patchPath, "utf8");
+        expect(patchContent).toContain("Agent commit one");
+        expect(patchContent).toContain("Agent commit two");
+      } finally {
+        if (origSha === undefined) {
+          delete process.env.GITHUB_SHA;
+        } else {
+          process.env.GITHUB_SHA = origSha;
+        }
+        restore();
+      }
+    });
+
+    it("should base the full-mode bundle on GITHUB_SHA when dispatched from a non-default branch", async () => {
+      execGit(["checkout", "-b", "bundle-dispatch-branch"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "bundle-dispatch.txt"), "dispatched work\n");
+      execGit(["add", "bundle-dispatch.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Bundle dispatched branch commit"], { cwd: workingRepo });
+
+      const dispatchedSha = execGit(["rev-parse", "HEAD"], { cwd: workingRepo }).stdout.trim();
+
+      execGit(["checkout", "-b", "agent-bundle-branch"], { cwd: workingRepo });
+      fs.writeFileSync(path.join(workingRepo, "bundle-agent.txt"), "agent change\n");
+      execGit(["add", "bundle-agent.txt"], { cwd: workingRepo });
+      execGit(["commit", "-m", "Agent bundle commit"], { cwd: workingRepo });
+
+      execGit(["fetch", "origin", "main"], { cwd: workingRepo });
+
+      const origSha = process.env.GITHUB_SHA;
+      process.env.GITHUB_SHA = dispatchedSha;
+      const restore = setTestEnv(workingRepo);
+      try {
+        const result = await generateGitBundle("agent-bundle-branch", "main", { mode: "full" });
+
+        expect(result.success).toBe(true);
+        expect(result.baseCommit).toBe(dispatchedSha);
+      } finally {
+        if (origSha === undefined) {
+          delete process.env.GITHUB_SHA;
+        } else {
+          process.env.GITHUB_SHA = origSha;
+        }
+        restore();
+      }
+    });
+
     it("should choose origin/main as the closest Strategy 3 base in full mode", async () => {
       // Create a stale remote ref that sorts before origin/main.
       execGit(["checkout", "-b", "aaa-stale"], { cwd: workingRepo });

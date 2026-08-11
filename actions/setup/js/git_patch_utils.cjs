@@ -223,6 +223,60 @@ function computeIncrementalDiffSize({ baseRef, headRef, cwd, tmpPath, excludedFi
   return diffSize;
 }
 
+/**
+ * Returns true when `ancestor` is an ancestor of (or identical to) `descendant`.
+ * Any git failure (unknown revision, missing object) is treated as "not an ancestor".
+ * @param {string} ancestor
+ * @param {string} descendant
+ * @param {string|undefined} cwd
+ * @returns {boolean}
+ */
+function isAncestorCommit(ancestor, descendant, cwd) {
+  try {
+    execGitSync(["merge-base", "--is-ancestor", "--", ancestor, descendant], { cwd, suppressLogs: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Returns true when the repository is a partial clone (objects are fetched lazily
+ * from a promisor remote). In gh-aw checkouts credentials are not persisted, so any
+ * lazy fetch is unauthenticated and fails - which surfaces as confusing git errors.
+ * @param {string|undefined} cwd
+ * @returns {boolean}
+ */
+function isPartialClone(cwd) {
+  try {
+    return execGitSync(["config", "--get", "remote.origin.promisor"], { cwd, suppressLogs: true }).trim() === "true";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Appends a partial-clone diagnostic to an error message when the failure looks like
+ * a failed lazy object hydration from an unauthenticated promisor remote.
+ * @param {string} message
+ * @param {string|undefined} cwd
+ * @returns {string}
+ */
+function describeGitFailure(message, cwd) {
+  if (!/promisor|Authentication failed|Invalid username or token|could not fetch/i.test(message)) {
+    return message;
+  }
+  if (!isPartialClone(cwd)) {
+    return message;
+  }
+  return (
+    `${message} ` +
+    "This repository is a partial clone (remote.origin.promisor=true), so git tried to lazily fetch missing objects from the remote. " +
+    "That fetch is unauthenticated because the checkout used persist-credentials: false. " +
+    "Fetch the required objects during checkout (for example checkout.fetch-depth: 0 without a blob filter) to avoid lazy fetches."
+  );
+}
+
 module.exports = {
   sanitizeForFilename,
   sanitizeBranchNameForPatch,
@@ -233,4 +287,7 @@ module.exports = {
   computeIncrementalDiffSize,
   getPatchDiffSizeBytes,
   getStagedPatchDiffSizeBytes,
+  isAncestorCommit,
+  isPartialClone,
+  describeGitFailure,
 };
