@@ -69,7 +69,7 @@ function sleep(ms) {
  *   - log       - Caller-supplied logging function (harness-specific prefix)
  *   - logArgs   - Safe arg list used only for logging; defaults to `args`.
  *                 Pass a redacted copy to avoid leaking sensitive values.
- * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean}>}
+ * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean, signal: string | null}>}
  */
 function runProcess({ command, args, attempt, log, logArgs, env, postResultWatchdog }) {
   return new Promise(resolve => {
@@ -78,7 +78,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     // emits 'close' after 'error' (or vice-versa); only the first terminal event should
     // log and resolve so callers receive a deterministic result.
     let settled = false;
-    /** @param {{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean}} result */
+    /** @param {{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean, signal: string | null}} result */
     function settle(result) {
       if (settled) return;
       settled = true;
@@ -181,7 +181,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
           ` stdout=${stdoutBytes}B stderr=${stderrBytes}B hasOutput=${hasOutput}` +
           (watchdogFired ? ` watchdogFired=true` : "")
       );
-      settle({ exitCode, output: collectedOutput, hasOutput, durationMs, watchdogFired });
+      settle({ exitCode, output: collectedOutput, hasOutput, durationMs, watchdogFired, signal: signal ?? null });
     });
 
     child.on("error", err => {
@@ -197,6 +197,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         hasOutput,
         durationMs,
         watchdogFired: false,
+        signal: null,
       });
     });
   });

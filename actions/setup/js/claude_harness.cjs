@@ -497,7 +497,7 @@ async function main() {
     const isNoDeferredMarker = isNoDeferredMarkerError(result.output);
     const isInvalidModel = isInvalidModelError(result.output);
     const isInvalidJsonBody = isInvalidJsonBodyError(result.output);
-    const isSegmentationFault = isSegmentationFaultError(result.output);
+    const isSegmentationFault = isSegmentationFaultError(result.output) || result.signal === "SIGSEGV";
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
     log(

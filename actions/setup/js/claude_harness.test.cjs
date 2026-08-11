@@ -540,6 +540,32 @@ process.exit(1);
       expect(result.stderr).toContain("all 1 retries exhausted");
     }, 50000);
 
+    it("caps retries to one fresh retry when the process is killed by SIGSEGV with no Bun panic text", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+
+if (priorCalls === 0) {
+  // Terminate directly via SIGSEGV with no Bun panic marker in stdout/stderr,
+  // simulating a genuine runtime crash the process itself cannot log.
+  // Signal delivery preempts the event loop, so no further code here runs.
+  process.kill(process.pid, "SIGSEGV");
+}
+
+process.stdout.write("fresh retry after signal-only SIGSEGV succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.length).toBe(2);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, false]);
+      expect(result.stderr).toContain("capping retry budget to 1");
+    }, 50000);
+
     it("uses a fresh retry after signal-style termination instead of --continue", () => {
       const stubScript = `
 const fs = require("fs");
