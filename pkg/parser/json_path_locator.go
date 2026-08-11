@@ -181,12 +181,7 @@ func matchesPathAtLevel(line string, pathSegments []PathSegment, level int, arra
 		switch segment.Type {
 		case "key":
 			// Look for "key:" pattern
-			//nolint:regexpdynamicpattern // The path segment is quoted before compilation.
-			keyPattern, err := regexp.Compile(`^` + regexp.QuoteMeta(segment.Value) + `\s*:`)
-			if err != nil {
-				return false, 0
-			}
-			if keyPattern.MatchString(trimmedLine) {
+			if matchesPathSegmentKey(trimmedLine, segment.Value) {
 				// Found the key - return position after the colon
 				colonIndex := strings.Index(line, ":")
 				if colonIndex != -1 {
@@ -283,12 +278,7 @@ func findFirstAdditionalProperty(yamlContent string, propertyNames []string) JSO
 		// Check if this line contains any of the additional properties
 		for _, propName := range propertyNames {
 			// Look for "propName:" pattern at the start of the trimmed line
-			//nolint:regexpdynamicpattern // The property name is quoted before compilation.
-			keyPattern, err := regexp.Compile(`^` + regexp.QuoteMeta(propName) + `\s*:`)
-			if err != nil {
-				continue
-			}
-			if keyPattern.MatchString(trimmedLine) {
+			if matchesPathSegmentKey(trimmedLine, propName) {
 				// Found the property - return position of the property name
 				propIndex := strings.Index(line, propName)
 				if propIndex != -1 {
@@ -417,12 +407,11 @@ func findNestedSectionStart(lines []string, pathSegments []PathSegment) (int, in
 }
 
 func matchesPathSegmentKey(trimmedLine, key string) bool {
-	//nolint:regexpdynamicpattern // The path segment is quoted before compilation.
-	keyPattern, err := regexp.Compile(`^` + regexp.QuoteMeta(key) + `\s*:`)
-	if err != nil {
+	if !strings.HasPrefix(trimmedLine, key) {
 		return false
 	}
-	return keyPattern.MatchString(trimmedLine)
+	remainder := strings.TrimLeft(trimmedLine[len(key):], " \t\r\n\f")
+	return strings.HasPrefix(remainder, ":")
 }
 
 func findNestedSectionEnd(lines []string, foundLine, baseIndentLevel int) int {
