@@ -37,7 +37,16 @@ const sinkVisibilityRuntimeExpr = "${" + sinkVisibilityEnvVar + "}"
 // Expressions are always of the form ${{ ... }} and must not contain double quotes
 // (our generated expressions use single-quoted strings inside the GitHub Actions expression,
 // so this invariant holds for all compiler-generated fallback values).
-var guardExprRE = regexp.MustCompile(`"` + guardExprSentinel + `(\$\{\{[^"]+\}\})"`)
+var guardExprNeverMatchRE = regexp.MustCompile(`$^`)
+
+var guardExprRE = func() *regexp.Regexp {
+	//nolint:regexpcompileinfunction // The pattern is initialized once at package load.
+	re, err := regexp.Compile(`"` + regexp.QuoteMeta(guardExprSentinel) + `(\$\{\{[^"]+\}\})"`) //nolint:regexpdynamicpattern // The sentinel is quoted and the fixed suffix is valid.
+	if err != nil {
+		return guardExprNeverMatchRE
+	}
+	return re
+}()
 
 // renderGuardPoliciesJSON renders a "guard-policies" JSON field at the given indent level.
 // The policies map contains policy names (e.g., "allow-only") mapped to their configurations.

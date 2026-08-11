@@ -165,7 +165,12 @@ func buildSanitizePreservePattern(opts *SanitizeOptions) string {
 func applySanitizePattern(result, allowedChars string, preserveSpecialChars bool) string {
 	pattern, ok := sanitizePatterns[allowedChars]
 	if !ok {
-		pattern = sanitizePatterns["a-z0-9-"]
+		var err error
+		//nolint:regexpdynamicpattern // Allowed characters are generated internally and compilation failures use the strict default.
+		pattern, err = regexp.Compile(`[^` + allowedChars + `]+`)
+		if err != nil {
+			pattern = sanitizePatterns["a-z0-9-"]
+		}
 	}
 	if preserveSpecialChars {
 		return pattern.ReplaceAllString(result, "-")

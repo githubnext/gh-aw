@@ -36,6 +36,9 @@ func getActivationOutputsCodemod() Codemod {
 				// This ensures we don't match things like "needs.activation.outputs.text_custom"
 				// The pattern matches the old expression followed by a non-word character or end of string
 				pattern := activationOutputPatterns[output]
+				if pattern == nil {
+					continue
+				}
 
 				// Check if pattern exists in content
 				if pattern.MatchString(result) {
