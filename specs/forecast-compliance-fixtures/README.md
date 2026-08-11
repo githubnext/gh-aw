@@ -12,7 +12,7 @@ This fixture represents a single successful workflow run (`daily-report`) with:
 
 - `conclusion: "success"` — the run is counted as successful in Bernoulli sampling
 - `token_usage_summary.total_effective_tokens: 5400` — the ET observation used in bootstrap resampling
-- `run.updated_at` and `run.run_started_at` — used to compute `duration_seconds`
+- `run.updatedAt` and `run.startedAt` — used to compute `duration_seconds`
 
 Use this fixture as the baseline for Monte Carlo engine compliance tests (**T-FC-031** through
 **T-FC-040**) by loading it as a cached run summary.
@@ -48,8 +48,8 @@ The `run_summary_minimal.json` fixture follows the `RunSummary` struct defined i
 | JSON Field | Go Field | Forecast Usage |
 |---|---|---|
 | `run.conclusion` | `Run.Conclusion` | Bernoulli success probability |
-| `run.updated_at` | `Run.UpdatedAt` | Duration computation |
-| `run.run_started_at` | `Run.RunStartedAt` | Duration computation |
+| `run.updatedAt` | `Run.UpdatedAt` | Duration computation |
+| `run.startedAt` | `Run.StartedAt` | Duration computation |
 | `token_usage_summary.total_effective_tokens` | `TokenUsage.TotalEffectiveTokens` | Bootstrap ET sample |
 | `run_id` | `RunID` | Run identification |
 

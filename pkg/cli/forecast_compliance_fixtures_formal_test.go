@@ -22,7 +22,7 @@ package cli
 //   - FC-P6: run_summary_failed.json has conclusion == "failure" (T-FC-035)
 //   - FC-P7: run_summary_cancelled.json has conclusion == "cancelled" (T-FC-036)
 //   - FC-P8: RunSummary JSON round-trip serialization is lossless
-//   - FC-P9: run_started_at <= updated_at in every fixture
+//   - FC-P9: StartedAt <= UpdatedAt in every fixture
 //   - FC-P10: all five fixtures have required Monte Carlo input fields
 
 import (
@@ -69,10 +69,10 @@ func TestFormal_P1_FixtureFieldMapping(t *testing.T) {
 	// Top-level identity field.
 	assert.Contains(t, fixture, "run_id", "P1: run_id must be present")
 
-	// run sub-object must expose conclusion, updated_at, run_started_at.
+	// run sub-object must expose conclusion, updatedAt, startedAt.
 	run, ok := fixture["run"].(map[string]any)
 	require.True(t, ok, "P1: 'run' must be a JSON object")
-	for _, field := range []string{"conclusion", "updated_at", "run_started_at"} {
+	for _, field := range []string{"conclusion", "updatedAt", "startedAt"} {
 		assert.Contains(t, run, field, "P1: run.%s must be present for forecast inputs", field)
 	}
 
@@ -411,7 +411,7 @@ func TestFormal_P13_FixtureJSONConformance(t *testing.T) {
 	// run sub-object required fields.
 	run, ok := fixture["run"].(map[string]any)
 	require.True(t, ok, "P13: 'run' must be a JSON object")
-	runRequired := []string{"conclusion", "updated_at", "run_started_at"}
+	runRequired := []string{"conclusion", "updatedAt", "startedAt"}
 	for _, field := range runRequired {
 		assert.Contains(t, run, field,
 			"P13: run.%q must be present for duration and Bernoulli derivation", field)
@@ -569,10 +569,10 @@ func TestFormal_FC_P8_RunSummaryRoundTrip(t *testing.T) {
 		"FC-P8: Run.UpdatedAt must survive round-trip")
 }
 
-// TestFormal_FC_P9_TimestampOrdering verifies that run_started_at <= updated_at
+// TestFormal_FC_P9_TimestampOrdering verifies that StartedAt <= UpdatedAt
 // in every fixture (TLA+ ordering invariant).
 //
-// Formal predicate (FC-P9): ∀f ∈ Fixtures: f["run"]["run_started_at"] ≤ f["run"]["updated_at"]
+// Formal predicate (FC-P9): ∀f ∈ Fixtures: f.Run.StartedAt ≤ f.Run.UpdatedAt
 // Specification reference: §6.2.2 Duration Derivation
 func TestFormal_FC_P9_TimestampOrdering(t *testing.T) {
 	fixtures := []string{
@@ -586,24 +586,20 @@ func TestFormal_FC_P9_TimestampOrdering(t *testing.T) {
 
 	for _, name := range fixtures {
 		t.Run(name, func(t *testing.T) {
-			fixture := loadFixture(t, name)
+			data, err := os.ReadFile(filepath.Join(fixtureDir(t), name))
+			require.NoError(t, err, "FC-P9: fixture file %q must be readable", name)
 
-			run, ok := fixture["run"].(map[string]any)
-			require.True(t, ok, "FC-P9: 'run' must be a JSON object in %s", name)
+			var summary RunSummary
+			require.NoError(t, json.Unmarshal(data, &summary),
+				"FC-P9: fixture file %q must unmarshal as RunSummary", name)
+			require.False(t, summary.Run.StartedAt.IsZero(),
+				"FC-P9: run.startedAt must populate RunSummary.Run.StartedAt in %s", name)
+			require.False(t, summary.Run.UpdatedAt.IsZero(),
+				"FC-P9: run.updatedAt must populate RunSummary.Run.UpdatedAt in %s", name)
 
-			startedStr, ok := run["run_started_at"].(string)
-			require.True(t, ok, "FC-P9: run.run_started_at must be a string in %s", name)
-			updatedStr, ok := run["updated_at"].(string)
-			require.True(t, ok, "FC-P9: run.updated_at must be a string in %s", name)
-
-			started, err := time.Parse(time.RFC3339, startedStr)
-			require.NoError(t, err, "FC-P9: run_started_at must parse as RFC3339 in %s", name)
-			updated, err := time.Parse(time.RFC3339, updatedStr)
-			require.NoError(t, err, "FC-P9: updated_at must parse as RFC3339 in %s", name)
-
-			assert.False(t, started.After(updated),
-				"FC-P9: run_started_at (%s) must be <= updated_at (%s) in %s",
-				startedStr, updatedStr, name)
+			assert.False(t, summary.Run.StartedAt.After(summary.Run.UpdatedAt),
+				"FC-P9: StartedAt (%s) must be <= UpdatedAt (%s) in %s",
+				summary.Run.StartedAt, summary.Run.UpdatedAt, name)
 		})
 	}
 }

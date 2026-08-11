@@ -974,6 +974,7 @@ and adding new fixtures.
 | Data sampling with limit and window | T-FC-020–021 | 1 | Required |
 | Missing artifact graceful handling | T-FC-022 | 1 | Required |
 | Nil projection for empty sample | T-FC-023 | 1 | Required |
+| Partial observation for in-progress run | T-FC-024 | 1 | Required |
 | Knuth Poisson algorithm (λ ≤ 15) | T-FC-031 | 1 | Required |
 | Normal approximation (λ > 15) | T-FC-032 | 1 | Required |
 | Zero-λ projection | T-FC-033 | 1 | Required |
