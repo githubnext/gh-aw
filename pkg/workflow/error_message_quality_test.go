@@ -185,7 +185,7 @@ func TestErrorMessageQuality(t *testing.T) {
 				return err
 			},
 			shouldContain: []string{
-				"additionalProperties: must be boolean",
+				"safe-outputs.data.additionalProperties: must be boolean",
 				"Example:",
 				"additionalProperties: false",
 			},
