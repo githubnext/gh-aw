@@ -21,16 +21,16 @@ Hey agent! If this repository hasn't been configured with agentic workflows yet,
    curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
    ```
 
-2. Run the `init` command to configure the repository:
+2. Choose an engine, then run the `init` command to configure the repository. Replace `<engine>` with `copilot`, `claude`, `codex`, `gemini`, or `pi`:
 
    ```bash
-   gh aw init
+   gh aw init --engine <engine>
    ```
 
 3. Add a **daily repo status** agentic workflow using the `add` command:
 
    ```bash
-   gh aw add --create-pull-request
+   gh aw add --engine <engine> --create-pull-request
    ```
 
    The workflow should:
@@ -38,7 +38,7 @@ Hey agent! If this repository hasn't been configured with agentic workflows yet,
    - Summarize the repository status (open issues, recent PRs, CI health)
    - Use the [Quick Start engine selector](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/setup/quick-start.mdx) to choose your runtime:
      - For `copilot`, grant `copilot-requests: write`
-     - For `claude`, set `ANTHROPIC_API_KEY` or configure Anthropic WIF
+     - For `claude`, set `ANTHROPIC_API_KEY` or configure Anthropic WIF. `CLAUDE_CODE_OAUTH_TOKEN` from `claude login` is not supported.
      - For `codex`, set `CODEX_API_KEY` or `OPENAI_API_KEY`
      - For `gemini`, set `GEMINI_API_KEY` or configure Google WIF
      - For `pi`, configure provider authentication and the required proxies
