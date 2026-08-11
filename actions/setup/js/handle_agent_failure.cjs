@@ -2767,6 +2767,8 @@ function buildEngineFailureContext(options = {}) {
     }
 
     const errorMessages = new Set();
+    const recoveredNoDeferredMarker = /No deferred tool marker found/i.test(logContent) && /no deferred tool marker on --continue.*retrying as fresh run/i.test(logContent) && /--continue disabled permanently/i.test(logContent);
+    const isRecoveredNoDeferredMarkerLine = line => recoveredNoDeferredMarker && /No deferred tool marker found/i.test(line);
 
     for (const line of lines) {
       // Codex / generic CLI: "ERROR: <message>" at the start of a line
@@ -2779,7 +2781,11 @@ function buildEngineFailureContext(options = {}) {
       // Node.js / generic: "Error: <message>" at the start of a line
       const errorCapMatch = line.match(/^Error:\s*(.+)$/);
       if (errorCapMatch) {
-        errorMessages.add(errorCapMatch[1].trim());
+        const message = errorCapMatch[1].trim();
+        if (isRecoveredNoDeferredMarkerLine(message)) {
+          continue;
+        }
+        errorMessages.add(message);
         continue;
       }
 
@@ -2881,7 +2887,7 @@ function buildEngineFailureContext(options = {}) {
     }
 
     // Exclude AWF infrastructure lines so the fallback displays only actual engine output.
-    const agentLines = nonEmptyLines.filter(l => !INFRA_LINE_RE.test(l));
+    const agentLines = nonEmptyLines.filter(l => !INFRA_LINE_RE.test(l) && !isRecoveredNoDeferredMarkerLine(l));
 
     if (agentLines.length === 0) {
       // The log contains only AWF infrastructure lines — the engine exited before producing
