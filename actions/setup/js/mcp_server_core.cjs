@@ -1043,9 +1043,15 @@ function start(server, options = {}) {
     throw new Error(`${ERR_VALIDATION}: No tools registered`);
   }
 
-  const onData = async chunk => {
+  let processingChain = Promise.resolve();
+  const onData = chunk => {
     server.readBuffer.append(chunk);
-    await processReadBuffer(server, defaultHandler);
+    processingChain = processingChain
+      .then(() => processReadBuffer(server, defaultHandler))
+      .catch(error => {
+        server.debug(`processReadBuffer error: ${getErrorMessage(error)}`);
+      });
+    return processingChain;
   };
 
   process.stdin.on("data", onData);
