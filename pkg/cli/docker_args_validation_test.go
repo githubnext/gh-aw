@@ -94,6 +94,9 @@ func TestValidateDockerImageRefRejectsUnsafeCharacters(t *testing.T) {
 		{name: "invalid sha256 digest length", imageRef: "ghcr.io/org/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", wantErr: "invalid digest format"},
 		{name: "invalid tag", imageRef: "ghcr.io/org/image:-tag", wantErr: "invalid tag format"},
 		{name: "invalid image name characters", imageRef: "ghcr.io/org/im;age:latest", wantErr: "allow-listed image pattern"},
+		{name: "shell command injection", imageRef: "image; rm -rf /", wantErr: "invalid whitespace/control characters"},
+		{name: "command substitution", imageRef: "image$(malicious)", wantErr: "allow-listed image pattern"},
+		{name: "empty string", imageRef: "", wantErr: "cannot be empty"},
 	}
 
 	for _, tt := range testCases {

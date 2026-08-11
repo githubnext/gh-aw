@@ -106,17 +106,17 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	if err != nil {
 		return fmt.Errorf("invalid docker mount path: %w", err)
 	}
-	if _, err := validateDockerImageRef(RunnerGuardImage); err != nil {
+	runnerGuardImageRef, err := validateDockerImageRef(RunnerGuardImage)
+	if err != nil {
 		return fmt.Errorf("invalid runner-guard scanner image reference %q: %w", RunnerGuardImage, err)
 	}
 	// #nosec G204 -- gitRoot is validated as an absolute path above (from git rev-parse, a trusted
 	// source). containerScanPath is derived from filepath.Rel(gitRoot, workflowDir), cleaned with
 	// filepath.Clean, validated to not escape the repository root (no ".." prefix), and prefixed
 	// with "./" to prevent option injection. dockerPath is resolved from the allowlisted executable
-	// name "docker" via fileutil.ResolveExecutablePath. RunnerGuardImage is a compile-time constant
-	// and is validated with validateDockerImageRef above. exec.Command passes args directly to the
-	// OS (no shell).
-	dockerArgs := runnerGuardDockerArgs(volumeMount, containerScanPath)
+	// name "docker" via fileutil.ResolveExecutablePath. runnerGuardImageRef is the validated result
+	// of validateDockerImageRef above. exec.Command passes args directly to the OS (no shell).
+	dockerArgs := runnerGuardDockerArgs(runnerGuardImageRef, volumeMount, containerScanPath)
 	// #nosec G204 -- see the trust-boundary rationale above.
 	cmd := exec.Command(dockerPath, dockerArgs...)
 
@@ -184,13 +184,13 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	return nil
 }
 
-func runnerGuardDockerArgs(volumeMount, containerScanPath string) []string {
+func runnerGuardDockerArgs(imageRef, volumeMount, containerScanPath string) []string {
 	return []string{
 		"run",
 		"--rm",
 		"-v", volumeMount,
 		"-w", "/workdir",
-		RunnerGuardImage,
+		imageRef,
 		"scan",
 		containerScanPath,
 		"--format", "json",
