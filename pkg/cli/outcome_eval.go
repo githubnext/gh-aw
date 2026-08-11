@@ -590,13 +590,23 @@ func labelsToStringsFromNodes(nodes []any) []string {
 	}
 	labels := make([]map[string]any, 0, len(nodes))
 	for _, node := range nodes {
-		labelMap, _ := node.(map[string]any)
-		labels = append(labels, labelMap)
+		if labelMap, ok := node.(map[string]any); ok {
+			labels = append(labels, labelMap)
+		}
 	}
-	return labelNamesFromMaps(labels)
+	return labelsToStringsFromMaps(labels)
 }
 
 // labelsToStringsFromMaps converts GitHub API label map objects to string slice.
 func labelsToStringsFromMaps(labels []map[string]any) []string {
-	return labelNamesFromMaps(labels)
+	if len(labels) == 0 {
+		return []string{}
+	}
+	result := make([]string, 0, len(labels))
+	for _, labelMap := range labels {
+		if name, ok := labelMap["name"].(string); ok {
+			result = append(result, name)
+		}
+	}
+	return result
 }
