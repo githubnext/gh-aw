@@ -118,6 +118,22 @@ async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef)
   return bundleDiffResult.stdout.split("\0").filter(Boolean);
 }
 
+async function fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, prerequisiteCommits, logPrefix = "") {
+  core.warning(`${logPrefix}bundle fetch failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
+  core.info(`${logPrefix}fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
+  // Use --filter=blob:none only when the local repo is already shallow or sparse —
+  // in a full clone we already have all blobs and must not convert the repo to a
+  // partial clone (which would trigger lazy blob fetches on later operations).
+  const prereqGitOpts = { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts };
+  const useBlobFilter = await isShallowOrSparseCheckout(exec, prereqGitOpts);
+  const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...prerequisiteCommits] : ["fetch", "origin", ...prerequisiteCommits];
+  if (useBlobFilter) {
+    core.info(`${logPrefix}using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)`);
+  }
+  await exec.exec("git", prerequisiteFetchArgs, prereqGitOpts);
+  core.info(`${logPrefix}fetched prerequisite commits from origin successfully`);
+}
+
 /**
  * Measure the expanded blob size of files changed by the applied agent commits.
  * Deleted files contribute zero bytes because no new content is being introduced.
@@ -1026,23 +1042,54 @@ async function main(config = {}) {
             // (e.g. when the commit is on a ref not in the fetch refspec).
             const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorOutput);
             if (prerequisiteCommits.length > 0) {
-              core.warning(`Bundle fetch failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
-              core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
-              // Use --filter=blob:none only when the local repo is already shallow or sparse —
-              // in a full clone we already have all blobs and must not convert the repo to a
-              // partial clone (which would trigger lazy blob fetches on later operations).
-              const prereqGitOpts = { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts };
-              const useBlobFilter = await isShallowOrSparseCheckout(exec, prereqGitOpts);
-              const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...prerequisiteCommits] : ["fetch", "origin", ...prerequisiteCommits];
-              if (useBlobFilter) {
-                core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
-              }
-              await exec.exec("git", prerequisiteFetchArgs, prereqGitOpts);
-              core.info("Fetched prerequisite commits from origin successfully");
+              await fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, prerequisiteCommits);
               await exec.exec("git", ["fetch", bundleFilePath, bundleFetchRef], baseGitOpts);
               core.info("Bundle fetch retry succeeded after prerequisite recovery");
             } else {
-              throw new Error(`Failed to fetch bundle: ${initialFetchErrorOutput}`);
+              core.warning(`Bundle fetch from refs/heads/${branchName} failed: ${initialFetchErrorOutput}; resolving source ref from bundle heads`);
+              const { stdout: bundleHeadsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath], baseGitOpts);
+              const bundleHeads = bundleHeadsOutput
+                .split("\n")
+                .map(line => line.trim().split(/\s+/))
+                // Bundles produced here advertise SHA-1 object IDs; reject malformed entries.
+                .filter(parts => parts.length === 2 && /^[0-9a-f]{40}$/.test(parts[0]) && parts[1]);
+              const branchRefChecks = await Promise.all(
+                bundleHeads
+                  .filter(([, ref]) => ref.startsWith("refs/heads/"))
+                  .map(async ([, ref]) => ({
+                    ref,
+                    isValid: (await exec.getExecOutput("git", ["check-ref-format", ref], { ...baseGitOpts, ignoreReturnCode: true })).exitCode === 0,
+                  }))
+              );
+              const branchRefs = branchRefChecks.filter(({ isValid }) => isValid).map(({ ref }) => ref);
+
+              let bundleSourceRef;
+              if (branchRefs.length === 1) {
+                bundleSourceRef = branchRefs[0];
+              } else if (branchRefs.length === 0) {
+                const headRefs = bundleHeads.filter(([, ref]) => ref === "HEAD");
+                if (headRefs.length !== 1) {
+                  throw new Error(`Failed to resolve bundle source ref from list-heads: expected exactly 1 HEAD entry, found ${headRefs.length}`);
+                }
+                bundleSourceRef = "HEAD";
+              } else {
+                throw new Error(`Failed to resolve bundle source ref from list-heads: expected exactly 1 refs/heads entry, found ${branchRefs.length}`);
+              }
+
+              core.info(`Fetching resolved bundle source ${bundleSourceRef} into ${bundleRef}`);
+              const resolvedBundleFetchRef = `${bundleSourceRef}:${bundleRef}`;
+              const resolvedBundleFetch = await exec.getExecOutput("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], { ...baseGitOpts, ignoreReturnCode: true });
+              if (resolvedBundleFetch.exitCode !== 0) {
+                const resolvedFetchErrorOutput = resolvedBundleFetch.stderr || `exit code ${resolvedBundleFetch.exitCode}`;
+                const resolvedPrerequisiteCommits = extractBundlePrerequisiteCommits(resolvedFetchErrorOutput);
+                if (resolvedPrerequisiteCommits.length === 0) {
+                  throw new Error(`Failed to fetch resolved bundle source ${bundleSourceRef}: ${resolvedFetchErrorOutput}`);
+                }
+
+                await fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, resolvedPrerequisiteCommits, "[resolved] ");
+                await exec.exec("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], baseGitOpts);
+                core.info("Resolved bundle fetch retry succeeded after prerequisite recovery");
+              }
             }
           }
           core.info(`Fetched bundle to ${bundleRef}`);
