@@ -69,7 +69,7 @@ func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbo
 	// are treated consistently across test and automation environments, while
 	// IsRunningInCI centralizes the broader CI environment detection logic.
 	if envutil.GetBoolFromEnv("GO_TEST_MODE", false, interactiveLog) || IsRunningInCI() {
-		return errors.New("interactive workflow creation cannot be used in automated tests or CI environments")
+		return errors.New("interactive workflow creation is unavailable in automated tests or CI environments. Expected an interactive terminal. Example: unset CI and run the command from a terminal")
 	}
 
 	if verbose {
@@ -400,7 +400,7 @@ func promptNonInteractiveSelect(scanner *bufio.Scanner, title string, options []
 	// Accept a numeric index
 	if idx, err := strconv.Atoi(input); err == nil {
 		if idx < 1 || idx > len(options) {
-			return "", fmt.Errorf("selection out of range (must be 1-%d)", len(options))
+			return "", fmt.Errorf("selection is out of range. Expected a number from 1 to %d. Example: 1", len(options))
 		}
 		return options[idx-1].value, nil
 	}
@@ -411,7 +411,7 @@ func promptNonInteractiveSelect(scanner *bufio.Scanner, title string, options []
 			return opt.value, nil
 		}
 	}
-	return "", fmt.Errorf("invalid selection %q", input)
+	return "", fmt.Errorf("selection %q is not available. Expected a displayed option name or number. Example: 1", input)
 }
 
 // promptNonInteractiveMultiSelect prints a numbered list and reads comma-separated selections.
@@ -453,7 +453,7 @@ func promptNonInteractiveMultiSelect(scanner *bufio.Scanner, title string, optio
 		// Try numeric index
 		if idx, err := strconv.Atoi(tok); err == nil {
 			if idx < 1 || idx > len(options) {
-				return nil, fmt.Errorf("selection %d out of range (must be 1-%d)", idx, len(options))
+				return nil, fmt.Errorf("selection %d is out of range. Expected a number from 1 to %d. Example: 1", idx, len(options))
 			}
 			val := options[idx-1].value
 			if _, dup := seen[val]; !dup {
@@ -472,7 +472,7 @@ func promptNonInteractiveMultiSelect(scanner *bufio.Scanner, title string, optio
 			continue
 		}
 
-		return nil, fmt.Errorf("unknown option %q", tok)
+		return nil, fmt.Errorf("option %q is not available. Expected a displayed option name or number. Example: 1", tok)
 	}
 	return selected, nil
 }

@@ -146,19 +146,19 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 		return errors.New("createPR and createIssue are mutually exclusive")
 	}
 	if cbs.SearchFn == nil {
-		return errors.New("orgRunCallbacks.SearchFn is required")
+		return errors.New("organization search callback is not configured. Expected orgRunCallbacks.SearchFn to search organization repositories. Example: orgRunCallbacks{SearchFn: searchFn}")
 	}
 	if cbs.ReportFn == nil {
-		return errors.New("orgRunCallbacks.ReportFn is required")
+		return errors.New("organization report callback is not configured. Expected orgRunCallbacks.ReportFn to display the run summary. Example: orgRunCallbacks{ReportFn: reportFn}")
 	}
 	if createPR && cbs.ApplyFn == nil {
-		return errors.New("orgRunCallbacks.ApplyFn is required when createPR is true")
+		return errors.New("pull request callback is not configured. Expected orgRunCallbacks.ApplyFn when createPR is enabled. Example: orgRunCallbacks{ApplyFn: applyFn}")
 	}
 	if createIssue && cbs.IssueFn == nil {
-		return errors.New("orgRunCallbacks.IssueFn is required when createIssue is true")
+		return errors.New("issue callback is not configured. Expected orgRunCallbacks.IssueFn when createIssue is enabled. Example: orgRunCallbacks{IssueFn: issueFn}")
 	}
 	if (createPR || createIssue) && !cbs.AutoYes && isRunningInCIFn() {
-		return errors.New("confirmation is required for --org create operations in CI; re-run with --yes to auto-accept")
+		return errors.New("organization create operations in CI need confirmation. Expected --yes to auto-accept in non-interactive environments. Example: gh aw run --org octo-org --yes")
 	}
 
 	// Handle Ctrl-C / SIGTERM so an interrupted run still renders the report

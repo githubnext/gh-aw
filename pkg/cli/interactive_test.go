@@ -438,9 +438,12 @@ func TestCreateWorkflowInteractively_InAutomatedEnvironment(t *testing.T) {
 		t.Error("Expected error in automated environment, got nil")
 	}
 
-	expectedErrMsg := "interactive workflow creation cannot be used in automated tests or CI environments"
+	expectedErrMsg := "interactive workflow creation is unavailable in automated tests or CI environments"
 	if !strings.Contains(err.Error(), expectedErrMsg) {
 		t.Errorf("Expected error containing %q, got %q", expectedErrMsg, err.Error())
+	}
+	if !strings.Contains(err.Error(), "Expected an interactive terminal") || !strings.Contains(err.Error(), "Example: unset CI") {
+		t.Errorf("Expected actionable error message, got %q", err.Error())
 	}
 }
 

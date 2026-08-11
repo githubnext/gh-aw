@@ -76,7 +76,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	// are treated consistently across test and automation environments, while
 	// IsRunningInCI centralizes the broader CI environment detection logic.
 	if envutil.GetBoolFromEnv("GO_TEST_MODE", false, addInteractiveLog) || IsRunningInCI() {
-		return errors.New("interactive add cannot be used in automated tests or CI environments")
+		return errors.New("interactive add is unavailable in automated tests or CI environments. Expected an interactive terminal. Example: unset CI and run the command from a terminal")
 	}
 
 	// Set context on the config
@@ -248,11 +248,11 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 				return nil, nil, fmt.Errorf("resolved workflow at position %d from %q is nil", i+1, workflowSpecsForError)
 			}
 			if rw.Spec == nil {
-				return nil, nil, fmt.Errorf("resolved workflow at position %d from %q is missing its specification", i+1, workflowSpecsForError)
+				return nil, nil, fmt.Errorf("resolved workflow at position %d from %q has no specification. Expected a resolved workflow specification. Example: github/gh-aw/example-workflow", i+1, workflowSpecsForError)
 			}
 			workflowName := strings.TrimSpace(rw.Spec.WorkflowName)
 			if workflowName == "" {
-				return nil, nil, fmt.Errorf("resolved workflow at position %d from %q is missing its workflow name", i+1, workflowSpecsForError)
+				return nil, nil, fmt.Errorf("resolved workflow at position %d from %q has no workflow name. Expected a named resolved workflow. Example: github/gh-aw/example-workflow", i+1, workflowSpecsForError)
 			}
 			if rw.IsActionWorkflow {
 				// Raw GitHub Actions YAML files are installed as-is; no .lock.yml is produced.
@@ -293,11 +293,11 @@ func (c *AddInteractiveConfig) workflowNamesForInteractiveAdd() ([]string, error
 				return nil, fmt.Errorf("resolved manifest workflow at position %d from %q is nil", i+1, workflowSpecsForError)
 			}
 			if resolvedWorkflow.Spec == nil {
-				return nil, fmt.Errorf("resolved manifest workflow at position %d from %q is missing its specification", i+1, workflowSpecsForError)
+				return nil, fmt.Errorf("resolved manifest workflow at position %d from %q has no specification. Expected a resolved workflow specification. Example: github/gh-aw/example-workflow", i+1, workflowSpecsForError)
 			}
 			workflowName := strings.TrimSpace(resolvedWorkflow.Spec.WorkflowName)
 			if workflowName == "" {
-				return nil, fmt.Errorf("resolved manifest workflow at position %d from %q is missing its workflow name", i+1, workflowSpecsForError)
+				return nil, fmt.Errorf("resolved manifest workflow at position %d from %q has no workflow name. Expected a named resolved workflow. Example: github/gh-aw/example-workflow", i+1, workflowSpecsForError)
 			}
 			workflowNames = append(workflowNames, workflowName)
 		}

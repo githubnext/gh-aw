@@ -50,7 +50,7 @@ analyzes their data, and produces a diff showing:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			baseRunID, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
-				return fmt.Errorf("invalid base run ID %q: must be a numeric run ID", args[0])
+				return fmt.Errorf("base run ID %q is not numeric. Expected a numeric GitHub Actions run ID. Example: gh aw audit diff 12345 12346", args[0])
 			}
 
 			compareRunIDs := make([]int64, 0, len(args)-1)
@@ -58,13 +58,13 @@ analyzes their data, and produces a diff showing:
 			for _, arg := range args[1:] {
 				id, err := strconv.ParseInt(arg, 10, 64)
 				if err != nil {
-					return fmt.Errorf("invalid run ID %q: must be a numeric run ID", arg)
+					return fmt.Errorf("comparison run ID %q is not numeric. Expected a numeric GitHub Actions run ID. Example: gh aw audit diff 12345 12346", arg)
 				}
 				if id == baseRunID {
-					return fmt.Errorf("comparison run ID %d is the same as the base run ID: cannot diff a run against itself", id)
+					return fmt.Errorf("comparison run ID %d matches the base run ID. Expected a different run ID for comparison. Example: gh aw audit diff 12345 12346", id)
 				}
 				if seen[id] {
-					return fmt.Errorf("duplicate comparison run ID %d: each run ID must appear only once", id)
+					return fmt.Errorf("comparison run ID %d appears more than once. Expected each comparison run ID once. Example: gh aw audit diff 12345 12346", id)
 				}
 				seen[id] = true
 				compareRunIDs = append(compareRunIDs, id)
@@ -81,7 +81,7 @@ analyzes their data, and produces a diff showing:
 			if repoFlag != "" {
 				parts := strings.SplitN(repoFlag, "/", 2)
 				if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-					return fmt.Errorf("invalid repository format '%s': expected 'owner/repo'", repoFlag)
+					return fmt.Errorf("repository %q is not in owner/repo format. Expected an owner and repository name separated by '/'. Example: --repo github/gh-aw", repoFlag)
 				}
 				owner = parts[0]
 				repo = parts[1]

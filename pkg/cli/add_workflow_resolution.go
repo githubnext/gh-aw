@@ -126,11 +126,11 @@ type specResolutionResult struct {
 
 func validateResolveWorkflowsInput(workflows []string) error {
 	if len(workflows) == 0 {
-		return errors.New("at least one workflow name is required")
+		return errors.New("no workflow names were supplied. Expected at least one workflow name. Example: gh aw add github/gh-aw/example-workflow")
 	}
 	for i, workflow := range workflows {
 		if workflow == "" {
-			return fmt.Errorf("workflow name cannot be empty (workflow %d)", i+1)
+			return fmt.Errorf("workflow name at position %d is empty. Expected a workflow name. Example: github/gh-aw/example-workflow", i+1)
 		}
 	}
 	return nil
@@ -260,7 +260,7 @@ func validateCurrentRepositorySpecs(parsedSpecs []*WorkflowSpec) error {
 			continue
 		}
 		if spec.RepoSlug == currentRepoSlug {
-			return fmt.Errorf("cannot add workflows from the current repository (%s). The 'add' command is for installing workflows from other repositories", currentRepoSlug)
+			return fmt.Errorf("workflow source %q is the current repository. Expected a workflow from another repository. Example: gh aw add github/gh-aw/example-workflow", currentRepoSlug)
 		}
 	}
 	return nil
@@ -369,7 +369,7 @@ func resolveStandardWorkflow(spec, resolvedSpec *WorkflowSpec, fetched *FetchedW
 	}
 
 	if ExtractWorkflowPrivate(content) {
-		return nil, fmt.Errorf("workflow '%s' is private and cannot be added to other repositories", spec.String())
+		return nil, fmt.Errorf("workflow %q is private. Expected a workflow that can be added to another repository. Example: set private: false before running gh aw add", spec.String())
 	}
 
 	workflowHasDispatch := checkWorkflowHasDispatchFromContent(content)
@@ -408,7 +408,7 @@ func validateManifestWorkflowPrivateSetting(spec, resolvedSpec *WorkflowSpec, co
 	}
 	manifestPath := joinRepositoryPackagePath(spec.PackagePath, repositoryPackageManifestFileName)
 	return fmt.Errorf(
-		"invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added",
+		"agentic workflow manifest %q sets workflow %q to private: true. Expected an installable workflow with private: false. Example:\nprivate: false",
 		manifestPath,
 		resolvedSpec.WorkflowPath,
 	)
