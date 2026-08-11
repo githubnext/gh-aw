@@ -124,3 +124,23 @@ func TestValidateDockerImageRefAcceptsCommonReferences(t *testing.T) {
 		})
 	}
 }
+
+func TestPinnedScannerImagesUseValidDockerReferences(t *testing.T) {
+	for _, imageRef := range []string{
+		PoutineImage,
+		RunnerGuardImage,
+		GrantImage,
+	} {
+		t.Run(imageRef, func(t *testing.T) {
+			validated, err := validateDockerImageRef(imageRef)
+			require.NoError(t, err)
+			require.Equal(t, imageRef, validated)
+		})
+	}
+}
+
+func TestGrantContainerPolicyPathIsValidContainerMountPath(t *testing.T) {
+	validated, err := validateContainerMountPath(grantContainerPolicyPath)
+	require.NoError(t, err)
+	require.Equal(t, grantContainerPolicyPath, validated)
+}
