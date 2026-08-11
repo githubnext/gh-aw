@@ -130,7 +130,11 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 	shouldLogProgress := IsRunningInCI() || opts.verbose
 
 	for _, name := range names {
-		args := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", opts.outputDir}
+		if filepath.Base(name) != name {
+			return fmt.Errorf("invalid artifact name %q", name)
+		}
+		artifactDir := filepath.Join(opts.outputDir, name)
+		args := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", artifactDir}
 		if repoFlag != "" {
 			args = append(args, "-R", repoFlag)
 		}
@@ -184,7 +188,7 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 			continue
 		}
 
-		retryArgs := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", opts.outputDir}
+		retryArgs := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", filepath.Join(opts.outputDir, name)}
 		if repoFlag != "" {
 			retryArgs = append(retryArgs, "-R", repoFlag)
 		}

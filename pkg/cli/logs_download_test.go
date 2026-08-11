@@ -328,7 +328,8 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 		os.Stderr = originalStderr
 	})
 
-	err = downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: t.TempDir()}, []string{"usage"})
+	outputDir := t.TempDir()
+	err = downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: outputDir}, []string{"usage"})
 	require.NoError(t, err)
 
 	require.NoError(t, writer.Close())
@@ -339,6 +340,48 @@ func TestDownloadArtifactsByName_LogsArtifactNamesInCI(t *testing.T) {
 	argsLog, err := os.ReadFile(argsLogPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(argsLog), "run download 12345 --name usage")
+	assert.Contains(t, string(argsLog), "--dir "+filepath.Join(outputDir, "usage"))
+}
+
+func TestDownloadArtifactsByName_IsolatesArtifactExtraction(t *testing.T) {
+	fakeBinDir := testutil.TempDir(t, "fake-gh-*")
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	fakeGHScript := `#!/bin/sh
+name=""
+dir=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --name) name="$2"; shift 2 ;;
+    --dir) dir="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$dir"
+if [ -e "$dir/shared.json" ]; then
+  exit 1
+fi
+printf '%s' "$name" > "$dir/shared.json"
+if [ "$name" = "agent" ]; then
+  mkdir -p "$dir/mcp-logs" "$dir/sandbox/firewall/logs"
+  printf '%s' '{}' > "$dir/mcp-logs/rpc-messages.jsonl"
+  printf '%s' 'request' > "$dir/sandbox/firewall/logs/access.log"
+fi
+`
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	outputDir := t.TempDir()
+	err := downloadArtifactsByName(
+		context.Background(),
+		downloadArtifactsOptions{runID: 12345, outputDir: outputDir},
+		[]string{"usage", "agent"},
+	)
+	require.NoError(t, err)
+
+	assert.FileExists(t, filepath.Join(outputDir, "usage", "shared.json"))
+	assert.FileExists(t, filepath.Join(outputDir, "agent", "shared.json"))
+	assert.FileExists(t, filepath.Join(outputDir, "agent", "mcp-logs", "rpc-messages.jsonl"))
+	assert.FileExists(t, filepath.Join(outputDir, "agent", "sandbox", "firewall", "logs", "access.log"))
 }
 
 func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
@@ -373,9 +416,9 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 		"    fi\n" +
 		"    shift\n" +
 		"  done\n" +
-		"  mkdir -p \"$dir/$name\"\n" +
-		"  printf '%s' '{\"engine_id\":\"claude\"}' > \"$dir/$name/aw_info.json\"\n" +
-		"  : > \"$dir/.fallback-download-$name\"\n" +
+		"  mkdir -p \"$dir\"\n" +
+		"  printf '%s' '{\"engine_id\":\"claude\"}' > \"$dir/aw_info.json\"\n" +
+		"  : > \"$(dirname \"$dir\")/.fallback-download-$name\"\n" +
 		"  exit 0\n" +
 		"fi\n" +
 		"exit 1\n"
@@ -429,8 +472,8 @@ func TestDownloadRunArtifactsFallbackWhenListFails(t *testing.T) {
 		"    shift\n" +
 		"  done\n" +
 		"  if [ \"$name\" = \"usage\" ]; then\n" +
-		"    mkdir -p \"$dir/$name\"\n" +
-		"    printf '%s' '{\"tokens\":1}' > \"$dir/$name/usage.jsonl\"\n" +
+		"    mkdir -p \"$dir\"\n" +
+		"    printf '%s' '{\"tokens\":1}' > \"$dir/usage.jsonl\"\n" +
 		"  fi\n" +
 		"  exit 0\n" +
 		"fi\n" +
