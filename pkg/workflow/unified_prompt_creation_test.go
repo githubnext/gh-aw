@@ -3,15 +3,118 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type testPromptRenderConfig struct {
+	Items []struct {
+		ContentEnvVar   string `json:"content_env"`
+		File            string `json:"file"`
+		ConditionEnvVar string `json:"condition_env"`
+	} `json:"items"`
+}
+
+func promptRenderPlan(t *testing.T, output string) string {
+	t.Helper()
+
+	const configPrefix = "GH_AW_PROMPT_CONFIG: "
+	configStart := strings.Index(output, configPrefix)
+	require.NotEqual(t, -1, configStart, "Prompt render config should be present")
+	configLine := output[configStart+len(configPrefix):]
+	configLine, _, _ = strings.Cut(configLine, "\n")
+	configJSON, err := strconv.Unquote(configLine)
+	require.NoError(t, err)
+
+	var config testPromptRenderConfig
+	require.NoError(t, json.Unmarshal([]byte(configJSON), &config))
+
+	var plan strings.Builder
+	for _, item := range config.Items {
+		if item.File != "" {
+			plan.WriteString(item.File)
+			plan.WriteByte('\n')
+			continue
+		}
+		prefix := item.ContentEnvVar + ": "
+		valueStart := strings.Index(output, prefix)
+		require.NotEqual(t, -1, valueStart, "Prompt content variable %s should be present", item.ContentEnvVar)
+		valueLine := output[valueStart+len(prefix):]
+		valueLine, _, _ = strings.Cut(valueLine, "\n")
+		value, unquoteErr := strconv.Unquote(valueLine)
+		require.NoError(t, unquoteErr)
+		plan.WriteString(value)
+	}
+	return plan.String()
+}
+
+func TestGenerateUnifiedPromptCreationStep_TreatsUserContentAsData(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{ParsedTools: NewTools(map[string]any{})}
+	payloads := []string{
+		"$(touch /tmp/command-substitution)",
+		"`touch /tmp/backtick`",
+		"${PATH}; rm -rf /",
+		"${{ github.event.issue.title }}",
+		"\"; process.exit(1); //",
+		"'; require('child_process').execSync('false'); //",
+		"line one\nGH_AW_PROMPT_deadbeefdeadbeef_EOF\ntouch /tmp/heredoc\nline four",
+		"workflow command ::set-output name=x::value",
+		"yaml\n        run: injected\n      - uses: attacker/action@main",
+		"Unicode: 雪man ☃️ café",
+	}
+
+	var output strings.Builder
+	compiler.generateUnifiedPromptCreationStep(&output, nil, payloads, nil, data)
+	generated := output.String()
+
+	assert.NotRegexp(t, `(?m)^        run:`, generated, "Prompt creation must not emit a shell step")
+	assert.NotContains(t, generated, "cat <<", "Prompt creation must not emit heredocs")
+	assert.NotContains(t, generated, "create_prompt_first.sh")
+	assert.Contains(t, generated, "create_prompt.cjs")
+	assert.Contains(t, generated, "await main(core)")
+
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Uses string            `yaml:"uses"`
+				Env  map[string]string `yaml:"env"`
+				With map[string]string `yaml:"with"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte("jobs:\n  test:\n    steps:\n"+generated), &workflow))
+	require.Len(t, workflow.Jobs["test"].Steps, 1)
+	step := workflow.Jobs["test"].Steps[0]
+	assert.Contains(t, step.Uses, "actions/github-script@")
+
+	script := step.With["script"]
+	assert.NotContains(t, script, "${{", "GitHub expressions must not enter JavaScript source")
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/actions", step.Env["GH_AW_ACTIONS_DIR"])
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt", step.Env["GH_AW_PROMPT"])
+	for _, payload := range payloads {
+		assert.NotContains(t, script, payload, "User-controlled content must not enter JavaScript source")
+	}
+
+	var config struct {
+		Items []struct {
+			ContentEnv string `json:"content_env"`
+		} `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(step.Env["GH_AW_PROMPT_CONFIG"]), &config))
+	require.Len(t, config.Items, len(payloads))
+	for i, item := range config.Items {
+		assert.Equal(t, payloads[i]+"\n", step.Env[item.ContentEnv])
+	}
+}
 
 // TestGenerateUnifiedPromptCreationStep_OrderingBuiltinFirst tests that built-in prompts
 // are prepended (written first) before user prompt content
@@ -41,12 +144,13 @@ func TestGenerateUnifiedPromptCreationStep_OrderingBuiltinFirst(t *testing.T) {
 	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
 	// Find positions of different prompt sections in the output
-	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
-	playwrightPos := strings.Index(output, "playwright_prompt.md")
-	safeOutputsPos := strings.Index(output, "safe_outputs_prompt.md")
-	userPromptPos := strings.Index(output, "# User Prompt")
+	tempFolderPos := strings.Index(plan, "temp_folder_prompt.md")
+	playwrightPos := strings.Index(plan, "playwright_prompt.md")
+	safeOutputsPos := strings.Index(plan, "safe_outputs_prompt.md")
+	userPromptPos := strings.Index(plan, "# User Prompt")
 
 	// Verify all sections are present
 	require.NotEqual(t, -1, tempFolderPos, "Temp folder prompt should be present")
@@ -92,8 +196,8 @@ func TestGenerateUnifiedPromptCreationStep_SubstitutionWithBuiltinExpressions(t 
 
 	// Verify environment variables section comes before run section
 	envPos := strings.Index(output, "env:")
-	runPos := strings.Index(output, "run: |")
-	assert.Less(t, envPos, runPos, "env section should come before run section")
+	withPos := strings.Index(output, "with:")
+	assert.Less(t, envPos, withPos, "env section should come before action inputs")
 }
 
 // TestGenerateUnifiedPromptCreationStep_SubstitutionWithUserExpressions tests that
@@ -145,6 +249,7 @@ func TestGenerateUnifiedPromptCreationStep_SubstitutionWithUserExpressions(t *te
 	// Verify substitution step is generated
 	substOutput := substYaml.String()
 	assert.Contains(t, substOutput, "Substitute placeholders", "Should have placeholder substitution step")
+	assert.Contains(t, substOutput, "GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt")
 }
 
 // TestGenerateUnifiedPromptCreationStep_MultipleUserChunks tests that multiple
@@ -174,22 +279,16 @@ func TestGenerateUnifiedPromptCreationStep_MultipleUserChunks(t *testing.T) {
 	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
-	// Count GH_AW_PROMPT_*_EOF markers using regex (delimiters are randomized per compilation).
-	// The compiler groups all concatenations into as few heredoc blocks as possible to minimise
-	// the number of delimiter lines that change in the diff when the user prompt changes.
-	// For this test (only file-based built-in sections, no inline sections):
-	// - 2 for the <system> opening tag (its own block, before the first file section)
-	// - 2 for a single merged block containing </system> + all user chunks
-	promptDelimRE := regexp.MustCompile(`GH_AW_PROMPT_[0-9a-f]{16}_EOF`)
-	eofCount := len(promptDelimRE.FindAllString(output, -1))
-	expectedEOFCount := 4 // 2 for <system>, 2 for </system> merged with all user chunks
-	assert.Equal(t, expectedEOFCount, eofCount, "Should have correct number of GH_AW_PROMPT_*_EOF markers")
+	assert.NotContains(t, output, "<<", "Prompt creation should not use heredocs")
+	assert.NotContains(t, output, "run:", "Prompt creation should not use a shell step")
+	assert.Contains(t, output, "uses: actions/github-script@", "Prompt creation should use actions/github-script")
 
 	// Verify all user chunks are present and in order
-	part1Pos := strings.Index(output, "# Part 1")
-	part2Pos := strings.Index(output, "# Part 2")
-	part3Pos := strings.Index(output, "# Part 3")
+	part1Pos := strings.Index(plan, "# Part 1")
+	part2Pos := strings.Index(plan, "# Part 2")
+	part3Pos := strings.Index(plan, "# Part 3")
 
 	require.NotEqual(t, -1, part1Pos, "Part 1 should be present")
 	require.NotEqual(t, -1, part2Pos, "Part 2 should be present")
@@ -199,13 +298,13 @@ func TestGenerateUnifiedPromptCreationStep_MultipleUserChunks(t *testing.T) {
 	assert.Less(t, part2Pos, part3Pos, "Part 2 should come before Part 3")
 
 	// Verify built-in prompt comes before all user chunks
-	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
+	tempFolderPos := strings.Index(plan, "temp_folder_prompt.md")
 	require.NotEqual(t, -1, tempFolderPos, "Temp folder prompt should be present")
 	assert.Less(t, tempFolderPos, part1Pos, "Built-in prompt should come before user prompt chunks")
 
 	// Verify system tags wrap built-in prompts
-	systemOpenPos := strings.Index(output, "<system>")
-	systemClosePos := strings.Index(output, "</system>")
+	systemOpenPos := strings.Index(plan, "<system>")
+	systemClosePos := strings.Index(plan, "</system>")
 	require.NotEqual(t, -1, systemOpenPos, "Opening system tag should be present")
 	require.NotEqual(t, -1, systemClosePos, "Closing system tag should be present")
 	assert.Less(t, systemOpenPos, tempFolderPos, "System tag should open before built-in prompts")
@@ -258,12 +357,12 @@ func TestGenerateUnifiedPromptCreationStep_CombinedExpressions(t *testing.T) {
 	assert.Contains(t, output, "GH_AW_GITHUB_WORKSPACE:", "Should have user prompt env var")
 
 	// Verify all environment variables are sorted (after GH_AW_PROMPT)
-	envSection := output[strings.Index(output, "env:"):strings.Index(output, "run: |")]
+	envSection := output[strings.Index(output, "env:"):strings.Index(output, "with:")]
 	lines := strings.Split(envSection, "\n")
 
 	var envVarNames []string
 	for _, line := range lines {
-		if strings.Contains(line, "GH_AW_") && !strings.Contains(line, "GH_AW_PROMPT:") && !strings.Contains(line, "GH_AW_SAFE_OUTPUTS:") {
+		if strings.Contains(line, "GH_AW_") && !strings.Contains(line, "GH_AW_PROMPT:") && !strings.Contains(line, "GH_AW_SAFE_OUTPUTS:") && !strings.Contains(line, "GH_AW_PROMPT_") {
 			// Extract variable name
 			parts := strings.SplitN(strings.TrimSpace(line), ":", 2)
 			if len(parts) == 2 {
@@ -324,10 +423,9 @@ func TestGenerateUnifiedPromptCreationStep_NoAppendSteps(t *testing.T) {
 		"Should not have old 'Append prompt (part N)' steps")
 }
 
-// TestGenerateUnifiedPromptCreationStep_UsesGroupedRedirect tests that all prompt
-// content is written inside a grouped redirect ({ ... } > "$GH_AW_PROMPT") rather
-// than individual > / >> redirects per command (fixes SC2129).
-func TestGenerateUnifiedPromptCreationStep_UsesGroupedRedirect(t *testing.T) {
+// TestGenerateUnifiedPromptCreationStep_UsesJavaScriptRenderer verifies that
+// prompt content is rendered by a static JavaScript action with no shell syntax.
+func TestGenerateUnifiedPromptCreationStep_UsesJavaScriptRenderer(t *testing.T) {
 	compiler := &Compiler{
 		trialMode:            false,
 		trialLogicalRepoSlug: "",
@@ -345,19 +443,13 @@ func TestGenerateUnifiedPromptCreationStep_UsesGroupedRedirect(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify the grouped redirect pattern is used (SC2129 fix)
-	assert.Contains(t, output, `} > "$GH_AW_PROMPT"`, "Should use grouped redirect to avoid SC2129")
-
-	// Verify no individual >> redirects to the prompt file exist
-	assert.NotContains(t, output, `>> "$GH_AW_PROMPT"`, "Should not use individual >> redirects (SC2129)")
-
-	// Verify no heredoc or file cat commands have individual > redirects (only the group closer should)
-	assert.NotContains(t, output, `' > "$GH_AW_PROMPT"`, "Heredoc cat commands should not have individual > redirects")
-	assert.NotContains(t, output, `.md\" > "$GH_AW_PROMPT"`, "File cat commands should not have individual > redirects")
-
-	// Verify cat commands inside group have no redirect (use regex since delimiter is randomized)
-	promptDelimRE := regexp.MustCompile(`cat << 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'\n`)
-	require.True(t, promptDelimRE.MatchString(output), "Heredoc cat commands inside group should have no redirect")
+	assert.Contains(t, output, "uses: actions/github-script@")
+	assert.Contains(t, output, "create_prompt.cjs")
+	assert.Contains(t, output, "GH_AW_PROMPT_CONFIG:")
+	assert.NotContains(t, output, "run:")
+	assert.NotContains(t, output, "cat ")
+	assert.NotContains(t, output, "<<")
+	assert.NotContains(t, output, "create_prompt_first.sh")
 }
 
 // TestGenerateUnifiedPromptCreationStep_SystemTags tests that built-in prompts
@@ -388,22 +480,23 @@ func TestGenerateUnifiedPromptCreationStep_SystemTags(t *testing.T) {
 	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
 	// Verify system tags are present
 	assert.Contains(t, output, "<system>", "Should have opening system tag")
 	assert.Contains(t, output, "</system>", "Should have closing system tag")
 
 	// Verify system tags wrap built-in content
-	systemOpenPos := strings.Index(output, "<system>")
-	systemClosePos := strings.Index(output, "</system>")
+	systemOpenPos := strings.Index(plan, "<system>")
+	systemClosePos := strings.Index(plan, "</system>")
 
 	// Find positions of built-in content
-	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
-	playwrightPos := strings.Index(output, "playwright_prompt.md")
-	safeOutputsPos := strings.Index(output, "safe_outputs_prompt.md")
+	tempFolderPos := strings.Index(plan, "temp_folder_prompt.md")
+	playwrightPos := strings.Index(plan, "playwright_prompt.md")
+	safeOutputsPos := strings.Index(plan, "safe_outputs_prompt.md")
 
 	// Find position of user content
-	userTaskPos := strings.Index(output, "# User Task")
+	userTaskPos := strings.Index(plan, "# User Task")
 
 	// Verify ordering: <system> -> built-in content -> </system> -> user content
 	require.NotEqual(t, -1, systemOpenPos, "Opening system tag should be present")
@@ -436,11 +529,12 @@ func TestGenerateUnifiedPromptCreationStep_EmptyUserPrompt(t *testing.T) {
 	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
 	// Verify built-in sections are still present
-	assert.Contains(t, output, "temp_folder_prompt.md", "Should have temp folder prompt")
-	assert.Contains(t, output, "<system>", "Should have system tag even with empty user prompt")
-	assert.Contains(t, output, "</system>", "Should close system tag even with empty user prompt")
+	assert.Contains(t, plan, "temp_folder_prompt.md", "Should have temp folder prompt")
+	assert.Contains(t, plan, "<system>", "Should have system tag even with empty user prompt")
+	assert.Contains(t, plan, "</system>", "Should close system tag even with empty user prompt")
 
 	// Verify the step was created
 	assert.Contains(t, output, "- name: Create prompt with built-in context")
@@ -491,14 +585,15 @@ func TestGenerateUnifiedPromptCreationStep_TrialMode(t *testing.T) {
 	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
 	// Verify trial mode content is present
 	assert.Contains(t, output, "test-org/test-repo", "Should contain trial repo slug")
 
 	// Verify it's within system tags
-	systemOpenPos := strings.Index(output, "<system>")
-	systemClosePos := strings.Index(output, "</system>")
-	trialModePos := strings.Index(output, "test-org/test-repo")
+	systemOpenPos := strings.Index(plan, "<system>")
+	systemClosePos := strings.Index(plan, "</system>")
+	trialModePos := strings.Index(plan, "test-org/test-repo")
 
 	require.NotEqual(t, -1, systemOpenPos, "Should have opening system tag")
 	require.NotEqual(t, -1, systemClosePos, "Should have closing system tag")
@@ -536,6 +631,7 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 	allExpressionMappings := compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
 	// Verify cache template file reference
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should reference cache template file")
@@ -551,11 +647,11 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 	assert.Contains(t, substOutput, "GH_AW_MEMORY_DIR: process.env.GH_AW_MEMORY_DIR", "Should have memory dir in substitution")
 
 	// Verify ordering within system tags
-	systemOpenPos := strings.Index(output, "<system>")
-	cachePos := strings.Index(output, "cache_memory_prompt.md")
-	repoPos := strings.Index(output, "repo_memory_prompt.md")
-	systemClosePos := strings.Index(output, "</system>")
-	userPos := strings.Index(output, "# User Task")
+	systemOpenPos := strings.Index(plan, "<system>")
+	cachePos := strings.Index(plan, "cache_memory_prompt.md")
+	repoPos := strings.Index(plan, "repo_memory_prompt.md")
+	systemClosePos := strings.Index(plan, "</system>")
+	userPos := strings.Index(plan, "# User Task")
 
 	assert.Less(t, systemOpenPos, cachePos, "Cache should be after system tag opens")
 	assert.Less(t, cachePos, repoPos, "Cache should come before repo memory")
@@ -563,7 +659,7 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 	assert.Less(t, systemClosePos, userPos, "User task should be after system tag closes")
 }
 
-// TestGenerateUnifiedPromptCreationStep_PRContextConditional tests that PR context uses shell conditions
+// TestGenerateUnifiedPromptCreationStep_PRContextConditional tests that PR context uses data-only conditions
 func TestGenerateUnifiedPromptCreationStep_PRContextConditional(t *testing.T) {
 	compiler := &Compiler{
 		trialMode:            false,
@@ -583,18 +679,19 @@ func TestGenerateUnifiedPromptCreationStep_PRContextConditional(t *testing.T) {
 	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
 	// Verify PR context is included with conditional
 	assert.Contains(t, output, "pr_context_prompt.md", "Should have PR context prompt file reference")
-	assert.Contains(t, output, "if [", "Should have shell conditional for PR context")
-	assert.Contains(t, output, "GITHUB_EVENT_NAME", "Should check event name in conditional")
-	assert.Contains(t, output, "GH_AW_IS_PR_COMMENT", "Should have PR comment check env var")
+	assert.Contains(t, output, `\"condition_env\":\"GH_AW_INCLUDE_PR_CONTEXT\"`, "Should reference a condition environment variable")
+	assert.Contains(t, output, "GH_AW_INCLUDE_PR_CONTEXT: ${{", "Should evaluate the condition as environment data")
+	assert.NotContains(t, output, "if [", "Should not use shell conditions")
 
 	// Verify it's within system tags
-	systemOpenPos := strings.Index(output, "<system>")
-	systemClosePos := strings.Index(output, "</system>")
-	prContextPos := strings.Index(output, "pr_context_prompt.md")
-	userPos := strings.Index(output, "# User Task")
+	systemOpenPos := strings.Index(plan, "<system>")
+	systemClosePos := strings.Index(plan, "</system>")
+	prContextPos := strings.Index(plan, "pr_context_prompt.md")
+	userPos := strings.Index(plan, "# User Task")
 
 	require.NotEqual(t, -1, prContextPos, "PR context should be present")
 	assert.Less(t, systemOpenPos, prContextPos, "PR context should be after system tag opens")
@@ -634,6 +731,7 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	allExpressionMappings := compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
 	// Verify all sections are present
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should have temp folder")
@@ -653,9 +751,9 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	assert.Contains(t, substOutput, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
 
 	// Verify all are within system tags and before user prompt
-	systemOpenPos := strings.Index(output, "<system>")
-	systemClosePos := strings.Index(output, "</system>")
-	userPos := strings.Index(output, "# User Task")
+	systemOpenPos := strings.Index(plan, "<system>")
+	systemClosePos := strings.Index(plan, "</system>")
+	userPos := strings.Index(plan, "# User Task")
 
 	require.NotEqual(t, -1, systemOpenPos, "Should have opening system tag")
 	require.NotEqual(t, -1, systemClosePos, "Should have closing system tag")
@@ -690,12 +788,12 @@ func TestGenerateUnifiedPromptCreationStep_EnvironmentVariableSorting(t *testing
 	output := yaml.String()
 
 	// Extract env var names
-	envSection := output[strings.Index(output, "env:"):strings.Index(output, "run: |")]
+	envSection := output[strings.Index(output, "env:"):strings.Index(output, "with:")]
 	lines := strings.Split(envSection, "\n")
 
 	var envVarNames []string
 	for _, line := range lines {
-		if strings.Contains(line, "GH_AW_") && !strings.Contains(line, "GH_AW_PROMPT:") && !strings.Contains(line, "GH_AW_SAFE_OUTPUTS:") {
+		if strings.Contains(line, "GH_AW_") && !strings.Contains(line, "GH_AW_PROMPT:") && !strings.Contains(line, "GH_AW_SAFE_OUTPUTS:") && !strings.Contains(line, "GH_AW_PROMPT_") {
 			parts := strings.SplitN(strings.TrimSpace(line), ":", 2)
 			if len(parts) == 2 {
 				envVarNames = append(envVarNames, parts[0])
@@ -737,6 +835,7 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
+	plan := promptRenderPlan(t, output)
 
 	// Verify all chunks are present
 	for i := range 10 {
@@ -747,7 +846,7 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 	// Verify chunks are in order
 	positions := make([]int, 10)
 	for i := range 10 {
-		positions[i] = strings.Index(output, fmt.Sprintf("# Section %d", i+1))
+		positions[i] = strings.Index(plan, fmt.Sprintf("# Section %d", i+1))
 		require.NotEqual(t, -1, positions[i], "Section %d should be present", i+1)
 	}
 
@@ -757,7 +856,7 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 	}
 
 	// Verify all chunks come after system tag closes
-	systemClosePos := strings.Index(output, "</system>")
+	systemClosePos := strings.Index(plan, "</system>")
 	for i := range 10 {
 		assert.Less(t, systemClosePos, positions[i],
 			"Section %d should come after system tag closes", i+1)
@@ -803,16 +902,17 @@ Actor: ${{ github.actor }}`
 	require.NoError(t, err, "Should read lock file")
 
 	lockStr := string(lockContent)
+	plan := promptRenderPlan(t, lockStr)
 
 	// Verify system tags are present
 	assert.Contains(t, lockStr, "<system>", "Lock file should contain opening system tag")
 	assert.Contains(t, lockStr, "</system>", "Lock file should contain closing system tag")
 
 	// Verify built-in prompts are within system tags
-	systemOpenPos := strings.Index(lockStr, "<system>")
-	systemClosePos := strings.Index(lockStr, "</system>")
-	tempFolderPos := strings.Index(lockStr, "temp_folder_prompt.md")
-	playwrightPos := strings.Index(lockStr, "playwright_prompt.md")
+	systemOpenPos := strings.Index(plan, "<system>")
+	systemClosePos := strings.Index(plan, "</system>")
+	tempFolderPos := strings.Index(plan, "temp_folder_prompt.md")
+	playwrightPos := strings.Index(plan, "playwright_prompt.md")
 
 	assert.Less(t, systemOpenPos, tempFolderPos, "Built-in prompts should be after system tag opens")
 	assert.Less(t, tempFolderPos, systemClosePos, "Built-in prompts should be before system tag closes")
@@ -821,7 +921,7 @@ Actor: ${{ github.actor }}`
 	// Verify user prompt is after system tags
 	// With runtime-import, the actual content is in the original workflow file
 	// The lock file should contain the runtime-import macro after system tags
-	runtimeImportPos := strings.Index(lockStr, "{{#runtime-import")
+	runtimeImportPos := strings.Index(plan, "{{#runtime-import")
 	assert.Greater(t, runtimeImportPos, -1, "Should contain runtime-import macro")
 	assert.Less(t, systemClosePos, runtimeImportPos, "Runtime-import macro should come after system tag closes")
 
@@ -855,6 +955,7 @@ Do something simple.`
 	require.NoError(t, err)
 
 	lockStr := string(lockContent)
+	plan := promptRenderPlan(t, lockStr)
 
 	// Even minimal workflow should have system tags
 	assert.Contains(t, lockStr, "<system>", "Minimal workflow should have system tags")
@@ -866,8 +967,8 @@ Do something simple.`
 	// User prompt should be after system tags
 	// With runtime-import, the actual content is in the original workflow file
 	// The lock file should contain the runtime-import macro after system tags
-	systemClosePos := strings.Index(lockStr, "</system>")
-	runtimeImportPos := strings.Index(lockStr, "{{#runtime-import")
+	systemClosePos := strings.Index(plan, "</system>")
+	runtimeImportPos := strings.Index(plan, "{{#runtime-import")
 	assert.Greater(t, runtimeImportPos, -1, "Should contain runtime-import macro")
 	assert.Less(t, systemClosePos, runtimeImportPos, "Runtime-import macro should be after system tags")
 }
@@ -900,11 +1001,12 @@ Manage issues based on comments.`
 	require.NoError(t, err)
 
 	lockStr := string(lockContent)
+	plan := promptRenderPlan(t, lockStr)
 
 	// Verify safe-outputs file reference is within system tags
-	systemOpenPos := strings.Index(lockStr, "<system>")
-	systemClosePos := strings.Index(lockStr, "</system>")
-	safeOutputsPos := strings.Index(lockStr, "safe_outputs_prompt.md")
+	systemOpenPos := strings.Index(plan, "<system>")
+	systemClosePos := strings.Index(plan, "</system>")
+	safeOutputsPos := strings.Index(plan, "safe_outputs_prompt.md")
 
 	require.NotEqual(t, -1, safeOutputsPos, "Should reference safe_outputs_prompt.md")
 	assert.Less(t, systemOpenPos, safeOutputsPos, "Safe outputs should be after system tag opens")

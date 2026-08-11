@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -18,9 +19,9 @@ type PromptSection struct {
 	Content string
 	// IsFile indicates if Content is a filename (true) or inline text (false)
 	IsFile bool
-	// ShellCondition is an optional bash condition (without 'if' keyword) to wrap this section
-	// Example: "${{ github.event_name == 'issue_comment' }}" becomes a shell condition
-	ShellCondition string
+	// ConditionEnvVar is an optional environment variable whose value must be "true"
+	// for this section to be included by the JavaScript prompt renderer.
+	ConditionEnvVar string
 	// EnvVars contains environment variables needed for expressions in this section
 	EnvVars map[string]string
 }
@@ -228,22 +229,16 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 
 	if hasCommentTriggers && needsCheckout && hasContentsRead {
 		unifiedPromptLog.Print("Adding PR context section with condition")
-		// Use shell condition for PR comment detection
-		// This checks for issue_comment, pull_request_review_comment, or pull_request_review events
-		// For issue_comment, we also need to check if it's on a PR (github.event.issue.pull_request != null)
-		// However, for simplicity in the unified step, we'll add an environment variable to check this
-		shellCondition := `[ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]`
-
-		// Add environment variable to check if issue_comment is on a PR
+		const conditionEnvVar = "GH_AW_INCLUDE_PR_CONTEXT"
 		envVars := map[string]string{
-			"GH_AW_IS_PR_COMMENT": "${{ github.event.issue.pull_request && 'true' || '' }}",
+			conditionEnvVar: "${{ (github.event_name == 'issue_comment' && github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review' }}",
 		}
 
 		sections = append(sections, PromptSection{
-			Content:        prContextPromptFile,
-			IsFile:         true,
-			ShellCondition: shellCondition,
-			EnvVars:        envVars,
+			Content:         prContextPromptFile,
+			IsFile:          true,
+			ConditionEnvVar: conditionEnvVar,
+			EnvVars:         envVars,
 		})
 
 		// When push_to_pull_request_branch is configured, add guidance to prefer it over
@@ -251,10 +246,10 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		if data.SafeOutputs != nil && data.SafeOutputs.PushToPullRequestBranch != nil {
 			unifiedPromptLog.Print("Adding push-to-PR-branch tool preference guidance for PR comment context")
 			sections = append(sections, PromptSection{
-				Content:        prContextPushToPRBranchGuidanceFile,
-				IsFile:         true,
-				ShellCondition: shellCondition,
-				EnvVars:        envVars,
+				Content:         prContextPushToPRBranchGuidanceFile,
+				IsFile:          true,
+				ConditionEnvVar: conditionEnvVar,
+				EnvVars:         envVars,
 			})
 		}
 	}
@@ -274,17 +269,6 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, builtinSections []PromptSection, userPromptChunks []string, expressionMappings []*ExpressionMapping, data *WorkflowData) []*ExpressionMapping {
 	unifiedPromptLog.Print("Generating unified prompt creation step")
 	unifiedPromptLog.Printf("Built-in sections: %d, User prompt chunks: %d", len(builtinSections), len(userPromptChunks))
-
-	// Derive the heredoc delimiter from the combined prompt content so it is identical
-	// across builds for the same workflow and changes only when the prompt text changes.
-	var promptContentForHash strings.Builder
-	for _, section := range builtinSections {
-		promptContentForHash.WriteString(section.Content)
-	}
-	for _, chunk := range userPromptChunks {
-		promptContentForHash.WriteString(chunk)
-	}
-	delimiter := GenerateHeredocDelimiterFromContent("PROMPT", promptContentForHash.String())
 
 	// Collect all environment variables from built-in sections and user prompt expressions
 	allEnvVars := make(map[string]string)
@@ -338,192 +322,111 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 		allExpressionMappings = append(allExpressionMappings, expressionMappingsMap[key])
 	}
 
-	// Generate the step with all environment variables
-	yaml.WriteString("      - name: Create prompt with built-in context\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	type promptRenderItem struct {
+		ContentEnvVar   string `json:"content_env,omitempty"`
+		File            string `json:"file,omitempty"`
+		ConditionEnvVar string `json:"condition_env,omitempty"`
+	}
+	type promptRenderConfig struct {
+		Items []promptRenderItem `json:"items"`
+	}
 
+	renderConfig := promptRenderConfig{}
+	renderContent := make(map[string]string)
+	contentIndex := 0
+	appendContent := func(content, conditionEnvVar string) {
+		envVar := fmt.Sprintf("GH_AW_PROMPT_CONTENT_%04d", contentIndex)
+		contentIndex++
+		renderContent[envVar] = content
+		renderConfig.Items = append(renderConfig.Items, promptRenderItem{
+			ContentEnvVar:   envVar,
+			ConditionEnvVar: conditionEnvVar,
+		})
+	}
+	appendFile := func(file, conditionEnvVar string) {
+		renderConfig.Items = append(renderConfig.Items, promptRenderItem{
+			File:            file,
+			ConditionEnvVar: conditionEnvVar,
+		})
+	}
+
+	if len(builtinSections) > 0 {
+		appendContent("<system>\n", "")
+	}
+	for _, section := range builtinSections {
+		if section.IsFile {
+			appendFile(section.Content, section.ConditionEnvVar)
+			continue
+		}
+		normalizedContent := stringutil.NormalizeLeadingWhitespace(section.Content)
+		cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
+		var content strings.Builder
+		for line := range strings.SplitSeq(cleanedContent, "\n") {
+			content.WriteString(line)
+			content.WriteByte('\n')
+		}
+		appendContent(content.String(), section.ConditionEnvVar)
+	}
+	if len(builtinSections) > 0 {
+		appendContent("</system>\n", "")
+	}
+
+	userBlankRun := 0
+	for chunkIdx, chunk := range userPromptChunks {
+		unifiedPromptLog.Printf("Preparing user prompt chunk %d/%d", chunkIdx+1, len(userPromptChunks))
+		if strings.HasPrefix(chunk, "{{#runtime-import ") && strings.HasSuffix(chunk, "}}") {
+			appendContent(chunk+"\n", "")
+			userBlankRun = 0
+			continue
+		}
+
+		var content strings.Builder
+		for line := range strings.SplitSeq(chunk, "\n") {
+			trimmed := strings.TrimRight(line, " \t")
+			if trimmed == "" {
+				if userBlankRun >= maxConsecutiveBlankLines {
+					continue
+				}
+				userBlankRun++
+				content.WriteByte('\n')
+				continue
+			}
+			userBlankRun = 0
+			content.WriteString(trimmed)
+			content.WriteByte('\n')
+		}
+		appendContent(content.String(), "")
+	}
+
+	configJSON, _ := json.Marshal(renderConfig) //nolint:jsonmarshalignoredeerror // marshaling a string-only render config cannot fail
+
+	// Generate the step with all environment variables. Prompt text and expression
+	// values are passed as environment data and never interpolated into JavaScript.
+	yaml.WriteString("      - name: Create prompt with built-in context\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions\n")
+	fmt.Fprintf(yaml, "          GH_AW_PROMPT: %s\n", constants.AwPromptsFileExpr)
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl\n")
 	}
+	writeYAMLEnv(yaml, "          ", "GH_AW_PROMPT_CONFIG", string(configJSON))
 
 	// Add all environment variables in sorted order for consistency
 	envKeys := sliceutil.SortedKeys(allEnvVars)
 	for _, key := range envKeys {
 		fmt.Fprintf(yaml, "          %s: %s\n", key, allEnvVars[key])
 	}
-
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          bash \"${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh\"\n")
-	yaml.WriteString("          {\n")
-
-	// Track if we're inside a heredoc
-	inHeredoc := false
-
-	// 1. Write built-in sections first (prepended), wrapped in <system> tags.
-	// The <system> opening tag is deferred: it is written either as the first line
-	// of the first inline section's heredoc, or in its own block just before the
-	// first file or conditional section. This allows the opening tag to share a
-	// heredoc block with adjacent inline content, reducing the total number of blocks.
-	systemTagPending := len(builtinSections) > 0
-
-	for i, section := range builtinSections {
-		unifiedPromptLog.Printf("Writing built-in section %d/%d: hasCondition=%v, isFile=%v",
-			i+1, len(builtinSections), section.ShellCondition != "", section.IsFile)
-
-		if section.ShellCondition != "" {
-			// Close heredoc if open, add conditional
-			if inHeredoc {
-				yaml.WriteString("          " + delimiter + "\n")
-				inHeredoc = false
-			}
-			// Write <system> before conditional if still pending
-			if systemTagPending {
-				yaml.WriteString("          cat << '" + delimiter + "'\n")
-				yaml.WriteString("          <system>\n")
-				yaml.WriteString("          " + delimiter + "\n")
-				systemTagPending = false
-			}
-			fmt.Fprintf(yaml, "          if %s; then\n", section.ShellCondition)
-
-			if section.IsFile {
-				// File reference inside conditional
-				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-				yaml.WriteString("            " + fmt.Sprintf("cat \"%s\"\n", promptPath))
-			} else {
-				// Inline content inside conditional - open heredoc, write content, close
-				yaml.WriteString("            cat << '" + delimiter + "'\n")
-				normalizedContent := stringutil.NormalizeLeadingWhitespace(section.Content)
-				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.SplitSeq(cleanedContent, "\n")
-				for line := range contentLines {
-					yaml.WriteString("            " + line + "\n")
-				}
-				yaml.WriteString("            " + delimiter + "\n")
-			}
-
-			yaml.WriteString("          fi\n")
-		} else {
-			// Unconditional section
-			if section.IsFile {
-				// Close heredoc if open
-				if inHeredoc {
-					yaml.WriteString("          " + delimiter + "\n")
-					inHeredoc = false
-				}
-				// Write <system> before file if still pending
-				if systemTagPending {
-					yaml.WriteString("          cat << '" + delimiter + "'\n")
-					yaml.WriteString("          <system>\n")
-					yaml.WriteString("          " + delimiter + "\n")
-					systemTagPending = false
-				}
-				// Cat the file
-				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-				yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"\n", promptPath))
-			} else {
-				// Inline content - open heredoc if not already open
-				if !inHeredoc {
-					yaml.WriteString("          cat << '" + delimiter + "'\n")
-					inHeredoc = true
-					// Write <system> as first line when opening the heredoc
-					if systemTagPending {
-						yaml.WriteString("          <system>\n")
-						systemTagPending = false
-					}
-				}
-				// Write content directly to open heredoc
-				normalizedContent := stringutil.NormalizeLeadingWhitespace(section.Content)
-				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
-				contentLines := strings.SplitSeq(cleanedContent, "\n")
-				for line := range contentLines {
-					yaml.WriteString("          " + line + "\n")
-				}
-			}
-		}
+	for _, key := range sliceutil.SortedKeys(renderContent) {
+		writeYAMLEnv(yaml, "          ", key, renderContent[key])
 	}
 
-	// Close </system> tag after all built-in sections.
-	// Merge with the open heredoc (if any) to minimise the total number of cat/heredoc
-	// blocks, which reduces the number of lines that change in the diff when the user
-	// prompt changes (each block boundary contributes two delimiter lines).
-	if len(builtinSections) > 0 {
-		if inHeredoc {
-			// Append </system> to the still-open heredoc and keep it open for
-			// the user content that follows.
-			yaml.WriteString("          </system>\n")
-		} else {
-			// No heredoc is open: start a new one for </system> and keep it
-			// open so the subsequent user content lands in the same block.
-			yaml.WriteString("          cat << '" + delimiter + "'\n")
-			yaml.WriteString("          </system>\n")
-			inHeredoc = true
-		}
-	}
-
-	// 2. Write user prompt chunks (appended after built-in sections).
-	// All chunks are written into the same heredoc block (opened above or here)
-	// to minimise the number of delimiter lines in the compiled lock file.
-	//
-	// The heredoc payload is a YAML block scalar, so normalizeBlankLines preserves
-	// it verbatim (it must, since arbitrary block scalars can carry semantically
-	// significant trailing whitespace and blank runs). Prompt content is markdown
-	// text the compiler owns, where trailing whitespace is never meaningful and
-	// long blank runs are noise, so it is cleaned here instead: trailing whitespace
-	// is trimmed from every line and consecutive blank lines are capped at
-	// maxConsecutiveBlankLines. userBlankRun is tracked across chunks so a run that
-	// straddles a chunk boundary is still collapsed.
-	userBlankRun := 0
-	for chunkIdx, chunk := range userPromptChunks {
-		unifiedPromptLog.Printf("Writing user prompt chunk %d/%d", chunkIdx+1, len(userPromptChunks))
-
-		// Check if this chunk is a runtime-import macro
-		if strings.HasPrefix(chunk, "{{#runtime-import ") && strings.HasSuffix(chunk, "}}") {
-			// Runtime-import macros are plain text lines processed by the
-			// interpolate-prompt step; they can live in the same heredoc block
-			// as surrounding content.
-			unifiedPromptLog.Print("Detected runtime-import macro, writing inline in heredoc")
-
-			if !inHeredoc {
-				yaml.WriteString("          cat << '" + delimiter + "'\n")
-				inHeredoc = true
-			}
-			yaml.WriteString("          " + chunk + "\n")
-			userBlankRun = 0
-			continue
-		}
-
-		// Regular chunk: write to the current heredoc (or open one).
-		if !inHeredoc {
-			yaml.WriteString("          cat << '" + delimiter + "'\n")
-			inHeredoc = true
-		}
-
-		lines := strings.SplitSeq(chunk, "\n")
-		for line := range lines {
-			trimmed := strings.TrimRight(line, " \t")
-			if trimmed == "" {
-				// Collapse over-long blank runs; emit truly empty lines (no
-				// indentation) so they carry no trailing whitespace.
-				if userBlankRun >= maxConsecutiveBlankLines {
-					continue
-				}
-				userBlankRun++
-				yaml.WriteByte('\n')
-				continue
-			}
-			userBlankRun = 0
-			yaml.WriteString("          ")
-			yaml.WriteString(trimmed)
-			yaml.WriteByte('\n')
-		}
-	}
-
-	// Close heredoc if still open
-	if inHeredoc {
-		yaml.WriteString("          " + delimiter + "\n")
-	}
-	yaml.WriteString("          } > \"$GH_AW_PROMPT\"\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const { setupGlobals } = require(process.env.GH_AW_ACTIONS_DIR + '/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+	yaml.WriteString("            const { main } = require(process.env.GH_AW_ACTIONS_DIR + '/create_prompt.cjs');\n")
+	yaml.WriteString("            await main(core);\n")
 
 	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
 

@@ -547,9 +547,8 @@ func TestCollectPromptSections_PRCommentPushToPRBranchGuidance(t *testing.T) {
 		}
 
 		require.NotNil(t, guidanceSection, "Should include push-to-PR-branch guidance for PR comment workflows")
-		assert.NotEmpty(t, guidanceSection.ShellCondition, "Guidance should be conditionally injected for PR-comment events")
-		assert.Contains(t, guidanceSection.ShellCondition, "issue_comment")
-		assert.Equal(t, "${{ github.event.issue.pull_request && 'true' || '' }}", guidanceSection.EnvVars["GH_AW_IS_PR_COMMENT"])
+		assert.Equal(t, "GH_AW_INCLUDE_PR_CONTEXT", guidanceSection.ConditionEnvVar, "Guidance should be conditionally injected for PR-comment events")
+		assert.Contains(t, guidanceSection.EnvVars["GH_AW_INCLUDE_PR_CONTEXT"], "github.event_name")
 	})
 
 	t.Run("includes guidance when pull_request_review_comment triggers and push-to-pr-branch is configured", func(t *testing.T) {
@@ -572,8 +571,7 @@ func TestCollectPromptSections_PRCommentPushToPRBranchGuidance(t *testing.T) {
 		}
 
 		require.NotNil(t, guidanceSection, "Should include push-to-PR-branch guidance for pull_request_review_comment workflows")
-		assert.NotEmpty(t, guidanceSection.ShellCondition, "Guidance should be conditionally injected for PR-comment events")
-		assert.Contains(t, guidanceSection.ShellCondition, "pull_request_review_comment")
+		assert.Equal(t, "GH_AW_INCLUDE_PR_CONTEXT", guidanceSection.ConditionEnvVar, "Guidance should be conditionally injected for PR-comment events")
 	})
 
 	t.Run("does not include guidance when push-to-pr-branch is not configured", func(t *testing.T) {
@@ -626,9 +624,7 @@ func TestGenerateUnifiedPromptCreationStep_TrailingWhitespace(t *testing.T) {
 	assert.NotContains(t, output, "line one   ", "trailing spaces should be stripped")
 	assert.NotContains(t, output, "line two\t", "trailing tab should be stripped")
 	assert.NotContains(t, output, "line three  \t  ", "mixed trailing whitespace should be stripped")
-	assert.Contains(t, output, "          line one\n", "content should be present with indentation")
-	assert.Contains(t, output, "          line two\n", "content should be present with indentation")
-	assert.Contains(t, output, "          line three\n", "content should be present with indentation")
+	assert.Contains(t, output, `line one\nline two\nline three\n`, "normalized content should be stored in a data environment variable")
 }
 
 // TestGenerateUnifiedPromptCreationStep_BlankRunCapWithinChunk verifies that a run of

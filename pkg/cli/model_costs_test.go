@@ -17,6 +17,14 @@ func TestFindModelPricing(t *testing.T) {
 	assert.InDelta(t, 0.000003, pricing["input"], 1e-12)
 }
 
+func TestFindKimiK3Pricing(t *testing.T) {
+	pricing, ok := findModelPricing("github-copilot", "kimi-k3")
+	require.True(t, ok)
+	assert.InDelta(t, 0.000003, pricing["input"], 1e-12)
+	assert.InDelta(t, 0.000015, pricing["output"], 1e-12)
+	assert.InDelta(t, 0.0000003, pricing["cache_read"], 1e-12)
+}
+
 func TestComputeModelInferenceAIC(t *testing.T) {
 	aic := computeModelInferenceAIC("anthropic", "claude-sonnet-4.6", 1000, 200, 400, 50, 25)
 	assert.InDelta(t, 0.54825, aic, 1e-9)

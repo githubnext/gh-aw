@@ -298,6 +298,27 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract allow-host-ports (additional host TCP ports for the AWF sandbox)
+	if portsVal, hasPorts := agentObj["allow-host-ports"]; hasPorts {
+		if portsSlice, ok := portsVal.([]any); ok {
+			for _, portVal := range portsSlice {
+				switch v := portVal.(type) {
+				case int:
+					agentConfig.AllowHostPorts = append(agentConfig.AllowHostPorts, v)
+				case int64:
+					agentConfig.AllowHostPorts = append(agentConfig.AllowHostPorts, int(v))
+				case uint64:
+					agentConfig.AllowHostPorts = append(agentConfig.AllowHostPorts, int(v))
+				case float64:
+					if float64(int(v)) == v {
+						agentConfig.AllowHostPorts = append(agentConfig.AllowHostPorts, int(v))
+					}
+				}
+			}
+			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.allow-host-ports: %v", agentConfig.AllowHostPorts)
+		}
+	}
+
 	// Extract model-fallback (AWF API proxy model fallback enable/disable flag)
 	if mfVal, hasMF := agentObj["model-fallback"]; hasMF {
 		switch v := mfVal.(type) {

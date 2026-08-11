@@ -534,6 +534,10 @@ func TestSpec_AWFConstants_Values(t *testing.T) {
 	assert.Equal(t, "${{ runner.temp }}/gh-aw/sandbox/firewall/awf-reflect.json", constants.AWFReflectFilePathExpr,
 		"AWFReflectFilePathExpr should match the documented value")
 
+	// From spec: AwPromptsFileExpr // "${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt"
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt", constants.AwPromptsFileExpr,
+		"AwPromptsFileExpr should match the documented value")
+
 	// From spec: AwPromptsFileShell // "${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt"
 	assert.Equal(t, "${RUNNER_TEMP}/gh-aw/aw-prompts/prompt.txt", constants.AwPromptsFileShell,
 		"AwPromptsFileShell should match the documented value")
