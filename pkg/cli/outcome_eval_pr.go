@@ -106,16 +106,9 @@ func evalCreatePullRequest(ctx context.Context, item CreatedItemReport, repoOver
 		report.Detail = "open"
 	}
 
-	// Count human comments (non-bot)
 	comments, err := outcomeEvalPRGHAPIGetArray(ctx, fmt.Sprintf("issues/%d/comments", num), repo)
 	if err == nil {
-		for _, c := range comments {
-			user, _ := c["user"].(map[string]any)
-			login, _ := user["login"].(string)
-			if !isBotUser(login) {
-				report.HumanComments++
-			}
-		}
+		report.HumanComments = countHumanComments(comments)
 	}
 
 	// Count reviews (used for ZeroTouch, stored separately from edits to avoid conflation)
