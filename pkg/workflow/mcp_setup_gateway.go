@@ -17,6 +17,7 @@ import (
 const mcpGatewayCustomEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES"
 const mcpGatewayCustomEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_"
 const mcpGatewayCustomEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__"
+const mcpGatewayGitHubCLIPath = "/usr/bin/gh"
 
 func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error {
 	// If the engine provides an MCP config-adapter script (e.g. Goose), write it to disk
@@ -445,7 +446,7 @@ func buildMCPGatewayAllowedMountRoots(tools map[string]any, gatewayConfig *MCPGa
 	addRoot(constants.GhAwRootDirShell, "ro")
 	addRoot(constants.GhAwRootDirShell+"/safeoutputs", "rw")
 	addRoot("/tmp", "rw")
-	addRoot("/usr/bin/gh", "ro")
+	addRoot(mcpGatewayGitHubCLIPath, "ro")
 
 	if gatewayConfig != nil {
 		for _, mount := range gatewayConfig.Mounts {
