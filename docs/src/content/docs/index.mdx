@@ -1,12 +1,12 @@
 ---
 title: Home
-description: GitHub Agentic Workflows (gh-aw) lets you write repository automation in plain Markdown and run AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions, with sandboxed execution, read-only defaults, and safe outputs for writes.
+description: GitHub Agentic Workflows (gh-aw) lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents through GitHub Actions using controlled permissions, sandboxing, and safe outputs.
 template: splash
 tableOfContents: true
 hero:
   title: GitHub Agentic Workflows
   tagline: |
-    <strong>Intelligent automation for GitHub. Run the coding agents you know and love, with strong guardrails and cost controls, in GitHub Actions.</strong>
+    <strong>Define AI-powered repository automation in Markdown and run AI agents with guardrails through GitHub Actions.</strong>
     <span class="hero-preview-callout">GitHub Agentic Workflows is in Public Preview.</span>
   actions:
     - text: Quick Start with CLI
@@ -26,24 +26,22 @@ import WorkflowHero from '../../components/WorkflowHero.astro';
 
 <WorkflowHero />
 
-GitHub Agentic Workflows (gh-aw) lets you write repository automation in plain Markdown and run AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions, with sandboxed execution, read-only defaults, and safe outputs for writes.
+With GitHub Agentic Workflows (`gh-aw`), developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents through GitHub Actions. The `gh-aw` GitHub CLI extension compiles each source file into the `.lock.yml` workflow that GitHub Actions executes.
 
-Wake up to ready-to-review repository improvements — automated triage, CI insights, docs updates, and test enhancements from simple markdown workflows.
+Use standard GitHub Actions for deterministic builds, tests, linting, deployments, and reproducible scripts. Add an agentic workflow for work that benefits from reasoning or interpretation, such as issue triage, CI investigation, documentation updates, code review, and repository reporting. The two approaches complement each other.
 
-GitHub Agentic Workflows deliver this: repository automation, running the coding agents you know and love, in GitHub Actions, with strong guardrails and security-first design principles.
+Supported built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, and Google Gemini, plus experimental Pi. Choose the engine and authentication method that fit the workflow, then keep the same Markdown-and-frontmatter authoring model.
 
-Use GitHub Copilot, Claude by Anthropic, Gemini from Google or OpenAI Codex for event-triggered and scheduled jobs to improve your repository. GitHub Agentic Workflows [augment](https://github.github.com/gh-aw/reference/faq/#determinism) your existing, deterministic CI/CD with [Continuous AI](https://githubnext.com/projects/continuous-ai) capabilities.
+By default, supported agent jobs use read-only GitHub access and sandboxed execution. Configured writes can be routed through validated safe outputs that run separately with scoped permissions. These controls remain configurable and require careful review.
 
-Developed by GitHub and Microsoft, workflows run with added guardrails, using safe outputs and sandboxed execution to help keep your repository safe.
-
-## Key Features
+## Core capabilities
 
 <FeatureGrid columns={3}>
   <FeatureCard icon="cpu" title="AI-Powered Decision Making" href="#gallery">
     Workflows that understand context and adapt to situations
   </FeatureCard>
   <FeatureCard icon="beaker" title="Multiple AI Engines" href="/gh-aw/reference/engines/">
-    Support for Copilot, Claude, Codex, and custom AI processors
+    Built-in support for Copilot, Claude Code, Codex, Gemini, and experimental Pi
   </FeatureCard>
   <FeatureCard icon="server" title="Self-Hosted & ARC Runners" href="/gh-aw/reference/self-hosted-runners/">
     Deploy on Linux self-hosted runners, including ARC with Docker-in-Docker
@@ -51,11 +49,11 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
   <FeatureCard icon="shield-lock" title="MicroVM Isolation" href="/gh-aw/reference/glossary/#docker-sbx">
     Run agents in KVM-isolated Docker sbx microVMs on compatible runners
   </FeatureCard>
-  <FeatureCard icon="key" title="Zero-Secret Agents">
-    Sensitive credentials never shared with agent sandbox
+  <FeatureCard icon="key" title="Engine Credential Isolation" href="/gh-aw/introduction/architecture/#agent-workflow-firewall-awf">
+    The API proxy isolates supported AI engine credentials from the agent sandbox
   </FeatureCard>
   <FeatureCard icon="shield-check" title="Safe Outputs" href="/gh-aw/reference/safe-outputs/">
-    All outputs are validated before applied
+    Configured write requests are validated before separate jobs apply them
   </FeatureCard>
   <FeatureCard icon="filter" title="Integrity Filtering" href="/gh-aw/reference/integrity/">
     Reduce prompt-injection risk by filtering untrusted GitHub content
@@ -70,7 +68,7 @@ Developed by GitHub and Microsoft, workflows run with added guardrails, using sa
 
 ## Guardrails Built-In
 
-AI agents can be manipulated by prompt injection, malicious repository content, or compromised tools. GitHub Agentic Workflows uses layered controls to keep each run contained: sandboxing limits where code can execute, scoped permissions limit what it can request, and gated outputs ensure only approved actions reach GitHub.
+AI agents can be manipulated by prompt injection, malicious repository content, or compromised tools. GitHub Agentic Workflows defaults to layered controls for the supported agent-job path: sandboxing limits where code can execute, scoped permissions limit what it can request, and gated outputs constrain configured writes to GitHub. Workflow authors can change some controls and must evaluate the resulting risk.
 
 ```mermaid
 flowchart LR
@@ -121,7 +119,7 @@ Cost control starts with visibility. Use `gh aw logs` and `gh aw audit` to find 
 
 Here's a simple workflow that runs daily to create an upbeat status report:
 
-```markdown
+```aw wrap
 ---
 on:
   schedule: daily
@@ -151,9 +149,11 @@ Create an upbeat daily status report for the team as a GitHub issue.
 
 ```
 
-The `gh aw` cli hardens this to a traditional GitHub Actions Workflow (.lock.yml) that runs an AI coding agent (Copilot CLI, Claude Code, Codex, ...) in a containerized environment on a schedule or manually. The AI coding agent reads your repository context, analyzes issues, generates visualizations, and creates reports. All defined in natural language rather than complex code.
+The `gh aw compile` command turns this source into a hardened `.lock.yml` GitHub Actions workflow. GitHub Actions then runs the selected AI engine in the configured agent environment on the declared trigger. The AI agent reads allowed repository context and requests only the tools and outputs configured in frontmatter.
 
-## Gallery
+## GitHub Agentic Workflows examples
+
+[Browse examples by repository task](/gh-aw/examples/) to find a starting point and learn when to use each workflow.
 
 <FeatureGrid columns={3}>
   <FeatureCard icon="issue-opened" title="Repository Maintenance" href="/gh-aw/examples/maintaining-repos/">
@@ -178,7 +178,7 @@ The `gh aw` cli hardens this to a traditional GitHub Actions Workflow (.lock.yml
 
 ## AI Engines
 
-gh-aw supports built-in AI engines. Switch between them by changing one line of frontmatter.
+GitHub Agentic Workflows (`gh-aw`) provides four stable built-in AI engines and experimental Pi. Engine changes may also require a different authentication method or tool configuration; use the linked guide for each engine.
 
 <FeatureGrid columns={4}>
   <FeatureCard title="GitHub Copilot" href="/gh-aw/engines/copilot/">
@@ -193,18 +193,18 @@ gh-aw supports built-in AI engines. Switch between them by changing one line of 
   <FeatureCard title="Google Gemini" href="/gh-aw/engines/gemini/">
     Google Gemini CLI. Set engine: gemini and add GEMINI_API_KEY.
   </FeatureCard>
+  <FeatureCard title="Pi (Experimental)" href="/gh-aw/engines/pi/">
+    Multi-provider experimental engine. Set engine: pi and configure its required proxies and provider authentication.
+  </FeatureCard>
 </FeatureGrid>
 
-### Other Engines
+### Imported engine samples
 
-gh-aw's open engine model lets you plug in any coding agent CLI by importing a Markdown engine definition file. The following agents are available as sample integrations — import the definition maintained by the agent's publisher to use them in your workflows.
+The engine import model can integrate other coding-agent CLIs through Markdown definitions. The following in-repository definitions are unsupported samples, not built-in or officially supported `gh-aw` engines.
 
 <FeatureGrid columns={3}>
-  <FeatureCard title="Pi" href="/gh-aw/reference/engines/#available-coding-agents">
-    Experimental multi-provider agent. Set engine: pi and add COPILOT_GITHUB_TOKEN.
-  </FeatureCard>
   <FeatureCard title="Copilot SDK" href="/gh-aw/reference/engines/#copilot-sdk-support">
-    Run Copilot in SDK mode for advanced multi-provider routing. Enable with copilot-sdk: true.
+    A mode of the Copilot engine rather than a separate AI engine. Enable with copilot-sdk: true.
   </FeatureCard>
   <FeatureCard title="OpenCode" href="/gh-aw/guides/third-party-agent/">
     Provider-agnostic BYOK agent supporting 75+ models from Anthropic, OpenAI, Google, and more.
@@ -226,6 +226,8 @@ gh-aw's open engine model lets you plug in any coding agent CLI by importing a M
 See [Configuring a third-party agent](/gh-aw/guides/third-party-agent/) and the [Engines reference](/gh-aw/reference/engines/#shared-imported-engines) for how to import and pin an engine definition.
 
 ## Common Use Cases
+
+The [task-oriented examples catalog](/gh-aw/examples/) also covers CI failure investigation, dependency analysis, scheduled maintenance, code improvement, and security review.
 
 <FeatureGrid columns={2}>
   <FeatureCard icon="issue-opened" title="AI Issue Triage" href="/gh-aw/guides/ai-issue-triage/">

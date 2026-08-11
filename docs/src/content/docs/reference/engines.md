@@ -1,26 +1,25 @@
 ---
-title: AI Engines (aka Coding Agents)
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, Codex, Gemini, and Pi with their specific configuration options.
+title: AI Engines for GitHub Agentic Workflows
+description: Compare the built-in AI engines for GitHub Agentic Workflows (gh-aw), including selection, authentication, capabilities, limitations, and examples for Copilot, Claude Code, Codex, Gemini, and experimental Pi.
 sidebar:
   order: 600
 ---
 
-GitHub Agentic Workflows use [AI Engines](/gh-aw/reference/glossary/#engine) (normally a coding agent) to interpret and execute natural language instructions.
+GitHub Agentic Workflows (`gh-aw`) uses an [AI engine](/gh-aw/reference/glossary/#engine) to run the AI agent that interprets a workflow's Markdown instructions. Set the engine in YAML frontmatter; GitHub Actions then runs that engine with the workflow's configured tools, permissions, sandbox, and outputs.
 
-## Available Coding Agents
+## Built-in AI engines
 
-Set `engine:` in your workflow frontmatter and configure the corresponding secret:
+Set `engine:` in workflow frontmatter and configure the corresponding authentication method:
 
-| Engine | `engine:` value | Required Secret |
-|--------|-----------------|-----------------|
-| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (recommended) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) |
-| [GitHub Copilot (SDK mode)](/gh-aw/reference/engines/#copilot-sdk-support) | `copilot` + `copilot-sdk: true` | same as Copilot CLI |
-| [Claude by Anthropic (Claude Code)](https://www.anthropic.com/index/claude) | `claude` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) (standard) or [`engine.auth` Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) (keyless) |
-| [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | [OPENAI_API_KEY](/gh-aw/reference/auth/#openai_api_key) |
-| [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) (standard) or [`engine.auth` Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) (keyless) |
-| [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) (experimental) | `pi` | [COPILOT_GITHUB_TOKEN](/gh-aw/reference/auth/#copilot_github_token) (default); switches to provider-specific secret when `model:` uses `provider/model` format |
+| AI engine | `engine:` value | Authentication | Setup and example |
+|---|---|---|---|
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) (default) | `copilot` | [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (recommended) or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) | [Using GitHub Copilot with GitHub Agentic Workflows](/gh-aw/engines/copilot/) |
+| [Claude Code](https://www.anthropic.com/index/claude) | `claude` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) | [Using Claude Code with GitHub Agentic Workflows](/gh-aw/engines/claude/) |
+| [OpenAI Codex](https://openai.com/blog/openai-codex) | `codex` | `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) | [Using OpenAI Codex with GitHub Agentic Workflows](/gh-aw/engines/codex/) |
+| [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) or [Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) | [Using Google Gemini with GitHub Agentic Workflows](/gh-aw/engines/gemini/) |
+| [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) (experimental) | `pi` | Copilot authentication by default; Anthropic or OpenAI/Codex key for a provider-prefixed `model:` | [Using Pi with GitHub Agentic Workflows](/gh-aw/engines/pi/) |
 
-Copilot CLI is the default — `engine:` can be omitted when using Copilot. See the linked authentication docs for secret setup instructions.
+Copilot CLI is the default, so `engine:` can be omitted when using Copilot. Copilot SDK mode is an execution mode of the Copilot engine, not a separate engine; enable it with `engine: copilot` and `copilot-sdk: true`. See [Copilot SDK support](#copilot-sdk-support).
 
 ## Unsupported engine samples
 
@@ -38,7 +37,9 @@ Engine owners should publish and maintain their own Markdown integration definit
 
 ## Which engine should I choose?
 
-Choose the engine that best matches your needs and existing AI account: Copilot supports the broadest gh-aw feature set, including custom agents and autopilot-style continuations; Claude offers stronger control over turn limits (`max-turns`) for long reasoning sessions; and Gemini or Codex fit well when those models are already part of existing tooling or budget decisions. You can switch later by changing only `engine:` and the corresponding secret.
+Choose the engine that matches the required capabilities, identity mechanism, and existing provider access. Copilot supports the broadest engine-specific feature set, including native agent selection, custom harnesses, and continuation mode. Claude Code and Codex provide native web search when enabled. Gemini supports Google WIF and per-command bash restrictions. Pi is experimental and supports multiple providers but requires proxy-specific tool configuration.
+
+Changing engines requires updating `engine:` and may also require different authentication, tools, model names, or network access. Review the setup guide and comparison before switching.
 
 ## Engine Feature Comparison
 
@@ -50,14 +51,15 @@ Not all features are available across all engines. The table below summarizes pe
 | `engine.max-turns` (deprecated nested alias) | ❌ | ✅ | ❌ | ❌ | ❌ |
 | `max-continuations` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `tools.web-fetch` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `tools.web-search` | via MCP | via MCP | ✅ (opt-in) | via MCP | via MCP |
-| `engine.agent` (custom agent file) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `tools.web-search` | via MCP | ✅ (native) | ✅ (native, opt-in) | via MCP | ❌ |
+| `engine.agent` (native custom-agent selection) | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `engine.api-target` (custom endpoint) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `engine.bare` (disable context loading) | ✅ | ✅ | ✅ | ✅ | ❌ |
+| `engine.bare` (disable context loading) | ✅ | ✅ | ❌ | ❌ | ✅ (no-op; already bare) |
 | `engine.harness` (custom harness script) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Tools allowlist | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Per-command `tools.bash` allowlist | ✅ | ✅ | ❌ (disable only) | ✅ | ❌ |
+| Native MCP server integration | ✅ | ✅ | ✅ | ✅ | ❌ |
 
-`max-turns` (default `500`, legacy alias `max-runs`) and `max-ai-credits` (default `1000`) are top-level frontmatter fields supported by all engines. `engine.max-turns` is a deprecated nested alias that still limits Claude iterations when present; `max-continuations` enables Copilot autopilot mode. Codex `web-search` is opt-in via `tools: web-search:`; other engines use a third-party MCP server — see [Using Web Search](/gh-aw/reference/web-search/). `engine.agent`, `engine.bare`, and `engine.harness` are described below.
+`max-turns` (default `500`, legacy alias `max-runs`) and `max-ai-credits` (default `1000`) are top-level frontmatter fields supported by all engines. `engine.max-turns` is a deprecated nested alias that still limits Claude iterations when present; `max-continuations` enables Copilot continuation mode. Claude and Codex have native web search support; Codex requires explicit `tools: web-search:` configuration. Copilot and Gemini can use a third-party MCP server for search. See [Using Web Search](/gh-aw/reference/web-search/).
 
 ## Shared imported engines
 
@@ -462,7 +464,7 @@ engine:
 
 ### Bare Mode (`bare`)
 
-Set `engine.bare: true` to disable automatic loading of context and custom instructions by the engine. Use this when the workflow prompt is fully self-contained and you want to prevent the engine from reading memory files, AGENTS.md, or built-in system prompts that would otherwise be loaded automatically. Pi also accepts `engine.bare: true`; for Pi the setting is supported but is a no-op because Pi already runs in bare mode by default.
+Set `engine.bare: true` with Copilot or Claude to disable automatic loading of context and custom instructions by the engine. Use this when the workflow prompt is fully self-contained and you want to prevent the engine from reading memory files, `AGENTS.md`, or built-in system prompts that would otherwise be loaded automatically. Pi also accepts `engine.bare: true`, but the setting is a no-op because Pi already runs in bare mode. Codex and Gemini do not support this field.
 
 ```yaml wrap
 engine:
@@ -476,8 +478,7 @@ The underlying mechanism is engine-specific:
 |--------|--------|
 | Copilot | Passes `--no-custom-instructions` — suppresses `.github/AGENTS.md` and user-level custom instructions |
 | Claude | Passes `--bare` — suppresses CLAUDE.md memory files |
-| Codex | Passes `--no-system-prompt` — suppresses the default system prompt |
-| Gemini | Sets `GEMINI_SYSTEM_MD=/dev/null` — overrides the built-in system prompt with an empty file |
+| Pi | No effect — Pi already runs in bare mode |
 
 Defaults to `false`.
 
@@ -582,8 +583,10 @@ mcp-servers:
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference
+- [Authentication](/gh-aw/reference/auth/) - Engine credentials and identity mechanisms
 - [Tools](/gh-aw/reference/tools/) - Available tools and MCP servers
 - [Security Guide](/gh-aw/introduction/architecture/) - Security considerations for AI engines
+- [Examples by Task](/gh-aw/examples/) - Agentic workflow examples and when to use them
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
 - [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) - Timeout tuning for large repositories
 - [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) - Fast hardware for long-running workflows

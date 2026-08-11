@@ -103,7 +103,7 @@ Start with GitHub Copilot if you already have a Copilot subscription — it requ
 
 ### Can I run Claude Code on a schedule in GitHub Actions using gh-aw?
 
-Yes. Set `engine: claude` in your workflow frontmatter, add your `ANTHROPIC_API_KEY` as a repository secret, and configure any schedule trigger (e.g., `on: schedule: daily`). The workflow compiles to a standard GitHub Actions schedule job that runs Claude Code in a sandboxed container. See the [Quick Start](/gh-aw/setup/quick-start/) and [AI Engines — Claude](/gh-aw/reference/engines/#available-coding-agents).
+Yes. Set `engine: claude` in your workflow frontmatter, add your `ANTHROPIC_API_KEY` as a repository secret, and configure any schedule trigger (e.g., `on: schedule: daily`). The workflow compiles to a standard GitHub Actions schedule job that runs Claude Code in a sandboxed container. See the [Quick Start](/gh-aw/setup/quick-start/) and [AI Engines — Claude](/gh-aw/reference/engines/#built-in-ai-engines).
 
 ### Can agentic workflows write code and create pull requests?
 
@@ -448,7 +448,7 @@ See [Dependabot and gh-aw-actions](/gh-aw/reference/compilation-process/#dependa
 
 ### Can I use `CLAUDE_CODE_OAUTH_TOKEN` with the Claude engine?
 
-No. The Claude engine only supports [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) as a GitHub Actions secret. Provider-based OAuth (e.g., Claude Teams billing) is not supported. See [Authentication](/gh-aw/reference/auth/) and [AI Engines](/gh-aw/reference/engines/#available-coding-agents).
+No. The Claude engine only supports [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) as a GitHub Actions secret. Provider-based OAuth (e.g., Claude Teams billing) is not supported. See [Authentication](/gh-aw/reference/auth/) and [AI Engines](/gh-aw/reference/engines/#built-in-ai-engines).
 
 ### What hidden runtime dependencies does this have?
 
