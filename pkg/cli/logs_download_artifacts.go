@@ -133,6 +133,7 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 		if err := validateArtifactName(name); err != nil {
 			return err
 		}
+		// Stage next to the output directory so promotion can use an atomic same-filesystem rename.
 		stagingDir, err := os.MkdirTemp(filepath.Dir(opts.outputDir), "."+filepath.Base(opts.outputDir)+"-"+name+"-")
 		if err != nil {
 			return fmt.Errorf("failed to create staging directory for artifact %q: %w", name, err)
@@ -213,6 +214,7 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 			continue
 		}
 
+		// Stage next to the output directory so promotion can use an atomic same-filesystem rename.
 		stagingDir, err := os.MkdirTemp(filepath.Dir(opts.outputDir), "."+filepath.Base(opts.outputDir)+"-"+name+"-")
 		if err != nil {
 			logsDownloadLog.Printf("Failed to create staging directory for critical artifact %q: %v", name, err)
