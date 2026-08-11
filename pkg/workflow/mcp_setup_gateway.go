@@ -148,7 +148,7 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 			domain = "localhost"
 		} else if isDockerSbxRuntime(workflowData) {
-			// docker-sbx microVM reaches host-published services via host.docker.internal
+			// Docker sbx microVMs reach host-published services via host.docker.internal
 			// (the Docker bridge gateway). Use this as the MCP gateway domain so that the
 			// CLI wrapper scripts generated inside the microVM point to the correct host.
 			domain = "host.docker.internal"
@@ -204,7 +204,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	// When MCP_GATEWAY_DOMAIN is host.docker.internal (only reachable from containers),
 	// or when network isolation is active (gateway on bridge; host reaches it via the
 	// published 127.0.0.1 port), use localhost instead; otherwise inherit the domain.
-	// Exception: for docker-sbx, the CLI wrappers run INSIDE the microVM, so they must
+	// Exception: for microVM runtimes, the CLI wrappers run INSIDE the microVM, so they must
 	// also use host.docker.internal (not localhost) to reach the published gateway port.
 	// Exception: for Gemini under network isolation, use the topology hostname (awmg-mcpg)
 	// instead of localhost. The Gemini CLI honors HTTP_PROXY but ignores NO_PROXY, so
@@ -237,6 +237,22 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	// Allow read-write access to the host paths our built-in MCP servers mount
 	// (workspace, safe-outputs runtime dir, temp dir); see buildMCPGatewayAllowedMountRoots.
 	yaml.WriteString("          export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS=\"" + buildMCPGatewayAllowedMountRoots(tools, gatewayConfig) + "\"\n")
+	if enclavesEnabled(workflowData) {
+		yaml.WriteString("          AWF_ENCLAVE_MCP_CAPABILITY=$(openssl rand -hex 32)\n")
+		yaml.WriteString("          echo \"::add-mask::${AWF_ENCLAVE_MCP_CAPABILITY}\"\n")
+		yaml.WriteString("          export AWF_ENCLAVE_MCP_CAPABILITY\n")
+		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_IDENTITY=\"gh-aw-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}\"\n")
+		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_CONTAINER=\"awmg-mcpg\"\n")
+		yaml.WriteString("          export AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT=\"http://localhost:${MCP_GATEWAY_PORT}/mcp/awf-enclave\"\n")
+		yaml.WriteString("          export AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS=\"120000\"\n")
+		yaml.WriteString("          {\n")
+		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_CAPABILITY \"$AWF_ENCLAVE_MCP_CAPABILITY\"\n")
+		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_IDENTITY \"$AWF_ENCLAVE_MCP_GATEWAY_IDENTITY\"\n")
+		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_CONTAINER \"$AWF_ENCLAVE_MCP_GATEWAY_CONTAINER\"\n")
+		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT \"$AWF_ENCLAVE_MCP_GATEWAY_ENDPOINT\"\n")
+		yaml.WriteString("            printf '%s=%s\\n' AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS \"$AWF_ENCLAVE_MCP_READINESS_TIMEOUT_MS\"\n")
+		yaml.WriteString("          } >> \"$GITHUB_ENV\"\n")
+	}
 	yaml.WriteString("          export DEBUG=\"*\"\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
@@ -301,7 +317,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	if isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --network bridge")
 		if isDockerSbxRuntime(workflowData) {
-			// docker-sbx: publish to 0.0.0.0 so the microVM can reach the gateway via
+			// Docker sbx microVMs: publish to 0.0.0.0 so the guest can reach the gateway via
 			// host.docker.internal (the Docker bridge gateway, 172.17.0.1).
 			containerCmd.WriteString(" -p 0.0.0.0:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
 		} else {
@@ -313,6 +329,9 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 		containerCmd.WriteString(" --network host")
 	}
 	containerCmd.WriteString(" --name awmg-mcpg")
+	if enclavesEnabled(workflowData) {
+		containerCmd.WriteString(" --label " + enclaveMCPGatewayRunLabel + "=${AWF_ENCLAVE_MCP_GATEWAY_IDENTITY}")
+	}
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --add-host host.docker.internal:127.0.0.1")
 	} else if shouldRewriteLocalhostToDocker(workflowData) {
@@ -565,6 +584,9 @@ func extractMCPVolumeArgMounts(argsRaw any) []string {
 }
 
 func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, hasGitHub bool, githubTool map[string]any, tools map[string]any) {
+	if enclavesEnabled(workflowData) {
+		containerCmd.WriteString(" -e " + enclaveMCPCapabilityEnv)
+	}
 	if hasGitHub && getGitHubType(githubTool) == GitHubMCPModeRemote && engine.GetID() == "copilot" {
 		containerCmd.WriteString(" -e GITHUB_PERSONAL_ACCESS_TOKEN")
 	}

@@ -43,6 +43,7 @@ type MCPToolRenderers struct {
 	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
 	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderMCPScripts       func(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool)
+	RenderEnclave          func(yaml *strings.Builder, workflowData *WorkflowData, isLast bool)
 	RenderCustomMCPConfig  RenderCustomMCPToolConfigHandler
 }
 

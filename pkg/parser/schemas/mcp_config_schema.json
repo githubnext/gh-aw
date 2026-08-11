@@ -202,6 +202,12 @@
       "type": ["string", "number"],
       "description": "Version or tag for container images",
       "examples": ["latest", "v1.0.0", "stable", 20, 3.11]
+    },
+    "required": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this MCP server must pass the startup connectivity check. When false, a server that cannot be reached at startup logs a warning and the workflow continues without it.",
+      "examples": [false]
     }
   },
   "anyOf": [{ "required": ["type"] }, { "required": ["url"] }, { "required": ["command"] }, { "required": ["container"] }],

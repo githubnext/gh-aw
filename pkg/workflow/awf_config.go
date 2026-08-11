@@ -170,6 +170,9 @@ type AWFConfigFile struct {
 	// cross-repository private data access. Omitted when not configured.
 	BoundedQueries *AWFBoundedQueriesConfig `json:"boundedQueries,omitempty"`
 
+	// Enclaves configures the unified AWF-owned script and agent enclave subsystem.
+	Enclaves []map[string]any `json:"enclaves,omitempty"`
+
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
 
@@ -471,6 +474,9 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	awfConfig := AWFConfigFile{
 		Schema: buildAWFConfigSchemaURL(firewallConfig),
 	}
+	if config.WorkflowData != nil {
+		awfConfig.Enclaves = buildAWFEnclavesConfig(config.WorkflowData.Enclaves)
+	}
 
 	// ── Runner section ──────────────────────────────────────────────────────
 	if topology := getRunnerTopology(config.WorkflowData); topology != "" {
@@ -502,11 +508,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			awfConfig.Network = &AWFNetworkConfig{}
 		}
 		awfConfig.Network.Isolation = true
-		awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
+		if !isCloudHypervisorRuntime(config.WorkflowData) {
+			awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
+		}
 		awfConfigLog.Printf("Network section: isolation enabled with %d topology attachments", len(awfConfig.Network.TopologyAttach))
 	}
 
-	// docker-sbx: the sbx microVM resolves host services via host.docker.internal
+	// Docker sbx microVMs resolve host services via
+	// host.docker.internal
 	// (the Docker bridge gateway, 172.17.0.1). Allow this domain so AWF's network
 	// policy permits connections from the microVM to the api-proxy, MCP gateway, and
 	// Squid proxy that are all published on the host bridge.
@@ -517,7 +526,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		const hostDockerInternal = "host.docker.internal"
 		if !slices.Contains(awfConfig.Network.AllowDomains, hostDockerInternal) {
 			awfConfig.Network.AllowDomains = append(awfConfig.Network.AllowDomains, hostDockerInternal)
-			awfConfigLog.Printf("Network section: added %s for docker-sbx microVM routing", hostDockerInternal)
+			awfConfigLog.Printf("Network section: added %s for microVM runtime routing", hostDockerInternal)
 		}
 	}
 
@@ -685,7 +694,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
 	agentRuntime := getAgentContainerRuntime(config.WorkflowData)
 	agentTimeout := 0
-	if isDockerSbxRuntime(config.WorkflowData) {
+	if isDockerSbxRuntime(config.WorkflowData) || isCloudHypervisorRuntime(config.WorkflowData) {
 		agentTimeout = resolveAWFContainerAgentTimeoutMinutes(config.WorkflowData)
 	}
 	// containerRuntime is only emitted when the effective AWF version supports it.
