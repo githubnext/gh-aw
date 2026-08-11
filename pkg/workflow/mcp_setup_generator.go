@@ -168,6 +168,9 @@ func collectMCPTools(workflowData *WorkflowData) []string {
 	if IsMCPScriptsEnabled(workflowData.MCPScripts) {
 		mcpTools = append(mcpTools, "mcp-scripts")
 	}
+	if enclavesEnabled(workflowData) {
+		mcpTools = append(mcpTools, enclaveMCPServerName)
+	}
 	return mcpTools
 }
 

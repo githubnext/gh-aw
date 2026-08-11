@@ -163,6 +163,18 @@
           },
           "default": ["*"]
         },
+        "connectTimeout": {
+          "type": "integer",
+          "description": "Per-transport timeout in seconds while connecting to an HTTP MCP upstream.",
+          "minimum": 1,
+          "default": 30
+        },
+        "toolTimeout": {
+          "type": "integer",
+          "description": "Per-server timeout in seconds for a tool invocation.",
+          "minimum": 1,
+          "default": 60
+        },
         "env": {
           "type": "object",
           "description": "Environment variables to pass through for variable resolution. Values may contain variable expressions using '${VARIABLE_NAME}' syntax, which will be resolved from the process environment.",
