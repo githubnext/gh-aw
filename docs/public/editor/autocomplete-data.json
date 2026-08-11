@@ -800,8 +800,8 @@
             },
             "runtime": {
               "type": "string",
-              "desc": "Container runtime for the agent container.",
-              "enum": ["gvisor", "docker-sbx"],
+              "desc": "Container runtime for the agent container. cloud-hypervisor is preview-only and limited to GitHub-hosted Ubuntu x86_64 runners with /dev/kvm.",
+              "enum": ["gvisor", "docker-sbx", "cloud-hypervisor"],
               "leaf": true
             },
             "config": {

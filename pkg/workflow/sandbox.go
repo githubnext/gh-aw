@@ -58,6 +58,10 @@ const (
 	// api-proxy, MCP gateway) remain on the host in Docker Compose.
 	// Requires sudo: true and a KVM-capable runner with DOCKER_PAT / DOCKER_USERNAME secrets.
 	AgentRuntimeDockerSbx AgentRuntime = "docker-sbx"
+
+	// AgentRuntimeCloudHypervisor runs the agent inside a Cloud Hypervisor microVM
+	// using AWF's preview cloud-hypervisor runtime mode.
+	AgentRuntimeCloudHypervisor AgentRuntime = "cloud-hypervisor"
 )
 
 // AgentSandboxConfig represents the agent sandbox configuration

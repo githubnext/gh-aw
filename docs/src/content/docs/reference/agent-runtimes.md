@@ -1,11 +1,11 @@
 ---
 title: Agent Runtime Selection
-description: Choose and configure Docker, gVisor, Docker sbx, or ARC DinD for an agentic workflow, with runner requirements and troubleshooting guidance.
+description: Choose and configure Docker, gVisor, Docker sbx, Cloud Hypervisor, or ARC DinD for an agentic workflow, with runner requirements and troubleshooting guidance.
 sidebar:
   order: 1340
 ---
 
-Agentic workflows use AWF (Agent Workflow Firewall) to run the agent in an isolated environment. The environment can use the runner's standard Docker runtime, gVisor, or Docker sbx. ARC DinD is a runner topology that changes how the standard Docker environment is reached; it is not another value of `sandbox.agent.runtime`.
+Agentic workflows use AWF (Agent Workflow Firewall) to run the agent in an isolated environment. The environment can use the runner's standard Docker runtime, gVisor, Docker sbx, or preview Cloud Hypervisor mode. ARC DinD is a runner topology that changes how the standard Docker environment is reached; it is not another value of `sandbox.agent.runtime`.
 
 Use this page when selecting a runtime, writing workflow frontmatter, provisioning a runner, or diagnosing a runtime setup failure.
 
@@ -15,7 +15,7 @@ These similarly named fields control different layers:
 
 | Field | Purpose | Values covered here |
 | --- | --- | --- |
-| `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `gvisor`, `docker-sbx`, or omitted for Docker |
+| `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `gvisor`, `docker-sbx`, `cloud-hypervisor`, or omitted for Docker |
 | `sandbox.agent.runtime-install` | Controls whether gh-aw installs and prepares gVisor or Docker sbx | `true` by default; `false` for a pre-provisioned runner |
 | `runner.topology` | Describes how the runner reaches Docker | `arc-dind`, or omitted for a local Docker daemon |
 | `tools.github.bounded-queries.runtime` | Selects the backend for bounded-query scripts only | `docker`, `gvisor`, `sbx` |
@@ -31,14 +31,16 @@ These similarly named fields control different layers:
 | Docker | Linux namespaces, cgroups, and the host kernel | Linux and a usable Docker daemon | Fastest and most compatible, but the agent shares the host kernel |
 | gVisor | A `runsc` user-space kernel between the agent and host kernel | Local Docker daemon, `sudo`, systemd, and access to gVisor downloads | Stronger kernel isolation with syscall compatibility and performance overhead |
 | Docker sbx | A KVM-backed microVM for the agent | KVM, nested virtualization, `sudo`, apt, Docker Hub credentials, and local Docker | Strongest boundary here, but has the most setup cost and platform constraints |
+| Cloud Hypervisor (preview) | A KVM-backed microVM for the agent | GitHub-hosted Ubuntu x86_64 runner with `/dev/kvm` and AWF release asset download access | Preview-only path with strict host requirements and release-asset provisioning |
 | ARC DinD | Standard Docker agent container in a DinD sidecar | ARC or equivalent Kubernetes runner with a privileged DinD sidecar and shared work volume | Supports Kubernetes runner fleets, but adds split-filesystem and daemon-connectivity complexity |
 
 Apply this selection order:
 
 1. Use **ARC DinD** when the runner is an ARC pod or another Kubernetes runner whose Docker daemon is a DinD sidecar. Do not combine it with gVisor or Docker sbx.
 2. Otherwise, use **Docker sbx** when the user requires a hardware-virtualized boundary and the runner exposes working KVM.
-3. Otherwise, use **gVisor** when untrusted agent code warrants a smaller host-kernel attack surface and the workload is compatible with `runsc`.
-4. Use the default **Docker** runtime when compatibility, startup time, or runner portability is more important than an additional kernel or VM boundary.
+3. Use **Cloud Hypervisor (preview)** only when the runtime must be Cloud Hypervisor and the runner is GitHub-hosted Ubuntu x86_64 with `/dev/kvm`.
+4. Otherwise, use **gVisor** when untrusted agent code warrants a smaller host-kernel attack surface and the workload is compatible with `runsc`.
+5. Use the default **Docker** runtime when compatibility, startup time, or runner portability is more important than an additional kernel or VM boundary.
 
 If the user's requirement is unclear, prefer Docker. Do not select a stronger runtime until the runner prerequisites are known to be available.
 
@@ -265,6 +267,34 @@ It has the highest cold-start cost, consumes more memory and disk, requires Dock
 **Pre-flight smoke test fails:** The generated test creates `test-sandbox-direct`, executes `uname -a`, and removes it. Inspect the first failing `sbx create`, `sbx exec`, or `sbx stop` command before investigating AWF because the failure is below the workflow firewall layer.
 
 **The CLI is missing inside the microVM:** Upgrade gh-aw and recompile. Docker sbx requires engine CLIs to be staged under `${RUNNER_TEMP}/gh-aw/engine-cli`, which is visible to the microVM.
+
+## Cloud Hypervisor (preview)
+
+Cloud Hypervisor runs the agent in AWF's preview microVM runtime:
+
+```aw wrap
+---
+on: issues
+sandbox:
+  agent:
+    id: awf
+    runtime: cloud-hypervisor
+---
+
+Investigate this issue.
+```
+
+Preview scope is intentionally narrow:
+
+- GitHub-hosted runners only (`RUNNER_ENVIRONMENT=github-hosted`).
+- Ubuntu Linux x86_64 only (`RUNNER_OS=Linux`, `RUNNER_ARCH=X64`, `ImageOS=ubuntu*`).
+- `/dev/kvm` must be present.
+- `runner.topology: arc-dind` is not supported.
+
+The compiler emits host preflight and release-asset provisioning steps before AWF runs. Provisioning downloads `cloud-hypervisor-test-x86_64.tar.gz`, `SHA256SUMS`, and `manifest.json` from the pinned `gh-aw-firewall` release, verifies checksums, and feeds AWF digest-pinned flags for the Cloud Hypervisor binary, kernel, rootfs, and supervisor.
+
+> [!IMPORTANT]
+> This runtime is preview-only. Keep expectations aligned with AWF preview support and prefer Docker sbx or gVisor when Cloud Hypervisor host constraints are not guaranteed.
 
 ## ARC with Docker-in-Docker
 
