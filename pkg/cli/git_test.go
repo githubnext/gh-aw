@@ -100,7 +100,11 @@ func TestCheckCleanWorkingDirectoryIgnoring(t *testing.T) {
 	require.NoError(t, checkCleanWorkingDirectoryIgnoring(false, []string{generatedFile}))
 	require.ErrorContains(t, checkCleanWorkingDirectory(false), "working directory has uncommitted changes")
 
+	// Staged (but not committed) init file should also be excluded.
 	require.NoError(t, exec.Command("git", "add", generatedFile).Run())
+	require.NoError(t, checkCleanWorkingDirectoryIgnoring(false, []string{generatedFile}))
+	require.ErrorContains(t, checkCleanWorkingDirectory(false), "working directory has uncommitted changes")
+
 	require.NoError(t, exec.Command("git", "commit", "-m", "initial commit").Run())
 	require.NoError(t, os.WriteFile(generatedFile, []byte("updated"), 0644))
 
