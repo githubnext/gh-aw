@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/goccy/go-yaml"
 )
 
@@ -603,28 +604,7 @@ func resolveInlinedImports(rawFrontmatter map[string]any) bool {
 // deduplicates entries across both sources, and returns a sorted slice for
 // deterministic output.
 func mergeExcludedEnvVarNames(fromImports, fromMain []string) []string {
-	if len(fromImports) == 0 && len(fromMain) == 0 {
-		return nil
-	}
-	// Use max() for capacity hints: overflow-safe (no addition) and a tighter
-	// lower-bound than either length alone.
-	hint := max(len(fromImports), len(fromMain))
-	seen := make(map[string]struct{}, hint)
-	merged := make([]string, 0, hint)
-	for _, name := range fromImports {
-		if _, ok := seen[name]; !ok {
-			seen[name] = struct{}{}
-			merged = append(merged, name)
-		}
-	}
-	for _, name := range fromMain {
-		if _, ok := seen[name]; !ok {
-			seen[name] = struct{}{}
-			merged = append(merged, name)
-		}
-	}
-	sort.Strings(merged)
-	return merged
+	return sliceutil.MergeUniqueSorted(fromImports, fromMain)
 }
 
 // extractYAMLSections extracts YAML configuration sections from frontmatter

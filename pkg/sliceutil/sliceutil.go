@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -115,6 +116,70 @@ func MergeUnique[T comparable](base []T, extra ...T) []T {
 		sliceutilLog.Printf("MergeUnique: base=%d extra=%d result=%d", len(base), len(extra), len(result))
 	}
 	return result
+}
+
+// MergeUniqueByFunc merges base and extra slices of type T into a single slice with
+// duplicates removed, using keyFn to derive a dedup key for each item. keyFn returns
+// the key plus a boolean indicating whether the item should be considered at all;
+// when the boolean is false, the item is skipped entirely (not appended and not
+// recorded as seen). Order of first occurrence is preserved, with base items output
+// before extra items.
+func MergeUniqueByFunc[T any, K comparable](base, extra []T, keyFn func(T) (K, bool)) []T {
+	seen := make(map[K]struct{}, len(base)+len(extra))
+	result := make([]T, 0, len(base)+len(extra))
+	appendUnique := func(items []T) {
+		for _, item := range items {
+			key, ok := keyFn(item)
+			if !ok {
+				continue
+			}
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	appendUnique(base)
+	appendUnique(extra)
+	return result
+}
+
+// MergeUniqueTrimmed merges base and extra string slices, trimming surrounding
+// whitespace from every entry and skipping any that are empty after trimming.
+// The trimmed value (not the original) is what gets appended to the result, and
+// duplicates (post-trim) are removed while preserving order of first occurrence.
+func MergeUniqueTrimmed(base, extra []string) []string {
+	seen := make(map[string]struct{}, len(base)+len(extra))
+	result := make([]string, 0, len(base)+len(extra))
+	appendTrimmed := func(items []string) {
+		for _, item := range items {
+			item = strings.TrimSpace(item)
+			if item == "" {
+				continue
+			}
+			if _, exists := seen[item]; exists {
+				continue
+			}
+			seen[item] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	appendTrimmed(base)
+	appendTrimmed(extra)
+	return result
+}
+
+// MergeUniqueSorted merges base and extra slices, deduplicates entries across both,
+// and returns the result sorted in ascending order. Returns nil when both inputs
+// are empty.
+func MergeUniqueSorted[T cmp.Ordered](base, extra []T) []T {
+	if len(base) == 0 && len(extra) == 0 {
+		return nil
+	}
+	merged := MergeUnique(base, extra...)
+	slices.Sort(merged)
+	return merged
 }
 
 // Exclude returns a new slice containing the items from base that do not appear

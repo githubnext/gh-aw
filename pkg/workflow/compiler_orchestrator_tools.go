@@ -432,18 +432,7 @@ func (c *Compiler) resolveMarkdownArtifacts(
 }
 
 func mergeAndSortIncludedFiles(files1 []string, files2 []string) []string {
-	allIncludedFilesMap := make(map[string]struct {
-	})
-	for _, file := range files1 {
-		allIncludedFilesMap[file] = struct {
-		}{}
-	}
-	for _, file := range files2 {
-		allIncludedFilesMap[file] = struct {
-		}{}
-	}
-	allIncludedFiles := sliceutil.SortedKeys(allIncludedFilesMap)
-	return allIncludedFiles
+	return sliceutil.MergeUniqueSorted(files1, files2)
 }
 
 func (c *Compiler) extractWorkflowName(cleanPath string, effectiveMarkdown string) (string, error) {

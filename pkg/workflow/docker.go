@@ -8,6 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var dockerLog = logger.New("workflow:docker")
@@ -276,41 +277,14 @@ func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, 
 // mergeDockerImages appends any images from newImages that are not already present
 // in existing, preserving order for stability.
 func mergeDockerImages(existing, newImages []string) []string {
-	seen := make(map[string]struct {
-	}, len(existing))
-	for _, img := range existing {
-		seen[img] = struct {
-		}{}
-	}
-	result := existing
-	for _, img := range newImages {
-		if !setutil.Contains(seen, img) {
-			result = append(result, img)
-			seen[img] = struct {
-			}{}
-		}
-	}
-	return result
+	return sliceutil.MergeUnique(existing, newImages...)
 }
 
 // mergeDockerImagePins appends any pin entries from newPins that are not already present
 // in existing (keyed by Image), preserving order for stability.
 func mergeDockerImagePins(existing, newPins []GHAWManifestContainer) []GHAWManifestContainer {
-	seen := make(map[string]struct {
-	}, len(existing))
-	for _, p := range existing {
-		seen[p.Image] = struct {
-		}{}
-	}
-	result := existing
-	for _, p := range newPins {
-		if p.Image != "" && !setutil.Contains(seen, p.Image) {
-			result = append(result, p)
-			seen[p.Image] = struct {
-			}{}
-		}
-	}
-	return result
+	keyFn := func(p GHAWManifestContainer) (string, bool) { return p.Image, p.Image != "" }
+	return sliceutil.MergeUniqueByFunc(existing, newPins, keyFn)
 }
 
 // generateDownloadDockerImagesStep generates the step to download Docker images

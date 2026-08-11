@@ -6,7 +6,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var orchestratorWorkflowLog = logger.New("workflow:compiler_orchestrator_workflow")
@@ -304,23 +304,20 @@ func extractRawObservabilityMap(rawFrontmatter map[string]any) map[string]any {
 }
 
 func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (mergedEndpoints []any, mainCount int, importAdded int) {
-	seen := make(map[string]struct {
-	})
-	for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
-		if url, _ := ep["url"].(string); url != "" && !setutil.Contains(seen, url) {
-			seen[url] = struct {
-			}{}
-			mergedEndpoints = append(mergedEndpoints, ep)
-		}
+	keyFn := func(ep map[string]any) (string, bool) {
+		url, _ := ep["url"].(string)
+		return url, url != ""
 	}
-	mainCount = len(mergedEndpoints)
-	for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
-		if url, _ := ep["url"].(string); url != "" && !setutil.Contains(seen, url) {
-			seen[url] = struct {
-			}{}
-			mergedEndpoints = append(mergedEndpoints, ep)
-			importAdded++
-		}
+	mainEndpoints := extractRawOTLPEndpointMaps(mainObs)
+	importedEndpoints := extractRawOTLPEndpointMaps(importedObs)
+
+	merged := sliceutil.MergeUniqueByFunc(mainEndpoints, importedEndpoints, keyFn)
+	mainCount = len(sliceutil.MergeUniqueByFunc(mainEndpoints, nil, keyFn))
+	importAdded = len(merged) - mainCount
+
+	mergedEndpoints = make([]any, len(merged))
+	for i, ep := range merged {
+		mergedEndpoints[i] = ep
 	}
 	return mergedEndpoints, mainCount, importAdded
 }
