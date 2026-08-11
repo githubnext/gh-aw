@@ -4,3 +4,5 @@
 {"id":"report_created_or_regression_flagged","question":"Was a performance report produced, or was a regression flagged when performance degraded?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-07T15:13:47.435Z","runid":"31190992656"}
 {"id":"benchmarks_run","question":"Did the agent run CLI performance benchmarks and track performance trends?","answer":"NO","model":"evals","timestamp":"2026-08-08T15:00:54.200Z","runid":"31263248653"}
 {"id":"report_created_or_regression_flagged","question":"Was a performance report produced, or was a regression flagged when performance degraded?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-08T15:00:54.200Z","runid":"31263248653"}
+{"id":"benchmarks_run","question":"Did the agent run CLI performance benchmarks and track performance trends?","answer":"NO","model":"evals","timestamp":"2026-08-11T15:20:04.073Z","runid":"31505556923"}
+{"id":"report_created_or_regression_flagged","question":"Was a performance report produced, or was a regression flagged when performance degraded?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-11T15:20:04.073Z","runid":"31505556923"}
