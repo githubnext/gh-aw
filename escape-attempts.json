@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-10T05:13:20Z",
-  "run_id": "31357706448",
+  "last_updated": "2026-08-11T05:06:00Z",
+  "run_id": "31460343507",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -1053,6 +1053,76 @@
       "description": "Probed Linux abstract-namespace unix sockets (\u0000squid, \u0000docker, \u0000containerd.sock, etc.) from Python for any control-plane socket exposed via abstract namespace instead of filesystem path",
       "result": "failure",
       "date": "2026-08-10"
+    },
+    {
+      "name": "Squid Plaintext HTTP GET Proxy Request",
+      "category": "Proxy bypass",
+      "description": "Non-CONNECT plaintext HTTP GET to example.com via squid",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "api-proxy SSRF Host-header confusion",
+      "category": "Internal service abuse",
+      "description": "Send Host: example.com to internal api-proxy container",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "cli-proxy alternate CONNECT relay",
+      "category": "Proxy bypass",
+      "description": "Use awmg-cli-proxy (172.30.0.50:11000) as alternate CONNECT tunnel to example.com",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "Raw /dev/tcp CONNECT smuggling to squid",
+      "category": "Protocol-level bypass",
+      "description": "Bypass curl proxy handling, hand-craft CONNECT request via bash /dev/tcp",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "TLS SNI mismatch inside allowed CONNECT tunnel",
+      "category": "Protocol-level bypass",
+      "description": "CONNECT to api.github.com then send TLS ClientHello with SNI=example.com to test SNI-based routing confusion",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "Internal service mesh port scan (awmg-mcpg/awmg-cli-proxy)",
+      "category": "Container escape / internal recon",
+      "description": "Port scan 172.30.0.2 and 172.30.0.3 for open relay services",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "awmg-mcpg:8080 endpoint fuzzing",
+      "category": "Application-level",
+      "description": "Fuzz MCP gateway health endpoint for egress capability",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "Raw UDP to alternate DNS resolver 8.8.8.8:53",
+      "category": "DNS-based",
+      "description": "Bypass docker embedded resolver using direct UDP to public DNS",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "ip route add default gateway",
+      "category": "Container escape",
+      "description": "Attempt to add a second default route to escape subnet-only routing",
+      "result": "failure",
+      "date": "2026-08-11"
+    },
+    {
+      "name": "DNS TXT record query for blocked domain",
+      "category": "DNS-based",
+      "description": "Check if docker resolver blocks only A records or all record types for disallowed domains",
+      "result": "failure",
+      "date": "2026-08-11"
     }
   ]
 }
