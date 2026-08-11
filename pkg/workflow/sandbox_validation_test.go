@@ -136,13 +136,13 @@ func TestGetSandboxDisableJustification(t *testing.T) {
 	t.Run("GitHub Actions expression is rejected", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(makeData("${{ inputs.reason }}"))
 		require.Error(t, err)
-		require.ErrorContains(t, err, "expressions")
+		require.ErrorContains(t, err, "expression")
 	})
 
 	t.Run("longer expression with surrounding text is rejected", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(makeData("reason: ${{ inputs.reason }} end"))
 		require.Error(t, err)
-		require.ErrorContains(t, err, "expressions")
+		require.ErrorContains(t, err, "expression")
 	})
 
 	t.Run("20+ character literal reason passes", func(t *testing.T) {
@@ -378,7 +378,7 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 
 		err := validateSandboxConfig(workflowData)
 		require.Error(t, err, "a dangerous port should fail validation")
-		assert.Contains(t, err.Error(), "invalid allow-host-ports value: 5432")
+		assert.Contains(t, err.Error(), "allow-host-ports value 5432")
 		assert.Contains(t, err.Error(), "PostgreSQL")
 		assert.Contains(t, err.Error(), "services:")
 	})

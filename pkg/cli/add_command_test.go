@@ -683,7 +683,7 @@ func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
 
 	err := cmd.Execute()
 	require.Error(t, err, "Should error when --name is used with multiple workflows")
-	require.ErrorContains(t, err, "--name flag cannot be used when adding multiple workflows", "Error should mention --name restriction")
+	require.ErrorContains(t, err, "--name was set while multiple workflows were provided", "Error should mention --name restriction")
 }
 
 // setupMinimalGitRepo initialises a bare-minimum git repo in dir and returns the
