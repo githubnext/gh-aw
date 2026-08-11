@@ -5,7 +5,7 @@
   "repository": "https://github.com/github/gh-aw",
   "category": "developer-tools",
   "longName": "GitHub Agentic Workflows (gh-aw)",
-  "longDescription": "The gh-aw GitHub CLI extension compiles agentic workflows into GitHub Actions workflows. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and experimental Pi. Agent jobs default to sandboxed, read-only execution with controlled safe outputs for configured writes, complementing deterministic CI/CD.",
+  "longDescription": "The gh-aw GitHub CLI extension compiles agentic workflows into GitHub Actions workflows. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi. Agent jobs default to sandboxed, read-only execution with controlled safe outputs for configured writes, complementing deterministic CI/CD.",
   "version": "latest",
   "docs": "https://github.github.com/gh-aw/",
   "source": "https://github.com/github/gh-aw",

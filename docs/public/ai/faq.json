@@ -10,7 +10,7 @@
     },
     {
       "question": "Which AI engines does gh-aw support?",
-      "answer": "Built-in AI engines are GitHub Copilot (copilot), Claude Code (claude), OpenAI Codex (codex), Google Gemini (gemini), and experimental Pi (pi). Select the engine in YAML frontmatter and configure its required permission, secret, or workload identity."
+      "answer": "Built-in AI engines are GitHub Copilot (copilot), Claude Code (claude), OpenAI Codex (codex), Google Gemini (gemini), and Pi (pi). Select the engine in YAML frontmatter and configure its required permission, secret, or workload identity."
     },
     {
       "question": "How do I create a workflow?",

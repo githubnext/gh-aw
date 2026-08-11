@@ -41,7 +41,7 @@ Hey agent! If this repository hasn't been configured with agentic workflows yet,
      - For `claude`, set `ANTHROPIC_API_KEY` or configure Anthropic WIF
      - For `codex`, set `CODEX_API_KEY` or `OPENAI_API_KEY`
      - For `gemini`, set `GEMINI_API_KEY` or configure Google WIF
-     - For experimental `pi`, configure provider authentication and the required proxies
+     - For `pi`, configure provider authentication and the required proxies
 
 </details>
 
@@ -51,7 +51,7 @@ GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository 
 
 Use conventional GitHub Actions for deterministic builds, tests, linting, deployments, and reproducible scripts. Add an agentic workflow when a task needs reasoning or interpretation, such as issue triage, pull-request review, CI failure investigation, documentation maintenance, dependency analysis, or repository reporting. GitHub Agentic Workflows complements existing CI/CD; it does not replace it.
 
-Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, and Google Gemini. Pi is also available as an experimental engine. Agent jobs are read-only and sandboxed by default, and configured GitHub writes are normally applied through validated `safe-outputs` jobs with scoped permissions.
+Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi. Agent jobs are read-only and sandboxed by default, and configured GitHub writes are normally applied through validated `safe-outputs` jobs with scoped permissions.
 
 > [!NOTE]
 > **Releases 0.68.4 through 0.71.3 are being retired** due to a bug that impacts billing. If you are running one of these versions, please upgrade to the latest release as soon as possible.

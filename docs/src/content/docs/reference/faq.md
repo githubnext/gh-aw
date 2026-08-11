@@ -17,7 +17,7 @@ head:
             "name": "What is GitHub Agentic Workflows?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "GitHub Agentic Workflows (gh-aw) lets developers define AI-powered repository automation in Markdown with YAML frontmatter, compile it into GitHub Actions workflows, and run AI agents with configurable security controls. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and experimental Pi."
+              "text": "GitHub Agentic Workflows (gh-aw) lets developers define AI-powered repository automation in Markdown with YAML frontmatter, compile it into GitHub Actions workflows, and run AI agents with configurable security controls. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi."
             }
           },
           {
@@ -33,7 +33,7 @@ head:
             "name": "Which AI engine should I use with gh-aw?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "GitHub Copilot is the default. Claude Code supports fine-grained turn control; OpenAI Codex and Google Gemini support their provider models; Pi is experimental and can route to multiple providers. Select an engine with the engine field and configure its GitHub permission, API key, or supported workload identity."
+              "text": "GitHub Copilot is the default. Claude Code supports fine-grained turn control; OpenAI Codex and Google Gemini support their provider models; Pi can route to multiple providers. Select an engine with the engine field and configure its GitHub permission, API key, or supported workload identity."
             }
           },
           {
@@ -82,7 +82,7 @@ head:
 
 ## What is GitHub Agentic Workflows?
 
-GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation and run AI agents through GitHub Actions. Authors write Markdown instructions with YAML frontmatter, then `gh aw compile` generates the `.lock.yml` GitHub Actions workflow. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and experimental Pi.
+GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation and run AI agents through GitHub Actions. Authors write Markdown instructions with YAML frontmatter, then `gh aw compile` generates the `.lock.yml` GitHub Actions workflow. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi.
 
 > [!NOTE]
 > GitHub Agentic Workflows is in Public Preview.
@@ -111,7 +111,7 @@ While a standard GitHub Actions workflow can install and run a coding agent dire
 
 ### Which AI engine should I use?
 
-GitHub Copilot is the default and supports the `copilot-requests: write` permission or a `COPILOT_GITHUB_TOKEN`. Claude Code supports fine-grained turn control (`max-turns`) and authenticates with `ANTHROPIC_API_KEY` or Anthropic WIF. Codex uses `CODEX_API_KEY` or `OPENAI_API_KEY`; Gemini uses `GEMINI_API_KEY` or Google WIF. Experimental Pi selects authentication from its `provider/model` value and has additional proxy requirements. Compare [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/) before selecting one.
+GitHub Copilot is the default and supports the `copilot-requests: write` permission or a `COPILOT_GITHUB_TOKEN`. Claude Code supports fine-grained turn control (`max-turns`) and authenticates with `ANTHROPIC_API_KEY` or Anthropic WIF. Codex uses `CODEX_API_KEY` or `OPENAI_API_KEY`; Gemini uses `GEMINI_API_KEY` or Google WIF. Pi selects authentication from its `provider/model` value and has additional proxy requirements. Compare [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/) before selecting one.
 
 ### Can I run Claude Code on a schedule in GitHub Actions using gh-aw?
 
@@ -365,7 +365,7 @@ safe-outputs:
 
 ### How is my code and data processed?
 
-The workflow runs on GitHub Actions and invokes the selected [AI engine](/gh-aw/reference/engines/) in a container that may make tool and MCP calls. Data handling depends on the engine: GitHub Copilot CLI uses GitHub Copilot services; Claude Code, Codex, and Gemini use their configured provider services; experimental Pi uses the provider selected by its `provider/model` value. See the [security architecture](/gh-aw/introduction/architecture/) for execution and data-flow details.
+The workflow runs on GitHub Actions and invokes the selected [AI engine](/gh-aw/reference/engines/) in a container that may make tool and MCP calls. Data handling depends on the engine: GitHub Copilot CLI uses GitHub Copilot services; Claude Code, Codex, and Gemini use their configured provider services; Pi uses the provider selected by its `provider/model` value. See the [security architecture](/gh-aw/introduction/architecture/) for execution and data-flow details.
 
 ### Does the underlying AI engine run in a sandbox?
 
@@ -488,7 +488,7 @@ gh aw compile --ghes my-workflow.md
 
 ### I'm not using a supported AI Engine (coding agent). What should I do?
 
-Built-in engines are GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and experimental Pi. Unsupported engine samples also demonstrate how custom integrations are structured. Contribute support to the [GitHub Agentic Workflows repository](https://github.com/github/gh-aw) or open an issue describing the use case. See [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/).
+Built-in engines are GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi. Unsupported engine samples also demonstrate how custom integrations are structured. Contribute support to the [GitHub Agentic Workflows repository](https://github.com/github/gh-aw) or open an issue describing the use case. See [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/).
 
 ### Can I test workflows without affecting my repository?
 
@@ -683,7 +683,7 @@ Depends on the engine:
 - **Claude Code**: the Anthropic account tied to [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key), or the account configured for Anthropic WIF.
 - **OpenAI Codex**: the OpenAI account tied to `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key).
 - **Google Gemini**: the Google account tied to [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key), or the Google Cloud account configured for WIF.
-- **Pi (experimental)**: the account for the provider selected in the `provider/model` value.
+- **Pi**: the account for the provider selected in the `provider/model` value.
 
 ### Does gh-aw add any cost beyond what the AI engine charges?
 
@@ -778,5 +778,5 @@ See [Token Optimization — Capping Spend](/gh-aw/reference/cost-management/) fo
 - [Automated AI Pull Request Review](/gh-aw/guides/automated-pr-review/) — review diffs and post feedback on new PRs
 - [AI Release Notes and Reports](/gh-aw/guides/ai-release-notes/) — generate release summaries automatically
 - [Keeping Documentation Up to Date Automatically](/gh-aw/guides/docs-automation/) — propose docs updates as pull requests
-- [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/) — compare Copilot, Claude Code, Codex, Gemini, and experimental Pi
+- [AI engines for GitHub Agentic Workflows](/gh-aw/reference/engines/) — compare Copilot, Claude Code, Codex, Gemini, and Pi
 - [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) — understand configurable permissions, isolation, and controlled writes

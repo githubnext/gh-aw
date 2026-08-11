@@ -5,7 +5,7 @@
   "capabilities": [
     "Compile Markdown workflows with YAML frontmatter to GitHub Actions YAML",
     "Run AI agents through GitHub Actions triggers, runners, jobs, and logs",
-    "Use built-in AI engines: GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and experimental Pi",
+    "Use built-in AI engines: GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi",
     "Complement deterministic builds, tests, linting, deployments, and scripts with reasoning-based automation",
     "MCP (Model Context Protocol) server integration",
     "Validated safe outputs for configured GitHub writes",
@@ -20,7 +20,7 @@
     { "id": "claude", "name": "Claude Code" },
     { "id": "codex", "name": "OpenAI Codex" },
     { "id": "gemini", "name": "Google Gemini" },
-    { "id": "pi", "name": "Pi", "experimental": true }
+    { "id": "pi", "name": "Pi" }
   ],
   "integrations": ["GitHub Actions", "GitHub CLI", "MCP (Model Context Protocol)", "Playwright", "GitHub Issues", "GitHub Pull Requests", "GitHub Discussions"],
   "install": "gh extension install github/gh-aw",

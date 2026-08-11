@@ -30,7 +30,7 @@ With GitHub Agentic Workflows (`gh-aw`), developers define AI-powered repository
 
 Use standard GitHub Actions for deterministic builds, tests, linting, deployments, and reproducible scripts. Add an agentic workflow for work that benefits from reasoning or interpretation, such as issue triage, CI investigation, documentation updates, code review, and repository reporting. The two approaches complement each other.
 
-Supported built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, and Google Gemini, plus experimental Pi. Choose the engine and authentication method that fit the workflow, then keep the same Markdown-and-frontmatter authoring model.
+Supported built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, and Google Gemini, plus Pi. Choose the engine and authentication method that fit the workflow, then keep the same Markdown-and-frontmatter authoring model.
 
 By default, supported agent jobs use read-only GitHub access and sandboxed execution. Configured writes can be routed through validated safe outputs that run separately with scoped permissions. These controls remain configurable and require careful review.
 
@@ -41,7 +41,7 @@ By default, supported agent jobs use read-only GitHub access and sandboxed execu
     Workflows that understand context and adapt to situations
   </FeatureCard>
   <FeatureCard icon="beaker" title="Multiple AI Engines" href="/gh-aw/reference/engines/">
-    Built-in support for Copilot, Claude Code, Codex, Gemini, and experimental Pi
+    Built-in support for Copilot, Claude Code, Codex, Gemini, and Pi
   </FeatureCard>
   <FeatureCard icon="server" title="Self-Hosted & ARC Runners" href="/gh-aw/reference/self-hosted-runners/">
     Deploy on Linux self-hosted runners, including ARC with Docker-in-Docker
@@ -73,7 +73,7 @@ AI agents can be manipulated by prompt injection, malicious repository content, 
 ```mermaid
 flowchart LR
     INPUT["Repository + Prompt Input"] --> TOKENS["Read-only Token"]
-    TOKENS --> SECRETS["No Repository Secrets by Default"]
+    TOKENS --> SECRETS["No Secrets in Agent"]
     SECRETS --> SANDBOX["Sandbox + Network Controls"]
     SANDBOX --> SAFE["Safe Outputs Gate"]
     SAFE --> DETECT["Threat Detection Scan (when enabled)"]
@@ -178,7 +178,7 @@ The `gh aw compile` command turns this source into a hardened `.lock.yml` GitHub
 
 ## AI Engines
 
-GitHub Agentic Workflows (`gh-aw`) provides four stable built-in AI engines and experimental Pi. Engine changes may also require a different authentication method or tool configuration; use the linked guide for each engine.
+GitHub Agentic Workflows (`gh-aw`) provides five stable built-in AI engines, including Pi. Engine changes may also require a different authentication method or tool configuration; use the linked guide for each engine.
 
 <FeatureGrid columns={4}>
   <FeatureCard title="GitHub Copilot" href="/gh-aw/engines/copilot/">
@@ -193,8 +193,8 @@ GitHub Agentic Workflows (`gh-aw`) provides four stable built-in AI engines and 
   <FeatureCard title="Google Gemini" href="/gh-aw/engines/gemini/">
     Google Gemini CLI. Select gemini and use GEMINI_API_KEY or Google WIF.
   </FeatureCard>
-  <FeatureCard title="Pi (Experimental)" href="/gh-aw/engines/pi/">
-    Multi-provider experimental engine. Set engine: pi and configure its required proxies and provider authentication.
+  <FeatureCard title="Pi" href="/gh-aw/engines/pi/">
+    Multi-provider engine. Set engine: pi and configure its required proxies and provider authentication.
   </FeatureCard>
 </FeatureGrid>
 

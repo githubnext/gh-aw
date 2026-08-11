@@ -1,6 +1,6 @@
 ---
-title: GitHub Agentic Workflows Security Architecture
-description: Security architecture for GitHub Agentic Workflows (gh-aw), including configurable permissions, sandboxing, threat detection, integrity filtering, network controls, and safe outputs in GitHub Actions.
+title: Security Architecture
+description: Security architecture for GitHub Agentic Workflows across hosted runners, ARC with Docker-in-Docker, gVisor, and Docker sbx microVM isolation.
 sidebar:
   order: 3
 disable-agentic-editing: true
@@ -12,48 +12,46 @@ head:
 
 import { Aside } from '@astrojs/starlight/components';
 
-GitHub Agentic Workflows (`gh-aw`) compiles Markdown workflow definitions into GitHub Actions workflows that run AI agents with GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or experimental Pi. The default generated workflow uses defense-in-depth controls against prompt injection, rogue MCP servers, and compromised agents. These controls are configurable; disabling isolation or threat detection, granting direct write permissions, or adding custom jobs changes the trust model.
+GitHub Agentic Workflows (gh-aw) runs AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions with a defense-in-depth security architecture that protects against prompt injection, rogue MCP servers, and compromised agents. This document provides an overview of the security model and its key components.
 
 ## Security Model
 
-GitHub Agentic Workflows adopts a layered approach that combines substrate-enforced isolation, declarative specification, and staged execution. Each layer enforces distinct security properties under different assumptions and constrains the impact of failures above it.
+Agentic Workflows (AW) adopts a layered approach that combines substrate-enforced isolation, declarative specification, and staged execution. Each layer enforces distinct security properties under different assumptions and constrains the impact of failures above it.
 
 ### Threat Model
 
-The threat model considers an adversary that may compromise untrusted user-level components, such as containers, and cause them to behave arbitrarily within their granted privileges. The adversary may attempt to:
+We consider an adversary that may compromise untrusted user-level components, e.g., containers, and may cause them to behave arbitrarily within the privileges granted to them. The adversary may attempt to:
 
 - Access or corrupt the memory or state of other components
 - Communicate over unintended channels
 - Abuse legitimate channels to perform unintended actions
 - Confuse higher-level control logic by deviating from expected workflows
 
-The threat model assumes that the adversary does not compromise the underlying hardware or cryptographic primitives. Attacks exploiting side channels and covert channels are also out of scope.
+We assume the adversary does not compromise the underlying hardware or cryptographic primitives. Attacks exploiting side channels and covert channels are also out of scope.
 
 ---
 
 ### Layer 1: Substrate-Level Trust
 
-Agentic workflows run on GitHub-hosted or Linux self-hosted GitHub Actions runners. Self-hosted deployments can include Actions Runner Controller (ARC) pods that use a privileged Docker-in-Docker (DinD) sidecar. The trusted substrate therefore includes the runner host or Kubernetes cluster, CPU, MMU, kernel, and container runtime. With ARC DinD, the runner container sends Docker API commands to the sidecar daemon, which creates the agent, proxy, and MCP containers and enforces their Docker network boundaries.
+AWs run on GitHub-hosted or Linux self-hosted GitHub Actions runners. Self-hosted deployments can include Actions Runner Controller (ARC) pods that use a privileged Docker-in-Docker (DinD) sidecar. The trusted substrate therefore includes the runner host or Kubernetes cluster, CPU, MMU, kernel, and container runtime. With ARC DinD, the runner container sends Docker API commands to the sidecar daemon, which creates the agent, proxy, and MCP containers and enforces their Docker network boundaries.
 
 The default agent runtime uses Docker container isolation. Compatible Linux runners can instead use gVisor's `runsc` user-space kernel, or Docker sbx to place the agent in a KVM-isolated microVM. These runtimes add isolation boundaries but do not remove trust in the runner host, firewall, MCP Gateway, container runtime, kernel, hypervisor, or hardware.
 
-By default, agentic workflows also rely on three trusted infrastructure components: (1) a network firewall that configures connectivity and launches the agent, (2) an API proxy that routes model traffic and may hold endpoint-specific credentials or routing configuration for supported engines, and (3) an MCP Gateway that configures and spawns isolated MCP-server containers. Collectively, the substrate level provides memory and resource isolation, mediation of privileged operations and system calls, and explicit communication boundaries. These guarantees hold even if an untrusted user-level component is fully compromised and executes arbitrary code. If this layer fails, higher-level security guarantees may not hold.
+AWs also rely on three trusted infrastructure components: (1) a network firewall that configures connectivity and launches the agent, (2) an API proxy that routes model traffic and may hold endpoint-specific credentials or routing configuration for supported engines, and (3) an MCP Gateway that configures and spawns isolated MCP-server containers. Collectively, the substrate level provides memory and resource isolation, mediation of privileged operations and system calls, and explicit communication boundaries. These guarantees hold even if an untrusted user-level component is fully compromised and executes arbitrary code. If this layer fails, higher-level security guarantees may not hold.
 
 ---
 
 ### Layer 2: Configuration-Level Trust
 
-GitHub Agentic Workflows trusts declarative configuration artifacts, such as Action steps, network-firewall policies, MCP server configurations, and the toolchains that interpret them to correctly instantiate system structure and connectivity. The configuration level constrains which components are loaded, how components are connected, which communication channels are permitted, and what component privileges are assigned. Externally minted authentication tokens, such as agent API keys and GitHub access tokens, are critical configuration inputs and are treated as imported capabilities that bound components' external effects; declarative configuration controls their distribution, including which tokens are loaded into which containers. Security violations arise due to misconfigurations, overly permissive specifications, and limitations of the declarative model. This layer defines what components exist and how they communicate, but it does not constrain how components use those channels over time.
+AW trusts declarative configuration artifacts, e.g., Action steps, network-firewall policies, MCP server configurations, and the toolchains that interpret them to correctly instantiate system structure and connectivity. The configuration level constrains which components are loaded, how components are connected, which communication channels are permitted, and what component privileges are assigned. Externally minted authentication tokens, e.g., agent API keys and GitHub access tokens, are a critical configuration input and are treated as imported capabilities that bound components' external effects; declarative configuration controls their distribution, e.g., which tokens are loaded into which containers. Security violations arise due to misconfigurations, overly permissive specifications, and limitations of the declarative model. This layer defines what components exist and how they communicate, but it does not constrain how components use those channels over time.
 
 ---
 
 ### Layer 3: Plan-Level Trust
 
-GitHub Agentic Workflows additionally relies on plan-level trust to constrain component behavior over time. At this layer, the trusted compiler decomposes a workflow into stages. For each stage, the plan specifies (1) which components are active and their permissions, (2) the data produced by the stage, and (3) how that data may be consumed by subsequent stages. In particular, plan-level trust makes configured external side effects explicit so they can undergo vetting.
+AW additionally relies on plan-level trust to constrain component behavior over time. At this layer, the trusted compiler decomposes a workflow into stages. For each stage, the plan specifies (1) which components are active and their permissions, (2) the data produced by the stage, and (3) how that data may be consumed by subsequent stages. In particular, plan-level trust ensures that important external side effects are explicit and undergo thorough vetting.
 
 A primary instantiation of plan-level trust is the **SafeOutputs** subsystem. SafeOutputs is a set of trusted components that operate on external state. An agent can interact with read-only MCP servers, e.g., the GitHub MCP server, but externalized writes, such as creating GitHub pull requests, are buffered as artifacts by SafeOutputs rather than applied immediately. When the agent finishes, SafeOutputs' buffered artifacts can be processed by a deterministic sequence of filters and analyses defined by configuration. These checks can include structural constraints, e.g., limiting the number of pull requests, policy enforcement, and automated sanitization to ensure that sensitive information such as authentication tokens are not exported. These filtered and transformed artifacts are passed to a subsequent stage in which they are externalized.
-
-Safe outputs constrain writes requested through the SafeOutputs subsystem. Custom jobs and direct write permissions are separate trust boundaries and must be reviewed independently.
 
 Security violations at the planning layer arise from incorrect plan construction, incomplete or overly permissive stage definitions, or errors in the enforcement of plan transitions. This layer does not protect against failures of substrate-level isolation or mis-allocation of permissions at credential-minting or configuration time. However, it limits the blast radius of a compromised component to the stage in which it is active and its influence on the artifacts passed to the next stage.
 
@@ -298,7 +296,7 @@ MCP servers execute within isolated containers, enforcing substrate-level separa
 ```mermaid
 flowchart TB
     subgraph Agent["AI Agent"]
-        ENGINE["AI Engine<br/>(Copilot, Claude, Codex, Gemini, Pi)"]
+        ENGINE["AI Engine<br/>(Copilot, Claude, Codex)"]
     end
 
     subgraph MCPLayer["MCP Server Layer"]
@@ -425,7 +423,7 @@ threat-detection:
 
 ## Compilation-Time Security
 
-The `gh-aw` compiler enforces security constraints at compilation time through schema validation, expression allowlisting, and action pinning. The trusted compiler validates declarative configuration artifacts before they are deployed, rejecting misconfigurations and overly permissive specifications. This layer constrains what components may be loaded and how they may be connected, but it does not constrain runtime behavior.
+AW enforces security constraints at compilation time through schema validation, expression allowlisting, and action pinning. The trusted compiler validates declarative configuration artifacts before they are deployed, rejecting misconfigurations and overly permissive specifications. This layer constrains what components may be loaded and how they may be connected, but it does not constrain runtime behavior.
 
 ```mermaid
 flowchart TB
@@ -732,7 +730,7 @@ flowchart TB
 
 ## Observability
 
-GitHub Agentic Workflows provides observability through GitHub Actions runs and artifacts. Generated workflow artifacts can preserve prompts, outputs, patches, and logs for post-hoc analysis. This observability layer supports debugging, security auditing, and cost monitoring without changing runtime isolation.
+AW provides comprehensive observability through GitHub Actions runs and artifacts. Workflow artifacts preserve prompts, outputs, patches, and logs for post-hoc analysis. This observability layer supports debugging, security auditing, and cost monitoring without compromising runtime isolation.
 
 ```mermaid
 flowchart TB
@@ -782,10 +780,10 @@ flowchart TB
 
 **Observability Properties:**
 
-- **Artifact Preservation**: Generated workflows save diagnostic outputs such as prompts, patches, and logs as downloadable artifacts
+- **Artifact Preservation**: All workflow outputs (prompts, patches, logs) are saved as downloadable artifacts
 - **Cost Monitoring**: Token usage and costs across workflow runs are tracked via `gh aw logs`
 - **Failure Analysis**: Failed runs can be investigated with `gh aw audit` to examine prompts, errors, and network activity
-- **Firewall Logs**: When the firewall is enabled, requests routed through it are logged for security auditing
+- **Firewall Logs**: All network requests made by the agent are logged for security auditing
 - **Step Summaries**: Rich markdown summaries in GitHub Actions display agent decisions and outputs
 
 **CLI Commands for Observability:**
@@ -818,15 +816,13 @@ gh aw status
 | **Plan** | Integrity filtering (`min-integrity`) | Untrusted user input, context poisoning, social engineering |
 | **Plan** | Content sanitization | @mention abuse, bot triggers |
 | **Plan** | Secret redaction | Credential leakage in logs/artifacts |
-| **Plan** | Threat detection, when enabled | Malicious patches, secret leaks |
-| **Plan** | Permission separation through configured safe outputs | Direct write access abuse |
+| **Plan** | Threat detection | Malicious patches, secret leaks |
+| **Plan** | Permission separation (SafeOutputs) | Direct write access abuse |
 | **Plan** | Output sanitization | Content injection, XSS |
 | **Plan** | Artifact preservation, CLI tools | Debugging failures, auditing security, cost tracking |
 
 ## Related Documentation
 
-- [GitHub Agentic Workflows Quickstart](/gh-aw/setup/quick-start/) - Install `gh-aw` and run a first agentic workflow
-- [Create a GitHub Agentic Workflow](/gh-aw/setup/creating-workflows/) - Author Markdown instructions and compile them into GitHub Actions
 - [Integrity Filtering](/gh-aw/reference/integrity/) - Author-trust and merge-status content filtering
 - [Threat Detection Guide](/gh-aw/reference/threat-detection/) - Configuring threat analysis
 - [Network Permissions](/gh-aw/reference/network/) - Network access control
@@ -835,7 +831,5 @@ gh aw status
 - [Sandbox Configuration](/gh-aw/reference/sandbox/) - Agent sandbox and runtime configuration
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Output processing configuration
 - [AI Engines](/gh-aw/reference/engines/) - Engine-specific security features
-- [GitHub Agentic Workflows Examples](/gh-aw/examples/) - Task-oriented workflow examples and recipes
-- [GitHub Agentic Workflows FAQ](/gh-aw/reference/faq/) - Concise answers about behavior, security, engines, and costs
 - [Compilation Process](/gh-aw/reference/compilation-process/) - Build-time security validation
 - [CLI Commands](/gh-aw/setup/cli/) - Workflow management and observability tools
