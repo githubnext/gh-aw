@@ -62,7 +62,7 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 	// Explicit reaction fields require the integrity-reactions feature flag
 	if hasExplicitReactionFields && !featureEnabled {
 		toolsValidationLog.Printf("Reaction fields present but integrity-reactions feature flag not enabled in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'endorsement-reactions', 'disapproval-reactions', 'disapproval-integrity', and 'endorser-min-integrity' require the 'integrity-reactions' feature flag to be enabled. Add 'features: integrity-reactions: true' to your workflow")
+		return errors.New("guard policy fields 'endorsement-reactions', 'disapproval-reactions', 'disapproval-integrity', and 'endorser-min-integrity' require the 'integrity-reactions' feature flag. Example: features:\n  integrity-reactions: true")
 	}
 
 	// Feature flag requires MCPG >= v0.2.18
@@ -101,13 +101,13 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 	// Validate disapproval-integrity value
 	if hasDisapprovalIntegrity && !validDisapprovalIntegrityLevels[github.DisapprovalIntegrity] {
 		toolsValidationLog.Printf("Invalid disapproval-integrity value '%s' in workflow: %s", github.DisapprovalIntegrity, workflowName)
-		return fmt.Errorf("invalid guard policy: 'disapproval-integrity' must be one of: 'none', 'unapproved', 'approved', 'merged'. Got: '%s'", github.DisapprovalIntegrity)
+		return fmt.Errorf("guard policy 'disapproval-integrity' value '%s' is not supported. Expected one of: 'none', 'unapproved', 'approved', 'merged'. Example: disapproval-integrity: approved", github.DisapprovalIntegrity)
 	}
 
 	// Validate endorser-min-integrity value
 	if hasEndorserMinIntegrity && !validEndorserMinIntegrityLevels[github.EndorserMinIntegrity] {
 		toolsValidationLog.Printf("Invalid endorser-min-integrity value '%s' in workflow: %s", github.EndorserMinIntegrity, workflowName)
-		return fmt.Errorf("invalid guard policy: 'endorser-min-integrity' must be one of: 'unapproved', 'approved', 'merged'. Got: '%s'", github.EndorserMinIntegrity)
+		return fmt.Errorf("guard policy 'endorser-min-integrity' value '%s' is not supported. Expected one of: 'unapproved', 'approved', 'merged'. Example: endorser-min-integrity: approved", github.EndorserMinIntegrity)
 	}
 
 	return nil

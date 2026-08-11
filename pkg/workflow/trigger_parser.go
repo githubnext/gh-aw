@@ -41,7 +41,7 @@ type TriggerIR struct {
 func ParseTriggerShorthand(input string) (*TriggerIR, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return nil, errors.New("trigger shorthand cannot be empty")
+		return nil, errors.New("trigger shorthand requires a non-empty string. Example: '/my-command'")
 	}
 
 	triggerParserLog.Printf("Parsing trigger shorthand: %s", input)
@@ -821,7 +821,7 @@ func parseOnMapPreamble(onMap map[string]any, workflowData *WorkflowData) (hasRe
 			return false, false, false, parseErr
 		}
 		if !isValidReaction(reactionStr) {
-			return false, false, false, fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
+			return false, false, false, fmt.Errorf("reaction value '%s' is not supported. Valid reactions are: %v. Example: reaction: eyes", reactionStr, getValidReactions())
 		}
 		workflowData.AIReaction = reactionStr
 		workflowData.ReactionIssues = reactionIssues
@@ -863,7 +863,7 @@ func parseCommandTriggerFromOnMap(onMap map[string]any, workflowData *WorkflowDa
 				if (eventName == "issues" || eventName == "pull_request") && parser.IsNonConflictingCommandEvent(eventValue) {
 					continue
 				}
-				return false, fmt.Errorf("cannot use '%s' with '%s' in the same workflow", triggerKey, eventName)
+				return false, fmt.Errorf("'%s' and '%s' triggers are mutually exclusive in the same workflow. Remove one of them, or use centralized command mode", triggerKey, eventName)
 			}
 		}
 	}
@@ -887,7 +887,7 @@ func parseLabelCommandFromOnMap(onMap map[string]any, workflowData *WorkflowData
 		for _, eventName := range labelConflictingEvents {
 			if eventValue, hasConflict := onMap[eventName]; hasConflict {
 				if !parser.IsLabelOnlyEvent(eventValue) {
-					return false, fmt.Errorf("cannot use 'label_command' with '%s' trigger (non-label types); use only labeled/unlabeled types or remove this trigger", eventName)
+					return false, fmt.Errorf("'label_command' requires only labeled/unlabeled event types, but '%s' trigger uses a non-label type. Remove this trigger or use only labeled/unlabeled types", eventName)
 				}
 			}
 		}
@@ -950,14 +950,14 @@ func parseStatusCommentFromOnMap(statusCommentValue any, workflowData *WorkflowD
 	}
 	statusCommentMap, ok := statusCommentValue.(map[string]any)
 	if !ok {
-		return fmt.Errorf("status-comment must be a boolean or object value, got %T", statusCommentValue)
+		return fmt.Errorf("status-comment expects a boolean or object value, got %T. Example: status-comment: true", statusCommentValue)
 	}
 
 	statusCommentIssues := true
 	if issuesValue, hasIssues := statusCommentMap["issues"]; hasIssues {
 		issuesBool, ok := issuesValue.(bool)
 		if !ok {
-			return fmt.Errorf("status-comment.issues must be a boolean value, got %T", issuesValue)
+			return fmt.Errorf("status-comment.issues expects a boolean value, got %T. Example: status-comment:\n  issues: true", issuesValue)
 		}
 		statusCommentIssues = issuesBool
 	}
@@ -966,7 +966,7 @@ func parseStatusCommentFromOnMap(statusCommentValue any, workflowData *WorkflowD
 	if pullRequestsValue, hasPullRequests := statusCommentMap["pull-requests"]; hasPullRequests {
 		pullRequestsBool, ok := pullRequestsValue.(bool)
 		if !ok {
-			return fmt.Errorf("status-comment.pull-requests must be a boolean value, got %T", pullRequestsValue)
+			return fmt.Errorf("status-comment.pull-requests expects a boolean value, got %T. Example: status-comment:\n  pull-requests: true", pullRequestsValue)
 		}
 		statusCommentPullRequests = pullRequestsBool
 	}
@@ -975,7 +975,7 @@ func parseStatusCommentFromOnMap(statusCommentValue any, workflowData *WorkflowD
 	if discussionsValue, hasDiscussions := statusCommentMap["discussions"]; hasDiscussions {
 		discussionsBool, ok := discussionsValue.(bool)
 		if !ok {
-			return fmt.Errorf("status-comment.discussions must be a boolean value, got %T", discussionsValue)
+			return fmt.Errorf("status-comment.discussions expects a boolean value, got %T. Example: status-comment:\n  discussions: true", discussionsValue)
 		}
 		statusCommentDiscussions = discussionsBool
 	}
