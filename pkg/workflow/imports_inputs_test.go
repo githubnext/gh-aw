@@ -440,7 +440,7 @@ Caller workflow.
 	if strings.Contains(lockContent, "[microsoft/apm#main github/awesome-copilot/skills/foo]") {
 		t.Error("Array input was serialized as Go slice format '[a b]'; expected JSON array")
 	}
-	if !strings.Contains(lockContent, `["microsoft/apm#main","github/awesome-copilot/skills/foo"]`) {
+	if !strings.Contains(lockContent, `[\"microsoft/apm#main\",\"github/awesome-copilot/skills/foo\"]`) {
 		t.Errorf("Expected JSON array in lock file, got:\n%s", lockContent)
 	}
 

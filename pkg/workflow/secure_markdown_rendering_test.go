@@ -5,7 +5,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -58,14 +57,13 @@ Run ID: ${{ github.run_id }}
 	// Debug: print the compiled YAML section we care about
 	lines := strings.Split(compiledStr, "\n")
 	inPromptStep := false
-	promptDelimRE := regexp.MustCompile(`GH_AW_PROMPT_[0-9a-f]{16}_EOF`)
 	for i, line := range lines {
 		if strings.Contains(line, "name: Create prompt") {
 			inPromptStep = true
 		}
 		if inPromptStep {
 			t.Logf("Line %d: %s", i, line)
-			if i > 0 && promptDelimRE.MatchString(lines[i-1]) && strings.Contains(line, "name:") && !strings.Contains(line, "Create prompt") {
+			if strings.Contains(line, "name:") && !strings.Contains(line, "Create prompt") {
 				break
 			}
 		}
@@ -77,10 +75,9 @@ Run ID: ${{ github.run_id }}
 		t.Error("Compiled workflow should contain GH_AW_* environment variables")
 	}
 
-	// Verify the original expressions have been replaced in the prompt heredoc content
-	// With grouped redirects, heredocs inside the group have no individual redirects
+	// Verify the original expressions have been replaced in prompt content.
 	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
-		t.Error("Original GitHub expressions should be replaced with environment variable references in the prompt heredoc")
+		t.Error("Original GitHub expressions should be replaced with environment variable references in the prompt data")
 	}
 
 	// Verify that placeholder references ARE in the heredoc content
@@ -91,5 +88,8 @@ Run ID: ${{ github.run_id }}
 	// Verify environment variables are set with GitHub expressions
 	if !strings.Contains(compiledStr, "GH_AW_GITHUB_REPOSITORY") || !strings.Contains(compiledStr, ": ${{ github.repository }}") {
 		t.Error("Environment variables should be set to GitHub expression values")
+	}
+	if strings.Contains(compiledStr, "create_prompt_first.sh") || strings.Contains(compiledStr, "<< 'GH_AW_PROMPT_") {
+		t.Error("Prompt creation should not use shell scripts or heredocs")
 	}
 }

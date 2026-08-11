@@ -340,3 +340,46 @@ func TestValidateSandboxConfigMemory(t *testing.T) {
 		assert.NoError(t, err, "absent memory should pass validation")
 	})
 }
+
+func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
+	t.Run("valid allow-host-ports passes validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{AllowHostPorts: []int{8081, 9000}},
+			},
+		}
+
+		err := validateSandboxConfig(workflowData)
+		assert.NoError(t, err, "valid allow-host-ports should pass validation")
+	})
+
+	t.Run("out-of-range allow-host-ports fails validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{AllowHostPorts: []int{0}},
+			},
+		}
+
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err, "out-of-range allow-host-ports should fail validation")
+		assert.Contains(t, err.Error(), "invalid allow-host-ports value: 0")
+		assert.Contains(t, err.Error(), "Example: allow-host-ports: [5432]")
+	})
+
+	t.Run("dangerous allow-host-ports fails validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{AllowHostPorts: []int{5432}},
+			},
+		}
+
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err, "a dangerous port should fail validation")
+		assert.Contains(t, err.Error(), "invalid allow-host-ports value: 5432")
+		assert.Contains(t, err.Error(), "PostgreSQL")
+		assert.Contains(t, err.Error(), "services:")
+	})
+}

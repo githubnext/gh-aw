@@ -194,12 +194,6 @@ func parseFormatVerbs(s string) []formatVerb {
 
 		valueArgIdx := 0
 		hasExplicitValueArg := false
-		if idx, nextPos, ok := parseFormatArgIndex(s, i); ok {
-			valueArgIdx = idx
-			nextArgIdx = idx + 1
-			hasExplicitValueArg = true
-			i = nextPos
-		}
 		for i < len(s) {
 			switch s[i] {
 			case '-', '+', '#', '0', ' ':

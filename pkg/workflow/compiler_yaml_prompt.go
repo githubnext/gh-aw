@@ -295,7 +295,7 @@ func (c *Compiler) processLegacyPromptImports(data *WorkflowData) (userPromptChu
 func writePromptBashStep(yaml *strings.Builder, name, script string) {
 	fmt.Fprintf(yaml, "      - name: %s\n", name)
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	fmt.Fprintf(yaml, "          GH_AW_PROMPT: %s\n", constants.AwPromptsFileExpr)
 	yaml.WriteString("        run: |\n")
 	fmt.Fprintf(yaml, "          bash \"${RUNNER_TEMP}/gh-aw/actions/%s\"\n", script)
 }

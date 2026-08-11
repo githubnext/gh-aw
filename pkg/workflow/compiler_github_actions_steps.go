@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -68,7 +69,7 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "- name: Substitute placeholders\n")
 	fmt.Fprintf(yaml, indent+"  uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString(indent + "  env:\n")
-	yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	fmt.Fprintf(yaml, indent+"    GH_AW_PROMPT: %s\n", constants.AwPromptsFileExpr)
 
 	// Add all environment variables
 	// For static values (wrapped in quotes), output them directly without ${{ }}

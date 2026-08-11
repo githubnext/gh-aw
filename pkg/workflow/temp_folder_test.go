@@ -40,15 +40,13 @@ This is a test workflow to verify temp folder instructions are included.
 			require.NoError(t, err)
 
 			lockStr := string(lockContent)
-			tempFolderPromptPath := promptsDir + "/" + tempFolderPromptFile
-
 			tests := []struct {
 				name     string
 				contains string
 			}{
 				{"prompt step name", "- name: Create prompt with built-in context"},
-				{"temp folder prompt path", tempFolderPromptPath},
-				{"temp folder cat command", fmt.Sprintf(`cat "%s"`, tempFolderPromptPath)},
+				{"temp folder prompt config", `\"file\":\"temp_folder_prompt.md\"`},
+				{"JavaScript prompt renderer", "create_prompt.cjs"},
 			}
 			for _, tt := range tests {
 				t.Run(tt.name, func(t *testing.T) {

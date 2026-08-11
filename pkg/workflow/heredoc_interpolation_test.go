@@ -5,7 +5,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -14,9 +13,21 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-// TestHeredocInterpolation verifies that GH_AW_PROMPT_*_EOF heredoc delimiters are quoted
-// to prevent bash variable interpolation. Variables are interpolated using github-script instead.
-func TestHeredocInterpolation(t *testing.T) {
+func promptCreationStepContent(compiled string) string {
+	start := strings.Index(compiled, "- name: Create prompt with built-in context")
+	if start < 0 {
+		return ""
+	}
+	step := compiled[start:]
+	if before, _, found := strings.Cut(step, "\n      - name:"); found {
+		return before
+	}
+	return step
+}
+
+// TestJavaScriptPromptRendering verifies that prompt content is created and
+// interpolated exclusively by JavaScript actions.
+func TestJavaScriptPromptRendering(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "heredoc-interpolation-test")
 
@@ -56,37 +67,23 @@ Actor: ${{ github.actor }}
 	}
 
 	compiledStr := string(compiledYAML)
+	promptStep := promptCreationStepContent(compiledStr)
 
-	// Verify that heredoc delimiters ARE quoted (should be '<< 'GH_AW_PROMPT_..._EOF'' not GH_AW_PROMPT_..._EOF)
-	// This prevents shell variable interpolation
-	quotedDelimRE := regexp.MustCompile(`<< 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'`)
-	if !quotedDelimRE.MatchString(compiledStr) {
-		t.Error("GH_AW_PROMPT_*_EOF delimiter should be quoted to prevent shell variable interpolation")
-
-		// Show the problematic lines
-		lines := strings.Split(compiledStr, "\n")
-		unquotedDelimRE := regexp.MustCompile(`<< GH_AW_PROMPT_[0-9a-f]{16}_EOF`)
-		for i, line := range lines {
-			if unquotedDelimRE.MatchString(line) {
-				t.Logf("Line %d with unquoted delimiter: %s", i, line)
-			}
-		}
+	if strings.Contains(promptStep, "<<") || strings.Contains(promptStep, "create_prompt_first.sh") {
+		t.Error("Prompt creation should not contain heredocs or shell helpers")
+	}
+	if !strings.Contains(promptStep, "create_prompt.cjs") {
+		t.Error("Prompt creation should use create_prompt.cjs")
 	}
 
-	// Verify that the prompt content contains __GH_AW_...__ references
-	// These are Handlebars-style placeholders interpolated by the github-script step
-	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
-	if !strings.Contains(compiledStr, "__GH_AW_") {
-		t.Error("Prompt content should contain __GH_AW_...__ references for JavaScript interpolation")
+	if !strings.Contains(promptStep, "GH_AW_PROMPT_CONFIG:") {
+		t.Error("Prompt creation should contain the JavaScript renderer configuration")
 	}
-
-	// Verify the original expressions have been replaced in the prompt content
-	// With grouped redirects, heredocs inside the group have no individual redirects
-	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
-		t.Error("Original GitHub expressions should be replaced with __GH_AW_...__ references in prompt heredoc")
+	if !strings.Contains(promptStep, "GH_AW_PROMPT_CONTENT_") {
+		t.Error("Prompt creation should pass prompt fragments through environment variables")
 	}
-	if !strings.Contains(compiledStr, "__GH_AW_") {
-		t.Error("Prompt content should contain __GH_AW_...__ references for JavaScript interpolation")
+	if strings.Contains(promptStep, "Repository: ${{ github.repository }}") {
+		t.Error("Prompt content should not interpolate GitHub expressions directly")
 	}
 
 	// Verify that the interpolation and template rendering step exists
@@ -106,8 +103,8 @@ Actor: ${{ github.actor }}
 	}
 }
 
-// TestHeredocInterpolationMainPrompt tests that the main prompt content uses quoted delimiter
-func TestHeredocInterpolationMainPrompt(t *testing.T) {
+// TestJavaScriptPromptRenderingMainPrompt tests the main prompt renderer.
+func TestJavaScriptPromptRenderingMainPrompt(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "heredoc-main-test")
 
 	testContent := `---
@@ -140,11 +137,13 @@ Actor: ${{ github.actor }}
 	}
 
 	compiledStr := string(compiledYAML)
+	promptStep := promptCreationStepContent(compiledStr)
 
-	// All heredoc delimiters should be quoted to prevent shell expansion
-	quotedDelimRE := regexp.MustCompile(`<< 'GH_AW_PROMPT_[0-9a-f]{16}_EOF'`)
-	if !quotedDelimRE.MatchString(compiledStr) {
-		t.Error("Expected quoted GH_AW_PROMPT_*_EOF delimiters to prevent shell variable interpolation")
+	if strings.Contains(promptStep, "<<") {
+		t.Error("Expected prompt creation without heredoc delimiters")
+	}
+	if !strings.Contains(promptStep, "create_prompt.cjs") {
+		t.Error("Expected JavaScript prompt creation")
 	}
 
 	// Verify interpolation and template rendering step exists
