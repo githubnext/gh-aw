@@ -1044,19 +1044,25 @@ async function main(config = {}) {
             } else {
               core.warning(`Bundle fetch from refs/heads/${branchName} failed: ${initialFetchErrorOutput}; resolving source ref from bundle heads`);
               const { stdout: bundleHeadsOutput } = await exec.getExecOutput("git", ["bundle", "list-heads", bundleFilePath], baseGitOpts);
-              const branchRefs = bundleHeadsOutput
+              const bundleHeads = bundleHeadsOutput
                 .split("\n")
-                .map(line => line.trim().split(/\s+/)[1] || "")
-                .filter(ref => /^refs\/heads\/[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(ref));
+                .map(line => line.trim().split(/\s+/))
+                .filter(parts => parts.length === 2 && /^[0-9a-f]{40}$/.test(parts[0]) && parts[1]);
+              const branchRefChecks = await Promise.all(
+                bundleHeads
+                  .filter(([, ref]) => ref.startsWith("refs/heads/"))
+                  .map(async ([, ref]) => ({
+                    ref,
+                    isValid: (await exec.getExecOutput("git", ["check-ref-format", ref], { ...baseGitOpts, ignoreReturnCode: true })).exitCode === 0,
+                  }))
+              );
+              const branchRefs = branchRefChecks.filter(({ isValid }) => isValid).map(({ ref }) => ref);
 
               let bundleSourceRef;
               if (branchRefs.length === 1) {
                 bundleSourceRef = branchRefs[0];
               } else if (branchRefs.length === 0) {
-                const headRefs = bundleHeadsOutput
-                  .split("\n")
-                  .map(line => line.trim())
-                  .filter(line => /^[0-9a-f]{40}\s+HEAD$/.test(line));
+                const headRefs = bundleHeads.filter(([, ref]) => ref === "HEAD");
                 if (headRefs.length !== 1) {
                   throw new Error(`Failed to resolve bundle source ref from list-heads: expected exactly 1 HEAD entry, found ${headRefs.length}`);
                 }
