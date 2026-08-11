@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -40,17 +39,10 @@ func evalCreateIssue(ctx context.Context, item CreatedItemReport, repoOverride s
 	stateReason, _ := data["state_reason"].(string)
 	closedAt, _ := data["closed_at"].(string)
 
-	// Count human comments
 	comments, _ := data["comments"].(float64)
 	commentList, cerr := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/comments", num), repo)
 	if cerr == nil {
-		for _, c := range commentList {
-			user, _ := c["user"].(map[string]any)
-			login, _ := user["login"].(string)
-			if !isBotUser(login) {
-				report.HumanComments++
-			}
-		}
+		report.HumanComments = countHumanComments(commentList)
 	}
 
 	switch {
@@ -101,18 +93,6 @@ func evalCreateIssue(ctx context.Context, item CreatedItemReport, repoOverride s
 
 // isClosedByBot checks the issue timeline to determine if the close event was performed by a bot.
 func isClosedByBot(ctx context.Context, issueNumber int, repo string) bool {
-	events, err := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/events", issueNumber), repo)
-	if err != nil {
-		return false
-	}
-	// Walk backward to find the most recent close event
-	for i := range slices.Backward(events) {
-		event, _ := events[i]["event"].(string)
-		if event == "closed" {
-			actor, _ := events[i]["actor"].(map[string]any)
-			login, _ := actor["login"].(string)
-			return isBotUser(login)
-		}
-	}
-	return false
+	closedByBot, err := isLatestCloseByBot(ctx, issueNumber, repo, ghAPIGetArray)
+	return err == nil && closedByBot
 }

@@ -366,27 +366,6 @@ func timeBetween(from, to string) float64 {
 	return t2.Sub(t1).Hours()
 }
 
-// medianFloat returns the median of a float slice.
-func medianFloat(vals []float64) float64 {
-	if len(vals) == 0 {
-		return 0
-	}
-	n := len(vals)
-	sorted := make([]float64, n)
-	copy(sorted, vals)
-	for i := range sorted {
-		for j := i + 1; j < n; j++ {
-			if sorted[j] < sorted[i] {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
-	if n%2 == 0 {
-		return (sorted[n/2-1] + sorted[n/2]) / 2
-	}
-	return sorted[n/2]
-}
-
 // parseNumberFromURL extracts a number from a GitHub URL like
 // https://github.com/owner/repo/pull/42 or .../issues/108
 func parseNumberFromURL(url string) int {
@@ -606,17 +585,7 @@ func loadPullRequestIntentData(ctx context.Context, report OutcomeReport, repo s
 }
 
 func labelsToStringsFromNodes(nodes []any) []string {
-	if len(nodes) == 0 {
-		return []string{}
-	}
-	result := make([]string, 0, len(nodes))
-	for _, node := range nodes {
-		labelMap, _ := node.(map[string]any)
-		if name, ok := labelMap["name"].(string); ok {
-			result = append(result, name)
-		}
-	}
-	return result
+	return labelNamesFromAnyMaps(nodes)
 }
 
 // labelsToStringsFromMaps converts GitHub API label map objects to string slice.
@@ -624,12 +593,9 @@ func labelsToStringsFromMaps(labels []map[string]any) []string {
 	if len(labels) == 0 {
 		return []string{}
 	}
-
-	result := make([]string, 0, len(labels))
-	for _, labelMap := range labels {
-		if name, ok := labelMap["name"].(string); ok {
-			result = append(result, name)
-		}
+	nodes := make([]any, 0, len(labels))
+	for _, label := range labels {
+		nodes = append(nodes, label)
 	}
-	return result
+	return labelNamesFromAnyMaps(nodes)
 }
