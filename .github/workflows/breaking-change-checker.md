@@ -47,6 +47,7 @@ tools:
     - "git show:*"
     - "cat:*"
     - "grep:*"
+    - "jq:*"
   edit:
 imports:
   - uses: shared/skip-if-issue-open.md
