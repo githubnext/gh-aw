@@ -29,7 +29,7 @@ func TestMCPToolElicitationDefaults(t *testing.T) {
 
 	t.Run("compile tool has strict default", func(t *testing.T) {
 		type compileArgs struct {
-			Workflows  []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
+			Workflows  []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile as an array (e.g., [\"workflow.md\"]) (empty for all)"`
 			Strict     bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows"`
 			Zizmor     bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
 			Poutine    bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
