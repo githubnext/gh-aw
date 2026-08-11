@@ -17,6 +17,7 @@ module.exports = [
       "gh-aw-custom/no-throw-plain-object": "warn",
       "gh-aw-custom/no-github-request-interpolated-route": "warn",
       "gh-aw-custom/no-json-stringify-error": "warn",
+      "gh-aw-custom/no-json-stringify-set-or-map": "warn",
       "gh-aw-custom/no-unsafe-catch-error-property": "warn",
       "gh-aw-custom/no-unsafe-promise-catch-error-property": "warn",
       "gh-aw-custom/prefer-get-error-message": "warn",

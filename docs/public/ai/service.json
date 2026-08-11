@@ -3,22 +3,24 @@
   "type": "cli-extension",
   "category": "developer-tools",
   "capabilities": [
-    "Compile natural language markdown workflows to GitHub Actions YAML",
-    "Run agentic AI workflows as GitHub Actions",
-    "Support multiple AI engines (Copilot, Claude, Codex, custom)",
+    "Compile Markdown workflows with YAML frontmatter to GitHub Actions YAML",
+    "Run AI agents through GitHub Actions triggers, runners, jobs, and logs",
+    "Use built-in AI engines: GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi",
+    "Complement deterministic builds, tests, linting, deployments, and scripts with reasoning-based automation",
     "MCP (Model Context Protocol) server integration",
-    "Safe structured outputs (issues, comments, pull requests, etc.)",
+    "Validated safe outputs for configured GitHub writes",
     "Workflow auditing and log analysis",
-    "Sandbox environments with network access controls",
+    "Default sandboxed, read-only agent jobs with configurable network access controls",
     "Playwright browser automation support",
     "Cache memory for persistent data across workflow runs",
     "Interactive workflow execution with real-time logs"
   ],
   "engines": [
     { "id": "copilot", "name": "GitHub Copilot" },
-    { "id": "claude", "name": "Claude" },
+    { "id": "claude", "name": "Claude Code" },
     { "id": "codex", "name": "OpenAI Codex" },
-    { "id": "custom", "name": "Custom engine" }
+    { "id": "gemini", "name": "Google Gemini" },
+    { "id": "pi", "name": "Pi" }
   ],
   "integrations": ["GitHub Actions", "GitHub CLI", "MCP (Model Context Protocol)", "Playwright", "GitHub Issues", "GitHub Pull Requests", "GitHub Discussions"],
   "install": "gh extension install github/gh-aw",

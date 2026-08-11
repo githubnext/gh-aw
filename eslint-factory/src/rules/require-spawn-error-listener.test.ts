@@ -75,6 +75,25 @@ describe("require-spawn-error-listener", () => {
     });
   });
 
+  it("checks DI-style spawn fallback calls", () => {
+    cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
+      valid: [
+        `const { spawn } = require("child_process"); const spawnImpl = options.spawnImpl ?? spawn; const child = spawnImpl("ls", []); child.on("error", err => {});`,
+        `const { spawn } = require("child_process"); const spawnImpl = options.spawnImpl || spawn; const child = spawnImpl("ls", []); child.once("error", err => {});`,
+      ],
+      invalid: [
+        {
+          code: `const { spawn } = require("child_process"); const spawnImpl = options.spawnImpl ?? spawn; const child = spawnImpl("ls", []);`,
+          errors: [{ messageId: "missingErrorListener" }],
+        },
+        {
+          code: `const { spawn } = require("child_process"); const spawnImpl = options.spawnImpl || spawn; const child = spawnImpl("ls", []);`,
+          errors: [{ messageId: "missingErrorListener" }],
+        },
+      ],
+    });
+  });
+
   it("does not flag assignment expressions or inline chains (documented scope limit)", () => {
     cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
       valid: [`const { spawn } = require("child_process"); let child; child = spawn("ls", []);`, `const { spawn } = require("child_process"); spawn("ls", []).on("exit", () => {});`],
@@ -86,6 +105,37 @@ describe("require-spawn-error-listener", () => {
     cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
       valid: [`const { spawn } = require("child_process"); const child = spawn("ls", []); setTimeout(() => { child.on("error", () => {}); }, 0);`],
       invalid: [],
+    });
+  });
+
+  it("reports an error listener attached only in a conditional branch", () => {
+    cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
+      valid: [`const { spawn } = require("child_process"); if (verbose) { const child = spawn("ls", []); child.on("error", err => { console.log(err); }); }`],
+      invalid: [
+        {
+          code: `const { spawn } = require("child_process"); const child = spawn("ls", []); if (verbose) { child.on("error", err => { console.log(err); }); }`,
+          errors: [{ messageId: "missingErrorListener" }],
+        },
+      ],
+    });
+  });
+
+  it("treats declaration and listener sharing the same switch case as valid", () => {
+    cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
+      valid: [`const { spawn } = require("child_process"); switch (mode) { case "run": { const child = spawn("ls", []); child.on("error", err => { console.log(err); }); break; } }`],
+      invalid: [],
+    });
+  });
+
+  it("reports an error listener attached only in a different switch case than the declaration", () => {
+    cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { spawn } = require("child_process"); const child = spawn("ls", []); switch (mode) { case "run": child.on("error", err => { console.log(err); }); break; }`,
+          errors: [{ messageId: "missingErrorListener" }],
+        },
+      ],
     });
   });
 });

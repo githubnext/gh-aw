@@ -65,16 +65,7 @@ func evalAddComment(ctx context.Context, item CreatedItemReport, repoOverride st
 		commentList, cerr := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/comments", issueNumber), repo)
 		if cerr == nil {
 			createdAt, _ := data["created_at"].(string)
-			for _, c := range commentList {
-				cCreatedAt, _ := c["created_at"].(string)
-				if cCreatedAt > createdAt {
-					user, _ := c["user"].(map[string]any)
-					login, _ := user["login"].(string)
-					if !isBotUser(login) {
-						replyCount++
-					}
-				}
-			}
+			replyCount = countHumanCommentsAfter(commentList, createdAt)
 		}
 	}
 
