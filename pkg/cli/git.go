@@ -558,9 +558,38 @@ func hasPendingChanges() (bool, error) {
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes
 func checkCleanWorkingDirectory(verbose bool) error {
+	return checkCleanWorkingDirectoryIgnoring(verbose, nil)
+}
+
+// checkCleanWorkingDirectoryIgnoring checks for uncommitted changes except for
+// the provided paths (which may be absolute or repository-relative).
+func checkCleanWorkingDirectoryIgnoring(verbose bool, ignoredPaths []string) error {
 	console.LogVerbose(verbose, "Checking for uncommitted changes...")
 
-	cmd := exec.Command("git", "status", "--porcelain")
+	args := []string{"status", "--porcelain", "--untracked-files=all"}
+	if len(ignoredPaths) > 0 {
+		gitRoot, err := gitutil.FindGitRoot()
+		if err != nil {
+			return fmt.Errorf("failed to find git root for path resolution: %w", err)
+		}
+		args = append(args, "--", ":(top)**")
+		for _, ignoredPath := range ignoredPaths {
+			cleaned := filepath.Clean(ignoredPath)
+			// Convert absolute paths to paths relative to the git root so they
+			// work correctly as :(top,...) pathspecs.
+			if filepath.IsAbs(cleaned) {
+				rel, relErr := filepath.Rel(gitRoot, cleaned)
+				if relErr != nil {
+					return fmt.Errorf("failed to resolve %s relative to git root: %w", ignoredPath, relErr)
+				}
+				cleaned = rel
+			}
+			path := filepath.ToSlash(strings.TrimPrefix(cleaned, "."+string(filepath.Separator)))
+			args = append(args, ":(top,literal,exclude)"+path)
+		}
+	}
+
+	cmd := exec.Command("git", args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to check git status: %w", err)

@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/gitutil"
 )
@@ -35,7 +36,6 @@ func ensureAddRepositoryInitializedWithDetails(engineOverride string, verbose bo
 		if len(missingMarkers) == 0 {
 			return nil
 		}
-		initializedFiles = append(initializedFiles, missingMarkers...)
 
 		addLog.Printf("Repository missing init markers; running init: %v", missingMarkers)
 		if err := addInitRepository(InitOptions{
@@ -51,6 +51,21 @@ func ensureAddRepositoryInitializedWithDetails(engineOverride string, verbose bo
 			CreatePR:         false,
 		}); err != nil {
 			return fmt.Errorf("failed to initialize repository for agentic workflows: %w", err)
+		}
+
+		// Record only the files that were actually written by init (some markers,
+		// e.g. .gitattributes with --no-gitattributes, may intentionally be skipped).
+		// Use absolute paths so callers don't need to resolve against gitRoot.
+		for _, marker := range missingMarkers {
+			ok, statErr := isBootstrapInitMarkerSatisfied(".", marker)
+			if statErr != nil || !ok {
+				continue
+			}
+			absPath, pathErr := filepath.Abs(marker)
+			if pathErr != nil {
+				return fmt.Errorf("failed to resolve path for initialized file %s: %w", marker, pathErr)
+			}
+			initializedFiles = append(initializedFiles, absPath)
 		}
 
 		return nil
