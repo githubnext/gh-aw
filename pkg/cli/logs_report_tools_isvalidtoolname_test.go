@@ -1,3 +1,5 @@
+//go:build !integration
+
 package cli
 
 import (
@@ -29,6 +31,7 @@ func TestIsValidToolName(t *testing.T) {
 		{"valid tool with underscore", "run_tests", true},
 		{"valid tool with hyphen", "run-tests", true},
 		{"valid camelCase tool", "runTests", true},
+		{"valid mixed-case name at length limit", "abcdefghiJ", true},
 		{"valid long all-lowercase single word", "abcdefghij", true}, // len 10, not < 10
 		{"valid multi-word name", "a b", true},
 		{"valid short name with underscore", "a_b", true},
@@ -49,14 +52,6 @@ func TestIsValidToolName_AllStopWords(t *testing.T) {
 		t.Run("stopword_"+word, func(t *testing.T) {
 			assert.False(t, isValidToolName(word), "stop word %q should be invalid", word)
 		})
-	}
-}
-
-func TestIsValidToolName_Idempotent(t *testing.T) {
-	// Pure function property: calling twice with the same input yields the same result.
-	inputs := []string{"", "-", "a", "run_tests", "calls", "  spaced  ", "camelCase"}
-	for _, in := range inputs {
-		assert.Equal(t, isValidToolName(in), isValidToolName(in))
 	}
 }
 

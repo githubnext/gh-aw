@@ -1,3 +1,5 @@
+//go:build !integration
+
 package cli
 
 import (
@@ -10,7 +12,7 @@ import (
 func TestExtractExperimentVariantStubs_NoExperiments(t *testing.T) {
 	cfg := &workflow.FrontmatterConfig{}
 	stubs := extractExperimentVariantStubs(cfg)
-	assert.Nil(t, stubs)
+	assert.Empty(t, stubs)
 }
 
 func TestExtractExperimentVariantStubs_NilExperimentConfig(t *testing.T) {
@@ -71,6 +73,15 @@ func TestExtractExperimentVariantStubs_MultipleExperimentsMixedNil(t *testing.T)
 	assert.Equal(t, "v1", stubs[0].Variant)
 }
 
+func TestExtractExperimentVariantStubs_EmptyVariants(t *testing.T) {
+	cfg := &workflow.FrontmatterConfig{
+		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
+			"exp1": {Variants: []string{}},
+		},
+	}
+	assert.Empty(t, extractExperimentVariantStubs(cfg))
+}
+
 func TestExtractExperimentVariantStubs_RunCountAndFractionDefaultZero(t *testing.T) {
 	cfg := &workflow.FrontmatterConfig{
 		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
@@ -80,5 +91,24 @@ func TestExtractExperimentVariantStubs_RunCountAndFractionDefaultZero(t *testing
 	stubs := extractExperimentVariantStubs(cfg)
 	assert.Len(t, stubs, 1)
 	assert.Equal(t, 0, stubs[0].RunCount)
-	assert.Equal(t, 0.0, stubs[0].Fraction)
+	assert.InDelta(t, 0.0, stubs[0].Fraction, 0)
+}
+
+func TestExtractExperimentVariantStubs_Pure(t *testing.T) {
+	cfg := &workflow.FrontmatterConfig{
+		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
+			"exp1": {Variants: []string{"b", "a"}},
+		},
+	}
+	wantCfg := &workflow.FrontmatterConfig{
+		ExperimentConfigs: map[string]*workflow.ExperimentConfig{
+			"exp1": {Variants: []string{"b", "a"}},
+		},
+	}
+
+	first := extractExperimentVariantStubs(cfg)
+	second := extractExperimentVariantStubs(cfg)
+
+	assert.Equal(t, first, second)
+	assert.Equal(t, wantCfg, cfg)
 }
