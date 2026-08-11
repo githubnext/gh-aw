@@ -193,10 +193,11 @@ ${script}
       maxBuffer: MAX_VALIDATION_OUTPUT_BYTES * 2,
       windowsHide: true,
     });
+    const spawnError = /** @type {NodeJS.ErrnoException | undefined} */ result.error;
     return {
       ok: result.status === 0 && !result.error,
       exitCode: result.status,
-      timedOut: Boolean(result.error && /** @type {NodeJS.ErrnoException} */ result.error.code === "ETIMEDOUT"),
+      timedOut: Boolean(spawnError && spawnError.code === "ETIMEDOUT"),
       stdout: boundedOutput(result.stdout),
       stderr: boundedOutput(result.stderr || (result.error ? getErrorMessage(result.error) : "")),
     };
