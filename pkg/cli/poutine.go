@@ -114,6 +114,10 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	if err != nil {
 		return fmt.Errorf("invalid docker mount path: %w", err)
 	}
+	poutineImageRef, err := validateDockerImageRef(PoutineImage)
+	if err != nil {
+		return fmt.Errorf("invalid poutine scanner image reference %q: %w", PoutineImage, err)
+	}
 	dockerPath, err := fileutil.ResolveExecutablePath("docker")
 	if err != nil {
 		return fmt.Errorf("docker command not found: %w", err)
@@ -124,7 +128,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 		"--rm",
 		"-v", volumeMount,
 		"-w", "/workdir",
-		PoutineImage,
+		poutineImageRef,
 		"analyze_local",
 		".",
 		"--format", "json",
@@ -142,7 +146,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 			"--rm",
 			"-v", volumeMount,
 			"-w", "/workdir",
-			PoutineImage,
+			poutineImageRef,
 			"analyze_local",
 			".",
 			"--format", "json",
@@ -234,6 +238,10 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	if err != nil {
 		return fmt.Errorf("invalid docker mount path: %w", err)
 	}
+	poutineImageRef, err := validateDockerImageRef(PoutineImage)
+	if err != nil {
+		return fmt.Errorf("invalid poutine scanner image reference %q: %w", PoutineImage, err)
+	}
 	dockerPath, err := fileutil.ResolveExecutablePath("docker")
 	if err != nil {
 		return fmt.Errorf("docker command not found: %w", err)
@@ -244,7 +252,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 		"--rm",
 		"-v", volumeMount,
 		"-w", "/workdir",
-		PoutineImage,
+		poutineImageRef,
 		"analyze_local",
 		".",
 		"--format", "json",
@@ -262,7 +270,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 			"--rm",
 			"-v", volumeMount,
 			"-w", "/workdir",
-			PoutineImage,
+			poutineImageRef,
 			"analyze_local",
 			".",
 			"--format", "json",

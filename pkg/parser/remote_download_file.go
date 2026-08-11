@@ -47,12 +47,18 @@ func downloadFileFromGitHub(ctx context.Context, owner, repo, path, ref string) 
 	return downloadFileFromGitHubWithDepth(ctx, owner, repo, path, ref, 0, "")
 }
 
+// fetchRemoteFileContentFunc allows tests to inject API fetch behavior.
+var fetchRemoteFileContentFunc = fetchRemoteFileContent
+
+// downloadFileViaGitFunc allows tests to inject git fallback behavior.
+var downloadFileViaGitFunc = downloadFileViaGit
+
 func downloadFileFromGitHubWithDepth(ctx context.Context, owner, repo, path, ref string, symlinkDepth int, host string) ([]byte, error) {
-	client, err := createRESTClientForHost(host)
+	client, err := createRESTClientForHostFunc(host)
 	if err != nil {
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git fallback for %s/%s/%s@%s: %v", owner, repo, path, ref, err)
-			content, gitErr := downloadFileViaGit(ctx, owner, repo, path, ref, host)
+			content, gitErr := downloadFileViaGitFunc(ctx, owner, repo, path, ref, host)
 			if gitErr != nil {
 				remoteLog.Printf("Git fallback also failed for %s/%s/%s@%s: %v", owner, repo, path, ref, gitErr)
 				return nil, fmt.Errorf("failed to fetch file content: %w", err)
@@ -68,13 +74,13 @@ func downloadFileFromGitHubWithDepth(ctx context.Context, owner, repo, path, ref
 		Name     string `json:"name"`
 	}
 
-	err = fetchRemoteFileContent(ctx, client, owner, repo, path, ref, &fileContent)
+	err = fetchRemoteFileContentFunc(ctx, client, owner, repo, path, ref, &fileContent)
 	if err != nil {
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
-			content, gitErr := downloadFileViaGit(ctx, owner, repo, path, ref, host)
+			content, gitErr := downloadFileViaGitFunc(ctx, owner, repo, path, ref, host)
 			if gitErr != nil {
-				if host == "" || host == "github.com" {
+				if canUseUnauthenticatedPublicGitHubFallback(owner, repo, host) {
 					remoteLog.Printf("Git fallback also failed, attempting unauthenticated API for %s/%s/%s@%s", owner, repo, path, ref)
 					return downloadFileViaPublicAPI(ctx, owner, repo, path, ref)
 				}
@@ -304,7 +310,7 @@ func downloadFileViaGit(ctx context.Context, owner, repo, path, ref, host string
 	// no dependency on git being installed.
 	// Only attempt raw URL for github.com repos (not GHE) since raw.githubusercontent.com
 	// only serves public GitHub content.
-	if host == "" || host == "github.com" {
+	if canUseUnauthenticatedPublicGitHubFallback(owner, repo, host) {
 		content, rawErr := downloadFileViaRawURL(ctx, owner, repo, path, ref)
 		if rawErr == nil {
 			return content, nil

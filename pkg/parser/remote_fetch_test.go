@@ -7,11 +7,45 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func withPublicAPIClient(t *testing.T, transport http.RoundTripper) {
+	t.Helper()
+	orig := publicAPIClient
+	publicAPIClient = &http.Client{Transport: transport}
+	t.Cleanup(func() {
+		publicAPIClient = orig
+	})
+}
+
+func installFailingGit(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	name := "git"
+	content := "#!/bin/sh\nexit 1\n"
+	if runtime.GOOS == "windows" {
+		name = "git.bat"
+		content = "@echo off\r\nexit /b 1\r\n"
+	}
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
+		t.Fatalf("failed to write fake git executable: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
 
 func TestBuildCommitLookupAPIPath(t *testing.T) {
 	t.Run("escapes refs containing slash", func(t *testing.T) {
@@ -223,6 +257,104 @@ func TestResolveRefToSHAWithFallbacks_UsesPublicFallbackAfterGitFallbackOnGitHub
 	}
 }
 
+func TestResolveRefToSHAWithFallbacks_DoesNotUsePublicFallbackOnEnterpriseHost(t *testing.T) {
+	tests := []struct {
+		name string
+		host string
+		env  string
+	}{
+		{
+			name: "resolved from environment",
+			host: "",
+			env:  "enterprise.example.com",
+		},
+		{
+			name: "explicit enterprise host",
+			host: "enterprise.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("GITHUB_SERVER_URL", "")
+			t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+			t.Setenv("GITHUB_HOST", "")
+			t.Setenv("GH_HOST", tt.env)
+
+			client := fakeCommitResolver{
+				do: func(_ context.Context, method string, path string, body io.Reader, response any) error {
+					return &api.HTTPError{StatusCode: http.StatusForbidden, Message: "Forbidden"}
+				},
+			}
+
+			publicCalled := false
+			_, err := resolveRefToSHAWithFallbacks(
+				context.Background(),
+				client,
+				"owner",
+				"repo",
+				"main",
+				tt.host,
+				func(context.Context, string, string, string, string) (string, error) {
+					return "", errors.New("git fallback failed")
+				},
+				func(context.Context, string, string, string) (string, error) {
+					publicCalled = true
+					return "", nil
+				},
+			)
+			if err == nil {
+				t.Fatal("expected enterprise host auth failure when both API and git fallback fail")
+			}
+			if publicCalled {
+				t.Fatal("public fallback must not run when resolved host is enterprise")
+			}
+		})
+	}
+}
+
+func TestCanUseUnauthenticatedPublicGitHubFallback(t *testing.T) {
+	t.Run("explicit github.com host", func(t *testing.T) {
+		if !canUseUnauthenticatedPublicGitHubFallback("owner", "repo", "github.com") {
+			t.Fatal("expected public fallback to be allowed for explicit github.com host")
+		}
+	})
+
+	t.Run("resolved public org host override", func(t *testing.T) {
+		t.Setenv("GITHUB_SERVER_URL", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GH_HOST", "enterprise.example.com")
+		if !canUseUnauthenticatedPublicGitHubFallback("github", "gh-aw", "") {
+			t.Fatal("expected public fallback for repos explicitly mapped to github.com")
+		}
+	})
+
+	t.Run("resolved enterprise host", func(t *testing.T) {
+		t.Setenv("GITHUB_SERVER_URL", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GH_HOST", "enterprise.example.com")
+		if canUseUnauthenticatedPublicGitHubFallback("owner", "repo", "") {
+			t.Fatal("public fallback must not be allowed when resolved host is enterprise")
+		}
+	})
+
+	t.Run("unresolved empty host", func(t *testing.T) {
+		orig := getGitHubHostForRepoFunc
+		getGitHubHostForRepoFunc = func(owner, repo string) string {
+			return ""
+		}
+		t.Cleanup(func() {
+			getGitHubHostForRepoFunc = orig
+		})
+
+		if canUseUnauthenticatedPublicGitHubFallback("owner", "repo", "") {
+			t.Fatal("public fallback must not be allowed when host resolution is empty")
+		}
+	})
+}
+
 func TestResolveRefToSHA_ClientCreationAuthError_UsesGitFallback(t *testing.T) {
 	origFactory := createRESTClientForHostFunc
 	origGit := resolveRefToSHAViaGitFunc
@@ -268,13 +400,109 @@ func TestResolveRefToSHA_ClientCreationAuthError_GithubDotCom_UsesPublicAPIWhenG
 		return "", errors.New("git ls-remote failed")
 	}
 
-	// When host is github.com and both REST client creation and git fail,
-	// resolveRefToSHA should attempt the unauthenticated public API.
-	// The public API call will fail in a unit-test environment; we verify the
-	// error does NOT contain "failed to create GitHub REST client" (which would
-	// indicate the code returned from the factory-error path without falling back).
+	publicRequests := 0
+	withPublicAPIClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		publicRequests++
+		if req.URL.Host != "api.github.com" {
+			t.Fatalf("public fallback used host %q, want api.github.com", req.URL.Host)
+		}
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Body:       io.NopCloser(strings.NewReader(`{"message":"not found"}`)),
+			Header:     make(http.Header),
+		}, nil
+	}))
+
 	_, err := resolveRefToSHA(context.Background(), "owner", "repo", "main", "github.com")
 	if err != nil && strings.Contains(err.Error(), "failed to create GitHub REST client") {
 		t.Fatal("client creation auth error should not bubble up directly — public API fallback must be attempted first")
+	}
+	if publicRequests != 1 {
+		t.Fatalf("public fallback request count = %d, want 1", publicRequests)
+	}
+}
+
+func TestResolveRefToSHA_ClientCreationAuthError_EnterpriseHostDoesNotUsePublicAPIWhenGitFails(t *testing.T) {
+	origFactory := createRESTClientForHostFunc
+	origGit := resolveRefToSHAViaGitFunc
+	t.Cleanup(func() {
+		createRESTClientForHostFunc = origFactory
+		resolveRefToSHAViaGitFunc = origGit
+	})
+
+	createRESTClientForHostFunc = func(host string) (*api.RESTClient, error) {
+		return nil, errors.New("unauthorized: authentication required")
+	}
+	resolveRefToSHAViaGitFunc = func(_ context.Context, _, _, _, _ string) (string, error) {
+		return "", errors.New("git ls-remote failed")
+	}
+
+	publicRequests := 0
+	withPublicAPIClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		publicRequests++
+		return nil, errors.New("public API should not be contacted")
+	}))
+
+	_, err := resolveRefToSHA(context.Background(), "owner", "repo", "main", "enterprise.example.com")
+	if err == nil {
+		t.Fatal("expected enterprise host auth failure when REST client creation and git fallback fail")
+	}
+	if publicRequests != 0 {
+		t.Fatalf("public fallback request count = %d, want 0", publicRequests)
+	}
+}
+
+func TestDownloadFileFromGitHubWithDepth_AuthErrorOnEnterpriseHostDoesNotUsePublicAPI(t *testing.T) {
+	origFactory := createRESTClientForHostFunc
+	origFetch := fetchRemoteFileContentFunc
+	origGit := downloadFileViaGitFunc
+	t.Cleanup(func() {
+		createRESTClientForHostFunc = origFactory
+		fetchRemoteFileContentFunc = origFetch
+		downloadFileViaGitFunc = origGit
+	})
+
+	createRESTClientForHostFunc = func(host string) (*api.RESTClient, error) {
+		return &api.RESTClient{}, nil
+	}
+	fetchRemoteFileContentFunc = func(ctx context.Context, client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
+		return &api.HTTPError{StatusCode: http.StatusForbidden, Message: "Forbidden"}
+	}
+	downloadFileViaGitFunc = func(context.Context, string, string, string, string, string) ([]byte, error) {
+		return nil, errors.New("git fallback failed")
+	}
+
+	publicRequests := 0
+	withPublicAPIClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		publicRequests++
+		return nil, errors.New("public API should not be contacted")
+	}))
+
+	_, err := downloadFileFromGitHubWithDepth(context.Background(), "owner", "repo", ".github/workflows/demo.md", "main", 0, "enterprise.example.com")
+	if err == nil {
+		t.Fatal("expected enterprise host auth failure when API and git fallback fail")
+	}
+	if publicRequests != 0 {
+		t.Fatalf("public fallback request count = %d, want 0", publicRequests)
+	}
+}
+
+func TestDownloadFileViaGit_EnterpriseHostDoesNotUseRawGitHubusercontent(t *testing.T) {
+	installFailingGit(t)
+
+	rawRequests := 0
+	withPublicAPIClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Host == "raw.githubusercontent.com" {
+			rawRequests++
+		}
+		return nil, errors.New("raw.githubusercontent.com should not be contacted")
+	}))
+
+	_, err := downloadFileViaGit(context.Background(), "owner", "repo", ".github/workflows/demo.md", "main", "enterprise.example.com")
+	if err == nil {
+		t.Fatal("expected git fallback to fail after raw URL fallback is denied")
+	}
+	if rawRequests != 0 {
+		t.Fatalf("raw.githubusercontent.com request count = %d, want 0", rawRequests)
 	}
 }
