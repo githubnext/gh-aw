@@ -504,6 +504,26 @@ func TestFormal_FC_P7_CancelledRunFixture(t *testing.T) {
 			"so it is included in the sample but not counted as a Bernoulli success")
 }
 
+// TestFormal_FC_P11_PartialETFixture verifies that run_summary_partial_et.json
+// represents an in-progress run with a non-zero token usage snapshot.
+//
+// Specification reference: T-FC-024; specs/forecast-compliance-fixtures/README.md
+func TestFormal_FC_P11_PartialETFixture(t *testing.T) {
+	fixture := loadFixture(t, "run_summary_partial_et.json")
+
+	run, ok := fixture["run"].(map[string]any)
+	require.True(t, ok, "FC-P11: 'run' must be a JSON object")
+	assert.Equal(t, "in_progress", run["status"],
+		"FC-P11 (T-FC-024): partial fixture must represent an in-progress run")
+
+	usage, ok := fixture["token_usage_summary"].(map[string]any)
+	require.True(t, ok, "FC-P11: token_usage_summary must be a JSON object")
+	et, ok := usage["total_effective_tokens"].(float64)
+	require.True(t, ok, "FC-P11: total_effective_tokens must be a number")
+	assert.Greater(t, et, 0.0,
+		"FC-P11 (T-FC-024): partial fixture must contain a non-zero token usage snapshot")
+}
+
 // TestFormal_FC_P8_RunSummaryRoundTrip verifies that marshalling a RunSummary to
 // JSON and unmarshalling it back produces an equal value (cache-hit determinism).
 //
@@ -561,6 +581,7 @@ func TestFormal_FC_P9_TimestampOrdering(t *testing.T) {
 		"run_summary_failed.json",
 		"run_summary_high_et.json",
 		"run_summary_cancelled.json",
+		"run_summary_partial_et.json",
 	}
 
 	for _, name := range fixtures {
@@ -607,6 +628,7 @@ func TestFormal_FC_P10_MonteCarloInputCompleteness(t *testing.T) {
 		{name: "run_summary_failed.json", wantConclusion: "failure", aicMustBeGT0: false},
 		{name: "run_summary_high_et.json", wantConclusion: "success", aicMustBeGT0: true},
 		{name: "run_summary_cancelled.json", wantConclusion: "cancelled", aicMustBeGT0: false},
+		{name: "run_summary_partial_et.json", wantConclusion: "", aicMustBeGT0: true},
 	}
 
 	for _, tc := range cases {
@@ -663,6 +685,7 @@ var documentedForecastFixtures = []string{
 	"run_summary_failed.json",
 	"run_summary_high_et.json",
 	"run_summary_cancelled.json",
+	"run_summary_partial_et.json",
 }
 
 // TestFormal_FixtureCountConsistency verifies that the fixture files documented in

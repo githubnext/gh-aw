@@ -931,6 +931,8 @@ and adding new fixtures.
 - **T-FC-021**: Sampling respects `--days` historical window cutoff.
 - **T-FC-022**: Run with missing `aw_info.json` artifact contributes zero ET and is still counted in `sampled_runs`.
 - **T-FC-023**: Workflow with zero sampled runs produces nil projection with zero fields.
+- **T-FC-024**: An in-progress run with a non-zero token usage snapshot is represented as a partial observation.
+- **T-ET-006**: A run with total effective tokens of at least 1,000,000 is handled without overflow.
 
 #### 12.1.4 Monte Carlo Engine Tests
 
