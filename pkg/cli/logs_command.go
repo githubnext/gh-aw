@@ -319,7 +319,7 @@ func validateLogsRuntime(runtime string) error {
 		return nil
 	}
 	logsCommandLog.Printf("Validating runtime parameter: %s", runtime)
-	validRuntimes := []string{string(workflow.AgentRuntimeGVisor), string(workflow.AgentRuntimeDockerSbx)}
+	validRuntimes := []string{string(workflow.AgentRuntimeGVisor), string(workflow.AgentRuntimeDockerSbx), string(workflow.AgentRuntimeCloudHypervisor)}
 	if slices.Contains(validRuntimes, runtime) {
 		return nil
 	}

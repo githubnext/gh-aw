@@ -147,8 +147,8 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 	if domain == "" {
 		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 			domain = "localhost"
-		} else if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
-			// microVM runtimes reach host-published services via host.docker.internal
+		} else if isDockerSbxRuntime(workflowData) {
+			// Docker sbx microVMs reach host-published services via host.docker.internal
 			// (the Docker bridge gateway). Use this as the MCP gateway domain so that the
 			// CLI wrapper scripts generated inside the microVM point to the correct host.
 			domain = "host.docker.internal"
@@ -211,7 +211,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	// localhost:8080 would be tunneled through the squid egress proxy and denied. The
 	// awmg-mcpg topology hostname is already in the firewall allowlist.
 	hostDomain := domain
-	if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
+	if isDockerSbxRuntime(workflowData) {
 		hostDomain = "host.docker.internal"
 	} else if engine.GetID() == "gemini" && isAWFNetworkIsolationEnabled(workflowData) {
 		// domain is "awmg-mcpg" when network isolation is active; preserve it.
@@ -316,8 +316,8 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	containerCmd.WriteString("docker run -i --rm")
 	if isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --network bridge")
-		if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
-			// microVM runtimes: publish to 0.0.0.0 so the guest can reach the gateway via
+		if isDockerSbxRuntime(workflowData) {
+			// Docker sbx microVMs: publish to 0.0.0.0 so the guest can reach the gateway via
 			// host.docker.internal (the Docker bridge gateway, 172.17.0.1).
 			containerCmd.WriteString(" -p 0.0.0.0:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
 		} else {

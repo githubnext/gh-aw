@@ -508,16 +508,18 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			awfConfig.Network = &AWFNetworkConfig{}
 		}
 		awfConfig.Network.Isolation = true
-		awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
+		if !isCloudHypervisorRuntime(config.WorkflowData) {
+			awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
+		}
 		awfConfigLog.Printf("Network section: isolation enabled with %d topology attachments", len(awfConfig.Network.TopologyAttach))
 	}
 
-	// docker-sbx and cloud-hypervisor microVMs resolve host services via
+	// Docker sbx microVMs resolve host services via
 	// host.docker.internal
 	// (the Docker bridge gateway, 172.17.0.1). Allow this domain so AWF's network
 	// policy permits connections from the microVM to the api-proxy, MCP gateway, and
 	// Squid proxy that are all published on the host bridge.
-	if isDockerSbxRuntime(config.WorkflowData) || isCloudHypervisorRuntime(config.WorkflowData) {
+	if isDockerSbxRuntime(config.WorkflowData) {
 		if awfConfig.Network == nil {
 			awfConfig.Network = &AWFNetworkConfig{}
 		}

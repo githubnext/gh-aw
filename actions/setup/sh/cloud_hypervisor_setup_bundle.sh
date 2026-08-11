@@ -22,6 +22,8 @@ fi
 
 asset_base_url="https://github.com/github/gh-aw-firewall/releases/download/${version}"
 asset_name="cloud-hypervisor-test-x86_64.tar.gz"
+checksums_name="cloud-hypervisor-test-x86_64.SHA256SUMS"
+manifest_name="cloud-hypervisor-test-x86_64.manifest.json"
 
 bundle_root="${RUNNER_TEMP}/gh-aw/cloud-hypervisor/${version}"
 extract_dir="${bundle_root}/bundle"
@@ -29,20 +31,9 @@ mkdir -p "${bundle_root}" "${extract_dir}"
 
 echo "::group::Download cloud-hypervisor bundle (${version})"
 curl -fsSL -o "${bundle_root}/${asset_name}" "${asset_base_url}/${asset_name}"
-curl -fsSL -o "${bundle_root}/SHA256SUMS" "${asset_base_url}/SHA256SUMS"
-curl -fsSL -o "${bundle_root}/manifest.json" "${asset_base_url}/manifest.json"
+curl -fsSL -o "${bundle_root}/${checksums_name}" "${asset_base_url}/${checksums_name}"
+curl -fsSL -o "${bundle_root}/${manifest_name}" "${asset_base_url}/${manifest_name}"
 echo "downloaded release assets"
-echo "::endgroup::"
-
-echo "::group::Verify cloud-hypervisor bundle checksums"
-for required_file in "${asset_name}" "manifest.json"; do
-  if ! grep -Eq "(^|[[:space:]])(\./)?${required_file}$" "${bundle_root}/SHA256SUMS"; then
-    echo "::error::${required_file} entry is missing in SHA256SUMS for ${version}"
-    exit 1
-  fi
-  grep -E "(^|[[:space:]])(\./)?${required_file}$" "${bundle_root}/SHA256SUMS" | head -n1 | sha256sum -c -
-done
-echo "bundle and manifest checksums verified"
 echo "::endgroup::"
 
 echo "::group::Extract cloud-hypervisor bundle"
@@ -50,23 +41,7 @@ tar -xzf "${bundle_root}/${asset_name}" -C "${extract_dir}"
 echo "bundle extracted to ${extract_dir}"
 echo "::endgroup::"
 
-manifest_path="${bundle_root}/manifest.json"
-sha_file="${bundle_root}/SHA256SUMS"
-
-pick_first_query() {
-  local file="$1"
-  shift
-  local query
-  for query in "$@"; do
-    local value
-    value="$(jq -r "${query} // empty" "${file}" 2>/dev/null | head -n1 || true)"
-    if [[ -n "${value}" && "${value}" != "null" ]]; then
-      echo "${value}"
-      return 0
-    fi
-  done
-  return 1
-}
+sha_file="${bundle_root}/${checksums_name}"
 
 resolve_path() {
   local rel="$1"
@@ -110,31 +85,22 @@ lookup_sha256() {
   return 1
 }
 
-binary_rel="$(pick_first_query "${manifest_path}" \
-  '.cloud_hypervisor.binary.path' \
-  '.cloudHypervisor.binary.path' \
-  '.artifacts.cloud_hypervisor.binary.path' \
-  '.files[] | select((.role // .name // "") | test("binary"; "i")) | .path' || true)"
-kernel_rel="$(pick_first_query "${manifest_path}" \
-  '.cloud_hypervisor.kernel.path' \
-  '.cloudHypervisor.kernel.path' \
-  '.artifacts.cloud_hypervisor.kernel.path' \
-  '.files[] | select((.role // .name // "") | test("kernel"; "i")) | .path' || true)"
-rootfs_rel="$(pick_first_query "${manifest_path}" \
-  '.cloud_hypervisor.rootfs.path' \
-  '.cloudHypervisor.rootfs.path' \
-  '.artifacts.cloud_hypervisor.rootfs.path' \
-  '.files[] | select((.role // .name // "") | test("rootfs"; "i")) | .path' || true)"
-supervisor_rel="$(pick_first_query "${manifest_path}" \
-  '.cloud_hypervisor.supervisor.path' \
-  '.cloudHypervisor.supervisor.path' \
-  '.artifacts.cloud_hypervisor.supervisor.path' \
-  '.files[] | select((.role // .name // "") | test("supervisor"; "i")) | .path' || true)"
+verify_sha256() {
+  local expected="$1"
+  local file="$2"
+  local actual
+  actual="$(sha256sum "${file}" | awk '{print $1}')"
+  if [[ "${actual}" != "${expected}" ]]; then
+    echo "::error::checksum verification failed for ${file}"
+    exit 1
+  fi
+}
 
-if [[ -z "${binary_rel}" || -z "${kernel_rel}" || -z "${rootfs_rel}" || -z "${supervisor_rel}" ]]; then
-  echo "::error::manifest.json is missing one or more required cloud-hypervisor artifact paths (binary/kernel/rootfs/supervisor)"
-  exit 1
-fi
+# Artifact names are fixed by the gh-aw-firewall cloud-hypervisor release contract.
+binary_rel="cloud-hypervisor"
+kernel_rel="vmlinux.bin"
+rootfs_rel="rootfs.ext4"
+supervisor_rel="awf-supervisor"
 
 binary_path="$(resolve_path "${binary_rel}" || true)"
 kernel_path="$(resolve_path "${kernel_rel}" || true)"
@@ -146,32 +112,23 @@ if [[ -z "${binary_path}" || -z "${kernel_path}" || -z "${rootfs_path}" || -z "$
   exit 1
 fi
 
-binary_sha256="$(pick_first_query "${manifest_path}" \
-  '.cloud_hypervisor.binary.sha256' \
-  '.cloudHypervisor.binary.sha256' \
-  '.artifacts.cloud_hypervisor.binary.sha256' || true)"
-kernel_sha256="$(pick_first_query "${manifest_path}" \
-  '.cloud_hypervisor.kernel.sha256' \
-  '.cloudHypervisor.kernel.sha256' \
-  '.artifacts.cloud_hypervisor.kernel.sha256' || true)"
-rootfs_sha256="$(pick_first_query "${manifest_path}" \
-  '.cloud_hypervisor.rootfs.sha256' \
-  '.cloudHypervisor.rootfs.sha256' \
-  '.artifacts.cloud_hypervisor.rootfs.sha256' || true)"
-supervisor_sha256="$(pick_first_query "${manifest_path}" \
-  '.cloud_hypervisor.supervisor.sha256' \
-  '.cloudHypervisor.supervisor.sha256' \
-  '.artifacts.cloud_hypervisor.supervisor.sha256' || true)"
-
-binary_sha256="${binary_sha256:-$(lookup_sha256 "${binary_rel}" "${binary_path}" || true)}"
-kernel_sha256="${kernel_sha256:-$(lookup_sha256 "${kernel_rel}" "${kernel_path}" || true)}"
-rootfs_sha256="${rootfs_sha256:-$(lookup_sha256 "${rootfs_rel}" "${rootfs_path}" || true)}"
-supervisor_sha256="${supervisor_sha256:-$(lookup_sha256 "${supervisor_rel}" "${supervisor_path}" || true)}"
+binary_sha256="$(lookup_sha256 "${binary_rel}" "${binary_path}" || true)"
+kernel_sha256="$(lookup_sha256 "${kernel_rel}" "${kernel_path}" || true)"
+rootfs_sha256="$(lookup_sha256 "${rootfs_rel}" "${rootfs_path}" || true)"
+supervisor_sha256="$(lookup_sha256 "${supervisor_rel}" "${supervisor_path}" || true)"
 
 if [[ -z "${binary_sha256}" || -z "${kernel_sha256}" || -z "${rootfs_sha256}" || -z "${supervisor_sha256}" ]]; then
-  echo "::error::failed to resolve one or more cloud-hypervisor SHA256 digests from manifest.json/SHA256SUMS"
+  echo "::error::failed to resolve one or more cloud-hypervisor SHA256 digests from ${checksums_name}"
   exit 1
 fi
+
+echo "::group::Verify cloud-hypervisor bundle checksums"
+verify_sha256 "${binary_sha256}" "${binary_path}"
+verify_sha256 "${kernel_sha256}" "${kernel_path}"
+verify_sha256 "${rootfs_sha256}" "${rootfs_path}"
+verify_sha256 "${supervisor_sha256}" "${supervisor_path}"
+echo "bundle checksums verified"
+echo "::endgroup::"
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   {

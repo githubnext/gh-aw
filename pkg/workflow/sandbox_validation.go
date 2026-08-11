@@ -208,7 +208,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		if firewallConfig != nil {
 			configuredVersion = firewallConfig.Version
 		}
-		if !versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFContainerRuntimeMinVersion)) {
+		if !versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFCloudHypervisorMinVersion)) {
 			effectiveVersion := configuredVersion
 			if effectiveVersion == "" {
 				effectiveVersion = string(constants.DefaultFirewallVersion)
@@ -216,8 +216,8 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			return NewValidationError(
 				"sandbox.agent.runtime",
 				string(AgentRuntimeCloudHypervisor),
-				fmt.Sprintf("cloud-hypervisor requires AWF %s or newer", constants.AWFContainerRuntimeMinVersion),
-				fmt.Sprintf("cloud-hypervisor emits AWF --container-runtime flags, which are only supported in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFContainerRuntimeMinVersion, effectiveVersion, constants.AWFContainerRuntimeMinVersion),
+				fmt.Sprintf("cloud-hypervisor requires AWF %s or newer", constants.AWFCloudHypervisorMinVersion),
+				fmt.Sprintf("cloud-hypervisor preview support is only available in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFCloudHypervisorMinVersion, effectiveVersion, constants.AWFCloudHypervisorMinVersion),
 			)
 		}
 

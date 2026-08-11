@@ -70,7 +70,7 @@ func TestCloudHypervisorAWFArgs(t *testing.T) {
 		WorkflowData: &WorkflowData{
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFContainerRuntimeMinVersion)},
+				Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
 			},
 			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeCloudHypervisor}},
 		},
@@ -80,6 +80,29 @@ func TestCloudHypervisorAWFArgs(t *testing.T) {
 	assert.Contains(t, args, "--container-runtime cloud-hypervisor")
 	assert.Contains(t, args, "--cloud-hypervisor-preview")
 	assert.NotContains(t, args, "${{ steps.cloud-hypervisor-bundle.outputs.")
+	assert.NotContains(t, args, "--mount")
+}
+
+func TestCloudHypervisorAWFCommandOmitsUnsupportedMountsAndTTY(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName: "claude",
+		UsesTTY:    true,
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{ID: "claude"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+			},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+				ID:      "awf",
+				Runtime: AgentRuntimeCloudHypervisor,
+				Mounts:  []string{"/tmp/custom:/tmp/custom"},
+			}},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+	assert.NotContains(t, command, "--mount")
+	assert.NotContains(t, command, "--tty")
 }
 
 func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
@@ -99,8 +122,9 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 	jsonStr, err := BuildAWFConfigJSON(config)
 	require.NoError(t, err)
 	assert.NotContains(t, jsonStr, `"containerRuntime"`)
-	assert.Contains(t, jsonStr, "host.docker.internal")
+	assert.NotContains(t, jsonStr, "host.docker.internal")
 	assert.Contains(t, jsonStr, `"isolation":true`)
+	assert.NotContains(t, jsonStr, `"topologyAttach"`)
 	assert.Contains(t, jsonStr, `"agentTimeout":30`)
 }
 
@@ -118,6 +142,27 @@ func TestCloudHypervisorValidationArcDindIncompatible(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "arc-dind")
 	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
+func TestCloudHypervisorValidationRequiresPreviewVersion(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:      "awf",
+			Runtime: AgentRuntimeCloudHypervisor,
+			Version: string(constants.AWFCloudHypervisorMinVersion),
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+	}
+
+	require.NoError(t, validateSandboxConfig(workflowData))
+
+	workflowData.SandboxConfig.Agent.Version = "v0.27.44"
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, string(constants.AWFCloudHypervisorMinVersion))
 }
 
 func TestCloudHypervisorFrontmatterExtraction(t *testing.T) {
@@ -180,7 +225,7 @@ func TestCloudHypervisorShellScriptContent(t *testing.T) {
 		},
 		{
 			script:   "cloud_hypervisor_setup_bundle.sh",
-			contains: []string{"cloud-hypervisor-test-x86_64.tar.gz", "SHA256SUMS", "manifest.json", "binary_path=", "binary_sha256="},
+			contains: []string{"cloud-hypervisor-test-x86_64.tar.gz", "cloud-hypervisor-test-x86_64.SHA256SUMS", "cloud-hypervisor-test-x86_64.manifest.json", "vmlinux.bin", "rootfs.ext4", "awf-supervisor", "binary_path=", "binary_sha256="},
 		},
 	}
 
