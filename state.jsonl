@@ -61,3 +61,4 @@
 {"run_id":"31113069093","timestamp":"2026-08-06T14:53:29.285Z","assignments":{"reasoning_depth":"multi_candidate"}}
 {"run_id":"31187655641","timestamp":"2026-08-07T14:27:41.960Z","assignments":{"reasoning_depth":"single_pass"}}
 {"run_id":"31398611049","timestamp":"2026-08-10T14:32:00.336Z","assignments":{"reasoning_depth":"single_pass"}}
+{"run_id":"31501967648","timestamp":"2026-08-11T14:32:08.954Z","assignments":{"reasoning_depth":"single_pass"}}
