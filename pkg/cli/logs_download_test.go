@@ -416,6 +416,8 @@ printf '%s' 'complete' > "$dir/complete.txt"
 
 	outputDir := t.TempDir()
 	err := downloadArtifactsByName(context.Background(), downloadArtifactsOptions{runID: 12345, outputDir: outputDir}, []string{"usage"})
+	// Individual artifact download failures are non-fatal; the regression check is
+	// that failed staging content is removed and does not satisfy the cache.
 	require.NoError(t, err)
 	assert.NoDirExists(t, filepath.Join(outputDir, "usage"))
 	assert.Equal(t, []string{"usage"}, findMissingFilterEntries([]string{"usage"}, outputDir))

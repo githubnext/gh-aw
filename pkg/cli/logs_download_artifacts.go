@@ -137,12 +137,6 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 		if err != nil {
 			return fmt.Errorf("failed to create staging directory for artifact %q: %w", name, err)
 		}
-		keepStaging := false
-		defer func() {
-			if !keepStaging {
-				_ = os.RemoveAll(stagingDir)
-			}
-		}()
 
 		artifactDir := filepath.Join(opts.outputDir, name)
 		args := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", stagingDir}
@@ -158,6 +152,7 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 		cmd := workflow.ExecGHContext(ctx, args...)
 		cmdOutput, cmdErr := cmd.CombinedOutput()
 		if cmdErr != nil {
+			_ = os.RemoveAll(stagingDir)
 			logsDownloadLog.Printf("Failed to download artifact %q: %v (%s)", name, cmdErr, string(cmdOutput))
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifact %q: %v", name, cmdErr)))
@@ -166,12 +161,13 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 		} else {
 			logsDownloadLog.Printf("Downloaded artifact %q", name)
 			if err := os.RemoveAll(artifactDir); err != nil {
+				_ = os.RemoveAll(stagingDir)
 				return fmt.Errorf("failed to remove existing artifact directory %q: %w", artifactDir, err)
 			}
 			if err := os.Rename(stagingDir, artifactDir); err != nil {
+				_ = os.RemoveAll(stagingDir)
 				return fmt.Errorf("failed to promote artifact %q from staging: %w", name, err)
 			}
-			keepStaging = true
 			if err := markArtifactDownloaded(opts.outputDir, name); err != nil {
 				return err
 			}
