@@ -175,6 +175,10 @@ func RenderJSONMCPConfig(
 			if options.Renderers.RenderMCPScripts != nil {
 				options.Renderers.RenderMCPScripts(&configBuilder, workflowData.MCPScripts, isLast)
 			}
+		case enclaveMCPServerName:
+			if options.Renderers.RenderEnclave != nil {
+				options.Renderers.RenderEnclave(&configBuilder, workflowData, isLast)
+			}
 		default:
 			// Handle custom MCP tools using shared helper
 			HandleCustomMCPToolInSwitch(&configBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
@@ -244,7 +248,7 @@ func RenderJSONMCPConfig(
 				// The config is rendered inside an unquoted bash heredoc; unvalidated IDs
 				// containing shell metacharacters (e.g. $(cmd), `cmd`) would be expanded.
 				if !isSafeMCPServerID(serverID) {
-					return fmt.Errorf("private-to-public-flows: server ID %q contains characters that are unsafe for shell heredoc emission; IDs must match [A-Za-z0-9_-]+", serverID)
+					return fmt.Errorf("private-to-public-flows: server ID %q contains characters that are unsafe for shell heredoc emission; IDs must match [A-Za-z0-9_-]+. Example:\n\nfirewall:\n  private-to-public-flows:\n    allowed-server-ids:\n      - my-safe-server", serverID)
 				}
 				fmt.Fprintf(&configBuilder, "%q", serverID)
 			}

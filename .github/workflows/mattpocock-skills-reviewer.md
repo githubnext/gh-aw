@@ -64,9 +64,7 @@ skills:
 - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
 - mattpocock/skills/improve-codebase-architecture@801dca688564c529fa84f247f64472520d9ebe28
 - mattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28
-- mattpocock/skills/to-prd@801dca688564c529fa84f247f64472520d9ebe28
 - mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28
-- mattpocock/skills/domain-modeling@801dca688564c529fa84f247f64472520d9ebe28
 timeout-minutes: 15
 tools:
   cli-proxy: true
@@ -92,9 +90,7 @@ The following skills have been installed via `gh skill` and are available under 
 - **`/tdd`** — Test-driven development: red-green-refactor loop. Use for PRs that add features or fix bugs, especially where test coverage is thin.
 - **`/codebase-design`** — Shared vocabulary for deep modules, interface seams, and codebase navigability. Use for large refactors or when reviewing unfamiliar modules.
 - **`/improve-codebase-architecture`** — Find deepening opportunities informed by the domain language. Use for PRs that restructure or extend the architecture.
-- **`/domain-modeling`** — Sharpen project terminology and architectural context. Use when changes introduce or rename concepts.
 - **`/grill-with-docs`** — Challenges the plan against the existing domain model and terminology. Use when changes introduce new concepts or abstractions.
-- **`/to-prd`** — Turn context into a PRD. Use when the PR description is unclear or the scope is hard to understand.
 
 ## Your Mission
 

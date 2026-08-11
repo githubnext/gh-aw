@@ -47,12 +47,14 @@ Window examples:
 
 Strategy: fixed durations for trend comparisons, run-based windows for continuous monitoring, calendar windows for stakeholder reporting.
 
+Whenever a report window is defined, also fix its grouping dimensions and deduplication key up front (see [Recurring Digest Defaults](#recurring-digest-defaults) below) — a window alone is not sufficient to make a recurring report deterministic and non-duplicating.
+
 When the window has no qualifying updates, call `noop` with the evaluated window in the message:
 `noop("No updates in last 24 full hours ({{window_start_utc}} to {{window_end_utc}})")`
 
 ## Recurring Digest Defaults
 
-For recurring PM, stakeholder, and information-worker digests, fix all three elements up front:
+For recurring PM, stakeholder, and information-worker digests, fix all three elements up front — window, grouping dimensions, and deduplication key — before generating the report:
 
 | Element | Default guidance | Examples |
 |---|---|---|
