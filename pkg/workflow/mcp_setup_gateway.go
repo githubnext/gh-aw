@@ -148,7 +148,7 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 			domain = "localhost"
 		} else if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
-			// docker-sbx microVM reaches host-published services via host.docker.internal
+			// microVM runtimes reach host-published services via host.docker.internal
 			// (the Docker bridge gateway). Use this as the MCP gateway domain so that the
 			// CLI wrapper scripts generated inside the microVM point to the correct host.
 			domain = "host.docker.internal"
@@ -301,7 +301,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	if isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --network bridge")
 		if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
-			// docker-sbx: publish to 0.0.0.0 so the microVM can reach the gateway via
+			// microVM runtimes: publish to 0.0.0.0 so the guest can reach the gateway via
 			// host.docker.internal (the Docker bridge gateway, 172.17.0.1).
 			containerCmd.WriteString(" -p 0.0.0.0:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
 		} else {
