@@ -424,7 +424,8 @@ async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, se
  * The logs tool may legitimately run for multiple minutes. The bridge always
  * computes a count-derived floor that mirrors the server's own auto-scaling
  * (`ceil(count / 40)` minutes, with a 5-minute minimum when no `workflow_name`
- * filter is provided — matching `effectiveMCPLogsToolTimeoutMinutes` in
+ * filter is provided, or when an `engine` filter is provided — matching
+ * `effectiveMCPLogsToolTimeoutMinutes` in
  * `mcp_tools_privileged.go`). This floor applies to both the implicit path and
  * any explicit `timeout` argument, so callers that pass a small positive value
  * still receive a bridge deadline that is at least as long as the server's own
@@ -447,9 +448,10 @@ function getToolCallTimeoutMs(toolName, toolArgs) {
   const countCandidate = typeof toolArgs?.count === "number" ? toolArgs.count : NaN;
   const effectiveCount = Number.isFinite(countCandidate) && countCandidate > 0 ? countCandidate : LOGS_TOOL_DEFAULT_COUNT;
   const baseMinutes = Math.ceil(effectiveCount / LOGS_TOOL_RUNS_PER_TIMEOUT_MINUTE);
-  // Without a workflow filter the GitHub API scans all runs and is substantially
-  // slower for large repositories — apply the same 5-minute floor as the server.
-  const floorMinutes = toolArgs?.workflow_name ? baseMinutes : Math.max(LOGS_TOOL_MIN_TIMEOUT_MINUTES_NO_FILTER, baseMinutes);
+  // Without a workflow filter, or when filtering by engine, the GitHub API scans
+  // all runs and is substantially slower for large repositories — apply the same
+  // 5-minute floor as the server.
+  const floorMinutes = toolArgs?.workflow_name && !toolArgs?.engine ? baseMinutes : Math.max(LOGS_TOOL_MIN_TIMEOUT_MINUTES_NO_FILTER, baseMinutes);
   const floorMs = Math.ceil(floorMinutes * 60 * 1000) + TOOL_CALL_TIMEOUT_BUFFER_MS;
 
   // Honor an explicit timeout when present. Reject non-numeric types (e.g.

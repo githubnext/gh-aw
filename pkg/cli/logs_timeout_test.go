@@ -177,15 +177,25 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 			workflowName:     "my-workflow",
 			want:             3,
 		},
-		// All-workflow cases: minimum 5 minutes when no workflow_name is given
+		// Engine-filtering cases: minimum 5 minutes when an engine filter is given,
+		// regardless of whether workflow_name is also present.
 		{
-			name:             "engine filtering uses all-workflow minimum for a named workflow",
+			name:             "engine filtering with named workflow uses all-workflow minimum",
 			requestedTimeout: 0,
 			count:            2,
 			workflowName:     "my-workflow",
 			engine:           "claude",
 			want:             defaultMCPLogsMinTimeoutMinutesAllWorkflows,
 		},
+		{
+			name:             "engine filtering without workflow name also uses all-workflow minimum",
+			requestedTimeout: 0,
+			count:            2,
+			workflowName:     "",
+			engine:           "claude",
+			want:             defaultMCPLogsMinTimeoutMinutesAllWorkflows,
+		},
+		// All-workflow cases: minimum 5 minutes when no workflow_name is given
 		{
 			name:             "small count uses all-workflow minimum (no workflow name)",
 			requestedTimeout: 0,
