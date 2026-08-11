@@ -1075,18 +1075,35 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh"
       - name: Validate cache-memory file types
+        id: validate_cache_memory_default
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          MEMORY_DIR: /tmp/gh-aw/cache-memory
+          MEMORY_ID: default
+          ALLOWED_EXTENSIONS: '[".json"]'
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');
-            const allowedExtensions = [".json"];
-            const result = validateMemoryFiles('/tmp/gh-aw/cache-memory', 'cache', allowedExtensions);
-            if (!result.valid) {
-              core.setFailed(`File type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`);
+            const { runCustomMemoryValidation, writeValidationMarker, clearValidationMarker } = require('${{ runner.temp }}/gh-aw/actions/memory_custom_validation.cjs');
+            const memoryDir = process.env.MEMORY_DIR;
+            const memoryId = process.env.MEMORY_ID || 'default';
+            clearValidationMarker('cache', memoryId);
+            let failed = false;
+            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');
+            if (allowedExtensions.length > 0) {
+              const result = validateMemoryFiles(memoryDir, 'cache', allowedExtensions);
+              if (!result.valid) { core.setFailed(`Storage file type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`); failed = true; }
             }
+            if (process.env.VALIDATION_SCRIPT_B64) {
+              const result = runCustomMemoryValidation({ scriptBase64: process.env.VALIDATION_SCRIPT_B64, memoryDir, memoryId, kind: 'cache', timeoutSeconds: Number(process.env.VALIDATION_TIMEOUT_SECONDS || '30') });
+              if (result.stdout) core.info(`Custom cache-memory validation stdout:\n${result.stdout}`);
+              if (result.stderr) core.info(`Custom cache-memory validation stderr:\n${result.stderr}`);
+              if (!result.ok) { core.setFailed(`Custom cache-memory validation failed for '${memoryId}': ${result.timedOut ? 'timed out' : `exited with code ${result.exitCode}`}.`); failed = true; }
+            }
+            if (!failed) writeValidationMarker('cache', memoryId);
       - name: Check cache-memory git integrity
         if: always()
         continue-on-error: true
@@ -1095,7 +1112,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/check_cache_memory_git_integrity.sh"
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
+        if: always() && steps.validate_cache_memory_default.outcome == 'success'
         with:
           name: cache-memory
           include-hidden-files: true
@@ -2371,21 +2388,37 @@ jobs:
           else
             echo "has_content=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Validate cache-memory file types (default)
+      - name: Validate cache-memory before save (default)
+        id: validate_cache_memory_default
         if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          MEMORY_DIR: /tmp/gh-aw/cache-memory
+          MEMORY_ID: default
+          ALLOWED_EXTENSIONS: '[".json"]'
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');
-            const allowedExtensions = [".json"];
-            const result = validateMemoryFiles('/tmp/gh-aw/cache-memory', 'cache', allowedExtensions);
-            if (!result.valid) {
-              core.setFailed(`File type validation failed: Found ${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`);
+            const { runCustomMemoryValidation } = require('${{ runner.temp }}/gh-aw/actions/memory_custom_validation.cjs');
+            const memoryDir = process.env.MEMORY_DIR;
+            const memoryId = process.env.MEMORY_ID || 'default';
+            let failed = false;
+            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');
+            if (allowedExtensions.length > 0) {
+              const result = validateMemoryFiles(memoryDir, 'cache', allowedExtensions);
+              if (!result.valid) { core.setFailed(`Storage file type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`); failed = true; }
             }
+            if (process.env.VALIDATION_SCRIPT_B64) {
+              const result = runCustomMemoryValidation({ scriptBase64: process.env.VALIDATION_SCRIPT_B64, memoryDir, memoryId, kind: 'cache', timeoutSeconds: Number(process.env.VALIDATION_TIMEOUT_SECONDS || '30') });
+              if (result.stdout) core.info(`Custom cache-memory validation stdout:\n${result.stdout}`);
+              if (result.stderr) core.info(`Custom cache-memory validation stderr:\n${result.stderr}`);
+              if (!result.ok) { core.setFailed(`Custom cache-memory validation failed for '${memoryId}': ${result.timedOut ? 'timed out' : `exited with code ${result.exitCode}`}.`); failed = true; }
+            }
+            if (failed) process.exitCode = 1;
       - name: Save cache-memory to cache (default)
-        if: steps.check_cache_default.outputs.has_content == 'true'
+        if: steps.check_cache_default.outputs.has_content == 'true' && steps.validate_cache_memory_default.outcome == 'success'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}

@@ -1074,18 +1074,35 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh"
       - name: Validate cache-memory file types
+        id: validate_cache_memory_default
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          MEMORY_DIR: /tmp/gh-aw/cache-memory
+          MEMORY_ID: default
+          ALLOWED_EXTENSIONS: '[".json"]'
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');
-            const allowedExtensions = [".json"];
-            const result = validateMemoryFiles('/tmp/gh-aw/cache-memory', 'cache', allowedExtensions);
-            if (!result.valid) {
-              core.setFailed(`File type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`);
+            const { runCustomMemoryValidation, writeValidationMarker, clearValidationMarker } = require('${{ runner.temp }}/gh-aw/actions/memory_custom_validation.cjs');
+            const memoryDir = process.env.MEMORY_DIR;
+            const memoryId = process.env.MEMORY_ID || 'default';
+            clearValidationMarker('cache', memoryId);
+            let failed = false;
+            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');
+            if (allowedExtensions.length > 0) {
+              const result = validateMemoryFiles(memoryDir, 'cache', allowedExtensions);
+              if (!result.valid) { core.setFailed(`Storage file type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`); failed = true; }
             }
+            if (process.env.VALIDATION_SCRIPT_B64) {
+              const result = runCustomMemoryValidation({ scriptBase64: process.env.VALIDATION_SCRIPT_B64, memoryDir, memoryId, kind: 'cache', timeoutSeconds: Number(process.env.VALIDATION_TIMEOUT_SECONDS || '30') });
+              if (result.stdout) core.info(`Custom cache-memory validation stdout:\n${result.stdout}`);
+              if (result.stderr) core.info(`Custom cache-memory validation stderr:\n${result.stderr}`);
+              if (!result.ok) { core.setFailed(`Custom cache-memory validation failed for '${memoryId}': ${result.timedOut ? 'timed out' : `exited with code ${result.exitCode}`}.`); failed = true; }
+            }
+            if (!failed) writeValidationMarker('cache', memoryId);
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
