@@ -282,7 +282,11 @@ func parseConfigScaffold[T any](
 }
 
 // parseConfigScaffoldWithPostProcess wraps parseConfigScaffold and additionally invokes the
-// optional postProcess callback when parsing succeeds (i.e. the returned config is non-nil).
+// optional postProcess callback for every non-nil result. This includes non-nil fallback
+// configs returned by onError, not just successfully unmarshalled ones, so that defaults and
+// logging apply consistently to fallbacks. postProcess is skipped when the result is nil
+// (key absent, or onError returned nil to disable the handler).
+//
 // This removes the repeated "if config == nil { return nil } ... return config" wrapper that
 // most safe-output handlers need around parseConfigScaffold for applying default values and/or
 // emitting a post-parse debug log line.

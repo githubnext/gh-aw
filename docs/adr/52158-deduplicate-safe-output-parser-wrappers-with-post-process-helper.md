@@ -1,8 +1,8 @@
 # ADR-52158: Deduplicate Safe-Output Parser Wrappers with a Post-Process Helper
 
 **Date**: 2026-08-11
-**Status**: Draft
-**Deciders**: Unknown (automated PR by copilot-swe-agent, issue raised by Duplicate Code Detector)
+**Status**: Proposed — pending maintainer acceptance on merge
+**Deciders**: pelikhan (via copilot-swe-agent, PR #52158)
 
 ---
 
@@ -13,6 +13,8 @@ The `pkg/workflow` package provides safe-output handlers for GitHub Actions work
 ### Decision
 
 We will introduce `parseConfigScaffoldWithPostProcess[T any]` in `pkg/workflow/config_helpers.go`. This generic wrapper calls `parseConfigScaffold`, and if the result is non-nil and a `postProcess` callback is provided, invokes that callback before returning. All 13+ existing callers are refactored to use the new helper, moving their nil-check, default-value assignment, and post-parse logging into the `postProcess` closure. Handlers with genuinely unique pre-parse logic (e.g., `create_entity_helpers.go`) are left unchanged. No behavioral changes are introduced; existing defaults, error messages, and log formats are preserved exactly.
+
+The callback contract is: `postProcess` runs for **every** non-nil result, including a non-nil fallback returned by `onError`, and is skipped when the result is nil (key absent, or `onError` returned nil to disable the handler). This keeps defaulting and logging consistent between successfully parsed configs and error fallbacks. The contract is pinned down by direct tests in `config_scaffold_helpers_test.go` covering valid config, non-nil error fallback, nil error fallback, absent key, and a nil callback.
 
 ### Alternatives Considered
 
@@ -43,7 +45,3 @@ This was not chosen because it would scatter post-processing logic across many s
 #### Neutral
 - `create_entity_helpers.go` is explicitly excluded from the refactor because it already owns a distinct `parseCreateEntityConfig` scaffold with pre- and post-hooks; the two scaffolds coexist without conflict.
 - The refactor is purely internal to `pkg/workflow`; no public API or configuration schema changes.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
