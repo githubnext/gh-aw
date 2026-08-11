@@ -223,6 +223,70 @@ func TestResolveRefToSHAWithFallbacks_UsesPublicFallbackAfterGitFallbackOnGitHub
 	}
 }
 
+func TestResolveRefToSHAWithFallbacks_DoesNotUsePublicFallbackOnEnterpriseHost(t *testing.T) {
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "")
+	t.Setenv("GH_HOST", "enterprise.example.com")
+
+	client := fakeCommitResolver{
+		do: func(_ context.Context, method string, path string, body io.Reader, response any) error {
+			return &api.HTTPError{StatusCode: http.StatusForbidden, Message: "Forbidden"}
+		},
+	}
+
+	publicCalled := false
+	_, err := resolveRefToSHAWithFallbacks(
+		context.Background(),
+		client,
+		"owner",
+		"repo",
+		"main",
+		"",
+		func(context.Context, string, string, string, string) (string, error) {
+			return "", errors.New("git fallback failed")
+		},
+		func(context.Context, string, string, string) (string, error) {
+			publicCalled = true
+			return "", nil
+		},
+	)
+	if err == nil {
+		t.Fatal("expected enterprise host auth failure when both API and git fallback fail")
+	}
+	if publicCalled {
+		t.Fatal("public fallback must not run when resolved host is enterprise")
+	}
+}
+
+func TestCanUseUnauthenticatedPublicGitHubFallback(t *testing.T) {
+	t.Run("explicit github.com host", func(t *testing.T) {
+		if !canUseUnauthenticatedPublicGitHubFallback("owner", "repo", "github.com") {
+			t.Fatal("expected public fallback to be allowed for explicit github.com host")
+		}
+	})
+
+	t.Run("resolved public org host override", func(t *testing.T) {
+		t.Setenv("GITHUB_SERVER_URL", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GH_HOST", "enterprise.example.com")
+		if !canUseUnauthenticatedPublicGitHubFallback("github", "gh-aw", "") {
+			t.Fatal("expected public fallback for repos explicitly mapped to github.com")
+		}
+	})
+
+	t.Run("resolved enterprise host", func(t *testing.T) {
+		t.Setenv("GITHUB_SERVER_URL", "")
+		t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+		t.Setenv("GITHUB_HOST", "")
+		t.Setenv("GH_HOST", "enterprise.example.com")
+		if canUseUnauthenticatedPublicGitHubFallback("owner", "repo", "") {
+			t.Fatal("public fallback must not be allowed when resolved host is enterprise")
+		}
+	})
+}
+
 func TestResolveRefToSHA_ClientCreationAuthError_UsesGitFallback(t *testing.T) {
 	origFactory := createRESTClientForHostFunc
 	origGit := resolveRefToSHAViaGitFunc

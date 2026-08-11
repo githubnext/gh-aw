@@ -74,7 +74,7 @@ func downloadFileFromGitHubWithDepth(ctx context.Context, owner, repo, path, ref
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 			content, gitErr := downloadFileViaGit(ctx, owner, repo, path, ref, host)
 			if gitErr != nil {
-				if host == "" || host == "github.com" {
+				if canUseUnauthenticatedPublicGitHubFallback(owner, repo, host) {
 					remoteLog.Printf("Git fallback also failed, attempting unauthenticated API for %s/%s/%s@%s", owner, repo, path, ref)
 					return downloadFileViaPublicAPI(ctx, owner, repo, path, ref)
 				}
@@ -304,7 +304,7 @@ func downloadFileViaGit(ctx context.Context, owner, repo, path, ref, host string
 	// no dependency on git being installed.
 	// Only attempt raw URL for github.com repos (not GHE) since raw.githubusercontent.com
 	// only serves public GitHub content.
-	if host == "" || host == "github.com" {
+	if canUseUnauthenticatedPublicGitHubFallback(owner, repo, host) {
 		content, rawErr := downloadFileViaRawURL(ctx, owner, repo, path, ref)
 		if rawErr == nil {
 			return content, nil

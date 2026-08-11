@@ -13,6 +13,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var remoteLog = logger.New("parser:remote_fetch")
@@ -47,6 +48,19 @@ func buildContentsAPIPath(owner, repo, path, ref string) string {
 func fetchRemoteFileContent(ctx context.Context, client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
 	remoteLog.Printf("Fetching remote file via REST API: %s/%s path=%s ref=%s", owner, repo, path, ref)
 	return client.DoWithContext(ctx, http.MethodGet, buildContentsAPIPath(owner, repo, path, ref), nil, fileContent)
+}
+
+// canUseUnauthenticatedPublicGitHubFallback returns true only when the resolved
+// target host for the repo is the public github.com host.
+func canUseUnauthenticatedPublicGitHubFallback(owner, repo, host string) bool {
+	resolvedHost := host
+	if resolvedHost == "" {
+		resolvedHost = GetGitHubHostForRepo(owner, repo)
+	}
+	return strings.EqualFold(
+		stringutil.NormalizeGitHubHostURL(resolvedHost),
+		string(constants.PublicGitHubHost),
+	)
 }
 
 // fetchPublicGitHubContentsAPI makes an unauthenticated GET request to the
