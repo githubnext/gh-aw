@@ -191,6 +191,39 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		sandboxValidationLog.Print("docker-sbx runtime configured -- topology, sudo, and AWF version checks passed")
 	}
 
+	// Validate cloud-hypervisor runtime compatibility
+	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeCloudHypervisor {
+		if isArcDindTopology(workflowData) {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeCloudHypervisor),
+				"cloud-hypervisor is incompatible with runner.topology: arc-dind",
+				"cloud-hypervisor requires KVM and is only supported on GitHub-hosted Ubuntu x86_64 runners. "+
+					"ARC DinD runners do not provide that runtime environment. Remove sandbox.agent.runtime: cloud-hypervisor or change runner.topology.",
+			)
+		}
+
+		firewallConfig := getFirewallConfig(workflowData)
+		var configuredVersion string
+		if firewallConfig != nil {
+			configuredVersion = firewallConfig.Version
+		}
+		if !versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFContainerRuntimeMinVersion)) {
+			effectiveVersion := configuredVersion
+			if effectiveVersion == "" {
+				effectiveVersion = string(constants.DefaultFirewallVersion)
+			}
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeCloudHypervisor),
+				fmt.Sprintf("cloud-hypervisor requires AWF %s or newer", constants.AWFContainerRuntimeMinVersion),
+				fmt.Sprintf("cloud-hypervisor emits AWF --container-runtime flags, which are only supported in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFContainerRuntimeMinVersion, effectiveVersion, constants.AWFContainerRuntimeMinVersion),
+			)
+		}
+
+		sandboxValidationLog.Print("cloud-hypervisor runtime configured -- topology and AWF version checks passed")
+	}
+
 	// Validate config structure if provided (deprecated - was only for SRT)
 	if sandboxConfig.Config != nil {
 		// Config is no longer used - SRT removed

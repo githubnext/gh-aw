@@ -3522,9 +3522,9 @@
                     },
                     "runtime": {
                       "type": "string",
-                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation \u2014 when runtime-install is left enabled, it requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Incompatible with runner.topology: arc-dind.",
-                      "enum": ["gvisor", "docker-sbx"],
-                      "examples": ["gvisor", "docker-sbx"]
+                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation \u2014 when runtime-install is left enabled, it requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Use 'cloud-hypervisor' to run the agent in AWF's preview Cloud Hypervisor microVM runtime (GitHub-hosted Ubuntu x86_64 + /dev/kvm only). Incompatible with runner.topology: arc-dind.",
+                      "enum": ["gvisor", "docker-sbx", "cloud-hypervisor"],
+                      "examples": ["gvisor", "docker-sbx", "cloud-hypervisor"]
                     },
                     "runtime-install": {
                       "type": "boolean",

@@ -251,6 +251,16 @@ fi`,
 	} else if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
 		awfHelpersLog.Print("Skipping --allow-host-service-ports: requires legacy-security mode")
 	}
+	if isCloudHypervisorRuntime(config.WorkflowData) {
+		expandableArgs += ` --cloud-hypervisor-binary "${GH_AW_CLOUD_HYPERVISOR_BINARY}"` +
+			` --cloud-hypervisor-kernel "${GH_AW_CLOUD_HYPERVISOR_KERNEL}"` +
+			` --cloud-hypervisor-rootfs "${GH_AW_CLOUD_HYPERVISOR_ROOTFS}"` +
+			` --cloud-hypervisor-supervisor "${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR}"` +
+			` --cloud-hypervisor-binary-sha256 "${GH_AW_CLOUD_HYPERVISOR_BINARY_SHA256}"` +
+			` --cloud-hypervisor-kernel-sha256 "${GH_AW_CLOUD_HYPERVISOR_KERNEL_SHA256}"` +
+			` --cloud-hypervisor-rootfs-sha256 "${GH_AW_CLOUD_HYPERVISOR_ROOTFS_SHA256}"` +
+			` --cloud-hypervisor-supervisor-sha256 "${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR_SHA256}"`
+	}
 
 	engineCommand := config.EngineCommand
 	if isArcDind {
@@ -446,6 +456,16 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Print("Added --container-runtime sbx for docker-sbx microVM runtime")
 	} else if isDockerSbxRuntime(config.WorkflowData) {
 		awfHelpersLog.Printf("Skipping --container-runtime sbx: AWF version %q is older than required minimum %s", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
+	}
+	if isCloudHypervisorRuntime(config.WorkflowData) && awfSupportsContainerRuntime(firewallConfig) {
+		awfArgs = append(
+			awfArgs,
+			"--container-runtime", "cloud-hypervisor",
+			"--cloud-hypervisor-preview",
+		)
+		awfHelpersLog.Print("Added cloud-hypervisor runtime arguments")
+	} else if isCloudHypervisorRuntime(config.WorkflowData) {
+		awfHelpersLog.Printf("Skipping cloud-hypervisor runtime flags: AWF version %q is older than required minimum %s", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
 	}
 
 	// Pass all environment variables to the container, but exclude every variable whose
