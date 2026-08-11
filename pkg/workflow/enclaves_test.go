@@ -54,8 +54,8 @@ func TestEnabledEnclaveToolsAndTimeout(t *testing.T) {
 	}{
 		{"script only defaults cover timing bucket", true, false, 0, 0, []string{"enclave_run_script"}, 630},
 		{"agent only defaults cover timing bucket", false, true, 0, 0, []string{"enclave_run_agent"}, 630},
-		{"custom timeouts cover timing bucket", true, true, 200, 90, []string{"enclave_run_script", "enclave_run_agent"}, 630},
-		{"longer future timeout remains covered", true, false, 700, 0, []string{"enclave_run_script"}, 730},
+		{"45 second custom timeout covers timing bucket", true, false, 45, 0, []string{"enclave_run_script"}, 630},
+		{"540 second maximum timeout covers timing bucket", false, true, 0, 540, []string{"enclave_run_agent"}, 630},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

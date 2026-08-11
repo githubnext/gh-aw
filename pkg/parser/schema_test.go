@@ -26,6 +26,7 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 				"repos": []any{
 					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
 				},
+				"timeout": 540,
 			},
 		},
 	}
@@ -47,6 +48,23 @@ func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 	}
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(legacy, "workflow.md"); err == nil {
 		t.Fatal("expected legacy sandbox.enclaves shape to be rejected")
+	}
+
+	tooLong := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"enclaves": []any{
+			map[string]any{
+				"agent": map[string]any{"model": "gpt-5"},
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+				"timeout": 541,
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(tooLong, "workflow.md"); err == nil {
+		t.Fatal("expected enclave timeout above 540 seconds to be rejected")
 	}
 }
 

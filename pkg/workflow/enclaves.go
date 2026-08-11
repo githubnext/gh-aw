@@ -20,8 +20,6 @@ const (
 	enclaveMCPGatewayContainer    = "awmg-mcpg"
 	enclaveMCPConnectTimeout      = 120
 	enclaveMCPReadinessTimeoutMS  = 120000
-	defaultScriptEnclaveTimeout   = 30
-	defaultAgentEnclaveTimeout    = 120
 	maxEnclaveTimingBucketSeconds = 600
 	enclaveMCPTransportAllowance  = 30
 )
@@ -104,30 +102,10 @@ func enabledEnclaveTools(workflowData *WorkflowData) []string {
 }
 
 func enclaveToolTimeout(workflowData *WorkflowData) int {
-	maxTimeout := 0
-	for _, enclave := range workflowData.Enclaves {
-		if enclave == nil {
-			continue
-		}
-		if enclave.Script != nil {
-			timeout := enclave.Timeout
-			if timeout == 0 {
-				timeout = defaultScriptEnclaveTimeout
-			}
-			maxTimeout = max(maxTimeout, timeout)
-		}
-		if enclave.Agent != nil {
-			timeout := enclave.Timeout
-			if timeout == 0 {
-				timeout = defaultAgentEnclaveTimeout
-			}
-			maxTimeout = max(maxTimeout, timeout)
-		}
-	}
-	if maxTimeout == 0 {
+	if !enclavesEnabled(workflowData) {
 		return 0
 	}
-	return max(maxTimeout+enclaveMCPTransportAllowance, maxEnclaveTimingBucketSeconds+enclaveMCPTransportAllowance)
+	return maxEnclaveTimingBucketSeconds + enclaveMCPTransportAllowance
 }
 
 func validateEnclavesConfig(workflowData *WorkflowData) error {
