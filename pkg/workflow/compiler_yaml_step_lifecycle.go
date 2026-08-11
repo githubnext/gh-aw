@@ -136,7 +136,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		firewallType = "squid"
 	}
 
-	// Sandbox agent runtime (e.g., "gvisor", "docker-sbx"), stored in aw_info.json
+	// Sandbox agent runtime (e.g., "gvisor", "docker-sbx", "cloud-hypervisor"), stored in aw_info.json
 	// for observability and used by the logs/audit --runtime filter.
 	agentRuntime := ""
 	if data.SandboxConfig != nil && data.SandboxConfig.Agent != nil {

@@ -198,6 +198,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating OTLP workload identity configuration", validateFn: func() error { return validateOTLPWorkloadIdentity(workflowData) }},
 		{logMessage: "Validating default AI credits pricing values", validateFn: func() error { return validateDefaultAiCreditsPricing(workflowData) }},
 		{logMessage: "Validating tools.github.bounded-queries configuration", validateFn: func() error { return validateBoundedQueriesConfig(workflowData) }},
+		{logMessage: "Validating enclaves configuration", validateFn: func() error { return validateEnclavesConfig(workflowData) }},
 	}
 	// This validation is intentionally outside the table below because strict mode
 	// turns the same validation result into either an error or a warning.
@@ -494,13 +495,13 @@ func validateOTLPWorkloadIdentity(workflowData *WorkflowData) error {
 		return nil
 	}
 	if !strings.EqualFold(strings.TrimSpace(workloadIdentity.Provider), "google") {
-		return errors.New("observability.otlp.workload-identity.provider must be google")
+		return errors.New("observability.otlp.workload-identity.provider must be google. Example:\n\nobservability:\n  otlp:\n    workload-identity:\n      provider: google\n      audience: my-audience")
 	}
 	if strings.TrimSpace(workloadIdentity.Audience) == "" {
-		return errors.New("observability.otlp.workload-identity.audience is required")
+		return errors.New("observability.otlp.workload-identity.audience is required. Example:\n\nobservability:\n  otlp:\n    workload-identity:\n      provider: google\n      audience: my-audience")
 	}
 	if getOTLPGitHubAppTokenConfig(workflowData.RawFrontmatter) != nil {
-		return errors.New("observability.otlp.workload-identity cannot be combined with GitHub App credentials")
+		return errors.New("observability.otlp.workload-identity cannot be combined with GitHub App credentials; use one authentication method only. Example:\n\nobservability:\n  otlp:\n    workload-identity:\n      provider: google\n      audience: my-audience")
 	}
 	return nil
 }

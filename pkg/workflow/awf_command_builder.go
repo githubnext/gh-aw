@@ -36,6 +36,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// expansion is not suppressed by single-quoting.
 	awfArgs := BuildAWFArgs(config)
 	firewallConfig := getFirewallConfig(config.WorkflowData)
+	isCloudHypervisor := isCloudHypervisorRuntime(config.WorkflowData)
 
 	// Auto-detect ARC/DinD split daemon topology at runtime: probe DOCKER_HOST for a
 	// tcp:// scheme and pass it through to AWF via --docker-host.
@@ -85,15 +86,22 @@ fi`,
 		awfToolCacheMountVarName,
 	)
 	toolCacheMountRef := fmt.Sprintf("${%s:+--mount \"$%s\"}", awfToolCacheMountVarName, awfToolCacheMountVarName)
+	if isCloudHypervisor {
+		toolCacheMountProbe = ""
+		toolCacheMountRef = ""
+	}
 
 	// Build the expandable args string for args that need shell variable expansion.
 	// These MUST be appended as raw (unescaped) strings because single-quoting would
 	// prevent the runner's shell from expanding ${GITHUB_WORKSPACE} and ${RUNNER_TEMP}.
 	ghAwDir := constants.GhAwRootDirShell
-	expandableArgs := fmt.Sprintf(
-		`--container-workdir "${GITHUB_WORKSPACE}" --mount "%s:%s:ro" --mount "%s:/host%s:ro"`,
-		ghAwDir, ghAwDir, ghAwDir, ghAwDir,
-	)
+	expandableArgs := `--container-workdir "${GITHUB_WORKSPACE}"`
+	if !isCloudHypervisor {
+		expandableArgs += fmt.Sprintf(
+			` --mount "%s:%s:ro" --mount "%s:/host%s:ro"`,
+			ghAwDir, ghAwDir, ghAwDir, ghAwDir,
+		)
+	}
 	if isArcDind {
 		expandableArgs += fmt.Sprintf(
 			` --mount "%s:%s:rw" --mount "%s:%s:rw"`,
@@ -231,7 +239,7 @@ fi`,
 	// so the model can copy files there from inside the container. The parent ${RUNNER_TEMP}/gh-aw
 	// is mounted :ro above; this child mount overrides access for the staging subdirectory only.
 	// The staging directory must already exist on the host (created in Generate Safe Outputs Config step).
-	if config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
+	if !isCloudHypervisor && config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
 		stagingDir := SafeOutputsUploadArtifactsDir
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
 		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
@@ -250,6 +258,16 @@ fi`,
 		awfHelpersLog.Printf("Added --allow-host-service-ports with %s", config.WorkflowData.ServicePortExpressions)
 	} else if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
 		awfHelpersLog.Print("Skipping --allow-host-service-ports: requires legacy-security mode")
+	}
+	if isCloudHypervisorRuntime(config.WorkflowData) {
+		expandableArgs += ` --cloud-hypervisor-binary "${GH_AW_CLOUD_HYPERVISOR_BINARY}"` +
+			` --cloud-hypervisor-kernel "${GH_AW_CLOUD_HYPERVISOR_KERNEL}"` +
+			` --cloud-hypervisor-rootfs "${GH_AW_CLOUD_HYPERVISOR_ROOTFS}"` +
+			` --cloud-hypervisor-supervisor "${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR}"` +
+			` --cloud-hypervisor-binary-sha256 "${GH_AW_CLOUD_HYPERVISOR_BINARY_SHA256}"` +
+			` --cloud-hypervisor-kernel-sha256 "${GH_AW_CLOUD_HYPERVISOR_KERNEL_SHA256}"` +
+			` --cloud-hypervisor-rootfs-sha256 "${GH_AW_CLOUD_HYPERVISOR_ROOTFS_SHA256}"` +
+			` --cloud-hypervisor-supervisor-sha256 "${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR_SHA256}"`
 	}
 
 	engineCommand := config.EngineCommand
@@ -434,7 +452,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 
 	// Add TTY flag if needed (Claude requires this), except for docker-sbx where
 	// sbx exec --tty can terminate long-running Claude sessions prematurely.
-	if config.UsesTTY && !isDockerSbxRuntime(config.WorkflowData) {
+	if config.UsesTTY && !isDockerSbxRuntime(config.WorkflowData) && !isCloudHypervisorRuntime(config.WorkflowData) {
 		awfArgs = append(awfArgs, "--tty")
 	}
 
@@ -446,6 +464,16 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfHelpersLog.Print("Added --container-runtime sbx for docker-sbx microVM runtime")
 	} else if isDockerSbxRuntime(config.WorkflowData) {
 		awfHelpersLog.Printf("Skipping --container-runtime sbx: AWF version %q is older than required minimum %s", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
+	}
+	if isCloudHypervisorRuntime(config.WorkflowData) && awfSupportsCloudHypervisor(firewallConfig) {
+		awfArgs = append(
+			awfArgs,
+			"--container-runtime", "cloud-hypervisor",
+			"--cloud-hypervisor-preview",
+		)
+		awfHelpersLog.Print("Added cloud-hypervisor runtime arguments")
+	} else if isCloudHypervisorRuntime(config.WorkflowData) {
+		awfHelpersLog.Printf("Skipping cloud-hypervisor runtime flags: AWF version %q is older than required minimum %s", getAWFImageTag(firewallConfig), constants.AWFCloudHypervisorMinVersion)
 	}
 
 	// Pass all environment variables to the container, but exclude every variable whose
@@ -482,10 +510,12 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	// read-write access is guaranteed for every sandbox runtime (chroot, gVisor,
 	// docker-sbx), not just topologies where /tmp/gh-aw happens to be writable by
 	// default via the host filesystem.
-	awfArgs = append(awfArgs, "--mount", constants.DefaultTmpGhAwMount)
+	if !isCloudHypervisorRuntime(config.WorkflowData) {
+		awfArgs = append(awfArgs, "--mount", constants.DefaultTmpGhAwMount)
+	}
 
 	// Add custom mounts from agent config if specified
-	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
+	if !isCloudHypervisorRuntime(config.WorkflowData) && agentConfig != nil && len(agentConfig.Mounts) > 0 {
 		// Sort mounts for consistent output
 		sortedMounts := make([]string, len(agentConfig.Mounts))
 		copy(sortedMounts, agentConfig.Mounts)

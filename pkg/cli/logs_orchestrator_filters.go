@@ -40,7 +40,7 @@ func matchEngineFilter(awInfo *AwInfo, awInfoErr error, filterEngine string) (bo
 }
 
 // matchRuntimeFilter checks whether the run recorded in awInfo matches the
-// requested sandbox agent runtime filter string (e.g., "gvisor", "docker-sbx").
+// requested sandbox agent runtime filter string (e.g., "gvisor", "docker-sbx", "cloud-hypervisor").
 // It returns (matches, detectedRuntime). detectedRuntime is "" when awInfo is
 // unavailable or carries no agent_runtime.
 func matchRuntimeFilter(awInfo *AwInfo, awInfoErr error, filterRuntime string) (bool, string) {

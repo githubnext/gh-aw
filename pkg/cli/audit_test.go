@@ -1240,6 +1240,10 @@ func TestAuditCommandInvalidRuntimeIsRejected(t *testing.T) {
 	require.ErrorContains(t, err, "invalid runtime value", "error message should explain the invalid value")
 }
 
+func TestValidateLogsRuntimeAllowsCloudHypervisor(t *testing.T) {
+	require.NoError(t, validateLogsRuntime(string(workflow.AgentRuntimeCloudHypervisor)))
+}
+
 // TestShouldSkipAuditRun_Runtime verifies that shouldSkipAuditRun's runtime
 // filter matches the shared matchRuntimeFilter contract used by the logs
 // orchestrator: matching runtime is not skipped, non-matching or missing

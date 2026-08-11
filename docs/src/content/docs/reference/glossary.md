@@ -1476,6 +1476,7 @@ A `sandbox.agent` field that selects the container runtime used to execute the A
 
 - `gvisor` — Runs the agent container under [gVisor](#gvisor-runsc) (`runsc`) for kernel-level isolation. Best for workflows processing untrusted input.
 - `docker-sbx` — Runs the agent inside a [docker-sbx](#docker-sbx) KVM-isolated microVM while keeping infrastructure containers on the host.
+- `cloud-hypervisor` — Runs the agent inside AWF's preview Cloud Hypervisor microVM runtime (GitHub-hosted Ubuntu x86_64 with `/dev/kvm` only).
 
 When omitted, the default Docker runtime is used. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
@@ -1492,6 +1493,10 @@ A container runtime from Google that interposes a user-space kernel between the 
 ### docker-sbx
 
 A KVM-hardware-virtualized microVM runtime. When `sandbox.agent.runtime: docker-sbx` is set, the AI agent runs inside a hardware-isolated microVM while infrastructure containers (MCP servers, gateway, etc.) remain on the host. Provides stronger isolation than gVisor for workloads that require full hardware-virtualization boundaries. gh-aw automatically refreshes Docker Hub OAuth credentials immediately before agent execution to prevent token expiry errors. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+
+### cloud-hypervisor
+
+A preview KVM-hardware-virtualized microVM runtime in AWF. When `sandbox.agent.runtime: cloud-hypervisor` is set, gh-aw emits host eligibility checks and digest-pinned release-asset provisioning for the Cloud Hypervisor binary, kernel, rootfs, and supervisor bundle. Support is intentionally limited to GitHub-hosted Ubuntu x86_64 runners with `/dev/kvm`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Strict Mode
 
