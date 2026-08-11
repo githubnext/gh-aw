@@ -24,6 +24,7 @@ func TestPreserveRunnerGuardStepSuppressions(t *testing.T) {
 
 	assert.Contains(t, result, "      # runner-guard:ignore RGS-012 -- public read-only request\n      - name: Fetch public index")
 	assert.Equal(t, 1, strings.Count(result, runnerGuardIgnorePrefix))
+	assert.True(t, strings.HasSuffix(result, "\n"))
 }
 
 func TestPreserveRunnerGuardStepSuppressionsIgnoresScriptComments(t *testing.T) {

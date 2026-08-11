@@ -24,19 +24,17 @@ func preserveRunnerGuardStepSuppressions(workflowYAML, frontmatterYAML string) s
 
 	frontmatterNames := countWorkflowStepNames(frontmatterYAML)
 	generatedNames := countWorkflowStepNames(workflowYAML)
-	var output strings.Builder
-	for line := range strings.SplitSeq(workflowYAML, "\n") {
+	lines := strings.Split(workflowYAML, "\n")
+	output := make([]string, 0, len(lines)+len(suppressions))
+	for _, line := range lines {
 		stepName := workflowStepName(line)
 		if directive := suppressions[stepName]; directive != "" && frontmatterNames[stepName] == 1 && generatedNames[stepName] == 1 {
 			indent := line[:len(line)-len(strings.TrimLeft(line, " "))]
-			output.WriteString(indent)
-			output.WriteString(directive)
-			output.WriteByte('\n')
+			output = append(output, indent+directive)
 		}
-		output.WriteString(line)
-		output.WriteByte('\n')
+		output = append(output, line)
 	}
-	return strings.TrimSuffix(output.String(), "\n")
+	return strings.Join(output, "\n")
 }
 
 func workflowStepName(line string) string {
