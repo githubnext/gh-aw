@@ -32,13 +32,21 @@ The package is designed for two related tasks: training on known-good runs and a
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `(*Coordinator).AllClusters` | `func (c *Coordinator) AllClusters() map[string][]Cluster` | Returns a stage-to-cluster snapshot for every managed miner. |
+| `(*Coordinator).AnalyzeEvent` | `func (c *Coordinator) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error)` | Routes an event to its stage's miner, analyzes it, then trains on it, returning both the match and the anomaly report. |
+| `(*Coordinator).LoadDefaultWeights` | `func (c *Coordinator) LoadDefaultWeights() error` | Loads the embedded default trained weights into all stage miners. |
+| `(*Coordinator).LoadSnapshots` | `func (c *Coordinator) LoadSnapshots(data map[string][]byte) error` | Restores stage miners from per-stage JSON snapshots, creating new miners for stages not in the original constructor input. |
 | `(*Coordinator).LoadWeightsJSON` | `func (c *Coordinator) LoadWeightsJSON(data []byte) error` | Restores all stage miners from a combined JSON blob produced by `SaveWeightsJSON`. |
 | `(*Coordinator).SaveSnapshots` | `func (c *Coordinator) SaveSnapshots() (map[string][]byte, error)` | Serializes each stage miner to per-stage JSON snapshots. |
 | `(*Coordinator).SaveWeightsJSON` | `func (c *Coordinator) SaveWeightsJSON() ([]byte, error)` | Serializes all stage snapshots into one combined JSON document. |
+| `(*Coordinator).TrainEvent` | `func (c *Coordinator) TrainEvent(evt AgentEvent) (*MatchResult, error)` | Routes an event to its stage's miner and trains on it, creating the stage miner on demand if needed. |
 | `(*AnomalyDetector).Analyze` | `func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Cluster) *AnomalyReport` | Produces an anomaly report for a match result and cluster context. |
 | `(*Masker).Mask` | `func (m *Masker) Mask(line string) string` | Applies all configured mask rules and returns the normalized line. |
+| `(*Miner).AnalyzeEvent` | `func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error)` | Flattens and analyzes an event without training, returning the would-be match and an anomaly report. |
 | `(*Miner).Clusters` | `func (m *Miner) Clusters() []Cluster` | Returns a safe snapshot of all known clusters in the miner. |
+| `(*Miner).LoadJSON` | `func (m *Miner) LoadJSON(data []byte) error` | Restores miner state (clusters and parse tree) from a JSON snapshot produced by `SaveJSON`. |
+| `(*Miner).SaveJSON` | `func (m *Miner) SaveJSON() ([]byte, error)` | Serializes the miner's clusters into a JSON `Snapshot`. |
 | `(*Miner).Train` | `func (m *Miner) Train(line string) (*MatchResult, error)` | Trains the miner on a raw line and returns the resulting match. |
+| `(*Miner).TrainEvent` | `func (m *Miner) TrainEvent(evt AgentEvent) (*MatchResult, error)` | Flattens an `AgentEvent` and trains the miner on the resulting line. |
 | `DefaultConfig` | `func DefaultConfig() Config` | Returns the production default miner configuration and default masking rules. |
 | `FlattenEvent` | `func FlattenEvent(evt AgentEvent, excludeFields []string) string` | Converts an event into deterministic `key=value` tokens with stage first and excluded fields omitted. |
 | `NewAnomalyDetector` | `func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) (*AnomalyDetector, error)` | Validates thresholds and constructs an anomaly detector. |

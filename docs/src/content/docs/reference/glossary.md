@@ -63,6 +63,10 @@ A frontmatter field that passes additional GitHub bot identity strings to the [M
 
 The mechanism that transports `sandbox.mcp.env` custom environment variable values from workflow frontmatter into the MCP Gateway's Docker container. Values are routed through compiler-controlled, indexed transport variables (`GH_AW_MCP_GATEWAY_ENV_0`, `GH_AW_MCP_GATEWAY_ENV_1`, …) and a companion manifest variable (`GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES`), rather than being interpolated directly into the generated shell script or Docker command string. A JavaScript launcher (`start_mcp_gateway.cjs`) reads the manifest and reconstructs atomic `-e NAME=VALUE` Docker arguments at runtime. Both the Go compiler and the JS launcher validate variable names against `^[A-Z_][A-Z0-9_]*$`, preventing shell metacharacters or dangerous names (such as `BASH_ENV`) in custom values from being sourced or interpreted before the gateway process starts. See [MCP Gateway Reference](/gh-aw/reference/mcp-gateway/).
 
+### MCP Gateway Mount-Roots Allowlist (`MCP_GATEWAY_ALLOWED_MOUNT_ROOTS`)
+
+The compiler-computed value that authorizes host-path mounts for MCP backend server containers under the gateway's trusted host-path mount policy. `buildMCPGatewayAllowedMountRoots` collects every mount surface the compiler configures — the built-in workspace, gh-aw runtime, safeoutputs, and temp paths, gateway-level `sandbox.mcp.mounts`, and per-server `mounts` fields or `-v`/`--volume` args — and forwards the result to the gateway container via `-e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS`. Without an explicit allowlist entry, the gateway's default mount policy rejects read-write access to paths like `$GITHUB_WORKSPACE`, breaking tool registration for backends (such as `safeoutputs`) that require it. See [MCP Gateway Reference](/gh-aw/reference/mcp-gateway/).
+
 ### MCP Server
 
 A service that implements the Model Context Protocol to provide specific capabilities to AI agents. Examples include the GitHub MCP server (for GitHub API operations), Playwright MCP server (for browser automation), or custom MCP servers for specialized tools. See [Playwright Reference](/gh-aw/reference/playwright/) for browser automation configuration.
@@ -1426,6 +1430,22 @@ sandbox:
   agent:
     mounts:
       - /run/docker.sock:/var/run/docker.sock:ro
+```
+
+### Host Service Ports (`services:`)
+
+A GitHub Actions `services:` container port that the AWF coding agent sandbox reaches via `--allow-host-service-ports`, which resolves each service's actual (possibly dynamically assigned) host port at runtime. Requires `sandbox.agent.legacy-security: enable`, since AWF's strict (default) security mode provides no route to host services. For host daemons not declared under `services:`, the related `allow-host-ports` escape hatch (also legacy-security only) allowlists specific TCP ports; the compiler rejects ports outside the `1`–`65535` range and blocks dangerous ports (e.g. `22`, `3306`, `5432`, `6379`, `9200`). See [Sandbox Configuration](/gh-aw/reference/sandbox/#host-service-ports-services).
+
+```aw wrap
+sandbox:
+  agent:
+    legacy-security: enable
+
+services:
+  postgres:
+    image: postgres:18
+    ports:
+      - 5432:5432
 ```
 
 ### Token Steering (`sandbox.agent.token-steering`)

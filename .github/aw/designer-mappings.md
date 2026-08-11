@@ -47,7 +47,7 @@ Quick-reference mapping tables for `.github/aw/designer.md`. Load this file duri
 | "create/auto-fix code scan alert" | `create-code-scanning-alert`, `autofix-code-scanning-alert` |
 | "start an agent session", "assign to an agent" | `create-agent-session`, `assign-to-agent` |
 | "store persistent memory comment" | `comment-memory` |
-| "store durable repository memory", "persist memory in the repository" | `push-repo-memory` |
+| "store durable repository memory", "persist memory in the repository" | `repo-memory` |
 | "link a sub-issue" | `link-sub-issue` |
 | "add labels", "remove labels" | `add-labels`, `remove-labels` |
 | "replace a label with another" | `replace-label` |
