@@ -204,7 +204,7 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 			if memory.Validation != nil {
 				memoryConfig["validation"] = map[string]any{
 					"script":  memory.Validation.Script,
-					"timeout": memory.Validation.Timeout,
+					"timeout": memoryValidationTimeoutSeconds(memory.Validation),
 				}
 			}
 			memories = append(memories, memoryConfig)

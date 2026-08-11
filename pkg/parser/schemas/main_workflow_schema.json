@@ -4603,12 +4603,12 @@
                       "type": "string",
                       "description": "JavaScript validator body that runs over the complete cache-memory directory before persistence. Throw, return false, or exit nonzero to reject the update."
                     },
-                    "timeout": {
+                    "timeout-minutes": {
                       "type": "integer",
                       "minimum": 1,
-                      "maximum": 300,
-                      "default": 30,
-                      "description": "Maximum validator runtime in seconds (default: 30, max: 300)"
+                      "maximum": 5,
+                      "default": 1,
+                      "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
                     }
                   },
                   "required": ["script"],
@@ -4675,12 +4675,12 @@
                         "type": "string",
                         "description": "JavaScript validator body that runs over the complete cache-memory directory before persistence. Throw, return false, or exit nonzero to reject the update."
                       },
-                      "timeout": {
+                      "timeout-minutes": {
                         "type": "integer",
                         "minimum": 1,
-                        "maximum": 300,
-                        "default": 30,
-                        "description": "Maximum validator runtime in seconds (default: 30, max: 300)"
+                        "maximum": 5,
+                        "default": 1,
+                        "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
                       }
                     },
                     "required": ["script"],
@@ -4950,12 +4950,12 @@
                       "type": "string",
                       "description": "JavaScript validator body that runs over the complete repo-memory directory after optional JSON formatting and before persistence. Throw, return false, or exit nonzero to reject the update."
                     },
-                    "timeout": {
+                    "timeout-minutes": {
                       "type": "integer",
                       "minimum": 1,
-                      "maximum": 300,
-                      "default": 30,
-                      "description": "Maximum validator runtime in seconds (default: 30, max: 300)"
+                      "maximum": 5,
+                      "default": 1,
+                      "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
                     }
                   },
                   "required": ["script"],
@@ -5064,12 +5064,12 @@
                         "type": "string",
                         "description": "JavaScript validator body that runs over the complete repo-memory directory after optional JSON formatting and before persistence. Throw, return false, or exit nonzero to reject the update."
                       },
-                      "timeout": {
+                      "timeout-minutes": {
                         "type": "integer",
                         "minimum": 1,
-                        "maximum": 300,
-                        "default": 30,
-                        "description": "Maximum validator runtime in seconds (default: 30, max: 300)"
+                        "maximum": 5,
+                        "default": 1,
+                        "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
                       }
                     },
                     "required": ["script"],

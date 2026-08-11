@@ -722,7 +722,7 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 		fmt.Fprintf(builder, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
 		if cache.Validation != nil {
 			fmt.Fprintf(builder, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(cache.Validation))
-			fmt.Fprintf(builder, "          VALIDATION_TIMEOUT_SECONDS: %d\n", cache.Validation.Timeout)
+			fmt.Fprintf(builder, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(cache.Validation))
 		}
 		builder.WriteString("        with:\n")
 		builder.WriteString("          script: |\n")
@@ -1025,7 +1025,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			fmt.Fprintf(&validationStep, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
 			if cache.Validation != nil {
 				fmt.Fprintf(&validationStep, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(cache.Validation))
-				fmt.Fprintf(&validationStep, "          VALIDATION_TIMEOUT_SECONDS: %d\n", cache.Validation.Timeout)
+				fmt.Fprintf(&validationStep, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(cache.Validation))
 			}
 			validationStep.WriteString("        with:\n")
 			validationStep.WriteString("          script: |\n")

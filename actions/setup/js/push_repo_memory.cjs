@@ -53,7 +53,7 @@ async function main() {
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
   const formatJSON = process.env.FORMAT_JSON === "true";
   const validationScriptBase64 = process.env.VALIDATION_SCRIPT_B64 || "";
-  const validationTimeoutSeconds = parseInt(process.env.VALIDATION_TIMEOUT_SECONDS || "30", 10);
+  const validationTimeoutSeconds = parseInt(process.env.VALIDATION_TIMEOUT_SECONDS || "60", 10);
 
   // Parse allowed extensions with error handling
   let allowedExtensions = [".json", ".jsonl", ".txt", ".md", ".csv"];

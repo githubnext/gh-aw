@@ -390,7 +390,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 			fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
 			fmt.Fprintf(builder, "          MEMORY_ID: %s\n", memory.ID)
 			fmt.Fprintf(builder, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(memory.Validation))
-			fmt.Fprintf(builder, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memory.Validation.Timeout)
+			fmt.Fprintf(builder, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(memory.Validation))
 			if memory.FormatJSON {
 				builder.WriteString("          FORMAT_JSON: 'true'\n")
 			}
@@ -635,7 +635,7 @@ func (c *Compiler) buildSinglePushRepoMemoryStep(data *WorkflowData, memory Repo
 	}
 	if memory.Validation != nil {
 		fmt.Fprintf(&step, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(memory.Validation))
-		fmt.Fprintf(&step, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memory.Validation.Timeout)
+		fmt.Fprintf(&step, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(memory.Validation))
 	}
 	step.WriteString("        with:\n")
 	step.WriteString("          script: |\n")

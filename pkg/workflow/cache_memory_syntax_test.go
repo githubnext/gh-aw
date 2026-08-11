@@ -196,8 +196,8 @@ func TestCacheMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 				"id":  "default",
 				"key": "memory-default",
 				"validation": map[string]any{
-					"script":  "if (!fs.existsSync(path.join(memoryRoot, 'index.json'))) throw new Error('missing index');",
-					"timeout": 9,
+					"script":          "if (!fs.existsSync(path.join(memoryRoot, 'index.json'))) throw new Error('missing index');",
+					"timeout-minutes": 1,
 				},
 			},
 			map[string]any{
@@ -210,7 +210,7 @@ func TestCacheMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	require.NotNil(t, config)
 	require.Len(t, config.Caches, 2)
 	require.NotNil(t, config.Caches[0].Validation)
-	assert.Equal(t, 9, config.Caches[0].Validation.Timeout)
+	assert.Equal(t, 1, config.Caches[0].Validation.TimeoutMinutes)
 	assert.Nil(t, config.Caches[1].Validation)
 
 	data := &WorkflowData{
@@ -235,7 +235,7 @@ func TestCacheMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	require.NotNil(t, job)
 	updateYAML := strings.Join(job.Steps, "\n")
 	assert.Contains(t, updateYAML, "Validate cache-memory before save (default)")
-	assert.Contains(t, updateYAML, "VALIDATION_TIMEOUT_SECONDS: 9")
+	assert.Contains(t, updateYAML, "VALIDATION_TIMEOUT_SECONDS: 60")
 	assert.Contains(t, updateYAML, "steps."+cacheMemoryValidationStepID("default")+".outcome == 'success'")
 }
 

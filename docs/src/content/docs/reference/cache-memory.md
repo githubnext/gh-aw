@@ -28,7 +28,7 @@ tools:
     retention-days: 30  # 1-90 days, extends access beyond cache expiration
     allowed-extensions: [".json", ".txt", ".md"]  # Restrict file types (default: empty/all files allowed)
     validation:
-      timeout: 30
+      timeout-minutes: 1
       script: |
         const index = JSON.parse(fs.readFileSync(path.join(memoryRoot, "index.json"), "utf8"));
         if (!Array.isArray(index.entries)) throw new Error("index.json entries must be an array");
@@ -58,7 +58,7 @@ When a cache is restored for agent execution, gh-aw also strips execute bits fro
 
 Use `validation.script` for domain-specific constraints such as schema checks, cross-file uniqueness, or timestamp policies. The script is a JavaScript body executed with Node.js over the complete configured cache-memory directory after agent execution and before the cache is saved. When threat detection is enabled, the validator also runs again in the `update_cache_memory` job before `actions/cache/save`.
 
-Available globals are Node.js `fs` and `path`, plus `memoryRoot`/`memoryDir`, `memoryId`, and `memoryKind` (`"cache"`). The working directory is the cache root. Environment variables available to the validator are intentionally limited to basic runner paths plus `GH_AW_MEMORY_ROOT`, `GH_AW_MEMORY_DIR`, `GH_AW_MEMORY_ID`, and `GH_AW_MEMORY_KIND`; GitHub tokens and write credentials are not passed to the validator subprocess. Network access follows the workflow runner's normal network policy. The default timeout is 30 seconds and may be set with `validation.timeout` (1-300 seconds).
+Available globals are Node.js `fs` and `path`, plus `memoryRoot`/`memoryDir`, `memoryId`, and `memoryKind` (`"cache"`). The working directory is the cache root. Environment variables available to the validator are intentionally limited to basic runner paths plus `GH_AW_MEMORY_ROOT`, `GH_AW_MEMORY_DIR`, `GH_AW_MEMORY_ID`, and `GH_AW_MEMORY_KIND`; GitHub tokens and write credentials are not passed to the validator subprocess. Network access follows the workflow runner's normal network policy. The default timeout is 1 minute and may be set with `validation.timeout-minutes` (1-5 minutes).
 
 Throw an exception, return `false`, time out, exit nonzero, or modify a memory file to reject persistence. Validator stdout and stderr are reported separately from built-in storage validation output.
 

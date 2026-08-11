@@ -8,7 +8,7 @@ const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-const DEFAULT_VALIDATION_TIMEOUT_SECONDS = 30;
+const DEFAULT_VALIDATION_TIMEOUT_SECONDS = 60;
 const MAX_VALIDATION_OUTPUT_BYTES = 12 * 1024;
 
 /**

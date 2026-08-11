@@ -1571,8 +1571,8 @@ func TestRepoMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 		"repo-memory": map[string]any{
 			"branch-name": "memory/notes",
 			"validation": map[string]any{
-				"script":  "if (!fs.existsSync(path.join(memoryRoot, 'state.json'))) throw new Error('missing state');",
-				"timeout": 7,
+				"script":          "if (!fs.existsSync(path.join(memoryRoot, 'state.json'))) throw new Error('missing state');",
+				"timeout-minutes": 1,
 			},
 		},
 	}
@@ -1586,7 +1586,7 @@ func TestRepoMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	require.NotNil(t, config)
 	require.Len(t, config.Memories, 1)
 	require.NotNil(t, config.Memories[0].Validation)
-	assert.Equal(t, 7, config.Memories[0].Validation.Timeout)
+	assert.Equal(t, 1, config.Memories[0].Validation.TimeoutMinutes)
 	assert.Contains(t, config.Memories[0].Validation.Script, "missing state")
 
 	data := &WorkflowData{RepoMemoryConfig: config}
@@ -1602,7 +1602,7 @@ func TestRepoMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	require.NotNil(t, pushJob)
 	pushYAML := strings.Join(pushJob.Steps, "\n")
 	assert.Contains(t, pushYAML, "VALIDATION_SCRIPT_B64:")
-	assert.Contains(t, pushYAML, "VALIDATION_TIMEOUT_SECONDS: 7")
+	assert.Contains(t, pushYAML, "VALIDATION_TIMEOUT_SECONDS: 60")
 }
 
 func TestRepoMemoryValidationStepIDsDoNotCollide(t *testing.T) {
