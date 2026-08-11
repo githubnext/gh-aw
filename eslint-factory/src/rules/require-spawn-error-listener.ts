@@ -15,11 +15,14 @@ function findVariableByName(sourceCode: Readonly<TSESLint.SourceCode>, node: TSE
   return undefined;
 }
 
-function isSpawnBinding(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
+function isSpawnBinding(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode, seenVariables = new Set<TSESLint.Scope.Variable>()): boolean {
   let scope: ReturnType<typeof sourceCode.getScope> | null = sourceCode.getScope(scopeNode);
   while (scope) {
     const variable = scope.set.get(identifierName);
     if (variable && variable.defs.length > 0) {
+      if (seenVariables.has(variable)) return false;
+      seenVariables.add(variable);
+
       for (const def of variable.defs) {
         if (isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportSpecifier) {
           const specifier = def.node as TSESTree.ImportSpecifier;
@@ -37,6 +40,16 @@ function isSpawnBinding(identifierName: string, scopeNode: TSESTree.Node, source
             const boundName = prop.value.type === AST_NODE_TYPES.Identifier ? prop.value.name : null;
             if (boundName === identifierName) return true;
           }
+        }
+
+        if (
+          declarator.id.type === AST_NODE_TYPES.Identifier &&
+          declarator.init?.type === AST_NODE_TYPES.LogicalExpression &&
+          (declarator.init.operator === "??" || declarator.init.operator === "||") &&
+          declarator.init.right.type === AST_NODE_TYPES.Identifier &&
+          isSpawnBinding(declarator.init.right.name, declarator.init.right, sourceCode, seenVariables)
+        ) {
+          return true;
         }
       }
       return false;
