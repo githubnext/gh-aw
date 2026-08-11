@@ -60,13 +60,13 @@ sandbox:
   agent:
     sudo: false
 skills:
-- mattpocock/skills/diagnosing-bugs@2ab958093e83e0ec752e6c1c5932da465bf23e0c
-- mattpocock/skills/tdd@2ab958093e83e0ec752e6c1c5932da465bf23e0c
-- mattpocock/skills/improve-codebase-architecture@2ab958093e83e0ec752e6c1c5932da465bf23e0c
-- mattpocock/skills/grill-with-docs@2ab958093e83e0ec752e6c1c5932da465bf23e0c
-- mattpocock/skills/to-prd@2ab958093e83e0ec752e6c1c5932da465bf23e0c
-- mattpocock/skills/codebase-design@2ab958093e83e0ec752e6c1c5932da465bf23e0c
-- mattpocock/skills/domain-modeling@2ab958093e83e0ec752e6c1c5932da465bf23e0c
+- mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28
+- mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+- mattpocock/skills/improve-codebase-architecture@801dca688564c529fa84f247f64472520d9ebe28
+- mattpocock/skills/grill-with-docs@801dca688564c529fa84f247f64472520d9ebe28
+- mattpocock/skills/to-prd@801dca688564c529fa84f247f64472520d9ebe28
+- mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28
+- mattpocock/skills/domain-modeling@801dca688564c529fa84f247f64472520d9ebe28
 timeout-minutes: 15
 tools:
   cli-proxy: true

@@ -1,5 +1,7 @@
 //go:build js || wasm
 
+// For the native implementation, see spinner.go.
+
 package console
 
 import (

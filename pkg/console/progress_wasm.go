@@ -1,5 +1,7 @@
 //go:build js || wasm
 
+// For the native implementation, see progress.go.
+
 package console
 
 import "fmt"
