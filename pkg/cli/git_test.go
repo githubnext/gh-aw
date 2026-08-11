@@ -90,10 +90,19 @@ func TestCheckCleanWorkingDirectoryIgnoring(t *testing.T) {
 
 	require.NoError(t, os.Chdir(tmpDir))
 	require.NoError(t, exec.Command("git", "init").Run())
+	require.NoError(t, exec.Command("git", "config", "user.name", "Test User").Run())
+	require.NoError(t, exec.Command("git", "config", "user.email", "test@example.com").Run())
 
 	generatedFile := filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")
 	require.NoError(t, os.MkdirAll(filepath.Dir(generatedFile), 0755))
 	require.NoError(t, os.WriteFile(generatedFile, []byte("generated"), 0644))
+
+	require.NoError(t, checkCleanWorkingDirectoryIgnoring(false, []string{generatedFile}))
+	require.ErrorContains(t, checkCleanWorkingDirectory(false), "working directory has uncommitted changes")
+
+	require.NoError(t, exec.Command("git", "add", generatedFile).Run())
+	require.NoError(t, exec.Command("git", "commit", "-m", "initial commit").Run())
+	require.NoError(t, os.WriteFile(generatedFile, []byte("updated"), 0644))
 
 	require.NoError(t, checkCleanWorkingDirectoryIgnoring(false, []string{generatedFile}))
 	require.ErrorContains(t, checkCleanWorkingDirectory(false), "working directory has uncommitted changes")
