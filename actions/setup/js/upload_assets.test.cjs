@@ -353,6 +353,57 @@ describe("upload_assets.cjs", () => {
     });
   });
 
+  describe("concurrent push recovery", () => {
+    const prepareAsset = () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { sha, size } = makeAsset(assetDir, "test.png", "fake png data");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha, size, targetFileName: "test.png", url: "https://example.com/test.png" }],
+      });
+      trackCwdArtifact("test.png");
+    };
+
+    it("should fetch, rebase, and retry after a concurrent push", async () => {
+      prepareAsset();
+      let pushAttempts = 0;
+      mockExec.exec.mockImplementation(async (command, args) => {
+        if (isGitCommand(command, args, "push") && ++pushAttempts === 1) {
+          throw new Error("non-fast-forward");
+        }
+        return 0;
+      });
+
+      await executeScript();
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(pushAttempts).toBe(2);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "assets/test-workflow"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["rebase", "FETCH_HEAD"]);
+    });
+
+    it("should stop after three failed push attempts", async () => {
+      prepareAsset();
+      let pushAttempts = 0;
+      mockExec.exec.mockImplementation(async (command, args) => {
+        if (isGitCommand(command, args, "push")) {
+          pushAttempts++;
+          throw new Error("non-fast-forward");
+        }
+        return 0;
+      });
+
+      await executeScript();
+
+      expect(pushAttempts).toBe(3);
+      expect(mockExec.exec.mock.calls.filter(call => isGitCommand(call[0], call[1], "fetch"))).toHaveLength(2);
+      expect(mockExec.exec.mock.calls.filter(call => isGitCommand(call[0], call[1], "rebase"))).toHaveLength(2);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("non-fast-forward"));
+    });
+  });
+
   describe("git commit message security", () => {
     it("should not wrap commit message in extra quotes to prevent command injection", async () => {
       process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";

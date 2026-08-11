@@ -189,7 +189,20 @@ async function main() {
       if (isStaged) {
         core.summary.addRaw("## 🎭 Staged Mode: Asset Publication Preview");
       } else {
-        await exec.exec("git", ["push", "origin", normalizedBranchName]);
+        const maxPushAttempts = 3;
+        for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
+          try {
+            await exec.exec("git", ["push", "origin", normalizedBranchName]);
+            break;
+          } catch (error) {
+            if (attempt === maxPushAttempts) {
+              throw error;
+            }
+            core.warning(`Asset push attempt ${attempt}/${maxPushAttempts} failed; rebasing onto the latest ${normalizedBranchName} branch before retrying`);
+            await exec.exec("git", ["fetch", "origin", normalizedBranchName]);
+            await exec.exec("git", ["rebase", "FETCH_HEAD"]);
+          }
+        }
         core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
       }
