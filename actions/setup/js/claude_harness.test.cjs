@@ -15,6 +15,7 @@ const {
   isNoDeferredMarkerError,
   isInvalidModelError,
   isInvalidJsonBodyError,
+  isSegmentationFaultError,
   isSignalTerminationExitCode,
   shouldRetryWithContinue,
   countPermissionDeniedIssues,
@@ -276,6 +277,22 @@ describe("claude_harness.cjs", () => {
       expect(isInvalidJsonBodyError(output)).toBe(true);
     });
 
+    describe("isSegmentationFaultError", () => {
+      it("returns true for Bun panic segmentation fault output", () => {
+        const output = "Bun v1.4.0\npanic(main thread): Segmentation fault at address 0x12\nThis indicates a bug in Bun, not your code.";
+        expect(isSegmentationFaultError(output)).toBe(true);
+      });
+
+      it("returns true for SIGSEGV marker", () => {
+        expect(isSegmentationFaultError("process exit signal=SIGSEGV")).toBe(true);
+      });
+
+      it("returns false for unrelated failures", () => {
+        expect(isSegmentationFaultError("rate_limit_error")).toBe(false);
+        expect(isSegmentationFaultError("")).toBe(false);
+      });
+    });
+
     it("returns true for mixed-case variant", () => {
       expect(isInvalidJsonBodyError("the REQUEST BODY IS NOT VALID json")).toBe(true);
     });
@@ -402,7 +419,7 @@ describe("claude_harness.cjs", () => {
       }
     });
 
-    it("uses a fresh retry after a --continue attempt hits no-deferred-marker", () => {
+    it("fails fast on no-deferred-marker instead of silently degrading to fresh-run retries", () => {
       const stubScript = `
 const fs = require("fs");
 const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
@@ -424,18 +441,13 @@ if (priorCalls === 1) {
   process.exit(1);
 }
 
-if (args.includes("--continue")) {
-  process.stderr.write("fresh retry unexpectedly used --continue\\n");
-  process.exit(9);
-}
-process.stdout.write("fresh retry succeeded\\n");
-process.exit(0);
+process.stderr.write("unexpected third attempt after no-deferred-marker\\n");
+process.exit(9);
 `;
       const { result, calls } = runHarnessWithStub({ stubScript });
 
-      expect(result.status, result.stderr).toBe(0);
-      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true, false]);
-      expect(calls[2].args).toContain("fix the bug");
+      expect(result.status, result.stderr).toBe(1);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true]);
       expect(result.stderr).toContain("failure_reason=harness_retry_path_invalid");
     }, 50000);
 
@@ -476,7 +488,7 @@ process.exit(0);
       expect(result.stderr).toContain("invalid JSON request body");
     }, 50000);
 
-    it("strips user-supplied --continue on fresh retry after invalid continue-path detection", () => {
+    it("preserves user-supplied --continue on first attempt but does not continue retrying after invalid continue-path detection", () => {
       const stubScript = `
 const fs = require("fs");
 const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
@@ -498,17 +510,34 @@ if (priorCalls === 1) {
   process.exit(1);
 }
 
-if (args.includes("--continue")) {
-  process.stderr.write("fresh retry unexpectedly used --continue\\n");
-  process.exit(9);
-}
-process.stdout.write("fresh retry succeeded\\n");
-process.exit(0);
+process.stderr.write("unexpected third attempt after no-deferred-marker\\n");
+process.exit(9);
 `;
       const { result, calls } = runHarnessWithStub({ stubScript, extraArgs: ["--continue"] });
 
-      expect(result.status, result.stderr).toBe(0);
-      expect(calls.map(call => call.args.includes("--continue"))).toEqual([true, true, false]);
+      expect(result.status, result.stderr).toBe(1);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([true, true]);
+    }, 50000);
+
+    it("caps retries to one fresh retry after first-attempt segmentation fault", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+
+process.stdout.write("partial execution before crash\\n");
+process.stderr.write("Bun v1.4.0\\npanic(main thread): Segmentation fault at address 0x12\\nThis indicates a bug in Bun, not your code.\\n");
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+
+      expect(result.status, result.stderr).toBe(1);
+      expect(calls.length).toBe(2);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, false]);
+      expect(result.stderr).toContain("capping retry budget to 1");
+      expect(result.stderr).toContain("all 1 retries exhausted");
     }, 50000);
 
     it("uses a fresh retry after signal-style termination instead of --continue", () => {

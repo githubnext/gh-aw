@@ -20,6 +20,7 @@ max-turns: 50
 model: claude-haiku-4-5
 engine:
   id: claude
+  version: 2.1.160
 network:
   allowed:
     - defaults

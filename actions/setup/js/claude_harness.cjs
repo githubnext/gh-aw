@@ -14,6 +14,10 @@
  *   - Overloaded API errors (HTTP 529 / "overloaded_error") and rate-limit errors (HTTP 429 /
  *     "rate_limit_error") are well-known transient failure modes and are logged explicitly, but
  *     any partial-execution failure is retried — not just those specific errors.
+ *   - Segmentation faults (SIGSEGV / "Segmentation fault") are treated as runtime crashes:
+ *     after a first-attempt segfault the harness caps retries to a single retry and forces
+ *     that retry to be a fresh run (never `--continue`) to avoid repeatedly resuming corrupted
+ *     session state.
  *   - "The request body is not valid JSON" (HTTP 400) is a transport-level serialization bug,
  *     observed immediately after a `permission_denied` tool-result on a compound Bash command.
  *     It is retried as a fresh run (not `--continue`, which is permanently disabled for the rest
@@ -81,6 +85,7 @@ const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests|"api_er
 // run rather than --continue, since resuming would resend the same corrupted
 // session state and reproduce the identical error.
 const INVALID_JSON_BODY_ERROR_PATTERN = /request body is not valid JSON/i;
+const SEGMENTATION_FAULT_PATTERN = /Segmentation fault|SIGSEGV|This indicates a bug in Bun/i;
 
 // Pattern to detect a clean max-turns exit from Claude Code.
 // Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
@@ -188,6 +193,15 @@ function isMaxTurnsExit(output) {
  */
 function isInvalidJsonBodyError(output) {
   return INVALID_JSON_BODY_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if output indicates a runtime segmentation fault crash.
+ * @param {string} output
+ * @returns {boolean}
+ */
+function isSegmentationFaultError(output) {
+  return SEGMENTATION_FAULT_PATTERN.test(output);
 }
 
 /**
@@ -424,6 +438,7 @@ async function main() {
   let lastExitCode = 1;
   let useContinueOnRetry = false;
   let continueDisabledPermanently = false;
+  let activeMaxRetries = maxRetries;
   let startupRetriesUsed = 0;
   const driverStartTime = Date.now();
   // Soft-timeout guard: polled at the top of the retry loop and after each backoff sleep.
@@ -454,10 +469,10 @@ async function main() {
 
     if (attempt > 0) {
       const retryMode = useContinueOnRetry ? "--continue" : "fresh run";
-      log(`retry ${attempt}/${maxRetries}: sleeping ${delay}ms before next attempt (${retryMode})`);
+      log(`retry ${attempt}/${activeMaxRetries}: sleeping ${delay}ms before next attempt (${retryMode})`);
       await sleep(delay);
       delay = Math.min(delay * backoffMultiplier, maxDelayMs);
-      log(`retry ${attempt}/${maxRetries}: woke up, next delay cap will be ${Math.min(delay * backoffMultiplier, maxDelayMs)}ms`);
+      log(`retry ${attempt}/${activeMaxRetries}: woke up, next delay cap will be ${Math.min(delay * backoffMultiplier, maxDelayMs)}ms`);
       if (softTimeoutGuard && Date.now() >= softTimeoutGuard.softDeadlineMs) {
         emitSoftTimeoutSignal(softTimeoutGuard, "after backoff sleep", "Claude harness", log);
         lastExitCode = 1;
@@ -482,6 +497,7 @@ async function main() {
     const isNoDeferredMarker = isNoDeferredMarkerError(result.output);
     const isInvalidModel = isInvalidModelError(result.output);
     const isInvalidJsonBody = isInvalidJsonBodyError(result.output);
+    const isSegmentationFault = isSegmentationFaultError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
     log(
@@ -494,11 +510,19 @@ async function main() {
         ` isNoDeferredMarkerError=${isNoDeferredMarker}` +
         ` isInvalidModelError=${isInvalidModel}` +
         ` isInvalidJsonBodyError=${isInvalidJsonBody}` +
+        ` isSegmentationFaultError=${isSegmentationFault}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
-        ` retriesRemaining=${maxRetries - attempt}`
+        ` retriesRemaining=${Math.max(activeMaxRetries - attempt, 0)}`
     );
+
+    if (attempt === 0 && isSegmentationFault && activeMaxRetries > 1) {
+      activeMaxRetries = 1;
+      useContinueOnRetry = false;
+      continueDisabledPermanently = true;
+      log("attempt 1: detected segmentation fault (likely Bun runtime crash) — capping retry budget to 1 and forcing fresh-run retry");
+    }
 
     // If a noop was written to safe-outputs during the failed run, the agent determined
     // there was nothing to do (or the user indicated so before the agent ran).  Retrying
@@ -569,15 +593,10 @@ async function main() {
 
     // "No deferred tool marker found" is a deterministic terminal condition: the session
     // was never deferred, the marker is stale (tool already ran), or it falls outside the
-    // tail-scan window. If this happens on a --continue attempt, restart fresh and disable
-    // --continue permanently so we do not re-enter the same invalid retry path.
+    // tail-scan window. Retrying as a fresh run silently degrades retry semantics and
+    // conflates this harness-path failure with normal retry behavior, so fail immediately
+    // with an explicit diagnostic signal.
     if (isNoDeferredMarker) {
-      if (attempt < maxRetries && result.hasOutput) {
-        useContinueOnRetry = false;
-        continueDisabledPermanently = true;
-        log(`attempt ${attempt + 1}: no deferred tool marker on --continue — retrying as fresh run (failure_reason=harness_retry_path_invalid, --continue disabled permanently, attempt ${attempt + 2}/${maxRetries + 1})`);
-        continue;
-      }
       log(`attempt ${attempt + 1}: no deferred tool marker — not retriable via --continue (failure_reason=harness_retry_path_invalid)`);
       break;
     }
@@ -588,10 +607,12 @@ async function main() {
     // session state and reproduce the identical error, so force a fresh run and
     // permanently disable --continue for the remainder of this driver invocation.
     if (isInvalidJsonBody) {
-      if (attempt < maxRetries && result.hasOutput) {
+      if (attempt < activeMaxRetries && result.hasOutput) {
         useContinueOnRetry = false;
         continueDisabledPermanently = true;
-        log(`attempt ${attempt + 1}: invalid JSON request body (transport-level serialization bug, likely following a permission_denied) — retrying as fresh run (--continue disabled permanently, attempt ${attempt + 2}/${maxRetries + 1})`);
+        log(
+          `attempt ${attempt + 1}: invalid JSON request body (transport-level serialization bug, likely following a permission_denied) — retrying as fresh run (--continue disabled permanently, attempt ${attempt + 2}/${activeMaxRetries + 1})`
+        );
         continue;
       }
       log(`attempt ${attempt + 1}: invalid JSON request body — not retriable via --continue (failure_reason=harness_retry_path_invalid)`);
@@ -600,11 +621,11 @@ async function main() {
 
     // Retry when the session was partially executed (has output).
     // Use --continue so Claude Code can resume from its saved session state.
-    if (attempt < maxRetries && result.hasOutput) {
+    if (attempt < activeMaxRetries && result.hasOutput) {
       const isSignalTermination = isSignalTerminationExitCode(result.exitCode);
       const retryWithContinue = shouldRetryWithContinue({
         attempt,
-        maxRetries,
+        maxRetries: activeMaxRetries,
         exitCode: result.exitCode,
         hasOutput: result.hasOutput,
         isNoDeferredMarker,
@@ -622,12 +643,12 @@ async function main() {
             : "partial execution";
       useContinueOnRetry = retryWithContinue;
       const retryMode = retryWithContinue ? "--continue" : "fresh run (--continue disabled permanently)";
-      log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${maxRetries + 1})`);
+      log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${activeMaxRetries + 1})`);
       continue;
     }
 
-    if (attempt >= maxRetries) {
-      log(`all ${maxRetries} retries exhausted — giving up (exitCode=${lastExitCode})`);
+    if (attempt >= activeMaxRetries) {
+      log(`all ${activeMaxRetries} retries exhausted — giving up (exitCode=${lastExitCode})`);
     } else {
       if (startupRetriesUsed < startupRetryLimit) {
         startupRetriesUsed++;
@@ -664,6 +685,7 @@ if (typeof module !== "undefined" && module.exports) {
     isNoDeferredMarkerError,
     isInvalidModelError,
     isInvalidJsonBodyError,
+    isSegmentationFaultError,
     isSignalTerminationExitCode,
     shouldRetryWithContinue,
     countPermissionDeniedIssues,
