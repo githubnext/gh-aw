@@ -1435,6 +1435,8 @@ jobs:
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.44
+      - name: Install ripgrep
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_ripgrep.sh"
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:

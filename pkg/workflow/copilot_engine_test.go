@@ -93,9 +93,9 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	// Test with no version (firewall feature disabled by default)
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
-	// Secret validation is now in the activation job; installation only has the install step = 1 step
-	if len(steps) != 1 {
-		t.Errorf("Expected 1 installation step (install), got %d", len(steps))
+	// Secret validation is now in the activation job; installation has ripgrep + Copilot CLI install.
+	if len(steps) != 2 {
+		t.Errorf("Expected 2 installation steps (ripgrep + install), got %d", len(steps))
 	}
 
 	// Test with version (firewall feature disabled by default)
@@ -103,25 +103,44 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		EngineConfig: &EngineConfig{Version: "1.0.0"},
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
-	// Secret validation is now in the activation job; installation only has the install step = 1 step
-	if len(stepsWithVersion) != 1 {
-		t.Errorf("Expected 1 installation step with version (install), got %d", len(stepsWithVersion))
+	// Secret validation is now in the activation job; installation has ripgrep + Copilot CLI install.
+	if len(stepsWithVersion) != 2 {
+		t.Errorf("Expected 2 installation steps with version (ripgrep + install), got %d", len(stepsWithVersion))
 	}
 
 	workflowDataWithSDK := &WorkflowData{
 		EngineConfig: &EngineConfig{CopilotSDK: true},
 	}
 	stepsWithSDK := engine.GetInstallationSteps(workflowDataWithSDK)
-	if len(stepsWithSDK) != 2 {
-		t.Fatalf("Expected 2 installation steps with copilot-sdk enabled, got %d", len(stepsWithSDK))
+	if len(stepsWithSDK) != 3 {
+		t.Fatalf("Expected 3 installation steps with copilot-sdk enabled, got %d", len(stepsWithSDK))
 	}
-	sdkInstallStep := strings.Join(stepsWithSDK[1], "\n")
+	sdkInstallStep := strings.Join(stepsWithSDK[2], "\n")
 	if !strings.Contains(sdkInstallStep, "name: Install GitHub Copilot SDK (Node.js)") {
 		t.Fatalf("Expected SDK install step name, got:\n%s", sdkInstallStep)
 	}
 	expectedSDKInstall := "cd \"${GITHUB_WORKSPACE}\" && npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion)
 	if !strings.Contains(sdkInstallStep, expectedSDKInstall) {
 		t.Fatalf("Expected SDK install command %q, got:\n%s", expectedSDKInstall, sdkInstallStep)
+	}
+}
+
+func TestCopilotEngineRipgrepInstallStepSkipsAptWhenAvailable(t *testing.T) {
+	engine := NewCopilotEngine()
+	steps := engine.GetInstallationSteps(&WorkflowData{})
+	if len(steps) == 0 {
+		t.Fatal("Expected installation steps")
+	}
+
+	ripgrepStep := strings.Join(steps[0], "\n")
+	if !strings.Contains(ripgrepStep, "name: Install ripgrep") {
+		t.Fatalf("Expected first install step to install ripgrep, got:\n%s", ripgrepStep)
+	}
+	if !strings.Contains(ripgrepStep, `bash "${RUNNER_TEMP}/gh-aw/actions/install_ripgrep.sh"`) {
+		t.Fatalf("Expected ripgrep install step to call install_ripgrep.sh, got:\n%s", ripgrepStep)
+	}
+	if strings.Contains(ripgrepStep, "apt-get") {
+		t.Fatalf("Expected no inline apt install logic in generated workflow step, got:\n%s", ripgrepStep)
 	}
 }
 
@@ -2394,11 +2413,11 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 			}
 
 			steps := engine.GetInstallationSteps(workflowData)
-			if len(steps) != 2 {
-				t.Fatalf("Expected 2 installation steps (Copilot CLI + SDK), got %d", len(steps))
+			if len(steps) != 3 {
+				t.Fatalf("Expected 3 installation steps (ripgrep + Copilot CLI + SDK), got %d", len(steps))
 			}
 
-			sdkStepContent := strings.Join(steps[1], "\n")
+			sdkStepContent := strings.Join(steps[2], "\n")
 			if !strings.Contains(sdkStepContent, tt.expectedName) {
 				t.Fatalf("Expected SDK install step name %q, got:\n%s", tt.expectedName, sdkStepContent)
 			}
