@@ -2606,6 +2606,31 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("Error details:");
     });
 
+    it("surfaces a terminal no-deferred-marker error that follows a recovered one", () => {
+      const logLines = [
+        "Error: No deferred tool marker found in the resumed session.",
+        "[claude-harness] attempt 2: no deferred tool marker on --continue — retrying as fresh run (failure_reason=harness_retry_path_invalid, --continue disabled permanently, attempt 3/4)",
+        "Error: No deferred tool marker found in the resumed session.",
+        "[claude-harness] attempt 3: no deferred tool marker — not retriable via --continue (failure_reason=harness_retry_path_invalid)",
+      ];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+
+      const result = buildEngineFailureContext();
+
+      expect(result).toContain("Error details:");
+      expect(result).toContain("No deferred tool marker found");
+    });
+
+    it("does not treat agent output quoting the recovery phrase as a harness recovery", () => {
+      const logLines = ["Error: No deferred tool marker found in the resumed session.", "The log said: no deferred tool marker on --continue — retrying as fresh run (--continue disabled permanently)"];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+
+      const result = buildEngineFailureContext();
+
+      expect(result).toContain("Error details:");
+      expect(result).toContain("No deferred tool marker found");
+    });
+
     it("extracts AWF startup errors from dependency lines and container startup failures", () => {
       const lines = [
         " Container awf-squid  Error",
