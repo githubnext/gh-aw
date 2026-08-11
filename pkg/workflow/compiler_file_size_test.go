@@ -3,18 +3,26 @@
 package workflow
 
 import (
-	"fmt"
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/testutil"
-
-	"github.com/github/gh-aw/pkg/console"
 )
+
+// TestMaxLockFileSizeConstant verifies the documented value of the size limit
+// constant (500KB) used to warn about oversized generated lock files.
+func TestMaxLockFileSizeConstant(t *testing.T) {
+	assert.EqualValues(t, 512000, MaxLockFileSize, "MaxLockFileSize should be 500KB (512000 bytes)")
+}
 
 func TestCompileWorkflowFileSizeValidation(t *testing.T) {
 	// Create temporary directory for test files
@@ -41,118 +49,129 @@ This is a normal workflow that should compile successfully.
 `
 
 		testFile := filepath.Join(tmpDir, "normal-workflow.md")
-		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
-		if err != nil {
-			t.Errorf("Expected no error for normal workflow, got: %v", err)
-		}
+		require.NoError(t, err, "expected no error for normal workflow")
 
 		// Verify lock file was created and is under 500KB
 		lockFile := stringutil.MarkdownToLockFile(testFile)
-		if info, err := os.Stat(lockFile); err != nil {
-			t.Errorf("Lock file was not created: %v", err)
-		} else if info.Size() > MaxLockFileSize {
-			t.Errorf("Lock file size %d exceeds max size %d", info.Size(), MaxLockFileSize)
-		}
+		info, err := os.Stat(lockFile)
+		require.NoError(t, err, "lock file was not created")
+		assert.LessOrEqual(t, info.Size(), int64(MaxLockFileSize), "lock file size should not exceed max size")
 	})
 
-	t.Run("file size validation logic", func(t *testing.T) {
-		// Test the validation by creating a temporary compiler with modified constant
-		// Since normal workflows don't exceed 1MB, we'll test the validation path differently
-
-		// Create a normal workflow
+	t.Run("noEmit mode skips size validation and does not write lock file", func(t *testing.T) {
 		testContent := `---
 on: push
 timeout-minutes: 10
 permissions:
   contents: read
-  issues: read
-  pull-requests: read
 strict: false
-tools:
-  github:
-    allowed: [list_issues, create_issue]
 ---
 
-# Test Workflow for Size Validation
+# No-Emit Test Workflow
 
-This workflow tests the file size validation logic.
+This workflow validates that noEmit mode does not write or size-check a lock file.
 `
 
-		testFile := filepath.Join(tmpDir, "size-test-workflow.md")
-		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+		testFile := filepath.Join(tmpDir, "no-emit-workflow.md")
+		require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+		lockFile := stringutil.MarkdownToLockFile(testFile)
+		// Ensure no stale lock file exists from a previous run/subtest.
+		_ = os.Remove(lockFile)
 
 		compiler := NewCompiler()
-		err := compiler.CompileWorkflow(testFile)
-		if err != nil {
-			t.Errorf("Expected no error for normal workflow, got: %v", err)
-		}
+		compiler.SetNoEmit(true)
 
-		// Verify the lock file exists and get its size
-		lockFile := stringutil.MarkdownToLockFile(testFile)
-		info, err := os.Stat(lockFile)
-		if err != nil {
-			t.Fatalf("Lock file was not created: %v", err)
-		}
+		stderrOutput := captureStderr(t, func() {
+			err := compiler.CompileWorkflow(testFile)
+			require.NoError(t, err, "expected no error for noEmit compilation")
+		})
 
-		// The lock file should be well under 500KB (typically around 30KB)
-		if info.Size() > MaxLockFileSize {
-			t.Errorf("Unexpected: lock file size %d exceeds max size %d", info.Size(), MaxLockFileSize)
-		}
-
-		// Verify our constant is correct (500KB = 512000 bytes)
-		if MaxLockFileSize != 512000 {
-			t.Errorf("MaxLockFileSize constant should be 512000, got %d", MaxLockFileSize)
-		}
+		_, statErr := os.Stat(lockFile)
+		assert.True(t, os.IsNotExist(statErr), "lock file should not be written in noEmit mode")
+		assert.NotContains(t, stderrOutput, "exceeds recommended maximum size", "noEmit mode should not perform size validation")
 	})
 
-	t.Run("test file size validation warning message", func(t *testing.T) {
-		// Test that our validation produces the correct warning message format
-		// by simulating the warning condition
+	t.Run("writeWorkflowOutput warns when generated content exceeds MaxLockFileSize", func(t *testing.T) {
+		markdownPath := filepath.Join(tmpDir, "over-limit-source.md")
+		// mockLockFile is a synthetic lock file path used to exercise writeWorkflowOutput
+		// directly; it is not produced by an actual compile of markdownPath.
+		mockLockFile := stringutil.MarkdownToLockFile(markdownPath)
+		t.Cleanup(func() { _ = os.Remove(mockLockFile) })
 
-		testFile := filepath.Join(tmpDir, "size-validation-test.md")
-		lockFile := stringutil.MarkdownToLockFile(testFile)
+		oversizedContent := strings.Repeat("x", MaxLockFileSize+100000) // 100KB over the limit
 
-		// Create a mock file that exceeds the size limit
-		largeSize := int64(MaxLockFileSize + 100000) // 100KB over the limit
-		mockContent := strings.Repeat("x", int(largeSize))
+		compiler := NewCompiler()
+		stderrOutput := captureStderr(t, func() {
+			err := compiler.writeWorkflowOutput(mockLockFile, oversizedContent, markdownPath)
+			require.NoError(t, err, "writeWorkflowOutput should not error even when the file exceeds the recommended size")
+		})
 
-		if err := os.WriteFile(lockFile, []byte(mockContent), 0644); err != nil {
-			t.Fatal(err)
-		}
+		info, err := os.Stat(mockLockFile)
+		require.NoError(t, err, "lock file should have been written")
+		require.Greater(t, info.Size(), int64(MaxLockFileSize), "mock file size should exceed limit")
 
-		// Verify the file exceeds the limit
-		info, err := os.Stat(lockFile)
-		if err != nil {
-			t.Fatalf("Failed to stat mock file: %v", err)
-		}
-
-		if info.Size() <= MaxLockFileSize {
-			t.Fatalf("Mock file size %d should exceed limit %d", info.Size(), MaxLockFileSize)
-		}
-
-		// Test our validation logic by checking what the warning message would look like
-		lockSize := console.FormatFileSize(info.Size())
-		maxSize := console.FormatFileSize(MaxLockFileSize)
-		expectedMessage := fmt.Sprintf("Generated lock file size (%s) exceeds recommended maximum size (%s)", lockSize, maxSize)
-
-		t.Logf("Generated warning message would be: %s", expectedMessage)
-
-		// Verify the message contains expected elements
-		if !strings.Contains(expectedMessage, "exceeds recommended maximum size") {
-			t.Error("Warning message should contain 'exceeds recommended maximum size'")
-		}
-		if !strings.Contains(expectedMessage, "KB") {
-			t.Error("Warning message should contain size in KB")
-		}
-
-		// Clean up
-		os.Remove(lockFile)
+		assert.Contains(t, stderrOutput, "exceeds recommended maximum size", "should emit size-exceeded warning")
+		assert.Contains(t, stderrOutput, "KB", "warning message should contain size in KB")
 	})
+
+	t.Run("writeWorkflowOutput does not warn at or under MaxLockFileSize boundary", func(t *testing.T) {
+		tests := []struct {
+			name string
+			size int
+		}{
+			{name: "exactly at MaxLockFileSize", size: MaxLockFileSize},
+			{name: "one byte under MaxLockFileSize", size: MaxLockFileSize - 1},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				safeName := strings.ReplaceAll(tt.name, " ", "-")
+				markdownPath := filepath.Join(tmpDir, "boundary-"+safeName+"-source.md")
+				mockLockFile := stringutil.MarkdownToLockFile(markdownPath)
+				t.Cleanup(func() { _ = os.Remove(mockLockFile) })
+
+				content := strings.Repeat("x", tt.size)
+
+				compiler := NewCompiler()
+				stderrOutput := captureStderr(t, func() {
+					err := compiler.writeWorkflowOutput(mockLockFile, content, markdownPath)
+					require.NoError(t, err)
+				})
+
+				info, err := os.Stat(mockLockFile)
+				require.NoError(t, err, "lock file should have been written")
+				assert.LessOrEqual(t, info.Size(), int64(MaxLockFileSize))
+				assert.NotContains(t, stderrOutput, "exceeds recommended maximum size", "should not warn when size is at or under the limit")
+			})
+		}
+	})
+}
+
+// captureStderr redirects os.Stderr during fn and returns everything written to it.
+// os.Stderr is always restored, even if fn panics or fails a require assertion.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "should create stderr capture pipe")
+	os.Stderr = w
+	defer func() {
+		os.Stderr = oldStderr
+		_ = w.Close()
+	}()
+
+	fn()
+
+	require.NoError(t, w.Close(), "should close stderr capture writer")
+
+	var buf bytes.Buffer
+	_, copyErr := io.Copy(&buf, r)
+	require.NoError(t, copyErr, "should copy stderr output")
+	return buf.String()
 }
