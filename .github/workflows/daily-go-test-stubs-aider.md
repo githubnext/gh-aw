@@ -36,6 +36,16 @@ imports:
   - shared/aider.md
   - shared/otlp.md
   - shared/reporting.md
+post-steps:
+  - name: Ensure noop safe output fallback
+    if: always()
+    run: |
+      set -euo pipefail
+      GH_AW_SAFE_OUTPUTS="${GH_AW_SAFE_OUTPUTS:-${RUNNER_TEMP:-/tmp}/gh-aw/safeoutputs/outputs.jsonl}"
+      mkdir -p "$(dirname "$GH_AW_SAFE_OUTPUTS")"
+      if [ ! -s "$GH_AW_SAFE_OUTPUTS" ]; then
+        printf '%s\n' '{"type":"noop","reason":"Aider completed without emitting safe outputs for daily-go-test-stubs-aider."}' >> "$GH_AW_SAFE_OUTPUTS"
+      fi
 ---
 
 # Daily Go Test Stubs — Aider
