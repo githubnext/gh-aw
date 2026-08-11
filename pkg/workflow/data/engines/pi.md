@@ -2,7 +2,7 @@
 engine:
   id: pi
   display-name: Pi
-  description: Pi AI coding agent (experimental)
+  description: Pi AI coding agent
   runtime-id: pi
   mcp: false
   provider:

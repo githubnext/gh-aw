@@ -52,7 +52,7 @@ steps:
       nohup ollama serve > "$OLLAMA_LOG" 2>&1 < /dev/null &
       echo "Waiting for Ollama service..."
       for _ in $(seq 1 30); do
-        # runner-guard:ignore RGS-012 -- localhost-only probe; no secrets are sent.
+        # runner-guard:ignore RGS-012 -- loopback-only readiness probe for the Ollama service started above; no secrets are sent.
         if curl -sf http://localhost:11434/api/version > /dev/null 2>&1; then
           echo "Ollama is ready"
           break
@@ -80,7 +80,7 @@ steps:
       for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
         : > "$BODY_FILE"
         CURL_EXIT=0
-        # runner-guard:ignore RGS-012 -- localhost-only fixed warm-up payload; no secrets are sent.
+        # runner-guard:ignore RGS-012 -- loopback-only model warm-up request to the local Ollama service.
         curl -sS -o "$BODY_FILE" -w '%{http_code}' --max-time 60 \
           -H 'Content-Type: application/json' \
           http://localhost:11434/api/generate \
@@ -118,7 +118,7 @@ steps:
       echo "Waiting for Ollama OpenAI-compatible endpoint..."
       MAX_WAIT_SECONDS=30
       for _ in $(seq 1 "$MAX_WAIT_SECONDS"); do
-        # runner-guard:ignore RGS-012 -- localhost-only probe; no secrets are sent.
+        # runner-guard:ignore RGS-012 -- loopback-only readiness probe for the local Ollama service; no secrets are sent.
         if curl -sf http://localhost:11434/v1/models > /dev/null 2>&1; then
           echo "Ollama /v1/models is ready"
           exit 0

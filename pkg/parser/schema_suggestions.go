@@ -503,17 +503,29 @@ func extractTopLevelYAMLValue(yamlContent, fieldName string) string {
 	escapedField := regexp.QuoteMeta(fieldName)
 
 	// Try single-quoted value: field: 'value'  (anchored to column 0, no leading whitespace)
-	reSingle := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*'([^'\n]+)'`)
+	//nolint:regexpdynamicpattern // The field name is quoted before compilation.
+	reSingle, err := regexp.Compile(`(?m)^` + escapedField + `[ \t]*:[ \t]*'([^'\n]+)'`)
+	if err != nil {
+		return ""
+	}
 	if match := reSingle.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
 	// Try double-quoted value: field: "value"
-	reDouble := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*"([^"\n]+)"`)
+	//nolint:regexpdynamicpattern // The field name is quoted before compilation.
+	reDouble, err := regexp.Compile(`(?m)^` + escapedField + `[ \t]*:[ \t]*"([^"\n]+)"`)
+	if err != nil {
+		return ""
+	}
 	if match := reDouble.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
 	// Try unquoted value: field: value
-	reUnquoted := regexp.MustCompile(`(?m)^` + escapedField + `[ \t]*:[ \t]*([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
+	//nolint:regexpdynamicpattern // The field name is quoted before compilation.
+	reUnquoted, err := regexp.Compile(`(?m)^` + escapedField + `[ \t]*:[ \t]*([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
+	if err != nil {
+		return ""
+	}
 	if match := reUnquoted.FindStringSubmatch(yamlContent); len(match) >= 2 {
 		return strings.TrimSpace(match[1])
 	}
@@ -528,7 +540,11 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 	lines := strings.Split(yamlContent, "\n")
 
 	escapedParent := regexp.QuoteMeta(parentKey)
-	parentPattern := regexp.MustCompile(`^(\s*)` + escapedParent + `[ \t]*:`)
+	//nolint:regexpdynamicpattern // The parent key is quoted before compilation.
+	parentPattern, err := regexp.Compile(`^(\s*)` + escapedParent + `[ \t]*:`)
+	if err != nil {
+		return ""
+	}
 	escapedChild := regexp.QuoteMeta(childKey)
 
 	parentIndent := -1
@@ -567,15 +583,27 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 
 		// Try to match child key with its value (single-quoted, double-quoted, unquoted).
 		childPrefix := `^\s+` + escapedChild + `[ \t]*:[ \t]*`
-		reSingle := regexp.MustCompile(childPrefix + `'([^'\n]+)'`)
+		//nolint:regexpdynamicpattern // The child key is quoted before compilation.
+		reSingle, err := regexp.Compile(childPrefix + `'([^'\n]+)'`)
+		if err != nil {
+			return ""
+		}
 		if match := reSingle.FindStringSubmatch(line); len(match) >= 2 {
 			return strings.TrimSpace(match[1])
 		}
-		reDouble := regexp.MustCompile(childPrefix + `"([^"\n]+)"`)
+		//nolint:regexpdynamicpattern // The child key is quoted before compilation.
+		reDouble, err := regexp.Compile(childPrefix + `"([^"\n]+)"`)
+		if err != nil {
+			return ""
+		}
 		if match := reDouble.FindStringSubmatch(line); len(match) >= 2 {
 			return strings.TrimSpace(match[1])
 		}
-		reUnquoted := regexp.MustCompile(childPrefix + `([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
+		//nolint:regexpdynamicpattern // The child key is quoted before compilation.
+		reUnquoted, err := regexp.Compile(childPrefix + `([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
+		if err != nil {
+			return ""
+		}
 		if match := reUnquoted.FindStringSubmatch(line); len(match) >= 2 {
 			return strings.TrimSpace(match[1])
 		}

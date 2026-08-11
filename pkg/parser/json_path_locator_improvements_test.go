@@ -422,3 +422,94 @@ func TestFindFrontmatterBounds(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchesPathSegmentKey(t *testing.T) {
+	tests := []struct {
+		name        string
+		trimmedLine string
+		key         string
+		expected    bool
+	}{
+		{
+			name:        "exact match with colon",
+			trimmedLine: "engine: copilot",
+			key:         "engine",
+			expected:    true,
+		},
+		{
+			name:        "match with space before colon",
+			trimmedLine: "engine :",
+			key:         "engine",
+			expected:    true,
+		},
+		{
+			name:        "match with tab before colon",
+			trimmedLine: "engine\t: value",
+			key:         "engine",
+			expected:    true,
+		},
+		{
+			name:        "prefix collision - longer key must not match",
+			trimmedLine: "engine-type: fast",
+			key:         "engine",
+			expected:    false,
+		},
+		{
+			name:        "different key",
+			trimmedLine: "other: value",
+			key:         "engine",
+			expected:    false,
+		},
+		{
+			name:        "empty trimmedLine",
+			trimmedLine: "",
+			key:         "engine",
+			expected:    false,
+		},
+		{
+			name:        "key with dot (regex metacharacter) matches literal dot",
+			trimmedLine: "on.push: value",
+			key:         "on.push",
+			expected:    true,
+		},
+		{
+			name:        "key with dot does not match different separator",
+			trimmedLine: "onXpush: value",
+			key:         "on.push",
+			expected:    false,
+		},
+		{
+			name:        "key with plus (regex metacharacter)",
+			trimmedLine: "a+b: value",
+			key:         "a+b",
+			expected:    true,
+		},
+		{
+			name:        "key with brackets (regex metacharacter)",
+			trimmedLine: "items[0]: value",
+			key:         "items[0]",
+			expected:    true,
+		},
+		{
+			name:        "colon-only line after key",
+			trimmedLine: "engine:",
+			key:         "engine",
+			expected:    true,
+		},
+		{
+			name:        "no colon at all",
+			trimmedLine: "engine value",
+			key:         "engine",
+			expected:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := matchesPathSegmentKey(tt.trimmedLine, tt.key)
+			if result != tt.expected {
+				t.Errorf("matchesPathSegmentKey(%q, %q) = %v, want %v", tt.trimmedLine, tt.key, result, tt.expected)
+			}
+		})
+	}
+}

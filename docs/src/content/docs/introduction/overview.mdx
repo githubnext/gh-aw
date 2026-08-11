@@ -1,25 +1,27 @@
 ---
-title: About Workflows
-description: Understanding how GitHub Agentic Workflows transforms natural language into automated AI-powered workflows
+title: What are GitHub Agentic Workflows?
+description: Learn what GitHub Agentic Workflows (gh-aw) is, how agentic workflows use Markdown and YAML frontmatter, and how AI agents run through GitHub Actions.
 sidebar:
-  label: About Workflows
+  label: What are Agentic Workflows?
   order: 1
 ---
 
-## What are Agentic Workflows?
+GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents through GitHub Actions. The `gh-aw` CLI compiles the source into a standard GitHub Actions workflow while adding controls for permissions, tools, sandboxing, and writes.
 
-**[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** are AI-powered automation that can understand context, make decisions, and take meaningful actions-all from natural language instructions you write in markdown.
+## What is an agentic workflow?
 
-Unlike traditional automation with fixed if-then rules, agentic workflows use coding agents (like Copilot CLI, Claude by Anthropic, or Codex) to:
+**[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** are AI-powered automation that can understand context, make decisions, and take meaningful actions—all from natural-language instructions written in Markdown.
+
+Unlike traditional automation with fixed if-then rules, agentic workflows use AI engines such as GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi to:
 - **Understand context**: Read your repository, issues, and pull requests to grasp the current situation
 - **Make decisions**: Choose appropriate actions based on the context, not just predefined conditions
 - **Adapt behavior**: Respond flexibly to different scenarios without requiring explicit programming for each case
 
 ## Coding agents, running with tools, in GitHub Actions
 
-With coding agents, you describe your automation needs in plain language. GitHub Agentic Workflows makes this possible by running natural language markdown files as agents in [GitHub Actions](https://github.com/features/actions) that are executed by AI coding agents (AI systems that execute your instructions).
+With AI agents, you describe your automation needs in plain language. GitHub Agentic Workflows makes this possible by running Markdown instructions through an AI engine in [GitHub Actions](https://github.com/features/actions).
 
-Instead of writing intricate scripts to handle issue triage, code reviews, or release management, you simply describe what you want to happen. The AI agent understands your repository context, interprets the situation, and takes appropriate actions-all from a few lines of markdown.
+Instead of writing intricate scripts to handle issue triage, code reviews, or release management, you describe what you want to happen. The AI agent uses the repository context, tools, and permissions that the workflow allows to interpret the situation and request appropriate actions.
 
 Here's a simple example:
 
@@ -39,17 +41,17 @@ safe-outputs:              # Allowed write operations
 Analyze the current issue and ask for additional details if the issue is unclear.
 ```
 
-The YAML section at the top is called [**frontmatter**](/gh-aw/reference/frontmatter/)-it configures when the workflow runs and what it can do. The markdown body contains your natural language instructions. See [Workflow Structure](/gh-aw/reference/workflow-structure/) for details.
+The YAML section at the top is called [**frontmatter**](/gh-aw/reference/frontmatter/); it configures when the workflow runs and what it can do. The Markdown body contains natural-language instructions. See [Workflow Structure](/gh-aw/reference/workflow-structure/) for details.
 
-The `gh aw compile` command this markdown file into a hardened [GitHub Actions Workflow](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows#about-workflows) [`.lock.yml` file](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)  (the compiled workflow that GitHub Actions runs) that embeds the frontmatter and loads the markdown body at runtime. This runs an AI agent in a containerized environment whenever a new issue is opened. 
+The `gh aw compile` command turns this Markdown file into a hardened [GitHub Actions workflow](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows#about-workflows) [`.lock.yml` file](/gh-aw/reference/glossary/#workflow-lock-file-lockyml). The lock file embeds the compiled frontmatter configuration and loads the Markdown body at runtime. GitHub Actions then runs the selected AI engine whenever a new issue is opened.
 
-[Compilation](/gh-aw/reference/glossary/#compilation) (converting markdown to GitHub Actions YAML) validates your configuration, applies security hardening, and generates the final workflow file that GitHub Actions can execute. Think of it like compiling code-you write human-friendly markdown, the compiler produces machine-ready YAML.
+[Compilation](/gh-aw/reference/glossary/#compilation) validates the configuration, applies security hardening, and generates the workflow file that GitHub Actions can execute. Think of it like compiling code: you write human-readable Markdown, and the compiler produces machine-ready YAML.
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 
-Workflows use read-only permissions by default, with write operations only allowed through sanitized [`safe-outputs`](/gh-aw/reference/safe-outputs/) (validated GitHub operations) that enable creating issues, comments, and PRs without giving the AI direct write access. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
+The generated agent job uses read-only permissions by default. The recommended write path is sanitized [`safe-outputs`](/gh-aw/reference/safe-outputs/), which can create issues, comments, and pull requests without granting the AI agent direct write access. Direct write permissions and custom jobs are also configurable and form separate trust boundaries. Review the [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) for these boundaries and exceptions.
 
-More sample workflows can be found in the [Agentics collection](https://github.com/githubnext/agentics).
+Browse [GitHub Agentic Workflows examples by task](/gh-aw/examples/) or explore the larger [Agentics collection](https://github.com/githubnext/agentics).
 
 > [!TIP]
 > **Want a guided introduction?** The [**gh-aw-workshop**](https://github.com/githubnext/gh-aw-workshop) is a step-by-step workshop that walks you through building your first agentic workflow from scratch.
