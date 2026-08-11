@@ -137,6 +137,20 @@ timeout_minu tes: 10
 	}
 }
 
+func TestMainWorkflowSchema_UserRateLimitAllowsRepositoryDispatch(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "repository_dispatch",
+		"user-rate-limit": map[string]any{
+			"max-runs-per-window": 1,
+			"events":              []any{"repository_dispatch"},
+		},
+	}
+
+	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		t.Fatalf("repository_dispatch should be allowed for user-rate-limit events: %v", err)
+	}
+}
+
 // TestValidateMCPConfigWithSchema tests the ValidateMCPConfigWithSchema function
 // which validates a single MCP server configuration against the MCP config JSON schema.
 func TestValidateMCPConfigWithSchema(t *testing.T) {
