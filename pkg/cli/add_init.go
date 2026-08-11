@@ -57,12 +57,15 @@ func ensureAddRepositoryInitializedWithDetails(engineOverride string, verbose bo
 		// e.g. .gitattributes with --no-gitattributes, may intentionally be skipped).
 		// Use absolute paths so callers don't need to resolve against gitRoot.
 		for _, marker := range missingMarkers {
-			if ok, statErr := isBootstrapInitMarkerSatisfied(".", marker); statErr == nil && ok {
-				absPath, pathErr := filepath.Abs(marker)
-				if pathErr == nil {
-					initializedFiles = append(initializedFiles, absPath)
-				}
+			ok, statErr := isBootstrapInitMarkerSatisfied(".", marker)
+			if statErr != nil || !ok {
+				continue
 			}
+			absPath, pathErr := filepath.Abs(marker)
+			if pathErr != nil {
+				return fmt.Errorf("failed to resolve path for initialized file %s: %w", marker, pathErr)
+			}
+			initializedFiles = append(initializedFiles, absPath)
 		}
 
 		return nil

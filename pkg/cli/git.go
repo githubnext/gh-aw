@@ -579,9 +579,10 @@ func checkCleanWorkingDirectoryIgnoring(verbose bool, ignoredPaths []string) err
 			// work correctly as :(top,...) pathspecs.
 			if filepath.IsAbs(cleaned) {
 				rel, relErr := filepath.Rel(gitRoot, cleaned)
-				if relErr == nil {
-					cleaned = rel
+				if relErr != nil {
+					return fmt.Errorf("failed to resolve %s relative to git root: %w", ignoredPath, relErr)
 				}
+				cleaned = rel
 			}
 			path := filepath.ToSlash(strings.TrimPrefix(cleaned, "."+string(filepath.Separator)))
 			args = append(args, ":(top,literal,exclude)"+path)
