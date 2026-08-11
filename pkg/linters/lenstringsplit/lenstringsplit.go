@@ -15,12 +15,20 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the len-strings-split analysis pass.
 var Analyzer = analyzerutil.New("lenstringsplit", "reports len(strings.Split(s, sep)) expressions with a provably non-empty separator that allocate a []string just to count substrings; use strings.Count(s, sep)+1 instead", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
@@ -63,6 +71,9 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 		if nolint.HasDirectiveForLinter(pos, noLintIndex, "lenstringsplit") {
+			return
+		}
+		if !coverage.ShouldApply(pass, outer.Pos(), *hotThreshold) {
 			return
 		}
 

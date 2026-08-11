@@ -24,7 +24,7 @@ func registerAddTool(server *mcp.Server, execCmd execCmdFunc) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "add",
 		Annotations: &mcp.ToolAnnotations{
-			OpenWorldHint: new(true),
+			OpenWorldHint: boolPtr(true),
 		},
 		Description: "Add workflows from remote repositories to .github/workflows",
 		Icons:       mcpToolIcons("➕"),
@@ -103,7 +103,7 @@ func registerUpdateTool(server *mcp.Server, execCmd execCmdFunc) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "update",
 		Annotations: &mcp.ToolAnnotations{
-			OpenWorldHint: new(true),
+			OpenWorldHint: boolPtr(true),
 		},
 		Description: `Update workflows from their source repositories and check for gh-aw updates.
 
@@ -174,8 +174,8 @@ func registerFixTool(server *mcp.Server, execCmd execCmdFunc) {
 		Name: "fix",
 		Annotations: &mcp.ToolAnnotations{
 			IdempotentHint:  true,
-			DestructiveHint: new(false),
-			OpenWorldHint:   new(false),
+			DestructiveHint: boolPtr(false),
+			OpenWorldHint:   boolPtr(false),
 		},
 		Description: `Apply automatic codemod-style fixes to agentic workflow files.
 

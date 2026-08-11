@@ -11,12 +11,20 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the append-byte-string analysis pass.
 var Analyzer = analyzerutil.New("appendbytestring", "reports append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
@@ -82,6 +90,9 @@ func analyzeAppendByteString(pass *analysis.Pass, n ast.Node, generatedFiles fil
 
 	sText := astutil.NodeText(pass.Fset, strArg)
 	if sText == "" {
+		return
+	}
+	if !coverage.ShouldApply(pass, call.Pos(), *hotThreshold) {
 		return
 	}
 

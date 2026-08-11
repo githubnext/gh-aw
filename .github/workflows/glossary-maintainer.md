@@ -29,8 +29,6 @@ imports:
   - ../agents/technical-doc-writer.agent.md
   - shared/ai-coding-dictionary.md
   - shared/mcp/serena-go.md
-  - shared/mcp/open-ontologies.md
-
   - shared/otlp.md
   - shared/reporting.md
 safe-outputs:
@@ -139,14 +137,6 @@ Use Serena to:
 - Identify technical concepts and their relationships
 - Help generate clear, accurate definitions for technical terms
 - Understand how terms are used across the codebase
-
-### Open Ontologies MCP server
-
-You also have access to the **Open Ontologies MCP server** (`onto_*` tools). When the glossary would
-benefit from a structured terminology graph (e.g. relating terms hierarchically or checking
-consistency of definitions), use `onto_validate`/`onto_load`/`onto_reason`/`onto_query` to build
-and query a lightweight ontology of the glossary's terms and relationships instead of relying on
-text search alone.
 
 ## Task Steps
 

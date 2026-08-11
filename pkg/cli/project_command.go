@@ -438,16 +438,6 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 	return nil
 }
 
-// escapeGraphQLString escapes special characters in GraphQL strings
-func escapeGraphQLString(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "\"", "\\\"")
-	s = strings.ReplaceAll(s, "\n", "\\n")
-	s = strings.ReplaceAll(s, "\r", "\\r")
-	s = strings.ReplaceAll(s, "\t", "\\t")
-	return s
-}
-
 // projectURLInfo contains parsed project URL information
 type projectURLInfo struct {
 	scope         string // "users" or "orgs"

@@ -54,7 +54,7 @@ const DefaultGeminiVersion Version = "0.39.1"
 const DefaultPiVersion Version = "0.84.1"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v1.8.0"
+const DefaultGitHubMCPServerVersion Version = "v1.9.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 //
@@ -148,7 +148,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.8"
+const DefaultMCPGatewayVersion Version = "v0.4.9"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.

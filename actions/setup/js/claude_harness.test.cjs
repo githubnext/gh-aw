@@ -14,6 +14,7 @@ const {
   isMaxTurnsExit,
   isNoDeferredMarkerError,
   isInvalidModelError,
+  isInvalidJsonBodyError,
   isSignalTerminationExitCode,
   shouldRetryWithContinue,
   countPermissionDeniedIssues,
@@ -269,6 +270,41 @@ describe("claude_harness.cjs", () => {
     });
   });
 
+  describe("isInvalidJsonBodyError", () => {
+    it("returns true for the canonical Anthropic 400 invalid-JSON message", () => {
+      const output = "API Error: 400 The request body is not valid JSON: unexpected character: line 1 column 1 (char 0)";
+      expect(isInvalidJsonBodyError(output)).toBe(true);
+    });
+
+    it("returns true for mixed-case variant", () => {
+      expect(isInvalidJsonBodyError("the REQUEST BODY IS NOT VALID json")).toBe(true);
+    });
+
+    it("returns true when the error appears inside a larger log block following a permission_denied", () => {
+      const output =
+        '{"type":"result","subtype":"permission_denied","decision_reason_type":"subcommandResults"}\n' +
+        "[claude-harness] 2026-08-10T12:33:00.000Z attempt 4 failed: exitCode=1\n" +
+        '{"type":"text","text":"API Error: 400 The request body is not valid JSON: unexpected character: line 1 column 1 (char 0)"}';
+      expect(isInvalidJsonBodyError(output)).toBe(true);
+    });
+
+    it("returns false for an overloaded_error output", () => {
+      expect(isInvalidJsonBodyError('{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}')).toBe(false);
+    });
+
+    it("returns false for a rate_limit_error output", () => {
+      expect(isInvalidJsonBodyError('{"type":"result","subtype":"success","is_error":true,"api_error_status":429}')).toBe(false);
+    });
+
+    it("returns false for an empty string", () => {
+      expect(isInvalidJsonBodyError("")).toBe(false);
+    });
+
+    it("returns false for a successful result output", () => {
+      expect(isInvalidJsonBodyError('{"type":"result","subtype":"success","is_error":false}')).toBe(false);
+    });
+  });
+
   describe("isSignalTerminationExitCode", () => {
     it("returns true for SIGKILL/SIGTERM-style exit codes", () => {
       expect(isSignalTerminationExitCode(137)).toBe(true);
@@ -401,6 +437,43 @@ process.exit(0);
       expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true, false]);
       expect(calls[2].args).toContain("fix the bug");
       expect(result.stderr).toContain("failure_reason=harness_retry_path_invalid");
+    }, 50000);
+
+    it("uses a fresh retry and permanently disables --continue after a 400 invalid-JSON-body error on --continue", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+
+if (priorCalls === 0) {
+  process.stdout.write("partial execution before retry\\n");
+  process.exit(1);
+}
+
+if (priorCalls === 1) {
+  if (!args.includes("--continue")) {
+    process.stderr.write("expected --continue on first retry\\n");
+    process.exit(9);
+  }
+  process.stderr.write('{"type":"result","subtype":"error","is_error":true,"result":"400 The request body is not valid JSON"}\\n');
+  process.exit(1);
+}
+
+if (args.includes("--continue")) {
+  process.stderr.write("fresh retry unexpectedly used --continue\\n");
+  process.exit(9);
+}
+process.stdout.write("fresh retry succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true, false]);
+      expect(calls[2].args).toContain("fix the bug");
+      expect(result.stderr).toContain("invalid JSON request body");
     }, 50000);
 
     it("strips user-supplied --continue on fresh retry after invalid continue-path detection", () => {

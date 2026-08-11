@@ -15,12 +15,20 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/coverage"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
 // Analyzer is the string-bytes-roundtrip analysis pass.
 var Analyzer = analyzerutil.New("stringbytesroundtrip", "reports string([]byte(s)) as a redundant round-trip when s is already a string, and []byte(string(b)) as a wasteful two-copy clone when b is already a []byte (prefer slices.Clone or bytes.Clone)", run)
+
+// hotThreshold gates findings on coverage data; see coverage package docs.
+var hotThreshold *int
+
+func init() {
+	hotThreshold = coverage.RegisterHotThresholdFlag(Analyzer)
+}
 
 func run(pass *analysis.Pass) (any, error) {
 	noLintIndex, err := nolint.Index(pass)
@@ -48,6 +56,9 @@ func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 	}
 	outerUnderlying, innerUnderlying, innerArgUnderlying, ok := roundTripUnderlyingTypes(pass, outer, inner)
 	if !ok {
+		return
+	}
+	if !coverage.ShouldApply(pass, outer.Pos(), *hotThreshold) {
 		return
 	}
 	if reportRedundantRoundTrip(pass, outer, inner, outerUnderlying, innerUnderlying, innerArgUnderlying) {

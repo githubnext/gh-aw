@@ -1,0 +1,124 @@
+// Package coverage provides helpers for coverage-aware perf linter gating.
+//
+// When the GH_AW_LINT_COVERAGE_PROFILE environment variable points to a Go
+// coverage profile (produced by "go test -covermode=count -coverprofile=<path>"),
+// [ShouldApply] returns false for code positions whose recorded hit count is
+// below the configured threshold, suppressing findings on cold paths.
+//
+// When the variable is unset (the default), every call to [ShouldApply]
+// returns true so all gated linters behave exactly as before.
+package coverage
+
+import (
+	"go/token"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	xcov "golang.org/x/tools/cover"
+	"golang.org/x/tools/go/analysis"
+)
+
+const envVar = "GH_AW_LINT_COVERAGE_PROFILE"
+
+// profileIndex holds the lazily loaded coverage profiles indexed by filename.
+type profileIndex struct {
+	profiles map[string]*xcov.Profile // key: Profile.FileName (package-qualified path)
+}
+
+var (
+	once  sync.Once
+	index *profileIndex // nil means no profile loaded (permissive fallback)
+)
+
+// load loads the profile at most once per process from GH_AW_LINT_COVERAGE_PROFILE.
+// On any error (env unset, bad path, parse failure) it leaves index nil so
+// callers fall back to permissive behaviour.
+func load() {
+	once.Do(func() {
+		path := os.Getenv(envVar) //nolint:osgetenvlibrary
+		if path == "" {
+			return
+		}
+		profiles, err := xcov.ParseProfiles(path)
+		if err != nil {
+			return
+		}
+		m := make(map[string]*xcov.Profile, len(profiles))
+		for _, p := range profiles {
+			m[p.FileName] = p
+		}
+		index = &profileIndex{profiles: m}
+	})
+}
+
+// findProfile looks up the profile entry that corresponds to the given on-disk
+// filename. Coverage profile keys are package-qualified paths such as
+// "github.com/org/repo/pkg/foo/foo.go", while pass.Fset returns absolute OS
+// paths. We match by checking whether the normalised on-disk path ends with
+// the profile key.
+func (idx *profileIndex) findProfile(filename string) *xcov.Profile {
+	norm := filepath.ToSlash(filename)
+	for key, p := range idx.profiles {
+		normKey := filepath.ToSlash(key)
+		if strings.HasSuffix(norm, "/"+normKey) || norm == normKey {
+			return p
+		}
+	}
+	return nil
+}
+
+// hitCount returns the execution count for the given 1-based line number.
+// When multiple coverage blocks span the same line, the last one wins (standard
+// Go coverage tool behaviour). Returns 0 when no block covers the line.
+func hitCount(p *xcov.Profile, line int) int {
+	count := 0
+	for _, b := range p.Blocks {
+		if b.StartLine <= line && line <= b.EndLine {
+			count = b.Count
+		}
+	}
+	return count
+}
+
+// ShouldApply reports whether a linter finding at pos should be reported.
+//
+//   - When threshold is 0, coverage gating is disabled and the function
+//     always returns true.
+//   - When no coverage profile is loaded (GH_AW_LINT_COVERAGE_PROFILE is
+//     unset or the file cannot be parsed), the function always returns true
+//     (permissive fallback).
+//   - Otherwise it returns true only when the recorded hit count for the
+//     position's line is >= threshold.
+func ShouldApply(pass *analysis.Pass, pos token.Pos, threshold int) bool {
+	if threshold == 0 {
+		return true
+	}
+	load()
+	if index == nil {
+		return true
+	}
+	position := pass.Fset.Position(pos)
+	if !position.IsValid() {
+		return true
+	}
+	p := index.findProfile(position.Filename)
+	if p == nil {
+		return true
+	}
+	return hitCount(p, position.Line) >= threshold
+}
+
+// RegisterHotThresholdFlag registers a -hot-threshold flag on the given
+// analyzer and returns a pointer to the flag value. The default value is 1
+// (gate on any recorded execution). Pass 0 to disable gating entirely.
+//
+// This function must be called from an init() function, not from the analyzer
+// Run function, to avoid an analyzer initialisation cycle.
+func RegisterHotThresholdFlag(a *analysis.Analyzer) *int {
+	v := new(int)
+	*v = 1
+	a.Flags.IntVar(v, "hot-threshold", 1, "minimum coverage hit count to report a finding (0 = always report)")
+	return v
+}
