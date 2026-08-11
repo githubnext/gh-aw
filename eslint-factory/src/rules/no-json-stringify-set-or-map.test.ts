@@ -37,6 +37,19 @@ describe("no-json-stringify-set-or-map", () => {
     });
   });
 
+  it("valid: locally declared or imported Set/Map/JSON shadowing the globals is not flagged", () => {
+    cjsRuleTester.run("no-json-stringify-set-or-map", noJsonStringifySetOrMapRule, {
+      valid: [
+        `class Set { constructor() { this.items = [1]; } } JSON.stringify(new Set());`,
+        `class Map { constructor() { this.entries = []; } } const m = new Map(); JSON.stringify(m);`,
+        `function Set() { this.items = [1]; } const s = new Set(); JSON.stringify(s);`,
+        `const { Set } = require("immutable"); const s = new Set([1, 2]); JSON.stringify(s);`,
+        `const JSON = { stringify: v => v }; const s = new Set([1, 2]); JSON.stringify(s);`,
+      ],
+      invalid: [],
+    });
+  });
+
   it("invalid: JSON.stringify on a const Set binding", () => {
     cjsRuleTester.run("no-json-stringify-set-or-map", noJsonStringifySetOrMapRule, {
       valid: [],

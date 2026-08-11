@@ -1,14 +1,34 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
-/** Returns true when `expr` is a `new Set(...)` or `new Map(...)` construction. */
-function isSetOrMapConstruction(expr: TSESTree.Node): "Set" | "Map" | null {
+type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
+
+/**
+ * Returns true when `name` at `node` resolves to the global binding, i.e. no
+ * enclosing scope declares a local variable, import, class or function with
+ * that name shadowing the built-in.
+ */
+function isGlobalReference(sourceCode: TSESLint.SourceCode, node: TSESTree.Node, name: string): boolean {
+  let scope: SourceCodeScope | null = sourceCode.getScope(node);
+
+  while (scope) {
+    const variable = scope.set.get(name);
+    if (variable && variable.defs.length > 0) return false;
+    scope = scope.upper;
+  }
+
+  return true;
+}
+
+/** Returns "Set"/"Map" when `expr` is a `new Set(...)` / `new Map(...)` construction using the global constructor. */
+function isSetOrMapConstruction(sourceCode: TSESLint.SourceCode, expr: TSESTree.Node): "Set" | "Map" | null {
   if (expr.type !== AST_NODE_TYPES.NewExpression) return null;
   if (expr.callee.type !== AST_NODE_TYPES.Identifier) return null;
-  if (expr.callee.name === "Set") return "Set";
-  if (expr.callee.name === "Map") return "Map";
-  return null;
+  const name = expr.callee.name;
+  if (name !== "Set" && name !== "Map") return null;
+  if (!isGlobalReference(sourceCode, expr.callee, name)) return null;
+  return name;
 }
 
 export const noJsonStringifySetOrMapRule = createRule({
@@ -22,8 +42,7 @@ export const noJsonStringifySetOrMapRule = createRule({
     },
     schema: [],
     messages: {
-      jsonStringifySetOrMap:
-        "JSON.stringify({{varName}}) serializes a {{kind}} instance to '{}' — {{kind}} entries are not own enumerable properties and are silently dropped. Convert first: {{suggestion}}.",
+      jsonStringifySetOrMap: "JSON.stringify({{varName}}) serializes a {{kind}} instance to '{}' — {{kind}} entries are not own enumerable properties and are silently dropped. Convert first: {{suggestion}}.",
     },
   },
   defaultOptions: [],
@@ -43,7 +62,7 @@ export const noJsonStringifySetOrMapRule = createRule({
       VariableDeclarator(node: TSESTree.VariableDeclarator) {
         if (node.id.type !== AST_NODE_TYPES.Identifier) return;
         if (!node.init) return;
-        const kind = isSetOrMapConstruction(node.init);
+        const kind = isSetOrMapConstruction(sourceCode, node.init);
         if (!kind) return;
 
         // Only track when declared with `const` — `let`/`var` bindings could be reassigned
@@ -60,13 +79,14 @@ export const noJsonStringifySetOrMapRule = createRule({
         const obj = callee.object;
         const prop = callee.property;
         if (obj.type !== AST_NODE_TYPES.Identifier || obj.name !== "JSON") return;
+        if (!isGlobalReference(sourceCode, obj, "JSON")) return;
         if (prop.type !== AST_NODE_TYPES.Identifier || prop.name !== "stringify") return;
 
         const firstArg = node.arguments[0];
         if (!firstArg) return;
 
         // Direct inline construction: JSON.stringify(new Set(...))
-        const inlineKind = isSetOrMapConstruction(firstArg);
+        const inlineKind = isSetOrMapConstruction(sourceCode, firstArg);
         if (inlineKind) {
           const suggestion = inlineKind === "Set" ? "Array.from(...)" : "Object.fromEntries(...)";
           context.report({
