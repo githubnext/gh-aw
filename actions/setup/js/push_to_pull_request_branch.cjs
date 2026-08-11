@@ -118,6 +118,22 @@ async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef)
   return bundleDiffResult.stdout.split("\0").filter(Boolean);
 }
 
+async function fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, prerequisiteCommits, logPrefix = "") {
+  core.warning(`${logPrefix}bundle fetch failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
+  core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
+  // Use --filter=blob:none only when the local repo is already shallow or sparse —
+  // in a full clone we already have all blobs and must not convert the repo to a
+  // partial clone (which would trigger lazy blob fetches on later operations).
+  const prereqGitOpts = { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts };
+  const useBlobFilter = await isShallowOrSparseCheckout(exec, prereqGitOpts);
+  const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...prerequisiteCommits] : ["fetch", "origin", ...prerequisiteCommits];
+  if (useBlobFilter) {
+    core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
+  }
+  await exec.exec("git", prerequisiteFetchArgs, prereqGitOpts);
+  core.info("Fetched prerequisite commits from origin successfully");
+}
+
 /**
  * Measure the expanded blob size of files changed by the applied agent commits.
  * Deleted files contribute zero bytes because no new content is being introduced.
@@ -1026,19 +1042,7 @@ async function main(config = {}) {
             // (e.g. when the commit is on a ref not in the fetch refspec).
             const prerequisiteCommits = extractBundlePrerequisiteCommits(initialFetchErrorOutput);
             if (prerequisiteCommits.length > 0) {
-              core.warning(`Bundle fetch failed due to ${prerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
-              core.info(`Fetching ${prerequisiteCommits.length} prerequisite commit(s) from origin`);
-              // Use --filter=blob:none only when the local repo is already shallow or sparse —
-              // in a full clone we already have all blobs and must not convert the repo to a
-              // partial clone (which would trigger lazy blob fetches on later operations).
-              const prereqGitOpts = { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts };
-              const useBlobFilter = await isShallowOrSparseCheckout(exec, prereqGitOpts);
-              const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...prerequisiteCommits] : ["fetch", "origin", ...prerequisiteCommits];
-              if (useBlobFilter) {
-                core.info("Using --filter=blob:none for prerequisite fetch (shallow or sparse checkout detected)");
-              }
-              await exec.exec("git", prerequisiteFetchArgs, prereqGitOpts);
-              core.info("Fetched prerequisite commits from origin successfully");
+              await fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, prerequisiteCommits);
               await exec.exec("git", ["fetch", bundleFilePath, bundleFetchRef], baseGitOpts);
               core.info("Bundle fetch retry succeeded after prerequisite recovery");
             } else {
@@ -1047,6 +1051,7 @@ async function main(config = {}) {
               const bundleHeads = bundleHeadsOutput
                 .split("\n")
                 .map(line => line.trim().split(/\s+/))
+                // Bundles produced here advertise SHA-1 object IDs; reject malformed entries.
                 .filter(parts => parts.length === 2 && /^[0-9a-f]{40}$/.test(parts[0]) && parts[1]);
               const branchRefChecks = await Promise.all(
                 bundleHeads
@@ -1081,11 +1086,7 @@ async function main(config = {}) {
                   throw new Error(`Failed to fetch resolved bundle source ${bundleSourceRef}: ${resolvedFetchErrorOutput}`);
                 }
 
-                core.warning(`Resolved bundle fetch failed due to ${resolvedPrerequisiteCommits.length} missing prerequisite commit(s); fetching prerequisites from origin and retrying`);
-                const prereqGitOpts = { env: { ...process.env, ...gitAuthEnv }, ...baseGitOpts };
-                const useBlobFilter = await isShallowOrSparseCheckout(exec, prereqGitOpts);
-                const prerequisiteFetchArgs = useBlobFilter ? ["fetch", "--filter=blob:none", "origin", ...resolvedPrerequisiteCommits] : ["fetch", "origin", ...resolvedPrerequisiteCommits];
-                await exec.exec("git", prerequisiteFetchArgs, prereqGitOpts);
+                await fetchBundlePrerequisites(exec, core, gitAuthEnv, baseGitOpts, resolvedPrerequisiteCommits, "Resolved ");
                 await exec.exec("git", ["fetch", bundleFilePath, resolvedBundleFetchRef], baseGitOpts);
                 core.info("Resolved bundle fetch retry succeeded after prerequisite recovery");
               }

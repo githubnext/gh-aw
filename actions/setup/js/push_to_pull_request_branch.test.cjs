@@ -2487,6 +2487,47 @@ index 0000000..abc1234
       }
     });
 
+    it("should reject ambiguous valid bundle branch refs", async () => {
+      const bundlePath = canonicalBundlePath("feature-branch");
+      createPatchFile("feature-branch", "small patch content");
+      fs.writeFileSync(bundlePath, "bundle content");
+      const bundleHead = "4f80191700da9afc6d0b20b9ec6c81fb376f8714";
+      const bundleSourceRefs = ["refs/heads/feature-one", "refs/heads/feature-two"];
+
+      const pushSignedCommitsModule = require("./push_signed_commits.cjs");
+      const pushSignedSpy = vi.spyOn(pushSignedCommitsModule, "pushSignedCommits").mockResolvedValue(bundleHead);
+
+      try {
+        mockExec.getExecOutput.mockImplementation((cmd, args, options) => {
+          if (cmd === "git" && args[0] === "ls-remote") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "rev-parse" && args[1] === "HEAD") {
+            return Promise.resolve({ exitCode: 0, stdout: "remote-head\n", stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "fetch" && args[1] === bundlePath && args[2].startsWith("refs/heads/feature-branch:") && options?.ignoreReturnCode) {
+            return Promise.resolve({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref refs/heads/feature-branch" });
+          }
+          if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads") {
+            return Promise.resolve({ exitCode: 0, stdout: bundleSourceRefs.map(ref => `${bundleHead} ${ref}`).join("\n"), stderr: "" });
+          }
+          if (cmd === "git" && args[0] === "check-ref-format") {
+            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          }
+          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+        });
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("expected exactly 1 refs/heads entry, found 2");
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
     it("should fetch prerequisite commits and retry bundle fetch when bundle lacks prerequisites", async () => {
       const bundlePath = canonicalBundlePath("feature-branch");
       const patchPath = createPatchFile("feature-branch", "small patch content");
