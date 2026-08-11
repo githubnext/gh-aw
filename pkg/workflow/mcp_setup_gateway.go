@@ -148,7 +148,7 @@ func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatew
 		if workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 			domain = "localhost"
 		} else if isDockerSbxRuntime(workflowData) {
-			// docker-sbx microVM reaches host-published services via host.docker.internal
+			// Docker sbx microVMs reach host-published services via host.docker.internal
 			// (the Docker bridge gateway). Use this as the MCP gateway domain so that the
 			// CLI wrapper scripts generated inside the microVM point to the correct host.
 			domain = "host.docker.internal"
@@ -204,7 +204,7 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	// When MCP_GATEWAY_DOMAIN is host.docker.internal (only reachable from containers),
 	// or when network isolation is active (gateway on bridge; host reaches it via the
 	// published 127.0.0.1 port), use localhost instead; otherwise inherit the domain.
-	// Exception: for docker-sbx, the CLI wrappers run INSIDE the microVM, so they must
+	// Exception: for microVM runtimes, the CLI wrappers run INSIDE the microVM, so they must
 	// also use host.docker.internal (not localhost) to reach the published gateway port.
 	// Exception: for Gemini under network isolation, use the topology hostname (awmg-mcpg)
 	// instead of localhost. The Gemini CLI honors HTTP_PROXY but ignores NO_PROXY, so
@@ -317,7 +317,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	if isAWFNetworkIsolationEnabled(workflowData) {
 		containerCmd.WriteString(" --network bridge")
 		if isDockerSbxRuntime(workflowData) {
-			// docker-sbx: publish to 0.0.0.0 so the microVM can reach the gateway via
+			// Docker sbx microVMs: publish to 0.0.0.0 so the guest can reach the gateway via
 			// host.docker.internal (the Docker bridge gateway, 172.17.0.1).
 			containerCmd.WriteString(" -p 0.0.0.0:${MCP_GATEWAY_PORT}:${MCP_GATEWAY_PORT}")
 		} else {

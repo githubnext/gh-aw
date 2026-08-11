@@ -117,15 +117,16 @@ func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
 
 // getAgentContainerRuntime returns the container runtime string for the AWF config,
 // or an empty string if no custom runtime is configured.
-// docker-sbx is excluded because it is not an OCI runtime; it passes
-// --container-runtime sbx as a CLI flag in BuildAWFArgs instead.
+// docker-sbx and cloud-hypervisor are excluded because they are not OCI runtimes;
+// they pass --container-runtime via CLI flags in BuildAWFArgs instead.
 func getAgentContainerRuntime(workflowData *WorkflowData) string {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig == nil || agentConfig.Disabled {
 		return ""
 	}
-	// docker-sbx is not an OCI runtime and must not appear in container.containerRuntime.
-	if agentConfig.Runtime == AgentRuntimeDockerSbx {
+	// docker-sbx and cloud-hypervisor are not OCI runtimes and must not appear in
+	// container.containerRuntime.
+	if agentConfig.Runtime == AgentRuntimeDockerSbx || agentConfig.Runtime == AgentRuntimeCloudHypervisor {
 		return ""
 	}
 	return string(agentConfig.Runtime)
@@ -148,6 +149,16 @@ func isDockerSbxRuntime(workflowData *WorkflowData) bool {
 		return false
 	}
 	return agentConfig.Runtime == AgentRuntimeDockerSbx
+}
+
+// isCloudHypervisorRuntime returns true when the agent should run inside a Cloud
+// Hypervisor microVM (preview).
+func isCloudHypervisorRuntime(workflowData *WorkflowData) bool {
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig == nil || agentConfig.Disabled {
+		return false
+	}
+	return agentConfig.Runtime == AgentRuntimeCloudHypervisor
 }
 
 // isRuntimeInstallEnabled returns true when runtime installation steps should be
@@ -174,9 +185,10 @@ func isAWFNetworkIsolationEnabled(workflowData *WorkflowData) bool {
 	if agentConfig == nil || agentConfig.Disabled {
 		return false
 	}
-	// docker-sbx always uses network isolation regardless of the sudo setting.
+	// docker-sbx and cloud-hypervisor always use network isolation regardless of
+	// the sudo setting.
 	// The sudo flag is only for the install steps, not for network enforcement.
-	if agentConfig.Runtime == AgentRuntimeDockerSbx {
+	if agentConfig.Runtime == AgentRuntimeDockerSbx || agentConfig.Runtime == AgentRuntimeCloudHypervisor {
 		return true
 	}
 	return agentConfig.NetworkIsolation

@@ -329,7 +329,7 @@ type AwInfo struct {
 	Staged          bool                `json:"staged"`
 	AwfVersion      string              `json:"awf_version,omitempty"`      // AWF firewall version (new name)
 	FirewallVersion string              `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
-	AgentRuntime    string              `json:"agent_runtime,omitempty"`    // sandbox.agent.runtime value (e.g., "gvisor", "docker-sbx"); empty when unset
+	AgentRuntime    string              `json:"agent_runtime,omitempty"`    // sandbox.agent.runtime value (e.g., "gvisor", "docker-sbx", "cloud-hypervisor"); empty when unset
 	Steps           AwInfoSteps         `json:"steps,omitzero"`             // Steps metadata
 	CreatedAt       string              `json:"created_at"`
 	Context         *AwContext          `json:"context,omitempty"`       // aw_context data passed via workflow_dispatch inputs
