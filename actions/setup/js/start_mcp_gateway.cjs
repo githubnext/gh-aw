@@ -262,6 +262,8 @@ function extractOptionalServerNames(configObj) {
     if (server.required === false) {
       optional.push(name);
     }
+    // The flag is always removed — including when set to true — because the
+    // gateway configuration specification does not define a `required` field.
     delete server.required;
   }
   return optional;

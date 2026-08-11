@@ -330,7 +330,7 @@ describe("start_mcp_gateway normalizeSinkVisibilityEncoding", () => {
 });
 
 describe("start_mcp_gateway extractOptionalServerNames", () => {
-  it("collects servers declared with required: false and strips the flag", () => {
+  it("collects servers declared with required: false and strips the flag from every server", () => {
     const configObj = {
       mcpServers: {
         datadog: { type: "http", url: "https://example.com/mcp", required: false },
@@ -340,8 +340,11 @@ describe("start_mcp_gateway extractOptionalServerNames", () => {
     };
 
     expect(extractOptionalServerNames(configObj)).toEqual(["datadog"]);
+    // The gateway configuration specification has no `required` field, so it is
+    // removed for every server regardless of its value.
     expect(configObj.mcpServers.datadog).not.toHaveProperty("required");
     expect(configObj.mcpServers.sentry).not.toHaveProperty("required");
+    expect(configObj.mcpServers.grafana).not.toHaveProperty("required");
   });
 
   it("returns an empty list when no servers are configured", () => {
