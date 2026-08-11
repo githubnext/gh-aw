@@ -2131,7 +2131,9 @@ sandbox:
     # gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx'
     # to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation
     # — requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and
-    # a KVM-capable runner. Incompatible with runner.topology: arc-dind.
+    # a KVM-capable runner. Use 'cloud-hypervisor' for AWF's preview Cloud Hypervisor
+    # microVM runtime (GitHub-hosted Ubuntu x86_64 + /dev/kvm only). Incompatible with
+    # runner.topology: arc-dind.
     # (optional)
     runtime: "gvisor"
 
