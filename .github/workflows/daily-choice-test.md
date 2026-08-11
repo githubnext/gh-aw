@@ -14,7 +14,7 @@ permissions:
 tracker-id: daily-choice-test
 engine: claude
 strict: true
-timeout-minutes: 10
+timeout-minutes: 20
 
 network:
   allowed:
