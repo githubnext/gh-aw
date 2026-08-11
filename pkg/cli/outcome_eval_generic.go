@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -75,20 +74,7 @@ func evalCloseSticky(ctx context.Context, item CreatedItemReport, repoOverride s
 }
 
 func isClosedByLifecycleBot(ctx context.Context, number int, repo string) (bool, error) {
-	events, err := closeStickyGHAPIGetArray(ctx, fmt.Sprintf("issues/%d/events", number), repo)
-	if err != nil {
-		return false, err
-	}
-	for i := range slices.Backward(events) {
-		event, _ := events[i]["event"].(string)
-		if event != "closed" {
-			continue
-		}
-		actor, _ := events[i]["actor"].(map[string]any)
-		login, _ := actor["login"].(string)
-		return isBotUser(login), nil
-	}
-	return false, fmt.Errorf("no close event found for %s#%d", repo, number)
+	return isLatestCloseByBot(ctx, number, repo, closeStickyGHAPIGetArray)
 }
 
 // evalCloseDiscussion checks whether a closed discussion stayed closed.

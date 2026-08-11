@@ -82,6 +82,18 @@ func validateNoInlineSectionEndMarkers(markdown string, endRegex *regexp.Regexp)
 	return unknownInlineSectionEndMarkerError(markdown, endMarkers[0])
 }
 
+func matchInlineSectionEndMarker(endMarkers []inlineSectionEndMarker, usedEnd []bool, name string, lineEnd, windowEnd int) *inlineSectionEndMarker {
+	for i := range endMarkers {
+		endMarker := &endMarkers[i]
+		if usedEnd[i] || endMarker.name != name || endMarker.start < lineEnd || endMarker.start >= windowEnd {
+			continue
+		}
+		usedEnd[i] = true
+		return endMarker
+	}
+	return nil
+}
+
 // extractInlineSections collects all sections delimited by marker positions in
 // markdown. The caller provides allStarts (already validated non-empty), the
 // endRegex used to recognize explicit end markers for this section type (e.g.
@@ -125,16 +137,7 @@ func extractInlineSections[T any](markdown string, allStarts [][]int, endRegex, 
 			windowEnd = allStarts[i+1][0]
 		}
 
-		var matchedEnd *inlineSectionEndMarker
-		for ei := range endMarkers {
-			e := &endMarkers[ei]
-			if usedEnd[ei] || e.name != name || e.start < lineEnd || e.start >= windowEnd {
-				continue
-			}
-			matchedEnd = e
-			usedEnd[ei] = true
-			break
-		}
+		matchedEnd := matchInlineSectionEndMarker(endMarkers, usedEnd, name, lineEnd, windowEnd)
 
 		var content string
 		var newCursor int
