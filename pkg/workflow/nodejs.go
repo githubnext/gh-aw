@@ -159,6 +159,10 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 				steps = append(steps, generateDockerSbxPreFlightStep())
 			}
 		}
+		if isCloudHypervisorRuntime(workflowData) {
+			steps = append(steps, generateCloudHypervisorHostPreflightStep())
+			steps = append(steps, generateCloudHypervisorBundleSetupStep(getAWFVersionForSetup(workflowData)))
+		}
 
 		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
 		if len(awfInstall) > 0 {
@@ -229,7 +233,8 @@ func GetNpmBinPathSetup() string {
 }
 
 // GenerateDockerSbxNpmCLIInstallStep installs an npm CLI into a runner path that is
-// visible inside the docker-sbx microVM, then creates a stable bin/ symlink from
+// visible inside microVM runtimes (docker-sbx/cloud-hypervisor), then creates a
+// stable bin/ symlink from
 // ${RUNNER_TEMP}/gh-aw/engine-cli/bin/<command> to the package's node_modules/.bin entry.
 func GenerateDockerSbxNpmCLIInstallStep(packageName, version, stepName, commandName string, runInstallScripts bool, cooldownEnabled bool) GitHubActionStep {
 	ignoreScriptsFlag := "--ignore-scripts "
@@ -271,9 +276,9 @@ func GenerateDockerSbxNpmCLIInstallStep(packageName, version, stepName, commandN
 }
 
 // GetDockerSbxNpmCLIPathSetup returns the PATH export needed for npm CLIs that were
-// staged into ${RUNNER_TEMP}/gh-aw/engine-cli/bin for docker-sbx microVM runs.
+// staged into ${RUNNER_TEMP}/gh-aw/engine-cli/bin for microVM runs.
 func GetDockerSbxNpmCLIPathSetup(workflowData *WorkflowData) string {
-	if !isDockerSbxRuntime(workflowData) {
+	if !isDockerSbxRuntime(workflowData) && !isCloudHypervisorRuntime(workflowData) {
 		return ""
 	}
 	return `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`

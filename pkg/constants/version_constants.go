@@ -105,6 +105,10 @@ const AWFArcDindMinVersion Version = "v0.27.20"
 // containerRuntime field in the container config (gh-aw-firewall#6093).
 const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 
+// AWFCloudHypervisorMinVersion is the minimum AWF version that supports the
+// cloud-hypervisor preview runtime and its release assets.
+const AWFCloudHypervisorMinVersion Version = "v0.28.0"
+
 // AWFLegacySecurityMinVersion is the minimum AWF version that supports the
 // --legacy-security flag and unconditional API proxy (gh-aw-firewall#6207).
 // Workflows pinning an older AWF version must use the old --security-mode compat behavior.
