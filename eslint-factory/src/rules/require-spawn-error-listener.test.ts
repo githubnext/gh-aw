@@ -75,6 +75,25 @@ describe("require-spawn-error-listener", () => {
     });
   });
 
+  it("checks DI-style spawn fallback calls", () => {
+    cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
+      valid: [
+        `const { spawn } = require("child_process"); const spawnImpl = options.spawnImpl ?? spawn; const child = spawnImpl("ls", []); child.on("error", err => {});`,
+        `const { spawn } = require("child_process"); const spawnImpl = options.spawnImpl || spawn; const child = spawnImpl("ls", []); child.once("error", err => {});`,
+      ],
+      invalid: [
+        {
+          code: `const { spawn } = require("child_process"); const spawnImpl = options.spawnImpl ?? spawn; const child = spawnImpl("ls", []);`,
+          errors: [{ messageId: "missingErrorListener" }],
+        },
+        {
+          code: `const { spawn } = require("child_process"); const spawnImpl = options.spawnImpl || spawn; const child = spawnImpl("ls", []);`,
+          errors: [{ messageId: "missingErrorListener" }],
+        },
+      ],
+    });
+  });
+
   it("does not flag assignment expressions or inline chains (documented scope limit)", () => {
     cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
       valid: [`const { spawn } = require("child_process"); let child; child = spawn("ls", []);`, `const { spawn } = require("child_process"); spawn("ls", []).on("exit", () => {});`],
