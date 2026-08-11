@@ -402,7 +402,7 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 				return fmt.Errorf("%s has a blank entry in maintenance.disabled_jobs. Expected a non-empty job name, for example: \"stale-issue-cleanup\"", RepoConfigFileName)
 			}
 			if _, ok := validDisabledMaintenanceJobs[normalizedJobName]; !ok {
-				return fmt.Errorf("invalid %s: maintenance.disabled_jobs contains unrecognized job %q (valid values: close-expired-entities, apply_safe_outputs, label_disable_agentic_workflow, label_apply_safe_outputs)", RepoConfigFileName, jobName)
+				return fmt.Errorf("%s references unrecognized maintenance.disabled_jobs entry %q. Valid values are: close-expired-entities, apply_safe_outputs, label_disable_agentic_workflow, label_apply_safe_outputs", RepoConfigFileName, jobName)
 			}
 			if previous, exists := seenDisabledJobs[normalizedJobName]; exists {
 				return fmt.Errorf("%s has duplicate maintenance.disabled_jobs entries %q and %q after normalization. Remove the duplicate so each job is listed once", RepoConfigFileName, previous, jobName)

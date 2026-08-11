@@ -22,7 +22,7 @@ func (c *Compiler) normalizeScheduleString(scheduleStr string, itemIndex int) (p
 		// Return error for array items, but return nil error for top-level parsing
 		// (caller will handle differently based on context)
 		if itemIndex >= 0 {
-			return "", "", fmt.Errorf("schedule expression in item %d is not recognized: %w. Expected a cron string or friendly format like 'daily at 09:00'", itemIndex, err)
+			return "", "", fmt.Errorf("schedule expression in item %d is not recognized (expected a cron string or friendly format like 'daily at 09:00'): %w", itemIndex, err)
 		}
 		return "", "", err
 	}
@@ -246,7 +246,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 		// Convert string to array format with single item
 		parsedCron, original, err := c.normalizeScheduleString(scheduleStr, -1)
 		if err != nil {
-			return fmt.Errorf("schedule expression is not recognized: %w. Expected a cron string or friendly format like 'daily at 09:00'", err)
+			return fmt.Errorf("schedule expression is not recognized (expected a cron string or friendly format like 'daily at 09:00'): %w", err)
 		}
 
 		// Create array format
