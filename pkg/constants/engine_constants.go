@@ -22,7 +22,7 @@ const (
 	CodexEngine EngineName = "codex"
 	// GeminiEngine is the Google Gemini engine identifier
 	GeminiEngine EngineName = "gemini"
-	// PiEngine is the Pi engine identifier (experimental)
+	// PiEngine is the Pi engine identifier
 	PiEngine EngineName = "pi"
 
 	// DefaultEngine is the default agentic engine used when no engine is explicitly specified.
@@ -90,7 +90,7 @@ var EngineOptions = []EngineOption{
 	{
 		Value:              string(PiEngine),
 		Label:              "Pi",
-		Description:        "Pi AI coding agent (experimental)",
+		Description:        "Pi AI coding agent",
 		SecretName:         CopilotGitHubToken,
 		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
 		KeyURL:             "https://github.com/settings/personal-access-tokens/new",

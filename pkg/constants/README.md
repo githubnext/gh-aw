@@ -49,7 +49,7 @@ The package also acts as the authoritative source for the generated workflow con
 | `ClaudeEngine` | `EngineName` | `"claude"` | Claude engine identifier. |
 | `CodexEngine` | `EngineName` | `"codex"` | Codex engine identifier. |
 | `GeminiEngine` | `EngineName` | `"gemini"` | Gemini engine identifier. |
-| `PiEngine` | `EngineName` | `"pi"` | Experimental Pi engine identifier. |
+| `PiEngine` | `EngineName` | `"pi"` | Pi engine identifier. |
 | `MCPScriptsFeatureFlag` | `FeatureFlag` | `"mcp-scripts"` | Enables mcp-scripts workflow support. |
 | `MCPGatewayFeatureFlag` | `FeatureFlag` | `"mcp-gateway"` | Enables MCP gateway workflow support. |
 | `DisableXPIAPromptFeatureFlag` | `FeatureFlag` | `"disable-xpia-prompt"` | Disables the XPIA prompt path. |
