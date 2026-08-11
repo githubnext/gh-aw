@@ -1,0 +1,2 @@
+{"id":"fleet_failure_rate_measured","question":"Did the agent measure the fleet-wide agent-job failure rate over the last 24 hours with run counts?","answer":"NO","model":"evals","timestamp":"2026-08-11T23:57:42.808Z","runid":"31546163956"}
+{"id":"tracked_vs_novel_split","question":"Did the agent separate failures belonging to known chronic-failure workflows from novel failures?","answer":"NO","model":"evals","timestamp":"2026-08-11T23:57:42.808Z","runid":"31546163956"}
