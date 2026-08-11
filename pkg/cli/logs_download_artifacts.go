@@ -130,8 +130,8 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 	shouldLogProgress := IsRunningInCI() || opts.verbose
 
 	for _, name := range names {
-		if filepath.Base(name) != name {
-			return fmt.Errorf("invalid artifact name %q", name)
+		if err := validateArtifactName(name); err != nil {
+			return err
 		}
 		artifactDir := filepath.Join(opts.outputDir, name)
 		args := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", artifactDir}
@@ -160,6 +160,13 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 		}
 	}
 
+	return nil
+}
+
+func validateArtifactName(name string) error {
+	if name == "" || name == "." || name == ".." || filepath.Base(name) != name {
+		return fmt.Errorf("invalid artifact name %q", name)
+	}
 	return nil
 }
 
