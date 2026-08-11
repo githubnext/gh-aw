@@ -105,48 +105,48 @@ func validateEnclavesConfig(workflowData *WorkflowData) error {
 	if workflowData.ParsedTools != nil &&
 		workflowData.ParsedTools.GitHub != nil &&
 		workflowData.ParsedTools.GitHub.BoundedQueries != nil {
-		return errors.New("sandbox.enclaves cannot be combined with tools.github.bounded-queries")
+		return errors.New("sandbox.enclaves cannot be combined with tools.github.bounded-queries; remove tools.github.bounded-queries to use enclaves. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential")
 	}
 	seenTypes := make(map[string]struct{}, len(workflowData.Enclaves))
 	repositorySensitivities := make(map[string]string)
 	for i, enclave := range workflowData.Enclaves {
 		if enclave == nil {
-			return fmt.Errorf("sandbox.enclaves[%d] must be an object", i)
+			return fmt.Errorf("sandbox.enclaves[%d] must be an object. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", i)
 		}
 		if enclave.Type != "script" && enclave.Type != "agent" {
-			return fmt.Errorf("sandbox.enclaves[%d].type must be script or agent", i)
+			return fmt.Errorf("sandbox.enclaves[%d].type must be script or agent. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", i)
 		}
 		if _, ok := seenTypes[enclave.Type]; ok {
-			return fmt.Errorf("sandbox.enclaves contains duplicate executor type %q", enclave.Type)
+			return fmt.Errorf("sandbox.enclaves contains duplicate executor type %q; each type may appear at most once. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential\n    - type: agent\n      model: gpt-5\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", enclave.Type)
 		}
 		seenTypes[enclave.Type] = struct{}{}
 		if enclave.Type == "agent" && enclave.Model == "" {
-			return fmt.Errorf("sandbox.enclaves[%d].model is required for agent enclaves", i)
+			return fmt.Errorf("sandbox.enclaves[%d].model is required for agent enclaves. Example:\n\nsandbox:\n  enclaves:\n    - type: agent\n      model: gpt-5\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", i)
 		}
 		if len(enclave.Repositories) == 0 {
-			return fmt.Errorf("sandbox.enclaves[%d].repositories must contain at least one repository", i)
+			return fmt.Errorf("sandbox.enclaves[%d].repositories must contain at least one repository. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", i)
 		}
 		seenInEnclave := make(map[string]struct{}, len(enclave.Repositories))
 		for j, repo := range enclave.Repositories {
 			if repo == nil {
-				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d] must be an object", i, j)
+				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d] must be an object. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", i, j)
 			}
 			parts := strings.SplitN(repo.Repo, "/", 2)
 			if !enclaveRepoPattern.MatchString(repo.Repo) || len(parts) != 2 || parts[1] == "." || parts[1] == ".." || strings.Contains(parts[1], "..") {
-				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d].repo must be a bare owner/repository slug", i, j)
+				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d].repo must be a bare owner/repository slug (e.g. org/my-repo). Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/my-repo\n          sensitivity: confidential", i, j)
 			}
 			key := strings.ToLower(repo.Repo)
 			if _, ok := seenInEnclave[key]; ok {
-				return fmt.Errorf("sandbox.enclaves[%d].repositories contains duplicate repository %q", i, repo.Repo)
+				return fmt.Errorf("sandbox.enclaves[%d].repositories contains duplicate repository %q; each repository must appear at most once per enclave. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", i, repo.Repo)
 			}
 			seenInEnclave[key] = struct{}{}
 			switch repo.Sensitivity {
 			case "public", "internal", "confidential", "sealed":
 			default:
-				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d].sensitivity must be public, internal, confidential, or sealed", i, j)
+				return fmt.Errorf("sandbox.enclaves[%d].repositories[%d].sensitivity must be public, internal, confidential, or sealed. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", i, j)
 			}
 			if sensitivity, ok := repositorySensitivities[key]; ok && sensitivity != repo.Sensitivity {
-				return fmt.Errorf("repository %q must use the same sensitivity across enclave types", repo.Repo)
+				return fmt.Errorf("repository %q must use the same sensitivity across enclave types. Example:\n\nsandbox:\n  enclaves:\n    - type: script\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential\n    - type: agent\n      model: gpt-5\n      repositories:\n        - repo: org/repo\n          sensitivity: confidential", repo.Repo)
 			}
 			repositorySensitivities[key] = repo.Sensitivity
 		}

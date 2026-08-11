@@ -495,13 +495,13 @@ func validateOTLPWorkloadIdentity(workflowData *WorkflowData) error {
 		return nil
 	}
 	if !strings.EqualFold(strings.TrimSpace(workloadIdentity.Provider), "google") {
-		return errors.New("observability.otlp.workload-identity.provider must be google")
+		return errors.New("observability.otlp.workload-identity.provider must be google. Example:\n\nobservability:\n  otlp:\n    workload-identity:\n      provider: google\n      audience: my-audience")
 	}
 	if strings.TrimSpace(workloadIdentity.Audience) == "" {
-		return errors.New("observability.otlp.workload-identity.audience is required")
+		return errors.New("observability.otlp.workload-identity.audience is required. Example:\n\nobservability:\n  otlp:\n    workload-identity:\n      provider: google\n      audience: my-audience")
 	}
 	if getOTLPGitHubAppTokenConfig(workflowData.RawFrontmatter) != nil {
-		return errors.New("observability.otlp.workload-identity cannot be combined with GitHub App credentials")
+		return errors.New("observability.otlp.workload-identity cannot be combined with GitHub App credentials; use one authentication method only. Example:\n\nobservability:\n  otlp:\n    workload-identity:\n      provider: google\n      audience: my-audience")
 	}
 	return nil
 }
