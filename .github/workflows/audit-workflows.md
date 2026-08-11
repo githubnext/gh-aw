@@ -143,6 +143,7 @@ Before writing the final report, verify recommendations are concrete and evidenc
 
 When updating repo memory:
 - merge with existing data instead of overwriting useful history
+- serialize `workflow-trends.json` and `recommendations.json` as pretty-printed JSON with two-space indentation and a trailing newline; never store them as minified single-line JSON
 - keep stable IDs so issues, recommendations, and anomalies can be cross-referenced across days
 - increment recurrence and persistence counters when the same problem reappears
 - compare the current audit with prior entries before deciding whether something is new or ongoing
