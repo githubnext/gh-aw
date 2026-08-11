@@ -4,6 +4,7 @@ package cli
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -12,6 +13,20 @@ import (
 // TestMCPToolElicitationDefaults verifies that MCP tools have appropriate
 // elicitation defaults configured according to SEP-1024.
 func TestMCPToolElicitationDefaults(t *testing.T) {
+	t.Run("compile workflows input describes array syntax", func(t *testing.T) {
+		schema, err := GenerateSchema[compileArgs]()
+		if err != nil {
+			t.Fatalf("Failed to generate schema: %v", err)
+		}
+		workflows, ok := schema.Properties["workflows"]
+		if !ok {
+			t.Fatal("Expected 'workflows' property to exist")
+		}
+		if !strings.Contains(workflows.Description, `["workflow.md"]`) {
+			t.Errorf("workflows description = %q, want array example", workflows.Description)
+		}
+	})
+
 	t.Run("compile tool has strict default", func(t *testing.T) {
 		type compileArgs struct {
 			Workflows  []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
