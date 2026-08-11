@@ -66,6 +66,35 @@ func TestFilterGvisorInstallFindingsKeepsFindingsForUnresolvableFiles(t *testing
 	assert.Len(t, filterGvisorInstallFindings(findings, gitRoot), 2)
 }
 
+func TestFilterExplicitRunnerGuardIgnores(t *testing.T) {
+	const workflow = `jobs:
+  test:
+    steps:
+      - env:
+          SERVICE: local
+        name: Local request
+        run: "echo waiting\n# runner-guard:ignore RGS-012 -- localhost-only probe; no secrets are sent.\ncurl -sf http://localhost:8080/health"
+      - name: Different rule
+        # runner-guard:ignore RGS-018 -- verified fixed payload.
+        run: curl -sf http://localhost:8080/health
+`
+	gitRoot := t.TempDir()
+	writeWorkflow(t, gitRoot, "annotated.lock.yml", workflow)
+	findings := []runnerGuardFinding{
+		{RuleID: "RGS-012", File: "annotated.lock.yml", Line: 5},
+		{RuleID: "RGS-01", File: "annotated.lock.yml", Line: 5},
+		{RuleID: "RGS-012", File: "annotated.lock.yml", Line: 11},
+		{RuleID: "RGS-018", File: "annotated.lock.yml", Line: 11},
+	}
+
+	filtered := filterExplicitRunnerGuardIgnores(findings, gitRoot)
+
+	require.Len(t, filtered, 2)
+	assert.Equal(t, "RGS-01", filtered[0].RuleID)
+	assert.Equal(t, "RGS-012", filtered[1].RuleID)
+	assert.Equal(t, 11, filtered[1].Line)
+}
+
 func TestFindingInGvisorInstallStep(t *testing.T) {
 	lines := []string{
 		"jobs:",                                // 1

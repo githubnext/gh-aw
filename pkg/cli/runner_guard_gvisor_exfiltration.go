@@ -15,6 +15,67 @@ const runnerGuardSecretExfiltrationRule = "RGS-012"
 // it, so it never exfiltrates secrets.
 const gvisorStepNameMarker = "Install gVisor (runsc)"
 
+func filterExplicitRunnerGuardIgnores(findings []runnerGuardFinding, gitRoot string) []runnerGuardFinding {
+	filtered := make([]runnerGuardFinding, 0, len(findings))
+	fileLinesByPath := make(map[string][]string)
+
+	for _, finding := range findings {
+		resolvedPath := resolveRunnerGuardFilePath(gitRoot, finding.File)
+		lines, ok := fileLinesByPath[resolvedPath]
+		if !ok {
+			lines = readWorkflowLines(resolvedPath)
+			fileLinesByPath[resolvedPath] = lines
+		}
+
+		if findingHasRunnerGuardIgnore(lines, finding.Line, finding.RuleID) {
+			runnerGuardLog.Printf("Suppressing %s finding with scoped annotation in %s", finding.RuleID, finding.File)
+			continue
+		}
+		filtered = append(filtered, finding)
+	}
+
+	return filtered
+}
+
+func findingHasRunnerGuardIgnore(lines []string, lineNum int, ruleID string) bool {
+	if lineNum <= 1 || lineNum > len(lines) || ruleID == "" {
+		return false
+	}
+
+	findingIndex := lineNum - 1
+	stepStart := -1
+	stepIndent := -1
+	for i := findingIndex; i >= 0; i-- {
+		trimmed := strings.TrimLeft(lines[i], " ")
+		if strings.HasPrefix(trimmed, "- ") {
+			stepStart = i
+			stepIndent = len(lines[i]) - len(trimmed)
+			break
+		}
+	}
+	if stepStart == -1 {
+		return false
+	}
+
+	annotation := "# runner-guard:ignore " + ruleID
+	for i := stepStart; i < len(lines); i++ {
+		trimmed := strings.TrimLeft(lines[i], " ")
+		indent := len(lines[i]) - len(trimmed)
+		if i > stepStart && indent == stepIndent && strings.HasPrefix(trimmed, "- ") {
+			break
+		}
+		annotationIndex := strings.Index(lines[i], annotation)
+		if annotationIndex == -1 {
+			continue
+		}
+		remainder := lines[i][annotationIndex+len(annotation):]
+		if remainder == "" || strings.HasPrefix(remainder, " ") || strings.HasPrefix(remainder, `\n`) {
+			return true
+		}
+	}
+	return false
+}
+
 // filterGvisorInstallFindings drops RGS-012 findings that point at the compiler-generated
 // gVisor install step. That step downloads a fixed, version-pinned artifact into a file and
 // verifies it against a published SHA-512 checksum before use; no data leaves the runner, so
