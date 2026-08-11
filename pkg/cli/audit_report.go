@@ -125,12 +125,9 @@ type JobData struct {
 	Steps      []JobStepData `json:"steps,omitempty"`
 }
 
-// JobStepData contains information about an individual workflow job step.
-type JobStepData struct {
-	Name       string `json:"name"`
-	Status     string `json:"status,omitempty"`
-	Conclusion string `json:"conclusion,omitempty"`
-}
+// JobStepData is an alias for JobStep, kept to avoid renaming the existing
+// "Data" suffixed usages of this type within this package.
+type JobStepData = JobStep
 
 // FileInfo contains information about downloaded artifact files
 type FileInfo struct {
@@ -383,9 +380,7 @@ func buildAuditJobs(jobDetails []JobInfoWithDuration) []JobData {
 			Name:       jobDetail.Name,
 			Status:     jobDetail.Status,
 			Conclusion: jobDetail.Conclusion,
-			Steps: sliceutil.Map(jobDetail.Steps, func(step JobStep) JobStepData {
-				return JobStepData(step)
-			}),
+			Steps:      jobDetail.Steps,
 		}
 		if jobDetail.Duration > 0 {
 			job.Duration = timeutil.FormatDuration(jobDetail.Duration)
