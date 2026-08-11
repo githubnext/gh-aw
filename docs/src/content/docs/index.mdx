@@ -73,21 +73,21 @@ AI agents can be manipulated by prompt injection, malicious repository content, 
 ```mermaid
 flowchart LR
     INPUT["Repository + Prompt Input"] --> TOKENS["Read-only Token"]
-    TOKENS --> SECRETS["No Secrets in Agent"]
-    SECRETS --> SANDBOX["Sandbox + Network Firewall"]
+    TOKENS --> SECRETS["No Repository Secrets by Default"]
+    SECRETS --> SANDBOX["Sandbox + Network Controls"]
     SANDBOX --> SAFE["Safe Outputs Gate"]
-    SAFE --> DETECT["Threat Detection Scan"]
+    SAFE --> DETECT["Threat Detection Scan (when enabled)"]
     DETECT --> APPLY["Scoped Write Job"]
 ```
 
 <FeatureGrid columns={3}>
   <FeatureCard title="Sandbox + network firewall" href="/gh-aw/introduction/architecture/#agent-workflow-firewall-awf">
-    The agent runs in a container behind the Agent Workflow Firewall
-    and can only reach allowed destinations.
+    By default, the agent runs in a container behind the Agent Workflow Firewall;
+    explicit opt-outs broaden its access.
   </FeatureCard>
   <FeatureCard title="Threat detection" href="/gh-aw/reference/threat-detection/">
-    A dedicated threat detection job scans proposed outputs and blocks
-    suspicious changes.
+    When enabled, a dedicated job scans proposed outputs and blocks suspicious
+    changes before configured writes.
   </FeatureCard>
   <FeatureCard title="Compile-time validation" href="/gh-aw/introduction/architecture/#compilation-time-security">
     Schema validation, expression allowlisting, action pinning, and security
@@ -182,16 +182,16 @@ GitHub Agentic Workflows (`gh-aw`) provides four stable built-in AI engines and 
 
 <FeatureGrid columns={4}>
   <FeatureCard title="GitHub Copilot" href="/gh-aw/engines/copilot/">
-    Default engine. Works with your existing Copilot subscription — no extra account.
+    Default engine. Authenticate with the copilot-requests permission or a fine-grained personal access token.
   </FeatureCard>
   <FeatureCard title="Claude Code" href="/gh-aw/engines/claude/">
-    Anthropic's Claude. Set engine: claude and add ANTHROPIC_API_KEY.
+    Anthropic's Claude Code. Select claude and use ANTHROPIC_API_KEY or Anthropic WIF.
   </FeatureCard>
   <FeatureCard title="OpenAI Codex" href="/gh-aw/engines/codex/">
-    OpenAI Codex. Set engine: codex and add OPENAI_API_KEY.
+    OpenAI Codex. Select codex and use CODEX_API_KEY or OPENAI_API_KEY.
   </FeatureCard>
   <FeatureCard title="Google Gemini" href="/gh-aw/engines/gemini/">
-    Google Gemini CLI. Set engine: gemini and add GEMINI_API_KEY.
+    Google Gemini CLI. Select gemini and use GEMINI_API_KEY or Google WIF.
   </FeatureCard>
   <FeatureCard title="Pi (Experimental)" href="/gh-aw/engines/pi/">
     Multi-provider experimental engine. Set engine: pi and configure its required proxies and provider authentication.

@@ -66,7 +66,7 @@ The purpose of the workflow is <describe your automation goal here>.
 
 The agent fetches `create.md`, installs the `gh aw` CLI if needed, guides you through trigger selection, tools, safe outputs, and permissions, then generates `.github/workflows/<name>.md` and compiles it to a `.lock.yml`.
 
-After the files are committed, set `engine: claude` in your workflow's frontmatter (if not already set) and add your `ANTHROPIC_API_KEY` as a repository secret.
+After the files are committed, set `engine: claude` in workflow frontmatter (if not already set) and configure `ANTHROPIC_API_KEY` or Anthropic WIF.
 
 > [!NOTE]
 > The `agentic-workflows create` Copilot Chat skill (enabled by `gh aw init` without `--engine`) requires a GitHub Copilot subscription. For Claude Code-only setups, `gh aw init --engine claude` plus the `create.md` prompt above is the equivalent guided flow.

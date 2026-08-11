@@ -10,7 +10,7 @@ GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository 
 
 ## What is an agentic workflow?
 
-**[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** are AI-powered automation that can understand context, make decisions, and take meaningful actions-all from natural language instructions you write in markdown.
+**[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** are AI-powered automation that can understand context, make decisions, and take meaningful actions—all from natural-language instructions written in Markdown.
 
 Unlike traditional automation with fixed if-then rules, agentic workflows use AI engines such as GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or experimental Pi to:
 - **Understand context**: Read your repository, issues, and pull requests to grasp the current situation
@@ -49,7 +49,7 @@ The `gh aw compile` command turns this Markdown file into a hardened [GitHub Act
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 
-Workflows use read-only permissions by default, with write operations only allowed through sanitized [`safe-outputs`](/gh-aw/reference/safe-outputs/) (validated GitHub operations) that enable creating issues, comments, and PRs without giving the AI direct write access. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
+The generated agent job uses read-only permissions by default. The recommended write path is sanitized [`safe-outputs`](/gh-aw/reference/safe-outputs/), which can create issues, comments, and pull requests without granting the AI agent direct write access. Direct write permissions and custom jobs are also configurable and form separate trust boundaries. Review the [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) for these boundaries and exceptions.
 
 Browse [GitHub Agentic Workflows examples by task](/gh-aw/examples/) or explore the larger [Agentics collection](https://github.com/githubnext/agentics).
 

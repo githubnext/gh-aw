@@ -5,7 +5,7 @@ sidebar:
   order: 20
 ---
 
-Open-source maintainers using agentic workflows need to manage both cost and trust: anyone can open an issue or PR, but not every contributor should influence an agent or trigger GitHub side-effects. gh-aw addresses this with two complementary controls: **safe-outputs**, which limit what an agent can do, and **integrity filtering**, which limits what content an agent can see.
+Open-source maintainers using GitHub Agentic Workflows (`gh-aw`) need to manage both cost and trust: anyone can open an issue or PR, but not every contributor should influence an AI agent or trigger GitHub side effects. Two complementary controls address this risk: **safe outputs**, which limit configured agent writes, and **integrity filtering**, which limits what content an agent can see.
 
 Together they provide defense in depth: integrity filtering keeps untrusted content out of the agent context, while safe-outputs ensure the workflow can produce only authorized side-effects. This guide shows how to use [🌈 Repo Assist](https://github.com/githubnext/agentics/blob/main/docs/repo-assist.md) as the entry point for incoming work and how to configure both controls for safe scale.
 
@@ -27,22 +27,21 @@ Use Repo Assist as a starting point for AI-assisted project maintenance, then re
 
 ## Controlling Workflow Outputs with Safe-Outputs
 
-Safe-outputs is the primary mechanism for controlling what a workflow can do. Every action that produces a side-effect on GitHub — labeling an issue, posting a comment, opening a pull request, merging — must be explicitly declared in the `safe-outputs:` block. If an action isn't listed, the runtime blocks it before it reaches the API.
+Safe outputs are the primary mechanism for controlling writes requested by the agent job. Each permitted GitHub side effect — labeling an issue, posting a comment, opening a pull request, or merging — must be explicitly declared in the `safe-outputs:` block. If an agent requests an undeclared safe output, the runtime blocks it before it reaches the API.
 
-This is what makes it safe to run repo-assist with `min-integrity: unapproved`: even if the agent were to generate an instruction to open a PR or close an issue, the runtime would reject it because those outputs weren't declared.
+Custom jobs and explicitly granted write permissions are separate trust boundaries and are not constrained by the safe-output list. Prefer safe outputs for agent-requested writes, and review any custom write path independently.
 
 The available safe-outputs map directly to GitHub actions:
 
 | Safe-output | What it allows |
 | ------------ | --------------- |
-| `label-issue` | Apply or remove labels on an issue |
-| `comment-issue` | Post a comment on an issue |
-| `comment-pull-request` | Post a comment on a pull request |
+| `add-labels` | Apply configured labels to an issue or pull request |
+| `add-comment` | Post a comment on an issue, pull request, or discussion |
 | `create-pull-request` | Open a new pull request |
 | `merge-pull-request` | Merge a pull request (experimental) |
 | `close-issue` | Close an issue |
 | `create-issue` | Open a new issue |
-| `assign-issue` | Assign an issue to a user or team |
+| `assign-to-user` | Assign an issue to a user |
 
 ## Controlling Workflow Inputs with Integrity Filtering
 
