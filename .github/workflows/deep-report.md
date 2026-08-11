@@ -62,7 +62,7 @@ safe-outputs:
     max: 1
     close-older-discussions: true
   create-issue:
-    expires: 2d
+    expires: false
     title-prefix: "[deep-report] "
     deduplicate-by-title: 28
     labels: [automation, improvement, quick-win, cookie, code-quality, task-mining]
@@ -287,8 +287,12 @@ For each task, **CREATE A GITHUB ISSUE** using the safe-outputs create-issue cap
 2. Treat a candidate as duplicate when both are true:
    - Title is exact/near match (wording differences allowed), or same component + same fix intent.
    - Scope overlaps materially (same root cause or same target files/components).
-3. If duplicate is found, do **not** create a new issue. Prefer the existing canonical issue and cite it in the report task list.
-4. Keep creating unique tasks until you either produce 7 non-duplicate issues or run out of high-value tasks.
+3. Do not treat a closed issue as proof that the problem was resolved. Before suppressing a recurring task because of a closed issue:
+   - Verify that its implementing pull request was merged, or that its cited commit exists on the target branch. A closed or draft pull request is not implementation evidence.
+   - Re-check the current artifact or rendered state for infrastructure and documentation issues. Examples include confirming the target branch has the expected commit, required log files exist in a later run, or the published documentation contains the fix.
+   - If either check fails, treat the problem as unresolved and create a new issue that links the prior issue and explains the failed verification.
+4. If an open duplicate is found, do **not** create a new issue. Prefer the existing canonical issue and cite it in the report task list.
+5. Keep creating unique tasks until you either produce 7 non-duplicate issues or run out of high-value tasks.
 
 #### Report Structure
 
