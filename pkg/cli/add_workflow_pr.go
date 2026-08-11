@@ -76,6 +76,9 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 	// Create file tracker for rollback capability
 	tracker := NewFileTracker()
+	for _, initializedFile := range opts.initializedFiles {
+		tracker.TrackModified(initializedFile)
+	}
 
 	// Ensure we switch back to original branch on exit
 	defer func() {

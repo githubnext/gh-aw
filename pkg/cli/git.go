@@ -558,9 +558,24 @@ func hasPendingChanges() (bool, error) {
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes
 func checkCleanWorkingDirectory(verbose bool) error {
+	return checkCleanWorkingDirectoryIgnoring(verbose, nil)
+}
+
+// checkCleanWorkingDirectoryIgnoring checks for uncommitted changes except for
+// the provided repository-relative paths.
+func checkCleanWorkingDirectoryIgnoring(verbose bool, ignoredPaths []string) error {
 	console.LogVerbose(verbose, "Checking for uncommitted changes...")
 
-	cmd := exec.Command("git", "status", "--porcelain")
+	args := []string{"status", "--porcelain", "--untracked-files=all"}
+	if len(ignoredPaths) > 0 {
+		args = append(args, "--", ":(top)**")
+		for _, ignoredPath := range ignoredPaths {
+			path := filepath.ToSlash(strings.TrimPrefix(filepath.Clean(ignoredPath), "."+string(filepath.Separator)))
+			args = append(args, ":(top,literal,exclude)"+path)
+		}
+	}
+
+	cmd := exec.Command("git", args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to check git status: %w", err)

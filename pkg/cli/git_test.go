@@ -79,6 +79,33 @@ func TestGetCurrentBranchNotInRepo(t *testing.T) {
 	assert.Error(t, err, "getCurrentBranch should return an error when not in a git repository")
 }
 
+func TestCheckCleanWorkingDirectoryIgnoring(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(originalDir))
+	}()
+
+	require.NoError(t, os.Chdir(tmpDir))
+	require.NoError(t, exec.Command("git", "init").Run())
+
+	generatedFile := filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(generatedFile), 0755))
+	require.NoError(t, os.WriteFile(generatedFile, []byte("generated"), 0644))
+
+	require.NoError(t, checkCleanWorkingDirectoryIgnoring(false, []string{generatedFile}))
+	require.ErrorContains(t, checkCleanWorkingDirectory(false), "working directory has uncommitted changes")
+
+	require.NoError(t, os.WriteFile("README.md", []byte("user file"), 0644))
+	require.ErrorContains(
+		t,
+		checkCleanWorkingDirectoryIgnoring(false, []string{generatedFile}),
+		"working directory has uncommitted changes",
+	)
+}
+
 func TestCreateAndSwitchBranch(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
