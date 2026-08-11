@@ -1,11 +1,11 @@
 {
   "name": "gh-aw",
-  "description": "GitHub CLI extension that compiles markdown workflows into GitHub Actions",
+  "description": "GitHub Agentic Workflows (gh-aw) lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents through GitHub Actions.",
   "url": "https://github.github.com/gh-aw/",
   "repository": "https://github.com/github/gh-aw",
   "category": "developer-tools",
   "longName": "GitHub Agentic Workflows (gh-aw)",
-  "longDescription": "Write agentic AI workflows in natural language markdown, run as GitHub Actions.",
+  "longDescription": "The gh-aw GitHub CLI extension compiles agentic workflows into GitHub Actions workflows. Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi. Agent jobs default to sandboxed, read-only execution with controlled safe outputs for configured writes, complementing deterministic CI/CD.",
   "version": "latest",
   "docs": "https://github.github.com/gh-aw/",
   "source": "https://github.com/github/gh-aw",

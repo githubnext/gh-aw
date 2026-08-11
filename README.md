@@ -38,15 +38,20 @@ Hey agent! If this repository hasn't been configured with agentic workflows yet,
    - Summarize the repository status (open issues, recent PRs, CI health)
    - Use the [Quick Start engine selector](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/setup/quick-start.mdx) to choose your runtime:
      - For `copilot`, grant `copilot-requests: write`
-     - For `claude`, set the `ANTHROPIC_API_KEY` repository secret
-     - For `codex`, set the `OPENAI_API_KEY` repository secret
-     - For `gemini`, set the `GEMINI_API_KEY` repository secret
+     - For `claude`, set `ANTHROPIC_API_KEY` or configure Anthropic WIF
+     - For `codex`, set `CODEX_API_KEY` or `OPENAI_API_KEY`
+     - For `gemini`, set `GEMINI_API_KEY` or configure Google WIF
+     - For `pi`, configure provider authentication and the required proxies
 
 </details>
 
 # GitHub Agentic Workflows
 
-GitHub Agentic Workflows (gh-aw) lets you write repository automation in plain Markdown and run AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions, with sandboxed execution, read-only defaults, and safe outputs for writes.
+GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents securely through GitHub Actions. The `gh-aw` GitHub CLI extension compiles each agentic workflow into a standard GitHub Actions workflow.
+
+Use conventional GitHub Actions for deterministic builds, tests, linting, deployments, and reproducible scripts. Add an agentic workflow when a task needs reasoning or interpretation, such as issue triage, pull-request review, CI failure investigation, documentation maintenance, dependency analysis, or repository reporting. GitHub Agentic Workflows complements existing CI/CD; it does not replace it.
+
+Built-in AI engines include GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, and Pi. Agent jobs are read-only and sandboxed by default, and configured GitHub writes are normally applied through validated `safe-outputs` jobs with scoped permissions.
 
 > [!NOTE]
 > **Releases 0.68.4 through 0.71.3 are being retired** due to a bug that impacts billing. If you are running one of these versions, please upgrade to the latest release as soon as possible.
@@ -54,37 +59,45 @@ GitHub Agentic Workflows (gh-aw) lets you write repository automation in plain M
 ## Contents
 
 - [Quick Start](#quick-start)
-- [Overview](#overview)
-- [Guardrails](#guardrails)
+- [How GitHub Agentic Workflows works](#how-github-agentic-workflows-works)
+- [Security and permissions](#security-and-permissions)
 - [Documentation](#documentation)
-- [FAQ](#faq)
 - [Contributing](#contributing)
 - [Community Contributions](#-community-contributions)
-- [Share Feedback](#share-feedback)
-- [Peli's Agent Factory](#pelis-agent-factory)
 - [Related Projects](#related-projects)
 - [Workshop](#workshop)
 
 ## Quick Start
 
-Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/setup/quick-start.mdx) to install the extension, add a sample workflow, and see it in action.
+Install the GitHub CLI extension:
 
-## Overview
+```bash
+gh extension install github/gh-aw
+```
 
-Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [How It Works](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/introduction/how-they-work.mdx).
-Supports GitHub Copilot, Claude (Anthropic), Codex (OpenAI), and Gemini (Google) — pick whichever AI account you already have.
+Then follow the [GitHub Agentic Workflows quickstart](https://github.github.com/gh-aw/setup/quick-start/) to select an AI engine, add a sample workflow, and run it through GitHub Actions.
 
-## Guardrails
+## How GitHub Agentic Workflows works
 
-Guardrails, safety and security are foundational to GitHub Agentic Workflows. Workflows run with read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. The system implements multiple layers of protection including sandboxed execution, input sanitization, network isolation, supply chain security (SHA-pinned dependencies), tool allow-listing, and compile-time validation. Access can be gated to team members only, with human approval gates for critical operations, ensuring AI agents operate safely within controlled boundaries. See the [Security Architecture](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/introduction/architecture.mdx) for comprehensive details on threat modeling, implementation guidelines, and best practices.
+An agentic workflow has two parts: YAML frontmatter configures triggers, permissions, tools, and the AI engine; the Markdown body tells the AI agent what to accomplish. The `gh aw compile` command validates this source and generates the `.lock.yml` workflow that GitHub Actions executes. [Learn how GitHub Agentic Workflows works](https://github.github.com/gh-aw/introduction/how-they-work/).
+
+## Security and permissions
+
+Security, permissions, and controlled writes are core design concerns. The supported agent-job path defaults to read-only GitHub access and sandboxed execution. Safe outputs buffer configured writes, validate them, and apply them in separate jobs with scoped permissions. These controls are configurable, so workflow authors must review permissions, tools, network access, and generated files before deployment. [Learn how GitHub Agentic Workflows handles security and permissions](https://github.github.com/gh-aw/introduction/architecture/).
 
 Using agentic workflows in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
 ## Documentation
 
-For complete documentation, examples, and guides, see the [Documentation](https://github.com/github/gh-aw/tree/main/docs). If you are an agent, see [llms.txt source](https://github.com/github/gh-aw/blob/main/docs/src/pages/llms.txt.ts) and [llms-full.txt source](https://github.com/github/gh-aw/blob/main/docs/src/pages/llms-full.txt.ts).
+Use the [GitHub Agentic Workflows documentation](https://github.github.com/gh-aw/) for these paths:
 
-If you are running a version between 0.68.4 and 0.71.3, upgrading is strongly recommended due to a bug that impacts billing.
+- [Create an agentic workflow](https://github.github.com/gh-aw/setup/creating-workflows/)
+- [Choose and authenticate an AI engine](https://github.github.com/gh-aw/reference/engines/)
+- [Browse GitHub Agentic Workflows examples by task](https://github.github.com/gh-aw/examples/)
+- [Review the security architecture](https://github.github.com/gh-aw/introduction/architecture/)
+- [Read the GitHub Agentic Workflows FAQ](https://github.github.com/gh-aw/reference/faq/)
+
+For AI agents and retrieval tools, use the published [agent prompt index](https://github.github.com/gh-aw/llms.txt), [full prompt corpus](https://github.github.com/gh-aw/llms-full.txt), and [AI-readable project summary](https://github.github.com/gh-aw/ai/summary.json).
 
 ## Contributing
 

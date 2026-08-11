@@ -29,7 +29,7 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 		{name: "CodexEngine value", constant: constants.CodexEngine, expected: "codex"},
 		// From spec: constants.GeminiEngine // "gemini"
 		{name: "GeminiEngine value", constant: constants.GeminiEngine, expected: "gemini"},
-		// From spec: constants.PiEngine // "pi" (experimental)
+		// From spec: constants.PiEngine // "pi"
 		{name: "PiEngine value", constant: constants.PiEngine, expected: "pi"},
 		// From spec: constants.DefaultEngine // "copilot"
 		{name: "DefaultEngine is copilot", constant: constants.DefaultEngine, expected: "copilot"},
@@ -52,7 +52,7 @@ func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
 	engines := constants.AgenticEngines
 	require.NotEmpty(t, engines, "AgenticEngines should be non-empty")
 
-	// Spec documents all built-in engines, including pi (experimental).
+	// Spec documents all built-in engines, including pi.
 	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "pi"}
 	for _, expected := range documentedEngines {
 		assert.Contains(t, engines, expected,
@@ -417,7 +417,7 @@ func TestSpec_SystemSecrets_GlobalSlice(t *testing.T) {
 }
 
 // TestSpec_ModelEnvVars_Pi validates the documented model env var constants
-// for the Pi engine (experimental).
+// for the Pi engine.
 // Spec section: "### Model Environment Variables"
 func TestSpec_ModelEnvVars_Pi(t *testing.T) {
 	t.Parallel()
@@ -444,7 +444,7 @@ func TestSpec_ModelEnvVars_Pi(t *testing.T) {
 // TestSpec_VersionConstants_DefaultPiVersion validates that the documented Pi CLI
 // default version constant exists and is a non-empty Version.
 // Spec section: "### Default Versions (pinned dependencies)"
-// Spec: constants.DefaultPiVersion // Pi CLI version (experimental)
+// Spec: constants.DefaultPiVersion // Pi CLI version
 func TestSpec_VersionConstants_DefaultPiVersion(t *testing.T) {
 	t.Parallel()
 	assert.NotEmpty(t, constants.DefaultPiVersion.String(),
