@@ -22,6 +22,22 @@ Use these defaults when the requester frames the automation in non-engineering p
 | Designer or design-governance review | `pull_request` with `paths:` scoped to UI, design-token, copy, or asset files | `github` (`gh-proxy`); optional `playwright`; `add-comment` on the PR | State the review rubric (for example accessibility, token consistency, asset policy), and call `noop` when scoped files are unchanged |
 | Legal / compliance / documentation-policy review | `pull_request` with scoped `paths:` or `schedule` for recurring audits | `github` (`gh-proxy`); `add-comment` for findings; `create-issue` only for violations needing follow-up | Classify findings against the policy, search for existing open issues before escalating, and call `noop` when there is no in-scope change or violation |
 
+## Milestone slip / dependency-escalation trigger decision
+
+Coordination-style requests (for example "tell me when a milestone is slipping" or "flag blocked cross-team dependencies") are often ambiguous between a recurring digest and an event-driven alert. Use this decision order:
+
+1. **Default to `schedule` (+ `workflow_dispatch`)** when the request is about ongoing visibility into milestone health or dependency status over time (a digest), not a single triggering event. Follow the [Recurring Digest Defaults](report.md#recurring-digest-defaults) for window, grouping, and dedup key.
+2. **Use `issues` (`types: [labeled, milestoned, demilestoned]`)** only when the requester explicitly wants an immediate reaction to a specific state change (for example the moment an issue is relabeled `blocked` or moved off a milestone), not a periodic summary.
+3. **Combine both** only when the requester explicitly asks for both an immediate alert and a periodic rollup; keep them as two distinct trigger blocks (or two workflows) rather than one ambiguous trigger, so each has its own dedup key.
+
+| Signal in the request | Trigger | Grouping dimension | Dedup key example |
+|---|---|---|---|
+| "weekly/daily view of milestones at risk" | `schedule` + `workflow_dispatch` | milestone, owning team | `milestone-risk:<milestone>:<window-id>` |
+| "let me know the moment a milestone slips" | `issues` (`milestoned`/`demilestoned`) or `workflow_run` if computed by CI | milestone | `milestone-slip:<milestone>:<issue-number>` |
+| "flag blocked dependencies across teams" (ongoing) | `schedule` + `workflow_dispatch` | dependency, blocking team, severity | `dependency-escalation:<dependency>:<window-id>` |
+
+Call `noop` when the window has no slipped milestones or newly blocked dependencies, and search for an existing open issue with the same dedup key before creating a new one.
+
 ## Backend review guidance
 
 For backend-focused PR automation (schema migrations and API compatibility):

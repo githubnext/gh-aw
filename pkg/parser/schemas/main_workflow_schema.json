@@ -3415,6 +3415,70 @@
         }
       ]
     },
+    "enclaves": {
+      "type": "array",
+      "description": "AWF-owned private-repository executors exposed only through the compiler-launched MCP gateway. Omit this field to disable enclaves.",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["script", "repos"],
+            "properties": {
+              "script": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "properties": {
+                  "max-script-bytes": { "type": "integer", "minimum": 1, "maximum": 65536, "default": 65536 }
+                }
+              },
+              "repos": { "$ref": "#/$defs/enclave-repos" },
+              "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
+              "image": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "timeout": { "type": "integer", "minimum": 1, "maximum": 540, "default": 30 },
+              "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
+              "cpu-limit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
+              "pids-limit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
+              "tmpfs-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "64m" },
+              "max-output-bytes": { "type": "integer", "minimum": 1, "maximum": 8192, "default": 8192 },
+              "max-invocations": { "type": "integer", "minimum": 1, "maximum": 10000, "default": 32 }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["agent", "repos"],
+            "properties": {
+              "agent": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["model"],
+                "properties": {
+                  "engine": { "type": "string", "enum": ["copilot", "claude", "codex", "gemini"], "default": "copilot" },
+                  "profile": { "type": "string", "enum": ["openai", "anthropic"], "default": "openai" },
+                  "model": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,199}$" },
+                  "max-task-bytes": { "type": "integer", "minimum": 1, "maximum": 65536, "default": 4096 },
+                  "max-model-requests": { "type": "integer", "minimum": 1, "maximum": 64, "default": 8 },
+                  "max-model-tokens": { "type": "integer", "minimum": 1, "maximum": 32768, "default": 1024 }
+                }
+              },
+              "repos": { "$ref": "#/$defs/enclave-repos" },
+              "runtime": { "type": "string", "enum": ["docker", "gvisor", "sbx"], "default": "docker" },
+              "image": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "timeout": { "type": "integer", "minimum": 1, "maximum": 540, "default": 120 },
+              "memory-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "512m" },
+              "cpu-limit": { "type": "string", "pattern": "^(?:[0-9]{1,2})(?:\\.[0-9]{1,3})?$", "default": "1" },
+              "pids-limit": { "type": "integer", "minimum": 1, "maximum": 4096, "default": 128 },
+              "tmpfs-limit": { "type": "string", "pattern": "^[1-9][0-9]*[bkmgBKMG]$", "default": "64m" },
+              "max-output-bytes": { "type": "integer", "minimum": 1, "maximum": 8192, "default": 8192 },
+              "max-invocations": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 8 }
+            }
+          }
+        ]
+      }
+    },
     "sandbox": {
       "description": "Sandbox configuration for AI engines. Controls agent sandbox (AWF) and MCP gateway. The MCP gateway is always enabled and cannot be disabled.",
       "oneOf": [
@@ -3425,7 +3489,7 @@
         },
         {
           "type": "object",
-          "description": "Object format for full sandbox configuration with agent and mcp options",
+          "description": "Object format for full sandbox configuration with agent and MCP gateway options",
           "properties": {
             "type": {
               "type": "string",
@@ -12339,6 +12403,26 @@
     }
   ],
   "$defs": {
+    "enclave-repos": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repo", "sensitivity"],
+        "properties": {
+          "repo": {
+            "type": "string",
+            "maxLength": 140,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$"
+          },
+          "sensitivity": {
+            "type": "string",
+            "enum": ["public", "internal", "confidential", "sealed"]
+          }
+        }
+      }
+    },
     "github_actions_runs_on": {
       "description": "Runner type for workflow execution (GitHub Actions standard field). Supports multiple forms: simple string for single runner label (e.g., 'ubuntu-latest'), array for runner selection with fallbacks, or object for GitHub-hosted runner groups with specific labels. For agentic workflows, runner selection matters when AI workloads require specific compute resources or when using self-hosted runners with specialized capabilities. Typically configured at the job level instead. See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job",
       "oneOf": [

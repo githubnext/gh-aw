@@ -121,9 +121,9 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 		config.MCP = c.extractMCPGatewayConfig(mcpVal)
 	}
 
-	// If we found agent field, return the new format config
-	if config.Agent != nil {
-		frontmatterExtractionSecurityLog.Print("Sandbox configured with new format (agent)")
+	// Agent and MCP select the new sandbox format.
+	if config.Agent != nil || config.MCP != nil {
+		frontmatterExtractionSecurityLog.Print("Sandbox configured with new format")
 		return config
 	}
 
