@@ -96,7 +96,7 @@ func resolveRefToSHA(ctx context.Context, owner, repo, ref, host string) (string
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git ls-remote fallback for %s/%s@%s: %v", owner, repo, ref, err)
 			sha, gitErr := resolveRefToSHAViaGitFunc(ctx, owner, repo, ref, host)
 			if gitErr != nil {
-				if host == "" || host == "github.com" {
+				if canUseUnauthenticatedPublicGitHubFallback(owner, repo, host) {
 					remoteLog.Printf("Git fallback also failed, attempting unauthenticated API for %s/%s@%s", owner, repo, ref)
 					return resolveRefToSHAViaPublicAPI(ctx, owner, repo, ref)
 				}
@@ -134,7 +134,7 @@ func resolveRefToSHAWithFallbacks(
 			// Try fallback using git ls-remote for public repositories
 			sha, gitErr := gitFallback(ctx, owner, repo, ref, host)
 			if gitErr != nil {
-				if host == "" || host == "github.com" {
+				if canUseUnauthenticatedPublicGitHubFallback(owner, repo, host) {
 					remoteLog.Printf("Git fallback also failed, attempting unauthenticated API for %s/%s@%s", owner, repo, ref)
 					return publicFallback(ctx, owner, repo, ref)
 				}

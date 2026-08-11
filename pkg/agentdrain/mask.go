@@ -26,6 +26,7 @@ func NewMasker(rules []MaskRule) (*Masker, error) {
 	maskLog.Printf("Compiling %d mask rules", len(rules))
 	compiled := make([]compiledRule, 0, len(rules))
 	for _, r := range rules {
+		//nolint:regexpdynamicpattern // Mask rules are configuration input and compilation errors are returned to the caller.
 		re, err := regexp.Compile(r.Pattern)
 		if err != nil {
 			maskLog.Printf("Failed to compile mask rule %q: %v", r.Name, err)

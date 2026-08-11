@@ -752,3 +752,62 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 		assert.Nil(t, analysis, "Should return nil when no artifacts found")
 	})
 }
+
+func TestDomainMatchesRegex(t *testing.T) {
+	tests := []struct {
+		name     string
+		domain   string
+		patterns []string
+		expected bool
+	}{
+		{
+			name:     "valid pattern that matches",
+			domain:   "api.github.com",
+			patterns: []string{`^api\.github\.com$`},
+			expected: true,
+		},
+		{
+			name:     "valid pattern that does not match",
+			domain:   "evil.com",
+			patterns: []string{`^api\.github\.com$`},
+			expected: false,
+		},
+		{
+			name:     "invalid pattern is skipped and returns false",
+			domain:   "github.com",
+			patterns: []string{`[invalid`},
+			expected: false,
+		},
+		{
+			name:     "invalid pattern skipped, valid second pattern matches",
+			domain:   "github.com",
+			patterns: []string{`[invalid`, `^github\.com$`},
+			expected: true,
+		},
+		{
+			name:     "invalid pattern skipped, no other pattern matches",
+			domain:   "github.com",
+			patterns: []string{`[invalid`, `^other\.com$`},
+			expected: false,
+		},
+		{
+			name:     "empty patterns list returns false",
+			domain:   "github.com",
+			patterns: []string{},
+			expected: false,
+		},
+		{
+			name:     "wildcard regex pattern",
+			domain:   "anything.example.com",
+			patterns: []string{`^.*\.example\.com$`},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := domainMatchesRegex(tt.domain, tt.patterns)
+			assert.Equal(t, tt.expected, result, "domainMatchesRegex(%q, %v) should return %v", tt.domain, tt.patterns, tt.expected)
+		})
+	}
+}

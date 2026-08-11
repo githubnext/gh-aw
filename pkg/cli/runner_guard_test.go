@@ -388,7 +388,7 @@ func TestRunnerGuardDockerArgsPreservesDynamicValuesAsArguments(t *testing.T) {
 	volumeMount := "/tmp/checkout with spaces:/workdir"
 	containerScanPath := "./--help"
 
-	args := runnerGuardDockerArgs(volumeMount, containerScanPath)
+	args := runnerGuardDockerArgs(RunnerGuardImage, volumeMount, containerScanPath)
 
 	require.Equal(t, []string{
 		"run",
@@ -407,7 +407,7 @@ func TestRunnerGuardDockerArgsShellEscapesBangInPaths(t *testing.T) {
 	volumeMount := "/tmp/repo!42:/workdir"
 	containerScanPath := "./path!subdir"
 
-	args := runnerGuardDockerArgs(volumeMount, containerScanPath)
+	args := runnerGuardDockerArgs(RunnerGuardImage, volumeMount, containerScanPath)
 	rendered := shellJoinArgs(append([]string{"docker"}, args...))
 
 	require.Contains(t, rendered, "'/tmp/repo!42:/workdir'")

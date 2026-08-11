@@ -8,7 +8,7 @@ disable-agentic-editing: true
 
 import Video from '../../../components/Video.astro';
 
-This page describes authentication settings for GitHub Agentic Workflows.
+This page describes authentication settings for GitHub Agentic Workflows (`gh-aw`). AI engine inference credentials are separate from credentials used for GitHub API operations, safe outputs, CI triggering, and Git commit attribution.
 
 ## Which secret do I need?
 
@@ -36,7 +36,14 @@ Configure the authentication method your engine needs before running your first 
 - **Standard:** [`GEMINI_API_KEY`](#gemini_api_key) — static API key from Google AI Studio
 - **Keyless alternative:** [`engine.auth` Google WIF](#google-workload-identity-federation-wif) — short-lived OIDC token via Google Cloud Workload Identity Federation; no long-lived secret on the repo
 
-Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
+### Pi
+
+- **Default Copilot backend:** [`permissions: copilot-requests: write`](#copilot-requests-write-permission) or [`COPILOT_GITHUB_TOKEN`](#copilot_github_token)
+- **`anthropic/` model:** [`ANTHROPIC_API_KEY`](#anthropic_api_key)
+- **`openai/` or `codex/` model:** `CODEX_API_KEY` or [`OPENAI_API_KEY`](#openai_api_key)
+- **Notes:** Pi selects authentication from the provider prefix in `model:`. See [Using Pi with GitHub Agentic Workflows](/gh-aw/engines/pi/).
+
+Most workflows need one AI engine authentication path. Additional GitHub operations may require separate credentials.
 
 ## Additional Authentication
 
@@ -125,7 +132,7 @@ When this permission is present, gh-aw automatically uses the GitHub Actions tok
 
 Use `COPILOT_GITHUB_TOKEN` when you need to authenticate Copilot inference with a specific user's PAT — for example, in personal repositories or when centralized org billing is not available. When `permissions: copilot-requests: write` is set in your workflow, this secret is ignored for inference.
 
-If using Copilot as your AI engine, you need a GitHub Actions Secret set to a GitHub Personal Access Token (PAT) to authenticate Copilot CLI.
+When using this PAT-based Copilot authentication path, set a GitHub Actions secret to a fine-grained Personal Access Token (PAT) that can authenticate Copilot CLI.
 
 **Setup**:
 
@@ -206,7 +213,7 @@ To route Claude through a custom Anthropic-compatible endpoint (e.g., an interna
 
 `CLAUDE_CODE_OAUTH_TOKEN` is not supported by GitHub Agentic Workflows. Provider-based OAuth authentication (such as billing through a Claude Teams or Claude Max subscription) is not supported. If you have set `CLAUDE_CODE_OAUTH_TOKEN` as a repository secret, it will be ignored — configure `ANTHROPIC_API_KEY` instead. For keyless authentication via Workload Identity Federation, see [Anthropic WIF](#anthropic-workload-identity-federation-wif) below.
 
-See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Claude with GitHub MCP.
+See also [AI Engines](/gh-aw/reference/engines/#built-in-ai-engines) for additional configuration needed when using Claude with GitHub MCP.
 
 ---
 
@@ -316,7 +323,7 @@ network:
 
 `AZURE_OPENAI_API_KEY` is a GitHub Actions repository secret you configure separately with `gh aw secrets set AZURE_OPENAI_API_KEY --value "<key>"`. Do not embed raw key values directly in the frontmatter.
 
-See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Codex with GitHub MCP.
+See also [AI Engines](/gh-aw/reference/engines/#built-in-ai-engines) for additional configuration needed when using Codex with GitHub MCP.
 
 ---
 
@@ -334,7 +341,7 @@ If using the Gemini by Google engine, you need to set a GitHub Actions secret `G
    gh aw secrets set GEMINI_API_KEY --value "YOUR_GEMINI_API_KEY"
    ```
 
-See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Gemini with GitHub MCP.
+See also [AI Engines](/gh-aw/reference/engines/#built-in-ai-engines) for additional configuration needed when using Gemini with GitHub MCP.
 
 ---
 

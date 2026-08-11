@@ -445,7 +445,7 @@ func buildMCPGatewayAllowedMountRoots(tools map[string]any, gatewayConfig *MCPGa
 	addRoot(constants.GhAwRootDirShell, "ro")
 	addRoot(constants.GhAwRootDirShell+"/safeoutputs", "rw")
 	addRoot("/tmp", "rw")
-	addRoot("/usr/bin/gh", "ro")
+	addRoot(constants.GhCLIPath, "ro")
 
 	if gatewayConfig != nil {
 		for _, mount := range gatewayConfig.Mounts {

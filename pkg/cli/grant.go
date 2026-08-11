@@ -160,6 +160,14 @@ func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, e
 	if err != nil {
 		return nil, err
 	}
+	containerPolicyPath, err = validateContainerMountPath(containerPolicyPath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid grant container policy path %q: %w", grantContainerPolicyPath, err)
+	}
+	grantImageRef, err := validateDockerImageRef(GrantImage)
+	if err != nil {
+		return nil, fmt.Errorf("invalid grant scanner image reference %q: %w", GrantImage, err)
+	}
 
 	dockerPath, err := fileutil.ResolveExecutablePath("docker")
 	if err != nil {
@@ -178,7 +186,7 @@ func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, e
 		"run",
 		"--rm",
 		"-v", volumeMount,
-		GrantImage,
+		grantImageRef,
 		"--config", containerPolicyPath,
 		"--output", "json",
 		"check",
@@ -191,7 +199,7 @@ func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, e
 			"run",
 			"--rm",
 			"-v", volumeMount,
-			GrantImage,
+			grantImageRef,
 			"--config", containerPolicyPath,
 			"--output", "json",
 			"check",

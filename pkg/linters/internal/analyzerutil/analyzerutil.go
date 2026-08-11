@@ -37,6 +37,8 @@ func Preorder(pass *analysis.Pass, nodeFilter []ast.Node, fn func(ast.Node)) (an
 	if err != nil {
 		return nil, err
 	}
-	insp.Preorder(nodeFilter, fn)
+	for cur := range insp.Root().Preorder(nodeFilter...) {
+		fn(cur.Node())
+	}
 	return nil, nil
 }
