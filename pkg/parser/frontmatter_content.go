@@ -251,7 +251,11 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 	var sectionLevel int
 
 	// Create regex pattern to match headers at any level (H1-H3) with flexible spacing
-	headerPattern := regexp.MustCompile(`^(#{1,3})[\s\t]+` + regexp.QuoteMeta(sectionName) + `[\s\t]*$`)
+	//nolint:regexpdynamicpattern // The section name is quoted, and compilation errors are returned to the caller.
+	headerPattern, err := regexp.Compile(`^(#{1,3})[\s\t]+` + regexp.QuoteMeta(sectionName) + `[\s\t]*$`)
+	if err != nil {
+		return "", fmt.Errorf("failed to compile markdown section pattern: %w", err)
+	}
 
 	for scanner.Scan() {
 		line := scanner.Text()
