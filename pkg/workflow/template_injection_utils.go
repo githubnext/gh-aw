@@ -51,15 +51,18 @@ type heredocPattern struct {
 // Matches both exact delimiters (EOF) and prefixed delimiters (GH_AW_SAFE_OUTPUTS_CONFIG_EOF).
 var heredocPatterns = func() []heredocPattern {
 	suffixes := []string{"EOF", "EOL", "END", "HEREDOC", "JSON", "YAML", "SQL"}
-	patterns := make([]heredocPattern, len(suffixes))
-	for i, suffix := range suffixes {
+	patterns := make([]heredocPattern, 0, len(suffixes))
+	for _, suffix := range suffixes {
 		// Pattern for quoted delimiter ending with suffix: << 'PREFIX_SUFFIX' or << "PREFIX_SUFFIX"
 		// \w* matches zero or more word characters (allowing both exact match and prefixes)
 		// (?ms) enables multiline and dotall modes, .*? is non-greedy
 		// \s*\w*%s\s*$ allows for leading/trailing whitespace on the closing delimiter
-		patterns[i] = heredocPattern{
-			quoted:   regexp.MustCompile(fmt.Sprintf(`(?ms)<<\s*['"]\w*%s['"].*?\n\s*\w*%s\s*$`, suffix, suffix)),
-			unquoted: regexp.MustCompile(fmt.Sprintf(`(?ms)<<\s*\w*%s.*?\n\s*\w*%s\s*$`, suffix, suffix)),
+		//nolint:regexpdynamicpattern // Suffixes are fixed internal values and compilation failures are skipped.
+		quoted, quotedErr := regexp.Compile(fmt.Sprintf(`(?ms)<<\s*['"]\w*%s['"].*?\n\s*\w*%s\s*$`, suffix, suffix))
+		//nolint:regexpdynamicpattern // Suffixes are fixed internal values and compilation failures are skipped.
+		unquoted, unquotedErr := regexp.Compile(fmt.Sprintf(`(?ms)<<\s*\w*%s.*?\n\s*\w*%s\s*$`, suffix, suffix))
+		if quotedErr == nil && unquotedErr == nil {
+			patterns = append(patterns, heredocPattern{quoted: quoted, unquoted: unquoted})
 		}
 	}
 	return patterns

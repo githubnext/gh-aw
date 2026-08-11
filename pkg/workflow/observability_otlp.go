@@ -15,7 +15,7 @@ import (
 
 var otlpLog = logger.New("workflow:observability_otlp")
 
-var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
+var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + constants.OTELSentryEndpointSecretName + `\s*\}\}$`)
 var otlpResourceAttributeSecretRefPattern = regexp.MustCompile(`\$\{\{\s*(secrets|vars)\.`)
 var otelServiceNameKeyPattern = regexp.MustCompile(`(?m)^\s*OTEL_SERVICE_NAME:`)
 

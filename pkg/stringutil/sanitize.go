@@ -165,7 +165,7 @@ func buildSanitizePreservePattern(opts *SanitizeOptions) string {
 func applySanitizePattern(result, allowedChars string, preserveSpecialChars bool) string {
 	pattern, ok := sanitizePatterns[allowedChars]
 	if !ok {
-		pattern = regexp.MustCompile(`[^` + allowedChars + `]+`)
+		pattern = sanitizePatterns["a-z0-9-"]
 	}
 	if preserveSpecialChars {
 		return pattern.ReplaceAllString(result, "-")
