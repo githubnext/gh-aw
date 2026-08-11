@@ -111,7 +111,7 @@ func generateDockerSbxCredentialRefreshStep() GitHubActionStep {
 func generateDockerSbxPreFlightStep() GitHubActionStep {
 	dockerSbxInstallLog.Print("Generating docker-sbx pre-flight smoke test step")
 	return GitHubActionStep([]string{
-		"      - name: docker-sbx pre-flight smoke test",
+		"      - name: Run docker-sbx pre-flight smoke test",
 		`        run: bash "${RUNNER_TEMP}/gh-aw/actions/docker_sbx_preflight.sh"`,
 	})
 }
