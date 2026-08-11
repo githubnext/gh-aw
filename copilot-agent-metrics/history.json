@@ -365,7 +365,28 @@
       "avg_agent_duration_minutes": 215,
       "success_rate": 0.841,
       "note": "rolling 24h window from 08-08 18:20Z; author app/copilot-swe-agent only; 1 of 45 PRs still open (<24h old); success_rate over 44 completed; avg_duration created->merged; 42 human issue comments across 45 PRs via per-PR REST API (16 PRs had >=1, top: #51446 with 11); success_rate up 68.2%->84.1% (+15.9pp), breaking the 3-day decline from 84.9% on 08-06; avg_duration up 150->215min (+43%); 5 of 7 closures were [WIP] placeholder closures (#51616,#51607,#51571,#51506,#51451), 2 closures had substantive bodies (#51572,#51563); no PRs open >24h"
+    },
+    {
+      "date": "2026-08-10",
+      "total_prs": 35,
+      "merged_prs": 28,
+      "closed_prs": 7,
+      "open_prs": 0,
+      "avg_agent_duration_minutes": 247,
+      "success_rate": 0.8,
+      "note": "gap-fill (workflow did not run on 08-10), calendar day (UTC) not rolling window; author app/copilot-swe-agent only; all 35 PRs resolved (0 open); avg_duration created->merged; comments not collected during backfill; none of the 7 closures were [WIP] placeholder text; success_rate down 84.1%->80% (-4.1pp, not significant); avg_duration up 215->247min (+15%)"
+    },
+    {
+      "date": "2026-08-11",
+      "total_prs": 49,
+      "merged_prs": 30,
+      "closed_prs": 8,
+      "open_prs": 11,
+      "avg_comments": 0.31,
+      "avg_agent_duration_minutes": 158,
+      "success_rate": 0.789,
+      "note": "rolling 24h window from 08-10 18:32Z; author app/copilot-swe-agent only; 11 of 49 PRs still open (all <24h old); success_rate over 38 completed; avg_duration created->merged; 15 human issue comments across 49 PRs via per-PR REST API (11 PRs had >=1, top #52050 with 3); success_rate roughly stable 80%->78.9% (-1.1pp); avg_duration down sharply 247->158min (-36%); 3 of 8 closures were [WIP] placeholder closures (#52049,#51903,#51894), other 5 had substantive bodies; note some PR overlap with 08-10 window near the 18:32Z boundary due to backfill using calendar-day windowing; no PRs open >24h"
     }
   ],
-  "last_updated": "2026-08-09"
+  "last_updated": "2026-08-11"
 }
