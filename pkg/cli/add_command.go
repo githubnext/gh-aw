@@ -82,6 +82,8 @@ type AddOptions struct {
 	// the workflow frontmatter, enabling GitHub Actions token auth for Copilot.
 	// Set by the add-wizard when the user selects org-billing auth instead of a PAT.
 	AddCopilotRequestsPermission bool
+	// initializedFiles contains files created by add-wizard after its clean-tree check.
+	initializedFiles []string
 }
 
 // AddWorkflowsResult contains the result of adding workflows
@@ -262,7 +264,7 @@ func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolve
 		}
 
 		// Check no other changes are present
-		if err := checkCleanWorkingDirectory(opts.Verbose); err != nil {
+		if err := checkCleanWorkingDirectoryIgnoring(opts.Verbose, opts.initializedFiles); err != nil {
 			return nil, fmt.Errorf("working directory is not clean: %w", err)
 		}
 	}

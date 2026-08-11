@@ -462,6 +462,51 @@ func TestEnsureAddRepositoryInitialized(t *testing.T) {
 	})
 }
 
+// TestEnsureAddRepositoryInitializedWithDetails_AbsolutePaths verifies that
+// ensureAddRepositoryInitializedWithDetails returns absolute paths for files
+// that were actually written by init, and skips files that init deliberately
+// does not create (e.g. .gitattributes when --no-gitattributes is used).
+func TestEnsureAddRepositoryInitializedWithDetails_AbsolutePaths(t *testing.T) {
+	repoDir := t.TempDir()
+
+	originalFindGitRoot := addFindGitRoot
+	originalInitRepository := addInitRepository
+	originalMissingInitMarkers := addMissingInitMarkers
+	t.Cleanup(func() {
+		addFindGitRoot = originalFindGitRoot
+		addInitRepository = originalInitRepository
+		addMissingInitMarkers = originalMissingInitMarkers
+	})
+
+	// Use a marker whose isBootstrapInitMarkerSatisfied check uses the default
+	// branch (file exists and size > 0), so the test does not need to reproduce
+	// marker-specific content such as a SKILL.md or MCP config.
+	writtenMarker := ".vscode/settings.json"
+	skippedMarker := ".gitattributes"
+
+	addFindGitRoot = func() (string, error) { return repoDir, nil }
+	addMissingInitMarkers = func(string, string) ([]string, error) {
+		return []string{writtenMarker, skippedMarker}, nil
+	}
+	addInitRepository = func(InitOptions) error {
+		// Simulate init: create the settings.json marker but skip .gitattributes.
+		p := filepath.Join(repoDir, filepath.FromSlash(writtenMarker))
+		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			return err
+		}
+		return os.WriteFile(p, []byte(`{}`), 0644)
+	}
+
+	files, err := ensureAddRepositoryInitializedWithDetails("", false, true)
+	require.NoError(t, err)
+
+	// Only the actually-written file should be returned.
+	require.Len(t, files, 1)
+	// The returned path must be absolute.
+	require.True(t, filepath.IsAbs(files[0]), "expected absolute path, got %q", files[0])
+	require.Equal(t, filepath.Join(repoDir, filepath.FromSlash(writtenMarker)), files[0])
+}
+
 func TestAddResolvedWorkflows_IgnoresBootstrapRequireOwnerTypeDuringInstall(t *testing.T) {
 	originalCheckOwnerType := bootstrapCheckOwnerType
 	t.Cleanup(func() {
