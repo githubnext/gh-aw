@@ -239,6 +239,7 @@ var mcpSchemaTopLevelFields = map[string]bool{
 	"network":        true,
 	"allowed":        true,
 	"version":        true,
+	"required":       true,
 }
 
 // buildSchemaMCPConfig extracts only the fields defined in mcp_config_schema.json

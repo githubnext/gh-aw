@@ -70,7 +70,7 @@ Returns a JSON array where each element has the following structure:
 
 // compileArgs holds the input parameters for the compile tool.
 type compileArgs struct {
-	Workflows   []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
+	Workflows   []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile as an array (e.g., [\"workflow.md\"]) (empty for all)"`
 	Strict      bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows. Note: Workflows default to strict mode unless frontmatter sets strict: false"`
 	Zizmor      bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
 	Poutine     bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`

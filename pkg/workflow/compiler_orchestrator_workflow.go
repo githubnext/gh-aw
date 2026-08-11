@@ -234,7 +234,7 @@ func (c *Compiler) populateWorkflowBuildContext(ctx *workflowBuildContext) error
 }
 
 func (c *Compiler) attachSharedActionResolver(workflowData *WorkflowData) {
-	actionCache, actionResolver := c.getSharedActionResolver()
+	actionCache, actionResolver := c.ensureSharedActionCacheAndResolver()
 	workflowData.Ctx = c.ctx
 	workflowData.ActionCache = actionCache
 	workflowData.ActionResolver = actionResolver

@@ -118,6 +118,7 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 		requestedTimeout int
 		count            int
 		workflowName     string
+		engine           string
 		want             int
 	}{
 		{
@@ -176,6 +177,24 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 			workflowName:     "my-workflow",
 			want:             3,
 		},
+		// Engine-filtering cases: minimum 5 minutes when an engine filter is given,
+		// regardless of whether workflow_name is also present.
+		{
+			name:             "engine filtering with named workflow uses all-workflow minimum",
+			requestedTimeout: 0,
+			count:            2,
+			workflowName:     "my-workflow",
+			engine:           "claude",
+			want:             defaultMCPLogsMinTimeoutMinutesAllWorkflows,
+		},
+		{
+			name:             "engine filtering without workflow name also uses all-workflow minimum",
+			requestedTimeout: 0,
+			count:            2,
+			workflowName:     "",
+			engine:           "claude",
+			want:             defaultMCPLogsMinTimeoutMinutesAllWorkflows,
+		},
 		// All-workflow cases: minimum 5 minutes when no workflow_name is given
 		{
 			name:             "small count uses all-workflow minimum (no workflow name)",
@@ -224,8 +243,8 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := effectiveMCPLogsToolTimeoutMinutes(tt.requestedTimeout, tt.count, tt.workflowName); got != tt.want {
-				t.Errorf("effectiveMCPLogsToolTimeoutMinutes(%d, %d, %q) = %d, want %d", tt.requestedTimeout, tt.count, tt.workflowName, got, tt.want)
+			if got := effectiveMCPLogsToolTimeoutMinutes(tt.requestedTimeout, tt.count, tt.workflowName, tt.engine); got != tt.want {
+				t.Errorf("effectiveMCPLogsToolTimeoutMinutes(%d, %d, %q, %q) = %d, want %d", tt.requestedTimeout, tt.count, tt.workflowName, tt.engine, got, tt.want)
 			}
 		})
 	}
