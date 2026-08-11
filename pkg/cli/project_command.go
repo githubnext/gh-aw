@@ -355,17 +355,17 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 	// Extract project data
 	data, ok := response["data"].(map[string]any)
 	if !ok {
-		return nil, errors.New("response is missing the 'data' field. Expected a GraphQL payload with data.createProjectV2.projectV2. Example: {\"data\":{\"createProjectV2\":{\"projectV2\":{\"id\":\"PVT_id\",\"number\":123}}}}")
+		return nil, errors.New("response is missing the 'data' field. Expected the GitHub GraphQL mutation payload to include data.createProjectV2.projectV2. Example: run 'gh auth status' to verify token scopes, then retry the command")
 	}
 
 	createResult, ok := data["createProjectV2"].(map[string]any)
 	if !ok {
-		return nil, errors.New("response is missing the 'createProjectV2' field. Expected data.createProjectV2.projectV2 in the GraphQL payload. Example: {\"data\":{\"createProjectV2\":{\"projectV2\":{\"id\":\"PVT_id\",\"number\":123}}}}")
+		return nil, errors.New("response is missing the 'createProjectV2' field. Expected the GitHub GraphQL mutation payload to include data.createProjectV2.projectV2. Example: run 'gh auth status' to verify token scopes, then retry the command")
 	}
 
 	project, ok := createResult["projectV2"].(map[string]any)
 	if !ok {
-		return nil, errors.New("response is missing the 'projectV2' field. Expected data.createProjectV2.projectV2 in the GraphQL payload. Example: {\"data\":{\"createProjectV2\":{\"projectV2\":{\"id\":\"PVT_id\",\"number\":123}}}}")
+		return nil, errors.New("response is missing the 'projectV2' field. Expected the GitHub GraphQL mutation payload to include data.createProjectV2.projectV2. Example: run 'gh auth status' to verify token scopes, then retry the command")
 	}
 
 	console.LogVerbose(verbose, fmt.Sprintf("✓ Project created: #%v", project["number"]))

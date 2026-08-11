@@ -364,7 +364,7 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 
 		err := validateSandboxConfig(workflowData)
 		require.Error(t, err, "out-of-range allow-host-ports should fail validation")
-		assert.Contains(t, err.Error(), "invalid allow-host-ports value: 0")
+		assert.Contains(t, err.Error(), "allow-host-ports value 0 is out of range")
 		assert.Contains(t, err.Error(), "Example: allow-host-ports: [5432]")
 	})
 

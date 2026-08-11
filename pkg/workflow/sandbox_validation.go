@@ -66,7 +66,7 @@ func validateMountsSyntax(mounts []string) error {
 				fmt.Sprintf("Provide a valid destination path.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
 			)
 		default:
-			return fmt.Errorf("sandbox mount validation kind %d for mount %q is not supported. Expected one of the known sandbox mount validation kinds. Example: \"/host/path:/container/path:ro\"", kind, mount)
+			return fmt.Errorf("internal error: sandbox mount validation kind %d for mount %q is not supported. Expected one of: invalid-format, too-few-parts, too-many-parts, empty-host-path, empty-destination. Example: \"/host/path:/container/path:ro\"", kind, mount)
 		}
 	})
 }
@@ -532,10 +532,10 @@ func validateAgentMemoryLimit(memory string) error {
 func validateAllowHostPorts(ports []int) error {
 	for _, port := range ports {
 		if port < minPort || port > maxPort {
-			return fmt.Errorf("invalid allow-host-ports value: %d. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [5432]", port)
+			return fmt.Errorf("allow-host-ports value %d is out of range. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [5432]", port)
 		}
 		if service, dangerous := awfDangerousHostPorts[port]; dangerous {
-			return fmt.Errorf("allow-host-ports value %d targets blocked service port %s. Expected allow-host-ports to include only non-dangerous TCP ports, or to expose blocked service ports through services with a port mapping. Example:\nsandbox:\n  agent:\n    legacy-security: true\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", port, service)
+			return fmt.Errorf("allow-host-ports value %d maps to blocked service %s. Expected blocked service ports to be removed from allow-host-ports because they remain unreachable there, even with legacy-security. Example:\n# Do not list blocked service ports under allow-host-ports\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", port, service)
 		}
 	}
 	return nil
@@ -543,13 +543,13 @@ func validateAllowHostPorts(ports []int) error {
 
 func getSandboxDisableJustification(workflowData *WorkflowData) (string, error) {
 	if workflowData == nil || workflowData.Features == nil {
-		return "", errors.New("dangerously-disable-sandbox-agent feature is missing. Expected a non-empty string justification under features when sandbox.agent is false. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"")
+		return "", errors.New("features block is missing dangerously-disable-sandbox-agent configuration. Expected a non-empty string justification under features when sandbox.agent is false. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"")
 	}
 
 	flagName := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
 	value, found := getFeatureValueCaseInsensitive(workflowData.Features, flagName)
 	if !found {
-		return "", errors.New("dangerously-disable-sandbox-agent feature is missing. Expected a non-empty string justification under features when sandbox.agent is false. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"")
+		return "", errors.New("dangerously-disable-sandbox-agent key is missing from features. Expected a non-empty string justification under features when sandbox.agent is false. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"")
 	}
 
 	justification, ok := value.(string)
