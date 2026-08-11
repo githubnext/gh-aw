@@ -13,7 +13,7 @@ import (
 
 var piLog = logger.New("workflow:pi_engine")
 
-// PiEngine represents the Pi AI coding agent (experimental).
+// PiEngine represents the Pi AI coding agent.
 // Pi is a provider-agnostic agentic coding assistant that communicates via stdin/stdout
 // and emits a streaming JSONL log for structured event capture.  When engine.model uses
 // provider/model format (e.g. "copilot/claude-sonnet-4-20250514"), Pi borrows the
@@ -38,8 +38,8 @@ func NewPiEngine() *PiEngine {
 		BaseEngine: BaseEngine{
 			id:               "pi",
 			displayName:      "Pi",
-			description:      "Pi AI coding agent (experimental)",
-			experimental:     true,
+			description:      "Pi AI coding agent",
+			experimental:     false,
 			ghSkillAgentName: "pi",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,

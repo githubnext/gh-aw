@@ -16,7 +16,7 @@ func TestNewPiEngine(t *testing.T) {
 	require.NotNil(t, engine, "NewPiEngine should return a non-nil engine")
 	assert.Equal(t, "pi", engine.GetID(), "Engine ID should be 'pi'")
 	assert.Equal(t, "Pi", engine.GetDisplayName(), "Display name should be 'Pi'")
-	assert.True(t, engine.IsExperimental(), "Pi engine should be experimental")
+	assert.False(t, engine.IsExperimental(), "Pi engine should not be experimental")
 	capabilities := engine.GetCapabilities()
 	assert.True(t, capabilities.ToolsAllowlist, "Pi should support tools allowlist (needed for gh-proxy/cli-proxy settings)")
 	assert.False(t, capabilities.MCP, "Pi should not support MCP directly")

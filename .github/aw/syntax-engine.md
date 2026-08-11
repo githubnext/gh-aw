@@ -7,7 +7,7 @@ description: `engine:` frontmatter field detail for GitHub Agentic Workflows.
 See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
 
 - **`engine:`** - AI processor configuration
-  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or the experimental `"pi"`
+  - String format: `"copilot"` (default, recommended), `"claude"`, `"codex"`, `"gemini"`, or `"pi"`
   - The experimental `opencode` engine is available through `imports: [shared/opencode.md]`; see [`smoke-opencode.md`](../workflows/smoke-opencode.md) for an example.
   - The experimental `cursor` engine is available through `imports: [shared/cursor.md]`; see [`smoke-cursor.md`](../workflows/smoke-cursor.md) for an example. Requires the `CURSOR_API_KEY` secret. Cursor reads project rules from `.cursor/rules/*.mdc` and respects the root-level `.cursorignore` and `AGENTS.md`; both are protected in the manifest. Use `model: cursor/auto` or a specific model such as `cursor/claude-3-7-sonnet`.
   - The experimental `kiro` engine is available through `imports: [shared/kiro.md]`; see [`smoke-kiro.md`](../workflows/smoke-kiro.md) for an example. Requires the `KIRO_API_KEY` secret. Kiro reads steering documents from `.kiro/steering/` and hook definitions from `.kiro/hooks/`; these directories and `AGENTS.md` are protected in the manifest. Model must use `kiro/` prefix, e.g. `model: kiro/claude-sonnet-4-5`.
@@ -15,7 +15,7 @@ See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
 
     ```yaml
     engine:
-      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini; experimental: pi)
+      id: copilot                       # Required: coding agent identifier (copilot, claude, codex, gemini, pi)
       version: beta                     # Optional: version of the action (has sensible default); also accepts GitHub Actions expressions: ${{ inputs.engine-version }}
       model: gpt-5                      # Deprecated alias for the top-level `model`; prefer the top-level field
       permission-mode: acceptEdits      # Optional (claude only): auto | acceptEdits | plan | bypassPermissions. Default: acceptEdits (auto when tools.edit is false)
