@@ -136,17 +136,11 @@ func TestCopilotEngineRipgrepInstallStepSkipsAptWhenAvailable(t *testing.T) {
 	if !strings.Contains(ripgrepStep, "name: Install ripgrep") {
 		t.Fatalf("Expected first install step to install ripgrep, got:\n%s", ripgrepStep)
 	}
-	if !strings.Contains(ripgrepStep, "if command -v rg >/dev/null 2>&1; then") {
-		t.Fatalf("Expected ripgrep install step to probe for rg before apt, got:\n%s", ripgrepStep)
+	if !strings.Contains(ripgrepStep, `bash "${RUNNER_TEMP}/gh-aw/actions/install_ripgrep.sh"`) {
+		t.Fatalf("Expected ripgrep install step to call install_ripgrep.sh, got:\n%s", ripgrepStep)
 	}
-	if !strings.Contains(ripgrepStep, "rg --version") {
-		t.Fatalf("Expected ripgrep install step to print existing rg version, got:\n%s", ripgrepStep)
-	}
-	if !strings.Contains(ripgrepStep, "else\n            sudo apt-get update -qq\n            sudo apt-get install -y -qq ripgrep") {
-		t.Fatalf("Expected apt install only in missing-rg fallback branch, got:\n%s", ripgrepStep)
-	}
-	if strings.Contains(ripgrepStep, "sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep") {
-		t.Fatalf("Expected no unconditional apt install one-liner, got:\n%s", ripgrepStep)
+	if strings.Contains(ripgrepStep, "apt-get") {
+		t.Fatalf("Expected no inline apt install logic in generated workflow step, got:\n%s", ripgrepStep)
 	}
 }
 

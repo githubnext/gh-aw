@@ -187,13 +187,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 func generateRipgrepInstallStep() GitHubActionStep {
 	return GitHubActionStep([]string{
 		"      - name: Install ripgrep",
-		"        run: |",
-		"          if command -v rg >/dev/null 2>&1; then",
-		"            rg --version",
-		"          else",
-		"            sudo apt-get update -qq",
-		"            sudo apt-get install -y -qq ripgrep",
-		"          fi",
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_ripgrep.sh\"",
 	})
 }
 
