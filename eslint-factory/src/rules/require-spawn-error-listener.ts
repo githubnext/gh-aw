@@ -47,7 +47,7 @@ function isSpawnBinding(identifierName: string, scopeNode: TSESTree.Node, source
           declarator.init?.type === AST_NODE_TYPES.LogicalExpression &&
           (declarator.init.operator === "??" || declarator.init.operator === "||") &&
           declarator.init.right.type === AST_NODE_TYPES.Identifier &&
-          isSpawnBinding(declarator.init.right.name, declarator.init.right, sourceCode, seenVariables)
+          isSpawnBinding(declarator.init.right.name, declarator, sourceCode, seenVariables)
         ) {
           return true;
         }
