@@ -88,4 +88,16 @@ describe("require-spawn-error-listener", () => {
       invalid: [],
     });
   });
+
+  it("reports an error listener attached only in a conditional branch", () => {
+    cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
+      valid: [`const { spawn } = require("child_process"); if (verbose) { const child = spawn("ls", []); child.on("error", err => { console.log(err); }); }`],
+      invalid: [
+        {
+          code: `const { spawn } = require("child_process"); const child = spawn("ls", []); if (verbose) { child.on("error", err => { console.log(err); }); }`,
+          errors: [{ messageId: "missingErrorListener" }],
+        },
+      ],
+    });
+  });
 });
