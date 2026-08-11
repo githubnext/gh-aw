@@ -7,22 +7,22 @@ import (
 )
 
 // bad: panic in a pkg/ package.
-func riskyFunction() {
+func panicWithStringLiteral() {
 	panic("something went wrong") // want `avoid panic in library code; return an error instead`
 }
 
 // bad: panic with a value
-func anotherRiskyFunction() {
+func panicWithErrorValue() {
 	panic(errors.New("error")) // want `avoid panic in library code; return an error instead`
 }
 
 // bad: panic with fmt.Sprintf that does not start with BUG:
-func yetAnotherRiskyFunction(n int) {
+func panicWithFormattedMessage(n int) {
 	panic(fmt.Sprintf("unexpected value: %d", n)) // want `avoid panic in library code; return an error instead`
 }
 
 // ok: function that returns an error instead of panicking.
-func safeFunction() error {
+func returnNilErrorInsteadOfPanicking() error {
 	return nil
 }
 
@@ -33,7 +33,7 @@ func (m myType) panic(msg string) {
 	// This is a custom method, not builtin panic
 }
 
-func callCustomPanic() {
+func callCustomPanicMethod() {
 	m := myType{}
 	m.panic("this is ok") // Should not be flagged
 }
@@ -53,7 +53,7 @@ func init() {
 // ok: panic inside a sync.Once.Do callback.
 var once sync.Once
 
-func allowedSyncOncePanic() {
+func panicInsideSyncOnceDoCallback() {
 	once.Do(func() {
 		panic("lazy init failure") // should not be flagged
 	})
@@ -69,7 +69,7 @@ var onceFunc = sync.OnceFunc(func() {
 })
 
 // ok: panic whose message starts with "BUG:" — invariant violation.
-func allowedBUGPanic() {
+func panicWithBUGPrefix() {
 	panic(fmt.Sprintf("BUG: unreachable: %v", errors.New("boom"))) // should not be flagged
 }
 
@@ -87,8 +87,8 @@ func documentedPreconditionPanics(mode string) {
 	}
 }
 
-// documentedClosureRegistration panics if called with an empty input.
-func documentedClosureRegistration(input string) {
+// registerDocumentedClosureThatPanics panics if called with an empty input.
+func registerDocumentedClosureThatPanics(input string) {
 	callback := func() {
 		panic("callback panic should be reported") // want `avoid panic in library code; return an error instead`
 	}
@@ -99,15 +99,15 @@ func documentedClosureRegistration(input string) {
 // ok: method named init is NOT a top-level init; its panic should be flagged.
 type myInitType struct{}
 
-func (m myInitType) init() {
+func (m myInitType) panicInMethodNamedInit() {
 	panic("method init panic") // want `avoid panic in library code; return an error instead`
 }
 
-func nolintPreviousLineSuppressed() {
+func panicSuppressedByPreviousLineNolint() {
 	//nolint:panicinlibrarycode
 	panic("intentional panic for compatibility")
 }
 
-func nolintSameLineSuppressed() {
+func panicSuppressedBySameLineNolint() {
 	panic("intentional panic for compatibility") //nolint:panicinlibrarycode
 }
