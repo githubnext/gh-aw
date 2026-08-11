@@ -1566,6 +1566,45 @@ func TestRepoMemoryFormatJSONPushStepEnvVar(t *testing.T) {
 	})
 }
 
+func TestRepoMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"branch-name": "memory/notes",
+			"validation": map[string]any{
+				"script":  "if (!fs.existsSync(path.join(memoryRoot, 'state.json'))) throw new Error('missing state');",
+				"timeout": 7,
+			},
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err)
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "")
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	require.Len(t, config.Memories, 1)
+	require.NotNil(t, config.Memories[0].Validation)
+	assert.Equal(t, 7, config.Memories[0].Validation.Timeout)
+	assert.Contains(t, config.Memories[0].Validation.Script, "missing state")
+
+	data := &WorkflowData{RepoMemoryConfig: config}
+	var upload strings.Builder
+	generateRepoMemoryArtifactUpload(&upload, data, getActionPin)
+	uploadYAML := upload.String()
+	assert.Contains(t, uploadYAML, "Validate repo-memory domain content (default)")
+	assert.Contains(t, uploadYAML, "VALIDATION_SCRIPT_B64:")
+	assert.Contains(t, uploadYAML, "steps.validate_repo_memory_default.outcome == 'success'")
+
+	pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
+	require.NoError(t, err)
+	require.NotNil(t, pushJob)
+	pushYAML := strings.Join(pushJob.Steps, "\n")
+	assert.Contains(t, pushYAML, "VALIDATION_SCRIPT_B64:")
+	assert.Contains(t, pushYAML, "VALIDATION_TIMEOUT_SECONDS: 7")
+}
+
 // TestValidateFileGlobPatterns tests the validateFileGlobPatterns function
 func TestValidateFileGlobPatterns(t *testing.T) {
 	tests := []struct {
