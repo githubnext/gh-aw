@@ -45,6 +45,30 @@ GATEWAY_CONFIG_PATH="$1"
 GATEWAY_URL="$2"
 GATEWAY_API_KEY="$3"
 
+# Optional comma-separated list of non-critical server names. The gateway output
+# does not echo the `required` flag from the input configuration, so the caller
+# forwards the names of servers declared with `required: false` here.
+OPTIONAL_SERVERS="${GH_AW_MCP_OPTIONAL_SERVERS:-}"
+
+# is_optional_server NAME → 0 when the server is declared non-critical
+is_optional_server() {
+  local name="$1"
+  local entry
+  local remaining="$OPTIONAL_SERVERS"
+  [ -z "$remaining" ] && return 1
+  while [ -n "$remaining" ]; do
+    entry="${remaining%%,*}"
+    if [ "$entry" = "$name" ]; then
+      return 0
+    fi
+    if [ "$remaining" = "$entry" ]; then
+      break
+    fi
+    remaining="${remaining#*,}"
+  done
+  return 1
+}
+
 # Start overall timing
 SCRIPT_START_TIME=$(date +%s%3N)
 
@@ -106,10 +130,13 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
 
-  # Check whether server is marked optional in configuration JSON.
+  # Check whether server is marked optional in configuration JSON or via the
+  # GH_AW_MCP_OPTIONAL_SERVERS environment variable.
   # Servers are required by default; set required: false to degrade failures to warnings.
   REQUIRED=true
   if echo "$SERVER_CONFIG" | jq -e '.required == false' >/dev/null 2>&1; then
+    REQUIRED=false
+  elif is_optional_server "$SERVER_NAME"; then
     REQUIRED=false
   fi
   
@@ -232,7 +259,7 @@ while IFS= read -r SERVER_NAME; do
       echo "✗ $SERVER_NAME: failed to connect (required)"
       REQUIRED_SERVERS_FAILED=$((REQUIRED_SERVERS_FAILED + 1))
     else
-      echo "⚠ $SERVER_NAME: failed to connect (optional)"
+      echo "⚠ $SERVER_NAME: non-critical MCP server unavailable, continuing without it"
     fi
     echo "  URL: ${SERVER_URL@Q}"
     echo "  Last error: ${LAST_ERROR@Q}"

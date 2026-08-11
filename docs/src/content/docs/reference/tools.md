@@ -195,7 +195,21 @@ mcp-servers:
     allowed: ["send_message", "get_channel_history"]
 ```
 
-**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `registry` (MCP registry URI), `env` (environment variables), `allowed` (tool restrictions). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
+**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `registry` (MCP registry URI), `env` (environment variables), `allowed` (tool restrictions), `required` (startup criticality). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
+
+### Required Field
+
+MCP servers must pass a startup connectivity check before the agent starts. By default every server is startup-critical: if it cannot be reached, the workflow fails. Set `required: false` to mark a server as best-effort, so an unreachable server logs a warning and the workflow continues without it:
+
+```yaml wrap
+mcp-servers:
+  datadog:
+    type: http
+    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    required: false
+```
+
+Use this for optional integrations whose transient outages (for example an HTTP 503 from a hosted endpoint) should not take down the other configured servers. At least one server must still connect successfully for startup to proceed.
 
 ### Registry Field
 

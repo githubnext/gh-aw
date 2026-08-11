@@ -2,6 +2,7 @@
 mcp-servers:
   datadog:
     url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=core"
+    required: false
     headers:
       DD_API_KEY: "${{ secrets.DD_API_KEY }}"
       DD_APPLICATION_KEY: "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}"
@@ -61,6 +62,11 @@ Regional Sites:
 Example Usage:
   Search for error logs in the web-app service from the last hour and 
   summarize the most common errors.
+#
+Criticality:
+  This server is declared with `required: false`, so a failed startup connectivity
+  check (for example an HTTP 503 from the Datadog endpoint) logs a warning and the
+  workflow continues without Datadog instead of aborting the whole MCP gateway.
 #
 Connection Type:
   This configuration uses the official remote HTTP MCP server. Authentication is handled via HTTP headers, and the URL pins the generally available `core` toolset to keep the tool surface narrow.

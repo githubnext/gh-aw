@@ -128,16 +128,16 @@ func effectiveMCPLogsToolCount(count int) int {
 	return defaultMCPLogsToolCount
 }
 
-func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int, workflowName string) int {
+func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int, workflowName, engine string) int {
 	if requestedTimeout > 0 {
 		return min(requestedTimeout, maxMCPLogsSubprocessTimeoutMinutes)
 	}
 
 	base := defaultMCPLogsToolTimeoutMinutesForCount(count)
-	if workflowName == "" {
-		// Without a workflow filter the GitHub API must scan all workflow runs, which
-		// is substantially slower for large repositories.  Apply a higher minimum so
-		// the tool is less likely to exhaust the MCP gateway's per-tool timeout.
+	if workflowName == "" || engine != "" {
+		// Without a workflow filter, or when filtering by engine, the CLI scans runs
+		// across workflows and reads their artifacts. Apply a higher minimum so the
+		// tool is less likely to exhaust the MCP gateway's per-tool timeout.
 		return max(defaultMCPLogsMinTimeoutMinutesAllWorkflows, base)
 	}
 	return base
@@ -280,7 +280,7 @@ from where the previous request stopped due to timeout.`,
 
 		// Scale the implicit MCP timeout with the requested fetch window so
 		// larger fleet-wide requests do not hit the default per-tool timeout.
-		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount, args.WorkflowName)
+		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount, args.WorkflowName, args.Engine)
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
 
 		// Always use --json mode in MCP server

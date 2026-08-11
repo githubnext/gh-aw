@@ -1,0 +1,26 @@
+# Empty Tool Name Denial — Compliance Fixture
+# Spec: §4.5.3 Tool selection
+
+fixture_id: "empty-tool-name-deny"
+description: >
+  A request with an empty tool name MUST be denied when `allowed-tools` is non-empty.
+
+spec_refs:
+  - "§4.5.3 — P1_ToolAllowed is evaluated first"
+
+scenarios:
+  - scenario_id: "empty-tool-name-deny"
+    description: "Empty tool name is not present in a non-empty allowed-tools list"
+    input:
+      tool_config:
+        repos:
+          - "*/*"
+        allowed-tools:
+          - "issue_read"
+      request:
+        repository: "example/repo"
+        tool_name: ""
+    expected:
+      decision: deny
+      error_code: -32001
+      reason: "tool not in allowed-tools list"
