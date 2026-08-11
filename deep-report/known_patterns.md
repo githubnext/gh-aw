@@ -1,26 +1,27 @@
-## DeepReport Memory (2026-08-10T15:00:00Z)
+## DeepReport Memory (2026-08-11T14:57:00Z)
 
-### Meta: path/persistence fix applied this cycle
-Previous memory (read from the old `memory/deep-report/` path) was frozen at 2026-04-03 despite claims in #51116 (2026-08-07) of a fix. Root cause confirmed: `.github/workflows/deep-report.md` writes to a two-level-deep path (`memory/deep-report/`) which the slashless `file-glob: ["*.md"]` pattern silently drops (matches only one level deep). Issue #51172 diagnosed this correctly on 2026-08-07 but was closed with no linked merged PR — the source file is still unfixed as of 2026-08-10. This cycle writes to the corrected one-level path (`deep-report/`) as a workaround; filed issue "Actually land the DeepReport repo-memory path fix from #51172" to fix the source file itself. See `flagged_items.md`.
+### Meta: path/persistence fix holding
+Repo-memory files written to the corrected one-level path (`deep-report/`) on 2026-08-10 were still present and readable at the start of this cycle (2026-08-11). The workaround is stable. The underlying source-file fix (`.github/workflows/deep-report.md` writing to the wrong two-level path) does not yet appear landed — no merged-PR evidence found this cycle either — so the issue filed 2026-08-10 to fix it for real should stay open until a PR SHA can be cited.
 
-### Systemic pattern discovered this cycle (headline finding)
-5 independent recurring bugs have each been closed as "fixed" 1-7+ times without the underlying defect resolving, confirmed via fresh reports on 2026-08-10:
-1. DeepReport repo-memory persistence (above).
-2. Copilot Session Insights conversation transcripts — 44+ consecutive days at 0 files (6 prior closures since Feb).
-3. Firewall/MCP raw log retention — 0.0% coverage today (6 prior closures since Feb, most recently #51111 on 2026-08-07).
-4. Quick Start docs jargon (frontmatter/engine/safe-outputs undefined) — flagged again today (7+ prior closures since April).
-5. Quick Start engine-choice guidance — flagged again today (6 prior closures).
-Filed a process issue proposing a "verified-merged-evidence" gate before closing this class of issue.
+### Headline finding this cycle: fleet-wide agent-job failure rate spiked to 49%
+Safe Output Health Monitor (#51935, 2026-08-11) audited all 210 runs in its 24h window and found the `safe_outputs` job itself perfectly healthy (0 failures) but flagged — explicitly out of its own scope — that 103/210 runs (49.0%) had an `agent`-job failure (`Execute Claude Code CLI`/`Execute GitHub Copilot CLI`/`Ingest agent output` steps). This is a large jump from the 2026-08-10 cycle's 10% driver-exit sample (50 runs). Cross-referenced against the same-day Agent Performance Report (#52052): several individual workflows already show high failure rates (PR Sous Chef 84% fail, Issue Monster 80% fail, Contribution Check 67% fail, several at 100% fail with ≥2 runs) plus a known P0 Copilot CLI segfault (#51789) — these could explain a large chunk of the 49% without necessarily being a new fleet-wide regression, but no one has actually done that reconciliation. Filed an issue to investigate/attribute the 49% figure since the monitor that found it explicitly said it's outside its mandate and no owner exists.
 
-### Fleet health (from cross-referenced discussions, 2026-08-09/10)
-- Agentic Workflow Audit (#51643, window 08-08→08-09): 323 runs, 96.6% raw / 96.9% adjusted success (excl. 2 intentional-failure stress tests). 34-day gap since prior audit (07-06) — now resolved (audit ran again).
-- Safe Output Health (#51688): 202 runs, safe_outputs job 98.4% success of attempted (184/187); sole cluster (`resolve_pull_request_review_thread` stale node ID, PR Sous Chef) already fixed same-day via commit 59c283e / PR #51630.
-- Fresh 50-run logs sample (this cycle, 2026-08-09→10): 5/50 (10%) driver_exit_failures across claude/codex/copilot/pi/goose — consistent with the audit's reconfirmed cross-engine `copilot-sdk-driver-failures` known issue; not re-filed (chronic, broader root-cause effort per prior cycle's judgment).
-- Open P0 today: #51789 Copilot CLI harness segfault (exit 139) killing Agent Performance Analyzer — already tracked, not duplicated.
-- Issues: 500-sample window (7d) — 134 open / 366 closed. Top labels: agentic-workflows (210), automation (176), cookie (114), testing (55), code-quality (38).
+### New concrete/actionable findings this cycle (all filed as issues, dedup-checked against open issues first)
+1. `strict:` mode docs in `frontmatter.md` describe the opposite of actual behavior (schema + compiler agree `strict` is the stronger security mode; docs imply the reverse) — schema-consistency #51954.
+2. `user-rate-limit.events` schema enum omits `repository_dispatch`, which the compiler already treats as a valid inferred trigger — schema-consistency #51954.
+3. README's automated agent-bootstrap block never passes `--engine claude`, silently producing Copilot-oriented artifacts for Claude Code users; `CLAUDE_CODE_OAUTH_TOKEN` unsupported-ness is buried in one note — claude-code-user-docs-review #52047.
+4. `JobStep`/`JobStepData` are byte-identical duplicate structs in `pkg/cli` requiring manual conversion — typist #52015.
+5. `AccessLogEntry`/`FirewallLogEntry`/`AuditLogEntry`/`GatewayLogEntry` are 4 independent structs modeling the same "parsed log line" concept with no shared base — typist #52015.
+6. `pkg/workflow/compiler_types.go` (55 top-level functions, 900+ LOC) mixes `CompilerOption` builders with `*Compiler` runtime mutators — two concerns, one file, on a high-churn package — repository-quality #52059.
+7. Fleet-wide 49% agent-job failure rate (above) — safe-output-health #51935.
 
-### Active/fresh findings this cycle
-- Detection Analysis (#51652): "Q" and "ESLint Monster" missing `gh-aw-detection: true` — filed.
-- Audit-workflows' own `recommendations.json`/`workflow-trends.json` stuck at 2026-07-06 snapshot due to minified-JSON patch-size reverts — filed (reformat to indent=2).
-- Typist (#51765): codebase type-safety strong overall (0 unintentional dup types, ~0 raw interface{}); tiny doc-comment gap on 2 wasm files — filed.
-- Security Observability (#51613): PR Code Quality Reviewer responsible for 32/38 fleet-wide firewall blocks (`api.individual.githubcopilot.com`) — commented on related open issue #51802 rather than filing a dup.
+### Chronic lineages — status check this cycle (not re-filed, per prior cycle's process-gate judgment)
+- Copilot Session Insights conversation transcripts: still 0 files this cycle (#51985, 2026-08-11) — now stated as "present in every prior analysis... going back to at least 2026-03-20 (~4.5 months)" by the reporting agent itself, a longer-than-previously-stated gap (was "44+ days" on 2026-08-10). Folding into existing process-gate issue evidence rather than re-filing.
+- Sergo (#51930) self-filed 2 new issues this cycle (errorfwrapv false positive, ctxbackground enforce-readiness) — not duplicated here.
+- LintMonster (#51918) and ESLint Refiner (#51959) both self-filed/updated their own tracking issues this cycle (function-length backlog #50164, dynamic-regexp remediation, DI-fallback binding gap, path-insensitive listener check) — not duplicated here.
+- Docs-noob-tester (#51926) re-flagged frontmatter terminology / lock.yml duplication / secret-setup detour — same chronic non-blocking class as before, still not re-filed as new duplicates.
+
+### Fleet health baseline carried forward from 2026-08-10 (agenticworkflows `logs` tool timed out twice this cycle — see flagged_items.md — so this cycle relies on same-day discussion reports instead of raw log pulls)
+- Firewall (security-observability #51835, 7d window ending 2026-08-10): 100 firewall-enabled runs (72 with data), 4,514 requests, 4,364 allowed / 150 blocked (3.32% block rate), concentrated on `proxy.golang.org` (126, Go module fetches) and `api.individual.githubcopilot.com` (24, Copilot API variant not allowlisted).
+- Daily Issues Report (#52081, 1000-sample): 835 closed / 165 open, 83.5% closure rate, ~13h avg close time, 932/1000 filed by github-actions bot, only 7 unlabeled, 0 stale (30+ days).
+- Issues-analyst subagent (500-sample, this cycle): 141 open / 359 closed. Top labels: agentic-workflows (262), automation (137), cookie (113), testing (44), bug (33). No issues open >7 days (all opened within last 4 days — consistent with fast bot-driven churn). Only 3 unlabeled.
