@@ -346,6 +346,16 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(getToolCallTimeoutMs("logs", { count: 40 })).toBe(315000);
   });
 
+  it("applies 5-minute floor when engine filter is present, even with workflow_name", () => {
+    // effectiveCount=40, base=1, workflow_name present but engine present too → max(5,1)=5 minutes
+    expect(getToolCallTimeoutMs("logs", { count: 40, workflow_name: "ci", engine: "claude" })).toBe(315000);
+  });
+
+  it("applies 5-minute floor when engine filter is present without workflow_name", () => {
+    // effectiveCount=40, base=1, no workflow_name, engine present → max(5,1)=5 minutes
+    expect(getToolCallTimeoutMs("logs", { count: 40, engine: "claude" })).toBe(315000);
+  });
+
   it("uses logs timeout argument with bridge buffer when provided", () => {
     // timeout=10min, floor=5min (default count=100, no filter) → max(120000, 315000, 615000) = 615000
     expect(getToolCallTimeoutMs("logs", { timeout: 10 })).toBe(615000);

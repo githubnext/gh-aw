@@ -292,7 +292,7 @@ func TestLogsToolUsesEffectiveCountForTimeoutScaling(t *testing.T) {
 		// Without a workflow_name the timeout uses the all-workflow minimum floor.
 		// The timeout schema default was intentionally removed so that args.Timeout == 0
 		// (the zero value) when the caller omits it, allowing the runtime to apply the floor.
-		expectedTimeout := effectiveMCPLogsToolTimeoutMinutes(0, defaultMCPLogsToolCount, "")
+		expectedTimeout := effectiveMCPLogsToolTimeoutMinutes(0, defaultMCPLogsToolCount, "", "")
 		assert.Equal(t, strconv.Itoa(expectedTimeout), capturedArgs[timeoutIndex+1])
 	})
 	// Note: the named-workflow timeout behaviour (count-based, no all-workflow floor) is
