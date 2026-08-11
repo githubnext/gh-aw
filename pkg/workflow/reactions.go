@@ -64,7 +64,7 @@ func parseReactionValue(value any) (string, error) {
 			return "+1", nil
 		}
 		reactionsLog.Printf("Invalid uint64 reaction value: %d", v)
-		return "", fmt.Errorf("invalid reaction value '%d': must be one of %v", v, getValidReactions())
+		return "", fmt.Errorf("reaction value '%d' is not supported, expected one of %v. Example: reaction: eyes", v, getValidReactions())
 	case float64:
 		// YAML may parse +1 and -1 as float64
 		if v == 1.0 {
@@ -76,10 +76,10 @@ func parseReactionValue(value any) (string, error) {
 			return "-1", nil
 		}
 		reactionsLog.Printf("Invalid float64 reaction value: %f", v)
-		return "", fmt.Errorf("invalid reaction value '%v': must be one of %v", v, getValidReactions())
+		return "", fmt.Errorf("reaction value '%v' is not supported, expected one of %v. Example: reaction: eyes", v, getValidReactions())
 	default:
 		reactionsLog.Printf("Invalid reaction type: %T", value)
-		return "", fmt.Errorf("invalid reaction type: expected string, got %T", value)
+		return "", fmt.Errorf("reaction has type %T, expected a string or integer value. Example: reaction: eyes", value)
 	}
 }
 
@@ -114,7 +114,7 @@ func parseReactionConfig(value any) (string, *bool, *bool, *bool, error) {
 		}
 
 		if !reactionIssues && !reactionPullRequests && !reactionDiscussions {
-			return "", nil, nil, nil, errors.New("reaction object requires at least one target to be enabled (issues, pull-requests, or discussions)")
+			return "", nil, nil, nil, errors.New("reaction object has all targets disabled, expected at least one of issues, pull-requests, or discussions to be enabled. Example: reaction:\n  type: eyes\n  issues: true")
 		}
 
 		return reactionType, &reactionIssues, &reactionPullRequests, &reactionDiscussions, nil
@@ -136,7 +136,7 @@ func parseBoolReactionField(m map[string]any, key string) (bool, error) {
 	}
 	b, ok := v.(bool)
 	if !ok {
-		return false, fmt.Errorf("reaction.%s must be a boolean value, got %T", key, v)
+		return false, fmt.Errorf("reaction.%s has type %T, expected a boolean value. Example: reaction:\n  %s: true", key, v, key)
 	}
 	return b, nil
 }
@@ -150,6 +150,6 @@ func intToReactionString(v int64) (string, error) {
 	case -1:
 		return "-1", nil
 	default:
-		return "", fmt.Errorf("invalid reaction value '%d': must be one of %v", v, getValidReactions())
+		return "", fmt.Errorf("reaction value '%d' is not supported, expected one of %v. Example: reaction: eyes", v, getValidReactions())
 	}
 }

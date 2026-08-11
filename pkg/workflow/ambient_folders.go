@@ -51,14 +51,14 @@ func extractAmbientFolders(frontmatter map[string]any) ([]string, error) {
 				values = append(values, value)
 			}
 		} else {
-			return nil, errors.New("ambient-folders must be an array of folder paths")
+			return nil, errors.New("ambient-folders has an unsupported type, expected an array of folder path strings. Example: ambient-folders: [docs, src/lib]")
 		}
 	}
 	folders := make([]string, 0, len(values))
 	for _, value := range values {
 		folder, ok := value.(string)
 		if !ok {
-			return nil, errors.New("ambient-folders entries must be strings")
+			return nil, errors.New("ambient-folders entry has an unsupported type, expected a string folder path. Example: ambient-folders: [docs, src/lib]")
 		}
 		folders = append(folders, folder)
 	}
@@ -71,14 +71,14 @@ func normalizeAmbientFolders(folders []string) ([]string, error) {
 	for _, folder := range folders {
 		value := strings.TrimSpace(strings.ReplaceAll(folder, "\\", "/"))
 		if value == "" {
-			return nil, errors.New("ambient-folders entries cannot be empty")
+			return nil, errors.New("ambient-folders entry is empty, expected a non-empty relative folder path. Example: ambient-folders: [docs, src/lib]")
 		}
 		clean := filepath.ToSlash(filepath.Clean(value))
 		if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || filepath.IsAbs(value) || strings.HasPrefix(value, "/") {
-			return nil, fmt.Errorf("ambient-folders entry %q must be a relative folder path within the repository", folder)
+			return nil, fmt.Errorf("ambient-folders entry %q is not a relative path within the repository, expected a relative folder path without '..' or a leading '/'. Example: ambient-folders: [docs, src/lib]", folder)
 		}
 		if !ambientFolderPattern.MatchString(clean) {
-			return nil, fmt.Errorf("ambient-folders entry %q contains unsupported characters", folder)
+			return nil, fmt.Errorf("ambient-folders entry %q contains unsupported characters, expected only letters, digits, '.', '_', '-', and '/'. Example: ambient-folders: [docs, src/lib]", folder)
 		}
 		if _, exists := seen[clean]; exists {
 			ambientFoldersLog.Printf("Skipping duplicate ambient folder: %s", clean)

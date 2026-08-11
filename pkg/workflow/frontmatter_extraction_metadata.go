@@ -106,13 +106,13 @@ func (c *Compiler) extractTrackerID(frontmatter map[string]any) (string, error) 
 	// Validate minimum length
 	if len(trackerID) < 8 {
 		frontmatterMetadataLog.Printf("tracker-id too short: %d characters", len(trackerID))
-		return "", fmt.Errorf("tracker-id must be at least 8 characters long (got %d)", len(trackerID))
+		return "", fmt.Errorf("tracker-id is %d characters long, expected at least 8 characters. Example: tracker-id: \"my-tracker-123\"", len(trackerID))
 	}
 
 	// Validate maximum length
 	if len(trackerID) > 128 {
 		frontmatterMetadataLog.Printf("tracker-id too long: %d characters", len(trackerID))
-		return "", fmt.Errorf("tracker-id exceeds maximum length of 128 characters (got %d)", len(trackerID))
+		return "", fmt.Errorf("tracker-id is %d characters long, expected at most 128 characters. Example: tracker-id: \"my-tracker-123\"", len(trackerID))
 	}
 
 	// Validate that it's a valid identifier (alphanumeric, hyphens, underscores)
@@ -120,7 +120,7 @@ func (c *Compiler) extractTrackerID(frontmatter map[string]any) (string, error) 
 		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
 			(char < '0' || char > '9') && char != '-' && char != '_' {
 			frontmatterMetadataLog.Printf("Invalid character in tracker-id at position %d", i+1)
-			return "", fmt.Errorf("tracker-id contains invalid character at position %d: '%c' (only alphanumeric, hyphens, and underscores allowed)", i+1, char)
+			return "", fmt.Errorf("tracker-id has unsupported character '%c' at position %d, expected only alphanumeric characters, hyphens, and underscores. Example: tracker-id: \"my-tracker-123\"", char, i+1)
 		}
 	}
 
@@ -238,7 +238,7 @@ func (c *Compiler) extractToolsTimeout(tools map[string]any) (string, error) {
 			timeout = int(v)
 		default:
 			frontmatterMetadataLog.Printf("Invalid tools.timeout type: %T", timeoutValue)
-			return "", fmt.Errorf("tools.timeout must be an integer or a GitHub Actions expression, got %T", timeoutValue)
+			return "", fmt.Errorf("tools.timeout has type %T, expected an integer or a GitHub Actions expression. Example:\ntools:\n  timeout: 60", timeoutValue)
 		}
 
 		// Validate minimum value per schema constraint
@@ -286,7 +286,7 @@ func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) (string, err
 		case float64:
 			timeout = int(v)
 		default:
-			return "", fmt.Errorf("tools.startup-timeout must be an integer or a GitHub Actions expression, got %T", timeoutValue)
+			return "", fmt.Errorf("tools.startup-timeout has type %T, expected an integer or a GitHub Actions expression. Example:\ntools:\n  startup-timeout: 120", timeoutValue)
 		}
 
 		// Validate minimum value per schema constraint
