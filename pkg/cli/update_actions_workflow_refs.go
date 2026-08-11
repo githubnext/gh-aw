@@ -17,6 +17,12 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 )
 
+// actionRefPattern matches "uses: org/repo@SHA-or-tag" in workflow files for any org.
+// Requires the org to start with an alphanumeric character and contain only alphanumeric,
+// hyphens, or underscores (no dots, matching GitHub's org naming rules) to exclude local
+// paths (e.g. "./..."). Repository names may additionally contain dots.
+// Captures: (1) indentation+uses prefix, (2) repo path, (3) SHA or version tag,
+// (4) optional version comment (e.g., "v6.0.2" from "# v6.0.2"), (5) trailing whitespace.
 var actionRefPattern = regexp.MustCompile(`(uses:\s+)([a-zA-Z0-9][a-zA-Z0-9_-]*/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)*)@([a-fA-F0-9]{40}|[^\s#\n]+?)(\s*#\s*\S+)?(\s*)$`)
 
 // latestReleaseResult caches a resolved version/SHA pair.

@@ -257,5 +257,3 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 
 	return nil
 }
-
-// getLatestActionRelease gets the latest release for an action repository
