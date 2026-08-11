@@ -203,8 +203,11 @@ Structure the issue with these `###` sections:
 In `### Proposed Draft`:
 - include `Path: <target path>` on its own line before the draft
 - include exactly one fenced `md` code block containing the full proposed file content
+- wrap that fenced code block in `<details><summary><b>Proposed File Content</b></summary>...</details>` when it exceeds 20 lines
 - if the best artifact is a workflow, produce a full gh-aw workflow markdown file with frontmatter and prompt body
 - if the best artifact is a shared prompt or playbook, produce the full markdown file content for that path
+
+Keep `### Summary`, `### Pattern Fit`, and `### AI Credit Savings Rationale` visible, and wrap `### Inputs Still Needed` in `<details><summary><b>Inputs Still Needed</b></summary>...</details>` when it lists more than three items.
 
 ## Constraints
 

@@ -8,6 +8,15 @@ import (
 
 var activationOutputsCodemodLog = logger.New("cli:codemod_activation_outputs")
 
+var activationOutputPatterns = []struct {
+	name    string
+	pattern *regexp.Regexp
+}{
+	{name: "text", pattern: regexp.MustCompile(`needs\.activation\.outputs\.text\b`)},
+	{name: "title", pattern: regexp.MustCompile(`needs\.activation\.outputs\.title\b`)},
+	{name: "body", pattern: regexp.MustCompile(`needs\.activation\.outputs\.body\b`)},
+}
+
 // getActivationOutputsCodemod creates a codemod for transforming needs.activation.outputs.* to steps.sanitized.outputs.*
 func getActivationOutputsCodemod() Codemod {
 	return Codemod{
@@ -20,16 +29,13 @@ func getActivationOutputsCodemod() Codemod {
 			modified := false
 			result := content
 
-			// Define the outputs that should be transformed
-			outputs := []string{"text", "title", "body"}
-
-			for _, output := range outputs {
-				newReplacement := "steps.sanitized.outputs." + output
+			for _, output := range activationOutputPatterns {
+				newReplacement := "steps.sanitized.outputs." + output.name
 
 				// Use regex with word boundary to prevent partial matches
 				// This ensures we don't match things like "needs.activation.outputs.text_custom"
 				// The pattern matches the old expression followed by a non-word character or end of string
-				pattern := regexp.MustCompile(`needs\.activation\.outputs\.` + output + `\b`)
+				pattern := output.pattern
 
 				// Check if pattern exists in content
 				if pattern.MatchString(result) {
@@ -37,7 +43,7 @@ func getActivationOutputsCodemod() Codemod {
 					newContent := pattern.ReplaceAllString(result, newReplacement)
 					if newContent != result {
 						modified = true
-						activationOutputsCodemodLog.Printf("Transformed needs.activation.outputs.%s to steps.sanitized.outputs.%s", output, output)
+						activationOutputsCodemodLog.Printf("Transformed needs.activation.outputs.%s to steps.sanitized.outputs.%s", output.name, output.name)
 						result = newContent
 					}
 				}

@@ -1,13 +1,13 @@
 ---
-title: Run OpenAI Codex in GitHub Actions with gh-aw
-description: Configure gh-aw to run OpenAI Codex in GitHub Actions with Markdown workflows, GitHub triggers, and safe outputs.
+title: Using OpenAI Codex with GitHub Agentic Workflows
+description: Select and authenticate OpenAI Codex as the AI engine for GitHub Agentic Workflows (gh-aw), understand its capabilities and limitations, and start from an example.
 ---
 
-OpenAI Codex is OpenAI's coding-focused agent runtime for repository work. gh-aw runs Codex inside GitHub Actions from a Markdown workflow and layers GitHub triggers, sandbox controls, and safe outputs on top so repository automation can stay event-driven and reviewable.
+OpenAI Codex is OpenAI's coding-focused agent runtime for repository work. GitHub Agentic Workflows (`gh-aw`) runs Codex through GitHub Actions from a Markdown workflow and adds GitHub triggers, sandbox controls, and safe outputs for event-driven, reviewable automation.
 
-## Setup
+## Selection and authentication
 
-Set `engine: codex` and provide `OPENAI_API_KEY`. `CODEX_API_KEY` is also accepted and takes precedence when both are present. See [OpenAI authentication](/gh-aw/reference/auth/#openai_api_key) for the supported configuration.
+Set `engine: codex` and provide `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key). `CODEX_API_KEY` takes precedence when both secrets are present.
 
 ### Initialize the repository
 
@@ -16,6 +16,8 @@ Run `gh aw init --engine codex` to configure the repository. The `--engine codex
 ```bash
 gh aw init --engine codex
 ```
+
+## Example: scheduled repository report
 
 ```aw wrap title=".github/workflows/daily-status.md"
 ---
@@ -44,14 +46,21 @@ Analyze the repository and create a concise daily status report covering:
 - Upcoming work items
 ```
 
-## When to choose gh-aw vs. running Codex directly in Actions
+## Capabilities and limitations
 
-Choose gh-aw when the workflow should stay in Markdown, reuse the same structure across engines, and enforce GitHub writes through safe outputs. Run Codex directly in Actions when the job needs a custom script layout and manual control over every integration point.
+Codex supports native web search when `tools.web-search` is enabled and can disable shell execution completely. Codex cannot enforce a nonempty per-command `tools.bash` allowlist and does not support bare mode, `max-continuations`, native `engine.agent` selection, or custom `engine.harness` scripts. See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison).
+
+## GitHub Agentic Workflows vs. running Codex directly in Actions
+
+Choose GitHub Agentic Workflows when the workflow should stay in Markdown, reuse the same structure across engines, and route configured GitHub writes through safe outputs. Run Codex directly in Actions when the job needs a custom script layout and manual control over every integration point.
 
 ## Related pages
 
 - [Quick start](/gh-aw/setup/quick-start/)
 - [Engine reference](/gh-aw/reference/engines/)
+- [Authentication](/gh-aw/reference/auth/)
+- [Security architecture](/gh-aw/introduction/architecture/)
+- [Examples by task](/gh-aw/examples/)
 - [AI issue triage](/gh-aw/guides/ai-issue-triage/)
 - [Automated AI pull request review](/gh-aw/guides/automated-pr-review/)
 - [AI-generated release notes and reports](/gh-aw/guides/ai-release-notes/)
