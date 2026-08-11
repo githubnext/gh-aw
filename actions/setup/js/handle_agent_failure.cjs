@@ -2782,7 +2782,7 @@ function buildEngineFailureContext(options = {}) {
       const errorCapMatch = line.match(/^Error:\s*(.+)$/);
       if (errorCapMatch) {
         const message = errorCapMatch[1].trim();
-        if (isRecoveredNoDeferredMarkerLine(message)) {
+        if (isRecoveredNoDeferredMarkerLine(line)) {
           continue;
         }
         errorMessages.add(message);
