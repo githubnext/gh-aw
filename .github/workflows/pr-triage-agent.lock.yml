@@ -537,6 +537,14 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
+      - name: Install ripgrep
+        run: |
+          if command -v rg >/dev/null 2>&1; then
+            rg --version
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ripgrep
+          fi
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -1941,6 +1949,14 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Install ripgrep
+        run: |
+          if command -v rg >/dev/null 2>&1; then
+            rg --version
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ripgrep
+          fi
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -2183,6 +2199,14 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Install ripgrep
+        run: |
+          if command -v rg >/dev/null 2>&1; then
+            rg --version
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ripgrep
+          fi
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
