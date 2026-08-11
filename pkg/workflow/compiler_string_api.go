@@ -190,7 +190,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	}
 
 	// Setup action cache and resolver
-	actionCache, actionResolver := c.getSharedActionResolver()
+	actionCache, actionResolver := c.ensureSharedActionCacheAndResolver()
 	workflowData.Ctx = c.ctx
 	workflowData.ActionCache = actionCache
 	workflowData.ActionResolver = actionResolver

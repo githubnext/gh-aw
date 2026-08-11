@@ -21,7 +21,7 @@ The file exceeded 400 lines and made it hard to locate any given responsibility.
 We will split `pkg/workflow/compiler_types.go` into three focused files within the same Go package (`package workflow`), each owning exactly one lifecycle group:
 
 - **`compiler_options.go`** — `CompilerOption` type, `With*` builders, and `NewCompiler`.
-- **`compiler_mutators.go`** — all `*Compiler` setter/getter methods and lazily-initialized shared cache helpers (`getSharedActionResolver`, `getSharedImportCache`).
+- **`compiler_mutators.go`** — all `*Compiler` setter/getter methods and lazily-initialized shared cache helpers (`ensureSharedActionCacheAndResolver`, `getSharedImportCache`).
 - **`compiler_types.go`** — the `Compiler` struct, `FileCreationTracker` interface, `logTypes`, and `allowedDomain`.
 
 This is a pure mechanical refactor with no behavior change. All symbols remain in the same Go package, so no import paths change.

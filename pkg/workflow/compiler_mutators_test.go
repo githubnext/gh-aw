@@ -10,32 +10,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCompilerMutators(t *testing.T) {
+func TestCompilerSetSkipValidation(t *testing.T) {
 	c := NewCompiler()
 
 	c.SetSkipValidation(false)
 	assert.False(t, c.skipValidation)
+}
+
+func TestCompilerSetContext(t *testing.T) {
+	c := NewCompiler()
 
 	ctx := context.WithValue(context.Background(), struct{ k string }{"k"}, "v")
 	c.SetContext(ctx)
 	assert.Equal(t, ctx, c.ctx)
+}
+
+func TestCompilerSetNoEmit(t *testing.T) {
+	c := NewCompiler()
 
 	c.SetNoEmit(true)
 	assert.True(t, c.noEmit)
+}
+
+func TestCompilerSetStrictMode(t *testing.T) {
+	c := NewCompiler()
 
 	c.SetStrictMode(true)
 	assert.True(t, c.strictMode)
+}
+
+func TestCompilerSetActionTag(t *testing.T) {
+	c := NewCompiler()
 
 	c.SetActionTag("v1")
 	assert.Equal(t, "v1", c.GetActionTag())
+}
+
+func TestCompilerMutatorsSetActionMode(t *testing.T) {
+	c := NewCompiler()
 
 	c.SetActionMode(ActionModeRelease)
 	assert.Equal(t, ActionModeRelease, c.GetActionMode())
+}
+
+func TestCompilerWarningCount(t *testing.T) {
+	c := NewCompiler()
 
 	c.IncrementWarningCount()
 	assert.Equal(t, 1, c.GetWarningCount())
 	c.ResetWarningCount()
 	assert.Equal(t, 0, c.GetWarningCount())
+}
+
+func TestCompilerSafeUpdateWarnings(t *testing.T) {
+	c := NewCompiler()
 
 	c.AddSafeUpdateWarning("warning")
 	assert.Equal(t, []string{"warning"}, c.GetSafeUpdateWarnings())

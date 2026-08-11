@@ -263,9 +263,12 @@ func (c *Compiler) SetPriorManifests(manifests map[string]*GHAWManifest) {
 	c.priorManifests = manifests
 }
 
-// getSharedActionResolver returns the shared action resolver, initializing it on first use
-// This ensures all workflows compiled by this compiler instance share the same in-memory cache
-func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
+// ensureSharedActionCacheAndResolver lazily initializes (on first call) and returns the
+// compiler's shared ActionCache and ActionResolver pair. The resolver always wraps the
+// returned cache, so both values are initialized and returned together to keep that
+// pairing explicit; all workflows compiled by this compiler instance share the same
+// in-memory cache.
+func (c *Compiler) ensureSharedActionCacheAndResolver() (*ActionCache, *ActionResolver) {
 	if c.actionCache == nil {
 		// Initialize cache and resolver on first use
 		// Use git root if provided, otherwise fall back to current working directory
@@ -318,7 +321,7 @@ func (c *Compiler) getSharedImportCache() *parser.ImportCache {
 // The cache is lazily initialized on first access and shared across all workflows.
 // This allows action SHA validation and other operations to reuse cached resolutions.
 func (c *Compiler) GetSharedActionCache() *ActionCache {
-	cache, _ := c.getSharedActionResolver()
+	cache, _ := c.ensureSharedActionCacheAndResolver()
 	return cache
 }
 
@@ -326,6 +329,6 @@ func (c *Compiler) GetSharedActionCache() *ActionCache {
 // The resolver is lazily initialized on first access and shared across all workflows.
 // It tracks which cache keys were used during compilation, enabling orphaned-entry pruning.
 func (c *Compiler) GetSharedActionResolver() *ActionResolver {
-	_, resolver := c.getSharedActionResolver()
+	_, resolver := c.ensureSharedActionCacheAndResolver()
 	return resolver
 }

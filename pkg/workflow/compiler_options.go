@@ -44,7 +44,21 @@ func WithVersion(version string) CompilerOption {
 
 // NewCompiler creates a new workflow compiler with functional options.
 // By default, it auto-detects the version and action mode.
-// Common options: WithVerbose, WithEngineOverride, WithNoEmit, WithSkipValidation
+//
+// Available options:
+//   - WithVerbose: enable verbose logging
+//   - WithEngineOverride: force a specific AI engine
+//   - WithSkipValidation: skip schema validation
+//   - WithNoEmit: validate without generating lock files
+//   - WithFailFast: stop at the first validation error
+//   - WithWorkflowIdentifier: set the identifier for the workflow being compiled
+//   - WithVersion: set the compiler version (also re-derives actionMode)
+//
+// Constructor options (With*) configure values that are fixed for the
+// lifetime of the Compiler and are only meaningful before compilation
+// begins. Runtime mutators (Set*, defined in compiler_mutators.go) are for
+// state that changes after construction, such as SetContext for per-run
+// cancellation/deadlines or SetStrictMode for per-workflow overrides.
 func NewCompiler(opts ...CompilerOption) *Compiler {
 	// Get the current compiler version (set by SetVersion during CLI initialization)
 	version := GetVersion()
@@ -57,12 +71,11 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 
 	// Create compiler with defaults
 	c := &Compiler{
-		ctx:                     context.Background(), // Default context; override with WithContext
+		ctx:                     context.Background(), // Default context; override with SetContext
 		verbose:                 false,
 		engineOverride:          "",
 		version:                 version,
-		skipValidation:          true,                      // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:              DetectActionMode(version), // Auto-detect action mode based on version
+		skipValidation:          true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:              NewJobManager(),
 		engineRegistry:          engineRegistry,
 		engineCatalog:           NewEngineCatalog(engineRegistry),

@@ -21,7 +21,7 @@ func TestCompilerSharedActionCache(t *testing.T) {
 	compiler := NewCompiler()
 
 	// Get the shared action resolver (first time - should initialize)
-	cache1, resolver1 := compiler.getSharedActionResolver()
+	cache1, resolver1 := compiler.ensureSharedActionCacheAndResolver()
 	if cache1 == nil {
 		t.Error("Expected cache to be initialized")
 	}
@@ -33,7 +33,7 @@ func TestCompilerSharedActionCache(t *testing.T) {
 	cache1.Set("actions/checkout", "v5", "test-sha-abc")
 
 	// Get the shared action resolver again (should be same instance)
-	cache2, resolver2 := compiler.getSharedActionResolver()
+	cache2, resolver2 := compiler.ensureSharedActionCacheAndResolver()
 
 	// Verify it's the same instance
 	if cache1 != cache2 {
@@ -140,7 +140,7 @@ func TestCompilerForceRefreshClearsOnlyOnce(t *testing.T) {
 	compiler.SetForceRefreshActionPins(true)
 
 	// Get the shared action resolver (first time - should initialize empty)
-	cache1, _ := compiler.getSharedActionResolver()
+	cache1, _ := compiler.ensureSharedActionCacheAndResolver()
 	if cache1 == nil {
 		t.Fatal("Expected cache to be initialized")
 	}
@@ -160,7 +160,7 @@ func TestCompilerForceRefreshClearsOnlyOnce(t *testing.T) {
 	}
 
 	// Get the shared action resolver again (second workflow in same run)
-	cache2, _ := compiler.getSharedActionResolver()
+	cache2, _ := compiler.ensureSharedActionCacheAndResolver()
 
 	// Verify it's the same instance
 	if cache1 != cache2 {
@@ -190,7 +190,7 @@ func TestCompilerForceRefreshClearsOnlyOnce(t *testing.T) {
 	}
 
 	// Get the resolver a third time (third workflow in same run)
-	cache3, _ := compiler.getSharedActionResolver()
+	cache3, _ := compiler.ensureSharedActionCacheAndResolver()
 
 	// Verify it's still the same instance with entries intact
 	if cache1 != cache3 {
