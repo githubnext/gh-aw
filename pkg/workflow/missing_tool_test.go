@@ -128,8 +128,8 @@ func TestGeneratePromptIncludesGitHubAWPrompt(t *testing.T) {
 	output := yaml.String()
 
 	// Check that GH_AW_PROMPT environment variable is always included
-	if !strings.Contains(output, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-		t.Error("Expected 'GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt' in prompt generation step")
+	if !strings.Contains(output, "GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt") {
+		t.Error("Expected runner temp GH_AW_PROMPT path in prompt generation step")
 	}
 
 	// Check that env section is always present now

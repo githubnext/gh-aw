@@ -468,6 +468,9 @@ const AgentStdioLogPath = TmpGhAwDir + "/agent-stdio.log"
 // Engine harnesses read this file to pass the compiled prompt to the AI engine.
 const AwPromptsFile = TmpGhAwDir + "/aw-prompts/prompt.txt"
 
+// AwPromptsFileExpr is the host-side prompt path in GitHub Actions expression form.
+const AwPromptsFileExpr = GhAwRootDir + "/aw-prompts/prompt.txt"
+
 // AwPromptsFileShell is the runtime prompt file path in shell env-var form for host-side paths.
 const AwPromptsFileShell = GhAwRootDirShell + "/aw-prompts/prompt.txt"
 
