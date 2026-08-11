@@ -59,6 +59,12 @@ func awfSupportsContainerRuntime(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFContainerRuntimeMinVersion)
 }
 
+// awfSupportsCloudHypervisor returns true when the effective AWF version supports
+// the cloud-hypervisor preview runtime and its required CLI flags.
+func awfSupportsCloudHypervisor(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFCloudHypervisorMinVersion)
+}
+
 // awfSupportsLegacySecurity returns true when the effective AWF version supports the
 // --legacy-security flag (v0.27.32+). Older versions default to legacy mode and do not
 // recognize this flag.
