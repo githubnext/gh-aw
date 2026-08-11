@@ -225,7 +225,11 @@ function computeIncrementalDiffSize({ baseRef, headRef, cwd, tmpPath, excludedFi
 
 /**
  * Returns true when `ancestor` is an ancestor of (or identical to) `descendant`.
- * Any git failure (unknown revision, missing object) is treated as "not an ancestor".
+ * Any git failure (unknown revision, missing object, corrupt object store) is
+ * treated as "not an ancestor" - callers only need a boolean signal for base
+ * selection. Failures are suppressed here (suppressLogs: true); callers that
+ * need richer diagnostics on an unexpected failure should call
+ * describeGitFailure on their own caught error instead.
  * @param {string} ancestor
  * @param {string} descendant
  * @param {string|undefined} cwd
@@ -263,7 +267,7 @@ function isPartialClone(cwd) {
  * @returns {string}
  */
 function describeGitFailure(message, cwd) {
-  if (!/promisor|Authentication failed|Invalid username or token|could not fetch/i.test(message)) {
+  if (!/promisor|Authentication failed|Invalid username or token|fetch-pack|object not found/i.test(message)) {
     return message;
   }
   if (!isPartialClone(cwd)) {

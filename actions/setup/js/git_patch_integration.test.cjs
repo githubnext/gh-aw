@@ -1022,6 +1022,11 @@ describe("git patch integration tests", () => {
         const patchContent = fs.readFileSync(result.patchPath, "utf8");
         expect(patchContent).toContain("Agent commit one");
         expect(patchContent).toContain("Agent commit two");
+
+        const logLines = execGit(["log", "--oneline", `${mainSha}..HEAD`], { cwd: workingRepo })
+          .stdout.trim()
+          .split("\n");
+        expect(logLines).toHaveLength(2);
       } finally {
         if (origSha === undefined) {
           delete process.env.GITHUB_SHA;
