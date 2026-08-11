@@ -9,6 +9,65 @@ import (
 	"testing"
 )
 
+func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
+	valid := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"enclaves": []any{
+			map[string]any{
+				"script": nil,
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+				"timeout": 45,
+			},
+			map[string]any{
+				"agent": map[string]any{"model": "gpt-5"},
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+				"timeout": 540,
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "workflow.md"); err != nil {
+		t.Fatalf("expected keyed top-level enclaves to validate: %v", err)
+	}
+
+	legacy := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"sandbox": map[string]any{
+			"enclaves": []any{
+				map[string]any{
+					"type":         "script",
+					"repositories": []any{},
+				},
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(legacy, "workflow.md"); err == nil {
+		t.Fatal("expected legacy sandbox.enclaves shape to be rejected")
+	}
+
+	tooLong := map[string]any{
+		"on":     "workflow_dispatch",
+		"engine": "copilot",
+		"enclaves": []any{
+			map[string]any{
+				"agent": map[string]any{"model": "gpt-5"},
+				"repos": []any{
+					map[string]any{"repo": "octo-org/private-service", "sensitivity": "confidential"},
+				},
+				"timeout": 541,
+			},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(tooLong, "workflow.md"); err == nil {
+		t.Fatal("expected enclave timeout above 540 seconds to be rejected")
+	}
+}
+
 func TestValidateWithSchema(t *testing.T) {
 	tests := []struct {
 		name        string
