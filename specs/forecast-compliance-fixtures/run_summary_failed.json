@@ -10,9 +10,9 @@
     "head_sha": "abc123def456abc123def456abc123def456abc123",
     "status": "completed",
     "conclusion": "failure",
-    "created_at": "2026-05-01T11:00:00Z",
-    "updated_at": "2026-05-01T11:05:30Z",
-    "run_started_at": "2026-05-01T11:00:05Z"
+    "createdAt": "2026-05-01T11:00:00Z",
+    "updatedAt": "2026-05-01T11:05:30Z",
+    "startedAt": "2026-05-01T11:00:05Z"
   },
   "metrics": {
     "total_steps": 5,
