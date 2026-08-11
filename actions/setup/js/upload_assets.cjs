@@ -203,7 +203,12 @@ async function main() {
           core.warning(`Asset push attempt ${attempt}/${maxPushAttempts} was rejected because the branch changed; rebasing onto the latest ${normalizedBranchName} branch before retrying`);
           const remoteBranch = `refs/remotes/origin/${normalizedBranchName}`;
           await exec.exec("git", ["fetch", "--no-tags", "origin", `+refs/heads/${normalizedBranchName}:${remoteBranch}`]);
-          await exec.exec("git", ["rebase", remoteBranch]);
+          try {
+            await exec.exec("git", ["rebase", remoteBranch]);
+          } catch (rebaseError) {
+            await exec.exec("git", ["rebase", "--abort"], { ignoreReturnCode: true });
+            throw rebaseError;
+          }
         }
         core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);

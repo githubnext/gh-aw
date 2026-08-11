@@ -404,6 +404,21 @@ describe("upload_assets.cjs", () => {
       expect(mockExec.exec.mock.calls.some(call => isGitCommand(call[0], call[1], "rebase"))).toBe(false);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("permission denied"));
     });
+
+    it("should abort the rebase and rethrow when rebase fails with conflicts", async () => {
+      prepareAsset();
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 1, stdout: "", stderr: "non-fast-forward" });
+      mockExec.exec.mockImplementation(async (command, args) => {
+        if (isGitCommand(command, args, "rebase") && args[1] !== "--abort") {
+          throw new Error("CONFLICT (content): Merge conflict in test.png");
+        }
+      });
+
+      await executeScript();
+
+      expect(mockExec.exec.mock.calls.some(call => isGitCommand(call[0], call[1], "rebase") && call[1].includes("--abort"))).toBe(true);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("CONFLICT"));
+    });
   });
 
   describe("git commit message security", () => {
