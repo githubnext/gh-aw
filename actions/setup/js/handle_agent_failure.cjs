@@ -32,6 +32,10 @@ const os = require("os");
 const path = require("path");
 
 const DEFAULT_ACTION_FAILURE_ISSUE_EXPIRES_HOURS = 24 * 7;
+/** Claude Code error emitted when a `--continue` resume finds no deferred tool marker. */
+const NO_DEFERRED_MARKER_LINE_RE = /No deferred tool marker found/i;
+/** Claude harness line reporting that the no-deferred-marker error was recovered by a fresh retry. */
+const CLAUDE_HARNESS_NO_DEFERRED_MARKER_RECOVERY_RE = /^\[claude-harness\].*no deferred tool marker on --continue.*retrying as fresh run.*--continue disabled permanently/i;
 const FAILURE_ISSUE_DEDUP_WINDOW_HOURS = 24;
 const FAILURE_ISSUE_CATEGORY_DAILY_CAP = 50;
 const FAILURE_ISSUE_WINDOW_MS = FAILURE_ISSUE_DEDUP_WINDOW_HOURS * 60 * 60 * 1000;
@@ -2767,8 +2771,30 @@ function buildEngineFailureContext(options = {}) {
     }
 
     const errorMessages = new Set();
+    // "No deferred tool marker found" is only noise when the Claude harness reports that it
+    // recovered from it by retrying fresh with --continue permanently disabled. Correlate each
+    // marker line with a later harness-prefixed recovery line so that markers that were never
+    // recovered (including a terminal marker after an earlier recovered one) stay visible.
+    const recoveredNoDeferredMarkerLines = new Set();
+    {
+      const pendingMarkerLines = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (NO_DEFERRED_MARKER_LINE_RE.test(line)) {
+          pendingMarkerLines.push(i);
+          continue;
+        }
+        if (pendingMarkerLines.length > 0 && CLAUDE_HARNESS_NO_DEFERRED_MARKER_RECOVERY_RE.test(line)) {
+          for (const markerLine of pendingMarkerLines) {
+            recoveredNoDeferredMarkerLines.add(markerLine);
+          }
+          pendingMarkerLines.length = 0;
+        }
+      }
+    }
+    const isRecoveredNoDeferredMarkerLine = index => recoveredNoDeferredMarkerLines.has(index);
 
-    for (const line of lines) {
+    for (const [lineIndex, line] of lines.entries()) {
       // Codex / generic CLI: "ERROR: <message>" at the start of a line
       const errorPrefixMatch = line.match(/^ERROR:\s*(.+)$/);
       if (errorPrefixMatch) {
@@ -2779,7 +2805,11 @@ function buildEngineFailureContext(options = {}) {
       // Node.js / generic: "Error: <message>" at the start of a line
       const errorCapMatch = line.match(/^Error:\s*(.+)$/);
       if (errorCapMatch) {
-        errorMessages.add(errorCapMatch[1].trim());
+        const message = errorCapMatch[1].trim();
+        if (isRecoveredNoDeferredMarkerLine(lineIndex)) {
+          continue;
+        }
+        errorMessages.add(message);
         continue;
       }
 
@@ -2875,13 +2905,13 @@ function buildEngineFailureContext(options = {}) {
     // Fallback: no known error patterns found — include the last non-empty lines so that
     // failures caused by timeouts or unexpected terminations still surface useful context.
     const TAIL_LINES = 10;
-    const nonEmptyLines = lines.filter(l => l.trim());
+    const nonEmptyLines = lines.map((line, index) => ({ line, index })).filter(entry => entry.line.trim());
     if (nonEmptyLines.length === 0) {
       return "";
     }
 
     // Exclude AWF infrastructure lines so the fallback displays only actual engine output.
-    const agentLines = nonEmptyLines.filter(l => !INFRA_LINE_RE.test(l));
+    const agentLines = nonEmptyLines.filter(entry => !INFRA_LINE_RE.test(entry.line) && !isRecoveredNoDeferredMarkerLine(entry.index)).map(entry => entry.line);
 
     if (agentLines.length === 0) {
       // The log contains only AWF infrastructure lines — the engine exited before producing

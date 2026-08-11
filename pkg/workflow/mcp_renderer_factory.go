@@ -192,6 +192,9 @@ func buildStandardJSONMCPRenderers(
 		RenderMCPScripts: func(yaml *strings.Builder, mcpScripts *MCPScriptsConfig, isLast bool) {
 			createRenderer(isLast).RenderMCPScriptsMCP(yaml, mcpScripts, workflowData)
 		},
+		RenderEnclave: func(yaml *strings.Builder, workflowData *WorkflowData, isLast bool) {
+			writeEnclaveMCPJSON(yaml, workflowData, isLast)
+		},
 		RenderCustomMCPConfig: renderCustom,
 	}
 }

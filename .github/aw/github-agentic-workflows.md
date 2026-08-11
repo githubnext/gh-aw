@@ -132,6 +132,42 @@ When a PR analysis requires verifying or attaching a linked artifact (design doc
 
 Permissions: `pull-requests: read` only; all writes route through `add-comment` safe output.
 
+### Compliance Example: Manifest-Path Scoping with License-Evidence Validation
+
+Concise pattern for a dependency-license/policy review workflow (see [Compliance review guidance](create-agentic-workflow-trigger-details.md#compliance-review-guidance) for the full decision table):
+
+```yaml
+on:
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "go.mod"
+      - "requirements.txt"
+      - "Cargo.toml"
+      - "pyproject.toml"
+      - "composer.json"
+permissions:
+  contents: read
+  pull-requests: read
+tools:
+  github:
+    mode: gh-proxy
+    toolsets: [default]
+safe-outputs:
+  add-comment:
+  create-issue:
+    labels: [license-violation]
+```
+
+Prompt guidance:
+
+1. **Scope**: only inspect dependency manifest/lockfile diffs in this PR; `noop` immediately if none changed.
+2. **Evidence, not assumption**: for each newly added or upgraded dependency, look up its declared license from the manifest/lockfile metadata or the package registry — never guess a license from the package name.
+3. **Classify by tier**: allowed / needs-review / blocked, per the project's configured policy.
+4. **Report per-tier findings** with `add-comment`, citing the dependency name, version, and the license evidence source (registry field, `LICENSE` file, or SPDX identifier).
+5. **Escalate** to `create-issue` only for a blocked-tier dependency, after searching for an existing open issue with the same `license-violation:<dependency>:<version>` key.
+
 ## Reference Files
 
 | Topic | File |
