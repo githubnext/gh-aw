@@ -42,52 +42,6 @@ func TestNewProjectNewCommand(t *testing.T) {
 	assert.Equal(t, "l", linkFlag.Shorthand, "Link flag should have short form 'l'")
 }
 
-func TestEscapeGraphQLString(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "plain text",
-			input:    "Hello World",
-			expected: "Hello World",
-		},
-		{
-			name:     "with quotes",
-			input:    `Project "Alpha"`,
-			expected: `Project \"Alpha\"`,
-		},
-		{
-			name:     "with backslash",
-			input:    `Path\to\file`,
-			expected: `Path\\to\\file`,
-		},
-		{
-			name:     "with newline",
-			input:    "Line 1\nLine 2",
-			expected: "Line 1\\nLine 2",
-		},
-		{
-			name:     "with tab",
-			input:    "Name\tValue",
-			expected: "Name\\tValue",
-		},
-		{
-			name:     "complex string",
-			input:    "Test \"project\"\nWith\ttabs\\and backslashes",
-			expected: "Test \\\"project\\\"\\nWith\\ttabs\\\\and backslashes",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := escapeGraphQLString(tt.input)
-			assert.Equal(t, tt.expected, result, "GraphQL string should be properly escaped")
-		})
-	}
-}
-
 func TestProjectConfig(t *testing.T) {
 	tests := []struct {
 		name        string

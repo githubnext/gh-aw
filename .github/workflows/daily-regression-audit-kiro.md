@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🧭"
-description: Daily analysis of recent CI test failures and regression patterns using Kiro
+description: Daily analysis of recent CI test failures and regression patterns
 on:
   schedule: daily
   workflow_dispatch:
@@ -16,8 +16,8 @@ sandbox:
     sudo: false
 tracker-id: daily-regression-audit-kiro
 engine:
-  id: kiro
-model: kiro/claude-sonnet-4-5
+  id: copilot
+  copilot-sdk: true
 strict: true
 network:
   allowed:
@@ -42,12 +42,11 @@ safe-outputs:
   missing-tool:
 timeout-minutes: 25
 imports:
-  - shared/kiro.md
   - shared/otlp.md
   - shared/reporting.md
 ---
 
-# Daily Regression Audit — Kiro
+# Daily Regression Audit
 
 Analyze recent CI workflow runs to surface patterns in test failures and regressions.
 

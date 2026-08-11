@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/github"
@@ -260,7 +261,11 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
+	var capturedQuery string
+	var capturedVariables map[string]any
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, variables map[string]any, repo string) (map[string]any, error) {
+		capturedQuery = query
+		capturedVariables = variables
 		return map[string]any{
 			"data": map[string]any{
 				"repository": map[string]any{
@@ -302,6 +307,84 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 	assert.Equal(t, "https://github.com/owner/repo/issues/1234", report.TracedRootURL)
 	assert.Equal(t, "mapped", report.AttributionStatus)
 	assert.Equal(t, "closing_issue", report.AttributionSource)
+
+	assert.NotContains(t, capturedQuery, "owner/repo", "query should not interpolate values into the GraphQL document")
+	assert.NotContains(t, capturedQuery, `"owner"`, "query should not contain the owner value quoted as a literal")
+	assert.NotContains(t, capturedQuery, `"repo"`, "query should not contain the repo value quoted as a literal")
+	assert.NotContains(t, capturedQuery, "77", "query should not contain the object number interpolated as a literal")
+	assert.Contains(t, capturedQuery, "query($owner: String!, $name: String!, $number: Int!)", "query should declare GraphQL variables")
+	assert.Equal(t, map[string]any{"owner": "owner", "name": "repo", "number": 77}, capturedVariables, "values should be passed as GraphQL variables")
+}
+
+func TestBuildGraphQLArgs(t *testing.T) {
+	t.Run("strings use -f and are never rewritten into -F", func(t *testing.T) {
+		args, err := buildGraphQLArgs("query($owner: String!) { x }", map[string]any{
+			"owner": `@file/etc/passwd`,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"api", "graphql",
+			"-f", "query=query($owner: String!) { x }",
+			"-f", "owner=@file/etc/passwd",
+		}, args)
+	})
+
+	t.Run("strings with placeholder syntax stay literal via -f", func(t *testing.T) {
+		args, err := buildGraphQLArgs("query { x }", map[string]any{
+			"name": "{repo}",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, args, "-f")
+		nameIdx := slices.Index(args, "name={repo}")
+		require.GreaterOrEqual(t, nameIdx, 0, "name value should be passed literally")
+		assert.Equal(t, "-f", args[nameIdx-1], "string variables must use -f, not -F")
+	})
+
+	t.Run("ints use -F for correct GraphQL typing", func(t *testing.T) {
+		args, err := buildGraphQLArgs("query { x }", map[string]any{
+			"number": 42,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"api", "graphql",
+			"-f", "query=query { x }",
+			"-F", "number=42",
+		}, args)
+	})
+
+	t.Run("multiple variables are emitted in sorted key order deterministically", func(t *testing.T) {
+		variables := map[string]any{
+			"zebra": "z",
+			"apple": "a",
+			"mango": 3,
+		}
+		for range 10 {
+			args, err := buildGraphQLArgs("query { x }", variables)
+			require.NoError(t, err)
+			assert.Equal(t, []string{
+				"api", "graphql",
+				"-f", "query=query { x }",
+				"-f", "apple=a",
+				"-F", "mango=3",
+				"-f", "zebra=z",
+			}, args)
+		}
+	})
+
+	t.Run("unsupported variable types are rejected explicitly", func(t *testing.T) {
+		_, err := buildGraphQLArgs("query { x }", map[string]any{
+			"bad": 3.14,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "bad")
+		assert.Contains(t, err.Error(), "float64")
+	})
+
+	t.Run("no variables produces only the query argument", func(t *testing.T) {
+		args, err := buildGraphQLArgs("query { x }", nil)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"api", "graphql", "-f", "query=query { x }"}, args)
+	})
 }
 
 func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
@@ -312,7 +395,7 @@ func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, _ map[string]any, repo string) (map[string]any, error) {
 		return nil, errors.New("no linked issues")
 	}
 	objectiveMappingGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
@@ -339,7 +422,7 @@ func TestEnrichOutcomeWithObjectiveValue_MultipleClosingIssuesRemainAmbiguous(t 
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, _ map[string]any, repo string) (map[string]any, error) {
 		return map[string]any{
 			"data": map[string]any{
 				"repository": map[string]any{

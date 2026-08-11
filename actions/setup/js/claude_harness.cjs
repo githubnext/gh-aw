@@ -14,6 +14,10 @@
  *   - Overloaded API errors (HTTP 529 / "overloaded_error") and rate-limit errors (HTTP 429 /
  *     "rate_limit_error") are well-known transient failure modes and are logged explicitly, but
  *     any partial-execution failure is retried — not just those specific errors.
+ *   - "The request body is not valid JSON" (HTTP 400) is a transport-level serialization bug,
+ *     observed immediately after a `permission_denied` tool-result on a compound Bash command.
+ *     It is retried as a fresh run (not `--continue`, which is permanently disabled for the rest
+ *     of the driver invocation) since resuming would resend the same corrupted session state.
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
  *   - On a `--continue` retry the initial prompt is omitted: Claude Code resumes the session
@@ -67,6 +71,16 @@ const OVERLOADED_ERROR_PATTERN = /overloaded_error|"overloaded"/i;
 //   - embedded stream-json result fields (e.g. "api_error_status":429)
 //   - human-readable message text ("rate limit")
 const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
+
+// Pattern to detect the transport-level "invalid JSON request body" error.
+// Observed after a `permission_denied` tool-result on a compound Bash command: the
+// CLI appears to re-serialize the conversation for the next turn incorrectly,
+// producing an empty/malformed body that the Anthropic API rejects with HTTP 400
+// before any model logic runs. This is a serialization glitch, not a real
+// application-level 400 from the model, so it should be retried — but as a fresh
+// run rather than --continue, since resuming would resend the same corrupted
+// session state and reproduce the identical error.
+const INVALID_JSON_BODY_ERROR_PATTERN = /request body is not valid JSON/i;
 
 // Pattern to detect a clean max-turns exit from Claude Code.
 // Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
@@ -160,6 +174,20 @@ function isRateLimitError(output) {
  */
 function isMaxTurnsExit(output) {
   return MAX_TURNS_EXIT_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains the transport-level "invalid JSON
+ * request body" error (HTTP 400 "The request body is not valid JSON"). This has
+ * been observed immediately following a `permission_denied` tool-result on a
+ * compound Bash command, where the CLI appears to re-serialize the conversation
+ * incorrectly for the next turn. It is a serialization bug, not a genuine
+ * application-level 400 from the model.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isInvalidJsonBodyError(output) {
+  return INVALID_JSON_BODY_ERROR_PATTERN.test(output);
 }
 
 /**
@@ -453,6 +481,7 @@ async function main() {
     const isMaxTurns = isMaxTurnsExit(result.output);
     const isNoDeferredMarker = isNoDeferredMarkerError(result.output);
     const isInvalidModel = isInvalidModelError(result.output);
+    const isInvalidJsonBody = isInvalidJsonBodyError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
     log(
@@ -464,6 +493,7 @@ async function main() {
         ` isMaxTurnsExit=${isMaxTurns}` +
         ` isNoDeferredMarkerError=${isNoDeferredMarker}` +
         ` isInvalidModelError=${isInvalidModel}` +
+        ` isInvalidJsonBodyError=${isInvalidJsonBody}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
@@ -552,6 +582,22 @@ async function main() {
       break;
     }
 
+    // "The request body is not valid JSON" is a transport-level serialization bug,
+    // observed immediately after a permission_denied tool-result on a compound Bash
+    // command. Retrying with --continue would resend the same corrupted on-disk
+    // session state and reproduce the identical error, so force a fresh run and
+    // permanently disable --continue for the remainder of this driver invocation.
+    if (isInvalidJsonBody) {
+      if (attempt < maxRetries && result.hasOutput) {
+        useContinueOnRetry = false;
+        continueDisabledPermanently = true;
+        log(`attempt ${attempt + 1}: invalid JSON request body (transport-level serialization bug, likely following a permission_denied) — retrying as fresh run (--continue disabled permanently, attempt ${attempt + 2}/${maxRetries + 1})`);
+        continue;
+      }
+      log(`attempt ${attempt + 1}: invalid JSON request body — not retriable via --continue (failure_reason=harness_retry_path_invalid)`);
+      break;
+    }
+
     // Retry when the session was partially executed (has output).
     // Use --continue so Claude Code can resume from its saved session state.
     if (attempt < maxRetries && result.hasOutput) {
@@ -617,6 +663,7 @@ if (typeof module !== "undefined" && module.exports) {
     isMaxTurnsExit,
     isNoDeferredMarkerError,
     isInvalidModelError,
+    isInvalidJsonBodyError,
     isSignalTerminationExitCode,
     shouldRetryWithContinue,
     countPermissionDeniedIssues,

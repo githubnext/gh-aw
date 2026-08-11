@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🧭"
-description: Daily review of specification documents for coverage gaps and outdated content using Kiro
+description: Daily review of specification documents for coverage gaps and outdated content
 on:
   schedule: daily
   workflow_dispatch:
@@ -15,8 +15,8 @@ sandbox:
     sudo: false
 tracker-id: daily-spec-coverage-kiro
 engine:
-  id: kiro
-model: kiro/claude-sonnet-4.5
+  id: copilot
+  copilot-sdk: true
 strict: true
 network:
   allowed:
@@ -42,12 +42,11 @@ safe-outputs:
   missing-tool:
 timeout-minutes: 20
 imports:
-  - shared/kiro.md
   - shared/otlp.md
   - shared/reporting.md
 ---
 
-# Daily Spec Coverage Review — Kiro
+# Daily Spec Coverage Review
 
 Audit the specification and documentation files in this repository for coverage gaps, stale
 references, and missing sections.
