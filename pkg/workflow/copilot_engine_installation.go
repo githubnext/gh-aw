@@ -3,9 +3,9 @@
 // This file contains functions for generating GitHub Actions steps to install
 // the GitHub Copilot CLI and related sandbox infrastructure (AWF or SRT).
 //
-// Installation order:
+// Installation includes:
 //  1. Secret validation (COPILOT_GITHUB_TOKEN) — runs in the activation job
-//  2. Node.js setup
+//  2. ripgrep installation (skipped when rg is already available)
 //  3. Sandbox installation (SRT or AWF, if needed)
 //  4. Copilot CLI installation
 //
@@ -103,10 +103,8 @@ func (e *CopilotEngine) GetSecretFailureMessage(workflowData *WorkflowData) stri
 // GetInstallationSteps generates the complete installation workflow for Copilot CLI.
 // This includes Node.js setup, sandbox installation (SRT or AWF), and Copilot CLI installation.
 // Secret validation is handled separately in the activation job via GetSecretValidationStep.
-// The installation order is:
-// 1. Node.js setup
-// 2. Sandbox installation (AWF, if needed)
-// 3. Copilot CLI installation
+// The generated steps include ripgrep setup (skipped when rg is already available),
+// Copilot CLI installation, and sandbox installation (AWF, if needed).
 //
 // If a custom command is specified in the engine configuration, this function skips
 // standard Copilot CLI installation. When firewall is enabled, it still returns AWF
@@ -181,8 +179,16 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		npmSteps = append(npmSteps, sdkInstallStep)
 	}
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
+	steps = append([]GitHubActionStep{generateRipgrepInstallStep()}, steps...)
 
 	return appendCopilotLSPInstallSteps(steps, workflowData)
+}
+
+func generateRipgrepInstallStep() GitHubActionStep {
+	return GitHubActionStep([]string{
+		"      - name: Install ripgrep",
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_ripgrep.sh\"",
+	})
 }
 
 func appendCopilotLSPInstallSteps(steps []GitHubActionStep, workflowData *WorkflowData) []GitHubActionStep {

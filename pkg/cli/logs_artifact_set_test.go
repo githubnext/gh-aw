@@ -453,9 +453,13 @@ func TestFindMissingFilterEntriesAllMarkerSatisfiesFiltered(t *testing.T) {
 }
 
 func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
-	err := markArtifactDownloaded(t.TempDir(), "../activation")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid artifact name")
+	for _, name := range []string{"../activation", `..\activation`, ".", ".."} {
+		t.Run(name, func(t *testing.T) {
+			err := markArtifactDownloaded(t.TempDir(), name)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid artifact name")
+		})
+	}
 }
 
 // TestFindMissingFilterEntriesIncrementalScenario validates the key scenario used by
