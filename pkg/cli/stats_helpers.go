@@ -27,9 +27,12 @@ func medianFloat(vals []float64) float64 {
 	return sorted[n/2]
 }
 
-// meanStdDevInt returns the integer mean (floor) and population stddev.
-// The mean return is intentionally kept as int for existing JSON/display
-// contracts, while stddev uses the true (non-truncated) mean to avoid excess
+// meanStdDevInt computes the arithmetic mean and population standard deviation
+// of the int slice xs (assumed non-empty).
+//
+// The mean is returned as an int (truncated toward zero after integer division),
+// which is used for the milli-AIC intermediate representation.
+// The standard deviation uses the full floating-point mean to avoid accumulating
 // rounding error in the variance calculation.
 func meanStdDevInt(xs []int) (mean int, stddev float64) {
 	if len(xs) == 0 {
