@@ -78,7 +78,10 @@ describe("upload_assets.cjs", () => {
     process.env.GH_AW_ASSETS_DIR = getAssetsDir();
 
     uploadAssetsScript = fs.readFileSync(path.join(__dirname, "upload_assets.cjs"), "utf8");
-    mockExec = { exec: vi.fn().mockResolvedValue(0) };
+    mockExec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
   });
 
   afterEach(() => {
@@ -368,39 +371,38 @@ describe("upload_assets.cjs", () => {
 
     it("should fetch, rebase, and retry after a concurrent push", async () => {
       prepareAsset();
-      let pushAttempts = 0;
-      mockExec.exec.mockImplementation(async (command, args) => {
-        if (isGitCommand(command, args, "push") && ++pushAttempts === 1) {
-          throw new Error("non-fast-forward");
-        }
-        return 0;
-      });
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 1, stdout: "", stderr: "! [rejected] assets/test-workflow -> assets/test-workflow (fetch first)" }).mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" });
 
       await executeScript();
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
-      expect(pushAttempts).toBe(2);
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "assets/test-workflow"]);
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["rebase", "FETCH_HEAD"]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledTimes(2);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--no-tags", "origin", "+refs/heads/assets/test-workflow:refs/remotes/origin/assets/test-workflow"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["rebase", "refs/remotes/origin/assets/test-workflow"]);
     });
 
     it("should stop after three failed push attempts", async () => {
       prepareAsset();
-      let pushAttempts = 0;
-      mockExec.exec.mockImplementation(async (command, args) => {
-        if (isGitCommand(command, args, "push")) {
-          pushAttempts++;
-          throw new Error("non-fast-forward");
-        }
-        return 0;
-      });
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "non-fast-forward" });
 
       await executeScript();
 
-      expect(pushAttempts).toBe(3);
+      expect(mockExec.getExecOutput).toHaveBeenCalledTimes(3);
       expect(mockExec.exec.mock.calls.filter(call => isGitCommand(call[0], call[1], "fetch"))).toHaveLength(2);
       expect(mockExec.exec.mock.calls.filter(call => isGitCommand(call[0], call[1], "rebase"))).toHaveLength(2);
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("non-fast-forward"));
+    });
+
+    it("should not retry a non-concurrent push failure", async () => {
+      prepareAsset();
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "remote: permission denied" });
+
+      await executeScript();
+
+      expect(mockExec.getExecOutput).toHaveBeenCalledTimes(1);
+      expect(mockExec.exec.mock.calls.some(call => isGitCommand(call[0], call[1], "fetch"))).toBe(false);
+      expect(mockExec.exec.mock.calls.some(call => isGitCommand(call[0], call[1], "rebase"))).toBe(false);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("permission denied"));
     });
   });
 

@@ -191,17 +191,19 @@ async function main() {
       } else {
         const maxPushAttempts = 3;
         for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
-          try {
-            await exec.exec("git", ["push", "origin", normalizedBranchName]);
+          const pushResult = await exec.getExecOutput("git", ["push", "--porcelain", "origin", normalizedBranchName], { ignoreReturnCode: true });
+          if (pushResult.exitCode === 0) {
             break;
-          } catch (error) {
-            if (attempt === maxPushAttempts) {
-              throw error;
-            }
-            core.warning(`Asset push attempt ${attempt}/${maxPushAttempts} failed; rebasing onto the latest ${normalizedBranchName} branch before retrying`);
-            await exec.exec("git", ["fetch", "origin", normalizedBranchName]);
-            await exec.exec("git", ["rebase", "FETCH_HEAD"]);
           }
+          const pushError = [pushResult.stderr, pushResult.stdout].filter(Boolean).join("\n").trim() || `git push exited with code ${pushResult.exitCode}`;
+          const isNonFastForward = /non-fast-forward|fetch first/i.test(pushError);
+          if (!isNonFastForward || attempt === maxPushAttempts) {
+            throw new Error(pushError);
+          }
+          core.warning(`Asset push attempt ${attempt}/${maxPushAttempts} was rejected because the branch changed; rebasing onto the latest ${normalizedBranchName} branch before retrying`);
+          const remoteBranch = `refs/remotes/origin/${normalizedBranchName}`;
+          await exec.exec("git", ["fetch", "--no-tags", "origin", `+refs/heads/${normalizedBranchName}:${remoteBranch}`]);
+          await exec.exec("git", ["rebase", remoteBranch]);
         }
         core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
