@@ -52,13 +52,13 @@ func isLatestCloseByBot(ctx context.Context, number int, repo string, getEvents 
 	return false, fmt.Errorf("no close event found for %s#%d", repo, number)
 }
 
-func labelNamesFromAnyMaps(labels []any) []string {
-	if len(labels) == 0 {
+func labelNamesFromMaps(count int, labelAt func(int) map[string]any) []string {
+	if count == 0 {
 		return []string{}
 	}
-	result := make([]string, 0, len(labels))
-	for _, label := range labels {
-		labelMap, _ := label.(map[string]any)
+	result := make([]string, 0, count)
+	for i := range count {
+		labelMap := labelAt(i)
 		if name, ok := labelMap["name"].(string); ok {
 			result = append(result, name)
 		}

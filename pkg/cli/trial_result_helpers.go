@@ -7,7 +7,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-var trialTypesLog = logger.New("cli:trial_types")
+var trialResultHelpersLog = logger.New("cli:trial_result_helpers")
 
 // extractSafeOutputErrors extracts the "errors" array (if any) from a safe-outputs
 // artifact map, returning the rejected safe-output messages as strings.
@@ -30,7 +30,7 @@ func extractSafeOutputErrors(safeOutputs map[string]any) []string {
 		}
 	}
 	if len(messages) > 0 {
-		trialTypesLog.Printf("Extracted %d rejected safe-output message(s)", len(messages))
+		trialResultHelpersLog.Printf("Extracted %d rejected safe-output message(s)", len(messages))
 	}
 	return messages
 }
@@ -49,7 +49,7 @@ func aggregateTrialResults(results []WorkflowTrialResult) (overallSuccess bool, 
 			}
 		}
 	}
-	trialTypesLog.Printf("Aggregated %d trial result(s): success=%v totalRejected=%d", len(results), overallSuccess, totalRejected)
+	trialResultHelpersLog.Printf("Aggregated %d trial result(s): success=%v totalRejected=%d", len(results), overallSuccess, totalRejected)
 	return overallSuccess, totalRejected, firstErrorMessage
 }
 
