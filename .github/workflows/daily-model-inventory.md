@@ -49,7 +49,6 @@ jobs:
     permissions:
       contents: read
     steps:
-      # runner-guard:ignore RGS-012 -- authenticated read-only GET to the fixed OpenAI models endpoint; no secret data is sent in the request body.
       - name: Fetch OpenAI models
         id: fetch
         shell: bash
@@ -65,6 +64,7 @@ jobs:
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # runner-guard:ignore RGS-012 -- the OpenAI API key is sent only to the official OpenAI models endpoint.
           HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
             https://api.openai.com/v1/models) || true
@@ -107,7 +107,6 @@ jobs:
     permissions:
       contents: read
     steps:
-      # runner-guard:ignore RGS-012 -- authenticated read-only GET to the fixed Anthropic models endpoint; no secret data is sent in the request body.
       - name: Fetch Anthropic models
         id: fetch
         shell: bash
@@ -123,6 +122,7 @@ jobs:
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # runner-guard:ignore RGS-012 -- the Anthropic API key is sent only to the official Anthropic models endpoint.
           HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
@@ -167,7 +167,6 @@ jobs:
     permissions:
       contents: read
     steps:
-      # runner-guard:ignore RGS-012 -- authenticated read-only GET to the fixed Google models endpoint; no secret data is sent in the request body.
       - name: Fetch Gemini models
         id: fetch
         shell: bash
@@ -183,6 +182,7 @@ jobs:
             echo "status=skipped" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # runner-guard:ignore RGS-012 -- the Gemini API key is sent only to the official Google models endpoint.
           HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
             "https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}") || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
@@ -319,13 +319,13 @@ steps:
     with:
       path: /tmp/gh-aw/agent/model-inventory/artifacts
 
-  # runner-guard:ignore RGS-012 -- public read-only GET to an allow-listed domain; no secret headers or request body are sent.
   - name: Predownload models.dev API index
     shell: bash
     run: |
       set -euo pipefail
       OUT="/tmp/gh-aw/agent/model-inventory/models-dev"
       mkdir -p "$OUT"
+      # runner-guard:ignore RGS-012 -- unauthenticated GET from a public read-only model index; no secrets are sent.
       curl -fsS https://models.dev/api.json -o "$OUT/api.json"
       echo "Downloaded models.dev API index to $OUT/api.json"
 
