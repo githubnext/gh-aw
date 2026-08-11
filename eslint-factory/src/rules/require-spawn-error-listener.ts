@@ -90,6 +90,45 @@ function isErrorListenerCall(call: TSESTree.CallExpression, name: string): boole
   return firstArg !== undefined && firstArg.type === AST_NODE_TYPES.Literal && firstArg.value === "error";
 }
 
+function isConditionalEdge(parent: TSESTree.Node, child: TSESTree.Node): boolean {
+  switch (parent.type) {
+    case AST_NODE_TYPES.IfStatement:
+      return child === parent.consequent || child === parent.alternate;
+    case AST_NODE_TYPES.ConditionalExpression:
+      return child === parent.consequent || child === parent.alternate;
+    case AST_NODE_TYPES.LogicalExpression:
+      return child === parent.right;
+    case AST_NODE_TYPES.SwitchStatement:
+      return parent.cases.includes(child as TSESTree.SwitchCase);
+    case AST_NODE_TYPES.TryStatement:
+      return child === parent.handler;
+    case AST_NODE_TYPES.ForStatement:
+    case AST_NODE_TYPES.ForInStatement:
+    case AST_NODE_TYPES.ForOfStatement:
+    case AST_NODE_TYPES.WhileStatement:
+    case AST_NODE_TYPES.DoWhileStatement:
+      return child === parent.body;
+    default:
+      return false;
+  }
+}
+
+function isUnconditionallyReachableFrom(declaration: TSESTree.VariableDeclarator, listener: TSESTree.CallExpression, sourceCode: TSESLint.SourceCode): boolean {
+  if (listener.range[0] < declaration.range[1]) return false;
+
+  const declarationPath = [...sourceCode.getAncestors(declaration), declaration];
+  const listenerPath = [...sourceCode.getAncestors(listener), listener];
+  let divergence = 0;
+  while (divergence < declarationPath.length && divergence < listenerPath.length && declarationPath[divergence] === listenerPath[divergence]) {
+    divergence++;
+  }
+
+  for (let i = Math.max(divergence, 1); i < listenerPath.length; i++) {
+    if (isConditionalEdge(listenerPath[i - 1], listenerPath[i])) return false;
+  }
+  return true;
+}
+
 export const requireSpawnErrorListenerRule = createRule({
   name: "require-spawn-error-listener",
   meta: {
@@ -101,7 +140,7 @@ export const requireSpawnErrorListenerRule = createRule({
         "Node emits an 'error' event on the returned ChildProcess instead of throwing synchronously or rejecting a promise. " +
         "With no 'error' listener registered, that event becomes an uncaught exception that crashes the process. " +
         "Scope: this rule only checks variable declarator initializers (`const child = spawn(...)`) and looks for a " +
-        '`child.on("error", ...)` / `child.once("error", ...)` call anywhere in the enclosing function; it does not analyze ' +
+        '`child.on("error", ...)` / `child.once("error", ...)` call that is not in a conditional control-flow branch relative to the declaration; it does not analyze ' +
         "assignment expressions (`child = spawn(...)`) or inline chains (`spawn(...).on(...)`).",
     },
     schema: [],
@@ -130,7 +169,7 @@ export const requireSpawnErrorListenerRule = createRule({
           const parent = id.parent;
           if (!parent || parent.type !== AST_NODE_TYPES.MemberExpression || parent.object !== id) return false;
           const grandparent = parent.parent;
-          return grandparent !== undefined && grandparent.type === AST_NODE_TYPES.CallExpression && grandparent.callee === parent && isErrorListenerCall(grandparent, varName);
+          return grandparent !== undefined && grandparent.type === AST_NODE_TYPES.CallExpression && grandparent.callee === parent && isErrorListenerCall(grandparent, varName) && isUnconditionallyReachableFrom(node, grandparent, sourceCode);
         });
 
         if (!hasErrorListener) {
