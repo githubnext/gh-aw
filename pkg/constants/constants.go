@@ -287,9 +287,12 @@ const GhAwRootDirShell = "${RUNNER_TEMP}/gh-aw"
 // Uses the shell env var form since mounts are resolved in a shell context.
 const DefaultGhAwMount = GhAwRootDirShell + ":" + GhAwRootDirShell + ":ro"
 
+// GhCLIPath is the path to the gh CLI binary in the GitHub Actions runner.
+const GhCLIPath = "/usr/bin/gh"
+
 // DefaultGhBinaryMount is the mount path for the gh CLI binary in containerized MCP servers
 // The gh CLI is required for agentic-workflows MCP server to run gh commands
-const DefaultGhBinaryMount = "/usr/bin/gh:/usr/bin/gh:ro"
+const DefaultGhBinaryMount = GhCLIPath + ":" + GhCLIPath + ":ro"
 
 // DefaultTmpGhAwMount is the mount path for temporary gh-aw files in containerized MCP servers
 // Used for logs, cache, and other runtime data that needs read-write access

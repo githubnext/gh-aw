@@ -3,10 +3,15 @@
 package analyzerutil
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"reflect"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
@@ -33,5 +38,34 @@ func TestNewAtPath(t *testing.T) {
 
 	if analyzer.URL != repositoryURL+"example-path" {
 		t.Errorf("NewAtPath() URL = %q, want %q", analyzer.URL, repositoryURL+"example-path")
+	}
+}
+
+func TestPreorder(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "example.go", `package example
+func example() {
+	first()
+	second()
+}`, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pass := &analysis.Pass{
+		ResultOf: map[*analysis.Analyzer]any{
+			inspect.Analyzer: inspector.New([]*ast.File{file}),
+		},
+	}
+
+	var names []string
+	_, err = Preorder(pass, []ast.Node{(*ast.CallExpr)(nil)}, func(node ast.Node) {
+		call := node.(*ast.CallExpr)
+		names = append(names, call.Fun.(*ast.Ident).Name)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want := []string{"first", "second"}; !reflect.DeepEqual(names, want) {
+		t.Errorf("Preorder() visited %v, want %v", names, want)
 	}
 }
