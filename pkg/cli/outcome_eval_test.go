@@ -183,6 +183,8 @@ func TestCountHumanComments(t *testing.T) {
 	}
 
 	assert.Equal(t, 2, countHumanComments(comments), "should count only non-bot comments")
+	assert.Equal(t, 0, countHumanComments(nil), "empty comment list")
+	assert.Equal(t, 1, countHumanComments([]map[string]any{{}}), "missing user preserves existing human classification")
 }
 
 func TestCountHumanCommentsAfter(t *testing.T) {
