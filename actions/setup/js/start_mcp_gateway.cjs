@@ -238,6 +238,36 @@ function applyOTLPIgnoreIfMissing(configObj) {
 }
 
 /**
+ * Collect the names of MCP servers declared as non-critical (`required: false`)
+ * and remove the flag from the configuration handed to the gateway.
+ *
+ * The gateway configuration specification does not define a `required` field,
+ * and the gateway output does not echo it back, so the flag is extracted here
+ * and forwarded to the startup connectivity check instead.
+ *
+ * @param {Record<string, unknown>} configObj
+ * @returns {string[]} names of servers whose startup failure must not abort the workflow
+ */
+function extractOptionalServerNames(configObj) {
+  const servers = configObj && configObj.mcpServers;
+  if (!servers || typeof servers !== "object" || Array.isArray(servers)) {
+    return [];
+  }
+  const optional = [];
+  for (const [name, value] of Object.entries(/** @type {Record<string, unknown>} */ servers)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      continue;
+    }
+    const server = /** @type {Record<string, unknown>} */ value;
+    if (server.required === false) {
+      optional.push(name);
+    }
+    delete server.required;
+  }
+  return optional;
+}
+
+/**
  * Check whether a process is alive.
  * @param {number} pid
  * @returns {boolean}
@@ -537,6 +567,13 @@ async function main() {
   }
 
   applyOTLPIgnoreIfMissing(configObj);
+
+  // Servers declared with `required: false` are best-effort: a failed startup
+  // connectivity check for them must not abort the whole gateway.
+  const optionalServerNames = extractOptionalServerNames(configObj);
+  if (optionalServerNames.length > 0) {
+    core.info(`Non-critical MCP server(s) (startup failures tolerated): ${optionalServerNames.join(", ")}`);
+  }
 
   core.info("Configuration validated successfully");
   printTiming(configValidationStart, "Configuration validation");
@@ -947,7 +984,10 @@ async function main() {
     // as a shell argument to avoid shell metacharacter injection risks.
     const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
     try {
-      execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${safePort}" "$MCP_GATEWAY_API_KEY"`, { stdio: "inherit", env: process.env });
+      execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${safePort}" "$MCP_GATEWAY_API_KEY"`, {
+        stdio: "inherit",
+        env: { ...process.env, GH_AW_MCP_OPTIONAL_SERVERS: optionalServerNames.join(",") },
+      });
     } catch {
       core.error("ERROR: MCP server checks failed - no servers could be connected");
       core.error("Gateway process will be terminated");
@@ -1057,6 +1097,7 @@ if (require.main === module) {
 module.exports = {
   applyOTLPIgnoreIfMissing,
   detectEngineType,
+  extractOptionalServerNames,
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,

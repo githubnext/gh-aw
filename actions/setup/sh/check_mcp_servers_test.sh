@@ -610,6 +610,118 @@ EOF
   rm -rf "$tmpdir"
 }
 
+# Test 14: Optional server declared via GH_AW_MCP_OPTIONAL_SERVERS should not fail startup
+test_optional_server_from_env_degrades_to_warning() {
+  echo ""
+  echo "Test 14: Optional server from GH_AW_MCP_OPTIONAL_SERVERS degrades to warning"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local port_file="$tmpdir/port"
+  local config_file="$tmpdir/config.json"
+
+  local server_pid
+  if ! server_pid=$(start_and_validate_mock_server "$port_file" "$tmpdir/mock.log"); then
+    print_result "Mock MCP server failed to start (check $tmpdir/mock.log)" "FAIL"
+    return
+  fi
+
+  local port
+  port=$(cat "$port_file")
+
+  # The gateway output does not echo the "required" flag, so criticality is
+  # forwarded through GH_AW_MCP_OPTIONAL_SERVERS instead.
+  cat > "$config_file" <<EOF
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/github"
+    },
+    "datadog": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/datadog"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+
+  local output_file="$tmpdir/output.txt"
+  local run_result=0
+  GH_AW_MCP_OPTIONAL_SERVERS="grafana,datadog" bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >"$output_file" 2>&1 || run_result=$?
+
+  if [ $run_result -eq 0 ]; then
+    print_result "Optional server from environment does not fail startup" "PASS"
+  else
+    print_result "Optional server from environment should not fail startup" "FAIL"
+  fi
+
+  if grep -q "non-critical MCP server unavailable, continuing without it" "$output_file"; then
+    print_result "Non-critical failure logs an actionable message" "PASS"
+  else
+    print_result "Non-critical failure should log an actionable message" "FAIL"
+  fi
+
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$tmpdir"
+}
+
+# Test 15: Servers not listed in GH_AW_MCP_OPTIONAL_SERVERS stay required
+test_env_optional_list_does_not_affect_other_servers() {
+  echo ""
+  echo "Test 15: GH_AW_MCP_OPTIONAL_SERVERS only applies to listed servers"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local port_file="$tmpdir/port"
+  local config_file="$tmpdir/config.json"
+
+  local server_pid
+  if ! server_pid=$(start_and_validate_mock_server "$port_file" "$tmpdir/mock.log"); then
+    print_result "Mock MCP server failed to start (check $tmpdir/mock.log)" "FAIL"
+    return
+  fi
+
+  local port
+  port=$(cat "$port_file")
+
+  cat > "$config_file" <<EOF
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/github"
+    },
+    "datadog": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/datadog"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+
+  if ! GH_AW_MCP_OPTIONAL_SERVERS="grafana" bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >/dev/null 2>&1; then
+    print_result "Unlisted failing server remains fatal" "PASS"
+  else
+    print_result "Unlisted failing server should remain fatal" "FAIL"
+  fi
+
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$tmpdir"
+}
+
 # Run all tests
 echo "=== Testing check_mcp_servers.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -627,6 +739,8 @@ test_validation_functions_exist
 test_optional_server_failure_degrades_to_warning
 test_required_server_failure_is_fatal
 test_all_optional_servers_fail_is_error
+test_optional_server_from_env_degrades_to_warning
+test_env_optional_list_does_not_affect_other_servers
 
 # Print summary
 echo ""

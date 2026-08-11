@@ -13645,6 +13645,11 @@
             "type": "string"
           },
           "description": "Custom proxy arguments for container-based MCP servers (e.g., DIFC proxy configuration)"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this MCP server must pass the startup connectivity check. When false, a server that cannot be reached at startup logs a warning and the workflow continues without it."
         }
       },
       "additionalProperties": false,
@@ -13731,6 +13736,11 @@
         },
         "auth": {
           "$ref": "#/$defs/http_mcp_auth"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this MCP server must pass the startup connectivity check. When false, a server that cannot be reached at startup logs a warning and the workflow continues without it."
         }
       },
       "required": ["url"],

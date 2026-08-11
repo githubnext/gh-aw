@@ -938,3 +938,74 @@ Do nothing.
 		})
 	}
 }
+
+// TestMCPServerRequiredFalseCompilation verifies that a server marked with
+// required: false is accepted by validation and rendered into the gateway
+// configuration so its startup failure can be degraded to a warning.
+func TestMCPServerRequiredFalseCompilation(t *testing.T) {
+	workflowContent := `---
+on:
+  workflow_dispatch:
+strict: false
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  optional-http:
+    type: http
+    url: "https://example.com/mcp"
+    required: false
+  critical-http:
+    type: http
+    url: "https://example.com/other-mcp"
+---
+
+# Test MCP Required Flag
+
+This workflow tests that non-critical MCP servers are marked as such.
+`
+
+	tmpFile, err := os.CreateTemp("", "test-mcp-required-*.md")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(workflowContent); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	compiler := NewCompiler()
+	compiler.SetSkipValidation(true)
+
+	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse workflow file: %v", err)
+	}
+
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	optionalIndex := strings.Index(yamlContent, `"optional-http"`)
+	if optionalIndex == -1 {
+		t.Fatalf("Could not find optional-http server in generated YAML")
+	}
+	if !strings.Contains(yamlContent, `"critical-http"`) {
+		t.Fatalf("Could not find critical-http server in generated YAML")
+	}
+
+	// The required flag must be emitted only for the non-critical server.
+	requiredIndex := strings.Index(yamlContent, `"required": false`)
+	if requiredIndex == -1 {
+		t.Fatalf("Expected \"required\": false to be rendered for optional-http")
+	}
+	if strings.Count(yamlContent, `"required": false`) != 1 {
+		t.Errorf("Expected exactly one \"required\": false entry, got %d", strings.Count(yamlContent, `"required": false`))
+	}
+	if requiredIndex < optionalIndex {
+		t.Errorf("Expected \"required\": false to be rendered inside the optional-http server block")
+	}
+}
