@@ -196,19 +196,44 @@ func TestCountHumanCommentsAfter(t *testing.T) {
 }
 
 func TestIsLatestCloseByBot(t *testing.T) {
-	getEvents := func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
-		require.Equal(t, "issues/42/events", endpoint)
-		require.Equal(t, "owner/repo", repo)
-		return []map[string]any{
-			{"event": "closed", "actor": map[string]any{"login": "octocat"}},
-			{"event": "reopened", "actor": map[string]any{"login": "octocat"}},
-			{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}},
-		}, nil
+	cases := []struct {
+		name      string
+		events    []map[string]any
+		wantIsBot bool
+	}{
+		{
+			name: "latest close by bot",
+			events: []map[string]any{
+				{"event": "closed", "actor": map[string]any{"login": "octocat"}},
+				{"event": "reopened", "actor": map[string]any{"login": "octocat"}},
+				{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}},
+			},
+			wantIsBot: true,
+		},
+		{
+			name: "latest close by human",
+			events: []map[string]any{
+				{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}},
+				{"event": "reopened", "actor": map[string]any{"login": "octocat"}},
+				{"event": "closed", "actor": map[string]any{"login": "octocat"}},
+			},
+			wantIsBot: false,
+		},
 	}
 
-	closedByBot, err := isLatestCloseByBot(context.Background(), 42, "owner/repo", getEvents)
-	require.NoError(t, err)
-	assert.True(t, closedByBot, "should use the most recent close event")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			getEvents := func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+				require.Equal(t, "issues/42/events", endpoint)
+				require.Equal(t, "owner/repo", repo)
+				return tc.events, nil
+			}
+
+			closedByBot, err := isLatestCloseByBot(context.Background(), 42, "owner/repo", getEvents)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantIsBot, closedByBot, "should use the most recent close event")
+		})
+	}
 }
 
 func TestIsLatestCloseByBotRequiresCloseEvent(t *testing.T) {

@@ -43,6 +43,7 @@ func meanStdDevInt(xs []int) (mean int, stddev float64) {
 		sum += x
 	}
 	mean = sum / len(xs)
+	// Use the exact float mean for stddev to avoid bias from integer truncation.
 	fmean := float64(sum) / float64(len(xs))
 	for _, x := range xs {
 		d := float64(x) - fmean
