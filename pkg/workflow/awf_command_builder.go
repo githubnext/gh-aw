@@ -636,9 +636,15 @@ func collectAllowedHostPorts(workflowData *WorkflowData, agentConfig *AgentSandb
 	ports[getMCPGatewayPort(workflowData)] = struct{}{}
 	if agentConfig != nil {
 		for _, port := range agentConfig.AllowHostPorts {
-			if port >= minPort && port <= maxPort {
-				ports[port] = struct{}{}
+			if port < minPort || port > maxPort {
+				continue
 			}
+			// Defense-in-depth: dangerous ports must never reach --allow-host-ports,
+			// even if validateAllowHostPorts was bypassed or its call order changes.
+			if _, dangerous := awfDangerousHostPorts[port]; dangerous {
+				continue
+			}
+			ports[port] = struct{}{}
 		}
 	}
 	result := make([]int, 0, len(ports))

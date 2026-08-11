@@ -144,11 +144,11 @@ func TestExtractAgentSandboxConfigAllowHostPorts(t *testing.T) {
 
 	config := compiler.extractAgentSandboxConfig(map[string]any{
 		"id":               "awf",
-		"allow-host-ports": []any{5432, 9200},
+		"allow-host-ports": []any{8080, 9090},
 	})
 
 	require.NotNil(t, config, "Should extract agent sandbox config")
-	assert.Equal(t, []int{5432, 9200}, config.AllowHostPorts)
+	assert.Equal(t, []int{8080, 9090}, config.AllowHostPorts)
 }
 
 func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {

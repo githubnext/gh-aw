@@ -32,13 +32,17 @@ const (
 )
 
 // awfDangerousHostPorts mirrors AWF's DANGEROUS_PORTS list (gh-aw-firewall
-// src/squid/policy-manifest.ts). These ports are never allowed via
-// --allow-host-ports, even with --enable-host-access: AWF blocks them at
+// src/squid/policy-manifest.ts) as of the pinned AWF release
+// constants.DefaultFirewallVersion (v0.27.44). These ports are never allowed
+// via --allow-host-ports, even with --enable-host-access: AWF blocks them at
 // both the iptables and Squid policy layers to prevent the agent sandbox
 // from reaching sensitive services directly. --allow-host-service-ports
 // intentionally bypasses this list because it restricts traffic to the host
 // gateway only (for GitHub Actions services:), but that flag requires
 // sandbox.agent.legacy-security: enable.
+//
+// If the pinned AWF version is bumped and its DANGEROUS_PORTS list changes,
+// update this map to match; there is no automated sync with upstream.
 var awfDangerousHostPorts = map[int]string{
 	22:    "SSH",
 	23:    "Telnet",
