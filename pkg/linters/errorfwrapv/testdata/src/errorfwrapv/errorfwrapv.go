@@ -48,6 +48,12 @@ func GoodIndexedWidthWrap(err error) error {
 	return fmt.Errorf("%[2]*[1]w", err, 10)
 }
 
+// GoodIndexedDynamicWidthWrap uses an explicit index for the dynamic width and
+// wraps the following argument with %w.
+func GoodIndexedDynamicWidthWrap(width int, err error) error {
+	return fmt.Errorf("%[1]*w", width, err)
+}
+
 // BadIndexedWidthNoW uses indexed width and value but does not wrap the error.
 func BadIndexedWidthNoW(err error) error {
 	return fmt.Errorf("%[2]*[1]s", err, 10) // want `fmt\.Errorf passes an error argument without %w`

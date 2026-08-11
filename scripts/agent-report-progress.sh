@@ -90,7 +90,12 @@ for file in "${CHANGED_FILES[@]}"; do
     case "$file" in
         *.go)
             package_dir=$(dirname "$file")
-            if find "$package_dir" -maxdepth 1 -type f -name '*.go' -print -quit 2>/dev/null | grep -q .; then
+            # Analyzer fixtures under testdata/ are excluded from ./... package
+            # patterns, so they must not be linted or tested as real packages.
+            case "$file" in
+                testdata/*|*/testdata/*) package_dir="" ;;
+            esac
+            if [ -n "$package_dir" ] && find "$package_dir" -maxdepth 1 -type f -name '*.go' -print -quit 2>/dev/null | grep -q .; then
                 go_packages+=("./$package_dir")
             fi
             if [ -f "$file" ]; then
