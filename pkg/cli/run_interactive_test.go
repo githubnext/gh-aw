@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -483,4 +484,13 @@ func TestSelectWorkflowNonInteractive(t *testing.T) {
 	for i, wf := range workflows {
 		assert.NotEmpty(t, wf.Name, "Workflow at index %d should have a name", i)
 	}
+}
+
+func TestRunWorkflowInteractively_CIErrorMessage(t *testing.T) {
+	t.Setenv("CI", "true")
+	err := RunWorkflowInteractively(context.Background(), RunWorkflowOptions{})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "interactive mode is unavailable in CI environments")
+	require.ErrorContains(t, err, "Expected an interactive terminal session outside CI")
+	require.ErrorContains(t, err, "Example:")
 }

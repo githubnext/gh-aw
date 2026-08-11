@@ -163,6 +163,8 @@ func TestValidateAPIEndpoint(t *testing.T) {
 			}
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.wantErr)
+			require.ErrorContains(t, err, "Expected")
+			require.ErrorContains(t, err, "Example:")
 		})
 	}
 }

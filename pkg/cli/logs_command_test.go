@@ -409,3 +409,32 @@ func TestLogsCommand_RepoUsesLocalResolutionWhenLockFileExists(t *testing.T) {
 	assert.NotContains(t, execErr.Error(), "could not find any workflows named my-test-workflow",
 		"when a local lock file exists, the display name (not the workflow ID) should be passed to gh run list")
 }
+
+func TestValidateLogsRuntimeErrorMessage(t *testing.T) {
+	err := validateLogsRuntime("not-a-real-runtime")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid runtime value")
+	require.ErrorContains(t, err, "Expected one of:")
+	require.ErrorContains(t, err, "Example: --runtime")
+}
+
+func TestValidateLogsEngineErrorMessage(t *testing.T) {
+	err := validateLogsEngine("not-a-real-engine")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid engine value")
+	require.ErrorContains(t, err, "Expected one of:")
+	require.ErrorContains(t, err, "Example: --engine")
+}
+
+func TestValidateReportFileFlagsErrorMessages(t *testing.T) {
+	err := validateReportFileFlags("report.md", "json", false)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Expected '--format markdown'")
+	require.ErrorContains(t, err, "Example:")
+
+	err = validateReportFileFlags("report.md", "markdown", true)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "cannot be combined with --json")
+	require.ErrorContains(t, err, "Expected markdown output")
+	require.ErrorContains(t, err, "Example:")
+}

@@ -33,7 +33,7 @@ func RunWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) erro
 
 	// Check if running in CI environment
 	if IsRunningInCI() {
-		return errors.New("interactive mode cannot be used in CI environments")
+		return errors.New("interactive mode is unavailable in CI environments. Expected an interactive terminal session outside CI. Example: run 'gh aw run --interactive' from your local terminal")
 	}
 
 	if opts.Verbose {
@@ -47,7 +47,7 @@ func RunWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) erro
 	}
 
 	if len(workflows) == 0 {
-		return errors.New("no runnable workflows found. Workflows must have 'workflow_dispatch' trigger")
+		return errors.New("no runnable workflows were found. Expected at least one workflow with 'on: workflow_dispatch'. Example:\non:\n  workflow_dispatch: {}")
 	}
 
 	// Step 2: Let user select a workflow
@@ -221,7 +221,7 @@ func selectWorkflowNonInteractive(workflows []WorkflowOption) (*WorkflowOption, 
 	}
 
 	if choice < 1 || choice > len(workflows) {
-		return nil, fmt.Errorf("selection out of range (must be 1-%d)", len(workflows))
+		return nil, fmt.Errorf("selection %d is out of range. Expected a number between 1 and %d. Example: enter 1 to select the first workflow", choice, len(workflows))
 	}
 
 	selectedWorkflow := &workflows[choice-1]
@@ -301,7 +301,7 @@ func collectInputsWithMap(ctx context.Context, inputs map[string]*workflow.Input
 		if inputDef.Required {
 			field = field.Validate(func(s string) error {
 				if s == "" {
-					return errors.New("this input is required")
+					return fmt.Errorf("input '%s' is required. Expected a non-empty value. Example: %s=my-value", inputName, inputName)
 				}
 				return nil
 			})

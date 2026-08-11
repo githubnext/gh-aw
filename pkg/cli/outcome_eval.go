@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"net/url"
@@ -241,10 +240,10 @@ func escapeOwnerRepo(ownerRepo string) string {
 
 func validateAPIEndpoint(endpoint string) error {
 	if strings.HasPrefix(endpoint, "/") {
-		return errors.New("endpoint must not start with '/'")
+		return fmt.Errorf("endpoint %q must not start with '/'. Expected a relative API path without a leading slash. Example: issues/comments/123", endpoint)
 	}
 	if slices.Contains(strings.Split(endpoint, "/"), "..") {
-		return errors.New("endpoint must not contain '..' path segments")
+		return fmt.Errorf("endpoint %q must not contain '..' path segments. Expected a normalized API path without parent directory traversal. Example: issues/comments/123", endpoint)
 	}
 	return nil
 }
@@ -326,7 +325,7 @@ func buildGraphQLArgs(query string, variables map[string]any) ([]string, error) 
 		case int, int32, int64, bool:
 			args = append(args, "-F", fmt.Sprintf("%s=%v", name, value))
 		default:
-			return nil, fmt.Errorf("buildGraphQLArgs: unsupported variable type %T for key %q", value, name)
+			return nil, fmt.Errorf("buildGraphQLArgs received unsupported variable type %T for key %q. Expected string, int, int32, int64, or bool values. Example: map[string]any{\"number\": 42}", value, name)
 		}
 	}
 	return args, nil
@@ -515,7 +514,7 @@ func loadPullRequestIntentData(ctx context.Context, report OutcomeReport, repo s
 	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repo)
 	owner, name, found := strings.Cut(ownerRepo, "/")
 	if !found || owner == "" || name == "" {
-		return intent.PullRequestData{}, fmt.Errorf("invalid repo for root tracing: %s", repo)
+		return intent.PullRequestData{}, fmt.Errorf("repo value %q is not valid for root tracing. Expected 'owner/repo'. Example: github/gh-aw", repo)
 	}
 
 	query := `query($owner: String!, $name: String!, $number: Int!) {

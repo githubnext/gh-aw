@@ -27,7 +27,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 	config := data.SafeOutputs.DispatchWorkflow
 
 	if len(config.Workflows) == 0 {
-		return errors.New("dispatch-workflow: must specify at least one workflow in the list\n\nExample configuration in workflow frontmatter:\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [workflow-name-1, workflow-name-2]\n\nWorkflow names should match the filename without the .md extension")
+		return errors.New("dispatch-workflow configuration has no workflows and must specify at least one workflow in the list. Expected workflow names that match the filename without the .md extension. Example configuration in workflow frontmatter. Example:\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [workflow-name-1, workflow-name-2]")
 	}
 
 	if c.shouldSkipLocalDispatchWorkflowValidation(config.TargetRepoSlug) {
@@ -42,7 +42,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 	for _, workflowName := range config.Workflows {
 		dispatchWorkflowValidationLog.Printf("Validating workflow: %s", workflowName)
 		if workflowName == currentWorkflowName {
-			selfRefErr := fmt.Errorf("dispatch-workflow: self-reference not allowed (workflow '%s' cannot dispatch itself)\n\nA workflow cannot trigger itself to prevent infinite loops.\nIf you need recurring execution, use a schedule trigger or workflow_dispatch instead", workflowName)
+			selfRefErr := fmt.Errorf("dispatch-workflow self-reference not allowed: workflow '%s' cannot dispatch itself and can create infinite loops. Expected each listed workflow to be different; use a schedule trigger or workflow_dispatch for recurring runs. Example:\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [build, deploy]", workflowName)
 			if returnErr := collector.Add(selfRefErr); returnErr != nil {
 				return returnErr
 			}
@@ -103,7 +103,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 				continue
 			}
 			if !mdHasDispatch {
-				dispatchErr := fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName)
+				dispatchErr := fmt.Errorf("dispatch-workflow target '%s' does not support workflow_dispatch trigger. Expected the target workflow to include 'on: workflow_dispatch'. Example:\non:\n  workflow_dispatch: {}", workflowName)
 				if returnErr := collector.Add(dispatchErr); returnErr != nil {
 					return returnErr
 				}
@@ -132,7 +132,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 		}
 
 		if !containsWorkflowDispatch(onSection) {
-			dispatchErr := fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName)
+			dispatchErr := fmt.Errorf("dispatch-workflow target '%s' does not support workflow_dispatch trigger. Expected the target workflow to include 'on: workflow_dispatch'. Example:\non:\n  workflow_dispatch: {}", workflowName)
 			if returnErr := collector.Add(dispatchErr); returnErr != nil {
 				return returnErr
 			}

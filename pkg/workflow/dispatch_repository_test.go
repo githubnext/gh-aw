@@ -359,6 +359,8 @@ func TestValidateDispatchRepository_InvalidRepoFormat(t *testing.T) {
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail for invalid repository format")
 	require.ErrorContains(t, err, "invalid", "Error should mention invalid format")
+	require.ErrorContains(t, err, "Expected 'owner/repo'", "Error should describe expected format")
+	require.ErrorContains(t, err, "Example:", "Error should include an example")
 }
 
 // TestValidateDispatchRepository_GitHubExpression tests that GitHub Actions expressions are accepted
@@ -448,6 +450,8 @@ func TestValidateDispatchRepository_EmptyTools(t *testing.T) {
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail with empty tools map")
 	require.ErrorContains(t, err, "at least one dispatch tool", "Error should mention tools requirement")
+	require.ErrorContains(t, err, "Expected", "Error should describe expected configuration")
+	require.ErrorContains(t, err, "Example:", "Error should include an example")
 }
 
 // TestValidateDispatchRepository_NilConfig tests that nil config is OK (no-op)

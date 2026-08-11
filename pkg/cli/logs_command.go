@@ -323,7 +323,7 @@ func validateLogsRuntime(runtime string) error {
 	if slices.Contains(validRuntimes, runtime) {
 		return nil
 	}
-	return fmt.Errorf("invalid runtime value '%s'. Must be one of: %s", runtime, strings.Join(validRuntimes, ", "))
+	return fmt.Errorf("invalid runtime value %q. Expected one of: %s. Example: --runtime %s", runtime, strings.Join(validRuntimes, ", "), validRuntimes[0])
 }
 
 func validateLogsEngine(engine string) error {
@@ -336,7 +336,11 @@ func validateLogsEngine(engine string) error {
 		return nil
 	}
 	supportedEngines := registry.GetSupportedEngines()
-	return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
+	exampleEngine := "copilot"
+	if len(supportedEngines) > 0 {
+		exampleEngine = supportedEngines[0]
+	}
+	return fmt.Errorf("invalid engine value %q. Expected one of: %s. Example: --engine %s", engine, strings.Join(supportedEngines, ", "), exampleEngine)
 }
 
 func resolveLogsWorkflowName(cmd *cobra.Command, args []string) (string, error) {
@@ -532,10 +536,10 @@ func validateReportFileFlags(reportFile, format string, jsonOutput bool) error {
 		return nil
 	}
 	if format != "markdown" {
-		return errors.New("--report-file requires --format markdown")
+		return errors.New("--report-file was provided with a non-markdown format. Expected '--format markdown' when using '--report-file'. Example: gh aw logs --format markdown --report-file report.md")
 	}
 	if jsonOutput {
-		return errors.New("--report-file cannot be used with --json")
+		return errors.New("--report-file cannot be combined with --json output. Expected markdown output when writing a report file. Example: gh aw logs --format markdown --report-file report.md")
 	}
 	return nil
 }

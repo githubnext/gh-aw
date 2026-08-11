@@ -28,7 +28,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 	config := data.SafeOutputs.DispatchRepository
 
 	if len(config.Tools) == 0 {
-		return errors.New("dispatch_repository: must specify at least one dispatch tool\n\nExample configuration in workflow frontmatter:\nsafe-outputs:\n  dispatch_repository:\n    trigger_ci:\n      description: Trigger CI in another repository\n      workflow: ci.yml\n      event_type: ci_trigger\n      repository: org/target-repo")
+		return errors.New("dispatch_repository configuration has no tools and must specify at least one dispatch tool. Expected at least one tool under safe-outputs.dispatch_repository. Example configuration in workflow frontmatter. Example:\nsafe-outputs:\n  dispatch_repository:\n    trigger_ci:\n      description: Trigger CI in another repository\n      workflow: ci.yml\n      event_type: ci_trigger\n      repository: org/target-repo")
 	}
 
 	collector := NewErrorCollector(c.failFast)
@@ -59,7 +59,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 		hasAllowedRepos := len(tool.AllowedRepositories) > 0
 
 		if !hasRepository && !hasAllowedRepos {
-			repoErr := fmt.Errorf("dispatch_repository: tool %q must specify either 'repository' or 'allowed_repositories'\n\nExample with single repository:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      repository: org/target-repo\n\nExample with multiple repositories:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      allowed_repositories:\n        - org/repo1\n        - org/repo2", toolKey, toolKey, tool.Workflow, tool.EventType, toolKey, tool.Workflow, tool.EventType)
+			repoErr := fmt.Errorf("dispatch_repository tool %q has no repository target. Expected either 'repository' or 'allowed_repositories'. Example:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      repository: org/target-repo\nAlternative Example:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      allowed_repositories:\n        - org/repo1\n        - org/repo2", toolKey, toolKey, tool.Workflow, tool.EventType, toolKey, tool.Workflow, tool.EventType)
 			if returnErr := collector.Add(repoErr); returnErr != nil {
 				return returnErr
 			}
@@ -69,7 +69,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 		// Validate single repository format (skip if it looks like a GitHub Actions expression)
 		if hasRepository && !hasExpressionMarker(tool.Repository) {
 			if !repoSlugPattern.MatchString(tool.Repository) {
-				repoFmtErr := fmt.Errorf("dispatch_repository: tool %q has invalid 'repository' format %q (expected 'owner/repo')", toolKey, tool.Repository)
+				repoFmtErr := fmt.Errorf("dispatch_repository tool %q has invalid repository value %q in an unsupported format. Expected 'owner/repo'. Example: repository: github/gh-aw", toolKey, tool.Repository)
 				if returnErr := collector.Add(repoFmtErr); returnErr != nil {
 					return returnErr
 				}
@@ -86,7 +86,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 				continue
 			}
 			if !repoSlugPattern.MatchString(repo) {
-				allowedRepoErr := fmt.Errorf("dispatch_repository: tool %q has invalid repository %q in 'allowed_repositories' (expected 'owner/repo' format)", toolKey, repo)
+				allowedRepoErr := fmt.Errorf("dispatch_repository tool %q has allowed_repositories entry %q in an unsupported format. Expected entries like 'owner/repo' or 'owner/*'. Example:\nallowed_repositories:\n  - github/gh-aw\n  - github/*", toolKey, repo)
 				if returnErr := collector.Add(allowedRepoErr); returnErr != nil {
 					return returnErr
 				}

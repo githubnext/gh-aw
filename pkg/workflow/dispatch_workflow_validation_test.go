@@ -47,6 +47,7 @@ func TestDispatchWorkflowErrorMessage_EmptyList(t *testing.T) {
 	errMsg := err.Error()
 	assert.Contains(t, errMsg, "must specify at least one workflow", "Should mention the requirement")
 	assert.Contains(t, errMsg, "Example configuration", "Should include example header")
+	assert.Contains(t, errMsg, "Example:", "Should include explicit example marker")
 	assert.Contains(t, errMsg, "safe-outputs:", "Should show YAML structure")
 	assert.Contains(t, errMsg, "dispatch-workflow:", "Should show feature name")
 	assert.Contains(t, errMsg, "workflows: [workflow-name-1, workflow-name-2]", "Should show example list")
