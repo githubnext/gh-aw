@@ -80,8 +80,8 @@ This workflow validates that noEmit mode does not write or size-check a lock fil
 		require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 		lockFile := stringutil.MarkdownToLockFile(testFile)
-		// Ensure no stale lock file exists from a previous run/subtest.
-		_ = os.Remove(lockFile)
+		oversizedContent := strings.Repeat("x", MaxLockFileSize+1)
+		require.NoError(t, os.WriteFile(lockFile, []byte(oversizedContent), 0644))
 
 		compiler := NewCompiler()
 		compiler.SetNoEmit(true)
@@ -91,8 +91,9 @@ This workflow validates that noEmit mode does not write or size-check a lock fil
 			require.NoError(t, err, "expected no error for noEmit compilation")
 		})
 
-		_, statErr := os.Stat(lockFile)
-		assert.True(t, os.IsNotExist(statErr), "lock file should not be written in noEmit mode")
+		lockFileContent, err := os.ReadFile(lockFile)
+		require.NoError(t, err, "pre-existing lock file should not be removed in noEmit mode")
+		assert.Equal(t, oversizedContent, string(lockFileContent), "noEmit mode should not write the lock file")
 		assert.NotContains(t, stderrOutput, "exceeds recommended maximum size", "noEmit mode should not perform size validation")
 	})
 
@@ -160,6 +161,7 @@ func captureStderr(t *testing.T, fn func()) string {
 	oldStderr := os.Stderr
 	r, w, err := os.Pipe()
 	require.NoError(t, err, "should create stderr capture pipe")
+	defer func() { _ = r.Close() }()
 	os.Stderr = w
 	defer func() {
 		os.Stderr = oldStderr
