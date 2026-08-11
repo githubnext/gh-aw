@@ -5,7 +5,6 @@ description: Select and authenticate the Pi AI engine for GitHub Agentic Workflo
 
 GitHub Agentic Workflows (`gh-aw`) includes Pi as a provider-agnostic AI engine. GitHub Actions runs Pi from the same Markdown workflow format as the stable engines, but Pi has additional tool requirements and selects authentication from the provider prefix in `model:`.
 
-> [!CAUTION]
 ## Selection and authentication
 
 Set `engine: pi`. A model without a provider prefix uses the Copilot backend; an explicit `provider/model` value selects Copilot, Anthropic, or OpenAI/Codex authentication.
