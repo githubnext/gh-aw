@@ -49,6 +49,7 @@ jobs:
     permissions:
       contents: read
     steps:
+      # runner-guard:ignore RGS-012 -- authenticated read-only GET to the fixed OpenAI models endpoint; no secret data is sent in the request body.
       - name: Fetch OpenAI models
         id: fetch
         shell: bash
@@ -106,6 +107,7 @@ jobs:
     permissions:
       contents: read
     steps:
+      # runner-guard:ignore RGS-012 -- authenticated read-only GET to the fixed Anthropic models endpoint; no secret data is sent in the request body.
       - name: Fetch Anthropic models
         id: fetch
         shell: bash
@@ -165,6 +167,7 @@ jobs:
     permissions:
       contents: read
     steps:
+      # runner-guard:ignore RGS-012 -- authenticated read-only GET to the fixed Google models endpoint; no secret data is sent in the request body.
       - name: Fetch Gemini models
         id: fetch
         shell: bash
@@ -316,6 +319,7 @@ steps:
     with:
       path: /tmp/gh-aw/agent/model-inventory/artifacts
 
+  # runner-guard:ignore RGS-012 -- public read-only GET to an allow-listed domain; no secret headers or request body are sent.
   - name: Predownload models.dev API index
     shell: bash
     run: |

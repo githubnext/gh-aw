@@ -202,6 +202,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	yaml.WriteString(bodyContent)
 
 	yamlContent := yaml.String()
+	yamlContent = preserveRunnerGuardStepSuppressions(yamlContent, data.FrontmatterYAML)
 
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
