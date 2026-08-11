@@ -78,7 +78,10 @@ describe("upload_assets.cjs", () => {
     process.env.GH_AW_ASSETS_DIR = getAssetsDir();
 
     uploadAssetsScript = fs.readFileSync(path.join(__dirname, "upload_assets.cjs"), "utf8");
-    mockExec = { exec: vi.fn().mockResolvedValue(0) };
+    mockExec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
   });
 
   afterEach(() => {
@@ -350,6 +353,71 @@ describe("upload_assets.cjs", () => {
       await executeScript();
       expect(pushCalled).toBe(false);
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("concurrent push recovery", () => {
+    const prepareAsset = () => {
+      process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
+      process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+      const assetDir = getAssetsDir();
+      fs.mkdirSync(assetDir, { recursive: true });
+      const { sha, size } = makeAsset(assetDir, "test.png", "fake png data");
+      setAgentOutput({
+        items: [{ type: "upload_asset", fileName: "test.png", sha, size, targetFileName: "test.png", url: "https://example.com/test.png" }],
+      });
+      trackCwdArtifact("test.png");
+    };
+
+    it("should fetch, rebase, and retry after a concurrent push", async () => {
+      prepareAsset();
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 1, stdout: "! [rejected] assets/test-workflow -> assets/test-workflow (fetch first)", stderr: "" }).mockResolvedValueOnce({ exitCode: 0, stdout: "", stderr: "" });
+
+      await executeScript();
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockExec.getExecOutput).toHaveBeenCalledTimes(2);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--no-tags", "origin", "+refs/heads/assets/test-workflow:refs/remotes/origin/assets/test-workflow"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["rebase", "refs/remotes/origin/assets/test-workflow"]);
+    });
+
+    it("should stop after three failed push attempts", async () => {
+      prepareAsset();
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "! [rejected] assets/test-workflow -> assets/test-workflow (non-fast-forward)", stderr: "" });
+
+      await executeScript();
+
+      expect(mockExec.getExecOutput).toHaveBeenCalledTimes(3);
+      expect(mockExec.exec.mock.calls.filter(call => isGitCommand(call[0], call[1], "fetch"))).toHaveLength(2);
+      expect(mockExec.exec.mock.calls.filter(call => isGitCommand(call[0], call[1], "rebase"))).toHaveLength(2);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("non-fast-forward"));
+    });
+
+    it("should not retry a non-concurrent push failure", async () => {
+      prepareAsset();
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "remote: permission denied" });
+
+      await executeScript();
+
+      expect(mockExec.getExecOutput).toHaveBeenCalledTimes(1);
+      expect(mockExec.exec.mock.calls.some(call => isGitCommand(call[0], call[1], "fetch"))).toBe(false);
+      expect(mockExec.exec.mock.calls.some(call => isGitCommand(call[0], call[1], "rebase"))).toBe(false);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("permission denied"));
+    });
+
+    it("should abort the rebase and rethrow when rebase fails with conflicts", async () => {
+      prepareAsset();
+      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 1, stdout: "! [rejected] assets/test-workflow -> assets/test-workflow (non-fast-forward)", stderr: "" });
+      mockExec.exec.mockImplementation(async (command, args) => {
+        if (isGitCommand(command, args, "rebase") && args[1] !== "--abort") {
+          throw new Error("CONFLICT (content): Merge conflict in test.png");
+        }
+      });
+
+      await executeScript();
+
+      expect(mockExec.exec.mock.calls.some(call => isGitCommand(call[0], call[1], "rebase") && call[1].includes("--abort"))).toBe(true);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("CONFLICT"));
     });
   });
 
