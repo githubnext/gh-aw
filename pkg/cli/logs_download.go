@@ -468,6 +468,20 @@ func ensureUsageAwInfoFallback(ctx context.Context, opts downloadArtifactsOption
 	if fileutil.FileExists(awInfoPath) {
 		return
 	}
+	if usageDir := findArtifactDir(opts.outputDir, constants.UsageArtifactName, ""); usageDir != "" {
+		usageAwInfoPath := filepath.Join(usageDir, "aw_info.json")
+		if fileutil.FileExists(usageAwInfoPath) {
+			data, err := os.ReadFile(usageAwInfoPath)
+			if err != nil {
+				logsDownloadLog.Printf("Failed to read usage aw_info.json: %v", err)
+			} else if err := os.WriteFile(awInfoPath, data, constants.FilePermPublic); err != nil {
+				logsDownloadLog.Printf("Failed to copy usage aw_info.json to run root: %v", err)
+			} else {
+				logsDownloadLog.Printf("Copied usage aw_info.json to run root")
+				return
+			}
+		}
+	}
 
 	logsDownloadLog.Printf("aw_info.json missing from usage artifact, downloading activation artifact as fallback")
 	if opts.verbose {
