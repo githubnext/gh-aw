@@ -137,6 +137,8 @@ func TestValidateIntRange(t *testing.T) {
 					t.Errorf("Expected error, got nil")
 				} else if !strings.Contains(err.Error(), tt.errorText) {
 					t.Errorf("Expected error containing '%s', got '%s'", tt.errorText, err.Error())
+				} else if !strings.Contains(err.Error(), "Example:") {
+					t.Errorf("Expected error to contain 'Example:', got '%s'", err.Error())
 				}
 			} else {
 				if err != nil {

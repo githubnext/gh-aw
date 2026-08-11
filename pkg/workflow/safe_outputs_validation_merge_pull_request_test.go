@@ -44,6 +44,7 @@ func TestValidateSafeOutputsMergePullRequestLabelValidation(t *testing.T) {
 			}
 			require.Error(t, err, "expected merge-pull-request label validation to fail")
 			require.ErrorContains(t, err, tt.wantErr, "expected validation error to include field-specific message")
+			require.ErrorContains(t, err, "Example:", "expected validation error to include an example")
 		})
 	}
 }
@@ -93,6 +94,7 @@ func TestValidateSafeOutputsMergePullRequestAllowedBranchesValidation(t *testing
 
 			require.Error(t, err, "expected merge-pull-request allowed-branches validation to fail")
 			require.ErrorContains(t, err, tt.wantErr, "expected field-specific allowed-branches error")
+			require.ErrorContains(t, err, "Example:", "expected validation error to include an example")
 		})
 	}
 }
