@@ -223,12 +223,12 @@ func TestCacheMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	validationYAML := validation.String()
 	assert.Contains(t, validationYAML, "Validate cache-memory file types and domain content")
 	assert.Contains(t, validationYAML, "VALIDATION_SCRIPT_B64:")
-	assert.Contains(t, validationYAML, "id: validate_cache_memory_default")
+	assert.Contains(t, validationYAML, "id: "+cacheMemoryValidationStepID("default"))
 
 	var upload strings.Builder
 	generateCacheMemoryArtifactUpload(&upload, data, getActionPin)
 	uploadYAML := upload.String()
-	assert.Contains(t, uploadYAML, "steps.validate_cache_memory_default.outcome == 'success'")
+	assert.Contains(t, uploadYAML, "steps."+cacheMemoryValidationStepID("default")+".outcome == 'success'")
 
 	job, err := compiler.buildUpdateCacheMemoryJob(data, true)
 	require.NoError(t, err)
@@ -236,5 +236,14 @@ func TestCacheMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	updateYAML := strings.Join(job.Steps, "\n")
 	assert.Contains(t, updateYAML, "Validate cache-memory before save (default)")
 	assert.Contains(t, updateYAML, "VALIDATION_TIMEOUT_SECONDS: 9")
-	assert.Contains(t, updateYAML, "steps.validate_cache_memory_default.outcome == 'success'")
+	assert.Contains(t, updateYAML, "steps."+cacheMemoryValidationStepID("default")+".outcome == 'success'")
+}
+
+func TestCacheMemoryValidationStepIDsDoNotCollide(t *testing.T) {
+	hyphenID := cacheMemoryValidationStepID("my-cache")
+	underscoreID := cacheMemoryValidationStepID("my_cache")
+
+	assert.NotEqual(t, hyphenID, underscoreID)
+	assert.Equal(t, "validate_cache_memory_6d792d6361636865", hyphenID)
+	assert.Equal(t, "validate_cache_memory_6d795f6361636865", underscoreID)
 }

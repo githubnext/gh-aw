@@ -52,6 +52,22 @@ describe("memory_custom_validation", () => {
     expect(result.stderr).toContain("domain schema failed");
   });
 
+  it("rejects validators that modify memory files", () => {
+    const statePath = path.join(tempDir, "state.json");
+    fs.writeFileSync(statePath, JSON.stringify({ ok: true }));
+
+    const result = runCustomMemoryValidation({
+      script: `fs.writeFileSync(path.join(memoryRoot, "state.json"), JSON.stringify({ ok: false }));`,
+      memoryDir: tempDir,
+      memoryId: "default",
+      kind: "cache",
+      timeoutSeconds: 5,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.stderr).toContain("must not modify memory files");
+  });
+
   it("times out long-running validators", () => {
     const result = runCustomMemoryValidation({
       script: "while (true) {}",

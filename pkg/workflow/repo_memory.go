@@ -427,7 +427,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 }
 
 func repoMemoryValidationStepID(memoryID string) string {
-	return strings.ReplaceAll("validate_repo_memory_"+memoryID, "-", "_")
+	return memoryValidationStepID("validate_repo_memory", memoryID)
 }
 
 // generateRepoMemorySteps generates git steps for the repo-memory configuration

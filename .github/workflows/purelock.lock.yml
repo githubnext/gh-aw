@@ -1075,7 +1075,7 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh"
       - name: Validate cache-memory file types
-        id: validate_cache_memory_default
+        id: validate_cache_memory_64656661756c74
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -1112,7 +1112,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/check_cache_memory_git_integrity.sh"
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always() && steps.validate_cache_memory_default.outcome == 'success'
+        if: always() && steps.validate_cache_memory_64656661756c74.outcome == 'success'
         with:
           name: cache-memory
           include-hidden-files: true
@@ -2389,7 +2389,7 @@ jobs:
             echo "has_content=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Validate cache-memory before save (default)
-        id: validate_cache_memory_default
+        id: validate_cache_memory_64656661756c74
         if: steps.check_cache_default.outputs.has_content == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -2418,7 +2418,7 @@ jobs:
             }
             if (failed) process.exitCode = 1;
       - name: Save cache-memory to cache (default)
-        if: steps.check_cache_default.outputs.has_content == 'true' && steps.validate_cache_memory_default.outcome == 'success'
+        if: steps.check_cache_default.outputs.has_content == 'true' && steps.validate_cache_memory_64656661756c74.outcome == 'success'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}

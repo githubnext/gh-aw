@@ -60,7 +60,7 @@ Use `validation.script` for domain-specific constraints such as schema checks, c
 
 Available globals are Node.js `fs` and `path`, plus `memoryRoot`/`memoryDir`, `memoryId`, and `memoryKind` (`"cache"`). The working directory is the cache root. Environment variables available to the validator are intentionally limited to basic runner paths plus `GH_AW_MEMORY_ROOT`, `GH_AW_MEMORY_DIR`, `GH_AW_MEMORY_ID`, and `GH_AW_MEMORY_KIND`; GitHub tokens and write credentials are not passed to the validator subprocess. Network access follows the workflow runner's normal network policy. The default timeout is 30 seconds and may be set with `validation.timeout` (1-300 seconds).
 
-Throw an exception, return `false`, time out, or exit nonzero to reject persistence. Validator stdout and stderr are reported separately from built-in storage validation output.
+Throw an exception, return `false`, time out, exit nonzero, or modify a memory file to reject persistence. Validator stdout and stderr are reported separately from built-in storage validation output.
 
 ## Multiple Configurations
 

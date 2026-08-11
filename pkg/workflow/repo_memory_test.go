@@ -1595,7 +1595,7 @@ func TestRepoMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	uploadYAML := upload.String()
 	assert.Contains(t, uploadYAML, "Validate repo-memory domain content (default)")
 	assert.Contains(t, uploadYAML, "VALIDATION_SCRIPT_B64:")
-	assert.Contains(t, uploadYAML, "steps.validate_repo_memory_default.outcome == 'success'")
+	assert.Contains(t, uploadYAML, "steps."+repoMemoryValidationStepID("default")+".outcome == 'success'")
 
 	pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
 	require.NoError(t, err)
@@ -1603,6 +1603,15 @@ func TestRepoMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	pushYAML := strings.Join(pushJob.Steps, "\n")
 	assert.Contains(t, pushYAML, "VALIDATION_SCRIPT_B64:")
 	assert.Contains(t, pushYAML, "VALIDATION_TIMEOUT_SECONDS: 7")
+}
+
+func TestRepoMemoryValidationStepIDsDoNotCollide(t *testing.T) {
+	hyphenID := repoMemoryValidationStepID("my-memory")
+	underscoreID := repoMemoryValidationStepID("my_memory")
+
+	assert.NotEqual(t, hyphenID, underscoreID)
+	assert.Equal(t, "validate_repo_memory_6d792d6d656d6f7279", hyphenID)
+	assert.Equal(t, "validate_repo_memory_6d795f6d656d6f7279", underscoreID)
 }
 
 // TestValidateFileGlobPatterns tests the validateFileGlobPatterns function

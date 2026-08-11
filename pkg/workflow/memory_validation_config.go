@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strconv"
 )
 
@@ -51,6 +52,12 @@ func parseMemoryValidationTimeout(value any, fieldPath string) (int, error) {
 	case int:
 		return validateMemoryValidationTimeout(v, fieldPath)
 	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) || v != math.Trunc(v) {
+			return 0, fmt.Errorf("%s must be an integer number of seconds", fieldPath)
+		}
+		if v < 1 || v > 300 {
+			return 0, fmt.Errorf("%s must be between 1 and 300 seconds", fieldPath)
+		}
 		return validateMemoryValidationTimeout(int(v), fieldPath)
 	case uint64:
 		if v > uint64(^uint(0)>>1) {
@@ -93,4 +100,8 @@ func memoryValidationScriptBase64(config *MemoryValidationConfig) string {
 		return ""
 	}
 	return base64.StdEncoding.EncodeToString([]byte(config.Script))
+}
+
+func memoryValidationStepID(prefix, memoryID string) string {
+	return fmt.Sprintf("%s_%x", prefix, memoryID)
 }

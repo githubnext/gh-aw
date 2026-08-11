@@ -54,7 +54,7 @@ func cacheMemoryDirFor(cacheID string) string {
 }
 
 func cacheMemoryValidationStepID(cacheID string) string {
-	return strings.ReplaceAll("validate_cache_memory_"+cacheID, "-", "_")
+	return memoryValidationStepID("validate_cache_memory", cacheID)
 }
 
 func cacheHasValidationStep(cache CacheMemoryEntry) bool {

@@ -1,6 +1,7 @@
 // @ts-check
 
 const childProcess = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -126,6 +127,38 @@ function sanitizedValidationEnv(sourceEnv) {
 }
 
 /**
+ * @param {string} dirPath
+ */
+function memoryTreeDigest(dirPath) {
+  const hash = crypto.createHash("sha256");
+
+  /**
+   * @param {string} currentDir
+   */
+  function visit(currentDir) {
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      const relativePath = path.relative(dirPath, fullPath).replace(/\\/g, "/");
+      if (entry.isDirectory()) {
+        hash.update(`directory\0${relativePath}\0`);
+        visit(fullPath);
+      } else if (entry.isFile()) {
+        hash.update(`file\0${relativePath}\0`);
+        hash.update(fs.readFileSync(fullPath));
+      } else if (entry.isSymbolicLink()) {
+        hash.update(`symlink\0${relativePath}\0${fs.readlinkSync(fullPath)}\0`);
+      } else {
+        hash.update(`other\0${relativePath}\0`);
+      }
+    }
+  }
+
+  visit(dirPath);
+  return hash.digest("hex");
+}
+
+/**
  * @param {{
  *   script?: string,
  *   scriptBase64?: string,
@@ -154,6 +187,18 @@ function runCustomMemoryValidation(options) {
   const timeoutSeconds = typeof rawTimeoutSeconds === "number" && Number.isFinite(rawTimeoutSeconds) && rawTimeoutSeconds > 0 ? Math.floor(rawTimeoutSeconds) : DEFAULT_VALIDATION_TIMEOUT_SECONDS;
   const timeoutMs = timeoutSeconds * 1000;
   const memoryId = options.memoryId || "default";
+  let beforeDigest;
+  try {
+    beforeDigest = memoryTreeDigest(options.memoryDir);
+  } catch (error) {
+    return {
+      ok: false,
+      exitCode: null,
+      timedOut: false,
+      stdout: "",
+      stderr: `Unable to snapshot memory before custom validation: ${getErrorMessage(error)}`,
+    };
+  }
   const validationDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-memory-validation-"));
   const scriptPath = path.join(validationDir, "validator.cjs");
   const wrapper = `"use strict";
@@ -194,12 +239,21 @@ ${script}
       windowsHide: true,
     });
     const spawnErrorCode = result.error ? Reflect.get(result.error, "code") : undefined;
+    let memoryChanged = false;
+    let snapshotError = "";
+    try {
+      memoryChanged = beforeDigest !== memoryTreeDigest(options.memoryDir);
+    } catch (error) {
+      snapshotError = `Unable to snapshot memory after custom validation: ${getErrorMessage(error)}`;
+    }
+    const stderr = boundedOutput(result.stderr || (result.error ? getErrorMessage(result.error) : ""));
+    const validationError = memoryChanged ? "Custom validation must not modify memory files" : snapshotError;
     return {
-      ok: result.status === 0 && !result.error,
+      ok: result.status === 0 && !result.error && !memoryChanged && !snapshotError,
       exitCode: result.status,
       timedOut: spawnErrorCode === "ETIMEDOUT",
       stdout: boundedOutput(result.stdout),
-      stderr: boundedOutput(result.stderr || (result.error ? getErrorMessage(result.error) : "")),
+      stderr: validationError ? boundedOutput(`${stderr}${stderr ? "\n" : ""}${validationError}`) : stderr,
     };
   } finally {
     fs.rmSync(validationDir, { recursive: true, force: true });
@@ -211,6 +265,7 @@ module.exports = {
   clearValidationMarker,
   formatJSONFiles,
   getValidationMarkerPath,
+  memoryTreeDigest,
   runCustomMemoryValidation,
   writeValidationMarker,
 };
