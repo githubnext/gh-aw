@@ -100,4 +100,23 @@ describe("require-spawn-error-listener", () => {
       ],
     });
   });
+
+  it("treats declaration and listener sharing the same switch case as valid", () => {
+    cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
+      valid: [`const { spawn } = require("child_process"); switch (mode) { case "run": { const child = spawn("ls", []); child.on("error", err => { console.log(err); }); break; } }`],
+      invalid: [],
+    });
+  });
+
+  it("reports an error listener attached only in a different switch case than the declaration", () => {
+    cjsRuleTester.run("require-spawn-error-listener", requireSpawnErrorListenerRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const { spawn } = require("child_process"); const child = spawn("ls", []); switch (mode) { case "run": child.on("error", err => { console.log(err); }); break; }`,
+          errors: [{ messageId: "missingErrorListener" }],
+        },
+      ],
+    });
+  });
 });

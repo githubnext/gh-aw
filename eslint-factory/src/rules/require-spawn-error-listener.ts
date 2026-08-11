@@ -85,8 +85,8 @@ function isConditionalEdge(parent: TSESTree.Node, child: TSESTree.Node): boolean
       return child === parent.consequent || child === parent.alternate;
     case AST_NODE_TYPES.LogicalExpression:
       return child === parent.right;
-    case AST_NODE_TYPES.SwitchCase:
-      return parent.consequent.includes(child as TSESTree.Statement);
+    case AST_NODE_TYPES.SwitchStatement:
+      return parent.cases.includes(child as TSESTree.SwitchCase);
     case AST_NODE_TYPES.TryStatement:
       return child === parent.handler;
     case AST_NODE_TYPES.ForStatement:
