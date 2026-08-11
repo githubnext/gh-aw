@@ -25,7 +25,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Extract custom steps and outputs from jobs.pre-activation if present.
 	customSteps, customOutputs, err := c.extractPreActivationCustomFields(data.Jobs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract pre-activation custom fields: %w", err)
+		return nil, fmt.Errorf("failed to extract pre-activation custom fields: %w. Check that jobs.pre_activation and jobs.activation only use 'steps', 'outputs', and 'pre-steps' fields", err)
 	}
 
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
@@ -379,7 +379,7 @@ func (c *Compiler) injectPreActivationOnSteps(data *WorkflowData, steps, customS
 	for i, stepMap := range data.OnSteps {
 		stepYAML, err := ConvertStepToYAML(stepMap)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to convert on.steps[%d] to YAML: %w", i, err)
+			return nil, nil, fmt.Errorf("failed to convert on.steps[%d] to YAML: %w. Ensure each step is a valid GitHub Actions step object with 'name', 'uses', or 'run' fields", i, err)
 		}
 		steps = append(steps, stepYAML)
 		if id, ok := stepMap["id"].(string); ok && id != "" {
@@ -674,7 +674,7 @@ func validatePreActivationJobConfig(jobs map[string]any, jobName string) (map[st
 
 	configMap, ok := preActivationJob.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("jobs.%s must be an object, got %T", jobName, preActivationJob)
+		return nil, fmt.Errorf("jobs.%s must be an object, got %T. Example:\njobs:\n  %s:\n    steps:\n      - run: echo hello", jobName, preActivationJob, jobName)
 	}
 
 	allowedFields := map[string]struct{}{
@@ -685,12 +685,12 @@ func validatePreActivationJobConfig(jobs map[string]any, jobName string) (map[st
 	for field := range configMap {
 		if field == "setup-steps" {
 			return nil, fmt.Errorf(
-				"jobs.%s.setup-steps is not allowed: setup-steps are refused for activation/pre-activation jobs because they can short-circuit protections",
+				"jobs.%s.setup-steps is not supported. setup-steps are refused for activation/pre-activation jobs because they can short-circuit protections. Use 'steps', 'outputs', or 'pre-steps' instead",
 				jobName,
 			)
 		}
 		if !setutil.Contains(allowedFields, field) {
-			return nil, fmt.Errorf("jobs.%s: unsupported field '%s' - only 'steps', 'outputs', and 'pre-steps' are allowed", jobName, field)
+			return nil, fmt.Errorf("jobs.%s: unsupported field '%s'. Only 'steps', 'outputs', and 'pre-steps' are allowed. Example:\njobs:\n  %s:\n    steps:\n      - run: echo hello", jobName, field, jobName)
 		}
 	}
 	return configMap, nil
@@ -705,18 +705,18 @@ func extractPreActivationJobSteps(jobName string, configMap map[string]any) ([]s
 
 	stepsList, ok := stepsValue.([]any)
 	if !ok {
-		return nil, fmt.Errorf("jobs.%s.steps must be an array, got %T", jobName, stepsValue)
+		return nil, fmt.Errorf("jobs.%s.steps must be an array of step objects, got %T. Example:\njobs:\n  %s:\n    steps:\n      - run: echo hello", jobName, stepsValue, jobName)
 	}
 
 	var steps []string
 	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("jobs.%s.steps[%d] must be an object, got %T", jobName, i, step)
+			return nil, fmt.Errorf("jobs.%s.steps[%d] must be an object, got %T. Example:\njobs:\n  %s:\n    steps:\n      - run: echo hello", jobName, i, step, jobName)
 		}
 		stepYAML, err := ConvertStepToYAML(stepMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert jobs.%s.steps[%d] to YAML: %w", jobName, i, err)
+			return nil, fmt.Errorf("failed to convert jobs.%s.steps[%d] to YAML: %w. Ensure the step is a valid GitHub Actions step object with 'name', 'uses', or 'run' fields", jobName, i, err)
 		}
 		steps = append(steps, stepYAML)
 	}
@@ -733,7 +733,7 @@ func extractPreActivationJobOutputs(jobName string, configMap map[string]any) (m
 
 	outputsMap, ok := outputsValue.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("jobs.%s.outputs must be an object, got %T", jobName, outputsValue)
+		return nil, fmt.Errorf("jobs.%s.outputs must be an object mapping output names to expressions, got %T. Example:\njobs:\n  %s:\n    outputs:\n      result: ${{ steps.my_step.outputs.result }}", jobName, outputsValue, jobName)
 	}
 
 	// If the same output key is defined in both variants, the second one (pre_activation) wins.
@@ -741,7 +741,7 @@ func extractPreActivationJobOutputs(jobName string, configMap map[string]any) (m
 	for key, val := range outputsMap {
 		valStr, ok := val.(string)
 		if !ok {
-			return nil, fmt.Errorf("jobs.%s.outputs.%s must be a string, got %T", jobName, key, val)
+			return nil, fmt.Errorf("jobs.%s.outputs.%s must be a string, got %T. Example:\njobs:\n  %s:\n    outputs:\n      %s: ${{ steps.my_step.outputs.result }}", jobName, key, val, jobName, key)
 		}
 		result[key] = valStr
 	}
@@ -839,14 +839,14 @@ func extractOnSteps(frontmatter map[string]any) ([]map[string]any, error) {
 
 	stepsList, ok := stepsValue.([]any)
 	if !ok {
-		return nil, fmt.Errorf("on.steps must be an array, got %T", stepsValue)
+		return nil, fmt.Errorf("on.steps must be an array of step objects, got %T. Example:\non:\n  steps:\n    - run: echo hello", stepsValue)
 	}
 
 	result := make([]map[string]any, 0, len(stepsList))
 	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("on.steps[%d] must be an object, got %T", i, step)
+			return nil, fmt.Errorf("on.steps[%d] must be an object, got %T. Example:\non:\n  steps:\n    - run: echo hello", i, step)
 		}
 		result = append(result, stepMap)
 	}
@@ -917,7 +917,7 @@ func extractOnRestoreMemory(frontmatter map[string]any) (bool, error) {
 
 	restoreMemory, ok := restoreMemoryValue.(bool)
 	if !ok {
-		return false, fmt.Errorf("on.restore-memory must be a boolean, got %T", restoreMemoryValue)
+		return false, fmt.Errorf("on.restore-memory must be a boolean, got %T. Example:\non:\n  restore-memory: true", restoreMemoryValue)
 	}
 
 	return restoreMemory, nil
@@ -935,14 +935,14 @@ func parseOnNeedsValues(onMap map[string]any) ([]string, error) {
 
 	needsList, ok := needsValue.([]any)
 	if !ok {
-		return nil, fmt.Errorf("on.needs must be an array, got %T", needsValue)
+		return nil, fmt.Errorf("on.needs must be an array of job names, got %T. Example:\non:\n  needs: [\"build\"]", needsValue)
 	}
 
 	result := make([]string, 0, len(needsList))
 	for i, need := range needsList {
 		needStr, ok := need.(string)
 		if !ok {
-			return nil, fmt.Errorf("on.needs[%d] must be a string, got %T", i, need)
+			return nil, fmt.Errorf("on.needs[%d] must be a string job name, got %T. Example:\non:\n  needs: [\"build\"]", i, need)
 		}
 		result = append(result, needStr)
 	}

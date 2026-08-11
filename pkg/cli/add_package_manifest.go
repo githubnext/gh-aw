@@ -79,7 +79,7 @@ func (e packageRemoteNotFoundError) Unwrap() []error {
 func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host string) (*resolvedRepositoryPackage, error) {
 	parts := strings.SplitN(repoSpec.RepoSlug, "/", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid repository slug: %s", repoSpec.RepoSlug)
+		return nil, fmt.Errorf("repository slug %q is not in 'owner/repo' format. Example: owner/repo", repoSpec.RepoSlug)
 	}
 
 	owner := parts[0]
@@ -153,7 +153,7 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	warnings = append(warnings, agentWarnings...)
 
 	if len(installationSources) == 0 && len(skillFiles) == 0 && len(agentFiles) == 0 {
-		return nil, fmt.Errorf("repository %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered)", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
+		return nil, fmt.Errorf("repository %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered). Add workflows under 'workflows/', skills under 'skills/', or agents under 'agents/', or declare them explicitly in aw.yml", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
 	}
 
 	return &resolvedRepositoryPackage{
@@ -179,12 +179,12 @@ func loadRepositoryPackageManifestFile(ctx context.Context, owner, repo, package
 	content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, manifestPath, ref, host)
 	if err != nil {
 		if !isRepositoryFileNotFound(err) {
-			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w", manifestPath, owner, repo, ref, err)
+			return "", nil, fmt.Errorf("failed to read manifest %q from %s/%s@%s: %w. Check the repository, ref, and network connectivity", manifestPath, owner, repo, ref, err)
 		}
 		if packagePath != "" {
-			return "", nil, fmt.Errorf("%w: repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q; add %s or use an explicit workflow path", errRepositoryPackageManifestNotFound, packageID, packagePath, manifestPath)
+			return "", nil, fmt.Errorf("%w: repository %q is not a valid Agentic Workflow package: no aw.yml manifest found in %q. Add %s or use an explicit workflow path", errRepositoryPackageManifestNotFound, packageID, packagePath, manifestPath)
 		}
-		return "", nil, fmt.Errorf("%w: repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root; add aw.yml or use an explicit workflow path", errRepositoryPackageManifestNotFound, repoSlug)
+		return "", nil, fmt.Errorf("%w: repository %q is not a valid Agentic Workflow package: no aw.yml manifest found at the repository root. Add aw.yml or use an explicit workflow path", errRepositoryPackageManifestNotFound, repoSlug)
 	}
 
 	return manifestPath, content, nil
@@ -207,19 +207,19 @@ type repositoryPackageManifest struct {
 func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repositoryPackageManifest, []string, error) {
 	var raw any
 	if err := yaml.Unmarshal(content, &raw); err != nil {
-		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: %s", manifestPath, parser.FormatYAMLError(err, 1, string(content)))
+		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: %s. Ensure the manifest is valid YAML", manifestPath, parser.FormatYAMLError(err, 1, string(content)))
 	}
 
 	root, ok := raw.(map[string]any)
 	if !ok {
-		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: top-level document must be a mapping", manifestPath)
+		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: top-level document must be a mapping, not a list or scalar. Example:\nname: My Package", manifestPath)
 	}
 
 	// Validate name before schema validation to provide a clear error message for
 	// the most common manifest authoring error (missing or empty name).
 	name, ok := stringValue(root["name"])
 	if !ok || strings.TrimSpace(name) == "" {
-		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string", manifestPath)
+		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string. Example:\nname: My Package", manifestPath)
 	}
 
 	if err := parser.ValidateRepositoryPackageManifestWithSchemaAndLocation(root, manifestPath); err != nil {
@@ -240,15 +240,15 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 	if minVersion, ok := stringValue(root["min-version"]); ok {
 		manifest.MinVersion = strings.TrimSpace(minVersion)
 		if !isSupportedManifestMinVersion(manifest.MinVersion) {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must use vMAJOR.minor.patch, got %q", manifestPath, minVersion)
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must use vMAJOR.minor.patch, got %q. Example:\nmin-version: v1.2.3", manifestPath, minVersion)
 		}
 		currentVersion := GetVersion()
 		if !semverutil.IsValid(currentVersion) {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version (this indicates a build issue)", manifestPath, currentVersion)
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version. This indicates a build issue; rebuild gh-aw with a proper version tag", manifestPath, currentVersion)
 		}
 		currentVersion = semverutil.NormalizeGitDescribeSemver(currentVersion)
 		if semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s)", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion)
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s). Upgrade gh-aw or lower min-version in aw.yml", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion)
 		}
 	}
 
@@ -597,7 +597,7 @@ func resolvePackageSkillFiles(ctx context.Context, owner, repo, packagePath, ref
 					warnings = append(warnings, fmt.Sprintf("Skill directory %q is missing required %s marker file", skillDir, packageSkillMarkerFile))
 					continue
 				}
-				return nil, nil, fmt.Errorf("failed to validate skill marker %q: %w", markerPath, err)
+				return nil, nil, fmt.Errorf("failed to validate skill marker %q: %w. Check the repository, ref, and network connectivity", markerPath, err)
 			}
 		}
 		skillName := filepath.Base(skillDir)
@@ -609,7 +609,7 @@ func resolvePackageSkillFiles(ctx context.Context, owner, repo, packagePath, ref
 				warnings = append(warnings, fmt.Sprintf("Skill directory %q not found in package, skipping", skillDir))
 				continue
 			}
-			return nil, nil, fmt.Errorf("failed to list files in skill directory %q: %w", skillDir, err)
+			return nil, nil, fmt.Errorf("failed to list files in skill directory %q: %w. Check the repository, ref, and network connectivity", skillDir, err)
 		}
 		for _, file := range files {
 			skillFiles = append(skillFiles, resolvedPackageSkillFile{
@@ -641,7 +641,7 @@ func resolvePackageAgentFiles(ctx context.Context, owner, repo, packagePath, ref
 			if isRepositoryFileNotFound(err) {
 				continue
 			}
-			return nil, nil, fmt.Errorf("failed to scan agents directory %q: %w", agentsDir, err)
+			return nil, nil, fmt.Errorf("failed to scan agents directory %q: %w. Check the repository, ref, and network connectivity", agentsDir, err)
 		}
 		for _, f := range files {
 			if strings.HasSuffix(strings.ToLower(f), ".md") {
@@ -663,7 +663,7 @@ func scanPackageSkillDirs(ctx context.Context, owner, repo, packagePath, ref, ho
 			if isRepositoryFileNotFound(err) {
 				continue
 			}
-			return nil, fmt.Errorf("failed to scan skills directory %q: %w", skillsDir, err)
+			return nil, fmt.Errorf("failed to scan skills directory %q: %w. Check the repository, ref, and network connectivity", skillsDir, err)
 		}
 		for _, subdir := range subdirs {
 			markerPath := joinRepositoryPackagePath(subdir, packageSkillMarkerFile)
@@ -686,7 +686,7 @@ func scanRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, pac
 			if isRepositoryFileNotFound(err) {
 				continue
 			}
-			return nil, fmt.Errorf("failed to scan %q in %s/%s@%s: %w", sourcePath, owner, repo, ref, err)
+			return nil, fmt.Errorf("failed to scan %q in %s/%s@%s: %w. Check the repository, ref, and network connectivity", sourcePath, owner, repo, ref, err)
 		}
 
 		for _, file := range files {
@@ -719,9 +719,9 @@ func resolveRepositoryPackageDocsPath(ctx context.Context, owner, repo, packageP
 	if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, readmePath, ref, host); err == nil {
 		return readmePath, nil
 	} else if isRepositoryFileNotFound(err) {
-		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q", packageID, readmePath)
+		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q. Add a README.md describing the package", packageID, readmePath)
 	} else {
-		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s: %w", readmePath, owner, repo, ref, err)
+		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s: %w. Check the repository, ref, and network connectivity", readmePath, owner, repo, ref, err)
 	}
 }
 
@@ -771,7 +771,7 @@ func validateManifestInstallableWorkflowPrivacy(manifestPath string, installatio
 
 		privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(content))
 		if hasPrivate && privateValue {
-			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added", manifestPath, installationSource)
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added. Remove 'private: true' from the workflow frontmatter or exclude it from the manifest", manifestPath, installationSource)
 		}
 	}
 
@@ -829,7 +829,7 @@ func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
 		if cleanedPath == "." {
 			packagePath = ""
 		} else if cleanedPath == ".." || strings.HasPrefix(cleanedPath, "../") {
-			return nil, true, fmt.Errorf("invalid repository package path %q", packagePath)
+			return nil, true, fmt.Errorf("invalid repository package path %q: path traversal outside the repository is not allowed. Use a path relative to the repository root, e.g. 'packages/my-package'", packagePath)
 		} else {
 			packagePath = cleanedPath
 		}
@@ -883,7 +883,7 @@ func validateUniqueManifestWorkflowFilenames(paths []string, manifestPath string
 			continue
 		}
 		if previous, exists := seen[key]; exists {
-			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q (filenames must be unique across a package)", manifestPath, filenameWithoutExt, previous, installPath)
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q. Filenames must be unique across a package; rename one of the workflow files", manifestPath, filenameWithoutExt, previous, installPath)
 		}
 		seen[key] = installPath
 	}
@@ -952,7 +952,7 @@ func resolveRepositoryPackageDefaultBranch(ctx context.Context, repoSlug, host s
 		if targetHost == "" {
 			targetHost = "the configured host"
 		}
-		return "", fmt.Errorf("repository %s on %s returned an empty default branch; ensure the repository exists and is accessible", repoSlug, targetHost)
+		return "", fmt.Errorf("repository %s on %s returned an empty default branch. Ensure the repository exists and is accessible", repoSlug, targetHost)
 	}
 	return branch, nil
 }
