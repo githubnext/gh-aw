@@ -115,6 +115,48 @@ func TestCheckCleanWorkingDirectoryIgnoring(t *testing.T) {
 	)
 }
 
+// TestCheckCleanWorkingDirectoryIgnoringAbsolutePaths verifies that absolute
+// paths are accepted when the current directory is a subdirectory of the repo.
+// This is the case when the wizard is invoked from a nested directory and
+// ensureAddRepositoryInitializedWithDetails returns absolute paths.
+func TestCheckCleanWorkingDirectoryIgnoringAbsolutePaths(t *testing.T) {
+	repoDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(originalDir))
+	}()
+
+	require.NoError(t, os.Chdir(repoDir))
+	require.NoError(t, exec.Command("git", "init").Run())
+	require.NoError(t, exec.Command("git", "config", "user.name", "Test User").Run())
+	require.NoError(t, exec.Command("git", "config", "user.email", "test@example.com").Run())
+
+	// Create the init file at the repo root.
+	generatedFile := filepath.Join(".github", "skills", "agentic-workflows", "SKILL.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(generatedFile), 0755))
+	require.NoError(t, os.WriteFile(generatedFile, []byte("generated"), 0644))
+	absGenerated := filepath.Join(repoDir, generatedFile)
+
+	// Create a subdirectory and cd into it to simulate a nested invocation.
+	subDir := filepath.Join(repoDir, "subdir")
+	require.NoError(t, os.MkdirAll(subDir, 0755))
+	require.NoError(t, os.Chdir(subDir))
+
+	// Passing the absolute path from a nested CWD should still exclude the file.
+	require.NoError(t, checkCleanWorkingDirectoryIgnoring(false, []string{absGenerated}))
+	require.ErrorContains(t, checkCleanWorkingDirectory(false), "working directory has uncommitted changes")
+
+	// An unrelated untracked file must still be detected even when the init file is excluded.
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("user file"), 0644))
+	require.ErrorContains(
+		t,
+		checkCleanWorkingDirectoryIgnoring(false, []string{absGenerated}),
+		"working directory has uncommitted changes",
+	)
+}
+
 func TestCreateAndSwitchBranch(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 
