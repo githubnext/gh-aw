@@ -59,7 +59,7 @@ func TestGenerateDockerSbxInstallSteps(t *testing.T) {
 		step := generateDockerSbxPreFlightStep()
 		require.NotEmpty(t, step, "pre-flight step must not be empty")
 		content := strings.Join(step, "\n")
-		assert.Contains(t, content, "docker-sbx pre-flight smoke test", "must have correct step name")
+		assert.Contains(t, content, "Run docker-sbx pre-flight smoke test", "must have correct step name")
 		assert.Contains(t, content, "docker_sbx_preflight.sh", "must reference preflight script")
 		assert.Contains(t, content, "${RUNNER_TEMP}/gh-aw/actions/", "must use RUNNER_TEMP script path")
 	})
