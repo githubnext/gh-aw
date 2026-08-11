@@ -398,10 +398,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 		appendContent(content.String(), "")
 	}
 
-	configJSON, err := json.Marshal(renderConfig)
-	if err != nil {
-		panic(fmt.Sprintf("failed to marshal prompt render config: %v", err))
-	}
+	configJSON, _ := json.Marshal(renderConfig) //nolint:jsonmarshalignoredeerror // marshaling a string-only render config cannot fail
 
 	// Generate the step with all environment variables. Prompt text and expression
 	// values are passed as environment data and never interpolated into JavaScript.
