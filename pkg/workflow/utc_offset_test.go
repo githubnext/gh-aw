@@ -15,8 +15,8 @@ func TestNormalizeUTCOffset_InvalidValueIncludesExample(t *testing.T) {
 	require.ErrorContains(t, err, "Example:")
 }
 
-func TestParseUTCOffsetLocation_InvalidValueIncludesExample(t *testing.T) {
-	_, err := ParseUTCOffsetLocation("+14:30")
+func TestParseUTCOffsetLocation_MalformedValueIncludesExample(t *testing.T) {
+	_, err := ParseUTCOffsetLocation("bad-offset")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "must be a numeric UTC offset")
 	require.ErrorContains(t, err, "Example:")

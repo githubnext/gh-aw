@@ -204,13 +204,17 @@ func validateTargetValue(configName, target string) error {
 	if target == "event" || strings.Contains(target, "github.event") {
 		suggestion = "\n\nDid you mean to use \"${{ github.event.issue.number }}\" instead of \"" + target + "\"?"
 	}
+	exampleTargetKey := configName
+	if idx := strings.LastIndex(exampleTargetKey, "."); idx >= 0 {
+		exampleTargetKey = exampleTargetKey[idx+1:]
+	}
 
 	// Invalid target value
 	return fmt.Errorf(
 		"invalid target value for %s: %q. Expected one of: \"triggering\", \"*\", a positive integer like \"123\", or a GitHub Actions expression like \"${{ github.event.issue.number }}\".\n\nExample:\n  safe-outputs:\n    %s:\n      target: \"triggering\"%s",
 		configName,
 		target,
-		configName,
+		exampleTargetKey,
 		suggestion,
 	)
 }

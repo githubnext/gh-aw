@@ -138,7 +138,7 @@ func parseMountEntry(mount string) (mountParts, mountValidationKind) {
 // a non-nil error for all non-OK mountValidationKind values.
 func validateMountEntries(mounts []string, onValid func(int, mountParts), onInvalid func(int, string, mountParts, mountValidationKind) error) error {
 	if onInvalid == nil {
-		return errors.New("internal error: onInvalid callback must not be nil. Expected a callback that returns an error for each invalid mount entry. Example: validateMountEntries(mounts, onValid, onInvalid)")
+		return errors.New("internal error: onInvalid callback must not be nil. Expected a callback that returns an error for each invalid mount entry. Example: provide an onInvalid callback that returns an error for non-OK mount kinds")
 	}
 
 	for i, mount := range mounts {
@@ -151,7 +151,7 @@ func validateMountEntries(mounts []string, onValid func(int, mountParts), onInva
 		}
 		err := onInvalid(i, mount, parts, kind)
 		if err == nil {
-			return fmt.Errorf("internal error: onInvalid callback returned nil for mount kind %d. Expected a non-nil error for invalid mount kinds. Example: return errors.New(\"safe-outputs.mounts[0] has an invalid entry\")", kind)
+			return fmt.Errorf("internal error: onInvalid callback returned nil for mount kind %d. Expected a non-nil error for invalid mount kinds. Example: return an error like \"safe-outputs.mounts[0] has an invalid entry\" when kind is invalid", kind)
 		}
 		return err
 	}
