@@ -164,6 +164,12 @@ Nested content`,
 			sectionName: "NonExistent",
 			wantErr:     true,
 		},
+		{
+			name:        "section name with regexp metacharacters",
+			content:     "## Setup (v2.0+)\n\nContent",
+			sectionName: "Setup (v2.0+)",
+			expected:    "## Setup (v2.0+)\n\nContent",
+		},
 	}
 
 	for _, tt := range tests {

@@ -175,16 +175,32 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 		re, typeOK = cached.(*regexp.Regexp)
 		if !typeOK {
 			unquoteYAMLKeyCache.Delete(key)
-			re = regexp.MustCompile(pattern)
+			re = compileUnquoteYAMLKeyPattern(pattern)
+			if re == nil {
+				return yamlStr
+			}
 			unquoteYAMLKeyCache.Store(key, re)
 		}
 	} else {
-		re = regexp.MustCompile(pattern)
+		re = compileUnquoteYAMLKeyPattern(pattern)
+		if re == nil {
+			return yamlStr
+		}
 		unquoteYAMLKeyCache.Store(key, re)
 	}
 	// Use ReplaceAllString with capture group references for a single-pass replacement.
 	// ${1} = line start (^ or \n), ${2} = optional whitespace
 	return re.ReplaceAllString(yamlStr, "${1}${2}"+key+":")
+}
+
+func compileUnquoteYAMLKeyPattern(pattern string) *regexp.Regexp {
+	//nolint:regexpdynamicpattern // Keys are quoted before this helper is called and failures are handled.
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		yamlLog.Printf("Failed to compile YAML key pattern: %v", err)
+		return nil
+	}
+	return re
 }
 
 // UnquoteYAMLTopLevelKey removes quotes from a YAML key only when it appears

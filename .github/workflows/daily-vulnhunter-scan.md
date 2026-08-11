@@ -59,7 +59,7 @@ jobs:
           HITS="$RUNNER_TEMP/vulnhunter-hits.tsv"
           : > "$HITS"
           add_hits() {
-            (cd "$REPO_ROOT" && grep -rlE "$2" . 2>/dev/null || true) \
+            (cd "$REPO_ROOT" || return; grep -rlE "$2" . 2>/dev/null || true) \
               | sed 's|^\./||' \
               | awk -v w="$1" '{print w"\t"$0}' >> "$HITS"
           }

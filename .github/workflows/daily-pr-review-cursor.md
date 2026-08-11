@@ -29,6 +29,10 @@ tools:
   bash:
     - cat
     - grep
+    - head
+    - python3
+    - sed
+    - tail
     - wc
 safe-outputs:
   create-issue:
@@ -61,6 +65,7 @@ Use GitHub MCP tools to list open pull requests from `${{ github.repository }}` 
 ## Step 2 — Review each PR
 
 For each PR, fetch its diff using the GitHub MCP `pull_request_read` tool with `method: get_diff`.
+If you inspect local files, use the `view` tool (not `read`).
 Look for:
 - Missing error handling in Go (`if err != nil` blocks that are absent where errors could occur)
 - Exported functions without doc comments

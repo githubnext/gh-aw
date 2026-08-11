@@ -573,10 +573,10 @@ Enable experimental or optional compiler and runtime behaviors as key-value pair
 
 ### Strict Mode (`strict:`)
 
-Disables enhanced security validation for production workflows.
+Enables enhanced security validation for production workflows (default: `true`).
 
 ```yaml wrap
-strict: false  # Disable for development/testing
+strict: false  # Disable enhanced security validation for development/testing
 ```
 
 Workflows compiled with `strict: false` cannot run on public repositories. The workflow fails at runtime with an error message prompting recompilation with strict mode.

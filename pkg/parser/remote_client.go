@@ -13,6 +13,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 var remoteLog = logger.New("parser:remote_fetch")
@@ -21,6 +22,9 @@ var remoteLog = logger.New("parser:remote_fetch")
 // fallback calls. It carries a timeout to prevent indefinite hangs on slow or
 // unresponsive hosts.
 var publicAPIClient = &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
+
+// getGitHubHostForRepoFunc allows tests to inject host resolution behavior.
+var getGitHubHostForRepoFunc = GetGitHubHostForRepo
 
 func createRESTClientForHost(host string) (*api.RESTClient, error) {
 	opts := api.ClientOptions{Timeout: constants.DefaultHTTPClientTimeout}
@@ -47,6 +51,24 @@ func buildContentsAPIPath(owner, repo, path, ref string) string {
 func fetchRemoteFileContent(ctx context.Context, client *api.RESTClient, owner, repo, path, ref string, fileContent any) error {
 	remoteLog.Printf("Fetching remote file via REST API: %s/%s path=%s ref=%s", owner, repo, path, ref)
 	return client.DoWithContext(ctx, http.MethodGet, buildContentsAPIPath(owner, repo, path, ref), nil, fileContent)
+}
+
+// canUseUnauthenticatedPublicGitHubFallback returns true only when the target
+// host is explicitly public github.com, or when an empty host is resolved by
+// GetGitHubHostForRepo to public github.com. If host resolution ever returns an
+// empty value, fallback is denied rather than treating it as public GitHub.
+func canUseUnauthenticatedPublicGitHubFallback(owner, repo, host string) bool {
+	resolvedHost := host
+	if resolvedHost == "" {
+		resolvedHost = getGitHubHostForRepoFunc(owner, repo)
+	}
+	if strings.TrimSpace(resolvedHost) == "" {
+		return false
+	}
+	return strings.EqualFold(
+		stringutil.NormalizeGitHubHostURL(resolvedHost),
+		string(constants.PublicGitHubHost),
+	)
 }
 
 // fetchPublicGitHubContentsAPI makes an unauthenticated GET request to the
