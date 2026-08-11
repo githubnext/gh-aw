@@ -99,6 +99,7 @@ func TestGenerateUnifiedPromptCreationStep_TreatsUserContentAsData(t *testing.T)
 	script := step.With["script"]
 	assert.NotContains(t, script, "${{", "GitHub expressions must not enter JavaScript source")
 	assert.Equal(t, "${{ runner.temp }}/gh-aw/actions", step.Env["GH_AW_ACTIONS_DIR"])
+	assert.Equal(t, "${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt", step.Env["GH_AW_PROMPT"])
 	for _, payload := range payloads {
 		assert.NotContains(t, script, payload, "User-controlled content must not enter JavaScript source")
 	}
@@ -248,6 +249,7 @@ func TestGenerateUnifiedPromptCreationStep_SubstitutionWithUserExpressions(t *te
 	// Verify substitution step is generated
 	substOutput := substYaml.String()
 	assert.Contains(t, substOutput, "Substitute placeholders", "Should have placeholder substitution step")
+	assert.Contains(t, substOutput, "GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt")
 }
 
 // TestGenerateUnifiedPromptCreationStep_MultipleUserChunks tests that multiple

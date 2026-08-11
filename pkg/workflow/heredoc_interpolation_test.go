@@ -76,19 +76,14 @@ Actor: ${{ github.actor }}
 		t.Error("Prompt creation should use create_prompt.cjs")
 	}
 
-	// Verify that the prompt content contains __GH_AW_...__ references
-	// These are Handlebars-style placeholders interpolated by the github-script step
-	// Simple expressions like github.repository generate pretty names like GH_AW_GITHUB_REPOSITORY
-	if !strings.Contains(compiledStr, "__GH_AW_") {
-		t.Error("Prompt content should contain __GH_AW_...__ references for JavaScript interpolation")
+	if !strings.Contains(promptStep, "GH_AW_PROMPT_CONFIG:") {
+		t.Error("Prompt creation should contain the JavaScript renderer configuration")
 	}
-
-	// Verify the original expressions have been replaced in the prompt content.
-	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
-		t.Error("Original GitHub expressions should be replaced with __GH_AW_...__ references in prompt heredoc")
+	if !strings.Contains(promptStep, "GH_AW_PROMPT_CONTENT_") {
+		t.Error("Prompt creation should pass prompt fragments through environment variables")
 	}
-	if !strings.Contains(compiledStr, "__GH_AW_") {
-		t.Error("Prompt content should contain __GH_AW_...__ references for JavaScript interpolation")
+	if strings.Contains(promptStep, "Repository: ${{ github.repository }}") {
+		t.Error("Prompt content should not interpolate GitHub expressions directly")
 	}
 
 	// Verify that the interpolation and template rendering step exists

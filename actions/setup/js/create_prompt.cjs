@@ -47,12 +47,46 @@ function resolvePromptFile(promptsDir, filename) {
   if (!filename || path.isAbsolute(filename)) {
     throw new Error(`${ERR_CONFIG}: Prompt file must be a relative path`);
   }
-  const root = path.resolve(promptsDir);
-  const resolved = path.resolve(root, filename);
-  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+  const root = fs.realpathSync(promptsDir);
+  const unresolved = path.resolve(root, filename);
+  const unresolvedRelative = path.relative(root, unresolved);
+  if (unresolvedRelative === ".." || unresolvedRelative.startsWith(`..${path.sep}`) || path.isAbsolute(unresolvedRelative)) {
+    throw new Error(`${ERR_CONFIG}: Prompt file must stay within the prompt directory`);
+  }
+  const resolved = fs.realpathSync(unresolved);
+  const relative = path.relative(root, resolved);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
     throw new Error(`${ERR_CONFIG}: Prompt file must stay within the prompt directory`);
   }
   return resolved;
+}
+
+/**
+ * Check that a path stays inside a directory.
+ * @param {string} root
+ * @param {string} candidate
+ */
+function assertPathWithin(root, candidate) {
+  const relative = path.relative(root, candidate);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error(`${ERR_CONFIG}: Prompt output must stay within the runner temp directory`);
+  }
+}
+
+/**
+ * Write a prompt without exposing its contents through pre-existing permissions.
+ * @param {string} promptPath
+ * @param {string} content
+ */
+function writePromptFile(promptPath, content) {
+  const flags = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC | (fs.constants.O_NOFOLLOW || 0);
+  const fd = fs.openSync(promptPath, flags, 0o600);
+  try {
+    fs.fchmodSync(fd, 0o600);
+    fs.writeFileSync(fd, content, "utf8");
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 /**
@@ -125,11 +159,18 @@ async function main(core) {
 
     const config = parseConfig(configValue);
     const promptsDir = path.join(runnerTemp, "gh-aw", "prompts");
+    const promptOutputDir = path.join(runnerTemp, "gh-aw", "aw-prompts");
     const content = renderPrompt(config, process.env, promptsDir);
 
-    fs.mkdirSync(path.dirname(promptPath), { recursive: true, mode: 0o700 });
-    fs.writeFileSync(promptPath, content, { encoding: "utf8", mode: 0o600 });
-    core.info(`Created prompt at ${promptPath} (${Buffer.byteLength(content, "utf8")} bytes)`);
+    fs.mkdirSync(promptOutputDir, { recursive: true, mode: 0o700 });
+    const unresolvedOutputDir = path.resolve(promptOutputDir);
+    const unresolvedPromptPath = path.resolve(promptPath);
+    assertPathWithin(unresolvedOutputDir, unresolvedPromptPath);
+    const resolvedOutputDir = fs.realpathSync(promptOutputDir);
+    assertPathWithin(fs.realpathSync(runnerTemp), resolvedOutputDir);
+    const resolvedPromptPath = path.resolve(resolvedOutputDir, path.relative(unresolvedOutputDir, unresolvedPromptPath));
+    writePromptFile(resolvedPromptPath, content);
+    core.info(`Created prompt at ${resolvedPromptPath} (${Buffer.byteLength(content, "utf8")} bytes)`);
   } catch (error) {
     core.setFailed(`${ERR_CONFIG}: ${getErrorMessage(error)}`);
   }

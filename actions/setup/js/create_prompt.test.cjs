@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { main, parseConfig, renderPrompt, resolvePromptFile } from "./create_prompt.cjs";
 
 const core = { info: vi.fn(), setFailed: vi.fn() };
-
-const { main, parseConfig, renderPrompt, resolvePromptFile } = require("./create_prompt.cjs");
+global.core = core;
 
 describe("create_prompt", () => {
   let tempDir;
@@ -76,13 +76,27 @@ describe("create_prompt", () => {
   });
 
   it("rejects absolute paths and traversal outside the prompts directory", () => {
+    fs.mkdirSync(path.join(tempDir, "nested"));
+    fs.writeFileSync(path.join(tempDir, "nested", "prompt.md"), "prompt", "utf8");
     expect(() => resolvePromptFile(tempDir, "/etc/passwd")).toThrow("relative path");
     expect(() => resolvePromptFile(tempDir, "../secret")).toThrow("within the prompt directory");
     expect(resolvePromptFile(tempDir, "nested/prompt.md")).toBe(path.join(tempDir, "nested", "prompt.md"));
   });
 
+  it("rejects prompt files that escape through a symlink", () => {
+    const outsideFile = `${tempDir}-outside.md`;
+    fs.writeFileSync(outsideFile, "outside", "utf8");
+    fs.symlinkSync(outsideFile, path.join(tempDir, "linked.md"));
+
+    try {
+      expect(() => resolvePromptFile(tempDir, "linked.md")).toThrow("within the prompt directory");
+    } finally {
+      fs.rmSync(outsideFile, { force: true });
+    }
+  });
+
   it("writes the rendered prompt without invoking a shell", async () => {
-    const promptPath = path.join(tempDir, "output", "prompt.txt");
+    const promptPath = path.join(tempDir, "gh-aw", "aw-prompts", "prompt.txt");
     const canaryPath = path.join(tempDir, "must-not-exist");
     process.env = {
       ...originalEnv,
@@ -97,6 +111,42 @@ describe("create_prompt", () => {
     expect(core.setFailed).not.toHaveBeenCalled();
     expect(fs.readFileSync(promptPath, "utf8")).toBe(process.env.PAYLOAD);
     expect(fs.existsSync(canaryPath)).toBe(false);
+  });
+
+  it("restricts permissions when replacing an existing prompt", async () => {
+    if (process.platform === "win32") return;
+
+    const promptPath = path.join(tempDir, "gh-aw", "aw-prompts", "prompt.txt");
+    fs.mkdirSync(path.dirname(promptPath), { recursive: true });
+    fs.writeFileSync(promptPath, "old prompt", { mode: 0o666 });
+    fs.chmodSync(promptPath, 0o666);
+    process.env = {
+      ...originalEnv,
+      RUNNER_TEMP: tempDir,
+      GH_AW_PROMPT: promptPath,
+      GH_AW_PROMPT_CONFIG: JSON.stringify({ items: [{ content_env: "PAYLOAD" }] }),
+      PAYLOAD: "new prompt",
+    };
+
+    await main(core);
+
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(fs.statSync(promptPath).mode & 0o777).toBe(0o600);
+    expect(fs.readFileSync(promptPath, "utf8")).toBe("new prompt");
+  });
+
+  it("rejects prompt output outside the runner temp directory", async () => {
+    process.env = {
+      ...originalEnv,
+      RUNNER_TEMP: tempDir,
+      GH_AW_PROMPT: path.join(tempDir, "prompt.txt"),
+      GH_AW_PROMPT_CONFIG: JSON.stringify({ items: [{ content_env: "PAYLOAD" }] }),
+      PAYLOAD: "prompt",
+    };
+
+    await main(core);
+
+    expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Prompt output must stay within the runner temp directory"));
   });
 
   it("fails closed when required runtime inputs are absent", async () => {
