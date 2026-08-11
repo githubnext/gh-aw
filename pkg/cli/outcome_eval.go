@@ -585,15 +585,18 @@ func loadPullRequestIntentData(ctx context.Context, report OutcomeReport, repo s
 }
 
 func labelsToStringsFromNodes(nodes []any) []string {
-	return labelNamesFromMaps(len(nodes), func(i int) map[string]any {
-		labelMap, _ := nodes[i].(map[string]any)
-		return labelMap
-	})
+	if len(nodes) == 0 {
+		return []string{}
+	}
+	labels := make([]map[string]any, 0, len(nodes))
+	for _, node := range nodes {
+		labelMap, _ := node.(map[string]any)
+		labels = append(labels, labelMap)
+	}
+	return labelNamesFromMaps(labels)
 }
 
 // labelsToStringsFromMaps converts GitHub API label map objects to string slice.
 func labelsToStringsFromMaps(labels []map[string]any) []string {
-	return labelNamesFromMaps(len(labels), func(i int) map[string]any {
-		return labels[i]
-	})
+	return labelNamesFromMaps(labels)
 }

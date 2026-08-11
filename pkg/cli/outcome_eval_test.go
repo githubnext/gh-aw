@@ -197,8 +197,8 @@ func TestCountHumanCommentsAfter(t *testing.T) {
 
 func TestIsLatestCloseByBot(t *testing.T) {
 	getEvents := func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
-		assert.Equal(t, "issues/42/events", endpoint)
-		assert.Equal(t, "owner/repo", repo)
+		require.Equal(t, "issues/42/events", endpoint)
+		require.Equal(t, "owner/repo", repo)
 		return []map[string]any{
 			{"event": "closed", "actor": map[string]any{"login": "octocat"}},
 			{"event": "reopened", "actor": map[string]any{"login": "octocat"}},
