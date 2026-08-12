@@ -73,3 +73,14 @@
   - Orphaned agents unchanged for 9 runs: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer (interactive-agent-designer now has 1 ref, resolved off orphan list last run and confirmed still referenced this run).
 - SKIPPING full issue creation this run per prior recommendation: findings are fully stable/duplicated across 8+ prior issues already filed. Filing a noop instead of a new near-duplicate issue to avoid issue-tracker noise.
 - Recommend: next research run should only file a new issue if (a) a new Copilot CLI feature appears in the Go codebase, or (b) any of the 4 orphaned agents get removed/wired-in, or (c) --share/engine.args adoption changes from 0/1.
+
+## Run 31562860555 (2026-08-12)
+- Total workflows grew 284->285. Copilot combined (id: copilot + engine: copilot) count: 139.
+- --share flag: still stuck at 1 (this research workflow only) — 11th consecutive run confirming persistent gap.
+- engine.args: reconfirmed true value is 0 (no false positives this run).
+- Orphaned custom agents unchanged 11th consecutive run: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, interactive-agent-designer, w3c-specification-writer (5 of 11 agent files).
+- cache-memory adoption continues climbing: 126 (up from ~100-101 recent runs) — durable growth trend.
+- copilot-sdk: true adoption: 71 (up from 68) — steady growth.
+- max-continuations flat at 11, max-tool-denials stable ~65.
+- No new Copilot CLI features detected in codebase since last run.
+- Filed issue with full findings and recommended action items (orphaned agent triage + CI lint check for orphan detection).
