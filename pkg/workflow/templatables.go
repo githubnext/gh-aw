@@ -38,7 +38,7 @@ import (
 
 var templatablesLog = logger.New("workflow:templatables")
 
-const templatableBoolErrorExample = "value must be a boolean or a GitHub Actions expression (e.g. '${{ inputs.flag }}')"
+const templatableBoolErrorExample = "value must be a boolean or a GitHub Actions expression. Expected true, false, or an expression string. Example: <field>: true or <field>: ${{ inputs.flag }}"
 
 // TemplatableInt32 represents an integer frontmatter field that also accepts
 // GitHub Actions expression strings (e.g. "${{ inputs.timeout }}").  The
@@ -72,11 +72,11 @@ func (t *TemplatableInt32) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
 		templatablesLog.Printf("TemplatableInt32 rejected: not number or string: %s", data)
-		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got %s", data)
+		return fmt.Errorf("value must be an integer or a GitHub Actions expression, got %s. Expected an integer literal or an expression string. Example: <field>: 30 or <field>: ${{ inputs.timeout }}", data)
 	}
 	if !isExpression(s) {
 		templatablesLog.Printf("TemplatableInt32 rejected non-expression string: %q", s)
-		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression (e.g. '${{ inputs.timeout }}'), got string %q", s)
+		return fmt.Errorf("value must be an integer or a GitHub Actions expression, got string %q. Expected an integer literal or an expression string. Example: <field>: 30 or <field>: ${{ inputs.timeout }}", s)
 	}
 	*t = TemplatableInt32(s)
 	return nil
@@ -329,7 +329,7 @@ func defaultIntStr(n int) *string {
 	return &s
 }
 
-const templatableBoolOrIntErrorExample = "value must be a boolean, a non-negative integer (0–100), or a GitHub Actions expression (e.g. '${{ inputs.dedup }}')"
+const templatableBoolOrIntErrorExample = "value must be a boolean, a non-negative integer (0–100), or a GitHub Actions expression. Expected true/false, an integer from 0 to 100, or an expression string. Example: deduplicate-by-title: true, deduplicate-by-title: 1, or deduplicate-by-title: ${{ inputs.dedup }}"
 
 // TemplatableBoolOrInt represents a field that accepts a boolean, a non-negative integer
 // (0–100), or a GitHub Actions expression string (e.g. "${{ inputs.dedup }}").
@@ -365,7 +365,7 @@ func (t *TemplatableBoolOrInt) UnmarshalYAML(node *yaml.Node) error {
 	case "!!int":
 		n, err := strconv.Atoi(node.Value)
 		if err != nil || n < 0 || n > 100 {
-			return fmt.Errorf("integer must be between 0 and 100, got %q", node.Value)
+			return fmt.Errorf("integer must be between 0 and 100, got %q. Expected a value in that range. Example: deduplicate-by-title: 1", node.Value)
 		}
 		*t = TemplatableBoolOrInt(node.Value)
 		return nil
@@ -394,7 +394,7 @@ func (t *TemplatableBoolOrInt) UnmarshalJSON(data []byte) error {
 	var n int
 	if err := json.Unmarshal(data, &n); err == nil {
 		if n < 0 || n > 100 {
-			return fmt.Errorf("integer must be between 0 and 100, got %d", n)
+			return fmt.Errorf("integer must be between 0 and 100, got %d. Expected a value in that range. Example: deduplicate-by-title: 1", n)
 		}
 		*t = TemplatableBoolOrInt(strconv.Itoa(n))
 		return nil

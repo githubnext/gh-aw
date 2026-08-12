@@ -35,6 +35,24 @@ import (
 
 var validationHelpersLog = logger.New("workflow:validation_helpers")
 
+// nestedYAMLExample renders a dotted field path (e.g. "sandbox.mcp.port") as a
+// nested YAML mapping example with the given scalar value on the innermost key
+// (e.g. "sandbox:\n  mcp:\n    port: 1"). Fields without dots are rendered as a
+// single "field: value" line.
+func nestedYAMLExample(fieldName string, value any) string {
+	parts := strings.Split(fieldName, ".")
+	var b strings.Builder
+	for i, part := range parts {
+		indent := strings.Repeat("  ", i)
+		if i == len(parts)-1 {
+			fmt.Fprintf(&b, "%s%s: %v", indent, part, value)
+		} else {
+			fmt.Fprintf(&b, "%s%s:\n", indent, part)
+		}
+	}
+	return b.String()
+}
+
 // validateIntRange validates that a value is within the specified inclusive range [min, max].
 // It returns an error if the value is outside the range, with a descriptive message
 // including the field name and the actual value.
@@ -57,8 +75,8 @@ var validationHelpersLog = logger.New("workflow:validation_helpers")
 //	}
 func validateIntRange(value, min, max int, fieldName string) error {
 	if value < min || value > max {
-		return fmt.Errorf("%s must be between %d and %d, got %d",
-			fieldName, min, max, value)
+		return fmt.Errorf("%s must be between %d and %d, got %d. Expected an integer in this inclusive range. Example:\n%s",
+			fieldName, min, max, value, nestedYAMLExample(fieldName, min))
 	}
 	return nil
 }
@@ -72,12 +90,12 @@ func validateMountStringFormat(mount string) (source, dest, mode string, err err
 	parts := strings.Split(mount, ":")
 	if len(parts) != 3 {
 		validationHelpersLog.Printf("Invalid mount format: %q (expected 3 colon-separated parts, got %d)", mount, len(parts))
-		return "", "", "", errors.New("must follow 'source:destination:mode' format with exactly 3 colon-separated parts")
+		return "", "", "", errors.New("must follow 'source:destination:mode' format with exactly 3 colon-separated parts. Expected three colon-separated values: source, destination, and mode. Example: /host/path:/container/path:ro")
 	}
 	mode = parts[2]
 	if mode != "ro" && mode != "rw" {
 		validationHelpersLog.Printf("Invalid mount mode: %q in %q (must be 'ro' or 'rw')", mode, mount)
-		return parts[0], parts[1], parts[2], fmt.Errorf("mode must be 'ro' or 'rw', got %q", mode)
+		return parts[0], parts[1], parts[2], fmt.Errorf("mode must be 'ro' or 'rw', got %q. Expected one of: ro, rw. Example: /host/path:/container/path:ro", mode)
 	}
 	validationHelpersLog.Printf("Valid mount: source=%s, dest=%s, mode=%s", parts[0], parts[1], mode)
 	return parts[0], parts[1], parts[2], nil
@@ -138,7 +156,7 @@ func parseMountEntry(mount string) (mountParts, mountValidationKind) {
 // a non-nil error for all non-OK mountValidationKind values.
 func validateMountEntries(mounts []string, onValid func(int, mountParts), onInvalid func(int, string, mountParts, mountValidationKind) error) error {
 	if onInvalid == nil {
-		return errors.New("internal error: onInvalid callback must not be nil")
+		return errors.New("internal error: onInvalid callback must not be nil. Expected a callback that returns an error for each invalid mount entry. Example: provide an onInvalid callback that returns an error for non-OK mount kinds")
 	}
 
 	for i, mount := range mounts {
@@ -151,7 +169,7 @@ func validateMountEntries(mounts []string, onValid func(int, mountParts), onInva
 		}
 		err := onInvalid(i, mount, parts, kind)
 		if err == nil {
-			return fmt.Errorf("internal error: onInvalid callback returned nil for mount kind %d", kind)
+			return fmt.Errorf("internal error: onInvalid callback returned nil for mount kind %d. Expected a non-nil error for invalid mount kinds. Example: return an error like \"safe-outputs.mounts[0] has an invalid entry\" when kind is invalid", kind)
 		}
 		return err
 	}

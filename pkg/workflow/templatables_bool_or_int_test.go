@@ -11,4 +11,5 @@ func TestTemplatableBoolOrIntUnmarshalJSONRejectsFloat(t *testing.T) {
 	var value TemplatableBoolOrInt
 	err := json.Unmarshal([]byte("1.5"), &value)
 	require.Error(t, err, "float input should be rejected")
+	require.ErrorContains(t, err, "Example:", "error should include a corrective example")
 }
