@@ -31,7 +31,12 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
     return { valid: true, invalidFiles: [] };
   }
 
-  const extensions = new Set(allowedExtensions.map(ext => ext.trim().toLowerCase()));
+  const extensions = new Set(
+    allowedExtensions.map(ext => {
+      const normalized = ext.trim().toLowerCase();
+      return normalized.startsWith(".") ? normalized : `.${normalized}`;
+    })
+  );
   /** @type {string[]} */
   const invalidFiles = [];
 

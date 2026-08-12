@@ -263,6 +263,14 @@ describe("validateMemoryFiles", () => {
     expect(result.invalidFiles).toEqual([]);
   });
 
+  it("normalizes custom extensions missing a leading dot", () => {
+    fs.writeFileSync(path.join(tempDir, "data.json"), "{}");
+    fs.writeFileSync(path.join(tempDir, "notes.txt"), "text");
+    const result = validateMemoryFiles(tempDir, "cache", ["json"]);
+    expect(result.valid).toBe(false);
+    expect(result.invalidFiles).toEqual(["notes.txt"]);
+  });
+
   it("uses 'cache' as the default memoryType", () => {
     const result = validateMemoryFiles(tempDir);
     expect(result.valid).toBe(true);
