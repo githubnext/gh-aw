@@ -16,12 +16,12 @@ type SetIssueTypeConfig struct {
 
 // parseSetIssueTypeConfig handles set-issue-type configuration
 func (c *Compiler) parseSetIssueTypeConfig(outputMap map[string]any) *SetIssueTypeConfig {
-	config := parseConfigScaffold(outputMap, "set-issue-type", setIssueTypeLog, func(err error) *SetIssueTypeConfig {
-		setIssueTypeLog.Printf("Failed to unmarshal set-issue-type config, disabling handler: %v", err)
-		return nil
-	})
-	if config != nil {
-		setIssueTypeLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
-	}
-	return config
+	return parseConfigScaffoldWithPostProcess(outputMap, "set-issue-type", setIssueTypeLog,
+		func(err error) *SetIssueTypeConfig {
+			setIssueTypeLog.Printf("Failed to unmarshal set-issue-type config, disabling handler: %v", err)
+			return nil
+		},
+		func(config *SetIssueTypeConfig) {
+			setIssueTypeLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
+		})
 }

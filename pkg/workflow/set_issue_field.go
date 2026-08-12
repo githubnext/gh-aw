@@ -14,12 +14,12 @@ type SetIssueFieldConfig struct {
 
 // parseSetIssueFieldConfig handles set-issue-field configuration.
 func (c *Compiler) parseSetIssueFieldConfig(outputMap map[string]any) *SetIssueFieldConfig {
-	config := parseConfigScaffold(outputMap, "set-issue-field", setIssueFieldLog, func(err error) *SetIssueFieldConfig {
-		setIssueFieldLog.Printf("Failed to unmarshal set-issue-field config, disabling handler: %v", err)
-		return nil
-	})
-	if config != nil {
-		setIssueFieldLog.Printf("Parsed configuration: target=%s", config.Target)
-	}
-	return config
+	return parseConfigScaffoldWithPostProcess(outputMap, "set-issue-field", setIssueFieldLog,
+		func(err error) *SetIssueFieldConfig {
+			setIssueFieldLog.Printf("Failed to unmarshal set-issue-field config, disabling handler: %v", err)
+			return nil
+		},
+		func(config *SetIssueFieldConfig) {
+			setIssueFieldLog.Printf("Parsed configuration: target=%s", config.Target)
+		})
 }

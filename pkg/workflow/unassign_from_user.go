@@ -16,24 +16,23 @@ type UnassignFromUserConfig struct {
 
 // parseUnassignFromUserConfig handles unassign-from-user configuration
 func (c *Compiler) parseUnassignFromUserConfig(outputMap map[string]any) *UnassignFromUserConfig {
-	config := parseConfigScaffold(outputMap, "unassign-from-user", unassignFromUserLog, func(err error) *UnassignFromUserConfig {
-		unassignFromUserLog.Printf("Failed to unmarshal config: %v", err)
-		// For backward compatibility, use defaults
-		unassignFromUserLog.Print("Using default configuration")
-		return &UnassignFromUserConfig{
-			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
-		}
-	})
-	if config == nil {
-		return nil
-	}
+	config := parseConfigScaffoldWithPostProcess(outputMap, "unassign-from-user", unassignFromUserLog,
+		func(err error) *UnassignFromUserConfig {
+			unassignFromUserLog.Printf("Failed to unmarshal config: %v", err)
+			// For backward compatibility, use defaults
+			unassignFromUserLog.Print("Using default configuration")
+			return &UnassignFromUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
+			}
+		},
+		func(config *UnassignFromUserConfig) {
+			// Set default max if not specified
+			if config.Max == nil {
+				config.Max = defaultIntStr(1)
+			}
 
-	// Set default max if not specified
-	if config.Max == nil {
-		config.Max = defaultIntStr(1)
-	}
-
-	unassignFromUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
+			unassignFromUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
+		})
 
 	return config
 }

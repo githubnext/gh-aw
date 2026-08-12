@@ -492,17 +492,17 @@ func TestParseFrontmatterConfig(t *testing.T) {
 			{
 				name:        "number form",
 				runsOn:      42,
-				errContains: "invalid runs-on type",
+				errContains: "expected a string, array of strings, or object",
 			},
 			{
 				name:        "array contains non-string",
 				runsOn:      []any{"self-hosted", 42},
-				errContains: "invalid runs-on array entry type",
+				errContains: "expected a string label",
 			},
 			{
 				name:        "object contains unknown key",
 				runsOn:      map[string]any{"unknown": "value"},
-				errContains: "invalid runs-on object key",
+				errContains: "is not supported, expected 'group' or 'labels'",
 			},
 		}
 
