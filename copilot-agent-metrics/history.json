@@ -386,7 +386,18 @@
       "avg_agent_duration_minutes": 158,
       "success_rate": 0.789,
       "note": "rolling 24h window from 08-10 18:32Z; author app/copilot-swe-agent only; 11 of 49 PRs still open (all <24h old); success_rate over 38 completed; avg_duration created->merged; 15 human issue comments across 49 PRs via per-PR REST API (11 PRs had >=1, top #52050 with 3); success_rate roughly stable 80%->78.9% (-1.1pp); avg_duration down sharply 247->158min (-36%); 3 of 8 closures were [WIP] placeholder closures (#52049,#51903,#51894), other 5 had substantive bodies; note some PR overlap with 08-10 window near the 18:32Z boundary due to backfill using calendar-day windowing; no PRs open >24h"
+    },
+    {
+      "date": "2026-08-12",
+      "total_prs": 27,
+      "merged_prs": 15,
+      "closed_prs": 6,
+      "open_prs": 6,
+      "avg_comments": 1.22,
+      "avg_agent_duration_minutes": 98,
+      "success_rate": 0.714,
+      "note": "rolling 24h window from 08-11 18:30Z; author app/copilot-swe-agent only; 6 of 27 PRs still open (all <24h old, oldest ~14.6h); success_rate over 21 completed; avg_duration created->merged; 33 human issue comments across 27 PRs via per-PR REST API (12 PRs had >=1); success_rate down 78.9%->71.4% (-7.5pp, within 10% threshold but continuing 3-day decline from 80% on 08-10); avg_duration down sharply 158->98min (-38%); none of the 6 closures were WIP placeholder text (all substantive); no PRs open >24h; volume down 49->27 (-45%), largely error-message-compliance and largefunc-refactor batch work"
     }
   ],
-  "last_updated": "2026-08-11"
+  "last_updated": "2026-08-12"
 }
