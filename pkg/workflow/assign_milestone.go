@@ -17,15 +17,15 @@ type AssignMilestoneConfig struct {
 
 // parseAssignMilestoneConfig handles assign-milestone configuration
 func (c *Compiler) parseAssignMilestoneConfig(outputMap map[string]any) *AssignMilestoneConfig {
-	config := parseConfigScaffold(outputMap, "assign-milestone", assignMilestoneLog, func(err error) *AssignMilestoneConfig {
-		assignMilestoneLog.Printf("Failed to unmarshal config: %v", err)
-		// Handle null case: create empty config (allows any milestones)
-		assignMilestoneLog.Print("Null milestone config, allowing any milestones")
-		return &AssignMilestoneConfig{}
-	})
-	if config != nil {
-		assignMilestoneLog.Printf("Parsed milestone config: target=%s, allowed_count=%d",
-			config.Target, len(config.Allowed))
-	}
-	return config
+	return parseConfigScaffoldWithPostProcess(outputMap, "assign-milestone", assignMilestoneLog,
+		func(err error) *AssignMilestoneConfig {
+			assignMilestoneLog.Printf("Failed to unmarshal config: %v", err)
+			// Handle null case: create empty config (allows any milestones)
+			assignMilestoneLog.Print("Null milestone config, allowing any milestones")
+			return &AssignMilestoneConfig{}
+		},
+		func(config *AssignMilestoneConfig) {
+			assignMilestoneLog.Printf("Parsed milestone config: target=%s, allowed_count=%d",
+				config.Target, len(config.Allowed))
+		})
 }

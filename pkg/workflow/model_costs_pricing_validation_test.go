@@ -97,6 +97,7 @@ func TestValidateDefaultAiCreditsPricing(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "input")
 		assert.Contains(t, err.Error(), "positive")
+		assert.Contains(t, err.Error(), "Example:")
 	})
 
 	t.Run("zero output is rejected", func(t *testing.T) {

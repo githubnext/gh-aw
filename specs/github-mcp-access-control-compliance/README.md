@@ -3,6 +3,8 @@
 This directory contains fixture stubs for the Section 11 compliance tests of the
 [GitHub MCP Access Control Specification](../../scratchpad/github-mcp-access-control-specification.md).
 
+**Spec version pinned at commit `2c1cfd71010a2d1ab9d9149118beb076d2098d7d`.**
+
 Each fixture describes a test scenario with an input tool configuration and the expected
 access-control decision. Fixtures are consumed by the compliance test runner to verify
 that implementations satisfy the normative requirements in §§4–10 of the specification.
@@ -73,6 +75,7 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `empty-repos-block.yaml` | Empty `repos` array is rejected at compile time | T-GH-015, T-GH-016 |
 | `role-deny.yaml` | Role filter denies access when user role is insufficient | T-GH-019, T-GH-020 |
 | `tool-name-filter.yaml` | `allowed-tools` filter allows or denies by tool name | T-GH-031, T-GH-032, T-GH-033 |
+| `empty-tool-name-deny.yaml` | Empty tool name is denied against a non-empty `allowed-tools` list | P1_ToolAllowed |
 | `blocked-user-deny.yaml` | `blocked-users` denies listed actors unconditionally | T-GH-071, T-GH-072 |
 | `private-repo-block.yaml` | `private-repos: false` blocks access to private repository | T-GH-024, T-GH-025 |
 | `integrity-level-block.yaml` | `min-integrity: approved` blocks content below the threshold | T-GH-051, T-GH-052 |
@@ -148,3 +151,6 @@ Formal conformance tests are implemented in:
 The test suite includes:
 - **Predicate-mapped tests** (`TestFormal_*`) — each test maps to a specific guard predicate (P1–P6) or invariant documented in the Formal Model section above.
 - **Fixture runner** (`TestFormal_FixtureRunner`) — loads every YAML fixture file from this directory and drives each scenario through the formal evaluator. This ensures the fixture files, error codes, and expected decisions remain consistent with the formal model.
+
+The `combined-blocked-integrity.yaml` fixture verifies that the runner returns P5's `-32005`
+before P6's `-32006` when both guards fail.

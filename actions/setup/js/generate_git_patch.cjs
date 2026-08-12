@@ -12,7 +12,17 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
-const { sanitizeForFilename, sanitizeBranchNameForPatch, sanitizeRepoSlugForPatch, getPatchPathForBranch, getPatchPathForBranchInRepo, buildExcludePathspecs, computeIncrementalDiffSize } = require("./git_patch_utils.cjs");
+const {
+  sanitizeForFilename,
+  sanitizeBranchNameForPatch,
+  sanitizeRepoSlugForPatch,
+  getPatchPathForBranch,
+  getPatchPathForBranchInRepo,
+  buildExcludePathspecs,
+  computeIncrementalDiffSize,
+  isAncestorCommit,
+  describeGitFailure,
+} = require("./git_patch_utils.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 
 // sanitizeForFilename is re-exported below for backward compatibility with
@@ -178,8 +188,10 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           debugLog(`Strategy 1: Using pinned SHA ${options.pinnedSha} (branch: ${branchName})`);
         } else {
           debugLog(`Strategy 1: Checking if branch '${branchName}' exists locally`);
-          // Check if the branch exists locally
-          execGitSync(["show-ref", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd });
+          // Check if the branch exists locally. This is a local-ref lookup only:
+          // it never touches the network, so a failure here always means "no such
+          // local branch" and never an auth/network problem.
+          execGitSync(["rev-parse", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd });
           debugLog(`Strategy 1: Branch '${branchName}' exists locally`);
         }
 
@@ -263,7 +275,20 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
             }
           }
 
-          if (defaultBranchRef) {
+          // When the workflow runs from a ref that is not contained in the default
+          // branch (the general case for a workflow_dispatch on a feature branch),
+          // the merge-base with the default branch is far behind the checked-out
+          // commit. Basing the patch there would include the dispatched branch's own
+          // commits instead of only the agent's, and on a partial clone it requires
+          // base-side blobs that were never fetched (the lazy fetch is unauthenticated
+          // and fails). GITHUB_SHA is the commit the agent started from and every
+          // object it needs is already present in the checkout.
+          const dispatchedSha = normalizeCommitSHA(githubSha);
+          const tipSha = execGitSync(["rev-parse", tipRef], { cwd }).trim();
+          if (defaultBranchRef && dispatchedSha && dispatchedSha !== tipSha && isAncestorCommit(dispatchedSha, tipRef, cwd) && !isAncestorCommit(dispatchedSha, defaultBranchRef, cwd)) {
+            baseRef = dispatchedSha;
+            debugLog(`Strategy 1 (full): GITHUB_SHA ${dispatchedSha} is not contained in ${defaultBranchRef} (non-default-branch run); using it as the patch base instead of the merge-base`);
+          } else if (defaultBranchRef) {
             try {
               baseRef = execGitSync(["merge-base", "--", defaultBranchRef, tipRef], { cwd }).trim();
             } catch (mergeBaseError) {
@@ -337,13 +362,27 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           };
         }
       } catch (branchError) {
-        // Branch does not exist locally (or pinnedSha failed)
-        debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${getErrorMessage(branchError)}`);
+        // Strategy 1 failed. Determine branch existence from local refs only so a
+        // network/auth failure (e.g. a lazy blob fetch on a partial clone) is never
+        // reported as a missing local branch.
+        let branchExistsLocally = false;
+        try {
+          execGitSync(["rev-parse", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd, suppressLogs: true });
+          branchExistsLocally = true;
+        } catch {
+          // Branch really is absent from the local refs
+        }
+        const branchErrorMessage = describeGitFailure(getErrorMessage(branchError), cwd);
+        if (branchExistsLocally) {
+          debugLog(`Strategy 1: Failed to generate patch for branch '${branchName}' (branch exists locally) - ${branchErrorMessage}`);
+        } else {
+          debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${branchErrorMessage}`);
+        }
         // Shallow-clone diagnostics (thrown explicitly from the merge-base block
         // above, marked with isShallowCloneDiagnostic) must reach callers immediately —
         // falling through to Strategy 2 or 3 would produce a misleading "No changes
         // to commit" result instead. Other ERR_SYSTEM-prefixed errors (e.g. an
-        // expected "branch not found" failure from show-ref/rev-parse) must still
+        // expected "branch not found" failure from rev-parse) must still
         // fall through to the later strategies.
         if (branchError && branchError.isShallowCloneDiagnostic) {
           return {
@@ -357,11 +396,18 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           // other strategies that would resolve a different commit.
           return {
             success: false,
-            error: `Pinned SHA ${options.pinnedSha} failed to generate patch: ${getErrorMessage(branchError)}`,
+            error: `Pinned SHA ${options.pinnedSha} failed to generate patch: ${branchErrorMessage}`,
             patchPath: patchPath,
           };
         }
         if (mode === "incremental") {
+          if (branchExistsLocally) {
+            return {
+              success: false,
+              error: `Cannot generate incremental patch for branch ${branchName} in checkout '${cwd}': ${branchErrorMessage}`,
+              patchPath: patchPath,
+            };
+          }
           return {
             success: false,
             error:

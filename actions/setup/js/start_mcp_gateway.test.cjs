@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyOTLPIgnoreIfMissing,
   detectEngineType,
+  extractOptionalServerNames,
   getJSONParseErrorContext,
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
@@ -325,5 +326,29 @@ describe("start_mcp_gateway normalizeSinkVisibilityEncoding", () => {
   }
 }`;
     expect(normalizeSinkVisibilityEncoding(validConfig)).toBe(validConfig);
+  });
+});
+
+describe("start_mcp_gateway extractOptionalServerNames", () => {
+  it("collects servers declared with required: false and strips the flag from every server", () => {
+    const configObj = {
+      mcpServers: {
+        datadog: { type: "http", url: "https://example.com/mcp", required: false },
+        grafana: { type: "http", url: "https://example.com/grafana" },
+        sentry: { type: "http", url: "https://example.com/sentry", required: true },
+      },
+    };
+
+    expect(extractOptionalServerNames(configObj)).toEqual(["datadog"]);
+    // The gateway configuration specification has no `required` field, so it is
+    // removed for every server regardless of its value.
+    expect(configObj.mcpServers.datadog).not.toHaveProperty("required");
+    expect(configObj.mcpServers.sentry).not.toHaveProperty("required");
+    expect(configObj.mcpServers.grafana).not.toHaveProperty("required");
+  });
+
+  it("returns an empty list when no servers are configured", () => {
+    expect(extractOptionalServerNames({})).toEqual([]);
+    expect(extractOptionalServerNames({ mcpServers: null })).toEqual([]);
   });
 });

@@ -296,6 +296,9 @@ func TestValidateSafeOutputsTarget(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errText) {
 					t.Errorf("validateSafeOutputsTarget() error = %v, should contain %q", err, tt.errText)
 				}
+				if !strings.Contains(err.Error(), "Example:") {
+					t.Errorf("validateSafeOutputsTarget() error = %v, should contain %q", err, "Example:")
+				}
 			}
 		})
 	}
@@ -405,6 +408,9 @@ func TestValidateTargetValue(t *testing.T) {
 			if tt.wantErr && tt.errText != "" {
 				if !strings.Contains(err.Error(), tt.errText) {
 					t.Errorf("validateTargetValue() error = %v, should contain %q", err, tt.errText)
+				}
+				if !strings.Contains(err.Error(), "Example:") {
+					t.Errorf("validateTargetValue() error = %v, should contain %q", err, "Example:")
 				}
 			}
 		})

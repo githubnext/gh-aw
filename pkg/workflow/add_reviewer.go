@@ -51,29 +51,28 @@ func (c *Compiler) parseAddReviewerConfig(outputMap map[string]any) *AddReviewer
 		return nil
 	}
 
-	config := parseConfigScaffold(outputMap, "add-reviewer", addReviewerLog, func(err error) *AddReviewerConfig {
-		addReviewerLog.Printf("Failed to unmarshal config: %v", err)
-		// For backward compatibility, handle nil/empty config
-		return &AddReviewerConfig{}
-	})
-	if config == nil {
-		return nil
-	}
+	config := parseConfigScaffoldWithPostProcess(outputMap, "add-reviewer", addReviewerLog,
+		func(err error) *AddReviewerConfig {
+			addReviewerLog.Printf("Failed to unmarshal config: %v", err)
+			// For backward compatibility, handle nil/empty config
+			return &AddReviewerConfig{}
+		},
+		func(config *AddReviewerConfig) {
+			// Set default max if not specified
+			if config.Max == nil {
+				config.Max = defaultIntStr(3)
+			}
 
-	// Set default max if not specified
-	if config.Max == nil {
-		config.Max = defaultIntStr(3)
-	}
+			// Fallback from deprecated field names to preferred names
+			if len(config.AllowedReviewers) == 0 {
+				config.AllowedReviewers = config.Reviewers
+			}
+			if len(config.AllowedTeamReviewers) == 0 {
+				config.AllowedTeamReviewers = config.TeamReviewers
+			}
 
-	// Fallback from deprecated field names to preferred names
-	if len(config.AllowedReviewers) == 0 {
-		config.AllowedReviewers = config.Reviewers
-	}
-	if len(config.AllowedTeamReviewers) == 0 {
-		config.AllowedTeamReviewers = config.TeamReviewers
-	}
-
-	addReviewerLog.Printf("Parsed add-reviewer config: allowed_reviewers=%d, target=%s", len(config.AllowedReviewers), config.Target)
+			addReviewerLog.Printf("Parsed add-reviewer config: allowed_reviewers=%d, target=%s", len(config.AllowedReviewers), config.Target)
+		})
 
 	return config
 }

@@ -31,21 +31,21 @@ func TestRunWorkflowOnGitHub_InputValidation(t *testing.T) {
 			workflowName:  "",
 			inputs:        []string{},
 			expectError:   true,
-			errorContains: "workflow name or ID is required",
+			errorContains: "workflow name or ID is missing",
 		},
 		{
 			name:          "invalid input format - no equals sign",
 			workflowName:  "test-workflow",
 			inputs:        []string{"invalidinput"},
 			expectError:   true,
-			errorContains: "invalid input format",
+			errorContains: "not in key=value format",
 		},
 		{
 			name:          "invalid input format - empty key",
 			workflowName:  "test-workflow",
 			inputs:        []string{"=value"},
 			expectError:   true,
-			errorContains: "key cannot be empty",
+			errorContains: "empty key before '='",
 		},
 		{
 			name:          "valid input format - workflow resolution fails",
@@ -132,7 +132,7 @@ func TestRunWorkflowsOnGitHub_InputValidation(t *testing.T) {
 			name:          "empty workflow list",
 			workflowNames: []string{},
 			expectError:   true,
-			errorContains: "at least one workflow name or ID is required",
+			errorContains: "workflow list is empty",
 		},
 		{
 			name:          "single workflow - resolution fails",
