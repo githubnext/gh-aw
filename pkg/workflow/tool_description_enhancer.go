@@ -128,6 +128,32 @@ func appendMaxConstraint(constraints *[]string, max *string, format string) {
 	}
 }
 
+// buildConstraints centralizes the nil-guard + slice setup boilerplate shared by
+// every per-tool constraint builder: it returns nil when config is nil, otherwise
+// it hands a fresh constraints slice to build for population.
+func buildConstraints[T any](config *T, build func(config *T, constraints *[]string)) []string {
+	if config == nil {
+		return nil
+	}
+	var constraints []string
+	build(config, &constraints)
+	return constraints
+}
+
+// appendStringConstraint appends a formatted constraint when value is non-empty.
+// format must contain a single %q/%s verb for the value; each call site stays
+// self-descriptive through its format string.
+func appendStringConstraint(constraints *[]string, value, format string) {
+	if value != "" {
+		*constraints = append(*constraints, fmt.Sprintf(format, value))
+	}
+}
+
+// appendTargetConstraint appends the common "Target: <value>." constraint when target is set.
+func appendTargetConstraint(constraints *[]string, target string) {
+	appendStringConstraint(constraints, target, "Target: %s.")
+}
+
 // enhanceToolDescription adds configuration-specific constraints to tool descriptions
 // This provides agents with context about limits and restrictions configured in the workflow
 func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeOutputsConfig) string {
@@ -158,583 +184,367 @@ func buildToolDescriptionConstraints(toolName string, safeOutputs *SafeOutputsCo
 }
 
 func createIssueConstraints(config *CreateIssuesConfig) []string {
-	if config == nil {
-		return nil
-	}
+	return buildConstraints(config, func(config *CreateIssuesConfig, constraints *[]string) {
+		toolDescriptionEnhancerLog.Printf("Found create_issue config: max=%v, titlePrefix=%s", config.Max, config.TitlePrefix)
 
-	toolDescriptionEnhancerLog.Printf("Found create_issue config: max=%v, titlePrefix=%s", config.Max, config.TitlePrefix)
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d issue(s) can be created.")
-	if config.TitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
-	}
-	if len(config.Labels) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Labels %s will be automatically added.", formatStringList(config.Labels)))
-	}
-	if len(config.AllowedLabels) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
-	}
-	appendAllowedIssueFieldsConstraint(&constraints, config.AllowedFields)
-	if len(config.Assignees) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Assignees %s will be automatically assigned.", formatStringList(config.Assignees)))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Issues will be created in repository %q.", config.TargetRepoSlug))
-	}
-	if config.RequireTemporaryID {
-		constraints = append(constraints, "temporary_id is required.")
-	}
-	if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {
-		constraints = append(constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
-	}
-	return constraints
+		appendMaxConstraint(constraints, config.Max, "Maximum %d issue(s) can be created.")
+		appendStringConstraint(constraints, config.TitlePrefix, "Title will be prefixed with %q.")
+		if len(config.Labels) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Labels %s will be automatically added.", formatStringList(config.Labels)))
+		}
+		if len(config.AllowedLabels) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
+		}
+		appendAllowedIssueFieldsConstraint(constraints, config.AllowedFields)
+		if len(config.Assignees) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Assignees %s will be automatically assigned.", formatStringList(config.Assignees)))
+		}
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Issues will be created in repository %q.")
+		if config.RequireTemporaryID {
+			*constraints = append(*constraints, "temporary_id is required.")
+		}
+		if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {
+			*constraints = append(*constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
+		}
+	})
 }
 
 func setIssueFieldConstraints(config *SetIssueFieldConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d issue field update(s) can be made.")
-	appendAllowedIssueFieldsConstraint(&constraints, config.AllowedFields)
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Issue fields will be updated in repository %q.", config.TargetRepoSlug))
-	}
-	return constraints
+	return buildConstraints(config, func(config *SetIssueFieldConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d issue field update(s) can be made.")
+		appendAllowedIssueFieldsConstraint(constraints, config.AllowedFields)
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Issue fields will be updated in repository %q.")
+	})
 }
 
 func createAgentSessionConstraints(config *CreateAgentSessionConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d agent task(s) can be created.")
-	if config.Base != "" {
-		constraints = append(constraints, fmt.Sprintf("Base branch for tasks: %q.", config.Base))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Tasks will be created in repository %q.", config.TargetRepoSlug))
-	}
-	if len(config.AllowedRepos) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Sessions can target these repositories: %v.", config.AllowedRepos))
-	}
-	return constraints
+	return buildConstraints(config, func(config *CreateAgentSessionConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d agent task(s) can be created.")
+		appendStringConstraint(constraints, config.Base, "Base branch for tasks: %q.")
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Tasks will be created in repository %q.")
+		if len(config.AllowedRepos) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Sessions can target these repositories: %v.", config.AllowedRepos))
+		}
+	})
 }
 
 func createDiscussionConstraints(config *CreateDiscussionsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d discussion(s) can be created.")
-	if config.TitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
-	}
-	if config.Category != "" {
-		constraints = append(constraints, fmt.Sprintf("Discussions will be created in category %q.", config.Category))
-	}
-	if len(config.AllowedLabels) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Discussions will be created in repository %q.", config.TargetRepoSlug))
-	}
-	return constraints
+	return buildConstraints(config, func(config *CreateDiscussionsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d discussion(s) can be created.")
+		appendStringConstraint(constraints, config.TitlePrefix, "Title will be prefixed with %q.")
+		appendStringConstraint(constraints, config.Category, "Discussions will be created in category %q.")
+		if len(config.AllowedLabels) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
+		}
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Discussions will be created in repository %q.")
+	})
 }
 
 func closeDiscussionConstraints(config *CloseDiscussionsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d discussion(s) can be closed.")
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Discussions will be closed in repository %q.", config.TargetRepoSlug))
-	}
-	if config.RequiredTitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("Only discussions with title prefix %q can be closed.", config.RequiredTitlePrefix))
-	}
-	if config.AllowBody != nil && !*config.AllowBody {
-		constraints = append(constraints, "Closing comments are disabled: do not include a body field.")
-	}
-	return constraints
+	return buildConstraints(config, func(config *CloseDiscussionsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d discussion(s) can be closed.")
+		appendTargetConstraint(constraints, config.Target)
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Discussions will be closed in repository %q.")
+		appendStringConstraint(constraints, config.RequiredTitlePrefix, "Only discussions with title prefix %q can be closed.")
+		if config.AllowBody != nil && !*config.AllowBody {
+			*constraints = append(*constraints, "Closing comments are disabled: do not include a body field.")
+		}
+	})
 }
 
 func updateDiscussionConstraints(config *UpdateDiscussionsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d discussion(s) can be updated.")
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	if config.Title != nil && *config.Title {
-		constraints = append(constraints, "Title updates are allowed.")
-	}
-	if config.Body != nil && *config.Body {
-		constraints = append(constraints, "Body updates are allowed.")
-	}
-	if config.Labels != nil {
-		if len(config.AllowedLabels) > 0 {
-			constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
-		} else {
-			constraints = append(constraints, "Label updates are allowed.")
+	return buildConstraints(config, func(config *UpdateDiscussionsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d discussion(s) can be updated.")
+		appendTargetConstraint(constraints, config.Target)
+		if config.Title != nil && *config.Title {
+			*constraints = append(*constraints, "Title updates are allowed.")
 		}
-	}
-	return constraints
+		if config.Body != nil && *config.Body {
+			*constraints = append(*constraints, "Body updates are allowed.")
+		}
+		if config.Labels != nil {
+			if len(config.AllowedLabels) > 0 {
+				*constraints = append(*constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
+			} else {
+				*constraints = append(*constraints, "Label updates are allowed.")
+			}
+		}
+	})
 }
 
 func closeIssueConstraints(config *CloseIssuesConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d issue(s) can be closed.")
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	if config.RequiredTitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("Only issues with title prefix %q can be closed.", config.RequiredTitlePrefix))
-	}
-	if config.AllowBody != nil && !*config.AllowBody {
-		constraints = append(constraints, "Closing comments are disabled: do not include a body field.")
-	}
-	return constraints
+	return buildConstraints(config, func(config *CloseIssuesConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d issue(s) can be closed.")
+		appendTargetConstraint(constraints, config.Target)
+		appendStringConstraint(constraints, config.RequiredTitlePrefix, "Only issues with title prefix %q can be closed.")
+		if config.AllowBody != nil && !*config.AllowBody {
+			*constraints = append(*constraints, "Closing comments are disabled: do not include a body field.")
+		}
+	})
 }
 
 func closePullRequestConstraints(config *ClosePullRequestsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d pull request(s) can be closed.")
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Pull requests will be closed in repository %q.", config.TargetRepoSlug))
-	}
-	if len(config.RequiredLabels) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only PRs with labels %v can be closed.", config.RequiredLabels))
-	}
-	if config.RequiredTitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("Only PRs with title prefix %q can be closed.", config.RequiredTitlePrefix))
-	}
-	return constraints
+	return buildConstraints(config, func(config *ClosePullRequestsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d pull request(s) can be closed.")
+		appendTargetConstraint(constraints, config.Target)
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Pull requests will be closed in repository %q.")
+		if len(config.RequiredLabels) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only PRs with labels %v can be closed.", config.RequiredLabels))
+		}
+		appendStringConstraint(constraints, config.RequiredTitlePrefix, "Only PRs with title prefix %q can be closed.")
+	})
 }
 
 func markPullRequestAsReadyForReviewConstraints(config *MarkPullRequestAsReadyForReviewConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d pull request(s) can be marked as ready for review.")
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Pull requests will be marked as ready in repository %q.", config.TargetRepoSlug))
-	}
-	return constraints
+	return buildConstraints(config, func(config *MarkPullRequestAsReadyForReviewConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d pull request(s) can be marked as ready for review.")
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Pull requests will be marked as ready in repository %q.")
+	})
 }
 
 func addCommentConstraints(config *AddCommentsConfig) []string {
-	var constraints []string
-	if config != nil {
-		appendMaxConstraint(&constraints, config.Max, "Maximum %d comment(s) can be added.")
-		if config.Target != "" {
-			constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-		}
-		if config.TargetRepoSlug != "" {
-			constraints = append(constraints, fmt.Sprintf("Comments will be added in repository %q.", config.TargetRepoSlug))
-		}
+	constraints := buildConstraints(config, func(config *AddCommentsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d comment(s) can be added.")
+		appendTargetConstraint(constraints, config.Target)
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Comments will be added in repository %q.")
 		if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {
-			constraints = append(constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
+			*constraints = append(*constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
 		}
-	}
+	})
 	return append(constraints, "Supports reply_to_id for discussion threading.")
 }
 
 func createPullRequestConstraints(config *CreatePullRequestsConfig) []string {
-	if config == nil {
-		return nil
-	}
+	return buildConstraints(config, func(config *CreatePullRequestsConfig, constraints *[]string) {
+		toolDescriptionEnhancerLog.Printf("Found create_pull_request config: max=%v, titlePrefix=%s, draft=%v", config.Max, config.TitlePrefix, config.Draft)
 
-	toolDescriptionEnhancerLog.Printf("Found create_pull_request config: max=%v, titlePrefix=%s, draft=%v", config.Max, config.TitlePrefix, config.Draft)
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d pull request(s) can be created.")
-	if config.BranchPrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("Branch name will be prefixed with %q.", config.BranchPrefix))
-	}
-	if config.TitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("Title will be prefixed with %q.", config.TitlePrefix))
-	}
-	if len(config.Labels) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Labels %s will be automatically added.", formatStringList(config.Labels)))
-	}
-	if len(config.AllowedLabels) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
-	}
-	if config.Draft != nil && *config.Draft == "true" {
-		constraints = append(constraints, "PRs will be created as drafts.")
-	}
-	if len(config.Reviewers) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Reviewers %s will be assigned.", formatStringList(config.Reviewers)))
-	}
-	if len(config.Assignees) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Assignees %s will be assigned to the created pull request and any fallback issue.", formatStringList(config.Assignees)))
-	}
-	if config.RequireTemporaryID {
-		constraints = append(constraints, "temporary_id is required.")
-	}
-	if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {
-		constraints = append(constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
-	}
-	return constraints
+		appendMaxConstraint(constraints, config.Max, "Maximum %d pull request(s) can be created.")
+		appendStringConstraint(constraints, config.BranchPrefix, "Branch name will be prefixed with %q.")
+		appendStringConstraint(constraints, config.TitlePrefix, "Title will be prefixed with %q.")
+		if len(config.Labels) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Labels %s will be automatically added.", formatStringList(config.Labels)))
+		}
+		if len(config.AllowedLabels) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
+		}
+		if config.Draft != nil && *config.Draft == "true" {
+			*constraints = append(*constraints, "PRs will be created as drafts.")
+		}
+		if len(config.Reviewers) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Reviewers %s will be assigned.", formatStringList(config.Reviewers)))
+		}
+		if len(config.Assignees) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Assignees %s will be assigned to the created pull request and any fallback issue.", formatStringList(config.Assignees)))
+		}
+		if config.RequireTemporaryID {
+			*constraints = append(*constraints, "temporary_id is required.")
+		}
+		if config.NormalizeClosingKeywords != nil && *config.NormalizeClosingKeywords {
+			*constraints = append(*constraints, "Backtick-wrapped issue-closing keyword references (e.g. `Closes #1`) in the body field will be automatically normalized to plain text.")
+		}
+	})
 }
 
 func createPullRequestReviewCommentConstraints(config *CreatePullRequestReviewCommentsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d review comment(s) can be created.")
-	if config.Side != "" {
-		constraints = append(constraints, fmt.Sprintf("Comments will be on the %s side of the diff.", config.Side))
-	}
-	return constraints
+	return buildConstraints(config, func(config *CreatePullRequestReviewCommentsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d review comment(s) can be created.")
+		appendStringConstraint(constraints, config.Side, "Comments will be on the %s side of the diff.")
+	})
 }
 
 func submitPullRequestReviewConstraints(config *SubmitPullRequestReviewConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d review(s) can be submitted.")
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Reviews will be submitted in repository %q.", config.TargetRepoSlug))
-	}
-	return constraints
+	return buildConstraints(config, func(config *SubmitPullRequestReviewConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d review(s) can be submitted.")
+		appendTargetConstraint(constraints, config.Target)
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Reviews will be submitted in repository %q.")
+	})
 }
 
 func replyToPullRequestReviewCommentConstraints(config *ReplyToPullRequestReviewCommentConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d reply/replies can be created.")
-	return constraints
+	return buildConstraints(config, func(config *ReplyToPullRequestReviewCommentConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d reply/replies can be created.")
+	})
 }
 
 func dismissPullRequestReviewConstraints(config *DismissPullRequestReviewConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d review dismissal(s) can be performed.")
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Review dismissals will be performed in repository %q.", config.TargetRepoSlug))
-	}
-	return append(constraints, "justification must contain at least 20 characters.")
+	return buildConstraints(config, func(config *DismissPullRequestReviewConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d review dismissal(s) can be performed.")
+		appendTargetConstraint(constraints, config.Target)
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Review dismissals will be performed in repository %q.")
+		*constraints = append(*constraints, "justification must contain at least 20 characters.")
+	})
 }
 
 func resolvePullRequestReviewThreadConstraints(config *ResolvePullRequestReviewThreadConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d review thread(s) can be resolved.")
-	return constraints
+	return buildConstraints(config, func(config *ResolvePullRequestReviewThreadConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d review thread(s) can be resolved.")
+	})
 }
 
 func createCodeScanningAlertConstraints(config *CreateCodeScanningAlertsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d alert(s) can be created.")
-	return constraints
+	return buildConstraints(config, func(config *CreateCodeScanningAlertsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d alert(s) can be created.")
+	})
 }
 
 func createCheckRunConstraints(config *CreateCheckRunConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d check run(s) can be created.")
-	if config.Name != "" {
-		constraints = append(constraints, fmt.Sprintf("Check run name: %q.", config.Name))
-	}
-	return constraints
+	return buildConstraints(config, func(config *CreateCheckRunConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d check run(s) can be created.")
+		appendStringConstraint(constraints, config.Name, "Check run name: %q.")
+	})
 }
 
 func addLabelsConstraints(config *AddLabelsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d label(s) can be added.")
-	if len(config.Allowed) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.Allowed)))
-	}
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	return constraints
+	return buildConstraints(config, func(config *AddLabelsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d label(s) can be added.")
+		if len(config.Allowed) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.Allowed)))
+		}
+		appendTargetConstraint(constraints, config.Target)
+	})
 }
 
 func removeLabelsConstraints(config *RemoveLabelsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d label(s) can be removed.")
-	if len(config.Allowed) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only these labels can be removed: %v.", config.Allowed))
-	}
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	return constraints
+	return buildConstraints(config, func(config *RemoveLabelsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d label(s) can be removed.")
+		if len(config.Allowed) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these labels can be removed: %v.", config.Allowed))
+		}
+		appendTargetConstraint(constraints, config.Target)
+	})
 }
 
 func replaceLabelConstraints(config *ReplaceLabelConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d label replacement(s) allowed.")
-	if len(config.AllowedTransitions) > 0 {
-		pairs := make([]string, len(config.AllowedTransitions))
-		for i, transition := range config.AllowedTransitions {
-			pairs[i] = fmt.Sprintf("%q → %q", transition.From, transition.To)
+	return buildConstraints(config, func(config *ReplaceLabelConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d label replacement(s) allowed.")
+		if len(config.AllowedTransitions) > 0 {
+			pairs := make([]string, len(config.AllowedTransitions))
+			for i, transition := range config.AllowedTransitions {
+				pairs[i] = fmt.Sprintf("%q → %q", transition.From, transition.To)
+			}
+			*constraints = append(*constraints, fmt.Sprintf("Only these label transitions are allowed: %s.", formatStringList(pairs)))
 		}
-		constraints = append(constraints, fmt.Sprintf("Only these label transitions are allowed: %s.", formatStringList(pairs)))
-	}
-	if len(config.AllowedAdd) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only these labels can be added: %s.", formatStringList(config.AllowedAdd)))
-	}
-	if len(config.AllowedRemove) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only these labels can be removed: %s.", formatStringList(config.AllowedRemove)))
-	}
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	return constraints
+		if len(config.AllowedAdd) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these labels can be added: %s.", formatStringList(config.AllowedAdd)))
+		}
+		if len(config.AllowedRemove) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only these labels can be removed: %s.", formatStringList(config.AllowedRemove)))
+		}
+		appendTargetConstraint(constraints, config.Target)
+	})
 }
 
 func addReviewerConstraints(config *AddReviewerConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d reviewer(s) can be added.")
-	return constraints
+	return buildConstraints(config, func(config *AddReviewerConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d reviewer(s) can be added.")
+	})
 }
 
 func updateIssueConstraints(config *UpdateIssuesConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d issue(s) can be updated.")
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	titlePrefix := config.TitlePrefix
-	if config.RequiredTitlePrefix != "" {
-		titlePrefix = config.RequiredTitlePrefix
-	}
-	if titlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("The target issue title must start with %q.", titlePrefix))
-	}
-	if config.Title != nil && *config.Title {
-		constraints = append(constraints, "Title updates are allowed.")
-	}
-	if config.Body != nil && *config.Body {
-		constraints = append(constraints, "Body updates are allowed.")
-	}
-	if config.Status != nil && *config.Status {
-		constraints = append(constraints, "Status updates (open/closed) are allowed.")
-	}
-	return constraints
+	return buildConstraints(config, func(config *UpdateIssuesConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d issue(s) can be updated.")
+		appendTargetConstraint(constraints, config.Target)
+		titlePrefix := config.TitlePrefix
+		if config.RequiredTitlePrefix != "" {
+			titlePrefix = config.RequiredTitlePrefix
+		}
+		appendStringConstraint(constraints, titlePrefix, "The target issue title must start with %q.")
+		if config.Title != nil && *config.Title {
+			*constraints = append(*constraints, "Title updates are allowed.")
+		}
+		if config.Body != nil && *config.Body {
+			*constraints = append(*constraints, "Body updates are allowed.")
+		}
+		if config.Status != nil && *config.Status {
+			*constraints = append(*constraints, "Status updates (open/closed) are allowed.")
+		}
+	})
 }
 
 func updatePullRequestConstraints(config *UpdatePullRequestsConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d pull request(s) can be updated.")
-	if config.Target != "" {
-		constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
-	}
-	if len(config.RequiredLabels) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Only PRs with labels %v can be updated.", config.RequiredLabels))
-	}
-	if config.RequiredTitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("Only PRs with title prefix %q can be updated.", config.RequiredTitlePrefix))
-	}
-	return constraints
+	return buildConstraints(config, func(config *UpdatePullRequestsConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d pull request(s) can be updated.")
+		appendTargetConstraint(constraints, config.Target)
+		if len(config.RequiredLabels) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Only PRs with labels %v can be updated.", config.RequiredLabels))
+		}
+		appendStringConstraint(constraints, config.RequiredTitlePrefix, "Only PRs with title prefix %q can be updated.")
+	})
 }
 
 func pushToPullRequestBranchConstraints(config *PushToPullRequestBranchConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d push(es) can be made.")
-	if config.TitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("The target pull request title must start with %q.", config.TitlePrefix))
-	}
-	return constraints
+	return buildConstraints(config, func(config *PushToPullRequestBranchConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d push(es) can be made.")
+		appendStringConstraint(constraints, config.TitlePrefix, "The target pull request title must start with %q.")
+	})
 }
 
 func uploadAssetConstraints(config *UploadAssetsConfig) []string {
-	if config == nil {
-		return nil
-	}
+	return buildConstraints(config, func(config *UploadAssetsConfig, constraints *[]string) {
+		toolDescriptionEnhancerLog.Printf("Found upload_asset config: max=%v, maxSizeKB=%d, allowedExts=%v", config.Max, config.MaxSizeKB, config.AllowedExts)
 
-	toolDescriptionEnhancerLog.Printf("Found upload_asset config: max=%v, maxSizeKB=%d, allowedExts=%v", config.Max, config.MaxSizeKB, config.AllowedExts)
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d asset(s) can be uploaded.")
-	if config.MaxSizeKB > 0 {
-		constraints = append(constraints, fmt.Sprintf("Maximum file size: %dKB.", config.MaxSizeKB))
-	}
-	if len(config.AllowedExts) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Allowed file extensions: %v.", config.AllowedExts))
-	}
-	return constraints
+		appendMaxConstraint(constraints, config.Max, "Maximum %d asset(s) can be uploaded.")
+		if config.MaxSizeKB > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Maximum file size: %dKB.", config.MaxSizeKB))
+		}
+		if len(config.AllowedExts) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Allowed file extensions: %v.", config.AllowedExts))
+		}
+	})
 }
 
 func updateReleaseConstraints(config *UpdateReleaseConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d release(s) can be updated.")
-	return constraints
+	return buildConstraints(config, func(config *UpdateReleaseConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d release(s) can be updated.")
+	})
 }
 
 func missingToolConstraints(config *MissingToolConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d missing tool report(s) can be created.")
-	return constraints
+	return buildConstraints(config, func(config *MissingToolConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d missing tool report(s) can be created.")
+	})
 }
 
 func linkSubIssueConstraints(config *LinkSubIssueConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d sub-issue link(s) can be created.")
-	if config.ParentTitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("The parent issue title must start with %q.", config.ParentTitlePrefix))
-	}
-	if config.SubTitlePrefix != "" {
-		constraints = append(constraints, fmt.Sprintf("The sub-issue title must start with %q.", config.SubTitlePrefix))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Sub-issues will be linked in repository %q.", config.TargetRepoSlug))
-	}
-	if len(config.AllowedRepos) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Sub-issue linking can target these repositories: %v.", config.AllowedRepos))
-	}
-	return constraints
+	return buildConstraints(config, func(config *LinkSubIssueConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d sub-issue link(s) can be created.")
+		appendStringConstraint(constraints, config.ParentTitlePrefix, "The parent issue title must start with %q.")
+		appendStringConstraint(constraints, config.SubTitlePrefix, "The sub-issue title must start with %q.")
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Sub-issues will be linked in repository %q.")
+		if len(config.AllowedRepos) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Sub-issue linking can target these repositories: %v.", config.AllowedRepos))
+		}
+	})
 }
 
 func assignMilestoneConstraints(config *AssignMilestoneConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d milestone assignment(s) can be made.")
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Milestones will be assigned in repository %q.", config.TargetRepoSlug))
-	}
-	return constraints
+	return buildConstraints(config, func(config *AssignMilestoneConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d milestone assignment(s) can be made.")
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Milestones will be assigned in repository %q.")
+	})
 }
 
 func assignToAgentConstraints(config *AssignToAgentConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d issue(s) can be assigned to agent.")
-	if config.BaseBranch != "" {
-		constraints = append(constraints, fmt.Sprintf("Pull requests will target the %q branch.", config.BaseBranch))
-	}
-	if config.TargetRepoSlug != "" {
-		constraints = append(constraints, fmt.Sprintf("Issues will be assigned to agent in repository %q.", config.TargetRepoSlug))
-	}
-	if len(config.AllowedRepos) > 0 {
-		constraints = append(constraints, fmt.Sprintf("Agent assignment can target these repositories: %v.", config.AllowedRepos))
-	}
-	return constraints
+	return buildConstraints(config, func(config *AssignToAgentConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d issue(s) can be assigned to agent.")
+		appendStringConstraint(constraints, config.BaseBranch, "Pull requests will target the %q branch.")
+		appendStringConstraint(constraints, config.TargetRepoSlug, "Issues will be assigned to agent in repository %q.")
+		if len(config.AllowedRepos) > 0 {
+			*constraints = append(*constraints, fmt.Sprintf("Agent assignment can target these repositories: %v.", config.AllowedRepos))
+		}
+	})
 }
 
 func updateProjectConstraints(config *UpdateProjectConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d project operation(s) can be performed.")
-	if config.Project != "" {
-		constraints = append(constraints, fmt.Sprintf("Default project URL: %q.", config.Project))
-	}
-	return constraints
+	return buildConstraints(config, func(config *UpdateProjectConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d project operation(s) can be performed.")
+		appendStringConstraint(constraints, config.Project, "Default project URL: %q.")
+	})
 }
 
 func createProjectStatusUpdateConstraints(config *CreateProjectStatusUpdateConfig) []string {
-	if config == nil {
-		return nil
-	}
-
-	var constraints []string
-	appendMaxConstraint(&constraints, config.Max, "Maximum %d status update(s) can be created.")
-	if config.Project != "" {
-		constraints = append(constraints, fmt.Sprintf("Default project URL: %q.", config.Project))
-	}
-	return constraints
+	return buildConstraints(config, func(config *CreateProjectStatusUpdateConfig, constraints *[]string) {
+		appendMaxConstraint(constraints, config.Max, "Maximum %d status update(s) can be created.")
+		appendStringConstraint(constraints, config.Project, "Default project URL: %q.")
+	})
 }

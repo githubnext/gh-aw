@@ -37,24 +37,23 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 		return nil
 	}
 
-	config := parseConfigScaffold(outputMap, "assign-to-user", assignToUserLog, func(err error) *AssignToUserConfig {
-		assignToUserLog.Printf("Failed to unmarshal config: %v", err)
-		// For backward compatibility, use defaults
-		assignToUserLog.Print("Using default configuration")
-		return &AssignToUserConfig{
-			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
-		}
-	})
-	if config == nil {
-		return nil
-	}
+	config := parseConfigScaffoldWithPostProcess(outputMap, "assign-to-user", assignToUserLog,
+		func(err error) *AssignToUserConfig {
+			assignToUserLog.Printf("Failed to unmarshal config: %v", err)
+			// For backward compatibility, use defaults
+			assignToUserLog.Print("Using default configuration")
+			return &AssignToUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
+			}
+		},
+		func(config *AssignToUserConfig) {
+			// Set default max if not specified
+			if config.Max == nil {
+				config.Max = defaultIntStr(1)
+			}
 
-	// Set default max if not specified
-	if config.Max == nil {
-		config.Max = defaultIntStr(1)
-	}
-
-	assignToUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
+			assignToUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
+		})
 
 	return config
 }

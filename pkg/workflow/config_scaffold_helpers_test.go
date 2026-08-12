@@ -134,3 +134,93 @@ func TestParseConfigScaffold_EmptyMap(t *testing.T) {
 	assert.Empty(t, result.Name, "zero-value Name should be empty string")
 	assert.Nil(t, result.Allowed, "zero-value Allowed should be nil")
 }
+
+func TestParseConfigScaffoldWithPostProcess_ValidConfig(t *testing.T) {
+	outputMap := map[string]any{
+		"my-key": map[string]any{"name": "test-name"},
+	}
+
+	result := parseConfigScaffoldWithPostProcess(outputMap, "my-key", testScaffoldLog,
+		func(err error) *testScaffoldConfig {
+			t.Error("onError should not be called for a valid config")
+			return nil
+		},
+		func(config *testScaffoldConfig) {
+			config.Allowed = []string{"default"}
+		})
+
+	require.NotNil(t, result, "should return the parsed config")
+	assert.Equal(t, "test-name", result.Name, "parsed field should be preserved")
+	assert.Equal(t, []string{"default"}, result.Allowed, "postProcess should apply defaults")
+}
+
+func TestParseConfigScaffoldWithPostProcess_NonNilErrorFallback(t *testing.T) {
+	// A non-map value causes unmarshal to fail → onError returns a non-nil fallback,
+	// which must still be passed through postProcess.
+	outputMap := map[string]any{
+		"my-key": "not-a-map",
+	}
+
+	postProcessCalled := false
+	result := parseConfigScaffoldWithPostProcess(outputMap, "my-key", testScaffoldLog,
+		func(err error) *testScaffoldConfig {
+			return &testScaffoldConfig{}
+		},
+		func(config *testScaffoldConfig) {
+			postProcessCalled = true
+			config.Name = "defaulted"
+		})
+
+	assert.True(t, postProcessCalled, "postProcess should run for a non-nil error fallback")
+	require.NotNil(t, result, "should return the fallback config")
+	assert.Equal(t, "defaulted", result.Name, "postProcess should mutate the fallback config")
+}
+
+func TestParseConfigScaffoldWithPostProcess_KeyAbsent(t *testing.T) {
+	outputMap := map[string]any{
+		"other-key": map[string]any{"name": "value"},
+	}
+
+	result := parseConfigScaffoldWithPostProcess(outputMap, "my-key", testScaffoldLog,
+		func(err error) *testScaffoldConfig {
+			t.Error("onError should not be called when key is absent")
+			return nil
+		},
+		func(config *testScaffoldConfig) {
+			t.Error("postProcess should not be called when key is absent")
+		})
+
+	assert.Nil(t, result, "should return nil when key is absent")
+}
+
+func TestParseConfigScaffoldWithPostProcess_NilErrorFallback(t *testing.T) {
+	outputMap := map[string]any{
+		"my-key": "not-a-map",
+	}
+
+	result := parseConfigScaffoldWithPostProcess(outputMap, "my-key", testScaffoldLog,
+		func(err error) *testScaffoldConfig {
+			return nil
+		},
+		func(config *testScaffoldConfig) {
+			t.Error("postProcess should not be called when onError returns nil")
+		})
+
+	assert.Nil(t, result, "should return nil when onError disables the handler")
+}
+
+func TestParseConfigScaffoldWithPostProcess_NilPostProcess(t *testing.T) {
+	outputMap := map[string]any{
+		"my-key": map[string]any{"name": "test-name"},
+	}
+
+	result := parseConfigScaffoldWithPostProcess(outputMap, "my-key", testScaffoldLog,
+		func(err error) *testScaffoldConfig {
+			t.Error("onError should not be called for a valid config")
+			return nil
+		},
+		nil)
+
+	require.NotNil(t, result, "should return the parsed config with a nil postProcess")
+	assert.Equal(t, "test-name", result.Name, "parsed field should be preserved")
+}

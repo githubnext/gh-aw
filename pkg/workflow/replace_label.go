@@ -28,15 +28,15 @@ type ReplaceLabelConfig struct {
 
 // parseReplaceLabelConfig handles replace-label configuration
 func (c *Compiler) parseReplaceLabelConfig(outputMap map[string]any) *ReplaceLabelConfig {
-	config := parseConfigScaffold(outputMap, "replace-label", replaceLabelLog, func(err error) *ReplaceLabelConfig {
-		replaceLabelLog.Printf("Failed to unmarshal config: %v", err)
-		// Handle null case: create empty config (allows any labels)
-		replaceLabelLog.Print("Using empty configuration (allows any labels)")
-		return &ReplaceLabelConfig{}
-	})
-	if config != nil {
-		replaceLabelLog.Printf("Parsed configuration: allowed_add_count=%d, allowed_remove_count=%d, blocked_count=%d, allowed_transitions_count=%d, target=%s",
-			len(config.AllowedAdd), len(config.AllowedRemove), len(config.Blocked), len(config.AllowedTransitions), config.Target)
-	}
-	return config
+	return parseConfigScaffoldWithPostProcess(outputMap, "replace-label", replaceLabelLog,
+		func(err error) *ReplaceLabelConfig {
+			replaceLabelLog.Printf("Failed to unmarshal config: %v", err)
+			// Handle null case: create empty config (allows any labels)
+			replaceLabelLog.Print("Using empty configuration (allows any labels)")
+			return &ReplaceLabelConfig{}
+		},
+		func(config *ReplaceLabelConfig) {
+			replaceLabelLog.Printf("Parsed configuration: allowed_add_count=%d, allowed_remove_count=%d, blocked_count=%d, allowed_transitions_count=%d, target=%s",
+				len(config.AllowedAdd), len(config.AllowedRemove), len(config.Blocked), len(config.AllowedTransitions), config.Target)
+		})
 }

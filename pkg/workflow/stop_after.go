@@ -46,7 +46,7 @@ func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any, workflowDa
 		}
 		return "", nil
 	default:
-		return "", errors.New("invalid on: section format")
+		return "", errors.New("invalid on: section format. Expected a string or an object of triggers. Example:\non:\n  issues:\n    types: [opened]")
 	}
 }
 
@@ -72,7 +72,7 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			stopAfterLog.Print("Refresh flag set, regenerating stop time")
 			resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
 			if err != nil {
-				return fmt.Errorf("invalid stop-after format: %w", err)
+				return fmt.Errorf("invalid stop-after format, expected a relative delta such as \"+25h\" or an absolute timestamp such as \"2025-01-15 14:30:00\": %w", err)
 			}
 			originalStopTime := stopAfter
 			workflowData.StopTime = resolvedStopTime
@@ -95,7 +95,7 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			stopAfterLog.Print("First compilation, generating new stop time")
 			resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
 			if err != nil {
-				return fmt.Errorf("invalid stop-after format: %w", err)
+				return fmt.Errorf("invalid stop-after format, expected a relative delta such as \"+25h\" or an absolute timestamp such as \"2025-01-15 14:30:00\": %w", err)
 			}
 			originalStopTime := stopAfter
 			workflowData.StopTime = resolvedStopTime
@@ -233,7 +233,7 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 
 				queryStr, ok := queryVal.(string)
 				if !ok {
-					return nil, fmt.Errorf("skip-if-match 'query' field must be a string, got %T", queryVal)
+					return nil, fmt.Errorf("skip-if-match 'query' field must be a string, got %T. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"", queryVal)
 				}
 
 				// Extract max value (optional, defaults to 1)
@@ -253,7 +253,7 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 					}
 
 					if maxVal < 1 {
-						return nil, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d", maxVal)
+						return nil, fmt.Errorf("skip-if-match 'max' field must be at least 1, got %d. Example:\n  skip-if-match:\n    query: \"is:issue is:open\"\n    max: 3", maxVal)
 					}
 				}
 
@@ -269,12 +269,12 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any, workflow
 					Scope: scope,
 				}, nil
 			default:
-				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Examples:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
+				return nil, fmt.Errorf("skip-if-match value must be a string or object, got %T. Example:\n  skip-if-match: \"is:issue is:open\"\n  skip-if-match:\n    query: \"is:pr is:open\"\n    max: 3", skipIfMatch)
 			}
 		}
 		return nil, nil
 	default:
-		return nil, errors.New("invalid on: section format")
+		return nil, errors.New("invalid on: section format. Expected a string or an object of triggers. Example:\non:\n  issues:\n    types: [opened]")
 	}
 }
 
@@ -319,7 +319,7 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 
 				queryStr, ok := queryVal.(string)
 				if !ok {
-					return nil, fmt.Errorf("skip-if-no-match 'query' field must be a string, got %T", queryVal)
+					return nil, fmt.Errorf("skip-if-no-match 'query' field must be a string, got %T. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"", queryVal)
 				}
 
 				// Extract min value (optional, defaults to 1)
@@ -339,7 +339,7 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 					}
 
 					if minVal < 1 {
-						return nil, fmt.Errorf("skip-if-no-match 'min' field must be at least 1, got %d", minVal)
+						return nil, fmt.Errorf("skip-if-no-match 'min' field must be at least 1, got %d. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", minVal)
 					}
 				}
 
@@ -355,12 +355,12 @@ func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any, workfl
 					Scope: scope,
 				}, nil
 			default:
-				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Examples:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
+				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Example:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
 			}
 		}
 		return nil, nil
 	default:
-		return nil, errors.New("invalid on: section format")
+		return nil, errors.New("invalid on: section format. Expected a string or an object of triggers. Example:\non:\n  issues:\n    types: [opened]")
 	}
 }
 
@@ -451,7 +451,7 @@ func (c *Compiler) extractSkipIfCheckFailingFromOn(frontmatter map[string]any, w
 					for _, item := range includeSlice {
 						s, ok := item.(string)
 						if !ok {
-							return nil, fmt.Errorf("skip-if-check-failing 'include' list items must be strings, got %T", item)
+							return nil, fmt.Errorf("skip-if-check-failing 'include' list items must be strings, got %T. Example:\n  skip-if-check-failing:\n    include:\n      - build", item)
 						}
 						config.Include = append(config.Include, s)
 					}
@@ -466,7 +466,7 @@ func (c *Compiler) extractSkipIfCheckFailingFromOn(frontmatter map[string]any, w
 					for _, item := range excludeSlice {
 						s, ok := item.(string)
 						if !ok {
-							return nil, fmt.Errorf("skip-if-check-failing 'exclude' list items must be strings, got %T", item)
+							return nil, fmt.Errorf("skip-if-check-failing 'exclude' list items must be strings, got %T. Example:\n  skip-if-check-failing:\n    exclude:\n      - lint", item)
 						}
 						config.Exclude = append(config.Exclude, s)
 					}
@@ -492,12 +492,12 @@ func (c *Compiler) extractSkipIfCheckFailingFromOn(frontmatter map[string]any, w
 
 				return config, nil
 			default:
-				return nil, fmt.Errorf("skip-if-check-failing value must be true or an object, got %T. Examples:\n  skip-if-check-failing:\n  skip-if-check-failing: true\n  skip-if-check-failing:\n    include:\n      - build\n    branch: main\n    allow-pending: true", skipIfCheckFailing)
+				return nil, fmt.Errorf("skip-if-check-failing value must be true or an object, got %T. Example:\n  skip-if-check-failing:\n  skip-if-check-failing: true\n  skip-if-check-failing:\n    include:\n      - build\n    branch: main\n    allow-pending: true", skipIfCheckFailing)
 			}
 		}
 		return nil, nil
 	default:
-		return nil, errors.New("invalid on: section format")
+		return nil, errors.New("invalid on: section format. Expected a string or an object of triggers. Example:\non:\n  issues:\n    types: [opened]")
 	}
 }
 
@@ -531,7 +531,7 @@ func extractSkipIfScope(skip map[string]any, conditionName string) (string, erro
 			return "", fmt.Errorf("%s 'scope' field must be a string, got %T. Example: scope: none", conditionName, scopeRaw)
 		}
 		if scopeStr != "none" {
-			return "", fmt.Errorf("%s 'scope' field must be \"none\" or omitted, got %q", conditionName, scopeStr)
+			return "", fmt.Errorf("%s 'scope' field must be \"none\" or omitted, got %q. Example: scope: none", conditionName, scopeStr)
 		}
 		return scopeStr, nil
 	}

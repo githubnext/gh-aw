@@ -281,3 +281,17 @@ func TestEnhanceToolDescriptionNormalizeClosingKeywordsFalseCreatePullRequest(t 
 		t.Fatalf("did not expect normalize-closing-keywords note when disabled, got: %s", description)
 	}
 }
+
+func TestAddCommentConstraintsNilConfig(t *testing.T) {
+	constraints := addCommentConstraints(nil)
+
+	want := []string{"Supports reply_to_id for discussion threading."}
+	if len(constraints) != len(want) {
+		t.Fatalf("expected %d constraint(s), got %d: %v", len(want), len(constraints), constraints)
+	}
+	for i, expected := range want {
+		if constraints[i] != expected {
+			t.Fatalf("constraint %d: expected %q, got %q", i, expected, constraints[i])
+		}
+	}
+}

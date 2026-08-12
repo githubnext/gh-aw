@@ -81,7 +81,7 @@ Import paths are relative to the repository root, for example `.github/workflows
 
 ### GitHub Tools Not Available
 
-Configure using `toolsets:` ([tools reference](/gh-aw/reference/github-tools/)):
+Configure GitHub access with `toolsets:` ([tools reference](/gh-aw/reference/github-tools/)). If a tool is still missing, combine toolsets such as `toolsets: [default, actions]` or inspect the resolved set with `gh aw mcp inspect <workflow>`.
 
 ```yaml wrap
 tools:
@@ -89,13 +89,9 @@ tools:
     toolsets: [repos, issues]
 ```
 
-### Toolset Missing Expected Tools
-
-Check [GitHub Toolsets](/gh-aw/reference/github-tools/), combine toolsets (`toolsets: [default, actions]`), or inspect with `gh aw mcp inspect <workflow>`.
-
 ### MCP Server Connection Failures
 
-Verify package installation, syntax, and environment variables:
+Verify package installation, command syntax, and required environment variables:
 
 ```yaml
 mcp-servers:
@@ -108,7 +104,7 @@ mcp-servers:
 
 ### OpenCode MCP Tools Not Being Called
 
-When integrating OpenCode-compatible engines, runs can complete without ever invoking MCP or file tools. Use an explicit `opencode.jsonc` config. Port `10004` is the local AWF API proxy port (with `--enable-api-proxy`); `MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are expanded from workflow env at runtime (substitute concrete values when running outside a workflow):
+OpenCode-compatible engines do not auto-discover MCP servers, so use an explicit `opencode.jsonc` config. Keep the local AWF API proxy at `http://host.docker.internal:10004` when using `--enable-api-proxy`; `MCP_GATEWAY_PORT` and `MCP_GATEWAY_API_KEY` are expanded from workflow env at runtime, so substitute concrete values outside a workflow:
 
 ```json
 {
@@ -146,9 +142,9 @@ When integrating OpenCode-compatible engines, runs can complete without ever inv
 }
 ```
 
-OpenCode does not auto-discover MCP servers, so declare an explicit top-level `mcp` block with routed URLs such as `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`. Use `agent.build.permission` (singular), not `permissions`, and set `external_directory: allow` only when you truly need access outside the workspace because the default `ask` behaves like a deny in non-interactive runs.
+Declare an explicit top-level `mcp` block with routed URLs such as `http://host.docker.internal:${MCP_GATEWAY_PORT}/mcp/<server-name>`. Use `agent.build.permission` (singular), not `permissions`, and enable `external_directory: allow` only when you truly need access outside the workspace because the default `ask` behaves like a deny in non-interactive runs.
 
-For direct Copilot endpoints (`api.githubcopilot.com`), do **not** append `/v1`. For other OpenAI-compatible providers, use the provider's documented base path so `/chat/completions` is appended correctly. Keep the local proxy URL (`http://host.docker.internal:10004`) unchanged.
+For direct Copilot endpoints (`api.githubcopilot.com`), do **not** append `/v1`. For other OpenAI-compatible providers, use the provider's documented base path so `/chat/completions` is appended correctly.
 
 When using `--enable-api-proxy`, pass `COPILOT_GITHUB_TOKEN` in the execute step's `env:` so the proxy can authenticate:
 
@@ -305,9 +301,7 @@ If the docs build fails, do a clean install (`cd docs && rm -rf node_modules pac
 
 ## Network and Connectivity Issues
 
-### Firewall Denials for Package Registries
-
-Add ecosystem identifiers ([Network Configuration Guide](/gh-aw/guides/network-configuration/)):
+For package registries, add ecosystem identifiers from the [Network Configuration Guide](/gh-aw/guides/network-configuration/):
 
 ```yaml wrap
 network:
@@ -318,8 +312,6 @@ network:
     - containers  # Docker
     - go          # Go modules
 ```
-
-### Other Network Issues
 
 If URLs appear as `(redacted)`, add the relevant domains to the allowed list ([Network Permissions](/gh-aw/reference/network/)), for example `allowed: [defaults, "api.example.com"]`. If remote imports fail to download, verify both network access (`curl -I https://raw.githubusercontent.com/github/gh-aw/main/README.md`) and authentication (`gh auth status`). For MCP server timeouts, prefer local servers such as `command: "node"` with `args: ["./server.js"]`.
 
