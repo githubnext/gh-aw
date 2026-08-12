@@ -954,7 +954,7 @@ that feature-flagged path.
 | `AllowedTools` | **Feature-flagged MCP path** | `pkg/intent/authz.Authorizer.AuthorizeTool` rejects MCP tool calls not in the compiled allowed set. |
 | `DeniedTools` | **Feature-flagged MCP path** | `AuthorizeTool` rejects any MCP tool call named in the compiled denied set. |
 | `Autonomy` | **Feature-flagged MCP path** | `propose_only` rejects write-class MCP tools. |
-| `WriteScope` | **Feature-flagged MCP path** | `none` rejects write-class MCP tools; `feature_branch` rejects writes to the default branch when branch context is available. |
+| `WriteScope` | **Feature-flagged MCP path** | `none` rejects write-class MCP tools; `feature_branch` rejects writes to the default branch when branch context and `GH_AW_INTENT_DEFAULT_BRANCH` are available. |
 | `HumanApprovalRequired` | **Feature-flagged MCP path** | Write-class MCP tools require the approval signal consumed by the orchestrator middleware. |
 | `AutoMergeAllowed` | **Feature-flagged MCP path** | Auto-merge-class tool calls are rejected when the compiled policy denies auto-merge. |
 | `RequiredChecks` | **Feature-flagged MCP path** | Tool calls require all compiled check names to appear in the orchestrator's passed-check signal. |

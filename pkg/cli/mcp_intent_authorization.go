@@ -23,6 +23,7 @@ const (
 	intentHumanApprovedEnv     = "GH_AW_INTENT_HUMAN_APPROVED"
 	intentPassedChecksEnv      = "GH_AW_INTENT_REQUIRED_CHECKS_PASSED"
 	intentAttemptEnv           = "GH_AW_INTENT_ATTEMPT"
+	intentDefaultBranchEnv     = "GH_AW_INTENT_DEFAULT_BRANCH"
 )
 
 var mcpIntentAuthzLog = logger.New("mcp:intent_authorization")
@@ -101,7 +102,7 @@ func toolContextForMCPTool(toolName string) authz.ToolContext {
 		IsWrite:       isIntentWriteTool(toolName),
 		IsAutoMerge:   toolName == "merge_pull_request",
 		Branch:        currentBranch(),
-		DefaultBranch: firstNonEmptyIntentAuthz(os.Getenv("GITHUB_DEFAULT_BRANCH"), "main"),
+		DefaultBranch: os.Getenv(intentDefaultBranchEnv),
 		Approved:      os.Getenv(intentHumanApprovedEnv) == "true",
 		PassedChecks:  splitCSVEnv(intentPassedChecksEnv),
 		Attempt:       intentAttempt(),
@@ -155,13 +156,4 @@ func currentBranch() string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
-}
-
-func firstNonEmptyIntentAuthz(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
 }
