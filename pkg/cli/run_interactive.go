@@ -301,7 +301,7 @@ func collectInputsWithMap(ctx context.Context, inputs map[string]*workflow.Input
 		if inputDef.Required {
 			field = field.Validate(func(s string) error {
 				if s == "" {
-					return fmt.Errorf("input '%s' is required. Expected a non-empty value. Example: %s=my-value", inputName, inputName)
+					return fmt.Errorf("input '%s' is required. Expected a non-empty value in the interactive prompt. Example: enter a value for '%s' such as my-value", inputName, inputName)
 				}
 				return nil
 			})

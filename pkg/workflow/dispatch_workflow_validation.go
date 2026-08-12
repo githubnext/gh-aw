@@ -27,7 +27,7 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 	config := data.SafeOutputs.DispatchWorkflow
 
 	if len(config.Workflows) == 0 {
-		return errors.New("dispatch-workflow configuration has no workflows and must specify at least one workflow in the list. Expected workflow names that match the filename without the .md extension. Example configuration in workflow frontmatter. Example:\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [workflow-name-1, workflow-name-2]")
+		return errors.New("dispatch-workflow configuration has no workflows and must specify at least one workflow in the list. Expected workflow names that match the filename without the .md extension. Example:\nsafe-outputs:\n  dispatch-workflow:\n    workflows: [workflow-name-1, workflow-name-2]")
 	}
 
 	if c.shouldSkipLocalDispatchWorkflowValidation(config.TargetRepoSlug) {

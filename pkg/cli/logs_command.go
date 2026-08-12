@@ -323,7 +323,11 @@ func validateLogsRuntime(runtime string) error {
 	if slices.Contains(validRuntimes, runtime) {
 		return nil
 	}
-	return fmt.Errorf("invalid runtime value %q. Expected one of: %s. Example: --runtime %s", runtime, strings.Join(validRuntimes, ", "), validRuntimes[0])
+	exampleRuntime := "gvisor"
+	if len(validRuntimes) > 0 {
+		exampleRuntime = validRuntimes[0]
+	}
+	return fmt.Errorf("invalid runtime value %q. Expected one of: %s. Example: --runtime %s", runtime, strings.Join(validRuntimes, ", "), exampleRuntime)
 }
 
 func validateLogsEngine(engine string) error {

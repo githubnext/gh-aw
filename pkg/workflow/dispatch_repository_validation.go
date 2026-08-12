@@ -28,7 +28,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 	config := data.SafeOutputs.DispatchRepository
 
 	if len(config.Tools) == 0 {
-		return errors.New("dispatch_repository configuration has no tools and must specify at least one dispatch tool. Expected at least one tool under safe-outputs.dispatch_repository. Example configuration in workflow frontmatter. Example:\nsafe-outputs:\n  dispatch_repository:\n    trigger_ci:\n      description: Trigger CI in another repository\n      workflow: ci.yml\n      event_type: ci_trigger\n      repository: org/target-repo")
+		return errors.New("dispatch_repository configuration has no tools and must specify at least one dispatch tool. Expected at least one tool under safe-outputs.dispatch_repository. Example:\nsafe-outputs:\n  dispatch_repository:\n    trigger_ci:\n      description: Trigger CI in another repository\n      workflow: ci.yml\n      event_type: ci_trigger\n      repository: org/target-repo")
 	}
 
 	collector := NewErrorCollector(c.failFast)
@@ -86,7 +86,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 				continue
 			}
 			if !repoSlugPattern.MatchString(repo) {
-				allowedRepoErr := fmt.Errorf("dispatch_repository tool %q has allowed_repositories entry %q in an unsupported format. Expected entries like 'owner/repo' or 'owner/*'. Example:\nallowed_repositories:\n  - github/gh-aw\n  - github/*", toolKey, repo)
+				allowedRepoErr := fmt.Errorf("dispatch_repository tool %q has allowed_repositories entry %q in an unsupported format. Expected entries like 'owner/repo'. Example:\nallowed_repositories:\n  - github/gh-aw\n  - octo-org/shared-service", toolKey, repo)
 				if returnErr := collector.Add(allowedRepoErr); returnErr != nil {
 					return returnErr
 				}
