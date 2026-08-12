@@ -57,7 +57,7 @@ func validateDefaultAiCreditsPricing(workflowData *WorkflowData) error {
 			"models.default-ai-credits-pricing.cache_read",
 			fmt.Sprintf("%g", *p.CachedInput),
 			fmt.Sprintf("cache_read must be a positive value when set, got %g. Expected a value greater than 0.", *p.CachedInput),
-			"Set cache_read to a positive value when you configure it.\n\nExample:\nmodels:\n  default-ai-credits-pricing:\n    cache_read: 0.000001",
+			"Set cache_read to a positive value when you configure it.\n\nExample:\nmodels:\n  default-ai-credits-pricing:\n    input: 0.000001\n    output: 0.000001\n    cache_read: 0.0000005",
 		)
 	}
 	if p.CacheWrite != nil && *p.CacheWrite <= 0 {
@@ -65,7 +65,7 @@ func validateDefaultAiCreditsPricing(workflowData *WorkflowData) error {
 			"models.default-ai-credits-pricing.cache_write",
 			fmt.Sprintf("%g", *p.CacheWrite),
 			fmt.Sprintf("cache_write must be a positive value when set, got %g. Expected a value greater than 0.", *p.CacheWrite),
-			"Set cache_write to a positive value when you configure it.\n\nExample:\nmodels:\n  default-ai-credits-pricing:\n    cache_write: 0.000001",
+			"Set cache_write to a positive value when you configure it.\n\nExample:\nmodels:\n  default-ai-credits-pricing:\n    input: 0.000001\n    output: 0.000001\n    cache_write: 0.00000125",
 		)
 	}
 	modelCostsPricingValidationLog.Printf("Validated default-ai-credits-pricing: input=%g output=%g", p.Input, p.Output)

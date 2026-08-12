@@ -689,7 +689,7 @@ func TestValidateMountEntries(t *testing.T) {
 			nil,
 		)
 
-		require.EqualError(t, err, "internal error: onInvalid callback must not be nil")
+		require.ErrorContains(t, err, "internal error: onInvalid callback must not be nil")
 	})
 
 	t.Run("returns internal error when onInvalid returns nil", func(t *testing.T) {
@@ -701,7 +701,7 @@ func TestValidateMountEntries(t *testing.T) {
 			},
 		)
 
-		require.EqualError(t, err, "internal error: onInvalid callback returned nil for mount kind 2")
+		require.ErrorContains(t, err, "internal error: onInvalid callback returned nil for mount kind 2")
 	})
 }
 

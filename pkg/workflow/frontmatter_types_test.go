@@ -249,8 +249,8 @@ func TestParseFrontmatterConfig(t *testing.T) {
 			t.Error("expected error for non-expression string timeout-minutes, got nil")
 			return
 		}
-		if !strings.Contains(err.Error(), "timeout-minutes") {
-			t.Errorf("error message should mention 'timeout-minutes', got: %v", err)
+		if !strings.Contains(err.Error(), "must be an integer or a GitHub Actions expression") {
+			t.Errorf("error message should describe the integer/expression requirement, got: %v", err)
 		}
 	})
 

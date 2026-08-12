@@ -35,6 +35,24 @@ import (
 
 var validationHelpersLog = logger.New("workflow:validation_helpers")
 
+// nestedYAMLExample renders a dotted field path (e.g. "sandbox.mcp.port") as a
+// nested YAML mapping example with the given scalar value on the innermost key
+// (e.g. "sandbox:\n  mcp:\n    port: 1"). Fields without dots are rendered as a
+// single "field: value" line.
+func nestedYAMLExample(fieldName string, value any) string {
+	parts := strings.Split(fieldName, ".")
+	var b strings.Builder
+	for i, part := range parts {
+		indent := strings.Repeat("  ", i)
+		if i == len(parts)-1 {
+			fmt.Fprintf(&b, "%s%s: %v", indent, part, value)
+		} else {
+			fmt.Fprintf(&b, "%s%s:\n", indent, part)
+		}
+	}
+	return b.String()
+}
+
 // validateIntRange validates that a value is within the specified inclusive range [min, max].
 // It returns an error if the value is outside the range, with a descriptive message
 // including the field name and the actual value.
@@ -57,8 +75,8 @@ var validationHelpersLog = logger.New("workflow:validation_helpers")
 //	}
 func validateIntRange(value, min, max int, fieldName string) error {
 	if value < min || value > max {
-		return fmt.Errorf("%s must be between %d and %d, got %d. Expected an integer in this inclusive range. Example: %s: %d",
-			fieldName, min, max, value, fieldName, min)
+		return fmt.Errorf("%s must be between %d and %d, got %d. Expected an integer in this inclusive range. Example:\n%s",
+			fieldName, min, max, value, nestedYAMLExample(fieldName, min))
 	}
 	return nil
 }

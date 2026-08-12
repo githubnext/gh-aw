@@ -38,7 +38,7 @@ import (
 
 var templatablesLog = logger.New("workflow:templatables")
 
-const templatableBoolErrorExample = "value must be a boolean or a GitHub Actions expression. Expected true, false, or an expression string. Example: enabled: true or enabled: ${{ inputs.flag }}"
+const templatableBoolErrorExample = "value must be a boolean or a GitHub Actions expression. Expected true, false, or an expression string. Example: <field>: true or <field>: ${{ inputs.flag }}"
 
 // TemplatableInt32 represents an integer frontmatter field that also accepts
 // GitHub Actions expression strings (e.g. "${{ inputs.timeout }}").  The
@@ -72,11 +72,11 @@ func (t *TemplatableInt32) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
 		templatablesLog.Printf("TemplatableInt32 rejected: not number or string: %s", data)
-		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression, got %s. Expected an integer literal or an expression string. Example: timeout-minutes: 30 or timeout-minutes: ${{ inputs.timeout }}", data)
+		return fmt.Errorf("value must be an integer or a GitHub Actions expression, got %s. Expected an integer literal or an expression string. Example: <field>: 30 or <field>: ${{ inputs.timeout }}", data)
 	}
 	if !isExpression(s) {
 		templatablesLog.Printf("TemplatableInt32 rejected non-expression string: %q", s)
-		return fmt.Errorf("timeout-minutes must be an integer or a GitHub Actions expression, got string %q. Expected an integer literal or an expression string. Example: timeout-minutes: 30 or timeout-minutes: ${{ inputs.timeout }}", s)
+		return fmt.Errorf("value must be an integer or a GitHub Actions expression, got string %q. Expected an integer literal or an expression string. Example: <field>: 30 or <field>: ${{ inputs.timeout }}", s)
 	}
 	*t = TemplatableInt32(s)
 	return nil
