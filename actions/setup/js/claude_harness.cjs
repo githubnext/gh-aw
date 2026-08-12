@@ -208,7 +208,7 @@ function isConnectionRefusedError(output) {
  * @returns {boolean}
  */
 function hasClaudeSessionProgress(output) {
-  return output.split(/\r?\n/).some(line => /"type"\s*:\s*"assistant"/.test(line) && !isConnectionRefusedError(line));
+  return output.split(/\r?\n/).some(line => /"type"\s*:\s*"assistant"/.test(line));
 }
 
 /**
@@ -446,6 +446,12 @@ async function main() {
   let useContinueOnRetry = false;
   let continueDisabledPermanently = false;
   let startupRetriesUsed = 0;
+  // Tracks whether the *active session* (the run currently being resumed via --continue)
+  // has ever produced an assistant response. This must persist across attempts — a later
+  // --continue attempt can fail during its own startup (e.g. connection refused before it
+  // emits anything) even though earlier attempts in the same session already made progress.
+  // Reset only when a genuinely fresh run begins (see below), never on a --continue attempt.
+  let sessionHasProgress = false;
   const driverStartTime = Date.now();
   // Soft-timeout guard: polled at the top of the retry loop and after each backoff sleep.
   // It does not preempt a running attempt — if a single invocation runs past the soft
@@ -468,6 +474,10 @@ async function main() {
       currentArgs = [...continueBaseArgs, "--continue"];
     } else {
       currentArgs = attempt === 0 ? initialArgs : freshRetryArgs;
+      // This attempt starts a brand-new session (either attempt 0, or a fresh
+      // retry that discards prior on-disk state) — no assistant progress can carry
+      // forward from any earlier attempt, so reset the tracker.
+      sessionHasProgress = false;
     }
 
     // Use redacted args for logging when the run carries the prompt text.
@@ -504,7 +514,10 @@ async function main() {
     const isInvalidModel = isInvalidModelError(result.output);
     const isInvalidJsonBody = isInvalidJsonBodyError(result.output);
     const isConnectionRefused = isConnectionRefusedError(result.output);
-    const hasSessionProgress = hasClaudeSessionProgress(result.output);
+    // Accumulate across attempts of the same session: once an assistant response has been
+    // observed, it stays true for the remainder of this session's --continue attempts, even
+    // if a later attempt's own output contains nothing but startup/transport errors.
+    sessionHasProgress = sessionHasProgress || hasClaudeSessionProgress(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
     log(
@@ -518,7 +531,7 @@ async function main() {
         ` isInvalidModelError=${isInvalidModel}` +
         ` isInvalidJsonBodyError=${isInvalidJsonBody}` +
         ` isConnectionRefusedError=${isConnectionRefused}` +
-        ` hasSessionProgress=${hasSessionProgress}` +
+        ` sessionHasProgress=${sessionHasProgress}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
@@ -626,7 +639,13 @@ async function main() {
     // A refused connection before Claude produces an assistant response means the API
     // proxy path was unavailable during startup. There is no session state to resume, so
     // retry the original prompt as a fresh run with the normal exponential backoff.
-    if (isConnectionRefused && !hasSessionProgress && attempt < maxRetries) {
+    // sessionHasProgress reflects the whole session, not just this attempt's output, so a
+    // later --continue attempt that fails during its own startup (no assistant line of its
+    // own) is still correctly treated as mid-session rather than cold-start.
+    if (isConnectionRefused && !sessionHasProgress && attempt < maxRetries) {
+      // Reset to fresh-run mode. No session state carries forward because Claude Code
+      // never produced an assistant response for this session — the original prompt args
+      // (initialArgs/freshRetryArgs) are reused unchanged on the next attempt.
       useContinueOnRetry = false;
       log(`attempt ${attempt + 1}: connection refused before first assistant response — retrying as fresh run with backoff (attempt ${attempt + 2}/${maxRetries + 1})`);
       continue;
