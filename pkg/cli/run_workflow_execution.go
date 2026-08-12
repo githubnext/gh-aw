@@ -112,7 +112,7 @@ func checkWorkflowRunContext(ctx context.Context, workflowIdOrName string) error
 	default:
 	}
 	if workflowIdOrName == "" {
-		return errors.New("workflow name or ID is missing. Expected a workflow file name or numeric workflow ID. Example: gh aw run ci.lock.yml")
+		return errors.New("workflow name or ID is missing. Expected a workflow file name or numeric workflow ID. Example: gh aw run ci")
 	}
 	return nil
 }
@@ -185,7 +185,7 @@ func ensureWorkflowRunnable(workflowFile, workflowIdOrName string) error {
 		return fmt.Errorf("failed to check if workflow %s is runnable: %w", workflowFile, err)
 	}
 	if !runnable {
-		return fmt.Errorf("workflow '%s' does not declare a workflow_dispatch trigger, so it cannot be run manually on GitHub Actions. Expected a workflow_dispatch trigger in the lock file. Example: on: workflow_dispatch", workflowIdOrName)
+		return fmt.Errorf("workflow '%s' does not declare a workflow_dispatch trigger, so it cannot be run manually on GitHub Actions. Expected an `on: workflow_dispatch` trigger in the source workflow frontmatter, then recompile. Example:\non:\n  workflow_dispatch:\n\nRun: gh aw compile", workflowIdOrName)
 	}
 	executionLog.Printf("Workflow is runnable: %s", workflowFile)
 	return nil
@@ -545,7 +545,7 @@ func validateWorkflowsForRun(workflowNames []string, opts RunOptions) error {
 				return fmt.Errorf("failed to check if workflow '%s' is runnable: %w", workflowName, err)
 			}
 			if !runnable {
-				return fmt.Errorf("workflow '%s' does not declare a workflow_dispatch trigger, so it cannot be run manually on GitHub Actions. Expected a workflow_dispatch trigger in the lock file. Example: on: workflow_dispatch", workflowName)
+				return fmt.Errorf("workflow '%s' does not declare a workflow_dispatch trigger, so it cannot be run manually on GitHub Actions. Expected an `on: workflow_dispatch` trigger in the source workflow frontmatter, then recompile. Example:\non:\n  workflow_dispatch:\n\nRun: gh aw compile", workflowName)
 			}
 		}
 	}
@@ -618,7 +618,7 @@ func wrapRunWithJSONOutput(inner func() error, workflowNames []string, opts RunO
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
 func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunOptions) error {
 	if len(workflowNames) == 0 {
-		return errors.New("workflow list is empty. Expected at least one workflow file name or numeric workflow ID. Example: gh aw run ci.lock.yml")
+		return errors.New("workflow list is empty. Expected at least one workflow file name or numeric workflow ID. Example: gh aw run ci")
 	}
 	select {
 	case <-ctx.Done():

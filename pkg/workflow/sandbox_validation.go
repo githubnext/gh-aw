@@ -532,10 +532,10 @@ func validateAgentMemoryLimit(memory string) error {
 func validateAllowHostPorts(ports []int) error {
 	for _, port := range ports {
 		if port < minPort || port > maxPort {
-			return fmt.Errorf("allow-host-ports value %d is out of range. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [5432]", port)
+			return fmt.Errorf("allow-host-ports value %d is out of range. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [9000]", port)
 		}
 		if service, dangerous := awfDangerousHostPorts[port]; dangerous {
-			return fmt.Errorf("allow-host-ports value %d maps to blocked service %s. Expected blocked service ports to be removed from allow-host-ports because they remain unreachable there, even with legacy-security. Example:\n# Do not list blocked service ports under allow-host-ports\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", port, service)
+			return fmt.Errorf("allow-host-ports value %d maps to blocked service %s. Expected blocked service ports to be removed from allow-host-ports because they remain unreachable there even with legacy-security enabled; expose the service via GitHub Actions services: with sandbox.agent.legacy-security: enable instead. Example:\n# Do not list blocked service ports under allow-host-ports\nsandbox:\n  agent:\n    legacy-security: enable\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", port, service)
 		}
 	}
 	return nil
