@@ -37,6 +37,8 @@ func TestFindMaiCode11FlashPricing(t *testing.T) {
 func TestFindGrok45CacheReadPricing(t *testing.T) {
 	pricing, ok := findModelPricing("github-copilot", "grok-4.5")
 	require.True(t, ok)
+	assert.InDelta(t, 0.000002, pricing["input"], 1e-12)
+	assert.InDelta(t, 0.000006, pricing["output"], 1e-12)
 	assert.InDelta(t, 0.0000005, pricing["cache_read"], 1e-12)
 }
 
