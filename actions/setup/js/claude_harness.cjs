@@ -18,8 +18,9 @@
  *     observed immediately after a `permission_denied` tool-result on a compound Bash command.
  *     It is retried as a fresh run (not `--continue`, which is permanently disabled for the rest
  *     of the driver invocation) since resuming would resend the same corrupted session state.
- *   - If the process produced no output (failed to start / auth error before any work), the
- *     driver does not retry because there is nothing to resume.
+ *   - Connection-refused failures before the first assistant response are retried as fresh
+ *     runs because there is no session state to resume.
+ *   - Other failures that produce no output use a separate bounded startup retry budget.
  *   - On a `--continue` retry the initial prompt is omitted: Claude Code resumes the session
  *     from its on-disk state rather than re-processing the original instructions.
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s) by default.
@@ -81,6 +82,7 @@ const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests|"api_er
 // run rather than --continue, since resuming would resend the same corrupted
 // session state and reproduce the identical error.
 const INVALID_JSON_BODY_ERROR_PATTERN = /request body is not valid JSON/i;
+const CONNECTION_REFUSED_ERROR_PATTERN = /connection refused|ECONNREFUSED/i;
 
 // Pattern to detect a clean max-turns exit from Claude Code.
 // Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
@@ -188,6 +190,25 @@ function isMaxTurnsExit(output) {
  */
 function isInvalidJsonBodyError(output) {
   return INVALID_JSON_BODY_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a refused network connection.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isConnectionRefusedError(output) {
+  return CONNECTION_REFUSED_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines whether Claude produced an assistant response before failing.
+ * System initialization and transport-error events do not represent resumable work.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function hasClaudeSessionProgress(output) {
+  return output.split(/\r?\n/).some(line => /"type"\s*:\s*"assistant"/.test(line) && !isConnectionRefusedError(line));
 }
 
 /**
@@ -482,6 +503,8 @@ async function main() {
     const isNoDeferredMarker = isNoDeferredMarkerError(result.output);
     const isInvalidModel = isInvalidModelError(result.output);
     const isInvalidJsonBody = isInvalidJsonBodyError(result.output);
+    const isConnectionRefused = isConnectionRefusedError(result.output);
+    const hasSessionProgress = hasClaudeSessionProgress(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
     log(
@@ -494,6 +517,8 @@ async function main() {
         ` isNoDeferredMarkerError=${isNoDeferredMarker}` +
         ` isInvalidModelError=${isInvalidModel}` +
         ` isInvalidJsonBodyError=${isInvalidJsonBody}` +
+        ` isConnectionRefusedError=${isConnectionRefused}` +
+        ` hasSessionProgress=${hasSessionProgress}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
@@ -598,6 +623,15 @@ async function main() {
       break;
     }
 
+    // A refused connection before Claude produces an assistant response means the API
+    // proxy path was unavailable during startup. There is no session state to resume, so
+    // retry the original prompt as a fresh run with the normal exponential backoff.
+    if (isConnectionRefused && !hasSessionProgress && attempt < maxRetries) {
+      useContinueOnRetry = false;
+      log(`attempt ${attempt + 1}: connection refused before first assistant response — retrying as fresh run with backoff (attempt ${attempt + 2}/${maxRetries + 1})`);
+      continue;
+    }
+
     // Retry when the session was partially executed (has output).
     // Use --continue so Claude Code can resume from its saved session state.
     if (attempt < maxRetries && result.hasOutput) {
@@ -664,6 +698,8 @@ if (typeof module !== "undefined" && module.exports) {
     isNoDeferredMarkerError,
     isInvalidModelError,
     isInvalidJsonBodyError,
+    isConnectionRefusedError,
+    hasClaudeSessionProgress,
     isSignalTerminationExitCode,
     shouldRetryWithContinue,
     countPermissionDeniedIssues,
