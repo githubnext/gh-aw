@@ -51,7 +51,12 @@ var safeSDKDriverSegmentPattern = regexp.MustCompile(`^(?:\.[A-Za-z0-9_]|[A-Za-z
 // end with one of the supported JavaScript extensions: .js, .cjs, or .mjs.
 func validateEngineScriptFilename(fieldName, scriptName string) error {
 	if strings.TrimSpace(scriptName) != scriptName {
-		return fmt.Errorf("%s must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
+		return NewValidationError(
+			fieldName,
+			scriptName,
+			fieldName+" must be a safe basename without leading/trailing whitespace",
+			fmt.Sprintf("Remove the surrounding whitespace from the script name.\n\nExample:\nengine:\n  %s: driver.cjs\n\nSee: %s", strings.TrimPrefix(fieldName, "engine."), constants.DocsEnginesURL),
+		)
 	}
 
 	if filepath.IsAbs(scriptName) ||
@@ -59,7 +64,12 @@ func validateEngineScriptFilename(fieldName, scriptName string) error {
 		strings.Contains(scriptName, `\`) ||
 		strings.Contains(scriptName, "..") ||
 		!safeHarnessScriptPattern.MatchString(scriptName) {
-		return fmt.Errorf("%s must be a safe basename (no path separators, '..', or shell metacharacters) ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
+		return NewValidationError(
+			fieldName,
+			scriptName,
+			fieldName+" must be a safe basename (no path separators, '..', or shell metacharacters) ending with .js, .cjs, or .mjs",
+			fmt.Sprintf("Use a plain file name in the workflow directory.\n\nExample:\nengine:\n  %s: driver.cjs\n\nSee: %s", strings.TrimPrefix(fieldName, "engine."), constants.DocsEnginesURL),
+		)
 	}
 
 	ext := strings.ToLower(filepath.Ext(scriptName))
@@ -67,7 +77,12 @@ func validateEngineScriptFilename(fieldName, scriptName string) error {
 	case ".js", ".cjs", ".mjs":
 		return nil
 	default:
-		return fmt.Errorf("%s must be a Node.js script ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
+		return NewValidationError(
+			fieldName,
+			scriptName,
+			fieldName+" must be a Node.js script ending with .js, .cjs, or .mjs",
+			fmt.Sprintf("Rename the script so it uses a supported JavaScript extension.\n\nExample:\nengine:\n  %s: driver.cjs\n\nSee: %s", strings.TrimPrefix(fieldName, "engine."), constants.DocsEnginesURL),
+		)
 	}
 }
 
@@ -108,23 +123,43 @@ func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
 	engineDriverValidationLog.Printf("Validating engine.driver %q (copilot=%v)", name, isCopilotEngine)
 
 	if strings.TrimSpace(name) != name {
-		return fmt.Errorf("engine.driver must be a safe path without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+		return NewValidationError(
+			"engine.driver",
+			name,
+			"engine.driver must be a safe path without leading/trailing whitespace",
+			fmt.Sprintf("Remove the surrounding whitespace from the driver path.\n\nExample:\nengine:\n  driver: .github/drivers/driver.cjs\n\nSee: %s", constants.DocsEnginesURL),
+		)
 	}
 
 	if filepath.IsAbs(name) ||
 		strings.Contains(name, `\`) ||
 		strings.Contains(name, "..") {
-		return fmt.Errorf("engine.driver must be a relative path (no absolute paths, '..', or backslashes) with a supported extension (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+		return NewValidationError(
+			"engine.driver",
+			name,
+			"engine.driver must be a relative path (no absolute paths, '..', or backslashes) with a supported extension",
+			fmt.Sprintf("Use a path relative to the repository root with '/' separators.\n\nExample:\nengine:\n  driver: .github/drivers/driver.cjs\n\nSee: %s", constants.DocsEnginesURL),
+		)
 	}
 
 	// Each path segment must be safe (alphanumeric, underscore, dot, hyphen; may start with dot).
 	// Empty segments (consecutive slashes, leading/trailing slashes) are rejected.
 	for segment := range strings.SplitSeq(name, "/") {
 		if segment == "" {
-			return fmt.Errorf("engine.driver must not contain empty path segments (e.g. consecutive '/' or leading/trailing '/') (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
+			return NewValidationError(
+				"engine.driver",
+				name,
+				"engine.driver must not contain empty path segments (e.g. consecutive '/' or leading/trailing '/')",
+				fmt.Sprintf("Use single '/' separators without a leading or trailing slash.\n\nExample:\nengine:\n  driver: .github/drivers/driver.cjs\n\nSee: %s", constants.DocsEnginesURL),
+			)
 		}
 		if !safeSDKDriverSegmentPattern.MatchString(segment) {
-			return fmt.Errorf("engine.driver must not contain shell metacharacters (found unsafe segment %q in: %s).\n\nSee: %s", segment, name, constants.DocsEnginesURL)
+			return NewValidationError(
+				"engine.driver",
+				name,
+				fmt.Sprintf("engine.driver must not contain shell metacharacters (unsafe segment %q)", segment),
+				fmt.Sprintf("Use path segments made of letters, digits, '.', '_', and '-' only.\n\nExample:\nengine:\n  driver: .github/drivers/driver.cjs\n\nSee: %s", constants.DocsEnginesURL),
+			)
 		}
 	}
 
@@ -137,15 +172,30 @@ func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
 		if isCopilotEngine {
 			return nil
 		}
-		return fmt.Errorf("engine.driver has unsupported extension %q for this engine (found: %s). Must be a JavaScript file ending with .js, .cjs, or .mjs, or a bare name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
+		return NewValidationError(
+			"engine.driver",
+			name,
+			fmt.Sprintf("engine.driver has unsupported extension %q for this engine", ext),
+			fmt.Sprintf("Use a JavaScript file ending with .js, .cjs, or .mjs, or a bare command name without an extension.\n\nExample:\nengine:\n  driver: .github/drivers/driver.cjs\n\nSee: %s", constants.DocsEnginesURL),
+		)
 	case "":
 		// No extension — valid as a bare built-in driver name or arbitrary command in PATH.
 		return nil
 	default:
 		if isCopilotEngine {
-			return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a script ending with .js, .cjs, .mjs, .py, .ts, .mts, or .rb, or a bare command name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
+			return NewValidationError(
+				"engine.driver",
+				name,
+				fmt.Sprintf("engine.driver has unsupported extension %q", ext),
+				fmt.Sprintf("Use a script ending with .js, .cjs, .mjs, .py, .ts, .mts, or .rb, or a bare command name without an extension.\n\nExample:\nengine:\n  driver: .github/drivers/driver.py\n\nSee: %s", constants.DocsEnginesURL),
+			)
 		}
-		return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a JavaScript file ending with .js, .cjs, or .mjs, or a bare name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
+		return NewValidationError(
+			"engine.driver",
+			name,
+			fmt.Sprintf("engine.driver has unsupported extension %q", ext),
+			fmt.Sprintf("Use a JavaScript file ending with .js, .cjs, or .mjs, or a bare command name without an extension.\n\nExample:\nengine:\n  driver: .github/drivers/driver.cjs\n\nSee: %s", constants.DocsEnginesURL),
+		)
 	}
 }
 
@@ -157,15 +207,30 @@ func (c *Compiler) validateInlineEngineDriver(workflowData *WorkflowData) error 
 	inlineDriver := workflowData.EngineConfig.InlineDriver
 
 	if inlineDriver.MultipleRuntime {
-		return fmt.Errorf("engine.driver: exactly one runtime key is allowed (node, python, go, java); found multiple.\n\nSee: %s", constants.DocsEnginesURL)
+		return NewValidationError(
+			"engine.driver",
+			"",
+			"engine.driver accepts exactly one runtime key (node, python, go, java); found multiple",
+			fmt.Sprintf("Keep a single runtime key under engine.driver.\n\nExample:\nengine:\n  driver:\n    node: |\n      console.log(\"hello\")\n\nSee: %s", constants.DocsEnginesURL),
+		)
 	}
 
 	if workflowData.EngineConfig.ID != "copilot" {
-		return fmt.Errorf("inline engine.driver sources are only supported for the copilot engine.\n\nSee: %s", constants.DocsEnginesURL)
+		return NewValidationError(
+			"engine.driver",
+			workflowData.EngineConfig.ID,
+			"inline engine.driver sources are only supported for the copilot engine",
+			fmt.Sprintf("Set engine.id to copilot, or use a driver file path instead of inline source.\n\nExample:\nengine:\n  id: copilot\n  driver:\n    node: |\n      console.log(\"hello\")\n\nSee: %s", constants.DocsEnginesURL),
+		)
 	}
 
 	if strings.TrimSpace(inlineDriver.Source) == "" {
-		return fmt.Errorf("engine.driver.%s must not be empty.\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL)
+		return NewValidationError(
+			"engine.driver."+inlineDriver.Runtime,
+			"",
+			fmt.Sprintf("engine.driver.%s must not be empty", inlineDriver.Runtime),
+			fmt.Sprintf("Provide the inline driver source.\n\nExample:\nengine:\n  driver:\n    %s: |\n      console.log(\"hello\")\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL),
+		)
 	}
 
 	switch inlineDriver.Runtime {
@@ -173,6 +238,11 @@ func (c *Compiler) validateInlineEngineDriver(workflowData *WorkflowData) error 
 		engineDriverValidationLog.Printf("Inline engine.driver runtime %q accepted", inlineDriver.Runtime)
 		return nil
 	default:
-		return fmt.Errorf("engine.driver inline runtime %q is not supported. Use one of: node, python, go, java.\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL)
+		return NewValidationError(
+			"engine.driver",
+			inlineDriver.Runtime,
+			fmt.Sprintf("engine.driver inline runtime %q is not supported", inlineDriver.Runtime),
+			fmt.Sprintf("Use one of the supported runtimes: node, python, go, java.\n\nExample:\nengine:\n  driver:\n    node: |\n      console.log(\"hello\")\n\nSee: %s", constants.DocsEnginesURL),
+		)
 	}
 }
