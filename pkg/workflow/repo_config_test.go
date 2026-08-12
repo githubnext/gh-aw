@@ -323,12 +323,12 @@ func TestLoadRepoConfig_DisabledJobsRejectsInvalidOrDuplicateValues(t *testing.T
 		{
 			name:     "normalization-equivalent duplicate rejected",
 			awJSON:   `{"maintenance": {"disabled_jobs": ["close-expired-entities", "close_expired_entities"]}}`,
-			contains: "duplicate entries",
+			contains: "duplicate maintenance.disabled_jobs entries",
 		},
 		{
 			name:     "unknown job rejected",
 			awJSON:   `{"maintenance": {"disabled_jobs": ["apply_safe_outputz"]}}`,
-			contains: "unrecognized job",
+			contains: "unrecognized maintenance.disabled_jobs entry",
 		},
 	}
 
@@ -422,7 +422,7 @@ func TestLoadRepoConfig_InvalidUTC(t *testing.T) {
 
 	_, err := LoadRepoConfig(dir)
 	require.Error(t, err, "invalid timezone should return an error")
-	require.ErrorContains(t, err, "utc must be a numeric UTC offset")
+	require.ErrorContains(t, err, "must be a numeric UTC offset")
 }
 
 // TestFormatRunsOn tests the YAML serialisation of runs-on values.

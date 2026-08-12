@@ -132,7 +132,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 			CooldownEnabled:   false,
 		},
 	)
-	if isDockerSbxRuntime(workflowData) {
+	if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
 		npmSteps = append(npmSteps, GenerateDockerSbxNpmCLIInstallStep(
 			"@anthropic-ai/claude-code",
 			version,

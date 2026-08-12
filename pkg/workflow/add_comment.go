@@ -69,19 +69,18 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 		return nil
 	}
 
-	config := parseConfigScaffold(outputMap, "add-comment", addCommentLog, func(err error) *AddCommentsConfig {
-		addCommentLog.Printf("Failed to unmarshal config: %v", err)
-		// For backward compatibility, handle nil/empty config
-		return &AddCommentsConfig{}
-	})
-	if config == nil {
-		return nil
-	}
-
-	// Set default max if not specified
-	if config.Max == nil {
-		config.Max = defaultIntStr(1)
-	}
+	config := parseConfigScaffoldWithPostProcess(outputMap, "add-comment", addCommentLog,
+		func(err error) *AddCommentsConfig {
+			addCommentLog.Printf("Failed to unmarshal config: %v", err)
+			// For backward compatibility, handle nil/empty config
+			return &AddCommentsConfig{}
+		},
+		func(config *AddCommentsConfig) {
+			// Set default max if not specified
+			if config.Max == nil {
+				config.Max = defaultIntStr(1)
+			}
+		})
 
 	return config
 }

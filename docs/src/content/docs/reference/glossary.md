@@ -5,7 +5,7 @@ sidebar:
   order: 1000
 ---
 
-Definitions of key terms used in GitHub Agentic Workflows.
+Definitions of key terms used in GitHub Agentic Workflows (`gh-aw`), a system for running AI-powered repository automation through GitHub Actions.
 
 ## Core Concepts
 
@@ -15,7 +15,7 @@ Having agency - the ability to act independently, make context-aware decisions, 
 
 ### Agentic Workflow
 
-An AI-powered workflow that reasons, makes decisions, and takes autonomous actions using natural language instructions. Written in markdown instead of complex YAML, agentic workflows interpret context and adapt behavior flexibly. For example, instead of "if issue has label X, do Y", you write "analyze this issue and provide helpful context", and the AI decides what's helpful based on the specific issue content.
+AI-powered repository automation that runs an AI agent through GitHub Actions. An agentic workflow is authored primarily as Markdown instructions with YAML frontmatter for triggers, permissions, tools, the AI engine, and controlled outputs. For example, instead of "if issue has label X, do Y", an author can ask the AI agent to analyze an issue and provide context based on its specific content.
 
 ### Orchestration
 
@@ -29,9 +29,9 @@ A workflow that fans out work by dispatching other workflows (workers), aggregat
 
 A workflow dispatched by an orchestrator that performs a focused unit of work (triage, analysis, code changes, validation).
 
-### Agentic Engine or Coding Agent
+### AI Agent
 
-The AI system (typically GitHub Copilot CLI) that executes natural language instructions in an agentic workflow. The agent interprets tasks, uses available tools (GitHub API, file system, web search), and generates outputs based on context autonomously.
+The reasoning component that interprets an agentic workflow's natural-language instructions, uses configured tools, and generates outputs from repository context. GitHub Actions runs the AI agent through a selected [AI engine](#engine).
 
 ### Frontmatter
 
@@ -597,11 +597,11 @@ engine:
 
 ### Engine
 
-The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports five engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
+An **AI engine** is the runtime and provider integration used to execute the AI agent. GitHub Agentic Workflows has four stable built-in engines—**GitHub Copilot** (default), **Claude Code**, **OpenAI Codex**, and **Google Gemini**—plus **Pi**. Set `engine:` in frontmatter to choose one; omit it to use Copilot. See [AI Engines for GitHub Agentic Workflows](/gh-aw/reference/engines/).
 
 ### Engine Version (`engine.version`)
 
-An `engine:` field that pins the installed CLI version for the selected engine. Defaults to `latest` when omitted. Accepts a literal version string or a GitHub Actions expression (e.g., `${{ inputs.engine-version }}`) so `workflow_call` reusable workflows can parameterize the version via caller inputs. Supported consistently across Copilot, Claude, Codex, and Gemini. Pin a version for reproducible builds or to avoid breakage from new CLI releases.
+An `engine:` field that pins the installed CLI version for the selected engine. Defaults to `latest` when omitted. Accepts a literal version string or a GitHub Actions expression (e.g., `${{ inputs.engine-version }}`) so `workflow_call` reusable workflows can parameterize the version via caller inputs. Supported consistently across Copilot, Claude, Codex, Gemini, and Pi. Pin a version for reproducible builds or to avoid breakage from new CLI releases.
 
 ```yaml wrap
 engine:
@@ -611,7 +611,7 @@ engine:
 
 ### Unsupported Engine Samples
 
-Community-maintained CLI engine definitions bundled as reference patterns rather than officially supported engines. The repository ships **OpenCode**, **Aider**, **Crush**, **Cursor**, and **Kiro** as sample [engine behaviors](#engine-behaviors-enginebehaviors) definitions under `.github/workflows/shared/<id>.md`. These have no compatibility or maintenance commitment from gh-aw; copy or adapt them only under the support terms of their respective owners. See [AI Engines Reference](/gh-aw/reference/engines/#unsupported-engine-samples).
+Sample CLI engine definitions bundled as reference patterns rather than officially supported engines. The repository ships **OpenCode**, **Aider**, **Crush**, **Cursor**, and **Kiro** as sample [engine behaviors](#engine-behaviors-enginebehaviors) definitions under `.github/workflows/shared/<id>.md`. These have no compatibility or maintenance commitment from `gh-aw`; copy or adapt them only under the support terms of their respective owners. See [AI Engines Reference](/gh-aw/reference/engines/#unsupported-engine-samples).
 
 See [AI Engines Reference](/gh-aw/reference/engines/#pinning-a-specific-engine-version).
 
@@ -1476,6 +1476,7 @@ A `sandbox.agent` field that selects the container runtime used to execute the A
 
 - `gvisor` — Runs the agent container under [gVisor](#gvisor-runsc) (`runsc`) for kernel-level isolation. Best for workflows processing untrusted input.
 - `docker-sbx` — Runs the agent inside a [docker-sbx](#docker-sbx) KVM-isolated microVM while keeping infrastructure containers on the host.
+- `cloud-hypervisor` — Runs the agent inside AWF's preview Cloud Hypervisor microVM runtime (GitHub-hosted Ubuntu x86_64 with `/dev/kvm` only).
 
 When omitted, the default Docker runtime is used. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
@@ -1492,6 +1493,10 @@ A container runtime from Google that interposes a user-space kernel between the 
 ### docker-sbx
 
 A KVM-hardware-virtualized microVM runtime. When `sandbox.agent.runtime: docker-sbx` is set, the AI agent runs inside a hardware-isolated microVM while infrastructure containers (MCP servers, gateway, etc.) remain on the host. Provides stronger isolation than gVisor for workloads that require full hardware-virtualization boundaries. gh-aw automatically refreshes Docker Hub OAuth credentials immediately before agent execution to prevent token expiry errors. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+
+### cloud-hypervisor
+
+A preview KVM-hardware-virtualized microVM runtime in AWF. When `sandbox.agent.runtime: cloud-hypervisor` is set, gh-aw emits host eligibility checks and digest-pinned release-asset provisioning for the Cloud Hypervisor binary, kernel, rootfs, and supervisor bundle. Support is intentionally limited to GitHub-hosted Ubuntu x86_64 runners with `/dev/kvm`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Strict Mode
 

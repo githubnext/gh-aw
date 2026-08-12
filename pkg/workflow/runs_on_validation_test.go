@@ -289,7 +289,7 @@ func TestValidateRunsOnValue(t *testing.T) {
 			name:       "array with non-string entry is invalid",
 			value:      []any{"linux", 42},
 			wantErr:    true,
-			errContain: "array entry type int",
+			errContain: "array entry has type int",
 		},
 		{
 			name: "object with invalid key is invalid",
@@ -297,13 +297,13 @@ func TestValidateRunsOnValue(t *testing.T) {
 				"runner": "ubuntu-latest",
 			},
 			wantErr:    true,
-			errContain: `invalid runs-on object key "runner"`,
+			errContain: "runs-on object key 'runner' is not supported",
 		},
 		{
 			name:       "unsupported type is invalid",
 			value:      123,
 			wantErr:    true,
-			errContain: "invalid runs-on type int",
+			errContain: "runs-on has type int",
 		},
 	}
 

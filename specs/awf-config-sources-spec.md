@@ -40,9 +40,20 @@ The following documents are authoritative and MUST be consulted together:
 - `docs/authentication-architecture.md` — credential isolation architecture
 - `schemas/README.md` — schema directory overview
 
+## Structure
+
+This specification, the [conformance fixture index](awf-config-sources-compliance/README.md), and
+[`pkg/workflow/awf_config_drift_test.go`](../pkg/workflow/awf_config_drift_test.go) form one
+conformance unit. The specification defines `DriftRecord` requirements, the fixture index maps
+them to `T-DR-*` IDs, and the Go test file implements those IDs. Changes to any member of this
+unit **MUST** keep the other two members synchronized.
+
 ## 3. Data Model
 
-This section defines the canonical data entities used in the drift detection procedure. The `DriftRecord` entity is the primary structured output of drift detection.
+This section defines the canonical data entities used in the drift detection procedure. The
+repository relationships that maintain its conformance coverage are defined in
+[Structure](#structure). The `DriftRecord` entity is the primary structured output of drift
+detection.
 
 ### 3.1 DriftRecord
 

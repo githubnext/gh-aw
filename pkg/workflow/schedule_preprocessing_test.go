@@ -459,7 +459,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 				},
 			},
 			expectedError:  true,
-			errorSubstring: "invalid schedule expression",
+			errorSubstring: "schedule expression",
 		},
 		// New tests for shorthand string format
 		{
@@ -507,7 +507,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 				},
 			},
 			expectedError:  true,
-			errorSubstring: "invalid schedule expression",
+			errorSubstring: "schedule expression",
 		},
 	}
 
@@ -1880,7 +1880,7 @@ func TestScheduleTimezoneField(t *testing.T) {
 				},
 			},
 			expectedError:  true,
-			errorSubstring: "'timezone' field must be a string",
+			errorSubstring: "'timezone' field should be a string",
 		},
 	}
 

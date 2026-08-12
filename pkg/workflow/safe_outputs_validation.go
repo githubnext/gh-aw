@@ -26,10 +26,11 @@ func validateSafeOutputsURLs(config *SafeOutputsConfig) error {
 		return nil
 	default:
 		return fmt.Errorf(
-			"safe-outputs.urls: invalid value %q (expected one of: %q, %q)",
+			"safe-outputs.urls: invalid value %q. Expected one of: %q, %q. Example:\n  safe-outputs:\n    urls: %q",
 			config.URLs,
 			SafeOutputsURLsPolicyAllowedOnly,
 			SafeOutputsURLsPolicyAllowedOrCodeRegion,
+			SafeOutputsURLsPolicyAllowedOnly,
 		)
 	}
 }
@@ -203,12 +204,17 @@ func validateTargetValue(configName, target string) error {
 	if target == "event" || strings.Contains(target, "github.event") {
 		suggestion = "\n\nDid you mean to use \"${{ github.event.issue.number }}\" instead of \"" + target + "\"?"
 	}
+	exampleTargetKey := configName
+	if idx := strings.LastIndex(exampleTargetKey, "."); idx >= 0 {
+		exampleTargetKey = exampleTargetKey[idx+1:]
+	}
 
 	// Invalid target value
 	return fmt.Errorf(
-		"invalid target value for %s: %q\n\nValid target values are:\n  - \"triggering\" (default) - targets the triggering issue/PR/discussion\n  - \"*\" - targets any item specified in the output\n  - A positive integer (e.g., \"123\")\n  - A GitHub Actions expression (e.g., \"${{ github.event.issue.number }}\")%s",
+		"invalid target value for %s: %q. Expected one of: \"triggering\", \"*\", a positive integer like \"123\", or a GitHub Actions expression like \"${{ github.event.issue.number }}\".\n\nExample:\n  safe-outputs:\n    %s:\n      target: \"triggering\"%s",
 		configName,
 		target,
+		exampleTargetKey,
 		suggestion,
 	)
 }
@@ -229,7 +235,7 @@ func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 	validateNonEmptyStringList := func(field string, values []string) error {
 		for i, value := range values {
 			if strings.TrimSpace(value) == "" {
-				return fmt.Errorf("safe-outputs.merge-pull-request.%s[%d] cannot be empty", field, i)
+				return fmt.Errorf("safe-outputs.merge-pull-request.%s[%d] cannot be empty. Expected a non-empty string value. Example:\n  safe-outputs:\n    merge-pull-request:\n      %s:\n        - \"safe-to-merge\"", field, i, field)
 			}
 		}
 		return nil
@@ -237,7 +243,7 @@ func validateSafeOutputsMergePullRequest(config *SafeOutputsConfig) error {
 
 	validateRefGlobList := func(field string, patterns []string) error {
 		return validateGlobPatternList(patterns, validateRefGlob, func(i int, pat string, msgs []string) error {
-			return fmt.Errorf("invalid glob pattern %q in safe-outputs.merge-pull-request.%s[%d]: %s", pat, field, i, strings.Join(msgs, "; "))
+			return fmt.Errorf("invalid glob pattern %q in safe-outputs.merge-pull-request.%s[%d]: %s. Expected a valid ref glob pattern. Example:\n  safe-outputs:\n    merge-pull-request:\n      %s:\n        - \"feature/*\"", pat, field, i, strings.Join(msgs, "; "), field)
 		})
 	}
 

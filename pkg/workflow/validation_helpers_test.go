@@ -135,8 +135,13 @@ func TestValidateIntRange(t *testing.T) {
 			if tt.wantError {
 				if err == nil {
 					t.Errorf("Expected error, got nil")
-				} else if !strings.Contains(err.Error(), tt.errorText) {
-					t.Errorf("Expected error containing '%s', got '%s'", tt.errorText, err.Error())
+				} else {
+					if !strings.Contains(err.Error(), tt.errorText) {
+						t.Errorf("Expected error containing '%s', got '%s'", tt.errorText, err.Error())
+					}
+					if !strings.Contains(err.Error(), "Example:") {
+						t.Errorf("Expected error to contain 'Example:', got '%s'", err.Error())
+					}
 				}
 			} else {
 				if err != nil {
@@ -684,7 +689,7 @@ func TestValidateMountEntries(t *testing.T) {
 			nil,
 		)
 
-		require.EqualError(t, err, "internal error: onInvalid callback must not be nil")
+		require.ErrorContains(t, err, "internal error: onInvalid callback must not be nil")
 	})
 
 	t.Run("returns internal error when onInvalid returns nil", func(t *testing.T) {
@@ -696,7 +701,7 @@ func TestValidateMountEntries(t *testing.T) {
 			},
 		)
 
-		require.EqualError(t, err, "internal error: onInvalid callback returned nil for mount kind 2")
+		require.ErrorContains(t, err, "internal error: onInvalid callback returned nil for mount kind 2")
 	})
 }
 

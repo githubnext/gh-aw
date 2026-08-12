@@ -135,11 +135,11 @@ Provide actionable recommendations based on the analysis:
 Create your issue with the following markdown structure:
 
 ```markdown
-# Video Analysis Report: [Video Filename]
+### Summary
 
-*Analysis performed by @${{ github.actor }} on [Date]*
+Analysis of `[Video Filename]` performed by @${{ github.actor }} on [Date].
 
-## 📊 Video Information
+### Video Information
 
 - **Source**: [URL]
 - **Duration**: [MM:SS]
@@ -148,32 +148,42 @@ Create your issue with the following markdown structure:
 - **Video Codec**: [Codec]
 - **Audio Codec**: [Codec] (if present)
 
-## 🔍 Analysis Results
+### Analysis Results
 
-### Scene Detection Analysis
+[One or two sentence overview of the scene detection and audio findings]
+
+<details>
+<summary><b>Scene Detection Analysis</b></summary>
 
 [Detailed scene detection results]
 
-### Audio Analysis
+</details>
+
+<details>
+<summary><b>Audio Analysis</b></summary>
 
 [Detailed audio analysis results]
 
-## 🛠 Technical Details
+</details>
+
+<details>
+<summary><b>Technical Details</b></summary>
 
 - **FFmpeg Version**: [Version]
 - **Processing Time**: [Time]
 - **Output Files**: [List of generated files with sizes]
+- **Warnings/Issues**: [Any warnings or issues encountered]
 
-## 💡 Recommendations
+</details>
+
+### Recommendations
 
 [Actionable recommendations based on analysis]
-
----
-
-*Generated using ffmpeg via GitHub Agentic Workflows*
 ```
 
+Formatting rules for the issue body:
 
-### Output Format
-
-Wrap long content with `<details><summary><b>View Details</b></summary>...</details>`.
+- Use `###` (or lower) headers only; never `#` or `##`.
+- Keep the summary, key metrics, and recommendations visible.
+- Wrap long content (raw `ffprobe` output, per-scene listings, code blocks over 20 lines) with `<details><summary><b>View Details</b></summary>...</details>`.
+- Do NOT add footer attribution; it is added automatically.

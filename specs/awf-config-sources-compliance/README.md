@@ -30,6 +30,7 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 ## Spec Reference
 
 - **Specification**: `specs/awf-config-sources-spec.md`
+- **Repository structure**: [Structure](../awf-config-sources-spec.md#structure)
 - **Defining section**: §6.5 — DriftRecord Entity Schema
 - **Related sections**: §6.2 (Drift Detection Procedure), §5 (Conformance Requirements CR-05, CR-06)
 
@@ -40,7 +41,7 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 Conformance tests that validate `DriftRecord` schema compliance are implemented in:
 
 ```
-pkg/workflow/awf_config_drift_test.go   — DriftRecord schema validation and usage (T-DR-001 through T-DR-010)
+pkg/workflow/awf_config_drift_test.go   — DriftRecord schema validation and usage (T-DR-001 through T-DR-010; T-DR-005: TestDriftRecord_TDR005_NoAdditionalProperties)
 ```
 
 To run related tests:

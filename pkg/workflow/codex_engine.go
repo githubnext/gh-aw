@@ -125,7 +125,7 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		"codex",
 		workflowData,
 	)
-	if isDockerSbxRuntime(workflowData) {
+	if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
 		version := string(constants.DefaultCodexVersion)
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 			version = workflowData.EngineConfig.Version
@@ -163,6 +163,10 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 				steps = append(steps, generateDockerSbxAuthAndDaemonStep())
 				steps = append(steps, generateDockerSbxPreFlightStep())
 			}
+		}
+		if isCloudHypervisorRuntime(workflowData) {
+			steps = append(steps, generateCloudHypervisorHostPreflightStep())
+			steps = append(steps, generateCloudHypervisorBundleSetupStep(getAWFVersionForSetup(workflowData)))
 		}
 
 		// Install AWF binary (or skip if custom command is specified)

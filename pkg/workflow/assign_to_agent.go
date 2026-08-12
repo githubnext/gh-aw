@@ -37,22 +37,21 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 		return nil
 	}
 
-	config := parseConfigScaffold(outputMap, "assign-to-agent", assignToAgentLog, func(err error) *AssignToAgentConfig {
-		assignToAgentLog.Printf("Failed to unmarshal config: %v", err)
-		// Handle null case: create empty config
-		return &AssignToAgentConfig{}
-	})
-	if config == nil {
-		return nil
-	}
+	config := parseConfigScaffoldWithPostProcess(outputMap, "assign-to-agent", assignToAgentLog,
+		func(err error) *AssignToAgentConfig {
+			assignToAgentLog.Printf("Failed to unmarshal config: %v", err)
+			// Handle null case: create empty config
+			return &AssignToAgentConfig{}
+		},
+		func(config *AssignToAgentConfig) {
+			// Set default max if not specified
+			if config.Max == nil {
+				config.Max = defaultIntStr(1)
+			}
 
-	// Set default max if not specified
-	if config.Max == nil {
-		config.Max = defaultIntStr(1)
-	}
-
-	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, default_model=%s, default_custom_agent=%s, allowed_count=%d, target=%s, max=%s, pull_request_repo=%s, base_branch=%s",
-		config.DefaultAgent, config.DefaultModel, config.DefaultCustomAgent, len(config.Allowed), config.Target, *config.Max, config.PullRequestRepoSlug, config.BaseBranch)
+			assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, default_model=%s, default_custom_agent=%s, allowed_count=%d, target=%s, max=%s, pull_request_repo=%s, base_branch=%s",
+				config.DefaultAgent, config.DefaultModel, config.DefaultCustomAgent, len(config.Allowed), config.Target, *config.Max, config.PullRequestRepoSlug, config.BaseBranch)
+		})
 
 	return config
 }

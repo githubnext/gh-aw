@@ -88,7 +88,7 @@ Project Setup:
 			withProjectSetup, _ := cmd.Flags().GetBool("with-project-setup")
 
 			if owner == "" {
-				return errors.New("--owner flag is required. Use '@me' for current user or specify org name")
+				return errors.New("--owner flag is missing. Expected '@me' for the current user or an organization login. Example: gh aw project new \"My Project\" --owner @me")
 			}
 
 			config := ProjectConfig{
@@ -355,17 +355,17 @@ func createProject(ctx context.Context, ownerId, title string, verbose bool) (ma
 	// Extract project data
 	data, ok := response["data"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid response: missing 'data' field")
+		return nil, errors.New("response is missing the 'data' field. Expected the GitHub GraphQL mutation payload to include data.createProjectV2.projectV2. Example: run 'gh auth status' to verify token scopes, then retry the command")
 	}
 
 	createResult, ok := data["createProjectV2"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid response: missing 'createProjectV2' field")
+		return nil, errors.New("response is missing the 'createProjectV2' field. Expected the GitHub GraphQL mutation payload to include data.createProjectV2.projectV2. Example: run 'gh auth status' to verify token scopes, then retry the command")
 	}
 
 	project, ok := createResult["projectV2"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid response: missing 'projectV2' field")
+		return nil, errors.New("response is missing the 'projectV2' field. Expected the GitHub GraphQL mutation payload to include data.createProjectV2.projectV2. Example: run 'gh auth status' to verify token scopes, then retry the command")
 	}
 
 	console.LogVerbose(verbose, fmt.Sprintf("✓ Project created: #%v", project["number"]))
@@ -380,7 +380,7 @@ func linkProjectToRepo(ctx context.Context, projectId, repoSlug string, verbose 
 	// Parse repo slug
 	parts := strings.Split(repoSlug, "/")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid repository format. Expected 'owner/repo', got '%s'", repoSlug)
+		return fmt.Errorf("repository slug '%s' is not in owner/repo format. Expected '<owner>/<repo>'. Example: github/gh-aw", repoSlug)
 	}
 	repoOwner := parts[0]
 	repoName := parts[1]
@@ -451,7 +451,7 @@ func parseProjectURL(projectURL string) (projectURLInfo, error) {
 	// Expected format: https://github.com/orgs/myorg/projects/123 or https://github.com/users/myuser/projects/123
 	parts := strings.Split(projectURL, "/")
 	if len(parts) < 6 {
-		return projectURLInfo{}, errors.New("invalid project URL format")
+		return projectURLInfo{}, errors.New("project URL format is not recognized. Expected https://github.com/orgs/<org>/projects/<number> or https://github.com/users/<user>/projects/<number>. Example: https://github.com/orgs/github/projects/123")
 	}
 
 	var scope, ownerLogin, numberStr string
@@ -467,7 +467,7 @@ func parseProjectURL(projectURL string) (projectURLInfo, error) {
 	}
 
 	if scope == "" {
-		return projectURLInfo{}, errors.New("invalid project URL: could not find orgs/users segment")
+		return projectURLInfo{}, errors.New("project URL is missing an 'orgs' or 'users' segment. Expected https://github.com/orgs/<org>/projects/<number> or https://github.com/users/<user>/projects/<number>. Example: https://github.com/users/octocat/projects/123")
 	}
 
 	projectNumber, err := strconv.Atoi(numberStr)

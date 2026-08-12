@@ -66,7 +66,7 @@ func validateMountsSyntax(mounts []string) error {
 				fmt.Sprintf("Provide a valid destination path.\n\nExample:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"\n\nSee: %s", constants.DocsSandboxURL),
 			)
 		default:
-			return fmt.Errorf("internal error: unsupported mount validation kind %d for sandbox mount %q", kind, mount)
+			return fmt.Errorf("internal error: sandbox mount validation kind %d for mount %q is not supported. Expected one of: invalid-format, too-few-parts, too-many-parts, empty-host-path, empty-destination. Example: \"/host/path:/container/path:ro\"", kind, mount)
 		}
 	})
 }
@@ -189,6 +189,39 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 
 		sandboxValidationLog.Print("docker-sbx runtime configured -- topology, sudo, and AWF version checks passed")
+	}
+
+	// Validate cloud-hypervisor runtime compatibility
+	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeCloudHypervisor {
+		if isArcDindTopology(workflowData) {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeCloudHypervisor),
+				"cloud-hypervisor is incompatible with runner.topology: arc-dind",
+				"cloud-hypervisor requires KVM and is only supported on GitHub-hosted Ubuntu x86_64 runners. "+
+					"ARC DinD runners do not provide that runtime environment. Remove sandbox.agent.runtime: cloud-hypervisor or change runner.topology.",
+			)
+		}
+
+		firewallConfig := getFirewallConfig(workflowData)
+		var configuredVersion string
+		if firewallConfig != nil {
+			configuredVersion = firewallConfig.Version
+		}
+		if !versionAtLeast(configuredVersion, string(constants.DefaultFirewallVersion), string(constants.AWFCloudHypervisorMinVersion)) {
+			effectiveVersion := configuredVersion
+			if effectiveVersion == "" {
+				effectiveVersion = string(constants.DefaultFirewallVersion)
+			}
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeCloudHypervisor),
+				fmt.Sprintf("cloud-hypervisor requires AWF %s or newer", constants.AWFCloudHypervisorMinVersion),
+				fmt.Sprintf("cloud-hypervisor preview support is only available in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFCloudHypervisorMinVersion, effectiveVersion, constants.AWFCloudHypervisorMinVersion),
+			)
+		}
+
+		sandboxValidationLog.Print("cloud-hypervisor runtime configured -- topology and AWF version checks passed")
 	}
 
 	// Validate config structure if provided (deprecated - was only for SRT)
@@ -499,10 +532,10 @@ func validateAgentMemoryLimit(memory string) error {
 func validateAllowHostPorts(ports []int) error {
 	for _, port := range ports {
 		if port < minPort || port > maxPort {
-			return fmt.Errorf("invalid allow-host-ports value: %d. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [5432]", port)
+			return fmt.Errorf("allow-host-ports value %d is out of range. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [9000]", port)
 		}
 		if service, dangerous := awfDangerousHostPorts[port]; dangerous {
-			return fmt.Errorf("invalid allow-host-ports value: %d. This port is blocked by AWF as a dangerous port (%s) and cannot be reached via allow-host-ports even in legacy-security mode. To reach a service on this port, declare it under services: with a port mapping and enable sandbox.agent.legacy-security", port, service)
+			return fmt.Errorf("allow-host-ports value %d maps to blocked service %s. Expected blocked service ports to be removed from allow-host-ports because they remain unreachable there even with legacy-security enabled; expose the service via GitHub Actions services: with sandbox.agent.legacy-security: enable instead. Example:\n# Do not list blocked service ports under allow-host-ports\nsandbox:\n  agent:\n    legacy-security: enable\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", port, service)
 		}
 	}
 	return nil
@@ -510,27 +543,27 @@ func validateAllowHostPorts(ports []int) error {
 
 func getSandboxDisableJustification(workflowData *WorkflowData) (string, error) {
 	if workflowData == nil || workflowData.Features == nil {
-		return "", errors.New("dangerously-disable-sandbox-agent feature is missing")
+		return "", errors.New("features block is missing dangerously-disable-sandbox-agent configuration. Expected a non-empty string justification under features when sandbox.agent is false. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"")
 	}
 
 	flagName := string(constants.DangerouslyDisableSandboxAgentFeatureFlag)
 	value, found := getFeatureValueCaseInsensitive(workflowData.Features, flagName)
 	if !found {
-		return "", errors.New("dangerously-disable-sandbox-agent feature is missing")
+		return "", errors.New("dangerously-disable-sandbox-agent key is missing from features. Expected a non-empty string justification under features when sandbox.agent is false. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"")
 	}
 
 	justification, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("feature must be a string, got %T", value)
+		return "", fmt.Errorf("dangerously-disable-sandbox-agent feature value has type %T. Expected a string justification. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"", value)
 	}
 
 	trimmed := strings.TrimSpace(justification)
 	if len(trimmed) < minSandboxDisableJustificationLength {
-		return "", fmt.Errorf("feature must be at least %d characters", minSandboxDisableJustificationLength)
+		return "", fmt.Errorf("dangerously-disable-sandbox-agent justification is shorter than %d characters. Expected a descriptive justification string with at least %d characters. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"", minSandboxDisableJustificationLength, minSandboxDisableJustificationLength)
 	}
 
 	if githubActionsExpressionPattern.MatchString(trimmed) {
-		return "", errors.New("feature cannot use GitHub Actions expressions")
+		return "", errors.New("dangerously-disable-sandbox-agent justification uses a GitHub Actions expression. Expected a literal explanatory string, not an expression. Example:\nfeatures:\n  dangerously-disable-sandbox-agent: \"Temporary migration while hardening container profile\"")
 	}
 
 	return trimmed, nil

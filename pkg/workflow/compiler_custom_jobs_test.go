@@ -555,7 +555,7 @@ func TestApplyBuiltinJobNeedsAugmentations_SelfReferenceError(t *testing.T) {
 
 	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "cannot depend on itself")
+	require.ErrorContains(t, err, "should not depend on itself")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManagerError(t *testing.T) {
@@ -575,7 +575,7 @@ func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManagerError(t *testing
 
 	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "cannot augment")
+	require.ErrorContains(t, err, "requires an existing built-in job")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_InvalidConfigNotMap(t *testing.T) {
@@ -590,7 +590,7 @@ func TestApplyBuiltinJobNeedsAugmentations_InvalidConfigNotMap(t *testing.T) {
 
 	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "must be an object")
+	require.ErrorContains(t, err, "expects an object")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_HyphenAliasNormalized(t *testing.T) {
@@ -673,7 +673,7 @@ func TestApplyBuiltinJobNeedsAugmentations_InvalidIfTypeError(t *testing.T) {
 
 	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "jobs.agent.if must be a string")
+	require.ErrorContains(t, err, "jobs.agent.if expects a string")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_IfPrefixStripped(t *testing.T) {
@@ -717,7 +717,7 @@ func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManager_IfOnlyReportsIf
 	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "jobs.activation.if")
-	require.ErrorContains(t, err, "cannot augment")
+	require.ErrorContains(t, err, "requires an existing built-in job")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManager_NeedsOnlyReportsNeedsField(t *testing.T) {
@@ -738,7 +738,7 @@ func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManager_NeedsOnlyReport
 	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "jobs.activation.needs")
-	require.ErrorContains(t, err, "cannot augment")
+	require.ErrorContains(t, err, "requires an existing built-in job")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_StatusFuncAddsSuccessGuards(t *testing.T) {

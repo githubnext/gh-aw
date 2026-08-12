@@ -120,6 +120,9 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		// Convert MCPScriptsConfig to map - would need a ToMap method
 		result["mcp-scripts"] = fc.MCPScripts
 	}
+	if len(fc.Enclaves) > 0 {
+		result["enclaves"] = fc.Enclaves
+	}
 
 	// Event and trigger configuration
 	if fc.On != nil {

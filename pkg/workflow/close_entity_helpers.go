@@ -129,27 +129,26 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 		}
 	}
 
-	config := parseConfigScaffold(outputMap, params.ConfigKey, logger, func(err error) *CloseEntityConfig {
-		logger.Printf("Failed to unmarshal config: %v", err)
-		// For backward compatibility, handle nil/empty config
-		return &CloseEntityConfig{}
-	})
-	if config == nil {
-		return nil
-	}
+	config := parseConfigScaffoldWithPostProcess(outputMap, params.ConfigKey, logger,
+		func(err error) *CloseEntityConfig {
+			logger.Printf("Failed to unmarshal config: %v", err)
+			// For backward compatibility, handle nil/empty config
+			return &CloseEntityConfig{}
+		},
+		func(config *CloseEntityConfig) {
+			// Set default max if not specified
+			if config.Max == nil {
+				config.Max = defaultIntStr(1)
+				logger.Printf("Set default max to 1 for %s", params.ConfigKey)
+			}
 
-	// Set default max if not specified
-	if config.Max == nil {
-		config.Max = defaultIntStr(1)
-		logger.Printf("Set default max to 1 for %s", params.ConfigKey)
-	}
+			// Backward compatibility: map deprecated title-prefix to required-title-prefix.
+			if config.RequiredTitlePrefix == "" && config.TitlePrefix != "" {
+				config.RequiredTitlePrefix = config.TitlePrefix
+			}
 
-	// Backward compatibility: map deprecated title-prefix to required-title-prefix.
-	if config.RequiredTitlePrefix == "" && config.TitlePrefix != "" {
-		config.RequiredTitlePrefix = config.TitlePrefix
-	}
-
-	logger.Printf("Parsed %s configuration: max=%s, target=%s", params.ConfigKey, *config.Max, config.Target)
+			logger.Printf("Parsed %s configuration: max=%s, target=%s", params.ConfigKey, *config.Max, config.Target)
+		})
 
 	return config
 }

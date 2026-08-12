@@ -173,6 +173,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"description":    {}, // for cache-memory
 		"retention-days": {   // for cache-memory
 		},
+		"required": {}, // startup connectivity criticality for MCP servers
 	}
 
 	// Check new format: direct fields in tool config

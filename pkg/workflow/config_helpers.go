@@ -31,6 +31,8 @@
 //
 // Parser Scaffold:
 //   - parseConfigScaffold() - Generic safe-output config parser scaffold
+//   - parseConfigScaffoldWithPostProcess() - parseConfigScaffold plus an optional
+//     post-parse callback for defaulting/logging, avoiding repeated nil-check wrappers
 
 package workflow
 
@@ -277,4 +279,41 @@ func parseConfigScaffold[T any](
 		return onError(err)
 	}
 	return &config
+}
+
+// parseConfigScaffoldWithPostProcess wraps parseConfigScaffold and additionally invokes the
+// optional postProcess callback for every non-nil result. This includes non-nil fallback
+// configs returned by onError, not just successfully unmarshalled ones, so that defaults and
+// logging apply consistently to fallbacks. postProcess is skipped when the result is nil
+// (key absent, or onError returned nil to disable the handler).
+//
+// This removes the repeated "if config == nil { return nil } ... return config" wrapper that
+// most safe-output handlers need around parseConfigScaffold for applying default values and/or
+// emitting a post-parse debug log line.
+//
+// postProcess may be nil if no post-processing is required.
+//
+// Example:
+//
+//	return parseConfigScaffoldWithPostProcess(outputMap, "assign-milestone", assignMilestoneLog,
+//	    func(err error) *AssignMilestoneConfig {
+//	        assignMilestoneLog.Printf("Failed to unmarshal config: %v", err)
+//	        return &AssignMilestoneConfig{}
+//	    },
+//	    func(config *AssignMilestoneConfig) {
+//	        assignMilestoneLog.Printf("Parsed milestone config: target=%s, allowed_count=%d",
+//	            config.Target, len(config.Allowed))
+//	    })
+func parseConfigScaffoldWithPostProcess[T any](
+	outputMap map[string]any,
+	key string,
+	debugLog *logger.Logger,
+	onError func(err error) *T,
+	postProcess func(config *T),
+) *T {
+	config := parseConfigScaffold(outputMap, key, debugLog, onError)
+	if config != nil && postProcess != nil {
+		postProcess(config)
+	}
+	return config
 }
