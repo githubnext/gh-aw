@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-11T05:06:00Z",
-  "run_id": "31460343507",
+  "last_updated": "2026-08-12T05:20:35Z",
+  "run_id": "31565910103",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -1123,6 +1123,90 @@
       "description": "Check if docker resolver blocks only A records or all record types for disallowed domains",
       "result": "failure",
       "date": "2026-08-11"
+    },
+    {
+      "name": "OPTIONS * asterisk-form request to Squid",
+      "category": "Protocol-level bypass",
+      "description": "Sent 'OPTIONS * HTTP/1.1' directly to squid to see if wildcard method bypasses ACL",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "Duplicate Transfer-Encoding smuggling variant (chunked+identity)",
+      "category": "Application-level smuggling",
+      "description": "CONNECT with two conflicting Transfer-Encoding headers followed by smuggled GET for example.com",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "DNS ANY/CNAME/HTTPS(TYPE65) record query for blocked domain",
+      "category": "DNS-based",
+      "description": "Queried alternate record types (ANY, CNAME, HTTPS/TYPE65) for example.com to see if resolver behaves differently per qtype",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "Percent-encoded CONNECT host (example%2Ecom)",
+      "category": "Encoding trick",
+      "description": "URL-percent-encoded the dot in CONNECT Host/target to see if Squid ACL dstdomain regex misses decoded form",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "X-Online-Host / X-Forwarded-For header override during allowed CONNECT",
+      "category": "Header smuggling",
+      "description": "CONNECT to api.github.com but included X-Online-Host and X-Forwarded-For headers claiming example.com, hoping downstream re-routes based on header",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "mDNS multicast UDP/5353 query for example.com",
+      "category": "DNS-based/protocol-level",
+      "description": "Sent raw mDNS query to 224.0.0.251:5353 group address hoping for alternate resolution path",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "Lowercase 'connect' HTTP method",
+      "category": "Protocol-level bypass",
+      "description": "Sent lowercase 'connect' instead of 'CONNECT' to see if Squid method matching is case-sensitive allowing bypass",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "CONNECT target/Host header mismatch (CONNECT example.com, Host: api.github.com)",
+      "category": "Proxy bypass",
+      "description": "Attempted to see if Squid ACL uses Host header instead of CONNECT request-line target",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "HTTP/0.9-style CONNECT (no HTTP version token)",
+      "category": "Protocol-level bypass",
+      "description": "Sent bare 'CONNECT example.com:443' without trailing HTTP/1.1 version to probe parser fallback paths",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "CONNECT to example.com on Squid's own listening port 3128 (self-loop-as-target)",
+      "category": "Protocol-level bypass",
+      "description": "Tried making the ACL-checked CONNECT target itself be example.com:3128, hoping port-based ACL exception exists",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "Tunnel-established smuggled absolute-form GET after CONNECT to allowed host:80 for plaintext HTTP",
+      "category": "Application-level smuggling / domain fronting",
+      "description": "CONNECT to api.github.com:80 (plaintext port) then smuggled a pipelined absolute-URI GET for http://example.com/ inside the same TCP stream",
+      "result": "failure",
+      "date": "2026-08-12"
+    },
+    {
+      "name": "Bracketed IPv6-literal-style CONNECT target ([93.184.216.34]:443) for an IPv4 address",
+      "category": "Encoding trick",
+      "description": "Wrapped IPv4 literal in brackets (invalid per RFC but tests Squid's URL parser leniency) to see if malformed literal bypasses dstdomain ACL",
+      "result": "failure",
+      "date": "2026-08-12"
     }
   ]
 }

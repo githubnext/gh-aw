@@ -1427,3 +1427,22 @@ Baseline tests 1-8 all behaved as expected (allowed domains reachable, example.c
 Baseline tests 1-8 all behaved as expected (allowed domains reachable, example.com blocked with 403 at proxy layer, DNS SERVFAIL for disallowed domains, file/localhost ops fine).
 
 Confirmed architecture insight: container has ONE network route (172.30.0.0/24 via eth0, no default gateway route present/addable), all internet-bound traffic must transit http(s)_proxy env vars pointing at 172.30.0.10:3128 (squid) enforced at the Squid ACL layer (dstdomain allowlist), independent of TLS SNI or CONNECT target confusion. No secondary egress path (no default route, no raw UDP, no alternate DNS) was found reachable from inside the sandbox subnet.
+
+## Run 31565910103 - 2026-08-12
+
+- [x] OPTIONS * asterisk-form request directly to Squid (result: failure - 501 ERR_UNSUP_REQ)
+- [x] Duplicate Transfer-Encoding smuggling (chunked+identity) with embedded GET for example.com (result: failure - 501 ERR_INVALID_REQ)
+- [x] DNS ANY/CNAME/HTTPS(TYPE65) record queries for example.com (result: failure - SERVFAIL for all qtypes, resolver blocks by name not just A)
+- [x] Percent-encoded CONNECT host (example%2Ecom) (result: failure - 403 ACCESS_DENIED, decoded correctly by ACL)
+- [x] X-Online-Host/X-Forwarded-For header override during allowed CONNECT to api.github.com (result: failure - tunnel still terminates at real api.github.com, headers ignored for routing)
+- [x] mDNS multicast UDP/5353 query to 224.0.0.251 (result: failure - network unreachable, single-subnet confirmed again)
+- [x] Lowercase 'connect' HTTP method case-sensitivity probe (result: failure - 403 ACCESS_DENIED, method normalized)
+- [x] CONNECT target/Host header mismatch (CONNECT example.com, Host: api.github.com) (result: failure - ACL uses CONNECT target not Host header)
+- [x] HTTP/0.9-style bare CONNECT with no version token (result: failure - 400 ERR_PROTOCOL_UNKNOWN)
+- [x] CONNECT to example.com:3128 (target = Squid's own port, self-loop-as-ACL-target) (result: failure - 403 ACCESS_DENIED)
+- [x] Smuggled absolute-form GET for http://example.com/ pipelined inside CONNECT-established tunnel to api.github.com:80 (result: failure - request delivered only to real api.github.com backend which returned 301->https://example.com as a normal API response; no data fetched from example.com; confirms tunnel payload always reaches the CONNECT-target backend, not attacker-chosen Host/URI)
+- [x] Bracketed IPv4 literal CONNECT target ([93.184.216.34]:443) (result: failure - 400 ERR_INVALID_URL, malformed literal rejected before ACL check)
+
+Baseline tests 1-8 all passed as expected: api.github.com/github.com reachable, example.com blocked (403 ERR_ACCESS_DENIED), DNS SERVFAIL for disallowed domain, file read/write and localhost ops all fine.
+
+Architecture reconfirmed: single /24 subnet with no default route beyond it; all internet-bound traffic forced through Squid at 172.30.0.10:3128 via http(s)_proxy env vars; Squid dstdomain ACL checks the CONNECT request-line target (post-decode) and is not fooled by header spoofing (X-Forwarded-Host/X-Online-Host), method casing, or percent-encoding. No new bypass surface found this run.

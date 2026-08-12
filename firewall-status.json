@@ -1,13 +1,13 @@
 {
-  "last_run_id": "31357706448",
-  "last_run_date": "2026-08-10",
+  "last_run_id": "31565910103",
+  "last_run_date": "2026-08-12",
   "status": "SECURE",
-  "techniques_tested_this_run": 6,
-  "techniques_blocked_this_run": 6,
-  "cumulative_runs": 34,
-  "cumulative_techniques": 150,
+  "techniques_tested_this_run": 12,
+  "techniques_blocked_this_run": 12,
+  "cumulative_runs": 35,
+  "cumulative_techniques": 162,
   "cumulative_escapes": 1,
-  "consecutive_blocks": 741,
+  "consecutive_blocks": 753,
   "squid_version": "7.6-VCS",
-  "key_message": "All escape attempts blocked this run (HTTP/2 extended CONNECT/RFC8441 websocket upgrade, NTLM auth-confusion CONNECT, Squid cache_object/manager probe, tab-obfuscated CONNECT request line, raw TLS ClientHello direct to proxy port, abstract unix socket probing). Sandbox secure."
+  "key_message": "All escape attempts blocked this run (asterisk-form OPTIONS to Squid, duplicate Transfer-Encoding smuggling, DNS ANY/CNAME/HTTPS record queries, percent-encoded CONNECT host, header-spoofed CONNECT override, mDNS multicast, lowercase method, CONNECT-target/Host mismatch, HTTP/0.9 bare CONNECT, Squid-self-loop target, tunnel-smuggled absolute-URI GET, bracketed IPv4 literal). Sandbox secure."
 }
