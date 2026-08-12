@@ -16,9 +16,9 @@
     },
     "specs/security-architecture-spec-validation.md": {
       "slug": "security-architecture-spec-validation",
-      "last_formalized": "2026-07-18-15-41-29",
-      "notation": "TLA+ / Z3 / F*",
-      "predicate_count": 15,
+      "last_formalized": "2026-08-12-15-52-00",
+      "notation": "TLA+ / Z3-style guard conjunction / F*",
+      "predicate_count": 11,
       "issue_number": null
     },
     "specs/aw-harness.md": {
