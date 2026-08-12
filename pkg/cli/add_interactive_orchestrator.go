@@ -76,7 +76,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	// are treated consistently across test and automation environments, while
 	// IsRunningInCI centralizes the broader CI environment detection logic.
 	if envutil.GetBoolFromEnv("GO_TEST_MODE", false, addInteractiveLog) || IsRunningInCI() {
-		return errors.New("interactive add is unavailable in automated tests or CI environments. Expected an interactive terminal. Example: unset CI and run the command from a terminal")
+		return errors.New("interactive add is unavailable in automated tests or CI environments. Expected an interactive terminal outside automation. Example: run `gh aw add-wizard` from a local terminal")
 	}
 
 	// Set context on the config

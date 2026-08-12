@@ -442,7 +442,7 @@ func TestCreateWorkflowInteractively_InAutomatedEnvironment(t *testing.T) {
 	if !strings.Contains(err.Error(), expectedErrMsg) {
 		t.Errorf("Expected error containing %q, got %q", expectedErrMsg, err.Error())
 	}
-	if !strings.Contains(err.Error(), "Expected an interactive terminal") || !strings.Contains(err.Error(), "Example: unset CI") {
+	if !strings.Contains(err.Error(), "Expected an interactive terminal outside automation") || !strings.Contains(err.Error(), "Example: run `gh aw new` from a local terminal") {
 		t.Errorf("Expected actionable error message, got %q", err.Error())
 	}
 }
@@ -798,6 +798,9 @@ func TestPromptNonInteractiveSelect_InvalidValue(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown value, got nil")
 	}
+	if !strings.Contains(err.Error(), "Expected a number or option value") || !strings.Contains(err.Error(), "Example: 1") {
+		t.Errorf("Expected actionable select error message, got %q", err.Error())
+	}
 }
 
 func TestPromptNonInteractiveSelect_EOF(t *testing.T) {
@@ -877,6 +880,9 @@ func TestPromptNonInteractiveMultiSelect_OutOfRange(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for out-of-range index, got nil")
 	}
+	if !strings.Contains(err.Error(), "Expected a number from 1 to 1") || !strings.Contains(err.Error(), "Example: 1,2") {
+		t.Errorf("Expected actionable multi-select range error message, got %q", err.Error())
+	}
 }
 
 func TestPromptNonInteractiveMultiSelect_UnknownValue(t *testing.T) {
@@ -885,6 +891,9 @@ func TestPromptNonInteractiveMultiSelect_UnknownValue(t *testing.T) {
 	_, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
 	if err == nil {
 		t.Fatal("expected error for unknown value, got nil")
+	}
+	if !strings.Contains(err.Error(), "Expected comma-separated numbers or option values") || !strings.Contains(err.Error(), "Example: 1,2") {
+		t.Errorf("Expected actionable multi-select value error message, got %q", err.Error())
 	}
 }
 

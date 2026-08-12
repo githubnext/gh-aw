@@ -146,19 +146,19 @@ func runCommandForOrg(ctx context.Context, org string, repoGlobs []string, cbs o
 		return errors.New("createPR and createIssue are mutually exclusive")
 	}
 	if cbs.SearchFn == nil {
-		return errors.New("organization search callback is not configured. Expected orgRunCallbacks.SearchFn to search organization repositories. Example: orgRunCallbacks{SearchFn: searchFn}")
+		return errors.New("organization search callback is not configured. Expected orgRunCallbacks.SearchFn to search organization repositories. Example: configure SearchFn before calling runCommandForOrg")
 	}
 	if cbs.ReportFn == nil {
-		return errors.New("organization report callback is not configured. Expected orgRunCallbacks.ReportFn to display the run summary. Example: orgRunCallbacks{ReportFn: reportFn}")
+		return errors.New("organization report callback is not configured. Expected orgRunCallbacks.ReportFn to display the run summary. Example: configure ReportFn before calling runCommandForOrg")
 	}
 	if createPR && cbs.ApplyFn == nil {
-		return errors.New("pull request callback is not configured. Expected orgRunCallbacks.ApplyFn when createPR is enabled. Example: orgRunCallbacks{ApplyFn: applyFn}")
+		return errors.New("pull request callback is not configured. Expected orgRunCallbacks.ApplyFn when createPR is enabled. Example: configure ApplyFn before calling runCommandForOrg with createPR")
 	}
 	if createIssue && cbs.IssueFn == nil {
-		return errors.New("issue callback is not configured. Expected orgRunCallbacks.IssueFn when createIssue is enabled. Example: orgRunCallbacks{IssueFn: issueFn}")
+		return errors.New("issue callback is not configured. Expected orgRunCallbacks.IssueFn when createIssue is enabled. Example: configure IssueFn before calling runCommandForOrg with createIssue")
 	}
 	if (createPR || createIssue) && !cbs.AutoYes && isRunningInCIFn() {
-		return errors.New("organization create operations in CI need confirmation. Expected --yes to auto-accept in non-interactive environments. Example: gh aw run --org octo-org --yes")
+		return errors.New("organization create operations in CI need confirmation. Expected --yes to auto-accept in non-interactive environments. Example: gh aw update --org octo-org --create-pull-request --yes")
 	}
 
 	// Handle Ctrl-C / SIGTERM so an interrupted run still renders the report

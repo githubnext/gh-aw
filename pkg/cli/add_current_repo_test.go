@@ -80,6 +80,9 @@ func TestAddWorkflowsFromCurrentRepository(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errorContains) {
 					t.Errorf("Expected error to contain %q, got: %v", tt.errorContains, err)
 				}
+				if !strings.Contains(err.Error(), "Expected a workflow from another repository") || !strings.Contains(err.Error(), "Example: gh aw add octo-org/agentic-workflows/example-workflow") {
+					t.Errorf("Expected actionable current repository error, got: %v", err)
+				}
 			} else {
 				// For "allow" case, we expect a different error (workflow not found, not current repo error)
 				if err != nil && strings.Contains(err.Error(), "cannot add workflows from the current repository") {
@@ -163,6 +166,9 @@ func TestAddWorkflowsFromCurrentRepositoryMultiple(t *testing.T) {
 				}
 				if !strings.Contains(err.Error(), tt.errorContains) {
 					t.Errorf("Expected error to contain %q, got: %v", tt.errorContains, err)
+				}
+				if !strings.Contains(err.Error(), "Expected a workflow from another repository") || !strings.Contains(err.Error(), "Example: gh aw add octo-org/agentic-workflows/example-workflow") {
+					t.Errorf("Expected actionable current repository error, got: %v", err)
 				}
 			} else {
 				// For "allow" case, we expect a different error (workflow not found, not current repo error)

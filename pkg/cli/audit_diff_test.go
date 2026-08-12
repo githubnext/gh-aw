@@ -4,12 +4,54 @@ package cli
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAuditDiffValidationErrorsAreActionable(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "base run ID is non-numeric",
+			args: []string{"abc", "12346"},
+			want: "Expected a numeric GitHub Actions run ID",
+		},
+		{
+			name: "comparison run ID matches base",
+			args: []string{"12345", "12345"},
+			want: "Expected a different run ID for comparison",
+		},
+		{
+			name: "comparison run ID repeats",
+			args: []string{"12345", "12346", "12346"},
+			want: "Expected each comparison run ID once",
+		},
+		{
+			name: "repository is not owner repo",
+			args: []string{"12345", "12346", "--repo", "github"},
+			want: "Expected an owner and repository name separated by '/'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := NewAuditDiffSubcommand()
+			cmd.SetArgs(tt.args)
+			err := cmd.Execute()
+			require.Error(t, err)
+			if !strings.Contains(err.Error(), tt.want) || !strings.Contains(err.Error(), "Example:") {
+				t.Errorf("Expected actionable error containing %q and Example:, got %q", tt.want, err.Error())
+			}
+		})
+	}
+}
 
 func TestComputeFirewallDiff_NewDomains(t *testing.T) {
 	run1 := &FirewallAnalysis{

@@ -69,7 +69,7 @@ func CreateWorkflowInteractively(ctx context.Context, workflowName string, verbo
 	// are treated consistently across test and automation environments, while
 	// IsRunningInCI centralizes the broader CI environment detection logic.
 	if envutil.GetBoolFromEnv("GO_TEST_MODE", false, interactiveLog) || IsRunningInCI() {
-		return errors.New("interactive workflow creation is unavailable in automated tests or CI environments. Expected an interactive terminal. Example: unset CI and run the command from a terminal")
+		return errors.New("interactive workflow creation is unavailable in automated tests or CI environments. Expected an interactive terminal outside automation. Example: run `gh aw new` from a local terminal")
 	}
 
 	if verbose {
@@ -411,7 +411,7 @@ func promptNonInteractiveSelect(scanner *bufio.Scanner, title string, options []
 			return opt.value, nil
 		}
 	}
-	return "", fmt.Errorf("selection %q is not available. Expected a displayed option name or number. Example: 1", input)
+	return "", fmt.Errorf("selection %q is not available. Expected a number or option value. Example: 1", input)
 }
 
 // promptNonInteractiveMultiSelect prints a numbered list and reads comma-separated selections.
@@ -453,7 +453,7 @@ func promptNonInteractiveMultiSelect(scanner *bufio.Scanner, title string, optio
 		// Try numeric index
 		if idx, err := strconv.Atoi(tok); err == nil {
 			if idx < 1 || idx > len(options) {
-				return nil, fmt.Errorf("selection %d is out of range. Expected a number from 1 to %d. Example: 1", idx, len(options))
+				return nil, fmt.Errorf("selection %d is out of range. Expected a number from 1 to %d. Example: 1,2", idx, len(options))
 			}
 			val := options[idx-1].value
 			if _, dup := seen[val]; !dup {
@@ -472,7 +472,7 @@ func promptNonInteractiveMultiSelect(scanner *bufio.Scanner, title string, optio
 			continue
 		}
 
-		return nil, fmt.Errorf("option %q is not available. Expected a displayed option name or number. Example: 1", tok)
+		return nil, fmt.Errorf("option %q is not available. Expected comma-separated numbers or option values. Example: 1,2", tok)
 	}
 	return selected, nil
 }

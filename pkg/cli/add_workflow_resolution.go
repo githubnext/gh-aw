@@ -260,7 +260,7 @@ func validateCurrentRepositorySpecs(parsedSpecs []*WorkflowSpec) error {
 			continue
 		}
 		if spec.RepoSlug == currentRepoSlug {
-			return fmt.Errorf("workflow source %q is the current repository. Expected a workflow from another repository. Example: gh aw add github/gh-aw/example-workflow", currentRepoSlug)
+			return fmt.Errorf("cannot add workflows from the current repository %q. Expected a workflow from another repository. Example: gh aw add octo-org/agentic-workflows/example-workflow", currentRepoSlug)
 		}
 	}
 	return nil
@@ -408,9 +408,9 @@ func validateManifestWorkflowPrivateSetting(spec, resolvedSpec *WorkflowSpec, co
 	}
 	manifestPath := joinRepositoryPackagePath(spec.PackagePath, repositoryPackageManifestFileName)
 	return fmt.Errorf(
-		"agentic workflow manifest %q sets workflow %q to private: true. Expected an installable workflow with private: false. Example:\nprivate: false",
-		manifestPath,
+		"workflow %q sets private: true in agentic workflow manifest %q. Expected an installable workflow with private: false. Example: private: false",
 		resolvedSpec.WorkflowPath,
+		manifestPath,
 	)
 }
 

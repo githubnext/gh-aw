@@ -3,11 +3,32 @@
 package cli
 
 import (
+	"context"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRunAddInteractive_InAutomatedEnvironment(t *testing.T) {
+	origTestMode := os.Getenv("GO_TEST_MODE")
+	os.Setenv("GO_TEST_MODE", "true")
+	t.Cleanup(func() {
+		if origTestMode != "" {
+			os.Setenv("GO_TEST_MODE", origTestMode)
+		} else {
+			os.Unsetenv("GO_TEST_MODE")
+		}
+	})
+
+	err := RunAddInteractive(context.Background(), &AddInteractiveConfig{})
+	require.Error(t, err)
+	if !strings.Contains(err.Error(), "Expected an interactive terminal outside automation") || !strings.Contains(err.Error(), "Example: run `gh aw add-wizard` from a local terminal") {
+		t.Errorf("Expected actionable error message, got %q", err.Error())
+	}
+}
 
 func TestAddInteractiveConfig_determineFilesToAdd(t *testing.T) {
 	t.Parallel()

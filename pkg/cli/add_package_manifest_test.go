@@ -846,6 +846,9 @@ func TestResolveWorkflows_RepositoryPackageRejectsPrivateTrue(t *testing.T) {
 	_, err := ResolveWorkflows(context.Background(), []string{"owner/repo"}, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, `workflow "workflows/review.md" sets private: true`)
+	require.ErrorContains(t, err, "Expected an installable workflow with private: false")
+	require.ErrorContains(t, err, "Example: private: false")
+	require.NotContains(t, err.Error(), "\n")
 }
 
 func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
