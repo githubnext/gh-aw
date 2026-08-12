@@ -77,7 +77,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		if questionsRaw, ok := v["questions"]; ok {
 			questionsList, ok := questionsRaw.([]any)
 			if !ok {
-				return nil, fmt.Errorf("evals.questions: must be a list of question objects, got %T", questionsRaw)
+				return nil, fmt.Errorf("evals.questions must be a list of question objects, got %T. Example:\nevals:\n  questions:\n    - id: readme\n      question: Does the README explain setup?", questionsRaw)
 			}
 			questions, err := parseEvalDefinitions(questionsList)
 			if err != nil {
@@ -90,7 +90,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		if modelRaw, ok := v["model"]; ok {
 			modelStr, ok := modelRaw.(string)
 			if !ok {
-				return nil, fmt.Errorf("evals.model: must be a string, got %T", modelRaw)
+				return nil, fmt.Errorf("evals.model must be a string, got %T. Example:\nevals:\n  model: small", modelRaw)
 			}
 			cfg.Model = strings.TrimSpace(modelStr)
 		}
@@ -101,7 +101,7 @@ func (c *Compiler) parseEvalsFromFrontmatter(frontmatter map[string]any) (*Evals
 		}
 
 	default:
-		return nil, errors.New("evals: must be a list of questions or an object with a questions list")
+		return nil, errors.New("evals must be a list of questions or an object with a questions list. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?")
 	}
 
 	if err := validateEvals(cfg); err != nil {
@@ -124,7 +124,7 @@ func parseEvalDefinitions(items []any) ([]EvalDefinition, error) {
 	for i, item := range items {
 		m, ok := item.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("item %d must be an object with id and question fields", i)
+			return nil, fmt.Errorf("evals item %d must be an object with 'id' and 'question' fields, got a different type. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?", i)
 		}
 		def, err := parseEvalDefinition(m, i)
 		if err != nil {
@@ -141,20 +141,20 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 	questionRaw, hasQuestion := m["question"]
 
 	if !hasID {
-		return EvalDefinition{}, fmt.Errorf("item %d: missing required field 'id'", idx)
+		return EvalDefinition{}, fmt.Errorf("evals item %d is missing the required 'id' field. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?", idx)
 	}
 	if !hasQuestion {
-		return EvalDefinition{}, fmt.Errorf("item %d: missing required field 'question'", idx)
+		return EvalDefinition{}, fmt.Errorf("evals item %d is missing the required 'question' field. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?", idx)
 	}
 
 	id, ok := idRaw.(string)
 	if !ok || strings.TrimSpace(id) == "" {
-		return EvalDefinition{}, fmt.Errorf("item %d: 'id' must be a non-empty string", idx)
+		return EvalDefinition{}, fmt.Errorf("evals item %d has an 'id' that is not a non-empty string. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?", idx)
 	}
 
 	question, ok := questionRaw.(string)
 	if !ok || strings.TrimSpace(question) == "" {
-		return EvalDefinition{}, fmt.Errorf("item %d: 'question' must be a non-empty string", idx)
+		return EvalDefinition{}, fmt.Errorf("evals item %d has a 'question' that is not a non-empty string. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?", idx)
 	}
 
 	def := EvalDefinition{
@@ -166,7 +166,7 @@ func parseEvalDefinition(m map[string]any, idx int) (EvalDefinition, error) {
 	if modelRaw, ok := m["model"]; ok {
 		modelStr, ok := modelRaw.(string)
 		if !ok {
-			return EvalDefinition{}, fmt.Errorf("item %d: 'model' must be a string, got %T", idx, modelRaw)
+			return EvalDefinition{}, fmt.Errorf("evals item %d has a 'model' that must be a string, got %T. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?\n    model: small", idx, modelRaw)
 		}
 		def.Model = strings.TrimSpace(modelStr)
 	}
@@ -180,18 +180,18 @@ func validateEvals(cfg *EvalsConfig) error {
 		return nil
 	}
 	if len(cfg.Questions) == 0 {
-		return errors.New("evals: at least one question is required when evals is configured")
+		return errors.New("evals requires at least one question when configured. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?")
 	}
 
 	seen := make(map[string]struct{}, len(cfg.Questions))
 	for i, q := range cfg.Questions {
 		if _, dup := seen[q.ID]; dup {
-			return fmt.Errorf("evals: duplicate id %q at index %d", q.ID, i)
+			return fmt.Errorf("evals has a duplicate id %q at index %d. Use a unique 'id' for each question. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?\n  - id: security\n    question: Are secrets handled safely?", q.ID, i)
 		}
 		seen[q.ID] = struct{}{}
 
 		if strings.TrimSpace(q.Question) == "" {
-			return fmt.Errorf("evals: question for id %q must be non-empty", q.ID)
+			return fmt.Errorf("evals question for id %q must be non-empty. Example:\nevals:\n  - id: %s\n    question: Does the README explain setup?", q.ID, q.ID)
 		}
 	}
 	return nil
