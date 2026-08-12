@@ -71,6 +71,48 @@ const REFLECT_PROVIDER_ALIASES = {
   anthropic: new Set(["anthropic"]),
 };
 
+const DEFAULT_API_PROXY_HOST_BRIDGE = "host.docker.internal";
+
+/**
+ * Detect the sbx HOSTALIASES mapping that makes `api-proxy` resolve to localhost.
+ * In that topology AWF creates a localhost bridge only for the management
+ * /reflect port, so provider traffic for ports such as 10002 must use the
+ * host-side Docker gateway name instead.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(path: string, encoding: BufferEncoding) => string} [readFileSync]
+ * @returns {boolean}
+ */
+function hasAPIProxyLocalhostAlias(env = process.env, readFileSync = fs.readFileSync) {
+  const hostAliasesPath = env.HOSTALIASES;
+  if (!hostAliasesPath) return false;
+  try {
+    const aliases = readFileSync(hostAliasesPath, "utf8");
+    return aliases.split(/\r?\n/).some(line => {
+      const trimmed = line.replace(/#.*/, "").trim();
+      if (!trimmed) return false;
+      const parts = trimmed.split(/\s+/);
+      return parts[0] === "api-proxy" && (parts[1] === "localhost" || parts[1] === "127.0.0.1");
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Rewrite api-proxy URLs for sbx HOSTALIASES bridge mode.
+ *
+ * @param {string} url
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(path: string, encoding: BufferEncoding) => string} [readFileSync]
+ * @returns {string}
+ */
+function rewriteAPIProxyURLForHostBridge(url, env = process.env, readFileSync = fs.readFileSync) {
+  if (!hasAPIProxyLocalhostAlias(env, readFileSync)) return url;
+  const bridgeHost = env.GH_AW_API_PROXY_HOST_BRIDGE || DEFAULT_API_PROXY_HOST_BRIDGE;
+  return url.replace(/^(https?:\/\/)api-proxy(?=[:/]|$)/i, `$1${bridgeHost}`);
+}
+
 // Default logger used by fetchAWFReflect when no logger is provided via options.
 // All lines are prefixed with "[awf-reflect]" for easy grepping in combined logs.
 // prettier-ignore
@@ -136,6 +178,7 @@ function extractModelIds(json) {
  * @returns {Promise<string[]|null>}
  */
 async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
+  const requestUrl = rewriteAPIProxyURLForHostBridge(modelsUrl);
   let isInitialProbeDelayed = false;
   try {
     const modelsHost = new URL(modelsUrl).hostname.toLowerCase();
@@ -182,7 +225,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           ac.abort();
         }, timeoutMs);
         try {
-          const res = await fetch(modelsUrl, { signal: ac.signal });
+          const res = await fetch(requestUrl, { signal: ac.signal });
           if (!res.ok) {
             if (res.status === 503) {
               const err = Object.assign(new Error(`models fetch returned 503 for ${modelsUrl}`), { status: 503 });
@@ -534,13 +577,13 @@ function inferWireApiForModel(providerType, modelName, catalogEntryOrModelsJson)
 function endpointBaseUrl(endpoint) {
   if (typeof endpoint.models_url === "string" && endpoint.models_url) {
     try {
-      return new URL(endpoint.models_url).origin;
+      return rewriteAPIProxyURLForHostBridge(new URL(endpoint.models_url).origin);
     } catch {
       // fall through to port-based construction
     }
   }
   if (endpoint.port != null) {
-    return `http://api-proxy:${String(endpoint.port)}`;
+    return rewriteAPIProxyURLForHostBridge(`http://api-proxy:${String(endpoint.port)}`);
   }
   return "";
 }
@@ -793,17 +836,20 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_MODELS_URL_MAX_ATTEMPTS,
     AWF_MODELS_URL_RETRY_BASE_MS,
     AWF_MODELS_URL_RETRY_MAX_MS,
+    DEFAULT_API_PROXY_HOST_BRIDGE,
     GEMINI_MODEL_NAME_PREFIX,
     enrichReflectModels,
     extractModelIds,
     fetchAWFReflect,
     fetchModelsFromUrl,
     getCatalogModelEntry,
+    hasAPIProxyLocalhostAlias,
     inferProviderTypeForModel,
     inferWireApiForModel,
     normalizeReflectProviderName,
     resolveOpenAICompatibleEndpointFromReflect,
     resolveProviderEndpointFromReflect,
     resolveMultiProviderFromReflect,
+    rewriteAPIProxyURLForHostBridge,
   };
 }
