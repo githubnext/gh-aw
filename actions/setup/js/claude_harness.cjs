@@ -18,6 +18,8 @@
  *     observed immediately after a `permission_denied` tool-result on a compound Bash command.
  *     It is retried as a fresh run (not `--continue`, which is permanently disabled for the rest
  *     of the driver invocation) since resuming would resend the same corrupted session state.
+ *   - Connection-refused API errors are retried as fresh runs because no resumable model turn
+ *     reached the provider.
  *   - If the process produced no output (failed to start / auth error before any work), the
  *     driver does not retry because there is nothing to resume.
  *   - On a `--continue` retry the initial prompt is omitted: Claude Code resumes the session
@@ -81,6 +83,9 @@ const RATE_LIMIT_ERROR_PATTERN = /rate_limit_error|429 Too Many Requests|"api_er
 // run rather than --continue, since resuming would resend the same corrupted
 // session state and reproduce the identical error.
 const INVALID_JSON_BODY_ERROR_PATTERN = /request body is not valid JSON/i;
+
+// Pattern emitted by Claude Code when its connection to the API proxy is refused.
+const CONNECTION_REFUSED_ERROR_PATTERN = /API Error: Connection refused\b|\bConnectionRefused\b/i;
 
 // Pattern to detect a clean max-turns exit from Claude Code.
 // Claude Code emits a JSON result object with "subtype":"error_max_turns" when the
@@ -188,6 +193,15 @@ function isMaxTurnsExit(output) {
  */
 function isInvalidJsonBodyError(output) {
   return INVALID_JSON_BODY_ERROR_PATTERN.test(output);
+}
+
+/**
+ * Determines if the collected output contains a connection-refused API error.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isConnectionRefusedError(output) {
+  return CONNECTION_REFUSED_ERROR_PATTERN.test(output);
 }
 
 /**
@@ -482,6 +496,7 @@ async function main() {
     const isNoDeferredMarker = isNoDeferredMarkerError(result.output);
     const isInvalidModel = isInvalidModelError(result.output);
     const isInvalidJsonBody = isInvalidJsonBodyError(result.output);
+    const isConnectionRefused = isConnectionRefusedError(result.output);
     const permissionDeniedCount = countPermissionDeniedIssues(result.output);
     const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
     log(
@@ -494,6 +509,7 @@ async function main() {
         ` isNoDeferredMarkerError=${isNoDeferredMarker}` +
         ` isInvalidModelError=${isInvalidModel}` +
         ` isInvalidJsonBodyError=${isInvalidJsonBody}` +
+        ` isConnectionRefusedError=${isConnectionRefused}` +
         ` permissionDeniedCount=${permissionDeniedCount}` +
         ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
         ` hasOutput=${result.hasOutput}` +
@@ -598,6 +614,19 @@ async function main() {
       break;
     }
 
+    // A refused API connection can produce structured CLI output without completing a
+    // model turn. There is no useful session state to resume, so retry the original prompt
+    // as a fresh run instead of spending an attempt on --continue.
+    if (isConnectionRefused) {
+      if (attempt < maxRetries && result.hasOutput) {
+        useContinueOnRetry = false;
+        log(`attempt ${attempt + 1}: connection-refused API transport error — retrying as fresh run (attempt ${attempt + 2}/${maxRetries + 1})`);
+        continue;
+      }
+      log(`attempt ${attempt + 1}: connection-refused API transport error — retry budget exhausted`);
+      break;
+    }
+
     // Retry when the session was partially executed (has output).
     // Use --continue so Claude Code can resume from its saved session state.
     if (attempt < maxRetries && result.hasOutput) {
@@ -664,6 +693,7 @@ if (typeof module !== "undefined" && module.exports) {
     isNoDeferredMarkerError,
     isInvalidModelError,
     isInvalidJsonBodyError,
+    isConnectionRefusedError,
     isSignalTerminationExitCode,
     shouldRetryWithContinue,
     countPermissionDeniedIssues,

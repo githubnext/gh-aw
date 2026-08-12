@@ -15,6 +15,7 @@ const {
   isNoDeferredMarkerError,
   isInvalidModelError,
   isInvalidJsonBodyError,
+  isConnectionRefusedError,
   isSignalTerminationExitCode,
   shouldRetryWithContinue,
   countPermissionDeniedIssues,
@@ -317,6 +318,16 @@ describe("claude_harness.cjs", () => {
     });
   });
 
+  describe("isConnectionRefusedError", () => {
+    it("detects Claude API connection-refused output", () => {
+      expect(isConnectionRefusedError("API Error: Connection refused — a firewall or proxy may be blocking it (ConnectionRefused)")).toBe(true);
+    });
+
+    it("does not match unrelated API errors", () => {
+      expect(isConnectionRefusedError("API Error: 429 Too Many Requests")).toBe(false);
+    });
+  });
+
   describe("permission-denied classification helpers", () => {
     it("counts repeated permission-denied signals", () => {
       const output = "permission denied\nEACCES: permission denied\npermissions denied";
@@ -538,6 +549,37 @@ process.exit(0);
       expect(calls[1].args).toContain("fix the bug");
       expect(result.stderr).toContain("failure_reason=cancelled_or_timed_out");
     }, 30000);
+
+    it("uses a fresh retry after a connection-refused API error", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+
+if (priorCalls === 0) {
+  process.stdout.write('{"type":"result","is_error":true,"result":"API Error: Connection refused (ConnectionRefused)"}\\n');
+  process.exit(1);
+}
+
+if (args.includes("--continue")) {
+  process.stderr.write("connection-refused retry unexpectedly used --continue\\n");
+  process.exit(9);
+}
+process.stdout.write("fresh retry succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        extraEnv: { GH_AW_HARNESS_INITIAL_DELAY_MS: "1" },
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, false]);
+      expect(calls[1].args).toContain("fix the bug");
+      expect(result.stderr).toContain("connection-refused API transport error");
+    });
 
     it("retries one no-output startup failure as a fresh run by default", () => {
       const stubScript = `
