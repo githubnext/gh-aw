@@ -20,16 +20,16 @@ type AddLabelsConfig struct {
 
 // parseAddLabelsConfig handles add-labels configuration
 func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConfig {
-	config := parseConfigScaffold(outputMap, "add-labels", addLabelsLog, func(err error) *AddLabelsConfig {
-		addLabelsLog.Printf("Failed to unmarshal config: %v", err)
-		// Handle null case: create empty config (allows any labels)
-		addLabelsLog.Print("Using empty configuration (allows any labels)")
-		return &AddLabelsConfig{}
-	})
-	if config != nil {
-		addLabelsLog.Printf("Parsed configuration: allowed_count=%d, blocked_count=%d, target=%s", len(config.Allowed), len(config.Blocked), config.Target)
-	}
-	return config
+	return parseConfigScaffoldWithPostProcess(outputMap, "add-labels", addLabelsLog,
+		func(err error) *AddLabelsConfig {
+			addLabelsLog.Printf("Failed to unmarshal config: %v", err)
+			// Handle null case: create empty config (allows any labels)
+			addLabelsLog.Print("Using empty configuration (allows any labels)")
+			return &AddLabelsConfig{}
+		},
+		func(config *AddLabelsConfig) {
+			addLabelsLog.Printf("Parsed configuration: allowed_count=%d, blocked_count=%d, target=%s", len(config.Allowed), len(config.Blocked), config.Target)
+		})
 }
 
 // buildAddLabelsPermissions computes the permissions for add_labels based on config.
