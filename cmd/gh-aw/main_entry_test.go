@@ -458,8 +458,7 @@ func TestCommandErrorHandling(t *testing.T) {
 		err := rootCmd.Execute()
 
 		require.Error(t, err, "run without a workflow name in CI should fail")
-		assert.Contains(t, err.Error(), "interactive mode is unavailable in CI environments")
-		assert.Contains(t, err.Error(), "Expected a workflow name argument")
+		assert.Contains(t, err.Error(), "Expected a workflow name argument when running in CI")
 		assert.Contains(t, err.Error(), "Example: gh aw run")
 
 		rootCmd.SetArgs([]string{})
