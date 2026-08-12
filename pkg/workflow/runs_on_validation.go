@@ -89,7 +89,7 @@ func validateRunsOnValue(value any) error {
 	case []any:
 		for _, label := range v {
 			if _, ok := label.(string); !ok {
-				return fmt.Errorf("invalid runs-on array entry type %T: expected string", label)
+				return fmt.Errorf("runs-on array entry has type %T, expected a string label. Example: runs-on: [ubuntu-latest, self-hosted]", label)
 			}
 		}
 		return nil
@@ -98,25 +98,25 @@ func validateRunsOnValue(value any) error {
 			switch key {
 			case "group":
 				if _, ok := value.(string); !ok {
-					return fmt.Errorf("invalid runs-on.group type %T: expected string", value)
+					return fmt.Errorf("runs-on.group has type %T, expected a string name. Example: runs-on:\n  group: my-runner-group", value)
 				}
 			case "labels":
 				labels, ok := value.([]any)
 				if !ok {
-					return fmt.Errorf("invalid runs-on.labels type %T: expected array of strings", value)
+					return fmt.Errorf("runs-on.labels has type %T, expected an array of string labels. Example: runs-on:\n  labels: [self-hosted, linux]", value)
 				}
 				for _, label := range labels {
 					if _, ok := label.(string); !ok {
-						return fmt.Errorf("invalid runs-on.labels entry type %T: expected string", label)
+						return fmt.Errorf("runs-on.labels entry has type %T, expected a string label. Example: runs-on:\n  labels: [self-hosted, linux]", label)
 					}
 				}
 			default:
-				return fmt.Errorf("invalid runs-on object key %q: expected only group or labels", key)
+				return fmt.Errorf("runs-on object key '%s' is not supported, expected 'group' or 'labels'. Example: runs-on:\n  group: my-runner-group\n  labels: [self-hosted]", key)
 			}
 		}
 		return nil
 	default:
-		return fmt.Errorf("invalid runs-on type %T: expected string, array of strings, or object", value)
+		return fmt.Errorf("runs-on has type %T, expected a string, array of strings, or object. Example: runs-on: ubuntu-latest", value)
 	}
 }
 

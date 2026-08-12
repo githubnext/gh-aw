@@ -87,7 +87,7 @@ func resolveSafeOutputsDataSchema(config *SafeOutputsConfig) (bool, map[string]a
 			return false, nil, "", err
 		}
 		if normalizedType, _ := normalized["type"].(string); normalizedType != "object" {
-			return false, nil, "", fmt.Errorf("safe-outputs.data must resolve to an object schema, got %q", normalizedType)
+			return false, nil, "", fmt.Errorf("safe-outputs.data must resolve to an object schema, got %q. Expected a schema whose top-level type is object. Example:\nsafe-outputs:\n  data:\n    verdict: string", normalizedType)
 		}
 		return true, normalized, "", nil
 	case string:
@@ -100,20 +100,20 @@ func resolveSafeOutputsDataSchema(config *SafeOutputsConfig) (bool, map[string]a
 		if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
 			schemaMap, ok := parsed.(map[string]any)
 			if !ok {
-				return false, nil, "", errors.New("safe-outputs.data string JSON must decode to an object schema")
+				return false, nil, "", errors.New("safe-outputs.data string JSON must decode to an object schema. Expected a JSON object with a \"properties\" map. Example:\nsafe-outputs:\n  data: '{\"type\": \"object\", \"properties\": {\"verdict\": {\"type\": \"string\"}}}'")
 			}
 			normalized, normalizeErr := simplifyDataSchemaNode(schemaMap, "safe-outputs.data", true)
 			if normalizeErr != nil {
 				return false, nil, "", normalizeErr
 			}
 			if normalizedType, _ := normalized["type"].(string); normalizedType != "object" {
-				return false, nil, "", fmt.Errorf("safe-outputs.data must resolve to an object schema, got %q", normalizedType)
+				return false, nil, "", fmt.Errorf("safe-outputs.data must resolve to an object schema, got %q. Expected a schema whose top-level type is object. Example:\nsafe-outputs:\n  data:\n    verdict: string", normalizedType)
 			}
 			return true, normalized, "", nil
 		}
-		return false, nil, "", errors.New("safe-outputs.data string values must be a GitHub Actions expression or JSON object schema")
+		return false, nil, "", errors.New("safe-outputs.data string values must be a GitHub Actions expression or JSON object schema. Example:\nsafe-outputs:\n  data: ${{ needs.setup.outputs.schema }}")
 	default:
-		return false, nil, "", errors.New("safe-outputs.data must be false, true, an inline schema object, or a GitHub Actions expression")
+		return false, nil, "", errors.New("safe-outputs.data must be false, true, an inline schema object, or a GitHub Actions expression. Example:\nsafe-outputs:\n  data:\n    verdict: string")
 	}
 }
 
@@ -177,7 +177,7 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool) (map[stri
 	if desc, ok := node["description"]; ok {
 		descStr, ok := desc.(string)
 		if !ok {
-			return nil, fmt.Errorf("%s.description: must be a string", path)
+			return nil, fmt.Errorf("%s.description: must be a string. Example:\ndescription: Short summary of the result", path)
 		}
 		result["description"] = descStr
 	}
@@ -185,13 +185,13 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool) (map[stri
 	if enumVal, exists := node["enum"]; exists {
 		enumList, ok := enumVal.([]any)
 		if !ok || len(enumList) == 0 {
-			return nil, fmt.Errorf("%s.enum: must be a non-empty array", path)
+			return nil, fmt.Errorf("%s.enum: must be a non-empty array listing the allowed values. Example:\nenum: [\"pass\", \"fail\"]", path)
 		}
 		for i, enumItem := range enumList {
 			switch enumItem.(type) {
 			case string, float64, bool, int, int64:
 			default:
-				return nil, fmt.Errorf("%s.enum[%d]: must be a scalar value", path, i)
+				return nil, fmt.Errorf("%s.enum[%d]: must be a scalar value (string, number, or boolean). Example:\nenum: [\"pass\", \"fail\"]", path, i)
 			}
 		}
 		result["enum"] = enumList
@@ -205,7 +205,7 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool) (map[stri
 		}
 		propertiesMap, ok := propertiesVal.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("%s.properties: must be an object", path)
+			return nil, fmt.Errorf("%s.properties: must be an object mapping property names to schemas. Example:\nproperties:\n  verdict:\n    type: string", path)
 		}
 		normalizedProperties := make(map[string]any, len(propertiesMap))
 		for key, propertySchema := range propertiesMap {
@@ -220,12 +220,12 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool) (map[stri
 		if requiredVal, exists := node["required"]; exists {
 			requiredItems, ok := requiredVal.([]any)
 			if !ok {
-				return nil, fmt.Errorf("%s.required: must be an array of strings", path)
+				return nil, fmt.Errorf("%s.required: must be an array of strings naming declared properties. Example:\nrequired: [\"verdict\"]", path)
 			}
 			for i, requiredItem := range requiredItems {
 				requiredName, ok := requiredItem.(string)
 				if !ok || strings.TrimSpace(requiredName) == "" {
-					return nil, fmt.Errorf("%s.required[%d]: must be a non-empty string", path, i)
+					return nil, fmt.Errorf("%s.required[%d]: must be a non-empty string naming a declared property. Example:\nrequired: [\"verdict\"]", path, i)
 				}
 				if _, exists := normalizedProperties[requiredName]; !exists {
 					return nil, fmt.Errorf("%s.required[%d]: unknown property %q", path, i, requiredName)
@@ -249,10 +249,10 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool) (map[stri
 		if additionalProps, exists := node["additionalProperties"]; exists {
 			additionalPropsBool, ok := additionalProps.(bool)
 			if !ok {
-				return nil, fmt.Errorf("%s.additionalProperties: must be boolean", path)
+				return nil, fmt.Errorf("%s.additionalProperties: must be boolean. Example:\nadditionalProperties: false", path)
 			}
 			if additionalPropsBool {
-				return nil, fmt.Errorf("%s.additionalProperties: must be false for OpenAI Codex structured outputs compatibility", path)
+				return nil, fmt.Errorf("%s.additionalProperties: must be false for OpenAI Codex structured outputs compatibility. Example:\nadditionalProperties: false", path)
 			}
 			result["additionalProperties"] = false
 		} else {
