@@ -25,6 +25,9 @@ import {
   computeIncrementalDiffSize,
   getPatchDiffSizeBytes,
   getStagedPatchDiffSizeBytes,
+  isAncestorCommit,
+  isPartialClone,
+  describeGitFailure,
 } from "./git_patch_utils.cjs";
 
 // computeIncrementalDiffSize delegates to execGitSync from git_helpers.cjs,
@@ -376,5 +379,121 @@ describe("getStagedPatchDiffSizeBytes", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].args).toEqual(["diff", "--cached"]);
     expect(calls[0].opts.cwd).toBe("/memory/dir");
+  });
+});
+
+describe("isAncestorCommit", () => {
+  /** @type {string} */
+  let repoDir;
+
+  beforeEach(() => {
+    repoDir = createTestRepo();
+  });
+
+  afterEach(() => {
+    cleanupRepo(repoDir);
+  });
+
+  it("returns true when ancestor commit is an ancestor of descendant", () => {
+    const rootSha = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+    fs.writeFileSync(path.join(repoDir, "file.txt"), "content\n");
+    execGit(["add", "."], { cwd: repoDir });
+    execGit(["commit", "-q", "-m", "Second commit"], { cwd: repoDir });
+    const tipSha = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+
+    expect(isAncestorCommit(rootSha, tipSha, repoDir)).toBe(true);
+  });
+
+  it("returns true when ancestor and descendant are identical", () => {
+    const sha = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+    expect(isAncestorCommit(sha, sha, repoDir)).toBe(true);
+  });
+
+  it("returns false when ancestor commit is not an ancestor of descendant", () => {
+    const rootSha = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+    fs.writeFileSync(path.join(repoDir, "file.txt"), "content\n");
+    execGit(["add", "."], { cwd: repoDir });
+    execGit(["commit", "-q", "-m", "Second commit"], { cwd: repoDir });
+    const tipSha = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+
+    expect(isAncestorCommit(tipSha, rootSha, repoDir)).toBe(false);
+  });
+
+  it("returns false for an unknown revision instead of throwing", () => {
+    const rootSha = execGit(["rev-parse", "HEAD"], { cwd: repoDir }).stdout.trim();
+    expect(isAncestorCommit("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", rootSha, repoDir)).toBe(false);
+  });
+});
+
+describe("isPartialClone", () => {
+  /** @type {string} */
+  let repoDir;
+
+  beforeEach(() => {
+    repoDir = createTestRepo();
+  });
+
+  afterEach(() => {
+    cleanupRepo(repoDir);
+  });
+
+  it("returns false when remote.origin.promisor is not set", () => {
+    expect(isPartialClone(repoDir)).toBe(false);
+  });
+
+  it("returns true when remote.origin.promisor is set to true", () => {
+    execGit(["config", "remote.origin.promisor", "true"], { cwd: repoDir });
+    expect(isPartialClone(repoDir)).toBe(true);
+  });
+
+  it("returns false when remote.origin.promisor is set to false", () => {
+    execGit(["config", "remote.origin.promisor", "false"], { cwd: repoDir });
+    expect(isPartialClone(repoDir)).toBe(false);
+  });
+});
+
+describe("describeGitFailure", () => {
+  /** @type {string} */
+  let repoDir;
+
+  beforeEach(() => {
+    repoDir = createTestRepo();
+  });
+
+  afterEach(() => {
+    cleanupRepo(repoDir);
+  });
+
+  it("leaves the message unchanged when the repo is not a partial clone", () => {
+    const message = "fatal: remote error: Invalid username or token.";
+    expect(describeGitFailure(message, repoDir)).toBe(message);
+  });
+
+  it("leaves the message unchanged when it does not look like an auth/promisor failure", () => {
+    execGit(["config", "remote.origin.promisor", "true"], { cwd: repoDir });
+    const message = "fatal: bad object HEAD";
+    expect(describeGitFailure(message, repoDir)).toBe(message);
+  });
+
+  it("appends the partial-clone diagnostic when the repo is a partial clone and the message matches", () => {
+    execGit(["config", "remote.origin.promisor", "true"], { cwd: repoDir });
+    const message = "remote: Invalid username or token.";
+    const result = describeGitFailure(message, repoDir);
+    expect(result).toContain(message);
+    expect(result).toContain("partial clone");
+    expect(result).toContain("persist-credentials: false");
+  });
+
+  it("matches on 'promisor' in the message even without the exact auth wording", () => {
+    execGit(["config", "remote.origin.promisor", "true"], { cwd: repoDir });
+    const message = "error: promisor remote fetch failed";
+    const result = describeGitFailure(message, repoDir);
+    expect(result).toContain("partial clone");
+  });
+
+  it("does not append the diagnostic for unrelated network errors even on a partial clone", () => {
+    execGit(["config", "remote.origin.promisor", "true"], { cwd: repoDir });
+    const message = "fatal: unable to access 'https://example.com/': Could not resolve host";
+    expect(describeGitFailure(message, repoDir)).toBe(message);
   });
 });

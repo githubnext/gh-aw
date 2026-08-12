@@ -13,6 +13,8 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { ensureOriginRemoteTrackingRef, execGitSync } = require("./git_helpers.cjs");
+const { isAncestorCommit, describeGitFailure } = require("./git_patch_utils.cjs");
+const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 /**
@@ -209,7 +211,18 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
               );
             }
 
-            if (hasLocalDefaultBranch) {
+            // When the workflow runs from a ref that is not contained in the default
+            // branch (e.g. a workflow_dispatch on a feature branch), the merge-base with
+            // the default branch is far behind the checked-out commit: the bundle would
+            // then carry the dispatched branch's own commits instead of only the agent's,
+            // and on a partial clone it needs base-side objects that were never fetched.
+            // GITHUB_SHA is the commit the agent started from and is fully local.
+            const dispatchedSha = normalizeCommitSHA(githubSha);
+            const branchTipSha = execGitSync(["rev-parse", branchName], { cwd }).trim();
+            if (hasLocalDefaultBranch && dispatchedSha && dispatchedSha !== branchTipSha && isAncestorCommit(dispatchedSha, branchName, cwd) && !isAncestorCommit(dispatchedSha, `origin/${defaultBranch}`, cwd)) {
+              baseRef = dispatchedSha;
+              debugLog(`Strategy 1 (full): GITHUB_SHA ${dispatchedSha} is not contained in origin/${defaultBranch} (non-default-branch run); using it as the bundle base instead of the merge-base`);
+            } else if (hasLocalDefaultBranch) {
               baseRef = execGitSync(["merge-base", "--", `origin/${defaultBranch}`, branchName], { cwd }).trim();
               debugLog(`Strategy 1 (full): Computed merge-base: ${baseRef}`);
             } else {
@@ -300,9 +313,30 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
           };
         }
       } catch (branchError) {
-        // Branch does not exist locally
-        debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${getErrorMessage(branchError)}`);
+        // Strategy 1 failed. Determine branch existence from local refs only so a
+        // network/auth failure (e.g. a lazy blob fetch on a partial clone) is never
+        // reported as a missing local branch.
+        let branchExistsLocally = false;
+        try {
+          execGitSync(["rev-parse", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd, suppressLogs: true });
+          branchExistsLocally = true;
+        } catch {
+          // Branch really is absent from the local refs
+        }
+        const branchErrorMessage = describeGitFailure(getErrorMessage(branchError), cwd);
+        if (branchExistsLocally) {
+          debugLog(`Strategy 1: Failed to generate bundle for branch '${branchName}' (branch exists locally) - ${branchErrorMessage}`);
+        } else {
+          debugLog(`Strategy 1: Branch '${branchName}' does not exist locally - ${branchErrorMessage}`);
+        }
         if (mode === "incremental") {
+          if (branchExistsLocally) {
+            return {
+              success: false,
+              error: `Cannot generate incremental bundle for branch ${branchName} in checkout '${cwd}': ${branchErrorMessage}`,
+              bundlePath,
+            };
+          }
           return {
             success: false,
             error:
