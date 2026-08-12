@@ -207,7 +207,7 @@ type repositoryPackageManifest struct {
 func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repositoryPackageManifest, []string, error) {
 	var raw any
 	if err := yaml.Unmarshal(content, &raw); err != nil {
-		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: %s. Ensure the manifest is valid YAML", manifestPath, parser.FormatYAMLError(err, 1, string(content)))
+		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: %s. Ensure the manifest is valid YAML. Example:\nname: My Package", manifestPath, parser.FormatYAMLError(err, 1, string(content)))
 	}
 
 	root, ok := raw.(map[string]any)
@@ -244,11 +244,11 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		}
 		currentVersion := GetVersion()
 		if !semverutil.IsValid(currentVersion) {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version. This indicates a build issue; rebuild gh-aw with a proper version tag", manifestPath, currentVersion)
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version. This indicates a build issue; rebuild gh-aw with a proper version tag. Example: v1.2.3", manifestPath, currentVersion)
 		}
 		currentVersion = semverutil.NormalizeGitDescribeSemver(currentVersion)
 		if semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s). Upgrade gh-aw or lower min-version in aw.yml", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion)
+			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s). Upgrade gh-aw, or lower min-version in aw.yml to a version at or below the current one. Example:\nmin-version: %s", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion, currentVersion)
 		}
 	}
 
@@ -719,7 +719,7 @@ func resolveRepositoryPackageDocsPath(ctx context.Context, owner, repo, packageP
 	if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, readmePath, ref, host); err == nil {
 		return readmePath, nil
 	} else if isRepositoryFileNotFound(err) {
-		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q. Add a README.md describing the package", packageID, readmePath)
+		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q. Add a README.md describing the package. Example:\n# My Package\n\nDescribe what this package does.", packageID, readmePath)
 	} else {
 		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s (check the repository, ref, and network connectivity): %w", readmePath, owner, repo, ref, err)
 	}
@@ -771,7 +771,7 @@ func validateManifestInstallableWorkflowPrivacy(manifestPath string, installatio
 
 		privateValue, hasPrivate := ExtractWorkflowPrivateSetting(string(content))
 		if hasPrivate && privateValue {
-			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added. Remove 'private: true' from the workflow frontmatter or exclude it from the manifest", manifestPath, installationSource)
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: workflow %q sets private: true and cannot be included because private workflows cannot be added. Remove 'private: true' from the workflow frontmatter or exclude it from the manifest. Example:\n---\nprivate: false\n---", manifestPath, installationSource)
 		}
 	}
 
@@ -829,7 +829,7 @@ func parseRepositoryPackageSpec(spec string) (*RepoSpec, bool, error) {
 		if cleanedPath == "." {
 			packagePath = ""
 		} else if cleanedPath == ".." || strings.HasPrefix(cleanedPath, "../") {
-			return nil, true, fmt.Errorf("invalid repository package path %q: path traversal outside the repository is not allowed. Use a path relative to the repository root, e.g. 'packages/my-package'", packagePath)
+			return nil, true, fmt.Errorf("invalid repository package path %q: path traversal outside the repository is not allowed. Use a path relative to the repository root. Example: packages/my-package", packagePath)
 		} else {
 			packagePath = cleanedPath
 		}
@@ -883,7 +883,7 @@ func validateUniqueManifestWorkflowFilenames(paths []string, manifestPath string
 			continue
 		}
 		if previous, exists := seen[key]; exists {
-			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q. Filenames must be unique across a package; rename one of the workflow files", manifestPath, filenameWithoutExt, previous, installPath)
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: duplicate workflow filename %q in files entries %q and %q. Filenames must be unique across a package; rename one of the workflow files. Example:\nfiles:\n  - workflows/%s.md\n  - workflows/%s-2.md", manifestPath, filenameWithoutExt, previous, installPath, filenameWithoutExt, filenameWithoutExt)
 		}
 		seen[key] = installPath
 	}

@@ -186,7 +186,7 @@ func validateEvals(cfg *EvalsConfig) error {
 	seen := make(map[string]struct{}, len(cfg.Questions))
 	for i, q := range cfg.Questions {
 		if _, dup := seen[q.ID]; dup {
-			return fmt.Errorf("evals has a duplicate id %q at index %d. Use a unique 'id' for each question", q.ID, i)
+			return fmt.Errorf("evals has a duplicate id %q at index %d. Use a unique 'id' for each question. Example:\nevals:\n  - id: readme\n    question: Does the README explain setup?\n  - id: security\n    question: Are secrets handled safely?", q.ID, i)
 		}
 		seen[q.ID] = struct{}{}
 

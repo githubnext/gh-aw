@@ -685,8 +685,8 @@ func validatePreActivationJobConfig(jobs map[string]any, jobName string) (map[st
 	for field := range configMap {
 		if field == "setup-steps" {
 			return nil, fmt.Errorf(
-				"jobs.%s.setup-steps is not supported. setup-steps are refused for activation/pre-activation jobs because they can short-circuit protections. Use 'steps', 'outputs', or 'pre-steps' instead",
-				jobName,
+				"jobs.%s.setup-steps is not allowed for activation/pre-activation jobs because it can short-circuit protections. Use 'steps', 'outputs', or 'pre-steps' instead. Example:\njobs:\n  %s:\n    steps:\n      - run: echo hello",
+				jobName, jobName,
 			)
 		}
 		if !setutil.Contains(allowedFields, field) {

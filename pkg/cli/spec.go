@@ -185,7 +185,7 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	}
 
 	if parsedURL.Host == "" {
-		return nil, fmt.Errorf("URL %q is missing a host. Use a full URL like https://github.com/owner/repo/blob/main/workflows/workflow.md", spec)
+		return nil, fmt.Errorf("URL %q is missing a host. Use a full URL. Example: https://github.com/owner/repo/blob/main/workflows/workflow.md", spec)
 	}
 
 	if !isGitHubHost(parsedURL.Host) {
