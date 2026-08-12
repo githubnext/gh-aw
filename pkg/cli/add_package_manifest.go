@@ -719,7 +719,7 @@ func resolveRepositoryPackageDocsPath(ctx context.Context, owner, repo, packageP
 	if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, readmePath, ref, host); err == nil {
 		return readmePath, nil
 	} else if isRepositoryFileNotFound(err) {
-		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q. Add a README.md describing the package. Example:\n# My Package\n\nDescribe what this package does.", packageID, readmePath)
+		return "", fmt.Errorf("repository %q is not a valid Agentic Workflow package: missing required README.md at %q. Add a README.md describing the package. Example:\n# My Package\n\nDescribe what this package does", packageID, readmePath)
 	} else {
 		return "", fmt.Errorf("failed to read package README %q from %s/%s@%s (check the repository, ref, and network connectivity): %w", readmePath, owner, repo, ref, err)
 	}

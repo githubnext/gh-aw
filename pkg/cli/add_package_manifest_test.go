@@ -637,8 +637,7 @@ files:
 		}
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
-		require.Error(t, err)
-		require.ErrorContains(t, err, `missing required README.md`)
+		require.EqualError(t, err, "repository \"owner/repo\" is not a valid Agentic Workflow package: missing required README.md at \"README.md\". Add a README.md describing the package. Example:\n# My Package\n\nDescribe what this package does")
 	})
 
 	t.Run("reports nested package path when README is missing", func(t *testing.T) {

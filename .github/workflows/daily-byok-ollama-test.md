@@ -128,6 +128,42 @@ steps:
 
       echo "::error::Ollama /v1/models did not become ready in ${MAX_WAIT_SECONDS}s."
       exit 1
+  - name: Test Ollama chat completions outside AWF
+    env:
+      OLLAMA_MODEL: "qwen2.5:0.5b"
+    run: |
+      RESPONSE_FILE=/tmp/gh-aw/ollama-chat-response.json
+      # runner-guard:ignore RGS-012 -- loopback-only inference request to the local Ollama service.
+      if ! HTTP_STATUS="$(curl -sS -o "$RESPONSE_FILE" -w '%{http_code}' --max-time 120 \
+        -H 'Content-Type: application/json' \
+        http://localhost:11434/v1/chat/completions \
+        -d "{\"model\":\"${OLLAMA_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with one word confirming that inference works.\"}],\"stream\":false}")"; then
+        echo "::error::Direct Ollama chat completion request failed."
+        exit 1
+      fi
+      if [ "$HTTP_STATUS" != "200" ]; then
+        echo "::error::Direct Ollama chat completion returned HTTP ${HTTP_STATUS}."
+        echo "Response body: $(head -c 2000 "$RESPONSE_FILE" 2>/dev/null)"
+        exit 1
+      fi
+      if ! jq -e '.choices[0].message.content | strings | length > 0' "$RESPONSE_FILE" > /dev/null; then
+        echo "::error::Direct Ollama chat completion returned an invalid response."
+        echo "Response body: $(head -c 2000 "$RESPONSE_FILE" 2>/dev/null)"
+        exit 1
+      fi
+      echo "Direct Ollama chat completion succeeded outside AWF"
+post-steps:
+  - name: Capture Ollama diagnostics
+    if: always()
+    env:
+      OLLAMA_LOG: "/tmp/gh-aw/ollama-serve.log"
+    run: |
+      echo "--- ollama ps ---"
+      ollama ps || true
+      echo "--- ollama processes ---"
+      pgrep -a ollama || echo "no ollama process is running"
+      echo "--- last 200 lines of ${OLLAMA_LOG} ---"
+      tail -n 200 "$OLLAMA_LOG" 2>/dev/null || echo "no server log available"
 network:
   allowed:
     - defaults
