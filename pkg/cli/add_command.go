@@ -105,7 +105,7 @@ func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 		Example: addCommandExample,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-repo-status      Add from repository\n  %[1]s ./my-workflow.md                           Add local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
+				return fmt.Errorf("missing workflow specification. Expected at least one workflow source argument. Example: %[1]s githubnext/agentics/daily-repo-status\n\nUsage:\n  %[1]s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-repo-status      Add from repository\n  %[1]s ./my-workflow.md                           Add local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
 			}
 			return nil
 		},
@@ -133,7 +133,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
 
 	if nameFlag != "" && len(args) > 1 {
-		return errors.New("--name flag cannot be used when adding multiple workflows at once")
+		return errors.New("--name was set while multiple workflows were provided. Expected --name only with a single workflow source. Example: gh aw add githubnext/agentics/daily-repo-status --name daily-repo-status")
 	}
 	if err := validateEngine(engineOverride); err != nil {
 		return err
@@ -178,7 +178,7 @@ func rejectBootstrapProfileForRegularAdd(sources []string, profile *resolvedBoot
 		requestedSources = profile.PackageID
 	}
 
-	return fmt.Errorf("package %s declares aw.yml config and cannot be installed with 'gh aw add'. Use 'gh aw add-wizard %s' so the config steps can run interactively", profile.PackageID, requestedSources)
+	return fmt.Errorf("package %s declares aw.yml config, so 'gh aw add' cannot run its interactive setup. Expected interactive setup via add-wizard for packages with aw.yml config. Example: gh aw add-wizard %s", profile.PackageID, requestedSources)
 }
 
 func registerAddCommandFlags(cmd *cobra.Command) {
@@ -255,7 +255,7 @@ func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolve
 	if opts.CreatePR {
 		// Check if GitHub CLI is available
 		if !isGHCLIAvailable() {
-			return nil, errors.New("GitHub CLI (gh) is required for PR creation but not available")
+			return nil, errors.New("GitHub CLI (gh) is not available. Expected gh to be installed and on PATH before using --create-pull-request. Example: brew install gh")
 		}
 
 		// Check if we're in a git repository
@@ -524,7 +524,7 @@ func resolveWorkflowTargetDir(opts AddOptions) (gitRoot, githubWorkflowsDir stri
 	}
 	if opts.WorkflowDir != "" {
 		if filepath.IsAbs(opts.WorkflowDir) {
-			return "", "", fmt.Errorf("workflow directory must be a relative path, got: %s", opts.WorkflowDir)
+			return "", "", fmt.Errorf("workflow directory is absolute: %s. Expected a relative path from the repository root. Example: --dir .github/workflows", opts.WorkflowDir)
 		}
 		githubWorkflowsDir = filepath.Join(gitRoot, filepath.Clean(opts.WorkflowDir))
 	} else {
@@ -873,7 +873,7 @@ func resolveSkillRelativePath(resolved *ResolvedWorkflow) (string, error) {
 	}
 	relPath := filepath.Clean(filepath.Join(relParts...))
 	if relPath == "." || relPath == "" || relPath == string(os.PathSeparator) {
-		return "", fmt.Errorf("invalid relative skill path %q from source path %q", relPath, resolved.Spec.WorkflowPath)
+		return "", fmt.Errorf("relative skill path %q from source path %q is empty. Expected a file path under the skill directory. Example: scripts/query.sh", relPath, resolved.Spec.WorkflowPath)
 	}
 	return relPath, nil
 }
@@ -998,7 +998,7 @@ func addCopilotRequestsPermissionToContent(content string) (string, error) {
 		return updated, modified
 	})
 	if injectionFailed {
-		return content, errors.New("cannot inject permissions.copilot-requests: write: 'permissions' is a non-mapping scalar value; update it manually")
+		return content, errors.New("permissions.copilot-requests could not be injected because 'permissions' is a non-mapping scalar value. Expected 'permissions' to be a mapping object. Example:\npermissions:\n  contents: read\n  copilot-requests: write")
 	}
 	if err != nil {
 		return content, err
