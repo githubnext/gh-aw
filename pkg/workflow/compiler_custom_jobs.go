@@ -50,7 +50,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 		}
 
 		if err := c.jobManager.AddJob(job); err != nil {
-			return fmt.Errorf("failed to add custom job '%s': %w", jobName, err)
+			return fmt.Errorf("custom job '%s' could not be added: %w. Check the job configuration for conflicting names or unsupported fields", jobName, err)
 		}
 		compilerJobsLog.Printf("Successfully added custom job '%s' with %d needs dependencies", jobName, len(job.Needs))
 	}
@@ -204,7 +204,7 @@ func (c *Compiler) extractCustomJobCoreProperties(job *Job, jobName string, conf
 		if strategyMap, ok := strategy.(map[string]any); ok {
 			formattedStrategy, err := formatIndentedYAMLField("strategy", strategyMap, false)
 			if err != nil {
-				return fmt.Errorf("failed to convert strategy to YAML for job '%s': %w", jobName, err)
+				return fmt.Errorf("strategy field for job '%s' could not be converted to YAML: %w. Check that strategy is a valid object, for example: strategy:\n  matrix:\n    os: [ubuntu-latest]", jobName, err)
 			}
 			job.Strategy = formattedStrategy
 		}
@@ -255,7 +255,7 @@ func (c *Compiler) extractCustomJobRunsOn(job *Job, jobName string, configMap ma
 	// Array or object form: marshal the value and build indented YAML snippet
 	formattedRunsOn, err := formatIndentedYAMLField("runs-on", runsOn, true)
 	if err != nil {
-		return fmt.Errorf("failed to convert runs-on to YAML for job '%s': %w", jobName, err)
+		return fmt.Errorf("runs-on field for job '%s' could not be converted to YAML: %w. Check that runs-on is a valid string, array, or object, for example: runs-on: ubuntu-latest", jobName, err)
 	}
 	job.RunsOn = formattedRunsOn
 	return nil
@@ -312,7 +312,7 @@ func extractCustomJobConcurrency(job *Job, jobName string, configMap map[string]
 
 		formattedConcurrency, err := formatIndentedYAMLField("concurrency", v, false)
 		if err != nil {
-			return fmt.Errorf("failed to convert concurrency to YAML for job '%s': %w", jobName, err)
+			return fmt.Errorf("concurrency field for job '%s' could not be converted to YAML: %w. Check that concurrency is a valid object, for example: concurrency:\n  group: my-group", jobName, err)
 		}
 		job.Concurrency = formattedConcurrency
 	}
@@ -354,7 +354,7 @@ func extractCustomJobContainer(job *Job, jobName string, configMap map[string]an
 	case map[string]any:
 		formattedContainer, err := formatIndentedYAMLField("container", v, false)
 		if err != nil {
-			return fmt.Errorf("failed to convert container to YAML for job '%s': %w", jobName, err)
+			return fmt.Errorf("container field for job '%s' could not be converted to YAML: %w. Check that container is a valid object, for example: container:\n  image: node:20", jobName, err)
 		}
 		job.Container = formattedContainer
 	}
@@ -374,7 +374,7 @@ func extractCustomJobServices(job *Job, jobName string, configMap map[string]any
 
 	formattedServices, err := formatIndentedYAMLField("services", servicesMap, false)
 	if err != nil {
-		return fmt.Errorf("failed to convert services to YAML for job '%s': %w", jobName, err)
+		return fmt.Errorf("services field for job '%s' could not be converted to YAML: %w. Check that services is a valid object, for example: services:\n  redis:\n    image: redis", jobName, err)
 	}
 	job.Services = formattedServices
 	return nil
@@ -402,7 +402,7 @@ func extractCustomJobEnvironment(job *Job, jobName string, configMap map[string]
 	case map[string]any:
 		formattedEnvironment, err := formatIndentedYAMLField("environment", v, true)
 		if err != nil {
-			return fmt.Errorf("failed to convert environment to YAML for job '%s': %w", jobName, err)
+			return fmt.Errorf("environment field for job '%s' could not be converted to YAML: %w. Check that environment is a valid object, for example: environment:\n  name: production", jobName, err)
 		}
 		job.Environment = formattedEnvironment
 	}
@@ -507,21 +507,21 @@ func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap m
 		var err error
 		setupSteps, err = c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
 		if err != nil {
-			return fmt.Errorf("failed to process setup-steps for job '%s': %w", jobName, err)
+			return fmt.Errorf("setup-steps for job '%s' could not be processed: %w. Check that setup-steps is an array of valid step objects", jobName, err)
 		}
 	}
 	if hasPreStepsField {
 		var err error
 		preSteps, err = c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
 		if err != nil {
-			return fmt.Errorf("failed to process pre-steps for job '%s': %w", jobName, err)
+			return fmt.Errorf("pre-steps for job '%s' could not be processed: %w. Check that pre-steps is an array of valid step objects", jobName, err)
 		}
 	}
 	if hasStepsField {
 		var err error
 		regularSteps, err = c.extractPinnedJobSteps("steps", jobName, configMap, data)
 		if err != nil {
-			return fmt.Errorf("failed to process steps for job '%s': %w", jobName, err)
+			return fmt.Errorf("steps for job '%s' could not be processed: %w. Check that steps is an array of valid step objects", jobName, err)
 		}
 	}
 
@@ -636,21 +636,21 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		if hasSetupSteps {
 			steps, err := c.extractPinnedJobSteps("setup-steps", jobName, configMap, data)
 			if err != nil {
-				return fmt.Errorf("failed to process setup-steps for built-in job '%s': %w", jobName, err)
+				return fmt.Errorf("setup-steps for built-in job '%s' could not be processed: %w. Check that setup-steps is an array of valid step objects", jobName, err)
 			}
 			setupSteps = append(setupSteps, steps...)
 		}
 		if hasPreSteps {
 			steps, err := c.extractPinnedJobSteps("pre-steps", jobName, configMap, data)
 			if err != nil {
-				return fmt.Errorf("failed to process pre-steps for built-in job '%s': %w", jobName, err)
+				return fmt.Errorf("pre-steps for built-in job '%s' could not be processed: %w. Check that pre-steps is an array of valid step objects", jobName, err)
 			}
 			preSteps = append(preSteps, steps...)
 		}
 		if hasSteps && targetJobName == string(constants.ActivationJobName) {
 			steps, err := c.extractPinnedJobSteps("steps", jobName, configMap, data)
 			if err != nil {
-				return fmt.Errorf("failed to process steps for built-in job '%s': %w", jobName, err)
+				return fmt.Errorf("steps for built-in job '%s' could not be processed: %w. Check that steps is an array of valid step objects", jobName, err)
 			}
 			regularSteps = append(regularSteps, steps...)
 		}
@@ -722,7 +722,7 @@ func extractBuiltinJobNeedsAugmentation(jobName string, configMap map[string]any
 		}
 		return needs, nil
 	default:
-		return nil, fmt.Errorf("jobs.%s.needs must be a string or array of strings, got %T", jobName, needsValue)
+		return nil, fmt.Errorf("jobs.%s.needs expects a string or array of strings, got %T. Example: needs: [build, test]", jobName, needsValue)
 	}
 }
 
@@ -734,7 +734,7 @@ func extractBuiltinJobIfAugmentation(jobName string, configMap map[string]any) (
 
 	ifCondition, ok := ifValue.(string)
 	if !ok {
-		return "", fmt.Errorf("jobs.%s.if must be a string, got %T", jobName, ifValue)
+		return "", fmt.Errorf("jobs.%s.if expects a string, got %T. Example: if: github.event_name == 'push'", jobName, ifValue)
 	}
 
 	// Strip "if: " prefix to match the Job.If contract (bare expression, no prefix).
@@ -764,7 +764,7 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 
 		configMap, ok := rawConfig.(map[string]any)
 		if !ok {
-			return fmt.Errorf("jobs.%s must be an object, got %T", configuredJobName, rawConfig)
+			return fmt.Errorf("jobs.%s expects an object, got %T. Example: jobs:\n  %s:\n    runs-on: ubuntu-latest", configuredJobName, rawConfig, configuredJobName)
 		}
 
 		augmentedNeeds, err := extractBuiltinJobNeedsAugmentation(configuredJobName, configMap)
@@ -793,7 +793,7 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 			} else if augmentedIf != "" || hasPermissions {
 				augmentedField = configuredJobName
 			}
-			return fmt.Errorf("jobs.%s: cannot augment %q because this workflow does not generate that job", augmentedField, targetJobName)
+			return fmt.Errorf("jobs.%s requires an existing built-in job %q, but this workflow does not generate it. Add the corresponding trigger/feature, or rename the job", augmentedField, targetJobName)
 		}
 
 		if hasPermissions {
@@ -806,10 +806,10 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 		for _, rawNeed := range augmentedNeeds {
 			need := normalizeBuiltinJobAlias(rawNeed)
 			if need == targetJobName {
-				return fmt.Errorf("jobs.%s.needs: %q cannot depend on itself", configuredJobName, rawNeed)
+				return fmt.Errorf("jobs.%s.needs lists %q, but a job should not depend on itself. Remove the self-reference from needs", configuredJobName, rawNeed)
 			}
 			if _, known := allJobs[need]; !known {
-				return fmt.Errorf("jobs.%s.needs: unknown job %q", configuredJobName, rawNeed)
+				return fmt.Errorf("jobs.%s.needs: unknown job %q. Expected a job defined in this workflow or a generated built-in job. Example:\njobs:\n  %s:\n    needs: [activation]", configuredJobName, rawNeed, configuredJobName)
 			}
 			normalizedNeeds = append(normalizedNeeds, need)
 		}
@@ -1073,24 +1073,24 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 
 	stepsList, ok := raw.([]any)
 	if !ok {
-		return nil, fmt.Errorf("%s for job '%s' must be an array of step objects", fieldName, jobName)
+		return nil, fmt.Errorf("%s for job '%s' expects an array of step objects. Example: %s:\n  - run: echo hello", fieldName, jobName, fieldName)
 	}
 
 	pinnedSteps := make([]string, 0, len(stepsList))
 	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("%s for job '%s' contains invalid step at index %d: expected object", fieldName, jobName, i)
+			return nil, fmt.Errorf("%s for job '%s' has a step at index %d that is not an object. Expected each entry to be a step mapping. Example: %s:\n  - run: echo hello", fieldName, jobName, i, fieldName)
 		}
 
 		typedStep, err := MapToStep(stepMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert %s to typed step for job '%s': %w", fieldName, jobName, err)
+			return nil, fmt.Errorf("%s entry for job '%s' could not be converted to a step: %w. Check that each step has valid fields such as run, uses, or with", fieldName, jobName, err)
 		}
 
 		pinnedStep, err := applyActionPinToTypedStep(typedStep, data)
 		if err != nil {
-			return nil, fmt.Errorf("failed to pin action for %s in job '%s': %w", fieldName, jobName, err)
+			return nil, fmt.Errorf("action in %s for job '%s' could not be pinned: %w. Check that the 'uses' field references a valid action and version", fieldName, jobName, err)
 		}
 		finalStepMap := pinnedStep.ToMap()
 		ensureCheckoutPersistCredentials(finalStepMap)
@@ -1100,7 +1100,7 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 		}
 		stepYAML, err := ConvertStepToYAML(sanitizedMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert %s to YAML for job '%s': %w", fieldName, jobName, err)
+			return nil, fmt.Errorf("%s for job '%s' could not be converted to YAML: %w. Check that each step is a valid object", fieldName, jobName, err)
 		}
 		pinnedSteps = append(pinnedSteps, stepYAML)
 	}
