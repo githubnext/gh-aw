@@ -206,8 +206,8 @@ Test workflow with permissions but checkout should be conditional.
 				t.Errorf("Expected PR checkout step: %v, got: %v", tt.expectPRCheckout, hasPRCheckout)
 			}
 
-			// Check for PR context prompt using cat command
-			hasPRPrompt := strings.Contains(lockStr, "cat \"${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md\"")
+			// Check for PR context prompt in the renderer configuration
+			hasPRPrompt := strings.Contains(lockStr, `\"file\":\"pr_context_prompt.md\"`)
 			if hasPRPrompt != tt.expectPRPrompt {
 				t.Errorf("Expected PR context prompt: %v, got: %v", tt.expectPRPrompt, hasPRPrompt)
 			}
@@ -226,9 +226,9 @@ Test workflow with permissions but checkout should be conditional.
 				}
 			}
 
-			// If PR prompt is expected, verify the cat command references the correct file
+			// If PR prompt is expected, verify the renderer references the correct file
 			if tt.expectPRPrompt {
-				if !strings.Contains(lockStr, "cat \"${RUNNER_TEMP}/gh-aw/prompts/pr_context_prompt.md\"") {
+				if !strings.Contains(lockStr, `\"file\":\"pr_context_prompt.md\"`) {
 					t.Error("PR context prompt should reference pr_context_prompt.md file")
 				}
 			}
