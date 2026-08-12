@@ -865,6 +865,13 @@ Level 1 and Level 2 compatibility validation MUST cover the following behaviors:
 
 The repository enforcement entry point for these checks is `make validate-otel-contract`. This target MUST remain focused on the customer-facing compatibility contract rather than all possible OTEL-related tests.
 
+### Safeguards
+
+Stubbed or otherwise unimplemented test IDs MUST NOT be counted toward a Level
+1 conformance claim. A Level 1 claim is valid only for test IDs that are wired
+into automated validation and assert the exported semantic payload, not merely
+listed in this specification.
+
 ### 17.1.1 Test ID Stubs: Level 1 Compliance
 
 The following test IDs are stubs for Level 1 (Stable Configuration and Export) compliance tests. Implementations MUST provide tests that correspond to each stub before claiming Level 1 conformance.

@@ -128,6 +128,13 @@ label-to-intent selectors derived from `.github/objective-mapping.json` — duri
 or CI. Keys present in one source but not the other SHOULD surface as a sync warning or
 compliance failure so attribution and authorization stay aligned.
 
+Migration tracking SHOULD record whether each repository is in one of three
+states: `objective-mapping-only`, `dual-read`, or `intent-policy-primary`.
+Repositories in `dual-read` MUST keep label dimensions and policy rule matchers
+in sync until `.github/intent-policy.json` becomes primary and the legacy
+`.github/objective-mapping.json` path is retained only for explicit
+backward-compatibility reads.
+
 **Escalation norm**: A sync warning that persists across **3 or more consecutive CI runs**
 without a corresponding corrective PR or explicit waiver **MUST** be escalated to a compliance
 failure. When a sync warning escalates, the CI check responsible for drift detection **MUST**
@@ -937,23 +944,30 @@ The agent must not be able to modify or expand its own policy.
 
 ### `Authorizer.AuthorizeTool` Implementation Audit
 
-The `AuthorizeTool` function as specified in this section is **not yet implemented** in the Go orchestrator. The following table documents which fields of `ExecutionPolicy` are wired to runtime enforcement and which remain unused.
+The `AuthorizeTool` function is implemented in `pkg/intent/authz` and wired to
+the Go MCP orchestrator behind `GH_AW_INTENT_POLICY_ENFORCEMENT=true`. The
+following table documents which fields of `ExecutionPolicy` are enforced by
+that feature-flagged path.
 
 | `ExecutionPolicy` field | Wired to enforcement? | Notes |
 |---|---|---|
-| `AllowedTools` | **Not wired** | The `pkg/intent` package implements `PolicyCompiler.Compile()` and `mergePolicy()` for this field, but no orchestrator calls `AuthorizeTool` at tool-call time. |
-| `DeniedTools` | **Not wired** | Same as `AllowedTools` — present in the spec and policy model, not enforced at runtime. |
-| `Autonomy` | **Not wired** | The autonomy level is compiled into the policy but not checked against actual workflow capabilities at execution time. |
-| `WriteScope` | **Not wired** | Defined in the policy model; no runtime enforcement in the Go orchestrator. |
-| `HumanApprovalRequired` | **Not wired** | Defined in policy model; human approval gates are not currently tied to `ExecutionPolicy`. |
-| `AutoMergeAllowed` | **Not wired** | Not enforced by the orchestrator. |
-| `RequiredChecks` | **Not wired** | Not checked before workflow execution. |
-| `MaxAttempts` | **Not wired** | Not enforced at the orchestrator level. |
+| `AllowedTools` | **Feature-flagged MCP path** | `pkg/intent/authz.Authorizer.AuthorizeTool` rejects MCP tool calls not in the compiled allowed set. |
+| `DeniedTools` | **Feature-flagged MCP path** | `AuthorizeTool` rejects any MCP tool call named in the compiled denied set. |
+| `Autonomy` | **Feature-flagged MCP path** | `propose_only` rejects write-class MCP tools. |
+| `WriteScope` | **Feature-flagged MCP path** | `none` rejects write-class MCP tools; `feature_branch` rejects writes to the default branch when branch context is available. |
+| `HumanApprovalRequired` | **Feature-flagged MCP path** | Write-class MCP tools require the approval signal consumed by the orchestrator middleware. |
+| `AutoMergeAllowed` | **Feature-flagged MCP path** | Auto-merge-class tool calls are rejected when the compiled policy denies auto-merge. |
+| `RequiredChecks` | **Feature-flagged MCP path** | Tool calls require all compiled check names to appear in the orchestrator's passed-check signal. |
+| `MaxAttempts` | **Feature-flagged MCP path** | Tool calls are rejected when the current execution attempt exceeds the compiled maximum. |
 | `RuleIDs` | **Provenance only** | Recorded in the policy for auditing; not used to gate execution. |
 
-**Risk**: Policy constraints defined in `.github/intent-policy.json` (or the equivalent `rules` array) have no runtime effect until the orchestrator is wired to call `AuthorizeTool` and enforce `WriteScope`, `HumanApprovalRequired`, and `RequiredChecks`. Any policy compiled by `PolicyCompiler.Compile()` today is purely advisory.
+**Risk**: Policy constraints defined in `.github/intent-policy.json` have no
+runtime effect unless the feature-flagged MCP enforcement path is enabled and
+the orchestrator can resolve current intent, approval, attempt, and check
+signals.
 
-**Required follow-up**: Implement `Authorizer.AuthorizeTool` in `pkg/intent` or a new `pkg/intent/authz` sub-package and wire it into the execution path. Gate enforcement behind a feature flag until the policy model is validated in production.
+**Required follow-up**: Broaden policy-signal resolution beyond MCP tool calls
+as additional orchestrator entry points adopt runtime authorization.
 
 
 Initial observable rules:

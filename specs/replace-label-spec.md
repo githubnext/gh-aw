@@ -571,6 +571,18 @@ Fixture linkage check (2026-08-01):
 - [x] T-RL-024 covered by `specs/replace-label-compliance/rl-003-blocklist-ordering.yaml`
 - [x] T-RL-025 covered by `specs/replace-label-compliance/rl-002-allowlist-enforcement.yaml`
 
+### Sync Notes
+
+The bidirectional fixture and formal-test index for this section is maintained
+in [`specs/replace-label-compliance/README.md`](replace-label-compliance/README.md).
+Its Behavioral Coverage Map is the canonical cross-reference from predicate IDs
+to Go formal tests; this section remains the canonical cross-reference from
+T-RL test IDs to normative fixture files.
+
+Coverage parity check (2026-08-12): verified that the fixture linkage table
+above and the compliance README Behavioral Coverage Map point to each other and
+cover the replace-label fixture/test tables bidirectionally.
+
 #### 9.2.4 Gate Check Tests
 
 - **T-RL-030**: Verify that an item satisfying all `required-labels` proceeds to the mutation stage.

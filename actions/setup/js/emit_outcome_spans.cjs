@@ -14,7 +14,7 @@ require("./shim.cjs");
  * for per-workflow, per-type, and per-result drill-down.
  *
  * Span naming:
- *   - Per-item:  gh-aw.outcome.evaluation
+ *   - Per-item:  gh-aw.outcome.evaluate
  *   - Summary:   gh-aw.outcome.summary
  *
  * Errors are non-fatal: export failures must never break the workflow.
@@ -201,7 +201,7 @@ async function main() {
         traceId,
         spanId: generateSpanId(),
         parentSpanId: summarySpanId,
-        spanName: "gh-aw.outcome.evaluation",
+        spanName: "gh-aw.outcome.evaluate",
         startMs: evalEndMs - 1, // point-in-time span
         endMs: evalEndMs,
         attributes,

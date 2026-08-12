@@ -1057,8 +1057,8 @@ validate-registry:
 # raw OTLP JSONL mirrors, and shipped GenAI compatibility attributes.
 .PHONY: validate-otel-contract
 validate-otel-contract:
-	@echo "Validating gh-aw OpenTelemetry compatibility contract..."
-	@go test ./pkg/parser ./pkg/workflow -run 'TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLP(CustomAttributes|ResourceAttributes|GitHubAppImplicitOIDC)|TestInjectOTLPConfig|TestApplyTraceContextEnvToMap' -count=1
+	@echo "Validating gh-aw OpenTelemetry compatibility contract (T-OT-001 through T-OT-011)..."
+	@go test ./pkg/parser ./pkg/workflow -run 'TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OTLP(CustomAttributes|ResourceAttributes|GitHubAppImplicitOIDC)|TestInjectOTLPConfig|TestApplyTraceContextEnvToMap|TestFormal_OTelComplianceRuntimeContractSuiteIncludesLevel1IDs' -count=1
 	@cd actions/setup/js && npm run test:js -- otel_contract.test.cjs send_otlp_span.test.cjs --no-file-parallelism >/dev/null
 	@echo "✓ OpenTelemetry compatibility contract validated"
 

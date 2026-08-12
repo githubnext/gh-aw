@@ -1,6 +1,9 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -408,4 +411,39 @@ func TestFormal_MetricResourceCardinalityBound(t *testing.T) {
 func TestFormal_InstrumentationScopeNaming(t *testing.T) {
 	t.Skip("pending: no production instrumentationScopeResolver implementation in pkg/workflow; " +
 		"replace t.Skip with assertions against the real resolver once it lands")
+}
+
+func TestFormal_OTelComplianceRuntimeContractSuiteIncludesLevel1IDs(t *testing.T) {
+	root := findRepoRootForOTelTest(t)
+	contractTest, err := os.ReadFile(filepath.Join(root, "actions", "setup", "js", "otel_contract.test.cjs"))
+	require.NoError(t, err)
+	contract := string(contractTest)
+
+	for _, testID := range []string{"T-OT-008", "T-OT-009", "T-OT-010", "T-OT-011"} {
+		assert.Contains(t, contract, testID)
+	}
+	assert.Contains(t, contract, "gh-aw.outcome.evaluate")
+	assert.Contains(t, contract, "gh-aw.outcome.type")
+
+	makefile, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	require.NoError(t, err)
+	assert.True(t,
+		strings.Contains(string(makefile), "T-OT-001 through T-OT-011") &&
+			strings.Contains(string(makefile), "otel_contract.test.cjs"),
+		"validate-otel-contract must report and run the Level 1 OTEL contract test IDs",
+	)
+}
+
+func findRepoRootForOTelTest(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	require.NoError(t, err)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		require.NotEqual(t, dir, parent, "could not find repository root")
+		dir = parent
+	}
 }

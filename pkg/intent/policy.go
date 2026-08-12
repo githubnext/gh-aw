@@ -31,10 +31,9 @@ var writeScopeRank = map[string]int{
 
 // ExecutionPolicy governs what an agent may do for a given intent.
 //
-// WARNING: PolicyCompiler is advisory only. All fields except Autonomy are
-// compiled and recorded for audit but are NOT yet wired into runtime enforcement.
-// Do not rely on this policy to gate actual tool calls or merge operations until
-// Authorizer.AuthorizeTool is implemented and integrated into the execution path.
+// When GH_AW_INTENT_POLICY_ENFORCEMENT=true, the MCP orchestrator loads the
+// compiled policy and enforces tool, write, approval, check, auto-merge, and
+// attempt gates before tool execution.
 type ExecutionPolicy struct {
 	Autonomy string `json:"autonomy"`
 
@@ -90,9 +89,9 @@ type PolicyCondition struct {
 // PolicyCompiler holds policy rules for callers that still exchange policy compiler
 // configuration data.
 //
-// WARNING: the compiled policy is advisory only. Runtime enforcement is not yet
-// wired to the orchestrator — see the intent-attribution-agent-governance spec for
-// the required follow-up before treating compiled policies as a security gate.
+// Runtime enforcement is feature-flagged in the MCP orchestrator; callers that
+// need enforcement must enable GH_AW_INTENT_POLICY_ENFORCEMENT and provide an
+// intent policy file.
 type PolicyCompiler struct {
 	Rules []PolicyRule
 }

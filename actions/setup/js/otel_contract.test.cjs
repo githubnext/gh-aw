@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
 
 const { sendJobSetupSpan, sendJobConclusionSpan, OTEL_JSONL_PATH } = await import("./send_otlp_span.cjs");
+const { main: emitOutcomeSpans } = await import("./emit_outcome_spans.cjs");
 
 const MANAGED_ENV_VARS = [
   "GH_AW_OTLP_ENDPOINTS",
+  "OTEL_EXPORTER_OTLP_ENDPOINT",
   "INPUT_JOB_NAME",
   "INPUT_TRACE_ID",
   "INPUT_PARENT_SPAN_ID",
@@ -41,6 +43,10 @@ function firstSpan(payload) {
   return payload.resourceSpans[0].scopeSpans[0].spans[0];
 }
 
+function allSpans(payload) {
+  return payload.resourceSpans.flatMap(rs => rs.scopeSpans.flatMap(ss => ss.spans));
+}
+
 describe("gh-aw OpenTelemetry compatibility contract", () => {
   let appendFileSyncSpy;
   let mkdirSyncSpy;
@@ -55,6 +61,7 @@ describe("gh-aw OpenTelemetry compatibility contract", () => {
     }
 
     process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://traces.example.com";
     process.env.OTEL_SERVICE_NAME = "gh-aw.customer-contract";
     process.env.GH_AW_INFO_WORKFLOW_NAME = "Customer OTEL Contract";
     process.env.GITHUB_RUN_ID = "1234567890";
@@ -82,6 +89,21 @@ describe("gh-aw OpenTelemetry compatibility contract", () => {
       }
       if (filePath === "/tmp/gh-aw/agent_output.json") {
         return JSON.stringify({ items: [], errors: [] });
+      }
+      if (filePath === "/tmp/gh-aw/outcome-evaluations.jsonl") {
+        return (
+          JSON.stringify({
+            type: "replace_label",
+            result: "accepted",
+            outcome_status: "accepted",
+            workflow: "replace-label",
+            run_id: 1234567890,
+            repo: "github/gh-aw",
+          }) + "\n"
+        );
+      }
+      if (filePath === "/tmp/gh-aw/outcome-summary.json") {
+        return JSON.stringify({ total_outcomes: 1, accepted: 1, rejected: 0, pending: 0, ignored: 0 });
       }
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
@@ -153,5 +175,79 @@ describe("gh-aw OpenTelemetry compatibility contract", () => {
       expect(payload).not.toHaveProperty("schema");
       expect(payload).not.toHaveProperty("payload");
     }
+  });
+
+  it("T-OT-008: emits gh-aw.job.name on built-in setup spans", async () => {
+    process.env.INPUT_JOB_NAME = "agent";
+
+    await sendJobSetupSpan({
+      traceId: "a".repeat(32),
+      parentSpanId: "b".repeat(16),
+      startMs: 1_700_000_000_000,
+    });
+
+    const setupSpan = firstSpan(JSON.parse(String(appendFileSyncSpy.mock.calls[0][1]).trim()));
+    expect(setupSpan.name).toBe("gh-aw.agent.setup");
+    expect(attrsByKey(setupSpan)["gh-aw.job.name"]).toBe("agent");
+  });
+
+  it("T-OT-009: emits normalized gen_ai.system on built-in agent spans", async () => {
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const setup = await sendJobSetupSpan({
+      traceId: "a".repeat(32),
+      parentSpanId: "b".repeat(16),
+      startMs: 1_700_000_000_000,
+    });
+    process.env.GITHUB_AW_OTEL_TRACE_ID = setup.traceId;
+    process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = setup.spanId;
+
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_001_000 });
+
+    const spans = appendFileSyncSpy.mock.calls.flatMap(([, line]) => allSpans(JSON.parse(String(line).trim())));
+    const agentSpan = spans.find(span => span.name === "gh-aw.agent.agent");
+    expect(agentSpan).toBeTruthy();
+    expect(attrsByKey(agentSpan)["gen_ai.system"]).toBe("anthropic");
+  });
+
+  it("T-OT-010: emits gh-aw.outcome.type on outcome-evaluation spans", async () => {
+    await emitOutcomeSpans();
+
+    const payload = JSON.parse(String(appendFileSyncSpy.mock.calls[0][1]).trim());
+    const outcomeSpan = allSpans(payload).find(span => span.name === "gh-aw.outcome.evaluate");
+    expect(outcomeSpan).toBeTruthy();
+    const attrs = attrsByKey(outcomeSpan);
+    expect(attrs["gh-aw.outcome.type"]).toBe("replace_label");
+    expect(attrs["gh-aw.outcome.result"]).toBe("accepted");
+  });
+
+  it("T-OT-011: preserves v0.3.0 built-in span names and attribute inventory", async () => {
+    process.env.INPUT_JOB_NAME = "agent";
+
+    const setup = await sendJobSetupSpan({
+      traceId: "a".repeat(32),
+      parentSpanId: "b".repeat(16),
+      startMs: 1_700_000_000_000,
+    });
+    process.env.GITHUB_AW_OTEL_TRACE_ID = setup.traceId;
+    process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID = setup.spanId;
+    await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_001_000 });
+
+    const spans = appendFileSyncSpy.mock.calls.flatMap(([, line]) => allSpans(JSON.parse(String(line).trim())));
+    expect(spans.map(span => span.name)).toEqual(["gh-aw.agent.setup", "gh-aw.agent.agent", "gh-aw.agent.conclusion"]);
+
+    const setupAttrs = attrsByKey(spans[0]);
+    for (const key of ["gh-aw.workflow.name", "gh-aw.job.name", "gh-aw.run.id", "gh-aw.repository", "gh-aw.engine.id", "gen_ai.system"]) {
+      expect(setupAttrs).toHaveProperty(key);
+    }
+
+    const resourceAttrs = attrsByKey({ attributes: appendFileSyncSpy.mock.calls.map(([, line]) => JSON.parse(String(line).trim()))[0].resourceSpans[0].resource.attributes });
+    for (const key of ["github.repository", "github.run_id", "github.run_attempt", "github.event_name", "github.job"]) {
+      expect(resourceAttrs).toHaveProperty(key);
+    }
+
+    const agentAttrs = attrsByKey(spans[1]);
+    expect(agentAttrs).toHaveProperty("gen_ai.usage.total_tokens");
+    expect(process.env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("https://traces.example.com");
   });
 });

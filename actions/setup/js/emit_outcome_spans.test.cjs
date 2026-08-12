@@ -285,14 +285,14 @@ describe("emit_outcome_spans.cjs", () => {
     );
     expect(spans[1]).toEqual(
       expect.objectContaining({
-        spanName: "gh-aw.outcome.evaluation",
+        spanName: "gh-aw.outcome.evaluate",
         parentSpanId: summarySpan.spanId,
         statusCode: 1,
       })
     );
     expect(spans[2]).toEqual(
       expect.objectContaining({
-        spanName: "gh-aw.outcome.evaluation",
+        spanName: "gh-aw.outcome.evaluate",
         parentSpanId: summarySpan.spanId,
         statusCode: 0,
       })

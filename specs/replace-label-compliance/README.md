@@ -76,6 +76,16 @@ are implemented in:
 - `pkg/workflow/replace_label_formal_test.go`
 - `pkg/workflow/replace_label_transitions_formal_test.go`
 
+### Sync Notes
+
+This Behavioral Coverage Map is the canonical predicate-to-formal-test index
+for replace-label. The corresponding T-RL test ID to fixture-file index is
+maintained in [`specs/replace-label-spec.md` §9.2.3](../replace-label-spec.md#923-label-validation-tests).
+
+Coverage parity check (2026-08-12): verified that this Behavioral Coverage Map
+and `specs/replace-label-spec.md`'s fixture linkage table cross-reference each
+other and cover the replace-label fixture/test tables bidirectionally.
+
 ## Fixture Schema
 
 Each fixture file is a YAML document with the following top-level keys:
