@@ -33,7 +33,7 @@ func RunWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) erro
 
 	// Check if running in CI environment
 	if IsRunningInCI() {
-		return errors.New("interactive mode is unavailable in CI environments. Expected an interactive terminal session outside CI. Example: run 'gh aw run --interactive' from your local terminal")
+		return errors.New("interactive mode is unavailable in CI environments. Expected an interactive terminal session outside CI, or a workflow name argument. Example: gh aw run daily-perf-improver")
 	}
 
 	if opts.Verbose {

@@ -59,7 +59,7 @@ func (c *Compiler) validateDispatchRepository(data *WorkflowData, workflowPath s
 		hasAllowedRepos := len(tool.AllowedRepositories) > 0
 
 		if !hasRepository && !hasAllowedRepos {
-			repoErr := fmt.Errorf("dispatch_repository tool %q has no repository target. Expected either 'repository' or 'allowed_repositories'. Example:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      repository: org/target-repo\nAlternative Example:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      allowed_repositories:\n        - org/repo1\n        - org/repo2", toolKey, toolKey, tool.Workflow, tool.EventType, toolKey, tool.Workflow, tool.EventType)
+			repoErr := fmt.Errorf("dispatch_repository tool %q has no repository target. Expected either 'repository' or 'allowed_repositories'. Example:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      repository: org/target-repo\n\nOr, to target multiple repositories:\n  dispatch_repository:\n    %s:\n      workflow: %s\n      event_type: %s\n      allowed_repositories:\n        - org/repo1\n        - org/repo2", toolKey, toolKey, tool.Workflow, tool.EventType, toolKey, tool.Workflow, tool.EventType)
 			if returnErr := collector.Add(repoErr); returnErr != nil {
 				return returnErr
 			}

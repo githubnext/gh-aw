@@ -451,4 +451,17 @@ func TestCommandErrorHandling(t *testing.T) {
 		// Reset args for other tests
 		rootCmd.SetArgs([]string{})
 	})
+
+	t.Run("run without arguments in CI produces actionable error", func(t *testing.T) {
+		t.Setenv("CI", "true")
+		rootCmd.SetArgs([]string{"run"})
+		err := rootCmd.Execute()
+
+		require.Error(t, err, "run without a workflow name in CI should fail")
+		assert.Contains(t, err.Error(), "interactive mode is unavailable in CI environments")
+		assert.Contains(t, err.Error(), "Expected a workflow name argument")
+		assert.Contains(t, err.Error(), "Example: gh aw run")
+
+		rootCmd.SetArgs([]string{})
+	})
 }

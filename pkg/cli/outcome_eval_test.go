@@ -145,14 +145,13 @@ func TestEscapeOwnerRepo(t *testing.T) {
 
 func TestValidateAPIEndpoint(t *testing.T) {
 	tests := []struct {
-		name        string
-		endpoint    string
-		wantErr     string
-		assertStyle bool
+		name     string
+		endpoint string
+		wantErr  string
 	}{
 		{name: "relative endpoint allowed", endpoint: "issues/comments/123"},
-		{name: "leading slash rejected", endpoint: "/issues/comments/123", wantErr: "must not start", assertStyle: true},
-		{name: "dotdot segment rejected", endpoint: "issues/../comments/123", wantErr: "must not contain", assertStyle: true},
+		{name: "leading slash rejected", endpoint: "/issues/comments/123", wantErr: "must not start"},
+		{name: "dotdot segment rejected", endpoint: "issues/../comments/123", wantErr: "must not contain"},
 	}
 
 	for _, tt := range tests {
@@ -164,10 +163,8 @@ func TestValidateAPIEndpoint(t *testing.T) {
 			}
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.wantErr)
-			if tt.assertStyle {
-				require.ErrorContains(t, err, "Expected")
-				require.ErrorContains(t, err, "Example:")
-			}
+			require.ErrorContains(t, err, "Expected")
+			require.ErrorContains(t, err, "Example:")
 		})
 	}
 }

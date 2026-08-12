@@ -325,7 +325,7 @@ func buildGraphQLArgs(query string, variables map[string]any) ([]string, error) 
 		case int, int32, int64, bool:
 			args = append(args, "-F", fmt.Sprintf("%s=%v", name, value))
 		default:
-			return nil, fmt.Errorf("buildGraphQLArgs received unsupported variable type %T for key %q. Expected string, int, int32, int64, or bool values. Example: map[string]any{\"number\": 42}", value, name)
+			return nil, fmt.Errorf("GraphQL variable %q has unsupported type %T. Expected string, int, int32, int64, or bool. Example: map[string]any{\"number\": 42}", name, value)
 		}
 	}
 	return args, nil

@@ -117,12 +117,12 @@ func validateYAMLWorkflowHasCallTrigger(path, workflowName string) error {
 	}
 	onSection, hasOn := workflow["on"]
 	if !hasOn {
-		return fmt.Errorf("call-workflow: workflow '%s' has no 'on' trigger section, expected an 'on' section with a 'workflow_call' trigger. Example:\non:\n  workflow_call:", workflowName)
+		return fmt.Errorf("call-workflow: workflow '%s' has no 'on' trigger section, expected an 'on' section with a 'workflow_call' trigger. Example:\non:\n  workflow_call: {}", workflowName)
 	}
 	if containsWorkflowCall(onSection) {
 		return nil
 	}
-	return fmt.Errorf("call-workflow: workflow '%s' does not support the workflow_call trigger, expected 'workflow_call' in the 'on' section. Example:\non:\n  workflow_call:", workflowName)
+	return fmt.Errorf("call-workflow: workflow '%s' does not support the workflow_call trigger, expected 'workflow_call' in the 'on' section. Example:\non:\n  workflow_call: {}", workflowName)
 }
 
 func validateMarkdownWorkflowHasCallTrigger(path, workflowName string) error {
@@ -131,7 +131,7 @@ func validateMarkdownWorkflowHasCallTrigger(path, workflowName string) error {
 		return fmt.Errorf("call-workflow: failed to read workflow source %s: %w", path, checkErr)
 	}
 	if !mdHasCall {
-		return fmt.Errorf("call-workflow: workflow '%s' does not support the workflow_call trigger, expected 'workflow_call' in the 'on' section. Example:\non:\n  workflow_call:", workflowName)
+		return fmt.Errorf("call-workflow: workflow '%s' does not support the workflow_call trigger, expected 'workflow_call' in the 'on' section. Example:\non:\n  workflow_call: {}", workflowName)
 	}
 	callWorkflowValidationLog.Printf("Workflow '%s' is valid for call-workflow (found .md source at %s with workflow_call trigger)", workflowName, path)
 	return nil

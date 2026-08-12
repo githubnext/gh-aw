@@ -338,7 +338,7 @@ This command only works with workflows that have workflow_dispatch triggers.
 		if len(args) == 0 {
 			// Check if running in CI environment
 			if cli.IsRunningInCI() {
-				return errors.New("interactive mode cannot be used in CI environments. Please provide a workflow name")
+				return errors.New("interactive mode is unavailable in CI environments. Expected a workflow name argument when running in CI. Example: gh aw run daily-perf-improver")
 			}
 
 			// Interactive mode doesn't support repeat or enable flags
