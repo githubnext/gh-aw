@@ -248,6 +248,6 @@ describe("gh-aw OpenTelemetry compatibility contract", () => {
 
     const agentAttrs = attrsByKey(spans[1]);
     expect(agentAttrs).toHaveProperty("gen_ai.usage.total_tokens");
-    expect(process.env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("https://traces.example.com");
+    expect(fetchMock.mock.calls.map(([url]) => url)).toContain("https://traces.example.com/v1/traces");
   });
 });

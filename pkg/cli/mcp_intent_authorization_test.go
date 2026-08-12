@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/intent"
@@ -33,6 +34,23 @@ func TestIntentAuthorizationMiddlewareRejectsDeniedToolCall(t *testing.T) {
 	toolResult := result.(*mcp.CallToolResult)
 	assert.True(t, toolResult.IsError)
 	assert.Contains(t, toolResult.Content[0].(*mcp.TextContent).Text, "tool denied")
+}
+
+func TestFailedClosedIntentAuthorizationMiddlewareRejectsToolCalls(t *testing.T) {
+	middleware := failedClosedIntentAuthorizationMiddleware(errors.New("missing policy"))
+	called := false
+	handler := middleware(func(_ context.Context, _ string, _ mcp.Request) (mcp.Result, error) {
+		called = true
+		return &mcp.CallToolResult{}, nil
+	})
+
+	result, err := handler(context.Background(), "tools/call", fakeToolCallRequest("compile"))
+
+	require.NoError(t, err)
+	assert.False(t, called)
+	toolResult := result.(*mcp.CallToolResult)
+	assert.True(t, toolResult.IsError)
+	assert.Contains(t, toolResult.Content[0].(*mcp.TextContent).Text, "failed closed")
 }
 
 func TestIntentAuthorizationMiddlewareReadsPolicyAtExecutionTime(t *testing.T) {

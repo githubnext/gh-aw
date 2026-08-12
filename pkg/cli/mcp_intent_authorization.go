@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,11 +40,25 @@ func intentPolicyEnforcementEnabled() bool {
 func intentAuthorizationMiddleware() mcp.Middleware {
 	compiler, err := loadIntentPolicyCompiler()
 	if err != nil {
-		mcpIntentAuthzLog.Printf("intent policy enforcement disabled: %v", err)
-		return passthroughMiddleware
+		mcpIntentAuthzLog.Printf("intent policy enforcement failed closed: %v", err)
+		return failedClosedIntentAuthorizationMiddleware(err)
 	}
 	authorizer := authz.Authorizer{}
 	return intentAuthorizationMiddlewareForPolicy(compiler, authorizer.AuthorizeTool)
+}
+
+func failedClosedIntentAuthorizationMiddleware(loadErr error) mcp.Middleware {
+	return func(next mcp.MethodHandler) mcp.MethodHandler {
+		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+			if method != "tools/call" {
+				return next(ctx, method, req)
+			}
+			return &mcp.CallToolResult{
+				IsError: true,
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("intent policy enforcement failed closed: %v", loadErr)}},
+			}, nil
+		}
+	}
 }
 
 func intentAuthorizationMiddlewareForPolicy(compiler intent.PolicyCompiler, authorize func(intent.ExecutionPolicy, string, authz.ToolContext) error) mcp.Middleware {
@@ -66,10 +81,6 @@ func intentAuthorizationMiddlewareForPolicy(compiler intent.PolicyCompiler, auth
 			return next(ctx, method, req)
 		}
 	}
-}
-
-func passthroughMiddleware(next mcp.MethodHandler) mcp.MethodHandler {
-	return next
 }
 
 func loadIntentPolicyCompiler() (intent.PolicyCompiler, error) {
