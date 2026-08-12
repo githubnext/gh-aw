@@ -809,7 +809,7 @@ func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 				return fmt.Errorf("jobs.%s.needs lists %q, but a job should not depend on itself. Remove the self-reference from needs", configuredJobName, rawNeed)
 			}
 			if _, known := allJobs[need]; !known {
-				return fmt.Errorf("jobs.%s.needs: unknown job %q", configuredJobName, rawNeed)
+				return fmt.Errorf("jobs.%s.needs: unknown job %q. Expected a job defined in this workflow or a generated built-in job. Example:\njobs:\n  %s:\n    needs: [activation]", configuredJobName, rawNeed, configuredJobName)
 			}
 			normalizedNeeds = append(normalizedNeeds, need)
 		}
@@ -1080,7 +1080,7 @@ func (c *Compiler) extractPinnedJobSteps(fieldName string, jobName string, confi
 	for i, step := range stepsList {
 		stepMap, ok := step.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("%s for job '%s' contains invalid step at index %d: expected object", fieldName, jobName, i)
+			return nil, fmt.Errorf("%s for job '%s' has a step at index %d that is not an object. Expected each entry to be a step mapping. Example: %s:\n  - run: echo hello", fieldName, jobName, i, fieldName)
 		}
 
 		typedStep, err := MapToStep(stepMap)

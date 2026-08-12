@@ -72,21 +72,21 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 			version = gatewayConfig.Version
 		}
 		toolsValidationLog.Printf("integrity-reactions feature flag enabled but MCPG version %s < %s in workflow: %s", version, constants.MCPGIntegrityReactionsMinVersion, workflowName)
-		return fmt.Errorf("invalid guard policy: 'integrity-reactions' feature flag requires MCPG >= %s, but the configured version is %s. Update the MCP gateway version to use this feature",
-			constants.MCPGIntegrityReactionsMinVersion, version)
+		return fmt.Errorf("guard policy feature 'integrity-reactions' requires MCPG >= %s, but the configured version is %s. Expected a gateway version at or above the minimum. Example:\ntools:\n  github:\n    mcp-gateway:\n      version: \"%s\"",
+			constants.MCPGIntegrityReactionsMinVersion, version, constants.MCPGIntegrityReactionsMinVersion)
 	}
 
 	// Feature flag requires min-integrity (defaults for reaction lists will be injected at compile time)
 	if github.MinIntegrity == "" {
 		toolsValidationLog.Printf("integrity-reactions feature flag enabled without min-integrity in workflow: %s", workflowName)
-		return errors.New("invalid guard policy: 'integrity-reactions' feature flag requires 'github.min-integrity' to be set")
+		return errors.New("guard policy feature 'integrity-reactions' requires 'github.min-integrity' to be set. Expected one of: 'unapproved', 'approved', 'merged'. Example:\ntools:\n  github:\n    min-integrity: approved")
 	}
 
 	// Validate endorsement-reactions values (if explicitly provided)
 	for i, reaction := range github.EndorsementReactions {
 		if !validReactionContents[reaction] {
 			toolsValidationLog.Printf("Invalid endorsement-reactions value '%s' at index %d in workflow: %s", reaction, i, workflowName)
-			return fmt.Errorf("invalid guard policy: 'endorsement-reactions' contains invalid value '%s'. Valid values: THUMBS_UP, THUMBS_DOWN, HEART, HOORAY, CONFUSED, ROCKET, EYES, LAUGH", reaction)
+			return fmt.Errorf("guard policy 'endorsement-reactions' value '%s' is not supported. Expected one of: THUMBS_UP, THUMBS_DOWN, HEART, HOORAY, CONFUSED, ROCKET, EYES, LAUGH. Example:\ntools:\n  github:\n    endorsement-reactions: [THUMBS_UP]", reaction)
 		}
 	}
 
@@ -94,7 +94,7 @@ func validateIntegrityReactions(tools *Tools, workflowName string, data *Workflo
 	for i, reaction := range github.DisapprovalReactions {
 		if !validReactionContents[reaction] {
 			toolsValidationLog.Printf("Invalid disapproval-reactions value '%s' at index %d in workflow: %s", reaction, i, workflowName)
-			return fmt.Errorf("invalid guard policy: 'disapproval-reactions' contains invalid value '%s'. Valid values: THUMBS_UP, THUMBS_DOWN, HEART, HOORAY, CONFUSED, ROCKET, EYES, LAUGH", reaction)
+			return fmt.Errorf("guard policy 'disapproval-reactions' value '%s' is not supported. Expected one of: THUMBS_UP, THUMBS_DOWN, HEART, HOORAY, CONFUSED, ROCKET, EYES, LAUGH. Example:\ntools:\n  github:\n    disapproval-reactions: [THUMBS_DOWN]", reaction)
 		}
 	}
 
