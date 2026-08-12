@@ -399,15 +399,8 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 			builder.WriteString("          script: |\n")
 			builder.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
 			builder.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-			builder.WriteString("            const { formatJSONFiles, runCustomMemoryValidation } = require('${{ runner.temp }}/gh-aw/actions/memory_custom_validation.cjs');\n")
-			builder.WriteString("            const memoryDir = process.env.MEMORY_DIR;\n")
-			builder.WriteString("            if (process.env.FORMAT_JSON === 'true') {\n")
-			builder.WriteString("              for (const file of formatJSONFiles(memoryDir, 102400000)) core.info(`Formatted JSON before custom validation: ${file}`);\n")
-			builder.WriteString("            }\n")
-			builder.WriteString("            const result = runCustomMemoryValidation({ scriptBase64: process.env.VALIDATION_SCRIPT_B64, memoryDir, memoryId: process.env.MEMORY_ID, kind: 'repo', timeoutSeconds: Number(process.env.VALIDATION_TIMEOUT_SECONDS || '30') });\n")
-			builder.WriteString("            if (result.stdout) core.info(`Custom repo-memory validation stdout:\\n${result.stdout}`);\n")
-			builder.WriteString("            if (result.stderr) core.info(`Custom repo-memory validation stderr:\\n${result.stderr}`);\n")
-			builder.WriteString("            if (!result.ok) core.setFailed(`Custom repo-memory validation failed for '${process.env.MEMORY_ID}': ${result.timedOut ? 'timed out' : `exited with code ${result.exitCode}`}.`);\n")
+			builder.WriteString("            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');\n")
+			builder.WriteString("            validateMemoryStep(core, { kind: 'repo', formatJSON: process.env.FORMAT_JSON === 'true', requireValidationScript: true });\n")
 		}
 
 		// Step: Upload repo-memory directory as artifact

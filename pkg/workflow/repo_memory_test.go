@@ -1595,6 +1595,7 @@ func TestRepoMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	uploadYAML := upload.String()
 	assert.Contains(t, uploadYAML, "Validate repo-memory domain content (default)")
 	assert.Contains(t, uploadYAML, "VALIDATION_SCRIPT_B64:")
+	assert.Contains(t, uploadYAML, "validate_memory_step.cjs")
 	assert.Contains(t, uploadYAML, "steps."+repoMemoryValidationStepID("default")+".outcome == 'success'")
 
 	pushJob, err := compiler.buildPushRepoMemoryJob(data, false)

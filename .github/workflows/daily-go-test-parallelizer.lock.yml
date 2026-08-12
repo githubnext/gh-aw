@@ -1001,24 +1001,8 @@ jobs:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');
-            const { runCustomMemoryValidation, writeValidationMarker, clearValidationMarker } = require('${{ runner.temp }}/gh-aw/actions/memory_custom_validation.cjs');
-            const memoryDir = process.env.MEMORY_DIR;
-            const memoryId = process.env.MEMORY_ID || 'default';
-            clearValidationMarker('cache', memoryId);
-            let failed = false;
-            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');
-            if (allowedExtensions.length > 0) {
-              const result = validateMemoryFiles(memoryDir, 'cache', allowedExtensions);
-              if (!result.valid) { core.setFailed(`Storage file type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`); failed = true; }
-            }
-            if (process.env.VALIDATION_SCRIPT_B64) {
-              const result = runCustomMemoryValidation({ scriptBase64: process.env.VALIDATION_SCRIPT_B64, memoryDir, memoryId, kind: 'cache', timeoutSeconds: Number(process.env.VALIDATION_TIMEOUT_SECONDS || '30') });
-              if (result.stdout) core.info(`Custom cache-memory validation stdout:\n${result.stdout}`);
-              if (result.stderr) core.info(`Custom cache-memory validation stderr:\n${result.stderr}`);
-              if (!result.ok) { core.setFailed(`Custom cache-memory validation failed for '${memoryId}': ${result.timedOut ? 'timed out' : `exited with code ${result.exitCode}`}.`); failed = true; }
-            }
-            if (!failed) writeValidationMarker('cache', memoryId);
+            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');
+            validateMemoryStep(core, { kind: 'cache', writeMarker: true });
       - name: Check cache-memory git integrity
         if: always()
         continue-on-error: true
@@ -2204,23 +2188,8 @@ jobs:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');
-            const { runCustomMemoryValidation } = require('${{ runner.temp }}/gh-aw/actions/memory_custom_validation.cjs');
-            const memoryDir = process.env.MEMORY_DIR;
-            const memoryId = process.env.MEMORY_ID || 'default';
-            let failed = false;
-            const allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS || '[]');
-            if (allowedExtensions.length > 0) {
-              const result = validateMemoryFiles(memoryDir, 'cache', allowedExtensions);
-              if (!result.valid) { core.setFailed(`Storage file type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`); failed = true; }
-            }
-            if (process.env.VALIDATION_SCRIPT_B64) {
-              const result = runCustomMemoryValidation({ scriptBase64: process.env.VALIDATION_SCRIPT_B64, memoryDir, memoryId, kind: 'cache', timeoutSeconds: Number(process.env.VALIDATION_TIMEOUT_SECONDS || '30') });
-              if (result.stdout) core.info(`Custom cache-memory validation stdout:\n${result.stdout}`);
-              if (result.stderr) core.info(`Custom cache-memory validation stderr:\n${result.stderr}`);
-              if (!result.ok) { core.setFailed(`Custom cache-memory validation failed for '${memoryId}': ${result.timedOut ? 'timed out' : `exited with code ${result.exitCode}`}.`); failed = true; }
-            }
-            if (failed) process.exitCode = 1;
+            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');
+            validateMemoryStep(core, { kind: 'cache' });
       - name: Save cache-memory to cache (default)
         if: steps.check_cache_default.outputs.has_content == 'true' && steps.validate_cache_memory_64656661756c74.outcome == 'success'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

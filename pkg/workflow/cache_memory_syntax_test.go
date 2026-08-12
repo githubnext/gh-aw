@@ -223,6 +223,7 @@ func TestCacheMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	validationYAML := validation.String()
 	assert.Contains(t, validationYAML, "Validate cache-memory file types and domain content")
 	assert.Contains(t, validationYAML, "VALIDATION_SCRIPT_B64:")
+	assert.Contains(t, validationYAML, "validate_memory_step.cjs")
 	assert.Contains(t, validationYAML, "id: "+cacheMemoryValidationStepID("default"))
 
 	var upload strings.Builder
@@ -236,6 +237,7 @@ func TestCacheMemoryValidationConfigAndGeneratedSteps(t *testing.T) {
 	updateYAML := strings.Join(job.Steps, "\n")
 	assert.Contains(t, updateYAML, "Validate cache-memory before save (default)")
 	assert.Contains(t, updateYAML, "VALIDATION_TIMEOUT_SECONDS: 60")
+	assert.Contains(t, updateYAML, "validate_memory_step.cjs")
 	assert.Contains(t, updateYAML, "steps."+cacheMemoryValidationStepID("default")+".outcome == 'success'")
 }
 
