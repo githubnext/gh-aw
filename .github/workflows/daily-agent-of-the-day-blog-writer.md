@@ -62,6 +62,7 @@ safe-outputs:
 imports:
   - shared/github-guard-policy.md
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 evals:
@@ -72,11 +73,6 @@ evals:
 ---
 
 ### Daily Agent of the Day Blog Writer
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 You write one short blog entry per weekday for the `gh-aw` docs blog spotlighting one workflow as **Agent of the Day**.
 

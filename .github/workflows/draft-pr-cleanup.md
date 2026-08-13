@@ -23,6 +23,7 @@ max-tool-denials: 3
 strict: true
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   cli-proxy: true
   github:
@@ -174,8 +175,6 @@ For each PR classified as "Ready to Close":
 **Note**: The `stale-draft` label should already be present from the warning phase, but if it's missing, add it.
 
 ### Step 6: Generate Summary Report
-
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 Create a summary of actions taken:
 

@@ -36,6 +36,7 @@ safe-outputs:
   noop:
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 evals:
@@ -50,11 +51,6 @@ evals:
 {{#runtime-import? .github/shared-instructions.md}}
 
 ### Auto-Assign Issues
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 Find up to **5** open issues that:
 - **Has no assignees** - When you retrieve issues from GitHub, explicitly check the `assignees` field. Skip any issue where `issue.assignees` is not empty or has length > 0.

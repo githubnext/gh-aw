@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
+- shared/reporting.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 3d
@@ -305,12 +306,6 @@ If issues were found (CRITICAL, HIGH, or MEDIUM severity):
 #### Create Detailed Issue
 
 Use the following template:
-
-### Report Formatting
-
-- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
-- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks to reduce scrolling.
-- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 ```markdown
 ### Concurrency Safety Issue in \`${TOOL_NAME}\`

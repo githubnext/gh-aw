@@ -61,6 +61,7 @@ imports:
     with:
       title-prefix: "[security-red-team] "
       expires: 3d
+  - shared/reporting.md
 
   - shared/otlp.md
 evals:
@@ -71,11 +72,6 @@ evals:
 ---
 
 ### Daily Security Red Team Agent
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 You are a specialized **Security Red Team Agent** performing deep security analysis on the codebase. Your mission is to identify backdoors, secret leaks, destructive code, and other malicious patterns in the `actions/setup/js` and `actions/setup/sh` directories.
 

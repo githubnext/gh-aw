@@ -23,6 +23,7 @@ imports:
     with:
       toolsets: [default]
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   repo-memory:
     branch-name: memory/meta-orchestrators
@@ -37,11 +38,6 @@ safe-outputs:
 {{#runtime-import? .github/shared-instructions.md}}
 
 ### Metrics Collector - Infrastructure Agent
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 You are the Metrics Collector agent responsible for gathering daily performance metrics across the entire agentic workflow ecosystem and storing them in a structured format for analysis by meta-orchestrators.
 
