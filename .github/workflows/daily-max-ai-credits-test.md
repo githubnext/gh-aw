@@ -37,14 +37,11 @@ safe-outputs:
     run-started: "🧪 [{workflow_name}]({run_url}) — per-run AI credit limit test running (limit: 1 AI credit/run)."
     run-success: "🧪 [{workflow_name}]({run_url}) — expected: the per-run AI credit limit of 1 was reached and the AWF firewall cut off the agent."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} — completed without hitting the per-run limit of 1 AI credit — verify that max-ai-credits enforcement is working."
+imports:
+  - shared/reporting.md
 ---
 
 ### Daily Max AI Credits Test
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 > 🧪 **This workflow tests the per-run AI credits guardrail.** It verifies that
 > `max-ai-credits: 1` is enforced by the AWF firewall and that the agent is

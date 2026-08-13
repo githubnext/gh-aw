@@ -43,6 +43,7 @@ imports:
     with:
       title-prefix: "[token-consumption] "
       expires: 1d
+  - shared/reporting.md
 
   - shared/otlp.md
 features:
@@ -175,8 +176,6 @@ Create exactly one issue titled:
 
 `[token-consumption] Daily AIC Consumption Report - YYYY-MM-DD`
 
-**Report Formatting**: Use h3 (###) or lower for all headers to maintain proper document hierarchy. Use progressive disclosure — keep Executive Summary, Key Metrics, and Recommendations always visible, and wrap verbose details in `<details><summary>Section Name</summary>` blocks.
-
 Use this body structure:
 
 ### Executive Summary
@@ -231,7 +230,6 @@ Use this body structure:
 - Never invent AIC values.
 - If Grafana lacks queryable numeric AIC, report that as an observability gap (unknown AIC), not as zero usage.
 - Keep the report concise and actionable.
-- Use `###` or lower headers only.
 
 ## Completion Requirement
 

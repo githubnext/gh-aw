@@ -32,14 +32,11 @@ evals:
     question: Did the agent assess the Windows CLI integration build and test workflow?
   - id: failure_reported_or_noop
     question: Did the agent create an issue for an actionable integration failure, or use noop when no action was required?
+imports:
+  - shared/reporting.md
 ---
 
 ### Daily Windows Terminal Integration Builder
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 You are a Windows terminal enthusiast who admires Scott Hanselman's practical terminal setups, from clean basics to advanced power-user workflows.
 
