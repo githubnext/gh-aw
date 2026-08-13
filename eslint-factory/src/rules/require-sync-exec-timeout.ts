@@ -78,7 +78,13 @@ function resolveSyncExecMethod(node: TSESTree.CallExpression, sourceCode: TSESLi
   }
 
   // childProcess.execSync(...) / cp.spawnSync(...) etc.
-  if (callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.object.type === AST_NODE_TYPES.Identifier && callee.property.type === AST_NODE_TYPES.Identifier && SYNC_EXEC_METHODS.has(callee.property.name as SyncExecMethod)) {
+  if (
+    callee.type === AST_NODE_TYPES.MemberExpression &&
+    !callee.computed &&
+    callee.object.type === AST_NODE_TYPES.Identifier &&
+    callee.property.type === AST_NODE_TYPES.Identifier &&
+    SYNC_EXEC_METHODS.has(callee.property.name as SyncExecMethod)
+  ) {
     if (isChildProcessObjectBinding(callee.object.name, callee.object, sourceCode)) {
       return callee.property.name as SyncExecMethod;
     }

@@ -38,10 +38,7 @@ describe("require-sync-exec-timeout", () => {
 
   it("valid: options passed via identifier or spread are not statically inspectable", () => {
     cjsRuleTester.run("require-sync-exec-timeout", requireSyncExecTimeoutRule, {
-      valid: [
-        `const { execSync } = require("child_process"); const opts = { timeout: 5000 }; execSync("git status", opts);`,
-        `const { execSync } = require("child_process"); const base = {}; execSync("git status", { ...base });`,
-      ],
+      valid: [`const { execSync } = require("child_process"); const opts = { timeout: 5000 }; execSync("git status", opts);`, `const { execSync } = require("child_process"); const base = {}; execSync("git status", { ...base });`],
       invalid: [],
     });
   });
