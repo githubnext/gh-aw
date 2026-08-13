@@ -189,6 +189,35 @@ func TestMultiBlockProfileLookup(t *testing.T) {
 	}
 }
 
+// TestFilenameMatchingActionsStyleAbsolutePath verifies the regression fix:
+// a coverage profile key module-qualified as "<module>/pkg/foo/foo.go" (as
+// produced by "go test -coverprofile") must match a real OS absolute path
+// under a GitHub Actions style checkout directory (e.g.
+// "/home/runner/work/gh-aw/gh-aw/pkg/foo/foo.go"), even though the checkout
+// directory name bears no textual relation to the module's import path.
+func TestFilenameMatchingActionsStyleAbsolutePath(t *testing.T) {
+	resetForTest()
+
+	mod := modulePrefix()
+	if mod == "" {
+		t.Skip("could not determine module path via debug.ReadBuildInfo")
+	}
+
+	profileKey := mod + "/pkg/foo/foo.go"
+	t.Setenv(envVar, writeTempProfile(t, profileWithCount(profileKey, 5)))
+
+	// Actions-style checkout: /home/runner/work/<repo>/<repo>/..., which
+	// shares no suffix with the module-qualified profile key other than the
+	// module-relative portion ("pkg/foo/foo.go").
+	absFile := "/home/runner/work/gh-aw/gh-aw/pkg/foo/foo.go"
+	fh := newFset(t, absFile, 400)
+	pass := &analysis.Pass{Fset: fh.fset}
+
+	if !ShouldApply(pass, fh.lineStart(2), 1) {
+		t.Fatal("expected true: Actions-style absolute path should match module-qualified profile key")
+	}
+}
+
 // TestUnmatchedFilenameIsPermissive verifies that a file not in the profile
 // does not suppress findings.
 func TestUnmatchedFilenameIsPermissive(t *testing.T) {
