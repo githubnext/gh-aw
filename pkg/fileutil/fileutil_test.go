@@ -445,7 +445,7 @@ func TestCopyFileContents(t *testing.T) {
 		closeErr := errors.New("close failed")
 		out := &stubSyncWriteCloser{closeErr: closeErr}
 
-		err := copyFileContents(strings.NewReader("hello"), out, filepath.Join(t.TempDir(), "dst.txt"))
+		err := copyToFileAndSync(strings.NewReader("hello"), out, filepath.Join(t.TempDir(), "dst.txt"))
 
 		require.ErrorIs(t, err, closeErr)
 		assert.Equal(t, 1, out.closeCalls, "destination should be closed once")
@@ -464,7 +464,7 @@ func TestCopyFileContents(t *testing.T) {
 		dst := filepath.Join(t.TempDir(), "dst.txt")
 		require.NoError(t, os.WriteFile(dst, []byte("partial"), 0600), "Should create destination placeholder")
 
-		err := copyFileContents(strings.NewReader("hello"), out, dst)
+		err := copyToFileAndSync(strings.NewReader("hello"), out, dst)
 
 		require.ErrorIs(t, err, writeErr)
 		assert.Equal(t, 1, out.closeCalls, "destination should be closed once during cleanup")
