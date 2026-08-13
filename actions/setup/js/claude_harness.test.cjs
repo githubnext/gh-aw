@@ -15,6 +15,8 @@ const {
   isNoDeferredMarkerError,
   isInvalidModelError,
   isInvalidJsonBodyError,
+  isConnectionRefusedError,
+  hasClaudeSessionProgress,
   isSignalTerminationExitCode,
   shouldRetryWithContinue,
   countPermissionDeniedIssues,
@@ -305,6 +307,23 @@ describe("claude_harness.cjs", () => {
     });
   });
 
+  describe("connection-refused startup detection", () => {
+    it("detects common connection-refused messages", () => {
+      expect(isConnectionRefusedError("API Error: Connection refused")).toBe(true);
+      expect(isConnectionRefusedError("connect ECONNREFUSED 127.0.0.1:3128")).toBe(true);
+    });
+
+    it("distinguishes initialization output from assistant progress", () => {
+      expect(hasClaudeSessionProgress('{"type":"system","subtype":"init"}\nAPI Error: Connection refused')).toBe(false);
+      expect(hasClaudeSessionProgress('{"type":"assistant","message":{"content":[{"type":"text","text":"Working"}]}}')).toBe(true);
+    });
+
+    it("detects progress when connection refused appears after an assistant line", () => {
+      const output = '{"type":"assistant","message":{}}\nAPI Error: Connection refused';
+      expect(hasClaudeSessionProgress(output)).toBe(true);
+    });
+  });
+
   describe("isSignalTerminationExitCode", () => {
     it("returns true for SIGKILL/SIGTERM-style exit codes", () => {
       expect(isSignalTerminationExitCode(137)).toBe(true);
@@ -538,6 +557,84 @@ process.exit(0);
       expect(calls[1].args).toContain("fix the bug");
       expect(result.stderr).toContain("failure_reason=cancelled_or_timed_out");
     }, 30000);
+
+    it("retries a connection-refused failure before the first assistant response as a fresh run", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (priorCalls === 0) {
+  process.stderr.write('{"type":"system","subtype":"init"}\\nAPI Error: Connection refused\\n');
+  process.exit(1);
+}
+process.stdout.write("startup retry succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        extraEnv: { GH_AW_HARNESS_INITIAL_DELAY_MS: "1" },
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, false]);
+      expect(calls[1].args).toContain("fix the bug");
+      expect(result.stderr).toContain("connection refused before first assistant response");
+    });
+
+    it("continues a session that encounters a connection-refused failure after an assistant response", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (priorCalls === 0) {
+  process.stdout.write('{"type":"assistant","message":{"content":[{"type":"text","text":"Working"}]}}\\n');
+  process.stderr.write("API Error: Connection refused\\n");
+  process.exit(1);
+}
+process.stdout.write("resume succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        extraEnv: { GH_AW_HARNESS_INITIAL_DELAY_MS: "1" },
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true]);
+    });
+
+    it("keeps resuming with --continue when a later continue attempt is refused during its own startup", () => {
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (priorCalls === 0) {
+  process.stdout.write('{"type":"assistant","message":{"content":[{"type":"text","text":"Working"}]}}\\n');
+  process.stderr.write("API Error: Connection refused\\n");
+  process.exit(1);
+}
+if (priorCalls === 1) {
+  process.stderr.write('{"type":"system","subtype":"init"}\\nAPI Error: Connection refused\\n');
+  process.exit(1);
+}
+process.stdout.write("resume succeeded\\n");
+process.exit(0);
+`;
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        extraEnv: { GH_AW_HARNESS_INITIAL_DELAY_MS: "1" },
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls.length).toBe(3);
+      expect(calls.map(call => call.args.includes("--continue"))).toEqual([false, true, true]);
+    });
 
     it("retries one no-output startup failure as a fresh run by default", () => {
       const stubScript = `
