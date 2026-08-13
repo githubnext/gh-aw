@@ -35,10 +35,11 @@ func TestIsDeadlineExceeded(t *testing.T) {
 
 func TestBuildLogsDownloadContextPrefersSecondTimeout(t *testing.T) {
 	before := time.Now()
-	ctx, cancel, startTime := buildLogsDownloadContext(context.Background(), 5, 55, false)
+	ctx, cancel, startTime, timeoutDuration := buildLogsDownloadContext(context.Background(), 5, 55, false)
 	defer cancel()
 
 	require.False(t, startTime.IsZero(), "timeout context should record a start time")
+	assert.Equal(t, 55*time.Second, timeoutDuration)
 	deadline, ok := ctx.Deadline()
 	require.True(t, ok, "timeout context should have a deadline")
 
