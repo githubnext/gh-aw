@@ -22,7 +22,9 @@ describe("require-sync-exec-timeout", () => {
       valid: [
         `const { execSync } = require("child_process"); execSync("git status", { timeout: 5000 });`,
         `const { execFileSync } = require("child_process"); execFileSync("git", ["status"], { timeout: 5000 });`,
+        `const { execFileSync } = require("child_process"); execFileSync("git", { timeout: 5000 });`,
         `const { spawnSync } = require("child_process"); spawnSync("git", ["status"], { timeout: 5000, encoding: "utf8" });`,
+        `const { spawnSync } = require("child_process"); spawnSync("git", { timeout: 5000, encoding: "utf8" });`,
         `const { execSync } = require("node:child_process"); execSync("git status", { timeout: 5000 });`,
       ],
       invalid: [],
@@ -83,7 +85,15 @@ describe("require-sync-exec-timeout", () => {
           errors: [{ messageId: "requireTimeout" }],
         },
         {
+          code: `const { spawnSync } = require("child_process"); spawnSync("git", { encoding: "utf8" });`,
+          errors: [{ messageId: "requireTimeout" }],
+        },
+        {
           code: `const cp = require("child_process"); cp.execFileSync("git", ["status"]);`,
+          errors: [{ messageId: "requireTimeout" }],
+        },
+        {
+          code: `const { execFileSync } = require("child_process"); execFileSync("git", { encoding: "utf8" });`,
           errors: [{ messageId: "requireTimeout" }],
         },
       ],

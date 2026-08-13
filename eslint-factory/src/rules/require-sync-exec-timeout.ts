@@ -12,8 +12,24 @@ type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
 // timeout — often minutes later, with no actionable diagnostic.
 type SyncExecMethod = "execSync" | "execFileSync" | "spawnSync";
 const SYNC_EXEC_METHODS: ReadonlySet<SyncExecMethod> = new Set(["execSync", "execFileSync", "spawnSync"]);
-// Index of the options-object argument for each method: execSync(cmd, opts), execFileSync(cmd, args?, opts), spawnSync(cmd, args?, opts).
+// Index of the options-object argument for each method when all parameters are supplied:
+// execSync(cmd, opts), execFileSync(cmd, args?, opts), spawnSync(cmd, args?, opts).
 const OPTIONS_ARG_INDEX: Record<SyncExecMethod, number> = { execSync: 1, execFileSync: 2, spawnSync: 2 };
+
+function getOptionsArgument(node: TSESTree.CallExpression, method: SyncExecMethod): TSESTree.CallExpressionArgument | undefined {
+  if (method === "execSync") return node.arguments[OPTIONS_ARG_INDEX.execSync];
+
+  // execFileSync/spawnSync overload:
+  //   method(cmd, args, options)
+  //   method(cmd, options)
+  const thirdArg = node.arguments[2];
+  if (thirdArg) return thirdArg;
+
+  const secondArg = node.arguments[1];
+  if (!secondArg) return undefined;
+  if (secondArg.type === AST_NODE_TYPES.ArrayExpression) return undefined;
+  return secondArg;
+}
 
 /**
  * Walks the scope chain to decide whether `identifierName` resolves to one of the
@@ -95,7 +111,7 @@ function resolveSyncExecMethod(node: TSESTree.CallExpression, sourceCode: TSESLi
 
 /** Returns true when the options-object argument for the call statically carries a non-nullish `timeout` property. */
 function hasTimeoutOption(node: TSESTree.CallExpression, method: SyncExecMethod): boolean {
-  const optionsArg = node.arguments[OPTIONS_ARG_INDEX[method]];
+  const optionsArg = getOptionsArgument(node, method);
   if (!optionsArg) return false;
 
   // Spread arguments or non-object expressions (identifiers, shared config objects,
