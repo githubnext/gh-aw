@@ -671,6 +671,11 @@ commentary" has no AI credits pricing`;
       expect(SHELL_EXPANSION_GUARD_REJECTED_PATTERN.test(ISSUE_REJECTION_MESSAGE.toUpperCase())).toBe(true);
     });
 
+    it("matches when the two anchor phrases are split across a line break", () => {
+      const wrapped = "Command rejected: ...that could enable arbitrary code execution.\nPlease rewrite the command without these expansion patterns.";
+      expect(isShellExpansionGuardRejectedError(wrapped)).toBe(true);
+    });
+
     it("does not match unrelated shell errors", () => {
       expect(isShellExpansionGuardRejectedError("bash: safeoutputs: command not found")).toBe(false);
       expect(isShellExpansionGuardRejectedError("permission denied by workflow tool permissions")).toBe(false);

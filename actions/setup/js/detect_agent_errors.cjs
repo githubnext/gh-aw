@@ -189,7 +189,7 @@ const MAX_CACHE_MISSES_EXCEEDED_PATTERN = /(?:\bmax_cache_misses_exceeded\b|\bma
 // This guard can misfire on benign multi-line printf/safeoutputs CLI invocations. Retrying the
 // identical command is pointless — it will be rejected again — so this is surfaced as a distinct,
 // actionable diagnostic instead of a generic shell failure.
-const SHELL_EXPANSION_GUARD_REJECTED_PATTERN = /could enable arbitrary code execution\b[^\n]{0,160}\brewrite the command without these expansion patterns\b/i;
+const SHELL_EXPANSION_GUARD_REJECTED_PATTERN = /could enable arbitrary code execution\b[\s\S]{0,200}?\brewrite the command without these expansion patterns\b/i;
 
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
