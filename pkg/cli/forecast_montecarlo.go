@@ -104,7 +104,7 @@ func runMonteCarlo(aicObservations []int, successCount int, observedRunsPerPerio
 		return nil
 	}
 
-	successRate := float64(successCount) / float64(n)
+	successRate := forecastSuccessRate(successCount, n)
 	forecastMonteCarloLog.Printf("Running Monte Carlo: observations=%d, success_count=%d, success_rate=%.3f, runs_per_period=%.2f, iterations=%d",
 		n, successCount, successRate, observedRunsPerPeriod, monteCarloIterations)
 

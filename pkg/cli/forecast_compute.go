@@ -88,11 +88,7 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	completed := make([]WorkflowRun, 0, len(runs))
 	for _, r := range runs {
 		if isCompletedNonSkippedRun(r) {
-			// Compute Duration from StartedAt/UpdatedAt when not already set (gh run list
-			// does not populate the Duration field; health_command uses the same approach).
-			if r.Duration == 0 && !r.StartedAt.IsZero() && !r.UpdatedAt.IsZero() {
-				r.Duration = r.UpdatedAt.Sub(r.StartedAt)
-			}
+			r.Duration = forecastRunDuration(r)
 			completed = append(completed, r)
 		}
 	}
@@ -113,7 +109,8 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 
 	for _, r := range completed {
 		runAIC := aicMap[r.DatabaseID]
-		if runAIC <= 0 {
+		milliAIC, usable := forecastAICObservation(runAIC)
+		if !usable {
 			forecastRunLog.Printf("Skipping run %d for %s: AIC=%.3f treated as missing data", r.DatabaseID, workflowName, runAIC)
 			continue
 		}
@@ -124,8 +121,8 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 		totalDurSec += r.Duration.Seconds()
 		// Monte Carlo currently samples integer observations; keep milli-AIC precision
 		// so sub-1 AIC runs are represented without losing granularity.
-		aicObservations = append(aicObservations, int(math.Round(runAIC*1000)))
-		if r.Conclusion == "success" {
+		aicObservations = append(aicObservations, milliAIC)
+		if isBernoulliSuccessRun(r) {
 			successCount++
 		}
 		sample := ForecastRunSample{RunID: r.DatabaseID, AIC: roundForecastAIC(runAIC)}
@@ -156,7 +153,7 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 
 	result.AvgAIC = roundForecastAIC(totalAIC / float64(n))
 	result.AvgDurationSeconds = totalDurSec / float64(n)
-	result.SuccessRate = float64(successCount) / float64(n)
+	result.SuccessRate = forecastSuccessRate(successCount, n)
 
 	// Compute P50 and P95 of individual run AIC (per-run percentiles, not period totals).
 	sortedAIC := make([]int, len(aicObservations))
@@ -473,6 +470,58 @@ func emitPartialForecastResults(results []ForecastWorkflowResult, config Forecas
 
 func isCompletedNonSkippedRun(r WorkflowRun) bool {
 	return r.Status == "completed" && r.Conclusion != "skipped"
+}
+
+// isBernoulliSuccessRun reports whether a sampled run counts as a success in the
+// Bernoulli success model used by the Monte Carlo engine.  Only runs that concluded
+// "success" contribute; "failure", "cancelled", and "timed_out" runs remain in the
+// sample but count as failures.
+func isBernoulliSuccessRun(r WorkflowRun) bool {
+	return r.Conclusion == "success"
+}
+
+// forecastRunDuration returns the wall-clock duration of a run, deriving it from
+// StartedAt/UpdatedAt when the Duration field is not already populated (gh run list
+// does not populate Duration; health_command uses the same approach).  Durations are
+// never negative: inconsistent timestamps collapse to zero rather than skewing the
+// average duration.
+func forecastRunDuration(r WorkflowRun) time.Duration {
+	d := r.Duration
+	if d == 0 && !r.StartedAt.IsZero() && !r.UpdatedAt.IsZero() {
+		d = r.UpdatedAt.Sub(r.StartedAt)
+	}
+	if d < 0 {
+		return 0
+	}
+	return d
+}
+
+// forecastAICObservation converts a per-run AIC value into the integer milli-AIC
+// observation consumed by the Monte Carlo bootstrap sampler.
+//
+// It reports false when the run carries no usable AIC data — AIC ≤ 0 (artifact
+// missing or not yet produced), NaN, or ±Inf — so the run is excluded from the
+// observation set.  Extremely large values are clamped to math.MaxInt milli-AIC so
+// the float→int conversion can never wrap around to a negative observation.
+func forecastAICObservation(aic float64) (int, bool) {
+	if math.IsNaN(aic) || math.IsInf(aic, 0) || aic <= 0 {
+		return 0, false
+	}
+	milli := math.Round(aic * 1000)
+	if milli >= float64(math.MaxInt) {
+		return math.MaxInt, true
+	}
+	return int(milli), true
+}
+
+// forecastSuccessRate returns the Bernoulli success probability for a sample of n
+// runs, bounded to [0,1].  A non-positive sample size yields 0 so callers never
+// propagate NaN into the simulation.
+func forecastSuccessRate(successCount, n int) float64 {
+	if n <= 0 {
+		return 0
+	}
+	return math.Min(math.Max(float64(successCount)/float64(n), 0), 1)
 }
 
 // evaluateForecast fetches actual completed runs in the validation window and

@@ -20,7 +20,10 @@ Use this fixture as the baseline for Monte Carlo engine compliance tests (**T-FC
 ## How to Run Compliance Tests
 
 The forecast compliance tests are located in `pkg/cli/forecast_montecarlo_test.go` and
-`pkg/cli/forecast_test.go`.
+`pkg/cli/forecast_test.go`. Formal-model tests derived from this document live in
+`pkg/cli/forecast_compliance_fixtures_formal_test.go` and
+`pkg/cli/forecast_fixtures_formal_test.go` (predicates P1–P12 over fixture shape,
+field mappings, duration derivation, and the Monte Carlo engine).
 
 To run the full forecast compliance test suite:
 
