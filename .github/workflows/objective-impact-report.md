@@ -223,14 +223,11 @@ safe-outputs:
   create-issue:
     title-prefix: "Impact Efficiency Report - "
     max: 1
+imports:
+  - shared/reporting.md
 ---
 
 ### Impact Efficiency Report
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 #### Required Inputs (already precomputed)
 

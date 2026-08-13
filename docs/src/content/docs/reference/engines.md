@@ -372,7 +372,9 @@ When an expression is used, it must already be in milliseconds (GitHub Actions e
 | `max-delay-ms` | `60000` | Maximum delay cap in ms |
 | `watchdog-timeout` | `120` | Post-result idle watchdog timeout in seconds before terminating a quiet process |
 
-You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control, including `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` for the post-result watchdog. Explicit `engine.env` values take precedence over `engine.harness` sub-key values.
+The post-result watchdog is dormant until the harness observes a terminal safe output. `noop` and ordinary task outputs such as comments, labels, pushes, and pull request creation are terminal; diagnostics such as `missing_tool`, `missing_data`, and `report_incomplete` are not. Once armed, any stdout or stderr activity resets the inactivity clock. A quiet child process can still be terminated while it is doing useful work, and the harness may treat that termination as successful when a terminal safe output already exists.
+
+You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.env` when you need expression-level control, including `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` for the post-result watchdog. Explicit `engine.env` values take precedence over `engine.harness` sub-key values. See [Harness Settings and Runtime Tuning Variables](/gh-aw/reference/environment-variables/#harness-settings-and-runtime-tuning-variables) for supported env vars, units, clamping behavior, and engine-specific controls such as `GH_AW_CLAUDE_STARTUP_RETRIES`.
 
 ### Copilot SDK Support
 

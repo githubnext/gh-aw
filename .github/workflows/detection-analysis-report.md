@@ -32,6 +32,7 @@ imports:
       title-prefix: "[detection-analysis] "
       expires: 3d
   - uses: shared/aw-logs-24h-fetch-setup.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 sandbox:
@@ -133,8 +134,6 @@ If `/tmp/gh-aw/python/charts/detection_trend.png` was generated, upload it with 
 ---
 
 ## Report Structure
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
 Publish a discussion using the configured safe-output. Structure the body as:
 

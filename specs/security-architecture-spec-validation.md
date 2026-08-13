@@ -580,7 +580,7 @@ concurrency:
 
 **Clarification**: `pre_activation` handles role-based access control before activation. This is an implementation detail that doesn't contradict the specification - it's an additional security layer.
 
-**Recommendation**: Consider adding a note about role validation occurring in a separate pre-activation step.
+**Status**: ✅ **CLOSED** — Appendix D of `specs/security-architecture-spec.md` (Example 5) now shows `pre_activation` as a separate job gating `activation` on role membership.
 
 ### 2. Detection Job Naming
 
@@ -588,7 +588,7 @@ concurrency:
 
 **Clarification**: The `detection` job is the runtime manifestation of the threat detection layer described in Section 9.
 
-**Recommendation**: Add example job structure showing `detection` as a separate job in Appendix D.
+**Status**: ✅ **CLOSED** — Appendix D of `specs/security-architecture-spec.md` (Example 5) now shows `detection` as a separate job between `agent` and `safe_outputs`.
 
 ### 3. Conclusion Job
 
@@ -596,7 +596,7 @@ concurrency:
 
 **Clarification**: The `conclusion` job is an implementation detail for workflow cleanup and summary generation.
 
-**Recommendation**: Consider adding a note about optional cleanup/reporting jobs.
+**Status**: ✅ **CLOSED** — Appendix D of `specs/security-architecture-spec.md` (Example 5) now shows `conclusion` as the terminal `always()` job for cleanup/status reporting.
 
 ---
 
@@ -612,6 +612,14 @@ A conforming maintainer MUST re-run this validation when any of the following oc
 4. Validation evidence files, example workflows, or implementation locations cited in the Detailed Validation table move or change substantially.
 
 For each re-validation pass, reviewers MUST rerun the Detailed Validation procedure above, refresh the evidence-location table, update the Minor Discrepancies section, and revise the validation grade if any claim is no longer fully verified.
+
+### Trigger #3 Decision Log
+
+**2026-08-13 — `repos` vs `allowed-repos` field-naming divergence (deferred, no re-validation needed)**
+
+`scratchpad/github-mcp-access-control-specification.md`'s Divergence Audit (§Sync Notes) flagged that §4.4.1 historically used `repos` as the field name while §4.1 and the guard-policies spec used `allowed-repos`. This was investigated as a potential trigger-#3 event (companion guard-policy spec revision).
+
+**Decision: Defer — no re-validation of this report required.** The companion spec's own Divergence Audit already marked the item **Resolved**: `allowed-repos` is the canonical frontmatter key, `repos` is a documented deprecated alias for backward compatibility (`pkg/workflow/mcp_github_config.go` lines ~322-335), and `pkg/workflow/tools_validation_github.go` validates both spellings identically via the shared `AllowedRepos` field. This is a terminology/alias clarification, not a change to guard-policy *behavior*, job structure, or security guarantees. It does not affect the §3.2 Security Guarantees or §9 Threat Detection claims in `specs/security-architecture-spec.md`, so the Specification Accuracy Summary table below requires no update. `go test ./pkg/workflow/ -run TestValidateGitHubGuardPolicy` already exercises both the `repos` alias and `allowed-repos` field name (see `pkg/workflow/tools_validation_test.go`) and passes.
 
 ### Failure Escalation
 

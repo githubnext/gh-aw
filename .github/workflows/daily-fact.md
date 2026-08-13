@@ -68,6 +68,7 @@ safe-outputs:
 imports:
   - shared/otlp.md
   - shared/mcp/mempalace.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 evals:
@@ -78,11 +79,6 @@ evals:
 {{#runtime-import? .github/shared-instructions.md}}
 
 ### Daily Fact About gh-aw
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 Your task is to post a poetic, whimsical fact about the ${{ github.repository }} project to discussion #4750.
 

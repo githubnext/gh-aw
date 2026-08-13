@@ -45,6 +45,7 @@ imports:
       title-prefix: "[safe-output-optimizer] "
       expires: 3d
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   cli-proxy: true
   agentic-workflows:
@@ -409,8 +410,6 @@ After updating the tool description:
 - **Be specific**: Provide exact field names, workflow names, run IDs
 - **Be evidence-based**: Show actual error examples, not assumptions
 - **Be actionable**: Recommend specific description improvements
-
-- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
 ### Issue Creation Rules
 
