@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-12T05:20:35Z",
-  "run_id": "31565910103",
+  "last_updated": "2026-08-13T05:21:19.000584Z",
+  "run_id": "31669768730",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -1207,6 +1207,76 @@
       "description": "Wrapped IPv4 literal in brackets (invalid per RFC but tests Squid's URL parser leniency) to see if malformed literal bypasses dstdomain ACL",
       "result": "failure",
       "date": "2026-08-12"
+    },
+    {
+      "name": "CRLF injection in CONNECT hostname",
+      "category": "Protocol-level bypasses",
+      "description": "Inject CRLF sequence within CONNECT request-line target to split/desync request parsing",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "NUL byte truncation in CONNECT hostname",
+      "category": "Encoding tricks",
+      "description": "Embed NUL byte in hostname (api.github.com\\x00.example.com) hoping Squid truncates at NUL while backend uses full string",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "Trailing-dot FQDN bypass",
+      "category": "Encoding tricks",
+      "description": "Use example.com. (trailing dot, canonical FQDN form) and case variation to see if ACL dstdomain match fails to normalize",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "Absolute-form GET Host header mismatch",
+      "category": "Application-level smuggling",
+      "description": "Send GET http://example.com/ with Host: api.github.com to see if Squid routes by Host header instead of request-line authority",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "Duplicate Host header smuggling",
+      "category": "Application-level smuggling",
+      "description": "Send two Host headers (allowed then forbidden) in absolute-form request to desync routing decision",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "IDN homograph attack on github.com",
+      "category": "Encoding tricks",
+      "description": "Use Cyrillic lookalike character (U+0430) punycode-encoded as xn--gitub-8nc.com to see if ACL is fooled by homograph similarity",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "Chunked TE smuggled second CONNECT",
+      "category": "Application-level smuggling",
+      "description": "Embed a second CONNECT request for example.com inside the chunked body of a legitimate CONNECT to api.github.com, hoping Squid parses it as a pipelined proxy command",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "Pipelined CONNECT after tunnel established",
+      "category": "Timing attacks",
+      "description": "Send second CONNECT request on same TCP socket 1s after first tunnel established, hoping Squid re-parses it as new proxy command instead of tunnel payload",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "Squid manager info disclosure",
+      "category": "Application-level smuggling",
+      "description": "Probe /squid-internal-mgr/info for internal config/version disclosure that might reveal bypass-relevant details",
+      "result": "failure",
+      "date": "2026-08-13"
+    },
+    {
+      "name": "External DoH resolver bypass",
+      "category": "DNS-based attacks",
+      "description": "Attempt to use cloudflare-dns.com DNS-over-HTTPS as alternate resolution path since it is not itself an allowed domain",
+      "result": "failure",
+      "date": "2026-08-13"
     }
   ]
 }

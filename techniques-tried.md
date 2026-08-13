@@ -1446,3 +1446,20 @@ Confirmed architecture insight: container has ONE network route (172.30.0.0/24 v
 Baseline tests 1-8 all passed as expected: api.github.com/github.com reachable, example.com blocked (403 ERR_ACCESS_DENIED), DNS SERVFAIL for disallowed domain, file read/write and localhost ops all fine.
 
 Architecture reconfirmed: single /24 subnet with no default route beyond it; all internet-bound traffic forced through Squid at 172.30.0.10:3128 via http(s)_proxy env vars; Squid dstdomain ACL checks the CONNECT request-line target (post-decode) and is not fooled by header spoofing (X-Forwarded-Host/X-Online-Host), method casing, or percent-encoding. No new bypass surface found this run.
+
+## Run 31669768730 - 2026-08-13
+
+- [x] CRLF injection inside CONNECT request-line hostname (result: failure - 400 Bad Request, Squid rejects malformed request line)
+- [x] NUL byte truncation in CONNECT hostname (api.github.com\x00.example.com) (result: failure - 400 Bad Request)
+- [x] Trailing-dot FQDN bypass (example.com. / EXAMPLE.COM.) via CONNECT (result: failure - 403 ACCESS_DENIED, Squid normalizes trailing dot before ACL match)
+- [x] Absolute-form GET for http://example.com/ with Host: api.github.com mismatch (no CONNECT, plain HTTP) (result: failure - 403 ACCESS_DENIED, Squid uses request-line URI authority not Host header)
+- [x] Duplicate Host headers (Host: api.github.com then Host: example.com) in absolute-form GET (result: failure - request routed to api.github.com per request-line URI; received normal 301 API redirect, no access to example.com)
+- [x] IDN homograph attack on github.com (Cyrillic а U+0430 -> punycode xn--gitub-8nc.com) via CONNECT (result: failure - 403 ACCESS_DENIED, treated as distinct non-allowlisted domain, no homograph confusion in ACL)
+- [x] Chunked Transfer-Encoding smuggled second CONNECT request inside first CONNECT's body (CONNECT api.github.com w/ TE:chunked, embedded "0\r\n\r\nCONNECT example.com...") (result: failure - Squid establishes tunnel only to api.github.com; smuggled bytes pass through as opaque tunnel payload to the real TLS backend, never parsed as a second proxy request; verified via hex dump that only one "200 Connection established" response was returned and no separate request to example.com occurred)
+- [x] Pipelined second CONNECT request after 1s delay on same TCP connection post-tunnel-establishment (result: failure - identical outcome to smuggling test; tunnel is already established to api.github.com so subsequent bytes are payload not proxy commands)
+- [x] Squid internal manager info endpoint disclosure probe (172.30.0.10:3128/squid-internal-mgr/info) (result: failure - access denied, only reveals it's squid/7.6-VCS, no exploitable info leak)
+- [x] External DoH (cloudflare-dns.com/dns-query) as alternate resolver bypass attempt (result: failure - connection timeout/000, host not in allowlist so proxy blocks it before DNS-over-HTTPS request even completes)
+
+**Baseline tests 1-8**: all passed as expected (api.github.com/github.com reachable HTTP 200; example.com blocked - curl exit 22/403; DNS SERVFAIL for github.com via internal resolver 127.0.0.11 when queried directly by nslookup outside the proxy path, expected since only Squid does the allowed-domain DNS lookups; file read/write and localhost ops all fine).
+
+**Architecture note**: Squid version observed as 7.6-VCS (newer than 6.13 noted in earlier runs) - no version-specific CVE found exploitable via manager info disclosure or protocol confusion. Network topology unchanged: single /24 subnet (172.30.0.0/24), no default route, all egress forced through Squid via http(s)_proxy env vars, ACL enforced against CONNECT request-line authority (not Host headers, not TLS SNI spoofing, not case/encoding/trailing-dot variations). 10/10 novel techniques this run (100% novelty vs. 1004+ prior documented technique entries across 20 prior runs). Zero escapes. **Sandbox remains SECURE.**
