@@ -171,6 +171,8 @@ mcp-servers:
 
 `auth.type: github-oidc` uses GitHub Actions OIDC tokens for secure server-to-server authentication without static credentials. The `audience` field defaults to the server URL when omitted.
 
+- `required:` - Whether a stdio or HTTP MCP server must pass its startup connectivity check (boolean, default: `true`). Set `false` for an optional server so a failed startup check only logs a warning and the workflow continues without it, instead of failing the run.
+
 ### Engine Network Permissions
 
 Control network access via the top-level `network:` field (defaults to `network: defaults` — basic infrastructure only). For workflows that build, test, or install packages, always add the language ecosystem alongside `defaults`:

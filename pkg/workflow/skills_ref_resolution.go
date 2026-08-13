@@ -1,9 +1,10 @@
 package workflow
 
 import (
-	"context"
 	"fmt"
 	"os"
+
+	"github.com/github/gh-aw/pkg/ctxutil"
 )
 
 // resolveFrontmatterSkillRefs pins non-SHA remote skill refs (owner/repo[/path]@ref) to
@@ -67,12 +68,7 @@ func (c *Compiler) resolveSkillRefSpec(data *WorkflowData, markdownPath, spec st
 		return spec
 	}
 
-	ctx := data.Ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	sha, err := data.ActionResolver.ResolveSHA(ctx, parsed.repoPath, parsed.ref)
+	sha, err := data.ActionResolver.ResolveSHA(ctxutil.OrBackground(data.Ctx), parsed.repoPath, parsed.ref)
 	if err != nil {
 		skillsFrontmatterLog.Printf("skills[%d]: failed to resolve ref %q for %q to a SHA: %v", idx, parsed.ref, parsed.repoPath, err)
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",

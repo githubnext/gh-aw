@@ -309,6 +309,7 @@ SAFE_OUTPUTS_FILES=(
   "mcp_handler_process.cjs"
   "read_buffer.cjs"
   "mcp_scripts_validation.cjs"
+  "memory_custom_validation.cjs"
   "messages.cjs"
   "messages_core.cjs"
   "messages_footer.cjs"
