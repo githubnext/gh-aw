@@ -20,6 +20,8 @@ engine:
   id: copilot
   copilot-sdk: true
   bare: true
+imports:
+  - shared/smoke-test-brevity.md
 max-tool-denials: 3
 tools:
   bash:
@@ -42,8 +44,6 @@ sandbox:
 ---
 
 # Smoke Test: Copilot SDK Engine Validation
-
-**IMPORTANT: Keep all outputs extremely short and concise.**
 
 ## Tasks
 
