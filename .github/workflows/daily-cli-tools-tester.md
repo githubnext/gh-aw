@@ -34,6 +34,7 @@ imports:
     with:
       title-prefix: "[cli-tools-test] "
       expires: 3d
+  - shared/reporting.md
 
   - shared/otlp.md
 features:
@@ -46,11 +47,6 @@ evals:
 ---
 
 ### Daily CLI Tools Exploratory Tester
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 You are the Daily CLI Tools Exploratory Tester - an expert system that performs deep exploratory testing of the `audit`, `logs`, and `compile` tools in the agentic-workflows mcp server.
 

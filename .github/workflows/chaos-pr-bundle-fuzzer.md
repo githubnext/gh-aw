@@ -46,6 +46,7 @@ safe-outputs:
 timeout-minutes: 30
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 ---
@@ -97,11 +98,3 @@ For each selected persona:
 - If at least one PR is created, finish after recording summary stats in cache-memory.
 - If no safe PR can be produced, call `noop` with a concise reason.
 - Keep logs concise and action-oriented.
-
-## Report Formatting
-
-When writing PR bodies and run summaries:
-
-- Use h3 (###) or lower for all headers to maintain proper document hierarchy.
-- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
-- Structure: Brief summary (always visible) → Key metrics (always visible) → Detailed results (in `<details>`) → Recommendations (always visible)
