@@ -189,9 +189,11 @@ budget, so spend it on analysis, not on exploring the repository.
 
 Use the title `VulnHunter findings in ${{ github.repository }}`.
 
-Structure the issue body with `###` and `####` headings only. Keep the summary
-and highest-confidence findings visible, and wrap supporting evidence or
-per-finding deep dives in `<details><summary>...</summary>` blocks.
+### Output Format
+
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
+- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks to reduce scrolling.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 For each reported finding include:
 - affected file(s) and function or component
