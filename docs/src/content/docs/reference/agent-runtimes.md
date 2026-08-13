@@ -291,7 +291,9 @@ Preview scope is intentionally narrow:
 - `/dev/kvm` must be present.
 - `runner.topology: arc-dind` is not supported.
 
-The compiler emits host preflight and release-asset provisioning steps before AWF runs. Provisioning downloads `cloud-hypervisor-test-x86_64.tar.gz`, `SHA256SUMS`, and `manifest.json` from the pinned `gh-aw-firewall` release, verifies checksums, and feeds AWF digest-pinned flags for the Cloud Hypervisor binary, kernel, rootfs, and supervisor.
+The compiler grants only the runner user read/write access to `/dev/kvm`, then emits host preflight and release-asset provisioning steps before AWF runs. Provisioning downloads the Cloud Hypervisor bundle, `SHA256SUMS`, and `manifest.json` from the pinned `gh-aw-firewall` release, verifies checksums, and feeds AWF digest-pinned flags for the Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor.
+
+AWF launches with host privileges required to create the VM, but the runtime remains in strict network-isolation mode. The guest defaults to 2 vCPUs and 4096 MiB of memory. Its trusted topology attachment is limited to the MCP gateway on TCP 8080; the CLI proxy is not attached.
 
 > [!IMPORTANT]
 > This runtime is preview-only. Keep expectations aligned with AWF preview support and prefer Docker sbx or gVisor when Cloud Hypervisor host constraints are not guaranteed.
