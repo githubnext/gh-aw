@@ -25,7 +25,7 @@ global.github = {
 
 const pendingPullRequestRun = {
   event: "pull_request",
-  conclusion: "action_required",
+  status: "action_required",
   html_url: "https://github.com/test-owner/test-repo/actions/runs/123",
   pull_requests: [{ number: 42 }],
 };
@@ -92,7 +92,7 @@ describe("approve_workflow_run", () => {
 
   it("rejects runs that are not awaiting approval", async () => {
     mockGetWorkflowRun.mockResolvedValue({
-      data: { ...pendingPullRequestRun, conclusion: "success" },
+      data: { ...pendingPullRequestRun, status: "completed" },
     });
     const { main } = require("./approve_workflow_run.cjs");
     const handler = await main();
@@ -112,7 +112,17 @@ describe("approve_workflow_run", () => {
 
     expect(result.success).toBe(true);
     expect(result.staged).toBe(true);
+    expect(mockGetWorkflowRun).not.toHaveBeenCalled();
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("does not apply the maximum to staged previews", async () => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ staged: true, max: 1 });
+
+    expect((await handler({ run_id: 123 }, {})).success).toBe(true);
+    expect((await handler({ run_id: 124 }, {})).success).toBe(true);
+    expect(mockGetWorkflowRun).not.toHaveBeenCalled();
   });
 
   it("enforces the configured maximum", async () => {
@@ -129,7 +139,7 @@ describe("approve_workflow_run", () => {
   it("does not consume the maximum for an ineligible run", async () => {
     mockGetWorkflowRun
       .mockResolvedValueOnce({
-        data: { ...pendingPullRequestRun, conclusion: "success" },
+        data: { ...pendingPullRequestRun, status: "completed" },
       })
       .mockResolvedValueOnce({ data: pendingPullRequestRun });
     const { main } = require("./approve_workflow_run.cjs");

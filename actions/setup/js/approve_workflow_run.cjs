@@ -39,16 +39,21 @@ async function main(config = {}) {
   core.info(`Approve workflow run configuration: max=${maxCount}`);
 
   return async function handleApproveWorkflowRun(message) {
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping ${HANDLER_TYPE}: max count of ${maxCount} reached`);
-      return { success: false, error: `Max count of ${maxCount} reached` };
-    }
-
     const runId = parseRunId(message.run_id);
     if (!runId) {
       const error = "run_id must be a positive integer";
       core.warning(error);
       return { success: false, error };
+    }
+
+    if (isStaged) {
+      logStagedPreviewInfo(`Would approve workflow run ${runId}`);
+      return { success: true, staged: true, run_id: runId };
+    }
+
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping ${HANDLER_TYPE}: max count of ${maxCount} reached`);
+      return { success: false, error: `Max count of ${maxCount} reached` };
     }
 
     try {
@@ -64,18 +69,13 @@ async function main(config = {}) {
         return { success: false, error };
       }
 
-      if (run.conclusion !== "action_required") {
-        const error = `Workflow run ${runId} is not awaiting approval (conclusion: ${run.conclusion || "none"})`;
+      if (run.status !== "action_required") {
+        const error = `Workflow run ${runId} is not awaiting approval (status: ${run.status || "none"})`;
         core.warning(error);
         return { success: false, error };
       }
 
       processedCount++;
-
-      if (isStaged) {
-        logStagedPreviewInfo(`Would approve workflow run ${runId}`);
-        return { success: true, staged: true, run_id: runId, url: run.html_url };
-      }
 
       await githubClient.rest.actions.approveWorkflowRun({
         owner: context.repo.owner,

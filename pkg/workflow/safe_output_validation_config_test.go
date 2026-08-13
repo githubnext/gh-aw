@@ -26,6 +26,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 	expectedTypes := []string{
 		"create_issue",
 		"create_agent_session",
+		"approve_workflow_run",
 		"add_comment",
 		"create_pull_request",
 		"add_labels",
@@ -68,6 +69,35 @@ func TestGetValidationConfigJSON(t *testing.T) {
 	// Verify JSON is indented (contains newlines)
 	if !containsNewline(jsonStr) {
 		t.Error("Expected indented JSON output with newlines")
+	}
+}
+
+func TestApproveWorkflowRunValidationConfig(t *testing.T) {
+	config, ok := ValidationConfig["approve_workflow_run"]
+	if !ok {
+		t.Fatal("approve_workflow_run not found in ValidationConfig")
+	}
+	if config.DefaultMax != 1 {
+		t.Errorf("approve_workflow_run DefaultMax = %d, want 1", config.DefaultMax)
+	}
+	if runID := config.Fields["run_id"]; !runID.Required || !runID.PositiveInteger {
+		t.Errorf("approve_workflow_run run_id = %+v, want required positive integer", runID)
+	}
+
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"approve_workflow_run"}, nil, false, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSONWithDataSchema() error = %v", err)
+	}
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+	parsedConfig, ok := parsed["approve_workflow_run"]
+	if len(parsed) != 1 || !ok || parsedConfig.DefaultMax != 1 {
+		t.Errorf("approve_workflow_run validation config = %#v, want defaultMax 1", parsedConfig)
+	}
+	if runID := parsedConfig.Fields["run_id"]; !runID.Required || !runID.PositiveInteger {
+		t.Errorf("approve_workflow_run generated run_id = %+v, want required positive integer", runID)
 	}
 }
 
