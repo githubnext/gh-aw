@@ -124,26 +124,14 @@ for the emitted fields.
 
 ## Trigger Frequency and Cost Risk
 
-The primary cost lever for most workflows is how often they run. Some events are inherently high-frequency:
+The primary cost lever for most workflows is how often they run.
 
-### High Risk
-
-- **`push`** — Every commit to any matching branch fires the workflow
-- **`check_run`**, **`check_suite`** — Can fire many times per push in busy repositories
-
-### Medium–High Risk
-
-- **`pull_request`** — Fires on open, sync, re-open, label, and other subtypes
-- **`issues`** — Fires on open, close, label, edit, and other subtypes
-
-### Medium Risk
-
-- **`issue_comment`**, **`pull_request_review_comment`** — Scales with comment activity
-
-### Low / Predictable Risk
-
-- **`schedule`** — Fires at a fixed cadence; easy to budget
-- **`workflow_dispatch`** — Human-initiated; naturally rate-limited
+| Risk level | Triggers | Why |
+|---|---|---|
+| High | `push`, `check_run`, `check_suite` | Fires on nearly every code change; busy repositories can generate many runs per day. |
+| Medium-high | `pull_request`, `issues` | Fires on many lifecycle events such as open, sync, label, edit, and close. |
+| Medium | `issue_comment`, `pull_request_review_comment` | Scales with discussion activity. |
+| Low / predictable | `schedule`, `workflow_dispatch` | Fixed cadence or human-initiated, so easier to budget. |
 
 > [!CAUTION]
 > Attaching an agentic workflow to `push`, `check_run`, or `check_suite` in an active repository can generate hundreds of runs per day. Start with `schedule` or `workflow_dispatch` while evaluating cost, then move to event-based triggers with safeguards in place.
@@ -226,29 +214,17 @@ Inference cost scales with prompt size. Write focused prompts, avoid whole-file 
 
 ### Prevent Runaway Costs from Agents
 
-GitHub Agentic Workflows includes default guardrails to help prevent runaway agent costs:
-
-- 20-minute timeout on the agentic step
-- 1000 AI Credits per workflow run
-- 5000 AI Credits per workflow per day (24-hour window)
-
-These defaults can be overridden with frontmatter (`timeout-minutes`, `max-ai-credits`, `max-daily-ai-credits`) and enterprise environment variables (`GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`).
+GitHub Agentic Workflows includes default guardrails: a 20-minute timeout on the agentic step, 1000 AI Credits per workflow run, and 5000 AI Credits per workflow per day (24-hour window). Override them with frontmatter (`timeout-minutes`, `max-ai-credits`, `max-daily-ai-credits`) or enterprise environment variables (`GH_AW_DEFAULT_TIMEOUT_MINUTES`, `GH_AW_DEFAULT_MAX_AI_CREDITS`, `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS`).
 
 ### Cap AI Credits per Run
 
-Use the top-level `max-ai-credits` frontmatter field to cap
-the AI Credits (AIC) budget for a single workflow run. This
-provides a hard stop for unusually expensive runs and a consistent
-cost guardrail across all supported engines. The field accepts
-plain integers or `K`/`M` suffixes such as `100M`.
+Use the top-level `max-ai-credits` frontmatter field to cap the AI Credits (AIC) budget for a single workflow run. It provides a hard stop for unusually expensive runs and a consistent guardrail across all supported engines. The field accepts plain integers or `K`/`M` suffixes such as `100M`.
 
 ```aw wrap
 max-ai-credits: 500
 ```
 
-When the budget is approached, gh-aw emits steering warnings before
-the run reaches the limit. Set a negative value only when budget
-enforcement must be disabled explicitly.
+When the budget is approached, gh-aw emits steering warnings before the run reaches the limit. Set a negative value only to disable budget enforcement explicitly.
 
 > [!NOTE]
 > Threat-detection runs have their own AI Credits cap, separate
@@ -259,22 +235,15 @@ enforcement must be disabled explicitly.
 
 ### Cap Turns per Run
 
-Use the top-level `max-turns` frontmatter field to cap the number
-of chat iterations (model responses and tool calls) for a single
-workflow run. Each additional turn consumes more tokens and Actions
-compute time, so a turn limit bounds both runaway loops and cost.
+Use the top-level `max-turns` frontmatter field to cap the number of chat iterations (model responses and tool calls) for a single workflow run. Each additional turn consumes more tokens and Actions compute time, so a turn limit bounds both runaway loops and cost.
 
 ```aw wrap
 max-turns: 20
 ```
 
-`max-turns` is supported across Claude, Codex, Copilot, Gemini, and
-Pi engines. When set, gh-aw exports the compiled value as
-`GH_AW_MAX_TURNS` for the engine runtime — you do not need to set
-`CLAUDE_CODE_MAX_TURNS` or an equivalent variable separately.
+`max-turns` works across Claude, Codex, Copilot, Gemini, and Pi. When set, gh-aw exports the compiled value as `GH_AW_MAX_TURNS` for the engine runtime, so you do not need to set `CLAUDE_CODE_MAX_TURNS` or an equivalent variable separately.
 
-The field accepts integer literals or GitHub Actions expressions,
-making it composable with `workflow_call` inputs:
+The field accepts integer literals or GitHub Actions expressions, making it composable with `workflow_call` inputs:
 
 ```aw wrap
 max-turns: ${{ inputs.max-turns || 15 }}
@@ -286,33 +255,22 @@ max-turns: ${{ inputs.max-turns || 15 }}
 > `gh aw fix engine-max-turns-to-top-level` to migrate existing
 > workflows automatically.
 
-An enterprise-wide default can be set via the compiler process
-environment variable `GH_AW_DEFAULT_MAX_TURNS`. Individual
-workflows override this default by setting `max-turns` in
-frontmatter.
+An enterprise-wide default can be set with the compiler process environment variable `GH_AW_DEFAULT_MAX_TURNS`. Individual workflows override it by setting `max-turns` in frontmatter.
 
 ### Cap Daily AI Credits per Workflow
 
-Use `max-daily-ai-credits` to set a 24-hour AI Credits
-cap for one workflow. The guardrail sums runs from the past 24 hours of the same
-workflow across the repository, regardless of who triggered them.
+Use `max-daily-ai-credits` to set a 24-hour AI Credits cap for one workflow. The guardrail sums runs from the past 24 hours of the same workflow across the repository, regardless of who triggered them.
 
 ```aw wrap
 max-daily-ai-credits: 15M
 ```
 
-When the total from the past 24 hours already meets or exceeds this threshold, the activation
-job warns, creates an issue, skips the agent job, and lets the
-conclusion job report the failure context.
+When the total from the past 24 hours already meets or exceeds this threshold, the activation job warns, creates an issue, skips the agent job, and lets the conclusion job report the failure context.
 
-The guardrail is disabled by default when omitted. Positive values accept plain integers or `K`/`M`
-suffixes such as `100M`.
+The guardrail is disabled by default when omitted. Positive values accept plain integers or `K`/`M` suffixes such as `100M`.
 
 > [!CAUTION]
-> Enabling `max-daily-ai-credits` is expensive in GitHub API units. Every
-> activation checks the 24-hour window by calling `listWorkflowRuns` (up to
-> 10 pages × 100 runs) plus additional artifact-lookup API calls per
-> inspected run.
+> Enabling `max-daily-ai-credits` is expensive in GitHub API units. Every activation checks the 24-hour window by calling `listWorkflowRuns` (up to 10 pages × 100 runs) plus additional artifact-lookup API calls per inspected run.
 
 To disable the guardrail explicitly, set `-1`:
 
