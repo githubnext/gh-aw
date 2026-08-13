@@ -1,40 +1,38 @@
-## Extracted code-quality tasks (2026-08-12 cycle)
+## Extracted code-quality tasks (2026-08-13 cycle)
 
-1. Fix `coverage.findProfile` path-matching bug making the perf-linter coverage gate a silent no-op — filed.
-2. Fix `api.individual.githubcopilot.com` misdirected hostname in PR Code Quality Reviewer — filed.
-3. Add `gh-aw-detection: true` to 8 scheduled audit/report/detector workflows — filed.
-4. Fix schema-consistency tooling stale-file target + `frontmatter-full.md` missing fields — filed.
-5. Remove shadowed `GitHubToken` field re-declarations in 3 project-config structs — filed.
-6. Re-file `agenticworkflows logs` MCP timeout (recurrence of auto-expired #51952) — filed.
-7. Document label pre-creation requirement in AI issue triage guide — filed.
-
-Not filed (chronic, folding into existing process-gate/tracking evidence instead of re-filing):
-- Copilot Session Insights: new 35-day sampling gap on top of original transcript gap since 2026-06-23 (#52255).
-- Fleet-wide 49% agent-job failure rate: team-evolution report (#52145) offers a plausible explanation but no formal reconciliation yet — investigation issue from 2026-08-11 stays open, not re-filed.
+1. Fix Sentrux `god_files_ceiling` rule not enforced ("0 rules checked") — filed.
+2. Add Autonomy/WriteScope validation to PolicyCompiler's seeding rule in pkg/intent/policy.go — filed.
+3. Embed AggregatedSummaryBase in MCPFailureSummary instead of hand-copying fields — filed.
+4. Add graceful noop fallback to Test Quality Sentinel's pre-fetch pipefail script — filed.
+5. Investigate shared PR-review pre-fetch infra flakiness (Aug 7/11/13 correlated dips) — filed.
+6. Add pr-triage sub-agent fallback to Matt Pocock Skills Reviewer — filed.
+7. Add Success Criteria + noop-vs-silence distinction to Ponytail Reviewer — NOT FILED this cycle (hit the 7-issue cap due to a shell-quoting mishap consuming an extra create_issue slot on a duplicate retry). Carry forward to next cycle as top priority.
 
 Not filed (already self-filed by the reporting agent itself this cycle, cross-checked for no gap):
-- LintMonster: function-length backlog (#52205/#52206/#52207), closed stale duplicate #50982.
-- Cache Strategy: Linter Miner cache-miss fix (matches tracked #52134).
-- ESLint Refiner: reassignment-guard bug + chained-method-call detection gap (matches open #52240/#52241).
+- Sergo: `hardcodedfilepath` linter Exported()-only filter bug — matches open #52428.
+- ESLint Refiner: `require-invalid-date-check-before-compare` false positive/negative — matches open #52441/#52442.
+- GitHub Remote MCP `get_repository` tool missing — matches open #52444/#52445.
 
-Not filed (duplicate of existing open issue found during dedup check):
-- `pkg/cli/update_actions.go` split — already tracked as #52054 (file-diet).
-- `JobStep`/`JobStepData` consolidation, log-entry-struct base type, compiler_types.go split — all filed in 2026-08-11 cycle, still open.
+Not filed (chronic, carried forward from prior cycles, still open, not re-filed):
+- `coverage.findProfile` path-matching bug (#52309, filed 2026-08-12).
+- `GitHubToken` field-shadowing (#52313, filed 2026-08-12).
+- Fleet-wide reliability investigation (#51935-adjacent, 2026-08-11) — likely resolved per this cycle's convergent evidence (see trend_data.md), recommend closing next cycle if still open.
 
 Previous cycles' tasks (for reference, all previously filed):
-### 2026-08-11
-1. Fix inverted `strict:` mode documentation — filed as #52086, VERIFIED FIXED this cycle (see known_patterns.md).
-2. Add missing `repository_dispatch` to `user-rate-limit.events` schema enum — filed.
-3. README agent-bootstrap block silently defaults Claude Code users to Copilot-oriented artifacts — filed.
-4. Consolidate `JobStep`/`JobStepData` identical structs in `pkg/cli` — filed.
-5. Give the 4 independent log-entry structs a shared base type — filed.
-6. Split `pkg/workflow/compiler_types.go` — filed.
-7. Investigate 49% agent-job failure rate — filed, still open/unreconciled.
+### 2026-08-12
+1. Fix `coverage.findProfile` path-matching bug — filed as #52309.
+2. Fix `api.individual.githubcopilot.com` misdirected hostname — filed, VERIFIED FIXED this cycle via commit b2ef1f3/#52377.
+3. Add `gh-aw-detection: true` to 8 scheduled workflows — filed.
+4. Fix schema-consistency tooling stale-file target — filed.
+5. Remove shadowed `GitHubToken` field re-declarations — filed as #52313.
+6. Re-file `agenticworkflows logs` MCP timeout — filed.
+7. Document label pre-creation requirement in AI issue triage guide — filed.
 
-### 2026-08-10
-1. Require verified-merged evidence before closing self-filed reliability/doc issues (process gate).
-2. Land the DeepReport repo-memory path fix from #51172 for real.
-3. Add gh-aw-detection: true to Q and ESLint Monster.
-4. Reformat audit-workflows recommendations.json/workflow-trends.json to indent=2.
-5. Add native-counterpart doc comments to progress_wasm.go / spinner_wasm.go.
-6. Investigate firewall/MCP log retention via upload-side glob/path-depth hypothesis.
+### 2026-08-11
+1. Fix inverted `strict:` mode documentation — filed as #52086, VERIFIED FIXED.
+2. Add missing `repository_dispatch` to `user-rate-limit.events` schema enum — filed.
+3. README agent-bootstrap block Copilot-default gap — filed.
+4. Consolidate `JobStep`/`JobStepData` identical structs — filed.
+5. Shared base type for 4 log-entry structs — filed.
+6. Split `pkg/workflow/compiler_types.go` — filed.
+7. Investigate 49% agent-job failure rate — filed, likely resolved per 2026-08-13 convergent evidence.
