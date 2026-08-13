@@ -2693,7 +2693,15 @@ function queryWithBackoff(request):
     for attempt in 1..maxAttempts:
         response = performGitHubAPIRequest(request)
 
-        if response.status == 403 or response.status == 429:
+        # 429 is always a primary rate limit. A 403 with a rate-limit-related
+        # body/header (e.g. "secondary rate limit" or a "Retry-After" header)
+        # is GitHub's secondary rate limit and is retried the same way; a 403
+        # WITHOUT rate-limit signals is a permission/authorization denial and
+        # MUST NOT be retried — return it immediately as a non-retryable error.
+        isRateLimited = response.status == 429 or
+            (response.status == 403 and isRateLimitSignal(response))
+
+        if isRateLimited:
             if attempt == maxAttempts:
                 # Fail closed: no more retries — deny for this decision (§9.4)
                 return DENY_RATE_LIMITED
@@ -2709,13 +2717,14 @@ function queryWithBackoff(request):
             sleep(delayMs)
             continue
 
-        return response  # success or non-rate-limit error; caller handles normally
-
-    return DENY_RATE_LIMITED  # unreachable given the loop above, kept for clarity
+        return response  # success, or a non-rate-limit error (e.g. plain 403); caller handles normally
+    # Loop only reaches maxAttempts via the rate-limited branch above, which
+    # always returns DENY_RATE_LIMITED on the final attempt, so this point is unreachable.
 ```
 
 **Notes**:
 - Respect the `Retry-After` header when GitHub provides one; fall back to exponential backoff (base 500ms, cap 30s) with jitter otherwise.
+- Treat `403` as retryable only when it carries GitHub's secondary-rate-limit signal (`Retry-After` header or a rate-limit message in the response body); an ordinary `403` permission denial MUST be returned immediately, not retried.
 - Exhausting `maxAttempts` MUST result in a fail-closed denial for the current request, not an implicit allow.
 
 #### C.5 Configuration Validation Timing
