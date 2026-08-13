@@ -8,16 +8,13 @@ on:
     name: craft
     events: [issues]
 max-daily-ai-credits: 10000
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-  copilot-requests: write
 engine:
   id: copilot
   copilot-sdk: true
 max-tool-denials: 3
 imports:
+  - shared/permissions-read-base.md
+  - shared/permissions-read-copilot.md
   - shared/otlp.md
   - shared/reporting.md
 sandbox:

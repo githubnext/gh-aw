@@ -5,10 +5,8 @@ description: Daily synthetic tester that exhaustively explores the space of git 
 on:
   schedule: daily
   workflow_dispatch:
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+imports:
+  - shared/permissions-read-base.md
 
 sandbox:
   agent:

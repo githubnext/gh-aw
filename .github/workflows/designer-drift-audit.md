@@ -4,10 +4,8 @@ emoji: 🔍
 description: Daily audit that detects drift between aw reference docs and the workflow designer skill/agent files
 on:
   schedule: daily on weekdays
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read # required by pull_requests
+imports:
+  - shared/permissions-read-base.md
 
 sandbox:
   agent:

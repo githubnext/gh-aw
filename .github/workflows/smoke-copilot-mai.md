@@ -14,10 +14,8 @@ on:
   reaction: "eyes"
   status-comment: true
   github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+imports:
+  - shared/permissions-read-base.md
 name: Smoke Copilot MAI
 model: mai-code-1-flash-picker
 engine:

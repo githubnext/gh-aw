@@ -9,11 +9,9 @@ on:
         required: true
         type: string
         default: "-30d..-0d"
-permissions:
-  contents: read
-  actions: read
-  issues: read
-  pull-requests: read
+imports:
+  - shared/permissions-read-base.md
+  - shared/permissions-read-actions.md
 network:
   allowed:
     - defaults

@@ -7,12 +7,6 @@ on:
   workflow_dispatch:
 
 max-daily-ai-credits: 10000
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-
-  copilot-requests: write
 engine:
   id: copilot
   copilot-sdk: true
@@ -61,6 +55,8 @@ safe-outputs:
   noop:
 
 imports:
+  - shared/permissions-read-base.md
+  - shared/permissions-read-copilot.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[architecture-diagram] "

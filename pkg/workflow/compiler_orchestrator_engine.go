@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 
@@ -250,8 +251,29 @@ func (c *Compiler) processEngineImportsAndMerge(
 			orchestratorEngineLog.Printf("Included permissions validation failed: %v", err)
 			return nil, nil, fmt.Errorf("permission validation failed: %w", err)
 		}
+		mergeImportedPermissions(result.Frontmatter, importsResult.MergedPermissions)
 	}
 	return importsResult, networkPermissions, nil
+}
+
+func mergeImportedPermissions(frontmatter map[string]any, importedPermissionsJSON string) {
+	merged := make(map[string]any)
+	for line := range strings.SplitSeq(importedPermissionsJSON, "\n") {
+		var permissions map[string]any
+		if err := json.Unmarshal([]byte(line), &permissions); err != nil {
+			continue
+		}
+		maps.Copy(merged, permissions)
+	}
+
+	if permissionsValue, ok := frontmatter["permissions"]; ok {
+		topLevelPermissions, ok := permissionsValue.(map[string]any)
+		if !ok {
+			return
+		}
+		maps.Copy(merged, topLevelPermissions)
+	}
+	frontmatter["permissions"] = merged
 }
 
 func scanImportedMarkdownFiles(importedFiles []string, markdownDir string, importCache *parser.ImportCache) error {

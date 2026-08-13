@@ -4,11 +4,9 @@ on:
   schedule:
     - cron: "daily around 12:00 on weekdays"
   workflow_dispatch:
-permissions:
-  contents: read
-  actions: read
-  issues: read
-  pull-requests: read
+imports:
+  - shared/permissions-read-base.md
+  - shared/permissions-read-actions.md
 network:
   allowed:
     - defaults

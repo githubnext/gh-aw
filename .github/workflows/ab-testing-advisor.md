@@ -7,16 +7,13 @@ on:
     query: is:issue is:open in:title "[ab-advisor] " label:experiments
   workflow_dispatch: null
 max-daily-ai-credits: 10000
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
-  copilot-requests: write
 network:
   allowed:
   - defaults
 imports:
+- shared/permissions-read-base.md
+- shared/permissions-read-actions.md
+- shared/permissions-read-copilot.md
 - shared/otlp.md
 safe-outputs:
   create-issue:

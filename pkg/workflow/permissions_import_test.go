@@ -52,11 +52,10 @@ func TestValidateIncludedPermissions(t *testing.T) {
 			expectError:         false,
 		},
 		{
-			name:                "Multiple missing permissions fails validation",
+			name:                "Imported permissions establish permissions without main declaration",
 			topPermissionsYAML:  "",
 			importedPermissions: strings.Join([]string{`{"actions":"read"}`, `{"issues":"write"}`}, "\n"),
-			expectError:         true,
-			errorContains:       "Missing permissions",
+			expectError:         false,
 		},
 		{
 			name:                "All required permissions present passes validation",
@@ -289,4 +288,80 @@ tools:
 			t.Fatalf("Expected compilation to succeed but got error: %v", err)
 		}
 	})
+}
+
+func TestPermissionComponentsCompose(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	sharedDir := filepath.Join(tempDir, ".github", "workflows", "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	components := map[string]string{
+		"permissions-read-base.md": `---
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+---
+`,
+		"permissions-read-actions.md": `---
+permissions:
+  actions: read
+---
+`,
+		"permissions-read-copilot.md": `---
+permissions:
+  copilot-requests: write
+---
+`,
+	}
+	for name, content := range components {
+		if err := os.WriteFile(filepath.Join(sharedDir, name), []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to create %s: %v", name, err)
+		}
+	}
+
+	mainWorkflowPath := filepath.Join(tempDir, ".github", "workflows", "test-workflow.md")
+	mainWorkflowContent := `---
+on: issues
+engine: copilot
+strict: false
+imports:
+  - shared/permissions-read-base.md
+  - shared/permissions-read-actions.md
+  - shared/permissions-read-copilot.md
+tools:
+  github:
+    toolsets: [default]
+---
+
+# Main workflow
+`
+	if err := os.WriteFile(mainWorkflowPath, []byte(mainWorkflowContent), 0644); err != nil {
+		t.Fatalf("Failed to create main workflow: %v", err)
+	}
+
+	if err := NewCompiler().CompileWorkflow(mainWorkflowPath); err != nil {
+		t.Fatalf("Expected compilation to succeed but got error: %v", err)
+	}
+
+	frontmatter := map[string]any{}
+	mergeImportedPermissions(frontmatter, strings.Join([]string{
+		`{"contents":"read","issues":"read","pull-requests":"read"}`,
+		`{"actions":"read"}`,
+		`{"copilot-requests":"write"}`,
+	}, "\n"))
+	permissions := NewPermissionsParserFromValue(frontmatter["permissions"]).ToPermissions()
+	for scope, level := range map[PermissionScope]PermissionLevel{
+		PermissionActions:         PermissionRead,
+		PermissionContents:        PermissionRead,
+		PermissionIssues:          PermissionRead,
+		PermissionPullRequests:    PermissionRead,
+		PermissionCopilotRequests: PermissionWrite,
+	} {
+		if actual, _ := permissions.Get(scope); actual != level {
+			t.Errorf("Expected %s permission to be %s, got %s", scope, level, actual)
+		}
+	}
 }

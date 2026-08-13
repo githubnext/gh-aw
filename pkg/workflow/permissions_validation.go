@@ -284,9 +284,9 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	return strings.Join(lines, "\n")
 }
 
-// ValidateIncludedPermissions validates that the main workflow permissions satisfy the imported
-// workflow requirements. This function is specifically used when merging included/imported workflow
-// files to ensure the main workflow has sufficient permissions to support all imported files.
+// ValidateIncludedPermissions validates that explicitly declared main workflow permissions satisfy
+// imported workflow requirements. When a workflow does not declare permissions, imported components
+// establish its permissions.
 //
 // Use ValidatePermissions (in permissions_validator.go) for general permission validation against
 // GitHub MCP toolsets. Use ValidateIncludedPermissions (this function) when validating permissions
@@ -297,6 +297,10 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 	// If no imported permissions, no validation needed
 	if importedPermissionsJSON == "" || importedPermissionsJSON == "{}" {
 		permissionsValidationLog.Print("No included workflow permissions to validate")
+		return nil
+	}
+	if topPermissionsYAML == "" {
+		permissionsValidationLog.Print("Imported workflow permissions establish the workflow permissions")
 		return nil
 	}
 
@@ -367,8 +371,8 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 	// If there are missing or insufficient permissions, return an error
 	if len(missingPermissions) > 0 || len(insufficientPermissions) > 0 {
 		var errorMsg strings.Builder
-		errorMsg.WriteString("ERROR: Imported workflows require permissions that are not granted in the main workflow.\n\n")
-		errorMsg.WriteString("The permission set must be explicitly declared in the main workflow.\n\n")
+		errorMsg.WriteString("ERROR: Imported workflows require permissions that are not granted by the main workflow's explicit permissions.\n\n")
+		errorMsg.WriteString("Explicit main workflow permissions must include every imported permission.\n\n")
 
 		if len(missingPermissions) > 0 {
 			errorMsg.WriteString("Missing permissions:\n")
