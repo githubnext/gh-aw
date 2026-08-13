@@ -13,7 +13,7 @@ network:
 imports:
 - shared/permissions-read-base.md
 - shared/permissions-read-actions.md
-- shared/permissions-read-copilot.md
+- shared/permissions-copilot-requests.md
 - shared/otlp.md
 safe-outputs:
   create-issue:

@@ -14,7 +14,7 @@ engine:
 max-tool-denials: 3
 imports:
   - shared/permissions-read-base.md
-  - shared/permissions-read-copilot.md
+  - shared/permissions-copilot-requests.md
   - shared/otlp.md
   - shared/reporting.md
 sandbox:

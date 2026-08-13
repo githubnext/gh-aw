@@ -310,7 +310,7 @@ permissions:
   actions: read
 ---
 `,
-		"permissions-read-copilot.md": `---
+		"permissions-copilot-requests.md": `---
 permissions:
   copilot-requests: write
 ---
@@ -330,7 +330,7 @@ strict: false
 imports:
   - shared/permissions-read-base.md
   - shared/permissions-read-actions.md
-  - shared/permissions-read-copilot.md
+  - shared/permissions-copilot-requests.md
 tools:
   github:
     toolsets: [default]

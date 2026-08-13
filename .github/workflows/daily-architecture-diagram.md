@@ -56,7 +56,7 @@ safe-outputs:
 
 imports:
   - shared/permissions-read-base.md
-  - shared/permissions-read-copilot.md
+  - shared/permissions-copilot-requests.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[architecture-diagram] "
