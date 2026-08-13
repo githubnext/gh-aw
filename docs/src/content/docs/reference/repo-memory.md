@@ -35,10 +35,15 @@ tools:
     create-orphan: true     # default
     allowed-extensions: [".json", ".txt", ".md"]  # Restrict file types (default: empty/all files allowed)
     format-json: true       # Pretty-print .json files (default: false)
+    validation:
+      timeout-minutes: 1
+      script: |
+        const data = JSON.parse(fs.readFileSync(path.join(memoryRoot, "state.json"), "utf8"));
+        if (!Array.isArray(data.items)) throw new Error("state.json must contain an items array");
 ---
 ```
 
-`branch-prefix` changes the default `memory` prefix and must be 4-32 alphanumeric, hyphen, or underscore characters; it cannot be `copilot`. `allowed-extensions` limits which file types can be stored, `format-json: true` pretty-prints `.json` files before commit, and `max-patch-size` caps the total diff size for one push (default 10KB, max 1MB) to prevent oversized updates.
+`branch-prefix` changes the default `memory` prefix and must be 4-32 alphanumeric, hyphen, or underscore characters; it cannot be `copilot`. `allowed-extensions` limits which file types can be stored, `format-json: true` pretty-prints `.json` files before commit, `validation.script` runs a custom JavaScript domain validator before persistence, and `max-patch-size` caps the total diff size for one push (default 10KB, max 1MB) to prevent oversized updates.
 
 **File Glob Matching Rules**:
 
@@ -69,6 +74,14 @@ Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. The required
 ## Behavior
 
 Branches auto-create as orphans by default, or clone with `--depth 1`. After validating `file-glob`, `max-file-size`, and `max-file-count`, gh-aw auto-commits and pushes when changes are present and threat detection passes.
+
+### Custom validation
+
+Use `validation.script` when generic storage limits are not enough. The script is a JavaScript body executed with Node.js over the complete configured memory directory after `format-json` normalization and before artifact upload or branch commit. It runs in the agent job and is re-run in the repo-memory push job as defense in depth.
+
+Available globals are Node.js `fs` and `path`, plus `memoryRoot`/`memoryDir`, `memoryId`, and `memoryKind` (`"repo"`). The working directory is the memory root. Environment variables available to the validator are intentionally limited to basic runner paths plus `GH_AW_MEMORY_ROOT`, `GH_AW_MEMORY_DIR`, `GH_AW_MEMORY_ID`, and `GH_AW_MEMORY_KIND`; GitHub tokens and write credentials are not passed to the validator subprocess. Network access follows the workflow runner's normal network policy. The default timeout is 1 minute and may be set with `validation.timeout-minutes` (1-5 minutes).
+
+Throw an exception, return `false`, time out, exit nonzero, or modify a memory file to reject persistence. Validator stdout and stderr are reported separately from built-in storage validation output so agents can distinguish domain-schema validation from size/count checks.
 
 Commits use the [GitHub GraphQL `createCommitOnBranch` mutation](https://docs.github.com/en/graphql/reference/mutations#createcommitonbranch), so they are automatically **Verified** with GitHub's GPG key and satisfy rulesets that require signed commits.
 

@@ -30,31 +30,6 @@ func generateGitHubScriptWithRequire(scriptPath string) string {
 	return script.String()
 }
 
-// generateInlineGitHubScriptStep generates a simple inline github-script step
-// for validation or utility operations that don't require artifact downloads.
-//
-// Parameters:
-//   - stepName: The name of the step (e.g., "Validate cache-memory file types")
-//   - script: The JavaScript code to execute (pre-formatted with proper indentation)
-//   - condition: Optional if condition (e.g., "always()"). Empty string means no condition.
-//
-// Returns a string containing the complete YAML for the github-script step.
-func generateInlineGitHubScriptStep(stepName, script, condition string, data *WorkflowData) string {
-	compilerGitHubActionsStepsLog.Printf("Generating inline GitHub script step: name=%q, condition=%q", stepName, condition)
-	var step strings.Builder
-
-	step.WriteString("      - name: " + stepName + "\n")
-	if condition != "" {
-		step.WriteString("        if: " + condition + "\n")
-	}
-	step.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
-	step.WriteString("        with:\n")
-	step.WriteString("          script: |\n")
-	step.WriteString(script)
-
-	return step.String()
-}
-
 // generatePlaceholderSubstitutionStep generates a JavaScript-based step that performs
 // safe placeholder substitution using the substitute_placeholders script.
 // This replaces the multiple sed commands with a single JavaScript step.

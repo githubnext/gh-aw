@@ -101,8 +101,10 @@ type PolicyCompiler struct {
 // ExecutionPolicy. Unlinked and ambiguous records always receive the safest
 // policy regardless of configured rules (fail-closed). For all other statuses
 // the first matching rule seeds the accumulator directly; subsequent matching
-// rules are merged with stricter-wins semantics. If no rules match, the safest
-// default policy is returned.
+// rules are merged with stricter-wins semantics. Autonomy and WriteScope values
+// that are not recognized by the rank tables are replaced with the safest default
+// for that field when seeding. If no rules match, the safest default policy is
+// returned.
 func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) ExecutionPolicy {
 	policyLog.Printf("Compiling policy: status=%s rules=%d", rec.Status, len(c.Rules))
 	// Fail-closed for indeterminate statuses: unlinked and ambiguous records
@@ -123,10 +125,10 @@ func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) Execut
 			// rule's policy so that permissive values (e.g. auto_merge: true,
 			// max_attempts: 5) are not silently discarded by the safest-default
 			// base, and so that pointer/slice fields cannot alias rule.Set.
-			accumulated = deepCopyPolicy(rule.Set)
+			accumulated = sanitizeSeedPolicy(deepCopyPolicy(rule.Set), rule.ID)
 			accumulated.RuleIDs = []string{rule.ID}
 			matched = true
-			policyLog.Printf("First matching rule: id=%s autonomy=%s write_scope=%s", rule.ID, rule.Set.Autonomy, rule.Set.WriteScope)
+			policyLog.Printf("First matching rule: id=%s autonomy=%s write_scope=%s", rule.ID, accumulated.Autonomy, accumulated.WriteScope)
 		} else {
 			accumulated = mergePolicy(accumulated, rule.Set)
 			accumulated.RuleIDs = append(accumulated.RuleIDs, rule.ID)
@@ -139,6 +141,26 @@ func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) Execut
 	}
 	policyLog.Printf("Compiled policy: autonomy=%s write_scope=%s human_approval=%v matched_rules=%d", accumulated.Autonomy, accumulated.WriteScope, accumulated.HumanApprovalRequired, len(accumulated.RuleIDs))
 	return accumulated
+}
+
+// sanitizeSeedPolicy validates the Autonomy and WriteScope values of the policy
+// that seeds the accumulator in Compile. Because the seed is copied verbatim (it
+// is not merged through the rank tables), an unrecognized value would otherwise
+// be carried into the compiled policy untouched and rank as 0 (least restrictive)
+// in every later comparison — a fail-open outcome. Any value that is not present
+// in the rank tables is replaced with the safest default for that field. An empty
+// value means "unspecified" and is left as-is, matching mergePolicy's semantics.
+func sanitizeSeedPolicy(p ExecutionPolicy, ruleID string) ExecutionPolicy {
+	safest := safestDefaultPolicy()
+	if _, ok := autonomyRank[p.Autonomy]; !ok && p.Autonomy != "" {
+		policyLog.Printf("Rule %s has unrecognized autonomy %q, falling back to %s", ruleID, p.Autonomy, safest.Autonomy)
+		p.Autonomy = safest.Autonomy
+	}
+	if _, ok := writeScopeRank[p.WriteScope]; !ok && p.WriteScope != "" {
+		policyLog.Printf("Rule %s has unrecognized write scope %q, falling back to %s", ruleID, p.WriteScope, safest.WriteScope)
+		p.WriteScope = safest.WriteScope
+	}
+	return p
 }
 
 // safestDefaultPolicy returns the most restrictive execution policy: propose-only,

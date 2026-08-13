@@ -2816,7 +2816,7 @@ describe("safe_outputs_handlers", () => {
       const result = h.pushRepoMemoryHandler({ memory_id: "default" });
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(data.message).toContain("validation passed");
+      expect(data.message).toContain("Storage validation passed");
     });
 
     it("should return error when a file exceeds max_file_size", () => {
@@ -2906,7 +2906,131 @@ describe("safe_outputs_handlers", () => {
       const result = h.pushRepoMemoryHandler({ memory_id: "default" });
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(data.message).toContain("validation passed");
+      expect(data.message).toContain("Storage validation passed");
+    });
+
+    it("should run custom validation and distinguish it from storage validation", () => {
+      const h = makeHandlersWithMemory({
+        validation: {
+          script: `
+            const state = JSON.parse(fs.readFileSync(path.join(memoryRoot, "state.json"), "utf8"));
+            if (state.digest.length !== 16) throw new Error("digest must be 16 chars");
+            console.log("domain validator passed");
+          `,
+          timeout: 5,
+        },
+      });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      initGitRepo(memoryDir);
+      fs.writeFileSync(path.join(memoryDir, "state.json"), JSON.stringify({ digest: "1234567890abcdef" }));
+
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      const data = JSON.parse(result.content[0].text);
+
+      expect(data.result).toBe("success");
+      expect(data.message).toContain("Storage validation passed");
+      expect(data.message).toContain("Custom domain validation passed");
+      expect(data.storage_validation.result).toBe("success");
+      expect(data.custom_validation.result).toBe("success");
+      expect(data.custom_validation.stdout).toContain("domain validator passed");
+    });
+
+    it("should reject generically valid content that fails custom validation", () => {
+      const h = makeHandlersWithMemory({
+        validation: {
+          script: `
+            const state = JSON.parse(fs.readFileSync(path.join(memoryRoot, "state.json"), "utf8"));
+            if (state.digest.length !== 16) throw new Error("digest must be 16 chars");
+          `,
+          timeout: 5,
+        },
+      });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      initGitRepo(memoryDir);
+      fs.writeFileSync(path.join(memoryDir, "state.json"), JSON.stringify({ digest: "a".repeat(64) }));
+
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      const data = JSON.parse(result.content[0].text);
+
+      expect(result.isError).toBe(true);
+      expect(data.result).toBe("error");
+      expect(data.storage_validation.result).toBe("success");
+      expect(data.custom_validation.result).toBe("error");
+      expect(data.custom_validation.stderr).toContain("digest must be 16 chars");
+    });
+
+    it("should fail when validation is configured without a validator script", () => {
+      const h = makeHandlersWithMemory({ validation: {} });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      initGitRepo(memoryDir);
+      fs.writeFileSync(path.join(memoryDir, "state.json"), "{}");
+
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      const data = JSON.parse(result.content[0].text);
+
+      expect(result.isError).toBe(true);
+      expect(data.custom_validation.stderr).toContain("empty or missing");
+    });
+
+    it("should apply custom validation to the selected memory_id only", () => {
+      const otherDir = `${memoryDir}-other`;
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_repo_memory: {
+          memories: [
+            {
+              id: "default",
+              dir: memoryDir,
+              max_file_size: 1024,
+              max_patch_size: 2048,
+              max_file_count: 5,
+              validation: { script: "throw new Error('default validator should not run')", timeout: 5 },
+            },
+            {
+              id: "session",
+              dir: otherDir,
+              max_file_size: 1024,
+              max_patch_size: 2048,
+              max_file_count: 5,
+              validation: { script: "console.log(memoryId)", timeout: 5 },
+            },
+          ],
+        },
+      });
+      fs.mkdirSync(otherDir, { recursive: true });
+      initGitRepo(otherDir);
+      fs.writeFileSync(path.join(otherDir, "state.json"), "{}");
+
+      try {
+        const result = h.pushRepoMemoryHandler({ memory_id: "session" });
+        const data = JSON.parse(result.content[0].text);
+
+        expect(data.result).toBe("success");
+        expect(data.custom_validation.stdout).toContain("session");
+      } finally {
+        fs.rmSync(otherDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should run custom validation after format-json normalization", () => {
+      const h = makeHandlersWithMemory({
+        format_json: true,
+        validation: {
+          script: `
+            const raw = fs.readFileSync(path.join(memoryRoot, "state.json"), "utf8");
+            if (!raw.includes("\\n  \\"digest\\"")) throw new Error("expected formatted JSON");
+          `,
+          timeout: 5,
+        },
+      });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      initGitRepo(memoryDir);
+      fs.writeFileSync(path.join(memoryDir, "state.json"), '{"digest":"1234567890abcdef"}');
+
+      const result = h.pushRepoMemoryHandler({ memory_id: "default" });
+      const data = JSON.parse(result.content[0].text);
+
+      expect(data.result).toBe("success");
+      expect(fs.readFileSync(path.join(memoryDir, "state.json"), "utf8")).toContain('\n  "digest"');
     });
   });
 

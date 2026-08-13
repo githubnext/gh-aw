@@ -21,7 +21,7 @@ expected:
     status: mapped
     intent_key: security
   policy:
-    autonomy: bounded_autonomous
-    write_scope: limited
+    autonomy: bounded
+    write_scope: feature_branch
     human_approval_required: false
     auto_merge_allowed: true

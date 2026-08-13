@@ -334,6 +334,10 @@ func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults 
 		}
 		ref = branchName
 	}
+	if !isSafeGitRevisionArg(ref) {
+		experimentsLog.Printf("Rejecting unsafe git ref: %q", ref)
+		return nil
+	}
 	cmd := exec.Command("git", "show", ref+":"+constants.EvalsResultFilename)
 	out, err := cmd.Output()
 	if err != nil {
@@ -907,6 +911,9 @@ func extractExperimentName(ref string) string {
 
 // gitRefExists reports whether a git ref exists locally.
 func gitRefExists(ref string) bool {
+	if !isSafeGitRevisionArg(ref) {
+		return false
+	}
 	cmd := exec.Command("git", "rev-parse", "--verify", ref)
 	return cmd.Run() == nil
 }

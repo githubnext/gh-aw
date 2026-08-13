@@ -43,6 +43,7 @@ func cacheMemoryDirFor(cacheID string) string {
 	if cacheID == "default" || cacheID == "" {
 		return defaultCacheMemoryDir
 	}
+
 	if !isValidCacheID(cacheID) {
 		// This should never happen: parseCacheMemoryEntry validates IDs at parse time.
 		// Panic here to surface a clear programming error rather than silently producing
@@ -50,6 +51,14 @@ func cacheMemoryDirFor(cacheID string) string {
 		panic(fmt.Sprintf("cacheMemoryDirFor called with invalid cache ID %q; IDs must match [A-Za-z0-9_-]{1,64}", cacheID))
 	}
 	return cacheMemoryDirPrefix + cacheID
+}
+
+func cacheMemoryValidationStepID(cacheID string) string {
+	return memoryValidationStepID("validate_cache_memory", cacheID)
+}
+
+func cacheHasValidationStep(cache CacheMemoryEntry) bool {
+	return len(cache.AllowedExtensions) > 0 || cache.Validation != nil
 }
 
 // validCacheMemoryScopes defines the allowed values for cache-memory scope
@@ -100,13 +109,14 @@ type CacheMemoryConfig struct {
 
 // CacheMemoryEntry represents a single cache-memory configuration
 type CacheMemoryEntry struct {
-	ID                string   `yaml:"id"`                           // cache identifier (required for array notation)
-	Key               string   `yaml:"key,omitempty"`                // custom cache key
-	Description       string   `yaml:"description,omitempty"`        // optional description for this cache
-	RetentionDays     *int     `yaml:"retention-days,omitempty"`     // retention days for upload-artifact action
-	RestoreOnly       bool     `yaml:"restore-only,omitempty"`       // if true, only restore cache without saving
-	Scope             string   `yaml:"scope,omitempty"`              // scope for restore keys: "workflow" (default) or "repo"
-	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
+	ID                string                  `yaml:"id"`                           // cache identifier (required for array notation)
+	Key               string                  `yaml:"key,omitempty"`                // custom cache key
+	Description       string                  `yaml:"description,omitempty"`        // optional description for this cache
+	RetentionDays     *int                    `yaml:"retention-days,omitempty"`     // retention days for upload-artifact action
+	RestoreOnly       bool                    `yaml:"restore-only,omitempty"`       // if true, only restore cache without saving
+	Scope             string                  `yaml:"scope,omitempty"`              // scope for restore keys: "workflow" (default) or "repo"
+	AllowedExtensions []string                `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
+	Validation        *MemoryValidationConfig `yaml:"validation,omitempty"`         // optional custom JavaScript validation hook
 }
 
 // generateDefaultCacheKey generates a default cache key for a given cache ID.
@@ -141,6 +151,11 @@ func parseCacheMemoryEntry(cacheMap map[string]any, defaultID string) (CacheMemo
 	if err := parseCacheMemoryAllowedExtensions(cacheMap, &entry); err != nil {
 		return entry, err
 	}
+	validation, err := parseMemoryValidationConfig(cacheMap, "tools.cache-memory.validation")
+	if err != nil {
+		return entry, err
+	}
+	entry.Validation = validation
 	applyDefaultAllowedExtensions(&entry)
 	cacheLog.Printf("Parsed cache-memory entry: id=%s, scope=%s, restore-only=%v, retention-days=%v", entry.ID, entry.Scope, entry.RestoreOnly, entry.RetentionDays)
 	return entry, nil
@@ -680,34 +695,41 @@ func generateCacheMemoryValidation(builder *strings.Builder, data *WorkflowData)
 			continue
 		}
 
-		// Skip validation step if allowed extensions is empty (means all files are allowed)
-		if len(cache.AllowedExtensions) == 0 {
-			cacheLog.Printf("Skipping validation step for cache %s (empty allowed-extensions means all files are allowed)", cache.ID)
+		hasFileTypeValidation := len(cache.AllowedExtensions) > 0
+		hasCustomValidation := cache.Validation != nil
+		if !hasFileTypeValidation && !hasCustomValidation {
+			cacheLog.Printf("Skipping validation step for cache %s (empty allowed-extensions and no custom validation)", cache.ID)
 			continue
 		}
 
 		cacheDir := cacheMemoryDirFor(cache.ID)
-
-		// Prepare allowed extensions array for JavaScript
 		allowedExtsJSON, _ := json.Marshal(cache.AllowedExtensions) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
 
-		// Build validation script
-		var validationScript strings.Builder
-		validationScript.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-		validationScript.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-		validationScript.WriteString("            const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');\n")
-		fmt.Fprintf(&validationScript, "            const allowedExtensions = %s;\n", allowedExtsJSON)
-		fmt.Fprintf(&validationScript, "            const result = validateMemoryFiles('%s', 'cache', allowedExtensions);\n", cacheDir)
-		validationScript.WriteString("            if (!result.valid) {\n")
-		fmt.Fprintf(&validationScript, "              core.setFailed(`File type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only %s are allowed.`);\n", strings.Join(cache.AllowedExtensions, ", "))
-		validationScript.WriteString("            }\n")
-
-		// Generate validation step using helper
 		stepName := "Validate cache-memory file types"
 		if !useBackwardCompatiblePaths {
 			stepName = fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
 		}
-		builder.WriteString(generateInlineGitHubScriptStep(stepName, validationScript.String(), "always()", data))
+		if hasCustomValidation {
+			stepName = strings.Replace(stepName, "file types", "file types and domain content", 1)
+		}
+		fmt.Fprintf(builder, "      - name: %s\n", stepName)
+		fmt.Fprintf(builder, "        id: %s\n", cacheMemoryValidationStepID(cache.ID))
+		builder.WriteString("        if: always()\n")
+		fmt.Fprintf(builder, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+		builder.WriteString("        env:\n")
+		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", cacheDir)
+		fmt.Fprintf(builder, "          MEMORY_ID: %s\n", cache.ID)
+		fmt.Fprintf(builder, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
+		if cache.Validation != nil {
+			fmt.Fprintf(builder, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(cache.Validation))
+			fmt.Fprintf(builder, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(cache.Validation))
+		}
+		builder.WriteString("        with:\n")
+		builder.WriteString("          script: |\n")
+		builder.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+		builder.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+		builder.WriteString("            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');\n")
+		builder.WriteString("            validateMemoryStep(core, { kind: 'cache', writeMarker: true });\n")
 	}
 }
 
@@ -763,7 +785,11 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 			fmt.Fprintf(builder, "      - name: Upload cache-memory data as artifact (%s)\n", cache.ID)
 		}
 		fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
-		builder.WriteString("        if: always()\n")
+		if cacheHasValidationStep(cache) {
+			fmt.Fprintf(builder, "        if: always() && steps.%s.outcome == 'success'\n", cacheMemoryValidationStepID(cache.ID))
+		} else {
+			builder.WriteString("        if: always()\n")
+		}
 		builder.WriteString("        with:\n")
 		// Always use the new artifact name and path format, with prefix in workflow_call context
 		if useBackwardCompatiblePaths {
@@ -968,28 +994,30 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		checkStep.WriteString("          fi\n")
 		steps = append(steps, checkStep.String())
 
-		// Skip validation step if allowed extensions is empty (means all files are allowed)
-		if len(cache.AllowedExtensions) == 0 {
-			cacheLog.Printf("Skipping validation step for cache %s in update job (empty allowed-extensions means all files are allowed)", cache.ID)
+		if !cacheHasValidationStep(cache) {
+			cacheLog.Printf("Skipping validation step for cache %s in update job (empty allowed-extensions and no custom validation)", cache.ID)
 		} else {
-			// Prepare allowed extensions array for JavaScript
 			allowedExtsJSON, _ := json.Marshal(cache.AllowedExtensions) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
-
-			// Build validation script
-			var validationScript strings.Builder
-			validationScript.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
-			validationScript.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-			validationScript.WriteString("            const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');\n")
-			fmt.Fprintf(&validationScript, "            const allowedExtensions = %s;\n", allowedExtsJSON)
-			fmt.Fprintf(&validationScript, "            const result = validateMemoryFiles('%s', 'cache', allowedExtensions);\n", cacheDir)
-			validationScript.WriteString("            if (!result.valid) {\n")
-			fmt.Fprintf(&validationScript, "              core.setFailed(`File type validation failed: Found ${result.invalidFiles.length} file(s) with invalid extensions. Only %s are allowed.`);\n", strings.Join(cache.AllowedExtensions, ", "))
-			validationScript.WriteString("            }\n")
-
-			// Generate validation step using helper with condition to only run if cache has content
-			stepName := fmt.Sprintf("Validate cache-memory file types (%s)", cache.ID)
-			condition := fmt.Sprintf("steps.%s.outputs.has_content == 'true'", checkStepID)
-			steps = append(steps, generateInlineGitHubScriptStep(stepName, validationScript.String(), condition, data))
+			var validationStep strings.Builder
+			fmt.Fprintf(&validationStep, "      - name: Validate cache-memory before save (%s)\n", cache.ID)
+			fmt.Fprintf(&validationStep, "        id: %s\n", cacheMemoryValidationStepID(cache.ID))
+			fmt.Fprintf(&validationStep, "        if: steps.%s.outputs.has_content == 'true'\n", checkStepID)
+			fmt.Fprintf(&validationStep, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+			validationStep.WriteString("        env:\n")
+			fmt.Fprintf(&validationStep, "          MEMORY_DIR: %s\n", cacheDir)
+			fmt.Fprintf(&validationStep, "          MEMORY_ID: %s\n", cache.ID)
+			fmt.Fprintf(&validationStep, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
+			if cache.Validation != nil {
+				fmt.Fprintf(&validationStep, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(cache.Validation))
+				fmt.Fprintf(&validationStep, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(cache.Validation))
+			}
+			validationStep.WriteString("        with:\n")
+			validationStep.WriteString("          script: |\n")
+			validationStep.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+			validationStep.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+			validationStep.WriteString("            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');\n")
+			validationStep.WriteString("            validateMemoryStep(core, { kind: 'cache' });\n")
+			steps = append(steps, validationStep.String())
 		}
 
 		// Generate cache key using integrity-aware format (matches generateCacheMemorySteps)
@@ -1008,7 +1036,11 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		// Save to cache step - only run if cache has content
 		var saveStep strings.Builder
 		fmt.Fprintf(&saveStep, "      - name: Save cache-memory to cache (%s)\n", cache.ID)
-		fmt.Fprintf(&saveStep, "        if: steps.%s.outputs.has_content == 'true'\n", checkStepID)
+		if cacheHasValidationStep(cache) {
+			fmt.Fprintf(&saveStep, "        if: steps.%s.outputs.has_content == 'true' && steps.%s.outcome == 'success'\n", checkStepID, cacheMemoryValidationStepID(cache.ID))
+		} else {
+			fmt.Fprintf(&saveStep, "        if: steps.%s.outputs.has_content == 'true'\n", checkStepID)
+		}
 		fmt.Fprintf(&saveStep, "        uses: %s\n", getActionPin("actions/cache/save"))
 		saveStep.WriteString("        with:\n")
 		fmt.Fprintf(&saveStep, "          key: %s\n", cacheKey)
