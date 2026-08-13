@@ -275,19 +275,11 @@ func shouldStopLogsIteration(runtime logsDownloadRuntime, opts LogsDownloadOptio
 		return true, false, runtime.activeCtx.Err()
 	default:
 	}
-	if !runtime.startTime.IsZero() && runtime.activeCtx.Err() == nil {
-		var timeoutDuration time.Duration
-		if deadline, ok := runtime.activeCtx.Deadline(); ok {
-			timeoutDuration = deadline.Sub(runtime.startTime)
-		}
-		if timeoutDuration > 0 && time.Since(runtime.startTime) >= timeoutDuration {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Timeout reached after %.1f seconds, stopping download", time.Since(runtime.startTime).Seconds())))
-			}
-			return true, true, nil
-		}
+	timeoutDuration := time.Duration(opts.TimeoutMinutes) * time.Minute
+	if opts.TimeoutSeconds > 0 {
+		timeoutDuration = time.Duration(opts.TimeoutSeconds) * time.Second
 	}
-	if opts.TimeoutMinutes > 0 && time.Since(runtime.startTime).Seconds() >= float64(opts.TimeoutMinutes)*60 {
+	if !runtime.startTime.IsZero() && timeoutDuration > 0 && time.Since(runtime.startTime) >= timeoutDuration {
 		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Timeout reached after %.1f seconds, stopping download", time.Since(runtime.startTime).Seconds())))
 		}
