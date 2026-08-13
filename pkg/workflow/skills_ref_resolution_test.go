@@ -65,6 +65,27 @@ func TestResolveFrontmatterSkillRefs_PinsNonSHARefUsingCache(t *testing.T) {
 	assert.Empty(t, strings.TrimSpace(output), "no warning expected when resolution succeeds")
 }
 
+func TestResolveFrontmatterSkillRefs_PinsNonSHARefWithNilContext(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "skill-ref-cache-nil-context")
+	cache := NewActionCache(tmpDir)
+	resolver := NewActionResolver(cache)
+	const sha = "1f181b37d3fe5862ab590648f25a292e345b5de6"
+	cache.Set("githubnext/skills", "main", sha)
+
+	compiler := NewCompiler(WithVersion("dev"))
+	data := newTestSkillWorkflowData([]string{"githubnext/skills@main"})
+	data.Ctx = nil
+	data.ActionResolver = resolver
+
+	output := withCapturedStderr(t, func() {
+		compiler.resolveFrontmatterSkillRefs(data, "workflow.md")
+	})
+
+	assert.Equal(t, "githubnext/skills@"+sha, data.Skills[0])
+	assert.Equal(t, "githubnext/skills@"+sha, data.SkillReferences[0].Skill)
+	assert.Empty(t, strings.TrimSpace(output), "no warning expected when resolution succeeds")
+}
+
 func TestResolveFrontmatterSkillRefs_LeavesFullSHAUnchanged(t *testing.T) {
 	compiler := NewCompiler(WithVersion("dev"))
 	const sha = "1f181b37d3fe5862ab590648f25a292e345b5de6"
