@@ -103,8 +103,8 @@ func TestDurationSeconds_NonNegative(t *testing.T) {
 			seconds := forecastRunDuration(summary.Run).Seconds()
 			assert.GreaterOrEqual(t, seconds, 0.0,
 				"P3: duration derived from %s must be non-negative", name)
-			assert.InDelta(t, summary.Run.UpdatedAt.Sub(summary.Run.StartedAt).Seconds(), seconds, 1e-9,
-				"P3: duration must equal updatedAt - startedAt for %s", name)
+			assert.InDelta(t, math.Max(0, summary.Run.UpdatedAt.Sub(summary.Run.StartedAt).Seconds()), seconds, 1e-9,
+				"P3: duration must equal max(0, updatedAt - startedAt) for %s", name)
 		})
 	}
 
