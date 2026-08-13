@@ -226,6 +226,12 @@ Transform the last 24 hours of repository activity into a compelling narrative t
 - **Tools, not actors**: Frame automation as productivity tools used BY developers, not independent actors
 - **Avoid "robot uprising" tropes**: No "bot takeovers", "automation armies", or "humans displaced by machines"
 
+### Report Formatting
+
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
+- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks to reduce scrolling.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 ## Technical Requirements
 
 1. Query GitHub for activity in the last 24 hours:
