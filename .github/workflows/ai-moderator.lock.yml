@@ -1074,18 +1074,19 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/commit_cache_memory_git.sh"
       - name: Validate cache-memory file types
+        id: validate_cache_memory_64656661756c74
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          MEMORY_DIR: /tmp/gh-aw/cache-memory
+          MEMORY_ID: default
+          ALLOWED_EXTENSIONS: '[".json"]'
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { validateMemoryFiles } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_files.cjs');
-            const allowedExtensions = [".json"];
-            const result = validateMemoryFiles('/tmp/gh-aw/cache-memory', 'cache', allowedExtensions);
-            if (!result.valid) {
-              core.setFailed(`File type validation failed: Found $${result.invalidFiles.length} file(s) with invalid extensions. Only .json are allowed.`);
-            }
+            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');
+            validateMemoryStep(core, { kind: 'cache', writeMarker: true });
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true

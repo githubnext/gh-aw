@@ -45,18 +45,19 @@ type RepoMemoryConfig struct {
 
 // RepoMemoryEntry represents a single repo-memory configuration
 type RepoMemoryEntry struct {
-	ID                string   `yaml:"id"`                           // memory identifier (required for array notation)
-	TargetRepo        string   `yaml:"target-repo,omitempty"`        // target repository (default: current repo)
-	BranchName        string   `yaml:"branch-name,omitempty"`        // branch name (default: memory/{memory-id})
-	FileGlob          []string `yaml:"file-glob,omitempty"`          // file glob patterns for allowed files
-	MaxFileSize       int      `yaml:"max-file-size,omitempty"`      // maximum size per file in bytes (default: 100KB)
-	MaxFileCount      int      `yaml:"max-file-count,omitempty"`     // maximum file count per commit (default: 100)
-	MaxPatchSize      int      `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB, max: 1MB)
-	Description       string   `yaml:"description,omitempty"`        // optional description for this memory
-	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
-	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
-	Wiki              bool     `yaml:"wiki,omitempty"`               // use the GitHub Wiki git repository instead of the regular repo
-	FormatJSON        bool     `yaml:"format-json,omitempty"`        // pretty-print all .json files before committing (default: false)
+	ID                string                  `yaml:"id"`                           // memory identifier (required for array notation)
+	TargetRepo        string                  `yaml:"target-repo,omitempty"`        // target repository (default: current repo)
+	BranchName        string                  `yaml:"branch-name,omitempty"`        // branch name (default: memory/{memory-id})
+	FileGlob          []string                `yaml:"file-glob,omitempty"`          // file glob patterns for allowed files
+	MaxFileSize       int                     `yaml:"max-file-size,omitempty"`      // maximum size per file in bytes (default: 100KB)
+	MaxFileCount      int                     `yaml:"max-file-count,omitempty"`     // maximum file count per commit (default: 100)
+	MaxPatchSize      int                     `yaml:"max-patch-size,omitempty"`     // maximum total patch size in bytes (default: 10KB, max: 1MB)
+	Description       string                  `yaml:"description,omitempty"`        // optional description for this memory
+	CreateOrphan      bool                    `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
+	AllowedExtensions []string                `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
+	Wiki              bool                    `yaml:"wiki,omitempty"`               // use the GitHub Wiki git repository instead of the regular repo
+	FormatJSON        bool                    `yaml:"format-json,omitempty"`        // pretty-print all .json files before committing (default: false)
+	Validation        *MemoryValidationConfig `yaml:"validation,omitempty"`         // optional custom JavaScript validation hook
 }
 
 // RepoMemoryToolConfig represents the configuration for repo-memory in tools
@@ -202,7 +203,9 @@ func parseRepoMemoryEntry(memoryMap map[string]any, workflowID, branchPrefix str
 	if err := applyRepoMemoryLimits(&entry, memoryMap); err != nil {
 		return RepoMemoryEntry{}, err
 	}
-	applyRepoMemoryOptionalFields(&entry, memoryMap)
+	if err := applyRepoMemoryOptionalFields(&entry, memoryMap); err != nil {
+		return RepoMemoryEntry{}, err
+	}
 	finalizeRepoMemoryEntry(&entry, explicitBranchName)
 	return entry, nil
 }
@@ -274,7 +277,7 @@ func applyRepoMemoryLimits(entry *RepoMemoryEntry, memoryMap map[string]any) err
 	return nil
 }
 
-func applyRepoMemoryOptionalFields(entry *RepoMemoryEntry, memoryMap map[string]any) {
+func applyRepoMemoryOptionalFields(entry *RepoMemoryEntry, memoryMap map[string]any) error {
 	if description, ok := memoryMap["description"].(string); ok {
 		entry.Description = description
 	}
@@ -287,6 +290,12 @@ func applyRepoMemoryOptionalFields(entry *RepoMemoryEntry, memoryMap map[string]
 	if formatJSON, ok := memoryMap["format-json"].(bool); ok {
 		entry.FormatJSON = formatJSON
 	}
+	validation, err := parseMemoryValidationConfig(memoryMap, "tools.repo-memory.validation")
+	if err != nil {
+		return err
+	}
+	entry.Validation = validation
+	return nil
 }
 
 func finalizeRepoMemoryEntry(entry *RepoMemoryEntry, explicitBranchName bool) {
@@ -371,9 +380,36 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
 		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")
 
+		validationStepID := repoMemoryValidationStepID(memory.ID)
+		if memory.Validation != nil {
+			fmt.Fprintf(builder, "      - name: Validate %s domain content (%s)\n", memoryLabel, memory.ID)
+			fmt.Fprintf(builder, "        id: %s\n", validationStepID)
+			builder.WriteString("        if: always()\n")
+			fmt.Fprintf(builder, "        uses: %s\n", getActionPin("actions/github-script"))
+			builder.WriteString("        env:\n")
+			fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+			fmt.Fprintf(builder, "          MEMORY_ID: %s\n", memory.ID)
+			fmt.Fprintf(builder, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(memory.Validation))
+			fmt.Fprintf(builder, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(memory.Validation))
+			if memory.FormatJSON {
+				builder.WriteString("          FORMAT_JSON: 'true'\n")
+			}
+
+			builder.WriteString("        with:\n")
+			builder.WriteString("          script: |\n")
+			builder.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
+			builder.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
+			builder.WriteString("            const { validateMemoryStep } = require('${{ runner.temp }}/gh-aw/actions/validate_memory_step.cjs');\n")
+			builder.WriteString("            validateMemoryStep(core, { kind: 'repo', formatJSON: process.env.FORMAT_JSON === 'true', requireValidationScript: true });\n")
+		}
+
 		// Step: Upload repo-memory directory as artifact
 		fmt.Fprintf(builder, "      - name: Upload %s artifact (%s)\n", memoryLabel, memory.ID)
-		builder.WriteString("        if: always()\n")
+		if memory.Validation != nil {
+			fmt.Fprintf(builder, "        if: always() && steps.%s.outcome == 'success'\n", validationStepID)
+		} else {
+			builder.WriteString("        if: always()\n")
+		}
 		fmt.Fprintf(builder, "        uses: %s\n", pinAction("actions/upload-artifact"))
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          name: %srepo-memory-%s\n", prefix, sanitizedID)
@@ -381,6 +417,10 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		builder.WriteString("          retention-days: 1\n")
 		builder.WriteString("          if-no-files-found: ignore\n")
 	}
+}
+
+func repoMemoryValidationStepID(memoryID string) string {
+	return memoryValidationStepID("validate_repo_memory", memoryID)
 }
 
 // generateRepoMemorySteps generates git steps for the repo-memory configuration
@@ -585,6 +625,10 @@ func (c *Compiler) buildSinglePushRepoMemoryStep(data *WorkflowData, memory Repo
 	}
 	if memory.FormatJSON {
 		step.WriteString("          FORMAT_JSON: 'true'\n")
+	}
+	if memory.Validation != nil {
+		fmt.Fprintf(&step, "          VALIDATION_SCRIPT_B64: %s\n", memoryValidationScriptBase64(memory.Validation))
+		fmt.Fprintf(&step, "          VALIDATION_TIMEOUT_SECONDS: %d\n", memoryValidationTimeoutSeconds(memory.Validation))
 	}
 	step.WriteString("        with:\n")
 	step.WriteString("          script: |\n")

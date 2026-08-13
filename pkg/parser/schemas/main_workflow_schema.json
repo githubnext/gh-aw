@@ -4659,6 +4659,25 @@
                     "type": "string"
                   },
                   "description": "List of allowed file extensions (e.g., [\".json\", \".txt\"]). Default: [\".json\", \".jsonl\", \".txt\", \".md\", \".csv\"]"
+                },
+                "validation": {
+                  "type": "object",
+                  "properties": {
+                    "script": {
+                      "type": "string",
+                      "description": "JavaScript validator body that runs over the complete cache-memory directory before persistence. Throw, return false, or exit nonzero to reject the update."
+                    },
+                    "timeout-minutes": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "default": 1,
+                      "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
+                    }
+                  },
+                  "required": ["script"],
+                  "additionalProperties": false,
+                  "description": "Custom domain validation hook for this cache-memory entry"
                 }
               },
               "additionalProperties": false,
@@ -4712,6 +4731,25 @@
                       "type": "string"
                     },
                     "description": "List of allowed file extensions (e.g., [\".json\", \".txt\"]). Default: [\".json\", \".jsonl\", \".txt\", \".md\", \".csv\"]"
+                  },
+                  "validation": {
+                    "type": "object",
+                    "properties": {
+                      "script": {
+                        "type": "string",
+                        "description": "JavaScript validator body that runs over the complete cache-memory directory before persistence. Throw, return false, or exit nonzero to reject the update."
+                      },
+                      "timeout-minutes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "default": 1,
+                        "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
+                      }
+                    },
+                    "required": ["script"],
+                    "additionalProperties": false,
+                    "description": "Custom domain validation hook for this cache-memory entry"
                   }
                 },
                 "required": ["id", "key"],
@@ -4968,6 +5006,25 @@
                 "format-json": {
                   "type": "boolean",
                   "description": "When true, all .json files are pretty-printed (2-space indent) before being committed, making them human-readable in the repository (default: false)"
+                },
+                "validation": {
+                  "type": "object",
+                  "properties": {
+                    "script": {
+                      "type": "string",
+                      "description": "JavaScript validator body that runs over the complete repo-memory directory after optional JSON formatting and before persistence. Throw, return false, or exit nonzero to reject the update."
+                    },
+                    "timeout-minutes": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "default": 1,
+                      "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
+                    }
+                  },
+                  "required": ["script"],
+                  "additionalProperties": false,
+                  "description": "Custom domain validation hook for this repo-memory entry"
                 }
               },
               "additionalProperties": false,
@@ -5063,6 +5120,25 @@
                   "format-json": {
                     "type": "boolean",
                     "description": "When true, all .json files are pretty-printed (2-space indent) before being committed, making them human-readable in the repository (default: false)"
+                  },
+                  "validation": {
+                    "type": "object",
+                    "properties": {
+                      "script": {
+                        "type": "string",
+                        "description": "JavaScript validator body that runs over the complete repo-memory directory after optional JSON formatting and before persistence. Throw, return false, or exit nonzero to reject the update."
+                      },
+                      "timeout-minutes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "default": 1,
+                        "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
+                      }
+                    },
+                    "required": ["script"],
+                    "additionalProperties": false,
+                    "description": "Custom domain validation hook for this repo-memory entry"
                   }
                 },
                 "additionalProperties": false

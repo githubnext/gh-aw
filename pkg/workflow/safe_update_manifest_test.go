@@ -210,6 +210,27 @@ func TestNewGHAWManifest(t *testing.T) {
 	}
 }
 
+func TestCollectMemoryValidationScripts(t *testing.T) {
+	data := &WorkflowData{
+		RepoMemoryConfig: &RepoMemoryConfig{Memories: []RepoMemoryEntry{
+			{ID: "repo", Validation: &MemoryValidationConfig{Script: "repo validation"}},
+		}},
+		CacheMemoryConfig: &CacheMemoryConfig{Caches: []CacheMemoryEntry{
+			{ID: "cache", Validation: &MemoryValidationConfig{Script: "cache validation"}},
+			{ID: "unvalidated"},
+		}},
+	}
+
+	scripts := collectMemoryValidationScripts(data)
+
+	require.Len(t, scripts, 2)
+	assert.Equal(t, "cache-memory:cache", scripts[0].Memory)
+	assert.Equal(t, "repo-memory:repo", scripts[1].Memory)
+	assert.Len(t, scripts[0].SHA256, 64)
+	assert.Len(t, scripts[1].SHA256, 64)
+	assert.NotEqual(t, scripts[0].SHA256, scripts[1].SHA256)
+}
+
 func TestNewGHAWManifestContainerDigest(t *testing.T) {
 	containers := []GHAWManifestContainer{
 		{

@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -44,21 +46,29 @@ type GHAWManifestResolutionFailure struct {
 	ErrorType string `json:"error_type"`
 }
 
+// GHAWManifestMemoryValidationScript represents a custom memory validation
+// script without storing its potentially sensitive source in the lock file.
+type GHAWManifestMemoryValidationScript struct {
+	Memory string `json:"memory"`
+	SHA256 string `json:"sha256"`
+}
+
 // GHAWManifest is the single-line JSON payload embedded as a "# gh-aw-manifest: ..."
 // comment in generated lock files. It records the secrets, external actions, and
 // container images that were detected at the time the lock file was last compiled
 // so that subsequent compilations can detect newly introduced secrets when safe
 // update mode is enabled.
 type GHAWManifest struct {
-	Version              int                             `json:"version"`
-	Secrets              []string                        `json:"secrets"`
-	Actions              []GHAWManifestAction            `json:"actions"`
-	Skills               []string                        `json:"skills,omitempty"`                  // frontmatter skill specs (owner/repo@sha or owner/repo/skill/path@sha), sorted
-	ResolutionFailures   []GHAWManifestResolutionFailure `json:"resolution_failures,omitempty"`     // unresolved action-ref pinning failures
-	Containers           []GHAWManifestContainer         `json:"containers,omitempty"`              // container images used, with digest when available
-	Redirect             string                          `json:"redirect,omitempty"`                // frontmatter redirect target for moved workflows
-	HasPullRequest       bool                            `json:"has_pull_request,omitempty"`        // whether on: includes pull_request
-	HasPullRequestTarget bool                            `json:"has_pull_request_target,omitempty"` // whether on: includes pull_request_target
+	Version                 int                                  `json:"version"`
+	Secrets                 []string                             `json:"secrets"`
+	Actions                 []GHAWManifestAction                 `json:"actions"`
+	Skills                  []string                             `json:"skills,omitempty"`                    // frontmatter skill specs (owner/repo@sha or owner/repo/skill/path@sha), sorted
+	ResolutionFailures      []GHAWManifestResolutionFailure      `json:"resolution_failures,omitempty"`       // unresolved action-ref pinning failures
+	Containers              []GHAWManifestContainer              `json:"containers,omitempty"`                // container images used, with digest when available
+	Redirect                string                               `json:"redirect,omitempty"`                  // frontmatter redirect target for moved workflows
+	HasPullRequest          bool                                 `json:"has_pull_request,omitempty"`          // whether on: includes pull_request
+	HasPullRequestTarget    bool                                 `json:"has_pull_request_target,omitempty"`   // whether on: includes pull_request_target
+	MemoryValidationScripts []GHAWManifestMemoryValidationScript `json:"memory_validation_scripts,omitempty"` // custom repo/cache memory validation scripts, hashed
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference
@@ -168,6 +178,34 @@ func detectPullRequestEvents(onField any) (hasPR bool, hasPRTarget bool) {
 		_, hasPRTarget = v["pull_request_target"]
 	}
 	return hasPR, hasPRTarget
+}
+
+func collectMemoryValidationScripts(data *WorkflowData) []GHAWManifestMemoryValidationScript {
+	var scripts []GHAWManifestMemoryValidationScript
+	add := func(kind, id string, validation *MemoryValidationConfig) {
+		if validation == nil || validation.Script == "" {
+			return
+		}
+		hash := sha256.Sum256([]byte(validation.Script))
+		scripts = append(scripts, GHAWManifestMemoryValidationScript{
+			Memory: kind + ":" + id,
+			SHA256: hex.EncodeToString(hash[:]),
+		})
+	}
+	if data.RepoMemoryConfig != nil {
+		for _, memory := range data.RepoMemoryConfig.Memories {
+			add("repo-memory", memory.ID, memory.Validation)
+		}
+	}
+	if data.CacheMemoryConfig != nil {
+		for _, cache := range data.CacheMemoryConfig.Caches {
+			add("cache-memory", cache.ID, cache.Validation)
+		}
+	}
+	slices.SortFunc(scripts, func(a, b GHAWManifestMemoryValidationScript) int {
+		return strings.Compare(a.Memory, b.Memory)
+	})
+	return scripts
 }
 
 // normalizeSecretName ensures a secret identifier is stored as a plain name
