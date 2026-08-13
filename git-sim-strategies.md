@@ -518,3 +518,69 @@ content there could realistically breach 4096 KB).
   ahead-merge_msg (this run); recompute confirms **next_index=204 = tiny-shallow-
   single-medium-diverged-single** (closes shallow-single-medium tier: diverged×3
   remain, idx204-206).
+
+## Run 2026-08-13: idx204-207 — DEFINITIVE FINDING: create_pull_request never pushes to origin within the run; no pull_request_number/temporary_id value can bridge push_to_pull_request_branch to it
+
+- **Mitigation applied:** only idx204 (diverged-single) spent the run's single
+  create_pull_request quota slot, specifically to resolve the open temporary_id
+  hypothesis from 2026-08-11's notes. idx205 (diverged-multi), idx206
+  (diverged-merge_msg), idx207 (clean-single, opens shallow-single-large tier) were
+  LOCAL-MEASUREMENT-ONLY — all three passed cleanly, no new git-size laws contradicted.
+- **idx204: create_pull_request succeeded, push_to_pull_request_branch FAILED —
+  root cause now RESOLVED, and it is architectural, not a missing parameter.**
+  Sequence: 1) create_pull_request called with `temporary_id: "aw_gs204"` succeeded,
+  returning `{"result":"success","patch":{...path,size,lines},"bundle":{...path,size}}`
+  — still no PR number/URL/identifier anywhere, and temporary_id is NOT echoed back.
+  2) push_to_pull_request_branch called with repo+pull_request_number("aw_gs204")+
+  branch+message (all fields present this time, unlike idx201) failed with:
+  `"Cannot generate incremental patch: refs/remotes/origin/git-sim/204-... is not
+  present in checkout ... and could not be fetched (the safe-outputs MCP server has
+  no credentials for private repositories)."` **This is NOT a pull_request_number
+  schema/type rejection** (it passed that validation) — it fails later because
+  `origin` simply has no ref for the branch. **create_pull_request only stages a
+  local .patch/.bundle file for LATER, deferred/asynchronous application by the
+  safe-outputs post-processing step that runs AFTER this whole session ends** (this
+  matches the safe-outputs framework's own documented behavior: "Safeoutputs records
+  write transactions that are applied after the agent finishes"). The real branch
+  push to GitHub, and therefore the real PR, does not exist yet at any point during
+  the agent's own session — so there is categorically nothing for
+  push_to_pull_request_branch to fetch/chain to in the same run, regardless of what
+  pull_request_number or temporary_id value is supplied.
+- **CLOSES the open hypothesis from 2026-08-11.** temporary_id does NOT provide a
+  same-run chaining mechanism; it cannot, by the architecture. **Action for all
+  future runs: NEVER attempt push_to_pull_request_branch chained to a same-run
+  create_pull_request for BRANCH=ahead/diverged cells — it is a guaranteed,
+  already-fully-diagnosed failure, not something to keep re-testing.** Default those
+  cells to measurement-only for the push leg (record safe_output_used as
+  "create-pull-request-only, push untestable-same-run"), and reserve any real-call
+  budget for clean-branch cells or for probing create_pull_request's own
+  allowed-files/max-patch-size/max-patch-files rejection boundaries instead — those
+  still teach something new.
+- **idx205 diverged-multi: PASS (measurement-only).** 1f/207.26KB/3c (wrapped
+  base64 appends to same file across 3 commits) — confirms wrapped-append law stays
+  ~1.06x even under diverged+multi. Two-dot vs three-dot laws reconfirmed with a
+  COMMAND-SPECIFIC nuance: for `git diff --stat`, two-dot picks up a phantom
+  *deletion* of main's divergence-marker file while three-dot (merge-base) stays
+  clean; but for `format-patch`/`rev-list`, the polarity is opposite — two-dot stays
+  authoritative/clean (3 commits/212238B) while three-dot pulls in the phantom
+  divergence-marker commit (4 commits/212782B). **Refined rule: `diff --stat` and
+  `format-patch`/`rev-list` have OPPOSITE two-dot/three-dot phantom polarity** — use
+  three-dot for `diff --stat`-style tree comparisons, two-dot for `format-patch`/
+  `rev-list`-style commit-range operations, when BRANCH=diverged.
+- **idx206 diverged-merge_msg: PASS (measurement-only).** 1f/205.9KB/1c. Filename
+  leak reconfirmed (`0001-Merge-branch-feature-sim-probe-206-into-main.patch`),
+  parent=1/merges=empty. Same diff-stat-vs-format-patch phantom-polarity nuance from
+  idx205 reconfirmed independently. **Closes shallow-single-medium tier (9/9 pass).**
+- **idx207 clean-single: PASS (measurement-only).** Opens shallow-single-large tier.
+  1f/1002.95KB/1c for ~1000KB target. Bundle 753.14KB (24.91% smaller, zlib-vs-base64
+  law holds). Headroom: 19.59% of 5120KB cap used (80.41% free), 0.5% of 200-file cap.
+- **Zero real per-cell git-size fail/error/rejected across 208 cells** (idx196/197/199
+  = quota rejections, idx201/204 = the now-fully-diagnosed same-run chaining
+  impossibility; all other 204 cells passed cleanly on their own git-size merits).
+- **Next index: 208** = tiny-shallow-single-large-clean-multi (continues
+  shallow-single-large tier: ahead×3 + diverged×3 + clean-multi/merge_msg remain,
+  idx208-215). **Recommend future runs stop spending the create_pull_request quota
+  on ahead/diverged push-chaining tests (fully diagnosed as architecturally
+  impossible, see above) — default those cells to measurement-only, and reserve any
+  real-call budget for clean-branch cells or for probing create_pull_request's own
+  allowed-files/max-patch-size/max-patch-files rejection boundaries instead.**
