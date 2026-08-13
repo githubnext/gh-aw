@@ -84,3 +84,14 @@
 - max-continuations flat at 11, max-tool-denials stable ~65.
 - No new Copilot CLI features detected in codebase since last run.
 - Filed issue with full findings and recommended action items (orphaned agent triage + CI lint check for orphan detection).
+
+## Run 31666761449 (2026-08-13)
+- NEW FEATURE DETECTED: PR #52377 (merged 2026-08-12) introduced top-level `model` field replacing deprecated `engine.model`, with `gh aw fix` codemod `engine-model-to-top-level` for auto-migration.
+- Adoption already underway: 32/138 copilot workflows (23%) use the new top-level `model:` field; ~147 workflows repo-wide still reference legacy nested `engine.model` and are candidates for the codemod.
+- Total workflows 285 (flat), copilot combined count 138 (flat vs 139 last run - within noise of regex/methodology).
+- --share flag: still 1 (this workflow only) — 12th consecutive run, confirmed persistent non-issue.
+- engine.args: still 0, stable across 5+ direct re-verifications.
+- disable-builtin-mcps: 2 real usages (auto-triage-issues.md + this research workflow).
+- add-dir: 0 real workflow usages (doc references only).
+- Orphaned custom agents: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer unchanged 12 consecutive runs (interactive-agent-designer resolved off list, still 1 reference). RECOMMEND: file a one-time cleanup PR to either remove or reference these 4 files rather than continuing to flag every run.
+- Filed this run's issue to spotlight the new top-level model field migration opportunity as primary actionable finding.
