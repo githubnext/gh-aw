@@ -39,6 +39,7 @@ import { noDuplicateConstantValuesRule } from "./rules/no-duplicate-constant-val
 import { requireEscapedRegexpInterpolationRule } from "./rules/require-escaped-regexp-interpolation";
 import { requireFetchTimeoutRule } from "./rules/require-fetch-timeout";
 import { requireNanCheckAfterEnvNumericParseRule } from "./rules/require-nan-check-after-env-numeric-parse";
+import { requireNanCheckAfterSplitIndexParseRule } from "./rules/require-nan-check-after-split-index-parse";
 import { preferStructuredCloneRule } from "./rules/prefer-structured-clone";
 import { requireFetchResponseBodyTryCatchRule } from "./rules/require-fetch-response-body-try-catch";
 import { requireErrorCodeInThrownErrorRule } from "./rules/require-error-code-in-thrown-error";
@@ -92,6 +93,7 @@ const plugin = {
     "require-escaped-regexp-interpolation": requireEscapedRegexpInterpolationRule,
     "require-fetch-timeout": requireFetchTimeoutRule,
     "require-nan-check-after-env-numeric-parse": requireNanCheckAfterEnvNumericParseRule,
+    "require-nan-check-after-split-index-parse": requireNanCheckAfterSplitIndexParseRule,
     "prefer-structured-clone": preferStructuredCloneRule,
     "require-fetch-response-body-try-catch": requireFetchResponseBodyTryCatchRule,
     "require-error-code-in-thrown-error": requireErrorCodeInThrownErrorRule,
