@@ -397,7 +397,18 @@
       "avg_agent_duration_minutes": 98,
       "success_rate": 0.714,
       "note": "rolling 24h window from 08-11 18:30Z; author app/copilot-swe-agent only; 6 of 27 PRs still open (all <24h old, oldest ~14.6h); success_rate over 21 completed; avg_duration created->merged; 33 human issue comments across 27 PRs via per-PR REST API (12 PRs had >=1); success_rate down 78.9%->71.4% (-7.5pp, within 10% threshold but continuing 3-day decline from 80% on 08-10); avg_duration down sharply 158->98min (-38%); none of the 6 closures were WIP placeholder text (all substantive); no PRs open >24h; volume down 49->27 (-45%), largely error-message-compliance and largefunc-refactor batch work"
+    },
+    {
+      "date": "2026-08-13",
+      "total_prs": 10,
+      "merged_prs": 5,
+      "closed_prs": 0,
+      "open_prs": 5,
+      "avg_comments": 0.3,
+      "avg_agent_duration_minutes": 685,
+      "success_rate": 1.0,
+      "note": "rolling 24h window from 08-12 18:32Z; author app/copilot-swe-agent only; 5 of 10 PRs still open (all <24h old); success_rate over 5 completed (small sample); avg_duration created->merged; 3 human interactions (2 review comments + 1 issue comment) across 10 PRs via gh pr view; success_rate up 71.4%->100% (+28.6pp) but only 5 completed PRs, low confidence; avg_duration up sharply 98->685min (+599%), driven by 2 long-pending PRs (#52413 ~826min, #52378 ~1183min) finally merging alongside 3 fast same-day merges (#52414 ~826min, #52377 ~296min, #52376 ~295min); no WIP placeholder closures; no PRs open >24h"
     }
   ],
-  "last_updated": "2026-08-12"
+  "last_updated": "2026-08-13"
 }
