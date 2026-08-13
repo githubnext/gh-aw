@@ -69,7 +69,7 @@ async function main(config = {}) {
         return { success: false, error };
       }
 
-      if (run.status !== "action_required") {
+      if (run.status !== "waiting") {
         const error = `Workflow run ${runId} is not awaiting approval (status: ${run.status || "none"})`;
         core.warning(error);
         return { success: false, error };

@@ -25,7 +25,8 @@ global.github = {
 
 const pendingPullRequestRun = {
   event: "pull_request",
-  status: "action_required",
+  status: "waiting",
+  conclusion: null,
   html_url: "https://github.com/test-owner/test-repo/actions/runs/123",
   pull_requests: [{ number: 42 }],
 };
