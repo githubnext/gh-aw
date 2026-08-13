@@ -20,6 +20,7 @@ network:
   - github
   - proxy.golang.org
 imports:
+- shared/reporting.md
 - uses: shared/daily-audit-base.md
   with:
     title-prefix: "[delight] "
@@ -300,8 +301,6 @@ For each selected item:
 4. Rate quality level: ✅ Professional | ⚠️ Needs Minor Work | ❌ Needs Significant Work
 
 ### Step 4: Create Improvement Report
-
-**Report Formatting**: Use h3 (###) or lower for all headers in the report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability.
 
 Create a focused analysis report:
 

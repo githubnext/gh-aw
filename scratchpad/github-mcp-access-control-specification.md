@@ -1597,19 +1597,19 @@ ELSE:
 
 ### 8.5 Combined Evaluation Order
 
-The complete integrity evaluation MUST occur in this order:
+The complete integrity evaluation MUST occur in this order. Each step is labeled with the formal guard-predicate name used in §11 Compliance Testing and `pkg/workflow/github_mcp_access_control_formal_test.go` (`formalEvaluateAccess`) so that the two are unambiguously the same evaluation sequence:
 
 ```text
-1. Author Check (blocked-users)
-   → If author is blocked: DENY immediately
-2. Label Promotion (approval-labels)
+1. Author Check — predicate P5_NotBlocked (blocked-users)
+   → If author is blocked: DENY immediately (error code -32005)
+2. Label Promotion — integrity computation input to P6 (approval-labels), not a standalone gating predicate
    → Promote effective_integrity if a matching label is present
-3. Threshold Check (min-integrity)
-   → If effective_integrity < min-integrity: DENY
+3. Threshold Check — predicate P6_IntegrityMet (min-integrity)
+   → If effective_integrity < min-integrity: DENY (error code -32006)
 4. All integrity checks passed: ALLOW
 ```
 
-This order ensures that blocked users can never be promoted by labels, and that label promotion is always considered before the threshold check.
+This order ensures that blocked users can never be promoted by labels, and that label promotion is always considered before the threshold check. Concretely: P5_NotBlocked (step 1) is evaluated and MUST fire before P6_IntegrityMet (step 3); label promotion (step 2) only mutates the `effective_integrity` value consumed by P6_IntegrityMet and never overrides a P5_NotBlocked denial. Note that P5_NotBlocked and P6_IntegrityMet are themselves evaluated after the repository/role/visibility predicates P1–P4 in §4.5.3's guard evaluation order; §8.5 covers only the internal ordering of the two integrity-related predicates.
 
 ---
 
@@ -2679,6 +2679,53 @@ GitHub API rate limits apply to:
 - Use conditional requests (ETag headers)
 - Monitor rate limit consumption
 - Implement exponential backoff for rate limit errors
+
+**Example: Exponential backoff for rate-limited permission/visibility queries**
+
+Consistent with the fail-closed requirement in §9.4 (Security Considerations), a `403`/`429` response during backoff MUST still deny the current access-control decision rather than substituting a stale cached "allow" result while a retry is pending.
+
+```text
+function queryWithBackoff(request):
+    maxAttempts = 5
+    baseDelayMs = 500      # initial delay
+    maxDelayMs  = 30000    # cap to avoid unbounded waits
+
+    for attempt in 1..maxAttempts:
+        response = performGitHubAPIRequest(request)
+
+        # 429 is always a primary rate limit. A 403 with a rate-limit-related
+        # body/header (e.g. "secondary rate limit" or a "Retry-After" header)
+        # is GitHub's secondary rate limit and is retried the same way; a 403
+        # WITHOUT rate-limit signals is a permission/authorization denial and
+        # MUST NOT be retried — return it immediately as a non-retryable error.
+        isRateLimited = response.status == 429 or
+            (response.status == 403 and isRateLimitSignal(response))
+
+        if isRateLimited:
+            if attempt == maxAttempts:
+                # Fail closed: no more retries — deny for this decision (§9.4)
+                return DENY_RATE_LIMITED
+
+            retryAfter = response.headers["Retry-After"]  # seconds, if present
+            if retryAfter is present:
+                delayMs = retryAfter * 1000
+            else:
+                # Exponential backoff with jitter: base * 2^(attempt-1), capped
+                delayMs = min(baseDelayMs * (2 ** (attempt - 1)), maxDelayMs)
+                delayMs = delayMs + randomJitterMs(0, delayMs * 0.1)
+
+            sleep(delayMs)
+            continue
+
+        return response  # success, or a non-rate-limit error (e.g. plain 403); caller handles normally
+    # Loop only reaches maxAttempts via the rate-limited branch above, which
+    # always returns DENY_RATE_LIMITED on the final attempt, so this point is unreachable.
+```
+
+**Notes**:
+- Respect the `Retry-After` header when GitHub provides one; fall back to exponential backoff (base 500ms, cap 30s) with jitter otherwise.
+- Treat `403` as retryable only when it carries GitHub's secondary-rate-limit signal (`Retry-After` header or a rate-limit message in the response body); an ordinary `403` permission denial MUST be returned immediately, not retried.
+- Exhausting `maxAttempts` MUST result in a fail-closed denial for the current request, not an implicit allow.
 
 #### C.5 Configuration Validation Timing
 

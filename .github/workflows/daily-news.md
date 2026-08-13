@@ -325,6 +325,7 @@ imports:
       expires: 3d
   - shared/trends.md
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 evals:
@@ -547,12 +548,6 @@ Create a GitHub discussion titled "Daily Status - <today's date>".
   * Summary statistics: number of issues/PRs/commits/discussions analyzed
   * Date range of data analyzed
   * Any data limitations encountered
-
-### Report Formatting
-
-- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
-- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks to reduce scrolling.
-- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 Create a new GitHub discussion with a title containing today's date (e.g., "Daily Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
 

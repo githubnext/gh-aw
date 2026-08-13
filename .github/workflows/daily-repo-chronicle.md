@@ -55,6 +55,7 @@ imports:
       expires: 3d
   - shared/trends.md
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 evals:
@@ -225,12 +226,6 @@ Transform the last 24 hours of repository activity into a compelling narrative t
 - **Human-centric**: Always attribute bot actions to the humans who triggered, reviewed, or merged them
 - **Tools, not actors**: Frame automation as productivity tools used BY developers, not independent actors
 - **Avoid "robot uprising" tropes**: No "bot takeovers", "automation armies", or "humans displaced by machines"
-
-### Report Formatting
-
-- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
-- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks to reduce scrolling.
-- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 ## Technical Requirements
 
