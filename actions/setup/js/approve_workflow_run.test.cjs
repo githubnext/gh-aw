@@ -125,4 +125,18 @@ describe("approve_workflow_run", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("Max count of 1 reached");
   });
+
+  it("does not consume the maximum for an ineligible run", async () => {
+    mockGetWorkflowRun
+      .mockResolvedValueOnce({
+        data: { ...pendingPullRequestRun, conclusion: "success" },
+      })
+      .mockResolvedValueOnce({ data: pendingPullRequestRun });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ max: 1 });
+
+    expect((await handler({ run_id: 122 }, {})).success).toBe(false);
+    expect((await handler({ run_id: 123 }, {})).success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
 });

@@ -43,7 +43,6 @@ async function main(config = {}) {
       core.warning(`Skipping ${HANDLER_TYPE}: max count of ${maxCount} reached`);
       return { success: false, error: `Max count of ${maxCount} reached` };
     }
-    processedCount++;
 
     const runId = parseRunId(message.run_id);
     if (!runId) {
@@ -70,6 +69,8 @@ async function main(config = {}) {
         core.warning(error);
         return { success: false, error };
       }
+
+      processedCount++;
 
       if (isStaged) {
         logStagedPreviewInfo(`Would approve workflow run ${runId}`);
