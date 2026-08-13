@@ -211,12 +211,7 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 	// Determine continue-on-error mode (default: true — detection failures produce warnings).
 	// When ContinueOnErrorExpr is set the value is resolved at runtime; compile-time we use
 	// true as a safe default so the step-level continue-on-error is included (permissive).
-	continueOnError := true
-	var continueOnErrorExpr *string
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
-		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
-	}
+	continueOnError, continueOnErrorExpr := resolveThreatDetectionContinueOnError(data)
 
 	steps := []string{
 		"      - name: Parse and conclude threat detection\n",
@@ -283,12 +278,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	var steps []string
 
 	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
-	continueOnError := true
-	var continueOnErrorExpr *string
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
-		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
-	}
+	continueOnError, continueOnErrorExpr := resolveThreatDetectionContinueOnError(data)
 
 	// Setup step
 	steps = append(steps, []string{
@@ -523,12 +513,7 @@ func (c *Compiler) buildInstallThreatDetectStep(data *WorkflowData) []string {
 	version := string(constants.DefaultThreatDetectVersion)
 
 	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
-	continueOnError := true
-	var continueOnErrorExpr *string
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
-		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
-	}
+	continueOnError, continueOnErrorExpr := resolveThreatDetectionContinueOnError(data)
 
 	steps := []string{
 		"      - name: Install threat-detect binary\n",
