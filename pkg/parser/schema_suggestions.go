@@ -545,7 +545,10 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 	if err != nil {
 		return ""
 	}
-	escapedChild := regexp.QuoteMeta(childKey)
+	scalarMatchers, err := buildNestedYAMLScalarMatchers(regexp.QuoteMeta(childKey))
+	if err != nil {
+		return ""
+	}
 
 	parentIndent := -1
 	childIndent := -1 // indent of direct children (set on first non-blank line inside the block)
@@ -581,30 +584,40 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 			continue
 		}
 
-		// Try to match child key with its value (single-quoted, double-quoted, unquoted).
-		childPrefix := `^\s+` + escapedChild + `[ \t]*:[ \t]*`
+		if value := extractNestedYAMLScalar(line, scalarMatchers); value != "" {
+			return value
+		}
+	}
+
+	return ""
+}
+
+// buildNestedYAMLScalarMatchers compiles the scalar value patterns for a child key once,
+// so they can be reused across every candidate line inside the parent block.
+func buildNestedYAMLScalarMatchers(escapedChild string) ([]*regexp.Regexp, error) {
+	childPrefix := `^\s+` + escapedChild + `[ \t]*:[ \t]*`
+	valuePatterns := []string{
+		childPrefix + `'([^'\n]+)'`,
+		childPrefix + `"([^"\n]+)"`,
+		childPrefix + `([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`,
+	}
+
+	matchers := make([]*regexp.Regexp, 0, len(valuePatterns))
+	for _, valuePattern := range valuePatterns {
 		//nolint:regexpdynamicpattern // The child key is quoted before compilation.
-		reSingle, err := regexp.Compile(childPrefix + `'([^'\n]+)'`)
+		valueRegexp, err := regexp.Compile(valuePattern)
 		if err != nil {
-			return ""
+			return nil, err
 		}
-		if match := reSingle.FindStringSubmatch(line); len(match) >= 2 {
-			return strings.TrimSpace(match[1])
-		}
-		//nolint:regexpdynamicpattern // The child key is quoted before compilation.
-		reDouble, err := regexp.Compile(childPrefix + `"([^"\n]+)"`)
-		if err != nil {
-			return ""
-		}
-		if match := reDouble.FindStringSubmatch(line); len(match) >= 2 {
-			return strings.TrimSpace(match[1])
-		}
-		//nolint:regexpdynamicpattern // The child key is quoted before compilation.
-		reUnquoted, err := regexp.Compile(childPrefix + `([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
-		if err != nil {
-			return ""
-		}
-		if match := reUnquoted.FindStringSubmatch(line); len(match) >= 2 {
+		matchers = append(matchers, valueRegexp)
+	}
+
+	return matchers, nil
+}
+
+func extractNestedYAMLScalar(line string, matchers []*regexp.Regexp) string {
+	for _, valueRegexp := range matchers {
+		if match := valueRegexp.FindStringSubmatch(line); len(match) >= 2 {
 			return strings.TrimSpace(match[1])
 		}
 	}

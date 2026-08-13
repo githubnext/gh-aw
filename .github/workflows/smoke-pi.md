@@ -36,6 +36,7 @@ imports:
   - shared/gh.md
   - shared/reporting-otlp.md
   - shared/otlp.md
+  - shared/smoke-test-brevity.md
 network:
   allowed:
     - defaults
@@ -73,11 +74,6 @@ features:
 ---
 
 # Smoke Test: Pi Engine Validation
-
-**CRITICAL EFFICIENCY REQUIREMENTS:**
-- Keep ALL outputs extremely short and concise. Use single-line responses.
-- NO verbose explanations or unnecessary context.
-- Minimize file reading - only read what is absolutely necessary for the task.
 
 ## Test Requirements
 
