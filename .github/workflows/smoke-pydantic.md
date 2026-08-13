@@ -24,6 +24,7 @@ engine:
 strict: true
 imports:
   - shared/pydantic.md
+  - shared/smoke-test-brevity.md
 network:
   allowed: []
 safe-outputs:
@@ -53,11 +54,6 @@ sandbox:
 ---
 
 # Smoke Test: Pydantic AI Engine Validation
-
-**CRITICAL EFFICIENCY REQUIREMENTS:**
-- Keep ALL outputs extremely short and concise. Use single-line responses.
-- NO verbose explanations or unnecessary context.
-- Minimize file reading - only read what is absolutely necessary for the task.
 
 ## Test Requirements
 
