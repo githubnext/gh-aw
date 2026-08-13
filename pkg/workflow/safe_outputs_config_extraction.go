@@ -113,6 +113,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MarkPullRequestAsReadyForReview = markPRReadyConfig
 			}
 
+			// Handle approve-workflow-run
+			approveWorkflowRunConfig := c.parseApproveWorkflowRunConfig(outputMap)
+			if approveWorkflowRunConfig != nil {
+				config.ApproveWorkflowRun = approveWorkflowRunConfig
+			}
+
 			// Handle dismiss-pull-request-review (and dismiss-review alias)
 			dismissPRReviewConfig := c.parseDismissPullRequestReviewConfig(outputMap)
 			if dismissPRReviewConfig != nil {

@@ -296,6 +296,17 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
+	"approve_workflow_run": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.ApproveWorkflowRun == nil {
+			return nil
+		}
+		c := cfg.ApproveWorkflowRun
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "approve-workflow-run", c.GitHubToken)).
+			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
+			Build()
+	},
 	"dismiss_pull_request_review": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.DismissPullRequestReview == nil {
 			return nil

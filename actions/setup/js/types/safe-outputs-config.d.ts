@@ -73,6 +73,11 @@ interface MarkPullRequestAsReadyForReviewConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for approving pending workflow runs from fork pull requests
+ */
+interface ApproveWorkflowRunConfig extends SafeOutputConfig {}
+
+/**
  * Configuration for adding comments to issues or PRs
  */
 interface AddCommentConfig extends SafeOutputConfig {
@@ -354,6 +359,7 @@ type SpecificSafeOutputConfig =
   | CloseIssueConfig
   | ClosePullRequestConfig
   | MarkPullRequestAsReadyForReviewConfig
+  | ApproveWorkflowRunConfig
   | AddCommentConfig
   | CreatePullRequestConfig
   | CreatePullRequestReviewCommentConfig
@@ -391,6 +397,7 @@ export {
   CloseIssueConfig,
   ClosePullRequestConfig,
   MarkPullRequestAsReadyForReviewConfig,
+  ApproveWorkflowRunConfig,
   AddCommentConfig,
   CreatePullRequestConfig,
   CreatePullRequestReviewCommentConfig,

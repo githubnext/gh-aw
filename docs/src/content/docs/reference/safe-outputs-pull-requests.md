@@ -10,6 +10,7 @@ This page is the primary reference for pull-request-focused safe outputs:
 - [`create-pull-request`](#pull-request-creation-create-pull-request)
 - [`update-pull-request`](#pull-request-updates-update-pull-request)
 - [`close-pull-request`](#close-pull-request-close-pull-request)
+- [`approve-workflow-run`](#approve-workflow-run-approve-workflow-run)
 - [`merge-pull-request`](#merge-pull-request-merge-pull-request) (experimental)
 - [`create-pull-request-review-comment`](#pr-review-comments-create-pull-request-review-comment)
 - [`submit-pull-request-review`](#submit-pr-review-submit-pull-request-review)
@@ -182,6 +183,19 @@ safe-outputs:
     target-repo: "owner/repo"         # cross-repository
     github-token: ${{ secrets.SOME_CUSTOM_TOKEN }} # optional custom token for permissions
 ```
+
+## Approve Workflow Run (`approve-workflow-run:`)
+
+Approves a GitHub Actions workflow run that is waiting for the repository's fork pull request approval gate. The agent supplies the positive integer `run_id`; the handler verifies that the run belongs to a pull request and has an `action_required` conclusion before calling GitHub's workflow-run approval API.
+
+```yaml wrap
+safe-outputs:
+  approve-workflow-run:
+    max: 1
+    staged: false
+```
+
+This operation requires `actions: write`. Use `staged: true` to preview approvals without executing them.
 
 ## Merge Pull Request (`merge-pull-request:`)
 

@@ -5364,7 +5364,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-check-run, create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-field, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: approve-workflow-run, autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, assign-to-user, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-check-run, create-code-scanning-alert, create-discussion, create-issue, create-project, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, merge-pull-request, missing-data, missing-tool, noop, push-to-pull-request-branch, remove-labels, reply-to-pull-request-review-comment, resolve-pull-request-review-thread, set-issue-field, set-issue-type, submit-pull-request-review, threat-detection, unassign-from-user, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-artifact, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -6857,6 +6857,66 @@
             }
           ],
           "description": "Enable AI agents to mark draft pull requests as ready for review when criteria are met."
+        },
+        "approve-workflow-run": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for approving workflow runs that are awaiting approval for a fork pull request.",
+              "properties": {
+                "max": {
+                  "description": "Maximum number of workflow runs to approve (default: 1). Supports an integer or GitHub Actions expression.",
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to an integer at runtime"
+                    }
+                  ]
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token_same_job",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "staged": {
+                  "$ref": "#/$defs/templatable_boolean",
+                  "description": "When true, preview the approval without making the GitHub API call.",
+                  "examples": [true, false]
+                },
+                "samples": {
+                  "description": "Internal hidden feature. Optional list of declarative sample payloads that exercise this safe-output handler.",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable workflow run approval with default configuration"
+            }
+          ],
+          "description": "Enable AI agents to approve pending workflow runs from fork pull requests."
         },
         "add-comment": {
           "oneOf": [
