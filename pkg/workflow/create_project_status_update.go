@@ -8,8 +8,8 @@ var createProjectStatusUpdateLog = logger.New("workflow:create_project_status_up
 
 // CreateProjectStatusUpdateConfig holds configuration for creating GitHub project status updates
 type CreateProjectStatusUpdateConfig struct {
-	BaseSafeOutputConfig
-	Project string `yaml:"project,omitempty"` // Optional default project URL for status updates
+	BaseSafeOutputConfig `yaml:",inline"`
+	Project              string `yaml:"project,omitempty"` // Optional default project URL for status updates
 }
 
 // parseCreateProjectStatusUpdateConfig handles create-project-status-update configuration
