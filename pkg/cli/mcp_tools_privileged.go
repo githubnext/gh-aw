@@ -202,6 +202,9 @@ If the command times out before fetching all available logs, a "continuation" fi
 in the JSON data with updated parameters to continue fetching more data.
 Check for the presence of the continuation field to determine if there are more logs available.
 
+When results are incomplete, the tool response also sets "partial": true and repeats the
+"continuation" cursor inline, so partial results can be detected without reading the file.
+
 The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching
 from where the previous request stopped due to timeout.`,
 		InputSchema: logsSchema,
