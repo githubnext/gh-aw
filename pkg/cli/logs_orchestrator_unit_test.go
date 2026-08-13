@@ -49,14 +49,26 @@ func TestBuildLogsDownloadContextPrefersSecondTimeout(t *testing.T) {
 		"deadline should use timeoutSeconds instead of timeoutMinutes; got %v from %v", deadline.Sub(before), before)
 }
 
-func TestBuildLogsDownloadContextNegativeMinutesDisablesTimeout(t *testing.T) {
-	ctx, cancel, startTime, timeoutDuration := buildLogsDownloadContext(context.Background(), -1, 55, false)
+func TestBuildLogsDownloadContextNonPositiveMinutesDisablesTimeout(t *testing.T) {
+	tests := []struct {
+		name           string
+		timeoutMinutes int
+	}{
+		{name: "zero", timeoutMinutes: 0},
+		{name: "negative", timeoutMinutes: -1},
+	}
 
-	assert.Nil(t, cancel)
-	assert.True(t, startTime.IsZero(), "negative minute timeout should disable timeout")
-	assert.Zero(t, timeoutDuration)
-	_, ok := ctx.Deadline()
-	assert.False(t, ok, "negative minute timeout should not create a deadline")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel, startTime, timeoutDuration := buildLogsDownloadContext(context.Background(), tt.timeoutMinutes, 55, false)
+
+			assert.Nil(t, cancel)
+			assert.True(t, startTime.IsZero(), "non-positive minute timeout should disable timeout")
+			assert.Zero(t, timeoutDuration)
+			_, ok := ctx.Deadline()
+			assert.False(t, ok, "non-positive minute timeout should not create a deadline")
+		})
+	}
 }
 
 // TestNoRunsMessage verifies that the helper returns an informative message
