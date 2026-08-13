@@ -69,7 +69,7 @@ func TestEffectiveMCPLogsToolSoftTimeoutSeconds(t *testing.T) {
 			t.Fatal("expected soft timeout when gateway deadline is shorter than CLI timeout")
 		}
 		if got < 50 || got > 54 {
-			t.Fatalf("soft timeout = %d seconds, want around 55 seconds", got)
+			t.Fatalf("soft timeout = %d seconds, want between 50 and 54 seconds", got)
 		}
 	})
 
