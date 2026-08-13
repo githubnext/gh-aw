@@ -132,8 +132,8 @@ engine:
         fs.chmodSync(configPath, 0o600);
     harness-script: |
       const { spawnSync } = require("child_process");
-      const { readFileSync, writeFileSync } = require("fs");
-      const { join } = require("path");
+      const { accessSync, constants, readFileSync, writeFileSync } = require("fs");
+      const { isAbsolute, join } = require("path");
       const { fetchAWFReflect, resolveProviderEndpointFromReflect } = require("./awf_reflect.cjs");
 
       const [command, ...commandArgs] = process.argv.slice(2);
@@ -141,6 +141,32 @@ engine:
       const fail = (result, action) => {
         if (result.error) throw result.error;
         if (result.status !== 0) throw new Error(`${action} failed with exit code ${result.status ?? "unknown"}`);
+      };
+
+      // Preflight the CLI lookup inside the sandbox: the binary is installed on the runner
+      // host, so a missing sandbox mount surfaces as a bare ENOENT from spawnSync.
+      const resolveCommand = name => {
+        const searchPath = process.env.PATH || "";
+        if (name.includes("/")) {
+          const candidate = isAbsolute(name) ? name : join(process.cwd(), name);
+          try {
+            accessSync(candidate, constants.X_OK);
+            return candidate;
+          } catch {
+            throw new Error(`${name} not executable in sandbox: ${candidate}`);
+          }
+        }
+        for (const dir of searchPath.split(":")) {
+          if (!dir) continue;
+          const candidate = join(dir, name);
+          try {
+            accessSync(candidate, constants.X_OK);
+            return candidate;
+          } catch {
+            continue;
+          }
+        }
+        throw new Error(`${name} not found in sandbox PATH: ${searchPath}`);
       };
 
       const main = async () => {
@@ -218,8 +244,10 @@ engine:
         const promptPath = process.env.GH_AW_PROMPT;
         if (!promptPath) throw new Error("GH_AW_PROMPT is required");
         const prompt = readFileSync(promptPath, "utf8");
+        const executable = resolveCommand(command);
+        log(`resolved ${command} to ${executable}`);
         fail(
-          spawnSync(command, [...commandArgs, "--model", `awf-proxy/${model}`, prompt], {
+          spawnSync(executable, [...commandArgs, "--model", `awf-proxy/${model}`, prompt], {
             cwd: workspace,
             env: process.env,
             stdio: "inherit",
