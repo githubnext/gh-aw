@@ -18,3 +18,4 @@
 {"run_id":"31424342221","timestamp":"2026-08-10T19:30:01.593Z","assignments":{"sub_agent_strategy":"inline_strict"}}
 {"run_id":"31528263725","timestamp":"2026-08-11T19:31:43.368Z","assignments":{"sub_agent_strategy":"delegated_sequential"}}
 {"run_id":"31633071077","timestamp":"2026-08-12T19:31:56.530Z","assignments":{"sub_agent_strategy":"inline_strict"}}
+{"run_id":"31736257471","timestamp":"2026-08-13T19:31:43.910Z","assignments":{"sub_agent_strategy":"delegated_sequential"}}
