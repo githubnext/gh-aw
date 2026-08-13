@@ -545,7 +545,10 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 	if err != nil {
 		return ""
 	}
-	escapedChild := regexp.QuoteMeta(childKey)
+	scalarMatchers, err := buildNestedYAMLScalarMatchers(regexp.QuoteMeta(childKey))
+	if err != nil {
+		return ""
+	}
 
 	parentIndent := -1
 	childIndent := -1 // indent of direct children (set on first non-blank line inside the block)
@@ -581,7 +584,7 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 			continue
 		}
 
-		if value := extractNestedYAMLScalar(line, escapedChild); value != "" {
+		if value := extractNestedYAMLScalar(line, scalarMatchers); value != "" {
 			return value
 		}
 	}
@@ -589,7 +592,9 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 	return ""
 }
 
-func extractNestedYAMLScalar(line, escapedChild string) string {
+// buildNestedYAMLScalarMatchers compiles the scalar value patterns for a child key once,
+// so they can be reused across every candidate line inside the parent block.
+func buildNestedYAMLScalarMatchers(escapedChild string) ([]*regexp.Regexp, error) {
 	childPrefix := `^\s+` + escapedChild + `[ \t]*:[ \t]*`
 	valuePatterns := []string{
 		childPrefix + `'([^'\n]+)'`,
@@ -597,12 +602,21 @@ func extractNestedYAMLScalar(line, escapedChild string) string {
 		childPrefix + `([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`,
 	}
 
+	matchers := make([]*regexp.Regexp, 0, len(valuePatterns))
 	for _, valuePattern := range valuePatterns {
 		//nolint:regexpdynamicpattern // The child key is quoted before compilation.
 		valueRegexp, err := regexp.Compile(valuePattern)
 		if err != nil {
-			return ""
+			return nil, err
 		}
+		matchers = append(matchers, valueRegexp)
+	}
+
+	return matchers, nil
+}
+
+func extractNestedYAMLScalar(line string, matchers []*regexp.Regexp) string {
+	for _, valueRegexp := range matchers {
 		if match := valueRegexp.FindStringSubmatch(line); len(match) >= 2 {
 			return strings.TrimSpace(match[1])
 		}
