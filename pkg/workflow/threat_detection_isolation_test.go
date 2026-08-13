@@ -213,6 +213,20 @@ Test workflow`
 	if !strings.Contains(detectionSection, "install_threat_detect_binary.sh") {
 		t.Error("External detector path must emit 'install_threat_detect_binary.sh' install step")
 	}
+	// In warn mode (continue-on-error default: true), the install step itself must be
+	// continue-on-error so a transient download failure doesn't mark the detection job
+	// as failure when the workflow logic already tolerates a missing binary.
+	installStepIdx := strings.Index(detectionSection, "Install threat-detect binary")
+	if installStepIdx == -1 {
+		t.Fatal("Could not find 'Install threat-detect binary' step in detection section")
+	}
+	installStepBlock := detectionSection[installStepIdx:]
+	if nextStepIdx := strings.Index(installStepBlock[1:], "\n      - name:"); nextStepIdx != -1 {
+		installStepBlock = installStepBlock[:nextStepIdx+1]
+	}
+	if !strings.Contains(installStepBlock, "continue-on-error: true") {
+		t.Error("Install threat-detect binary step must set continue-on-error: true in warn mode")
+	}
 	if !strings.Contains(detectionSection, "install_copilot_cli.sh") {
 		t.Error("External detector path must emit engine installation step for copilot")
 	}

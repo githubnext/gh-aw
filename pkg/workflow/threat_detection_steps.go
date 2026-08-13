@@ -79,7 +79,7 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string {
 		steps = append(steps, c.buildPrepareDetectionEngineConfigForExternalDetectorStep(data)...)
 
 		// Step 10: Install the threat-detect binary from GitHub Releases
-		steps = append(steps, c.buildInstallThreatDetectStep()...)
+		steps = append(steps, c.buildInstallThreatDetectStep(data)...)
 
 		// Step 11: Run threat-detect under AWF with a read-write mount for the result file
 		steps = append(steps, c.buildExternalDetectorExecutionStep(data)...)
@@ -510,12 +510,38 @@ func (c *Compiler) buildRenderDetectionLogStep(data *WorkflowData) []string {
 // buildInstallThreatDetectStep creates a step that installs the threat-detect binary
 // from GitHub Releases at the pinned version. This is used when the gh-aw-detection
 // feature flag is set, replacing the inline engine installation steps.
-func (c *Compiler) buildInstallThreatDetectStep() []string {
+//
+// The detection job already tolerates a missing threat-detect binary when continue-on-error
+// (warn mode) is in effect: buildDetectionConclusionStep and buildThreatDetectionAnalysisStep
+// treat a failed/absent binary as a non-fatal detection failure via
+// GH_AW_DETECTION_CONTINUE_ON_ERROR. Without continue-on-error on this install step, a
+// transient download failure (e.g. a GitHub Releases CDN blip) would still mark this step —
+// and therefore the whole detection job — as `failure`, even though the workflow logic
+// already treats a missing binary as non-fatal. Marking the step itself continue-on-error
+// in warn mode keeps the job conclusion consistent with that tolerance.
+func (c *Compiler) buildInstallThreatDetectStep(data *WorkflowData) []string {
 	version := string(constants.DefaultThreatDetectVersion)
-	return []string{
+
+	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
+	continueOnError := true
+	var continueOnErrorExpr *string
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
+		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
+	}
+
+	steps := []string{
 		"      - name: Install threat-detect binary\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+	}
+	if continueOnErrorExpr != nil {
+		steps = append(steps, fmt.Sprintf("        continue-on-error: %s\n", *continueOnErrorExpr))
+	} else if continueOnError {
+		steps = append(steps, "        continue-on-error: true\n")
+	}
+	steps = append(steps,
 		"        run: |\n",
 		fmt.Sprintf("          bash \"${RUNNER_TEMP}/gh-aw/actions/install_threat_detect_binary.sh\" %s\n", version),
-	}
+	)
+	return steps
 }
