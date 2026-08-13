@@ -43,10 +43,10 @@
       "issue_number": null
     },
     "specs/forecast-compliance-fixtures/README.md": {
-      "slug": "forecast-compliance-fixtures-README",
-      "last_formalized": "2026-07-29-16-00-47",
-      "notation": "TLA+ / Z3 / F*",
-      "predicate_count": 10,
+      "slug": "forecast-compliance-fixtures-readme",
+      "last_formalized": "2026-08-13-15-43-30",
+      "notation": "TLA+ / Z3-style",
+      "predicate_count": 12,
       "issue_number": null
     },
     "specs/intent-attribution-agent-governance.md": {
