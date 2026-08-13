@@ -20,6 +20,7 @@ const (
 	defaultMCPLogsToolCount            = 100
 	defaultMCPLogsTimeoutMinutes       = 1
 	mcpLogsRunsPerDefaultTimeoutMinute = 40
+	mcpLogsGatewayDeadlineMargin       = 5 * time.Second
 	// defaultMCPLogsMinTimeoutMinutesAllWorkflows is the minimum timeout (in minutes)
 	// used when no workflow_name filter is provided.  Querying all workflow runs at once
 	// requires a single GitHub API call rather than a workflow-scoped call, but for
@@ -141,6 +142,21 @@ func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int, workflowNam
 		return max(defaultMCPLogsMinTimeoutMinutesAllWorkflows, base)
 	}
 	return base
+}
+
+func effectiveMCPLogsToolSoftTimeoutSeconds(ctx context.Context, timeoutMinutes int) (int, bool) {
+	deadline, ok := ctx.Deadline()
+	if !ok || timeoutMinutes <= 0 {
+		return 0, false
+	}
+	softTimeout := time.Until(deadline) - mcpLogsGatewayDeadlineMargin
+	if softTimeout <= 0 {
+		return 0, false
+	}
+	if softTimeout >= time.Duration(timeoutMinutes)*time.Minute {
+		return 0, false
+	}
+	return max(1, int(softTimeout.Seconds())), true
 }
 
 // The logs tool requires write+ access and checks actor permissions.
@@ -282,6 +298,9 @@ from where the previous request stopped due to timeout.`,
 		// larger fleet-wide requests do not hit the default per-tool timeout.
 		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount, args.WorkflowName, args.Engine)
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
+		if softTimeoutSeconds, ok := effectiveMCPLogsToolSoftTimeoutSeconds(ctx, timeoutValue); ok {
+			cmdArgs = append(cmdArgs, "--timeout-seconds", strconv.Itoa(softTimeoutSeconds))
+		}
 
 		// Always use --json mode in MCP server
 		cmdArgs = append(cmdArgs, "--json")

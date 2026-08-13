@@ -33,6 +33,21 @@ func TestIsDeadlineExceeded(t *testing.T) {
 	})
 }
 
+func TestBuildLogsDownloadContextPrefersSecondTimeout(t *testing.T) {
+	before := time.Now()
+	ctx, cancel, startTime := buildLogsDownloadContext(context.Background(), 5, 55, false)
+	defer cancel()
+
+	require.False(t, startTime.IsZero(), "timeout context should record a start time")
+	deadline, ok := ctx.Deadline()
+	require.True(t, ok, "timeout context should have a deadline")
+
+	wantMin := before.Add(50 * time.Second)
+	wantMax := before.Add(60 * time.Second)
+	assert.True(t, deadline.After(wantMin) && deadline.Before(wantMax),
+		"deadline should use timeoutSeconds instead of timeoutMinutes; got %v from %v", deadline.Sub(before), before)
+}
+
 // TestNoRunsMessage verifies that the helper returns an informative message
 // depending on the start_date filter and timeoutReached flag.
 func TestNoRunsMessage(t *testing.T) {

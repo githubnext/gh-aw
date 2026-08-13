@@ -50,7 +50,7 @@ func prepareLogsDownload(ctx context.Context, opts LogsDownloadOptions) (logsDow
 	if err := prepareLogsDownloadOutput(ctx, opts); err != nil {
 		return logsDownloadRuntime{}, err
 	}
-	activeCtx, timeoutCancel, startTime := buildLogsDownloadContext(ctx, opts.TimeoutMinutes, opts.Verbose)
+	activeCtx, timeoutCancel, startTime := buildLogsDownloadContext(ctx, opts.TimeoutMinutes, opts.TimeoutSeconds, opts.Verbose)
 	return logsDownloadRuntime{
 		activeCtx:       activeCtx,
 		startTime:       startTime,
@@ -149,14 +149,20 @@ func cleanupLogsOutputDir(opts LogsDownloadOptions) error {
 	return nil
 }
 
-func buildLogsDownloadContext(ctx context.Context, timeoutMinutes int, verbose bool) (context.Context, context.CancelFunc, time.Time) {
-	if timeoutMinutes <= 0 {
+func buildLogsDownloadContext(ctx context.Context, timeoutMinutes, timeoutSeconds int, verbose bool) (context.Context, context.CancelFunc, time.Time) {
+	timeoutDuration := time.Duration(timeoutMinutes) * time.Minute
+	timeoutLabel := fmt.Sprintf("%d minutes", timeoutMinutes)
+	if timeoutSeconds > 0 {
+		timeoutDuration = time.Duration(timeoutSeconds) * time.Second
+		timeoutLabel = fmt.Sprintf("%d seconds", timeoutSeconds)
+	}
+	if timeoutDuration <= 0 {
 		return ctx, nil, time.Time{}
 	}
 	startTime := time.Now()
-	activeCtx, timeoutCancel := context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
+	activeCtx, timeoutCancel := context.WithTimeout(ctx, timeoutDuration)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d minutes", timeoutMinutes)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Timeout set to "+timeoutLabel))
 	}
 	return activeCtx, timeoutCancel, startTime
 }
@@ -268,6 +274,18 @@ func shouldStopLogsIteration(runtime logsDownloadRuntime, opts LogsDownloadOptio
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
 		return true, false, runtime.activeCtx.Err()
 	default:
+	}
+	if !runtime.startTime.IsZero() && runtime.activeCtx.Err() == nil {
+		var timeoutDuration time.Duration
+		if deadline, ok := runtime.activeCtx.Deadline(); ok {
+			timeoutDuration = deadline.Sub(runtime.startTime)
+		}
+		if timeoutDuration > 0 && time.Since(runtime.startTime) >= timeoutDuration {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Timeout reached after %.1f seconds, stopping download", time.Since(runtime.startTime).Seconds())))
+			}
+			return true, true, nil
+		}
 	}
 	if opts.TimeoutMinutes > 0 && time.Since(runtime.startTime).Seconds() >= float64(opts.TimeoutMinutes)*60 {
 		if opts.Verbose {
