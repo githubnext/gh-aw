@@ -152,6 +152,9 @@ func cleanupLogsOutputDir(opts LogsDownloadOptions) error {
 }
 
 func buildLogsDownloadContext(ctx context.Context, timeoutMinutes, timeoutSeconds int, verbose bool) (context.Context, context.CancelFunc, time.Time, time.Duration) {
+	if timeoutMinutes < 0 {
+		return ctx, nil, time.Time{}, 0
+	}
 	timeoutDuration := time.Duration(timeoutMinutes) * time.Minute
 	timeoutLabel := fmt.Sprintf("%d minutes", timeoutMinutes)
 	if timeoutSeconds > 0 {

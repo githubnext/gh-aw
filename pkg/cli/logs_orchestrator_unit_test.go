@@ -49,6 +49,16 @@ func TestBuildLogsDownloadContextPrefersSecondTimeout(t *testing.T) {
 		"deadline should use timeoutSeconds instead of timeoutMinutes; got %v from %v", deadline.Sub(before), before)
 }
 
+func TestBuildLogsDownloadContextNegativeMinutesDisablesTimeout(t *testing.T) {
+	ctx, cancel, startTime, timeoutDuration := buildLogsDownloadContext(context.Background(), -1, 55, false)
+
+	assert.Nil(t, cancel)
+	assert.True(t, startTime.IsZero(), "negative minute timeout should disable timeout")
+	assert.Zero(t, timeoutDuration)
+	_, ok := ctx.Deadline()
+	assert.False(t, ok, "negative minute timeout should not create a deadline")
+}
+
 // TestNoRunsMessage verifies that the helper returns an informative message
 // depending on the start_date filter and timeoutReached flag.
 func TestNoRunsMessage(t *testing.T) {
