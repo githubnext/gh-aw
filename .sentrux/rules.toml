@@ -1,19 +1,5 @@
-[[rule]]
-name = "quality_floor"
-metric = "quality"
-min = 5200
-
-[[rule]]
-name = "coupling_ceiling"
-metric = "coupling"
-max = 0.20
-
-[[rule]]
-name = "no_new_cycles"
-metric = "cycles"
-max = 2
-
-[[rule]]
-name = "god_files_ceiling"
-metric = "god_files"
-max = 1
+[constraints]
+min_quality = 0.52
+max_coupling_score = 0.20
+max_cycles = 2
+no_god_files = true
