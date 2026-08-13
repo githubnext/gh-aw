@@ -88,3 +88,6 @@
 {"id":"labels-applied","question":"Did the agent apply triage labels to at least one pull request?","answer":"YES","model":"evals","timestamp":"2026-08-13T06:52:12.920Z","runid":"31674716154"}
 {"id":"triage-data-set","question":"Does the agent output confirm that category, risk, and action data were determined for each processed PR?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-13T06:52:12.920Z","runid":"31674716154"}
 {"id":"report-produced","question":"Does the agent output include a triage report summarizing the PRs processed?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-13T06:52:12.920Z","runid":"31674716154"}
+{"id":"labels-applied","question":"Did the agent apply triage labels to at least one pull request?","answer":"YES","model":"evals","timestamp":"2026-08-13T12:36:58.713Z","runid":"31700054914"}
+{"id":"triage-data-set","question":"Does the agent output confirm that category, risk, and action data were determined for each processed PR?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-13T12:36:58.713Z","runid":"31700054914"}
+{"id":"report-produced","question":"Does the agent output include a triage report summarizing the PRs processed?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-13T12:36:58.713Z","runid":"31700054914"}
