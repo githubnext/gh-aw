@@ -19,6 +19,14 @@ import (
 
 var gitLog = logger.New("cli:git")
 
+// isSafeGitRevisionArg reports whether ref is safe to pass as a git revision
+// argument (e.g. to "git log <ref>..HEAD" or "git show <ref>:<path>").
+// It rejects empty values and values starting with "-", which could
+// otherwise be misinterpreted as command-line options (flag injection).
+func isSafeGitRevisionArg(ref string) bool {
+	return ref != "" && !strings.HasPrefix(ref, "-")
+}
+
 func isGitRepo() bool {
 	_, err := gitutil.FindGitRoot()
 	return err == nil
@@ -688,6 +696,11 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 
 	upstream := strings.TrimSpace(string(output))
 	gitLog.Printf("Upstream branch: %s", upstream)
+
+	if !isSafeGitRevisionArg(upstream) {
+		gitLog.Printf("Rejecting unsafe upstream ref: %q", upstream)
+		return status, nil // Ignore unexpected/unsafe upstream ref, return current status
+	}
 
 	// Check if there are commits in the current branch that affect this file and aren't in upstream
 	cmd = exec.Command("git", "-C", gitRoot, "log", upstream+"..HEAD", "--oneline", "--", relPath)
