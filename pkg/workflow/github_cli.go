@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/tty"
 )
@@ -39,16 +40,14 @@ func getDefaultGHHost() string {
 
 // setupGHCommand creates an exec.Cmd for gh CLI with proper token configuration.
 // This is the core implementation shared by ExecGH and ExecGHContext.
-// When ctx is nil, it falls back to context.TODO().
+// When ctx is nil, it falls back to context.Background().
 func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	// Check if GH_TOKEN or GITHUB_TOKEN is available
 	ghToken := lookupProcessEnv("GH_TOKEN")
 	githubToken := lookupProcessEnv("GITHUB_TOKEN")
 	ghHost := lookupProcessEnv("GH_HOST")
 
-	if ctx == nil {
-		ctx = context.TODO()
-	}
+	ctx = ctxutil.OrBackground(ctx)
 	cmd := exec.CommandContext(ctx, "gh", args...)
 
 	if ghToken != "" || githubToken != "" {

@@ -703,3 +703,36 @@ func jqPathArg(t *testing.T, args []string) string {
 	require.Less(t, jqIndex, len(args)-1)
 	return args[jqIndex+1]
 }
+
+// TestProjectGraphQLQueryConstantsAreParameterized ensures the project GraphQL documents
+// stay static templates that declare their inputs as GraphQL variables, so user-controlled
+// values can never be interpolated into a query string.
+func TestProjectGraphQLQueryConstantsAreParameterized(t *testing.T) {
+	queries := map[string][]string{
+		"validateOrgOwnerQuery":  {"$login: String!"},
+		"validateUserOwnerQuery": {"$login: String!"},
+		"orgOwnerNodeIDQuery":    {"$login: String!"},
+		"userOwnerNodeIDQuery":   {"$login: String!"},
+		"orgProjectFieldsQuery":  {"$login: String!", "$number: Int!"},
+		"userProjectFieldsQuery": {"$login: String!", "$number: Int!"},
+	}
+	values := map[string]string{
+		"validateOrgOwnerQuery":  validateOrgOwnerQuery,
+		"validateUserOwnerQuery": validateUserOwnerQuery,
+		"orgOwnerNodeIDQuery":    orgOwnerNodeIDQuery,
+		"userOwnerNodeIDQuery":   userOwnerNodeIDQuery,
+		"orgProjectFieldsQuery":  orgProjectFieldsQuery,
+		"userProjectFieldsQuery": userProjectFieldsQuery,
+	}
+
+	for name, declarations := range queries {
+		t.Run(name, func(t *testing.T) {
+			query := values[name]
+			assert.NotContains(t, query, "%s", "query must not contain format verbs")
+			assert.NotContains(t, query, "%v", "query must not contain format verbs")
+			for _, declaration := range declarations {
+				assert.Contains(t, query, declaration, "query must declare its inputs as GraphQL variables")
+			}
+		})
+	}
+}
