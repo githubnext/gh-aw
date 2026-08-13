@@ -1113,7 +1113,6 @@ async function main() {
     if (!copilotSDKMode || copilotSDKServer) {
       // Unified retry loop for CLI and driver modes.
       // --continue is a CLI concept; in SDK mode retries always restart the session fresh.
-      let attemptStart = 0;
       const retryRun = await runHarnessRetryLoop({
         maxRetries,
         initialDelayMs,
@@ -1130,7 +1129,6 @@ async function main() {
 
           // Redact --prompt / -p value from logs to avoid leaking prompt content
           const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-          attemptStart = Date.now();
           // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
           // already started the sidecar; the driver only opens an SDK client connection.
           const result = await runProcess({
@@ -1186,7 +1184,7 @@ async function main() {
           const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
           const isInvocationCapExceeded = nonRetryableGuard.maxRunsExceeded;
           const tokenCount = extractTokenCountFromOutput(result.output);
-          const attemptDurationMs = Date.now() - attemptStart;
+          const attemptDurationMs = result.durationMs ?? 0;
           const failureClass = classifyCopilotFailure({
             hasOutput: result.hasOutput,
             isAuthErr,

@@ -567,8 +567,6 @@ async function main() {
   // deadline the guard fires on the next iteration. Individual attempts are expected to
   // complete within the SOFT_TIMEOUT_BUFFER_MS window.
   const softTimeoutGuard = buildSoftTimeoutGuard(driverStartTime);
-  let safeOutputsByteOffset = 0;
-
   const retryRun = await runHarnessRetryLoop({
     maxRetries: MAX_RETRIES,
     initialDelayMs: INITIAL_DELAY_MS,
@@ -582,9 +580,9 @@ async function main() {
     runAttempt: async attempt => {
       // Track the file size before this attempt so the watchdog only arms on output
       // written by this attempt, not by a previous retry.
-      safeOutputsByteOffset = safeOutputsPath ? getSafeOutputsByteOffset(safeOutputsPath) : 0;
+      const safeOutputsByteOffset = safeOutputsPath ? getSafeOutputsByteOffset(safeOutputsPath) : 0;
 
-      return runProcess({
+      const result = await runProcess({
         command,
         args: resolvedArgs,
         attempt,
@@ -598,6 +596,7 @@ async function main() {
             }
           : undefined,
       });
+      return { ...result, safeOutputsByteOffset };
     },
     handleFailure: ({ attempt, result }) => {
       // When the post-result watchdog fired (SIGTERM sent to a hanging Codex process) and the
@@ -605,7 +604,7 @@ async function main() {
       // as a success.  The agent completed its work and wrote its output — the hang on exit is
       // a cosmetic failure, not a task failure.  Check this before logging "attempt failed" so
       // the log stream does not contradict itself for what is ultimately a successful run.
-      if (result.watchdogFired && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, safeOutputsByteOffset, { logger: log })) {
+      if (result.watchdogFired && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, result.safeOutputsByteOffset ?? 0, { logger: log })) {
         log(`attempt ${attempt + 1}: post-result watchdog fired after terminal safe-output was emitted — treating as success (late-activity exit suppressed)`);
         return { action: "stop", exitCode: 0 };
       }

@@ -6,7 +6,7 @@ const { formatDuration, sleep } = require("./process_runner.cjs");
 const { emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 
 /**
- * @typedef {{ exitCode: number, output: string, hasOutput: boolean, durationMs?: number, watchdogFired?: boolean }} HarnessAttemptResult
+ * @typedef {{ exitCode: number, output: string, hasOutput: boolean, durationMs?: number, watchdogFired?: boolean, safeOutputsByteOffset?: number }} HarnessAttemptResult
  * @typedef {{ action: "retry" | "stop", exitCode?: number, nextDelayMs?: number }} HarnessFailureDecision
  */
 
@@ -55,7 +55,9 @@ function shouldStopForNoopSafeOutputs({ attempt, safeOutputsPath, hasNoopInSafeO
  *   getRetryMode?: (attempt: number) => string,
  *   sleepFn?: (ms: number) => Promise<void>,
  * }} options
- * @returns {Promise<{ exitCode: number, attempts: number, lastResult: HarnessAttemptResult | null, stoppedBySoftTimeout: boolean }>}
+ * `nextDelayMs` overrides the delay before the immediately next attempt; following retries
+ * resume exponential backoff from that delay.
+ * @returns {Promise<{ exitCode: number, attempts: number, lastResult: HarnessAttemptResult | null }>}
  */
 async function runHarnessRetryLoop(options) {
   let delay = options.initialDelayMs;
@@ -63,16 +65,12 @@ async function runHarnessRetryLoop(options) {
   let attempts = 0;
   /** @type {HarnessAttemptResult | null} */
   let lastResult = null;
-  let stoppedBySoftTimeout = false;
   const sleepFor = options.sleepFn ?? sleep;
 
   for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
-    attempts = attempt + 1;
-
     if (options.softTimeoutGuard && Date.now() >= options.softTimeoutGuard.softDeadlineMs) {
       emitSoftTimeoutSignal(options.softTimeoutGuard, `before attempt ${attempt + 1}`, options.harnessName, options.log);
       lastExitCode = 1;
-      stoppedBySoftTimeout = true;
       break;
     }
 
@@ -81,15 +79,15 @@ async function runHarnessRetryLoop(options) {
       options.log(`retry ${attempt}/${options.maxRetries}: sleeping ${delay}ms before next attempt (${retryMode})`);
       await sleepFor(delay);
       delay = Math.min(delay * options.backoffMultiplier, options.maxDelayMs);
-      options.log(`retry ${attempt}/${options.maxRetries}: woke up, next delay cap will be ${Math.min(delay * options.backoffMultiplier, options.maxDelayMs)}ms`);
+      options.log(`retry ${attempt}/${options.maxRetries}: woke up, next delay will be ${delay}ms`);
       if (options.softTimeoutGuard && Date.now() >= options.softTimeoutGuard.softDeadlineMs) {
         emitSoftTimeoutSignal(options.softTimeoutGuard, "after backoff sleep", options.harnessName, options.log);
         lastExitCode = 1;
-        stoppedBySoftTimeout = true;
         break;
       }
     }
 
+    attempts = attempt + 1;
     const result = await options.runAttempt(attempt);
     lastResult = result;
     lastExitCode = result.exitCode;
@@ -113,7 +111,7 @@ async function runHarnessRetryLoop(options) {
     break;
   }
 
-  return { exitCode: lastExitCode, attempts, lastResult, stoppedBySoftTimeout };
+  return { exitCode: lastExitCode, attempts, lastResult };
 }
 
 if (typeof module !== "undefined" && module.exports) {

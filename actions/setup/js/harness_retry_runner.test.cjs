@@ -101,10 +101,10 @@ describe("harness_retry_runner.cjs", () => {
     expect(retryModes).toEqual([1, 2]);
   });
 
-  it("lets failure callbacks reset the next delay", async () => {
+  it("resumes exponential backoff from a callback-selected next delay", async () => {
     const sleeps = [];
     const result = await runHarnessRetryLoop({
-      maxRetries: 2,
+      maxRetries: 3,
       initialDelayMs: 10,
       backoffMultiplier: 2,
       maxDelayMs: 100,
@@ -112,15 +112,15 @@ describe("harness_retry_runner.cjs", () => {
       harnessName: "Test harness",
       log: () => {},
       softTimeoutGuard: null,
-      runAttempt: async attempt => ({ exitCode: attempt === 2 ? 0 : 1, output: "", hasOutput: false, durationMs: 0, watchdogFired: false }),
-      handleFailure: ({ attempt }) => ({ action: "retry", nextDelayMs: attempt === 0 ? 10 : 7 }),
+      runAttempt: async attempt => ({ exitCode: attempt === 3 ? 0 : 1, output: "", hasOutput: false, durationMs: 0, watchdogFired: false }),
+      handleFailure: ({ attempt }) => ({ action: "retry", nextDelayMs: attempt === 0 ? 7 : undefined }),
       sleepFn: async ms => {
         sleeps.push(ms);
       },
     });
 
     expect(result.exitCode).toBe(0);
-    expect(sleeps).toEqual([10, 7]);
+    expect(sleeps).toEqual([7, 14, 28]);
   });
 
   it("propagates a callback-selected terminal exit code", async () => {
@@ -139,6 +139,57 @@ describe("harness_retry_runner.cjs", () => {
     });
 
     expect(result.exitCode).toBe(0);
+    expect(result.attempts).toBe(1);
+  });
+
+  it("stops before an expired soft deadline without reporting an unstarted attempt", async () => {
+    const logs = [];
+    const result = await runHarnessRetryLoop({
+      maxRetries: 3,
+      initialDelayMs: 1,
+      backoffMultiplier: 2,
+      maxDelayMs: 10,
+      driverStartTime: Date.now(),
+      harnessName: "Test harness",
+      log: message => logs.push(message),
+      softTimeoutGuard: { timeoutMinutes: 1, softDeadlineMs: Date.now() - 1 },
+      runAttempt: async () => {
+        throw new Error("should not run after soft timeout");
+      },
+      handleFailure: () => ({ action: "stop" }),
+      sleepFn: async () => {},
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.attempts).toBe(0);
+    expect(result.lastResult).toBeNull();
+    expect(logs.some(message => message.includes("before attempt 1"))).toBe(true);
+  });
+
+  it("stops after backoff when the soft deadline expires during sleep", async () => {
+    const softTimeoutGuard = { timeoutMinutes: 1, softDeadlineMs: Date.now() + 1000 };
+    let runCalls = 0;
+    const result = await runHarnessRetryLoop({
+      maxRetries: 3,
+      initialDelayMs: 1,
+      backoffMultiplier: 2,
+      maxDelayMs: 10,
+      driverStartTime: Date.now(),
+      harnessName: "Test harness",
+      log: () => {},
+      softTimeoutGuard,
+      runAttempt: async () => {
+        runCalls++;
+        return { exitCode: 1, output: "", hasOutput: false, durationMs: 0, watchdogFired: false };
+      },
+      handleFailure: () => ({ action: "retry" }),
+      sleepFn: async () => {
+        softTimeoutGuard.softDeadlineMs = Date.now() - 1;
+      },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(runCalls).toBe(1);
     expect(result.attempts).toBe(1);
   });
 });
