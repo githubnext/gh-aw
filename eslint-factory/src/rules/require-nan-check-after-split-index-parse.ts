@@ -17,6 +17,9 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
   },
   defaultOptions: [],
   create(context) {
+    const sourceCode = context.sourceCode;
+    type SourceCodeScope = ReturnType<typeof sourceCode.getScope>;
+
     // Set of VariableDeclarator nodes for split(...)[index]-derived parses, keyed by node identity
     // so that same-named variables in different scopes are not conflated.
     const unvalidated = new Set<TSESTree.VariableDeclarator>();
@@ -24,12 +27,33 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
     const validated = new Set<TSESTree.VariableDeclarator>();
 
     /**
+     * Checks whether a given identifier name is locally bound in the current scope chain.
+     * @param node AST node to start the scope search from.
+     * @param name Identifier name to search for.
+     * @returns true if the name has a local binding, false otherwise.
+     */
+    function hasLocalBinding(node: TSESTree.Node, name: string): boolean {
+      let scope: SourceCodeScope | null = sourceCode.getScope(node);
+
+      while (scope) {
+        const variable = scope.set.get(name);
+
+        if (variable?.defs.length) {
+          return true;
+        }
+
+        scope = scope.upper;
+      }
+
+      return false;
+    }
+
+    /**
      * Resolves an Identifier reference to the VariableDeclarator that declared it,
      * using scope analysis so that same-named variables in different scopes are distinguished.
      */
     function resolveDeclarator(identifier: TSESTree.Identifier): TSESTree.VariableDeclarator | null {
-      const sourceCode = context.sourceCode;
-      let scope: ReturnType<typeof sourceCode.getScope> | null = sourceCode.getScope(identifier);
+      let scope: SourceCodeScope | null = sourceCode.getScope(identifier);
       while (scope) {
         const variable = scope.variables.find(v => v.name === identifier.name);
         if (variable) {
@@ -66,7 +90,7 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
       const firstArg = args[0] as TSESTree.Expression;
 
       // Global parseInt(splitExpr, ...) or parseFloat(splitExpr)
-      if (callee.type === "Identifier" && (callee.name === "parseInt" || callee.name === "parseFloat")) {
+      if (callee.type === "Identifier" && (callee.name === "parseInt" || callee.name === "parseFloat") && !hasLocalBinding(callee, callee.name)) {
         return isSplitIndexAccess(firstArg);
       }
 
@@ -75,6 +99,7 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
         callee.type === "MemberExpression" &&
         callee.object.type === "Identifier" &&
         callee.object.name === "Number" &&
+        !hasLocalBinding(callee.object, "Number") &&
         !callee.computed &&
         callee.property.type === "Identifier" &&
         (callee.property.name === "parseInt" || callee.property.name === "parseFloat")
@@ -93,7 +118,7 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
       const { callee } = node;
 
       // Global isNaN(x) / isFinite(x)
-      if (callee.type === "Identifier" && (callee.name === "isNaN" || callee.name === "isFinite")) {
+      if (callee.type === "Identifier" && (callee.name === "isNaN" || callee.name === "isFinite") && !hasLocalBinding(callee, callee.name)) {
         return true;
       }
 
@@ -102,6 +127,7 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
         callee.type === "MemberExpression" &&
         callee.object.type === "Identifier" &&
         callee.object.name === "Number" &&
+        !hasLocalBinding(callee.object, "Number") &&
         !callee.computed &&
         callee.property.type === "Identifier" &&
         (callee.property.name === "isNaN" || callee.property.name === "isFinite")
