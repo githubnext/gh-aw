@@ -161,9 +161,6 @@ func buildLogsDownloadContext(ctx context.Context, timeoutMinutes, timeoutSecond
 		timeoutDuration = time.Duration(timeoutSeconds) * time.Second
 		timeoutLabel = fmt.Sprintf("%d seconds", timeoutSeconds)
 	}
-	if timeoutDuration <= 0 {
-		return ctx, nil, time.Time{}, 0
-	}
 	startTime := time.Now()
 	activeCtx, timeoutCancel := context.WithTimeout(ctx, timeoutDuration)
 	if verbose {
