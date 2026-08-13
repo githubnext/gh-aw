@@ -195,7 +195,11 @@ If multiple similar issues are found (e.g., 3 handlers missing the same validati
 
 ## Phase 4: Summary Report
 
-- **Report Formatting**: Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
+### Report Formatting
+
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
+- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks to reduce scrolling.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 After processing all issues, provide a summary in the workflow output:
 
