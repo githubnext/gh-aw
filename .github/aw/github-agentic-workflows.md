@@ -118,55 +118,7 @@ Trigger and write-path are the same as the [Persona-to-Pattern Quick Matrix](#pe
 | Designer | Review rubric (accessibility, token consistency, asset policy); `noop` when scoped files unchanged |
 | Legal / Compliance | Classify against policy tiers; dedup before escalating; `noop` when no in-scope change or violation |
 
-## PR Checks with Linked References
-
-When a PR analysis requires verifying or attaching a linked artifact (design doc, policy link, architecture decision record, or approval), follow this compact pattern:
-
-1. **Read the linked reference** from the PR body or comments (for example, a URL, a markdown link, or an ADR reference token like `ADR-NN`) using `gh pr view`.
-2. **Validate the link** — confirm the document exists and is accessible before assessing compliance.
-3. **Classify the result**:
-   - Link present and satisfies requirement → `add-comment` with a ✅ summary
-   - Link present but does not satisfy requirement → `add-comment` flagging the specific gap
-   - Link missing → `add-comment` requesting it, or `create-issue` if policy requires a blocking escalation
-4. **Call `noop`** when the PR is not in scope (for example `paths:` guard excludes all changed files).
-
-Permissions: `pull-requests: read` only; all writes route through `add-comment` safe output.
-
-### Compliance Example: Manifest-Path Scoping with License-Evidence Validation
-
-Concise pattern for a dependency-license/policy review workflow (see [Compliance review guidance](create-agentic-workflow-trigger-details.md#compliance-review-guidance) for the full decision table):
-
-```yaml
-on:
-  pull_request:
-    paths:
-      - "package.json"
-      - "package-lock.json"
-      - "go.mod"
-      - "requirements.txt"
-      - "Cargo.toml"
-      - "pyproject.toml"
-      - "composer.json"
-permissions:
-  contents: read
-  pull-requests: read
-tools:
-  github:
-    mode: gh-proxy
-    toolsets: [default]
-safe-outputs:
-  add-comment:
-  create-issue:
-    labels: [license-violation]
-```
-
-Prompt guidance:
-
-1. **Scope**: only inspect dependency manifest/lockfile diffs in this PR; `noop` immediately if none changed.
-2. **Evidence, not assumption**: for each newly added or upgraded dependency, look up its declared license from the manifest/lockfile metadata or the package registry — never guess a license from the package name.
-3. **Classify by tier**: allowed / needs-review / blocked, per the project's configured policy.
-4. **Report per-tier findings** with `add-comment`, citing the dependency name, version, and the license evidence source (registry field, `LICENSE` file, or SPDX identifier).
-5. **Escalate** to `create-issue` only for a blocked-tier dependency, after searching for an existing open issue with the same `license-violation:<dependency>:<version>` key.
+See [workflow-patterns.md](workflow-patterns.md#pr-checks-with-linked-references) for the PR-checks-with-linked-references pattern and the compliance/license-review example.
 
 ## Reference Files
 
@@ -180,9 +132,10 @@ Prompt guidance:
 | Trigger patterns | [triggers.md](triggers.md) |
 | Context expressions and `{{#if}}` templates | [context.md](context.md) |
 | Declarative engine configuration | [configure-agentic-engine.md](configure-agentic-engine.md) |
-| Agent runtime selection (Docker, gVisor, Docker sbx, ARC DinD) | [agent-runtime-instructions.md](agent-runtime-instructions.md) |
+| Agent runtime selection (Docker, gVisor, Docker sbx, Cloud Hypervisor, ARC DinD) | [agent-runtime-instructions.md](agent-runtime-instructions.md) |
 | CLI commands and MCP equivalents | [cli-commands.md](cli-commands.md) |
 | Network configuration | [network.md](network.md) |
+| Private-repository enclaves via MCP gateway | [enclaves.md](enclaves.md) |
 | Memory and persistence | [memory.md](memory.md) |
 | Imports and shared components | [reuse.md](reuse.md) |
 | Sub-agents | [subagents.md](subagents.md) |

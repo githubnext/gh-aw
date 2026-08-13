@@ -5,13 +5,14 @@ disable-model-invocation: true
 
 # Agent Runtime Instructions
 
-Use these instructions when creating or updating workflows that mention Docker, gVisor, Docker sbx, ARC DinD, self-hosted runners, or `sandbox.agent.runtime-install`.
+Use these instructions when creating or updating workflows that mention Docker, gVisor, Docker sbx, Cloud Hypervisor, ARC DinD, self-hosted runners, or `sandbox.agent.runtime-install`.
 
 ## Runtime fields
 
 - Omit `sandbox.agent.runtime` for the default Docker agent runtime.
 - Set `sandbox.agent.runtime: gvisor` only when the runner has a local Docker daemon and can install or already has `runsc`.
 - Set `sandbox.agent.runtime: docker-sbx` only when the runner supports KVM-backed microVMs.
+- Set `sandbox.agent.runtime: cloud-hypervisor` only for a GitHub-hosted Ubuntu x86_64 runner with `/dev/kvm`; this is a preview-only microVM runtime and is incompatible with `runner.topology: arc-dind`.
 - Do not set `sandbox.agent.runtime: docker`; Docker is selected by omitting the field.
 - Do not set `sandbox.agent.runtime: sbx`; `sbx` is only a bounded-query runtime name.
 - Set `runner.topology: arc-dind` for ARC or equivalent Kubernetes runners that use a Docker-in-Docker sidecar. This is a runner topology, not an agent runtime.
@@ -42,6 +43,13 @@ Use these instructions when creating or updating workflows that mention Docker, 
 - Docker sbx requires both `DOCKER_USERNAME` and `DOCKER_PAT` Actions secrets. `DOCKER_PAT` must be a Docker Hub personal access token that can authenticate Docker Hub pulls for the sandbox template.
 - `DOCKER_USERNAME` and `DOCKER_PAT` remain required even with `runtime-install: false`, because compiled workflows refresh sbx credentials immediately before agent execution.
 - Do not use Docker sbx for workflows triggered from untrusted forks unless the trigger and credential model safely provide those secrets.
+
+## Cloud Hypervisor guidance
+
+- Preview-only: keep expectations aligned with AWF preview support and prefer Docker sbx or gVisor when the host requirements below are not guaranteed.
+- Requires a GitHub-hosted runner (`RUNNER_ENVIRONMENT=github-hosted`), Ubuntu Linux x86_64 (`RUNNER_OS=Linux`, `RUNNER_ARCH=X64`, `ImageOS=ubuntu*`), and `/dev/kvm` present.
+- The compiler emits host preflight and digest-pinned release-asset provisioning steps (binary, kernel, rootfs, supervisor) from the pinned `gh-aw-firewall` release before AWF runs.
+- Not supported with `runner.topology: arc-dind`.
 
 ## ARC DinD guidance
 

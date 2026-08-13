@@ -188,7 +188,7 @@ For PRs touching design tokens or CSS files that require a linked design referen
 - trigger: `pull_request` with `paths:` scoped to token/style files (for example `tokens/**`, `**/*.tokens.json`, `**/*.css`, `src/styles/**`, `design-system/**`)
 - permissions: `pull-requests: read`, `contents: read`; agent job read-only
 - reads: PR body and comments via `gh pr view` to locate the linked design reference; validate the link target is reachable and matches the changed components
-- output: apply the classify flow from [PR Checks with Linked References](github-agentic-workflows.md) (valid → ✅ comment; incomplete → gap comment; missing → request comment, escalating to `create-issue` only for a required blocking gate with no open issue already covering the scope)
+- output: apply the classify flow from [PR Checks with Linked References](#pr-checks-with-linked-references) (valid → ✅ comment; incomplete → gap comment; missing → request comment, escalating to `create-issue` only for a required blocking gate with no open issue already covering the scope)
 - fallback: `noop` when the `paths:` guard excludes all changed files
 
 ## QA Coverage Report Pattern
@@ -233,6 +233,56 @@ For workflows that build, test, publish a GitHub release, and generate release h
 - permissions: global `contents: read`; per-job `contents: write` only on jobs that push tags or create releases
 
 See [release-workflow.md](release-workflow.md) for the full pattern, frontmatter template, job skeletons, and reference implementation pointer.
+
+## PR Checks with Linked References
+
+When a PR analysis requires verifying or attaching a linked artifact (design doc, policy link, architecture decision record, or approval), follow this compact pattern:
+
+1. **Read the linked reference** from the PR body or comments (for example, a URL, a markdown link, or an ADR reference token like `ADR-NN`) using `gh pr view`.
+2. **Validate the link** — confirm the document exists and is accessible before assessing compliance.
+3. **Classify the result**:
+   - Link present and satisfies requirement → `add-comment` with a ✅ summary
+   - Link present but does not satisfy requirement → `add-comment` flagging the specific gap
+   - Link missing → `add-comment` requesting it, or `create-issue` if policy requires a blocking escalation
+4. **Call `noop`** when the PR is not in scope (for example `paths:` guard excludes all changed files).
+
+Permissions: `pull-requests: read` only; all writes route through `add-comment` safe output.
+
+### Compliance Example: Manifest-Path Scoping with License-Evidence Validation
+
+Concise pattern for a dependency-license/policy review workflow (see [Compliance review guidance](create-agentic-workflow-trigger-details.md#compliance-review-guidance) for the full decision table):
+
+```yaml
+on:
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "go.mod"
+      - "requirements.txt"
+      - "Cargo.toml"
+      - "pyproject.toml"
+      - "composer.json"
+permissions:
+  contents: read
+  pull-requests: read
+tools:
+  github:
+    mode: gh-proxy
+    toolsets: [default]
+safe-outputs:
+  add-comment:
+  create-issue:
+    labels: [license-violation]
+```
+
+Prompt guidance:
+
+1. **Scope**: only inspect dependency manifest/lockfile diffs in this PR; `noop` immediately if none changed.
+2. **Evidence, not assumption**: for each newly added or upgraded dependency, look up its declared license from the manifest/lockfile metadata or the package registry — never guess a license from the package name.
+3. **Classify by tier**: allowed / needs-review / blocked, per the project's configured policy.
+4. **Report per-tier findings** with `add-comment`, citing the dependency name, version, and the license evidence source (registry field, `LICENSE` file, or SPDX identifier).
+5. **Escalate** to `create-issue` only for a blocked-tier dependency, after searching for an existing open issue with the same `license-violation:<dependency>:<version>` key.
 
 ## Cross-Repository Pattern
 

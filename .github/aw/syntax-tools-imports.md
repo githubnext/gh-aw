@@ -171,6 +171,16 @@ mcp-servers:
 
 `auth.type: github-oidc` uses GitHub Actions OIDC tokens for secure server-to-server authentication without static credentials. The `audience` field defaults to the server URL when omitted.
 
+Every custom MCP server must pass a startup connectivity check by default (`required: true`); an unreachable server fails the workflow. Set `required: false` for a best-effort/optional server so an unreachable server only logs a warning and the workflow continues — at least one configured server must still connect successfully.
+
+```yaml
+mcp-servers:
+  datadog:
+    type: http
+    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    required: false
+```
+
 ### Engine Network Permissions
 
 Control network access via the top-level `network:` field (defaults to `network: defaults` — basic infrastructure only). For workflows that build, test, or install packages, always add the language ecosystem alongside `defaults`:
