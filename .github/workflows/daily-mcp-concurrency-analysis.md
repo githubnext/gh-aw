@@ -306,15 +306,11 @@ If issues were found (CRITICAL, HIGH, or MEDIUM severity):
 
 Use the following template:
 
-Use h3 (`###`) or lower for all headers in the issue body. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title.
+### Report Formatting
 
-Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b>Section Name</b></summary>` blocks to keep the report scannable.
-
-Suggested structure:
-- Brief summary (always visible)
-- Key metrics or highlights (always visible)
-- Detailed analysis (in `<details>` tags)
-- Recommendations (always visible)
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
+- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks to reduce scrolling.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 ```markdown
 ### Concurrency Safety Issue in \`${TOOL_NAME}\`
