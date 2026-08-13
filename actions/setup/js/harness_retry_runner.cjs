@@ -6,6 +6,8 @@ const { formatDuration, sleep } = require("./process_runner.cjs");
 const { emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 
 /**
+ * `nextDelayMs` overrides the delay before the immediately next attempt; following retries
+ * resume exponential backoff from that delay.
  * @typedef {{ exitCode: number, output: string, hasOutput: boolean, durationMs?: number, watchdogFired?: boolean, safeOutputsByteOffset?: number }} HarnessAttemptResult
  * @typedef {{ action: "retry" | "stop", exitCode?: number, nextDelayMs?: number }} HarnessFailureDecision
  */
@@ -55,8 +57,6 @@ function shouldStopForNoopSafeOutputs({ attempt, safeOutputsPath, hasNoopInSafeO
  *   getRetryMode?: (attempt: number) => string,
  *   sleepFn?: (ms: number) => Promise<void>,
  * }} options
- * `nextDelayMs` overrides the delay before the immediately next attempt; following retries
- * resume exponential backoff from that delay.
  * @returns {Promise<{ exitCode: number, attempts: number, lastResult: HarnessAttemptResult | null }>}
  */
 async function runHarnessRetryLoop(options) {
