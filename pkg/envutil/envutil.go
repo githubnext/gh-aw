@@ -10,15 +10,28 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 )
 
-// warn is an internal helper shared by GetIntFromEnv and GetBoolFromEnv. It
-// routes environment parsing warnings through the provided logger when
-// available, or to stderr using the standard console warning format otherwise.
-func warn(debugLog *logger.Logger, msg string) {
+// warnf is an internal helper shared by GetIntFromEnv and GetBoolFromEnv. It
+// formats an environment parsing warning and routes it through the provided
+// logger when available, or to stderr using the standard console warning
+// format otherwise. Callers pass a format string and args directly, avoiding
+// a separate fmt.Sprintf call at each call site.
+func warnf(debugLog *logger.Logger, format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
 	if debugLog != nil {
 		debugLog.Printf("WARNING: %s", msg)
 		return
 	}
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+}
+
+// debugf is an internal helper shared by GetIntFromEnv, GetBoolFromEnv, and
+// GetStringFromEnv. It routes a formatted debug message through the provided
+// logger, doing nothing when debugLog is nil. This centralizes the repeated
+// "if debugLog != nil { debugLog.Printf(...) }" guard used by each getter.
+func debugf(debugLog *logger.Logger, format string, args ...any) {
+	if debugLog != nil {
+		debugLog.Printf(format, args...)
+	}
 }
 
 // GetIntFromEnv is a generic helper that reads an integer value from an environment variable,
@@ -46,18 +59,16 @@ func GetIntFromEnv(envVar string, defaultValue, minValue, maxValue int, debugLog
 
 	val, err := strconv.Atoi(envValue)
 	if err != nil {
-		warn(debugLog, fmt.Sprintf("Invalid %s value '%s' (must be a number), using default %d", envVar, envValue, defaultValue))
+		warnf(debugLog, "Invalid %s value '%s' (must be a number), using default %d", envVar, envValue, defaultValue)
 		return defaultValue
 	}
 
 	if val < minValue || val > maxValue {
-		warn(debugLog, fmt.Sprintf("%s value %d is out of bounds (must be %d-%d), using default %d", envVar, val, minValue, maxValue, defaultValue))
+		warnf(debugLog, "%s value %d is out of bounds (must be %d-%d), using default %d", envVar, val, minValue, maxValue, defaultValue)
 		return defaultValue
 	}
 
-	if debugLog != nil {
-		debugLog.Printf("Using %s=%d", envVar, val)
-	}
+	debugf(debugLog, "Using %s=%d", envVar, val)
 	return val
 }
 
@@ -82,13 +93,11 @@ func GetBoolFromEnv(envVar string, defaultValue bool, debugLog *logger.Logger) b
 
 	val, err := strconv.ParseBool(envValue)
 	if err != nil {
-		warn(debugLog, fmt.Sprintf("Invalid %s value '%s' (must be a boolean), using default %t", envVar, envValue, defaultValue))
+		warnf(debugLog, "Invalid %s value '%s' (must be a boolean), using default %t", envVar, envValue, defaultValue)
 		return defaultValue
 	}
 
-	if debugLog != nil {
-		debugLog.Printf("Using %s=%t", envVar, val)
-	}
+	debugf(debugLog, "Using %s=%t", envVar, val)
 	return val
 }
 
@@ -108,8 +117,6 @@ func GetStringFromEnv(envVar, defaultValue string, debugLog *logger.Logger) stri
 		return defaultValue
 	}
 
-	if debugLog != nil {
-		debugLog.Printf("Using %s from environment", envVar)
-	}
+	debugf(debugLog, "Using %s from environment", envVar)
 	return envValue
 }
