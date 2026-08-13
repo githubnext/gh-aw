@@ -290,6 +290,9 @@ Preview scope is intentionally narrow:
 - Ubuntu Linux x86_64 only (`RUNNER_OS=Linux`, `RUNNER_ARCH=X64`, `ImageOS=ubuntu*`).
 - `/dev/kvm` must be present.
 - `runner.topology: arc-dind` is not supported.
+- `tools.github.mode: gh-proxy` and the `integrity-reactions` feature are not supported: the CLI proxy sidecar is not attached to the isolated topology.
+- `sandbox.agent.legacy-security: enable` and `sandbox.agent.allow-host-ports` are not supported: the runtime rejects `--legacy-security` and `--enable-host-access`.
+- `enclaves` configuration is not supported.
 
 The compiler grants only the runner user read/write access to `/dev/kvm`, then emits host preflight and release-asset provisioning steps before AWF runs. Provisioning downloads the Cloud Hypervisor bundle, `SHA256SUMS`, and `manifest.json` from the pinned `gh-aw-firewall` release, verifies checksums, and feeds AWF digest-pinned flags for the Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor.
 

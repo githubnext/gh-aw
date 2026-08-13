@@ -202,6 +202,85 @@ func TestCloudHypervisorValidationRequiresPreviewVersion(t *testing.T) {
 	require.ErrorContains(t, err, string(constants.AWFCloudHypervisorMinVersion))
 }
 
+func TestCloudHypervisorValidationRejectsGHProxy(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:      "awf",
+			Runtime: AgentRuntimeCloudHypervisor,
+			Version: string(constants.AWFCloudHypervisorMinVersion),
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "gh-proxy"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "gh-proxy")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
+func TestCloudHypervisorValidationRejectsLegacySecurity(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:             "awf",
+			Runtime:        AgentRuntimeCloudHypervisor,
+			Version:        string(constants.AWFCloudHypervisorMinVersion),
+			LegacySecurity: true,
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "legacy-security")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
+func TestCloudHypervisorValidationRejectsAllowHostPorts(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:             "awf",
+			Runtime:        AgentRuntimeCloudHypervisor,
+			Version:        string(constants.AWFCloudHypervisorMinVersion),
+			AllowHostPorts: []int{8080},
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "allow-host-ports")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
+func TestCloudHypervisorValidationRejectsEnclaves(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:      "awf",
+			Runtime: AgentRuntimeCloudHypervisor,
+			Version: string(constants.AWFCloudHypervisorMinVersion),
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools:    map[string]any{"github": map[string]any{"mode": "remote"}},
+		Enclaves: EnclavesConfig{{}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "enclaves")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
 func TestCloudHypervisorFrontmatterExtraction(t *testing.T) {
 	workflowsDir := t.TempDir()
 
