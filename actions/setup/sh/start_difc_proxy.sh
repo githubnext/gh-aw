@@ -46,34 +46,101 @@ derive_proxy_upstream_env
 echo "Starting DIFC proxy container: $CONTAINER_IMAGE"
 echo "Using DIFC proxy upstream host: ${GH_HOST} (API: ${GITHUB_API_URL})"
 
-# Remove any existing container to avoid name conflicts on cancelled/retried jobs.
-docker rm -f awmg-proxy 2>/dev/null || true
+docker_pull_with_retry() {
+  local image="$1"
+  local max_attempts=3
+  local wait_time=5
+  local output
+  local exit_code
+
+  if docker image inspect "$image" >/dev/null 2>&1; then
+    echo "DIFC proxy image already present locally: $image"
+    return 0
+  fi
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    echo "Pulling DIFC proxy image (attempt $attempt of $max_attempts): $image"
+    if output="$(timeout 5m docker pull "$image" 2>&1)"; then
+      echo "$output"
+      echo "Successfully pulled DIFC proxy image: $image"
+      return 0
+    else
+      exit_code=$?
+    fi
+
+    echo "DIFC proxy image pull attempt $attempt of $max_attempts failed with exit code $exit_code"
+    echo "$output"
+
+    if [ "$attempt" -lt "$max_attempts" ]; then
+      echo "Retrying DIFC proxy image pull in ${wait_time}s..."
+      sleep "$wait_time"
+      wait_time=$((wait_time * 2))
+    else
+      echo "::error::Failed to pull DIFC proxy image after $max_attempts attempts: $image"
+      return "$exit_code"
+    fi
+  done
+}
+
+docker_run_with_retry() {
+  local max_attempts=3
+  local wait_time=5
+  local output
+  local exit_code
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    echo "Starting DIFC proxy container (attempt $attempt of $max_attempts)"
+
+    # Remove any existing container to avoid name conflicts on cancelled/retried jobs.
+    docker rm -f awmg-proxy 2>/dev/null || true
+
+    if output="$(docker run --pull=never -d --name awmg-proxy "${DOCKER_NETWORK_ARGS[@]}" \
+      --user "$(id -u):$(id -g)" \
+      -e GH_TOKEN \
+      -e GH_HOST \
+      -e GITHUB_HOST \
+      -e GITHUB_ENTERPRISE_HOST \
+      -e GITHUB_SERVER_URL \
+      -e GITHUB_API_URL \
+      -e GITHUB_GRAPHQL_URL \
+      -e GITHUB_COPILOT_BASE_URL \
+      -e DEBUG='*' \
+      -v "$PROXY_LOG_DIR:$PROXY_LOG_DIR" \
+      -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \
+      "$CONTAINER_IMAGE" proxy \
+        --policy "$POLICY" \
+        --listen 0.0.0.0:18443 \
+        --log-dir "$MCP_LOG_DIR" \
+        --tls --tls-dir "$PROXY_LOG_DIR/proxy-tls" \
+        --guards-mode filter \
+        --trusted-bots github-actions[bot],github-actions,dependabot[bot],copilot 2>&1)"; then
+      echo "$output"
+      return 0
+    else
+      exit_code=$?
+    fi
+
+    echo "DIFC proxy container start attempt $attempt of $max_attempts failed with exit code $exit_code"
+    echo "$output"
+
+    if [ "$attempt" -lt "$max_attempts" ]; then
+      echo "Retrying DIFC proxy container start in ${wait_time}s..."
+      sleep "$wait_time"
+      wait_time=$((wait_time * 2))
+    else
+      echo "::error::Failed to start DIFC proxy container after $max_attempts attempts"
+      return "$exit_code"
+    fi
+  done
+}
 
 DOCKER_NETWORK_ARGS=(--network host)
 if [ "${GH_AW_NETWORK_ISOLATION:-false}" = "true" ]; then
   DOCKER_NETWORK_ARGS=(--network bridge -p 127.0.0.1:18443:18443)
 fi
 
-docker run -d --name awmg-proxy "${DOCKER_NETWORK_ARGS[@]}" \
-  --user "$(id -u):$(id -g)" \
-  -e GH_TOKEN \
-  -e GH_HOST \
-  -e GITHUB_HOST \
-  -e GITHUB_ENTERPRISE_HOST \
-  -e GITHUB_SERVER_URL \
-  -e GITHUB_API_URL \
-  -e GITHUB_GRAPHQL_URL \
-  -e GITHUB_COPILOT_BASE_URL \
-  -e DEBUG='*' \
-  -v "$PROXY_LOG_DIR:$PROXY_LOG_DIR" \
-  -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \
-  "$CONTAINER_IMAGE" proxy \
-    --policy "$POLICY" \
-    --listen 0.0.0.0:18443 \
-    --log-dir "$MCP_LOG_DIR" \
-    --tls --tls-dir "$PROXY_LOG_DIR/proxy-tls" \
-    --guards-mode filter \
-    --trusted-bots github-actions[bot],github-actions,dependabot[bot],copilot
+docker_pull_with_retry "$CONTAINER_IMAGE"
+docker_run_with_retry
 
 # Wait for TLS cert + health check (up to 30s)
 CA_INSTALLED=false
