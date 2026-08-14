@@ -1,6 +1,11 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func containsInNonCommentLines(content, search string) bool {
 	lines := strings.SplitSeq(content, "\n")
@@ -66,4 +71,34 @@ func extractJobSection(yamlContent, jobName string) string {
 	}
 
 	return strings.Join(jobLines, "\n")
+}
+
+// TestExtractJobSection exercises the job-boundary parsing helper used throughout the
+// test suite to isolate a single job's YAML from a full compiled lock file.
+func TestExtractJobSection(t *testing.T) {
+	t.Run("job at end of file", func(t *testing.T) {
+		yamlContent := "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n"
+		got := extractJobSection(yamlContent, "build")
+		assert.Equal(t, "  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n", got)
+	})
+
+	t.Run("job followed by another job", func(t *testing.T) {
+		yamlContent := "jobs:\n  activation:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo activation\n  agent:\n    runs-on: ubuntu-latest\n"
+		got := extractJobSection(yamlContent, "activation")
+		assert.Equal(t, "  activation:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo activation", got)
+		assert.NotContains(t, got, "agent:")
+	})
+
+	t.Run("job with nested multi-level indentation", func(t *testing.T) {
+		yamlContent := "jobs:\n  activation:\n    steps:\n      - name: Check\n        with:\n          nested:\n            deeply: true\n  agent:\n    runs-on: ubuntu-latest\n"
+		got := extractJobSection(yamlContent, "activation")
+		assert.Contains(t, got, "deeply: true")
+		assert.NotContains(t, got, "agent:")
+	})
+
+	t.Run("job not present returns empty string", func(t *testing.T) {
+		yamlContent := "jobs:\n  build:\n    runs-on: ubuntu-latest\n"
+		got := extractJobSection(yamlContent, "missing")
+		assert.Empty(t, got)
+	})
 }
