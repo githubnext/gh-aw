@@ -12,7 +12,7 @@ A daily `make golint-custom` run surfaces `largefunc` violations in `pkg/cli/add
 
 ### Decision
 
-We will decompose the three oversized functions into focused, single-responsibility helper functions using the Extract Function refactoring pattern. The helpers remain package-level functions in `pkg/cli/add_package_manifest.go` and are named with the `repositoryPackage*` prefix to be self-documenting. No observable behavior changes; the refactoring is a pure structural improvement to eliminate lint violations.
+We will decompose the three oversized functions into focused, single-responsibility helper functions using the Extract Function refactoring pattern. The helpers remain package-level functions in `pkg/cli/add_package_manifest.go` and use consistent `RepositoryPackage`-oriented naming (for example `resolveRepositoryPackage*`, `parseRepositoryPackage*`, and `populateRepositoryPackageManifest*`) to stay self-documenting. No observable behavior changes; the refactoring is a pure structural improvement to eliminate lint violations.
 
 ### Alternatives Considered
 
