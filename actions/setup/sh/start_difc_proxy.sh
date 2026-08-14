@@ -51,7 +51,7 @@ docker_pull_with_retry() {
   local max_attempts=3
   local wait_time=5
   local output
-  local exit_code
+  local exit_code=0
 
   if docker image inspect "$image" >/dev/null 2>&1; then
     echo "DIFC proxy image already present locally: $image"
@@ -89,7 +89,7 @@ docker_run_with_retry() {
   local max_attempts=3
   local wait_time=5
   local output
-  local exit_code
+  local exit_code=0
 
   for attempt in $(seq 1 "$max_attempts"); do
     echo "Starting DIFC proxy container (attempt $attempt of $max_attempts)"
@@ -142,7 +142,7 @@ if [ "${GH_AW_NETWORK_ISOLATION:-false}" = "true" ]; then
   DOCKER_NETWORK_ARGS=(--network bridge -p 127.0.0.1:18443:18443)
 fi
 
-docker_pull_with_retry "$CONTAINER_IMAGE"
+docker_pull_with_retry "$CONTAINER_IMAGE" || exit $?
 docker_run_with_retry
 
 # Wait for TLS cert + health check (up to 30s)
