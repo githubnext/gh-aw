@@ -107,7 +107,7 @@ const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 
 // AWFCloudHypervisorMinVersion is the minimum AWF version that supports the
 // cloud-hypervisor preview runtime and its release assets.
-const AWFCloudHypervisorMinVersion Version = "v0.28.0"
+const AWFCloudHypervisorMinVersion Version = "v0.28.1"
 
 // AWFLegacySecurityMinVersion is the minimum AWF version that supports the
 // --legacy-security flag and unconditional API proxy (gh-aw-firewall#6207).
