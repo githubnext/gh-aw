@@ -213,12 +213,16 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 	// so a global npm install is invisible inside the sandbox. Stage a second copy of the
 	// CLI under ${RUNNER_TEMP}/gh-aw/engine-cli, which is mounted into the sandbox, exactly
 	// as the Claude and Codex engines do.
-	if install.BinaryName != "" && (isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData)) {
+	binaryName := install.BinaryName
+	if binaryName == "" && behavior.Execution != nil {
+		binaryName = behavior.Execution.CommandName
+	}
+	if binaryName != "" && (isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData)) {
 		npmSteps = append(npmSteps, GenerateDockerSbxNpmCLIInstallStep(
 			install.PackageName,
 			version,
 			install.StepName+" in docker-sbx path",
-			install.BinaryName,
+			binaryName,
 			install.PostInstallScripts,
 			install.Cooldown,
 		))

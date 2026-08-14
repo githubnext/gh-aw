@@ -895,7 +895,6 @@ func TestDockerSbxBehaviorDefinedEngineCLIWiring(t *testing.T) {
 				PackageName:        "@charmland/crush",
 				Version:            "0.88.0",
 				StepName:           "Install SbxCrush",
-				BinaryName:         "sbxcrush",
 				IncludeNodeSetup:   true,
 				PostInstallScripts: true,
 			},
@@ -910,25 +909,27 @@ func TestDockerSbxBehaviorDefinedEngineCLIWiring(t *testing.T) {
 	engine, err := NewBehaviorDefinedEngine(def)
 	require.NoError(t, err)
 
-	sbxWorkflow := &WorkflowData{
-		Name:          "test-workflow",
-		EngineConfig:  &EngineConfig{ID: "sbxcrush"},
-		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx, SudoExplicitlyEnabled: true}},
-		NetworkPermissions: &NetworkPermissions{
-			Firewall: &FirewallConfig{Enabled: true},
-		},
+	for _, runtime := range []AgentRuntime{AgentRuntimeDockerSbx, AgentRuntimeCloudHypervisor} {
+		t.Run(string(runtime)+" install and execution use sbx-visible CLI path", func(t *testing.T) {
+			sbxWorkflow := &WorkflowData{
+				Name:          "test-workflow",
+				EngineConfig:  &EngineConfig{ID: "sbxcrush"},
+				SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: runtime, SudoExplicitlyEnabled: true}},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			}
+
+			installContent := strings.Join(flattenSteps(engine.GetInstallationSteps(sbxWorkflow)), "\n")
+			assert.Contains(t, installContent, `npm install --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @charmland/crush@0.88.0`)
+			assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/sbxcrush" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/sbxcrush"`)
+
+			execSteps := engine.GetExecutionSteps(sbxWorkflow, "/tmp/gh-aw/test.log")
+			require.NotEmpty(t, execSteps)
+			execContent := strings.Join(execSteps[len(execSteps)-1], "\n")
+			assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+		})
 	}
-
-	t.Run("install and execution use sbx-visible CLI path", func(t *testing.T) {
-		installContent := strings.Join(flattenSteps(engine.GetInstallationSteps(sbxWorkflow)), "\n")
-		assert.Contains(t, installContent, `npm install --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @charmland/crush@0.88.0`)
-		assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/sbxcrush" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/sbxcrush"`)
-
-		execSteps := engine.GetExecutionSteps(sbxWorkflow, "/tmp/gh-aw/test.log")
-		require.NotEmpty(t, execSteps)
-		execContent := strings.Join(execSteps[len(execSteps)-1], "\n")
-		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
-	})
 
 	t.Run("non-microVM runtimes keep the host install only", func(t *testing.T) {
 		defaultWorkflow := &WorkflowData{
