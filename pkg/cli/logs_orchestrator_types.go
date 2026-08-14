@@ -25,6 +25,7 @@ type LogsDownloadOptions struct {
 	Parse             bool
 	JSONOutput        bool
 	TimeoutMinutes    int
+	TimeoutSeconds    int
 	SummaryFile       string
 	SafeOutputType    string
 	FilteredIntegrity bool

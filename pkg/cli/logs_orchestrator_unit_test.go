@@ -33,6 +33,46 @@ func TestIsDeadlineExceeded(t *testing.T) {
 	})
 }
 
+func TestBuildLogsDownloadContextPrefersSecondTimeout(t *testing.T) {
+	before := time.Now()
+	ctx, cancel, startTime, timeoutDuration := buildLogsDownloadContext(context.Background(), 5, 55, false)
+	defer cancel()
+
+	require.False(t, startTime.IsZero(), "timeout context should record a start time")
+	assert.Equal(t, 55*time.Second, timeoutDuration)
+	deadline, ok := ctx.Deadline()
+	require.True(t, ok, "timeout context should have a deadline")
+
+	wantMin := before.Add(50 * time.Second)
+	wantMax := before.Add(60 * time.Second)
+	assert.True(t, deadline.After(wantMin) && deadline.Before(wantMax),
+		"deadline should use timeoutSeconds instead of timeoutMinutes; got %v from %v", deadline.Sub(before), before)
+}
+
+func TestBuildLogsDownloadContextRequiresPositiveMinuteTimeout(t *testing.T) {
+	tests := []struct {
+		name           string
+		timeoutMinutes int
+		timeoutSeconds int
+	}{
+		{name: "zero minutes without seconds", timeoutMinutes: 0, timeoutSeconds: 0},
+		{name: "zero minutes ignores seconds", timeoutMinutes: 0, timeoutSeconds: 55},
+		{name: "negative minutes ignores seconds", timeoutMinutes: -1, timeoutSeconds: 55},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel, startTime, timeoutDuration := buildLogsDownloadContext(context.Background(), tt.timeoutMinutes, tt.timeoutSeconds, false)
+
+			assert.Nil(t, cancel)
+			assert.True(t, startTime.IsZero(), "non-positive minute timeout should disable timeout even when seconds are set")
+			assert.Zero(t, timeoutDuration)
+			_, ok := ctx.Deadline()
+			assert.False(t, ok, "non-positive minute timeout should not create a deadline even when seconds are set")
+		})
+	}
+}
+
 // TestNoRunsMessage verifies that the helper returns an informative message
 // depending on the start_date filter and timeoutReached flag.
 func TestNoRunsMessage(t *testing.T) {

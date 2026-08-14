@@ -76,6 +76,7 @@ steps:
       python3 - <<'PY'
       import json
       import os
+      import re
       import subprocess
       from datetime import datetime, timedelta, timezone
       from pathlib import Path
@@ -87,8 +88,9 @@ steps:
       LOOKBACK_HOURS = 6
       FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}
       MAX_DISCOVERY_PAGES = 20
-      # Most dominant signatures appear in the final 30-60 lines.
+      # Capture this many lines around an error marker, or from the tail if none exists.
       MAX_LOG_TAIL_LINES = 50
+      ERROR_MARKER = re.compile(r"##\[error\]|\b(?:error|panic|exception)\b", re.IGNORECASE)
       # Deep-dive budget: investigate at most this many distinct failed runs.
       MAX_FAILURES_TO_DETAIL = 5
       AGENTIC_WORKFLOW_PATHS = {
@@ -141,6 +143,20 @@ steps:
               return workflow_path in AGENTIC_WORKFLOW_PATHS
           print("Warning: no local .lock.yml workflows found; falling back to workflow path suffix matching")
           return workflow_path.endswith(".lock.yml")
+
+      def capture_error_window(log_text):
+          lines = log_text.splitlines()
+          marker_index = next(
+              (index for index in range(len(lines) - 1, -1, -1) if ERROR_MARKER.search(lines[index])),
+              None,
+          )
+          if marker_index is None:
+              captured_lines = lines[-MAX_LOG_TAIL_LINES:]
+          else:
+              start = max(0, min(marker_index - MAX_LOG_TAIL_LINES // 2, len(lines) - MAX_LOG_TAIL_LINES))
+              end = min(len(lines), start + MAX_LOG_TAIL_LINES)
+              captured_lines = lines[start:end]
+          return captured_lines, marker_index is not None
       
       def isoformat_z(dt):
           return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -253,17 +269,18 @@ steps:
                               REPO,
                               "--job",
                               str(job_id),
-                              "--log-failed",
+                              "--log",
                           ]
                       )
                       if log_text:
-                          tail_lines = log_text.splitlines()[-MAX_LOG_TAIL_LINES:]
+                          tail_lines, has_error_marker = capture_error_window(log_text)
                           truncated_error_logs.append(
                               {
                                   "job_id": job_id,
                                   "job_name": job_name,
                                   "line_count": len(tail_lines),
                                   "tail_lines": "\n".join(tail_lines),
+                                  "capture_likely_missed_fault": not has_error_marker,
                               }
                           )
       
@@ -421,7 +438,7 @@ For sub-issues, prioritize high-quality actionable items, avoid duplicates unles
 description: Groups pre-fetched failure runs into severity-ranked clusters by error signature and workflow
 model: small
 ---
-You receive a JSON array of `failures` from the pre-fetch payload. Each entry has `run_id`, `workflow_name`, `workflow_path`, `conclusion`, `failed_job_names`, `failed_steps`, and `truncated_error_logs`.
+You receive a JSON array of `failures` from the pre-fetch payload. Each entry has `run_id`, `workflow_name`, `workflow_path`, `conclusion`, `failed_job_names`, `failed_steps`, and `truncated_error_logs`. Treat a `truncated_error_logs` entry with `capture_likely_missed_fault: true` as insufficient evidence, never as a failure signature.
 
 Group failures into clusters:
 1. Cluster by dominant error signature extracted from `truncated_error_logs[].tail_lines`; group failures from the same workflow with matching signatures together.
@@ -456,8 +473,8 @@ description: Extracts per-cluster audit evidence including dominant errors, tool
 model: small
 ---
 Given failure clusters with their `truncated_error_logs` from the prefetch payload:
-1. If a cluster has ≥10 lines of pre-fetched error logs, extract evidence directly from those logs — do **not** call `audit`.
-2. Only call `agentic-workflows` MCP `audit` when pre-fetched logs are missing or fewer than 5 lines. Cap total `audit` calls at **2** across all clusters.
+1. If a cluster has ≥10 lines of pre-fetched error logs and none has `capture_likely_missed_fault: true`, extract evidence directly from those logs — do **not** call `audit`.
+2. Only call `agentic-workflows` MCP `audit` when pre-fetched logs are missing, fewer than 5 lines, or `capture_likely_missed_fault: true`. Cap total `audit` calls at **2** across all clusters.
 3. When calling `audit`, request only `artifacts: ["usage", "agent"]` to limit download size.
 
 Extract dominant error, tool-failure pattern, anomalies, and failure class.

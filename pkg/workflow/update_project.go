@@ -24,7 +24,6 @@ type ProjectFieldDefinition struct {
 // UpdateProjectConfig holds configuration for unified project board management
 type UpdateProjectConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	GitHubToken          string                   `yaml:"github-token,omitempty"`
 	Project              string                   `yaml:"project,omitempty"`       // Default project URL for operations
 	TargetRepoSlug       string                   `yaml:"target-repo,omitempty"`   // Default repository for cross-repo content resolution in "owner/repo" format
 	AllowedRepos         []string                 `yaml:"allowed-repos,omitempty"` // List of additional repositories allowed for target_repo resolution
@@ -42,14 +41,6 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse base config (max, github-token)
 			c.parseBaseSafeOutputConfig(configMap, &updateProjectConfig.BaseSafeOutputConfig, 10)
-
-			// Parse github-token override if specified
-			if token, exists := configMap["github-token"]; exists {
-				if tokenStr, ok := token.(string); ok {
-					updateProjectConfig.GitHubToken = tokenStr
-					updateProjectLog.Print("Using custom GitHub token for update-project")
-				}
-			}
 
 			// Parse project URL override if specified
 			if project, exists := configMap["project"]; exists {

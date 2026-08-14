@@ -17,6 +17,9 @@ func TestAWFailureInvestigatorPrefetchUsesRunLevelFailures(t *testing.T) {
 	for _, fragment := range []string{
 		`FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}`,
 		`MAX_DISCOVERY_PAGES = 20`,
+		`ERROR_MARKER = re.compile(r"##\[error\]|\b(?:error|panic|exception)\b", re.IGNORECASE)`,
+		`def capture_error_window(log_text):`,
+		`"capture_likely_missed_fault": not has_error_marker`,
 		`Path(".github/workflows").glob("*.lock.yml")`,
 		`falling back to workflow path suffix matching`,
 		`repos/{REPO}/actions/runs`,
@@ -26,5 +29,8 @@ func TestAWFailureInvestigatorPrefetchUsesRunLevelFailures(t *testing.T) {
 		if !strings.Contains(text, fragment) {
 			t.Fatalf("expected workflow prefetch to contain %q", fragment)
 		}
+	}
+	if strings.Contains(text, `"--log-failed",`) {
+		t.Fatal("expected workflow prefetch to use full job logs for error-marker capture")
 	}
 }
