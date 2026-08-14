@@ -33,11 +33,30 @@ describe("no-child-process-interpolated-command", () => {
           code: `import { execSync } from "child_process"; import { cmd } from "./cmd"; execSync(cmd);`,
           languageOptions: { sourceType: "module" },
         },
+        // Static command with a chained string method — still static, safe
+        { code: `const { execSync } = require("child_process"); execSync("git status".trim());` },
+        // Fully static concatenation with a chained string method — safe
+        { code: `const { execSync } = require("child_process"); execSync(("git" + " status").toLowerCase());` },
       ],
       invalid: [
         {
           code: `const { execSync } = require("child_process"); execSync(\`git checkout \${branch}\`);`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
+        },
+        // Chained .trim() must not defeat the check
+        {
+          code: `const { execSync } = require("child_process"); execSync(\`git checkout \${branch}\`.trim());`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
+        },
+        // Chained .toLowerCase() must not defeat the check
+        {
+          code: `const { execSync } = require("child_process"); execSync(\`git log --author=\${author}\`.toLowerCase());`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
+        },
+        // Chained string method on a dynamic concatenation is also flagged
+        {
+          code: `const { execSync } = require("child_process"); execSync(("git checkout " + branch).trim());`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "execSync" } }],
         },
         {
           code: `function run(x) { const { execSync } = require("child_process"); const cmd = \`git log --author=\${x}\`; execSync(cmd); }`,
