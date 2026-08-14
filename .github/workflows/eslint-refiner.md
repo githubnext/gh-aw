@@ -24,6 +24,7 @@ imports:
     expires: 1d
     title-prefix: "[eslint-refiner] "
 - shared/otlp.md
+- shared/reporting.md
 safe-outputs:
   create-issue:
     expires: 7d
@@ -89,6 +90,14 @@ Out of scope:
 
 - Go analysis rules
 - JavaScript outside `actions/setup/js`
+
+## Output Format
+
+Follow the `reporting` skill for the created issues and daily discussion report:
+
+- Use `###` (h3) or lower for headers — never `#`/`##`.
+- Wrap long diagnostics lists, logs, or per-rule breakdowns in `<details><summary><b>...</b></summary>...</details>`.
+- Structure the daily discussion report as: overview → key metrics/issues → collapsible detail → next actions.
 
 ## Success criteria
 

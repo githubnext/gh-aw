@@ -46,6 +46,7 @@ imports:
       labels: [documentation, automation, doc-unbloat]
       reviewers: [copilot]
 
+  - shared/reporting.md
 # Network access for documentation best practices research
   - shared/otlp.md
 network:
@@ -418,6 +419,7 @@ Use it when you need X by following steps 1-5. [Learn more](url)
 4. **Maintain tone**: Keep the neutral, technical tone
 5. **Test locally**: If possible, verify links and formatting are still correct
 6. **Document changes**: Clearly explain what you improved in the PR
+7. **Follow the `reporting` skill for any comment**: use `###` (h3) or lower headers, and wrap long diffs or file lists in `<details><summary><b>...</b></summary>...</details>`
 
 ## Success Criteria
 

@@ -25,6 +25,7 @@ imports:
     title-prefix: "[sergo] "
 - shared/mcp/serena-go.md
 - shared/otlp.md
+- shared/reporting.md
 safe-outputs:
   create-issue:
     expires: 7d
