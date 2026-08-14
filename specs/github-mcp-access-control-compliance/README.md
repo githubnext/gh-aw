@@ -46,6 +46,10 @@ Where:
 
 The denial code is selected by the first failing guard in the evaluation order above.
 
+The integrity evaluator in §4.6 (effective integrity computation for `trusted-users` and
+`approval-labels`, with `blocked-users` precedence) is modeled separately in
+`pkg/workflow/github_mcp_effective_integrity_formal_test.go`.
+
 ## Behavioral Coverage Map
 
 | Predicate / Invariant | Test Function | Description |
@@ -65,6 +69,20 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `SAFETY_BlockedUserAlwaysDenied` | `TestFormal_BlockedUserSafetyProperty` | Safety: blocked user always produces `-32005` when all earlier guards pass |
 | `SAFETY_NoSpuriousAllow` | `TestFormal_NoSpuriousAllowInvariant` | Safety: no allow decision when any guard fails |
 | `P5_NotBlocked + P6_IntegrityMet` (combined) | `TestFormal_FixtureRunner` | P5 fires before P6 in evaluation order; blocked user denied with -32005 even when P6 would also fail; scenarios executed dynamically by the fixture runner |
+
+### Effective Integrity Model Coverage (§4.6)
+
+| Predicate / Invariant | Test Function | Description |
+|---|---|---|
+| `EQ1_BlockedTerminates` / `PREC1_BlockedOverTrusted` | `TestFormal_BlockedTerminatesElevation` | Blocked author always gets effective integrity `blocked`, even with trusted-user and approval-label matches |
+| `EQ2_TrustedElevatesToApproved` | `TestFormal_TrustedUserElevatesToApproved` | Trusted-user base integrity is elevated to at least `approved` and never lowered from `merged` |
+| `EQ3_LabelElevatesToApproved` | `TestFormal_ApprovalLabelElevatesToApproved` | Approval label elevates to `approved` before `min-integrity` is checked |
+| `EQ4_DefaultIsBase` | `TestFormal_DefaultIsBaseIntegrity` | No blocked/trusted/label match leaves base integrity unchanged |
+| `MONO_ElevationNeverLowers` | `TestFormal_ElevationNeverLowersIntegrity` | Trusted-user / approval-label elevation is monotonic via `max()` |
+| `DECISION_AccessDecision` | `TestFormal_IntegrityAccessDecisionTable` | Table-driven access decision cases for blocked/trusted/label/default combinations |
+| Edge case: empty arrays | `TestFormal_EmptyTrustedUsersAndLabelsTreatedAsOmitted` | Empty (non-nil) `trusted-users` and `approval-labels` behave as omitted |
+| Edge case: case-insensitive matching | `TestFormal_CaseInsensitiveUserMatching` | `blocked-users` and `trusted-users` matching is case-insensitive |
+| Edge case: unset `min-integrity` | `TestFormal_UnsetMinIntegrityAlwaysAllowsNonBlocked` | Unset `min-integrity` allows all non-blocked content; blocked users are still denied |
 
 ## Fixture Files
 
@@ -128,7 +146,9 @@ and no error is returned.
 
 ## Usage
 
-1. Copy or verify the test file at `pkg/workflow/github_mcp_access_control_formal_test.go`.
+1. Copy or verify the test files:
+   - `pkg/workflow/github_mcp_access_control_formal_test.go`
+   - `pkg/workflow/github_mcp_effective_integrity_formal_test.go`
 2. No stub interfaces are needed — all types and helpers are self-contained in the file.
 3. Run predicate-mapped tests:
 
@@ -148,9 +168,12 @@ Formal conformance tests are implemented in:
 
 `pkg/workflow/github_mcp_access_control_formal_test.go`
 
+`pkg/workflow/github_mcp_effective_integrity_formal_test.go`
+
 The test suite includes:
 - **Predicate-mapped tests** (`TestFormal_*`) — each test maps to a specific guard predicate (P1–P6) or invariant documented in the Formal Model section above.
 - **Fixture runner** (`TestFormal_FixtureRunner`) — loads every YAML fixture file from this directory and drives each scenario through the formal evaluator. This ensures the fixture files, error codes, and expected decisions remain consistent with the formal model.
+- **Effective integrity model tests** (`TestFormal_*` in `github_mcp_effective_integrity_formal_test.go`) — formalizes §4.6 precedence and elevation semantics for `blocked-users`, `trusted-users`, and `approval-labels`.
 
 The `combined-blocked-integrity.yaml` fixture verifies that the runner returns P5's `-32005`
 before P6's `-32006` when both guards fail.
