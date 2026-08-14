@@ -560,7 +560,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// file is written and the agent receives the actionable guidance embedded in the warning.
 	if safeUpdateEnabled {
 		currentHasPR, currentHasPRTarget := extractPullRequestEventPresenceFromOnField(workflowData.RawFrontmatter["on"])
-		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions, workflowData.Redirect, oldHasPR, oldHasPRTarget, currentHasPR, currentHasPRTarget, collectMemoryValidationScripts(workflowData)); enforceErr != nil {
+		prTransition := PullRequestEventTransition{
+			OldHasPullRequest:           oldHasPR,
+			OldHasPullRequestTarget:     oldHasPRTarget,
+			CurrentHasPullRequest:       currentHasPR,
+			CurrentHasPullRequestTarget: currentHasPRTarget,
+		}
+		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions, workflowData.Redirect, prTransition, collectMemoryValidationScripts(workflowData)); enforceErr != nil {
 			warningMsg := buildSafeUpdateWarningPrompt(enforceErr.Error())
 			c.AddSafeUpdateWarning(warningMsg)
 			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", enforceErr.Error()))
