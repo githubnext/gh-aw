@@ -18,12 +18,11 @@ run_start_proxy() {
   local sandbox
   sandbox=$(mktemp -d)
 
-  rm -rf /tmp/gh-aw/proxy-logs /tmp/gh-aw/mcp-logs
   mkdir -p "${sandbox}/bin"
 
   cat >"${sandbox}/bin/docker" <<'EOF'
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 echo "$*" >>"${DOCKER_LOG}"
 
 case "$1" in
@@ -55,8 +54,8 @@ case "$1" in
       echo "mock run failure" >&2
       exit 125
     fi
-    mkdir -p /tmp/gh-aw/proxy-logs/proxy-tls
-    printf 'mock ca\n' >/tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+    mkdir -p "${DIFC_PROXY_LOG_DIR}/proxy-tls"
+    printf 'mock ca\n' >"${DIFC_PROXY_LOG_DIR}/proxy-tls/ca.crt"
     echo "mock-container-id"
     exit 0
     ;;
@@ -121,6 +120,8 @@ EOF
   PULL_COUNT_FILE="${sandbox}/pull-count"
   RUN_COUNT_FILE="${sandbox}/run-count"
   RUN_OUTPUT_FILE="${sandbox}/run-output.log"
+  DIFC_PROXY_LOG_DIR="${sandbox}/proxy-logs"
+  DIFC_MCP_LOG_DIR="${sandbox}/mcp-logs"
   : >"${DOCKER_LOG}"
   : >"${GIT_LOG}"
   : >"${SLEEP_LOG}"
@@ -133,6 +134,8 @@ EOF
     SLEEP_LOG="${SLEEP_LOG}" \
     PULL_COUNT_FILE="${PULL_COUNT_FILE}" \
     RUN_COUNT_FILE="${RUN_COUNT_FILE}" \
+    DIFC_PROXY_LOG_DIR="${DIFC_PROXY_LOG_DIR}" \
+    DIFC_MCP_LOG_DIR="${DIFC_MCP_LOG_DIR}" \
     DIFC_PROXY_POLICY='{"rules":[]}' \
     DIFC_PROXY_IMAGE='ghcr.io/github/gh-aw-mcpg:v0.4.9' \
     GH_TOKEN='test-token' \
@@ -204,8 +207,6 @@ echo "==============================="
 echo "Tests passed: $TESTS_PASSED"
 echo "Tests failed: $TESTS_FAILED"
 echo "==============================="
-
-rm -rf /tmp/gh-aw/proxy-logs /tmp/gh-aw/mcp-logs
 
 if [ $TESTS_FAILED -gt 0 ]; then
   exit 1

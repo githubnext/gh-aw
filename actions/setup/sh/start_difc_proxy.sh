@@ -36,8 +36,8 @@ if [ -z "$CONTAINER_IMAGE" ]; then
   exit 0
 fi
 
-PROXY_LOG_DIR=/tmp/gh-aw/proxy-logs
-MCP_LOG_DIR=/tmp/gh-aw/mcp-logs
+PROXY_LOG_DIR="${DIFC_PROXY_LOG_DIR:-/tmp/gh-aw/proxy-logs}"
+MCP_LOG_DIR="${DIFC_MCP_LOG_DIR:-/tmp/gh-aw/mcp-logs}"
 
 mkdir -p "$PROXY_LOG_DIR" "$MCP_LOG_DIR"
 
@@ -143,7 +143,7 @@ if [ "${GH_AW_NETWORK_ISOLATION:-false}" = "true" ]; then
 fi
 
 docker_pull_with_retry "$CONTAINER_IMAGE" || exit $?
-docker_run_with_retry
+docker_run_with_retry || exit $?
 
 # Wait for TLS cert + health check (up to 30s)
 CA_INSTALLED=false
