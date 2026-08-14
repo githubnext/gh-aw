@@ -46,9 +46,9 @@ imports:
       labels: [documentation, automation, doc-unbloat]
       reviewers: [copilot]
 
-  - shared/reporting.md
 # Network access for documentation best practices research
   - shared/otlp.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults
