@@ -38,5 +38,10 @@ if ! test -e /dev/kvm; then
   exit 1
 fi
 
+if ! test -c /dev/kvm; then
+  echo "::error::/dev/kvm must be a character device."
+  exit 1
+fi
+
 echo "runner is eligible for cloud-hypervisor preview"
 echo "::endgroup::"
