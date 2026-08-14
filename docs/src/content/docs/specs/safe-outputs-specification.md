@@ -7,7 +7,7 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.28.2<br>
+**Version**: 1.28.3<br>
 **Status**: Working Draft<br>
 **Publication Date**: 2026-08-07<br>
 **Editor**: GitHub Agentic Workflows Team<br>
@@ -5423,9 +5423,10 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
 
-### Documentation Maintenance (2026-08-14)
+**Version 1.28.3** (2026-08-14):
 
 - Added the [safe-outputs scratchpad removal checklist](https://github.com/github/gh-aw/blob/main/specs/safe-outputs-scratchpad-removal.md) to track deletion of the deprecated scratchpad specification by 2026-09-21.
+- **Updated**: Publication metadata to 1.28.3.
 
 **Version 1.28.2** (2026-08-07):
 
