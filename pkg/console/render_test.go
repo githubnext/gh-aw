@@ -574,6 +574,23 @@ func TestRenderSlice_EmbeddedStruct(t *testing.T) {
 	assert.Contains(t, output, "disabled", "output should contain second status")
 }
 
+func TestRenderSlice_SkippedEmbeddedStruct(t *testing.T) {
+	type Base struct {
+		Name string `console:"header:Name"`
+	}
+	type Extended struct {
+		Base   `console:"-"`
+		Status string `console:"header:Status"`
+	}
+
+	output := RenderStruct([]Extended{{Base: Base{Name: "wf-1"}, Status: "active"}})
+
+	assert.NotContains(t, output, "Name")
+	assert.NotContains(t, output, "wf-1")
+	assert.Contains(t, output, "Status")
+	assert.Contains(t, output, "active")
+}
+
 func TestRenderSlice_EmbeddedPointerStruct(t *testing.T) {
 	type Base struct {
 		Name string `console:"header:Name"`

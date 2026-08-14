@@ -54,7 +54,7 @@ func TestMissingToolSummaryDisplayFields(t *testing.T) {
 	}
 }
 
-// TestMCPFailureSummaryDisplayFields verifies that Display fields are used by console rendering
+// TestMCPFailureSummaryDisplayFields verifies that MCP display fields retain their specific tags.
 func TestMCPFailureSummaryDisplayFields(t *testing.T) {
 	// Create a MCPFailureSummary with populated Display field
 	summaries := []MCPFailureSummary{
@@ -69,8 +69,7 @@ func TestMCPFailureSummaryDisplayFields(t *testing.T) {
 		},
 	}
 
-	// Render using console.RenderStruct
-	output := console.RenderStruct(summaries)
+	output := console.RenderStruct(mcpFailureSummaryDisplays(summaries))
 
 	// Verify that Display field is included in output
 	if !strings.Contains(output, "workflow-a, workflow-b") {
@@ -81,8 +80,8 @@ func TestMCPFailureSummaryDisplayFields(t *testing.T) {
 	if !strings.Contains(output, "Server") {
 		t.Errorf("Server header not found in console output")
 	}
-	if !strings.Contains(output, "Occurrences") {
-		t.Errorf("Occurrences header not found in console output")
+	if !strings.Contains(output, "Failures") {
+		t.Errorf("Failures header not found in console output")
 	}
 	if !strings.Contains(output, "Workflows") {
 		t.Errorf("Workflows header not found in console output")
@@ -95,9 +94,10 @@ func TestMCPFailureSummaryJSONFields(t *testing.T) {
 	summary := MCPFailureSummary{
 		ServerName: "github-mcp-server",
 		AggregatedSummaryBase: AggregatedSummaryBase{
-			Count:     3,
-			Workflows: []string{"workflow-a", "workflow-b"},
-			RunIDs:    []int64{1, 2, 3},
+			Count:       3,
+			Workflows:   []string{"workflow-a", "workflow-b"},
+			FirstReason: "not part of the MCP failure schema",
+			RunIDs:      []int64{1, 2, 3},
 		},
 	}
 
@@ -117,7 +117,7 @@ func TestMCPFailureSummaryJSONFields(t *testing.T) {
 			t.Errorf("Expected %s in JSON output: %s", expected, output)
 		}
 	}
-	if strings.Contains(output, "AggregatedSummaryBase") {
-		t.Errorf("AggregatedSummaryBase should not appear as a nested JSON field: %s", output)
+	if strings.Contains(output, "first_reason") {
+		t.Errorf("first_reason must not be added to the MCP failure JSON schema: %s", output)
 	}
 }
