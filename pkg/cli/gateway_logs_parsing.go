@@ -190,8 +190,8 @@ func processGatewayLogEntry(entry *GatewayLogEntry, metrics *GatewayMetrics, ver
 				metrics.TotalDuration += entry.Duration
 			}
 
-			// Track tool calls
-			if entry.ToolName != "" || entry.Method != "" {
+			// Track only actual tool invocations, not protocol requests such as tools/list.
+			if entry.Event == "tool_call" || entry.Method == "tools/call" {
 				toolName := entry.ToolName
 				if toolName == "" {
 					toolName = entry.Method
