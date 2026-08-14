@@ -1504,7 +1504,7 @@ A KVM-hardware-virtualized microVM runtime. When `sandbox.agent.runtime: docker-
 
 ### cloud-hypervisor
 
-A preview KVM-hardware-virtualized microVM runtime in AWF. When `sandbox.agent.runtime: cloud-hypervisor` is set, gh-aw emits host eligibility checks and digest-pinned release-asset provisioning for the Cloud Hypervisor binary, kernel, rootfs, and supervisor bundle. Support is intentionally limited to GitHub-hosted Ubuntu x86_64 runners with `/dev/kvm`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+A preview KVM-hardware-virtualized microVM runtime in AWF. When `sandbox.agent.runtime: cloud-hypervisor` is set, gh-aw grants the runner scoped KVM access and emits host eligibility checks plus digest-pinned release-asset provisioning for the Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor bundle. AWF uses the host privileges needed to create the VM while retaining strict topology isolation. Support is intentionally limited to GitHub-hosted Ubuntu x86_64 runners with `/dev/kvm`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Strict Mode
 

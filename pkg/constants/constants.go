@@ -171,6 +171,18 @@ const OTELSentryEndpointSecretName = "GH_AW_OTEL_SENTRY_ENDPOINT"
 // Strict security (no sudo) is the default since AWF v0.27.32.
 const AWFDefaultCommand = "awf"
 
+// AWFCloudHypervisorCommand runs AWF with the host privileges required to
+// create a Cloud Hypervisor VM while preserving the runner paths it consumes.
+// sudo supplies SUDO_UID and SUDO_GID for AWF to recover the invoking identity.
+const AWFCloudHypervisorCommand = "sudo --preserve-env awf"
+
+// DefaultCloudHypervisorVCPUs and DefaultCloudHypervisorMemoryMiB are the
+// minimum viable guest sizing defaults for the Cloud Hypervisor agent runtime.
+const (
+	DefaultCloudHypervisorVCPUs     = 2
+	DefaultCloudHypervisorMemoryMiB = 4096
+)
+
 // AWFLegacySecurityCommand is the AWF command prefix for legacy security mode.
 // Used when legacy-security: enable is set in frontmatter.
 const AWFLegacySecurityCommand = "sudo -E awf"
