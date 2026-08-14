@@ -19,9 +19,11 @@ describe("no-empty-catch-block", () => {
       valid: [
         `try { risky(); } catch (err) { core.debug(getErrorMessage(err)); }`,
         `try { value = JSON.parse(raw); } catch { value = {}; }`,
-        `try { risky(); } catch { /* best-effort cleanup, ignore */ }`,
+        `try { risky(); } catch { /* best-effort cleanup */ }`,
+        `try { risky(); } catch { /* best effort cleanup */ }`,
         `try { risky(); } catch (err) { throw err; }`,
         `try { risky(); } catch (err) {\n  // intentional no-op: file may not exist on first run\n}`,
+        `try { risky(); } catch { /* intentional ignore: optional file is absent */ }`,
       ],
       invalid: [],
     });
@@ -41,6 +43,18 @@ describe("no-empty-catch-block", () => {
         },
         {
           code: `try { risky(); } catch (err) {\n\n}`,
+          errors: [{ messageId: "noEmptyCatch" }],
+        },
+        {
+          code: `try { risky(); } catch { /* TODO */ }`,
+          errors: [{ messageId: "noEmptyCatch" }],
+        },
+        {
+          code: `try { risky(); } catch { /* file processing failed */ }`,
+          errors: [{ messageId: "noEmptyCatch" }],
+        },
+        {
+          code: `try { risky(); } catch { /* eslint-ignore */ }`,
           errors: [{ messageId: "noEmptyCatch" }],
         },
       ],

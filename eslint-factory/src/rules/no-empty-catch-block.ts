@@ -7,11 +7,12 @@ export const noEmptyCatchBlockRule = createRule({
   meta: {
     type: "problem",
     docs: {
-      description: "Disallow empty catch blocks in actions/setup/js scripts. Swallowing an error with no logging, fallback assignment, or comment hides real failures (corrupted state files, cleanup errors) that are hard to diagnose from CI logs.",
+      description:
+        "Disallow empty catch blocks in actions/setup/js scripts. Swallowing an error with no logging, fallback assignment, or explicit intentional-ignore comment hides real failures (corrupted state files, cleanup errors) that are hard to diagnose from CI logs.",
     },
     schema: [],
     messages: {
-      noEmptyCatch: "Empty catch block silently swallows the error. Log it (e.g. core.debug/core.warning), assign a fallback value, or add a comment explaining why the error is intentionally ignored.",
+      noEmptyCatch: "Empty catch block silently swallows the error. Log it (e.g. core.debug/core.warning), assign a fallback value, or add an explicit comment explaining why the error is intentionally ignored.",
     },
   },
   defaultOptions: [],
@@ -23,10 +24,11 @@ export const noEmptyCatchBlockRule = createRule({
         const body = node.body.body;
         if (body.length !== 0) return;
 
-        // A comment inside the (otherwise empty) braces documents intent, e.g.:
-        //   } catch { /* best-effort cleanup, ignore */ }
+        // An explicit intentional-ignore comment inside the otherwise empty
+        // braces documents intent, e.g.:
+        //   } catch { /* best-effort cleanup */ }
         const commentsInside = sourceCode.getCommentsInside(node.body);
-        if (commentsInside.length > 0) return;
+        if (commentsInside.some(comment => /\bintentional\b|\bbest[- ]effort\b/i.test(comment.value))) return;
 
         context.report({
           node: node.body,
