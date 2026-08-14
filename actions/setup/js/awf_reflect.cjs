@@ -391,7 +391,11 @@ async function fetchAWFReflect(options) {
  *   perAttemptTimeoutMs?: number,
  *   logger?: (msg: string) => void,
  *   connectImpl?: (opts: { host: string, port: number }) => import("net").Socket,
- * }} options
+ * }} options - `connectImpl`, when provided, overrides the default connect implementation for
+ *   both http:// and https:// baseUrls (test-only hook). The readiness event awaited is still
+ *   derived from the baseUrl's protocol: for `https:` baseUrls the returned socket must emit
+ *   `"secureConnect"` (not `"connect"`) to be treated as ready, matching the real `tls.connect`
+ *   behavior; for `http:` baseUrls it must emit `"connect"`.
  * @returns {Promise<{ ok: true } | { ok: false, reason: "invalid_base_url" | "timeout", error: string }>}
  */
 async function waitForProviderListenerReady(options) {
