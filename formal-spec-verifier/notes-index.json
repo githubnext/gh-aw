@@ -58,9 +58,9 @@
     },
     "specs/github-mcp-access-control-compliance/README.md": {
       "slug": "github-mcp-access-control-compliance-README",
-      "last_formalized": "2026-07-31-16-13-09",
+      "last_formalized": "2026-08-14-15-39-20",
       "notation": "TLA+ / Z3-style guard conjunction",
-      "predicate_count": 12,
+      "predicate_count": 16,
       "issue_number": null
     },
     "specs/intent-attribution-compliance/README.md": {
