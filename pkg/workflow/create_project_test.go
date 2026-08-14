@@ -41,9 +41,9 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 			},
 			expectedConfig: &CreateProjectsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: strPtr("1"),
+					Max:         strPtr("1"),
+					GitHubToken: "${{ secrets.PROJECTS_PAT }}",
 				},
-				GitHubToken: "${{ secrets.PROJECTS_PAT }}",
 				TargetOwner: "myorg",
 				TitlePrefix: "Project",
 			},

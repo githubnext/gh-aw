@@ -500,36 +500,12 @@ func extractYAMLValueAtPath(yamlContent, jsonPath string) string {
 // Only keys at column 0 (no indentation) are matched, preventing false matches against
 // nested keys with the same name.
 func extractTopLevelYAMLValue(yamlContent, fieldName string) string {
-	escapedField := regexp.QuoteMeta(fieldName)
-
-	// Try single-quoted value: field: 'value'  (anchored to column 0, no leading whitespace)
-	//nolint:regexpdynamicpattern // The field name is quoted before compilation.
-	reSingle, err := regexp.Compile(`(?m)^` + escapedField + `[ \t]*:[ \t]*'([^'\n]+)'`)
+	// Anchor to column 0 (no leading whitespace) so nested keys with the same name are not matched.
+	matchers, err := buildYAMLScalarMatchers(`(?m)^` + regexp.QuoteMeta(fieldName) + `[ \t]*:[ \t]*`)
 	if err != nil {
 		return ""
 	}
-	if match := reSingle.FindStringSubmatch(yamlContent); len(match) >= 2 {
-		return strings.TrimSpace(match[1])
-	}
-	// Try double-quoted value: field: "value"
-	//nolint:regexpdynamicpattern // The field name is quoted before compilation.
-	reDouble, err := regexp.Compile(`(?m)^` + escapedField + `[ \t]*:[ \t]*"([^"\n]+)"`)
-	if err != nil {
-		return ""
-	}
-	if match := reDouble.FindStringSubmatch(yamlContent); len(match) >= 2 {
-		return strings.TrimSpace(match[1])
-	}
-	// Try unquoted value: field: value
-	//nolint:regexpdynamicpattern // The field name is quoted before compilation.
-	reUnquoted, err := regexp.Compile(`(?m)^` + escapedField + `[ \t]*:[ \t]*([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`)
-	if err != nil {
-		return ""
-	}
-	if match := reUnquoted.FindStringSubmatch(yamlContent); len(match) >= 2 {
-		return strings.TrimSpace(match[1])
-	}
-	return ""
+	return matchYAMLScalar(yamlContent, matchers)
 }
 
 // extractNestedYAMLValue extracts the scalar value of a direct child key under a parent key in raw YAML.
@@ -545,7 +521,7 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 	if err != nil {
 		return ""
 	}
-	scalarMatchers, err := buildNestedYAMLScalarMatchers(regexp.QuoteMeta(childKey))
+	scalarMatchers, err := buildYAMLScalarMatchers(`^\s+` + regexp.QuoteMeta(childKey) + `[ \t]*:[ \t]*`)
 	if err != nil {
 		return ""
 	}
@@ -584,7 +560,7 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 			continue
 		}
 
-		if value := extractNestedYAMLScalar(line, scalarMatchers); value != "" {
+		if value := matchYAMLScalar(line, scalarMatchers); value != "" {
 			return value
 		}
 	}
@@ -592,20 +568,21 @@ func extractNestedYAMLValue(yamlContent, parentKey, childKey string) string {
 	return ""
 }
 
-// buildNestedYAMLScalarMatchers compiles the scalar value patterns for a child key once,
-// so they can be reused across every candidate line inside the parent block.
-func buildNestedYAMLScalarMatchers(escapedChild string) ([]*regexp.Regexp, error) {
-	childPrefix := `^\s+` + escapedChild + `[ \t]*:[ \t]*`
-	valuePatterns := []string{
-		childPrefix + `'([^'\n]+)'`,
-		childPrefix + `"([^"\n]+)"`,
-		childPrefix + `([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`,
-	}
+// yamlScalarValueForms are the value patterns appended to a key prefix to extract a scalar:
+// single-quoted, double-quoted, then unquoted with trailing-comment trimming.
+var yamlScalarValueForms = []string{
+	`'([^'\n]+)'`,
+	`"([^"\n]+)"`,
+	`([^'"\n#][^\n#]*?)(?:[ \t]*#.*)?$`,
+}
 
-	matchers := make([]*regexp.Regexp, 0, len(valuePatterns))
-	for _, valuePattern := range valuePatterns {
-		//nolint:regexpdynamicpattern // The child key is quoted before compilation.
-		valueRegexp, err := regexp.Compile(valuePattern)
+// buildYAMLScalarMatchers compiles the scalar value patterns for a key prefix once,
+// so they can be reused across every candidate input.
+func buildYAMLScalarMatchers(keyPrefix string) ([]*regexp.Regexp, error) {
+	matchers := make([]*regexp.Regexp, 0, len(yamlScalarValueForms))
+	for _, valueForm := range yamlScalarValueForms {
+		//nolint:regexpdynamicpattern // The key name is quoted before compilation.
+		valueRegexp, err := regexp.Compile(keyPrefix + valueForm)
 		if err != nil {
 			return nil, err
 		}
@@ -615,9 +592,10 @@ func buildNestedYAMLScalarMatchers(escapedChild string) ([]*regexp.Regexp, error
 	return matchers, nil
 }
 
-func extractNestedYAMLScalar(line string, matchers []*regexp.Regexp) string {
+// matchYAMLScalar returns the first scalar value matched by the given matchers, in order.
+func matchYAMLScalar(content string, matchers []*regexp.Regexp) string {
 	for _, valueRegexp := range matchers {
-		if match := valueRegexp.FindStringSubmatch(line); len(match) >= 2 {
+		if match := valueRegexp.FindStringSubmatch(content); len(match) >= 2 {
 			return strings.TrimSpace(match[1])
 		}
 	}
