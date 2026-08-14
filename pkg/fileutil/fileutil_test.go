@@ -438,7 +438,7 @@ func TestCopyFile(t *testing.T) {
 	})
 }
 
-func TestCopyFileContents(t *testing.T) {
+func TestCopyToFileAndSync(t *testing.T) {
 	t.Parallel()
 	t.Run("returns close error after successful sync", func(t *testing.T) {
 		t.Parallel()
