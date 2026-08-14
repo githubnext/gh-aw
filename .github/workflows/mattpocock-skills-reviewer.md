@@ -138,9 +138,22 @@ Invoke the `pr-triage` agent and capture its JSON response.
 Use the returned `change_type`, `recommended_skills`, `high_impact_files`, and `key_signals`.
 Apply the recommended skills in Step 4, prioritising the listed `high_impact_files`.
 
+**Fallback — never fail the review because of triage.** If the `pr-triage` call errors, times out, returns empty output, or returns text you cannot parse as the documented JSON shape, do **not** retry more than once and do **not** abort. Log one line noting that triage was unavailable, then derive the selection yourself from `/tmp/gh-aw/agent/pr-meta.json` and `/tmp/gh-aw/agent/pr-diff.patch` using this heuristic:
+
+| Signal in the changed file paths | `change_type` | `recommended_skills` |
+| --- | --- | --- |
+| Only `*.md`, `docs/**`, `.changeset/**` | `documentation` | `/grill-with-docs` |
+| Only test files (`*_test.go`, `*.test.*`, `*.spec.*`, `test/**`, `tests/**`) | `tests_only` | `/tdd` |
+| PR title or body mentions fix/bug/regression/panic/crash | `bug_fix` | `/diagnosing-bugs`, `/tdd` |
+| PR title or body mentions add/feat/support/introduce | `new_feature` | `/tdd`, `/grill-with-docs` |
+| PR title or body mentions refactor/cleanup/rename/move | `refactor_cleanup` | `/codebase-design`, `/improve-codebase-architecture` |
+| Anything else | `mixed_unclear` | `/codebase-design`, `/tdd` |
+
+Match rows top-down and use the first row that applies. For `high_impact_files`, fall back to the non-generated changed files with the largest `additions + deletions` in `pr-meta.json`, most-changed first, and treat `key_signals` as empty. Continue with Step 4 as normal, and mention in the Step 6 review body that skill selection used the fallback heuristic.
+
 ### Step 4: Review Using Selected Skills
 
-Focus your skill application on files listed in `pr-triage`'s `high_impact_files`.
+Focus your skill application on the `high_impact_files` from Step 3 (from `pr-triage`, or from the fallback heuristic when triage was unavailable).
 
 Apply the skill(s) to review the changed lines. For each issue you find:
 
