@@ -163,6 +163,17 @@ Use `REQUEST_CHANGES` when any of the following are true:
 
 Use `COMMENT` when all findings are non-blocking. Keep the overall review body concise and focused on blocking themes. Use h3 (###) or lower for any headers, and structure the body as verdict + one-line summary (always visible) → themes/highlights (in `<details>`).
 
+### Step 6: Update PR Continuity Memory
+
+After submitting the review, write a compact JSON snapshot to `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json` so repeat reviews of this PR can load continuity context in Step 1.
+
+Include:
+- `reviewed_at` timestamp
+- `review_event` (`COMMENT` or `REQUEST_CHANGES`)
+- `top_themes` (short list of blocking/non-blocking themes from this run)
+- `files_reviewed` (changed files you analyzed)
+- `comment_count` (number of review comments posted)
+
 ## Guidelines
 
 ### Review Focus
