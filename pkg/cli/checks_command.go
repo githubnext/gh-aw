@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -240,7 +241,7 @@ func classifyGHAPIError(exitCode int, stderr string, prNumber string, repo strin
 	lower := strings.ToLower(stderr)
 
 	switch {
-	case strings.Contains(lower, "404") || strings.Contains(lower, "not found"):
+	case errorutil.IsNotFoundOutput(stderr):
 		repoHint := "the current repository"
 		if repo != "" {
 			repoHint = repo

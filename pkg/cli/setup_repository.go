@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/ctxutil"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -105,7 +106,7 @@ func checkSetupRepositoryExists(ctx context.Context, repo string) (bool, error) 
 	}
 
 	message := strings.ToLower(string(output))
-	if strings.Contains(message, "could not resolve to a repository") || strings.Contains(message, "http 404") || strings.Contains(message, "not found") {
+	if strings.Contains(message, "could not resolve to a repository") || errorutil.IsNotFoundOutput(message) {
 		return false, nil
 	}
 	return false, fmt.Errorf("failed to check repository %s: %w", repo, err)

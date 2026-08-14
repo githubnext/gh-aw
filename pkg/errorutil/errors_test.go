@@ -45,6 +45,26 @@ func TestIsNotFoundError(t *testing.T) {
 	}
 }
 
+func TestIsNotFoundOutput(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{name: "empty output", output: "", want: false},
+		{name: "404 numeric literal", output: "HTTP 404: Not Found", want: true},
+		{name: "title case not found", output: "GraphQL: Not Found", want: true},
+		{name: "uppercase not found", output: "RESOURCE NOT FOUND", want: true},
+		{name: "generic output", output: "something went wrong", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, errorutil.IsNotFoundOutput(tt.output))
+		})
+	}
+}
+
 func TestIsForbiddenError(t *testing.T) {
 	tests := []struct {
 		name string
