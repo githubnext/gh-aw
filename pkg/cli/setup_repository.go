@@ -105,8 +105,9 @@ func checkSetupRepositoryExists(ctx context.Context, repo string) (bool, error) 
 		return strings.TrimSpace(string(output)) != "", nil
 	}
 
-	message := strings.ToLower(string(output))
-	if strings.Contains(message, "could not resolve to a repository") || errorutil.IsNotFoundOutput(string(output)) {
+	outputStr := string(output)
+	message := strings.ToLower(outputStr)
+	if strings.Contains(message, "could not resolve to a repository") || errorutil.IsNotFoundOutput(outputStr) {
 		return false, nil
 	}
 	return false, fmt.Errorf("failed to check repository %s: %w", repo, err)
