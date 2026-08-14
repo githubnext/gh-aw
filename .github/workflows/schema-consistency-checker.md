@@ -43,10 +43,11 @@ pre-agent-steps:
       # 1. All top-level fields in the main JSON schema
       SCHEMA_FIELDS=$(jq -r '.properties | keys[]' pkg/parser/schemas/main_workflow_schema.json 2>/dev/null | sort -u || echo "")
 
-      # 2. JSON/YAML-tagged fields in the frontmatter type definitions.
+      # 2. JSON/YAML-tagged fields in the top-level frontmatter type.
       # pkg/parser/frontmatter.go is only a logger declaration; frontmatter fields
       # are extracted and represented in pkg/workflow/frontmatter_types.go.
-      FRONTMATTER_FIELDS=$(grep -Eho '(json|yaml):"[^"]*"' pkg/workflow/frontmatter_types.go 2>/dev/null \
+      FRONTMATTER_FIELDS=$(sed -n '/^type FrontmatterConfig struct {$/,/^}$/p' pkg/workflow/frontmatter_types.go 2>/dev/null \
+        | grep -Eo '(json|yaml):"[^"]*"' \
         | sed -E 's/^(json|yaml):"//;s/"$//' \
         | sed 's/,omitempty//' \
         | sed 's/,.*$//' \
