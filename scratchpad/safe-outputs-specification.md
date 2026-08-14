@@ -23,7 +23,7 @@ sidebar:
 
 **Version**: 1.1.0  
 **Status**: ~~Recommendation~~ **DEPRECATED** (superseded by v1.28.3)
-**Latest Version**: https://github.github.com/gh-aw/scratchpad/safe-outputs-specification/  
+**Latest Version**: https://github.com/github/gh-aw/blob/main/scratchpad/safe-outputs-specification.md
 **Editors**: GitHub Next Team
 
 ---
