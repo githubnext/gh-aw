@@ -171,17 +171,30 @@ async function run() {
   const githubOutput = process.env.GITHUB_OUTPUT;
   const githubEnv = process.env.GITHUB_ENV;
 
+  /**
+   * Write a key=value line to filePath only if isValid(value) holds.
+   * @param {string | undefined} filePath
+   * @param {string} key
+   * @param {string} value
+   * @param {string} logLabel - Label used in the confirmation log message
+   * @param {string} fileLabel
+   * @param {(value: string) => boolean} isValid
+   */
+  const writeIfValid = (filePath, key, value, logLabel, fileLabel, isValid) => {
+    if (isValid(value)) writeEnvLine(filePath, key, value, logLabel, fileLabel);
+  };
+
   // Always expose trace ID as a step output for cross-job correlation, even
   // when OTLP is not configured.  This ensures needs.*.outputs.setup-trace-id
   // is populated for downstream jobs regardless of observability configuration.
-  if (isValidTraceId(traceId)) writeEnvLine(githubOutput, "trace-id", traceId, `trace-id=${traceId}`, "GITHUB_OUTPUT");
-  if (isValidSpanId(spanId)) writeEnvLine(githubOutput, "span-id", spanId, `span-id=${spanId}`, "GITHUB_OUTPUT");
-  if (isValidSpanId(parentSpanId)) writeEnvLine(githubOutput, "parent-span-id", parentSpanId, `parent-span-id=${parentSpanId}`, "GITHUB_OUTPUT");
+  writeIfValid(githubOutput, "trace-id", traceId, `trace-id=${traceId}`, "GITHUB_OUTPUT", isValidTraceId);
+  writeIfValid(githubOutput, "span-id", spanId, `span-id=${spanId}`, "GITHUB_OUTPUT", isValidSpanId);
+  writeIfValid(githubOutput, "parent-span-id", parentSpanId, `parent-span-id=${parentSpanId}`, "GITHUB_OUTPUT", isValidSpanId);
 
   // Always propagate trace/span context to subsequent steps in this job so
   // that the conclusion span can find the same trace ID.
-  if (isValidTraceId(traceId)) writeEnvLine(githubEnv, "GITHUB_AW_OTEL_TRACE_ID", traceId, "GITHUB_AW_OTEL_TRACE_ID", "GITHUB_ENV");
-  if (isValidSpanId(spanId)) writeEnvLine(githubEnv, "GITHUB_AW_OTEL_PARENT_SPAN_ID", spanId, "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GITHUB_ENV");
+  writeIfValid(githubEnv, "GITHUB_AW_OTEL_TRACE_ID", traceId, "GITHUB_AW_OTEL_TRACE_ID", "GITHUB_ENV", isValidTraceId);
+  writeIfValid(githubEnv, "GITHUB_AW_OTEL_PARENT_SPAN_ID", spanId, "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GITHUB_ENV", isValidSpanId);
   // Propagate setup-end timestamp so the conclusion span can measure actual
   // job execution duration (setup-end → conclusion-start).
   if (githubEnv) {
