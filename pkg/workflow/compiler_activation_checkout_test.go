@@ -117,7 +117,16 @@ safe-outputs:
 			// actions/setup) so it can load helper scripts and engine config - this is
 			// unaffected by the workflow's permissions or triggers (including contents: write,
 			// via write-capable safe-outputs). What must never happen is a full checkout of
-			// .github/workflows for timestamp checking - that always uses the GitHub API instead.
+			// the repository, or a checkout of .github/workflows for timestamp checking -
+			// that always uses the GitHub API instead.
+
+			// Verify the activation checkout is the sparse .github/.agents checkout
+			assert.Contains(t, activationJobSection, "name: Checkout .github and .agents folders", "Should use the sparse .github/.agents checkout step")
+			assert.Contains(t, activationJobSection, "sparse-checkout: |", "Sparse checkout should be configured")
+			assert.Contains(t, activationJobSection, "sparse-checkout-cone-mode: true", "Sparse checkout cone mode should be enabled")
+
+			// Verify it does NOT perform a full repository checkout
+			assert.NotContains(t, activationJobSection, "name: Checkout repository", "Should not have a full repository checkout step")
 
 			// Verify it does NOT checkout .github/workflows for timestamp checking
 			assert.NotContains(t, activationJobSection, "Checkout workflows", "Should not have 'Checkout workflows' step - uses GitHub API for timestamp checking")

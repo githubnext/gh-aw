@@ -1330,8 +1330,13 @@ func TestBuildCentralizedCommandOnSection(t *testing.T) {
 	})
 
 	t.Run("empty input defaults to all comment events", func(t *testing.T) {
-		result := buildCentralizedCommandOnSection(nil)
-		assert.NotEmpty(t, result)
-		assert.True(t, strings.HasPrefix(result, "on:\n"))
+		expected := "on:\n" +
+			"  issues:\n    types: [created]\n" +
+			"  issue_comment:\n    types: [created]\n" +
+			"  pull_request:\n    types: [created]\n" +
+			"  pull_request_review_comment:\n    types: [created]\n" +
+			"  discussion:\n    types: [created]\n" +
+			"  discussion_comment:\n    types: [created]\n"
+		assert.Equal(t, expected, buildCentralizedCommandOnSection(nil))
 	})
 }
