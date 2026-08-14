@@ -172,17 +172,10 @@ async function run() {
   const githubEnv = process.env.GITHUB_ENV;
 
   /**
-   * Write a key=value line to filePath only if isValid(value) holds.
    * @param {string | undefined} filePath
-   * @param {string} key
-   * @param {string} value
-   * @param {string} logLabel - Label used in the confirmation log message
-   * @param {string} fileLabel
    * @param {(value: string) => boolean} isValid
    */
-  const writeIfValid = (filePath, key, value, logLabel, fileLabel, isValid) => {
-    if (isValid(value)) writeEnvLine(filePath, key, value, logLabel, fileLabel);
-  };
+  const writeIfValid = (filePath, key, value, logLabel, fileLabel, isValid) => isValid(value) && writeEnvLine(filePath, key, value, logLabel, fileLabel);
 
   // Always expose trace ID as a step output for cross-job correlation, even
   // when OTLP is not configured.  This ensures needs.*.outputs.setup-trace-id
