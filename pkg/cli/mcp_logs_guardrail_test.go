@@ -159,3 +159,51 @@ func TestBuildLogsFileResponse_ResponseStructure(t *testing.T) {
 	// Cleanup
 	_ = os.Remove(response.FilePath)
 }
+
+func TestBuildLogsFileResponse_MarksPartialResults(t *testing.T) {
+	output := `{"summary":{"total_runs":2},"continuation":{"message":"Timeout reached. Use these parameters to continue fetching more logs.","before_run_id":42,"count":100}}`
+
+	result := buildLogsFileResponse(output)
+
+	var response MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatalf("Response should be valid JSON: %v", err)
+	}
+
+	if !response.Partial {
+		t.Error("Response should be marked partial when a continuation is present")
+	}
+	if response.Continuation == nil {
+		t.Fatal("Response should include the continuation cursor")
+	}
+	if response.Continuation.BeforeRunID != 42 {
+		t.Errorf("Continuation before_run_id mismatch: got %d, want 42", response.Continuation.BeforeRunID)
+	}
+	if !strings.Contains(response.Message, "PARTIAL RESULTS") {
+		t.Errorf("Message should indicate partial results, got %q", response.Message)
+	}
+
+	// Cleanup
+	_ = os.Remove(response.FilePath)
+}
+
+func TestBuildLogsFileResponse_CompleteResultsNotPartial(t *testing.T) {
+	output := `{"summary":{"total_runs":2},"runs":[]}`
+
+	result := buildLogsFileResponse(output)
+
+	var response MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatalf("Response should be valid JSON: %v", err)
+	}
+
+	if response.Partial {
+		t.Error("Response should not be marked partial without a continuation")
+	}
+	if response.Continuation != nil {
+		t.Errorf("Response should not include a continuation, got %+v", response.Continuation)
+	}
+
+	// Cleanup
+	_ = os.Remove(response.FilePath)
+}
