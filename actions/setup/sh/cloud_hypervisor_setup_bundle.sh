@@ -43,7 +43,8 @@ if tar -tzf "${archive_path}" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
   echo "::error::cloud-hypervisor bundle contains unsafe archive paths"
   exit 1
 fi
-if tar -tvzf "${archive_path}" | awk '$1 ~ /^[lh]/ { found=1; exit 0 } END { exit (found ? 0 : 1) }'; then
+archive_table="$(tar -tvzf "${archive_path}")"
+if awk '$1 ~ /^[lh]/ { found=1; exit 0 } END { exit (found ? 0 : 1) }' <<<"${archive_table}"; then
   echo "::error::cloud-hypervisor bundle must not include symbolic or hard links"
   exit 1
 fi

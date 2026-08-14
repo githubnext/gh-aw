@@ -29,6 +29,10 @@ if ! command -v setfacl >/dev/null 2>&1; then
 fi
 
 runner_uid="$(id -u)"
+if [[ ! "${runner_uid}" =~ ^[0-9]+$ ]]; then
+  echo "::error::failed to resolve a numeric runner UID."
+  exit 1
+fi
 sudo setfacl -m "u:${runner_uid}:rw" /dev/kvm
 
 if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
@@ -36,7 +40,12 @@ if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
   exit 1
 fi
 
-if ! getfacl -cp /dev/kvm | grep -Eq "^user:${runner_uid}:rw-?$"; then
+acl_output="$(getfacl -cp /dev/kvm || true)"
+if [[ -z "${acl_output}" ]]; then
+  echo "::error::failed to read /dev/kvm ACLs for verification."
+  exit 1
+fi
+if ! grep -Eq "^user:${runner_uid}:rw-?$" <<<"${acl_output}"; then
   echo "::error::failed to verify scoped ACL entry for the runner user on /dev/kvm."
   exit 1
 fi
