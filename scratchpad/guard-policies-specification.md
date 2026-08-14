@@ -584,7 +584,7 @@ The deprecated `repos` field (YAML key: `repos`) is handled alongside `allowed-r
 
 This section lists the files that **MUST** be reviewed and updated whenever a normative section of this specification changes. Reviewers **SHALL** confirm each target is consistent with the updated spec before merging.
 
-### After Restructuring REASONS Headers
+### After Restructuring Approach and Operations Headers
 
 The Approach and Operations headers organize the former Proposed Solution and MCP Gateway Configuration Flow content. Keep these headers in place when synchronizing this scratchpad document with downstream documentation or navigation.
 
