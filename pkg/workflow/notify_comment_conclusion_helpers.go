@@ -259,6 +259,7 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 	//   - http_400_response_error: engine returned a generic HTTP 400 Bad Request response
 	//   - capi_quota_exceeded_error: Copilot/CAPI quota exhaustion/rate-limit response
 	//   - max_cache_misses_exceeded: AWF API proxy consecutive cache miss guardrail fired
+	//   - shell_expansion_guard_rejected: sandbox command-injection guard rejected shell expansion patterns
 	var envVars []string
 	if engine.GetErrorDetectionScriptId() != "" {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
@@ -269,6 +270,7 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_MAX_CACHE_MISSES_EXCEEDED: ${{ needs.%s.outputs.max_cache_misses_exceeded }}\n", mainJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_MISSING_MODEL_PRICING_ERROR: ${{ needs.%s.outputs.missing_model_pricing_error }}\n", mainJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_MISSING_MODEL_PRICING_MODEL_NAME: ${{ needs.%s.outputs.missing_model_pricing_model_name }}\n", mainJobName))
+		envVars = append(envVars, fmt.Sprintf("          GH_AW_SHELL_EXPANSION_GUARD_REJECTED: ${{ needs.%s.outputs.shell_expansion_guard_rejected }}\n", mainJobName))
 	}
 	if apiHosts := getEngineAPIHosts(data, engine); len(apiHosts) > 0 {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_ENGINE_API_HOSTS: %q\n", strings.Join(apiHosts, ",")))

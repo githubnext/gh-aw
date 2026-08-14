@@ -434,6 +434,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
       expect(result.invocationCapExceeded).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(false);
       expect(result.shellExpansionGuardRejected).toBe(true);
     });
 

@@ -181,8 +181,8 @@ func buildMainJobCoreOutputs() map[string]string {
 // configured engine provides an error-detection script ID.
 func (c *Compiler) addMainJobEngineErrorOutputs(outputs map[string]string, data *WorkflowData) {
 	// Add inference_access_error, mcp_policy_error, agentic_engine_timeout,
-	// model_not_supported_error, http_400_response_error, and
-	// invocation_cap_exceeded outputs for engines
+	// model_not_supported_error, http_400_response_error, invocation_cap_exceeded,
+	// and shell_expansion_guard_rejected outputs for engines
 	// that provide an error detection step.
 	// These outputs are written by the host-runner detect-agent-errors step (via the
 	// engine's GetErrorDetectionScriptId script) rather than from inside the AWF container,
@@ -213,6 +213,8 @@ func (c *Compiler) addMainJobEngineErrorOutputs(outputs map[string]string, data 
 	compilerMainJobLog.Printf("Added missing_model_pricing_error output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 	outputs["missing_model_pricing_model_name"] = fmt.Sprintf("${{ %s.missing_model_pricing_model_name || '' }}", stepRef)
 	compilerMainJobLog.Printf("Added missing_model_pricing_model_name output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
+	outputs["shell_expansion_guard_rejected"] = fmt.Sprintf("${{ %s.shell_expansion_guard_rejected || 'false' }}", stepRef)
+	compilerMainJobLog.Printf("Added shell_expansion_guard_rejected output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 }
 
 // buildMainJobOutputs builds the complete outputs map for the main agent job.

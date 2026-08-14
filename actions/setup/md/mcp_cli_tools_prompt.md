@@ -16,7 +16,7 @@ printf '{"item_number":42,"body":"### Title\n\nBody."}' | safeoutputs add_commen
 **Multi-line or long `body` content:** do NOT build the JSON payload with `printf`/`echo` embedding raw newlines or many escaped characters directly in the command line — the sandbox's shell command-injection guard may reject long or complex quoted arguments (reporting "expansion patterns"/"command substitution" even though none are present) and retrying the identical command will fail again. Instead, write the content to a temp file with a heredoc, then use `jq -Rs` to inject it as the `body` field:
 ```bash
 cat <<'EOF' > /tmp/gh-aw/body.md
-### Title
+Title
 
 Multi-line body content goes here.
 EOF
