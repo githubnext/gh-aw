@@ -1788,6 +1788,45 @@ describe("copilot_harness.cjs", () => {
     });
   });
 
+  describe("connection-refused retries once on first attempt", () => {
+    // Inline the same decision as the driver's ECONNREFUSED handling: retry once as a fresh
+    // run with a short backoff only on the very first attempt, and only when a retry budget
+    // remains. Later attempts (attempt > 0) and an exhausted retry budget must not take this
+    // one-shot path.
+    const FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS = 1000;
+
+    /**
+     * @param {boolean} isConnectionRefused
+     * @param {number} attempt
+     * @param {number} maxRetries
+     * @returns {{ action: "retry" | "continue", nextDelayMs?: number }}
+     */
+    function decideConnectionRefusedRetry(isConnectionRefused, attempt, maxRetries) {
+      if (attempt === 0 && isConnectionRefused && maxRetries > 0) {
+        return { action: "retry", nextDelayMs: FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS };
+      }
+      return { action: "continue" };
+    }
+
+    it("retries once as a fresh run with a 1s delay on the first attempt", () => {
+      const decision = decideConnectionRefusedRetry(true, 0, 3);
+      expect(decision).toEqual({ action: "retry", nextDelayMs: 1000 });
+    });
+
+    it("does not take this path on later attempts", () => {
+      expect(decideConnectionRefusedRetry(true, 1, 3)).toEqual({ action: "continue" });
+      expect(decideConnectionRefusedRetry(true, 2, 3)).toEqual({ action: "continue" });
+    });
+
+    it("does not take this path when the retry budget is zero", () => {
+      expect(decideConnectionRefusedRetry(true, 0, 0)).toEqual({ action: "continue" });
+    });
+
+    it("does not take this path when the error is not a connection refusal", () => {
+      expect(decideConnectionRefusedRetry(false, 0, 3)).toEqual({ action: "continue" });
+    });
+  });
+
   describe("permanent --continue disable guard", () => {
     // Inline retry logic to verify that once continueDisabledPermanently is set,
     // subsequent partial-execution retries never re-enable --continue.

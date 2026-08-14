@@ -57,6 +57,9 @@ describe("awf_reflect.cjs", () => {
             listeners[event] = cb;
             return this;
           },
+          removeAllListeners() {
+            return this;
+          },
           end() {},
           destroy() {},
         };
@@ -106,6 +109,123 @@ describe("awf_reflect.cjs", () => {
       });
       expect(result.ok).toBe(false);
       expect(result.reason).toBe("invalid_base_url");
+    });
+
+    it("returns timeout when the per-attempt timer fires (hung connect)", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        // Never fire "connect" or "error" — simulates a hung connection attempt.
+        return {
+          once() {
+            return this;
+          },
+          end() {},
+          destroy() {},
+          removeAllListeners() {
+            return this;
+          },
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "http://api-proxy:10002",
+        timeoutMs: 50,
+        retryDelayMs: 1,
+        perAttemptTimeoutMs: 5,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("timeout");
+      expect(result.error).toContain("timed out after");
+    });
+
+    it("uses a TLS secureConnect handshake for https:// baseUrls", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        queueMicrotask(() => listeners.secureConnect && listeners.secureConnect());
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          removeAllListeners() {
+            return this;
+          },
+          end() {},
+          destroy() {},
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "https://api-proxy:10443",
+        timeoutMs: 500,
+        retryDelayMs: 1,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result).toEqual({ ok: true });
+    });
+
+    it("does not report ready on a bare TCP connect for https:// baseUrls", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        // Only fires "connect" (bare TCP), never "secureConnect" (TLS handshake complete).
+        queueMicrotask(() => listeners.connect && listeners.connect());
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          removeAllListeners() {
+            return this;
+          },
+          end() {},
+          destroy() {},
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "https://api-proxy:10443",
+        timeoutMs: 20,
+        retryDelayMs: 1,
+        perAttemptTimeoutMs: 5,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("timeout");
+    });
+
+    it("clears a late error after a successful connect without affecting the result", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        queueMicrotask(() => listeners.connect && listeners.connect());
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          removeAllListeners(event) {
+            delete listeners[event];
+            return this;
+          },
+          end() {},
+          destroy() {
+            // Simulate a trailing error emitted after destroy(); it must be a no-op
+            // since the "error" listener was removed on successful connect.
+            if (listeners.error) listeners.error(new Error("late ECONNRESET"));
+          },
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "http://api-proxy:10002",
+        timeoutMs: 500,
+        retryDelayMs: 1,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result).toEqual({ ok: true });
     });
   });
 

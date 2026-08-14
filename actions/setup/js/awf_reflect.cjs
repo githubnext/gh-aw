@@ -20,6 +20,7 @@ require("./shim.cjs");
 const fs = require("fs");
 const path = require("path");
 const net = require("net");
+const tls = require("tls");
 const { withRetry, sleep } = require("./error_recovery.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
@@ -379,13 +380,17 @@ async function fetchAWFReflect(options) {
  * This guards against startup races where /reflect is available but a per-provider
  * listener has not yet bound/started accepting connections.
  *
+ * For "https:" baseUrls, the probe performs a full TLS handshake (via `tls.connect`) rather
+ * than a bare TCP connect, since a raw TCP accept can succeed well before the TLS listener
+ * is actually able to negotiate a secure session and serve requests.
+ *
  * @param {{
  *   baseUrl: string,
  *   timeoutMs?: number,
  *   retryDelayMs?: number,
  *   perAttemptTimeoutMs?: number,
  *   logger?: (msg: string) => void,
- *   connectImpl?: typeof net.connect,
+ *   connectImpl?: (opts: { host: string, port: number }) => import("net").Socket,
  * }} options
  * @returns {Promise<{ ok: true } | { ok: false, reason: "invalid_base_url" | "timeout", error: string }>}
  */
@@ -395,7 +400,6 @@ async function waitForProviderListenerReady(options) {
   const retryDelayMs = options?.retryDelayMs ?? AWF_PROVIDER_LISTENER_READY_RETRY_MS;
   const perAttemptTimeoutMsRaw = options?.perAttemptTimeoutMs ?? AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS;
   const perAttemptTimeoutMs = Number.isFinite(perAttemptTimeoutMsRaw) && perAttemptTimeoutMsRaw > 0 ? perAttemptTimeoutMsRaw : AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS;
-  const connectImpl = options?.connectImpl ?? net.connect;
   const baseUrl = String(options?.baseUrl ?? "").trim();
   if (!baseUrl) {
     return { ok: false, reason: "invalid_base_url", error: "baseUrl is empty" };
@@ -412,11 +416,19 @@ async function waitForProviderListenerReady(options) {
   if (!host || !Number.isFinite(port) || port <= 0) {
     return { ok: false, reason: "invalid_base_url", error: `baseUrl missing host/port: ${baseUrl}` };
   }
+  // For https:// providers, a bare TCP accept does not prove the listener can complete a TLS
+  // handshake. Probe with tls.connect and wait for "secureConnect" so the readiness gate lines
+  // up with the actual failure mode (handshake/startup errors), not just an open port.
+  const isHttps = parsed.protocol === "https:";
+  const readyEvent = isHttps ? "secureConnect" : "connect";
+  const connectImpl = options?.connectImpl ?? (isHttps ? opts => tls.connect({ ...opts, servername: opts.host }) : opts => net.connect(opts));
 
   logger(`awf-reflect: waiting for provider listener readiness at ${host}:${port} (timeout=${timeoutMs}ms)`);
   const startedAt = Date.now();
   let lastError = "connection not ready";
   while (Date.now() - startedAt < timeoutMs) {
+    const remainingBudgetMs = timeoutMs - (Date.now() - startedAt);
+    const attemptTimeoutMs = Math.max(1, Math.min(perAttemptTimeoutMs, remainingBudgetMs));
     const ready = await new Promise(resolve => {
       const socket = connectImpl({ host, port });
       let settled = false;
@@ -427,14 +439,18 @@ async function waitForProviderListenerReady(options) {
       };
       const timer = setTimeout(() => {
         clear();
-        lastError = `connect attempt timed out after ${perAttemptTimeoutMs}ms`;
+        lastError = `connect attempt timed out after ${attemptTimeoutMs}ms`;
         socket.destroy();
         settle(false);
-      }, perAttemptTimeoutMs);
+      }, attemptTimeoutMs);
       const clear = () => clearTimeout(timer);
-      socket.once("connect", () => {
+      socket.once(readyEvent, () => {
         clear();
-        socket.end();
+        // Remove the error listener before tearing down the socket: a successful handshake has
+        // already settled this probe as ready, and a late/trailing error (e.g. an abrupt RST)
+        // must not overwrite lastError or otherwise affect the already-settled result.
+        socket.removeAllListeners("error");
+        socket.destroy();
         settle(true);
       });
       socket.once("error", err => {
@@ -448,7 +464,11 @@ async function waitForProviderListenerReady(options) {
       logger(`awf-reflect: provider listener is accepting connections at ${host}:${port}`);
       return { ok: true };
     }
-    await sleep(retryDelayMs);
+    const remainingAfterAttemptMs = timeoutMs - (Date.now() - startedAt);
+    if (remainingAfterAttemptMs <= 0) {
+      break;
+    }
+    await sleep(Math.min(retryDelayMs, remainingAfterAttemptMs));
   }
   logger(`awf-reflect: provider listener readiness timed out for ${host}:${port} (${lastError})`);
   return { ok: false, reason: "timeout", error: lastError };

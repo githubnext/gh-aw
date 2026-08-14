@@ -994,6 +994,17 @@ async function main() {
   applyCopilotModelAliasResolution({ awfReflectData, logger: log });
   applyCopilotWireAPI({ modelsJson: loadModelsJson(), logger: log });
 
+  // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
+  // A noop indicates the work is complete or there is nothing to do — starting the agent
+  // (and, in SDK mode, probing provider listener readiness below) would be wasteful and
+  // potentially harmful. This must run before the provider-listener readiness gate so a
+  // legitimate noop exit is never turned into an infrastructure-incomplete failure by an
+  // unrelated listener being unavailable.
+  const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
+  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
+    process.exit(0);
+  }
+
   // Resolve BYOK provider from live reflect data (SDK mode only).
   // Multi-provider BYOK is the only supported mode — fail immediately if the
   // provider cannot be resolved so retries are not wasted on a misconfigured environment.
@@ -1032,6 +1043,9 @@ async function main() {
     log(`copilot-sdk driver mode: multi-provider config resolved (${multiProvider.providers.length} providers, ${multiProvider.models.length} models, model=${resolvedModel})`);
 
     const uniqueProviderBaseUrls = [...new Set(multiProvider.providers.map(provider => String(provider.baseUrl || "").trim()).filter(Boolean))];
+    if (uniqueProviderBaseUrls.length === 0) {
+      log("copilot-sdk driver mode: no provider baseUrls to probe — skipping listener readiness check");
+    }
     for (const providerBaseUrlToProbe of uniqueProviderBaseUrls) {
       const readiness = await waitForProviderListenerReady({
         baseUrl: providerBaseUrlToProbe,
@@ -1069,14 +1083,6 @@ async function main() {
     multiProviderJson,
   });
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
-
-  // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
-  // A noop indicates the work is complete or there is nothing to do — starting the agent
-  // would be wasteful and potentially harmful.
-  const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
-  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
-    process.exit(0);
-  }
 
   let delay = initialDelayMs;
   let lastExitCode = 1;
@@ -1392,6 +1398,11 @@ async function main() {
             }
           }
 
+          // The listener readiness probe above ensures the api-proxy provider listener is
+          // accepting connections before attempt 0 is sent. A ECONNREFUSED here means the
+          // provider died in the narrow window between the probe and the first request — retry
+          // once as a fresh run. Later attempts (attempt > 0) fall through to the generic retry
+          // handling below instead of taking this one-shot path.
           if (attempt === 0 && isConnectionRefused && maxRetries > 0) {
             useContinueOnRetry = false;
             log(`attempt ${attempt + 1}: connection refused on first request path — retrying as fresh run with short backoff (${FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS}ms) (attempt ${attempt + 2}/${maxRetries + 1})`);
