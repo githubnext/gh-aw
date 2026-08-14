@@ -35,6 +35,7 @@ const {
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isDetectionPhase,
   isAuthenticationFailedError,
+  isConnectionRefusedError,
   isRetryableProxyAuthenticationFailure,
   isMCPGatewayShutdownError,
   isModelAvailableInReflectData,
@@ -123,6 +124,17 @@ describe("copilot_harness.cjs", () => {
     it("matches the exact error from the failed workflow run", () => {
       const errorOutput = "Execution failed: CAPIError: 400 400 Bad Request\n (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)";
       expect(CAPI_ERROR_400_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    describe("connection refused detection", () => {
+      it("detects ECONNREFUSED signals in SDK driver output", () => {
+        const output = "Failed native model HTTP request: error sending request for url (http://api-proxy:10002/chat/completions): " + "client error (Connect): tcp connect error: Connection refused (os error 111) [ECONNREFUSED]";
+        expect(isConnectionRefusedError(output)).toBe(true);
+      });
+
+      it("does not match unrelated output", () => {
+        expect(isConnectionRefusedError("CAPIError: 400 bad request")).toBe(false);
+      });
     });
 
     describe("CAPI quota-exceeded detection pattern", () => {

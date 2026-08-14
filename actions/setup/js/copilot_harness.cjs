@@ -65,6 +65,8 @@ const {
   AWF_REFLECT_TIMEOUT_MS,
   AWF_MODELS_URL_TIMEOUT_MS,
   GEMINI_MODEL_NAME_PREFIX,
+  AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
+  waitForProviderListenerReady,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
@@ -162,6 +164,8 @@ const SDK_SESSION_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for sessio
 // avoid false positives from any process that logs "Gateway shutdown initiated"
 // as plain text.
 const MCP_GATEWAY_SHUTDOWN_PATTERN = /"message"\s*:\s*"Gateway shutdown initiated"/;
+const CONNECTION_REFUSED_ERROR_PATTERN = /connection refused|ECONNREFUSED/i;
+const FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS = 1000;
 
 // Pattern to detect null-type tool_call error that poisons conversation history.
 // Matches the Copilot API 400 error:
@@ -486,6 +490,15 @@ function isSDKSessionIdleTimeoutError(output) {
  */
 function isMCPGatewayShutdownError(output) {
   return MCP_GATEWAY_SHUTDOWN_PATTERN.test(output);
+}
+
+/**
+ * Determine whether output contains a connection-refused signal.
+ * @param {string} output
+ * @returns {boolean}
+ */
+function isConnectionRefusedError(output) {
+  return CONNECTION_REFUSED_ERROR_PATTERN.test(output);
 }
 
 /**
@@ -1017,6 +1030,20 @@ async function main() {
     }
 
     log(`copilot-sdk driver mode: multi-provider config resolved (${multiProvider.providers.length} providers, ${multiProvider.models.length} models, model=${resolvedModel})`);
+
+    const uniqueProviderBaseUrls = [...new Set(multiProvider.providers.map(provider => String(provider.baseUrl || "").trim()).filter(Boolean))];
+    for (const providerBaseUrlToProbe of uniqueProviderBaseUrls) {
+      const readiness = await waitForProviderListenerReady({
+        baseUrl: providerBaseUrlToProbe,
+        timeoutMs: AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
+        logger: log,
+      });
+      if (!readiness.ok) {
+        emitInfrastructureIncomplete(`api-proxy provider listener was not ready at ${providerBaseUrlToProbe} before first Copilot SDK request (${readiness.error}).`);
+        log(`copilot-sdk driver mode: provider listener readiness probe failed for ${providerBaseUrlToProbe}: ${readiness.error}`);
+        process.exit(1);
+      }
+    }
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
@@ -1179,6 +1206,7 @@ async function main() {
           const isNullTypeToolCall = isNullTypeToolCallError(result.output);
           const isSDKSessionIdleTimeout = isSDKSessionIdleTimeoutError(result.output);
           const isMCPGatewayShutdown = isMCPGatewayShutdownError(result.output);
+          const isConnectionRefused = isConnectionRefusedError(result.output);
           const permissionDeniedCount = countPermissionDeniedIssues(result.output);
           const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
           const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
@@ -1215,6 +1243,7 @@ async function main() {
               ` isNullTypeToolCallError=${isNullTypeToolCall}` +
               ` isSDKSessionIdleTimeoutError=${isSDKSessionIdleTimeout}` +
               ` isMCPGatewayShutdownError=${isMCPGatewayShutdown}` +
+              ` isConnectionRefusedError=${isConnectionRefused}` +
               ` isAuthError=${isAuthErr}` +
               ` isAuthenticationFailedError=${isAuthenticationFailed}` +
               ` permissionDeniedCount=${permissionDeniedCount}` +
@@ -1363,6 +1392,13 @@ async function main() {
             }
           }
 
+          if (attempt === 0 && isConnectionRefused && attempt < maxRetries) {
+            useContinueOnRetry = false;
+            continueDisabledPermanently = true;
+            log(`attempt ${attempt + 1}: connection refused on first request path — retrying as fresh run with short backoff (${FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS}ms) (attempt ${attempt + 2}/${maxRetries + 1})`);
+            return { action: "retry", nextDelayMs: FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS };
+          }
+
           if (isStartupRetryEligible && isStartupNoOutputRetryCandidate(result) && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < maxRetries) {
             scheduledExit2Retries += 1;
             scheduledExit2RetryAttempted = true;
@@ -1468,6 +1504,7 @@ if (typeof module !== "undefined" && module.exports) {
     AGENTIC_ENGINE_TIMEOUT_PATTERN,
     buildMissingToolPermissionIssuePayload,
     isAuthenticationFailedError,
+    isConnectionRefusedError,
     isMCPGatewayShutdownError,
     isSDKSessionIdleTimeoutError,
     startCopilotSDKServer,

@@ -19,6 +19,7 @@ require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
+const net = require("net");
 const { withRetry, sleep } = require("./error_recovery.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
@@ -33,6 +34,10 @@ const AWF_REFLECT_OUTPUT_PATH = "/tmp/gh-aw/sandbox/firewall/awf-reflect.json";
 const AWF_REFLECT_TIMEOUT_MS = 60000;
 // Milliseconds to wait for each models_url fallback fetch (shorter than the main reflect timeout).
 const AWF_MODELS_URL_TIMEOUT_MS = 3000;
+// Milliseconds to wait for an api-proxy provider listener to accept a real TCP connection.
+const AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS = 15000;
+// Delay between provider-listener readiness probes.
+const AWF_PROVIDER_LISTENER_READY_RETRY_MS = 250;
 // Maximum attempts for models_url fallback fetches when the proxy is not yet ready.
 const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
 // Base delay between models_url fallback retries. Uses exponential backoff.
@@ -323,6 +328,7 @@ async function fetchAWFReflect(options) {
         status: res.status,
       };
     }
+
     /** @type {any} */
     const reflectData = await res.json();
     // Attempt to fill in null models for configured providers by fetching directly
@@ -362,6 +368,70 @@ async function fetchAWFReflect(options) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Wait until a provider listener (e.g. http://api-proxy:10002) accepts a real TCP
+ * connection, or time out.
+ *
+ * This guards against startup races where /reflect is available but a per-provider
+ * listener has not yet bound/started accepting connections.
+ *
+ * @param {{
+ *   baseUrl: string,
+ *   timeoutMs?: number,
+ *   retryDelayMs?: number,
+ *   logger?: (msg: string) => void,
+ *   connectImpl?: typeof net.connect,
+ * }} options
+ * @returns {Promise<{ ok: true } | { ok: false, reason: "invalid_base_url" | "timeout", error: string }>}
+ */
+async function waitForProviderListenerReady(options) {
+  const logger = options?.logger ?? DEFAULT_REFLECT_LOGGER;
+  const timeoutMs = options?.timeoutMs ?? AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS;
+  const retryDelayMs = options?.retryDelayMs ?? AWF_PROVIDER_LISTENER_READY_RETRY_MS;
+  const connectImpl = options?.connectImpl ?? net.connect;
+  const baseUrl = String(options?.baseUrl ?? "").trim();
+  if (!baseUrl) {
+    return { ok: false, reason: "invalid_base_url", error: "baseUrl is empty" };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    return { ok: false, reason: "invalid_base_url", error: `invalid baseUrl: ${baseUrl}` };
+  }
+  const host = parsed.hostname;
+  const port = parsed.port ? Number.parseInt(parsed.port, 10) : parsed.protocol === "https:" ? 443 : 80;
+  if (!host || !Number.isFinite(port) || port <= 0) {
+    return { ok: false, reason: "invalid_base_url", error: `baseUrl missing host/port: ${baseUrl}` };
+  }
+
+  logger(`awf-reflect: waiting for provider listener readiness at ${host}:${port} (timeout=${timeoutMs}ms)`);
+  const startedAt = Date.now();
+  let lastError = "connection not ready";
+  while (Date.now() - startedAt < timeoutMs) {
+    const ready = await new Promise(resolve => {
+      const socket = connectImpl({ host, port });
+      socket.once("connect", () => {
+        socket.end();
+        resolve(true);
+      });
+      socket.once("error", err => {
+        lastError = getErrorMessage(err);
+        socket.destroy();
+        resolve(false);
+      });
+    });
+    if (ready) {
+      logger(`awf-reflect: provider listener is accepting connections at ${host}:${port}`);
+      return { ok: true };
+    }
+    await sleep(retryDelayMs);
+  }
+  logger(`awf-reflect: provider listener readiness timed out for ${host}:${port} (${lastError})`);
+  return { ok: false, reason: "timeout", error: lastError };
 }
 
 /**
@@ -793,11 +863,14 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_MODELS_URL_MAX_ATTEMPTS,
     AWF_MODELS_URL_RETRY_BASE_MS,
     AWF_MODELS_URL_RETRY_MAX_MS,
+    AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
+    AWF_PROVIDER_LISTENER_READY_RETRY_MS,
     GEMINI_MODEL_NAME_PREFIX,
     enrichReflectModels,
     extractModelIds,
     fetchAWFReflect,
     fetchModelsFromUrl,
+    waitForProviderListenerReady,
     getCatalogModelEntry,
     inferProviderTypeForModel,
     inferWireApiForModel,

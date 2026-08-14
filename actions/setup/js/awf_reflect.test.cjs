@@ -13,11 +13,14 @@ const {
   AWF_MODELS_URL_MAX_ATTEMPTS,
   AWF_MODELS_URL_RETRY_BASE_MS,
   AWF_MODELS_URL_RETRY_MAX_MS,
+  AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
+  AWF_PROVIDER_LISTENER_READY_RETRY_MS,
   GEMINI_MODEL_NAME_PREFIX,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  waitForProviderListenerReady,
   getCatalogModelEntry,
   inferProviderTypeForModel,
   inferWireApiForModel,
@@ -36,7 +39,75 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_MODELS_URL_MAX_ATTEMPTS).toBe(5);
       expect(AWF_MODELS_URL_RETRY_BASE_MS).toBe(250);
       expect(AWF_MODELS_URL_RETRY_MAX_MS).toBe(2000);
+      expect(AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS).toBe(15000);
+      expect(AWF_PROVIDER_LISTENER_READY_RETRY_MS).toBe(250);
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
+    });
+  });
+
+  describe("waitForProviderListenerReady", () => {
+    it("returns ok when listener accepts a connection", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        queueMicrotask(() => listeners.connect && listeners.connect());
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          end() {},
+          destroy() {},
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "http://api-proxy:10002",
+        timeoutMs: 500,
+        retryDelayMs: 1,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result).toEqual({ ok: true });
+      expect(probingConnect).toHaveBeenCalled();
+    });
+
+    it("returns timeout when listener keeps refusing connections", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        queueMicrotask(() => listeners.error && listeners.error(new Error("connect ECONNREFUSED")));
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          end() {},
+          destroy() {},
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "http://api-proxy:10002",
+        timeoutMs: 20,
+        retryDelayMs: 1,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("timeout");
+        expect(result.error).toContain("ECONNREFUSED");
+      }
+    });
+
+    it("returns invalid_base_url for malformed baseUrl", async () => {
+      const result = await waitForProviderListenerReady({
+        baseUrl: "not a url",
+        logger: () => {},
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toBe("invalid_base_url");
+      }
     });
   });
 
