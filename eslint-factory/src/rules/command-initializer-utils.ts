@@ -57,22 +57,24 @@ const STRING_TRANSFORM_METHODS = new Set(["trim", "trimStart", "trimEnd", "toLow
 
 /**
  * When the node is a call to a string-normalizing method (for example
- * `.trim()` or `.toLowerCase()`), returns the receiver expression so callers
- * can inspect the underlying command string. Returns null otherwise.
+ * `.trim()` or `.toLowerCase()`), returns the receiver expression and the call
+ * arguments so callers can inspect the underlying command string. Returns null
+ * otherwise.
  */
-function getStringTransformReceiver(node: TSESTree.Expression): TSESTree.Expression | null {
+function getStringTransformCall(node: TSESTree.Expression): { receiver: TSESTree.Expression; args: TSESTree.CallExpressionArgument[] } | null {
   if (node.type !== AST_NODE_TYPES.CallExpression) return null;
   const callee = node.callee;
   if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed) return null;
   if (callee.property.type !== AST_NODE_TYPES.Identifier || !STRING_TRANSFORM_METHODS.has(callee.property.name)) return null;
-  return callee.object;
+  return { receiver: callee.object, args: node.arguments };
 }
 
 /**
  * Returns true when the node is a purely static expression (no runtime
  * interpolation): a literal, a no-expression template literal, a binary `+` of
- * two static expressions, or a string-normalizing method call on a static
- * receiver.
+ * two static expressions, or a string-normalizing method call whose receiver
+ * and arguments are all static (for example `.replace()` can inject dynamic
+ * content through its replacement argument).
  */
 export function isStaticExpression(node: TSESTree.Expression): boolean {
   if (node.type === AST_NODE_TYPES.Literal) return true;
@@ -80,8 +82,11 @@ export function isStaticExpression(node: TSESTree.Expression): boolean {
   if (node.type === AST_NODE_TYPES.BinaryExpression && node.operator === "+") {
     return isStaticExpression(node.left) && isStaticExpression(node.right);
   }
-  const receiver = getStringTransformReceiver(node);
-  if (receiver) return isStaticExpression(receiver);
+  const transform = getStringTransformCall(node);
+  if (transform) {
+    if (!isStaticExpression(transform.receiver)) return false;
+    return transform.args.every(arg => arg.type !== AST_NODE_TYPES.SpreadElement && isStaticExpression(arg));
+  }
   return false;
 }
 
@@ -99,18 +104,26 @@ export function isDynamicStringConcatenation(node: TSESTree.Expression): boolean
  *
  * Write-once local bindings and chained string-normalizing calls (for example
  * `` `git checkout ${branch}`.trim() ``) are unwrapped before the check so the
- * underlying command string is inspected.
+ * underlying command string is inspected. For calls that accept arguments (for
+ * example `.replace(pattern, value)`), the arguments are inspected as well.
  */
-export function getDynamicCommandKind(expression: TSESTree.Expression, sourceCode: TSESLint.SourceCode): string | null {
-  const seen = new Set<TSESTree.Expression>();
-  let candidate = resolveWriteOnceInitializerChain(expression, sourceCode);
-  while (!seen.has(candidate)) {
-    seen.add(candidate);
-    if (candidate.type === AST_NODE_TYPES.TemplateLiteral && candidate.expressions.length > 0) return "interpolated template literal";
-    if (isDynamicStringConcatenation(candidate)) return "dynamic string concatenation";
-    const receiver = getStringTransformReceiver(candidate);
-    if (!receiver) return null;
-    candidate = resolveWriteOnceInitializerChain(receiver, sourceCode);
+export function getDynamicCommandKind(expression: TSESTree.Expression, sourceCode: TSESLint.SourceCode, seen: Set<TSESTree.Expression> = new Set()): string | null {
+  const candidate = resolveWriteOnceInitializerChain(expression, sourceCode);
+  if (seen.has(candidate)) return null;
+  seen.add(candidate);
+
+  if (candidate.type === AST_NODE_TYPES.TemplateLiteral && candidate.expressions.length > 0) return "interpolated template literal";
+  if (isDynamicStringConcatenation(candidate)) return "dynamic string concatenation";
+
+  const transform = getStringTransformCall(candidate);
+  if (!transform) return null;
+
+  const receiverKind = getDynamicCommandKind(transform.receiver, sourceCode, seen);
+  if (receiverKind) return receiverKind;
+  for (const arg of transform.args) {
+    if (arg.type === AST_NODE_TYPES.SpreadElement) continue;
+    const argKind = getDynamicCommandKind(arg, sourceCode, seen);
+    if (argKind) return argKind;
   }
   return null;
 }

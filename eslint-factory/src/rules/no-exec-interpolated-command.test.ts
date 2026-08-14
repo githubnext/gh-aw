@@ -51,6 +51,8 @@ describe("no-exec-interpolated-command", () => {
         { code: "exec.exec(`git`.trim(), [branch]);" },
         // Fully static concatenation with a chained string method — safe
         { code: `exec.exec(("git" + " checkout").toLowerCase(), [branch]);` },
+        // Static replace with static arguments — safe
+        { code: `exec.exec("git-checkout".replace("-", " "), [branch]);` },
       ],
       invalid: [
         // Template literal with interpolation as command
@@ -121,6 +123,11 @@ describe("no-exec-interpolated-command", () => {
         // Chained string method on a variable holding a dynamic command
         {
           code: "function run(branch) { const cmd = `git checkout ${branch}`; exec.exec(cmd.trim(), []); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Dynamic replacement argument on a static receiver is also flagged
+        {
+          code: 'exec.exec("git checkout PLACEHOLDER".replace("PLACEHOLDER", `${branch}-x`), []);',
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
         },
         // Chained aliases are also flagged when they resolve to a dynamic command
