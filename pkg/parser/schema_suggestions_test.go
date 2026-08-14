@@ -406,6 +406,12 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 			wantValue: "raed",
 		},
 		{
+			name:      "nested path - unquoted value with inline comment",
+			yaml:      "permissions:\n    contents: raed # typo\n",
+			path:      "/permissions/contents",
+			wantValue: "raed",
+		},
+		{
 			name:      "three-level path returns empty",
 			yaml:      "a:\n  b:\n    c: value\n",
 			path:      "/a/b/c",

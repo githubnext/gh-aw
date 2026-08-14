@@ -37,7 +37,7 @@
     },
     "skills": {
       "type": "array",
-      "desc": "Optional list of external skill references to install during activation.",
+      "desc": "Optional list of skill references to install during activation.",
       "array": true
     },
     "metadata": {
@@ -66,6 +66,11 @@
       "desc": "If true, inline all imports (including those without inputs) at compilation time in the generated lock.yml instead of...",
       "enum": [true, false],
       "leaf": true
+    },
+    "ambient-folders": {
+      "type": "array",
+      "desc": "Workspace-relative folders to bundle in the activation artifact and restore before the agent runs.",
+      "array": true
     },
     "on": {
       "type": "string|object",
@@ -719,6 +724,11 @@
         }
       }
     },
+    "enclaves": {
+      "type": "array",
+      "desc": "AWF-owned private-repository executors exposed only through the compiler-launched MCP gateway.",
+      "array": true
+    },
     "sandbox": {
       "type": "string|object",
       "desc": "Sandbox configuration for AI engines.",
@@ -796,12 +806,19 @@
             "token-steering": {
               "type": "boolean",
               "desc": "Enable or disable API proxy token steering.",
+              "enum": [true, false],
               "leaf": true
             },
             "runtime": {
               "type": "string",
-              "desc": "Container runtime for the agent container. cloud-hypervisor is preview-only and limited to GitHub-hosted Ubuntu x86_64 runners with /dev/kvm.",
+              "desc": "Container runtime for the agent container.",
               "enum": ["gvisor", "docker-sbx", "cloud-hypervisor"],
+              "leaf": true
+            },
+            "runtime-install": {
+              "type": "boolean",
+              "desc": "Controls generation of sandbox runtime installation steps for gVisor and docker-sbx.",
+              "enum": [true, false],
               "leaf": true
             },
             "config": {
@@ -835,6 +852,10 @@
                 "anthropic": {
                   "type": "object",
                   "desc": "AWF API proxy target configuration for a single LLM provider."
+                },
+                "copilot": {
+                  "type": "object",
+                  "desc": "AWF API proxy target configuration for the Copilot BYOK provider."
                 }
               }
             },
@@ -847,7 +868,7 @@
             "allow-host-ports": {
               "type": "array",
               "desc": "Additional host TCP ports the agent may connect to when legacy-security is enabled.",
-              "leaf": true
+              "array": true
             }
           }
         },
@@ -1080,6 +1101,11 @@
               "type": "integer|string",
               "desc": "Maximum delay cap in ms.",
               "leaf": true
+            },
+            "watchdog-timeout": {
+              "type": "integer|string",
+              "desc": "Post-result idle watchdog timeout in seconds.",
+              "leaf": true
             }
           }
         },
@@ -1145,6 +1171,26 @@
             "workspace-id": {
               "type": "string",
               "desc": "Anthropic WIF workspace ID (e.g., ws_...).",
+              "leaf": true
+            },
+            "workload-identity-provider": {
+              "type": "string",
+              "desc": "Google Cloud WIF workload identity provider resource name (e.g., projects/PROJECT_NUMBER/locations/global/workloadIde...",
+              "leaf": true
+            },
+            "service-account": {
+              "type": "string",
+              "desc": "Google Cloud service account email to impersonate via WIF (e.g., my-sa@my-project.iam.gserviceaccount.com).",
+              "leaf": true
+            },
+            "project": {
+              "type": "string",
+              "desc": "Google Cloud project ID used for Vertex AI / Gemini Enterprise inference.",
+              "leaf": true
+            },
+            "location": {
+              "type": "string",
+              "desc": "Google Cloud region for Vertex AI inference (e.g., us-central1).",
               "leaf": true
             }
           }
@@ -1708,27 +1754,27 @@
             },
             "bounded-queries": {
               "type": "object",
-              "desc": "AWF bounded-query configuration for finite private-repository questions. Every query runs in a fresh backend-specific sandbox independently from the primary agent sandbox.",
+              "desc": "AWF bounded-query configuration for cross-repository private data access (AWF v0.27.44+).",
               "children": {
                 "private-repos": {
                   "type": "array",
-                  "desc": "Private repositories approved for bounded-query access, each with repo and sensitivity fields.",
+                  "desc": "List of private repositories the agent may query via bounded queries.",
                   "array": true
                 },
                 "runtime": {
                   "type": "string",
-                  "desc": "Isolated query backend. sbx is experimental, capability-gated, fail-closed, and never falls back to docker or gvisor.",
+                  "desc": "Isolated backend used to execute each bounded-query script.",
                   "enum": ["docker", "gvisor", "sbx"],
                   "leaf": true
                 },
                 "timeout": {
                   "type": "integer",
-                  "desc": "Maximum execution time in seconds for one bounded-query invocation.",
+                  "desc": "Maximum execution time in seconds for a single bounded-query invocation.",
                   "leaf": true
                 },
                 "memory-limit": {
                   "type": "string",
-                  "desc": "Memory limit for bounded-query execution, such as 512m or 2g.",
+                  "desc": "Memory limit for bounded-query container execution (e.g.",
                   "leaf": true
                 },
                 "interpreter": {
@@ -1836,6 +1882,22 @@
               "type": "array",
               "desc": "List of allowed file extensions (e.g., [\".json\", \".txt\"]).",
               "array": true
+            },
+            "validation": {
+              "type": "object",
+              "desc": "Custom domain validation hook for this cache-memory entry",
+              "children": {
+                "script": {
+                  "type": "string",
+                  "desc": "JavaScript validator body that runs over the complete cache-memory directory before persistence.",
+                  "leaf": true
+                },
+                "timeout-minutes": {
+                  "type": "integer",
+                  "desc": "Maximum validator runtime in minutes (default: 1, max: 5)",
+                  "leaf": true
+                }
+              }
             }
           },
           "array": true
@@ -1986,6 +2048,22 @@
               "desc": "When true, all .json files are pretty-printed (2-space indent) before being committed, making them human-readable in ...",
               "enum": [true, false],
               "leaf": true
+            },
+            "validation": {
+              "type": "object",
+              "desc": "Custom domain validation hook for this repo-memory entry",
+              "children": {
+                "script": {
+                  "type": "string",
+                  "desc": "JavaScript validator body that runs over the complete repo-memory directory after optional JSON formatting and before...",
+                  "leaf": true
+                },
+                "timeout-minutes": {
+                  "type": "integer",
+                  "desc": "Maximum validator runtime in minutes (default: 1, max: 5)",
+                  "leaf": true
+                }
+              }
             }
           },
           "array": true
@@ -2056,6 +2134,11 @@
           "type": "array",
           "desc": "List of allowed domains for URL redaction in safe output handlers.",
           "array": true
+        },
+        "data": {
+          "type": "boolean|object|string",
+          "desc": "Structured data configuration for body-based safe outputs.",
+          "leaf": true
         },
         "allowed-github-references": {
           "type": "array",
@@ -2371,6 +2454,12 @@
           "desc": "Repository to create failure tracking issues in, in the format 'owner/repo'.",
           "leaf": true
         },
+        "report-failed-jobs": {
+          "type": "boolean",
+          "desc": "Controls whether to report failed non-builtin jobs as issues (default: true).",
+          "enum": [true, false],
+          "leaf": true
+        },
         "max-bot-mentions": {
           "type": "integer|string",
           "desc": "Maximum number of bot trigger references (e.g.",
@@ -2511,6 +2600,28 @@
                 "audience": {
                   "type": "string",
                   "desc": "Optional OIDC audience passed to core.getIDToken(audience) when using credential-less OIDC mode (github-app present w...",
+                  "leaf": true
+                }
+              }
+            },
+            "workload-identity": {
+              "type": "object",
+              "desc": "Exchange a GitHub Actions OIDC token for a cloud access token before OTLP export.",
+              "children": {
+                "provider": {
+                  "type": "string",
+                  "desc": "Cloud workload identity provider.",
+                  "enum": ["google"],
+                  "leaf": true
+                },
+                "audience": {
+                  "type": "string",
+                  "desc": "Google Workload Identity Provider resource name (e.g.",
+                  "leaf": true
+                },
+                "service-account": {
+                  "type": "string",
+                  "desc": "Optional Google service account email to impersonate after STS token exchange.",
                   "leaf": true
                 }
               }
