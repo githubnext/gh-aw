@@ -10,7 +10,7 @@ Agentic workflows have two parts: the **YAML frontmatter**, which is compiled in
 See [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/) for guidance on creating workflows with AI assistance.
 
 > [!TIP]
-> Working in `github/gh-aw` itself? Treat any edit under `.github/workflows/*.md` as a cue to run `make recompile` before committing. CI checks the generated `.lock.yml` files for drift, so this is the safest default even when you're only changing markdown instructions. For early feedback while iterating locally, you can run `gh aw compile --watch --schedule-seed github/gh-aw`, then finish with `make recompile`.
+> Working in `github/gh-aw` itself? Treat any edit under `.github/workflows/*.md` as a cue to run `make recompile` (a private Makefile target for this repo, not a `gh aw` CLI command) before committing. CI checks the generated `.lock.yml` files for drift, so this is the safest default even when you're only changing markdown instructions. For early feedback while iterating locally, you can run `gh aw compile --watch --schedule-seed github/gh-aw`, then finish with `make recompile`.
 
 ## Editing Without Recompilation
 
@@ -48,7 +48,7 @@ Read issue #${{ github.event.issue.number }} and add appropriate labels.
 Apply labels for bugs, enhancements, questions, and documentation updates. For priority, use `high-priority` for security or blocking issues, `medium-priority` for important but non-critical work, and `low-priority` for minor improvements.
 ```
 
-✅ This change takes effect immediately. In `github/gh-aw`, still run `make recompile` before committing so CI sees fresh `.lock.yml` files alongside the markdown change.
+✅ This change takes effect immediately. Contributors to `github/gh-aw` itself should still run `make recompile` (a private Makefile target for this repo, not a `gh aw` CLI command) before committing so CI sees fresh `.lock.yml` files alongside the markdown change.
 
 ## Editing With Recompilation Required
 
@@ -121,7 +121,7 @@ For shared repositories, pass a canonical repository slug with `--schedule-seed`
 gh aw compile --schedule-seed github/gh-aw
 ```
 
-The repository `Makefile` uses this pattern in `make recompile`:
+In `github/gh-aw`, this pattern is wrapped by the private `make recompile` Makefile target (not a `gh aw` CLI command):
 
 ```bash
 make recompile
@@ -131,7 +131,7 @@ Use a fixed seed whenever deterministic schedule output matters, especially for 
 
 ## Quick Rule of Thumb
 
-Edit the markdown body for instruction changes, recompile after any frontmatter change, use `--schedule-seed` or a project `make recompile` target when fuzzy schedules must stay deterministic across contributors, and use sanitized step outputs instead of raw user input in expressions.
+Edit the markdown body for instruction changes, recompile with `gh aw compile` after any frontmatter change, use `--schedule-seed` when fuzzy schedules must stay deterministic across contributors (`github/gh-aw` contributors can use the private `make recompile` target for this), and use sanitized step outputs instead of raw user input in expressions.
 
 ## Related Documentation
 
