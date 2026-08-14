@@ -1464,6 +1464,19 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		assert.NotContains(t, errors[0].Message, "raw Go source")
 	})
 
+	t.Run("preserves mixed tool result annotations", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		mixedContent := `{"type":"user","message":{"content":[{"type":"tool_result","content":"raw Go source"},{"type":"text","text":"runner failure"}]}}`
+		logContent := "2026-08-13T04:03:11Z ##[error]" + mixedContent
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "10_Execute Claude Code CLI.txt"), []byte(logContent), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.Len(t, errors, 1)
+		assert.Contains(t, errors[0].Message, "runner failure")
+	})
+
 	t.Run("returns nil when workflow-logs directory missing", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log and no workflow-logs directory

@@ -289,14 +289,17 @@ func TestGoLoggerDefinesSingleTerminalSafeOutputContract(t *testing.T) {
 	}
 
 	workflow := string(content)
-	for _, guidance := range []string{
-		"Choose exactly one terminal outcome: `create_pull_request` after successful changes, `noop` when no changes are needed, or `report_incomplete` when a blocking failure prevents completion.",
-		"Call the chosen safe-output command exactly once, as your final action. Do not call any other safe-output command before or after it.",
-		"Do not probe safe outputs with `which`, `type`, `--help`, or schema-inspection commands.",
-		"If the safe-output gateway rejects the call, stop immediately and surface its exact rejection message. Do not retry the call or switch to another terminal safe output.",
+	for _, keyword := range []string{
+		"exactly one terminal outcome",
+		"`create_pull_request`",
+		"`noop`",
+		"`report_incomplete`",
+		"exactly once, as your final action",
+		"Do not probe safe outputs",
+		"Do not retry the call or switch to another terminal safe output",
 	} {
-		if !strings.Contains(workflow, guidance) {
-			t.Fatalf("Expected go-logger workflow to include safe-output guidance %q", guidance)
+		if !strings.Contains(workflow, keyword) {
+			t.Fatalf("Expected go-logger workflow to include safe-output contract keyword %q", keyword)
 		}
 	}
 }

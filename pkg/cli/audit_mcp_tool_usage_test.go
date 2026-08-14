@@ -58,6 +58,7 @@ func TestExtractMCPToolUsageData(t *testing.T) {
 		},
 		{
 			name: "tool discovery is not tool usage",
+			// Discovery traffic identifies the contacted server but does not constitute tool usage.
 			logContent: `{"timestamp":"2024-01-12T10:00:00Z","level":"info","type":"request","event":"rpc_call","server_name":"safeoutputs","method":"tools/list","duration":50.0,"status":"success"}
 {"timestamp":"2024-01-12T10:00:01Z","level":"info","type":"request","event":"request","server_name":"safeoutputs","method":"tools/list","duration":50.0,"status":"success"}
 `,

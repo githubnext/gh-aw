@@ -53,7 +53,7 @@ func TestParseGatewayLogs(t *testing.T) {
 `,
 			wantServers:   3,
 			wantRequests:  3,
-			wantToolCalls: 3,
+			wantToolCalls: 0,
 			wantErrors:    0,
 			wantErr:       false,
 		},

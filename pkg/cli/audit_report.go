@@ -871,12 +871,14 @@ func isAgentToolResultAnnotation(line string) bool {
 	if err := json.Unmarshal([]byte(strings.TrimSpace(payload)), &event); err != nil || event.Type != "user" {
 		return false
 	}
+	hasToolResult := false
 	for _, content := range event.Message.Content {
-		if content.Type == "tool_result" {
-			return true
+		if content.Type != "tool_result" {
+			return false
 		}
+		hasToolResult = true
 	}
-	return false
+	return hasToolResult
 }
 
 func extractAgentFailureError(agentRan bool, agentStdioPath string, maxMessageLen int) []ValidationIssue {
