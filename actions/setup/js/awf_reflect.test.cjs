@@ -15,6 +15,7 @@ const {
   AWF_MODELS_URL_RETRY_MAX_MS,
   AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
   AWF_PROVIDER_LISTENER_READY_RETRY_MS,
+  AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS,
   GEMINI_MODEL_NAME_PREFIX,
   enrichReflectModels,
   extractModelIds,
@@ -41,6 +42,7 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_MODELS_URL_RETRY_MAX_MS).toBe(2000);
       expect(AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS).toBe(15000);
       expect(AWF_PROVIDER_LISTENER_READY_RETRY_MS).toBe(250);
+      expect(AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS).toBe(2000);
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
     });
   });
@@ -93,10 +95,8 @@ describe("awf_reflect.cjs", () => {
         logger: () => {},
       });
       expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.reason).toBe("timeout");
-        expect(result.error).toContain("ECONNREFUSED");
-      }
+      expect(result.reason).toBe("timeout");
+      expect(result.error).toContain("ECONNREFUSED");
     });
 
     it("returns invalid_base_url for malformed baseUrl", async () => {
@@ -105,9 +105,7 @@ describe("awf_reflect.cjs", () => {
         logger: () => {},
       });
       expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.reason).toBe("invalid_base_url");
-      }
+      expect(result.reason).toBe("invalid_base_url");
     });
   });
 

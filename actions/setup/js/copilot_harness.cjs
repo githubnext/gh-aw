@@ -1392,9 +1392,8 @@ async function main() {
             }
           }
 
-          if (attempt === 0 && isConnectionRefused && attempt < maxRetries) {
+          if (attempt === 0 && isConnectionRefused && maxRetries > 0) {
             useContinueOnRetry = false;
-            continueDisabledPermanently = true;
             log(`attempt ${attempt + 1}: connection refused on first request path — retrying as fresh run with short backoff (${FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS}ms) (attempt ${attempt + 2}/${maxRetries + 1})`);
             return { action: "retry", nextDelayMs: FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS };
           }

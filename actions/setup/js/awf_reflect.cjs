@@ -38,6 +38,8 @@ const AWF_MODELS_URL_TIMEOUT_MS = 3000;
 const AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS = 15000;
 // Delay between provider-listener readiness probes.
 const AWF_PROVIDER_LISTENER_READY_RETRY_MS = 250;
+// Per-attempt connect timeout while probing provider listener readiness.
+const AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS = 2000;
 // Maximum attempts for models_url fallback fetches when the proxy is not yet ready.
 const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
 // Base delay between models_url fallback retries. Uses exponential backoff.
@@ -381,6 +383,7 @@ async function fetchAWFReflect(options) {
  *   baseUrl: string,
  *   timeoutMs?: number,
  *   retryDelayMs?: number,
+ *   perAttemptTimeoutMs?: number,
  *   logger?: (msg: string) => void,
  *   connectImpl?: typeof net.connect,
  * }} options
@@ -390,6 +393,8 @@ async function waitForProviderListenerReady(options) {
   const logger = options?.logger ?? DEFAULT_REFLECT_LOGGER;
   const timeoutMs = options?.timeoutMs ?? AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS;
   const retryDelayMs = options?.retryDelayMs ?? AWF_PROVIDER_LISTENER_READY_RETRY_MS;
+  const perAttemptTimeoutMsRaw = options?.perAttemptTimeoutMs ?? AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS;
+  const perAttemptTimeoutMs = Number.isFinite(perAttemptTimeoutMsRaw) && perAttemptTimeoutMsRaw > 0 ? perAttemptTimeoutMsRaw : AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS;
   const connectImpl = options?.connectImpl ?? net.connect;
   const baseUrl = String(options?.baseUrl ?? "").trim();
   if (!baseUrl) {
@@ -414,14 +419,29 @@ async function waitForProviderListenerReady(options) {
   while (Date.now() - startedAt < timeoutMs) {
     const ready = await new Promise(resolve => {
       const socket = connectImpl({ host, port });
+      let settled = false;
+      const settle = value => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+      const timer = setTimeout(() => {
+        clear();
+        lastError = `connect attempt timed out after ${perAttemptTimeoutMs}ms`;
+        socket.destroy();
+        settle(false);
+      }, perAttemptTimeoutMs);
+      const clear = () => clearTimeout(timer);
       socket.once("connect", () => {
+        clear();
         socket.end();
-        resolve(true);
+        settle(true);
       });
       socket.once("error", err => {
+        clear();
         lastError = getErrorMessage(err);
         socket.destroy();
-        resolve(false);
+        settle(false);
       });
     });
     if (ready) {
@@ -865,6 +885,7 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_MODELS_URL_RETRY_MAX_MS,
     AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
     AWF_PROVIDER_LISTENER_READY_RETRY_MS,
+    AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS,
     GEMINI_MODEL_NAME_PREFIX,
     enrichReflectModels,
     extractModelIds,
