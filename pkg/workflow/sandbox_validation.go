@@ -221,7 +221,54 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			)
 		}
 
-		sandboxValidationLog.Print("cloud-hypervisor runtime configured -- topology and AWF version checks passed")
+		// cloud-hypervisor rejects --difc-proxy-host: the CLI proxy sidecar (awmg-cli-proxy)
+		// is intentionally not attached to the isolated topology, so gh-proxy mode
+		// (and integrity-reactions, which implicitly enables it) has no route to the host.
+		if isCliProxyNeeded(workflowData) {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeCloudHypervisor),
+				"cloud-hypervisor is incompatible with tools.github.mode: gh-proxy",
+				"cloud-hypervisor does not attach the CLI proxy sidecar, and the AWF runtime rejects "+
+					"--difc-proxy-host for this runtime. Remove tools.github.mode: gh-proxy and the "+
+					"integrity-reactions feature, or change sandbox.agent.runtime.",
+			)
+		}
+
+		// cloud-hypervisor rejects --legacy-security and --enable-host-access, so
+		// legacy-security mode (and the host-port settings that depend on it) can
+		// never take effect for this runtime.
+		if agentConfig.LegacySecurity {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeCloudHypervisor),
+				"cloud-hypervisor is incompatible with sandbox.agent.legacy-security: enable",
+				"cloud-hypervisor rejects --legacy-security and --enable-host-access. Remove "+
+					"sandbox.agent.legacy-security: enable, or change sandbox.agent.runtime.",
+			)
+		}
+		if len(agentConfig.AllowHostPorts) > 0 {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeCloudHypervisor),
+				"cloud-hypervisor is incompatible with sandbox.agent.allow-host-ports",
+				"sandbox.agent.allow-host-ports requires legacy-security mode, which cloud-hypervisor "+
+					"does not support. Remove sandbox.agent.allow-host-ports, or change sandbox.agent.runtime.",
+			)
+		}
+
+		// cloud-hypervisor rejects enclaves configuration outright.
+		if len(workflowData.Enclaves) > 0 {
+			return NewValidationError(
+				"sandbox.agent.runtime",
+				string(AgentRuntimeCloudHypervisor),
+				"cloud-hypervisor is incompatible with enclaves",
+				"cloud-hypervisor does not support the enclaves subsystem. Remove the enclaves "+
+					"configuration, or change sandbox.agent.runtime.",
+			)
+		}
+
+		sandboxValidationLog.Print("cloud-hypervisor runtime configured -- topology, AWF version, and feature compatibility checks passed")
 	}
 
 	// Validate config structure if provided (deprecated - was only for SRT)
