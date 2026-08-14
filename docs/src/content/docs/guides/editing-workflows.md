@@ -14,7 +14,7 @@ See [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/) for guidance 
 
 ## Editing Without Recompilation
 
-You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling. That includes instructions, output templates, conditional guidance, context, and examples.
+You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling, including instructions, output templates, conditional guidance, context, and examples.
 
 ### Example: Adding Instructions
 
@@ -48,7 +48,7 @@ Read issue #${{ github.event.issue.number }} and add appropriate labels.
 Apply labels for bugs, enhancements, questions, and documentation updates. For priority, use `high-priority` for security or blocking issues, `medium-priority` for important but non-critical work, and `low-priority` for minor improvements.
 ```
 
-✅ This change takes effect immediately without recompilation. In `github/gh-aw`, still run `make recompile` before committing so CI sees fresh `.lock.yml` files alongside the markdown change.
+✅ This change takes effect immediately. In `github/gh-aw`, still run `make recompile` before committing so CI sees fresh `.lock.yml` files alongside the markdown change.
 
 ## Editing With Recompilation Required
 
@@ -85,7 +85,7 @@ tools:
 
 ## Expressions in Markdown
 
-You can use these expressions in markdown without recompilation:
+Markdown can include runtime expressions without recompilation:
 
 ```markdown
 # Process Issue
@@ -102,7 +102,7 @@ Repository: ${{ github.repository }}
 
 These expressions are evaluated at runtime and validated for security. See [Templating](/gh-aw/reference/templating/) for the complete list of allowed expressions.
 
-Arbitrary expressions are blocked for security. This will fail at runtime:
+Arbitrary expressions are blocked. This will fail at runtime:
 
 ```markdown
 # ❌ WRONG - Will be rejected
@@ -115,7 +115,7 @@ Use `steps.sanitized.outputs.text` for sanitized user input instead.
 
 If a workflow uses fuzzy schedules such as `daily`, `weekly`, or `every 2h`, recompilation can change the generated cron output when the compiler derives its scatter seed from repository metadata that differs across clones.
 
-For shared repositories, pass a canonical repository slug with `--schedule-seed` so every contributor generates the same cron expressions:
+For shared repositories, pass a canonical repository slug with `--schedule-seed` so contributors generate the same cron expressions:
 
 ```bash
 gh aw compile --schedule-seed github/gh-aw
@@ -131,13 +131,8 @@ Use a fixed seed whenever deterministic schedule output matters, especially for 
 
 ## Quick Rule of Thumb
 
-Edit the markdown body for instruction changes, and recompile after any frontmatter change. Use `--schedule-seed` or a project `make recompile` target when fuzzy schedules must compile deterministically across contributors, and use sanitized step outputs instead of raw user input in expressions.
+Edit the markdown body for instruction changes, recompile after any frontmatter change, use `--schedule-seed` or a project `make recompile` target when fuzzy schedules must stay deterministic across contributors, and use sanitized step outputs instead of raw user input in expressions.
 
 ## Related Documentation
 
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) for file organization
-- [Frontmatter Reference](/gh-aw/reference/frontmatter/) for configuration options
-- [Markdown Reference](/gh-aw/reference/markdown/) for writing instructions
-- [Compilation Process](/gh-aw/reference/compilation-process/) for compilation details
-- [Templating](/gh-aw/reference/templating/) for expression syntax
-- [Workshop](https://github.com/githubnext/gh-aw-workshop) for hands-on exercises
+See [Workflow Structure](/gh-aw/reference/workflow-structure/) for file organization, [Frontmatter Reference](/gh-aw/reference/frontmatter/) for configuration options, [Markdown Reference](/gh-aw/reference/markdown/) for writing instructions, [Compilation Process](/gh-aw/reference/compilation-process/) for compilation details, [Templating](/gh-aw/reference/templating/) for expression syntax, and the [Workshop](https://github.com/githubnext/gh-aw-workshop) for hands-on exercises.
