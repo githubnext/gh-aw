@@ -63,9 +63,9 @@ let allPassed = true;
 console.log("\nRunning tests...\n");
 
 // Test 1: Engine $ref resolution
-allPassed &= assertContains(output, 'engine: "claude"', "Engine $ref resolved - should show string option");
+allPassed &= assertContains(output, 'engine: "example-value"', "Engine $ref resolved - should show string option");
 
-allPassed &= assertContains(output, 'id: "claude"', "Engine $ref resolved - should show object variant with id field");
+allPassed &= assertContains(output, 'id: "example-value"', "Engine $ref resolved - should show object variant with id field");
 
 allPassed &= assertContains(output, "max-turns:", "Engine $ref resolved - should show max-turns field");
 
@@ -100,7 +100,8 @@ allPassed &= assertContains(output, "```yaml wrap", "YAML code block should have
 allPassed &= assertNotContains(output, "```yaml\n---\n# Workflow name", "YAML code block should NOT be plain ```yaml without wrap");
 
 // Test 8: Verify that all $refs in schema can be resolved
-const allRefs = ["#/$defs/engine_config", "#/$defs/stdio_mcp_tool", "#/$defs/http_mcp_tool", "#/properties/permissions", "#/properties/defaults", "#/properties/concurrency"];
+// Defaults is nested within safe-output configuration, not a root schema property.
+const allRefs = ["#/$defs/engine_config", "#/$defs/stdio_mcp_tool", "#/$defs/http_mcp_tool", "#/properties/permissions", "#/properties/concurrency"];
 
 for (const ref of allRefs) {
   const path = ref.substring(2).split("/");
@@ -147,6 +148,10 @@ allPassed &= assertContains(output, "event_type:", "dispatch-repository example 
 allPassed &= assertContains(output, "workflow:", "dispatch-repository example should include required 'workflow' field");
 
 allPassed &= assertContains(output, "allowed_repositories:", "dispatch-repository example should include 'allowed_repositories' field");
+
+// Test 11: Verify dynamic-key schema properties are expanded
+allPassed &= assertContains(output, "run-install-scripts:", "Runtime example should include run-install-scripts");
+allPassed &= assertContains(output, "report-failed-jobs:", "Safe outputs example should include report-failed-jobs");
 
 // Summary
 console.log("\n" + "=".repeat(50));
