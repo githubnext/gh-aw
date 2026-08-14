@@ -190,8 +190,35 @@ func TestFormal_UnsetMinIntegrityAlwaysAllowsNonBlocked(t *testing.T) {
 	assert.Equal(t, formalErrorBlockedUser, blocked.errorCode)
 }
 
+func TestFormal_EffectiveIntegrity_InvalidMinIntegrityConfigDenied(t *testing.T) {
+	cfg := formalIntegrityGuardConfig{MinIntegrity: "invalid"}
+	item := formalIntegrityItem{AuthorLogin: "external", BaseIntegrity: "merged"}
+
+	decision := formalIntegrityAccessDecision(item, cfg)
+	assert.False(t, decision.allow)
+	assert.Equal(t, formalErrorIntegrityTooLow, decision.errorCode)
+}
+
+func TestFormal_UnknownBaseIntegrityDefaultsToNone(t *testing.T) {
+	cfg := formalIntegrityGuardConfig{MinIntegrity: "approved"}
+	item := formalIntegrityItem{AuthorLogin: "external", BaseIntegrity: "unknown-level"}
+
+	assert.Equal(t, "none", formalEffectiveIntegrity(item, cfg))
+	decision := formalIntegrityAccessDecision(item, cfg)
+	assert.False(t, decision.allow)
+	assert.Equal(t, formalErrorIntegrityTooLow, decision.errorCode)
+}
+
+func TestFormal_CaseInsensitiveApprovalLabelMatching(t *testing.T) {
+	cfg := formalIntegrityGuardConfig{ApprovalLabels: []string{"Human-Reviewed"}, MinIntegrity: "approved"}
+	item := formalIntegrityItem{AuthorLogin: "external", BaseIntegrity: "none", Labels: []string{"human-reviewed"}}
+
+	assert.Equal(t, "approved", formalEffectiveIntegrity(item, cfg))
+	assert.True(t, formalIntegrityAccessDecision(item, cfg).allow)
+}
+
 func formalEffectiveIntegrity(item formalIntegrityItem, cfg formalIntegrityGuardConfig) string {
-	if containsFold(cfg.BlockedUsers, item.AuthorLogin) {
+	if formalContainsFold(cfg.BlockedUsers, item.AuthorLogin) {
 		return "blocked"
 	}
 
@@ -200,10 +227,10 @@ func formalEffectiveIntegrity(item formalIntegrityItem, cfg formalIntegrityGuard
 		effectiveRank = formalEffectiveIntegrityRank("none")
 	}
 
-	if containsFold(cfg.TrustedUsers, item.AuthorLogin) {
+	if formalContainsFold(cfg.TrustedUsers, item.AuthorLogin) {
 		effectiveRank = max(effectiveRank, formalEffectiveIntegrityRank("approved"))
 	}
-	if intersectsFold(cfg.ApprovalLabels, item.Labels) {
+	if formalIntersectsFold(cfg.ApprovalLabels, item.Labels) {
 		effectiveRank = max(effectiveRank, formalEffectiveIntegrityRank("approved"))
 	}
 
@@ -220,7 +247,11 @@ func formalIntegrityAccessDecision(item formalIntegrityItem, cfg formalIntegrity
 		return formalIntegrityDecision{allow: true}
 	}
 
-	if formalEffectiveIntegrityRank(effective) < formalEffectiveIntegrityRank(cfg.MinIntegrity) {
+	minRank := formalEffectiveIntegrityRank(cfg.MinIntegrity)
+	if minRank < 0 {
+		return formalIntegrityDecision{allow: false, errorCode: formalErrorIntegrityTooLow}
+	}
+	if formalEffectiveIntegrityRank(effective) < minRank {
 		return formalIntegrityDecision{allow: false, errorCode: formalErrorIntegrityTooLow}
 	}
 
@@ -229,8 +260,6 @@ func formalIntegrityAccessDecision(item formalIntegrityItem, cfg formalIntegrity
 
 func formalEffectiveIntegrityRank(level string) int {
 	switch strings.ToLower(strings.TrimSpace(level)) {
-	case "blocked":
-		return -1
 	case "none":
 		return 0
 	case "unapproved":
@@ -240,7 +269,7 @@ func formalEffectiveIntegrityRank(level string) int {
 	case "merged":
 		return 3
 	default:
-		return -2
+		return -1
 	}
 }
 
@@ -259,15 +288,20 @@ func formalIntegrityLevelFromRank(rank int) string {
 	}
 }
 
-func containsFold(values []string, needle string) bool {
+func formalContainsFold(values []string, needle string) bool {
 	return slices.ContainsFunc(values, func(value string) bool {
 		return strings.EqualFold(strings.TrimSpace(value), strings.TrimSpace(needle))
 	})
 }
 
-func intersectsFold(a, b []string) bool {
+func formalIntersectsFold(a, b []string) bool {
+	normalized := make(map[string]struct{}, len(b))
+	for _, right := range b {
+		normalized[strings.ToLower(strings.TrimSpace(right))] = struct{}{}
+	}
+
 	for _, left := range a {
-		if containsFold(b, left) {
+		if _, ok := normalized[strings.ToLower(strings.TrimSpace(left))]; ok {
 			return true
 		}
 	}

@@ -81,7 +81,7 @@ The integrity evaluator in §4.6 (effective integrity computation for `trusted-u
 | `MONO_ElevationNeverLowers` | `TestFormal_ElevationNeverLowersIntegrity` | Trusted-user / approval-label elevation is monotonic via `max()` |
 | `DECISION_AccessDecision` | `TestFormal_IntegrityAccessDecisionTable` | Table-driven access decision cases for blocked/trusted/label/default combinations |
 | Edge case: empty arrays | `TestFormal_EmptyTrustedUsersAndLabelsTreatedAsOmitted` | Empty (non-nil) `trusted-users` and `approval-labels` behave as omitted |
-| Edge case: case-insensitive matching | `TestFormal_CaseInsensitiveUserMatching` | `blocked-users` and `trusted-users` matching is case-insensitive |
+| Edge case: case-insensitive matching | `TestFormal_CaseInsensitiveUserMatching`, `TestFormal_CaseInsensitiveApprovalLabelMatching` | `blocked-users`, `trusted-users`, and `approval-labels` matching is case-insensitive |
 | Edge case: unset `min-integrity` | `TestFormal_UnsetMinIntegrityAlwaysAllowsNonBlocked` | Unset `min-integrity` allows all non-blocked content; blocked users are still denied |
 
 ## Fixture Files
