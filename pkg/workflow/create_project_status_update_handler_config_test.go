@@ -9,9 +9,26 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCreateProjectStatusUpdateConfigYAMLInlineBaseConfig(t *testing.T) {
+	config := CreateProjectStatusUpdateConfig{
+		BaseSafeOutputConfig: BaseSafeOutputConfig{
+			GitHubToken: "${{ secrets.CUSTOM_TOKEN }}",
+		},
+		Project: "https://github.com/orgs/test-org/projects/1",
+	}
+
+	out, err := yaml.Marshal(config)
+	require.NoError(t, err)
+
+	yamlStr := string(out)
+	assert.Contains(t, yamlStr, "github-token: ${{ secrets.CUSTOM_TOKEN }}")
+	assert.NotContains(t, yamlStr, "basesafeoutputconfig:")
+}
 
 // TestCreateProjectStatusUpdateHandlerConfigIncludesMax verifies that the max field
 // is properly passed to the handler config JSON (GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
