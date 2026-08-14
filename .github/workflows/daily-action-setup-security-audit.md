@@ -1,6 +1,8 @@
 ---
 emoji: "🛡️"
 description: Daily deep-dive security audit of actions/setup/* files using cache-memory to rotate focus across security aspects
+features:
+  gh-aw-detection: true
 on:
   schedule: daily
   workflow_dispatch:
