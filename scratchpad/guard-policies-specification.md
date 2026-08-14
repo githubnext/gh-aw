@@ -33,9 +33,9 @@ The user requested support for guard policies in the MCP gateway configuration, 
 
 3. Expose these parameters through workflow frontmatter fields
 
-### Approach
+## Approach
 
-#### 1. Type Hierarchy
+### 1. Type Hierarchy
 
 ```
 GitHubToolConfig (GitHub-specific)
@@ -46,7 +46,7 @@ MCPServerConfig (general)
   └── GuardPolicies: map[string]any (extensible for all servers)
 ```
 
-#### 2. GitHub Guard Policy Schema
+### 2. GitHub Guard Policy Schema
 
 Based on the provided JSON schema, the implementation supports:
 
@@ -67,7 +67,7 @@ Integrity levels are based on the combination of the `author_association` field 
 - `"unapproved"` - Objects with `author_association` of `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR`
 - `"none"` - Objects with `author_association` of `FIRST_TIMER` or `NONE` (lowest integrity)
 
-#### 3. Frontmatter Syntax
+### 3. Frontmatter Syntax
 
 **Minimal Example:**
 ```yaml
@@ -102,9 +102,9 @@ tools:
 
 > **Note**: The field was originally named `repos` and renamed to `allowed-repos` in PR #22331. The old name is retained as a deprecated alias; run `gh aw fix` to migrate automatically.
 
-### Operations
+## Operations
 
-#### 4. MCP Gateway Configuration Flow
+### 4. MCP Gateway Configuration Flow
 
 1. **Frontmatter Parsing** (`tools_parser.go`):
    - Extracts `allowed-repos` and `min-integrity` directly from GitHub tool config
@@ -126,7 +126,7 @@ tools:
    - Enforces policies on all tool invocations
    - Blocks unauthorized repository access
 
-#### 5. Safe Outputs Integration
+### 5. Safe Outputs Integration
 
 When GitHub guard policies are configured, the compiler automatically derives a linked guard-policy for the safe-outputs MCP server. This ensures that safe output operations work correctly with guard policies by creating a write-sink configuration.
 
@@ -193,7 +193,7 @@ Generates safeoutputs guard-policy:
 - Called during MCP renderer setup for safeoutputs server
 - Tests: `pkg/workflow/safeoutputs_guard_policy_test.go`
 
-#### 6. Extensibility for Future Servers
+### 6. Extensibility for Future Servers
 
 The design supports future MCP servers (Jira, WorkIQ) through:
 
