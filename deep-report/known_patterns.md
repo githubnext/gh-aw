@@ -1,31 +1,49 @@
-## DeepReport Memory (2026-08-13T15:00:00Z)
+## DeepReport Memory (2026-08-14T15:00:00Z)
 
-### Verified fix: firewall hostname bug (2nd consecutive verified fix)
-`api.individual.githubcopilot.com` block pattern (chronic since at least #52117/#52213, 20-32 blocks/day) is fixed by commit `b2ef1f3` ("Route PR code-quality reviews through the Copilot gateway (#52377)"), landed just before this cycle. Verified directly against this cycle's `agenticworkflows logs` firewall data: "PR Code Quality Reviewer" made 246 requests this sample, all to the correct `api.githubcopilot.com:443` hostname, 0 blocked_requests, and the wrong hostname no longer appears anywhere in the domain list. Second consecutive cycle with a directly-verified real fix (first was #52086 on 2026-08-12) — worth continuing the practice of spot-checking 1-2 prior fixes per cycle against live data rather than trusting issue-closed status alone.
+### Verified recovery: 3 chronic PR-review agents (Test Quality Sentinel, Matt Pocock, Ponytail Reviewer)
+All three, carried forward from the 2026-08-13 "shared PR-review infra flakiness" investigation (#52518), are now at 15/15 (100%) success in fresh samples this cycle, up from 38.9%/54.5%/33.3%. Commented on #52518 with the evidence, recommending closure. This is the 3rd consecutive cycle with a directly-verified real fix/recovery (after the firewall hostname fix on 2026-08-12/13 and strict-mode docs on 2026-08-12) — continuing to pay off the practice of spot-checking carried-forward items against live data each cycle rather than assuming an issue being "open" means the problem is still active.
 
-### Fleet reliability: the 49% figure looks stale/wrong, not current
-Direct 40-run `agenticworkflows logs` sample (Aug 6-13, mixed window) this cycle: 33/40 success = 82.5% raw, 33/39 = 84.6% excl. the 1 intentional-failure run (Daily Credit Limit Test). Independently, #52386 (Agent Job Health Monitor, first-ever baseline) reports 19.2% run-weighted / 0% median-workflow failure rate; #52375 (audit-workflows) reports 85.9% success (43 failures/305 runs). None of these are anywhere near the previously-tracked 49% figure from 2026-08-11 (#51935) — three independent measurements this cycle converge on a healthy fleet, suggesting the 49% number was either a bad sample, a misread, or has genuinely resolved. The 2026-08-11 investigation issue (#51935-adjacent) still has no formal reconciliation/closure — recommend closing it with this cycle's convergent evidence if it's still open next cycle.
+### New top finding: Design Decision Gate merge-blocking hotspot
+Cross-verified by 3 independent monitors this cycle with no prior root-cause issue open:
+- `audit-workflows` (#52590): 28.6% failure rate, `Turns=0` (engine-crash signature, not logic failure)
+- `copilot-session-insights` (#52668): a gate-workflow cluster including this one at 0/126 successes across 3 consecutive sampled days ("provenance-inversion" pattern)
+- `api-consumption` (#52697): top-5 REST API consumer at 7,699 calls across only 9 runs
+Filed as a new issue. This is a merge-blocking gate, so a silent failure mode here has more direct impact than a reporting-only agent — prioritize checking on this next cycle.
 
-### New concrete findings filed this cycle (dedup-checked against open issues first)
-1. **Sentrux god_files_ceiling not enforced**: `.sentrux/rules.toml` defines `god_files_ceiling` (max=1), but the 2026-08-13 report shows god-file count=3 and `sentrux check` reported "0 rules checked" — the ceiling breach never fails the gate despite "All rules pass" being reported. Filed.
-2. **PolicyCompiler seed-rule validation gap**: `pkg/intent/policy.go` Compile() only rank-validates Autonomy/WriteScope when *merging* a 2nd+ matching rule; the first/seeding rule's raw string passes through unchecked (verified directly in source, policy.go:126 vs :200-224). Advisory-only today per the code's own WARNING comment, but should be closed before real enforcement wiring. Filed.
-3. **MCPFailureSummary field duplication**: `pkg/cli/logs_models.go:186-193` hand-copies 4 fields that `AggregatedSummaryBase` already provides (and its own doc comment acknowledges the duplication) instead of embedding it, unlike sibling `MissingToolSummary`/`MissingDataSummary`. Filed.
-4. **Test Quality Sentinel fragile pre-fetch**: success rate collapsed 100%→83.3%→38.9% over Aug 8-13; prompt uses `set -euo pipefail` in its cache/pre-fetch script with no graceful fallback on cache-miss/stale/cli-proxy failure. Filed.
-5. **Shared PR-review infra flakiness investigation**: Test Quality Sentinel, Matt Pocock, and Impeccable Skills Reviewer show correlated failure dips on the exact same 3 dates (Aug 7/11/13); all three share `shared/pr-diff-data-fetch.md` + copilot engine + cli-proxy, while claude-engine Design Decision Gate shows only a milder offset pattern — points to shared infra, not 3 independent regressions. Filed as an investigation task.
-6. **Matt Pocock pr-triage fallback**: hard-depends on a `pr-triage` sub-agent call with no fallback if it times out/returns invalid JSON; success dropped 100%→54.5% this week. Filed.
-7. **Not filed — hit the 7-issue cap**: Ponytail Reviewer (33.3% success, 2 safe items/15 runs, no Success Criteria section) was identified as a 7th candidate but a shell-quoting mishap (see below) wasted one create_issue slot on a duplicate retry, leaving no room. Carry forward to next cycle — do not treat as already covered.
+### Firewall hostname fix: 3rd consecutive verified-holding cycle
+`api.githubcopilot.com` (correct hostname) exclusively used, 0 blocks, in a fresh 15-run PR Code Quality Reviewer sample. Consider retiring this specific spot-check after one more confirming cycle.
 
-### Process note: shell backtick/quoting bug this cycle
-Bash-invoked `jq -n '{...}'` calls containing literal backticks in the JSON body text (e.g. `` `pkg/cli/logs_models.go` ``) were being interpreted as command substitution by the shell layer even inside single quotes, causing 4 of 7 initial `create_issue` attempts to fail with bash syntax errors before ever reaching `safeoutputs`, and one (Test Quality Sentinel) to actually succeed on the first messy attempt. Fix used this cycle: write the JSON payload to a file with the Write tool (no shell parsing of content) and pipe it via `cat file.json | safeoutputs create_issue .` instead of inlining the JSON in the bash command. **Lesson for future cycles: always use the file+cat approach for `create_issue`/`create_discussion` bodies containing backticks or code spans — never inline backtick-containing JSON directly in a bash command string.**
+### `agenticworkflows logs` timeout bug: reconfirmed (9th time), deliberately NOT re-filed
+Hard ~60s wall-clock cap regardless of `--timeout` param; effective ceiling ~40 runs per call. 8 prior issues (#49279, #51952, #47928, #47728, #48921, #48780, #45510, #42284, #37079) all closed without a durable fix. This cycle's workflow-logs sub-agent independently reproduced it with `--count 60` and `--start_date ...--count 100` both failing while `--count 40` succeeded. Decision: do not spend a 9th create_issue slot on an exact duplicate of a repeatedly-closed-without-fix bug; instead surfaced prominently in the discussion report body as a standing operational constraint. Revisit this decision next cycle — if it's still unfixed after another cycle, consider a different escalation (e.g. explicitly asking a human maintainer, since agent-filed issues on this specific bug have a 100% closed-without-fix track record).
+
+### Source-verification lesson this cycle: 2 "closed = fixed" assumptions were wrong
+- `getParsedSchemaDoc` (`pkg/parser/schema_compiler.go:82`) still returns `(any, error)` despite #50678 being closed for exactly this fix.
+- `RunSummary`/`DownloadResult` (`pkg/cli/logs_models.go:225,252`) still share all 14 overlapping fields verbatim despite #47387 and #47439 both being closed for exactly this consolidation.
+Both re-filed this cycle with direct source-line citations and explicit notes that the prior closures didn't land the fix. **New standing practice going forward: when a candidate code-quality task matches a CLOSED issue title, grep/read the actual current source before treating it as "already fixed" — closed status is not proof of a landed fix in this repo's issue-closing culture.**
+
+### New concrete findings filed this cycle (dedup-checked against open issues first via `gh api search/issues`)
+1. **Design Decision Gate merge-blocking hotspot investigation** — cross-verified by 3 monitors, no prior root-cause issue. Filed.
+2. **`getParsedSchemaDoc` still `(any, error)`** despite #50678 closed — filed with source verification.
+3. **Dead `SkipInstructions` field** in `pkg/cli/compile_config.go`, 20+ no-op call sites (more than the 4 the source discussion mentioned) — filed.
+4. **AI Moderator abnormal token usage** (~123.7k avg over 2 runs, ~4.7x fleet's 26.4k avg) — filed as an investigate-with-larger-sample task, noted small sample size explicitly.
+5. **`RunSummary`/`DownloadResult` 14-field duplication** in `pkg/cli/logs_models.go` — filed, noting 2 prior closed attempts (#47387/#47439) didn't land; flagged for the next agent to check why those attempts were abandoned before re-attempting the same approach.
+6. **`RunsOn any` should be `RunsOnValue`** in `pkg/workflow/safe_jobs.go:21` — filed, source-verified the target type already exists in `pkg/workflow/repo_config.go:69`.
+7. **PR Code Quality Reviewer reads a cache-memory file that's never written** — `.github/workflows/pr-code-quality-reviewer.md:99` reads `/tmp/gh-aw/cache-memory/pr-*.json` for continuity but no step in the 191-line file ever writes it (verified by reading the full file, not just grepping for "memory"). Filed.
+
+Not filed (already self-filed/open from prior cycles, confirmed still open, not re-filed):
+- MCPFailureSummary field duplication (#52517, filed 2026-08-13) — still open.
+- PolicyCompiler seed-rule validation gap (pkg/intent/policy.go, filed 2026-08-13) — not re-checked this cycle, assume still open.
+- Sentrux god_files_ceiling enforcement gap (filed 2026-08-13) — not re-checked this cycle; #52598 (daily-sentrux) this cycle appears to be a fresh/first-tracked baseline run per the discussion-mining sub-agent, so no direct evidence either way this cycle.
+- httpnoctx FuncLit-boundary gap (#52627, open) — self-filed by sergo (#52628) already, matches independently, not duplicated.
+- eslint-refiner require-error-code-in-thrown-error false positive (#52643, open) and require-sync-exec-timeout timeout:0 bug (#52645, open) — both self-filed already by eslint-refiner (#52646), not duplicated.
+
+### Process note: dedup workflow that worked well this cycle
+For each candidate: (1) `gh api "search/issues?q=repo:github/gh-aw+is:issue+<keywords>"` to check title/keyword matches, (2) if a CLOSED issue matches, grep/read the actual current source to verify whether the fix really landed before deciding to skip, (3) only skip filing if an OPEN issue already covers the same root cause/component. This caught 2 stale closures this cycle that would otherwise have been wrongly skipped as "already covered."
 
 ### Chronic lineages — status check this cycle (not re-filed as duplicates)
-- Sergo (#52430) self-filed `hardcodedfilepath` linter's `Exported()`-only filter bug (#52428) — matches candidate independently identified this cycle, not duplicated.
-- ESLint Refiner (#52443) self-filed `require-invalid-date-check-before-compare` false positive/negative bugs (#52441, #52442) — not duplicated.
-- GitHub Remote MCP `get_repository` tool missing (#52444/#52445) — already self-filed, not duplicated.
-- `coverage.findProfile` (#52309) and `GitHubToken` shadowing (#52313) from 2026-08-12 cycle — both still open, not re-filed.
-- Claude CLI driver_exit fix (#52198, merged 2026-07-08) — #52375 (audit-workflows) found 2 post-fix runs still hitting driver_exit at cli_version=cccc09a, meaning the fix's scope doesn't cover all cold-start modes. Not yet re-filed as a distinct issue — worth filing next cycle if it recurs with fresh evidence, since this is a partial-fix pattern (similar to the strict-mode-docs class but the inverse: fix landed but coverage is incomplete).
-- Code Scanning Fixer: still ~0-25% success, 7+ weeks unresolved per #52375 — known chronic, not re-filed (already tracked).
+- Code Scanning Fixer: 6/15 (40%) this cycle but trending up sharply day-by-day (0%→20%→75%→100% Aug 11-14) — possible recovery in progress, worth one more cycle to confirm before declaring fixed.
+- Agent Performance Analyzer - Meta-Orchestrator: single new engine-crash (0 turns, "Execute GitHub Copilot CLI" step), already auto-filed as #52720 — not yet chronic, watch for recurrence.
+- Fleet-wide reliability: 79.5-82.1% adjusted this cycle, consistent with 2026-08-13's 82.5%/84.6% — the 2026-08-11 49% figure remains unreconciled/stale, not re-investigated this cycle (already flagged for closure last cycle).
 
-### Repository Quality / Sentrux baselines (2nd data point)
-- Sentrux: 5237/10000 (down 1 from 5238 on 2026-08-12) — flat/noise-level, not a real regression.
-- Repository Quality report (#52500) pivoted focus to error-message quality this cycle (2,415 `fmt.Errorf` sites, only 123 using `NewValidationError`, 207 raw "invalid ..." messages) — the 35-files->800-lines file-length metric was NOT refreshed this cycle, so no delta available for that specific metric until it's covered again.
+### Repository Quality / Sentrux baselines
+- Not independently re-measured this cycle beyond what's noted in trend_data.md — see that file for the discussion-sourced figures (audit-workflows 87.39%, safe-outputs 0/200 failures 3rd consecutive clean cycle, etc).

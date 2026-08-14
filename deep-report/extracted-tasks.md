@@ -1,3 +1,22 @@
+## Extracted code-quality tasks (2026-08-14 cycle)
+
+1. Investigate Design Decision Gate merge-blocking failure/cost hotspot (cross-verified by 3 monitors) — filed.
+2. Fix `getParsedSchemaDoc` return type in pkg/parser/schema_compiler.go:82 (prior #50678 closure didn't land) — filed.
+3. Remove dead `SkipInstructions` field from pkg/cli/compile_config.go — filed.
+4. Investigate AI Moderator's ~4.7x-average token usage — filed.
+5. Consolidate RunSummary/DownloadResult 14-field duplication in pkg/cli/logs_models.go (prior #47387/#47439 closures didn't land) — filed.
+6. Replace `RunsOn any` with `RunsOnValue` in pkg/workflow/safe_jobs.go:21 — filed.
+7. Fix/remove dead per-PR cache-memory read in pr-code-quality-reviewer.md:99 (file never written) — filed.
+
+Not filed (already open from prior cycles, confirmed still open):
+- MCPFailureSummary field duplication (#52517) — still open, not re-filed.
+- PolicyCompiler seed-rule validation gap (pkg/intent/policy.go) — not re-checked this cycle.
+- Sentrux god_files_ceiling enforcement gap — not re-checked this cycle (#52598 appears to be a fresh baseline, no direct evidence either way).
+- httpnoctx FuncLit-boundary gap (#52627) — self-filed by sergo already, not duplicated.
+- eslint-refiner require-error-code-in-thrown-error (#52643) and require-sync-exec-timeout (#52645) — self-filed by eslint-refiner already, not duplicated.
+
+Also: added a follow-up comment to #52518 (shared PR-review infra flakiness investigation) with evidence that all 3 affected agents (Test Quality Sentinel, Matt Pocock, Ponytail Reviewer) are now at 100% success, recommending closure.
+
 ## Extracted code-quality tasks (2026-08-13 cycle)
 
 1. Fix Sentrux `god_files_ceiling` rule not enforced ("0 rules checked") — filed.
