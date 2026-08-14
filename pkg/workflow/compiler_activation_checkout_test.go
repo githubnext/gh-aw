@@ -113,11 +113,11 @@ safe-outputs:
 			activationJobSection := extractJobSection(lockContentStr, "activation")
 			require.NotEmpty(t, activationJobSection, "Activation job section should not be empty")
 
-			// In dev mode, checkout may be present for setup action, but should be minimal
-			// In release mode (which we no longer test here), there would be no checkout
-			// The key is that we're NOT checking out the full .github/workflows directory
-			// for timestamp checking - that uses GitHub API instead, regardless of the
-			// permissions or triggers configured (including contents: write).
+			// The activation job always sparse-checks-out .github/.agents (and, in dev mode,
+			// actions/setup) so it can load helper scripts and engine config - this is
+			// unaffected by the workflow's permissions or triggers (including contents: write,
+			// via write-capable safe-outputs). What must never happen is a full checkout of
+			// .github/workflows for timestamp checking - that always uses the GitHub API instead.
 
 			// Verify it does NOT checkout .github/workflows for timestamp checking
 			assert.NotContains(t, activationJobSection, "Checkout workflows", "Should not have 'Checkout workflows' step - uses GitHub API for timestamp checking")
