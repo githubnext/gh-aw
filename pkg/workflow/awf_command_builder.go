@@ -267,7 +267,8 @@ fi`,
 			` --cloud-hypervisor-binary-sha256 "${GH_AW_CLOUD_HYPERVISOR_BINARY_SHA256}"` +
 			` --cloud-hypervisor-kernel-sha256 "${GH_AW_CLOUD_HYPERVISOR_KERNEL_SHA256}"` +
 			` --cloud-hypervisor-rootfs-sha256 "${GH_AW_CLOUD_HYPERVISOR_ROOTFS_SHA256}"` +
-			` --cloud-hypervisor-supervisor-sha256 "${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR_SHA256}"`
+			` --cloud-hypervisor-supervisor-sha256 "${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR_SHA256}"` +
+			` --cloud-hypervisor-virtiofsd-sha256 "${GH_AW_CLOUD_HYPERVISOR_VIRTIOFSD_SHA256}"`
 	}
 
 	engineCommand := config.EngineCommand
@@ -470,6 +471,8 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 			awfArgs,
 			"--container-runtime", "cloud-hypervisor",
 			"--cloud-hypervisor-preview",
+			"--cloud-hypervisor-vcpus", strconv.Itoa(constants.DefaultCloudHypervisorVCPUs),
+			"--cloud-hypervisor-memory-mib", strconv.Itoa(constants.DefaultCloudHypervisorMemoryMiB),
 		)
 		awfHelpersLog.Print("Added cloud-hypervisor runtime arguments")
 	} else if isCloudHypervisorRuntime(config.WorkflowData) {
@@ -708,12 +711,21 @@ func joinPorts(ports []int) string {
 //   - workflowData: The workflow data containing agent configuration
 //
 // Returns:
-//   - string: The AWF command to use (e.g., "sudo -E awf", "awf", or custom command)
+//   - string: The AWF command to use (e.g., "sudo --preserve-env awf",
+//     "sudo -E awf", "awf", or custom command)
 func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && agentConfig.Command != "" {
 		awfHelpersLog.Printf("Using custom AWF command: %s", agentConfig.Command)
 		return agentConfig.Command
+	}
+
+	// Cloud Hypervisor needs host privileges to access KVM and configure the VM.
+	// This is still AWF strict security: the guest remains network-isolated and
+	// no legacy-security or host-access flags are implied by the sudo prefix.
+	if isCloudHypervisorRuntime(workflowData) {
+		awfHelpersLog.Print("Using privileged AWF command for cloud-hypervisor strict security")
+		return string(constants.AWFCloudHypervisorCommand)
 	}
 
 	// Legacy security mode: use sudo for backward compatibility

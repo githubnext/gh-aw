@@ -160,6 +160,7 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 			}
 		}
 		if isCloudHypervisorRuntime(workflowData) {
+			steps = append(steps, generateCloudHypervisorKVMAccessStep())
 			steps = append(steps, generateCloudHypervisorHostPreflightStep())
 			steps = append(steps, generateCloudHypervisorBundleSetupStep(getAWFVersionForSetup(workflowData)))
 		}
