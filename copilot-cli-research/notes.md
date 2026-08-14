@@ -95,3 +95,12 @@
 - add-dir: 0 real workflow usages (doc references only).
 - Orphaned custom agents: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer unchanged 12 consecutive runs (interactive-agent-designer resolved off list, still 1 reference). RECOMMEND: file a one-time cleanup PR to either remove or reference these 4 files rather than continuing to flag every run.
 - Filed this run's issue to spotlight the new top-level model field migration opportunity as primary actionable finding.
+
+## Run 31769511486 (2026-08-14)
+- Total workflows flat at 285. Narrow `engine: copilot` count: 38 (this run used stricter grep than prior runs' 138/139 combined metric - methodology varies run to run, treat combined count as noisy).
+- MAJOR MOVEMENT: top-level `model:` field adoption jumped from 32 (run 31666761449, 2026-08-13) to 98 workflows this run. Legacy nested `engine.model:` usage dropped correspondingly from ~147 to 95. The `gh aw fix` codemod (engine-model-to-top-level) migration appears to be actively rolling out repo-wide - this is the most significant trend since tracking began.
+- --share flag: 0 real workflow usages this run (previously counted as 1, but that count was this research workflow's own doc/example text, not real usage) - confirmed still a non-issue, no workflow needs conversation sharing.
+- engine.args: confirmed still 0 - stable across 6+ direct re-verifications, persistent non-issue.
+- Orphaned custom agents UNCHANGED for 13th consecutive run: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer (interactive-agent-designer remains referenced/resolved).
+- No new Copilot CLI Go features detected in codebase since last run (same file set: copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, copilot_installer.go, copilot_inline_driver.go, copilot_logs.go).
+- DECISION: Filing noop this run - the only real news (top-level model migration) was already the headline finding of the immediately preceding issue (run 31666761449, filed 2026-08-12/13), and its continued progress doesn't yet warrant a fresh issue. Orphaned agents remain the same unaddressed low-priority cleanup item flagged for 13 runs. No new actionable finding distinct from what's already tracked in open issues.
