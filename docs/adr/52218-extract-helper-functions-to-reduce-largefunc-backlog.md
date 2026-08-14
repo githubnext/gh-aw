@@ -29,11 +29,11 @@ Introduce a `repositoryPackageResolver` struct and convert the pipeline into cha
 #### Positive
 - `largefunc` lint violations in `add_package_manifest.go` are eliminated, keeping the `make golint-custom` baseline clean.
 - Each extracted helper has a single, named responsibility and can be tested and reasoned about independently.
-- The request-struct pattern (`repositoryPackageExtensionFilesRequest`) avoids long parameter lists and makes callsites readable.
+- The extracted helper functions keep callsites readable while avoiding deeply nested logic.
 
 #### Negative
 - The `pkg/cli` package namespace grows with several new `resolveRepositoryPackage*` and `parseRepositoryPackageManifest*` top-level functions, which can feel cluttered when browsing the file.
-- The newly introduced `repositoryPackageExtensionFilesRequest` and `repositoryPackageExtensionFiles` types are additional concepts callers must learn, even though their scope is intentionally local.
+- The newly introduced `repositoryPackageExtensionFiles` result type is an additional concept callers must learn, even though its scope is intentionally local.
 
 #### Neutral
 - All existing behavior is preserved; this is a zero-semantic-change refactoring.
