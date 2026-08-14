@@ -99,13 +99,81 @@ export function isDynamicStringConcatenation(node: TSESTree.Expression): boolean
 }
 
 /**
+ * Collects the argument expressions of every `return` statement reachable
+ * from `node` without crossing into a nested function boundary. Used to
+ * inspect what a `.replace()` / `.replaceAll()` replacer callback can inject
+ * into the resulting command string.
+ */
+function collectReturnArguments(node: TSESTree.Statement, results: TSESTree.Expression[]): void {
+  switch (node.type) {
+    case AST_NODE_TYPES.ReturnStatement:
+      if (node.argument) results.push(node.argument);
+      return;
+    case AST_NODE_TYPES.BlockStatement:
+      for (const stmt of node.body) collectReturnArguments(stmt, results);
+      return;
+    case AST_NODE_TYPES.IfStatement:
+      collectReturnArguments(node.consequent, results);
+      if (node.alternate) collectReturnArguments(node.alternate, results);
+      return;
+    case AST_NODE_TYPES.ForStatement:
+    case AST_NODE_TYPES.ForInStatement:
+    case AST_NODE_TYPES.ForOfStatement:
+    case AST_NODE_TYPES.WhileStatement:
+    case AST_NODE_TYPES.DoWhileStatement:
+      collectReturnArguments(node.body, results);
+      return;
+    case AST_NODE_TYPES.TryStatement:
+      collectReturnArguments(node.block, results);
+      if (node.handler) collectReturnArguments(node.handler.body, results);
+      if (node.finalizer) collectReturnArguments(node.finalizer, results);
+      return;
+    case AST_NODE_TYPES.SwitchStatement:
+      for (const switchCase of node.cases) {
+        for (const stmt of switchCase.consequent) collectReturnArguments(stmt, results);
+      }
+      return;
+    case AST_NODE_TYPES.LabeledStatement:
+      collectReturnArguments(node.body, results);
+      return;
+    default:
+      // Do not descend into nested function/arrow expressions or other
+      // statement kinds that cannot contain a same-scope `return`.
+      return;
+  }
+}
+
+/**
+ * When `node` is a function or arrow expression (for example a `.replace()` /
+ * `.replaceAll()` replacer callback), returns the dynamic kind of any value it
+ * can return: the expression body of an arrow function, or the argument of
+ * any `return` statement reachable without crossing a nested function
+ * boundary. Returns null when `node` is not a function/arrow expression or
+ * none of its return values are dynamic.
+ */
+function getDynamicKindFromCallbackReturn(node: TSESTree.Node, sourceCode: TSESLint.SourceCode, seen: Set<TSESTree.Expression>): string | null {
+  if (node.type !== AST_NODE_TYPES.ArrowFunctionExpression && node.type !== AST_NODE_TYPES.FunctionExpression) return null;
+  if (node.body.type !== AST_NODE_TYPES.BlockStatement) return getDynamicCommandKind(node.body, sourceCode, seen);
+
+  const returnArguments: TSESTree.Expression[] = [];
+  collectReturnArguments(node.body, returnArguments);
+  for (const argument of returnArguments) {
+    const kind = getDynamicCommandKind(argument, sourceCode, seen);
+    if (kind) return kind;
+  }
+  return null;
+}
+
+/**
  * Returns the display kind string for the problematic command expression, or
  * null when the expression is not one of the flagged shapes.
  *
  * Write-once local bindings and chained string-normalizing calls (for example
  * `` `git checkout ${branch}`.trim() ``) are unwrapped before the check so the
  * underlying command string is inspected. For calls that accept arguments (for
- * example `.replace(pattern, value)`), the arguments are inspected as well.
+ * example `.replace(pattern, value)`), the arguments are inspected as well,
+ * including a replacer callback's return value (for example
+ * `.replace(pattern, () => branch)`).
  */
 export function getDynamicCommandKind(expression: TSESTree.Expression, sourceCode: TSESLint.SourceCode, seen: Set<TSESTree.Expression> = new Set()): string | null {
   const candidate = resolveWriteOnceInitializerChain(expression, sourceCode);
@@ -122,7 +190,7 @@ export function getDynamicCommandKind(expression: TSESTree.Expression, sourceCod
   if (receiverKind) return receiverKind;
   for (const arg of transform.args) {
     if (arg.type === AST_NODE_TYPES.SpreadElement) continue;
-    const argKind = getDynamicCommandKind(arg, sourceCode, seen);
+    const argKind = getDynamicCommandKind(arg, sourceCode, seen) ?? getDynamicKindFromCallbackReturn(arg, sourceCode, seen);
     if (argKind) return argKind;
   }
   return null;

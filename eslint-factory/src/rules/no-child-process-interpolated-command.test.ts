@@ -37,6 +37,8 @@ describe("no-child-process-interpolated-command", () => {
         { code: `const { execSync } = require("child_process"); execSync("git status".trim());` },
         // Fully static concatenation with a chained string method — safe
         { code: `const { execSync } = require("child_process"); execSync(("git" + " status").toLowerCase());` },
+        // Static replacer callback with a fully static return value — safe
+        { code: `const { execSync } = require("child_process"); execSync("git-status".replace("-", () => " "));` },
       ],
       invalid: [
         {
@@ -56,6 +58,16 @@ describe("no-child-process-interpolated-command", () => {
         // Chained string method on a dynamic concatenation is also flagged
         {
           code: `const { execSync } = require("child_process"); execSync(("git checkout " + branch).trim());`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "execSync" } }],
+        },
+        // Replacer callback returning a dynamic template literal is also flagged
+        {
+          code: `const { execSync } = require("child_process"); execSync("git checkout PLACEHOLDER".replace("PLACEHOLDER", () => \`\${branch}-x\`));`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
+        },
+        // Replacer callback with a block body / return statement is also flagged
+        {
+          code: `const { execSync } = require("child_process"); execSync("git checkout PLACEHOLDER".replaceAll("PLACEHOLDER", function() { return "x-" + branch; }));`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "execSync" } }],
         },
         {

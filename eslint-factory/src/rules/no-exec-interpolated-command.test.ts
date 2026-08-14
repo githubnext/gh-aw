@@ -53,6 +53,8 @@ describe("no-exec-interpolated-command", () => {
         { code: `exec.exec(("git" + " checkout").toLowerCase(), [branch]);` },
         // Static replace with static arguments — safe
         { code: `exec.exec("git-checkout".replace("-", " "), [branch]);` },
+        // Static replace with a fully static replacer callback — safe
+        { code: `exec.exec("git-checkout".replace("-", () => " "), [branch]);` },
       ],
       invalid: [
         // Template literal with interpolation as command
@@ -129,6 +131,16 @@ describe("no-exec-interpolated-command", () => {
         {
           code: 'exec.exec("git checkout PLACEHOLDER".replace("PLACEHOLDER", `${branch}-x`), []);',
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Replacer callback returning a dynamic template literal is also flagged
+        {
+          code: 'exec.exec("git checkout PLACEHOLDER".replace("PLACEHOLDER", () => `${branch}-x`), []);',
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Replacer callback with a block body / return statement is also flagged
+        {
+          code: 'exec.exec("git checkout PLACEHOLDER".replaceAll("PLACEHOLDER", function() { return "x-" + branch; }), []);',
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } }],
         },
         // Chained aliases are also flagged when they resolve to a dynamic command
         {
