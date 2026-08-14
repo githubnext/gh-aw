@@ -31,12 +31,12 @@ func TestGenerateCloudHypervisorSetupSteps(t *testing.T) {
 	})
 
 	t.Run("bundle setup step", func(t *testing.T) {
-		step := generateCloudHypervisorBundleSetupStep("v0.28.0")
+		step := generateCloudHypervisorBundleSetupStep("v0.28.1")
 		require.NotEmpty(t, step)
 		content := strings.Join(step, "\n")
 		assert.Contains(t, content, "Download and verify cloud-hypervisor bundle")
 		assert.Contains(t, content, "id: cloud-hypervisor-bundle")
-		assert.Contains(t, content, "GH_AW_AWF_VERSION: v0.28.0")
+		assert.Contains(t, content, "GH_AW_AWF_VERSION: v0.28.1")
 		assert.Contains(t, content, "cloud_hypervisor_setup_bundle.sh")
 	})
 }
@@ -294,7 +294,7 @@ sandbox:
   agent:
     id: awf
     runtime: cloud-hypervisor
-    version: v0.28.0
+    version: v0.28.1
 ---
 
 # Test cloud-hypervisor Runtime
@@ -315,9 +315,9 @@ sandbox:
 	assert.Contains(t, lockStr, "Grant runner access to KVM")
 	assert.Contains(t, lockStr, "Check host eligibility for cloud-hypervisor")
 	assert.Contains(t, lockStr, "Download and verify cloud-hypervisor bundle")
-	assert.Contains(t, lockStr, "GH_AW_AWF_VERSION: v0.28.0")
+	assert.Contains(t, lockStr, "GH_AW_AWF_VERSION: v0.28.1")
 	assert.Contains(t, lockStr, "sudo --preserve-env awf")
-	assert.NotContains(t, lockStr, `install_awf_binary.sh" v0.28.0 --rootless`)
+	assert.NotContains(t, lockStr, `install_awf_binary.sh" v0.28.1 --rootless`)
 	assert.NotContains(t, lockStr, `print_firewall_logs.sh" --rootless`)
 	assert.Contains(t, lockStr, "--container-runtime cloud-hypervisor")
 	assert.Contains(t, lockStr, "--cloud-hypervisor-preview")
