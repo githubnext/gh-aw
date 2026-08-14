@@ -14,14 +14,14 @@ import (
 // formats an environment parsing warning and routes it through the provided
 // logger when available, or to stderr using the standard console warning
 // format otherwise. Callers pass a format string and args directly, avoiding
-// a separate fmt.Sprintf call at each call site.
+// a separate fmt.Sprintf call at each call site. Formatting is deferred to the
+// selected output path so the message is only built once.
 func warnf(debugLog *logger.Logger, format string, args ...any) {
-	msg := fmt.Sprintf(format, args...)
 	if debugLog != nil {
-		debugLog.Printf("WARNING: %s", msg)
+		debugLog.Printf("WARNING: "+format, args...)
 		return
 	}
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(format, args...)))
 }
 
 // debugf is an internal helper shared by GetIntFromEnv, GetBoolFromEnv, and
