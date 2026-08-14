@@ -69,6 +69,9 @@ docker_pull_with_retry() {
     fi
 
     echo "DIFC proxy image pull attempt $attempt of $max_attempts failed with exit code $exit_code"
+    if [ "$exit_code" -eq 124 ]; then
+      echo "DIFC proxy image pull timed out after 5 minutes"
+    fi
     echo "$output"
 
     if [ "$attempt" -lt "$max_attempts" ]; then

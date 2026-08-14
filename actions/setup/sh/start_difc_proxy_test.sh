@@ -91,6 +91,12 @@ echo "$*" >>"${SLEEP_LOG}"
 exit 0
 EOF
 
+  cat >"${sandbox}/bin/timeout" <<'EOF'
+#!/usr/bin/env bash
+shift
+"$@"
+EOF
+
   cat >"${sandbox}/bin/sudo" <<'EOF'
 #!/usr/bin/env bash
 case "$1" in
@@ -107,7 +113,7 @@ case "$1" in
 esac
 EOF
 
-  chmod +x "${sandbox}/bin/docker" "${sandbox}/bin/curl" "${sandbox}/bin/git" "${sandbox}/bin/sleep" "${sandbox}/bin/sudo"
+  chmod +x "${sandbox}/bin/docker" "${sandbox}/bin/curl" "${sandbox}/bin/git" "${sandbox}/bin/sleep" "${sandbox}/bin/timeout" "${sandbox}/bin/sudo"
 
   DOCKER_LOG="${sandbox}/docker.log"
   GIT_LOG="${sandbox}/git.log"
