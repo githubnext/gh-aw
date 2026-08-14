@@ -584,3 +584,33 @@ content there could realistically breach 4096 KB).
   impossible, see above) — default those cells to measurement-only, and reserve any
   real-call budget for clean-branch cells or for probing create_pull_request's own
   allowed-files/max-patch-size/max-patch-files rejection boundaries instead.**
+
+## Run 2026-08-14: idx208-211 (shallow-single-large tier: clean-multi/merge_msg CLOSED + ahead-single/multi measured)
+
+- **Mitigation continued:** only idx208 (clean-multi) spent the run's single create_pull_request
+  quota slot; idx209 (clean-merge_msg), idx210 (ahead-single), idx211 (ahead-multi) were
+  LOCAL-MEASUREMENT-ONLY per the now-standing rule (ahead/diverged push-chaining is fully
+  diagnosed as architecturally impossible same-run, see 2026-08-13 section — not retested).
+- **idx208 clean-multi: REAL create_pull_request call PASSED.** 1f/1011KB/3c (1 real payload
+  commit + 2 empty follow-ups), against the actual gh-aw checkout on branch
+  `git-sim/208-tiny-shallow-single-large-clean-multi`. Tool returned
+  `{"result":"success","patch":{size:1036792,lines:10227},"bundle":{size:779738}}` — confirms
+  clean-branch cells (no push-chaining needed) remain the safe way to spend the 1/run quota.
+- **idx209 clean-merge_msg: PASS (measurement-only).** 1f/1010KB/1c. Filename leak variant:
+  format-patch name derived from the crafted commit MESSAGE subject
+  (`0001-Merge-branch-feature-sim-probe-209-into-main.patch`), not the raw branch name —
+  parent=1/merges=0 reconfirmed (message-text heuristic would still misfire).
+- **idx210 ahead-single: PASS (measurement-only).** Initial 1f/1010KB + followup ~0KB (single
+  short line) = 2f/1010KB/2c. FF rc0 reconfirmed at this payload/history tier.
+- **idx211 ahead-multi: PASS (measurement-only).** Initial 3c(1 real+2 empty)/1f/1010KB +
+  followup 569B = 4c/2f/1010KB total. FF rc0. Empty follow-ups confirmed to add 0 KB (commit-
+  count-only overhead), consistent with prior multi-commit-for-single-file convention.
+- **Closes shallow-single-large clean sub-tier (208-209, from 207+208-209 = 3/3) and
+  ahead-single/multi (210-211).** Remaining in shallow-single-large tier: ahead-merge_msg,
+  diverged×3 (idx212-215).
+- **Zero real fail/error/rejected across 212 cells.**
+- **Next index: 212** = tiny-shallow-single-large-ahead-merge_msg (continue closing
+  shallow-single-large tier: ahead-merge_msg + diverged×3 remain, idx212-215). Recommend
+  idx212 stay measurement-only too (ahead branch) — reserve next real create_pull_request
+  quota slot for the next BRANCH=clean cell reached (shallow-single-xlarge-clean tier) or
+  for probing allowed-files/max-patch-size/max-patch-files rejection boundaries directly.
