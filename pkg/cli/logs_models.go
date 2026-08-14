@@ -166,7 +166,7 @@ type SkillActivation struct {
 }
 
 // AggregatedSummaryBase holds the shared tail fields that appear byte-for-byte identically
-// in MissingToolSummary and MissingDataSummary (and as a subset in MCPFailureSummary).
+// in MissingToolSummary, MissingDataSummary, and MCPFailureSummary.
 // Embedding this struct removes copy-paste drift risk across the aggregated-report types.
 type AggregatedSummaryBase struct {
 	Count              int      `json:"count" console:"header:Occurrences"`
@@ -185,11 +185,8 @@ type MissingToolSummary struct {
 
 // MCPFailureSummary aggregates MCP server failure reports across runs
 type MCPFailureSummary struct {
-	ServerName       string   `json:"server_name" console:"header:Server"`
-	Count            int      `json:"count" console:"header:Failures"`
-	Workflows        []string `json:"workflows" console:"-"`                  // List of workflow names that had this server fail
-	WorkflowsDisplay string   `json:"-" console:"header:Workflows,maxlen:60"` // Formatted display of workflows
-	RunIDs           []int64  `json:"run_ids" console:"-"`                    // List of run IDs where this server failed
+	ServerName string `json:"server_name" console:"header:Server"`
+	AggregatedSummaryBase
 }
 
 // MissingDataSummary aggregates missing data reports across runs

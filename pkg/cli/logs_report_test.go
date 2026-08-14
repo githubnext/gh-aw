@@ -83,16 +83,20 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		},
 		MCPFailures: []MCPFailureSummary{
 			{
-				ServerName:       "github-mcp-server",
-				Count:            2,
-				Workflows:        []string{"workflow-a", "workflow-b"},
-				WorkflowsDisplay: "workflow-a, workflow-b",
+				ServerName: "github-mcp-server",
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:            2,
+					Workflows:        []string{"workflow-a", "workflow-b"},
+					WorkflowsDisplay: "workflow-a, workflow-b",
+				},
 			},
 			{
-				ServerName:       "playwright",
-				Count:            1,
-				Workflows:        []string{"browser-test"},
-				WorkflowsDisplay: "browser-test",
+				ServerName: "playwright",
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:            1,
+					Workflows:        []string{"browser-test"},
+					WorkflowsDisplay: "browser-test",
+				},
 			},
 		},
 		LogsLocation: "/tmp/logs",

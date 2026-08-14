@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -58,11 +59,13 @@ func TestMCPFailureSummaryDisplayFields(t *testing.T) {
 	// Create a MCPFailureSummary with populated Display field
 	summaries := []MCPFailureSummary{
 		{
-			ServerName:       "github-mcp-server",
-			Count:            3,
-			Workflows:        []string{"workflow-a", "workflow-b"},
-			WorkflowsDisplay: "workflow-a, workflow-b", // This should be rendered
-			RunIDs:           []int64{1, 2, 3},
+			ServerName: "github-mcp-server",
+			AggregatedSummaryBase: AggregatedSummaryBase{
+				Count:            3,
+				Workflows:        []string{"workflow-a", "workflow-b"},
+				WorkflowsDisplay: "workflow-a, workflow-b", // This should be rendered
+				RunIDs:           []int64{1, 2, 3},
+			},
 		},
 	}
 
@@ -78,10 +81,43 @@ func TestMCPFailureSummaryDisplayFields(t *testing.T) {
 	if !strings.Contains(output, "Server") {
 		t.Errorf("Server header not found in console output")
 	}
-	if !strings.Contains(output, "Failures") {
-		t.Errorf("Failures header not found in console output")
+	if !strings.Contains(output, "Occurrences") {
+		t.Errorf("Occurrences header not found in console output")
 	}
 	if !strings.Contains(output, "Workflows") {
 		t.Errorf("Workflows header not found in console output")
+	}
+}
+
+// TestMCPFailureSummaryJSONFields verifies that embedding AggregatedSummaryBase keeps
+// the shared JSON fields flattened at the MCP failure summary level.
+func TestMCPFailureSummaryJSONFields(t *testing.T) {
+	summary := MCPFailureSummary{
+		ServerName: "github-mcp-server",
+		AggregatedSummaryBase: AggregatedSummaryBase{
+			Count:     3,
+			Workflows: []string{"workflow-a", "workflow-b"},
+			RunIDs:    []int64{1, 2, 3},
+		},
+	}
+
+	data, err := json.Marshal(summary)
+	if err != nil {
+		t.Fatalf("json.Marshal failed: %v", err)
+	}
+
+	output := string(data)
+	for _, expected := range []string{
+		`"server_name":"github-mcp-server"`,
+		`"count":3`,
+		`"workflows":["workflow-a","workflow-b"]`,
+		`"run_ids":[1,2,3]`,
+	} {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected %s in JSON output: %s", expected, output)
+		}
+	}
+	if strings.Contains(output, "AggregatedSummaryBase") {
+		t.Errorf("AggregatedSummaryBase should not appear as a nested JSON field: %s", output)
 	}
 }
