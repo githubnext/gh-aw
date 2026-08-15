@@ -32,6 +32,21 @@ func formalSnapshotStoragePath(ephemeral bool) string {
 	return formalSelfHostedSnapshot
 }
 
+func formalRetrievalWarningComplete(failedSources []string, failedAt time.Time) bool {
+	return len(failedSources) > 0 && !failedAt.IsZero() && failedAt.Location() == time.UTC
+}
+
+func formalSafeguardDecision(canonicalRefreshSucceeded, snapshotFresh bool) (useSnapshot, degraded, allowDestructiveActions bool) {
+	if canonicalRefreshSucceeded {
+		return false, false, true
+	}
+	return snapshotFresh, true, false
+}
+
+func formalScheduledPersistenceThreshold(previousScheduledUnavailable, currentScheduledUnavailable, currentRunScheduled bool) bool {
+	return previousScheduledUnavailable && currentScheduledUnavailable && currentRunScheduled
+}
+
 func formalEscalationOwner(lastMaintainer, onCallMaintainer string) string {
 	if lastMaintainer != "" {
 		return lastMaintainer
@@ -68,7 +83,7 @@ func formalCoverageVerificationEveryRun(schemaProperties, cliMappedProperties []
 	return true
 }
 
-func TestFormalP11_SnapshotExpiryBoundary(t *testing.T) {
+func TestAWFConfigSafeguard_TDRSAFE001_SnapshotExpiryBoundary(t *testing.T) {
 	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
 
 	assert.True(t, formalSnapshotExpired(now.Add(-formalSnapshotMaxAge-time.Nanosecond), now))
@@ -76,7 +91,7 @@ func TestFormalP11_SnapshotExpiryBoundary(t *testing.T) {
 	assert.False(t, formalSnapshotExpired(now.Add(-167*time.Hour), now))
 }
 
-func TestFormalP11_SnapshotShouldDeleteAt14Days(t *testing.T) {
+func TestAWFConfigSafeguard_TDRSAFE001_SnapshotShouldDeleteAt14Days(t *testing.T) {
 	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
 
 	assert.True(t, formalSnapshotShouldDelete(now.Add(-formalSnapshotDeletionAge-time.Nanosecond), now))
@@ -84,7 +99,7 @@ func TestFormalP11_SnapshotShouldDeleteAt14Days(t *testing.T) {
 	assert.False(t, formalSnapshotShouldDelete(now.Add(-formalSnapshotMaxAge-time.Nanosecond), now))
 }
 
-func TestFormalP12_SnapshotStoragePathSelection(t *testing.T) {
+func TestAWFConfigSafeguard_TDRSAFE001_SnapshotStoragePathSelection(t *testing.T) {
 	assert.Equal(t, formalSelfHostedSnapshot, formalSnapshotStoragePath(false))
 	assert.Equal(t, formalEphemeralSnapshot, formalSnapshotStoragePath(true))
 	assert.NotEqual(t, filepath.Clean(formalSnapshotStoragePath(false)), filepath.Clean(formalSnapshotStoragePath(true)))
@@ -114,4 +129,37 @@ func TestFormalP16_CoverageVerificationEveryRun(t *testing.T) {
 
 	assert.True(t, formalCoverageVerificationEveryRun(schemaProperties, []string{"apiProxy", "container", "mcp"}))
 	assert.False(t, formalCoverageVerificationEveryRun(schemaProperties, []string{"apiProxy", "container"}))
+}
+
+func TestAWFConfigSafeguard_TDRSAFE002_RetrievalWarning(t *testing.T) {
+	assert.True(t, formalRetrievalWarningComplete(
+		[]string{"docs/awf-config.schema.json"},
+		time.Date(2026, 8, 15, 16, 0, 0, 0, time.UTC),
+	))
+	assert.False(t, formalRetrievalWarningComplete(nil, time.Now().UTC()))
+	assert.False(t, formalRetrievalWarningComplete([]string{"docs/awf-config.schema.json"}, time.Time{}))
+}
+
+func TestAWFConfigSafeguard_TDRSAFE003_DegradedRunSafety(t *testing.T) {
+	useSnapshot, degraded, allowDestructiveActions := formalSafeguardDecision(false, true)
+	assert.True(t, useSnapshot)
+	assert.True(t, degraded)
+	assert.False(t, allowDestructiveActions)
+
+	useSnapshot, degraded, allowDestructiveActions = formalSafeguardDecision(false, false)
+	assert.False(t, useSnapshot)
+	assert.True(t, degraded)
+	assert.False(t, allowDestructiveActions)
+
+	useSnapshot, degraded, allowDestructiveActions = formalSafeguardDecision(true, false)
+	assert.False(t, useSnapshot)
+	assert.False(t, degraded)
+	assert.True(t, allowDestructiveActions)
+}
+
+func TestAWFConfigSafeguard_TDRSAFE004_ScheduledPersistence(t *testing.T) {
+	assert.True(t, formalScheduledPersistenceThreshold(true, true, true))
+	assert.False(t, formalScheduledPersistenceThreshold(true, true, false))
+	assert.False(t, formalScheduledPersistenceThreshold(false, true, true))
+	assert.False(t, formalScheduledPersistenceThreshold(true, false, true))
 }

@@ -59,16 +59,17 @@ type GHAWManifestMemoryValidationScript struct {
 // so that subsequent compilations can detect newly introduced secrets when safe
 // update mode is enabled.
 type GHAWManifest struct {
-	Version                 int                                  `json:"version"`
-	Secrets                 []string                             `json:"secrets"`
-	Actions                 []GHAWManifestAction                 `json:"actions"`
-	Skills                  []string                             `json:"skills,omitempty"`                    // frontmatter skill specs (owner/repo@sha or owner/repo/skill/path@sha), sorted
-	ResolutionFailures      []GHAWManifestResolutionFailure      `json:"resolution_failures,omitempty"`       // unresolved action-ref pinning failures
-	Containers              []GHAWManifestContainer              `json:"containers,omitempty"`                // container images used, with digest when available
-	Redirect                string                               `json:"redirect,omitempty"`                  // frontmatter redirect target for moved workflows
-	HasPullRequest          bool                                 `json:"has_pull_request,omitempty"`          // whether on: includes pull_request
-	HasPullRequestTarget    bool                                 `json:"has_pull_request_target,omitempty"`   // whether on: includes pull_request_target
-	MemoryValidationScripts []GHAWManifestMemoryValidationScript `json:"memory_validation_scripts,omitempty"` // custom repo/cache memory validation scripts, hashed
+	Version                     int                                  `json:"version"`
+	Secrets                     []string                             `json:"secrets"`
+	Actions                     []GHAWManifestAction                 `json:"actions"`
+	Skills                      []string                             `json:"skills,omitempty"`                    // frontmatter skill specs (owner/repo@sha or owner/repo/skill/path@sha), sorted
+	ResolutionFailures          []GHAWManifestResolutionFailure      `json:"resolution_failures,omitempty"`       // unresolved action-ref pinning failures
+	Containers                  []GHAWManifestContainer              `json:"containers,omitempty"`                // container images used, with digest when available
+	Redirect                    string                               `json:"redirect,omitempty"`                  // frontmatter redirect target for moved workflows
+	HasPullRequest              bool                                 `json:"has_pull_request,omitempty"`          // whether on: includes pull_request
+	HasPullRequestTarget        bool                                 `json:"has_pull_request_target,omitempty"`   // whether on: includes pull_request_target
+	MemoryValidationScripts     []GHAWManifestMemoryValidationScript `json:"memory_validation_scripts,omitempty"` // custom repo/cache memory validation scripts, hashed
+	ThreatDetectionSuppressions []ThreatDetectionSuppression         `json:"threat_detection_suppressions,omitempty"`
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference

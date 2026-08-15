@@ -196,7 +196,9 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
-	c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions)
+	if err := c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions); err != nil {
+		return "", nil, nil, fmt.Errorf("failed to generate workflow header: %w", err)
+	}
 
 	// Append the workflow body
 	yaml.WriteString(bodyContent)
