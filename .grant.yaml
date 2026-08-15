@@ -10,7 +10,8 @@ allow:
   - ISC
 
 # Base OS packages of upstream container images that gh-aw executes (Alpine
-# variants of the MCP server and runtime images) and the Node/npm runtime those
+# variants of the MCP server and runtime images, plus the Debian-based
+# ghcr.io/github/github-mcp-server image) and the Node/npm runtime those
 # images ship. These packages come with the upstream base image, are never linked
 # into or redistributed with gh-aw, and are therefore accepted as a documented
 # policy exception. The allowlist above still applies to every other package in
@@ -37,6 +38,13 @@ ignore-packages:
   - ssl_client
   - zlib
   - zstd-libs
+  # Debian base OS (ghcr.io/github/github-mcp-server)
+  - base-files
+  - libc6
+  - libssl3
+  - media-types
+  - netbase
+  - tzdata
   # Node.js runtime and npm with its bundled dependencies
   - chownr
   - common-ancestor-path
