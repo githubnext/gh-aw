@@ -22,6 +22,7 @@ package cli
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -71,8 +72,8 @@ type grypeOutput struct {
 	Matches []grypeFinding `json:"matches"`
 }
 
-// grypeCache caches grype scan results by image reference to avoid rescanning
-// the same image within a single compile run.
+// grypeCache caches grype scan results by image reference and config content to
+// avoid rescanning identical scans within a single compile run.
 type grypeCache struct {
 	mu      sync.Mutex
 	results map[string]*grypeOutput
@@ -106,7 +107,8 @@ func (c *grypeCache) setError(key string, err error) {
 	c.errors[key] = err
 }
 
-// grypeScanResultCache is the process-wide grype result cache.
+// grypeScanResultCache is the process-wide grype result cache. Its keys include
+// the image reference and the grype configuration content.
 var grypeScanResultCache = &grypeCache{
 	results: make(map[string]*grypeOutput),
 	errors:  make(map[string]error),
@@ -276,13 +278,34 @@ func grypeDockerArgs(validatedImageRef, configFile string) ([]string, error) {
 	return args, nil
 }
 
+// grypeCacheKey returns a cache key that varies with the image and the contents
+// of the optional Grype configuration. Configuration paths alone are insufficient
+// because separate repositories can use different policies at the same path.
+func grypeCacheKey(imageRef, configFile string) (string, error) {
+	if configFile == "" {
+		return imageRef + "\x00", nil
+	}
+
+	content, err := os.ReadFile(configFile)
+	if err != nil {
+		return "", fmt.Errorf("read grype config %q: %w", configFile, err)
+	}
+	digest := sha256.Sum256(content)
+	return fmt.Sprintf("%s\x00%x", imageRef, digest), nil
+}
+
 // grypeRunOnImage runs grype on a single container image reference via Docker,
 // using the result cache to avoid re-scanning images already checked in this run.
 // When configFile is non-empty it is mounted read-only into the scanner container
 // and passed to grype via --config.
 func grypeRunOnImage(imageRef, configFile string, verbose bool) (*grypeOutput, error) {
+	cacheKey, err := grypeCacheKey(imageRef, configFile)
+	if err != nil {
+		return nil, err
+	}
+
 	// Check cache first.
-	if result, err, ok := grypeScanResultCache.get(imageRef); ok {
+	if result, err, ok := grypeScanResultCache.get(cacheKey); ok {
 		grypeLog.Printf("Grype cache hit for %s", imageRef)
 		return result, err
 	}
@@ -336,7 +359,7 @@ func grypeRunOnImage(imageRef, configFile string, verbose bool) (*grypeOutput, e
 		if !errors.As(runErr, &exitErr) {
 			// Command could not be started (e.g., Docker not found).
 			scanErr := fmt.Errorf("grype failed: %w", runErr)
-			grypeScanResultCache.setError(imageRef, scanErr)
+			grypeScanResultCache.setError(cacheKey, scanErr)
 			return nil, scanErr
 		}
 		exitCode := exitErr.ExitCode()
@@ -348,7 +371,7 @@ func grypeRunOnImage(imageRef, configFile string, verbose bool) (*grypeOutput, e
 				grypeLog.Printf("grype stderr for %s: %s", imageRef, stderrStr)
 			}
 			scanErr := fmt.Errorf("grype failed with exit code %d on %s", exitCode, imageRef)
-			grypeScanResultCache.setError(imageRef, scanErr)
+			grypeScanResultCache.setError(cacheKey, scanErr)
 			return nil, scanErr
 		}
 		// Exit code 1 with JSON output — vulnerability findings were returned normally.
@@ -356,11 +379,11 @@ func grypeRunOnImage(imageRef, configFile string, verbose bool) (*grypeOutput, e
 
 	if parseErr != nil {
 		scanErr := fmt.Errorf("failed to parse grype JSON output for %s: %w", imageRef, parseErr)
-		grypeScanResultCache.setError(imageRef, scanErr)
+		grypeScanResultCache.setError(cacheKey, scanErr)
 		return nil, scanErr
 	}
 
-	grypeScanResultCache.set(imageRef, &output)
+	grypeScanResultCache.set(cacheKey, &output)
 	return &output, nil
 }
 

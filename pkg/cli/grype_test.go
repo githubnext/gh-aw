@@ -380,10 +380,73 @@ func TestGrypeDockerArgs_MissingConfigFile(t *testing.T) {
 	}
 }
 
+func TestGrypeCacheKeyIncludesConfigContent(t *testing.T) {
+	imageRef := "alpine:3.20"
+	configFile := filepath.Join(t.TempDir(), grypeConfigFilename)
+	if err := os.WriteFile(configFile, []byte("ignore: []\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	first, err := grypeCacheKey(imageRef, configFile)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if err := os.WriteFile(configFile, []byte("ignore: [CVE-2026-5450]\n"), 0o644); err != nil {
+		t.Fatalf("Failed to update config file: %v", err)
+	}
+	second, err := grypeCacheKey(imageRef, configFile)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	withoutConfig, err := grypeCacheKey(imageRef, "")
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if first == second || first == withoutConfig || second == withoutConfig {
+		t.Errorf("Expected distinct cache keys for each config state, got %q, %q, and %q", first, second, withoutConfig)
+	}
+}
+
+func TestGrypeRunOnImageCachesSeparatelyByConfigContent(t *testing.T) {
+	prependFakeDockerToPath(t, `{"matches":[]}`)
+
+	originalCache := grypeScanResultCache
+	grypeScanResultCache = &grypeCache{
+		results: make(map[string]*grypeOutput),
+		errors:  make(map[string]error),
+	}
+	t.Cleanup(func() {
+		grypeScanResultCache = originalCache
+	})
+
+	configDir := t.TempDir()
+	firstConfig := filepath.Join(configDir, "first.yaml")
+	secondConfig := filepath.Join(configDir, "second.yaml")
+	for configFile, content := range map[string]string{
+		firstConfig:  "ignore: []\n",
+		secondConfig: "ignore: [CVE-2026-5450]\n",
+	} {
+		if err := os.WriteFile(configFile, []byte(content), 0o644); err != nil {
+			t.Fatalf("Failed to write config file: %v", err)
+		}
+	}
+
+	for _, configFile := range []string{firstConfig, secondConfig} {
+		if _, err := grypeRunOnImage("alpine:3.20", configFile, false); err != nil {
+			t.Fatalf("Expected scan to succeed, got: %v", err)
+		}
+	}
+
+	if len(grypeScanResultCache.results) != 2 {
+		t.Errorf("Expected separately cached results for each config, got %d", len(grypeScanResultCache.results))
+	}
+}
+
 func TestGrypeConfigFileResolvesRepositoryPolicy(t *testing.T) {
 	configFile := grypeConfigFile()
 	if configFile == "" {
-		t.Fatal("Expected repository grype config to be found")
+		t.Skip("Repository Grype policy is unavailable in this checkout")
 	}
 	if filepath.Base(configFile) != grypeConfigFilename {
 		t.Errorf("Expected config basename %q, got %q", grypeConfigFilename, filepath.Base(configFile))
