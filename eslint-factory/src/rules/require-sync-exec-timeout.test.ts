@@ -38,9 +38,13 @@ describe("require-sync-exec-timeout", () => {
     });
   });
 
-  it("valid: options passed via identifier or spread are not statically inspectable", () => {
+  it("valid: non-literal timeout values, options identifiers, and spreads are not statically inspectable", () => {
     cjsRuleTester.run("require-sync-exec-timeout", requireSyncExecTimeoutRule, {
-      valid: [`const { execSync } = require("child_process"); const opts = { timeout: 5000 }; execSync("git status", opts);`, `const { execSync } = require("child_process"); const base = {}; execSync("git status", { ...base });`],
+      valid: [
+        `const { execSync } = require("child_process"); execSync("git status", { timeout: userConfig.timeout });`,
+        `const { execSync } = require("child_process"); const opts = { timeout: 5000 }; execSync("git status", opts);`,
+        `const { execSync } = require("child_process"); const base = {}; execSync("git status", { ...base });`,
+      ],
       invalid: [],
     });
   });
@@ -66,6 +70,18 @@ describe("require-sync-exec-timeout", () => {
         },
         {
           code: `const { execSync } = require("child_process"); execSync("git status", { timeout: undefined });`,
+          errors: [{ messageId: "requireTimeout" }],
+        },
+        {
+          code: `const { execSync } = require("child_process"); execSync("git status", { timeout: 0 });`,
+          errors: [{ messageId: "requireTimeout" }],
+        },
+        {
+          code: `const { execSync } = require("child_process"); execSync("git status", { timeout: -1 });`,
+          errors: [{ messageId: "requireTimeout" }],
+        },
+        {
+          code: `const { execSync } = require("child_process"); execSync("git status", { timeout: -0 });`,
           errors: [{ messageId: "requireTimeout" }],
         },
       ],
