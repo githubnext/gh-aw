@@ -759,7 +759,6 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(ctx context.Context, verbos
 		Validate:             true,
 		Watch:                false,
 		WorkflowDir:          "",
-		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
 		TrialMode:            false,
