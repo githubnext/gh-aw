@@ -107,8 +107,8 @@ function readAllowBotAuthoredTriggerComment(payload) {
 function isConfusedDeputyAttack(actor, eventName, payload) {
   if (!payload) return false;
 
-  // For pull_request events, only check on the `synchronize` action AND only when the
-  // actor is a bot (login ends with "[bot]").
+  // For pull_request and pull_request_target events, only check on the `synchronize`
+  // action AND only when the actor is a bot (login ends with "[bot]").
   // The confused deputy attack (@dependabot recreate) triggers a synchronize event
   // with actor=dependabot[bot] but pull_request.user = original human author.
   // Other pull_request actions (labeled, unlabeled, assigned, review_requested, etc.)
@@ -117,7 +117,7 @@ function isConfusedDeputyAttack(actor, eventName, payload) {
   // Restricting to bot actors is necessary because a human team member pushing commits
   // to a PR they did not open is legitimate collaboration, not a confused deputy attack.
   // The permission check further down validates the human's own repository permissions.
-  if (eventName === "pull_request" && payload.action === "synchronize" && actor.endsWith("[bot]")) {
+  if ((eventName === "pull_request" || eventName === "pull_request_target") && payload.action === "synchronize" && actor.endsWith("[bot]")) {
     const prAuthor = payload.pull_request?.user?.login;
     if (prAuthor !== undefined && prAuthor !== actor) {
       return true;

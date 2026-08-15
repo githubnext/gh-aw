@@ -787,6 +787,26 @@ describe("check_permissions_utils", () => {
         expect(isConfusedDeputyAttack("pelikhan", "pull_request", payload)).toBe(false);
       });
 
+      it("should return true when a bot actor differs from the PR author on pull_request_target:synchronize", () => {
+        const payload = { action: "synchronize", pull_request: { user: { login: "attacker" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_target", payload)).toBe(true);
+      });
+
+      it("should return false when the actor matches the PR author on pull_request_target:synchronize", () => {
+        const payload = { action: "synchronize", pull_request: { user: { login: "dependabot[bot]" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_target", payload)).toBe(false);
+      });
+
+      it("should return false for a human collaborator on pull_request_target:synchronize", () => {
+        const payload = { action: "synchronize", pull_request: { user: { login: "alice" } } };
+        expect(isConfusedDeputyAttack("bob", "pull_request_target", payload)).toBe(false);
+      });
+
+      it("should return false for pull_request_target:labeled even if actor differs from PR author", () => {
+        const payload = { action: "labeled", pull_request: { user: { login: "alice" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_target", payload)).toBe(false);
+      });
+
       it("should return false for pull_request_review when actor matches review author (genuine review)", () => {
         const payload = {
           pull_request: { user: { login: "pr-author" } },
