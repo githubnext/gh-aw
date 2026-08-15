@@ -22,6 +22,7 @@ global.github = {
     },
   },
 };
+global.getOctokit = vi.fn(() => global.github);
 
 const pendingPullRequestRun = {
   event: "pull_request",
@@ -30,6 +31,7 @@ const pendingPullRequestRun = {
   html_url: "https://github.com/test-owner/test-repo/actions/runs/123",
   pull_requests: [{ number: 42 }],
 };
+const externalTokenConfig = { "github-token": "external-token" };
 
 describe("approve_workflow_run", () => {
   beforeEach(() => {
@@ -40,7 +42,7 @@ describe("approve_workflow_run", () => {
 
   it("approves an eligible pull request workflow run", async () => {
     const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main();
+    const handler = await main(externalTokenConfig);
 
     const result = await handler({ run_id: 123 }, {});
 
@@ -58,7 +60,7 @@ describe("approve_workflow_run", () => {
 
   it("accepts a decimal run ID string", async () => {
     const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main();
+    const handler = await main(externalTokenConfig);
 
     const result = await handler({ run_id: "123" }, {});
 
@@ -68,7 +70,7 @@ describe("approve_workflow_run", () => {
 
   it.each([undefined, "", 0, -1, 1.5, "abc", "12abc"])("rejects invalid run ID %j", async runId => {
     const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main();
+    const handler = await main(externalTokenConfig);
 
     const result = await handler({ run_id: runId }, {});
 
@@ -82,7 +84,7 @@ describe("approve_workflow_run", () => {
       data: { ...pendingPullRequestRun, event: "push", pull_requests: [] },
     });
     const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main();
+    const handler = await main(externalTokenConfig);
 
     const result = await handler({ run_id: 123 }, {});
 
@@ -96,7 +98,7 @@ describe("approve_workflow_run", () => {
       data: { ...pendingPullRequestRun, status: "completed" },
     });
     const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main();
+    const handler = await main(externalTokenConfig);
 
     const result = await handler({ run_id: 123 }, {});
 
@@ -126,9 +128,21 @@ describe("approve_workflow_run", () => {
     expect(mockGetWorkflowRun).not.toHaveBeenCalled();
   });
 
+  it("rejects live approvals without an external token", async () => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main();
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("external github-token or GitHub App token");
+    expect(mockGetWorkflowRun).not.toHaveBeenCalled();
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
   it("enforces the configured maximum", async () => {
     const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main({ max: 1 });
+    const handler = await main({ ...externalTokenConfig, max: 1 });
 
     expect((await handler({ run_id: 123 }, {})).success).toBe(true);
     const result = await handler({ run_id: 124 }, {});
@@ -144,7 +158,7 @@ describe("approve_workflow_run", () => {
       })
       .mockResolvedValueOnce({ data: pendingPullRequestRun });
     const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main({ max: 1 });
+    const handler = await main({ ...externalTokenConfig, max: 1 });
 
     expect((await handler({ run_id: 122 }, {})).success).toBe(false);
     expect((await handler({ run_id: 123 }, {})).success).toBe(true);

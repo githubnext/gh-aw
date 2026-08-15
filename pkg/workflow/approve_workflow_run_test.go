@@ -47,3 +47,125 @@ func TestApproveWorkflowRunDefaultConfiguration(t *testing.T) {
 	require.NotNil(t, config)
 	assert.Equal(t, strPtr("1"), config.Max)
 }
+
+func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		wantErr     string
+	}{
+		{
+			name: "missing credentials",
+			safeOutputs: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+			},
+			wantErr: "requires an external github-token or github-app",
+		},
+		{
+			name: "per-handler external token",
+			safeOutputs: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.APPROVE_TOKEN }}"},
+				},
+			},
+		},
+		{
+			name: "per-handler GitHub App",
+			safeOutputs: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubApp: &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}},
+				},
+			},
+		},
+		{
+			name: "safe-outputs external token",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubToken:        "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+			},
+		},
+		{
+			name: "safe-outputs GitHub App",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubApp:          &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"},
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+			},
+		},
+		{
+			name: "staged preview",
+			safeOutputs: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
+				},
+			},
+		},
+		{
+			name: "globally staged preview",
+			safeOutputs: &SafeOutputsConfig{
+				Staged:             templatableBoolPtr("true"),
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSafeOutputsApproveWorkflowRun(tt.safeOutputs)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestApproveWorkflowRunHandlerAuthentication(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *SafeOutputsConfig
+		expected string
+	}{
+		{
+			name: "per-handler external token",
+			config: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.APPROVE_TOKEN }}"},
+				},
+			},
+			expected: "${{ secrets.APPROVE_TOKEN }}",
+		},
+		{
+			name: "per-handler GitHub App token",
+			config: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubApp: &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}},
+				},
+			},
+			expected: "${{ steps.approve-workflow-run-app-token.outputs.token }}",
+		},
+		{
+			name: "safe-outputs external token",
+			config: &SafeOutputsConfig{
+				GitHubToken:        "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+			},
+			expected: "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+		},
+		{
+			name: "safe-outputs GitHub App token",
+			config: &SafeOutputsConfig{
+				GitHubApp:          &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"},
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+			},
+			expected: "${{ steps.safe-outputs-app-token.outputs.token }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handlerConfig := handlerRegistry["approve_workflow_run"](tt.config)
+			assert.Equal(t, tt.expected, handlerConfig["github-token"])
+		})
+	}
+}

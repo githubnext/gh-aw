@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -302,4 +303,25 @@ func validateSafeOutputsAllowWorkflows(safeOutputs *SafeOutputsConfig) error {
 
 	safeOutputsAllowWorkflowsValidationLog.Print("allow-workflows validation passed")
 	return nil
+}
+
+// validateSafeOutputsApproveWorkflowRun requires an explicitly configured external
+// token or GitHub App because github.token cannot approve workflow runs for fork PRs.
+func validateSafeOutputsApproveWorkflowRun(safeOutputs *SafeOutputsConfig) error {
+	if safeOutputs == nil || safeOutputs.ApproveWorkflowRun == nil {
+		return nil
+	}
+
+	config := safeOutputs.ApproveWorkflowRun
+	if templatableBoolIsTrue(safeOutputs.Staged) || templatableBoolIsTrue(config.Staged) {
+		return nil
+	}
+	if config.GitHubToken != "" || config.GitHubApp != nil || safeOutputs.GitHubToken != "" || safeOutputs.GitHubApp != nil {
+		return nil
+	}
+
+	return errors.New(
+		"safe-outputs.approve-workflow-run: requires an external github-token or github-app because github.token cannot approve workflow runs for fork pull requests.\n\n" +
+			"Example:\n  safe-outputs:\n    approve-workflow-run:\n      github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}",
+	)
 }

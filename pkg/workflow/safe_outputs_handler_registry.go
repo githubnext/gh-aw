@@ -25,6 +25,19 @@ func resolveHandlerGitHubToken(app *GitHubAppConfig, handlerKey, fallbackToken s
 	return fallbackToken
 }
 
+// resolveApproveWorkflowRunGitHubToken returns an explicitly configured token for
+// workflow-run approval. GitHub's default Actions token cannot approve fork PR
+// workflow runs, so this handler must never fall back to it.
+func resolveApproveWorkflowRunGitHubToken(cfg *SafeOutputsConfig, config *ApproveWorkflowRunConfig) string {
+	if token := resolveHandlerGitHubToken(config.GitHubApp, "approve-workflow-run", config.GitHubToken); token != "" {
+		return token
+	}
+	if cfg.GitHubApp != nil {
+		return "${{ steps.safe-outputs-app-token.outputs.token }}"
+	}
+	return cfg.GitHubToken
+}
+
 func resolveHandlerGitHubTokenWithStepID(app *GitHubAppConfig, stepID, fallbackToken string) string {
 	if app != nil && stepID != "" {
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
@@ -303,7 +316,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.ApproveWorkflowRun
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
-			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "approve-workflow-run", c.GitHubToken)).
+			AddIfNotEmpty("github-token", resolveApproveWorkflowRunGitHubToken(cfg, c)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},

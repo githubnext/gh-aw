@@ -193,9 +193,10 @@ safe-outputs:
   approve-workflow-run:
     max: 1
     staged: false
+    github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}
 ```
 
-This operation requires `actions: write`. Use `staged: true` to preview approvals without executing them.
+This operation requires `actions: write` and an explicit external `github-token` or `github-app`; the default `github.token` cannot approve fork pull-request workflow runs. Use `staged: true` to preview approvals without executing them.
 
 ## Merge Pull Request (`merge-pull-request:`)
 

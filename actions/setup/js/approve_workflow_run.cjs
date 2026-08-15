@@ -32,11 +32,19 @@ function parseRunId(value) {
  */
 async function main(config = {}) {
   const maxCount = config.max || 1;
-  const githubClient = await createAuthenticatedGitHubClient(config);
   const isStaged = isStagedMode(config);
+  const githubToken = config["github-token"];
   let processedCount = 0;
 
   core.info(`Approve workflow run configuration: max=${maxCount}`);
+
+  if (!isStaged && !githubToken) {
+    const error = "approve_workflow_run requires an external github-token or GitHub App token";
+    core.error(error);
+    return async () => ({ success: false, error });
+  }
+
+  const githubClient = isStaged ? null : await createAuthenticatedGitHubClient(config);
 
   return async function handleApproveWorkflowRun(message) {
     const runId = parseRunId(message.run_id);
