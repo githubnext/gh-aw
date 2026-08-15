@@ -199,6 +199,20 @@ func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 	}
 }
 
+// resolveThreatDetectionContinueOnError determines the continue-on-error mode for
+// threat-detection steps (default: true — detection failures produce warnings). When
+// ContinueOnErrorExpr is set the value is resolved at runtime; compile-time we use true as
+// a safe default so the step-level continue-on-error is included (permissive).
+func resolveThreatDetectionContinueOnError(data *WorkflowData) (bool, *string) {
+	continueOnError := true
+	var continueOnErrorExpr *string
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
+		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
+	}
+	return continueOnError, continueOnErrorExpr
+}
+
 // buildDetectionConclusionStep creates the combined parse-and-conclude step for threat detection.
 // This single JS step consolidates what was previously two steps:
 //  1. Parsing the detection log (parse_detection_results)
