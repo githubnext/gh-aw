@@ -18,11 +18,14 @@ export const noEmptyCatchBlockRule = createRule({
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
-    const intentionalIgnoreCommentRe =
-      /\bintentional\b|\bbest[- ]effort\b|\bnon[- ]fatal\b|(?<![-\w])(?:safe to )?ignore(?:d|s)?\b|\bsilently swallow(?:ed|s|ing)?\b|(?<!don't )(?<!do not )(?<!not )\bswallow(?:ed|s|ing)?\b(?=[^.!?]*(?:\bbecause\b|\berrors?\b|\bexceptions?\b|\bfailures?\b))|\bfall[- ]through\b|\bno[- ]?op\b/i;
+    const intentionalIgnoreCommentRes = [/\bintentional\b/i, /\bbest[- ]effort\b/i, /\bnon[- ]fatal\b/i, /(?<![-\w])(?:safe to )?ignore(?:d|s)?\b/i, /\bfall[- ]through\b/i, /\bno[- ]?op\b/i];
+    const negatedSwallowCommentRe = /\b(?:do not|don't|must not|never|not|should not)\s+(?:silently\s+)?swallow/i;
+    const swallowIntentionalIgnoreCommentRe = /\bsilently swallow(?:ed|s|ing)?\b|\bswallow(?:ed|s|ing)?\b(?=[^.!?]*(?:\bbecause\b|\berrors?\b|\bexceptions?\b|\bfailures?\b))/i;
 
     function commentSignalsIntentionalIgnore(comment: TSESTree.Comment): boolean {
-      return intentionalIgnoreCommentRe.test(comment.value);
+      if (negatedSwallowCommentRe.test(comment.value)) return false;
+      if (intentionalIgnoreCommentRes.some(re => re.test(comment.value))) return true;
+      return swallowIntentionalIgnoreCommentRe.test(comment.value);
     }
 
     function hasAdjacentIntentionalIgnoreComment(node: TSESTree.Node): boolean {
