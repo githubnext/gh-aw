@@ -18,7 +18,6 @@ const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 const { getAssignToAgentAssigned, getAssignToAgentErrors, getAssignToAgentErrorCount, writeAssignToAgentSummary } = require("./assign_to_agent.cjs");
-const { getCreateAgentSessionNumber, getCreateAgentSessionUrl, writeCreateAgentSessionSummary } = require("./create_agent_session.cjs");
 const { createPrReviewBufferRegistry } = require("./pr_review_buffer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
@@ -1733,9 +1732,10 @@ async function main() {
 
     // Export assign_to_agent outputs when the handler was loaded
     if (messageHandlers.has("assign_to_agent")) {
-      const assignToAgentAssigned = getAssignToAgentAssigned();
-      const assignToAgentErrors = getAssignToAgentErrors();
-      const assignToAgentErrorCount = getAssignToAgentErrorCount();
+      const assignToAgentHandler = messageHandlers.get("assign_to_agent");
+      const assignToAgentAssigned = getAssignToAgentAssigned(assignToAgentHandler);
+      const assignToAgentErrors = getAssignToAgentErrors(assignToAgentHandler);
+      const assignToAgentErrorCount = getAssignToAgentErrorCount(assignToAgentHandler);
       core.setOutput("assign_to_agent_assigned", assignToAgentAssigned);
       core.setOutput("assign_to_agent_assignment_errors", assignToAgentErrors);
       core.setOutput("assign_to_agent_assignment_error_count", assignToAgentErrorCount.toString());
@@ -1743,17 +1743,19 @@ async function main() {
         core.warning(`${assignToAgentErrorCount} agent assignment(s) failed`);
       }
       core.info(`Exported assign_to_agent outputs (${assignToAgentErrorCount} error(s))`);
-      await writeAssignToAgentSummary();
+      await writeAssignToAgentSummary(assignToAgentHandler);
     }
 
     // Export create_agent_session outputs when the handler was loaded
     if (messageHandlers.has("create_agent_session")) {
-      const sessionNumber = getCreateAgentSessionNumber();
-      const sessionUrl = getCreateAgentSessionUrl();
+      /** @type {any} */
+      const createAgentSessionHandler = messageHandlers.get("create_agent_session");
+      const sessionNumber = createAgentSessionHandler.getSessionNumber();
+      const sessionUrl = createAgentSessionHandler.getSessionUrl();
       core.setOutput("session_number", sessionNumber);
       core.setOutput("session_url", sessionUrl);
       core.info(`Exported create_agent_session outputs (session_number=${sessionNumber})`);
-      await writeCreateAgentSessionSummary();
+      await createAgentSessionHandler.writeSummary();
     }
 
     // Export create_discussion errors for conclusion job

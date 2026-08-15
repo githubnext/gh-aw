@@ -93,10 +93,10 @@
       "version": "v0.24.0",
       "sha": "e22c389904149dbc22b58101806040fa8d37a610"
     },
-    "astral-sh/setup-uv@v9.0.0": {
+    "astral-sh/setup-uv@v10.0.0": {
       "repo": "astral-sh/setup-uv",
-      "version": "v9.0.0",
-      "sha": "c771a70e6277c0a99b617c7a806ffedaca235ff9"
+      "version": "v10.0.0",
+      "sha": "ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d"
     },
     "denoland/setup-deno@v2.0.5": {
       "repo": "denoland/setup-deno",
@@ -225,20 +225,10 @@
       "digest": "sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198",
       "pinned_image": "grafana/mcp-grafana:1.0.0-alpine@sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198"
     },
-    "mcp/context7": {
-      "image": "mcp/context7",
-      "digest": "sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836",
-      "pinned_image": "mcp/context7@sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836"
-    },
     "node:lts-alpine": {
       "image": "node:lts-alpine",
       "digest": "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43",
       "pinned_image": "node:lts-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
-    },
-    "python:alpine": {
-      "image": "python:alpine",
-      "digest": "sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8",
-      "pinned_image": "python:alpine@sha256:a1321512d6a287428c50dcdf2ab3857761127e03a23b1f648e9c1c0de59288f8"
     }
   }
 }

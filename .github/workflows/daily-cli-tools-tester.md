@@ -652,14 +652,19 @@ For each significant problem found, create a GitHub issue with:
 
 ### Logs/Diagnostics
 
+<details>
+<summary><b>View Logs/Diagnostics</b></summary>
+
 [Relevant log excerpts, error messages, screenshots]
+
+</details>
 
 ### Additional Context
 
 [Any other relevant information]
 ```
 
-**IMPORTANT**: Create one issue per distinct problem (max 5 issues as per safe-outputs config).
+**IMPORTANT**: Create one issue per distinct problem (max 5 issues as per safe-outputs config). Keep long log excerpts, raw output, and diffs inside `<details>` blocks so the issue stays scannable.
 
 ### 8.3 Use Noop for Successful Testing
 
