@@ -33,7 +33,7 @@ The user requested support for guard policies in the MCP gateway configuration, 
 
 3. Expose these parameters through workflow frontmatter fields
 
-## Proposed Solution
+## Approach
 
 ### 1. Type Hierarchy
 
@@ -101,6 +101,8 @@ tools:
 ```
 
 > **Note**: The field was originally named `repos` and renamed to `allowed-repos` in PR #22331. The old name is retained as a deprecated alias; run `gh aw fix` to migrate automatically.
+
+## Operations
 
 ### 4. MCP Gateway Configuration Flow
 
@@ -581,6 +583,10 @@ The deprecated `repos` field (YAML key: `repos`) is handled alongside `allowed-r
 ## Sync Follow-ups
 
 This section lists the files that **MUST** be reviewed and updated whenever a normative section of this specification changes. Reviewers **SHALL** confirm each target is consistent with the updated spec before merging.
+
+### After Restructuring Approach and Operations Headers
+
+The Approach and Operations headers organize the former Proposed Solution and MCP Gateway Configuration Flow content. Keep these headers in place when synchronizing this scratchpad document with downstream documentation or navigation.
 
 ### After Adding or Changing Normative Requirements (§Conformance)
 

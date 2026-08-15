@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var enclavesLog = logger.New("workflow:enclaves")
 
 const (
 	enclaveMCPServerName          = "awf-enclave"
@@ -112,12 +116,15 @@ func validateEnclavesConfig(workflowData *WorkflowData) error {
 	if !enclavesEnabled(workflowData) {
 		return nil
 	}
+	enclavesLog.Printf("Validating %d enclave config(s)", len(workflowData.Enclaves))
 	if !isAWFNetworkIsolationEnabled(workflowData) {
+		enclavesLog.Print("Rejecting enclaves: AWF network isolation is not enabled")
 		return errors.New("enclaves requires AWF network isolation; set sandbox.agent.sudo: false or use sandbox.agent.runtime: docker-sbx")
 	}
 	if workflowData.ParsedTools != nil &&
 		workflowData.ParsedTools.GitHub != nil &&
 		workflowData.ParsedTools.GitHub.BoundedQueries != nil {
+		enclavesLog.Print("Rejecting enclaves: incompatible with tools.github.bounded-queries")
 		return errors.New("enclaves cannot be combined with tools.github.bounded-queries; remove tools.github.bounded-queries to use enclaves. Example:\n\nenclaves:\n  - script:\n    repos:\n      - repo: org/my-repo\n        sensitivity: confidential")
 	}
 	seenTypes := make(map[string]struct{}, len(workflowData.Enclaves))
@@ -219,6 +226,7 @@ func buildAWFEnclavesConfig(config EnclavesConfig) []map[string]any {
 		}
 		result = append(result, values)
 	}
+	enclavesLog.Printf("Built %d AWF enclave config(s) from %d entries", len(result), len(config))
 	return result
 }
 
