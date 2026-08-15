@@ -3,7 +3,7 @@ import { resolveWriteOnceInitializerChain } from "./command-initializer-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
-const ERROR_CODE_PATTERN = /ERR_[A-Z_]+|E[0-9]{3}(?!\d)/;
+const ERROR_CODE_PATTERN = /(?<![A-Za-z0-9])ERR_[A-Z_]+\b|(?<![A-Za-z0-9])E[0-9]{3}\b/;
 
 /**
  * Returns true when the given template literal or string literal argument

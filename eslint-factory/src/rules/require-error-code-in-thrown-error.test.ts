@@ -49,6 +49,18 @@ describe("require-error-code-in-thrown-error", () => {
           errors: [{ messageId: "missingErrorCode" }],
         },
         {
+          code: `const { SAFE_OUTPUT_E099X } = require("./error_codes.cjs"); function f() { throw new Error(\`\${SAFE_OUTPUT_E099X}: invalid configuration\`); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { ERR_CONFIGmore } = require("./error_codes.cjs"); function f() { throw new Error(\`\${ERR_CONFIGmore}: invalid configuration\`); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { FOOERR_CONFIG } = require("./error_codes.cjs"); function f() { throw new Error(\`\${FOOERR_CONFIG}: invalid configuration\`); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
           code: `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} function f() { throw new CustomError("failed to fetch"); }`,
           errors: [{ messageId: "missingErrorCode" }],
         },
