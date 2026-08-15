@@ -73,7 +73,7 @@ func (om *ObjectiveMapping) ComputeObjectiveValue(issueLabels []string) int {
 		return om.computeValueSum(matchingValues, matchedLabels)
 	case MultiLabelLogicFirst:
 		return om.computeValueFirst(issueLabels, matchingValues, matchedLabels)
-	default: // "max"
+	default: // MultiLabelLogicMax
 		return om.computeValueMax(matchingValues, matchedLabels)
 	}
 }
@@ -256,9 +256,6 @@ func normalizeObjectiveLabel(label string) string {
 }
 
 func (om *ObjectiveMapping) objectiveValueForLabel(label string) (int, bool) {
-	if om == nil {
-		return 0, false
-	}
 	val, ok := om.LabelToValue[normalizeObjectiveLabel(label)]
 	return val, ok
 }

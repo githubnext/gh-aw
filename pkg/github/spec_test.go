@@ -21,6 +21,8 @@ import (
 func TestSpec_DefaultObjectiveMapping_Values(t *testing.T) {
 	om := github.DefaultObjectiveMapping()
 
+	// This assertion intentionally locks the full default shape so score changes
+	// require an explicit spec update in one place.
 	assert.Equal(t, map[string]int{
 		"critical":        100,
 		"p0":              100,
@@ -41,7 +43,11 @@ func TestSpec_DefaultObjectiveMapping_Values(t *testing.T) {
 // are intentionally not part of the default mapping.
 func TestSpec_DefaultObjectiveMapping_ExcludesUnmappedLabels(t *testing.T) {
 	om := github.DefaultObjectiveMapping()
-	assert.NotContains(t, om.LabelToValue, "bug")
+	for _, label := range []string{
+		"bug", "testing", "reliability", "workflow", "engine", "mcp", "enhancement", "dependencies",
+	} {
+		assert.NotContains(t, om.LabelToValue, label, "label %q should not be in the default mapping", label)
+	}
 }
 
 // TestSpec_Constants_MultiLabelLogic validates the documented multi-label logic
@@ -64,10 +70,10 @@ func TestSpec_Constants_MultiLabelLogic(t *testing.T) {
 // Tests construct explicit mappings so they validate documented behavior rather
 // than the contents of the built-in default mapping.
 func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
-	// Mapping mirroring the README constants table for the relevant labels.
+	// Mapping is intentionally explicit for this test and independent of defaults.
 	mapping := func(logic string, priorities ...string) *github.ObjectiveMapping {
 		return &github.ObjectiveMapping{
-			// Values mirror this test's explicit mapping: bug=60, high-priority=35.
+			// Explicit values used by this test: bug=60, high-priority=35.
 			LabelToValue: map[string]int{
 				"bug":           60,
 				"high-priority": 35,
@@ -79,7 +85,7 @@ func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
 	}
 
 	t.Run("max logic returns highest matching value (documented default)", func(t *testing.T) {
-		// README example: max of bug=60, high-priority=35 -> 60.
+		// Explicit test mapping: max of bug=60, high-priority=35 -> 60.
 		got := mapping(github.MultiLabelLogicMax).ComputeObjectiveValue([]string{"bug", "high-priority"})
 		assert.Equal(t, 60, got, "max logic should return the highest matching value")
 	})

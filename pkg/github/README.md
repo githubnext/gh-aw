@@ -50,6 +50,10 @@ The package exports constants for multi-label logic options:
 | `MultiLabelLogicSum` | `"sum"` | Sum all matching label values |
 | `MultiLabelLogicFirst` | `"first"` | Use the first match in priority order |
 
+For backward compatibility, deprecated exported `ObjectiveLabel*` and
+`ObjectiveValue*` constants are still available for external consumers. Runtime
+scoring behavior is not derived from those constants.
+
 Default label-to-value entries are provided by `DefaultObjectiveMapping()`:
 
 | Label | Value |
@@ -66,6 +70,10 @@ Default label-to-value entries are provided by `DefaultObjectiveMapping()`:
 | `low-priority` | 10 |
 | `p3` | 10 |
 | `documentation` | 5 |
+
+Labels not listed above (for example `bug`, `testing`, and `reliability`) are
+not part of the default mapping and evaluate to `0` unless provided by
+configuration.
 
 ## Configuration Precedence
 
