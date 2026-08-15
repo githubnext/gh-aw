@@ -41,6 +41,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `osgetenvlibrary` — reports `os.Getenv` calls in library packages (`pkg/*`) where environment access should be injected.
 - `osexitinlibrary` — reports `os.Exit` calls in library packages (`pkg/*`) where process termination should be delegated to `cmd/*` entry points.
 - `ossetenvlibrary` — reports `os.Setenv` calls in library packages (`pkg/*`) where side effects should be isolated.
+- `packagelevelmutableslicemap` — reports package-level (file/package-scope) `var` slice/map declarations mutated from inside a function body via `append()` re-assignment, index assignment, or `delete()`. Mutations inside a top-level `init()` are exempt.
 - `panic-in-library-code` — reports `panic()` calls in library packages (`pkg/*`) where errors should be returned instead.
 - `rawloginlib` — reports direct usage of the standard `log` package in library packages, where `pkg/logger` should be used.
 - `regexpcompileinfunction` — reports `regexp.MustCompile` / `regexp.Compile` calls inside functions that should be package-level.
@@ -133,6 +134,7 @@ environment variable and gates findings on the recorded execution hit count for 
 | `osgetenvlibrary` | Custom `go/analysis` analyzer that flags `os.Getenv` usage in library packages |
 | `osexitinlibrary` | Custom `go/analysis` analyzer that flags `os.Exit` usage in library packages |
 | `ossetenvlibrary` | Custom `go/analysis` analyzer that flags `os.Setenv` usage in library packages |
+| `packagelevelmutableslicemap` | Custom `go/analysis` analyzer that flags package-level slice/map `var` declarations mutated from inside a function body via `append()` re-assignment, index assignment, or `delete()` |
 | `panic-in-library-code` | Custom `go/analysis` analyzer that flags `panic()` usage in library packages |
 | `rawloginlib` | Custom `go/analysis` analyzer that flags standard-library `log` package calls in library packages |
 | `regexpcompileinfunction` | Custom `go/analysis` analyzer that flags regexp compilation inside function bodies |
@@ -270,6 +272,7 @@ _ = trimleftright.Analyzer
 - `github.com/github/gh-aw/pkg/linters/osgetenvlibrary` — os-getenv-library analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/osexitinlibrary` — os-exit-in-library analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ossetenvlibrary` — os-setenv-library analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/packagelevelmutableslicemap` — package-level-mutable-slice-map analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/panic-in-library-code` — panic-in-library-code analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/rawloginlib` — raw-log-in-lib analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/regexpcompileinfunction` — regexp-compile-in-function analyzer subpackage
