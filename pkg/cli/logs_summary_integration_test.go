@@ -69,15 +69,17 @@ func TestRunSummaryCachingBehavior(t *testing.T) {
 		CLIVersion:  GetVersion(),
 		RunID:       99999,
 		ProcessedAt: time.Now(),
-		Run:         testRun,
-		Metrics:     testMetrics,
+		RunAnalysis: RunAnalysis{
+			Run:          testRun,
+			Metrics:      testMetrics,
+			MissingTools: []MissingToolReport{},
+			MCPFailures:  []MCPFailureReport{},
+		},
 		ArtifactsList: []string{
 			"aw_info.json",
 			"agent-stdio.log",
 			"safe_output.jsonl",
 		},
-		MissingTools: []MissingToolReport{},
-		MCPFailures:  []MCPFailureReport{},
 	}
 
 	// Save the summary
@@ -178,11 +180,13 @@ func TestRunSummaryPreventsReprocessing(t *testing.T) {
 	// Simulate first processing: create summary
 	firstProcessTime := time.Now()
 	summary := &RunSummary{
-		CLIVersion:    GetVersion(),
-		RunID:         88888,
-		ProcessedAt:   firstProcessTime,
-		Run:           WorkflowRun{DatabaseID: 88888},
-		Metrics:       workflow.LogMetrics{TokenUsage: 1000},
+		CLIVersion:  GetVersion(),
+		RunID:       88888,
+		ProcessedAt: firstProcessTime,
+		RunAnalysis: RunAnalysis{
+			Run:     WorkflowRun{DatabaseID: 88888},
+			Metrics: workflow.LogMetrics{TokenUsage: 1000},
+		},
 		ArtifactsList: []string{"aw_info.json"},
 	}
 

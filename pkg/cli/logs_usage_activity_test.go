@@ -182,10 +182,11 @@ func TestApplyUsageActivitySummaryDoesNotOverwriteExistingData(t *testing.T) {
 		Summary:   []MCPToolSummary{},
 		ToolCalls: []MCPToolCall{},
 	}
-	result := DownloadResult{
+	result := DownloadResult{RunAnalysis: RunAnalysis{
 		Run:              WorkflowRun{Turns: 9},
 		FirewallAnalysis: existingFirewall,
 		MCPToolUsage:     existingMCP,
+	},
 	}
 	summary := &usageActivitySummary{
 		Session: &usageActivitySession{Turns: 4},
@@ -228,7 +229,7 @@ func TestApplyUsageActivitySummaryBackfillsSafeItemsCount(t *testing.T) {
 func TestApplyUsageActivitySummaryDoesNotOverwriteExistingSafeItemsCount(t *testing.T) {
 	t.Parallel()
 
-	result := DownloadResult{Run: WorkflowRun{SafeItemsCount: 5}}
+	result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{SafeItemsCount: 5}}}
 	summary := &usageActivitySummary{
 		SafeOutputs: &usageActivitySafeOutputs{
 			TotalItems: 3,
@@ -356,7 +357,7 @@ func TestCacheHitBackfillsStaleZeroSafeItemsCount(t *testing.T) {
 	}`), 0o644))
 
 	// Simulate a stale cache: SafeItemsCount is 0 (saved before backfill existed).
-	result := DownloadResult{Run: WorkflowRun{SafeItemsCount: 0}}
+	result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{SafeItemsCount: 0}}}
 
 	backfillCacheHitIfNeeded(&result, runDir, false)
 
@@ -381,7 +382,7 @@ func TestCacheHitBackfillsStaleZeroTurns(t *testing.T) {
 	}`), 0o644))
 
 	// Simulate a stale cache: Turns is 0 (saved before turns backfill existed).
-	result := DownloadResult{Run: WorkflowRun{Turns: 0}}
+	result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{Turns: 0}}}
 
 	backfillCacheHitIfNeeded(&result, runDir, false)
 
@@ -395,13 +396,14 @@ func TestCacheHitBackfillsStaleZeroTokenUsage(t *testing.T) {
 
 	runDir := t.TempDir()
 
-	result := DownloadResult{
+	result := DownloadResult{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{TokenUsage: 0},
 		Metrics: LogMetrics{TokenUsage: 0},
 		TokenUsage: &TokenUsageSummary{
 			TotalInputTokens:  2000,
 			TotalOutputTokens: 1000,
 		},
+	},
 	}
 
 	backfillCacheHitIfNeeded(&result, runDir, false)
@@ -427,7 +429,7 @@ func TestCacheHitDoesNotOverwriteNonZeroValues(t *testing.T) {
 	}`), 0o644))
 
 	// Cache has non-zero values — the backfill guard should be a no-op.
-	result := DownloadResult{Run: WorkflowRun{Turns: 14, SafeItemsCount: 5}}
+	result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{Turns: 14, SafeItemsCount: 5}}}
 
 	backfillCacheHitIfNeeded(&result, runDir, false)
 
@@ -453,7 +455,7 @@ func TestCacheHitBackfillsPartialZeroTurns(t *testing.T) {
 	}`), 0o644))
 
 	// Turns=0 triggers the guard; SafeItemsCount=5 is already non-zero.
-	result := DownloadResult{Run: WorkflowRun{Turns: 0, SafeItemsCount: 5}}
+	result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{Turns: 0, SafeItemsCount: 5}}}
 
 	backfillCacheHitIfNeeded(&result, runDir, false)
 
@@ -478,7 +480,7 @@ func TestCacheHitBackfillsPartialZeroSafeItemsCount(t *testing.T) {
 	}`), 0o644))
 
 	// SafeItemsCount=0 triggers the guard; Turns=14 is already non-zero.
-	result := DownloadResult{Run: WorkflowRun{Turns: 14, SafeItemsCount: 0}}
+	result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{Turns: 14, SafeItemsCount: 0}}}
 
 	backfillCacheHitIfNeeded(&result, runDir, false)
 

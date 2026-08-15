@@ -1010,7 +1010,7 @@ This workflow imports safe-jobs from a shared workflow.
 	// Verify job configuration
 	job := workflowData.SafeOutputs.Jobs["my-custom-job"]
 	assert.Equal(t, "My Custom Job", job.Name, "Job name should match")
-	assert.Equal(t, "ubuntu-latest", job.RunsOn, "Job runs-on should match")
+	assert.Equal(t, RunsOnValue{"ubuntu-latest"}, job.RunsOn, "Job runs-on should match")
 	assert.Len(t, job.Steps, 1, "Job should have 1 step")
 	assert.Contains(t, job.Permissions, "contents", "Job should have contents permission")
 	assert.Contains(t, job.Permissions, "issues", "Job should have issues permission")
@@ -1397,7 +1397,7 @@ func TestMergeSafeOutputsJobsNotMerged(t *testing.T) {
 		Jobs: map[string]*SafeJobConfig{
 			"existing-job": {
 				Name:   "Existing Job",
-				RunsOn: "ubuntu-latest",
+				RunsOn: RunsOnValue{"ubuntu-latest"},
 			},
 		},
 	}
