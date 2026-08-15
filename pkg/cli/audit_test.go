@@ -128,9 +128,10 @@ func TestIsPermissionErrorStr(t *testing.T) {
 }
 
 func TestProcessedRunFromSummaryBackfillsTurnsFromMetrics(t *testing.T) {
-	summary := &RunSummary{
+	summary := &RunSummary{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{DatabaseID: 123, Turns: 0},
 		Metrics: LogMetrics{Turns: 34},
+	},
 	}
 
 	processed := processedRunFromSummary(summary, "/tmp/run-output")
@@ -140,9 +141,10 @@ func TestProcessedRunFromSummaryBackfillsTurnsFromMetrics(t *testing.T) {
 }
 
 func TestProcessedRunFromSummaryPreservesExistingTurns(t *testing.T) {
-	summary := &RunSummary{
+	summary := &RunSummary{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{DatabaseID: 456, Turns: 7},
 		Metrics: LogMetrics{Turns: 34},
+	},
 	}
 
 	processed := processedRunFromSummary(summary, "/tmp/run-output")
@@ -151,9 +153,10 @@ func TestProcessedRunFromSummaryPreservesExistingTurns(t *testing.T) {
 }
 
 func TestProcessedRunFromSummaryBothTurnsZero(t *testing.T) {
-	summary := &RunSummary{
+	summary := &RunSummary{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{DatabaseID: 789, Turns: 0},
 		Metrics: LogMetrics{Turns: 0},
+	},
 	}
 
 	processed := processedRunFromSummary(summary, "/tmp/run-output")
@@ -505,16 +508,18 @@ func TestAuditCachingBehavior(t *testing.T) {
 
 	// Create and save a run summary
 	summary := &RunSummary{
-		CLIVersion:     GetVersion(),
-		RunID:          run.DatabaseID,
-		ProcessedAt:    time.Now(),
-		Run:            run,
-		Metrics:        metrics,
-		AccessAnalysis: nil,
-		MissingTools:   []MissingToolReport{},
-		MCPFailures:    []MCPFailureReport{},
-		ArtifactsList:  []string{"aw_info.json"},
-		JobDetails:     []JobInfoWithDuration{},
+		CLIVersion:  GetVersion(),
+		RunID:       run.DatabaseID,
+		ProcessedAt: time.Now(),
+		RunAnalysis: RunAnalysis{
+			Run:            run,
+			Metrics:        metrics,
+			AccessAnalysis: nil,
+			MissingTools:   []MissingToolReport{},
+			MCPFailures:    []MCPFailureReport{},
+			JobDetails:     []JobInfoWithDuration{},
+		},
+		ArtifactsList: []string{"aw_info.json"},
 	}
 
 	if err := saveRunSummary(runOutputDir, summary, false); err != nil {
@@ -609,14 +614,16 @@ func TestAuditUsesRunSummaryCache(t *testing.T) {
 	}
 
 	cachedSummary := &RunSummary{
-		CLIVersion:   GetVersion(),
-		RunID:        runID,
-		ProcessedAt:  time.Now().Add(-time.Hour), // processed one hour ago
-		Run:          cachedRun,
-		Metrics:      cachedMetrics,
-		MissingTools: []MissingToolReport{},
-		MCPFailures:  []MCPFailureReport{},
-		JobDetails:   []JobInfoWithDuration{},
+		CLIVersion:  GetVersion(),
+		RunID:       runID,
+		ProcessedAt: time.Now().Add(-time.Hour), // processed one hour ago
+		RunAnalysis: RunAnalysis{
+			Run:          cachedRun,
+			Metrics:      cachedMetrics,
+			MissingTools: []MissingToolReport{},
+			MCPFailures:  []MCPFailureReport{},
+			JobDetails:   []JobInfoWithDuration{},
+		},
 	}
 
 	if err := saveRunSummary(runOutputDir, cachedSummary, false); err != nil {

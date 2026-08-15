@@ -35,13 +35,18 @@ function isIsNaNCallee(callee: TSESTree.Expression): boolean {
   return isNaNGlobal || isNaNStatic;
 }
 
-/** Returns true when the call expression is `Number.isNaN(x.getTime())` or `isNaN(x.getTime())`. */
-function isGetTimeNaNCheck(node: TSESTree.CallExpression): boolean {
-  if (!isIsNaNCallee(node.callee)) return false;
-  if (node.arguments.length !== 1) return false;
+/**
+ * Returns the receiver of the `<expr>.getTime()` sole argument of a check call (e.g. the `d` in
+ * `Number.isNaN(d.getTime())`), or null when the call does not have that shape.
+ */
+function extractGetTimeCheckTarget(node: TSESTree.CallExpression): TSESTree.Node | null {
+  if (node.arguments.length !== 1) return null;
 
   const arg = node.arguments[0];
-  return arg.type === AST_NODE_TYPES.CallExpression && arg.callee.type === AST_NODE_TYPES.MemberExpression && arg.callee.property.type === AST_NODE_TYPES.Identifier && arg.callee.property.name === "getTime";
+  if (arg.type !== AST_NODE_TYPES.CallExpression) return null;
+  if (arg.callee.type !== AST_NODE_TYPES.MemberExpression) return null;
+  if (arg.callee.property.type !== AST_NODE_TYPES.Identifier || arg.callee.property.name !== "getTime") return null;
+  return arg.callee.object;
 }
 
 /**
@@ -93,7 +98,7 @@ function isPotentiallyInvalidDateParseCall(node: TSESTree.CallExpression): boole
 
 /**
  * Returns the receiver expression of a zero-argument `<expr>.getTime()` call, or null when the
- * node is not such a call. Mirrors the extraction performed by `isGetTimeNaNCheck` so that
+ * node is not such a call. Mirrors the extraction performed by `extractGetTimeCheckTarget` so that
  * comparisons written as `d.getTime() < threshold` are recognized the same way as `d < threshold`.
  */
 function extractGetTimeReceiver(node: TSESTree.Node): TSESTree.Node | null {
@@ -202,7 +207,8 @@ function guardDirectlyGatesComparison(guardPath: TSESTree.Node[], comparisonPath
   });
 }
 
-// "construct" covers `new Date(x)` (validated via Number.isNaN(d.getTime())); "parse" covers
+// "construct" covers `new Date(x)` (validated via Number.isNaN(d.getTime()) or
+// !Number.isFinite(d.getTime())); "parse" covers
 // `Date.parse(x)` (validated via Number.isFinite(name) or !Number.isNaN(name)).
 type DateVarKind = "construct" | "parse";
 type ComparisonSide = { kind: "inline"; source: DateVarKind } | { kind: "var"; variable: TSESLint.Scope.Variable; source: DateVarKind };
@@ -213,7 +219,7 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
     type: "problem",
     docs: {
       description:
-        "Require validating `new Date(x)` with Number.isNaN(d.getTime()) (or isNaN(d.getTime())), and `Date.parse(x)` with Number.isFinite(name) " +
+        "Require validating `new Date(x)` with Number.isNaN(d.getTime()) (or isNaN(d.getTime()) / !Number.isFinite(d.getTime())), and `Date.parse(x)` with Number.isFinite(name) " +
         "(or !Number.isNaN(name)), before using the result in a relational comparison (<, >, <=, >=). " +
         "An Invalid Date (or a NaN timestamp from Date.parse) compares as neither greater than nor less than any other date " +
         "(all relational comparisons involving NaN return false), which silently defeats time-window/threshold checks such as " +
@@ -222,7 +228,7 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
     schema: [],
     messages: {
       requireInvalidDateCheck:
-        "{{subject}} may be an Invalid Date and is compared with a relational operator ({{operator}}) without ever being checked via Number.isNaN({{getTimeTarget}}.getTime()). An unparseable date silently fails every comparison instead of surfacing an error.",
+        "{{subject}} may be an Invalid Date and is compared with a relational operator ({{operator}}) without ever being checked via Number.isNaN({{getTimeTarget}}.getTime()) (or !Number.isFinite({{getTimeTarget}}.getTime())). An unparseable date silently fails every comparison instead of surfacing an error.",
       requireInvalidDateCheckParse:
         "{{subject}} may be NaN (from Date.parse(...)) and is compared with a relational operator ({{operator}}) without ever being checked via Number.isFinite({{parseTarget}}) (or !Number.isNaN({{parseTarget}})). An unparseable date silently fails every comparison instead of surfacing an error.",
     },
@@ -232,7 +238,7 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
     const sourceCode = context.sourceCode;
     // Variable -> kind, for variables assigned `new Date(nonTrivialArg)` or `Date.parse(x)`.
     const dateVars = new Map<TSESLint.Scope.Variable, DateVarKind>();
-    // Variables confirmed validated via Number.isNaN(name.getTime()) / isNaN(name.getTime()) (for
+    // Variables confirmed validated via Number.isNaN(name.getTime()) / Number.isFinite(name.getTime()) (for
     // "construct" vars) or Number.isFinite(name) / !Number.isNaN(name) (for "parse" vars), each
     // recorded with its ancestor path so ordering and reachability can be checked later.
     const guards = new Map<TSESLint.Scope.Variable, TSESTree.Node[][]>();
@@ -244,6 +250,21 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
       const paths = guards.get(variable) ?? [];
       paths.push([...ancestors, guardNode]);
       guards.set(variable, paths);
+    }
+
+    /**
+     * Records a guard path for `variable` and, when the check is wrapped in a `!` negation,
+     * also records the enclosing negation node. `Number.isFinite(...)` guards are written as
+     * `if (!Number.isFinite(...)) return;`, and the exiting-guard check requires the guard node
+     * to be exactly the `if` test.
+     */
+    function addGuardPathWithNegation(variable: TSESLint.Scope.Variable, node: TSESTree.CallExpression): void {
+      const ancestors = sourceCode.getAncestors(node);
+      addGuardPath(variable, ancestors, node);
+      const parent = ancestors.at(-1);
+      if (parent?.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "!" && parent.argument === node) {
+        addGuardPath(variable, ancestors.slice(0, -1), parent);
+      }
     }
 
     /** Returns true when at least one recorded guard for the variable is guaranteed to run before the comparison. */
@@ -266,14 +287,25 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
       },
 
       CallExpression(node) {
-        if (isGetTimeNaNCheck(node)) {
-          const arg = node.arguments[0] as TSESTree.CallExpression;
-          const obj = (arg.callee as TSESTree.MemberExpression).object;
-          if (obj.type === AST_NODE_TYPES.Identifier) {
-            const variable = resolveVariable(sourceCode, obj);
-            if (variable) addGuardPath(variable, sourceCode.getAncestors(node), node);
+        const isNaNCallee = isIsNaNCallee(node.callee);
+        const isFiniteCallee = isIsFiniteCallee(node.callee);
+
+        if (isNaNCallee || isFiniteCallee) {
+          // `Number.isNaN(d.getTime())` and `Number.isFinite(d.getTime())` (and their global
+          // counterparts) are equivalent validations of a `new Date(x)` value, differing only in
+          // polarity: the invalid-date branch is the truthy one for `isNaN` and the negated one
+          // for `isFinite`, so the latter also registers its enclosing `!` as a guard node.
+          const getTimeTarget = extractGetTimeCheckTarget(node);
+          if (getTimeTarget !== null) {
+            if (getTimeTarget.type === AST_NODE_TYPES.Identifier) {
+              const variable = resolveVariable(sourceCode, getTimeTarget);
+              if (variable) {
+                if (isFiniteCallee) addGuardPathWithNegation(variable, node);
+                else addGuardPath(variable, sourceCode.getAncestors(node), node);
+              }
+            }
+            return;
           }
-          return;
         }
 
         const directNaNTarget = extractDirectNaNCheckTarget(node);
@@ -286,17 +318,7 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
         const isFiniteTarget = extractIsFiniteCheckTarget(node);
         if (isFiniteTarget) {
           const variable = resolveVariable(sourceCode, isFiniteTarget);
-          if (variable) {
-            const ancestors = sourceCode.getAncestors(node);
-            addGuardPath(variable, ancestors, node);
-            // Also register the enclosing `!Number.isFinite(name)` negation (if any) so that
-            // `if (!Number.isFinite(name)) return;`-style exiting guards are recognized: the
-            // exiting-guard check requires the guard node to be exactly the `if` test.
-            const parent = ancestors.at(-1);
-            if (parent?.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "!" && parent.argument === node) {
-              addGuardPath(variable, ancestors.slice(0, -1), parent);
-            }
-          }
+          if (variable) addGuardPathWithNegation(variable, node);
         }
       },
 

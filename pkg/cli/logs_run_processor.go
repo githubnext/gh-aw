@@ -205,7 +205,7 @@ func processSingleRunDownload(
 ) (DownloadResult, error) {
 	select {
 	case <-ctx.Done():
-		return DownloadResult{Run: run, Skipped: true, Error: ctx.Err()}, nil
+		return DownloadResult{RunAnalysis: RunAnalysis{Run: run}, Skipped: true, Error: ctx.Err()}, nil
 	default:
 	}
 	if params.verbose {
@@ -220,7 +220,7 @@ func processSingleRunDownload(
 		logsOrchestratorLog.Printf("Downloading artifacts for run %d: owner=%s, repo=%s", run.DatabaseID, perRunParams.dlOwner, perRunParams.dlRepo)
 		err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir, verbose: params.verbose, owner: perRunParams.dlOwner, repo: perRunParams.dlRepo, hostname: perRunParams.dlHost, artifactFilter: params.artifactFilter})
 
-		result = &DownloadResult{Run: run, LogsPath: runOutputDir}
+		result = &DownloadResult{RunAnalysis: RunAnalysis{Run: run}, LogsPath: runOutputDir}
 		if err != nil {
 			handleArtifactDownloadError(result, err, params.verbose)
 		} else {
@@ -298,26 +298,9 @@ func tryLoadCachedRunResult(
 	}
 
 	result := DownloadResult{
-		Run:                     summary.Run,
-		Metrics:                 summary.Metrics,
-		AwContext:               summary.AwContext,
-		TaskDomain:              summary.TaskDomain,
-		BehaviorFingerprint:     summary.BehaviorFingerprint,
-		AgenticAssessments:      summary.AgenticAssessments,
-		AccessAnalysis:          summary.AccessAnalysis,
-		FirewallAnalysis:        summary.FirewallAnalysis,
-		RedactedDomainsAnalysis: summary.RedactedDomainsAnalysis,
-		MissingTools:            summary.MissingTools,
-		MissingData:             summary.MissingData,
-		Noops:                   summary.Noops,
-		MCPFailures:             summary.MCPFailures,
-		SkillActivations:        summary.SkillActivations,
-		MCPToolUsage:            summary.MCPToolUsage,
-		TokenUsage:              summary.TokenUsage,
-		GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
-		JobDetails:              summary.JobDetails,
-		LogsPath:                runOutputDir,
-		Cached:                  true,
+		RunAnalysis: summary.RunAnalysis,
+		LogsPath:    runOutputDir,
+		Cached:      true,
 	}
 	// Re-apply the usage activity backfill to heal stale cache entries.
 	// Capture the SafeItemsCount before backfill to detect whether the field was healed.
@@ -542,28 +525,30 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 	result.AgenticAssessments = agenticAssessments
 
 	summary := &RunSummary{
-		CLIVersion:              GetVersion(),
-		RunID:                   result.Run.DatabaseID,
-		ProcessedAt:             time.Now(),
-		Run:                     result.Run,
-		Metrics:                 metrics,
-		AwContext:               result.AwContext,
-		TaskDomain:              result.TaskDomain,
-		BehaviorFingerprint:     result.BehaviorFingerprint,
-		AgenticAssessments:      result.AgenticAssessments,
-		AccessAnalysis:          result.AccessAnalysis,
-		FirewallAnalysis:        result.FirewallAnalysis,
-		RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
-		MissingTools:            result.MissingTools,
-		MissingData:             result.MissingData,
-		Noops:                   result.Noops,
-		MCPFailures:             result.MCPFailures,
-		SkillActivations:        result.SkillActivations,
-		MCPToolUsage:            result.MCPToolUsage,
-		TokenUsage:              result.TokenUsage,
-		GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
-		ArtifactsList:           artifacts,
-		JobDetails:              jobDetails,
+		CLIVersion:  GetVersion(),
+		RunID:       result.Run.DatabaseID,
+		ProcessedAt: time.Now(),
+		RunAnalysis: RunAnalysis{
+			Run:                     result.Run,
+			Metrics:                 metrics,
+			AwContext:               result.AwContext,
+			TaskDomain:              result.TaskDomain,
+			BehaviorFingerprint:     result.BehaviorFingerprint,
+			AgenticAssessments:      result.AgenticAssessments,
+			AccessAnalysis:          result.AccessAnalysis,
+			FirewallAnalysis:        result.FirewallAnalysis,
+			RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
+			MissingTools:            result.MissingTools,
+			MissingData:             result.MissingData,
+			Noops:                   result.Noops,
+			MCPFailures:             result.MCPFailures,
+			SkillActivations:        result.SkillActivations,
+			MCPToolUsage:            result.MCPToolUsage,
+			TokenUsage:              result.TokenUsage,
+			GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
+			JobDetails:              jobDetails,
+		},
+		ArtifactsList: artifacts,
 	}
 	if saveErr := saveRunSummary(runOutputDir, summary, verbose); saveErr != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary for run %d: %v", result.Run.DatabaseID, saveErr)))
