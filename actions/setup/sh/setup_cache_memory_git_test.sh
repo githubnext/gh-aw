@@ -115,8 +115,8 @@ echo "*.txt" > "${D}/.git/info/exclude"
 run_script "${D}" none >/dev/null
 EMAIL_CFG="$(git -C "${D}" config user.email)"
 NAME_CFG="$(git -C "${D}" config user.name)"
-FSMONITOR_CFG="$(git -C "${D}" config core.fsmonitor)"
-HOOKSPATH_CFG="$(git -C "${D}" config core.hooksPath)"
+FSMONITOR_CFG="$(git -C "${D}" config --default '' core.fsmonitor)"
+HOOKSPATH_CFG="$(git -C "${D}" config --default '' core.hooksPath)"
 assert ".git config user email reset" \
   "[ \"${EMAIL_CFG}\" = 'gh-aw@github.com' ]"
 assert ".git config user name reset" \

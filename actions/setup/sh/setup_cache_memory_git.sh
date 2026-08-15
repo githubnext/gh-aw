@@ -149,14 +149,6 @@ if [ -d .git/hooks ]; then
   find .git/hooks -type f ! -name '*.sample' -delete
 fi
 
-# --- Security: clear git config/info state from restored cache ---
-# Cache restores can carry forward untrusted git configuration and info files
-# from prior runs. Remove both so the repo is reconfigured from scratch.
-if [ -d .git ]; then
-  rm -f .git/config
-  rm -rf .git/info
-fi
-
 # --- Format detection & migration ---
 if [ ! -d .git ]; then
   initialize_cache_memory_git_repo
@@ -188,8 +180,22 @@ else
   rm -f "$_hooks_config_err" 2>/dev/null || true
 fi
 
-# --- Security: enforce fresh hardened git config for this run ---
+# --- Security: scrub git config/info state and enforce hardened defaults ---
+# Cache restores can carry forward untrusted git configuration and info files
+# from prior runs. Remove untrusted info overrides and dangerous config keys
+# while preserving repository metadata (remotes/branch sections).
 if [ -d .git ]; then
+  mkdir -p .git/info
+  rm -f .git/info/exclude .git/info/attributes .git/info/grafts .git/info/sparse-checkout
+
+  git config --unset-all core.fsmonitor >/dev/null 2>&1 || true
+  git config --unset-all core.sshCommand >/dev/null 2>&1 || true
+  git config --unset-all core.hooksPath >/dev/null 2>&1 || true
+  git config --remove-section include >/dev/null 2>&1 || true
+  git config --remove-section includeIf >/dev/null 2>&1 || true
+  git config --remove-section credential >/dev/null 2>&1 || true
+  git config --remove-section alias >/dev/null 2>&1 || true
+
   git config user.email "gh-aw@github.com"
   git config user.name "gh-aw"
   git config core.hooksPath /dev/null
