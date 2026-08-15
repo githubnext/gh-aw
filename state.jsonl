@@ -1,5 +1,4 @@
-{"run_id":"30145153203","timestamp":"2026-07-25T05:06:43.700Z","assignments":{"model_size":"claude-sonnet-4.6"},"baseline_counts":{"model_size":{"claude-sonnet-4.6":155,"claude-haiku-4.5":170}}}
-{"run_id":"30145237002","timestamp":"2026-07-25T05:17:32.988Z","assignments":{"model_size":"claude-haiku-4.5"}}
+{"run_id":"30145237002","timestamp":"2026-07-25T05:17:32.988Z","assignments":{"model_size":"claude-haiku-4.5"},"baseline_counts":{"model_size":{"claude-sonnet-4.6":156,"claude-haiku-4.5":170}}}
 {"run_id":"30149944900","timestamp":"2026-07-25T07:49:03.369Z","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"30149998136","timestamp":"2026-07-25T07:50:33.950Z","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"30150015166","timestamp":"2026-07-25T07:52:22.106Z","assignments":{"model_size":"claude-sonnet-4.6"}}
@@ -510,3 +509,4 @@
 {"run_id":"31892665226","timestamp":"2026-08-15T15:26:23.285Z","assignments":{"model_size":"claude-sonnet-4.6"}}
 {"run_id":"31894268096","timestamp":"2026-08-15T16:02:17.297Z","assignments":{"model_size":"claude-haiku-4.5"}}
 {"run_id":"31895927083","timestamp":"2026-08-15T16:36:23.350Z","assignments":{"model_size":"claude-haiku-4.5"}}
+{"run_id":"31896128046","timestamp":"2026-08-15T16:40:40.108Z","assignments":{"model_size":"claude-haiku-4.5"}}
