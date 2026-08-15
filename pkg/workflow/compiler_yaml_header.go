@@ -17,10 +17,10 @@ var compilerYamlHeaderLog = logger.New("workflow:compiler_yaml:header")
 // for description, source, imports/includes, frontmatter-hash, stop-time, and manual-approval.
 // All ANSI escape codes are stripped from the output.
 // The gh-aw-metadata line is placed first for easy machine parsing.
-func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string) {
+func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string) error {
 	// Skip the ASCII art banner in wasm/editor mode — it takes up too much space
 	if c.skipHeader {
-		return
+		return nil
 	}
 
 	// Add lock metadata as the very first line for easy machine parsing.
@@ -65,6 +65,15 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// skills detected at compile time so that subsequent compilations can perform safe update
 	// enforcement.
 	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.RawFrontmatter["on"])
+	if data.ParsedFrontmatter != nil {
+		manifest.ThreatDetectionSuppressions = data.ParsedFrontmatter.ThreatDetectionSuppressions
+	} else {
+		suppressions, err := parseThreatDetectionSuppressions(data.RawFrontmatter["threat-detection-suppress"])
+		if err != nil {
+			return fmt.Errorf("invalid threat-detection-suppress: %w", err)
+		}
+		manifest.ThreatDetectionSuppressions = suppressions
+	}
 	manifest.MemoryValidationScripts = collectMemoryValidationScripts(data)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
@@ -139,7 +148,6 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		yaml.WriteString("#\n")
 		yaml.WriteString("# inlined-imports: true\n")
 	}
-
 	// Add frontmatter-declared env vars with source attribution.
 	// Note: programmatically injected env vars (e.g. OTEL_* from OTLP config) are not listed here.
 	if len(data.EnvSources) > 0 {
@@ -194,4 +202,5 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	}
 
 	yaml.WriteString("\n")
+	return nil
 }

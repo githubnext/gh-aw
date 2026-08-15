@@ -1,7 +1,7 @@
 # AWF Config Sources Compliance Fixtures
 
 This directory contains conformance test IDs and fixture stubs for the `DriftRecord` entity
-defined in [§6.5 of the AWF Config Canonical Sources Specification](../awf-config-sources-spec.md#65-driftrecord-entity-schema).
+and safeguards defined in the [AWF Config Canonical Sources Specification](../awf-config-sources-spec.md).
 
 All automation and agents that produce or consume drift reports **MUST** use the `DriftRecord` schema
 defined in §6.5 of the specification for structured drift output.
@@ -27,12 +27,25 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 
 ---
 
+## Safeguards Conformance Tests
+
+The following test IDs cover the unavailable-source safeguards from §8.
+
+| Test ID | Requirement | Description |
+|---------|-------------|-------------|
+| T-DR-SAFE-001 | §8 item 1 — snapshot storage and freshness | Every invocation MUST select the stable path for its runner type, expire snapshots older than 168 hours, mark expired-snapshot runs degraded, and SHOULD delete snapshots older than 14 days. |
+| T-DR-SAFE-002 | §8 item 2 — retrieval warning | A canonical-source retrieval failure SHOULD identify the failing source paths and UTC timestamp. |
+| T-DR-SAFE-003 | §8 item 3 — degraded-run safety | An unavailable or expired canonical source MUST mark the run degraded and MUST prevent destructive validation actions. |
+| T-DR-SAFE-004 | §8 item 4 — scheduled persistence | A tracking issue SHOULD be opened or updated only when unavailability persists through the next scheduled cron invocation; manual and ad hoc runs do not advance the threshold. |
+
+---
+
 ## Spec Reference
 
 - **Specification**: `specs/awf-config-sources-spec.md`
 - **Repository structure**: [Structure](../awf-config-sources-spec.md#structure)
 - **Defining section**: §6.5 — DriftRecord Entity Schema
-- **Related sections**: §6.2 (Drift Detection Procedure), §5 (Conformance Requirements CR-05, CR-06)
+- **Related sections**: §6.2 (Drift Detection Procedure), §5 (Conformance Requirements CR-05, CR-06), §8 (Safeguards)
 
 ---
 
@@ -42,12 +55,13 @@ Conformance tests that validate `DriftRecord` schema compliance are implemented 
 
 ```
 pkg/workflow/awf_config_drift_test.go   — DriftRecord schema validation and usage (T-DR-001 through T-DR-010; T-DR-005: TestDriftRecord_TDR005_NoAdditionalProperties)
+pkg/workflow/awf_config_safeguards_formal_test.go — unavailable-source safeguards (T-DR-SAFE-001 through T-DR-SAFE-004)
 ```
 
 To run related tests:
 
 ```bash
-go test -v -run "TestDriftRecord" ./pkg/workflow/
+go test -v -run "TestDriftRecord|TestAWFConfigSafeguard" ./pkg/workflow/
 ```
 
 ---

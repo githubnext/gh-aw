@@ -21,20 +21,63 @@ ignore-packages:
   - alpine-baselayout
   - alpine-baselayout-data
   - apk-tools
+  - bash
   - busybox
   - busybox-binsh
   - ca-certificates
   - ca-certificates-bundle
+  - catatonit
+  - crun
+  - fuse-common
+  - fuse-overlayfs
+  - fuse3
+  - fuse3-libs
+  - gdbm
+  - glib
+  - gmp
+  - gnupg-dirmngr
+  - gnupg-gpgconf
+  - gnupg-keyboxd
+  - gnutls
+  - gpg
+  - gpg-agent
+  - gpgme
+  - gpgsm
   - git
   - git-init-template
   - libapk
+  - libassuan
+  - libblkid
+  - libbz2
+  - libcap2
   - libcurl
   - libgcc
+  - libgcrypt
+  - libgpg-error
   - libidn2
+  - libintl
+  - libksba
+  - libldap
+  - libmd
+  - libmnl
+  - libmount
+  - libncursesw
+  - libnftnl
+  - libsasl
+  - libseccomp
   - libstdc++
+  - libtasn1
   - libunistring
   - musl-utils
+  - ncurses-terminfo-base
+  - nettle
+  - nftables
+  - npth
+  - passt
+  - pinentry
+  - readline
   - scanelf
+  - sqlite-libs
   - ssl_client
   - zlib
   - zstd-libs
@@ -62,4 +105,3 @@ ignore-packages:
   - spdx-license-ids
   - tar
   - yallist
-
