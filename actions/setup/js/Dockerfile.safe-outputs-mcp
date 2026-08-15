@@ -11,9 +11,12 @@ ARG NPM_VERSION=11.19.0
 
 # Intentional: upgrade all packages to pick up security fixes; downstream digest pins the result.
 # After upgrading npm, patch its bundled dependencies to meet minimum safe versions.
-# Install into a temp prefix (avoids npm's own private package.json) then overlay into npm's
-# bundled node_modules: brace-expansion >= 5.0.8 (GHSA-mh99-v99m-4gvg), ip-address >= 10.3.1
-# (GHSA-mwp4-54f8-5fhr), tar >= 7.5.22, and undici >= 6.27.0 (GHSA-vxpw-j846-p89q).
+# Install into a temp prefix (avoids npm's own private package.json) then replace the package
+# directories in npm's bundled node_modules: brace-expansion >= 5.0.8 (GHSA-mh99-v99m-4gvg),
+# ip-address >= 10.3.1 (GHSA-mwp4-54f8-5fhr), tar >= 7.5.22, and undici >= 6.27.0
+# (GHSA-vxpw-j846-p89q). Each replaced package is loaded by absolute path to verify the patch:
+# the globally installed npm tree is not on Node's default resolution path, so a bare
+# require("<pkg>") would always fail with MODULE_NOT_FOUND and break the build.
 RUN apk upgrade --no-cache \
     && apk add --no-cache git \
     && apk info -v | sort \
@@ -21,11 +24,11 @@ RUN apk upgrade --no-cache \
     && tmpdir=$(mktemp -d) \
     && npm --prefix "$tmpdir" install --no-save "tar@^7.5.22" "brace-expansion@^5.0.8" "ip-address@^10.3.1" "undici@^6.27.0" \
     && npm_modules="$(npm root -g)/npm/node_modules" \
-    && cp -rf "$tmpdir/node_modules/brace-expansion/." "$npm_modules/brace-expansion/" \
-    && cp -rf "$tmpdir/node_modules/ip-address/." "$npm_modules/ip-address/" \
-    && node -e "require('ip-address')" \
-    && cp -rf "$tmpdir/node_modules/tar/." "$npm_modules/tar/" \
-    && cp -rf "$tmpdir/node_modules/undici/." "$npm_modules/undici/" \
+    && for pkg in brace-expansion ip-address tar undici; do \
+         rm -rf "$npm_modules/$pkg" || exit 1; \
+         cp -r "$tmpdir/node_modules/$pkg" "$npm_modules/$pkg" || exit 1; \
+         node -e 'const dir = process.argv[1]; require(dir); console.log(dir + " -> " + require(dir + "/package.json").version)' "$npm_modules/$pkg" || exit 1; \
+       done \
     && rm -rf "$tmpdir" \
     && npm cache clean --force
 
