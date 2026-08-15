@@ -71,7 +71,7 @@ steps:
 
       # Pull shellcheck Docker image
       echo "Pulling shellcheck image..."
-      docker pull koalaman/shellcheck:v0.10.0
+      docker pull koalaman/shellcheck:v0.11.0
       
       echo "All static analysis Docker images pulled successfully"
   - name: Verify static analysis tools
@@ -105,7 +105,7 @@ steps:
 
       # Verify shellcheck
       echo "Testing shellcheck..."
-      docker run --rm koalaman/shellcheck:v0.10.0 --version || echo "Warning: shellcheck version check failed"
+      docker run --rm koalaman/shellcheck:v0.11.0 --version || echo "Warning: shellcheck version check failed"
       
       echo "Static analysis tools verification complete"
   - name: Run compile with security tools
