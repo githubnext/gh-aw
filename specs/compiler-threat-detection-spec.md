@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.20  
+**Version**: 1.0.21
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,12 +78,13 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.21` | `v0.83.6` (or newer) | Editorial correction: the Deprecation Policy subsection is numbered 5.4 to match its parent section; no lock-file compatibility changes. |
 | `1.0.20` | `v0.83.6` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), `workflow_run` trigger branch scope enforcement (CTR-021), git subprocess argument-injection guards for remote import/download ref and path arguments (CTR-022), and bash command allowlist illusion rejection for engines lacking allowlist enforcement (CTR-023). No `.lock.yml` schema changes are introduced by CTR-022 or CTR-023; both are compile-time-only validations. |
 | `1.0.15`–`1.0.19` | `v0.72.1` (or newer) | Adds `workflow_run` trigger branch-scope enforcement (CTR-021); runtime-only `docker-sbx`, credential-refresh, and Playwright changes introduce no `.lock.yml` schema constraint. |
 | `1.0.8`–`1.0.14` baseline | `v0.72.1` (or newer) | Establishes manifest drift (CTR-016), update-check (CTR-018), cache-memory integrity (CTR-019), and conditional-import (CTR-020) validation. |
 Compact changelog: `1.0.8` introduced CTR-016 and CTR-018; `1.0.10`–`1.0.13` added
 CTR-019; `1.0.14` added CTR-020; `1.0.15` added CTR-021; and `1.0.20` added CTR-022
-and CTR-023. Versions with no distinct lock-file impact are grouped above.
+and CTR-023; `1.0.21` corrects the Deprecation Policy subsection numbering. Versions with no distinct lock-file impact are grouped above.
 
 When this specification version changes, maintainers MUST update this table in the same pull request as any lock-file compatibility changes.
 
@@ -166,7 +167,7 @@ When a new threat class is identified:
 - If implementation already covers the threat, the threat MUST be added to this specification with mapping and tests.
 - If implementation does not cover the threat, detection/remediation MUST be implemented and then added to this specification.
 
-#### 4.3.1 Deprecation Policy
+#### 5.4 Deprecation Policy
 
 When a compiler feature that a `CTR-*` rule depends on is removed, the rule MUST be formally retired:
 
@@ -385,6 +386,10 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.21 (2026-08-14)
+
+- Corrected the Deprecation Policy subsection number from 4.3.1 to 5.4 so that it matches Section 5, Normative Rule Requirements.
 
 ### 1.0.20 (2026-08-03)
 

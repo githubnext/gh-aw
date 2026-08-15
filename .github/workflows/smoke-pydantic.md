@@ -25,6 +25,7 @@ strict: true
 imports:
   - shared/pydantic.md
   - shared/smoke-test-brevity.md
+  - shared/reporting.md
 network:
   allowed: []
 safe-outputs:

@@ -25,6 +25,7 @@ engine:
   bare: true
 imports:
   - shared/smoke-test-brevity.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults

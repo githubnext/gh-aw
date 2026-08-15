@@ -57,6 +57,7 @@ imports:
       labels: [automation, dependencies, dependabot]
       reviewers: [copilot]
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   edit:
   cli-proxy: true
@@ -498,3 +499,5 @@ If no safe bounded remediation is possible, do not create a PR. End with a conci
 ## Output
 
 End with a concise summary including the selected PR numbers, retry mode, dependency batch handled, source files updated, validation commands run, result file path, and whether a replacement PR was created.
+
+Follow the `reporting` skill: use `###` (h3) or lower for any headers in the comment, and wrap long lists (e.g. source files updated, validation commands) in `<details><summary><b>...</b></summary>...</details>`.

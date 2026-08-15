@@ -18,6 +18,7 @@ func (c *Compiler) parseDismissPullRequestReviewConfig(outputMap map[string]any)
 		configData = value
 	} else if value, exists := outputMap["dismiss-review"]; exists {
 		// Backward-compatible alias.
+		dismissPullRequestReviewLog.Print("Using legacy dismiss-review alias key")
 		configData = value
 	} else {
 		return nil
@@ -33,6 +34,7 @@ func (c *Compiler) parseDismissPullRequestReviewConfig(outputMap map[string]any)
 		// Parse target config (target, target-repo, allowed-repos).
 		targetConfig, isInvalid := ParseTargetConfig(configMap)
 		if isInvalid {
+			dismissPullRequestReviewLog.Print("Rejecting dismiss-pull-request-review: invalid target config")
 			return nil
 		}
 		config.SafeOutputTargetConfig = targetConfig
@@ -41,6 +43,7 @@ func (c *Compiler) parseDismissPullRequestReviewConfig(outputMap map[string]any)
 		config.SafeOutputFilterConfig = ParseFilterConfig(configMap)
 	} else {
 		// If configData is nil or not a map, still set the default max.
+		dismissPullRequestReviewLog.Print("dismiss-pull-request-review config is not a map; applying default max only")
 		config.Max = defaultIntStr(10)
 	}
 

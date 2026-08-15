@@ -23,6 +23,17 @@ func IsNotFoundError(err error) bool {
 	return matched
 }
 
+// IsNotFoundOutput reports whether output represents an HTTP 404 / "not found" response.
+// The check is case-insensitive and matches both the numeric literal "404" and
+// the phrase "not found".
+func IsNotFoundOutput(output string) bool {
+	matched := containsSubstring(output, "404", "not found")
+	if matched {
+		errorutilLog.Printf("Classified output as not-found (404): %s", output)
+	}
+	return matched
+}
+
 // IsForbiddenError reports whether err represents an HTTP 403 / "forbidden" response.
 // It returns false when err is nil.
 // The check is case-insensitive and only matches HTTP-style 403 patterns such as
@@ -56,7 +67,11 @@ func containsErrorSubstring(err error, substrings ...string) bool {
 	if err == nil {
 		return false
 	}
-	msg := strings.ToLower(err.Error())
+	return containsSubstring(err.Error(), substrings...)
+}
+
+func containsSubstring(value string, substrings ...string) bool {
+	msg := strings.ToLower(value)
 	for _, substring := range substrings {
 		if strings.Contains(msg, substring) {
 			return true
