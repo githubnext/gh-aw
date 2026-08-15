@@ -98,6 +98,20 @@ const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 // this path must not be retried via --continue (fall back to a fresh run if budget remains).
 const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
 const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
+// Exit codes (128 + signal number) that indicate the Claude Code CLI subprocess was
+// killed by a fatal OS-level signal rather than exiting normally or being cancelled.
+// These signify a sandbox/runtime-level crash (e.g. a bad syscall trapped by seccomp,
+// a segfault, or an illegal instruction) rather than an application-level error, so
+// resuming the same on-disk session with --continue risks immediately reproducing the
+// same crash. Map: SIGILL=4, SIGABRT=6, SIGBUS=7, SIGFPE=8, SIGSEGV=11, SIGSYS=31.
+const CRASH_SIGNAL_EXIT_CODES = new Map([
+  [132, "SIGILL"],
+  [134, "SIGABRT"],
+  [135, "SIGBUS"],
+  [136, "SIGFPE"],
+  [139, "SIGSEGV"],
+  [159, "SIGSYS"],
+]);
 const MAX_STARTUP_RETRIES = 2;
 
 /**
@@ -245,6 +259,28 @@ function isSignalTerminationExitCode(exitCode) {
 }
 
 /**
+ * Determines whether the exit code corresponds to a fatal-signal crash of the CLI
+ * subprocess (e.g. SIGSEGV=139, SIGSYS=159) as opposed to a normal application error
+ * or an expected timeout/cancellation signal (SIGKILL=137/SIGTERM=143).
+ * @param {number} exitCode
+ * @returns {boolean}
+ */
+function isCrashSignalExitCode(exitCode) {
+  return CRASH_SIGNAL_EXIT_CODES.has(exitCode);
+}
+
+/**
+ * Best-effort mapping of a fatal-signal exit code (128 + signal number) to its
+ * signal name, for diagnostic logging. Returns null when the exit code is not a
+ * recognized crash signal.
+ * @param {number} exitCode
+ * @returns {string | null}
+ */
+function crashSignalNameForExitCode(exitCode) {
+  return CRASH_SIGNAL_EXIT_CODES.get(exitCode) ?? null;
+}
+
+/**
  * Decide whether the next retry should use --continue.
  * @param {{
  *   attempt: number,
@@ -260,7 +296,7 @@ function shouldRetryWithContinue({ attempt, maxRetries, exitCode, hasOutput, isN
   if (attempt >= maxRetries || !hasOutput || continueDisabledPermanently) {
     return false;
   }
-  if (isSignalTerminationExitCode(exitCode)) {
+  if (isSignalTerminationExitCode(exitCode) || isCrashSignalExitCode(exitCode)) {
     return false;
   }
   if (isNoDeferredMarker) {
@@ -502,9 +538,11 @@ async function main() {
       sessionHasProgress = sessionHasProgress || hasClaudeSessionProgress(result.output);
       const permissionDeniedCount = countPermissionDeniedIssues(result.output);
       const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
+      const crashSignalName = crashSignalNameForExitCode(result.exitCode);
       log(
         `attempt ${attempt + 1} failed:` +
           ` exitCode=${result.exitCode}` +
+          (crashSignalName ? ` crashSignal=${crashSignalName}` : "") +
           ` isOverloadedError=${isOverloaded}` +
           ` isRateLimitError=${isRateLimit}` +
           ` isAuthenticationFailedError=${isAuthenticationFailed}` +
@@ -601,6 +639,8 @@ async function main() {
 
       if (attempt < maxRetries && result.hasOutput) {
         const isSignalTermination = isSignalTerminationExitCode(result.exitCode);
+        const isCrashSignal = isCrashSignalExitCode(result.exitCode);
+        const crashSignalName = crashSignalNameForExitCode(result.exitCode);
         const retryWithContinue = shouldRetryWithContinue({
           attempt,
           maxRetries,
@@ -609,16 +649,18 @@ async function main() {
           isNoDeferredMarker,
           continueDisabledPermanently,
         });
-        if (isSignalTermination) {
+        if (isSignalTermination || isCrashSignal) {
           continueDisabledPermanently = true;
         }
-        const reason = isSignalTermination
-          ? `signal-style termination exitCode=${result.exitCode} (failure_reason=cancelled_or_timed_out)`
-          : isOverloaded
-            ? "overloaded_error (transient)"
-            : isRateLimit
-              ? "rate_limit_error (transient)"
-              : "partial execution";
+        const reason = isCrashSignal
+          ? `fatal-signal crash exitCode=${result.exitCode} (signal=${crashSignalName}, failure_reason=sandbox_runtime_crash)`
+          : isSignalTermination
+            ? `signal-style termination exitCode=${result.exitCode} (failure_reason=cancelled_or_timed_out)`
+            : isOverloaded
+              ? "overloaded_error (transient)"
+              : isRateLimit
+                ? "rate_limit_error (transient)"
+                : "partial execution";
         useContinueOnRetry = retryWithContinue;
         const retryMode = retryWithContinue ? "--continue" : "fresh run (--continue disabled permanently)";
         log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${maxRetries + 1})`);
@@ -666,6 +708,8 @@ if (typeof module !== "undefined" && module.exports) {
     isConnectionRefusedError,
     hasClaudeSessionProgress,
     isSignalTerminationExitCode,
+    isCrashSignalExitCode,
+    crashSignalNameForExitCode,
     shouldRetryWithContinue,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,
