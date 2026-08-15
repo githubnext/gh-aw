@@ -575,6 +575,10 @@ func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, 
 
 	ignoreEntries, ok := dependabotToAnySlice(ignoreAny)
 	if !ok {
+		// Note: this can only be reached when the ignore field pre-existed with a
+		// non-empty, non-list value (e.g. a scalar), since the []any{} literal set
+		// above always converts successfully. In that case changed is still false,
+		// matching the original loop's behavior of skipping the write-back.
 		return nil, changed, false
 	}
 
