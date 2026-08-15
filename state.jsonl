@@ -84,3 +84,4 @@
 {"run_id":"31613876837","timestamp":"2026-08-12T15:44:34.581Z","assignments":{"sub_agent_strategy":"per_scenario"}}
 {"run_id":"31716950084","timestamp":"2026-08-13T15:43:59.900Z","assignments":{"sub_agent_strategy":"batch"}}
 {"run_id":"31815764107","timestamp":"2026-08-14T15:42:24.868Z","assignments":{"sub_agent_strategy":"batch"}}
+{"run_id":"31893048480","timestamp":"2026-08-15T15:33:51.229Z","assignments":{"sub_agent_strategy":"batch"}}
