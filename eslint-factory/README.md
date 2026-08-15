@@ -20,6 +20,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 |---|---|
 | [`no-core-exportvariable-non-string`](#no-core-exportvariable-non-string) | Require explicit string values for `core.exportVariable` calls |
 | [`no-core-setoutput-non-string`](#no-core-setoutput-non-string) | Require explicit string values for `core.setOutput` calls |
+| [`no-empty-catch-block`](#no-empty-catch-block) | Disallow undocumented empty `catch` blocks |
 | [`no-duplicate-constant-values`](#no-duplicate-constant-values) | Report constants with duplicate static primitive values in the same file |
 | [`no-child-process-interpolated-command`](#no-child-process-interpolated-command) | Disallow interpolated command strings in shell-evaluated `child_process` calls |
 | [`no-github-request-interpolated-route`](#no-github-request-interpolated-route) | Disallow interpolated route arguments in Octokit `.request()` calls |
@@ -60,6 +61,12 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-caught-error-interpolation`](#no-caught-error-interpolation) | Disallow directly interpolating a caught error in a template literal |
 | [`no-core-error-then-setfailed`](#no-core-error-then-setfailed) | Disallow a redundant `core.error()` call immediately before `core.setFailed()` with the same message |
 | [`require-escaped-regexp-interpolation`](#require-escaped-regexp-interpolation) | Require regex-escaping of interpolated values in `new RegExp()` template literals |
+
+### `no-empty-catch-block`
+
+Disallow empty `catch` blocks, which silently swallow errors that otherwise remain invisible in CI logs.
+
+Empty catch blocks are allowed only when their comment explicitly documents an intentional no-op with `intentional`, `best-effort`, or `best effort` (case-insensitive). Otherwise, log the error, assign a fallback value, or rethrow it.
 
 ### `no-duplicate-constant-values`
 
