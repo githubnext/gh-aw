@@ -145,8 +145,7 @@ func isStringType(t types.Type) bool {
 }
 
 func isExactString(t types.Type) bool {
-	basic, ok := t.(*types.Basic)
-	return ok && basic.Kind() == types.String
+	return isStringType(t)
 }
 
 func isByteSliceType(t types.Type) bool {
