@@ -41,7 +41,10 @@ export const requireFetchResponseBodyTryCatchRule = createRule({
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap {{call}} in try/catch — reading the body of a fetch() Response can reject (malformed JSON, truncated/errored stream) and will crash the action if unhandled.",
+      requireTryCatch:
+        "Wrap {{call}} in try/catch — even after explicit HTTP-error handling (for example `if (!response.ok) throw ...`), " +
+        "reading a fetch() Response body can still reject (malformed JSON, truncated/errored stream). Without this call-site try/catch, " +
+        "you lose the original parse error context and get a generic, harder-to-diagnose stack instead of a specific message with `{ cause }`.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },

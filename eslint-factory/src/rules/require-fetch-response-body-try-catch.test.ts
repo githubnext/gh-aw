@@ -78,7 +78,10 @@ describe("require-fetch-response-body-try-catch", () => {
           }`,
           errors: [
             {
-              messageId: "requireTryCatch",
+              message:
+                "Wrap r.json() in try/catch — even after explicit HTTP-error handling (for example `if (!response.ok) throw ...`), " +
+                "reading a fetch() Response body can still reject (malformed JSON, truncated/errored stream). Without this call-site try/catch, " +
+                "you lose the original parse error context and get a generic, harder-to-diagnose stack instead of a specific message with `{ cause }`.",
               suggestions: [
                 {
                   messageId: "wrapInTryCatch",
