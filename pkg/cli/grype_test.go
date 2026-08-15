@@ -307,7 +307,7 @@ func TestGrypeRunOnImage_RejectsUnsafeImageRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := grypeRunOnImage(tt.imageRef, false)
+			_, err := grypeRunOnImage(tt.imageRef, "", false)
 			if err == nil {
 				t.Fatalf("Expected error for unsafe image reference %q", tt.imageRef)
 			}
@@ -321,7 +321,7 @@ func TestGrypeRunOnImage_RejectsUnsafeImageRef(t *testing.T) {
 func TestGrypeRunOnImage_AcceptsValidImageRef(t *testing.T) {
 	prependFakeDockerToPath(t, `{"matches":[]}`)
 
-	_, err := grypeRunOnImage("ghcr.io/anchore/grype:v0.80.0", false)
+	_, err := grypeRunOnImage("ghcr.io/anchore/grype:v0.80.0", "", false)
 	if err != nil {
 		t.Fatalf("Expected valid image reference to reach docker, got: %v", err)
 	}
@@ -337,4 +337,118 @@ func prependFakeDockerToPath(t *testing.T, stdout string) {
 		t.Fatalf("Failed to write fake docker executable: %v", err)
 	}
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func TestGrypeDockerArgs_WithoutConfig(t *testing.T) {
+	args, err := grypeDockerArgs("alpine:3.20", "")
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	expected := []string{"run", "--rm", GrypeImage, "alpine:3.20", "-o", "json"}
+	if strings.Join(args, " ") != strings.Join(expected, " ") {
+		t.Errorf("Expected args %v, got %v", expected, args)
+	}
+}
+
+func TestGrypeDockerArgs_WithConfig(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), grypeConfigFilename)
+	if err := os.WriteFile(configFile, []byte("ignore: []\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	args, err := grypeDockerArgs("alpine:3.20", configFile)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "-v "+configFile+":"+grypeContainerConfigPath+":ro") {
+		t.Errorf("Expected read-only config mount in args, got %v", args)
+	}
+	if !strings.Contains(joined, "--config "+grypeContainerConfigPath) {
+		t.Errorf("Expected --config flag in args, got %v", args)
+	}
+	if !strings.HasSuffix(joined, GrypeImage+" --config "+grypeContainerConfigPath+" alpine:3.20 -o json") {
+		t.Errorf("Expected config flags to precede the image reference, got %v", args)
+	}
+}
+
+func TestGrypeDockerArgs_MissingConfigFile(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "does-not-exist.yaml")
+	if _, err := grypeDockerArgs("alpine:3.20", missing); err == nil {
+		t.Fatal("Expected error for missing config file")
+	}
+}
+
+func TestGrypeCacheKeyIncludesConfigContent(t *testing.T) {
+	imageRef := "alpine:3.20"
+	configFile := filepath.Join(t.TempDir(), grypeConfigFilename)
+	if err := os.WriteFile(configFile, []byte("ignore: []\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	first, err := grypeCacheKey(imageRef, configFile)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if err := os.WriteFile(configFile, []byte("ignore: [CVE-2026-5450]\n"), 0o644); err != nil {
+		t.Fatalf("Failed to update config file: %v", err)
+	}
+	second, err := grypeCacheKey(imageRef, configFile)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	withoutConfig, err := grypeCacheKey(imageRef, "")
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if first == second || first == withoutConfig || second == withoutConfig {
+		t.Errorf("Expected distinct cache keys for each config state, got %q, %q, and %q", first, second, withoutConfig)
+	}
+}
+
+func TestGrypeRunOnImageCachesSeparatelyByConfigContent(t *testing.T) {
+	prependFakeDockerToPath(t, `{"matches":[]}`)
+
+	originalCache := grypeScanResultCache
+	grypeScanResultCache = &grypeCache{
+		results: make(map[string]*grypeOutput),
+		errors:  make(map[string]error),
+	}
+	t.Cleanup(func() {
+		grypeScanResultCache = originalCache
+	})
+
+	configDir := t.TempDir()
+	firstConfig := filepath.Join(configDir, "first.yaml")
+	secondConfig := filepath.Join(configDir, "second.yaml")
+	for configFile, content := range map[string]string{
+		firstConfig:  "ignore: []\n",
+		secondConfig: "ignore: [CVE-2026-5450]\n",
+	} {
+		if err := os.WriteFile(configFile, []byte(content), 0o644); err != nil {
+			t.Fatalf("Failed to write config file: %v", err)
+		}
+	}
+
+	for _, configFile := range []string{firstConfig, secondConfig} {
+		if _, err := grypeRunOnImage("alpine:3.20", configFile, false); err != nil {
+			t.Fatalf("Expected scan to succeed, got: %v", err)
+		}
+	}
+
+	if len(grypeScanResultCache.results) != 2 {
+		t.Errorf("Expected separately cached results for each config, got %d", len(grypeScanResultCache.results))
+	}
+}
+
+func TestGrypeConfigFileResolvesRepositoryPolicy(t *testing.T) {
+	configFile := grypeConfigFile()
+	if configFile == "" {
+		t.Skip("Repository Grype policy is unavailable in this checkout")
+	}
+	if filepath.Base(configFile) != grypeConfigFilename {
+		t.Errorf("Expected config basename %q, got %q", grypeConfigFilename, filepath.Base(configFile))
+	}
 }
