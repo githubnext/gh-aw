@@ -1,7 +1,7 @@
 # ADR-52982: Options Structs for Parameter-Heavy Functions
 
 **Date**: 2026-08-15
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -47,4 +47,4 @@ Not chosen because the six checks are tightly coupled — they share the same ma
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent]. Finalized and accepted as part of PR #52982.*
