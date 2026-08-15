@@ -165,6 +165,7 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 			}
 		}
 		if isCloudHypervisorRuntime(workflowData) {
+			steps = append(steps, generateCloudHypervisorKVMAccessStep())
 			steps = append(steps, generateCloudHypervisorHostPreflightStep())
 			steps = append(steps, generateCloudHypervisorBundleSetupStep(getAWFVersionForSetup(workflowData)))
 		}

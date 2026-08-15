@@ -23,6 +23,9 @@ model: mai-code-1-flash-picker
 engine:
   id: copilot
   bare: true
+imports:
+  - shared/smoke-test-brevity.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults
@@ -53,8 +56,6 @@ sandbox:
 ---
 
 # Smoke Test: MAI-Code-1-Flash Commit Summary
-
-**IMPORTANT: Keep all outputs extremely short and concise.**
 
 ## Task
 

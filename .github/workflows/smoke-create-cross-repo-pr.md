@@ -64,13 +64,13 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/otlp.md
+  - shared/smoke-test-brevity.md
+  - shared/reporting.md
 features:
   gh-aw-detection: false
 ---
 
 # Smoke Test: Cross-Repo Pull Request Creation
-
-**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible.**
 
 The workspace is checked out from `githubnext/gh-aw-side-repo` (a private side repository used for smoke testing).
 

@@ -51,6 +51,7 @@ imports:
     with:
       azure-client-id: adb907fd-188c-4029-b67f-2559d96b2f1b
       azure-tenant-id: 398a6654-997b-47e9-b12b-9515b896b4de
+  - shared/smoke-test-brevity.md
 network:
   allowed:
     - defaults
@@ -181,8 +182,6 @@ mode with Microsoft Entra authentication, via the `FOUNDRY_OPENAI_ENDPOINT`,
 {{#if experiments.caveman }}
 Talk like a caveman in all your responses and outputs. Use short, broken sentences. Me test. You run.
 {{/if}}
-
-**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
 ## Hard Limit: `add_comment` Budget
 

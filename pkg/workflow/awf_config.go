@@ -375,7 +375,7 @@ type AWFContainerConfig struct {
 	ImageTag string `json:"imageTag,omitempty"`
 
 	// AgentTimeout is the maximum time (in minutes) the agent command may run.
-	// docker-sbx requires this so AWF passes a concrete timeout to sbx exec.
+	// MicroVM runtimes require this so AWF passes a concrete guest execution timeout.
 	AgentTimeout int `json:"agentTimeout,omitempty"`
 
 	// DockerHostPathPrefix prefixes bind-mount source paths so the Docker daemon can
@@ -508,9 +508,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			awfConfig.Network = &AWFNetworkConfig{}
 		}
 		awfConfig.Network.Isolation = true
-		if !isCloudHypervisorRuntime(config.WorkflowData) {
-			awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
-		}
+		awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
 		awfConfigLog.Printf("Network section: isolation enabled with %d topology attachments", len(awfConfig.Network.TopologyAttach))
 	}
 
@@ -797,10 +795,11 @@ func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {
 // buildAWFTopologyAttachList returns container names that AWF should attach to
 // the internal awf-net network when network isolation mode is enabled.
 // The list always includes the MCP gateway and conditionally includes the
-// host-started CLI proxy sidecar when gh-proxy mode is active.
+// host-started CLI proxy sidecar when gh-proxy mode is active. Cloud Hypervisor
+// omits the CLI proxy until its control peer supports the proxy's TCP port.
 func buildAWFTopologyAttachList(workflowData *WorkflowData) []string {
 	targets := []string{"awmg-mcpg"}
-	if isCliProxyNeeded(workflowData) {
+	if !isCloudHypervisorRuntime(workflowData) && isCliProxyNeeded(workflowData) {
 		targets = append(targets, "awmg-cli-proxy")
 	}
 	return targets

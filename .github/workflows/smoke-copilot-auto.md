@@ -16,6 +16,9 @@ model: auto
 engine:
   id: copilot
   bare: true
+imports:
+  - shared/smoke-test-brevity.md
+  - shared/reporting.md
 tools:
   github:
     mode: gh-proxy
@@ -34,8 +37,6 @@ sandbox:
 ---
 
 # Smoke Test: Auto Haiku
-
-**IMPORTANT: Keep all outputs extremely short and concise.**
 
 ## Task
 
