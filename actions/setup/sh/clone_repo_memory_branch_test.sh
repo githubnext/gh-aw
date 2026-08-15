@@ -105,6 +105,27 @@ assert "local .git/info rebuilt as directory" "[ -d '${D}/.git/info' ] && [ ! -L
 assert "outside target untouched" "[ -f '${D}/outside-info/exclude' ]"
 echo ""
 
+echo "Test 5: Config/hooks symlink metadata is reinitialized safely"
+D="${WORKSPACE}/test5"
+mkdir -p "${D}" "${D}/outside-hooks"
+git -C "${D}" init -q
+rm -f "${D}/.git/config"
+cat > "${D}/outside-config" <<'EOF'
+[core]
+	repositoryformatversion = 0
+EOF
+ln -s "${D}/outside-config" "${D}/.git/config"
+rm -rf "${D}/.git/hooks"
+ln -s "${D}/outside-hooks" "${D}/.git/hooks"
+touch "${D}/outside-hooks/post-checkout"
+OUTPUT="$(run_script "${D}")"
+assert "symlink warning emitted for config/hooks" "printf '%s' \"${OUTPUT}\" | grep -qi 'symlinked repo-memory git metadata'"
+assert "local .git/config rebuilt as regular file" "[ -f '${D}/.git/config' ] && [ ! -L '${D}/.git/config' ]"
+assert "local .git/hooks rebuilt as directory" "[ -d '${D}/.git/hooks' ] && [ ! -L '${D}/.git/hooks' ]"
+assert "outside config untouched" "grep -q 'repositoryformatversion' '${D}/outside-config'"
+assert "outside hooks untouched" "[ -f '${D}/outside-hooks/post-checkout' ]"
+echo ""
+
 echo "Tests passed: ${TESTS_PASSED}"
 echo "Tests failed: ${TESTS_FAILED}"
 
