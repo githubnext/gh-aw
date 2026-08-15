@@ -40,12 +40,12 @@ if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
   exit 1
 fi
 
-acl_output="$(getfacl -cp /dev/kvm || true)"
+acl_output="$(getfacl -ncp /dev/kvm | sed 's/[[:space:]]#effective:.*$//' || true)"
 if [[ -z "${acl_output}" ]]; then
   echo "::error::failed to read /dev/kvm ACLs for verification."
   exit 1
 fi
-if ! grep -Eq "^user:${runner_uid}:rw-?$" <<<"${acl_output}"; then
+if ! grep -Eq "^user:${runner_uid}:rw-$" <<<"${acl_output}"; then
   echo "::error::failed to verify scoped ACL entry for the runner user on /dev/kvm."
   exit 1
 fi

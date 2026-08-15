@@ -39,12 +39,16 @@ echo "::endgroup::"
 
 echo "::group::Validate cloud-hypervisor bundle archive structure"
 archive_path="${bundle_root}/${asset_name}"
-if tar -tzf "${archive_path}" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+if tar -tzf "${archive_path}" | grep -E '(^/|(^|/)\.\.(/|$))' >/dev/null; then
   echo "::error::cloud-hypervisor bundle contains unsafe archive paths"
   exit 1
 fi
 archive_table="$(tar -tvzf "${archive_path}")"
-if awk '$1 ~ /^[lh]/ { found=1; exit 0 } END { exit (found ? 0 : 1) }' <<<"${archive_table}"; then
+if [[ -z "${archive_table}" ]]; then
+  echo "::error::cloud-hypervisor bundle archive is empty"
+  exit 1
+fi
+if grep -Eq '^[lh]' <<<"${archive_table}"; then
   echo "::error::cloud-hypervisor bundle must not include symbolic or hard links"
   exit 1
 fi
@@ -117,13 +121,13 @@ validate_extracted_file() {
     echo "::error::invalid extracted cloud-hypervisor bundle file: ${file}"
     exit 1
   fi
-  case "${file}" in
-    "${extract_dir}"/*) ;;
-    *)
-      echo "::error::extracted bundle file is outside expected directory: ${file}"
-      exit 1
-      ;;
-  esac
+  local real_file real_extract_dir
+  real_file="$(realpath "${file}")"
+  real_extract_dir="$(realpath "${extract_dir}")"
+  if [[ "${real_file}" != "${real_extract_dir}"/* ]]; then
+    echo "::error::extracted bundle file is outside expected directory: ${file}"
+    exit 1
+  fi
 }
 
 # Artifact names are fixed by the gh-aw-firewall cloud-hypervisor release contract.

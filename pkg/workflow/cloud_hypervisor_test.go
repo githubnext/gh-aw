@@ -350,7 +350,7 @@ func TestCloudHypervisorShellScriptContent(t *testing.T) {
 	}{
 		{
 			script:   "cloud_hypervisor_kvm_access.sh",
-			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "setfacl", "u:${runner_uid}:rw", "/dev/kvm", "-c /dev/kvm", "getfacl -cp /dev/kvm", "-r /dev/kvm", "-w /dev/kvm"},
+			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "setfacl", "u:${runner_uid}:rw", "/dev/kvm", "-c /dev/kvm", "getfacl -ncp /dev/kvm", "-r /dev/kvm", "-w /dev/kvm"},
 		},
 		{
 			script:   "cloud_hypervisor_host_preflight.sh",
