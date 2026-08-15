@@ -8,6 +8,10 @@
 // from inside a function — rather than storing the state on a struct or
 // returning fresh values — risks data races under concurrent access and can
 // leak state between unrelated calls.
+//
+// Mutations inside a top-level init() function are not reported: init runs
+// exactly once before any other code, so it is the idiomatic place to
+// populate package-level state.
 package packagelevelmutableslicemap
 
 import (
@@ -16,8 +20,10 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -26,6 +32,10 @@ import (
 var Analyzer = analyzerutil.New("packagelevelmutableslicemap", "reports mutation of package-level slice/map variables from inside function bodies, which risks data races and cross-call state leaks", run)
 
 func run(pass *analysis.Pass) (any, error) {
+	insp, err := astutil.Inspector(pass)
+	if err != nil {
+		return nil, err
+	}
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -40,18 +50,36 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	nodeFilter := []ast.Node{
-		(*ast.AssignStmt)(nil),
-		(*ast.ExprStmt)(nil),
+	for cur := range insp.Root().Preorder((*ast.AssignStmt)(nil), (*ast.ExprStmt)(nil)) {
+		if isInInitFunction(cur) {
+			continue
+		}
+		analyzeNode(pass, cur.Node(), targets, generatedFiles, noLintIndex)
 	}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		analyzeNode(pass, n, targets, generatedFiles, noLintIndex)
-	})
+	return nil, nil
+}
+
+// isInInitFunction reports whether cur is inside a top-level init() function.
+// Only top-level (no receiver) init functions are recognized; methods named
+// init are ordinary methods and are not exempt.
+func isInInitFunction(cur inspector.Cursor) bool {
+	for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+		if _, isFuncLit := encl.Node().(*ast.FuncLit); isFuncLit {
+			return false
+		}
+		decl, ok := encl.Node().(*ast.FuncDecl)
+		if !ok {
+			break
+		}
+		return decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init"
+	}
+	return false
 }
 
 // collectPackageLevelSliceMapVars scans the top-level declarations of every
 // file in the package and returns the set of package-scope var objects whose
-// underlying type is a slice or a map, keyed by their declared name.
+// underlying type is a slice or a map (including named wrapper types such as
+// `type registry map[string]int`), keyed by their declared name.
 func collectPackageLevelSliceMapVars(pass *analysis.Pass) map[types.Object]string {
 	targets := make(map[types.Object]string)
 	for _, file := range pass.Files {
@@ -112,59 +140,45 @@ func analyzeExprStmt(pass *analysis.Pass, stmt *ast.ExprStmt, targets map[types.
 	if !ok {
 		return
 	}
-	ident, ok := call.Fun.(*ast.Ident)
-	if !ok || ident.Name != "delete" {
+	if !isBuiltinCall(pass, call, "delete") || len(call.Args) != 2 {
 		return
 	}
-	builtin, ok := pass.TypesInfo.Uses[ident].(*types.Builtin)
-	if !ok || builtin.Name() != "delete" {
-		return
-	}
-	if len(call.Args) != 2 {
-		return
-	}
-	name, ok := targetIdentName(pass, call.Args[0], targets)
+	name, ok := targetBaseName(pass, call.Args[0], targets)
 	if !ok {
 		return
 	}
 	report(pass, stmt.Pos(), name, "delete()", generatedFiles, noLintIndex)
 }
 
-// matchAppendReassign reports whether stmt is `s = append(s, ...)` for a
-// tracked package-level target s, returning its declared name.
+// matchAppendReassign reports whether stmt re-assigns a tracked package-level
+// target from an append() call, returning its declared name. Every LHS/RHS
+// pair is inspected so parallel assignments such as
+// `globalSlice, err = append(globalSlice, v), nil` are matched too, and the
+// append arguments are not required to reference the target itself, so
+// `globalSlice = append(otherSlice, v)` is matched as well.
 func matchAppendReassign(pass *analysis.Pass, stmt *ast.AssignStmt, targets map[types.Object]string) (string, bool) {
-	if len(stmt.Lhs) != 1 || len(stmt.Rhs) != 1 {
-		return "", false
+	for i, lhs := range stmt.Lhs {
+		lhsIdent, ok := lhs.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		name, tracked := targets[pass.TypesInfo.Uses[lhsIdent]]
+		if !tracked {
+			continue
+		}
+		rhs, ok := astutil.RhsExprForIndex(stmt.Rhs, i)
+		if !ok {
+			continue
+		}
+		call, ok := rhs.(*ast.CallExpr)
+		if !ok || len(call.Args) == 0 {
+			continue
+		}
+		if isBuiltinCall(pass, call, "append") {
+			return name, true
+		}
 	}
-	lhsIdent, ok := stmt.Lhs[0].(*ast.Ident)
-	if !ok {
-		return "", false
-	}
-	lhsObj := pass.TypesInfo.Uses[lhsIdent]
-	name, tracked := targets[lhsObj]
-	if !tracked {
-		return "", false
-	}
-	call, ok := stmt.Rhs[0].(*ast.CallExpr)
-	if !ok || len(call.Args) == 0 {
-		return "", false
-	}
-	fnIdent, ok := call.Fun.(*ast.Ident)
-	if !ok || fnIdent.Name != "append" {
-		return "", false
-	}
-	builtin, ok := pass.TypesInfo.Uses[fnIdent].(*types.Builtin)
-	if !ok || builtin.Name() != "append" {
-		return "", false
-	}
-	firstArgIdent, ok := call.Args[0].(*ast.Ident)
-	if !ok {
-		return "", false
-	}
-	if pass.TypesInfo.Uses[firstArgIdent] != lhsObj {
-		return "", false
-	}
-	return name, true
+	return "", false
 }
 
 // matchIndexAssign reports whether stmt assigns into m[k] for a tracked
@@ -175,26 +189,45 @@ func matchIndexAssign(pass *analysis.Pass, stmt *ast.AssignStmt, targets map[typ
 		if !ok {
 			continue
 		}
-		if name, ok := targetIdentName(pass, idxExpr.X, targets); ok {
+		if name, ok := targetBaseName(pass, idxExpr, targets); ok {
 			return name, true
 		}
 	}
 	return "", false
 }
 
-// targetIdentName reports whether expr is an identifier referring to a
-// tracked package-level target, returning its declared name.
-func targetIdentName(pass *analysis.Pass, expr ast.Expr, targets map[types.Object]string) (string, bool) {
-	ident, ok := expr.(*ast.Ident)
-	if !ok {
-		return "", false
+// isBuiltinCall reports whether call invokes the named Go builtin.
+func isBuiltinCall(pass *analysis.Pass, call *ast.CallExpr, name string) bool {
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok || ident.Name != name {
+		return false
 	}
-	obj := pass.TypesInfo.Uses[ident]
-	if obj == nil {
-		return "", false
+	builtin, ok := pass.TypesInfo.Uses[ident].(*types.Builtin)
+	return ok && builtin.Name() == name
+}
+
+// targetBaseName reports whether expr is rooted at an identifier referring to
+// a tracked package-level target, returning its declared name. Nested index
+// expressions such as nested[a][b] resolve to their base identifier so
+// mutations of nested collections are reported too.
+func targetBaseName(pass *analysis.Pass, expr ast.Expr, targets map[types.Object]string) (string, bool) {
+	for {
+		switch e := expr.(type) {
+		case *ast.Ident:
+			obj := pass.TypesInfo.Uses[e]
+			if obj == nil {
+				return "", false
+			}
+			name, ok := targets[obj]
+			return name, ok
+		case *ast.IndexExpr:
+			expr = e.X
+		case *ast.ParenExpr:
+			expr = e.X
+		default:
+			return "", false
+		}
 	}
-	name, ok := targets[obj]
-	return name, ok
 }
 
 func report(pass *analysis.Pass, pos token.Pos, varName, kind string, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
