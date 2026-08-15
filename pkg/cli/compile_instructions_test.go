@@ -81,7 +81,6 @@ This is a test workflow for compilation.
 		Validate:             false,
 		Watch:                false,
 		WorkflowDir:          "",
-		SkipInstructions:     false, // Deprecated field, has no effect
 		NoEmit:               false,
 		Purge:                false,
 		TrialMode:            false,
@@ -185,7 +184,6 @@ This is a test workflow for compilation.
 		Validate:             false,
 		Watch:                false,
 		WorkflowDir:          "",
-		SkipInstructions:     false, // Deprecated field, has no effect
 		NoEmit:               false,
 		Purge:                false,
 		TrialMode:            false,

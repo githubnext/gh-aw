@@ -49,7 +49,6 @@ func TestCompileWorkflowsWithCancellation(t *testing.T) {
 		Validate:             false,
 		Watch:                false,
 		WorkflowDir:          "",
-		SkipInstructions:     false,
 		NoEmit:               true,
 		Purge:                false,
 		TrialMode:            false,

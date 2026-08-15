@@ -64,7 +64,6 @@ Test workflow that creates issues with expiration.
 		Validate:             false,
 		Watch:                false,
 		WorkflowDir:          "", // Use default directory (empty = .github/workflows)
-		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
 		TrialMode:            false,
@@ -160,7 +159,6 @@ Test workflow that creates issues without expiration.
 		Validate:             false,
 		Watch:                false,
 		WorkflowDir:          "", // Use default directory (empty = .github/workflows)
-		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
 		TrialMode:            false,
@@ -230,7 +228,6 @@ Test workflow that creates issues with expiration.
 		Validate:             false,
 		Watch:                false,
 		WorkflowDir:          "custom/workflows", // Custom directory
-		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
 		TrialMode:            false,
@@ -304,7 +301,6 @@ Shared workflow component.
 				Validate:             false,
 				Watch:                false,
 				WorkflowDir:          "",
-				SkipInstructions:     false,
 				NoEmit:               false,
 				Purge:                false,
 				TrialMode:            false,
