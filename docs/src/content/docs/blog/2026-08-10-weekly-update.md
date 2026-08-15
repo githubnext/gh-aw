@@ -17,7 +17,7 @@ It's been another busy week in [github/gh-aw](https://github.com/github/gh-aw), 
 ### What's New
 
 - **Guided `gh aw fix` diagnostics**: The tool now offers a guided fix for restricted `tools.bash` allow-listing on engines that ignore it ([#51102](https://github.com/github/gh-aw/pull/51102)), plus tips for known external engines like opencode and crush missing their import ([#51088](https://github.com/github/gh-aw/pull/51088)).
-- **Expanded engine support**: Added shared engine definitions and smoke tests for Pydantic AI ([#51161](https://github.com/github/gh-aw/pull/51161)), plus new example workflows for the aider, cursor, and kiro definition-based engines ([#51166](https://github.com/github/gh-aw/pull/51166)).
+- **Expanded engine support**: Added new example workflows for the aider, cursor, and kiro definition-based engines ([#51166](https://github.com/github/gh-aw/pull/51166)).
 - **PureLock initiative**: Introduced a daily pure-function maximum-coverage test workflow ([#51107](https://github.com/github/gh-aw/pull/51107)) that is progressively locking down core compiler functions with dedicated test suites ([#51167](https://github.com/github/gh-aw/pull/51167), [#51119](https://github.com/github/gh-aw/pull/51119)).
 - **Safe-outputs improvements**: Fixed `add_labels` failing on pull requests in issue-intent paths ([#51168](https://github.com/github/gh-aw/pull/51168)) and replaced loosely-typed bool-or-expression fields with `*TemplatableBool` for safer config typing ([#51097](https://github.com/github/gh-aw/pull/51097)).
 

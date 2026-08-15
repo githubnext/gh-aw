@@ -13,14 +13,6 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
 
 /**
- * Module-level state — populated by main(), read by the exported getters below.
- * Using module-level variables (rather than closure-only state) allows the handler
- * manager to read final output values after all messages have been processed.
- * @type {Array<{issue_number: number|null, pull_number: number|null, agent: string, owner: string|null, repo: string|null, pull_request_repo?: string|null, success: boolean, skipped?: boolean, error?: string}>}
- */
-let _allResults = [];
-
-/**
  * Create a dedicated GitHub client for assign-to-agent operations.
  *
  * Token precedence:
@@ -40,6 +32,107 @@ async function createAssignToAgentGitHubClient(config) {
   }
   core.info("Using dedicated github client for assign-to-agent operations");
   return global.getOctokit(token);
+}
+
+/**
+ * @param {Array<{issue_number: number|null, pull_number: number|null, agent: string, owner: string|null, repo: string|null, pull_request_repo?: string|null, success: boolean, skipped?: boolean, error?: string}>} allResults
+ * @returns {string}
+ */
+function formatAssignedOutput(allResults) {
+  return allResults
+    .filter(r => r.success && !r.skipped)
+    .map(r => {
+      const number = r.issue_number || r.pull_number;
+      const prefix = r.issue_number ? "issue" : "pr";
+      return `${prefix}:${number}:${r.agent}`;
+    })
+    .join("\n");
+}
+
+/**
+ * @param {Array<{issue_number: number|null, pull_number: number|null, agent: string, owner: string|null, repo: string|null, pull_request_repo?: string|null, success: boolean, skipped?: boolean, error?: string}>} allResults
+ * @returns {string}
+ */
+function formatErrorsOutput(allResults) {
+  return (
+    allResults
+      // Include skipped(ignore-if-error) entries that still captured an error so
+      // downstream failure handling can surface assignment problems in issue/comment reports.
+      // Include hard failures (!success) and ignored failures (skipped=true with error).
+      .filter(r => r.error && (r.skipped || !r.success))
+      .map(r => {
+        const number = r.issue_number || r.pull_number;
+        const prefix = r.issue_number ? "issue" : "pr";
+        return `${prefix}:${number}:${r.agent}:${r.error}`;
+      })
+      .join("\n")
+  );
+}
+
+/**
+ * @param {Array<{issue_number: number|null, pull_number: number|null, agent: string, owner: string|null, repo: string|null, pull_request_repo?: string|null, success: boolean, skipped?: boolean, error?: string}>} allResults
+ * @returns {number}
+ */
+function countHardFailures(allResults) {
+  return allResults.filter(r => !r.success && !r.skipped).length;
+}
+
+/**
+ * @param {Array<{issue_number: number|null, pull_number: number|null, agent: string, owner: string|null, repo: string|null, pull_request_repo?: string|null, success: boolean, skipped?: boolean, error?: string}>} allResults
+ * @returns {Promise<void>}
+ */
+async function writeAssignSummary(allResults) {
+  const successResults = allResults.filter(r => r.success && !r.skipped);
+  const skippedResults = allResults.filter(r => r.skipped);
+  const failedResults = allResults.filter(r => !r.success && !r.skipped);
+
+  if (allResults.length === 0) return;
+
+  let summaryContent = "## Agent Assignment\n\n";
+
+  if (successResults.length > 0) {
+    summaryContent += `✅ Successfully assigned ${successResults.length} agent(s):\n\n`;
+    summaryContent += successResults
+      .map(r => {
+        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
+        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""}`;
+      })
+      .join("\n");
+    summaryContent += "\n\n";
+  }
+
+  if (skippedResults.length > 0) {
+    summaryContent += `⏭️ Skipped ${skippedResults.length} agent assignment(s) (ignore-if-error enabled):\n\n`;
+    summaryContent += skippedResults
+      .map(r => {
+        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
+        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""} (assignment failed due to error)`;
+      })
+      .join("\n");
+    summaryContent += "\n\n";
+  }
+
+  if (failedResults.length > 0) {
+    summaryContent += `❌ Failed to assign ${failedResults.length} agent(s):\n\n`;
+    summaryContent += failedResults
+      .map(r => {
+        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
+        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""}: ${r.error}`;
+      })
+      .join("\n");
+
+    const hasPermissionError = failedResults.some(r => r.error?.includes("Resource not accessible") || r.error?.includes("Insufficient permissions"));
+    if (hasPermissionError) {
+      summaryContent += generatePermissionErrorSummary();
+    }
+    summaryContent += "\n\n";
+  }
+
+  try {
+    await core.summary.addRaw(summaryContent).write();
+  } catch (error) {
+    core.warning(`Failed to write agent assignment summary: ${getErrorMessage(error)}`);
+  }
 }
 
 /**
@@ -129,11 +222,10 @@ async function main(config = {}) {
 
   // Closure-level state
   let processedCount = 0;
+  /** @type {Array<{issue_number: number|null, pull_number: number|null, agent: string, owner: string|null, repo: string|null, pull_request_repo?: string|null, success: boolean, skipped?: boolean, error?: string}>} */
+  const allResults = [];
   const agentCache = {};
   const processedAssignmentTargets = new Set();
-
-  // Reset module-level results for this handler invocation
-  _allResults = [];
 
   /**
    * Message processor — called once per assign_to_agent message by the handler manager.
@@ -143,7 +235,7 @@ async function main(config = {}) {
    * @param {Map<string, {repo: string, number: number}>} temporaryIdMap - Live temp ID map
    * @returns {Promise<{success: boolean, error?: string, skipped?: boolean, deferred?: boolean}>}
    */
-  return async function handleMessage(message, resolvedTemporaryIds, temporaryIdMap) {
+  const handleMessage = async function (message, resolvedTemporaryIds, temporaryIdMap) {
     // Handle staged mode — emit preview and skip actual assignment
     if (isStaged) {
       await generateStagedPreview({
@@ -167,20 +259,6 @@ async function main(config = {}) {
       return { success: true, skipped: true };
     }
 
-    // Enforce max count — track the attempt in _allResults so it appears in the summary
-    if (processedCount >= maxCount) {
-      core.info(`⏭ Max count (${maxCount}) reached, skipping agent assignment`);
-      const agentNameForSkip = message.agent ?? defaultAgent;
-      _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentNameForSkip, owner: null, repo: null, success: false, skipped: true });
-      return { success: false, skipped: true };
-    }
-
-    // Add delay between consecutive assignments to avoid spawning too many agents at once
-    if (processedCount > 0) {
-      core.info("Waiting 10 seconds before processing next agent assignment...");
-      await sleep(10000);
-    }
-
     const agentName = message.agent ?? defaultAgent;
     const intentMetadata = issueIntentEnabled ? normalizeIssueIntentMetadata(message) : {};
     const model = defaultModel;
@@ -191,7 +269,7 @@ async function main(config = {}) {
     if (message.issue_number != null && message.pull_number != null) {
       const error = "Cannot specify both issue_number and pull_number in the same assign_to_agent item";
       core.error(error);
-      _allResults.push({ issue_number: message.issue_number, pull_number: message.pull_number, agent: agentName, owner: null, repo: null, success: false, error });
+      allResults.push({ issue_number: message.issue_number, pull_number: message.pull_number, agent: agentName, owner: null, repo: null, success: false, error });
       return { success: false, error };
     }
 
@@ -212,7 +290,7 @@ async function main(config = {}) {
     const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "issue/PR");
     if (!repoResult.success) {
       core.error(`E004: ${repoResult.error}`);
-      _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: null, repo: null, success: false, error: repoResult.error });
+      allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: null, repo: null, success: false, error: repoResult.error });
       return { success: false, error: repoResult.error };
     }
     let effectiveOwner = repoResult.repoParts.owner;
@@ -225,7 +303,7 @@ async function main(config = {}) {
       if (!resolvedTarget.resolved) {
         const error = resolvedTarget.errorMessage || `Failed to resolve issue target: ${message.issue_number}`;
         core.error(error);
-        _allResults.push({ issue_number: message.issue_number, pull_number: null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
+        allResults.push({ issue_number: message.issue_number, pull_number: null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
         return { success: false, error };
       }
       effectiveOwner = resolvedTarget.resolved.owner;
@@ -257,7 +335,7 @@ async function main(config = {}) {
         if (!pullRequestRepoValidation.valid) {
           const error = pullRequestRepoValidation.error ?? "Repository validation failed";
           core.error(`E004: ${error}`);
-          _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
+          allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
           return { success: false, error };
         }
         try {
@@ -269,7 +347,7 @@ async function main(config = {}) {
         } catch (error) {
           const errorMsg = `Failed to resolve pull request repository for ${itemPullRequestRepo}: ${getErrorMessage(error)}`;
           core.error(errorMsg);
-          _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error: errorMsg });
+          allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error: errorMsg });
           return { success: false, error: errorMsg };
         }
       } else {
@@ -294,7 +372,7 @@ async function main(config = {}) {
     if (!targetResult.success) {
       if (targetResult.shouldFail) {
         core.error(targetResult.error);
-        _allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error: targetResult.error });
+        allResults.push({ issue_number: message.issue_number || null, pull_number: message.pull_number || null, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error: targetResult.error });
         return { success: false, error: targetResult.error };
       } else {
         core.info(targetResult.error);
@@ -310,7 +388,7 @@ async function main(config = {}) {
     if (Number.isNaN(number) || number <= 0) {
       const error = `Invalid ${type} number: ${number}`;
       core.error(error);
-      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
+      allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
       return { success: false, error };
     }
 
@@ -318,7 +396,7 @@ async function main(config = {}) {
     if (!AGENT_LOGIN_NAMES[agentName]) {
       const error = `Unsupported agent: ${agentName}`;
       core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
-      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
+      allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
       return { success: false, error };
     }
 
@@ -326,12 +404,23 @@ async function main(config = {}) {
     if (allowedAgents && !allowedAgents.includes(agentName)) {
       const error = `Agent not allowed: ${agentName}`;
       core.error(`Agent "${agentName}" is not in the allowed list. Allowed agents: ${allowedAgents.join(", ")}`);
-      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
+      allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, error });
       return { success: false, error };
     }
 
-    // Increment processed count before attempting the assignment
+    // Atomically reserve the max-count slot before beginning an assignment attempt.
+    if (processedCount >= maxCount) {
+      core.info(`⏭ Max count (${maxCount}) reached, skipping agent assignment`);
+      allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, success: false, skipped: true });
+      return { success: false, skipped: true };
+    }
     processedCount++;
+
+    // Add delay between consecutive assignments to avoid spawning too many agents at once
+    if (processedCount > 1) {
+      core.info("Waiting 10 seconds before processing next agent assignment...");
+      await sleep(10000);
+    }
 
     try {
       // Find agent (use cache to avoid repeated lookups)
@@ -383,7 +472,7 @@ async function main(config = {}) {
       const knownLogins = getAgentLogins(agentName);
       if (currentAssignees.some(a => a.login === agentLogin || knownLogins.includes(a.login)) && !shouldAllowReassignment) {
         core.info(`${agentName} is already assigned to ${type} #${number}`);
-        _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
+        allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
         return { success: true };
       }
 
@@ -412,7 +501,7 @@ async function main(config = {}) {
       if (!success) throw new Error(`Failed to assign ${agentName} via REST`);
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
-      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
+      allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: true });
       return { success: true };
     } catch (error) {
       let errorMessage = getErrorMessage(error);
@@ -421,7 +510,7 @@ async function main(config = {}) {
       // silently without posting a comment — error comments on PRs are confusing.
       if (/** @type {any} */ error.isPullRequest) {
         core.warning(`Skipping assign_to_agent for #${number}: target is a pull request, not an issue.`);
-        _allResults.push({
+        allResults.push({
           issue_number: issueNumber,
           pull_number: pullNumber,
           agent: agentName,
@@ -442,7 +531,7 @@ async function main(config = {}) {
         const errorType = isAuthError ? "authentication/permission" : "agent availability";
         core.warning(`Agent assignment failed for ${agentName} on ${type} #${number} due to ${errorType} error. Skipping due to ignore-if-error=true.`);
         core.info(`Error details: ${errorMessage}`);
-        _allResults.push({
+        allResults.push({
           issue_number: issueNumber,
           pull_number: pullNumber,
           agent: agentName,
@@ -480,10 +569,17 @@ async function main(config = {}) {
         core.warning(`Failed to post failure comment on ${type} #${number}: ${getErrorMessage(commentError)}`);
       }
 
-      _allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: false, error: errorMessage });
+      allResults.push({ issue_number: issueNumber, pull_number: pullNumber, agent: agentName, owner: effectiveOwner, repo: effectiveRepo, pull_request_repo: effectivePullRequestRepoSlug, success: false, error: errorMessage });
       return { success: false, error: errorMessage };
     }
   };
+
+  handleMessage.getAssignToAgentAssigned = () => formatAssignedOutput(allResults);
+  handleMessage.getAssignToAgentErrors = () => formatErrorsOutput(allResults);
+  handleMessage.getAssignToAgentErrorCount = () => countHardFailures(allResults);
+  handleMessage.writeAssignToAgentSummary = () => writeAssignSummary(allResults);
+
+  return handleMessage;
 }
 
 /**
@@ -491,15 +587,8 @@ async function main(config = {}) {
  * Format: "issue:N:agent" or "pr:N:agent" per successful assignment, newline-separated.
  * @returns {string}
  */
-function getAssignToAgentAssigned() {
-  return _allResults
-    .filter(r => r.success && !r.skipped)
-    .map(r => {
-      const number = r.issue_number || r.pull_number;
-      const prefix = r.issue_number ? "issue" : "pr";
-      return `${prefix}:${number}:${r.agent}`;
-    })
-    .join("\n");
+function getAssignToAgentAssigned(handler) {
+  return typeof handler?.getAssignToAgentAssigned === "function" ? handler.getAssignToAgentAssigned() : "";
 }
 
 /**
@@ -508,28 +597,16 @@ function getAssignToAgentAssigned() {
  * newline-separated.
  * @returns {string}
  */
-function getAssignToAgentErrors() {
-  return (
-    _allResults
-      // Include skipped(ignore-if-error) entries that still captured an error so
-      // downstream failure handling can surface assignment problems in issue/comment reports.
-      // Include hard failures (!success) and ignored failures (skipped=true with error).
-      .filter(r => r.error && (r.skipped || !r.success))
-      .map(r => {
-        const number = r.issue_number || r.pull_number;
-        const prefix = r.issue_number ? "issue" : "pr";
-        return `${prefix}:${number}:${r.agent}:${r.error}`;
-      })
-      .join("\n")
-  );
+function getAssignToAgentErrors(handler) {
+  return typeof handler?.getAssignToAgentErrors === "function" ? handler.getAssignToAgentErrors() : "";
 }
 
 /**
  * Returns the "assignment_error_count" output value.
  * @returns {number}
  */
-function getAssignToAgentErrorCount() {
-  return _allResults.filter(r => !r.success && !r.skipped).length;
+function getAssignToAgentErrorCount(handler) {
+  return typeof handler?.getAssignToAgentErrorCount === "function" ? handler.getAssignToAgentErrorCount() : 0;
 }
 
 /**
@@ -537,57 +614,9 @@ function getAssignToAgentErrorCount() {
  * Called by the handler manager after all messages have been processed.
  * @returns {Promise<void>}
  */
-async function writeAssignToAgentSummary() {
-  const successResults = _allResults.filter(r => r.success && !r.skipped);
-  const skippedResults = _allResults.filter(r => r.skipped);
-  const failedResults = _allResults.filter(r => !r.success && !r.skipped);
-
-  if (_allResults.length === 0) return;
-
-  let summaryContent = "## Agent Assignment\n\n";
-
-  if (successResults.length > 0) {
-    summaryContent += `✅ Successfully assigned ${successResults.length} agent(s):\n\n`;
-    summaryContent += successResults
-      .map(r => {
-        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
-        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""}`;
-      })
-      .join("\n");
-    summaryContent += "\n\n";
-  }
-
-  if (skippedResults.length > 0) {
-    summaryContent += `⏭️ Skipped ${skippedResults.length} agent assignment(s) (ignore-if-error enabled):\n\n`;
-    summaryContent += skippedResults
-      .map(r => {
-        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
-        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""} (assignment failed due to error)`;
-      })
-      .join("\n");
-    summaryContent += "\n\n";
-  }
-
-  if (failedResults.length > 0) {
-    summaryContent += `❌ Failed to assign ${failedResults.length} agent(s):\n\n`;
-    summaryContent += failedResults
-      .map(r => {
-        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
-        return `- ${itemType} → Agent: ${r.agent}${r.pull_request_repo ? ` (PR target: ${r.pull_request_repo})` : ""}: ${r.error}`;
-      })
-      .join("\n");
-
-    const hasPermissionError = failedResults.some(r => r.error?.includes("Resource not accessible") || r.error?.includes("Insufficient permissions"));
-    if (hasPermissionError) {
-      summaryContent += generatePermissionErrorSummary();
-    }
-    summaryContent += "\n\n";
-  }
-
-  try {
-    await core.summary.addRaw(summaryContent).write();
-  } catch (error) {
-    core.warning(`Failed to write agent assignment summary: ${getErrorMessage(error)}`);
+async function writeAssignToAgentSummary(handler) {
+  if (typeof handler?.writeAssignToAgentSummary === "function") {
+    await handler.writeAssignToAgentSummary();
   }
 }
 

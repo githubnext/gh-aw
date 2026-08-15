@@ -27,10 +27,6 @@
     {
       "id": "opencode",
       "import": "github/gh-aw/.github/workflows/shared/opencode.md"
-    },
-    {
-      "id": "pydantic-ai",
-      "import": "github/gh-aw/.github/workflows/shared/pydantic.md"
     }
   ]
 }

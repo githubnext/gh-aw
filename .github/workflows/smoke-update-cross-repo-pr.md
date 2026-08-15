@@ -65,6 +65,7 @@ timeout-minutes: 10
 imports:
   - shared/otlp.md
   - shared/smoke-test-brevity.md
+  - shared/reporting.md
 features:
   gh-aw-detection: false
 ---

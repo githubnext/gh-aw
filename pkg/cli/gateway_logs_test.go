@@ -53,7 +53,7 @@ func TestParseGatewayLogs(t *testing.T) {
 `,
 			wantServers:   3,
 			wantRequests:  3,
-			wantToolCalls: 3,
+			wantToolCalls: 0,
 			wantErrors:    0,
 			wantErr:       false,
 		},
@@ -447,14 +447,14 @@ func TestGatewayLogsWithMethodField(t *testing.T) {
 
 	assert.Len(t, metrics.Servers, 1)
 	assert.Equal(t, 2, metrics.TotalRequests)
-	assert.Equal(t, 2, metrics.TotalToolCalls)
+	assert.Equal(t, 1, metrics.TotalToolCalls)
 
 	server := metrics.Servers["github"]
 	require.NotNil(t, server)
-	assert.Len(t, server.Tools, 2)
+	assert.Len(t, server.Tools, 1)
 
-	// Check that methods were tracked as tools
-	assert.Contains(t, server.Tools, "tools/list")
+	// Protocol discovery remains a request but is not counted as tool usage.
+	assert.NotContains(t, server.Tools, "tools/list")
 	assert.Contains(t, server.Tools, "tools/call")
 }
 

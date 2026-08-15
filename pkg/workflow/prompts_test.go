@@ -276,6 +276,34 @@ func TestDailyFunctionNamerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
 	}
 }
 
+func TestGoLoggerDefinesSingleTerminalSafeOutputContract(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "go-logger.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	for _, keyword := range []string{
+		"exactly one terminal outcome",
+		"`create_pull_request`",
+		"`noop`",
+		"`report_incomplete`",
+		"exactly once, as your final action",
+		"Do not probe safe outputs",
+		"Do not retry the call or switch to another terminal safe output",
+	} {
+		if !strings.Contains(workflow, keyword) {
+			t.Fatalf("Expected go-logger workflow to include safe-output contract keyword %q", keyword)
+		}
+	}
+}
+
 func TestDailyCavemanOptimizerUsesConcreteClaudeModelsForExperiment(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {

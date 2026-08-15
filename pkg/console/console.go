@@ -42,11 +42,15 @@ func applyStyle(style lipgloss.Style, text string) string {
 	return applyStdoutStyleWithTTY(style, text, isTTY, stdoutEnviron())
 }
 
-func applyStdoutStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() bool, environ []string) string {
+func applyStyleWithTTYAndEnviron(style lipgloss.Style, text string, ttyCheck func() bool, environ []string) string {
 	if !ttyCheck() {
 		return text
 	}
 	return colorwriter.Degrade(style.Render(text), environ)
+}
+
+func applyStdoutStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() bool, environ []string) string {
+	return applyStyleWithTTYAndEnviron(style, text, ttyCheck, environ)
 }
 
 func applyStderrStyle(style lipgloss.Style, text string) string {
@@ -54,10 +58,7 @@ func applyStderrStyle(style lipgloss.Style, text string) string {
 }
 
 func applyStderrStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() bool, environ []string) string {
-	if !ttyCheck() {
-		return text
-	}
-	return colorwriter.Degrade(style.Render(text), environ)
+	return applyStyleWithTTYAndEnviron(style, text, ttyCheck, environ)
 }
 
 // applyStyleWithTTY conditionally renders raw ANSI based on a provided TTY check.

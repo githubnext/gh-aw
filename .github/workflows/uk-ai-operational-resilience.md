@@ -96,6 +96,7 @@ imports:
       title-prefix: "[uk ai resilience] "
       expires: 3d
   - shared/otlp.md
+  - shared/reporting.md
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
@@ -204,6 +205,8 @@ Create one discussion report with:
    - unsupported dependency ratio
    - exception aging
    - exposure without recovery capability
+
+Follow the `reporting` skill: use `###` (h3) or lower for section headers, and wrap long tables (asset graph, tier classification, risk-scoring) in `<details><summary><b>...</b></summary>...</details>` blocks so the executive summary stays scannable.
 
 ### Phase 6 — Create issues for high-priority items
 

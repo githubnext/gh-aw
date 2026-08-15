@@ -1410,6 +1410,75 @@ echo "result=$INPUT_MY_INPUT" >> "$GITHUB_OUTPUT"
     });
   });
 
+  describe("start", () => {
+    it("serializes pipelined stdin chunks and avoids overlapping tool dispatch", async () => {
+      const { createServer, registerTool, start } = await import("./mcp_server_core.cjs");
+      const server = createServer({ name: "test-server", version: "1.0.0" });
+
+      let activeHandlers = 0;
+      let maxActiveHandlers = 0;
+      let callCount = 0;
+      let releaseFirstCall;
+      const firstCallGate = new Promise(resolve => {
+        releaseFirstCall = resolve;
+      });
+
+      registerTool(server, {
+        name: "slow_tool",
+        description: "A test tool",
+        inputSchema: { type: "object", properties: {}, additionalProperties: false },
+        handler: async () => {
+          callCount++;
+          activeHandlers++;
+          maxActiveHandlers = Math.max(maxActiveHandlers, activeHandlers);
+          if (callCount === 1) {
+            await firstCallGate;
+          }
+          activeHandlers--;
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      });
+
+      // Avoid writing to real stdout/stderr during this test.
+      server.writeMessage = () => {};
+      server.debug = () => {};
+
+      let dataHandler;
+      const onSpy = vi.spyOn(process.stdin, "on").mockImplementation((event, handler) => {
+        if (event === "data") {
+          dataHandler = handler;
+        }
+        return process.stdin;
+      });
+      const resumeSpy = vi.spyOn(process.stdin, "resume").mockImplementation(() => process.stdin);
+
+      try {
+        start(server);
+        expect(typeof dataHandler).toBe("function");
+
+        const message1 = Buffer.from(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "slow_tool", arguments: {} } })}\n`);
+        const message2 = Buffer.from(`${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "slow_tool", arguments: {} } })}\n`);
+
+        const first = dataHandler(message1);
+        const second = dataHandler(message2);
+
+        // Let queued tasks run before releasing first call.
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(callCount).toBe(1);
+
+        releaseFirstCall();
+        await Promise.all([first, second]);
+
+        expect(callCount).toBe(2);
+        expect(maxActiveHandlers).toBe(1);
+      } finally {
+        onSpy.mockRestore();
+        resumeSpy.mockRestore();
+      }
+    });
+  });
+
   describe("findSimilarTools", () => {
     it("should find tools with typos", async () => {
       const { findSimilarTools } = await import("./mcp_server_core.cjs");

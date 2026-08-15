@@ -27,9 +27,11 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 		func(failure MCPFailureReport) *MCPFailureSummary {
 			return &MCPFailureSummary{
 				ServerName: failure.ServerName,
-				Count:      1,
-				Workflows:  []string{failure.WorkflowName},
-				RunIDs:     []int64{failure.RunID},
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:     1,
+					Workflows: []string{failure.WorkflowName},
+					RunIDs:    []int64{failure.RunID},
+				},
 			}
 		},
 		// updateSummary: update existing summary with new occurrence

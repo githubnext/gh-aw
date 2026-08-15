@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,16 +84,20 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		},
 		MCPFailures: []MCPFailureSummary{
 			{
-				ServerName:       "github-mcp-server",
-				Count:            2,
-				Workflows:        []string{"workflow-a", "workflow-b"},
-				WorkflowsDisplay: "workflow-a, workflow-b",
+				ServerName: "github-mcp-server",
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:            2,
+					Workflows:        []string{"workflow-a", "workflow-b"},
+					WorkflowsDisplay: "workflow-a, workflow-b",
+				},
 			},
 			{
-				ServerName:       "playwright",
-				Count:            1,
-				Workflows:        []string{"browser-test"},
-				WorkflowsDisplay: "browser-test",
+				ServerName: "playwright",
+				AggregatedSummaryBase: AggregatedSummaryBase{
+					Count:            1,
+					Workflows:        []string{"browser-test"},
+					WorkflowsDisplay: "browser-test",
+				},
 			},
 		},
 		LogsLocation: "/tmp/logs",
@@ -108,6 +113,32 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 	var buf bytes.Buffer
 	renderLogsConsoleToWriter(&buf, data)
 	renderLogsConsoleToWriter(&buf, data)
+}
+
+func TestRenderLogsConsoleMCPFailureSchema(t *testing.T) {
+	var buf bytes.Buffer
+	renderLogsConsoleToWriter(&buf, LogsData{
+		MCPFailures: []MCPFailureSummary{{
+			ServerName: "github-mcp-server",
+			AggregatedSummaryBase: AggregatedSummaryBase{
+				Count:              2,
+				WorkflowsDisplay:   "workflow-a, workflow-b",
+				FirstReasonDisplay: "not part of the MCP failure schema",
+			},
+		}},
+	})
+
+	output := buf.String()
+	for _, expected := range []string{"MCP Server Failures", "Server", "Failures", "Workflows"} {
+		if !strings.Contains(output, expected) {
+			t.Errorf("expected %q in MCP failure console output: %s", expected, output)
+		}
+	}
+	for _, unexpected := range []string{"Occurrences", "First Reason"} {
+		if strings.Contains(output, unexpected) {
+			t.Errorf("unexpected %q in MCP failure console output: %s", unexpected, output)
+		}
+	}
 }
 
 // TestBuildToolUsageSummaryPopulatesDisplay tests that buildToolUsageSummary works correctly
