@@ -28,22 +28,67 @@ function isPotentiallyInvalidDateConstruction(node: TSESTree.NewExpression): boo
   return true;
 }
 
+/** Returns true when the callee is the global `isNaN` or the static `Number.isNaN` function. */
+function isIsNaNCallee(callee: TSESTree.Expression): boolean {
+  const isNaNGlobal = callee.type === AST_NODE_TYPES.Identifier && callee.name === "isNaN";
+  const isNaNStatic = callee.type === AST_NODE_TYPES.MemberExpression && callee.object.type === AST_NODE_TYPES.Identifier && callee.object.name === "Number" && !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "isNaN";
+  return isNaNGlobal || isNaNStatic;
+}
+
 /** Returns true when the call expression is `Number.isNaN(x.getTime())` or `isNaN(x.getTime())`. */
 function isGetTimeNaNCheck(node: TSESTree.CallExpression): boolean {
-  const isNaNGlobal = node.callee.type === AST_NODE_TYPES.Identifier && node.callee.name === "isNaN";
-  const isNaNStatic =
-    node.callee.type === AST_NODE_TYPES.MemberExpression &&
-    node.callee.object.type === AST_NODE_TYPES.Identifier &&
-    node.callee.object.name === "Number" &&
-    !node.callee.computed &&
-    node.callee.property.type === AST_NODE_TYPES.Identifier &&
-    node.callee.property.name === "isNaN";
-
-  if (!isNaNGlobal && !isNaNStatic) return false;
+  if (!isIsNaNCallee(node.callee)) return false;
   if (node.arguments.length !== 1) return false;
 
   const arg = node.arguments[0];
   return arg.type === AST_NODE_TYPES.CallExpression && arg.callee.type === AST_NODE_TYPES.MemberExpression && arg.callee.property.type === AST_NODE_TYPES.Identifier && arg.callee.property.name === "getTime";
+}
+
+/**
+ * Returns the identifier when the call expression is `Number.isNaN(name)` or `isNaN(name)`
+ * applied directly to a bare identifier (no `.getTime()`), the shape used to validate a numeric
+ * timestamp produced by `Date.parse(...)`.
+ */
+function extractDirectNaNCheckTarget(node: TSESTree.CallExpression): TSESTree.Identifier | null {
+  if (!isIsNaNCallee(node.callee)) return null;
+  if (node.arguments.length !== 1) return null;
+
+  const arg = node.arguments[0];
+  return arg.type === AST_NODE_TYPES.Identifier ? arg : null;
+}
+
+/** Returns true when the callee is the global `isFinite` or the static `Number.isFinite` function. */
+function isIsFiniteCallee(callee: TSESTree.Expression): boolean {
+  const isFiniteGlobal = callee.type === AST_NODE_TYPES.Identifier && callee.name === "isFinite";
+  const isFiniteStatic = callee.type === AST_NODE_TYPES.MemberExpression && callee.object.type === AST_NODE_TYPES.Identifier && callee.object.name === "Number" && !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "isFinite";
+  return isFiniteGlobal || isFiniteStatic;
+}
+
+/**
+ * Returns the identifier when the call expression is `Number.isFinite(name)` or `isFinite(name)`
+ * applied directly to a bare identifier, another shape used to validate a numeric timestamp
+ * produced by `Date.parse(...)`.
+ */
+function extractIsFiniteCheckTarget(node: TSESTree.CallExpression): TSESTree.Identifier | null {
+  if (!isIsFiniteCallee(node.callee)) return null;
+  if (node.arguments.length !== 1) return null;
+
+  const arg = node.arguments[0];
+  return arg.type === AST_NODE_TYPES.Identifier ? arg : null;
+}
+
+/**
+ * Returns true when the call expression is `Date.parse(x)` with an argument (a bare
+ * `Date.parse()` call is not a realistic pattern worth special-casing away). Like
+ * `new Date(x).getTime()`, this yields `NaN` for an unparseable input, silently defeating a
+ * subsequent relational comparison.
+ */
+function isPotentiallyInvalidDateParseCall(node: TSESTree.CallExpression): boolean {
+  if (node.callee.type !== AST_NODE_TYPES.MemberExpression) return false;
+  const { object, property, computed } = node.callee;
+  if (computed || object.type !== AST_NODE_TYPES.Identifier || object.name !== "Date") return false;
+  if (property.type !== AST_NODE_TYPES.Identifier || property.name !== "parse") return false;
+  return node.arguments.length >= 1;
 }
 
 /**
@@ -157,7 +202,10 @@ function guardDirectlyGatesComparison(guardPath: TSESTree.Node[], comparisonPath
   });
 }
 
-type ComparisonSide = { kind: "inline" } | { kind: "var"; variable: TSESLint.Scope.Variable };
+// "construct" covers `new Date(x)` (validated via Number.isNaN(d.getTime())); "parse" covers
+// `Date.parse(x)` (validated via Number.isFinite(name) or !Number.isNaN(name)).
+type DateVarKind = "construct" | "parse";
+type ComparisonSide = { kind: "inline"; source: DateVarKind } | { kind: "var"; variable: TSESLint.Scope.Variable; source: DateVarKind };
 
 export const requireInvalidDateCheckBeforeCompareRule = createRule({
   name: "require-invalid-date-check-before-compare",
@@ -165,26 +213,38 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
     type: "problem",
     docs: {
       description:
-        "Require validating `new Date(x)` with Number.isNaN(d.getTime()) (or isNaN(d.getTime())) before using it in a relational comparison (<, >, <=, >=). " +
-        "An Invalid Date compares as neither greater than nor less than any other date (all relational comparisons involving NaN return false), " +
-        "which silently defeats time-window/threshold checks such as rate-limit windows or freshness cutoffs instead of raising a visible parse error.",
+        "Require validating `new Date(x)` with Number.isNaN(d.getTime()) (or isNaN(d.getTime())), and `Date.parse(x)` with Number.isFinite(name) " +
+        "(or !Number.isNaN(name)), before using the result in a relational comparison (<, >, <=, >=). " +
+        "An Invalid Date (or a NaN timestamp from Date.parse) compares as neither greater than nor less than any other date " +
+        "(all relational comparisons involving NaN return false), which silently defeats time-window/threshold checks such as " +
+        "rate-limit windows or freshness cutoffs instead of raising a visible parse error.",
     },
     schema: [],
     messages: {
       requireInvalidDateCheck:
         "{{subject}} may be an Invalid Date and is compared with a relational operator ({{operator}}) without ever being checked via Number.isNaN({{getTimeTarget}}.getTime()). An unparseable date silently fails every comparison instead of surfacing an error.",
+      requireInvalidDateCheckParse:
+        "{{subject}} may be NaN (from Date.parse(...)) and is compared with a relational operator ({{operator}}) without ever being checked via Number.isFinite({{parseTarget}}) (or !Number.isNaN({{parseTarget}})). An unparseable date silently fails every comparison instead of surfacing an error.",
     },
   },
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
-    // Variable -> declarator node, for variables assigned `new Date(nonTrivialArg)`.
-    const dateVars = new Map<TSESLint.Scope.Variable, TSESTree.Node>();
-    // Variables confirmed validated via Number.isNaN(name.getTime()) / isNaN(name.getTime()),
-    // each recorded with its ancestor path so ordering and reachability can be checked later.
+    // Variable -> kind, for variables assigned `new Date(nonTrivialArg)` or `Date.parse(x)`.
+    const dateVars = new Map<TSESLint.Scope.Variable, DateVarKind>();
+    // Variables confirmed validated via Number.isNaN(name.getTime()) / isNaN(name.getTime()) (for
+    // "construct" vars) or Number.isFinite(name) / !Number.isNaN(name) (for "parse" vars), each
+    // recorded with its ancestor path so ordering and reachability can be checked later.
     const guards = new Map<TSESLint.Scope.Variable, TSESTree.Node[][]>();
     // Relational comparisons to report once all traversal is done, keyed by the involved sides.
     const comparisons: { node: TSESTree.BinaryExpression; operator: string; sides: ComparisonSide[]; path: TSESTree.Node[] }[] = [];
+
+    /** Records a guard path for `variable`, ending at `guardNode`. */
+    function addGuardPath(variable: TSESLint.Scope.Variable, ancestors: TSESTree.Node[], guardNode: TSESTree.Node): void {
+      const paths = guards.get(variable) ?? [];
+      paths.push([...ancestors, guardNode]);
+      guards.set(variable, paths);
+    }
 
     /** Returns true when at least one recorded guard for the variable is guaranteed to run before the comparison. */
     function isValidatedBefore(variable: TSESLint.Scope.Variable, comparisonPath: TSESTree.Node[]): boolean {
@@ -195,9 +255,13 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
 
     return {
       VariableDeclarator(node) {
-        if (node.id.type === AST_NODE_TYPES.Identifier && node.init?.type === AST_NODE_TYPES.NewExpression && isPotentiallyInvalidDateConstruction(node.init)) {
+        if (node.id.type !== AST_NODE_TYPES.Identifier) return;
+        if (node.init?.type === AST_NODE_TYPES.NewExpression && isPotentiallyInvalidDateConstruction(node.init)) {
           const variable = resolveVariable(sourceCode, node.id);
-          if (variable) dateVars.set(variable, node);
+          if (variable) dateVars.set(variable, "construct");
+        } else if (node.init?.type === AST_NODE_TYPES.CallExpression && isPotentiallyInvalidDateParseCall(node.init)) {
+          const variable = resolveVariable(sourceCode, node.id);
+          if (variable) dateVars.set(variable, "parse");
         }
       },
 
@@ -207,10 +271,30 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
           const obj = (arg.callee as TSESTree.MemberExpression).object;
           if (obj.type === AST_NODE_TYPES.Identifier) {
             const variable = resolveVariable(sourceCode, obj);
-            if (variable) {
-              const paths = guards.get(variable) ?? [];
-              paths.push([...sourceCode.getAncestors(node), node]);
-              guards.set(variable, paths);
+            if (variable) addGuardPath(variable, sourceCode.getAncestors(node), node);
+          }
+          return;
+        }
+
+        const directNaNTarget = extractDirectNaNCheckTarget(node);
+        if (directNaNTarget) {
+          const variable = resolveVariable(sourceCode, directNaNTarget);
+          if (variable) addGuardPath(variable, sourceCode.getAncestors(node), node);
+          return;
+        }
+
+        const isFiniteTarget = extractIsFiniteCheckTarget(node);
+        if (isFiniteTarget) {
+          const variable = resolveVariable(sourceCode, isFiniteTarget);
+          if (variable) {
+            const ancestors = sourceCode.getAncestors(node);
+            addGuardPath(variable, ancestors, node);
+            // Also register the enclosing `!Number.isFinite(name)` negation (if any) so that
+            // `if (!Number.isFinite(name)) return;`-style exiting guards are recognized: the
+            // exiting-guard check requires the guard node to be exactly the `if` test.
+            const parent = ancestors.at(-1);
+            if (parent?.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "!" && parent.argument === node) {
+              addGuardPath(variable, ancestors.slice(0, -1), parent);
             }
           }
         }
@@ -226,13 +310,19 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
           const side = extractGetTimeReceiver(operand) ?? operand;
           // Direct relational use of an inline `new Date(...)` expression.
           if (side.type === AST_NODE_TYPES.NewExpression && isPotentiallyInvalidDateConstruction(side)) {
-            sides.push({ kind: "inline" });
+            sides.push({ kind: "inline", source: "construct" });
+            continue;
+          }
+          // Direct relational use of an inline `Date.parse(...)` expression.
+          if (side.type === AST_NODE_TYPES.CallExpression && isPotentiallyInvalidDateParseCall(side)) {
+            sides.push({ kind: "inline", source: "parse" });
             continue;
           }
           if (side.type === AST_NODE_TYPES.Identifier) {
             const variable = resolveVariable(sourceCode, side);
-            if (variable && dateVars.has(variable)) {
-              sides.push({ kind: "var", variable });
+            const source = variable ? dateVars.get(variable) : undefined;
+            if (variable && source) {
+              sides.push({ kind: "var", variable, source });
             }
           }
         }
@@ -246,7 +336,11 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
 
           if (problems.length === 1) {
             const problem = problems[0];
-            if (problem.kind === "inline") {
+            if (problem.source === "parse") {
+              const subject = problem.kind === "inline" ? "An inline `Date.parse(...)` expression" : `'${problem.variable.name}'`;
+              const parseTarget = problem.kind === "inline" ? "it" : problem.variable.name;
+              context.report({ node, messageId: "requireInvalidDateCheckParse", data: { subject, operator, parseTarget } });
+            } else if (problem.kind === "inline") {
               context.report({ node, messageId: "requireInvalidDateCheck", data: { subject: "An inline `new Date(...)` expression", operator, getTimeTarget: "it" } });
             } else {
               const name = problem.variable.name;
@@ -255,9 +349,27 @@ export const requireInvalidDateCheckBeforeCompareRule = createRule({
             continue;
           }
 
-          // Both sides of the comparison are unvalidated: report a single combined diagnostic
-          // instead of one per side, to avoid two identical errors on the same node.
-          context.report({ node, messageId: "requireInvalidDateCheck", data: { subject: "Both operands of this comparison", operator, getTimeTarget: "each value" } });
+          // Both sides of the comparison are unvalidated. Report a single combined diagnostic
+          // when both share the same source (to avoid two identical errors on the same node);
+          // otherwise report each side individually since the recommended check differs.
+          const sources = new Set(problems.map(problem => problem.source));
+          if (sources.size === 1 && sources.has("parse")) {
+            context.report({ node, messageId: "requireInvalidDateCheckParse", data: { subject: "Both operands of this comparison", operator, parseTarget: "each value" } });
+          } else if (sources.size === 1) {
+            context.report({ node, messageId: "requireInvalidDateCheck", data: { subject: "Both operands of this comparison", operator, getTimeTarget: "each value" } });
+          } else {
+            for (const problem of problems) {
+              if (problem.source === "parse") {
+                const subject = problem.kind === "inline" ? "An inline `Date.parse(...)` expression" : `'${problem.variable.name}'`;
+                const parseTarget = problem.kind === "inline" ? "it" : problem.variable.name;
+                context.report({ node, messageId: "requireInvalidDateCheckParse", data: { subject, operator, parseTarget } });
+              } else {
+                const subject = problem.kind === "inline" ? "An inline `new Date(...)` expression" : `'${problem.variable.name}'`;
+                const getTimeTarget = problem.kind === "inline" ? "it" : problem.variable.name;
+                context.report({ node, messageId: "requireInvalidDateCheck", data: { subject, operator, getTimeTarget } });
+              }
+            }
+          }
         }
       },
     };

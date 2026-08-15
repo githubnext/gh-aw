@@ -134,8 +134,15 @@ const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 
 // Pattern to detect "model not supported" error (e.g. Copilot Pro/Education users hitting
 // a model that is unavailable for their subscription tier).
+// Also matches the Copilot SDK driver's policy-enablement error, which is emitted when a model
+// (commonly the one requested by a subagent / `task` dispatch) is disabled by the org/repo
+// Copilot policy:
+//   "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available.
+//    Check policy enablement under GitHub Settings > Copilot"
+// The alternative is anchored to the "policy enablement" phrase so that the generic
+// "No model available" wording alone does not produce false positives.
 // This is a persistent configuration error — retrying with --continue will not help.
-const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported/;
+const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
 
 // Pattern to detect missing authentication credentials.
 // On a --continue attempt this may indicate that the Copilot CLI's on-disk session

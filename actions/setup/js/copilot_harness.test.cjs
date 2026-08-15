@@ -1263,6 +1263,12 @@ describe("copilot_harness.cjs", () => {
         expect(AGENTIC_ENGINE_TIMEOUT_PATTERN.test(output)).toBe(true);
       });
 
+      it("detects the Copilot SDK driver policy-enablement error as model-not-supported", () => {
+        const output = "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot";
+        expect(detectCopilotErrors(output).modelNotSupportedError).toBe(true);
+        expect(classifyCopilotFailure({ hasOutput: true, isModelNotSupported: detectCopilotErrors(output).modelNotSupportedError })).toBe("model_not_supported");
+      });
+
       it("writes copilot detection outputs to GITHUB_OUTPUT", () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-output-test-"));
         const outputFile = path.join(tempDir, "github-output.txt");

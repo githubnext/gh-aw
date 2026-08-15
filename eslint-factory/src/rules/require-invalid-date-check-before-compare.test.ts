@@ -176,4 +176,80 @@ describe("require-invalid-date-check-before-compare", () => {
       invalid: [],
     });
   });
+
+  it("invalid: Date.parse(x) compared without a Number.isFinite/isNaN guard (check_daily_aic_workflow_guardrail.cjs pattern)", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const createdAtMs = Date.parse(run.created_at || ""); if (createdAtMs < cutoffMs) { hasMore = false; }`,
+          errors: [{ messageId: "requireInvalidDateCheckParse", data: { subject: "'createdAtMs'", operator: "<", parseTarget: "createdAtMs" } }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: inline Date.parse(...) compared without a guard", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `if (Date.parse(run.started_at) > threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheckParse", data: { subject: "An inline `Date.parse(...)` expression", operator: ">", parseTarget: "it" } }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: two Date.parse(...) values compared directly", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const a = Date.parse(timestamp); const b = Date.parse(threshold); return a >= b;`,
+          errors: [{ messageId: "requireInvalidDateCheckParse", data: { subject: "Both operands of this comparison", operator: ">=", parseTarget: "each value" } }],
+        },
+      ],
+    });
+  });
+
+  it("valid: Date.parse(x) validated with Number.isFinite(name) before comparison (handle_agent_failure.cjs pattern)", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [`const createdMs = Date.parse(createdAt); return Number.isFinite(createdMs) && createdMs >= windowStartMs;`],
+      invalid: [],
+    });
+  });
+
+  it("valid: Date.parse(x) validated with an exiting !Number.isFinite(name) guard (evaluate_outcomes.cjs pattern)", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [`const a = Date.parse(timestamp); if (!Number.isFinite(a)) return false; return a >= threshold;`],
+      invalid: [],
+    });
+  });
+
+  it("valid: Date.parse(x) validated with the global isFinite(name) before comparison", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [`const a = Date.parse(timestamp); if (isFinite(a) && a >= threshold) { doIt(); }`],
+      invalid: [],
+    });
+  });
+
+  it("valid: Date.parse(x) validated with !Number.isNaN(name) before comparison", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [`const a = Date.parse(timestamp); if (!Number.isNaN(a) && a >= threshold) { doIt(); }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: guard written after the Date.parse comparison does not protect it", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const a = Date.parse(timestamp); if (a > threshold) { doIt(); } if (!Number.isFinite(a)) { return false; }`,
+          errors: [{ messageId: "requireInvalidDateCheckParse", data: { subject: "'a'", operator: ">", parseTarget: "a" } }],
+        },
+      ],
+    });
+  });
 });
