@@ -123,8 +123,8 @@ func extractToolCallsFromGatewayLog(gatewayLogPath string, mcpData *MCPToolUsage
 			continue // Skip malformed lines
 		}
 
-		// Only process tool call events
-		if entry.Event == "tool_call" || entry.Event == "rpc_call" || entry.Event == "request" {
+		// Only process actual tool invocations, not protocol requests such as tools/list.
+		if entry.Event == "tool_call" || entry.Method == "tools/call" {
 			toolName := entry.ToolName
 			if toolName == "" {
 				toolName = entry.Method

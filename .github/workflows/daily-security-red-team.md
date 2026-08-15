@@ -647,28 +647,34 @@ if [ ${#FINDINGS[@]} -gt 0 ]; then
   
   # Create issue using safe-outputs
   cat > /tmp/gh-aw/agent/security-issue.md <<EOF
-# 🚨 Security Red Team Findings - $(date +%Y-%m-%d)
+### 🚨 Security Red Team Findings - $(date +%Y-%m-%d)
 
 **Scan Mode**: $SCAN_MODE  
 **Technique**: $TECHNIQUE  
 **Files Analyzed**: $FILE_COUNT  
 **Findings**: ${#FINDINGS[@]}
 
-## 📋 Executive Summary
+### 📋 Executive Summary
 
 The daily security red team scan has detected **${#FINDINGS[@]}** potential security issues in the \`actions/setup/js\` and \`actions/setup/sh\` directories using the **$TECHNIQUE** technique.
 
-## 🔍 Detailed Findings
+<details>
+<summary><b>🔍 View Detailed Findings</b></summary>
 
 $FINDINGS_DETAILS
 
-## 🛠️ Remediation Tasks
+</details>
+
+<details>
+<summary><b>🛠️ View Remediation Tasks</b></summary>
 
 @pelikhan The following tasks have been generated to address the security findings. Please review and execute as appropriate:
 
 $FIX_TASKS
 
-## 📊 Analysis Metadata
+</details>
+
+### 📊 Analysis Metadata
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
@@ -677,7 +683,7 @@ $FIX_TASKS
 - **Scan Type**: $SCAN_MODE
 - **Cache Location**: /tmp/gh-aw/cache-memory/security-red-team
 
-## 🎯 Next Steps
+### 🎯 Next Steps
 
 1. **Triage**: Review each finding and determine if it's a true positive or false positive
 2. **Prioritize**: Address high-severity issues first (secret exfiltration, backdoors)

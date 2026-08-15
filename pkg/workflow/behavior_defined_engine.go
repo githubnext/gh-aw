@@ -179,7 +179,7 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 	// is declared for the engine's CLI itself.
 	if behavior.Installation == nil {
 		if behavior.HarnessScript == "" {
-			// Engines that install their CLI through `pre-agent-steps` (e.g. Pydantic AI)
+			// Engines that install their CLI through `pre-agent-steps`
 			// declare no installation block at all, but the agent still runs inside the
 			// firewall sandbox, so the AWF binary must be installed.
 			return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
@@ -209,6 +209,24 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 			CooldownEnabled:   install.Cooldown,
 		},
 	)
+	// microVM runtimes (docker-sbx/cloud-hypervisor) do not mount the runner tool cache,
+	// so a global npm install is invisible inside the sandbox. Stage a second copy of the
+	// CLI under ${RUNNER_TEMP}/gh-aw/engine-cli, which is mounted into the sandbox, exactly
+	// as the Claude and Codex engines do.
+	binaryName := install.BinaryName
+	if binaryName == "" && behavior.Execution != nil {
+		binaryName = behavior.Execution.CommandName
+	}
+	if binaryName != "" && (isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData)) {
+		npmSteps = append(npmSteps, GenerateDockerSbxNpmCLIInstallStep(
+			install.PackageName,
+			version,
+			install.StepName+" in docker-sbx path",
+			binaryName,
+			install.PostInstallScripts,
+			install.Cooldown,
+		))
+	}
 	if install.VerifyCommand != "" {
 		npmSteps = append(npmSteps, GitHubActionStep{
 			"      - name: " + install.VerifyStepName,
@@ -626,6 +644,11 @@ func (e *BehaviorDefinedEngine) buildFirewallCommand(exec *EngineExecutionDefini
 	// from the YAML env block, but Bun (and other runtimes) also check the
 	// lowercase variant, so we export it explicitly from the uppercase value.
 	engineCommandWithPath := fmt.Sprintf("export no_proxy=\"${NO_PROXY:-}\" && %s && %s", GetNpmBinPathSetup(), engineCommand)
+	// microVM runtimes stage the engine CLI under ${RUNNER_TEMP}/gh-aw/engine-cli/bin
+	// because the runner tool cache is not mounted inside the sandbox.
+	if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {
+		engineCommandWithPath = fmt.Sprintf("%s && %s", dockerSbxCLIPath, engineCommandWithPath)
+	}
 	if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 		engineCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, engineCommandWithPath)
 	}
