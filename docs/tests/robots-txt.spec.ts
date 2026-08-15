@@ -22,6 +22,9 @@ const EXPECTED_ROBOTS_TXT = [
   'User-agent: Claude-SearchBot',
   'Allow: /',
   '',
+  'User-agent: Claude-User',
+  'Allow: /',
+  '',
   'User-agent: claude-web',
   'Allow: /',
   '',
@@ -29,6 +32,9 @@ const EXPECTED_ROBOTS_TXT = [
   'Allow: /',
   '',
   'User-agent: Perplexity-User',
+  'Allow: /',
+  '',
+  'User-agent: Googlebot',
   'Allow: /',
   '',
   'User-agent: Google-Extended',
@@ -93,6 +99,7 @@ test.describe('robots.txt', () => {
   test('should contain the expected AI crawler directives and sitemap', async ({ request }) => {
     const response = await request.get('/gh-aw/robots.txt');
     expect(response.ok()).toBeTruthy();
+    expect(response.headers()['content-type']).toContain('text/plain');
 
     const body = (await response.text()).replace(/\r\n/g, '\n');
 
