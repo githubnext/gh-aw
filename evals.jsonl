@@ -16,3 +16,5 @@
 {"id":"sub_issues_linked_or_noop","question":"Were related issues linked as sub-issues, or was noop used when no linkable relationships were found?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-13T05:46:21.916Z","runid":"31671049703"}
 {"id":"issues_analyzed","question":"Did the agent analyze recent issues and identify related issue relationships?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-14T05:46:05.658Z","runid":"31773664727"}
 {"id":"sub_issues_linked_or_noop","question":"Were related issues linked as sub-issues, or was noop used when no linkable relationships were found?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-14T05:46:05.658Z","runid":"31773664727"}
+{"id":"issues_analyzed","question":"Did the agent analyze recent issues and identify related issue relationships?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-15T05:18:33.836Z","runid":"31866367835"}
+{"id":"sub_issues_linked_or_noop","question":"Were related issues linked as sub-issues, or was noop used when no linkable relationships were found?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-15T05:18:33.836Z","runid":"31866367835"}
