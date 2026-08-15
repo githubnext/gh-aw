@@ -270,6 +270,99 @@ function extractOptionalServerNames(configObj) {
 }
 
 /**
+ * @param {unknown} serverConfig
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {string[]}
+ */
+function getMissingEnvVarNamesForServer(serverConfig, env = process.env) {
+  if (!serverConfig || typeof serverConfig !== "object" || Array.isArray(serverConfig)) {
+    return [];
+  }
+  const server = /** @type {Record<string, unknown>} */ serverConfig;
+  const serverEnv = server["env"];
+  if (!serverEnv || typeof serverEnv !== "object" || Array.isArray(serverEnv)) {
+    return [];
+  }
+
+  const missing = new Set();
+  const varPattern = /\$\{([A-Z_][A-Z0-9_]*)\}/g;
+  for (const [envName, rawValue] of Object.entries(/** @type {Record<string, unknown>} */ serverEnv)) {
+    if (typeof rawValue !== "string") {
+      continue;
+    }
+    const matches = [...rawValue.matchAll(varPattern)];
+    if (matches.length === 0) {
+      if (rawValue.trim() === "") {
+        missing.add(envName);
+      }
+      continue;
+    }
+    for (const match of matches) {
+      const varName = match[1];
+      if (!env[varName] || env[varName].trim() === "") {
+        missing.add(varName);
+      }
+    }
+  }
+  return Array.from(missing).sort();
+}
+
+/**
+ * Find required MCP servers that were present in the input configuration but are
+ * absent from the gateway output. Missing required servers usually indicate that
+ * startup-time configuration such as secrets or environment variables was empty.
+ *
+ * @param {Record<string, unknown>} inputConfig
+ * @param {Record<string, unknown>} gatewayOutput
+ * @param {string[]} [optionalServerNames]
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {Array<{name: string, missingEnvVars: string[]}>}
+ */
+function findOmittedRequiredMCPServers(inputConfig, gatewayOutput, optionalServerNames = [], env = process.env) {
+  const inputServers = inputConfig && inputConfig.mcpServers;
+  if (!inputServers || typeof inputServers !== "object" || Array.isArray(inputServers)) {
+    return [];
+  }
+  const outputServers = gatewayOutput && gatewayOutput.mcpServers;
+  const outputServerMap = outputServers && typeof outputServers === "object" && !Array.isArray(outputServers) ? /** @type {Record<string, unknown>} */ outputServers : {};
+  const optional = new Set(optionalServerNames);
+
+  return Object.entries(/** @type {Record<string, unknown>} */ inputServers)
+    .filter(([name, serverConfig]) => {
+      if (optional.has(name)) {
+        return false;
+      }
+      if (serverConfig && typeof serverConfig === "object" && !Array.isArray(serverConfig)) {
+        const server = /** @type {Record<string, unknown>} */ serverConfig;
+        if (server.required === false) {
+          return false;
+        }
+      }
+      return !Object.prototype.hasOwnProperty.call(outputServerMap, name);
+    })
+    .map(([name, serverConfig]) => ({
+      name,
+      missingEnvVars: getMissingEnvVarNamesForServer(serverConfig, env),
+    }));
+}
+
+/**
+ * @param {Array<{name: string, missingEnvVars: string[]}>} omittedServers
+ * @returns {string}
+ */
+function formatOmittedRequiredMCPServersMessage(omittedServers) {
+  const details = omittedServers
+    .map(server => {
+      if (server.missingEnvVars.length === 0) {
+        return server.name;
+      }
+      return `${server.name} (missing/empty env: ${server.missingEnvVars.join(", ")})`;
+    })
+    .join("; ");
+  return `Required MCP server(s) were omitted from the gateway output: ${details}. ` + `Configure the missing secrets/environment variables, or mark intentionally best-effort servers with required: false.`;
+}
+
+/**
  * Check whether a process is alive.
  * @param {number} pid
  * @returns {boolean}
@@ -878,6 +971,18 @@ async function main() {
     core.setFailed("ERROR: Gateway returned an error payload instead of configuration");
     return;
   }
+  const omittedRequiredServers = findOmittedRequiredMCPServers(configObj, gatewayOutput, optionalServerNames);
+  if (omittedRequiredServers.length > 0) {
+    const message = formatOmittedRequiredMCPServersMessage(omittedRequiredServers);
+    core.error(`ERROR: ${message}`);
+    try {
+      process.kill(gatewayPid);
+    } catch {
+      // ignore
+    }
+    core.setFailed(`ERROR: ${message}`);
+    return;
+  }
 
   // -----------------------------------------------------------------------
   // Convert gateway output to agent-specific format
@@ -1100,9 +1205,12 @@ module.exports = {
   applyOTLPIgnoreIfMissing,
   detectEngineType,
   extractOptionalServerNames,
+  findOmittedRequiredMCPServers,
+  formatOmittedRequiredMCPServersMessage,
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,
+  getMissingEnvVarNamesForServer,
   getJSONParseErrorContext,
   injectCustomGatewayEnvArgs,
   normalizeSinkVisibilityEncoding,

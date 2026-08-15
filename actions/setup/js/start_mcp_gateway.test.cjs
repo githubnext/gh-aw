@@ -4,7 +4,10 @@ import {
   applyOTLPIgnoreIfMissing,
   detectEngineType,
   extractOptionalServerNames,
+  findOmittedRequiredMCPServers,
+  formatOmittedRequiredMCPServersMessage,
   getJSONParseErrorContext,
+  getMissingEnvVarNamesForServer,
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   injectCustomGatewayEnvArgs,
@@ -350,5 +353,89 @@ describe("start_mcp_gateway extractOptionalServerNames", () => {
   it("returns an empty list when no servers are configured", () => {
     expect(extractOptionalServerNames({})).toEqual([]);
     expect(extractOptionalServerNames({ mcpServers: null })).toEqual([]);
+  });
+});
+
+describe("start_mcp_gateway omitted required MCP server detection", () => {
+  it("reports configured required servers missing from gateway output with empty env names", () => {
+    const inputConfig = {
+      mcpServers: {
+        sentry: {
+          type: "stdio",
+          command: "npx",
+          env: {
+            SENTRY_ACCESS_TOKEN: "${SENTRY_ACCESS_TOKEN}",
+            SENTRY_HOST: "sentry.io",
+            OPENAI_API_KEY: "${SENTRY_OPENAI_API_KEY}",
+          },
+        },
+        grafana: {
+          type: "stdio",
+          container: "grafana/mcp-grafana:1.0.0-alpine",
+          env: {
+            GRAFANA_URL: "${GRAFANA_URL}",
+            GRAFANA_SERVICE_ACCOUNT_TOKEN: "${GRAFANA_SERVICE_ACCOUNT_TOKEN}",
+          },
+        },
+        github: {
+          type: "http",
+          url: "http://localhost:8080/mcp/github",
+        },
+      },
+    };
+    const gatewayOutput = {
+      mcpServers: {
+        github: {
+          type: "http",
+          url: "http://localhost:8080/mcp/github",
+        },
+      },
+    };
+
+    expect(
+      findOmittedRequiredMCPServers(inputConfig, gatewayOutput, [], {
+        SENTRY_ACCESS_TOKEN: "",
+        SENTRY_OPENAI_API_KEY: "",
+        GRAFANA_URL: "",
+        GRAFANA_SERVICE_ACCOUNT_TOKEN: "",
+      })
+    ).toEqual([
+      { name: "sentry", missingEnvVars: ["SENTRY_ACCESS_TOKEN", "SENTRY_OPENAI_API_KEY"] },
+      { name: "grafana", missingEnvVars: ["GRAFANA_SERVICE_ACCOUNT_TOKEN", "GRAFANA_URL"] },
+    ]);
+  });
+
+  it("does not report optional servers omitted from gateway output", () => {
+    const inputConfig = {
+      mcpServers: {
+        datadog: { type: "http", url: "https://example.com/mcp", required: false },
+        slack: { type: "http", url: "https://example.com/slack" },
+      },
+    };
+    const gatewayOutput = { mcpServers: {} };
+
+    expect(findOmittedRequiredMCPServers(inputConfig, gatewayOutput, ["slack"])).toEqual([]);
+  });
+
+  it("formats an actionable startup failure message", () => {
+    expect(
+      formatOmittedRequiredMCPServersMessage([
+        { name: "sentry", missingEnvVars: ["SENTRY_ACCESS_TOKEN"] },
+        { name: "grafana", missingEnvVars: ["GRAFANA_SERVICE_ACCOUNT_TOKEN", "GRAFANA_URL"] },
+      ])
+    ).toBe(
+      "Required MCP server(s) were omitted from the gateway output: sentry (missing/empty env: SENTRY_ACCESS_TOKEN); grafana (missing/empty env: GRAFANA_SERVICE_ACCOUNT_TOKEN, GRAFANA_URL). Configure the missing secrets/environment variables, or mark intentionally best-effort servers with required: false."
+    );
+  });
+
+  it("detects direct empty env values when no variable placeholder is present", () => {
+    expect(
+      getMissingEnvVarNamesForServer({
+        env: {
+          API_TOKEN: "",
+          HOST: "https://example.com",
+        },
+      })
+    ).toEqual(["API_TOKEN"]);
   });
 });
