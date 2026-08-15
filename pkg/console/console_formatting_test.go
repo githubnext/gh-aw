@@ -309,6 +309,29 @@ func TestApplyStderrStyleWithTTY(t *testing.T) {
 	})
 }
 
+func TestApplyStyleWithTTYAndEnviron(t *testing.T) {
+	t.Run("plain text when not tty", func(t *testing.T) {
+		result := applyStyleWithTTYAndEnviron(styles.Warning, "warning", func() bool { return false }, []string{"TERM=xterm-256color"})
+		if result != "warning" {
+			t.Fatalf("applyStyleWithTTYAndEnviron() = %q, want plain text", result)
+		}
+	})
+
+	t.Run("styled text when tty", func(t *testing.T) {
+		result := applyStyleWithTTYAndEnviron(styles.Warning, "warning", func() bool { return true }, []string{"TERM=xterm-256color"})
+		if !strings.Contains(result, "\x1b[") {
+			t.Fatalf("applyStyleWithTTYAndEnviron() = %q, want ANSI styling", result)
+		}
+	})
+
+	t.Run("no color disables styling", func(t *testing.T) {
+		result := applyStyleWithTTYAndEnviron(styles.Warning, "warning", func() bool { return true }, []string{"TERM=xterm-256color", "NO_COLOR=1"})
+		if strings.Contains(result, "\x1b[") {
+			t.Fatalf("applyStyleWithTTYAndEnviron() = %q, want ANSI-free text", result)
+		}
+	})
+}
+
 func TestFormatErrorStderrWithTTY(t *testing.T) {
 	err := CompilerError{
 		Position: ErrorPosition{File: "workflow.md", Line: 2, Column: 3},
