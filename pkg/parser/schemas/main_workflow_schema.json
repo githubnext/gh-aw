@@ -6879,6 +6879,22 @@
                     }
                   ]
                 },
+                "allowed-pull-requests": {
+                  "description": "Additional pull request numbers whose pending workflow runs may be approved. The triggering pull request is always allowed. Supports a list of strings or a GitHub Actions expression that resolves to a list.",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression that resolves to a list of pull request numbers at runtime"
+                    }
+                  ]
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."

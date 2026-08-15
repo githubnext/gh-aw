@@ -12,6 +12,7 @@ global.core = {
 
 global.context = {
   repo: { owner: "test-owner", repo: "test-repo" },
+  payload: { pull_request: { number: 42 } },
 };
 
 global.github = {
@@ -36,6 +37,7 @@ const externalTokenConfig = { "github-token": "external-token" };
 describe("approve_workflow_run", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    global.context.payload = { pull_request: { number: 42 } };
     mockGetWorkflowRun.mockResolvedValue({ data: pendingPullRequestRun });
     mockApproveWorkflowRun.mockResolvedValue({ status: 201 });
   });
@@ -105,6 +107,48 @@ describe("approve_workflow_run", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("not awaiting approval");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects a run for a pull request other than the current pull request", async () => {
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, pull_requests: [{ number: 43 }] },
+    });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not associated");
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed workflow run pull request data without a triggering pull request", async () => {
+    global.context.payload = {};
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, pull_requests: [{}] },
+    });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not associated");
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("approves a run for an explicitly allowed pull request", async () => {
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, pull_requests: [{ number: 43 }] },
+    });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_pull_requests: ["43"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
   });
 
   it("previews without approving in staged mode", async () => {

@@ -20,6 +20,8 @@ safe-outputs:
   approve-workflow-run:
     max: 2
     staged: true
+    allowed-pull-requests:
+      - "42"
 ---
 
 Approve eligible workflow runs.
@@ -33,6 +35,7 @@ Approve eligible workflow runs.
 	assert.Equal(t, strPtr("2"), data.SafeOutputs.ApproveWorkflowRun.Max)
 	require.NotNil(t, data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.Equal(t, TemplatableBool("true"), *data.SafeOutputs.ApproveWorkflowRun.Staged)
+	assert.Equal(t, []string{"42"}, data.SafeOutputs.ApproveWorkflowRun.AllowedPullRequests)
 
 	enabledTools := computeEnabledToolNames(data)
 	assert.Contains(t, enabledTools, "approve_workflow_run")
@@ -168,4 +171,18 @@ func TestApproveWorkflowRunHandlerAuthentication(t *testing.T) {
 			assert.Equal(t, tt.expected, handlerConfig["github-token"])
 		})
 	}
+}
+
+func TestApproveWorkflowRunAllowedPullRequests(t *testing.T) {
+	config := NewCompiler().parseApproveWorkflowRunConfig(map[string]any{
+		"approve-workflow-run": map[string]any{
+			"allowed-pull-requests": "${{ inputs.allowed-pull-requests }}",
+		},
+	})
+
+	require.NotNil(t, config)
+	assert.Equal(t, []string{"${{ inputs.allowed-pull-requests }}"}, config.AllowedPullRequests)
+
+	handlerConfig := handlerRegistry["approve_workflow_run"](&SafeOutputsConfig{ApproveWorkflowRun: config})
+	assert.Equal(t, "${{ inputs.allowed-pull-requests }}", handlerConfig["allowed_pull_requests"])
 }

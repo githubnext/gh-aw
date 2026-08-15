@@ -316,6 +316,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.ApproveWorkflowRun
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddTemplatableStringSlice("allowed_pull_requests", c.AllowedPullRequests).
 			AddIfNotEmpty("github-token", resolveApproveWorkflowRunGitHubToken(cfg, c)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()

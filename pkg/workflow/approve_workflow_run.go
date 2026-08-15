@@ -7,6 +7,7 @@ var approveWorkflowRunLog = logger.New("workflow:approve_workflow_run")
 // ApproveWorkflowRunConfig holds configuration for approving workflow runs from fork pull requests.
 type ApproveWorkflowRunConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
+	AllowedPullRequests  []string `yaml:"allowed-pull-requests,omitempty"`
 }
 
 // parseApproveWorkflowRunConfig handles approve-workflow-run configuration.
@@ -21,6 +22,7 @@ func (c *Compiler) parseApproveWorkflowRunConfig(outputMap map[string]any) *Appr
 	config.Max = defaultIntStr(1)
 	if configMap, ok := configData.(map[string]any); ok {
 		c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
+		config.AllowedPullRequests = ParseStringArrayOrExprFromConfig(configMap, "allowed-pull-requests", approveWorkflowRunLog)
 	}
 	return config
 }

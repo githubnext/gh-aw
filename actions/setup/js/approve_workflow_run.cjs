@@ -17,13 +17,30 @@ const HANDLER_TYPE = "approve_workflow_run";
  * @param {unknown} value
  * @returns {number | undefined}
  */
-function parseRunId(value) {
+function parsePositiveInt(value) {
   if (typeof value !== "number" && typeof value !== "string") return undefined;
   const normalized = typeof value === "string" ? value.trim() : value;
   if (normalized === "") return undefined;
   const runId = Number(normalized);
   if (!Number.isSafeInteger(runId) || runId <= 0) return undefined;
   return runId;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Set<number>}
+ */
+function parseAllowedPullRequests(value) {
+  const parsed = (Array.isArray(value) ? value : [value]).map(parsePositiveInt).filter(value => value !== undefined);
+  return new Set(parsed);
+}
+
+/**
+ * @returns {number | undefined}
+ */
+function getCurrentPullRequestNumber() {
+  const payload = context.payload || {};
+  return parsePositiveInt(payload.pull_request?.number || (payload.issue?.pull_request ? payload.issue.number : undefined));
 }
 
 /**
@@ -47,7 +64,7 @@ async function main(config = {}) {
   const githubClient = isStaged ? null : await createAuthenticatedGitHubClient(config);
 
   return async function handleApproveWorkflowRun(message) {
-    const runId = parseRunId(message.run_id);
+    const runId = parsePositiveInt(message.run_id);
     if (!runId) {
       const error = "run_id must be a positive integer";
       core.warning(error);
@@ -83,6 +100,18 @@ async function main(config = {}) {
         return { success: false, error };
       }
 
+      const allowedPullRequests = parseAllowedPullRequests(config.allowed_pull_requests);
+      const currentPullRequest = getCurrentPullRequestNumber();
+      const isAuthorized = run.pull_requests.some(pullRequest => {
+        const pullRequestNumber = parsePositiveInt(pullRequest.number);
+        return pullRequestNumber !== undefined && ((currentPullRequest !== undefined && pullRequestNumber === currentPullRequest) || allowedPullRequests.has(pullRequestNumber));
+      });
+      if (!isAuthorized) {
+        const error = `Workflow run ${runId} is not associated with the triggering pull request or any explicitly allowed pull request`;
+        core.warning(error);
+        return { success: false, error };
+      }
+
       processedCount++;
 
       await githubClient.rest.actions.approveWorkflowRun({
@@ -101,4 +130,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, parseRunId };
+module.exports = { main, parseAllowedPullRequests, parsePositiveInt };

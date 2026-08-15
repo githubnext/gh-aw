@@ -194,9 +194,13 @@ safe-outputs:
     max: 1
     staged: false
     github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}
+    allowed-pull-requests:
+      - "123"
 ```
 
 This operation requires `actions: write` and an explicit external `github-token` or `github-app`; the default `github.token` cannot approve fork pull-request workflow runs. Use `staged: true` to preview approvals without executing them.
+
+Approvals are limited to the pull request that triggered the workflow. Use `allowed-pull-requests` to permit additional pull requests; it accepts a list of string PR numbers or a GitHub Actions expression that resolves to a list of PR numbers.
 
 ## Merge Pull Request (`merge-pull-request:`)
 

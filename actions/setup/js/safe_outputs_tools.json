@@ -1899,7 +1899,7 @@
   },
   {
     "name": "approve_workflow_run",
-    "description": "Approve a GitHub Actions workflow run that is awaiting approval for a fork pull request. Use the run ID shown in the workflow run URL. The handler verifies that the run belongs to a pull request and has a waiting status before approving it.",
+    "description": "Approve a GitHub Actions workflow run that is awaiting approval for a fork pull request. Use the run ID shown in the workflow run URL. The handler verifies that the run belongs to the triggering pull request or an allowed pull request and has a waiting status before approving it.",
     "inputSchema": {
       "type": "object",
       "required": ["run_id"],
