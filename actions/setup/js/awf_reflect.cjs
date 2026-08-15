@@ -674,6 +674,8 @@ function resolveProviderEndpointFromReflect(options) {
  *   provider?: string,
  *   reflectData: ReflectData | null | undefined,
  *   logger?: (msg: string) => void,
+ *   env?: NodeJS.ProcessEnv,
+ *   readFileSync?: (path: string, encoding: BufferEncoding) => string,
  * }} options
  * @returns {{ provider: string, endpointProvider: string, host: string, basePath: string } | null}
  */
@@ -712,8 +714,9 @@ function resolveOpenAICompatibleEndpointFromReflect(options) {
     path = path.replace(/\/models$/i, "/chat/completions");
     const basePath = path.replace(/^\/+/, "");
     const endpointProvider = String(endpoint.provider);
-    logger(`awf-reflect: provider=${provider} mapped to endpoint provider=${endpointProvider} host=${parsed.origin} basePath=${basePath}`);
-    return { provider, endpointProvider, host: parsed.origin, basePath };
+    const host = rewriteAPIProxyURLForHostBridge(parsed.origin, options?.env, options?.readFileSync);
+    logger(`awf-reflect: provider=${provider} mapped to endpoint provider=${endpointProvider} host=${host} basePath=${basePath}`);
+    return { provider, endpointProvider, host, basePath };
   } catch {
     logger(`awf-reflect: invalid endpoint URL for provider=${provider}`);
     return null;

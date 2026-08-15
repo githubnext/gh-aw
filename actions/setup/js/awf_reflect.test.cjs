@@ -90,7 +90,7 @@ describe("awf_reflect.cjs", () => {
     });
 
     it("defaults to process.env and fs.readFileSync when not provided, with no path prefix before /models", () => {
-      expect(deriveBaseUrlFromModelsURL("http://api-proxy:10002/models")).toBe("http://api-proxy:10002");
+      expect(deriveBaseUrlFromModelsURL("http://example.test:10002/models")).toBe("http://example.test:10002");
     });
   });
 
@@ -220,6 +220,18 @@ describe("awf_reflect.cjs", () => {
 
       it("does not fall back to a different configured provider", () => {
         expect(resolveOpenAICompatibleEndpointFromReflect({ provider: "anthropic", reflectData, logger: () => {} })).toBeNull();
+      });
+
+      it("rewrites the host bridge for definition-based engine OpenAI-compatible endpoints", () => {
+        const env = { HOSTALIASES: "/tmp/aliases" };
+        const readFileSync = () => "api-proxy localhost\n";
+
+        expect(resolveOpenAICompatibleEndpointFromReflect({ provider: "github", reflectData, logger: () => {}, env, readFileSync })).toEqual({
+          provider: "github",
+          endpointProvider: "copilot",
+          host: "http://host.docker.internal:10002",
+          basePath: "chat/completions",
+        });
       });
     });
 
