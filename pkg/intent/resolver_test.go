@@ -78,27 +78,92 @@ func TestResolverResolvePullRequestArtifactFallbackMapped(t *testing.T) {
 	assert.Equal(t, "https://github.com/owner/repo/pull/77", intent.RootURL)
 }
 
+func TestResolverResolvePullRequestExplicitIntentPreservesVersion(t *testing.T) {
+	resolver := Resolver{ResolverVersion: "test-v1"}
+
+	explicit := IntentRecord{
+		Status:          AttributionMapped,
+		Source:          SourceExplicitMetadata,
+		RootNodeID:      "I_kwDOAAABCQ4",
+		RootType:        "issue",
+		RootURL:         "https://github.com/owner/repo/issues/1234",
+		Labels:          []string{"security"},
+		Rule:            "explicit_metadata",
+		ResolverVersion: "explicit-v9",
+	}
+
+	intent := resolver.ResolvePullRequest(PullRequestData{ExplicitIntent: &explicit})
+
+	assert.Equal(t, explicit, intent)
+}
+
+func TestResolverResolvePullRequestExplicitIntentFillsVersion(t *testing.T) {
+	resolver := Resolver{ResolverVersion: "test-v1"}
+
+	explicit := IntentRecord{
+		Status: AttributionMapped,
+		Source: SourceExplicitMetadata,
+		Rule:   "explicit_metadata",
+	}
+
+	intent := resolver.ResolvePullRequest(PullRequestData{ExplicitIntent: &explicit})
+
+	assert.Equal(t, IntentRecord{
+		Status:          AttributionMapped,
+		Source:          SourceExplicitMetadata,
+		Rule:            "explicit_metadata",
+		ResolverVersion: "test-v1",
+	}, intent)
+	assert.Empty(t, explicit.ResolverVersion, "explicit intent must not be mutated")
+}
+
 func TestResolverResolvePullRequestNoSourcesUnlinked(t *testing.T) {
-	resolver := Resolver{}
+	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	intent := resolver.ResolvePullRequest(PullRequestData{})
 
-	assert.Equal(t, AttributionUnlinked, intent.Status)
-	assert.Equal(t, SourceNone, intent.Source)
-	assert.Equal(t, "no_supported_intent_source", intent.Rule)
+	assert.Equal(t, IntentRecord{
+		Status:          AttributionUnlinked,
+		Source:          SourceNone,
+		Rule:            "no_supported_intent_source",
+		ResolverVersion: "test-v1",
+	}, intent)
 }
 
 func TestResolverResolvePullRequestMultipleClosingIssuesAmbiguous(t *testing.T) {
-	resolver := Resolver{}
+	resolver := Resolver{ResolverVersion: "test-v1"}
 
 	intent := resolver.ResolvePullRequest(PullRequestData{
 		ClosingIssues: []RootReference{{URL: "https://github.com/owner/repo/issues/1"}, {URL: "https://github.com/owner/repo/issues/2"}},
 	})
 
-	assert.Equal(t, AttributionAmbiguous, intent.Status)
-	assert.Equal(t, SourceClosingIssue, intent.Source)
-	assert.Equal(t, "multiple_closing_issues", intent.Rule)
-	assert.Empty(t, intent.RootURL)
+	assert.Equal(t, IntentRecord{
+		Status:          AttributionAmbiguous,
+		Source:          SourceClosingIssue,
+		Rule:            "multiple_closing_issues",
+		ResolverVersion: "test-v1",
+	}, intent)
+}
+
+func TestResolverResolvePullRequestNilMatchLabelsUnmapped(t *testing.T) {
+	resolver := Resolver{ResolverVersion: "test-v1"}
+
+	intent := resolver.ResolvePullRequest(PullRequestData{
+		NodeID: "PR_kwDOAAABCD4",
+		URL:    "https://github.com/owner/repo/pull/77",
+		Labels: []string{"automation"},
+	})
+
+	assert.Equal(t, IntentRecord{
+		Status:          AttributionUnmapped,
+		Source:          SourceArtifactLabels,
+		RootNodeID:      "PR_kwDOAAABCD4",
+		RootType:        "artifact",
+		RootURL:         "https://github.com/owner/repo/pull/77",
+		Labels:          []string{"automation"},
+		Rule:            "pull_request_label_fallback",
+		ResolverVersion: "test-v1",
+	}, intent)
 }
 
 func TestResolverResolveIssueMapped(t *testing.T) {
@@ -115,4 +180,66 @@ func TestResolverResolveIssueMapped(t *testing.T) {
 	assert.Equal(t, "issue_label_fallback", intent.Rule)
 	assert.Equal(t, "issue", intent.RootType)
 	assert.Equal(t, []string{"documentation"}, intent.Labels)
+}
+
+func TestResolverResolveIssueNoLabelsUnlinked(t *testing.T) {
+	resolver := Resolver{ResolverVersion: "test-v1"}
+
+	intent := resolver.ResolveIssue("I_kwDOAAABCQ4", "https://github.com/owner/repo/issues/42", nil)
+
+	assert.Equal(t, IntentRecord{
+		Status:          AttributionUnlinked,
+		Source:          SourceNone,
+		Rule:            "no_supported_intent_source",
+		ResolverVersion: "test-v1",
+	}, intent)
+}
+
+func TestResolverResolveIssueUnmapped(t *testing.T) {
+	resolver := Resolver{
+		ResolverVersion: "test-v1",
+		MatchLabels: func(labels []string) []string {
+			return nil
+		},
+	}
+
+	intent := resolver.ResolveIssue("I_kwDOAAABCQ4", "https://github.com/owner/repo/issues/42", []string{"triage"})
+
+	assert.Equal(t, IntentRecord{
+		Status:          AttributionUnmapped,
+		Source:          SourceIssueLabels,
+		RootNodeID:      "I_kwDOAAABCQ4",
+		RootType:        "issue",
+		RootURL:         "https://github.com/owner/repo/issues/42",
+		Labels:          []string{"triage"},
+		Rule:            "issue_label_fallback",
+		ResolverVersion: "test-v1",
+	}, intent)
+}
+
+func TestResolverResolveIssueNilMatchLabelsUnmapped(t *testing.T) {
+	resolver := Resolver{ResolverVersion: "test-v1"}
+
+	intent := resolver.ResolveIssue("I_kwDOAAABCQ4", "https://github.com/owner/repo/issues/42", []string{"triage"})
+
+	assert.Equal(t, IntentRecord{
+		Status:          AttributionUnmapped,
+		Source:          SourceIssueLabels,
+		RootNodeID:      "I_kwDOAAABCQ4",
+		RootType:        "issue",
+		RootURL:         "https://github.com/owner/repo/issues/42",
+		Labels:          []string{"triage"},
+		Rule:            "issue_label_fallback",
+		ResolverVersion: "test-v1",
+	}, intent)
+}
+
+func TestResolverResolveIssueClonesLabels(t *testing.T) {
+	resolver := Resolver{ResolverVersion: "test-v1"}
+
+	labels := []string{"triage", "bug"}
+	intent := resolver.ResolveIssue("I_kwDOAAABCQ4", "https://github.com/owner/repo/issues/42", labels)
+	labels[0] = "mutated"
+
+	assert.Equal(t, []string{"triage", "bug"}, intent.Labels)
 }
