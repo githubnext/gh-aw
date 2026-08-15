@@ -147,12 +147,12 @@ async function main(config = {}) {
 
       const allowedPullRequests = parseAllowedPullRequests(config.allowed_pull_requests);
       const currentPullRequest = getCurrentPullRequestNumber();
-      const isAuthorized = run.pull_requests.some(pullRequest => {
+      const isAuthorized = run.pull_requests.every(pullRequest => {
         const pullRequestNumber = parsePositiveInt(pullRequest.number);
         return pullRequestNumber !== undefined && ((currentPullRequest !== undefined && pullRequestNumber === currentPullRequest) || allowedPullRequests.has(pullRequestNumber));
       });
       if (!isAuthorized) {
-        const error = `Workflow run ${runId} is not associated with the triggering pull request or any explicitly allowed pull request`;
+        const error = `Workflow run ${runId} is not associated exclusively with the triggering pull request or explicitly allowed pull requests`;
         core.warning(error);
         return { success: false, error };
       }

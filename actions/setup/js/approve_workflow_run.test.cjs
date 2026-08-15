@@ -152,7 +152,7 @@ describe("approve_workflow_run", () => {
       data: { head: { repo: { fork: pullRequestNumber === 43 } } },
     }));
     const { main } = require("./approve_workflow_run.cjs");
-    const handler = await main(externalTokenConfig);
+    const handler = await main({ ...externalTokenConfig, allowed_pull_requests: ["43"] });
 
     const result = await handler({ run_id: 123 }, {});
 
@@ -249,6 +249,34 @@ describe("approve_workflow_run", () => {
 
     expect(result.success).toBe(true);
     expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("approves a run when every associated pull request is triggering or explicitly allowed", async () => {
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, pull_requests: [{ number: 42 }, { number: 43 }] },
+    });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_pull_requests: ["43"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a run when any associated pull request is not authorized", async () => {
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, pull_requests: [{ number: 42 }, { number: 43 }] },
+    });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not associated exclusively");
+    expect(mockGetPullRequest).not.toHaveBeenCalled();
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 
   it("previews without approving in staged mode", async () => {

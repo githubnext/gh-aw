@@ -3156,7 +3156,7 @@ This section provides complete definitions for all remaining safe output types. 
 1. **Input Validation**: `run_id` MUST be a positive safe integer.
 2. **Staged Preview**: When `staged` is true, the handler MUST return a preview without reading GitHub state or consuming the configured max limit.
 3. **Eligibility**: Before approval, the handler MUST fetch the run and verify `event` is `pull_request`, the `pull_requests` array is non-empty, and `status` is `waiting`.
-4. **Authorization**: The run MUST be associated with the pull request that triggered the workflow, unless its pull request number is in `allowed-pull-requests`.
+4. **Authorization**: A run is eligible only when every associated pull request is either the pull request that triggered the workflow or is listed in `allowed-pull-requests`. This permits all pending workflow runs for the triggering or explicitly allowed pull requests without authorizing mixed runs that include another pull request.
 5. **Forks and Events**: The handler MUST reject `pull_request_target` events. It MUST reject an associated fork pull request unless `fork` is explicitly true.
 6. **Protected Files**: Before approval, the handler MUST list the files modified by every pull request associated with the run and reject approval when any file is protected. `protected-files.exclude` MAY remove specific filenames or path prefixes from the default protected set.
 7. **Execution**: Only after all preceding checks pass MAY the handler invoke GitHub's workflow-run approval API and consume one max-count slot.
@@ -3175,7 +3175,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 - Live approvals MUST use an explicit external `github-token` or a GitHub App token; implementations MUST NOT use the default `github.token`.
 - The handler MUST reject `pull_request_target` events, and associated fork pull requests unless `fork` is explicitly true.
-- The handler MUST reject a run that is not a pull request run, is not associated with an authorized pull request, has modified protected files, or is not waiting for approval.
+- The handler MUST reject a run that is not a pull request run, has any associated pull request that is not authorized, has modified protected files, or is not waiting for approval.
 - The handler MUST be classified as an Abort type for warn-mode threat-detection failures.
 
 **Required Permissions**:
