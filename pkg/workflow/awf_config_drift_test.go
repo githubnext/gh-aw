@@ -39,7 +39,11 @@ func validateDriftRecord(r driftRecord) error {
 	if !driftCategories[r.DriftCategory] {
 		return assertError("drift_category must be one of missing_in_ghaw, missing_in_schema, spec_mismatch; got " + r.DriftCategory)
 	}
-	if _, err := time.Parse(time.RFC3339, r.DetectedAt); err != nil {
+	detectedAt, err := time.Parse(time.RFC3339, r.DetectedAt)
+	if err != nil || detectedAt.Location() != time.UTC {
+		if err == nil {
+			err = assertError("timestamp must use the UTC Z designator")
+		}
 		return assertError("detected_at must be a valid ISO 8601 UTC timestamp: " + err.Error())
 	}
 	return nil
@@ -139,7 +143,7 @@ func TestDriftRecord_TDR003_DetectedAtFormat(t *testing.T) {
 	valid.DetectedAt = "2026-06-08T00:00:00Z"
 	require.NoError(t, validateDriftRecord(valid))
 
-	for _, ts := range []string{"not-a-timestamp", "2026-06-08", "06/08/2026"} {
+	for _, ts := range []string{"not-a-timestamp", "2026-06-08", "06/08/2026", "2026-06-08T01:00:00+01:00"} {
 		invalid := base
 		invalid.DetectedAt = ts
 		assert.Error(t, validateDriftRecord(invalid))

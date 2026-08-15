@@ -445,6 +445,13 @@ func TestResolveForecastWorkflowsFromRemote_RateLimitFallsBackToPartialResults(t
 }
 
 func TestMonteCarloFixtureVariantsAreAvailable(t *testing.T) {
+	t.Run("minimal fixture", func(t *testing.T) {
+		fixture := loadFixture(t, "run_summary_minimal.json")
+		run, ok := fixture["run"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "success", run["conclusion"])
+	})
+
 	t.Run("zero ET fixture", func(t *testing.T) {
 		fixture := loadFixture(t, "run_summary_zero_et.json")
 		usage, ok := fixture["token_usage_summary"].(map[string]any)
@@ -468,5 +475,25 @@ func TestMonteCarloFixtureVariantsAreAvailable(t *testing.T) {
 		totalEffectiveTokens, ok := usage["total_effective_tokens"].(float64)
 		require.True(t, ok)
 		assert.GreaterOrEqual(t, totalEffectiveTokens, 1_000_000.0)
+	})
+
+	t.Run("cancelled run fixture", func(t *testing.T) {
+		fixture := loadFixture(t, "run_summary_cancelled.json")
+		run, ok := fixture["run"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "cancelled", run["conclusion"])
+	})
+
+	t.Run("partial ET fixture", func(t *testing.T) {
+		fixture := loadFixture(t, "run_summary_partial_et.json")
+		run, ok := fixture["run"].(map[string]any)
+		require.True(t, ok)
+		assert.Empty(t, run["conclusion"])
+
+		usage, ok := fixture["token_usage_summary"].(map[string]any)
+		require.True(t, ok)
+		totalEffectiveTokens, ok := usage["total_effective_tokens"].(float64)
+		require.True(t, ok)
+		assert.Positive(t, totalEffectiveTokens)
 	})
 }

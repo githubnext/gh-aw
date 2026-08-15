@@ -138,11 +138,45 @@ pre-agent-steps:
       }' /tmp/gh-aw/agent/schema-diff.json
 
       echo "=== AWF config source drift pre-check (gh-aw-firewall) ==="
-      AWF_SNAPSHOT_DIR=/tmp/gh-aw/cache-memory/awf-config-sources
+      AWF_SNAPSHOT_CACHE_DIR=/tmp/gh-aw/cache-memory/awf-config-sources
+      if [ "${RUNNER_ENVIRONMENT:-github-hosted}" = "self-hosted" ]; then
+        AWF_SNAPSHOT_DIR="${HOME}/.cache/gh-aw/schema-consistency/last-known-snapshot"
+      else
+        AWF_SNAPSHOT_DIR=/tmp/gh-aw/agent/schema-consistency/last-known-snapshot
+      fi
       mkdir -p "$AWF_SNAPSHOT_DIR"
+      if [ -d "$AWF_SNAPSHOT_CACHE_DIR" ]; then
+        cp -a "$AWF_SNAPSHOT_CACHE_DIR/." "$AWF_SNAPSHOT_DIR/"
+      fi
       AWF_CANONICAL_FETCH_DEGRADED=false
       AWF_USING_SNAPSHOT=false
+      AWF_SNAPSHOT_EXPIRED=false
       AWF_FETCH_FAILED_SOURCES=""
+      AWF_SNAPSHOT_MAX_AGE_SECONDS=604800
+      AWF_SNAPSHOT_DELETE_AGE_SECONDS=1209600
+
+      snapshot_age_seconds() {
+        [ -s "$AWF_SNAPSHOT_DIR/detected_at" ] || return 1
+        snapshot_epoch=$(date -u -d "$(cat "$AWF_SNAPSHOT_DIR/detected_at")" +%s 2>/dev/null) || return 1
+        now_epoch=$(date -u +%s)
+        [ "$snapshot_epoch" -le "$now_epoch" ] || return 1
+        printf '%s\n' "$((now_epoch - snapshot_epoch))"
+      }
+
+      AWF_SNAPSHOT_AGE_SECONDS=$(snapshot_age_seconds || true)
+      if [ -e "$AWF_SNAPSHOT_DIR/awf-config.schema.json" ] && [ -z "$AWF_SNAPSHOT_AGE_SECONDS" ]; then
+        AWF_SNAPSHOT_EXPIRED=true
+        AWF_CANONICAL_FETCH_DEGRADED=true
+        echo "AWF last-known snapshot has no valid refresh timestamp; stale data will not suppress drift warnings"
+      elif [ -n "$AWF_SNAPSHOT_AGE_SECONDS" ] && [ "$AWF_SNAPSHOT_AGE_SECONDS" -gt "$AWF_SNAPSHOT_MAX_AGE_SECONDS" ]; then
+        AWF_SNAPSHOT_EXPIRED=true
+        AWF_CANONICAL_FETCH_DEGRADED=true
+        echo "AWF last-known snapshot is older than 7 days; stale data will not suppress drift warnings"
+        if [ "$AWF_SNAPSHOT_AGE_SECONDS" -gt "$AWF_SNAPSHOT_DELETE_AGE_SECONDS" ]; then
+          rm -rf "$AWF_SNAPSHOT_DIR" "$AWF_SNAPSHOT_CACHE_DIR"
+          mkdir -p "$AWF_SNAPSHOT_DIR"
+        fi
+      fi
 
       fetch_awf_source() {
         local source_path="$1"
@@ -174,17 +208,23 @@ pre-agent-steps:
           target_path=/tmp/gh-aw/agent/"$source_file"
         fi
 
-        if [ ! -s "$target_path" ] && [ -s "$AWF_SNAPSHOT_DIR/$source_file" ]; then
+        if [ ! -s "$target_path" ] && [ "$AWF_SNAPSHOT_EXPIRED" = false ] && [ -s "$AWF_SNAPSHOT_DIR/$source_file" ]; then
           cp "$AWF_SNAPSHOT_DIR/$source_file" "$target_path"
           AWF_USING_SNAPSHOT=true
-          echo "⚠️ Using last-known AWF snapshot for $source_path"
+          echo "Using last-known AWF snapshot for $source_path"
         fi
       done
 
       if [ -s /tmp/gh-aw/agent/awf-config.schema.json ] && [ -s /tmp/gh-aw/agent/awf-config-runtime.schema.json ] && [ -s /tmp/gh-aw/agent/awf-config-spec.md ]; then
-        cp /tmp/gh-aw/agent/awf-config.schema.json "$AWF_SNAPSHOT_DIR/awf-config.schema.json"
-        cp /tmp/gh-aw/agent/awf-config-runtime.schema.json "$AWF_SNAPSHOT_DIR/awf-config-runtime.schema.json"
-        cp /tmp/gh-aw/agent/awf-config-spec.md "$AWF_SNAPSHOT_DIR/awf-config-spec.md"
+        if [ "$AWF_CANONICAL_FETCH_DEGRADED" = false ]; then
+          cp /tmp/gh-aw/agent/awf-config.schema.json "$AWF_SNAPSHOT_DIR/awf-config.schema.json"
+          cp /tmp/gh-aw/agent/awf-config-runtime.schema.json "$AWF_SNAPSHOT_DIR/awf-config-runtime.schema.json"
+          cp /tmp/gh-aw/agent/awf-config-spec.md "$AWF_SNAPSHOT_DIR/awf-config-spec.md"
+          date -u +%Y-%m-%dT%H:%M:%SZ > "$AWF_SNAPSHOT_DIR/detected_at"
+          rm -rf "$AWF_SNAPSHOT_CACHE_DIR"
+          mkdir -p "$AWF_SNAPSHOT_CACHE_DIR"
+          cp -a "$AWF_SNAPSHOT_DIR/." "$AWF_SNAPSHOT_CACHE_DIR/"
+        fi
 
         jq -r '.properties | keys[]' /tmp/gh-aw/agent/awf-config.schema.json | sort -u \
           > /tmp/gh-aw/agent/awf-config-top-level.txt
@@ -204,6 +244,8 @@ pre-agent-steps:
           --arg refs_sample_count "$(wc -l < /tmp/gh-aw/agent/awf-config-ghaw-refs.txt | tr -d ' ')" \
           --arg degraded "$AWF_CANONICAL_FETCH_DEGRADED" \
           --arg using_snapshot "$AWF_USING_SNAPSHOT" \
+          --arg snapshot_expired "$AWF_SNAPSHOT_EXPIRED" \
+          --arg snapshot_path "$AWF_SNAPSHOT_DIR" \
           --argjson failed_sources "$FAILED_SOURCES_JSON" \
           '{
             generated_at: $generated_at,
@@ -216,10 +258,14 @@ pre-agent-steps:
             ghaw_reference_sample_count: ($refs_sample_count | tonumber),
             degraded: ($degraded == "true"),
             using_snapshot: ($using_snapshot == "true"),
+            snapshot_expired: ($snapshot_expired == "true"),
+            snapshot_path: $snapshot_path,
             failed_sources: $failed_sources
           }' > /tmp/gh-aw/agent/awf-config-drift.json
         if [ "$AWF_CANONICAL_FETCH_DEGRADED" = true ]; then
-          echo "⚠️ AWF canonical source fetch degraded; continuing in non-fatal mode"
+          printf 'AWF canonical source retrieval failed at %s for:\n%b' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$AWF_FETCH_FAILED_SOURCES"
+          echo "AWF canonical source fetch degraded; continuing in non-fatal mode"
         else
           echo "✓ AWF config source pre-check artifacts written under /tmp/gh-aw/agent/"
         fi
@@ -236,7 +282,9 @@ pre-agent-steps:
             warning: "canonical source retrieval failed; skipping destructive AWF drift actions",
             failed_sources: $failed_sources
           }' > /tmp/gh-aw/agent/awf-config-drift.json
-        echo "⚠️ AWF canonical source fetch failed; run marked degraded (non-fatal)"
+        printf 'AWF canonical source retrieval failed at %s for:\n%b' \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$AWF_FETCH_FAILED_SOURCES"
+        echo "AWF canonical source fetch failed; run marked degraded (non-fatal)"
       fi
 sandbox:
   agent:
@@ -254,6 +302,8 @@ You are an expert system that detects inconsistencies between:
 ## Mission
 
 Analyze the repository to find inconsistencies across these four key areas and create a discussion report with actionable findings.
+
+Before reporting AWF config-source drift, read `/tmp/gh-aw/agent/awf-config-drift.json`. When `degraded` is true, report canonical-source unavailability as a non-authoritative warning only. Do not fail a required check, create a corrective pull request, or create a drift issue from the incomplete or stale AWF comparison.
 
 ## Cache Memory Strategy Storage
 
