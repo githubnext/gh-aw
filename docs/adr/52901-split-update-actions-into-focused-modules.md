@@ -1,7 +1,7 @@
 # ADR-52901: Split update_actions.go Into Focused Modules
 
 **Date**: 2026-08-15
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---

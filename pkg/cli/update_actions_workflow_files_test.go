@@ -72,5 +72,3 @@ func TestUpdateActionsInWorkflowFiles_NeverDowngrades(t *testing.T) {
 		t.Errorf("workflow file was incorrectly modified (downgrade must not occur):\ngot:  %s\nwant: %s", string(got), originalContent)
 	}
 }
-
-// savedEntryKeys returns the map keys of a loaded ActionCache for error messages.
