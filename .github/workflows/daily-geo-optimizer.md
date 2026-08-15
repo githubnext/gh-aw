@@ -76,6 +76,7 @@ jobs:
         run: |
           ROBOTS_URL="https://github.github.com/gh-aw/robots.txt"
           ROBOTS_BODY="/tmp/gh-aw/agent/geo-optimizer/docs-robots.txt"
+          rm -f "$ROBOTS_BODY"
           CURL_METADATA="$(curl --silent --show-error --location --max-time 30 \
             --output "$ROBOTS_BODY" --write-out '%{http_code}\t%{content_type}' \
             "$ROBOTS_URL" || true)"
