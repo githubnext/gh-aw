@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -767,14 +768,17 @@ func buildSafeGitShowObjectArg(ref, fileName string) (string, error) {
 	return ref + ":" + fileName, nil
 }
 
+// isSafeGitTreePath validates a git tree entry path used in "ref:path" syntax.
+// Git tree paths always use forward slashes across platforms, so this intentionally
+// uses the slash-based path package (not filepath) for normalization checks.
 func isSafeGitTreePath(fileName string) bool {
 	if fileName == "" || strings.HasPrefix(fileName, "-") {
 		return false
 	}
-	if filepath.IsAbs(fileName) || strings.Contains(fileName, ":") || strings.ContainsRune(fileName, '\x00') {
+	if path.IsAbs(fileName) || strings.Contains(fileName, "\\") || strings.Contains(fileName, ":") || strings.ContainsRune(fileName, '\x00') {
 		return false
 	}
-	clean := filepath.Clean(fileName)
+	clean := path.Clean(fileName)
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
 		return false
 	}
