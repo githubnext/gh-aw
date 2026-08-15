@@ -162,6 +162,14 @@ func TestEmbeddedContainerPins_DoNotIncludeVulnerableAstGrepImage(t *testing.T) 
 	assert.False(t, ok, "mcp/ast-grep:latest should not be embedded as a pinned container image")
 }
 
+func TestEmbeddedContainerPins_DoNotIncludeVulnerableAWFAPIProxy02744(t *testing.T) {
+	t.Parallel()
+
+	_, ok := GetContainerPin("ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44")
+
+	assert.False(t, ok, "ghcr.io/github/gh-aw-firewall/api-proxy:0.27.44 should not be embedded as a pinned container image")
+}
+
 func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 	t.Parallel()
 	assert.PanicsWithValue(t,
