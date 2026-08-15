@@ -179,7 +179,7 @@ func (e *BehaviorDefinedEngine) GetInstallationSteps(workflowData *WorkflowData)
 	// is declared for the engine's CLI itself.
 	if behavior.Installation == nil {
 		if behavior.HarnessScript == "" {
-			// Engines that install their CLI through `pre-agent-steps` (e.g. Pydantic AI)
+			// Engines that install their CLI through `pre-agent-steps`
 			// declare no installation block at all, but the agent still runs inside the
 			// firewall sandbox, so the AWF binary must be installed.
 			return BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
