@@ -88,10 +88,10 @@ describe("assign_to_agent", () => {
       const _tempIdMap = loadTemporaryIdMap();
       for (const _item of _items) { await _handler(_item, {}, _tempIdMap); }
     }
-    await writeAssignToAgentSummary();
-    const _errorCount = getAssignToAgentErrorCount();
-    core.setOutput("assigned", getAssignToAgentAssigned());
-    core.setOutput("assignment_errors", getAssignToAgentErrors());
+    await writeAssignToAgentSummary(_handler);
+    const _errorCount = getAssignToAgentErrorCount(_handler);
+    core.setOutput("assigned", getAssignToAgentAssigned(_handler));
+    core.setOutput("assignment_errors", getAssignToAgentErrors(_handler));
     core.setOutput("assignment_error_count", String(_errorCount));
     if (_errorCount > 0) { core.setFailed("Failed to assign " + _errorCount + " agent(s)"); }
   `;
@@ -1357,6 +1357,88 @@ describe("assign_to_agent", () => {
     expect(delayMessages).toHaveLength(2);
     expect(mockSleep).toHaveBeenCalledTimes(2);
     expect(mockSleep).toHaveBeenCalledWith(10000);
+  });
+
+  it("does not consume a max slot for invalid items", async () => {
+    mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValue({});
+    mockGithub.rest.users.getByUsername.mockResolvedValue({ data: { id: 99999 } });
+    mockGithub.rest.issues.get.mockImplementation(async ({ issue_number }) => ({
+      data: { id: Number(issue_number) + 1000, number: issue_number, assignees: [], html_url: "", title: "", body: "" },
+    }));
+    mockGithub.request.mockResolvedValue({ data: { id: "task-123" } });
+
+    const result = await eval(`(async () => {
+      ${assignToAgentScript};
+      const _handler = await main({ max: "1", name: "copilot" });
+      const _invalid = await _handler({ type: "assign_to_agent", issue_number: 1, pull_number: 2, agent: "copilot" }, {}, new Map());
+      const _valid = await _handler({ type: "assign_to_agent", issue_number: 3, agent: "copilot" }, {}, new Map());
+      return {
+        invalid: _invalid,
+        valid: _valid,
+        assigned: getAssignToAgentAssigned(_handler),
+      };
+    })()`);
+
+    expect(result.invalid.success).toBe(false);
+    expect(result.valid.success).toBe(true);
+    expect(result.assigned.split("\n").filter(Boolean)).toHaveLength(1);
+  });
+
+  it("atomically reserves the max slot before the inter-assignment delay", async () => {
+    mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValue({});
+    mockGithub.rest.users.getByUsername.mockResolvedValue({ data: { id: 99999 } });
+    mockGithub.rest.issues.get.mockImplementation(async ({ issue_number }) => ({
+      data: { id: Number(issue_number) + 1000, number: issue_number, assignees: [], html_url: "", title: "", body: "" },
+    }));
+    mockGithub.request.mockResolvedValue({ data: { id: "task-123" } });
+
+    let releaseSleep;
+    mockSleep.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          releaseSleep = resolve;
+        })
+    );
+
+    const result = await eval(`(async () => {
+      ${assignToAgentScript};
+      const _handler = await main({ max: "2", name: "copilot" });
+      await _handler({ type: "assign_to_agent", issue_number: 1, agent: "copilot" }, {}, new Map());
+      return {
+        second: _handler({ type: "assign_to_agent", issue_number: 2, agent: "copilot" }, {}, new Map()),
+        third: _handler({ type: "assign_to_agent", issue_number: 3, agent: "copilot" }, {}, new Map()),
+      };
+    })()`);
+
+    await vi.waitFor(() => expect(mockSleep).toHaveBeenCalledTimes(1));
+    releaseSleep();
+
+    const [second, third] = await Promise.all([result.second, result.third]);
+    expect(second.success).toBe(true);
+    expect(third.skipped).toBe(true);
+  });
+
+  it("keeps assign_to_agent results isolated per main() invocation", async () => {
+    mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValue({});
+    mockGithub.rest.users.getByUsername.mockResolvedValue({ data: { id: 99999 } });
+    mockGithub.rest.issues.get.mockImplementation(async ({ issue_number }) => ({
+      data: { id: Number(issue_number) + 2000, number: issue_number, assignees: [], html_url: "", title: "", body: "" },
+    }));
+    mockGithub.request.mockResolvedValue({ data: { id: "task-123" } });
+
+    const result = await eval(`(async () => {
+      ${assignToAgentScript};
+      const _handlerA = await main({ max: "5", name: "copilot" });
+      const _handlerB = await main({ max: "5", name: "copilot" });
+      await _handlerA({ type: "assign_to_agent", issue_number: 11, agent: "copilot" }, {}, new Map());
+      return {
+        assignedA: getAssignToAgentAssigned(_handlerA),
+        assignedB: getAssignToAgentAssigned(_handlerB),
+      };
+    })()`);
+
+    expect(result.assignedA).toContain("issue:11:copilot");
+    expect(result.assignedB).toBe("");
   });
 
   describe("Cross-repository allowlist validation", () => {

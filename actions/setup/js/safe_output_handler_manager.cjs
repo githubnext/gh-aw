@@ -1730,9 +1730,10 @@ async function main() {
 
     // Export assign_to_agent outputs when the handler was loaded
     if (messageHandlers.has("assign_to_agent")) {
-      const assignToAgentAssigned = getAssignToAgentAssigned();
-      const assignToAgentErrors = getAssignToAgentErrors();
-      const assignToAgentErrorCount = getAssignToAgentErrorCount();
+      const assignToAgentHandler = messageHandlers.get("assign_to_agent");
+      const assignToAgentAssigned = getAssignToAgentAssigned(assignToAgentHandler);
+      const assignToAgentErrors = getAssignToAgentErrors(assignToAgentHandler);
+      const assignToAgentErrorCount = getAssignToAgentErrorCount(assignToAgentHandler);
       core.setOutput("assign_to_agent_assigned", assignToAgentAssigned);
       core.setOutput("assign_to_agent_assignment_errors", assignToAgentErrors);
       core.setOutput("assign_to_agent_assignment_error_count", assignToAgentErrorCount.toString());
@@ -1740,7 +1741,7 @@ async function main() {
         core.warning(`${assignToAgentErrorCount} agent assignment(s) failed`);
       }
       core.info(`Exported assign_to_agent outputs (${assignToAgentErrorCount} error(s))`);
-      await writeAssignToAgentSummary();
+      await writeAssignToAgentSummary(assignToAgentHandler);
     }
 
     // Export create_agent_session outputs when the handler was loaded
