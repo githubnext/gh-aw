@@ -15,6 +15,24 @@
 "use strict";
 
 const { spawn } = require("child_process");
+const os = require("os");
+
+/**
+ * Convert a Node.js child-process termination signal (e.g. "SIGSYS") into the
+ * conventional shell-style exit code (128 + signal number), matching the value
+ * the OS would report if the process had exited with that status directly.
+ * Node only reports a non-null `signal` when the process was killed by a signal
+ * (in which case `code` is null), so the caller must synthesize an exit code to
+ * preserve the fatal-signal information for downstream classification (see
+ * harness_crash_signals.cjs). Returns null when the signal name is unrecognized.
+ * @param {NodeJS.Signals | null} signal
+ * @returns {number | null}
+ */
+function exitCodeForSignal(signal) {
+  if (!signal) return null;
+  const signalNumber = os.constants.signals[signal];
+  return typeof signalNumber === "number" ? 128 + signalNumber : null;
+}
 
 /**
  * Format elapsed milliseconds as a human-readable string (e.g. "3m 12s").
@@ -165,13 +183,17 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     }
 
     child.on("exit", (code, signal) => {
-      log(`attempt ${attempt + 1}: process exit event` + ` exitCode=${code ?? 1}` + (signal ? ` signal=${signal}` : ""));
+      log(`attempt ${attempt + 1}: process exit event` + ` exitCode=${code ?? exitCodeForSignal(signal) ?? 1}` + (signal ? ` signal=${signal}` : ""));
     });
 
     // Resolve on 'close', not 'exit', to ensure stdio streams are fully drained.
     child.on("close", (code, signal) => {
       const durationMs = Date.now() - startTime;
-      const exitCode = code ?? 1;
+      // When the process is killed by a signal, Node reports code=null and a signal
+      // name instead. Synthesize the conventional 128+signal exit code so fatal-signal
+      // crashes (e.g. SIGSYS) are visible to exit-code-based retry classification even
+      // when the shell/runtime never reports a raw numeric exit status.
+      const exitCode = code ?? exitCodeForSignal(signal) ?? 1;
       const watchdogFired = sentSigtermAt > 0;
       log(
         `attempt ${attempt + 1}: process closed` +

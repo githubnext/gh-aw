@@ -45,7 +45,7 @@ function hardenUnicodeText(text) {
 
 ### Sanitization Pipeline
 
-```
+```text
 Input Text
     ↓
 hardenUnicodeText()

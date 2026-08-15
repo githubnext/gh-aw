@@ -40,8 +40,30 @@ steps:
       PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
     run: |
-      set -euo pipefail
+      set -uo pipefail
       mkdir -p /tmp/gh-aw/agent
+      write_prefetch_fallback() {
+        local reason="$1"
+        echo "::warning::Test Quality Sentinel pre-fetch unavailable: ${reason}"
+        printf '%s\n' "$reason" > /tmp/gh-aw/agent/test-prefetch-unavailable.txt
+        printf '{}\n' > /tmp/gh-aw/agent/pr-meta.json
+        for file in /tmp/gh-aw/agent/test-files.txt \
+                    /tmp/gh-aw/agent/test-diff.txt \
+                    /tmp/gh-aw/agent/diff-numstat.txt \
+                    /tmp/gh-aw/agent/go-new-test-funcs.txt \
+                    /tmp/gh-aw/agent/js-new-test-funcs.txt \
+                    /tmp/gh-aw/agent/go-modified-test-funcs.txt \
+                    /tmp/gh-aw/agent/js-changed-test-files.txt \
+                    /tmp/gh-aw/agent/missing-build-tags.txt \
+                    /tmp/gh-aw/agent/go-test-stats.txt \
+                    /tmp/gh-aw/agent/js-test-stats.txt \
+                    /tmp/gh-aw/agent/go-testmain-funcs.txt \
+                    /tmp/gh-aw/agent/go-goleak-entries.txt; do
+          : > "$file"
+        done
+        rm -f /tmp/gh-aw/agent/changed-files.txt /tmp/gh-aw/agent/test-diff-full.txt
+        rm -f /tmp/gh-aw/agent/test-data-head-sha.txt
+      }
       CURRENT_HEAD_SHA="${PR_HEAD_SHA:-}"
       if [ -z "$CURRENT_HEAD_SHA" ]; then
         CURRENT_HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid' 2>/dev/null || true)
@@ -56,26 +78,37 @@ steps:
          [ -f /tmp/gh-aw/agent/test-diff.txt ] && \
          [ -f /tmp/gh-aw/agent/diff-numstat.txt ]; then
         echo "Cache hit: using pre-fetched test data for head ${CURRENT_HEAD_SHA}"
+        rm -f /tmp/gh-aw/agent/test-prefetch-unavailable.txt
         exit 0
       fi
 
       # PR metadata
-      gh pr view "$PR_NUMBER" \
+      if ! gh pr view "$PR_NUMBER" \
         --json files,additions,deletions,baseRefName,headRefName,headRefOid \
-        > /tmp/gh-aw/agent/pr-meta.json
+        > /tmp/gh-aw/agent/pr-meta.json; then
+        write_prefetch_fallback "unable to fetch PR metadata"
+        exit 0
+      fi
 
       # List of changed test files
-      gh pr diff "$PR_NUMBER" \
-        --name-only | grep -E '(_test\.go|\.test\.cjs|\.test\.js)$' \
-        > /tmp/gh-aw/agent/test-files.txt || true
+      if ! gh pr diff "$PR_NUMBER" --name-only > /tmp/gh-aw/agent/changed-files.txt; then
+        write_prefetch_fallback "unable to fetch PR file list"
+        exit 0
+      fi
+      grep -E '(_test\.go|\.test\.cjs|\.test\.js)$' \
+        /tmp/gh-aw/agent/changed-files.txt > /tmp/gh-aw/agent/test-files.txt || true
 
       # Diff for test files only; capped at 40 KB to control cache token costs
       if [ -s /tmp/gh-aw/agent/test-files.txt ]; then
         # shellcheck disable=SC2046
-        gh pr diff "$PR_NUMBER" \
+        if ! gh pr diff "$PR_NUMBER" \
           -- $(tr '\n' ' ' < /tmp/gh-aw/agent/test-files.txt) \
-          | head -c 40000 \
-          > /tmp/gh-aw/agent/test-diff.txt 2>/dev/null || true
+          > /tmp/gh-aw/agent/test-diff-full.txt 2>/dev/null; then
+          write_prefetch_fallback "unable to fetch test file diff"
+          exit 0
+        fi
+        head -c 40000 /tmp/gh-aw/agent/test-diff-full.txt > /tmp/gh-aw/agent/test-diff.txt
+        rm -f /tmp/gh-aw/agent/test-diff-full.txt
       else
         touch /tmp/gh-aw/agent/test-diff.txt
       fi
@@ -162,6 +195,7 @@ steps:
       else
         rm -f /tmp/gh-aw/agent/test-data-head-sha.txt
       fi
+      rm -f /tmp/gh-aw/agent/test-prefetch-unavailable.txt
 
       echo "Pre-fetched $(grep -c . /tmp/gh-aw/agent/test-files.txt || echo 0) test files"
 safe-outputs:
@@ -214,6 +248,14 @@ You are the Test Quality Sentinel. Analyze new and changed tests in this PR to p
 High test counts can create an illusion of safety. The real signal is whether tests cover behavioral contracts and design invariants — not just happy-path implementations.
 
 ## Step 1: Load Pre-fetched PR Data and Identify Test Files
+
+First check whether `/tmp/gh-aw/agent/test-prefetch-unavailable.txt` exists. If it exists, read the reason from that file and immediately call `noop` with the reason:
+
+```json
+{"noop": {"message": "Test Quality Sentinel skipped because pre-fetch PR data was unavailable: <reason>"}}
+```
+
+Do not analyze the empty fallback files when this marker exists.
 
 PR data has already been fetched before the agent started. Read from:
 

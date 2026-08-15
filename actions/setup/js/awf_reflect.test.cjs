@@ -15,6 +15,7 @@ const {
   AWF_MODELS_URL_RETRY_MAX_MS,
   DEFAULT_API_PROXY_HOST_BRIDGE,
   GEMINI_MODEL_NAME_PREFIX,
+  deriveBaseUrlFromModelsURL,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
@@ -66,6 +67,30 @@ describe("awf_reflect.cjs", () => {
       const readFileSync = () => "api-proxy 127.0.0.1\n";
 
       expect(rewriteAPIProxyURLForHostBridge("http://api-proxy:10002", env, readFileSync)).toBe("http://172.30.0.1:10002");
+    });
+  });
+
+  describe("deriveBaseUrlFromModelsURL", () => {
+    it("strips a trailing /models segment and leaves non-bridged hosts untouched", () => {
+      const env = {};
+      const readFileSync = () => "";
+
+      expect(deriveBaseUrlFromModelsURL("http://api-proxy:10002/v1/models", env, readFileSync)).toBe("http://api-proxy:10002/v1");
+    });
+
+    it("rewrites the api-proxy host to the HOSTALIASES bridge host, matching resolveProviderEndpointFromReflect", () => {
+      // Regression test: the crush harness previously derived its chat-completions
+      // base URL from models_url without reapplying the api-proxy -> host bridge
+      // rewrite, so it sent requests to the unresolvable "api-proxy" hostname even
+      // though resolveProviderEndpointFromReflect's baseUrl was already rewritten.
+      const env = { HOSTALIASES: "/tmp/aliases" };
+      const readFileSync = () => "api-proxy localhost\n";
+
+      expect(deriveBaseUrlFromModelsURL("http://api-proxy:10002/v1/models", env, readFileSync)).toBe("http://host.docker.internal:10002/v1");
+    });
+
+    it("defaults to process.env and fs.readFileSync when not provided, with no path prefix before /models", () => {
+      expect(deriveBaseUrlFromModelsURL("http://example.test:10002/models")).toBe("http://example.test:10002");
     });
   });
 
@@ -195,6 +220,18 @@ describe("awf_reflect.cjs", () => {
 
       it("does not fall back to a different configured provider", () => {
         expect(resolveOpenAICompatibleEndpointFromReflect({ provider: "anthropic", reflectData, logger: () => {} })).toBeNull();
+      });
+
+      it("rewrites the host bridge for definition-based engine OpenAI-compatible endpoints", () => {
+        const env = { HOSTALIASES: "/tmp/aliases" };
+        const readFileSync = () => "api-proxy localhost\n";
+
+        expect(resolveOpenAICompatibleEndpointFromReflect({ provider: "github", reflectData, logger: () => {}, env, readFileSync })).toEqual({
+          provider: "github",
+          endpointProvider: "copilot",
+          host: "http://host.docker.internal:10002",
+          basePath: "chat/completions",
+        });
       });
     });
 

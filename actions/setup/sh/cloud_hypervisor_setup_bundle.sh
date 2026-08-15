@@ -37,8 +37,26 @@ curl -fsSL -o "${bundle_root}/${manifest_name}" "${asset_base_url}/${manifest_na
 echo "downloaded release assets"
 echo "::endgroup::"
 
+echo "::group::Validate cloud-hypervisor bundle archive structure"
+archive_path="${bundle_root}/${asset_name}"
+if tar -tzf "${archive_path}" | grep -E '(^/|(^|/)\.\.(/|$))' >/dev/null; then
+  echo "::error::cloud-hypervisor bundle contains unsafe archive paths"
+  exit 1
+fi
+archive_table="$(tar -tvzf "${archive_path}")"
+if [[ -z "${archive_table}" ]]; then
+  echo "::error::cloud-hypervisor bundle archive is empty"
+  exit 1
+fi
+if grep -Eq '^[lh]' <<<"${archive_table}"; then
+  echo "::error::cloud-hypervisor bundle must not include symbolic or hard links"
+  exit 1
+fi
+echo "archive structure validated"
+echo "::endgroup::"
+
 echo "::group::Extract cloud-hypervisor bundle"
-tar -xzf "${bundle_root}/${asset_name}" -C "${extract_dir}"
+tar --no-same-owner --no-same-permissions -xzf "${archive_path}" -C "${extract_dir}"
 echo "bundle extracted to ${extract_dir}"
 echo "::endgroup::"
 
@@ -97,6 +115,21 @@ verify_sha256() {
   fi
 }
 
+validate_extracted_file() {
+  local file="$1"
+  if [[ -z "${file}" || ! -f "${file}" || -L "${file}" ]]; then
+    echo "::error::invalid extracted cloud-hypervisor bundle file: ${file}"
+    exit 1
+  fi
+  local real_file real_extract_dir
+  real_file="$(realpath "${file}")"
+  real_extract_dir="$(realpath "${extract_dir}")"
+  if [[ "${real_file}" != "${real_extract_dir}"/* ]]; then
+    echo "::error::extracted bundle file is outside expected directory: ${file}"
+    exit 1
+  fi
+}
+
 # Artifact names are fixed by the gh-aw-firewall cloud-hypervisor release contract.
 binary_rel="cloud-hypervisor"
 kernel_rel="vmlinux.bin"
@@ -114,6 +147,12 @@ if [[ -z "${binary_path}" || -z "${kernel_path}" || -z "${rootfs_path}" || -z "$
   echo "::error::failed to resolve one or more cloud-hypervisor artifact files after extraction"
   exit 1
 fi
+
+validate_extracted_file "${binary_path}"
+validate_extracted_file "${kernel_path}"
+validate_extracted_file "${rootfs_path}"
+validate_extracted_file "${supervisor_path}"
+validate_extracted_file "${virtiofsd_path}"
 
 if [[ "$(dirname "${binary_path}")" != "$(dirname "${virtiofsd_path}")" ]]; then
   echo "::error::virtiofsd must be colocated with the cloud-hypervisor binary"
