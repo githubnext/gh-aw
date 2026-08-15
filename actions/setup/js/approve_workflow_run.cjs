@@ -7,6 +7,8 @@
 
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { minimatch } = require("minimatch");
+const path = require("node:path");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
@@ -34,6 +36,31 @@ function parsePositiveInt(value) {
 function parseAllowedPullRequests(value) {
   const parsed = (Array.isArray(value) ? value : [value]).map(parsePositiveInt).filter(candidate => candidate !== undefined);
   return new Set(parsed);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string | undefined}
+ */
+function normalizeWorkflowFilename(value) {
+  if (typeof value !== "string" || value === "") return undefined;
+  return path.posix.basename(value).replace(/\.yaml$/i, ".yml");
+}
+
+/**
+ * @param {unknown} workflowPath
+ * @param {unknown} allowedWorkflows
+ * @returns {boolean}
+ */
+function isAllowedWorkflow(workflowPath, allowedWorkflows) {
+  const filename = normalizeWorkflowFilename(workflowPath);
+  if (!filename || !Array.isArray(allowedWorkflows) || allowedWorkflows.length === 0) return false;
+
+  return allowedWorkflows.some(pattern => {
+    if (typeof pattern !== "string" || path.posix.basename(pattern) !== pattern) return false;
+    const normalizedPattern = normalizeWorkflowFilename(pattern);
+    return normalizedPattern !== undefined && minimatch(filename, normalizedPattern, { nocase: true });
+  });
 }
 
 /**
@@ -145,6 +172,23 @@ async function main(config = {}) {
         return { success: false, error };
       }
 
+      const workflowId = parsePositiveInt(run.workflow_id);
+      if (!workflowId) {
+        const error = `Workflow run ${runId} has invalid workflow data`;
+        core.warning(error);
+        return { success: false, error };
+      }
+      const { data: workflow } = await githubClient.rest.actions.getWorkflow({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        workflow_id: workflowId,
+      });
+      if (!isAllowedWorkflow(workflow?.path, config.allowed_workflows)) {
+        const error = `Workflow run ${runId} does not match an allowed workflow`;
+        core.warning(error);
+        return { success: false, error };
+      }
+
       const allowedPullRequests = parseAllowedPullRequests(config.allowed_pull_requests);
       const currentPullRequest = getCurrentPullRequestNumber();
       const isAuthorized = run.pull_requests.every(pullRequest => {
@@ -203,4 +247,12 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, parseAllowedPullRequests, parsePositiveInt, getModifiedPullRequestFiles, isForkPullRequest };
+module.exports = {
+  main,
+  parseAllowedPullRequests,
+  parsePositiveInt,
+  normalizeWorkflowFilename,
+  isAllowedWorkflow,
+  getModifiedPullRequestFiles,
+  isForkPullRequest,
+};

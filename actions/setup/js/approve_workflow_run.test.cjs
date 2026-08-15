@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetWorkflowRun = vi.fn();
+const mockGetWorkflow = vi.fn();
 const mockApproveWorkflowRun = vi.fn();
 const mockListFiles = vi.fn();
 const mockGetPullRequest = vi.fn();
@@ -21,6 +22,7 @@ global.github = {
   rest: {
     actions: {
       getWorkflowRun: mockGetWorkflowRun,
+      getWorkflow: mockGetWorkflow,
       approveWorkflowRun: mockApproveWorkflowRun,
     },
     pulls: {
@@ -37,9 +39,10 @@ const pendingPullRequestRun = {
   status: "waiting",
   conclusion: null,
   html_url: "https://github.com/test-owner/test-repo/actions/runs/123",
+  workflow_id: 456,
   pull_requests: [{ number: 42 }],
 };
-const externalTokenConfig = { "github-token": "external-token" };
+const externalTokenConfig = { "github-token": "external-token", allowed_workflows: ["test.yml"] };
 
 describe("approve_workflow_run", () => {
   beforeEach(() => {
@@ -47,6 +50,7 @@ describe("approve_workflow_run", () => {
     global.context.eventName = undefined;
     global.context.payload = { pull_request: { number: 42 } };
     mockGetWorkflowRun.mockResolvedValue({ data: pendingPullRequestRun });
+    mockGetWorkflow.mockResolvedValue({ data: { path: ".github/workflows/test.yaml" } });
     mockApproveWorkflowRun.mockResolvedValue({ status: 201 });
     mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { fork: false } } } });
     mockListFiles.mockResolvedValue({ data: [] });
@@ -118,6 +122,54 @@ describe("approve_workflow_run", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("not awaiting approval");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("matches allowed workflow filenames after normalizing the extension", async () => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_workflows: ["test.yaml"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockGetWorkflow).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: 456,
+    });
+  });
+
+  it("matches allowed workflow filename wildcards", async () => {
+    mockGetWorkflow.mockResolvedValue({ data: { path: ".github/workflows/pull-request-ci.yml" } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_workflows: ["pull-request-*.yaml"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects runs from workflows outside the allowed list", async () => {
+    mockGetWorkflow.mockResolvedValue({ data: { path: ".github/workflows/release.yml" } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("does not match an allowed workflow");
+    expect(mockGetPullRequest).not.toHaveBeenCalled();
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects path-containing allowed workflow patterns", async () => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_workflows: [".github/workflows/test.yml"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("does not match an allowed workflow");
+    expect(mockGetPullRequest).not.toHaveBeenCalled();
   });
 
   it("rejects fork pull requests by default", async () => {

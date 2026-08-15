@@ -318,6 +318,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableInt("max", c.Max).
 			AddDefault("fork", c.Fork).
 			AddTemplatableStringSlice("allowed_pull_requests", c.AllowedPullRequests).
+			AddStringSlice("allowed_workflows", c.AllowedWorkflows).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
 			AddDefault("protect_top_level_dot_folders", true).

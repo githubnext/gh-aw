@@ -3,6 +3,7 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -305,6 +306,14 @@ func validateSafeOutputsAllowWorkflows(safeOutputs *SafeOutputsConfig) error {
 	return nil
 }
 
+func normalizeApproveWorkflowRunAllowedWorkflowPattern(pattern string) string {
+	extension := path.Ext(pattern)
+	if strings.EqualFold(extension, ".yaml") {
+		return strings.TrimSuffix(pattern, extension) + ".yml"
+	}
+	return pattern
+}
+
 // validateSafeOutputsApproveWorkflowRun requires an explicitly configured external
 // token or GitHub App because github.token cannot approve workflow runs for fork PRs.
 func validateSafeOutputsApproveWorkflowRun(safeOutputs *SafeOutputsConfig) error {
@@ -313,6 +322,17 @@ func validateSafeOutputsApproveWorkflowRun(safeOutputs *SafeOutputsConfig) error
 	}
 
 	config := safeOutputs.ApproveWorkflowRun
+	if len(config.AllowedWorkflows) == 0 {
+		return errors.New("safe-outputs.approve-workflow-run: requires a non-empty allowed-workflows list")
+	}
+	for _, pattern := range config.AllowedWorkflows {
+		if path.Base(pattern) != pattern {
+			return fmt.Errorf("safe-outputs.approve-workflow-run.allowed-workflows: %q must match a workflow filename, not a path", pattern)
+		}
+		if _, err := path.Match(normalizeApproveWorkflowRunAllowedWorkflowPattern(pattern), ""); err != nil {
+			return fmt.Errorf("safe-outputs.approve-workflow-run.allowed-workflows: invalid wildcard pattern %q: %w", pattern, err)
+		}
+	}
 	if templatableBoolIsTrue(safeOutputs.Staged) || templatableBoolIsTrue(config.Staged) {
 		return nil
 	}

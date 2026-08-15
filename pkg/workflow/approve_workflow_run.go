@@ -9,6 +9,7 @@ type ApproveWorkflowRunConfig struct {
 	BaseSafeOutputConfig  `yaml:",inline"`
 	Fork                  bool     `yaml:"fork,omitempty"`
 	AllowedPullRequests   []string `yaml:"allowed-pull-requests,omitempty"`
+	AllowedWorkflows      []string `yaml:"allowed-workflows,omitempty"`
 	ProtectedFilesExclude []string `yaml:"-"`
 }
 
@@ -28,6 +29,7 @@ func (c *Compiler) parseApproveWorkflowRunConfig(outputMap map[string]any) *Appr
 			config.Fork = fork
 		}
 		config.AllowedPullRequests = ParseStringArrayOrExprFromConfig(configMap, "allowed-pull-requests", approveWorkflowRunLog)
+		config.AllowedWorkflows = ParseStringArrayFromConfig(configMap, "allowed-workflows", approveWorkflowRunLog)
 		config.ProtectedFilesExclude = preprocessProtectedFilesField(configMap, approveWorkflowRunLog)
 	}
 	return config

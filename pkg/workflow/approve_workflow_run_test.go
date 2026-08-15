@@ -23,6 +23,8 @@ safe-outputs:
     fork: true
     allowed-pull-requests:
       - "42"
+    allowed-workflows:
+      - pull-request-*.yaml
     protected-files:
       exclude:
         - AGENTS.md
@@ -41,6 +43,7 @@ Approve eligible workflow runs.
 	assert.Equal(t, TemplatableBool("true"), *data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.True(t, data.SafeOutputs.ApproveWorkflowRun.Fork)
 	assert.Equal(t, []string{"42"}, data.SafeOutputs.ApproveWorkflowRun.AllowedPullRequests)
+	assert.Equal(t, []string{"pull-request-*.yaml"}, data.SafeOutputs.ApproveWorkflowRun.AllowedWorkflows)
 	assert.Equal(t, []string{"AGENTS.md"}, data.SafeOutputs.ApproveWorkflowRun.ProtectedFilesExclude)
 
 	enabledTools := computeEnabledToolNames(data)
@@ -67,7 +70,7 @@ func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {
 		{
 			name: "missing credentials",
 			safeOutputs: &SafeOutputsConfig{
-				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{AllowedWorkflows: []string{"pull-request-*.yml"}},
 			},
 			wantErr: "requires an external github-token or github-app",
 		},
@@ -76,6 +79,7 @@ func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.APPROVE_TOKEN }}"},
+					AllowedWorkflows:     []string{"pull-request-*.yml"},
 				},
 			},
 		},
@@ -84,6 +88,7 @@ func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubApp: &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}},
+					AllowedWorkflows:     []string{"pull-request-*.yml"},
 				},
 			},
 		},
@@ -91,14 +96,14 @@ func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {
 			name: "safe-outputs external token",
 			safeOutputs: &SafeOutputsConfig{
 				GitHubToken:        "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
-				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{AllowedWorkflows: []string{"pull-request-*.yml"}},
 			},
 		},
 		{
 			name: "safe-outputs GitHub App",
 			safeOutputs: &SafeOutputsConfig{
 				GitHubApp:          &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"},
-				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{AllowedWorkflows: []string{"pull-request-*.yml"}},
 			},
 		},
 		{
@@ -106,6 +111,7 @@ func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Staged: templatableBoolPtr("true")},
+					AllowedWorkflows:     []string{"pull-request-*.yml"},
 				},
 			},
 		},
@@ -113,7 +119,7 @@ func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {
 			name: "globally staged preview",
 			safeOutputs: &SafeOutputsConfig{
 				Staged:             templatableBoolPtr("true"),
-				ApproveWorkflowRun: &ApproveWorkflowRunConfig{},
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{AllowedWorkflows: []string{"pull-request-*.yml"}},
 			},
 		},
 	}
@@ -192,4 +198,34 @@ func TestApproveWorkflowRunAllowedPullRequests(t *testing.T) {
 
 	handlerConfig := handlerRegistry["approve_workflow_run"](&SafeOutputsConfig{ApproveWorkflowRun: config})
 	assert.Equal(t, "${{ inputs.allowed-pull-requests }}", handlerConfig["allowed_pull_requests"])
+}
+
+func TestValidateSafeOutputsApproveWorkflowRunAllowedWorkflows(t *testing.T) {
+	tests := []struct {
+		name      string
+		workflows []string
+		wantErr   string
+	}{
+		{name: "required", wantErr: "requires a non-empty allowed-workflows list"},
+		{name: "path rejected", workflows: []string{".github/workflows/ci.yml"}, wantErr: "must match a workflow filename"},
+		{name: "invalid wildcard", workflows: []string{"[ci.yml"}, wantErr: "invalid wildcard pattern"},
+		{name: "valid wildcard", workflows: []string{"pull-request-*.yaml"}},
+		{name: "uppercase yaml extension", workflows: []string{"pull-request-*.YAML"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSafeOutputsApproveWorkflowRun(&SafeOutputsConfig{
+				Staged: templatableBoolPtr("true"),
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					AllowedWorkflows: tt.workflows,
+				},
+			})
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
 }

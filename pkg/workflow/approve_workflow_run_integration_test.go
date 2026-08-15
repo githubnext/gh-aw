@@ -25,6 +25,8 @@ safe-outputs:
       app-id: ${{ vars.APPROVE_WORKFLOW_RUN_APP_ID }}
       private-key: ${{ secrets.APPROVE_WORKFLOW_RUN_APP_PRIVATE_KEY }}
     fork: true
+    allowed-workflows:
+      - pull-request-*.yaml
     protected-files:
       exclude:
         - AGENTS.md
@@ -43,6 +45,7 @@ Approve the pending workflow run for this pull request.
 		assert.Contains(t, compiled, "steps.approve-workflow-run-app-token.outputs.token")
 		handlerConfig := extractApproveWorkflowRunHandlerConfig(t, compiled)
 		assert.Equal(t, true, handlerConfig["fork"])
+		assert.Equal(t, []any{"pull-request-*.yaml"}, handlerConfig["allowed_workflows"])
 		protectedFiles, ok := handlerConfig["protected_files"].([]any)
 		require.True(t, ok)
 		assert.NotContains(t, protectedFiles, "AGENTS.md")
@@ -56,6 +59,8 @@ on: pull_request
 safe-outputs:
   approve-workflow-run:
     github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}
+    allowed-workflows:
+      - ci.yml
     allowed-pull-requests:
       - "42"
       - "43"
@@ -74,6 +79,8 @@ on: pull_request
 safe-outputs:
   approve-workflow-run:
     github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}
+    allowed-workflows:
+      - ci.yml
     allowed-pull-requests: ${{ inputs.allowed-pull-requests }}
 engine: copilot
 ---

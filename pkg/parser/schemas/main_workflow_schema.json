@@ -6924,6 +6924,15 @@
                     }
                   ]
                 },
+                "allowed-workflows": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Required workflow filename patterns allowed for approval. Patterns support wildcards and treat .yml and .yaml as equivalent."
+                },
                 "protected-files": {
                   "type": "object",
                   "description": "Protected files prevent workflow run approval when modified by the associated pull request. Use exclude to remove filenames or path prefixes from the default protected set.",
@@ -6967,6 +6976,7 @@
                   "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
+              "required": ["allowed-workflows"],
               "additionalProperties": false
             },
             {
