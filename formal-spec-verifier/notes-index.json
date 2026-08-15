@@ -104,6 +104,13 @@
       "notation": "TLA+ / Z3-style guard conjunction",
       "predicate_count": 8,
       "issue_number": null
+    },
+    "specs/compiler-threat-detection-compliance/README.md": {
+      "slug": "compiler-threat-detection-compliance-README",
+      "last_formalized": "2026-08-15-15-35-13",
+      "notation": "Z3-style guard conjunction / set-theoretic bijection",
+      "predicate_count": 8,
+      "issue_number": null
     }
   }
 }
