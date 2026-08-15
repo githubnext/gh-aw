@@ -24,6 +24,10 @@ describe("no-empty-catch-block", () => {
         `try { risky(); } catch (err) { throw err; }`,
         `try { risky(); } catch (err) {\n  // intentional no-op: file may not exist on first run\n}`,
         `try { risky(); } catch { /* intentional ignore: optional file is absent */ }`,
+        `run().catch((err) => { core.warning(getErrorMessage(err)); });`,
+        `run().catch(function (err) { core.warning(getErrorMessage(err)); });`,
+        `run().catch(() => { /* best-effort cleanup */ });`,
+        `// Non-fatal: errors are silently swallowed.\nif (require.main === module) {\n  run().catch(() => {});\n}`,
       ],
       invalid: [],
     });
@@ -55,6 +59,14 @@ describe("no-empty-catch-block", () => {
         },
         {
           code: `try { risky(); } catch { /* eslint-ignore */ }`,
+          errors: [{ messageId: "noEmptyCatch" }],
+        },
+        {
+          code: `run().catch(() => {});`,
+          errors: [{ messageId: "noEmptyCatch" }],
+        },
+        {
+          code: `run().catch(function () {});`,
           errors: [{ messageId: "noEmptyCatch" }],
         },
       ],
