@@ -17,6 +17,7 @@ network:
     - go
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     sudo: false
 tools:
   cache-memory:

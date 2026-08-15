@@ -10,6 +10,7 @@ permissions:
   copilot-requests: write
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     sudo: false
 tools:
   repo-memory:
