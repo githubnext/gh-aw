@@ -29,6 +29,17 @@ var ghAwInternalSecrets = map[string]bool{
 	"COPILOT_GITHUB_TOKEN":          true,
 }
 
+// SafeUpdateEnforcementOptions carries current-compilation context used by
+// EnforceSafeUpdate to detect unsafe changes against the existing manifest.
+type SafeUpdateEnforcementOptions struct {
+	CurrentRedirect                string
+	OldHasPullRequest              bool
+	OldHasPullRequestTarget        bool
+	CurrentHasPullRequest          bool
+	CurrentHasPullRequestTarget    bool
+	CurrentMemoryValidationScripts []GHAWManifestMemoryValidationScript
+}
+
 // EnforceSafeUpdate validates that no new restricted secrets or unapproved action
 // changes have been introduced compared to those recorded in the existing manifest.
 //
@@ -50,15 +61,6 @@ var ghAwInternalSecrets = map[string]bool{
 // e.g. "actions/checkout@abc1234 # v4".
 //
 // Returns a structured, actionable error when violations are found.
-type SafeUpdateEnforcementOptions struct {
-	CurrentRedirect                string
-	OldHasPullRequest              bool
-	OldHasPullRequestTarget        bool
-	CurrentHasPullRequest          bool
-	CurrentHasPullRequestTarget    bool
-	CurrentMemoryValidationScripts []GHAWManifestMemoryValidationScript
-}
-
 func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, opts SafeUpdateEnforcementOptions) error {
 	if manifest == nil {
 		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
