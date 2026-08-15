@@ -207,13 +207,13 @@ func TestInputValidation(t *testing.T) {
 			name:        "invalid input without equals",
 			inputs:      []string{"namevalue"},
 			shouldError: true,
-			errorMsg:    "invalid input format",
+			errorMsg:    "not in key=value format",
 		},
 		{
 			name:        "invalid input - empty key",
 			inputs:      []string{"=value"},
 			shouldError: true,
-			errorMsg:    "key cannot be empty",
+			errorMsg:    "empty key before '='",
 		},
 		{
 			name:        "invalid input - empty value",
@@ -224,7 +224,7 @@ func TestInputValidation(t *testing.T) {
 			name:        "mixed valid and invalid",
 			inputs:      []string{"name=value", "invalid"},
 			shouldError: true,
-			errorMsg:    "invalid input format",
+			errorMsg:    "not in key=value format",
 		},
 	}
 
