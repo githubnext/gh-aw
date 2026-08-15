@@ -1,5 +1,5 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
-import { resolveWriteOnceInitializerChain } from "./command-initializer-utils";
+import { getDynamicCommandKind } from "./command-initializer-utils";
 import { isChildProcessImportBinding, isChildProcessObjectBinding, isRequireChildProcess } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
@@ -7,25 +7,6 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
 type ChildProcessMethod = "exec" | "execSync" | "spawn" | "spawnSync" | "execFile" | "execFileSync";
 const SHELL_CONDITIONAL_METHODS = new Set<ChildProcessMethod>(["spawn", "spawnSync", "execFile", "execFileSync"]);
-
-function isStaticExpression(node: TSESTree.Expression): boolean {
-  if (node.type === AST_NODE_TYPES.Literal) return true;
-  if (node.type === AST_NODE_TYPES.TemplateLiteral) return node.expressions.length === 0;
-  if (node.type === AST_NODE_TYPES.BinaryExpression && node.operator === "+") {
-    return isStaticExpression(node.left) && isStaticExpression(node.right);
-  }
-  return false;
-}
-
-function isDynamicStringConcatenation(node: TSESTree.Expression): boolean {
-  return node.type === AST_NODE_TYPES.BinaryExpression && node.operator === "+" && !isStaticExpression(node);
-}
-
-function getDynamicCommandKind(node: TSESTree.Expression): string | null {
-  if (node.type === AST_NODE_TYPES.TemplateLiteral && node.expressions.length > 0) return "interpolated template literal";
-  if (isDynamicStringConcatenation(node)) return "dynamic string concatenation";
-  return null;
-}
 
 function getImportSpecifierName(node: TSESTree.ImportSpecifier): string | null {
   if (node.imported.type === AST_NODE_TYPES.Identifier) return node.imported.name;
@@ -176,8 +157,7 @@ export const noChildProcessInterpolatedCommandRule = createRule({
         const firstArg = node.arguments[0];
         if (!firstArg || firstArg.type === AST_NODE_TYPES.SpreadElement) return;
 
-        const candidate = resolveWriteOnceInitializerChain(firstArg as TSESTree.Expression, sourceCode);
-        const kind = getDynamicCommandKind(candidate);
+        const kind = getDynamicCommandKind(firstArg as TSESTree.Expression, sourceCode);
         if (!kind) return;
 
         context.report({

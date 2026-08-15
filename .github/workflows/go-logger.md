@@ -244,9 +244,11 @@ After adding logging to **all selected files**, validate your changes before cre
 
 After validating your changes:
 
-1. The safe-outputs create-pull-request will automatically create a PR
-2. Ensure your changes follow the guidelines above
-3. The PR title will automatically have the "[log] " prefix
+1. Choose exactly one terminal outcome: `create_pull_request` after successful changes, `noop` when no changes are needed, or `report_incomplete` when a blocking failure prevents completion.
+2. Call the chosen safe-output command exactly once, as your final action. Do not call any other safe-output command before or after it.
+3. Do not probe safe outputs with `which`, `type`, `--help`, or schema-inspection commands.
+4. If the safe-output gateway rejects the call, stop immediately and surface its exact rejection message. Do not retry the call or switch to another terminal safe output.
+5. The PR title will automatically have the "[log] " prefix.
 
 ## Quality Checklist
 

@@ -4,11 +4,24 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFetchRemoteExperimentDetailsClassifiesTitleCaseNotFound(t *testing.T) {
+	fakeBinDir := t.TempDir()
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	require.NoError(t, os.WriteFile(fakeGH, []byte("#!/bin/sh\necho 'HTTP 404: Not Found' >&2\nexit 1\n"), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	_, err := fetchRemoteExperimentDetails("octo/repo", "experiments/missing", "missing")
+
+	require.EqualError(t, err, `experiment "missing" not found in octo/repo`)
+}
 
 func TestExtractExperimentName(t *testing.T) {
 	tests := []struct {

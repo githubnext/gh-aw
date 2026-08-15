@@ -1,6 +1,8 @@
 ---
 emoji: "📊"
 description: Scans agentic workflows daily with zizmor, poutine, actionlint, runner-guard, syft, grype, yamllint, and shellcheck
+features:
+  gh-aw-detection: true
 on:
   schedule: daily
   workflow_dispatch:

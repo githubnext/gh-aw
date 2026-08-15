@@ -17,6 +17,8 @@ const {
   INVOCATION_CAP_EXCEEDED_PATTERN,
   MAX_CACHE_MISSES_EXCEEDED_PATTERN,
   MISSING_MODEL_PRICING_PATTERN,
+  SHELL_EXPANSION_GUARD_REJECTED_PATTERN,
+  isShellExpansionGuardRejectedError,
   extractMissingModelPricingModelName,
   buildOutputLines,
 } = require("./detect_agent_errors.cjs");
@@ -326,6 +328,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.maxCacheMissesExceeded).toBe(false);
       expect(result.missingModelPricingError).toBe(false);
       expect(result.missingModelPricingModelName).toBe("");
+      expect(result.shellExpansionGuardRejected).toBe(false);
     });
 
     it("detects inference access error only", () => {
@@ -414,6 +417,25 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
       expect(result.invocationCapExceeded).toBe(true);
+    });
+
+    it("detects shell expansion guard rejection only (issue github/gh-aw#52254 payload shape)", () => {
+      const log = [
+        "[copilot-harness] attempt 1: shell(safeoutputs create_discussion --title 'MCP toolset unavailable' --body \"...\\n...\")",
+        "Command rejected: shell command contains dangerous patterns (command substitution, indirect expansion, or nested command substitution) that could enable arbitrary code execution. Please rewrite the command without these expansion patterns.",
+        "[copilot-harness] attempt 2: retrying identical command",
+        "Command rejected: shell command contains dangerous patterns (command substitution, indirect expansion, or nested command substitution) that could enable arbitrary code execution. Please rewrite the command without these expansion patterns.",
+        "##[error]The action 'Execute GitHub Copilot CLI' has timed out after 5 minutes.",
+      ].join("\n");
+      const result = detectErrors(log);
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.mcpPolicyError).toBe(false);
+      expect(result.modelNotSupportedError).toBe(false);
+      expect(result.http400ResponseError).toBe(false);
+      expect(result.capiQuotaExceededError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
+      expect(result.agenticEngineTimeout).toBe(false);
+      expect(result.shellExpansionGuardRejected).toBe(true);
     });
 
     it("detects both capi quota and invocation-cap flags when both signatures are present", () => {
@@ -621,6 +643,51 @@ commentary" has no AI credits pricing`;
     });
   });
 
+  describe("SHELL_EXPANSION_GUARD_REJECTED_PATTERN / isShellExpansionGuardRejectedError", () => {
+    // Exact payload shape from the issue report (github/gh-aw#52254): the sandbox's shell
+    // command-injection guard rejected a benign multi-line `printf` call to `safeoutputs
+    // create_discussion` for containing bash expansion patterns.
+    const ISSUE_REJECTION_MESSAGE =
+      "Command rejected: shell command contains dangerous patterns (command substitution, " +
+      "indirect expansion, or nested command substitution) that could enable arbitrary code " +
+      "execution. Please rewrite the command without these expansion patterns.";
+
+    it("matches the exact rejection message from the issue report", () => {
+      expect(SHELL_EXPANSION_GUARD_REJECTED_PATTERN.test(ISSUE_REJECTION_MESSAGE)).toBe(true);
+      expect(isShellExpansionGuardRejectedError(ISSUE_REJECTION_MESSAGE)).toBe(true);
+    });
+
+    it("matches when embedded in larger multi-line log output", () => {
+      const log = [
+        "[copilot-harness] attempt 1: invoking shell(safeoutputs create_discussion --title ... --body ...)",
+        ISSUE_REJECTION_MESSAGE,
+        "[copilot-harness] attempt 2: retrying identical command",
+        ISSUE_REJECTION_MESSAGE,
+        "##[error]The action 'Execute GitHub Copilot CLI' has timed out after 5 minutes.",
+      ].join("\n");
+      expect(isShellExpansionGuardRejectedError(log)).toBe(true);
+    });
+
+    it("is case-insensitive", () => {
+      expect(SHELL_EXPANSION_GUARD_REJECTED_PATTERN.test(ISSUE_REJECTION_MESSAGE.toUpperCase())).toBe(true);
+    });
+
+    it("matches when the two anchor phrases are split across a line break", () => {
+      const wrapped = "Command rejected: ...that could enable arbitrary code execution.\nPlease rewrite the command without these expansion patterns.";
+      expect(isShellExpansionGuardRejectedError(wrapped)).toBe(true);
+    });
+
+    it("does not match unrelated shell errors", () => {
+      expect(isShellExpansionGuardRejectedError("bash: safeoutputs: command not found")).toBe(false);
+      expect(isShellExpansionGuardRejectedError("permission denied by workflow tool permissions")).toBe(false);
+      expect(isShellExpansionGuardRejectedError("")).toBe(false);
+    });
+
+    it("does not match arbitrary code execution mentions without the rewrite guidance", () => {
+      expect(isShellExpansionGuardRejectedError("This could enable arbitrary code execution if left unchecked.")).toBe(false);
+    });
+  });
+
   describe("WATCHDOG_SIGTERM_PATTERN", () => {
     it("matches a process closed line with SIGTERM and watchdogFired=true", () => {
       const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=12m 38s hasOutput=true watchdogFired=true";
@@ -798,6 +865,24 @@ commentary" has no AI credits pricing`;
       });
 
       expect(lines).toContain("max_cache_misses_exceeded=false");
+    });
+
+    it("emits shell_expansion_guard_rejected=true when detected", () => {
+      const lines = buildOutputLines({
+        inferenceAccessError: false,
+        mcpPolicyError: false,
+        agenticEngineTimeout: false,
+        modelNotSupportedError: false,
+        http400ResponseError: false,
+        capiQuotaExceededError: false,
+        invocationCapExceeded: false,
+        maxCacheMissesExceeded: false,
+        missingModelPricingError: false,
+        missingModelPricingModelName: "",
+        shellExpansionGuardRejected: true,
+      });
+
+      expect(lines).toContain("shell_expansion_guard_rejected=true");
     });
   });
 });
