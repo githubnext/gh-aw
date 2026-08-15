@@ -66,10 +66,14 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// skills detected at compile time so that subsequent compilations can perform safe update
 	// enforcement.
 	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.RawFrontmatter["on"])
-	if suppressions, err := parseThreatDetectionSuppressions(data.RawFrontmatter["threat-detection-suppress"]); err == nil {
-		manifest.ThreatDetectionSuppressions = activeThreatDetectionSuppressions(suppressions, time.Now())
+	if data.ParsedFrontmatter != nil {
+		manifest.ThreatDetectionSuppressions = activeThreatDetectionSuppressions(data.ParsedFrontmatter.ThreatDetectionSuppressions, time.Now())
 	} else {
-		return fmt.Errorf("invalid threat-detection-suppress: %w", err)
+		suppressions, err := parseThreatDetectionSuppressions(data.RawFrontmatter["threat-detection-suppress"])
+		if err != nil {
+			return fmt.Errorf("invalid threat-detection-suppress: %w", err)
+		}
+		manifest.ThreatDetectionSuppressions = activeThreatDetectionSuppressions(suppressions, time.Now())
 	}
 	manifest.MemoryValidationScripts = collectMemoryValidationScripts(data)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {

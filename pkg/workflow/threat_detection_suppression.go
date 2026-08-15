@@ -52,6 +52,8 @@ func parseThreatDetectionSuppressions(value any) ([]ThreatDetectionSuppression, 
 	return suppressions, nil
 }
 
+// activeThreatDetectionSuppressions treats expires as the last active UTC
+// calendar day; a suppression becomes inactive at 00:00 UTC the following day.
 func activeThreatDetectionSuppressions(suppressions []ThreatDetectionSuppression, now time.Time) []ThreatDetectionSuppression {
 	active := make([]ThreatDetectionSuppression, 0, len(suppressions))
 	today := now.UTC().Format("2006-01-02")
