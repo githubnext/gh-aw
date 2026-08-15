@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -33,7 +34,7 @@ func readRemoteRepoBranchFileContext(ctx context.Context, repoOverride, branchNa
 	cmd := workflow.ExecGHContext(ctx, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		if isRemoteFileNotFoundOutput(string(out)) {
+		if errorutil.IsNotFoundOutput(string(out)) {
 			branchFileReaderLog.Printf("Remote file not found: path=%s, branch=%s", filePath, branchName)
 			return nil, os.ErrNotExist
 		}
@@ -54,9 +55,4 @@ func readRemoteRepoBranchFileContext(ctx context.Context, repoOverride, branchNa
 
 func isRemoteFileNotFound(err error) bool {
 	return errors.Is(err, os.ErrNotExist)
-}
-
-func isRemoteFileNotFoundOutput(output string) bool {
-	s := strings.ToLower(output)
-	return strings.Contains(s, "404") || strings.Contains(s, "not found")
 }

@@ -59,6 +59,7 @@ module.exports = [
       "gh-aw-custom/require-error-code-in-thrown-error": "warn",
       "gh-aw-custom/require-invalid-date-check-before-compare": "warn",
       "gh-aw-custom/require-sync-exec-timeout": "warn",
+      "gh-aw-custom/no-empty-catch-block": "warn",
     },
   },
   {
