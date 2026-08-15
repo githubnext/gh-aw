@@ -231,20 +231,9 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Add any additional dependencies from the config
 		job.Needs = append(job.Needs, jobConfig.Needs...)
 
-		// Set runs-on
-		switch len(jobConfig.RunsOn) {
-		case 0:
-			job.RunsOn = "runs-on: ubuntu-latest" // Default
-		case 1:
-			job.RunsOn = "runs-on: " + jobConfig.RunsOn[0]
-		default:
-			// Handle array format
-			runsOnItems := make([]string, 0, len(jobConfig.RunsOn))
-			for _, item := range jobConfig.RunsOn {
-				runsOnItems = append(runsOnItems, "      - "+item)
-			}
-			job.RunsOn = "runs-on:\n" + strings.Join(runsOnItems, "\n")
-		}
+		// Set runs-on.
+		// FormatRunsOn handles defaulting and YAML-safe rendering.
+		job.RunsOn = "runs-on: " + FormatRunsOn(jobConfig.RunsOn, "ubuntu-latest")
 
 		// Set if condition - combine safe output type check with user-provided condition
 		// Custom safe jobs should only run if the agent output contains the job name (tool call)
