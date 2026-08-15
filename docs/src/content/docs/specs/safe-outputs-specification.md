@@ -3129,6 +3129,8 @@ This section provides complete definitions for all remaining safe output types. 
 **Cross-Repository Support**: No
 **Mandatory**: No
 
+**Experimental**: Yes. Compiling a workflow with `approve-workflow-run` emits: `Using experimental feature: approve-workflow-run`.
+
 **MCP Tool Schema**:
 
 ```json

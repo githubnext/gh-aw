@@ -10,7 +10,7 @@ This page is the primary reference for pull-request-focused safe outputs:
 - [`create-pull-request`](#pull-request-creation-create-pull-request)
 - [`update-pull-request`](#pull-request-updates-update-pull-request)
 - [`close-pull-request`](#close-pull-request-close-pull-request)
-- [`approve-workflow-run`](#approve-workflow-run-approve-workflow-run)
+- [`approve-workflow-run`](#approve-workflow-run-approve-workflow-run) (experimental)
 - [`merge-pull-request`](#merge-pull-request-merge-pull-request) (experimental)
 - [`create-pull-request-review-comment`](#pr-review-comments-create-pull-request-review-comment)
 - [`submit-pull-request-review`](#submit-pr-review-submit-pull-request-review)
@@ -185,6 +185,10 @@ safe-outputs:
 ```
 
 ## Approve Workflow Run (`approve-workflow-run:`)
+
+:::caution[Experimental]
+`approve-workflow-run` is an experimental safe output. `gh aw compile` emits an experimental feature warning when a workflow uses it.
+:::
 
 Approves a GitHub Actions workflow run waiting at the repository's fork pull request approval gate. The agent supplies a positive integer `run_id`; the handler verifies that the run is a pull request run, is associated with an authorized pull request, and has status `waiting` before calling GitHub's workflow-run approval API.
 
