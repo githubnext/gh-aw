@@ -70,3 +70,4 @@
 {"run_id":"31652552960","timestamp":"2026-08-12T23:54:49.014Z","assignments":{"model_size":"claude-haiku-4.5"}}
 {"run_id":"31755449959","timestamp":"2026-08-13T23:53:56.505Z","assignments":{"model_size":"claude-haiku-4.5"}}
 {"run_id":"31851368079","timestamp":"2026-08-14T23:44:33.101Z","assignments":{"model_size":"claude-haiku-4.5"}}
+{"run_id":"31915462718","timestamp":"2026-08-15T23:43:53.594Z","assignments":{"model_size":"claude-sonnet-4.6"}}
