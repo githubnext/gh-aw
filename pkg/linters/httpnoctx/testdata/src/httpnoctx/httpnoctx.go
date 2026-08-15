@@ -87,3 +87,29 @@ func GoodTimeoutClientDo(ctx context.Context, rawURL string) (*http.Response, er
 	client := &http.Client{Timeout: time.Second}
 	return client.Do(req)
 }
+
+// GoodNewRequestInPlainClosure calls http.NewRequest inside a plain closure that
+// has no context parameter; the outer context must not be attributed to it.
+func GoodNewRequestInPlainClosure(ctx context.Context, rawURL string) http.HandlerFunc {
+	_ = ctx
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, _ = http.NewRequest(http.MethodGet, rawURL, nil)
+	}
+}
+
+// BadNewRequestInGoClosure calls http.NewRequest inside a go closure; the outer
+// context is still in scope there so the call is flagged.
+func BadNewRequestInGoClosure(ctx context.Context, rawURL string) {
+	_ = ctx
+	go func() {
+		_, _ = http.NewRequest(http.MethodGet, rawURL, nil) // want `http\.NewRequest does not propagate context`
+	}()
+}
+
+// BadNewRequestInDeferClosure calls http.NewRequest inside a defer closure.
+func BadNewRequestInDeferClosure(ctx context.Context, rawURL string) {
+	_ = ctx
+	defer func() {
+		_, _ = http.NewRequest(http.MethodGet, rawURL, nil) // want `http\.NewRequest does not propagate context`
+	}()
+}

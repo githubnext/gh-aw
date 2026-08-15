@@ -50,6 +50,11 @@ func okUsingConst() string {
 // ok: const declaration itself is acceptable.
 const localPathConst = "/tmp/gh-aw/local-file.txt"
 
+// bad: duplicate same-package literal should reuse local unexported constant.
+func badMatchesLocalUnexportedConst() string {
+	return "/tmp/gh-aw/local-file.txt" // want `hard-coded file path.*use constant localPathConst`
+}
+
 // ok: just a plain /tmp with no suffix (too short / generic).
 func okTooShort() string {
 	return "/tmp"

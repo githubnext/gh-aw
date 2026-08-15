@@ -8,7 +8,6 @@ type CompileConfig struct {
 	Validate                  bool     // Enable schema validation
 	Watch                     bool     // Enable watch mode
 	WorkflowDir               string   // Custom workflow directory
-	SkipInstructions          bool     // Deprecated: Instructions are no longer written during compilation
 	NoEmit                    bool     // Validate without generating lock files
 	Purge                     bool     // Remove orphaned lock files
 	TrialMode                 bool     // Enable trial mode (suppress safe outputs)
