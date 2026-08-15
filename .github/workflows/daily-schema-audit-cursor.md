@@ -2,6 +2,8 @@
 private: true
 emoji: "🖱️"
 description: Daily audit of JSON schema consistency across workflow definitions
+features:
+  gh-aw-detection: true
 on:
   schedule: daily
   workflow_dispatch:

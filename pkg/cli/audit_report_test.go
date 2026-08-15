@@ -1448,6 +1448,35 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		assert.Contains(t, errors[0].Message, "Lockdown mode is enabled", "Should include actionable ##[error] text")
 	})
 
+	t.Run("ignores annotated tool results and surfaces the runner failure", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("agent output"), 0600))
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		toolResult := `{"type":"user","message":{"content":[{"type":"tool_result","content":"raw Go source"}]}}`
+		logContent := "2026-08-13T04:03:11Z ##[error]" + toolResult + "\n" +
+			"2026-08-13T04:11:07Z ##[error]The action 'Execute Claude Code CLI' has timed out after 15 minutes."
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "10_Execute Claude Code CLI.txt"), []byte(logContent), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.Len(t, errors, 1)
+		assert.Contains(t, errors[0].Message, "timed out after 15 minutes")
+		assert.NotContains(t, errors[0].Message, "raw Go source")
+	})
+
+	t.Run("preserves mixed tool result annotations", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		workflowLogsDir := filepath.Join(dir, "workflow-logs", "agent")
+		require.NoError(t, os.MkdirAll(workflowLogsDir, 0755))
+		mixedContent := `{"type":"user","message":{"content":[{"type":"tool_result","content":"raw Go source"},{"type":"text","text":"runner failure"}]}}`
+		logContent := "2026-08-13T04:03:11Z ##[error]" + mixedContent
+		require.NoError(t, os.WriteFile(filepath.Join(workflowLogsDir, "10_Execute Claude Code CLI.txt"), []byte(logContent), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		require.Len(t, errors, 1)
+		assert.Contains(t, errors[0].Message, "runner failure")
+	})
+
 	t.Run("returns nil when workflow-logs directory missing", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log and no workflow-logs directory

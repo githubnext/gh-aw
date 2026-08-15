@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 func TestDisplaySecretsSummaryTable_UnicodeNameAlignment(t *testing.T) {
@@ -815,4 +816,157 @@ func TestGetMissingRequiredSecrets(t *testing.T) {
 		assert.Len(t, missing, 1, "Should have 1 missing required secret")
 		assert.Equal(t, "ANTHROPIC_API_KEY", missing[0].Name, "Should only include ANTHROPIC_API_KEY")
 	})
+}
+
+func TestSecretRequirementsFromAuthDefinition(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		auth       *workflow.AuthDefinition
+		engineName string
+		want       []SecretRequirement
+	}{
+		{
+			name:       "nil auth returns nil",
+			auth:       nil,
+			engineName: "custom",
+			want:       nil,
+		},
+		{
+			name: "oauth strategy with both client id and secret refs",
+			auth: &workflow.AuthDefinition{
+				Strategy:        workflow.AuthStrategyOAuthClientCreds,
+				ClientIDRef:     "OAUTH_CLIENT_ID",
+				ClientSecretRef: "OAUTH_CLIENT_SECRET",
+			},
+			engineName: "myengine",
+			want: []SecretRequirement{
+				{
+					Name:           "OAUTH_CLIENT_ID",
+					WhenNeeded:     "OAuth client ID for myengine engine",
+					Description:    "GitHub Actions secret holding the OAuth 2.0 client ID used to obtain access tokens.",
+					IsEngineSecret: true,
+					EngineName:     "myengine",
+				},
+				{
+					Name:           "OAUTH_CLIENT_SECRET",
+					WhenNeeded:     "OAuth client secret for myengine engine",
+					Description:    "GitHub Actions secret holding the OAuth 2.0 client secret used to obtain access tokens.",
+					IsEngineSecret: true,
+					EngineName:     "myengine",
+				},
+			},
+		},
+		{
+			name: "oauth strategy with only client id ref",
+			auth: &workflow.AuthDefinition{
+				Strategy:    workflow.AuthStrategyOAuthClientCreds,
+				ClientIDRef: "OAUTH_CLIENT_ID",
+			},
+			engineName: "myengine",
+			want: []SecretRequirement{
+				{
+					Name:           "OAUTH_CLIENT_ID",
+					WhenNeeded:     "OAuth client ID for myengine engine",
+					Description:    "GitHub Actions secret holding the OAuth 2.0 client ID used to obtain access tokens.",
+					IsEngineSecret: true,
+					EngineName:     "myengine",
+				},
+			},
+		},
+		{
+			name: "oauth strategy with only client secret ref",
+			auth: &workflow.AuthDefinition{
+				Strategy:        workflow.AuthStrategyOAuthClientCreds,
+				ClientSecretRef: "OAUTH_CLIENT_SECRET",
+			},
+			engineName: "myengine",
+			want: []SecretRequirement{
+				{
+					Name:           "OAUTH_CLIENT_SECRET",
+					WhenNeeded:     "OAuth client secret for myengine engine",
+					Description:    "GitHub Actions secret holding the OAuth 2.0 client secret used to obtain access tokens.",
+					IsEngineSecret: true,
+					EngineName:     "myengine",
+				},
+			},
+		},
+		{
+			name: "oauth strategy with neither ref returns empty",
+			auth: &workflow.AuthDefinition{
+				Strategy: workflow.AuthStrategyOAuthClientCreds,
+			},
+			engineName: "myengine",
+			want:       nil,
+		},
+		{
+			name: "api-key strategy with secret",
+			auth: &workflow.AuthDefinition{
+				Strategy: workflow.AuthStrategyAPIKey,
+				Secret:   "MY_API_KEY",
+			},
+			engineName: "myengine",
+			want: []SecretRequirement{
+				{
+					Name:           "MY_API_KEY",
+					WhenNeeded:     "API key or token for myengine engine",
+					Description:    "GitHub Actions secret holding the API key or bearer token for provider authentication.",
+					IsEngineSecret: true,
+					EngineName:     "myengine",
+				},
+			},
+		},
+		{
+			name: "bearer strategy with secret",
+			auth: &workflow.AuthDefinition{
+				Strategy: workflow.AuthStrategyBearer,
+				Secret:   "MY_BEARER_TOKEN",
+			},
+			engineName: "myengine",
+			want: []SecretRequirement{
+				{
+					Name:           "MY_BEARER_TOKEN",
+					WhenNeeded:     "API key or token for myengine engine",
+					Description:    "GitHub Actions secret holding the API key or bearer token for provider authentication.",
+					IsEngineSecret: true,
+					EngineName:     "myengine",
+				},
+			},
+		},
+		{
+			name: "unset strategy with secret defaults to direct secret handling",
+			auth: &workflow.AuthDefinition{
+				Secret: "DEFAULT_SECRET",
+			},
+			engineName: "myengine",
+			want: []SecretRequirement{
+				{
+					Name:           "DEFAULT_SECRET",
+					WhenNeeded:     "API key or token for myengine engine",
+					Description:    "GitHub Actions secret holding the API key or bearer token for provider authentication.",
+					IsEngineSecret: true,
+					EngineName:     "myengine",
+				},
+			},
+		},
+		{
+			name: "default strategy branch with empty secret returns empty",
+			auth: &workflow.AuthDefinition{
+				Strategy: workflow.AuthStrategyAPIKey,
+			},
+			engineName: "myengine",
+			want:       nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := secretRequirementsFromAuthDefinition(tt.auth, tt.engineName)
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

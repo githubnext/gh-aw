@@ -114,6 +114,7 @@ describe("handle_agent_failure", () => {
       unknownModelAICredits: false,
       missingModelPricingError: false,
       missingModelPricingModelName: "",
+      shellExpansionGuardRejected: false,
     };
 
     const cases = [
@@ -126,6 +127,7 @@ describe("handle_agent_failure", () => {
       { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow failed to mint GitHub App token" },
       { flag: "hasLockdownCheckFailed", expected: "[aw] Test Workflow failed lockdown check" },
       { flag: "hasStaleLockFileFailed", expected: "[aw] Test Workflow has stale lock file" },
+      { flag: "shellExpansionGuardRejected", expected: "[aw] Test Workflow hit shell expansion guard rejection" },
       { flag: "isTimedOut", expected: "[aw] Test Workflow timed out" },
       { flag: "hasToolDenialsExceeded", expected: "[aw] Test Workflow exceeded tool denial limit" },
       { flag: "hasCacheMissMisconfiguration", expected: "[aw] Test Workflow has cache-memory miss misconfiguration" },
@@ -146,6 +148,10 @@ describe("handle_agent_failure", () => {
 
     it("prefers unknownModelAICredits over isTimedOut when both are true", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, unknownModelAICredits: true, isTimedOut: true })).toBe("[aw] Test Workflow has unknown model pricing");
+    });
+
+    it("prefers shellExpansionGuardRejected over isTimedOut when both are true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, shellExpansionGuardRejected: true, isTimedOut: true })).toBe("[aw] Test Workflow hit shell expansion guard rejection");
     });
 
     it("returns missing model pricing title with model name when missingModelPricingError is true", () => {
@@ -505,6 +511,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_AGENT_CONCLUSION;
       delete process.env.GH_AW_FAILURE_REPORT_AS_ISSUE;
       delete process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT;
+      delete process.env.GH_AW_SHELL_EXPANSION_GUARD_REJECTED;
       delete process.env.GITHUB_HEAD_REF;
       delete process.env.GITHUB_WORKSPACE;
       if (tmpDir && fs.existsSync(tmpDir)) {
@@ -1048,6 +1055,45 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
       expect(createCall.title).toBe("[aw] Test Workflow timed out");
+    });
+
+    it("uses shell expansion guard title instead of timeout when both flags are present", async () => {
+      const createIssueMock = vi.fn(async () => ({
+        data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_123" },
+      }));
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), "{shell_expansion_guard_rejected_context}{timeout_context}{engine_failure_context}");
+      fs.writeFileSync(path.join(promptsDir, "agent_timeout.md"), "TIMEOUT TEMPLATE");
+      fs.writeFileSync(path.join(promptsDir, "shell_expansion_guard_rejected.md"), "SHELL GUARD TEMPLATE");
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT = "true";
+      process.env.GH_AW_SHELL_EXPANSION_GUARD_REJECTED = "true";
+      process.env.GH_AW_FAILURE_REPORT_AS_ISSUE = "true";
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: vi.fn(),
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      try {
+        await main();
+      } finally {
+        delete process.env.GH_AW_FAILURE_REPORT_AS_ISSUE;
+      }
+
+      expect(createIssueMock).toHaveBeenCalledOnce();
+      const createCall = createIssueMock.mock.calls[0][0];
+      expect(createCall.title).toBe("[aw] Test Workflow hit shell expansion guard rejection");
+      expect(createCall.body).toContain("SHELL GUARD TEMPLATE");
+      expect(createCall.body).not.toContain("TIMEOUT TEMPLATE");
     });
 
     it("uses a precise missing safe outputs title", async () => {
@@ -2450,6 +2496,7 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(path.join(promptsDir, "engine_rate_limit_429.md"), ENGINE_RATE_LIMIT_TEMPLATE);
       fs.writeFileSync(path.join(promptsDir, "engine_max_runs_exceeded.md"), ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE);
       fs.writeFileSync(path.join(promptsDir, "max_cache_misses_exceeded.md"), ENGINE_MAX_CACHE_MISSES_EXCEEDED_TEMPLATE);
+      fs.writeFileSync(path.join(promptsDir, "shell_expansion_guard_rejected.md"), "SHELL GUARD TEMPLATE");
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
       process.env.RUNNER_TEMP = tmpDir;
       ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
@@ -2459,6 +2506,7 @@ describe("handle_agent_failure", () => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_ENGINE_ID;
       delete process.env.GH_AW_MAX_CACHE_MISSES_EXCEEDED;
+      delete process.env.GH_AW_SHELL_EXPANSION_GUARD_REJECTED;
       delete process.env.GH_AW_OTEL_JSONL_PATH;
       delete process.env.RUNNER_TEMP;
       // Clean up temp dir
@@ -2534,6 +2582,20 @@ describe("handle_agent_failure", () => {
       process.env.GH_AW_MAX_CACHE_MISSES_EXCEEDED = "true";
       const result = buildEngineFailureContext();
       expect(result).toContain("Engine Cache Miss Limit Exceeded");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context for shell expansion guard rejections in stdio logs", () => {
+      fs.writeFileSync(stdioLogPath, "Command rejected: shell command contains dangerous patterns that could enable arbitrary code execution. Please rewrite the command without these expansion patterns.\n");
+      const result = buildEngineFailureContext();
+      expect(result).toContain("SHELL GUARD TEMPLATE");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context when shell expansion guard rejection is only present in detection output", () => {
+      fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
+      const result = buildEngineFailureContext({ shellExpansionGuardRejected: true });
+      expect(result).toContain("SHELL GUARD TEMPLATE");
       expect(result).not.toContain("Last agent output");
     });
 
@@ -5437,6 +5499,15 @@ describe("handle_agent_failure", () => {
         missingModelPricingError: true,
       });
       expect(categories).toContain("missing_model_pricing");
+    });
+
+    it("returns shell_expansion_guard_rejected category when shellExpansionGuardRejected is true", () => {
+      const categories = buildFailureMatchCategories({
+        agentConclusion: "failure",
+        shellExpansionGuardRejected: true,
+      });
+      expect(categories).toContain("shell_expansion_guard_rejected");
+      expect(categories).not.toContain("agent_failure");
     });
 
     it("does not return missing_model_pricing category when missingModelPricingError is false", () => {
