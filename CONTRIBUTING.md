@@ -407,6 +407,10 @@ The following licenses are **not allowed** as they conflict with our MIT license
 - **SSPL** - Server Side Public License with restrictive requirements
 - **Proprietary/Commercial** - Closed-source licenses requiring payment or special terms
 
+### Container Base OS Packages
+
+The license policy in `.grant.yaml` is also applied to the container images referenced by compiled workflows (`gh aw compile --grant`). Base OS packages that ship with the Alpine base image (`busybox`, `apk-tools`, `alpine-baselayout`, `musl-utils`, `scanelf`, `ssl_client`, `ca-certificates`, `zlib`, and their variants) are listed under `ignore-packages` as a documented exception: they are executed as part of a third-party image, never linked into or redistributed with gh-aw, and cannot be changed without replacing the upstream image. Every other package in those images is still evaluated against the allowlist above.
+
 ### Before Adding a Dependency
 
 GitHub Copilot Agent automatically checks licenses when adding dependencies. However, if you're evaluating a dependency:
