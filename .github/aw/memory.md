@@ -92,6 +92,20 @@ tools:
       retention-days: 14
 ```
 
+### Custom validation
+
+For domain-specific constraints beyond `allowed-extensions` (schema checks, cross-file uniqueness, timestamp policies), add `validation.script` — a Node.js script body (globals: `fs`, `path`, `memoryRoot`, `memoryId`, `memoryKind`) run over the memory directory after agent execution and before persistence. Throwing, returning `false`, timing out, or exiting nonzero rejects the save. Default timeout 1 minute (`validation.timeout-minutes`, max 5). Same mechanism for `repo-memory`. See [cache-memory reference](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/cache-memory.md#custom-validation) and [repo-memory reference](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/repo-memory.md#custom-validation).
+
+```yaml
+tools:
+  cache-memory:
+    validation:
+      timeout-minutes: 1
+      script: |
+        const index = JSON.parse(fs.readFileSync(path.join(memoryRoot, "index.json"), "utf8"));
+        if (!Array.isArray(index.entries)) throw new Error("index.json entries must be an array");
+```
+
 ### Storage path
 
 - Single cache: `/tmp/gh-aw/cache-memory/`

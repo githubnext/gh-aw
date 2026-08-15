@@ -258,6 +258,7 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 
 // TestAgentFriendlyOutputFailureScenario tests output for a failed workflow
 func TestAgentFriendlyOutputFailureScenario(t *testing.T) {
+	t.Parallel()
 	// Create a failed workflow scenario
 	run := WorkflowRun{
 		DatabaseID:   111222,

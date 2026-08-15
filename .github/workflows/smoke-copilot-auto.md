@@ -18,6 +18,7 @@ engine:
   bare: true
 imports:
   - shared/smoke-test-brevity.md
+  - shared/reporting.md
 tools:
   github:
     mode: gh-proxy

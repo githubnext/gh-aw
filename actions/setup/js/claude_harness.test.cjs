@@ -691,6 +691,29 @@ process.exit(1);
       expect(result.stderr).toContain("maximum LLM invocations exceeded — not retrying");
     });
 
+    it("exits 0 without retrying when max invocations are exceeded but safe-outputs already contain the expected result", () => {
+      const tempDir = makeHarnessTempDir("claude-harness-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      fs.writeFileSync(safeOutputsPath, '{"type":"add_comment","body":"ADR reviewed"}\n', "utf8");
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (priorCalls > 0) {
+  process.stderr.write("unexpected retry after max_runs_exceeded\\n");
+  process.exit(9);
+}
+process.stderr.write('{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20)."}}\\n');
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript, extraEnv: { GH_AW_SAFE_OUTPUTS: safeOutputsPath } });
+      expect(result.status).toBe(0);
+      expect(calls.length).toBe(1);
+      expect(result.stderr).toContain("invocation cap saturated but safe-outputs already contain expected output");
+    });
+
     it("returns true for normal partial-execution retry", () => {
       const result = shouldRetryWithContinue({
         attempt: 0,

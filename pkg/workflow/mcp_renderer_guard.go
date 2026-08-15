@@ -59,6 +59,7 @@ func renderGuardPoliciesJSON(yaml *strings.Builder, policies map[string]any, ind
 	if len(policies) == 0 {
 		return
 	}
+	mcpRendererLog.Printf("Rendering %d guard-policies entries as JSON", len(policies))
 
 	// Marshal to JSON with indentation, then re-indent to match the current indent level
 	jsonBytes, err := json.MarshalIndent(policies, indent, "  ")
@@ -83,6 +84,7 @@ func renderGuardPoliciesToml(yaml *strings.Builder, policies map[string]any, ser
 	if len(policies) == 0 {
 		return
 	}
+	mcpRendererLog.Printf("Rendering %d guard-policies entries as TOML for server %s", len(policies), serverID)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + serverID + ".\"guard-policies\"]\n")

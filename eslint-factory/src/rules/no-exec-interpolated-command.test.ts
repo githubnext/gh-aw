@@ -47,6 +47,14 @@ describe("no-exec-interpolated-command", () => {
         { code: `(function(cmd) { exec.exec(cmd, []); })("git");` },
         // Cross-function binding is intentionally out of scope
         { code: "function outer(branch) { const cmd = `git checkout ${branch}`; function inner() { exec.exec(cmd, []); } }" },
+        // Static template literal with a chained string method — still static, safe
+        { code: "exec.exec(`git`.trim(), [branch]);" },
+        // Fully static concatenation with a chained string method — safe
+        { code: `exec.exec(("git" + " checkout").toLowerCase(), [branch]);` },
+        // Static replace with static arguments — safe
+        { code: `exec.exec("git-checkout".replace("-", " "), [branch]);` },
+        // Static replace with a fully static replacer callback — safe
+        { code: `exec.exec("git-checkout".replace("-", () => " "), [branch]);` },
       ],
       invalid: [
         // Template literal with interpolation as command
@@ -97,6 +105,41 @@ describe("no-exec-interpolated-command", () => {
         // Variable holds dynamic string concatenation — must be flagged (indirection)
         {
           code: `const cmd = "git checkout " + branchName; exec.exec(cmd, []);`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } }],
+        },
+        // Chained .trim() must not defeat the check
+        {
+          code: "exec.exec(`git checkout ${branch}`.trim(), []);",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Chained .toLowerCase() must not defeat the check
+        {
+          code: "exec.exec(`git log --author=${author}`.toLowerCase(), []);",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Chained string methods on a dynamic concatenation are also flagged
+        {
+          code: `exec.exec(("git checkout " + branchName).trim(), []);`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } }],
+        },
+        // Chained string method on a variable holding a dynamic command
+        {
+          code: "function run(branch) { const cmd = `git checkout ${branch}`; exec.exec(cmd.trim(), []); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Dynamic replacement argument on a static receiver is also flagged
+        {
+          code: 'exec.exec("git checkout PLACEHOLDER".replace("PLACEHOLDER", `${branch}-x`), []);',
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Replacer callback returning a dynamic template literal is also flagged
+        {
+          code: 'exec.exec("git checkout PLACEHOLDER".replace("PLACEHOLDER", () => `${branch}-x`), []);',
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Replacer callback with a block body / return statement is also flagged
+        {
+          code: 'exec.exec("git checkout PLACEHOLDER".replaceAll("PLACEHOLDER", function() { return "x-" + branch; }), []);',
           errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } }],
         },
         // Chained aliases are also flagged when they resolve to a dynamic command

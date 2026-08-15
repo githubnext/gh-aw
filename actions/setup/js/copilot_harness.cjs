@@ -1277,6 +1277,10 @@ async function main() {
               log(`attempt ${attempt + 1}: AI credits budget enforced — exiting 0 (budget control, not an error)`);
               return { action: "stop", exitCode: 0 };
             }
+            if (isInvocationCapExceeded && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+              log(`attempt ${attempt + 1}: invocation cap saturated but safe-outputs already contain expected output — suppressing terminal verdict (false-red: core work succeeded)`);
+              return { action: "stop", exitCode: 0 };
+            }
             return { action: "stop" };
           }
 

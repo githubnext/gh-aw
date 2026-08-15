@@ -34,6 +34,14 @@
  *     Detected from the agent stdio log (text pattern) and the AWF firewall audit
  *     JSONL log (`unknown_model_ai_credits` event type). Both sources are checked
  *     and their results merged.
+ *   - shell_expansion_guard_rejected: The sandbox's shell command-injection guard
+ *     rejected a shell command for containing (or appearing to contain) bash
+ *     expansion patterns (command substitution, indirect expansion, parameter
+ *     transformation, etc.), e.g. "...could enable arbitrary code execution.
+ *     Please rewrite the command without these expansion patterns." This can
+ *     misfire on benign multi-line `printf`/`safeoutputs` CLI invocations; agents
+ *     should switch to the `jq -Rs` file-piping pattern instead of retrying the
+ *     same command verbatim.
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
  *
@@ -173,6 +181,16 @@ const INVOCATION_CAP_EXCEEDED_PATTERN = buildCombinedPattern(MAX_RUNS_EXCEEDED_P
 // parseMaxCacheMissesExceededFromEventLog().
 const MAX_CACHE_MISSES_EXCEEDED_PATTERN = /(?:\bmax_cache_misses_exceeded\b|\bmaximum\s+consecutive\s+cache\s+misses\s+exceeded\b)/i;
 
+// Pattern: the sandbox's shell command-injection guard rejected a shell command believed to
+// contain dangerous bash expansion patterns (command substitution, indirect expansion, parameter
+// transformation, backtick substitution, etc.). Observed message form:
+//   "...indirect expansion, or nested command substitution) that could enable arbitrary code
+//   execution. Please rewrite the command without these expansion patterns."
+// This guard can misfire on benign multi-line printf/safeoutputs CLI invocations. Retrying the
+// identical command is pointless — it will be rejected again — so this is surfaced as a distinct,
+// actionable diagnostic instead of a generic shell failure.
+const SHELL_EXPANSION_GUARD_REJECTED_PATTERN = /could enable arbitrary code execution\b[\s\S]{0,200}?\brewrite the command without these expansion patterns\b/i;
+
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
  * @param {string} output - Collected stdout+stderr from the process
@@ -206,6 +224,18 @@ function isMaxCacheMissesExceededError(output) {
 }
 
 /**
+ * Determines if the collected output shows the sandbox's shell command-injection guard
+ * rejected a command for containing (or appearing to contain) dangerous bash expansion
+ * patterns. Retrying the same command verbatim will not succeed; the agent should switch
+ * to the `jq -Rs` file-piping pattern for multi-line safeoutputs CLI bodies instead.
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isShellExpansionGuardRejectedError(output) {
+  return SHELL_EXPANSION_GUARD_REJECTED_PATTERN.test(output);
+}
+
+/**
  * Normalize model names to a single safe line for GitHub Actions outputs and issue titles.
  * @param {string} value
  * @returns {string}
@@ -227,7 +257,7 @@ function extractMissingModelPricingModelName(logContent) {
 /**
  * Detect known error patterns in a log string and return detection results.
  * @param {string} logContent - Contents of the agent stdio log
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string, shellExpansionGuardRejected: boolean }}
  */
 function detectErrors(logContent) {
   const missingModelPricingModelName = extractMissingModelPricingModelName(logContent);
@@ -242,12 +272,13 @@ function detectErrors(logContent) {
     maxCacheMissesExceeded: isMaxCacheMissesExceededError(logContent),
     missingModelPricingError: missingModelPricingModelName !== "",
     missingModelPricingModelName,
+    shellExpansionGuardRejected: isShellExpansionGuardRejectedError(logContent),
   };
 }
 
 /**
  * Build GitHub Actions output lines from detection results.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string, shellExpansionGuardRejected: boolean }} results
  * @returns {string[]}
  */
 function buildOutputLines(results) {
@@ -263,12 +294,13 @@ function buildOutputLines(results) {
     `max_cache_misses_exceeded=${results.maxCacheMissesExceeded}`,
     `missing_model_pricing_error=${results.missingModelPricingError}`,
     `missing_model_pricing_model_name=${results.missingModelPricingModelName}`,
+    `shell_expansion_guard_rejected=${results.shellExpansionGuardRejected}`,
   ];
 }
 
 /**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string, shellExpansionGuardRejected: boolean }} results
  */
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -351,6 +383,11 @@ function main() {
   if (results.missingModelPricingError && !auditMissingPricing) {
     process.stderr.write(`[detect-agent-errors] Detected missing model pricing: model "${results.missingModelPricingModelName}" has no AI credits pricing configured\n`);
   }
+  if (results.shellExpansionGuardRejected) {
+    process.stderr.write(
+      "[detect-agent-errors] Detected sandbox shell expansion guard rejection: a shell command was rejected for dangerous bash expansion patterns; use the jq -Rs file-piping pattern for multi-line safeoutputs CLI bodies instead of retrying\n"
+    );
+  }
 
   writeOutputs(results);
 }
@@ -378,5 +415,7 @@ module.exports = {
   INVOCATION_CAP_EXCEEDED_PATTERN,
   MAX_CACHE_MISSES_EXCEEDED_PATTERN,
   MISSING_MODEL_PRICING_PATTERN,
+  SHELL_EXPANSION_GUARD_REJECTED_PATTERN,
+  isShellExpansionGuardRejectedError,
   buildOutputLines,
 };
