@@ -299,7 +299,8 @@ function getMissingEnvVarNamesForServer(serverConfig, env = process.env) {
     }
     for (const match of matches) {
       const varName = match[1];
-      if (!env[varName] || env[varName].trim() === "") {
+      const envValue = env[varName];
+      if (envValue == null || envValue.trim() === "") {
         missing.add(varName);
       }
     }
@@ -974,7 +975,7 @@ async function main() {
   const omittedRequiredServers = findOmittedRequiredMCPServers(configObj, gatewayOutput, optionalServerNames);
   if (omittedRequiredServers.length > 0) {
     const message = formatOmittedRequiredMCPServersMessage(omittedRequiredServers);
-    core.error(`ERROR: ${message}`);
+    core.error(message);
     try {
       process.kill(gatewayPid);
     } catch {
