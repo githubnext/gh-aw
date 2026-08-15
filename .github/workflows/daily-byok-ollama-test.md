@@ -39,6 +39,7 @@ steps:
     env:
       OLLAMA_HOST: "0.0.0.0:11434"
       OLLAMA_LOG: "/tmp/gh-aw/ollama-serve.log"
+    # runner-guard:ignore RGS-012 -- loopback-only readiness probes to the Ollama service started in this step; no secrets are sent.
     run: |
       sudo systemctl stop ollama 2>/dev/null || true
       sleep 2
@@ -66,6 +67,7 @@ steps:
     env:
       OLLAMA_MODEL: "qwen2.5:0.5b"
       OLLAMA_LOG: "/tmp/gh-aw/ollama-serve.log"
+    # runner-guard:ignore RGS-012 -- loopback-only model warm-up request to the local Ollama service.
     run: |
       # Force Ollama to load the model into memory before the agent runs.
       # A cold model (not yet loaded) can cause the OpenAI-compatible /v1/chat/completions
@@ -108,6 +110,7 @@ steps:
   - name: Verify Ollama BYOK readiness
     env:
       OLLAMA_MODEL: "qwen2.5:0.5b"
+    # runner-guard:ignore RGS-012 -- loopback-only readiness probe for the local Ollama service; no secrets are sent.
     run: |
       echo "Checking Ollama model availability..."
       if ! ollama list | grep -Fq "$OLLAMA_MODEL"; then
@@ -131,6 +134,7 @@ steps:
   - name: Test Ollama chat completions outside AWF
     env:
       OLLAMA_MODEL: "qwen2.5:0.5b"
+    # runner-guard:ignore RGS-012 -- loopback-only inference request to the local Ollama service.
     run: |
       RESPONSE_FILE=/tmp/gh-aw/ollama-chat-response.json
       # runner-guard:ignore RGS-012 -- loopback-only inference request to the local Ollama service.
