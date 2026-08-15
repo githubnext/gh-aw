@@ -109,7 +109,7 @@ function resolveSyncExecMethod(node: TSESTree.CallExpression, sourceCode: TSESLi
   return null;
 }
 
-/** Returns true when the options-object argument for the call statically carries a non-nullish `timeout` property. */
+/** Returns true when the options-object argument for the call statically carries a positive `timeout` property. */
 function hasTimeoutOption(node: TSESTree.CallExpression, method: SyncExecMethod): boolean {
   const optionsArg = getOptionsArgument(node, method);
   if (!optionsArg) return false;
@@ -127,8 +127,11 @@ function hasTimeoutOption(node: TSESTree.CallExpression, method: SyncExecMethod)
     if (!isTimeoutProp) continue;
 
     const value = prop.value;
-    const isNullish = (value.type === AST_NODE_TYPES.Literal && value.value == null) || (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined");
-    if (!isNullish) return true;
+    const isMissingTimeout =
+      (value.type === AST_NODE_TYPES.Literal && (value.value == null || (typeof value.value === "number" && value.value <= 0))) ||
+      (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "-" && value.argument.type === AST_NODE_TYPES.Literal && typeof value.argument.value === "number") ||
+      (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined");
+    if (!isMissingTimeout) return true;
   }
 
   return false;
@@ -147,7 +150,8 @@ export const requireSyncExecTimeoutRule = createRule({
     },
     schema: [],
     messages: {
-      requireTimeout: "{{method}}({{arg}}) has no `timeout` option. Pass `{ timeout: <ms>, ...otherOptions }` so a hung or runaway child process cannot block the job indefinitely.",
+      requireTimeout:
+        "{{method}}({{arg}}) has no positive `timeout` option. `timeout: 0` disables the timeout; pass `{ timeout: <positive milliseconds>, ...otherOptions }` so a hung or runaway child process cannot block the job indefinitely.",
     },
   },
   defaultOptions: [],

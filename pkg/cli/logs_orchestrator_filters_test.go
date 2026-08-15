@@ -30,8 +30,9 @@ func makeDownloadResult(t *testing.T, awInfoJSON string) DownloadResult {
 	if awInfoJSON != "" {
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "aw_info.json"), []byte(awInfoJSON), 0644))
 	}
-	return DownloadResult{
-		Run:      WorkflowRun{DatabaseID: 42},
+	return DownloadResult{RunAnalysis: RunAnalysis{
+		Run: WorkflowRun{DatabaseID: 42},
+	},
 		LogsPath: tmpDir,
 	}
 }
@@ -213,7 +214,7 @@ func TestApplyRunFilters_SafeOutputType(t *testing.T) {
 		tmpDir := t.TempDir()
 		agentOutput := `{"items":[{"type":"create-issue"}]}`
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent_output.json"), []byte(agentOutput), 0644))
-		result := DownloadResult{Run: WorkflowRun{DatabaseID: 1}, LogsPath: tmpDir}
+		result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{DatabaseID: 1}}, LogsPath: tmpDir}
 		skip := applyRunFilters(context.Background(), result, runFilterOpts{safeOutputType: "create-issue"}, false)
 		assert.False(t, skip)
 	})
@@ -222,7 +223,7 @@ func TestApplyRunFilters_SafeOutputType(t *testing.T) {
 		tmpDir := t.TempDir()
 		agentOutput := `{"items":[{"type":"add-comment"}]}`
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent_output.json"), []byte(agentOutput), 0644))
-		result := DownloadResult{Run: WorkflowRun{DatabaseID: 2}, LogsPath: tmpDir}
+		result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{DatabaseID: 2}}, LogsPath: tmpDir}
 		skip := applyRunFilters(context.Background(), result, runFilterOpts{safeOutputType: "create-issue"}, false)
 		assert.True(t, skip)
 	})
@@ -233,7 +234,7 @@ func TestApplyRunFilters_FilteredIntegrity(t *testing.T) {
 		tmpDir := t.TempDir()
 		gatewayLog := `{"timestamp":"2025-01-01T00:00:00Z","type":"DIFC_FILTERED","server_id":"github","tool_name":"create_issue","reason":"integrity"}` + "\n"
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "gateway.jsonl"), []byte(gatewayLog), 0644))
-		result := DownloadResult{Run: WorkflowRun{DatabaseID: 5}, LogsPath: tmpDir}
+		result := DownloadResult{RunAnalysis: RunAnalysis{Run: WorkflowRun{DatabaseID: 5}}, LogsPath: tmpDir}
 
 		skip := applyRunFilters(context.Background(), result, runFilterOpts{filteredIntegrity: true}, false)
 
@@ -257,14 +258,15 @@ func TestBuildProcessedRun(t *testing.T) {
 		now := time.Now()
 		tmpDir := t.TempDir()
 		awCtx := &AwContext{Repo: "owner/repo"}
-		result := DownloadResult{
+		result := DownloadResult{RunAnalysis: RunAnalysis{
 			Run: WorkflowRun{
 				DatabaseID: 1234,
 				StartedAt:  now.Add(-5 * time.Minute),
 				UpdatedAt:  now,
 			},
-			LogsPath:  tmpDir,
 			AwContext: awCtx,
+		},
+			LogsPath: tmpDir,
 		}
 
 		pr := buildProcessedRun(context.Background(), result, false, false)
@@ -279,12 +281,13 @@ func TestBuildProcessedRun(t *testing.T) {
 	t.Run("duration and action minutes are computed", func(t *testing.T) {
 		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
 		base := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
-		result := DownloadResult{
+		result := DownloadResult{RunAnalysis: RunAnalysis{
 			Run: WorkflowRun{
 				DatabaseID: 999,
 				StartedAt:  base,
 				UpdatedAt:  base.Add(90 * time.Second), // 1.5 minutes
 			},
+		},
 			LogsPath: t.TempDir(),
 		}
 
@@ -296,8 +299,9 @@ func TestBuildProcessedRun(t *testing.T) {
 
 	t.Run("zero timestamps leave duration unset", func(t *testing.T) {
 		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
-		result := DownloadResult{
-			Run:      WorkflowRun{DatabaseID: 7},
+		result := DownloadResult{RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{DatabaseID: 7},
+		},
 			LogsPath: t.TempDir(),
 		}
 		pr := buildProcessedRun(context.Background(), result, false, false)
@@ -308,10 +312,11 @@ func TestBuildProcessedRun(t *testing.T) {
 	t.Run("effective tokens are propagated", func(t *testing.T) {
 		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
 		usage := &TokenUsageSummary{TotalEffectiveTokens: 5000}
-		result := DownloadResult{
+		result := DownloadResult{RunAnalysis: RunAnalysis{
 			Run:        WorkflowRun{DatabaseID: 3},
-			LogsPath:   t.TempDir(),
 			TokenUsage: usage,
+		},
+			LogsPath: t.TempDir(),
 		}
 		pr := buildProcessedRun(context.Background(), result, false, false)
 		assert.Equal(t, 5000, pr.Run.EffectiveTokens)
@@ -320,10 +325,11 @@ func TestBuildProcessedRun(t *testing.T) {
 	t.Run("zero effective tokens not propagated", func(t *testing.T) {
 		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
 		usage := &TokenUsageSummary{TotalEffectiveTokens: 0}
-		result := DownloadResult{
+		result := DownloadResult{RunAnalysis: RunAnalysis{
 			Run:        WorkflowRun{DatabaseID: 4},
-			LogsPath:   t.TempDir(),
 			TokenUsage: usage,
+		},
+			LogsPath: t.TempDir(),
 		}
 		pr := buildProcessedRun(context.Background(), result, false, false)
 		assert.Equal(t, 0, pr.Run.EffectiveTokens)
@@ -340,8 +346,9 @@ func TestBuildProcessedRun(t *testing.T) {
 			assert.Equal(t, "abc123", fetchCtx.Value(key))
 			return 2, nil
 		})
-		result := DownloadResult{
-			Run:      WorkflowRun{DatabaseID: 88},
+		result := DownloadResult{RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{DatabaseID: 88},
+		},
 			LogsPath: t.TempDir(),
 		}
 

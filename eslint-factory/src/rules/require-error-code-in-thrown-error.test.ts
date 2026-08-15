@@ -23,6 +23,8 @@ describe("require-error-code-in-thrown-error", () => {
         `const { ERR_NOT_FOUND } = require("./error_codes.cjs"); throw new Error(\`\${ERR_NOT_FOUND}: Issue #1 not found\`);`,
         `const { ERR_API } = require("./error_codes.cjs"); throw new Error(ERR_API + ": failed to fetch");`,
         `const { ERR_VALIDATION } = require("./error_codes.cjs"); throw new Error("ERR_VALIDATION: missing field");`,
+        `const { SAFE_OUTPUT_E099 } = require("./error_codes.cjs"); throw new Error(\`\${SAFE_OUTPUT_E099}: failed to fetch\`);`,
+        `const { MY_PREFIX_ERR_CONFIG } = require("./error_codes.cjs"); throw new Error(\`\${MY_PREFIX_ERR_CONFIG}: invalid configuration\`);`,
         `const { ERR_API } = require("./error_codes.cjs"); class CustomError extends Error {} throw new CustomError(\`\${ERR_API}: failed to fetch\`);`,
         `const { ERR_API } = require("./error_codes.cjs"); class A extends Error {} class B extends A {} throw new B(ERR_API + ": failed to fetch");`,
       ],
@@ -40,6 +42,22 @@ describe("require-error-code-in-thrown-error", () => {
         },
         {
           code: `const { ERR_API } = require("./error_codes.cjs"); function f(id) { throw new Error("Cannot mark issue as duplicate of " + id); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { MY_PREFIX_ERROR_CONFIG } = require("./error_codes.cjs"); function f() { throw new Error(\`\${MY_PREFIX_ERROR_CONFIG}: invalid configuration\`); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { SAFE_OUTPUT_E099X } = require("./error_codes.cjs"); function f() { throw new Error(\`\${SAFE_OUTPUT_E099X}: invalid configuration\`); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { ERR_CONFIGmore } = require("./error_codes.cjs"); function f() { throw new Error(\`\${ERR_CONFIGmore}: invalid configuration\`); }`,
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+        {
+          code: `const { FOOERR_CONFIG } = require("./error_codes.cjs"); function f() { throw new Error(\`\${FOOERR_CONFIG}: invalid configuration\`); }`,
           errors: [{ messageId: "missingErrorCode" }],
         },
         {

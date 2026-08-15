@@ -120,9 +120,10 @@ func TestBackfillRunTokenUsageFromFirewall(t *testing.T) {
 
 	t.Run("does not overwrite non-zero event token usage", func(t *testing.T) {
 		metrics := LogMetrics{TokenUsage: 123}
-		result := DownloadResult{
+		result := DownloadResult{RunAnalysis: RunAnalysis{
 			Run:     WorkflowRun{TokenUsage: 123},
 			Metrics: LogMetrics{TokenUsage: 123},
+		},
 		}
 		tokenUsage := &TokenUsageSummary{
 			TotalInputTokens:  2000,
@@ -143,8 +144,10 @@ func TestTryLoadCachedRunResultBypassesForExplicitEvalsArtifactRequest(t *testin
 		CLIVersion:  GetVersion(),
 		RunID:       123,
 		ProcessedAt: time.Now(),
-		Run: WorkflowRun{
-			DatabaseID: 123,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{
+				DatabaseID: 123,
+			},
 		},
 	}
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
@@ -165,8 +168,10 @@ func TestTryLoadCachedRunResultUsesCacheWhenEvalsNotRequested(t *testing.T) {
 		CLIVersion:  GetVersion(),
 		RunID:       124,
 		ProcessedAt: time.Now(),
-		Run: WorkflowRun{
-			DatabaseID: 124,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{
+				DatabaseID: 124,
+			},
 		},
 	}
 
@@ -189,7 +194,9 @@ func TestTryLoadCachedRunResultBypassesCacheWhenRequestedArtifactIsMissing(t *te
 		CLIVersion:  GetVersion(),
 		RunID:       125,
 		ProcessedAt: time.Now(),
-		Run:         WorkflowRun{DatabaseID: 125},
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{DatabaseID: 125},
+		},
 	}
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
 	require.NoError(t, markArtifactDownloaded(runOutputDir, "activation"))
@@ -208,7 +215,9 @@ func TestTryLoadCachedRunResultUsesCacheWhenRequestedArtifactsArePresent(t *test
 		CLIVersion:  GetVersion(),
 		RunID:       126,
 		ProcessedAt: time.Now(),
-		Run:         WorkflowRun{DatabaseID: 126},
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{DatabaseID: 126},
+		},
 	}
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
 	require.NoError(t, markArtifactDownloaded(runOutputDir, "activation"))
@@ -229,7 +238,9 @@ func TestTryLoadCachedRunResultRequiresCompleteMarkerForAllArtifacts(t *testing.
 		CLIVersion:  GetVersion(),
 		RunID:       127,
 		ProcessedAt: time.Now(),
-		Run:         WorkflowRun{DatabaseID: 127},
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{DatabaseID: 127},
+		},
 	}
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
 	require.NoError(t, markArtifactDownloaded(runOutputDir, "activation"))
@@ -259,9 +270,11 @@ func TestTryLoadCachedRunResultPersistsSafeItemsCountAfterBackfill(t *testing.T)
 		CLIVersion:  GetVersion(),
 		RunID:       200,
 		ProcessedAt: time.Now(),
-		Run: WorkflowRun{
-			DatabaseID:     200,
-			SafeItemsCount: 0,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{
+				DatabaseID:     200,
+				SafeItemsCount: 0,
+			},
 		},
 	}
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))

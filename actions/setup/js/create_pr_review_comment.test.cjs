@@ -463,6 +463,99 @@ describe("create_pr_review_comment.cjs", () => {
     expect(buffer.getBufferedCount()).toBe(1);
   });
 
+  it("should use the original PR context for centralized slash-command dispatches", async () => {
+    global.context = {
+      eventName: "workflow_dispatch",
+      runId: 12345,
+      repo: { owner: "testowner", repo: "testrepo" },
+      payload: {
+        inputs: {
+          event_name: "issue_comment",
+          event_payload: JSON.stringify({
+            issue: { number: 456, pull_request: {} },
+            repository: mockContext.payload.repository,
+          }),
+        },
+      },
+    };
+    mockGithub.rest.pulls.get.mockResolvedValue({
+      data: { number: 456, head: { sha: "dispatch123abc" } },
+    });
+    const handler = await createHandler({ target: "triggering" });
+    const message = {
+      type: "create_pull_request_review_comment",
+      pull_request_number: 456,
+      path: "src/main.js",
+      line: 5,
+      body: "Review comment from centralized slash command",
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.buffered).toBe(true);
+    expect(result.pull_request_number).toBe(456);
+    expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 456,
+    });
+    expect(buffer.getBufferedCount()).toBe(1);
+  });
+
+  it("falls back to raw context when resolveInvocationContext returns empty object", async () => {
+    const invocationHelpersPath = path.join(__dirname, "invocation_context_helpers.cjs");
+    const invocationHelpers = require(invocationHelpersPath);
+    const resolveInvocationContextSpy = vi.spyOn(invocationHelpers, "resolveInvocationContext").mockReturnValue({});
+    try {
+      const handler = await createHandler({ target: "triggering" });
+      const message = {
+        type: "create_pull_request_review_comment",
+        path: "src/main.js",
+        line: 5,
+        body: "Review comment from fallback context",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.buffered).toBe(true);
+      expect(result.pull_request_number).toBe(123);
+      expect(buffer.getBufferedCount()).toBe(1);
+      expect(resolveInvocationContextSpy).toHaveBeenCalled();
+    } finally {
+      resolveInvocationContextSpy.mockRestore();
+    }
+  });
+
+  it("falls back to raw context when resolveInvocationContext throws a non-validation error", async () => {
+    const invocationHelpersPath = path.join(__dirname, "invocation_context_helpers.cjs");
+    const invocationHelpers = require(invocationHelpersPath);
+    const resolveInvocationContextSpy = vi.spyOn(invocationHelpers, "resolveInvocationContext").mockImplementation(() => {
+      throw new Error("boom");
+    });
+    try {
+      const handler = await createHandler({ target: "triggering" });
+      const message = {
+        type: "create_pull_request_review_comment",
+        path: "src/main.js",
+        line: 5,
+        body: "Review comment from thrown context resolver",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.buffered).toBe(true);
+      expect(result.pull_request_number).toBe(123);
+      expect(buffer.getBufferedCount()).toBe(1);
+      expect(resolveInvocationContextSpy).toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("failed to resolve invocation context"));
+    } finally {
+      resolveInvocationContextSpy.mockRestore();
+    }
+  });
+
   it("should reject comments targeting a different PR than the first comment", async () => {
     // First comment sets context to PR #123
     const handler = await createHandler();
