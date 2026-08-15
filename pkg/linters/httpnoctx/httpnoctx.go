@@ -146,11 +146,16 @@ func isHTTPPackage(pass *analysis.Pass, expr ast.Expr) bool {
 func hasContextInEnclosingFunc(pass *analysis.Pass, cursor inspector.Cursor) bool {
 	for enclosing := range cursor.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
 		fnType := astutil.EnclosingFuncType(enclosing.Node())
-		if fnType == nil || fnType.Params == nil {
+		if fnType == nil {
 			continue
 		}
 		if _, ok := astutil.ContextParamName(pass, fnType); ok {
 			return true
+		}
+		// Stop at a plain closure boundary: a context from an outer scope does
+		// not apply to code running inside a callback closure.
+		if _, isFuncLit := enclosing.Node().(*ast.FuncLit); isFuncLit && !astutil.IsGoOrDeferClosure(enclosing) {
+			return false
 		}
 	}
 
