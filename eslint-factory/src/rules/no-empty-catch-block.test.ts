@@ -71,6 +71,14 @@ describe("no-empty-catch-block", () => {
           errors: [{ messageId: "noEmptyCatch" }],
         },
         {
+          code: `try { risky(); } catch { /* do not fall through */ }`,
+          errors: [{ messageId: "noEmptyCatch" }],
+        },
+        {
+          code: `try { risky(); } catch { /* this is not a no-op */ }`,
+          errors: [{ messageId: "noEmptyCatch" }],
+        },
+        {
           code: `try { risky(); } catch { /* don't swallow exceptions */ }`,
           errors: [{ messageId: "noEmptyCatch" }],
         },
