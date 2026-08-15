@@ -104,7 +104,13 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		return nil, err
 	}
 
-	extensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, owner, repo, packagePath, ref, host, manifest, includeSkillDirs, includeAgentFiles)
+	extensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, repositoryPackageLocation{
+		owner:       owner,
+		repo:        repo,
+		packagePath: packagePath,
+		ref:         ref,
+		host:        host,
+	}, manifest, includeSkillDirs, includeAgentFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -171,11 +177,19 @@ type repositoryPackageExtensionFiles struct {
 	warnings   []string
 }
 
-func resolveRepositoryPackageExtensionFiles(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, includeSkillDirs, includeAgentFiles []string) (*repositoryPackageExtensionFiles, error) {
+type repositoryPackageLocation struct {
+	owner       string
+	repo        string
+	packagePath string
+	ref         string
+	host        string
+}
+
+func resolveRepositoryPackageExtensionFiles(ctx context.Context, packageLocation repositoryPackageLocation, manifest *repositoryPackageManifest, includeSkillDirs, includeAgentFiles []string) (*repositoryPackageExtensionFiles, error) {
 	// Resolve skill files: explicit from manifest or auto-scanned.
 	explicitSkillDirs := append([]string{}, manifest.Skills...)
 	explicitSkillDirs = append(explicitSkillDirs, includeSkillDirs...)
-	skillFiles, skillWarnings, err := resolvePackageSkillFiles(ctx, owner, repo, packagePath, ref, host, explicitSkillDirs)
+	skillFiles, skillWarnings, err := resolvePackageSkillFiles(ctx, packageLocation.owner, packageLocation.repo, packageLocation.packagePath, packageLocation.ref, packageLocation.host, explicitSkillDirs)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +197,7 @@ func resolveRepositoryPackageExtensionFiles(ctx context.Context, owner, repo, pa
 	// Resolve agent files: explicit from manifest or auto-scanned.
 	explicitAgentFiles := append([]string{}, manifest.Agents...)
 	explicitAgentFiles = append(explicitAgentFiles, includeAgentFiles...)
-	agentFiles, agentWarnings, err := resolvePackageAgentFiles(ctx, owner, repo, packagePath, ref, host, explicitAgentFiles)
+	agentFiles, agentWarnings, err := resolvePackageAgentFiles(ctx, packageLocation.owner, packageLocation.repo, packageLocation.packagePath, packageLocation.ref, packageLocation.host, explicitAgentFiles)
 	if err != nil {
 		return nil, err
 	}

@@ -50,7 +50,16 @@ var ghAwInternalSecrets = map[string]bool{
 // e.g. "actions/checkout@abc1234 # v4".
 //
 // Returns a structured, actionable error when violations are found.
-func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool, currentMemoryValidationScripts []GHAWManifestMemoryValidationScript) error {
+type SafeUpdateEnforcementOptions struct {
+	CurrentRedirect                string
+	OldHasPullRequest              bool
+	OldHasPullRequestTarget        bool
+	CurrentHasPullRequest          bool
+	CurrentHasPullRequestTarget    bool
+	CurrentMemoryValidationScripts []GHAWManifestMemoryValidationScript
+}
+
+func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, opts SafeUpdateEnforcementOptions) error {
 	if manifest == nil {
 		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
 		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
@@ -60,9 +69,9 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 
 	secretViolations := collectSecretViolations(manifest, secretNames)
 	addedActions, removedActions := collectActionViolations(manifest, actionRefs)
-	addedRedirect, removedRedirect := collectRedirectViolations(manifest, currentRedirect)
-	memoryValidationScriptChanges := collectMemoryValidationScriptChanges(manifest, currentMemoryValidationScripts)
-	pullRequestTargetEscalation := hasPullRequestTargetEscalation(oldHasPullRequest, oldHasPullRequestTarget, currentHasPullRequest, currentHasPullRequestTarget)
+	addedRedirect, removedRedirect := collectRedirectViolations(manifest, opts.CurrentRedirect)
+	memoryValidationScriptChanges := collectMemoryValidationScriptChanges(manifest, opts.CurrentMemoryValidationScripts)
+	pullRequestTargetEscalation := hasPullRequestTargetEscalation(opts.OldHasPullRequest, opts.OldHasPullRequestTarget, opts.CurrentHasPullRequest, opts.CurrentHasPullRequestTarget)
 
 	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" && len(memoryValidationScriptChanges) == 0 && !pullRequestTargetEscalation {
 		safeUpdateLog.Printf("Safe update check passed (%d secret(s), %d action(s) verified)",
