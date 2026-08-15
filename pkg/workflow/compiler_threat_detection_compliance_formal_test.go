@@ -89,13 +89,10 @@ func TestFormal_RuleTestIDBijection(t *testing.T) {
 	require.Len(t, tests, len(rules))
 	require.True(t, formalHasUniqueTestIDs(mapping))
 
-	seenTestIDs := make(map[string]string, len(mapping))
 	for ruleID, testID := range mapping {
 		_, active := rules[ruleID]
 		require.Truef(t, active, "compliance map contains inactive rule %q", ruleID)
 		require.Equal(t, ruleID, tests[testID], "test ID %q must map to rule %q", testID, ruleID)
-		require.NotContainsf(t, seenTestIDs, testID, "test ID %q is shared by %q and %q", testID, seenTestIDs[testID], ruleID)
-		seenTestIDs[testID] = ruleID
 	}
 }
 
