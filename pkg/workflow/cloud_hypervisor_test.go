@@ -350,15 +350,15 @@ func TestCloudHypervisorShellScriptContent(t *testing.T) {
 	}{
 		{
 			script:   "cloud_hypervisor_kvm_access.sh",
-			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "setfacl", "u:${runner_uid}:rw", "/dev/kvm", "-r /dev/kvm", "-w /dev/kvm"},
+			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "setfacl", "u:${runner_uid}:rw", "/dev/kvm", "-c /dev/kvm", "getfacl -ncp /dev/kvm", "-r /dev/kvm", "-w /dev/kvm"},
 		},
 		{
 			script:   "cloud_hypervisor_host_preflight.sh",
-			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "/dev/kvm", "cloud-hypervisor preview"},
+			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "/dev/kvm", "test -c /dev/kvm", "cloud-hypervisor preview"},
 		},
 		{
 			script:   "cloud_hypervisor_setup_bundle.sh",
-			contains: []string{"cloud-hypervisor-test-x86_64.tar.gz", "cloud-hypervisor-test-x86_64.SHA256SUMS", "cloud-hypervisor-test-x86_64.manifest.json", "vmlinux.bin", "rootfs.ext4", "awf-supervisor", "virtiofsd", "virtiofsd_path=", "virtiofsd_sha256="},
+			contains: []string{"cloud-hypervisor-test-x86_64.tar.gz", "cloud-hypervisor-test-x86_64.SHA256SUMS", "cloud-hypervisor-test-x86_64.manifest.json", "archive structure validated", "tar --no-same-owner --no-same-permissions", "validate_extracted_file", "vmlinux.bin", "rootfs.ext4", "awf-supervisor", "virtiofsd", "virtiofsd_path=", "virtiofsd_sha256="},
 		},
 	}
 

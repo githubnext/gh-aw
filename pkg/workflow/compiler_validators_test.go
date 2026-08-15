@@ -191,7 +191,6 @@ func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 			os.Stderr = w
 			t.Cleanup(func() {
 				os.Stderr = oldStderr
-				_ = w.Close()
 				_ = r.Close()
 			})
 
@@ -216,6 +215,40 @@ func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 			assert.Equal(t, tt.expectedUsage, compiler.GetExperimentalFeatureUsage()[expectedMessage])
 		})
 	}
+}
+
+func TestEmitGeneralToolWarningsCloudHypervisorReviewTrigger(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Runtime: AgentRuntimeCloudHypervisor,
+			},
+		},
+	}
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() {
+		os.Stderr = oldStderr
+		_ = r.Close()
+	})
+
+	compiler.emitGeneralToolWarnings(workflowData, "test.md")
+
+	require.NoError(t, w.Close())
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err)
+	stderrOutput := buf.String()
+
+	assert.Contains(t, stderrOutput, "sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path")
+	assert.Contains(t, stderrOutput, "Require a human security review before merge or rollout")
+	assert.Equal(t, 1, compiler.GetWarningCount())
 }
 
 // TestValidatePermissions tests permission parsing and MCP tool constraint validation.
