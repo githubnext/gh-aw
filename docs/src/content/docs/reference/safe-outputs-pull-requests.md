@@ -186,7 +186,7 @@ safe-outputs:
 
 ## Approve Workflow Run (`approve-workflow-run:`)
 
-Approves a GitHub Actions workflow run that is waiting for the repository's fork pull request approval gate. The agent supplies the positive integer `run_id`; the handler verifies that the run belongs to a pull request and has an `action_required` status before calling GitHub's workflow-run approval API.
+Approves a GitHub Actions workflow run that is waiting for the repository's fork pull request approval gate. The agent supplies the positive integer `run_id`; the handler verifies that the run belongs to a pull request and has a `waiting` status before calling GitHub's workflow-run approval API.
 
 ```yaml wrap
 safe-outputs:
