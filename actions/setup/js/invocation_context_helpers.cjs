@@ -190,7 +190,7 @@ function checkAllowedRepo(workflowRepo, targetRepo) {
 
   const validation = validateTargetRepo(targetRepoSlug, defaultRepo, allowedRepos);
   if (!validation.valid) {
-    throw new Error(`${ERR_VALIDATION}: ${validation.error}`);
+    throw Object.assign(new Error(`${ERR_VALIDATION}: ${validation.error}`), { code: ERR_VALIDATION });
   }
 }
 

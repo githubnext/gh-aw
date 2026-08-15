@@ -13,6 +13,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { isTemplatableTrue, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -39,7 +40,18 @@ async function main(config = {}) {
   const legacyBuffer = registry ? null : config._prReviewBuffer || null;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
-  const invocationContext = resolveInvocationContext(context);
+  let invocationContext = {};
+  try {
+    invocationContext = resolveInvocationContext(context);
+  } catch (error) {
+    const typedError = /** @type {Error & { code?: string }} */ (error);
+    const isValidationError = typedError.code === ERR_VALIDATION;
+    if (isValidationError) {
+      throw error;
+    }
+    const errorMessage = getErrorMessage(error);
+    core.warning(`create_pull_request_review_comment: failed to resolve invocation context, using raw context: ${errorMessage}`);
+  }
   const effectiveEventName = invocationContext.eventName || context.eventName;
   const effectivePayload = invocationContext.eventPayload || context.payload;
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
