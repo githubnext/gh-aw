@@ -45,6 +45,7 @@ imports:
   - shared/sentry.md
   - shared/grafana.md
   - shared/datadog.md
+  - shared/reporting.md
 features:
   gh-aw-detection: false
 sandbox:

@@ -37,6 +37,7 @@ imports:
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/smoke-test-brevity.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults

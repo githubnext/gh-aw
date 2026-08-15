@@ -20203,7 +20203,41 @@ mcp-scripts:
 # workflows are also merged.
 # (optional)
 runtimes:
-  {}
+  # Runtime configuration object identified by runtime ID (e.g., 'node', 'python',
+  # 'go')
+  node:
+    # Runtime version as a string (e.g., '22', '3.12', 'latest') or number (e.g.,
+    # 22, 3.12). Numeric values are automatically converted to strings at runtime.
+    # (optional)
+    version: "example-value"
+
+    # GitHub Actions repository for setting up the runtime (e.g., 'actions/setup-node',
+    # 'custom/setup-runtime'). Overrides the default setup action.
+    # (optional)
+    action-repo: "example-value"
+
+    # Version of the setup action to use (e.g., 'v4', 'v5'). Overrides the default
+    # action version.
+    # (optional)
+    action-version: "example-value"
+
+    # Optional GitHub Actions if condition to control when the runtime setup step runs.
+    # Supports standard GitHub Actions expression syntax. Useful for conditionally
+    # installing runtimes based on file presence (e.g., "hashFiles('go.mod') != ''" to
+    # install Go only when go.mod exists).
+    # (optional)
+    if: "example-value"
+
+    # Enable a default 3-day dependency cooldown for installs associated with this
+    # runtime. Set to false to disable.
+    # (optional)
+    cooldown: true
+
+    # Allow npm pre/post install scripts to execute during package installation. A
+    # supply chain security warning is emitted at compile time; in strict mode this is
+    # an error. See: https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts
+    # (optional)
+    run-install-scripts: true
 
 # Checkout configuration for the agent job. Controls how actions/checkout is
 # invoked. Can be a single checkout configuration, an array for multiple

@@ -172,7 +172,8 @@ func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 }
 
 func TestPinContextEmitOnce_InitializesAndDeduplicates(t *testing.T) {
-	t.Parallel()
+	// Not parallel: CaptureStderr swaps the global os.Stderr and is not safe
+	// to run concurrently with other tests that write to stderr.
 
 	ctx := &PinContext{}
 
@@ -953,7 +954,8 @@ func TestApplyContainerPinMapping(t *testing.T) {
 }
 
 func TestApplyContainerPinMapping_DeduplicatesInvalidWarnings(t *testing.T) {
-	t.Parallel()
+	// Not parallel: CaptureStderr swaps the global os.Stderr and is not safe
+	// to run concurrently with other tests that write to stderr.
 
 	ctx := &PinContext{
 		ContainerMappings: map[string]string{

@@ -12175,6 +12175,7 @@
     "runtimes": {
       "type": "object",
       "description": "Runtime environment version overrides. Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared workflows are also merged.",
+      "x-example-key": "node",
       "patternProperties": {
         "^[a-z][a-z0-9-]*$": {
           "type": "object",
