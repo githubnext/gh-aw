@@ -142,7 +142,6 @@ func recompileWorkflow(ctx context.Context, workflowPath string, verbose bool, a
 		Validate:             true,
 		Watch:                false,
 		WorkflowDir:          "",
-		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
 		TrialMode:            false,

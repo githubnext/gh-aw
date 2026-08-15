@@ -301,7 +301,6 @@ func maybeRecompileWorkflowOverride(ctx context.Context, lockFilePath string, op
 		Validate:             true,
 		Watch:                false,
 		WorkflowDir:          "",
-		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
 		TrialMode:            false,
