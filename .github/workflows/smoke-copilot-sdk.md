@@ -22,6 +22,7 @@ engine:
   bare: true
 imports:
   - shared/smoke-test-brevity.md
+  - shared/reporting.md
 max-tool-denials: 3
 tools:
   bash:

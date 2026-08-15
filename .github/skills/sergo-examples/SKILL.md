@@ -40,21 +40,31 @@ Use this skill only when Sergo needs concrete format examples.
 
 ## Example: discussion structure
 
+Follow the `reporting` skill (headers `###`+, `<details>` for long sections):
+
 ```markdown
-# 🔬 Sergo Report: [Strategy Name]
+### 🔬 Sergo Report: [Strategy Name]
 
 **Date**: [YYYY-MM-DD]
 **Strategy**: [Name]
 **Success Score**: [X/10]
 
-## Executive Summary
-## 🛠️ Serena Tools Update
-## 📊 Strategy Selection
-## 🔍 Analysis Execution
-## 📋 Detailed Findings
-## ✅ Improvement Tasks Generated
-## 📈 Success Metrics
-## 📊 Historical Context
-## 🎯 Recommendations
-## 🔄 Next Run Preview
+### Executive Summary
+### 🛠️ Serena Tools Update
+### 📊 Strategy Selection
+### 🔍 Analysis Execution
+
+<details>
+<summary><b>📋 Detailed Findings</b></summary>
+</details>
+
+### ✅ Improvement Tasks Generated
+### 📈 Success Metrics
+
+<details>
+<summary><b>📊 Historical Context</b></summary>
+</details>
+
+### 🎯 Recommendations
+### 🔄 Next Run Preview
 ```

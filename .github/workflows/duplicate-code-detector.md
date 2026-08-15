@@ -25,6 +25,7 @@ network:
 imports:
   - shared/go-source-analysis.md
   - shared/otlp.md
+  - shared/reporting.md
 safe-outputs:
   create-issue:
     expires: 2d
@@ -189,20 +190,23 @@ Create separate issues for each distinct duplication pattern found (maximum 3 pa
 
 For each distinct duplication pattern found, create a separate issue using this structure:
 
+Follow the `reporting` skill (headers `###`+, `<details>` for long content) when filling in this structure:
+
 ```markdown
-# 🔍 Duplicate Code Detected: [Pattern Name]
+### 🔍 Duplicate Code Detected: [Pattern Name]
 
 *Analysis of commit ${{ github.event.head_commit.id }}*
 
 **Assignee**: @copilot
 
-## Summary
+### Summary
 
 [Brief overview of this specific duplication pattern]
 
-## Duplication Details
+<details>
+<summary><b>Duplication Details</b></summary>
 
-### Pattern: [Description]
+#### Pattern: [Description]
 - **Severity**: High/Medium/Low
 - **Occurrences**: [Number of instances]
 - **Locations**:
@@ -213,13 +217,15 @@ For each distinct duplication pattern found, create a separate issue using this 
   [Example of duplicated code]
   ```
 
-## Impact Analysis
+</details>
+
+### Impact Analysis
 
 - **Maintainability**: [How this affects code maintenance]
 - **Bug Risk**: [Potential for inconsistent fixes]
 - **Code Bloat**: [Impact on codebase size]
 
-## Refactoring Recommendations
+### Refactoring Recommendations
 
 1. **[Recommendation 1]**
    - Extract common functionality to: `suggested/path/utility.ext`
@@ -229,7 +235,7 @@ For each distinct duplication pattern found, create a separate issue using this 
 2. **[Recommendation 2]**
    [... additional recommendations ...]
 
-## Implementation Checklist
+### Implementation Checklist
 
 - [ ] Review duplication findings
 - [ ] Prioritize refactoring tasks
@@ -238,12 +244,15 @@ For each distinct duplication pattern found, create a separate issue using this 
 - [ ] Update tests
 - [ ] Verify no functionality broken
 
-## Analysis Metadata
+<details>
+<summary><b>Analysis Metadata</b></summary>
 
 - **Analyzed Files**: [count]
 - **Detection Method**: Serena semantic code analysis
 - **Commit**: ${{ github.event.head_commit.id }}
 - **Analysis Date**: [timestamp]
+
+</details>
 ```
 
 ## Operational Guidelines

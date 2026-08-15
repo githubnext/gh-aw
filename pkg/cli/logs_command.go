@@ -262,6 +262,7 @@ func loadCommonLogsOptions(cmd *cobra.Command) (LogsDownloadOptions, error) {
 		Parse:             getBoolFlag(cmd, "parse"),
 		JSONOutput:        getBoolFlag(cmd, "json"),
 		TimeoutMinutes:    getIntFlag(cmd, "timeout"),
+		TimeoutSeconds:    getIntFlag(cmd, "timeout-seconds"),
 		SummaryFile:       getStringFlag(cmd, "summary-file"),
 		SafeOutputType:    getStringFlag(cmd, "safe-output"),
 		FilteredIntegrity: getBoolFlag(cmd, "filtered-integrity"),
@@ -406,6 +407,8 @@ func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in minutes (0 = no timeout)")
+	logsCmd.Flags().Int("timeout-seconds", 0, "Download timeout in seconds (0 = use --timeout)")
+	_ = logsCmd.Flags().MarkHidden("timeout-seconds")
 	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
 	logsCmd.Flags().Bool("train", false, "Analyze log patterns across downloaded runs and save pattern weights to drain3_weights.json in the output directory")
 	logsCmd.Flags().String("format", "", "Output format: console (decorated tables), tsv (tab-separated), pretty (cross-run report), markdown (cross-run Markdown). Default: compact agent-optimized output")

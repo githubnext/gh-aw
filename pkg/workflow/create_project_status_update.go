@@ -8,9 +8,8 @@ var createProjectStatusUpdateLog = logger.New("workflow:create_project_status_up
 
 // CreateProjectStatusUpdateConfig holds configuration for creating GitHub project status updates
 type CreateProjectStatusUpdateConfig struct {
-	BaseSafeOutputConfig
-	GitHubToken string `yaml:"github-token,omitempty"` // Optional custom GitHub token for project status updates
-	Project     string `yaml:"project,omitempty"`      // Optional default project URL for status updates
+	BaseSafeOutputConfig `yaml:",inline"`
+	Project              string `yaml:"project,omitempty"` // Optional default project URL for status updates
 }
 
 // parseCreateProjectStatusUpdateConfig handles create-project-status-update configuration
@@ -22,14 +21,6 @@ func (c *Compiler) parseCreateProjectStatusUpdateConfig(outputMap map[string]any
 
 		if configMap, ok := configData.(map[string]any); ok {
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 10)
-
-			// Parse custom GitHub token
-			if token, ok := configMap["github-token"]; ok {
-				if tokenStr, ok := token.(string); ok {
-					config.GitHubToken = tokenStr
-					createProjectStatusUpdateLog.Print("Using custom GitHub token for create-project-status-update")
-				}
-			}
 
 			// Parse project URL override if specified
 			if project, exists := configMap["project"]; exists {

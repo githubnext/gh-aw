@@ -84,6 +84,22 @@ function resolvePropertyRef(prop) {
 }
 
 /**
+ * Get the value schema for an object with dynamic keys.
+ */
+function getDynamicProperty(prop) {
+  if (prop.additionalProperties && typeof prop.additionalProperties === "object") {
+    return resolvePropertyRef(prop.additionalProperties);
+  }
+
+  const patternProperties = Object.values(prop.patternProperties || {});
+  if (patternProperties.length === 1 && typeof patternProperties[0] === "object") {
+    return resolvePropertyRef(patternProperties[0]);
+  }
+
+  return null;
+}
+
+/**
  * Format a description as YAML comment
  */
 function formatComment(text, indent = 0) {
@@ -224,9 +240,9 @@ function generateVariants(prop, propName, indent = 0, required = []) {
         if (variant.properties) {
           const subLines = generateProperties(variant.properties, variant.required || [], indent + 2);
           lines.push(subLines);
-        } else if (variant["x-example-key"] && variant.additionalProperties && typeof variant.additionalProperties === "object") {
+        } else if (variant["x-example-key"] && getDynamicProperty(variant)) {
           const exampleKey = variant["x-example-key"];
-          const addlProp = resolvePropertyRef(variant.additionalProperties);
+          const addlProp = getDynamicProperty(variant);
           if (addlProp.description) {
             lines.push(formatComment(addlProp.description, indent + 2));
           }
@@ -295,11 +311,11 @@ function generateProperty(propName, prop, indent = 0, isRequired = false) {
     if (prop.properties) {
       const subLines = generateProperties(prop.properties, prop.required || [], indent + 2);
       lines.push(subLines);
-    } else if (prop["x-example-key"] && prop.additionalProperties && typeof prop.additionalProperties === "object") {
+    } else if (prop["x-example-key"] && getDynamicProperty(prop)) {
       // Dynamic-key object (additionalProperties pattern): expand an annotated example entry
       // so users can see the per-key schema rather than a bare '{}'.
       const exampleKey = prop["x-example-key"];
-      const addlProp = resolvePropertyRef(prop.additionalProperties);
+      const addlProp = getDynamicProperty(prop);
       if (addlProp.description) {
         lines.push(formatComment(addlProp.description, indent + 2));
       }

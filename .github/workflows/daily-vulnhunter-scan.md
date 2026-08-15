@@ -143,6 +143,7 @@ network:
     - github
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: scan_completed
     question: Did the agent download the prepared VulnHunter bundle artifact, load the vulnhunt skill instructions, and scan the pre-ranked candidate files?
