@@ -69,6 +69,7 @@ steps:
       echo "Server PID: $PID"
 
   - name: Wait for server readiness
+    # runner-guard:ignore RGS-012 -- loopback-only port/readiness checks for the docs server started in this job; no external network or secrets are involved.
     run: |
       MAX_WAIT=90
       WAITED=0

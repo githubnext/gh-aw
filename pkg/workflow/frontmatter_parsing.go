@@ -27,6 +27,9 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		frontmatterTypesLog.Printf("Failed to unmarshal frontmatter: %v", err)
 		return nil, fmt.Errorf("failed to unmarshal frontmatter into config: %w", err)
 	}
+	if err := validateThreatDetectionSuppressions(config.ThreatDetectionSuppressions); err != nil {
+		return nil, err
+	}
 
 	if err := validateRunsOnValue(config.RunsOn); err != nil {
 		return nil, err

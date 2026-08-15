@@ -23,6 +23,102 @@ func TestFetchRemoteExperimentDetailsClassifiesTitleCaseNotFound(t *testing.T) {
 	require.EqualError(t, err, `experiment "missing" not found in octo/repo`)
 }
 
+func TestBuildSafeGitShowObjectArg(t *testing.T) {
+	tests := []struct {
+		name      string
+		ref       string
+		fileName  string
+		want      string
+		shouldErr bool
+	}{
+		{
+			name:     "valid ref and file",
+			ref:      "origin/experiments/my-feature",
+			fileName: "state.jsonl",
+			want:     "origin/experiments/my-feature:state.jsonl",
+		},
+		{
+			name:      "rejects flag-like ref",
+			ref:       "--help",
+			fileName:  "state.jsonl",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects revision expression suffix",
+			ref:       "origin/experiments/my-feature~1",
+			fileName:  "state.jsonl",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects revision expression braces",
+			ref:       "origin/experiments/my-feature^{tree}",
+			fileName:  "state.jsonl",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects colon in ref",
+			ref:       "origin/experiments/my-feature:other",
+			fileName:  "state.jsonl",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects path traversal",
+			ref:       "origin/experiments/my-feature",
+			fileName:  "../state.json",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects colon in file name",
+			ref:       "origin/experiments/my-feature",
+			fileName:  "state.json:HEAD",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects flag-like file name",
+			ref:       "origin/experiments/my-feature",
+			fileName:  "-n",
+			shouldErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildSafeGitShowObjectArg(tt.ref, tt.fileName)
+			if tt.shouldErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestIsSafeExperimentStateRef(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		want bool
+	}{
+		{name: "experiment branch", ref: "origin/experiments/my-feature", want: true},
+		{name: "local experiment branch", ref: "experiments/my-feature", want: true},
+		{name: "evals branch", ref: "evals/myworkflow", want: true},
+		{name: "short sha", ref: "a1b2c3d", want: true},
+		{name: "reject too-short sha", ref: "a1b2c3", want: false},
+		{name: "full sha", ref: "0123456789abcdef0123456789abcdef01234567", want: true},
+		{name: "reject revision operator", ref: "origin/experiments/my-feature~1", want: false},
+		{name: "reject brace expression", ref: "origin/experiments/my-feature^{tree}", want: false},
+		{name: "reject wrong prefix", ref: "origin/main", want: false},
+		{name: "reject invalid sequence", ref: "origin/experiments/my..feature", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSafeExperimentStateRef(tt.ref))
+		})
+	}
+}
+
 func TestExtractExperimentName(t *testing.T) {
 	tests := []struct {
 		name     string

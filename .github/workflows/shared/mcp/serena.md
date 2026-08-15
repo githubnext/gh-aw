@@ -28,11 +28,11 @@ import-schema:
 
 mcp-servers:
   serena:
-    container: "ghcr.io/github/serena-mcp-server:sha-891c160"
+    container: "ghcr.io/oraios/serena:1.7.0"
     args:
       - "--network"
       - "host"
-    entrypoint: "serena"
+    entrypoint: "/workspaces/serena/.venv/bin/serena"
     entrypointArgs:
       - "start-mcp-server"
       - "--context"

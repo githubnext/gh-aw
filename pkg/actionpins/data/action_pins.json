@@ -180,11 +180,6 @@
       "digest": "sha256:288e7d2a12d5b430500d739f9c16e20bb1ed51b91f986f3f3eccde189f489f5c",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.28.1@sha256:288e7d2a12d5b430500d739f9c16e20bb1ed51b91f986f3f3eccde189f489f5c"
     },
-    "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44": {
-      "image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44",
-      "digest": "sha256:c064d15974f7c933ec7d3f7b4038f4fd203547b3154bdc821afd379144887eff",
-      "pinned_image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44@sha256:c064d15974f7c933ec7d3f7b4038f4fd203547b3154bdc821afd379144887eff"
-    },
     "ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.1": {
       "image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.1",
       "digest": "sha256:f931e5e1e13f765605d03ef9511fc755d779a51b76581ea14586e9871506a610",
@@ -210,15 +205,15 @@
       "digest": "sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e",
       "pinned_image": "ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e"
     },
-    "ghcr.io/github/serena-mcp-server:sha-891c160": {
-      "image": "ghcr.io/github/serena-mcp-server:sha-891c160",
-      "digest": "sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5",
-      "pinned_image": "ghcr.io/github/serena-mcp-server:sha-891c160@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"
+    "ghcr.io/oraios/serena:1.7.0": {
+      "image": "ghcr.io/oraios/serena:1.7.0",
+      "digest": "sha256:6c9459e4246a39c9deaa4f23fb05a526ac6e237b24c8e84a927a098fa1ab6730",
+      "pinned_image": "ghcr.io/oraios/serena:1.7.0@sha256:6c9459e4246a39c9deaa4f23fb05a526ac6e237b24c8e84a927a098fa1ab6730"
     },
-    "grafana/mcp-grafana:1.0.0-alpine": {
-      "image": "grafana/mcp-grafana:1.0.0-alpine",
-      "digest": "sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198",
-      "pinned_image": "grafana/mcp-grafana:1.0.0-alpine@sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198"
+    "grafana/mcp-grafana:1.1.0-alpine": {
+      "image": "grafana/mcp-grafana:1.1.0-alpine",
+      "digest": "sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4",
+      "pinned_image": "grafana/mcp-grafana:1.1.0-alpine@sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4"
     },
     "node:lts-alpine": {
       "image": "node:lts-alpine",

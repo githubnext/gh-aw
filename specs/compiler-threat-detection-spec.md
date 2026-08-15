@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.21
+**Version**: 1.0.22
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.22` | `v0.87.0` (or newer) | Adds validated `threat-detection-suppress` handling and the `threat_detection_suppressions` manifest field, plus optimizer suppression and failure-safeguard conformance coverage. |
 | `1.0.21` | `v0.83.6` (or newer) | Editorial correction: the Deprecation Policy subsection is numbered 5.4 to match its parent section; no lock-file compatibility changes. |
 | `1.0.20` | `v0.83.6` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), `workflow_run` trigger branch scope enforcement (CTR-021), git subprocess argument-injection guards for remote import/download ref and path arguments (CTR-022), and bash command allowlist illusion rejection for engines lacking allowlist enforcement (CTR-023). No `.lock.yml` schema changes are introduced by CTR-022 or CTR-023; both are compile-time-only validations. |
 | `1.0.15`–`1.0.19` | `v0.72.1` (or newer) | Adds `workflow_run` trigger branch-scope enforcement (CTR-021); runtime-only `docker-sbx`, credential-refresh, and Playwright changes introduce no `.lock.yml` schema constraint. |
@@ -211,14 +212,14 @@ The optimizer MUST produce one of:
 
 False positives occur when a CTR rule triggers on a workflow input that is not actually unsafe. This section defines normative norms for suppressing, auditing, and resolving false-positive detections.
 
-1. **Author suppression mechanism**: When a workflow author believes a compiler diagnostic is a false positive, they **MUST** add an inline suppression annotation in the workflow frontmatter using the `threat-detection-suppress` key. The value **MUST** be a list of objects, each with a `rule` field (the `CTR-*` identifier), a `reason` field (human-readable explanation of why the flagged pattern is safe in this context), and an optional `expires` field (ISO 8601 date after which the suppression is no longer valid). A suppression without a `reason` **MUST NOT** be accepted by the compiler; the compiler **MUST** emit a validation error if `reason` is absent or empty.
+1. **Author suppression mechanism**: When a workflow author believes a compiler diagnostic is a false positive, they **MUST** add an inline suppression annotation in the workflow frontmatter using the `threat-detection-suppress` key. The value **MUST** be a list of objects, each with a `rule` field (the `CTR-*` identifier), a `reason` field (human-readable explanation of why the flagged pattern is safe in this context), and an optional `expires` field (ISO 8601 date after which the suppression is no longer valid). A suppression without a `reason` **MUST NOT** be accepted by the compiler; the compiler **MUST** emit a validation error if `reason` is absent or empty. (T-CTR-024)
 
-2. **Audit trail requirement**: Every active suppression annotation **MUST** be recorded in the compiled lock file (`.lock.yml`) manifest section so that reviewers can audit which rules are suppressed and why. The lock file **MUST** include the full `rule`, `reason`, and `expires` values for each suppression. Suppressions absent from the lock file manifest **MUST** be treated by subsequent compilations as unapproved and re-evaluated against the current CTR rule.
+2. **Audit trail requirement**: Every active suppression annotation **MUST** be recorded in the compiled lock file (`.lock.yml`) manifest section so that reviewers can audit which rules are suppressed and why. The lock file **MUST** include the full `rule`, `reason`, and `expires` values for each suppression. Suppressions absent from the lock file manifest **MUST** be treated by subsequent compilations as unapproved and re-evaluated against the current CTR rule. (T-CTR-025)
 
-3. **SLA for resolution**: Suppressions marked as false positives that affect a `MUST`-level security control (as defined in Section 5.1 — specifically those rules whose compiler action is `reject` in non-strict mode) **SHOULD** be resolved within **10 business days** — either by confirming the suppression is correct and updating the rule's detection logic to eliminate the false positive, or by removing the suppression when the workflow is corrected.
-4. **SLA enforcement in daily optimizer output**: The daily optimizer **MUST** compute suppression age from suppression creation date (or first-observed date when unavailable). Suppressions older than 10 business days **MUST** be emitted in daily output as `SLA_BREACH` entries that include `rule`, `reason`, `age_business_days`, `owner`, and `expires`.
-5. **Escalation requirement**: Suppressions older than 20 business days for `MUST`-level controls **MUST** create a follow-up sync action in the same daily output (for example, PR task, issue task, or explicit policy exception record) so unresolved suppressions cannot remain silent.
-6. **Expiration handling**: A suppression **MUST** be re-evaluated and explicitly renewed if the `expires` date passes; expired suppressions **MUST** be treated by the compiler as if they do not exist.
+3. **SLA for resolution**: Suppressions marked as false positives that affect a `MUST`-level security control (as defined in Section 5.1 — specifically those rules whose compiler action is `reject` in non-strict mode) **SHOULD** be resolved within **10 business days** — either by confirming the suppression is correct and updating the rule's detection logic to eliminate the false positive, or by removing the suppression when the workflow is corrected. (T-CTR-026)
+4. **SLA enforcement in daily optimizer output**: The daily optimizer **MUST** compute suppression age from suppression creation date (or first-observed date when unavailable). Suppressions older than 10 business days **MUST** be emitted in daily output as `SLA_BREACH` entries that include `rule`, `reason`, `age_business_days`, `owner`, and `expires`. (T-CTR-027)
+5. **Escalation requirement**: Suppressions older than 20 business days for `MUST`-level controls **MUST** create a follow-up sync action in the same daily output (for example, PR task, issue task, or explicit policy exception record) so unresolved suppressions cannot remain silent. (T-CTR-028)
+6. **Expiration handling**: A suppression **MUST** be re-evaluated and explicitly renewed if the `expires` date passes; expired suppressions **MUST** be treated by the compiler as if they do not exist. (T-CTR-029)
 
 ### 6.5 Threat Category Lifecycle
 
@@ -238,26 +239,26 @@ The daily optimizer process (Section 6) is itself subject to failure. This secti
 
 When the GitHub API or any external service required by the optimizer (for example, code-scanning results, issue search, or PR listing endpoints) is unavailable during the threat-coverage check:
 
-1. The optimizer **MUST** not emit false noop reports. When authoritative data cannot be retrieved, the optimizer **MUST** emit an `OPTIMIZER_DEGRADED` diagnostic entry in its daily output that records the failing endpoint(s), the HTTP status or error class, and the UTC timestamp of the failure.
-2. The optimizer **MUST NOT** open a pull request or update spec artifacts based on incomplete threat-coverage data obtained during a degraded API run.
-3. The optimizer **SHOULD** retry failed API calls with an exponential back-off policy (initial delay: 10 seconds; maximum delay: 5 minutes; maximum attempts: 3) before declaring the run degraded.
+1. The optimizer **MUST** not emit false noop reports. When authoritative data cannot be retrieved, the optimizer **MUST** emit an `OPTIMIZER_DEGRADED` diagnostic entry in its daily output that records the failing endpoint(s), the HTTP status or error class, and the UTC timestamp of the failure. (T-CTR-030)
+2. The optimizer **MUST NOT** open a pull request or update spec artifacts based on incomplete threat-coverage data obtained during a degraded API run. (T-CTR-031)
+3. The optimizer **SHOULD** retry failed API calls with an exponential back-off policy (initial delay: 10 seconds; maximum delay: 5 minutes; maximum attempts: 3) before declaring the run degraded. (T-CTR-032)
 4. After exhausting that policy, the optimizer **MUST NOT** retry the same request against a different degraded endpoint; it **MUST** declare the run degraded unless a configured, independently authoritative endpoint is available.
 
 **Failure Mode 2 — Runner Timeout**
 
 When the optimizer job is cancelled or exceeds its allotted execution time before completing the threat-coverage check:
 
-1. The optimizer job **MUST** emit a structured `OPTIMIZER_TIMEOUT` output entry before termination, recording the last completed step and the set of CTR rules that had not yet been evaluated at the time of cancellation.
-2. The optimizer **MUST NOT** produce a partial noop report or a partial PR when the timeout occurs mid-evaluation; any in-progress artifacts **MUST** be discarded.
-3. The optimizer workflow **SHOULD** be configured with an explicit `timeout-minutes` value and **SHOULD** schedule a follow-up retry run within the same calendar day when a timeout is detected.
+1. The optimizer job **MUST** emit a structured `OPTIMIZER_TIMEOUT` output entry before termination, recording the last completed step and the set of CTR rules that had not yet been evaluated at the time of cancellation. (T-CTR-033)
+2. The optimizer **MUST NOT** produce a partial noop report or a partial PR when the timeout occurs mid-evaluation; any in-progress artifacts **MUST** be discarded. (T-CTR-034)
+3. The optimizer workflow **SHOULD** be configured with an explicit `timeout-minutes` value and **SHOULD** schedule a follow-up retry run within the same calendar day when a timeout is detected. (T-CTR-035)
 
 **Failure Mode 3 — Rate-Limit or Quota Exhaustion**
 
 When the GitHub API returns secondary rate-limit (`403` with `Retry-After` header) or primary rate-limit (`429`) responses during the optimization run:
 
-1. The optimizer **MUST** apply the `RATE_LIMIT_RETRY_CONFIG` retry policy (as defined in `actions/setup/js/error_recovery.cjs`) before emitting a terminal failure.
-2. If all retries are exhausted and the rate limit is not recovered, the optimizer **MUST** emit an `OPTIMIZER_RATE_LIMITED` diagnostic entry recording the affected endpoints and the `Retry-After` or `x-ratelimit-reset` value.
-3. The optimizer **MUST NOT** count a rate-limited run as a completed threat-coverage cycle; the run **MUST** be retried in the next scheduled window.
+1. The optimizer **MUST** apply the `RATE_LIMIT_RETRY_CONFIG` retry policy (as defined in `actions/setup/js/error_recovery.cjs`) before emitting a terminal failure. (T-CTR-036)
+2. If all retries are exhausted and the rate limit is not recovered, the optimizer **MUST** emit an `OPTIMIZER_RATE_LIMITED` diagnostic entry recording the affected endpoints and the `Retry-After` or `x-ratelimit-reset` value. (T-CTR-037)
+3. The optimizer **MUST NOT** count a rate-limited run as a completed threat-coverage cycle; the run **MUST** be retried in the next scheduled window. (T-CTR-038)
 
 ---
 
@@ -367,7 +368,29 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 | **T-CTR-022** | CTR-022 Git Subprocess Argument Injection | A remote import spec or download configuration resolves a `ref` or `path` value beginning with `-` (e.g., `ref: "--upload-pack=evil"`, `path: "-x"`), containing a NUL byte, containing `..`, or (for paths) an absolute path, immediately before it would be passed as a positional argument to a `git` subprocess | `ValidateGitRef`/`ValidateGitPath` reject the value with an error identifying the unsafe ref or path and the argument-injection risk, before any `git` subprocess is invoked | `CTR-022` |
 | **T-CTR-023** | CTR-023 Bash Command Allowlist Illusion | A workflow frontmatter declares `tools.bash: false`, `tools.bash: []`, or a non-wildcard command list (e.g., `tools.bash: ["git", "npm"]`) while the configured engine's `EngineCapabilities.BashCommandAllowlist` is `false` (e.g., `codex`) | Compilation failure with error identifying the engine, stating the restriction is silently ignored at runtime, and suggesting `bash: ["*"]`, removing the entry, or switching to an engine that supports allowlist enforcement (copilot, claude, gemini) | `CTR-023` |
 
-### 8.2 Test Coverage Requirements
+### 8.2 Optimizer Protocol Test ID Catalog
+
+| Test ID | Requirement | Expected behavior |
+|---------|-------------|-------------------|
+| **T-CTR-024** | §6.4 item 1 | Suppression validation requires `rule` and a non-empty `reason`; optional `expires` is an ISO 8601 date. |
+| **T-CTR-025** | §6.4 item 2 | Active suppression records retain `rule`, `reason`, and `expires` in auditable output. |
+| **T-CTR-026** | §6.4 item 3 | MUST-level suppressions are identified for resolution at 10 business days. |
+| **T-CTR-027** | §6.4 item 4 | Suppressions older than 10 business days produce complete `SLA_BREACH` entries. |
+| **T-CTR-028** | §6.4 item 5 | MUST-level suppressions older than 20 business days produce a follow-up sync action. |
+| **T-CTR-029** | §6.4 item 6 | Expired suppressions are re-evaluated and no longer suppress a rule. |
+| **T-CTR-030** | §6.6 mode 1 item 1 | API failure produces a complete `OPTIMIZER_DEGRADED` diagnostic instead of noop. |
+| **T-CTR-031** | §6.6 mode 1 item 2 | Degraded evaluation cannot produce a PR or spec update. |
+| **T-CTR-032** | §6.6 mode 1 items 3–4 | API retries use the bounded exponential back-off policy before degradation. |
+| **T-CTR-033** | §6.6 mode 2 item 1 | Timeout produces a complete `OPTIMIZER_TIMEOUT` diagnostic. |
+| **T-CTR-034** | §6.6 mode 2 item 2 | Timeout discards partial noop and PR artifacts. |
+| **T-CTR-035** | §6.6 mode 2 item 3 | The workflow has an explicit timeout and requests same-day retry. |
+| **T-CTR-036** | §6.6 mode 3 item 1 | Rate limiting applies `RATE_LIMIT_RETRY_CONFIG`. |
+| **T-CTR-037** | §6.6 mode 3 item 2 | Exhausted rate limiting produces a complete `OPTIMIZER_RATE_LIMITED` diagnostic. |
+| **T-CTR-038** | §6.6 mode 3 item 3 | Rate-limited evaluation is incomplete and retries in the next scheduled window. |
+
+These optimizer-protocol IDs cover Section 6 norms; they do not add or replace the one-to-one core CTR rule mappings in Section 8.1.
+
+### 8.3 Test Coverage Requirements
 
 - Each active CTR rule MUST have at least one test ID in Section 8.1 that covers the primary detection trigger.
 - Tests MUST be deterministic: given the same malicious or unsafe input, the compiler MUST always emit the same diagnostic.
@@ -386,6 +409,12 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.22 (2026-08-15)
+
+- Added T-CTR-024 through T-CTR-029 conformance coverage for false-positive suppression validation, auditing, SLA, escalation, and expiration handling.
+- Added T-CTR-030 through T-CTR-038 conformance coverage for optimizer API, timeout, and rate-limit safeguards.
+- Synchronized the daily optimizer workflow with the Section 6 protocol and daily schedule.
 
 ### 1.0.21 (2026-08-14)
 

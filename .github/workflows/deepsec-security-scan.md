@@ -38,6 +38,7 @@ network:
     - ai-gateway.vercel.sh
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     sudo: false
 tools:
   bash:

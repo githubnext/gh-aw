@@ -653,6 +653,56 @@ func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
 	}
 }
 
+func TestGeneratePackageLock_DisablesNpmScripts(t *testing.T) {
+	compiler := NewCompiler()
+	workflowDir := testutil.TempDir(t, "workflow-*")
+	fakeBinDir := testutil.TempDir(t, "fake-bin-*")
+
+	argsFile := filepath.Join(workflowDir, "npm-args.txt")
+	envFile := filepath.Join(workflowDir, "npm-ignore-scripts-env.txt")
+
+	fakeNpm := filepath.Join(fakeBinDir, "npm")
+	script := `#!/bin/sh
+printf "%s\n" "$@" > "$GH_AW_TEST_ARGS_FILE"
+printf "%s" "$NPM_CONFIG_IGNORE_SCRIPTS" > "$GH_AW_TEST_ENV_FILE"
+touch package-lock.json
+`
+	if err := os.WriteFile(fakeNpm, []byte(script), 0o755); err != nil {
+		t.Fatalf("failed to write fake npm binary: %v", err)
+	}
+
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GH_AW_TEST_ARGS_FILE", argsFile)
+	t.Setenv("GH_AW_TEST_ENV_FILE", envFile)
+
+	if err := compiler.generatePackageLock(workflowDir); err != nil {
+		t.Fatalf("generatePackageLock() error = %v", err)
+	}
+
+	argsData, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("failed to read recorded npm args: %v", err)
+	}
+	args := string(argsData)
+	if !strings.Contains(args, "install\n") {
+		t.Fatalf("expected npm args to contain install, got: %q", args)
+	}
+	if !strings.Contains(args, "--package-lock-only\n") {
+		t.Fatalf("expected npm args to contain --package-lock-only, got: %q", args)
+	}
+	if !strings.Contains(args, "--ignore-scripts\n") {
+		t.Fatalf("expected npm args to contain --ignore-scripts, got: %q", args)
+	}
+
+	envData, err := os.ReadFile(envFile)
+	if err != nil {
+		t.Fatalf("failed to read recorded NPM_CONFIG_IGNORE_SCRIPTS: %v", err)
+	}
+	if string(envData) != "true" {
+		t.Fatalf("expected NPM_CONFIG_IGNORE_SCRIPTS=true, got: %q", string(envData))
+	}
+}
+
 // Tests for Python (pip) support
 
 func TestParsePipPackage(t *testing.T) {

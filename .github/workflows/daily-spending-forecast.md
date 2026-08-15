@@ -91,6 +91,7 @@ safe-outputs:
 timeout-minutes: 45
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     sudo: false
 evals:
   - id: spending_forecast_analyzed

@@ -66,6 +66,7 @@ pre-agent-steps:
       echo $PID > /tmp/gh-aw/agent/server.pid
       echo "Server PID: $PID"
   - name: Wait for server readiness
+    # runner-guard:ignore RGS-012 -- loopback-only port/readiness checks for the docs server started above; no external traffic or secrets are sent.
     run: |
       MAX_WAIT=135  # 45 attempts × 3s = 135s max wait
       WAITED=0

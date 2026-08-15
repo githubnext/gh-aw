@@ -71,6 +71,30 @@ jobs:
           geo audit --url "$REPOSITORY_URL" --format json \
             > /tmp/gh-aw/agent/geo-optimizer/readme-audit.json 2>&1 || true
 
+      - name: Verify documentation robots.txt
+        run: |
+          # runner-guard:ignore RGS-012 -- unauthenticated GET from the public documentation site; no secrets are sent.
+          ROBOTS_URL="https://github.github.com/gh-aw/robots.txt"
+          ROBOTS_BODY="/tmp/gh-aw/agent/geo-optimizer/docs-robots.txt"
+          rm -f "$ROBOTS_BODY"
+          CURL_METADATA="$(curl --silent --show-error --location --max-time 30 \
+            --output "$ROBOTS_BODY" --write-out '%{http_code}\t%{content_type}' \
+            "$ROBOTS_URL" || true)"
+          IFS=$'\t' read -r HTTP_STATUS CONTENT_TYPE <<< "$CURL_METADATA"
+          FOUND=false
+          if [[ "$HTTP_STATUS" == "200" ]]; then
+            FOUND=true
+          else
+            rm -f "$ROBOTS_BODY"
+          fi
+          jq -n \
+            --arg url "$ROBOTS_URL" \
+            --arg http_status "${HTTP_STATUS:-000}" \
+            --arg content_type "$CONTENT_TYPE" \
+            --argjson found "$FOUND" \
+            '{url: $url, http_status: ($http_status | tonumber), content_type: $content_type, found: $found}' \
+            > /tmp/gh-aw/agent/geo-optimizer/docs-robots-verification.json
+
       - name: Write audit metadata
         run: |
           python3 - <<'EOF'
@@ -163,6 +187,8 @@ ls /tmp/gh-aw/agent/geo-optimizer/
 
 - `docs-site-audit.json` — full GEO audit of `https://github.github.com/gh-aw/`
 - `docs-sitemap-audit.json` — sitemap-wide audit of up to 20 documentation pages
+- `docs-robots-verification.json` — authoritative HTTP check of the GitHub Pages project-site robots.txt
+- `docs-robots.txt` — robots.txt response body when the authoritative check succeeds
 - `readme-audit.json` — GEO audit of the GitHub repository homepage (README)
 - `metadata.json` — run metadata (timestamp, URLs)
 
@@ -172,6 +198,12 @@ Use `cat` and `jq` to inspect the contents of each file. Focus on:
 - Citability score and methods
 - Negative signals detected
 - Scores broken down by area: Robots.txt, llms.txt, Schema JSON-LD, Meta Tags, Content, Brand & Entity, Signals, AI Discovery
+
+For robots.txt findings on the documentation site, treat `docs-robots-verification.json` and
+`docs-robots.txt` as authoritative. The GEO package probes the domain-root `/robots.txt`,
+which does not preserve the `/gh-aw/` base path of this GitHub Pages project site. When the
+verification reports `found: true`, do not report robots.txt as missing; inspect the response
+body before recommending changes to crawler permissions.
 
 ## Phase 2: Analyze and Summarize
 

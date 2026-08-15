@@ -43,6 +43,31 @@
       "description": "Optional tracker identifier to tag all created assets (issues, discussions, comments, pull requests). Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores. This identifier will be inserted in the body/description of all created assets to enable searching and retrieving assets associated with this workflow.",
       "examples": ["workflow-2024-q1", "team-alpha-bot", "security_audit_v2"]
     },
+    "threat-detection-suppress": {
+      "type": "array",
+      "description": "Auditable false-positive suppression annotations for compiler threat-detection rules.",
+      "items": {
+        "type": "object",
+        "required": ["rule", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "rule": {
+            "type": "string",
+            "pattern": "^CTR-[0-9]{3}$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": ".*\\S.*"
+          },
+          "expires": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          }
+        }
+      }
+    },
     "labels": {
       "type": "array",
       "description": "Optional array of labels to categorize and organize workflows. Labels can be used to filter workflows in status/list commands.",

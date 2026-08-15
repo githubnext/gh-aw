@@ -158,6 +158,7 @@ steps:
         ' > /tmp/gh-aw/data/derived-plan.json
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     sudo: false
 evals:
   - id: candidate_expanded
