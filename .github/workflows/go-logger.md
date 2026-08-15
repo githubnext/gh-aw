@@ -67,11 +67,28 @@ steps:
       if grep -q "log\\." "$rel" && ! grep -q '"github.com/github/gh-aw/pkg/logger"' "$rel"; then
         echo "$rel" >> "$files_missing_logger_import"
       fi
+    done < "$current_files"
+
+    # Bound manifest size: the agent only ever selects up to 5 files per PR, so
+    # candidate call sites (the bulk of manifest.json) are only computed for a
+    # capped pool of candidates instead of every file in pkg/. This keeps
+    # manifest.json well under the 256KB / 25K-token read limits regardless of
+    # how large the repository grows. New files (not yet processed) are
+    # prioritized so they surface first.
+    candidate_pool_cap=40
+    call_sites_per_file_cap=10
+    candidate_files="$out_dir/candidate-files.txt"
+    { comm -12 "$new_files" "$files_needing_logger" 2>/dev/null || true
+      comm -23 "$files_needing_logger" "$new_files" 2>/dev/null || true
+    } | awk '!seen[$0]++' | head -n "$candidate_pool_cap" > "$candidate_files" || true
+
+    while IFS= read -r rel; do
+      [ -f "$rel" ] || continue
       while IFS=: read -r line_number match_line; do
         function_name="$(printf '%s' "$match_line" | sed -E 's/^[[:space:]]*func[[:space:]]+([A-Za-z0-9_]+).*/\\1/')"
         printf "%s\\t%s\\t%s\\n" "$rel" "$line_number" "$function_name" >> "$call_sites"
-      done < <(grep -nE "^[[:space:]]*func[[:space:]]+[A-Za-z0-9_]+" "$rel" || true)
-    done < "$current_files"
+      done < <(grep -nE "^[[:space:]]*func[[:space:]]+[A-Za-z0-9_]+" "$rel" | head -n "$call_sites_per_file_cap" || true)
+    done < "$candidate_files"
 
     # Write each JSON payload to a file to avoid exceeding ARG_MAX with large datasets.
     jq -R -s 'split("\n") | map(select(length > 0))' "$files_needing_logger" \
@@ -80,14 +97,35 @@ steps:
       > "$out_dir/files-missing-logger-import.json"
     jq -R -s 'split("\n") | map(select(length > 0) | split("\t") | {file: .[0], line: (.[1] | tonumber), function: .[2]})' "$call_sites" \
       > "$out_dir/candidate-call-sites.json"
+    jq -R -s 'split("\n") | map(select(length > 0))' "$candidate_files" \
+      > "$out_dir/candidate-files.json"
+
+    files_needing_logger_count="$(wc -l < "$files_needing_logger" | tr -d ' ')"
 
     # Build manifest by reading files via --slurpfile (no large args on argv).
+    # `files_needing_logger` is capped to `candidate_files` (the bounded pool
+    # analyzed above) so the agent's source-of-truth list matches the
+    # candidates with call sites; `files_needing_logger_total` reports the
+    # full uncapped backlog size for visibility.
     jq -n \
-      --slurpfile files_needing_logger "$out_dir/files-needing-logger.json" \
+      --slurpfile files_needing_logger "$out_dir/candidate-files.json" \
       --slurpfile missing_logger_import "$out_dir/files-missing-logger-import.json" \
       --slurpfile candidate_call_sites "$out_dir/candidate-call-sites.json" \
-      '{files_needing_logger: $files_needing_logger[0], missing_logger_import: $missing_logger_import[0], candidate_call_sites: $candidate_call_sites[0]}' \
+      --argjson files_needing_logger_total "$files_needing_logger_count" \
+      '{files_needing_logger: $files_needing_logger[0], files_needing_logger_total: $files_needing_logger_total, missing_logger_import: $missing_logger_import[0], candidate_call_sites: $candidate_call_sites[0]}' \
       > "$out_dir/manifest.json"
+
+    # Defense in depth: if manifest.json is still unexpectedly large (e.g. a
+    # pathological file with very long lines), drop the largest field rather
+    # than let the agent retry oversized reads until the step times out.
+    manifest_size="$(wc -c < "$out_dir/manifest.json" | tr -d ' ')"
+    manifest_size_limit=200000
+    if [ "$manifest_size" -gt "$manifest_size_limit" ]; then
+      echo "::warning::manifest.json size ($manifest_size bytes) exceeds $manifest_size_limit bytes; dropping candidate_call_sites" >&2
+      jq -c 'del(.candidate_call_sites) | .candidate_call_sites_truncated = true' "$out_dir/manifest.json" \
+        > "$out_dir/manifest.json.tmp"
+      mv "$out_dir/manifest.json.tmp" "$out_dir/manifest.json"
+    fi
 
     should_run=true
     if [ "$current_sha" = "$last_sha" ] && [ ! -s "$new_files" ]; then
@@ -157,6 +195,8 @@ make recompile               # Recompile workflows only if you changed .md files
 Before analyzing files, read `/tmp/gh-aw/agent/go-logger/preflight.json` and `/tmp/gh-aw/agent/go-logger/manifest.json`.
 
 - The pre-flight step already computed whether this run should proceed.
+- `manifest.json` is deliberately capped to a bounded pool of candidate files (with their call sites) — it never contains the full repository backlog, so it should always be small enough to read in one shot. `files_needing_logger_total` reports the full uncapped backlog count for context.
+- If a file read ever reports the content is too large or exceeds a token limit (including for `manifest.json` itself), do **not** retry with other tools (`jq`, `cd`, `cp`, `wc`, etc.) — those are not permitted outside the working directory and will not succeed. Immediately retry the same read with an `offset`/`limit` (or equivalent chunked read) as the error message suggests, or fall back to the `cat` bash command already allow-listed for this file.
 - If cache files are missing (cold cache / first run), treat that as expected and continue.
 - Only report `missing_data` when cache files exist but are unreadable/corrupted.
 - Update cache after processing:

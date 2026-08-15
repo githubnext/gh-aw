@@ -71,6 +71,21 @@ describe("process_runner.cjs", () => {
       expect(result.exitCode).toBe(42);
     });
 
+    it("synthesizes the conventional 128+signal exit code when the child is killed by a fatal signal", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        // Self-signal rather than relying on the OS to deliver SIGSEGV so the test is
+        // deterministic across platforms; Node reports code=null, signal="SIGSEGV" here,
+        // exactly as it would for a real crash.
+        args: ["-e", "process.kill(process.pid, 'SIGSEGV')"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+      });
+      expect(result.exitCode).toBe(139); // 128 + SIGSEGV(11)
+      expect(logs.some(l => l.includes("signal=SIGSEGV"))).toBe(true);
+    });
+
     it("collects stdout output and sets hasOutput", async () => {
       const logs = [];
       const result = await runProcess({

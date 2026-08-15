@@ -46,6 +46,7 @@ import { requireErrorCodeInThrownErrorRule } from "./rules/require-error-code-in
 import { requireInvalidDateCheckBeforeCompareRule } from "./rules/require-invalid-date-check-before-compare";
 import { requireSyncExecTimeoutRule } from "./rules/require-sync-exec-timeout";
 import { noEmptyCatchBlockRule } from "./rules/no-empty-catch-block";
+import { requireLastIndexResetBeforeGlobalExecLoopRule } from "./rules/require-lastindex-reset-before-global-exec-loop";
 
 const plugin = {
   meta: {
@@ -101,6 +102,7 @@ const plugin = {
     "require-invalid-date-check-before-compare": requireInvalidDateCheckBeforeCompareRule,
     "require-sync-exec-timeout": requireSyncExecTimeoutRule,
     "no-empty-catch-block": noEmptyCatchBlockRule,
+    "require-lastindex-reset-before-global-exec-loop": requireLastIndexResetBeforeGlobalExecLoopRule,
   },
 };
 

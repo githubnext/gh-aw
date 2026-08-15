@@ -33,10 +33,13 @@ description: Complete reference for gh aw CLI commands and their MCP tool equiva
 Initialize a repository for agentic workflows.
 
 ```bash
-gh aw init
+gh aw init                              # Initialize with defaults (non-interactive)
+gh aw init --engine claude              # Skip Copilot-specific artifacts
+gh aw init --no-mcp                     # Skip MCP server integration (Copilot engine)
+gh aw init --no-agent                   # Skip custom agent creation (Copilot engine)
 ```
 
-Creates `.github/skills/agentic-workflows/SKILL.md` and supporting files.
+Creates `.github/skills/agentic-workflows/SKILL.md`. With the Copilot engine (default), also creates the custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration — use `--no-mcp`/`--no-agent` to skip either. Non-Copilot engines skip both Copilot-specific artifacts automatically.
 
 **MCP equivalent**: Not available — run from a local terminal or use the `upgrade` tool for updates.
 

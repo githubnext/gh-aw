@@ -310,6 +310,12 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"Unsupported hosts are rejected; gh-aw and AWF do not fall back to docker or gvisor."))
 		c.IncrementWarningCount()
 	}
+	if isCloudHypervisorRuntime(workflowData) {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"sandbox.agent.runtime: cloud-hypervisor uses a privileged KVM preview path with an attached MCP gateway topology. "+
+				"Require a human security review before merge or rollout, and record explicit approval in your change process."))
+		c.IncrementWarningCount()
+	}
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(

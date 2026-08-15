@@ -18,6 +18,8 @@ const {
   isConnectionRefusedError,
   hasClaudeSessionProgress,
   isSignalTerminationExitCode,
+  isCrashSignalExitCode,
+  crashSignalNameForExitCode,
   shouldRetryWithContinue,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
@@ -336,6 +338,31 @@ describe("claude_harness.cjs", () => {
     });
   });
 
+  describe("isCrashSignalExitCode / crashSignalNameForExitCode", () => {
+    it("identifies known fatal-signal crash exit codes", () => {
+      expect(isCrashSignalExitCode(139)).toBe(true); // SIGSEGV
+      expect(isCrashSignalExitCode(159)).toBe(true); // SIGSYS
+      expect(isCrashSignalExitCode(134)).toBe(true); // SIGABRT
+    });
+
+    it("returns false for non-crash exit codes, including timeout/cancellation signals", () => {
+      expect(isCrashSignalExitCode(0)).toBe(false);
+      expect(isCrashSignalExitCode(1)).toBe(false);
+      expect(isCrashSignalExitCode(137)).toBe(false);
+      expect(isCrashSignalExitCode(143)).toBe(false);
+    });
+
+    it("maps known crash exit codes to their signal name", () => {
+      expect(crashSignalNameForExitCode(139)).toBe("SIGSEGV");
+      expect(crashSignalNameForExitCode(159)).toBe("SIGSYS");
+    });
+
+    it("returns null for exit codes that are not recognized crash signals", () => {
+      expect(crashSignalNameForExitCode(1)).toBeNull();
+      expect(crashSignalNameForExitCode(137)).toBeNull();
+    });
+  });
+
   describe("permission-denied classification helpers", () => {
     it("counts repeated permission-denied signals", () => {
       const output = "permission denied\nEACCES: permission denied\npermissions denied";
@@ -409,6 +436,20 @@ describe("claude_harness.cjs", () => {
   describe("shouldRetryWithContinue", () => {
     it("does not use --continue for signal-style termination exit codes", () => {
       for (const exitCode of [137, 143]) {
+        const result = shouldRetryWithContinue({
+          attempt: 0,
+          maxRetries: 3,
+          exitCode,
+          hasOutput: true,
+          isNoDeferredMarker: false,
+          continueDisabledPermanently: false,
+        });
+        expect(result).toBe(false);
+      }
+    });
+
+    it("does not use --continue for fatal-signal crash exit codes", () => {
+      for (const exitCode of [134, 139, 159]) {
         const result = shouldRetryWithContinue({
           attempt: 0,
           maxRetries: 3,
@@ -689,6 +730,29 @@ process.exit(1);
       expect(result.status).toBe(1);
       expect(calls.length).toBe(1);
       expect(result.stderr).toContain("maximum LLM invocations exceeded — not retrying");
+    });
+
+    it("exits 0 without retrying when max invocations are exceeded but safe-outputs already contain the expected result", () => {
+      const tempDir = makeHarnessTempDir("claude-harness-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      fs.writeFileSync(safeOutputsPath, '{"type":"add_comment","body":"ADR reviewed"}\n', "utf8");
+      const stubScript = `
+const fs = require("fs");
+const callsPath = process.env.CLAUDE_HARNESS_STUB_CALLS;
+const args = process.argv.slice(2);
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({ args }) + "\\n", "utf8");
+if (priorCalls > 0) {
+  process.stderr.write("unexpected retry after max_runs_exceeded\\n");
+  process.exit(9);
+}
+process.stderr.write('{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20)."}}\\n');
+process.exit(1);
+`;
+      const { result, calls } = runHarnessWithStub({ stubScript, extraEnv: { GH_AW_SAFE_OUTPUTS: safeOutputsPath } });
+      expect(result.status).toBe(0);
+      expect(calls.length).toBe(1);
+      expect(result.stderr).toContain("invocation cap saturated but safe-outputs already contain expected output");
     });
 
     it("returns true for normal partial-execution retry", () => {

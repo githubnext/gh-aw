@@ -30,6 +30,11 @@
  *     history and permanently disables `--continue` for the remainder of the run so the corrupt
  *     state can never be reloaded.  Once `--continue` is disabled this way it is not re-enabled
  *     even if later retries produce output.
+ *   - Exit codes that indicate the CLI subprocess was killed by a fatal OS-level signal
+ *     (SIGILL/SIGABRT/SIGBUS/SIGFPE/SIGSEGV/SIGSYS — see harness_crash_signals.cjs) are treated
+ *     like the null-type tool_call case: `--continue` is permanently disabled and the next retry
+ *     starts a fresh session, since resuming the exact on-disk session risks immediately
+ *     reproducing the same crash.
  *   - Retries use exponential backoff: 5s → 10s → 20s (capped at 60s) by default.
  *   - Maximum 3 retry attempts after the initial run by default.
  *
@@ -75,6 +80,7 @@ const {
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError: isCommonAuthenticationFailedError } = require("./harness_retry_guard.cjs");
+const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
@@ -1277,6 +1283,10 @@ async function main() {
               log(`attempt ${attempt + 1}: AI credits budget enforced — exiting 0 (budget control, not an error)`);
               return { action: "stop", exitCode: 0 };
             }
+            if (isInvocationCapExceeded && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+              log(`attempt ${attempt + 1}: invocation cap saturated but safe-outputs already contain expected output — suppressing terminal verdict (false-red: core work succeeded)`);
+              return { action: "stop", exitCode: 0 };
+            }
             return { action: "stop" };
           }
 
@@ -1382,10 +1392,16 @@ async function main() {
 
           if (shouldRetryFailedExecution({ ...result, attempt, maxRetries })) {
             const reason = isCAPIError ? "CAPIError 400 (transient)" : "partial execution";
+            const isCrashSignal = isCrashSignalExitCode(result.exitCode);
+            const crashSignalName = crashSignalNameForExitCode(result.exitCode);
+            if (isCrashSignal) {
+              continueDisabledPermanently = true;
+            }
             // --continue is only meaningful in CLI mode; SDK mode always restarts fresh.
             useContinueOnRetry = !copilotSDKMode && !continueDisabledPermanently;
             const retryMode = useContinueOnRetry ? "--continue" : copilotSDKMode ? "fresh run" : "fresh run (--continue permanently disabled)";
-            log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${maxRetries + 1})`);
+            const crashSuffix = isCrashSignal ? ` crashSignal=${crashSignalName}` : "";
+            log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${maxRetries + 1})${crashSuffix}`);
             return { action: "retry" };
           }
 
@@ -1461,6 +1477,8 @@ if (typeof module !== "undefined" && module.exports) {
     classifyCopilotFailure,
     extractTokenCountFromOutput,
     shouldRetryFailedExecution,
+    isCrashSignalExitCode,
+    crashSignalNameForExitCode,
     extractOutputTail,
     isRetryableProxyAuthenticationFailure,
     hasNumerousPermissionDeniedIssues,

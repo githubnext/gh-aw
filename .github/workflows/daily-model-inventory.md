@@ -271,7 +271,7 @@ jobs:
           set -euo pipefail
           SDK_DIR="$RUNNER_TEMP/copilot-sdk"
           mkdir -p "$SDK_DIR"
-          npm install --prefix "$SDK_DIR" --no-save @github/copilot-sdk@1.0.8
+          npm install --prefix "$SDK_DIR" --no-save @github/copilot-sdk@1.0.11
 
       - name: Fetch Copilot SDK model billing information
         shell: bash
