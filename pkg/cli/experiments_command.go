@@ -17,6 +17,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
@@ -715,7 +716,7 @@ func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			stderr := strings.TrimSpace(string(exitErr.Stderr))
-			if strings.Contains(stderr, "404") || strings.Contains(stderr, "not found") {
+			if errorutil.IsNotFoundOutput(stderr) {
 				return nil, fmt.Errorf("experiment %q not found in %s", workflowID, repoOverride)
 			}
 			return nil, fmt.Errorf("failed to fetch experiment branch (exit %d): %s", exitErr.ExitCode(), stderr)

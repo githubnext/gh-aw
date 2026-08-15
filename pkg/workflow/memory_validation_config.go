@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var memoryValidationLog = logger.New("workflow:memory_validation_config")
 
 const (
 	defaultMemoryValidationTimeoutMinutes = 1
@@ -21,9 +25,11 @@ func parseMemoryValidationConfig(configMap map[string]any, fieldPath string) (*M
 	raw, ok := configMap["validation"]
 	if !ok {
 		if script, ok := configMap["validation-script"].(string); ok {
+			memoryValidationLog.Printf("Using legacy validation-script field at %s", fieldPath)
 			return normalizeMemoryValidationConfig(&MemoryValidationConfig{Script: script}, fieldPath)
 		}
 		if script, ok := configMap["custom-validation"].(string); ok {
+			memoryValidationLog.Printf("Using legacy custom-validation field at %s", fieldPath)
 			return normalizeMemoryValidationConfig(&MemoryValidationConfig{Script: script}, fieldPath)
 		}
 		return nil, nil
@@ -34,6 +40,7 @@ func parseMemoryValidationConfig(configMap map[string]any, fieldPath string) (*M
 		return normalizeMemoryValidationConfig(&MemoryValidationConfig{Script: value}, fieldPath)
 	case map[string]any:
 		if _, exists := value["timeout"]; exists {
+			memoryValidationLog.Printf("Rejecting deprecated timeout field at %s", fieldPath)
 			return nil, fmt.Errorf("%s.timeout has been renamed to %s.timeout-minutes. Example:\n%s:\n  timeout-minutes: 1", fieldPath, fieldPath, fieldPath)
 		}
 		config := &MemoryValidationConfig{}
@@ -96,6 +103,7 @@ func normalizeMemoryValidationConfig(config *MemoryValidationConfig, fieldPath s
 		return nil, fmt.Errorf("%s.script must not be empty. Example:\n%s:\n  script: \"throw new Error('invalid state')\"", fieldPath, fieldPath)
 	}
 	if config.TimeoutMinutes == 0 {
+		memoryValidationLog.Printf("Applying default timeout of %d minute(s) at %s", defaultMemoryValidationTimeoutMinutes, fieldPath)
 		config.TimeoutMinutes = defaultMemoryValidationTimeoutMinutes
 	}
 	return config, nil

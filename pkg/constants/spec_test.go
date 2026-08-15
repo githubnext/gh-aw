@@ -165,6 +165,19 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 			"empty StepID.IsValid() should return false")
 	})
 
+	t.Run("MCPServerID implements String and IsValid", func(t *testing.T) {
+		t.Parallel()
+		m := constants.GitHubMCPServerID
+		assert.Equal(t, "github", m.String(),
+			"GitHubMCPServerID.String() should return 'github' as documented")
+		assert.True(t, m.IsValid(),
+			"non-empty MCPServerID.IsValid() should return true")
+
+		empty := constants.MCPServerID("")
+		assert.False(t, empty.IsValid(),
+			"empty MCPServerID.IsValid() should return false")
+	})
+
 	t.Run("CommandPrefix implements String and IsValid", func(t *testing.T) {
 		t.Parallel()
 		// From spec: CLIExtensionPrefix // "gh aw" — user-facing CLI prefix

@@ -31,6 +31,7 @@ network:
     - defaults
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   bash:
     - "git status"
