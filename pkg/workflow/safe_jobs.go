@@ -18,7 +18,7 @@ type SafeJobConfig struct {
 	// Standard GitHub Actions job properties
 	Name           string            `yaml:"name,omitempty"`
 	Description    string            `yaml:"description,omitempty"`
-	RunsOn         any               `yaml:"runs-on,omitempty"`
+	RunsOn         RunsOnValue       `yaml:"runs-on,omitempty"`
 	If             string            `yaml:"if,omitempty"`
 	Needs          []string          `yaml:"needs,omitempty"`
 	Steps          []any             `yaml:"steps,omitempty"`
@@ -68,9 +68,9 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 
 		// Parse runs-on (also accept "runner" as alias)
 		if runsOn, exists := jobConfig["runs-on"]; exists {
-			safeJob.RunsOn = runsOn
+			safeJob.RunsOn = toRunsOnValue(runsOn)
 		} else if runner, exists := jobConfig["runner"]; exists {
-			safeJob.RunsOn = runner
+			safeJob.RunsOn = toRunsOnValue(runner)
 		}
 
 		// Parse if condition
@@ -232,23 +232,18 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		job.Needs = append(job.Needs, jobConfig.Needs...)
 
 		// Set runs-on
-		if jobConfig.RunsOn != nil {
-			if runsOnStr, ok := jobConfig.RunsOn.(string); ok {
-				job.RunsOn = "runs-on: " + runsOnStr
-			} else if runsOnList, ok := jobConfig.RunsOn.([]any); ok {
-				// Handle array format
-				var runsOnItems []string
-				for _, item := range runsOnList {
-					if itemStr, ok := item.(string); ok {
-						runsOnItems = append(runsOnItems, "      - "+itemStr)
-					}
-				}
-				if len(runsOnItems) > 0 {
-					job.RunsOn = "runs-on:\n" + strings.Join(runsOnItems, "\n")
-				}
-			}
-		} else {
+		switch len(jobConfig.RunsOn) {
+		case 0:
 			job.RunsOn = "runs-on: ubuntu-latest" // Default
+		case 1:
+			job.RunsOn = "runs-on: " + jobConfig.RunsOn[0]
+		default:
+			// Handle array format
+			runsOnItems := make([]string, 0, len(jobConfig.RunsOn))
+			for _, item := range jobConfig.RunsOn {
+				runsOnItems = append(runsOnItems, "      - "+item)
+			}
+			job.RunsOn = "runs-on:\n" + strings.Join(runsOnItems, "\n")
 		}
 
 		// Set if condition - combine safe output type check with user-provided condition
