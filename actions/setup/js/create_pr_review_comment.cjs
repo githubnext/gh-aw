@@ -12,6 +12,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { isTemplatableTrue, isStagedMode, logStagedPreviewInfo, checkRequiredFilter } = require("./safe_output_helpers.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
+const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -38,6 +39,9 @@ async function main(config = {}) {
   const legacyBuffer = registry ? null : config._prReviewBuffer || null;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
+  const invocationContext = resolveInvocationContext(context);
+  const effectiveEventName = invocationContext.eventName || context.eventName;
+  const effectivePayload = invocationContext.eventPayload || context.payload;
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
   const requiredTitlePrefix = config.required_title_prefix || "";
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
@@ -85,9 +89,9 @@ async function main(config = {}) {
   }
 
   // Extract triggering context for footer generation
-  const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-  const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-  const triggeringDiscussionNumber = context.payload?.discussion?.number;
+  const triggeringIssueNumber = effectivePayload?.issue?.number && !effectivePayload?.issue?.pull_request ? effectivePayload.issue.number : undefined;
+  const triggeringPRNumber = effectivePayload?.pull_request?.number || (effectivePayload?.issue?.pull_request ? effectivePayload.issue.number : undefined);
+  const triggeringDiscussionNumber = effectivePayload?.discussion?.number;
 
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
@@ -154,11 +158,11 @@ async function main(config = {}) {
 
     // Check if we're in a pull request context, or an issue comment context on a PR
     const isPRContext =
-      context.eventName === "pull_request" ||
-      context.eventName === "pull_request_target" ||
-      context.eventName === "pull_request_review" ||
-      context.eventName === "pull_request_review_comment" ||
-      (context.eventName === "issue_comment" && context.payload.issue && context.payload.issue.pull_request);
+      effectiveEventName === "pull_request" ||
+      effectiveEventName === "pull_request_target" ||
+      effectiveEventName === "pull_request_review" ||
+      effectiveEventName === "pull_request_review_comment" ||
+      (effectiveEventName === "issue_comment" && effectivePayload.issue && effectivePayload.issue.pull_request);
 
     // Validate context based on target configuration
     if (commentTarget === "triggering" && !isPRContext) {
@@ -229,11 +233,11 @@ async function main(config = {}) {
       }
     } else {
       // Default behavior: use triggering PR
-      if (context.payload.pull_request) {
-        pullRequestNumber = context.payload.pull_request.number;
-        pullRequest = context.payload.pull_request;
-      } else if (context.payload.issue && context.payload.issue.pull_request) {
-        pullRequestNumber = context.payload.issue.number;
+      if (effectivePayload.pull_request) {
+        pullRequestNumber = effectivePayload.pull_request.number;
+        pullRequest = effectivePayload.pull_request;
+      } else if (effectivePayload.issue && effectivePayload.issue.pull_request) {
+        pullRequestNumber = effectivePayload.issue.number;
       } else {
         core.warning("Pull request context detected but no pull request found in payload");
         return {
