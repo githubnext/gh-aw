@@ -802,6 +802,11 @@ describe("check_permissions_utils", () => {
         expect(isConfusedDeputyAttack("bob", "pull_request_target", payload)).toBe(false);
       });
 
+      it("should return false for pull_request_target:labeled even if actor differs from PR author", () => {
+        const payload = { action: "labeled", pull_request: { user: { login: "alice" } } };
+        expect(isConfusedDeputyAttack("dependabot[bot]", "pull_request_target", payload)).toBe(false);
+      });
+
       it("should return false for pull_request_review when actor matches review author (genuine review)", () => {
         const payload = {
           pull_request: { user: { login: "pr-author" } },
