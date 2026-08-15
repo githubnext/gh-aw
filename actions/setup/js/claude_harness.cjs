@@ -58,6 +58,7 @@ const {
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
+const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
@@ -260,7 +261,7 @@ function shouldRetryWithContinue({ attempt, maxRetries, exitCode, hasOutput, isN
   if (attempt >= maxRetries || !hasOutput || continueDisabledPermanently) {
     return false;
   }
-  if (isSignalTerminationExitCode(exitCode)) {
+  if (isSignalTerminationExitCode(exitCode) || isCrashSignalExitCode(exitCode)) {
     return false;
   }
   if (isNoDeferredMarker) {
@@ -502,9 +503,11 @@ async function main() {
       sessionHasProgress = sessionHasProgress || hasClaudeSessionProgress(result.output);
       const permissionDeniedCount = countPermissionDeniedIssues(result.output);
       const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
+      const crashSignalName = crashSignalNameForExitCode(result.exitCode);
       log(
         `attempt ${attempt + 1} failed:` +
           ` exitCode=${result.exitCode}` +
+          (crashSignalName ? ` crashSignal=${crashSignalName}` : "") +
           ` isOverloadedError=${isOverloaded}` +
           ` isRateLimitError=${isRateLimit}` +
           ` isAuthenticationFailedError=${isAuthenticationFailed}` +
@@ -605,6 +608,8 @@ async function main() {
 
       if (attempt < maxRetries && result.hasOutput) {
         const isSignalTermination = isSignalTerminationExitCode(result.exitCode);
+        const isCrashSignal = isCrashSignalExitCode(result.exitCode);
+        const crashSignalName = crashSignalNameForExitCode(result.exitCode);
         const retryWithContinue = shouldRetryWithContinue({
           attempt,
           maxRetries,
@@ -613,16 +618,18 @@ async function main() {
           isNoDeferredMarker,
           continueDisabledPermanently,
         });
-        if (isSignalTermination) {
+        if (isSignalTermination || isCrashSignal) {
           continueDisabledPermanently = true;
         }
-        const reason = isSignalTermination
-          ? `signal-style termination exitCode=${result.exitCode} (failure_reason=cancelled_or_timed_out)`
-          : isOverloaded
-            ? "overloaded_error (transient)"
-            : isRateLimit
-              ? "rate_limit_error (transient)"
-              : "partial execution";
+        const reason = isCrashSignal
+          ? `fatal-signal crash exitCode=${result.exitCode} (signal=${crashSignalName}, failure_reason=sandbox_runtime_crash)`
+          : isSignalTermination
+            ? `signal-style termination exitCode=${result.exitCode} (failure_reason=cancelled_or_timed_out)`
+            : isOverloaded
+              ? "overloaded_error (transient)"
+              : isRateLimit
+                ? "rate_limit_error (transient)"
+                : "partial execution";
         useContinueOnRetry = retryWithContinue;
         const retryMode = retryWithContinue ? "--continue" : "fresh run (--continue disabled permanently)";
         log(`attempt ${attempt + 1}: ${reason} — will retry with ${retryMode} (attempt ${attempt + 2}/${maxRetries + 1})`);
@@ -670,6 +677,8 @@ if (typeof module !== "undefined" && module.exports) {
     isConnectionRefusedError,
     hasClaudeSessionProgress,
     isSignalTerminationExitCode,
+    isCrashSignalExitCode,
+    crashSignalNameForExitCode,
     shouldRetryWithContinue,
     countPermissionDeniedIssues,
     hasNumerousPermissionDeniedIssues,

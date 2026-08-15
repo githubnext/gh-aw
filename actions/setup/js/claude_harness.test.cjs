@@ -18,6 +18,8 @@ const {
   isConnectionRefusedError,
   hasClaudeSessionProgress,
   isSignalTerminationExitCode,
+  isCrashSignalExitCode,
+  crashSignalNameForExitCode,
   shouldRetryWithContinue,
   countPermissionDeniedIssues,
   hasNumerousPermissionDeniedIssues,
@@ -336,6 +338,31 @@ describe("claude_harness.cjs", () => {
     });
   });
 
+  describe("isCrashSignalExitCode / crashSignalNameForExitCode", () => {
+    it("identifies known fatal-signal crash exit codes", () => {
+      expect(isCrashSignalExitCode(139)).toBe(true); // SIGSEGV
+      expect(isCrashSignalExitCode(159)).toBe(true); // SIGSYS
+      expect(isCrashSignalExitCode(134)).toBe(true); // SIGABRT
+    });
+
+    it("returns false for non-crash exit codes, including timeout/cancellation signals", () => {
+      expect(isCrashSignalExitCode(0)).toBe(false);
+      expect(isCrashSignalExitCode(1)).toBe(false);
+      expect(isCrashSignalExitCode(137)).toBe(false);
+      expect(isCrashSignalExitCode(143)).toBe(false);
+    });
+
+    it("maps known crash exit codes to their signal name", () => {
+      expect(crashSignalNameForExitCode(139)).toBe("SIGSEGV");
+      expect(crashSignalNameForExitCode(159)).toBe("SIGSYS");
+    });
+
+    it("returns null for exit codes that are not recognized crash signals", () => {
+      expect(crashSignalNameForExitCode(1)).toBeNull();
+      expect(crashSignalNameForExitCode(137)).toBeNull();
+    });
+  });
+
   describe("permission-denied classification helpers", () => {
     it("counts repeated permission-denied signals", () => {
       const output = "permission denied\nEACCES: permission denied\npermissions denied";
@@ -409,6 +436,20 @@ describe("claude_harness.cjs", () => {
   describe("shouldRetryWithContinue", () => {
     it("does not use --continue for signal-style termination exit codes", () => {
       for (const exitCode of [137, 143]) {
+        const result = shouldRetryWithContinue({
+          attempt: 0,
+          maxRetries: 3,
+          exitCode,
+          hasOutput: true,
+          isNoDeferredMarker: false,
+          continueDisabledPermanently: false,
+        });
+        expect(result).toBe(false);
+      }
+    });
+
+    it("does not use --continue for fatal-signal crash exit codes", () => {
+      for (const exitCode of [134, 139, 159]) {
         const result = shouldRetryWithContinue({
           attempt: 0,
           maxRetries: 3,
