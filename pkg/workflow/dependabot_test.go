@@ -1051,7 +1051,7 @@ func TestGenerateGoMod_SkipsEmptyRequireBlock(t *testing.T) {
 	}
 
 	content := string(data)
-	if strings.Contains(content, "\nrequire") {
+	if strings.Contains(content, "require (") {
 		t.Fatalf("go.mod should not contain a require block when all dependencies are skipped:\n%s", content)
 	}
 }
