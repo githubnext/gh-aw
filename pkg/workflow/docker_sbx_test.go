@@ -880,3 +880,71 @@ func TestDockerSbxRuntimeInstallFalseOmitsInstallSteps(t *testing.T) {
 	assert.NotContains(t, content, "docker_sbx_daemon.sh", "daemon step must be omitted when runtime-install: false")
 	assert.NotContains(t, content, "docker-sbx pre-flight smoke test", "pre-flight must be omitted when runtime-install: false")
 }
+
+// TestDockerSbxBehaviorDefinedEngineCLIWiring verifies that behavior-defined engines
+// installed through npm (e.g. Crush) also stage their CLI into the sbx-visible path and
+// prepend it to the sandbox PATH. Without this the CLI is only present in the runner tool
+// cache, which is not mounted into the microVM, and the harness fails with ENOENT.
+func TestDockerSbxBehaviorDefinedEngineCLIWiring(t *testing.T) {
+	def := &EngineDefinition{
+		ID:          "sbxcrush",
+		DisplayName: "SbxCrush",
+		Behaviors: &EngineBehaviorDefinition{
+			Installation: &EngineInstallationDefinition{
+				PackageManager:     "npm",
+				PackageName:        "@charmland/crush",
+				Version:            "0.88.0",
+				StepName:           "Install SbxCrush",
+				IncludeNodeSetup:   true,
+				PostInstallScripts: true,
+			},
+			Execution: &EngineExecutionDefinition{
+				CommandName: "sbxcrush",
+				Args:        []string{"run"},
+				StepName:    "Execute SbxCrush CLI",
+			},
+			HarnessScript: "// harness\n",
+		},
+	}
+	engine, err := NewBehaviorDefinedEngine(def)
+	require.NoError(t, err)
+
+	for _, runtime := range []AgentRuntime{AgentRuntimeDockerSbx, AgentRuntimeCloudHypervisor} {
+		t.Run(string(runtime)+" install and execution use sbx-visible CLI path", func(t *testing.T) {
+			sbxWorkflow := &WorkflowData{
+				Name:          "test-workflow",
+				EngineConfig:  &EngineConfig{ID: "sbxcrush"},
+				SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: runtime, SudoExplicitlyEnabled: true}},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			}
+
+			installContent := strings.Join(flattenSteps(engine.GetInstallationSteps(sbxWorkflow)), "\n")
+			assert.Contains(t, installContent, `npm install --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @charmland/crush@0.88.0`)
+			assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/sbxcrush" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/sbxcrush"`)
+
+			execSteps := engine.GetExecutionSteps(sbxWorkflow, "/tmp/gh-aw/test.log")
+			require.NotEmpty(t, execSteps)
+			execContent := strings.Join(execSteps[len(execSteps)-1], "\n")
+			assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+		})
+	}
+
+	t.Run("non-microVM runtimes keep the host install only", func(t *testing.T) {
+		defaultWorkflow := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{ID: "sbxcrush"},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		}
+		installContent := strings.Join(flattenSteps(engine.GetInstallationSteps(defaultWorkflow)), "\n")
+		assert.NotContains(t, installContent, `${RUNNER_TEMP}/gh-aw/engine-cli`)
+
+		execSteps := engine.GetExecutionSteps(defaultWorkflow, "/tmp/gh-aw/test.log")
+		require.NotEmpty(t, execSteps)
+		execContent := strings.Join(execSteps[len(execSteps)-1], "\n")
+		assert.NotContains(t, execContent, `${RUNNER_TEMP}/gh-aw/engine-cli/bin`)
+	})
+}
