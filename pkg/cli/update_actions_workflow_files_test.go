@@ -1,0 +1,76 @@
+//go:build !integration
+
+package cli
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestUpdateActionsInWorkflowFiles_UpdatesUsesReferences(t *testing.T) {
+	// Stub latest release lookup so no network calls are made.
+	deps := newTestActionUpdateDeps()
+	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		if repo == "ruby/setup-ruby" {
+			return "v1.310.0", "newrubysha1234567890123456789012345678901", nil
+		}
+		return currentVersion, "", nil
+	}
+
+	// Create a temp workflows directory with a .md file that has an outdated uses: reference.
+	workflowsDir := t.TempDir()
+	mdContent := "steps:\n  - uses: ruby/setup-ruby@v1.309.0\n"
+	mdPath := filepath.Join(workflowsDir, "my-workflow.md")
+	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	if err := updateActionsInWorkflowFiles(context.Background(), deps, updateActionsOptions{workflowsDir: workflowsDir, noCompile: true}); err != nil {
+		t.Fatalf("UpdateActionsInWorkflowFiles() error = %v", err)
+	}
+
+	got, err := os.ReadFile(mdPath)
+	if err != nil {
+		t.Fatalf("failed to read updated workflow file: %v", err)
+	}
+
+	if want := "steps:\n  - uses: ruby/setup-ruby@v1.310.0\n"; string(got) != want {
+		t.Errorf("workflow file not updated:\ngot:  %s\nwant: %s", string(got), want)
+	}
+}
+func TestUpdateActionsInWorkflowFiles_NeverDowngrades(t *testing.T) {
+	// Mirrors TestUpdateActions_NeverDowngrades: the release resolver returns a lower
+	// version than what is already pinned in the .md file; the source file must not
+	// be rewritten to the older tag.
+	deps := newTestActionUpdateDeps()
+	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		if repo == "actions-ecosystem/action-add-labels" {
+			return "v1.1.0", "oldsha1234567890123456789012345678901234a", nil
+		}
+		return currentVersion, "", nil
+	}
+
+	workflowsDir := t.TempDir()
+	originalContent := "steps:\n  - uses: actions-ecosystem/action-add-labels@v1.1.3\n"
+	mdPath := filepath.Join(workflowsDir, "my-workflow.md")
+	if err := os.WriteFile(mdPath, []byte(originalContent), 0o644); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	if err := updateActionsInWorkflowFiles(context.Background(), deps, updateActionsOptions{workflowsDir: workflowsDir, noCompile: true}); err != nil {
+		t.Fatalf("UpdateActionsInWorkflowFiles() error = %v", err)
+	}
+
+	got, err := os.ReadFile(mdPath)
+	if err != nil {
+		t.Fatalf("failed to read workflow file: %v", err)
+	}
+
+	if string(got) != originalContent {
+		t.Errorf("workflow file was incorrectly modified (downgrade must not occur):\ngot:  %s\nwant: %s", string(got), originalContent)
+	}
+}
+
+// savedEntryKeys returns the map keys of a loaded ActionCache for error messages.
