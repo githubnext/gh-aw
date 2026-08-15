@@ -39,11 +39,13 @@ export const requireLastIndexResetBeforeGlobalExecLoopRule = createRule({
   meta: {
     type: "problem",
     docs: {
-      description: "Require resetting `.lastIndex = 0` on a module-scoped global/sticky regex before a `while ((match = RE.exec(str)))` loop, since the shared stateful regex resumes scanning from wherever the previous call left off across separate invocations.",
+      description:
+        "Require resetting `.lastIndex = 0` on a module-scoped global/sticky regex before a `while ((match = RE.exec(str)))` loop, since the shared stateful regex resumes scanning from wherever the previous call left off across separate invocations.",
     },
     schema: [],
     messages: {
-      requireLastIndexReset: "Regex '{{name}}' has the 'g' or 'y' flag and is reused across calls, but its 'lastIndex' is never reset before this exec loop. If a prior call ended mid-string (e.g. threw, returned early, or ran out of matches on shorter input), this loop can silently skip matches or miss content entirely. Add '{{name}}.lastIndex = 0;' before the loop.",
+      requireLastIndexReset:
+        "Regex '{{name}}' has the 'g' or 'y' flag and is reused across calls, but its 'lastIndex' is never reset before this exec loop. If a prior call ended mid-string (e.g. threw, returned early, or ran out of matches on shorter input), this loop can silently skip matches or miss content entirely. Add '{{name}}.lastIndex = 0;' before the loop.",
     },
   },
   defaultOptions: [],
@@ -77,7 +79,13 @@ export const requireLastIndexResetBeforeGlobalExecLoopRule = createRule({
         // Only look within the nearest enclosing function to avoid false negatives from
         // resets that belong to an unrelated, earlier function using the same regex.
         let enclosing: TSESTree.Node | undefined = node.parent;
-        while (enclosing && enclosing.type !== AST_NODE_TYPES.FunctionDeclaration && enclosing.type !== AST_NODE_TYPES.FunctionExpression && enclosing.type !== AST_NODE_TYPES.ArrowFunctionExpression && enclosing.type !== AST_NODE_TYPES.Program) {
+        while (
+          enclosing &&
+          enclosing.type !== AST_NODE_TYPES.FunctionDeclaration &&
+          enclosing.type !== AST_NODE_TYPES.FunctionExpression &&
+          enclosing.type !== AST_NODE_TYPES.ArrowFunctionExpression &&
+          enclosing.type !== AST_NODE_TYPES.Program
+        ) {
           enclosing = enclosing.parent;
         }
         const scanStart = enclosing ? enclosing.range[0] : 0;

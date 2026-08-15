@@ -134,7 +134,7 @@ engine:
       const { spawnSync } = require("child_process");
       const { accessSync, constants, readFileSync, writeFileSync } = require("fs");
       const { isAbsolute, join } = require("path");
-      const { fetchAWFReflect, resolveProviderEndpointFromReflect } = require("./awf_reflect.cjs");
+      const { fetchAWFReflect, resolveProviderEndpointFromReflect, deriveBaseUrlFromModelsURL } = require("./awf_reflect.cjs");
 
       const [command, ...commandArgs] = process.argv.slice(2);
       const log = message => process.stderr.write(`[crush-harness] ${message}\n`);
@@ -197,9 +197,12 @@ engine:
             entry => entry?.configured === true && entry.provider === endpoint.endpointProvider
           );
           if (typeof reflectedEndpoint?.models_url === "string") {
-            const modelsURL = new URL(reflectedEndpoint.models_url);
-            const basePath = modelsURL.pathname.replace(/\/models\/?$/i, "");
-            baseUrl = `${modelsURL.origin}${basePath}`;
+            // Re-derive the base URL from models_url (rather than reusing endpoint.baseUrl,
+            // which points at the models-listing endpoint) while still applying the same
+            // api-proxy -> host.docker.internal HOSTALIASES bridge rewrite, so the crush
+            // binary's own chat-completions request never targets the unresolvable
+            // "api-proxy" hostname.
+            baseUrl = deriveBaseUrlFromModelsURL(reflectedEndpoint.models_url);
           }
         }
         if (!baseUrl) {

@@ -589,6 +589,27 @@ function endpointBaseUrl(endpoint) {
 }
 
 /**
+ * Derive a base URL (origin + path prefix, with any trailing `/models` segment
+ * stripped) from a `models_url` value, applying the same api-proxy ->
+ * host.docker.internal HOSTALIASES bridge rewrite as `endpointBaseUrl`.
+ *
+ * Harnesses that need a base URL for chat-completions requests (rather than
+ * the models-listing endpoint) should use this instead of deriving the
+ * base URL from `models_url` inline, so the api-proxy hostname rewrite is
+ * never accidentally skipped.
+ *
+ * @param {string} modelsUrl
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {(path: string, encoding: BufferEncoding) => string} [readFileSync]
+ * @returns {string}
+ */
+function deriveBaseUrlFromModelsURL(modelsUrl, env = process.env, readFileSync = fs.readFileSync) {
+  const parsed = new URL(modelsUrl);
+  const basePath = parsed.pathname.replace(/\/models\/?$/i, "");
+  return rewriteAPIProxyURLForHostBridge(`${parsed.origin}${basePath}`, env, readFileSync);
+}
+
+/**
  * Resolve a configured provider endpoint from AWF /reflect data.
  *
  * @param {{
@@ -653,6 +674,8 @@ function resolveProviderEndpointFromReflect(options) {
  *   provider?: string,
  *   reflectData: ReflectData | null | undefined,
  *   logger?: (msg: string) => void,
+ *   env?: NodeJS.ProcessEnv,
+ *   readFileSync?: (path: string, encoding: BufferEncoding) => string,
  * }} options
  * @returns {{ provider: string, endpointProvider: string, host: string, basePath: string } | null}
  */
@@ -691,8 +714,9 @@ function resolveOpenAICompatibleEndpointFromReflect(options) {
     path = path.replace(/\/models$/i, "/chat/completions");
     const basePath = path.replace(/^\/+/, "");
     const endpointProvider = String(endpoint.provider);
-    logger(`awf-reflect: provider=${provider} mapped to endpoint provider=${endpointProvider} host=${parsed.origin} basePath=${basePath}`);
-    return { provider, endpointProvider, host: parsed.origin, basePath };
+    const host = rewriteAPIProxyURLForHostBridge(parsed.origin, options?.env, options?.readFileSync);
+    logger(`awf-reflect: provider=${provider} mapped to endpoint provider=${endpointProvider} host=${host} basePath=${basePath}`);
+    return { provider, endpointProvider, host, basePath };
   } catch {
     logger(`awf-reflect: invalid endpoint URL for provider=${provider}`);
     return null;
@@ -846,6 +870,7 @@ if (typeof module !== "undefined" && module.exports) {
     hasAPIProxyLocalhostAlias,
     inferProviderTypeForModel,
     inferWireApiForModel,
+    deriveBaseUrlFromModelsURL,
     normalizeReflectProviderName,
     resolveOpenAICompatibleEndpointFromReflect,
     resolveProviderEndpointFromReflect,

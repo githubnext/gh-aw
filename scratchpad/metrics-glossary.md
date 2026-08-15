@@ -426,7 +426,7 @@ When implementing or updating daily report workflows:
 
 **Python Variable**: `test_to_source_ratio`
 
-**Notes**: Values between 0.5-1.0 are considered healthy
+**Notes**: Values between 0.5-1.0 are typical
 
 ---
 

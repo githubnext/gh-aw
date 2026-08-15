@@ -57,7 +57,7 @@ These artifacts are initially downloaded by `gh run download` as directory trees
 
 The `firewall-audit-logs` artifact (constant: `constants.FirewallAuditArtifactName`) is uploaded by all firewall-enabled agentic workflows. It is **separate** from the `agent` artifact and must be downloaded independently.
 
-```
+```text
 firewall-audit-logs/
 ├── api-proxy-logs/
 │   └── token-usage.jsonl        ← Token usage data (input/output/cache tokens per request)
