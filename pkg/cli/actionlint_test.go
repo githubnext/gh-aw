@@ -274,6 +274,7 @@ func TestInitActionlintStats(t *testing.T) {
 }
 
 func TestGetActionlintDocsURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		kind     string
@@ -330,6 +331,7 @@ func TestGetActionlintDocsURL(t *testing.T) {
 }
 
 func TestBuildActionlintIntegrationStatus(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		includeShellcheck bool
@@ -371,6 +373,7 @@ func TestBuildActionlintIntegrationStatus(t *testing.T) {
 }
 
 func TestBuildActionlintDockerArgs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		opts     actionlintRunOptions
@@ -426,6 +429,7 @@ func TestBuildActionlintDockerArgs(t *testing.T) {
 }
 
 func TestBuildActionlintCompilerError(t *testing.T) {
+	t.Parallel()
 	compilerErr := buildActionlintCompilerError(actionlintError{
 		Message:  "something went wrong",
 		Filepath: ".github/workflows/test.lock.yml",
@@ -445,6 +449,7 @@ func TestBuildActionlintCompilerError(t *testing.T) {
 }
 
 func TestBuildActionlintDockerCommand(t *testing.T) {
+	t.Parallel()
 	command := buildActionlintDockerCommand("/tmp/repo root", []string{"a.lock.yml"}, actionlintRunOptions{
 		IncludeShellcheck: false,
 		IgnorePatterns:    []string{"foo bar"},
@@ -457,6 +462,7 @@ func TestBuildActionlintDockerCommand(t *testing.T) {
 }
 
 func TestActionlintShouldParseOutput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -520,6 +526,7 @@ func TestActionlintExitHelperSubprocess(t *testing.T) {
 }
 
 func TestIsHighSeverityActionlintError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      actionlintError
@@ -567,6 +574,7 @@ func TestIsHighSeverityActionlintError(t *testing.T) {
 }
 
 func TestExtractShellcheckSeverity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		message  string
 		expected string
@@ -588,6 +596,7 @@ func TestExtractShellcheckSeverity(t *testing.T) {
 }
 
 func TestCountHighSeverityErrors(t *testing.T) {
+	t.Parallel()
 	// Mix of high and low severity
 	input := `[
 		{"message":"shellcheck reported issue in this script: SC2016:info:4:13: msg","filepath":"a.yml","line":1,"column":1,"kind":"shellcheck"},

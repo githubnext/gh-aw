@@ -18,16 +18,17 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @param {string} memoryDir - Path to the memory directory to validate
  * @param {string} [memoryType="cache"] - Type of memory ("cache" or "repo") for error messages
  * @param {string[]} [allowedExtensions] - Optional custom list of allowed extensions (empty array or undefined means allow all files)
+ * @param {{ info: (message: string) => void, error: (message: string) => void }} [coreModule] - Actions core module
  * @returns {ValidationResult} Validation result with list of invalid files
  */
-function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions) {
+function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions, coreModule = core) {
   if (!allowedExtensions?.length) {
-    core.info(`All file extensions are allowed in ${memoryType}-memory directory`);
+    coreModule.info(`All file extensions are allowed in ${memoryType}-memory directory`);
     return { valid: true, invalidFiles: [] };
   }
 
   if (!fs.existsSync(memoryDir)) {
-    core.info(`Memory directory does not exist: ${memoryDir}`);
+    coreModule.info(`Memory directory does not exist: ${memoryDir}`);
     return { valid: true, invalidFiles: [] };
   }
 
@@ -65,21 +66,21 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
     scanDirectory(memoryDir);
   } catch (error) {
     const message = getErrorMessage(error);
-    core.error(`Failed to scan ${memoryType}-memory directory: ${message}`);
+    coreModule.error(`Failed to scan ${memoryType}-memory directory: ${message}`);
     return { valid: false, invalidFiles: [] };
   }
 
   if (invalidFiles.length > 0) {
-    core.error(`Found ${invalidFiles.length} file(s) with invalid extensions in ${memoryType}-memory:`);
+    coreModule.error(`Found ${invalidFiles.length} file(s) with invalid extensions in ${memoryType}-memory:`);
     for (const file of invalidFiles) {
       const ext = path.extname(file).toLowerCase() || "(no extension)";
-      core.error(`  - ${file} (extension: ${ext})`);
+      coreModule.error(`  - ${file} (extension: ${ext})`);
     }
-    core.error(`Allowed extensions: ${[...extensions].join(", ")}`);
+    coreModule.error(`Allowed extensions: ${[...extensions].join(", ")}`);
     return { valid: false, invalidFiles };
   }
 
-  core.info(`All files in ${memoryType}-memory directory have valid extensions`);
+  coreModule.info(`All files in ${memoryType}-memory directory have valid extensions`);
   return { valid: true, invalidFiles: [] };
 }
 

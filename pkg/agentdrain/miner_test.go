@@ -146,6 +146,7 @@ func TestMasking(t *testing.T) {
 }
 
 func TestFlattenEvent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		evt              AgentEvent
@@ -203,6 +204,7 @@ func TestFlattenEvent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := FlattenEvent(tt.evt, tt.exclude)
 			assert.Equal(t, tt.expected, got, "FlattenEvent output mismatch for case %q", tt.name)
 			if tt.excludedField != "" {
@@ -222,6 +224,7 @@ func TestFlattenEvent(t *testing.T) {
 }
 
 func TestTokenize(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		line     string
@@ -251,6 +254,7 @@ func TestTokenize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := Tokenize(tt.line)
 			assert.Equal(t, tt.expected, got, "Tokenize(%q) should split into expected tokens", tt.line)
 		})
@@ -351,6 +355,7 @@ func TestCoordinatorAnalyzeEvent(t *testing.T) {
 }
 
 func TestStageSequence(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		events   []AgentEvent
@@ -382,6 +387,7 @@ func TestStageSequence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := StageSequence(tt.events)
 			assert.Equal(t, tt.expected, got, "StageSequence result mismatch")
 		})
@@ -427,6 +433,7 @@ func TestPersistenceRoundTrip(t *testing.T) {
 }
 
 func TestComputeSimilarity(t *testing.T) {
+	t.Parallel()
 	param := "<*>"
 	tests := []struct {
 		name     string
@@ -467,6 +474,7 @@ func TestComputeSimilarity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := computeSimilarity(tt.a, tt.b, param)
 			assert.InDelta(t, tt.expected, got, 1e-9, "computeSimilarity(%v, %v) mismatch", tt.a, tt.b)
 		})
@@ -474,6 +482,7 @@ func TestComputeSimilarity(t *testing.T) {
 }
 
 func TestMergeTemplate(t *testing.T) {
+	t.Parallel()
 	param := "<*>"
 	tests := []struct {
 		name     string
@@ -508,6 +517,7 @@ func TestMergeTemplate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := mergeTemplate(tt.existing, tt.incoming, param)
 			assert.Equal(t, tt.expected, got, "mergeTemplate(%v, %v) mismatch", tt.existing, tt.incoming)
 		})

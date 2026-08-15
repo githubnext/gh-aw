@@ -19,6 +19,13 @@ import (
 
 var gitLog = logger.New("cli:git")
 
+// isSafeGitRevisionArg reports whether ref cannot be misinterpreted as a git
+// CLI flag by rejecting empty strings and values starting with "-". It does
+// not validate that ref is a well-formed git revision.
+func isSafeGitRevisionArg(ref string) bool {
+	return ref != "" && !strings.HasPrefix(ref, "-")
+}
+
 func isGitRepo() bool {
 	_, err := gitutil.FindGitRoot()
 	return err == nil
@@ -688,6 +695,11 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 
 	upstream := strings.TrimSpace(string(output))
 	gitLog.Printf("Upstream branch: %s", upstream)
+
+	if !isSafeGitRevisionArg(upstream) {
+		gitLog.Printf("Rejecting unsafe upstream ref: %q", upstream)
+		return status, fmt.Errorf("unexpected upstream ref %q", upstream)
+	}
 
 	// Check if there are commits in the current branch that affect this file and aren't in upstream
 	cmd = exec.Command("git", "-C", gitRoot, "log", upstream+"..HEAD", "--oneline", "--", relPath)

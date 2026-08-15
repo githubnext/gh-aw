@@ -14,6 +14,14 @@ import (
 )
 
 func TestGenerateCloudHypervisorSetupSteps(t *testing.T) {
+	t.Run("KVM access step", func(t *testing.T) {
+		step := generateCloudHypervisorKVMAccessStep()
+		require.NotEmpty(t, step)
+		content := strings.Join(step, "\n")
+		assert.Contains(t, content, "Grant runner access to KVM")
+		assert.Contains(t, content, "cloud_hypervisor_kvm_access.sh")
+	})
+
 	t.Run("host preflight step", func(t *testing.T) {
 		step := generateCloudHypervisorHostPreflightStep()
 		require.NotEmpty(t, step)
@@ -23,12 +31,12 @@ func TestGenerateCloudHypervisorSetupSteps(t *testing.T) {
 	})
 
 	t.Run("bundle setup step", func(t *testing.T) {
-		step := generateCloudHypervisorBundleSetupStep("v0.28.0")
+		step := generateCloudHypervisorBundleSetupStep("v0.28.1")
 		require.NotEmpty(t, step)
 		content := strings.Join(step, "\n")
 		assert.Contains(t, content, "Download and verify cloud-hypervisor bundle")
 		assert.Contains(t, content, "id: cloud-hypervisor-bundle")
-		assert.Contains(t, content, "GH_AW_AWF_VERSION: v0.28.0")
+		assert.Contains(t, content, "GH_AW_AWF_VERSION: v0.28.1")
 		assert.Contains(t, content, "cloud_hypervisor_setup_bundle.sh")
 	})
 }
@@ -42,26 +50,34 @@ func TestCloudHypervisorInstallStepOrderInBuildNpmEngineInstallStepsWithAWF(t *t
 	steps := BuildNpmEngineInstallStepsWithAWF(nil, workflowData)
 	require.NotEmpty(t, steps)
 
+	kvmAccessIdx := -1
 	preflightIdx := -1
 	bundleIdx := -1
 	awfIdx := -1
+	awfInstallContent := ""
 	for i, step := range steps {
 		content := strings.Join(step, "\n")
 		switch {
+		case strings.Contains(content, "Grant runner access to KVM"):
+			kvmAccessIdx = i
 		case strings.Contains(content, "Check host eligibility for cloud-hypervisor"):
 			preflightIdx = i
 		case strings.Contains(content, "Download and verify cloud-hypervisor bundle"):
 			bundleIdx = i
 		case strings.Contains(content, "install_awf_binary.sh"):
 			awfIdx = i
+			awfInstallContent = content
 		}
 	}
 
+	require.NotEqual(t, -1, kvmAccessIdx)
 	require.NotEqual(t, -1, preflightIdx)
 	require.NotEqual(t, -1, bundleIdx)
 	require.NotEqual(t, -1, awfIdx)
+	assert.Less(t, kvmAccessIdx, preflightIdx)
 	assert.Less(t, preflightIdx, bundleIdx)
 	assert.Less(t, bundleIdx, awfIdx)
+	assert.NotContains(t, awfInstallContent, "--rootless")
 }
 
 func TestCloudHypervisorAWFArgs(t *testing.T) {
@@ -79,6 +95,8 @@ func TestCloudHypervisorAWFArgs(t *testing.T) {
 	args := strings.Join(BuildAWFArgs(config), " ")
 	assert.Contains(t, args, "--container-runtime cloud-hypervisor")
 	assert.Contains(t, args, "--cloud-hypervisor-preview")
+	assert.Contains(t, args, "--cloud-hypervisor-vcpus 2")
+	assert.Contains(t, args, "--cloud-hypervisor-memory-mib 4096")
 	assert.NotContains(t, args, "${{ steps.cloud-hypervisor-bundle.outputs.")
 	assert.NotContains(t, args, "--mount")
 }
@@ -101,8 +119,25 @@ func TestCloudHypervisorAWFCommandOmitsUnsupportedMountsAndTTY(t *testing.T) {
 	}
 
 	command := BuildAWFCommand(config)
+	assert.Contains(t, command, "sudo --preserve-env awf")
+	assert.Contains(t, command, `--cloud-hypervisor-virtiofsd-sha256 "${GH_AW_CLOUD_HYPERVISOR_VIRTIOFSD_SHA256}"`)
 	assert.NotContains(t, command, "--mount")
 	assert.NotContains(t, command, "--tty")
+	assert.NotContains(t, command, "--legacy-security")
+	assert.NotContains(t, command, "--enable-host-access")
+}
+
+func TestCloudHypervisorFirewallLogsUsePrivilegedMode(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:               "awf",
+			Runtime:          AgentRuntimeCloudHypervisor,
+			NetworkIsolation: true,
+		}},
+	}
+
+	step := generateFirewallLogParsingStep("cloud-hypervisor", workflowData)
+	assert.NotContains(t, strings.Join(step, "\n"), "--rootless")
 }
 
 func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
@@ -111,10 +146,11 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 		AllowedDomains: "github.com",
 		WorkflowData: &WorkflowData{
 			EngineConfig:   &EngineConfig{ID: "copilot"},
-			TimeoutMinutes: "timeout-minutes: 30",
+			TimeoutMinutes: "timeout-minutes: 60",
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
+			Tools:         map[string]any{"github": map[string]any{"mode": "gh-proxy"}},
 			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeCloudHypervisor}},
 		},
 	}
@@ -124,8 +160,9 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 	assert.NotContains(t, jsonStr, `"containerRuntime"`)
 	assert.NotContains(t, jsonStr, "host.docker.internal")
 	assert.Contains(t, jsonStr, `"isolation":true`)
-	assert.NotContains(t, jsonStr, `"topologyAttach"`)
-	assert.Contains(t, jsonStr, `"agentTimeout":30`)
+	assert.Contains(t, jsonStr, `"topologyAttach":["awmg-mcpg"]`)
+	assert.NotContains(t, jsonStr, "awmg-cli-proxy")
+	assert.Contains(t, jsonStr, `"agentTimeout":60`)
 }
 
 func TestCloudHypervisorValidationArcDindIncompatible(t *testing.T) {
@@ -165,6 +202,85 @@ func TestCloudHypervisorValidationRequiresPreviewVersion(t *testing.T) {
 	require.ErrorContains(t, err, string(constants.AWFCloudHypervisorMinVersion))
 }
 
+func TestCloudHypervisorValidationRejectsGHProxy(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:      "awf",
+			Runtime: AgentRuntimeCloudHypervisor,
+			Version: string(constants.AWFCloudHypervisorMinVersion),
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "gh-proxy"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "gh-proxy")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
+func TestCloudHypervisorValidationRejectsLegacySecurity(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:             "awf",
+			Runtime:        AgentRuntimeCloudHypervisor,
+			Version:        string(constants.AWFCloudHypervisorMinVersion),
+			LegacySecurity: true,
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "legacy-security")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
+func TestCloudHypervisorValidationRejectsAllowHostPorts(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:             "awf",
+			Runtime:        AgentRuntimeCloudHypervisor,
+			Version:        string(constants.AWFCloudHypervisorMinVersion),
+			AllowHostPorts: []int{8080},
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "allow-host-ports")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
+func TestCloudHypervisorValidationRejectsEnclaves(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:      "awf",
+			Runtime: AgentRuntimeCloudHypervisor,
+			Version: string(constants.AWFCloudHypervisorMinVersion),
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools:    map[string]any{"github": map[string]any{"mode": "remote"}},
+		Enclaves: EnclavesConfig{{}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "enclaves")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
 func TestCloudHypervisorFrontmatterExtraction(t *testing.T) {
 	workflowsDir := t.TempDir()
 
@@ -173,11 +289,12 @@ on:
   workflow_dispatch:
 engine: copilot
 strict: false
+timeout-minutes: 60
 sandbox:
   agent:
     id: awf
     runtime: cloud-hypervisor
-    version: v0.28.0
+    version: v0.28.1
 ---
 
 # Test cloud-hypervisor Runtime
@@ -195,13 +312,25 @@ sandbox:
 	require.NoError(t, err)
 	lockStr := string(lockContent)
 
+	assert.Contains(t, lockStr, "Grant runner access to KVM")
 	assert.Contains(t, lockStr, "Check host eligibility for cloud-hypervisor")
 	assert.Contains(t, lockStr, "Download and verify cloud-hypervisor bundle")
-	assert.Contains(t, lockStr, "GH_AW_AWF_VERSION: v0.28.0")
+	assert.Contains(t, lockStr, "GH_AW_AWF_VERSION: v0.28.1")
+	assert.Contains(t, lockStr, "sudo --preserve-env awf")
+	assert.NotContains(t, lockStr, `install_awf_binary.sh" v0.28.1 --rootless`)
+	assert.NotContains(t, lockStr, `print_firewall_logs.sh" --rootless`)
 	assert.Contains(t, lockStr, "--container-runtime cloud-hypervisor")
 	assert.Contains(t, lockStr, "--cloud-hypervisor-preview")
+	assert.Contains(t, lockStr, "--cloud-hypervisor-vcpus 2")
+	assert.Contains(t, lockStr, "--cloud-hypervisor-memory-mib 4096")
 	assert.Contains(t, lockStr, "--cloud-hypervisor-kernel \"${GH_AW_CLOUD_HYPERVISOR_KERNEL}\"")
+	assert.Contains(t, lockStr, "--cloud-hypervisor-virtiofsd-sha256 \"${GH_AW_CLOUD_HYPERVISOR_VIRTIOFSD_SHA256}\"")
 	assert.Contains(t, lockStr, "--cloud-hypervisor-supervisor-sha256 \"${GH_AW_CLOUD_HYPERVISOR_SUPERVISOR_SHA256}\"")
+	assert.Contains(t, lockStr, `\"agentTimeout\":60`)
+	assert.Contains(t, lockStr, `\"topologyAttach\":[\"awmg-mcpg\"]`)
+	assert.NotContains(t, lockStr, "--mount")
+	assert.NotContains(t, lockStr, "--tty")
+	assert.NotContains(t, lockStr, "--legacy-security")
 }
 
 func TestIsCloudHypervisorRuntime(t *testing.T) {
@@ -220,12 +349,16 @@ func TestCloudHypervisorShellScriptContent(t *testing.T) {
 		contains []string
 	}{
 		{
+			script:   "cloud_hypervisor_kvm_access.sh",
+			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "setfacl", "u:${runner_uid}:rw", "/dev/kvm", "-r /dev/kvm", "-w /dev/kvm"},
+		},
+		{
 			script:   "cloud_hypervisor_host_preflight.sh",
 			contains: []string{"RUNNER_ENVIRONMENT", "github-hosted", "ImageOS", "/dev/kvm", "cloud-hypervisor preview"},
 		},
 		{
 			script:   "cloud_hypervisor_setup_bundle.sh",
-			contains: []string{"cloud-hypervisor-test-x86_64.tar.gz", "cloud-hypervisor-test-x86_64.SHA256SUMS", "cloud-hypervisor-test-x86_64.manifest.json", "vmlinux.bin", "rootfs.ext4", "awf-supervisor", "binary_path=", "binary_sha256="},
+			contains: []string{"cloud-hypervisor-test-x86_64.tar.gz", "cloud-hypervisor-test-x86_64.SHA256SUMS", "cloud-hypervisor-test-x86_64.manifest.json", "vmlinux.bin", "rootfs.ext4", "awf-supervisor", "virtiofsd", "virtiofsd_path=", "virtiofsd_sha256="},
 		},
 	}
 

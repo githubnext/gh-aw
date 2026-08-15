@@ -6,6 +6,10 @@
 # main prompt. The explicit "## end skill:" marker bounds this block exactly,
 # so importing it does not swallow any content that follows in the workflow
 # that imports it.
+#
+# New workflows: import this file (`imports: [shared/reporting.md]`) instead of
+# inlining report-formatting prose in the prompt, so the rules stay
+# single-sourced and do not drift.
 ---
 
 Use the `reporting` skill when producing a report, issue, or PR comment to follow the formatting guidelines below.

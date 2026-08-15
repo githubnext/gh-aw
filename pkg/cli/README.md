@@ -103,6 +103,19 @@ The `cli` package is intentionally large and command-oriented. The tables below 
 | `ForecastConfig` | struct | Configuration for Monte Carlo AIC forecasting. |
 | `ExperimentsListConfig` | struct | Configuration for listing workflow experiments. |
 | `ExperimentsAnalyzeConfig` | struct | Configuration for detailed experiment analysis. |
+| `AuditOptions` | struct | Shared options for audit and audit-diff execution, including artifact sets and filters. |
+| `Codemod` | struct | A single code transformation applied to workflow files by `gh aw fix`, with optional file-path-aware `ApplyWithContext`. |
+| `DependencyGraph` | struct | Tracks workflow file dependencies (imports) for efficient recompilation. |
+| `DependencyReport` | struct | Aggregated dependency health report including outdated modules and security advisories. |
+| `DockerImagesOptions` | struct | Selects which Docker-based static analysis tools (`Zizmor`, `Poutine`, `Actionlint`, etc.) are requested. |
+| `LogEntry` | interface | Shared shape implemented by every parsed log-line type (access, firewall, audit, gateway), exposing timestamp, source, level, and message. |
+| `LogEntrySource` | alias | Semantic string type identifying which log stream (`access`, `firewall`, `audit`, `gateway`) a `LogEntry` was parsed from. |
+| `Metadata` | struct | Pagination metadata for MCP registry list responses. |
+| `OutdatedDependency` | struct | A Go module dependency with a newer version available, including current/latest versions and age. |
+| `SecurityAdvisory` | struct | A security vulnerability (GHSA/CVE) affecting a dependency, with severity and patched versions. |
+| `SetupAuthOptions` | struct | Options for checking `gh` authentication status during repository setup. |
+| `SetupRepositoryCheckOptions` | struct | Options for validating repository access and ownership during setup. |
+| `TrialOptions` | struct | Configuration for running workflow trials, including repo context, timeout, and repeat count. |
 
 ### Functions
 

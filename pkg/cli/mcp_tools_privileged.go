@@ -20,6 +20,7 @@ const (
 	defaultMCPLogsToolCount            = 100
 	defaultMCPLogsTimeoutMinutes       = 1
 	mcpLogsRunsPerDefaultTimeoutMinute = 40
+	mcpLogsGatewayDeadlineMargin       = 5 * time.Second
 	// defaultMCPLogsMinTimeoutMinutesAllWorkflows is the minimum timeout (in minutes)
 	// used when no workflow_name filter is provided.  Querying all workflow runs at once
 	// requires a single GitHub API call rather than a workflow-scoped call, but for
@@ -143,6 +144,21 @@ func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int, workflowNam
 	return base
 }
 
+func effectiveMCPLogsToolSoftTimeoutSeconds(ctx context.Context, timeoutMinutes int) (int, bool) {
+	deadline, ok := ctx.Deadline()
+	if !ok || timeoutMinutes <= 0 {
+		return 0, false
+	}
+	softTimeout := time.Until(deadline) - mcpLogsGatewayDeadlineMargin
+	if softTimeout <= 0 {
+		return 0, false
+	}
+	if softTimeout >= time.Duration(timeoutMinutes)*time.Minute {
+		return 0, false
+	}
+	return max(1, int(softTimeout.Seconds())), true
+}
+
 // The logs tool requires write+ access and checks actor permissions.
 // Returns an error if schema generation fails.
 func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool) error {
@@ -185,6 +201,9 @@ response is returned inline instead.
 If the command times out before fetching all available logs, a "continuation" field will be present
 in the JSON data with updated parameters to continue fetching more data.
 Check for the presence of the continuation field to determine if there are more logs available.
+
+When results are incomplete, the tool response also sets "partial": true and repeats the
+"continuation" cursor inline, so partial results can be detected without reading the file.
 
 The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching
 from where the previous request stopped due to timeout.`,
@@ -282,6 +301,9 @@ from where the previous request stopped due to timeout.`,
 		// larger fleet-wide requests do not hit the default per-tool timeout.
 		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount, args.WorkflowName, args.Engine)
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
+		if softTimeoutSeconds, ok := effectiveMCPLogsToolSoftTimeoutSeconds(ctx, timeoutValue); ok {
+			cmdArgs = append(cmdArgs, "--timeout-seconds", strconv.Itoa(softTimeoutSeconds))
+		}
 
 		// Always use --json mode in MCP server
 		cmdArgs = append(cmdArgs, "--json")
