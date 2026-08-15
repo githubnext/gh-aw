@@ -204,7 +204,7 @@ Then create an issue with:
 - Title: `BYOK Ollama Test — ${{ github.run_id }}`
 - Body:
   ```
-  ## 🦙 Daily BYOK Ollama Test
+  ### 🦙 Daily BYOK Ollama Test
 
   **Status:** ✅ PASS — Ollama responded via BYOK
   **Model:** qwen2.5:0.5b

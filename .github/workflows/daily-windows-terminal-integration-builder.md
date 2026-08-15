@@ -77,5 +77,5 @@ If it is missing, create it. If it exists, improve it only when needed to match 
 
 #### Output rules
 
-- If changes are required (including updates to `.github/workflows/windows-cli-integration.yml` or this builder file), use `create-issue` to request those updates.
+- If changes are required (including updates to `.github/workflows/windows-cli-integration.yml` or this builder file), use `create-issue` to request those updates. Keep headers at `###` (h3) or lower, and wrap long details — full job logs, diffs, or scenario matrices — in `<details><summary><b>...</b></summary>...</details>` blocks per the `reporting` skill.
 - If no changes are needed, use `noop` with a short explanation.
