@@ -339,7 +339,12 @@ func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults 
 		experimentsLog.Printf("Rejecting unsafe git ref: %q", ref)
 		return nil
 	}
-	cmd := exec.Command("git", "show", ref+":"+constants.EvalsResultFilename)
+	objectArg, err := buildSafeGitShowObjectArg(ref, constants.EvalsResultFilename)
+	if err != nil {
+		experimentsLog.Printf("Rejecting unsafe git show argument (ref=%q file=%q): %v", ref, constants.EvalsResultFilename, err)
+		return nil
+	}
+	cmd := exec.Command("git", "show", objectArg)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil
@@ -736,13 +741,44 @@ func experimentStateFilenames() []string {
 // Returns an empty state when the file is absent or cannot be parsed.
 func readLocalExperimentState(ref string) *ExperimentState {
 	for _, fileName := range experimentStateFilenames() {
-		cmd := exec.Command("git", "show", ref+":"+fileName)
+		objectArg, err := buildSafeGitShowObjectArg(ref, fileName)
+		if err != nil {
+			experimentsLog.Printf("Skipping unsafe git show argument (ref=%q file=%q): %v", ref, fileName, err)
+			continue
+		}
+		cmd := exec.Command("git", "show", objectArg)
 		out, err := cmd.Output()
 		if err == nil {
 			return parseExperimentState(out)
 		}
 	}
 	return emptyExperimentState()
+}
+
+// buildSafeGitShowObjectArg validates git show's "ref:path" object argument parts
+// before joining them, preventing flag and path-traversal style injections.
+func buildSafeGitShowObjectArg(ref, fileName string) (string, error) {
+	if !isSafeGitRevisionArg(ref) {
+		return "", errors.New("unsafe git ref")
+	}
+	if !isSafeGitTreePath(fileName) {
+		return "", errors.New("unsafe git tree path")
+	}
+	return ref + ":" + fileName, nil
+}
+
+func isSafeGitTreePath(fileName string) bool {
+	if fileName == "" || strings.HasPrefix(fileName, "-") {
+		return false
+	}
+	if filepath.IsAbs(fileName) || strings.Contains(fileName, ":") || strings.ContainsRune(fileName, '\x00') {
+		return false
+	}
+	clean := filepath.Clean(fileName)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return false
+	}
+	return clean == fileName
 }
 
 // readRemoteExperimentState fetches experiment state from an experiments/* branch via the GitHub API.

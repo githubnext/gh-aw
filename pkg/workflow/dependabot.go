@@ -336,11 +336,14 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running npm install --package-lock-only..."))
 	}
 
-	// Run npm install --package-lock-only
+	// Run npm install --package-lock-only without lifecycle scripts.
+	// The generated package.json can be influenced by workflow content, so explicitly
+	// disable script execution to avoid running untrusted hooks while generating lockfiles.
 	// #nosec G204 -- npmPath is resolved by exec.LookPath and validated as an absolute path above;
-	// the fixed arguments "install" and "--package-lock-only" contain no user-controlled data.
-	cmd := exec.Command(npmPath, "install", "--package-lock-only")
+	// the fixed arguments contain no user-controlled data.
+	cmd := exec.Command(npmPath, "install", "--package-lock-only", "--ignore-scripts")
 	cmd.Dir = workflowDir
+	cmd.Env = append(os.Environ(), "NPM_CONFIG_IGNORE_SCRIPTS=true")
 
 	// Capture output for error reporting
 	output, err := cmd.CombinedOutput()

@@ -23,6 +23,59 @@ func TestFetchRemoteExperimentDetailsClassifiesTitleCaseNotFound(t *testing.T) {
 	require.EqualError(t, err, `experiment "missing" not found in octo/repo`)
 }
 
+func TestBuildSafeGitShowObjectArg(t *testing.T) {
+	tests := []struct {
+		name      string
+		ref       string
+		fileName  string
+		want      string
+		shouldErr bool
+	}{
+		{
+			name:     "valid ref and file",
+			ref:      "origin/experiments/my-feature",
+			fileName: "state.jsonl",
+			want:     "origin/experiments/my-feature:state.jsonl",
+		},
+		{
+			name:      "rejects flag-like ref",
+			ref:       "--help",
+			fileName:  "state.jsonl",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects path traversal",
+			ref:       "origin/experiments/my-feature",
+			fileName:  "../state.json",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects colon in file name",
+			ref:       "origin/experiments/my-feature",
+			fileName:  "state.json:HEAD",
+			shouldErr: true,
+		},
+		{
+			name:      "rejects flag-like file name",
+			ref:       "origin/experiments/my-feature",
+			fileName:  "-n",
+			shouldErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildSafeGitShowObjectArg(tt.ref, tt.fileName)
+			if tt.shouldErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestExtractExperimentName(t *testing.T) {
 	tests := []struct {
 		name     string
