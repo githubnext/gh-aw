@@ -127,6 +127,9 @@ func walkInlineFields(val reflect.Value, visit func(field reflect.Value, fieldTy
 		fieldType := typ.Field(i)
 
 		if fieldType.Anonymous {
+			if parseConsoleTag(fieldType.Tag.Get("console")).skip {
+				continue
+			}
 			if embedded, ok := embeddedStructValue(field); ok {
 				walkInlineFields(embedded, visit)
 				continue
@@ -292,6 +295,9 @@ func collectTableFields(t reflect.Type, prefix []int) []tableField {
 		fieldPath[len(prefix)] = i
 
 		if field.Anonymous {
+			if parseConsoleTag(field.Tag.Get("console")).skip {
+				continue
+			}
 			if embeddedType, ok := embeddedStructType(field.Type); ok {
 				fields = append(fields, collectTableFields(embeddedType, fieldPath)...)
 				continue

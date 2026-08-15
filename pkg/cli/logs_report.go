@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -31,7 +32,7 @@ type LogsData struct {
 	ErrorsAndWarnings []ErrorSummary             `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
 	MissingTools      []MissingToolSummary       `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
 	MissingData       []MissingDataSummary       `json:"missing_data,omitempty" console:"title:📊 Missing Data Summary,omitempty"`
-	MCPFailures       []MCPFailureSummary        `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
+	MCPFailures       []MCPFailureSummary        `json:"mcp_failures,omitempty" console:"-"`
 	AccessLog         *AccessLogSummary          `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
 	FirewallLog       *FirewallLogSummary        `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
 	RedactedDomains   *RedactedDomainsLogSummary `json:"redacted_domains,omitempty" console:"title:🔒 Redacted URL Domains,omitempty"`
@@ -658,8 +659,14 @@ func renderLogsConsoleToWriter(w io.Writer, data LogsData) {
 	reportLog.Printf("Rendering logs data to console: %d runs, %d errors, %d warnings",
 		data.Summary.TotalRuns, data.Summary.TotalErrors, data.Summary.TotalWarnings)
 
-	// Use unified console rendering for the entire logs data structure
-	fmt.Fprint(w, console.RenderStruct(data))
+	// Use unified console rendering for the entire logs data structure.
+	mcpFailures := data.MCPFailures
+	consoleData := data
+	consoleData.MCPFailures = nil
+	fmt.Fprint(w, console.RenderStruct(consoleData))
+	fmt.Fprint(w, console.RenderStruct(struct {
+		MCPFailures []mcpFailureSummaryDisplay `console:"title:⚠️  MCP Server Failures,omitempty"`
+	}{MCPFailures: mcpFailureSummaryDisplays(mcpFailures)}))
 
 	// Display concise summary at the end
 	fmt.Fprintln(os.Stderr, "") // Blank line for spacing
@@ -686,6 +693,22 @@ func renderLogsConsoleToWriter(w io.Writer, data LogsData) {
 		fmt.Fprintln(os.Stderr)
 		renderObservabilityInsights(data.Observability)
 	}
+}
+
+type mcpFailureSummaryDisplay struct {
+	ServerName       string `console:"header:Server"`
+	Count            int    `console:"header:Failures"`
+	WorkflowsDisplay string `console:"header:Workflows,maxlen:60"`
+}
+
+func mcpFailureSummaryDisplays(summaries []MCPFailureSummary) []mcpFailureSummaryDisplay {
+	return sliceutil.Map(summaries, func(summary MCPFailureSummary) mcpFailureSummaryDisplay {
+		return mcpFailureSummaryDisplay{
+			ServerName:       summary.ServerName,
+			Count:            summary.Count,
+			WorkflowsDisplay: summary.WorkflowsDisplay,
+		}
+	})
 }
 
 // renderLogsConsole outputs the logs data as formatted console output to os.Stdout.
