@@ -67,9 +67,6 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 		return nil
 	}
 
-	actionMode := DetectActionMode(GetVersion())
-	setupActionRef := ResolveSetupActionReference(ctx, actionMode, GetVersion(), "", nil)
-
 	helpCommands := buildHelpCommandEntries(workflowDataList)
 	helpCommandEnabled := repoConfig.IsHelpCommandEnabled()
 
@@ -78,7 +75,6 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 		labelRoutesByCommand,
 		mergedEvents,
 		resolveCentralSlashRunsOn(workflowDataList),
-		setupActionRef,
 		helpCommands,
 		helpCommandEnabled,
 	)
@@ -344,7 +340,6 @@ func buildCentralSlashCommandWorkflowYAML(
 	labelRoutesByCommand map[string][]slashCommandRoute,
 	mergedEvents map[string]map[string]struct{},
 	runsOn string,
-	setupActionRef string,
 	helpCommands []helpCommandEntry,
 	helpCommandEnabled bool,
 ) (string, error) {
@@ -364,6 +359,10 @@ func buildCentralSlashCommandWorkflowYAML(
 	commandsMetadata, err := json.Marshal(buildCommandsHeaderMetadata(slashRoutesByCommand, labelRoutesByCommand))
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal centralized slash-command metadata: %w", err)
+	}
+	agenticCommandsScript, err := getAgenticCommandsScript()
+	if err != nil {
+		return "", fmt.Errorf("failed to bundle agentic commands JavaScript: %w", err)
 	}
 
 	header := GenerateWorkflowHeader("", "gh-aw", "")
@@ -390,14 +389,6 @@ jobs:
 	writeCentralSlashRoutePermissions(&b, mergedEvents)
 	b.WriteString(`
     steps:
-      - name: Checkout repository
-        uses: ` + getActionPin("actions/checkout") + `
-
-      - name: Setup Scripts
-        uses: ` + setupActionRef + `
-        with:
-          destination: ` + SetupActionDestination + `
-
       - name: Route slash command
         uses: ` + getActionPin("actions/github-script") + `
         env:
@@ -408,11 +399,8 @@ jobs:
           GH_AW_SLASH_COMMAND_DOCS_URL: 'https://github.github.com/gh-aw/reference/command-triggers/'
         with:
           script: |
-            const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('` + SetupActionDestination + `/route_slash_command.cjs');
-            await main();
 `)
+	WriteJavaScriptToYAML(&b, agenticCommandsScript)
 	return b.String(), nil
 }
 

@@ -127,14 +127,6 @@ jobs:
       discussions: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
-
       - name: Route slash command
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -145,7 +137,3509 @@ jobs:
           GH_AW_SLASH_COMMAND_DOCS_URL: 'https://github.github.com/gh-aw/reference/command-triggers/'
         with:
           script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/route_slash_command.cjs');
-            await main();
+            const __ghAwNativeRequire = require;
+            const __ghAwPath = __ghAwNativeRequire('node:path').posix;
+            const __ghAwModules = {
+              "add_reaction.cjs": (module, exports, require) => {
+                const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
+                const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+                const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+                const REACTION_MAP = {
+                  "+1": "THUMBS_UP",
+                  "-1": "THUMBS_DOWN",
+                  laugh: "LAUGH",
+                  confused: "CONFUSED",
+                  heart: "HEART",
+                  hooray: "HOORAY",
+                  rocket: "ROCKET",
+                  eyes: "EYES",
+                };
+                async function main() {
+                  const reaction = process.env.GH_AW_REACTION || "eyes";
+                  core.info(`Adding reaction: ${reaction}`);
+                  if (!Object.hasOwn(REACTION_MAP, reaction)) {
+                    core.setFailed(`${ERR_VALIDATION}: Invalid reaction type: ${reaction}. Valid reactions are: ${Object.keys(REACTION_MAP).join(", ")}`);
+                    return;
+                  }
+                  const invocationContext = resolveInvocationContext(context);
+                  const eventName = invocationContext.eventName;
+                  const { owner, repo } = invocationContext.eventRepo;
+                  const payload = invocationContext.eventPayload;
+                  const reactionEndpoint = resolveRestEndpoint(eventName, owner, repo, payload);
+                  if (reactionEndpoint === null) {
+                    if (!isRestReactionEvent(eventName)) {
+                      await handleGraphQLOrUnknownEvent(eventName, owner, repo, payload, reaction);
+                    }
+                    return;
+                  }
+                  core.info(`Adding reaction to: ${reactionEndpoint.route}`);
+                  try {
+                    await addReaction(reactionEndpoint.route, reactionEndpoint.params, reaction);
+                  } catch (error) {
+                    handleReactionError(error);
+                  }
+                }
+                function requirePayloadField(value, fieldName, errorCode) {
+                  if (value == null) {
+                    core.setFailed(`${errorCode}: ${fieldName} not found in event payload`);
+                    return false;
+                  }
+                  return true;
+                }
+                function resolveRestEndpoint(eventName, owner, repo, payload) {
+                  switch (eventName) {
+                    case "issues": {
+                      const issueNumber = payload?.issue?.number;
+                      if (!requirePayloadField(issueNumber, "Issue number", ERR_NOT_FOUND)) return null;
+                      return { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner, repo, issue_number: issueNumber } };
+                    }
+                    case "issue_comment": {
+                      const commentId = payload?.comment?.id;
+                      if (!requirePayloadField(commentId, "Comment ID", ERR_VALIDATION)) return null;
+                      return { route: "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", params: { owner, repo, comment_id: commentId } };
+                    }
+                    case "pull_request": {
+                      const prNumber = payload?.pull_request?.number;
+                      if (!requirePayloadField(prNumber, "Pull request number", ERR_NOT_FOUND)) return null;
+                      return { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner, repo, issue_number: prNumber } };
+                    }
+                    case "pull_request_review_comment": {
+                      const reviewCommentId = payload?.comment?.id;
+                      if (!requirePayloadField(reviewCommentId, "Review comment ID", ERR_VALIDATION)) return null;
+                      return { route: "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", params: { owner, repo, comment_id: reviewCommentId } };
+                    }
+                    case "pull_request_review":
+                      return null;
+                    default:
+                      return null;
+                  }
+                }
+                function isRestReactionEvent(eventName) {
+                  return ["issues", "issue_comment", "pull_request", "pull_request_review", "pull_request_review_comment"].includes(eventName);
+                }
+                async function handleGraphQLOrUnknownEvent(eventName, owner, repo, payload, reaction) {
+                  let subjectId;
+                  try {
+                    switch (eventName) {
+                      case "discussion": {
+                        const discussionNumber = payload?.discussion?.number;
+                        if (!requirePayloadField(discussionNumber, "Discussion number", ERR_NOT_FOUND)) return;
+                        subjectId = await getDiscussionNodeId(owner, repo, discussionNumber);
+                        break;
+                      }
+                      case "discussion_comment": {
+                        const commentNodeId = payload?.comment?.node_id;
+                        if (!requirePayloadField(commentNodeId, "Discussion comment node ID", ERR_NOT_FOUND)) return;
+                        subjectId = commentNodeId;
+                        break;
+                      }
+                      default:
+                        core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
+                        return;
+                    }
+                    if (subjectId == null) {
+                      core.setFailed(`${ERR_VALIDATION}: subjectId could not be resolved for event: ${eventName}`);
+                      return;
+                    }
+                    await addDiscussionReaction(subjectId, reaction);
+                  } catch (error) {
+                    handleReactionError(error);
+                  }
+                }
+                function handleReactionError(error) {
+                  if (isLockedError(error)) {
+                    core.info(`Cannot add reaction: resource is locked (this is expected and not an error)`);
+                    return;
+                  }
+                  const errorMessage = getErrorMessage(error);
+                  core.error(`Failed to add reaction: ${errorMessage}`);
+                  core.setFailed(`${ERR_API}: Failed to add reaction: ${errorMessage}`);
+                }
+                async function addReaction(route, params, reaction) {
+                  const response = await github.request(route, {
+                    ...params,
+                    content: reaction,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  const reactionId = response.data?.id;
+                  core.info(`Successfully added reaction: ${reaction}${reactionId ? ` (id: ${reactionId})` : ""}`);
+                  core.setOutput("reaction-id", reactionId?.toString() ?? "");
+                }
+                async function addDiscussionReaction(subjectId, reaction) {
+                  const reactionContent = REACTION_MAP[reaction];
+                  if (!reactionContent) {
+                    throw new Error(`${ERR_VALIDATION}: Invalid reaction type for GraphQL: ${reaction}`);
+                  }
+                  const result = await github.graphql(
+                    `
+                    mutation($subjectId: ID!, $content: ReactionContent!) {
+                      addReaction(input: { subjectId: $subjectId, content: $content }) {
+                        reaction {
+                          id
+                          content
+                        }
+                      }
+                    }`,
+                    { subjectId, content: reactionContent }
+                  );
+                  const reactionId = result.addReaction.reaction.id;
+                  core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+                  core.setOutput("reaction-id", reactionId);
+                }
+                async function getDiscussionNodeId(owner, repo, discussionNumber) {
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) {
+                          id
+                        }
+                      }
+                    }`,
+                    { owner, repo, num: discussionNumber }
+                  );
+                  if (!repository || !repository.discussion) {
+                    throw new Error(`${ERR_NOT_FOUND}: Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+                  }
+                  return repository.discussion.id;
+                }
+                module.exports = { main, addReaction, addDiscussionReaction, getDiscussionNodeId, handleReactionError, resolveRestEndpoint, handleGraphQLOrUnknownEvent, REACTION_MAP };
+              },
+              "add_workflow_run_comment.cjs": (module, exports, require) => {
+                const { getRunStartedMessage } = require("./messages_run_status.cjs");
+                const { getErrorMessage } = require("./error_helpers.cjs");
+                const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+                const { sanitizeContent } = require("./sanitize_content.cjs");
+                const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+                const { getMessages } = require("./messages_core.cjs");
+                const { parseBoolTemplatable } = require("./templatable.cjs");
+                const { buildWorkflowRunUrl, EVENT_TYPE_DESCRIPTIONS } = require("./workflow_metadata_helpers.cjs");
+                const { isRestEndpoint, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+                const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
+                async function getDiscussionNodeId(discussionNumber, eventRepo = context.repo) {
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) {
+                          id
+                        }
+                      }
+                    }`,
+                    { owner: eventRepo.owner, repo: eventRepo.repo, num: discussionNumber }
+                  );
+                  return repository.discussion.id;
+                }
+                function setCommentOutputs(commentId, commentUrl, eventRepo = context.repo, options = {}) {
+                  if (options.logReuse) {
+                    core.info(`Reusing existing status comment outputs`);
+                  } else {
+                    core.info(`Successfully created comment with workflow link`);
+                  }
+                  core.info(`Comment ID: ${commentId}`);
+                  core.info(`Comment URL: ${commentUrl}`);
+                  core.info(`Comment Repo: ${eventRepo.owner}/${eventRepo.repo}`);
+                  core.setOutput("comment-id", commentId.toString());
+                  core.setOutput("comment-url", commentUrl);
+                  core.setOutput("comment-repo", `${eventRepo.owner}/${eventRepo.repo}`);
+                  return {
+                    id: commentId.toString(),
+                    url: commentUrl,
+                    repo: eventRepo,
+                  };
+                }
+                function parseObject(value) {
+                  if (!value) return null;
+                  if (typeof value === "string") {
+                    const trimmed = value.trim();
+                    if (!trimmed) return null;
+                    try {
+                      const parsed = JSON.parse(trimmed);
+                      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+                    } catch {
+                      return null;
+                    }
+                  }
+                  if (typeof value === "object" && !Array.isArray(value)) {
+                    return  value;
+                  }
+                  return null;
+                }
+                function parseRepoSlug(value) {
+                  if (typeof value !== "string") {
+                    return null;
+                  }
+                  const trimmed = value.trim();
+                  if (!trimmed) {
+                    return null;
+                  }
+                  const parts = trimmed.split("/");
+                  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                    return null;
+                  }
+                  return { owner: parts[0], repo: parts[1] };
+                }
+                function extractAwContextFromPayload(payload) {
+                  return parseObject(payload?.inputs?.aw_context) || parseObject(payload?.inputs?.awContext) || parseObject(payload?.client_payload?.aw_context) || parseObject(payload?.client_payload?.awContext);
+                }
+                function readReusableStatusComment(rawContext) {
+                  const awContext = extractAwContextFromPayload(rawContext?.payload);
+                  if (!awContext) {
+                    return null;
+                  }
+                  const rawId = awContext.status_comment_id ?? awContext.statusCommentId;
+                  const id = rawId == null ? "" : String(rawId).trim();
+                  if (!id) {
+                    return null;
+                  }
+                  const rawUrl = awContext.status_comment_url ?? awContext.statusCommentUrl;
+                  const url = typeof rawUrl === "string" ? rawUrl.trim() : "";
+                  const repo = parseRepoSlug(awContext.status_comment_repo ?? awContext.statusCommentRepo);
+                  return { id, url, repo };
+                }
+                function reportCommentError(rawContext, message) {
+                  if (rawContext?.nonFatalStatusCommentErrors) {
+                    core.warning(message);
+                    return;
+                  }
+                  core.setFailed(message);
+                }
+                function readAwContextString(awContext, key) {
+                  if (!awContext || typeof awContext[key] !== "string") {
+                    return "";
+                  }
+                  return awContext[key].trim();
+                }
+                async function updateReusableStatusComment(reusableComment, invocationContext, rawContext) {
+                  const awContext = extractAwContextFromPayload(rawContext?.payload);
+                  const dispatchedRunUrl = readAwContextString(awContext, "dispatched_run_url");
+                  const dispatchedWorkflowName = readAwContextString(awContext, "dispatched_workflow_name");
+                  const runUrl = dispatchedRunUrl || buildWorkflowRunUrl(rawContext, invocationContext.workflowRepo);
+                  const commentBody = buildCommentBody(invocationContext.eventName, runUrl, dispatchedWorkflowName || undefined);
+                  if (reusableComment.id.startsWith("DC_")) {
+                    const result = await github.graphql(
+                      `
+                      mutation($commentId: ID!, $body: String!) {
+                        updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                          comment { id url }
+                        }
+                      }`,
+                      { commentId: reusableComment.id, body: commentBody }
+                    );
+                    const updatedUrl = result?.updateDiscussionComment?.comment?.url;
+                    return typeof updatedUrl === "string" && updatedUrl.trim() ? updatedUrl : reusableComment.url;
+                  }
+                  const commentRepo = reusableComment.repo || invocationContext.eventRepo;
+                  const numericCommentId = Number(reusableComment.id);
+                  if (!Number.isInteger(numericCommentId) || numericCommentId <= 0) {
+                    throw new Error(`${ERR_VALIDATION}: Reusable status comment ID must be a positive integer (received "${reusableComment.id}")`);
+                  }
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: commentRepo.owner,
+                    repo: commentRepo.repo,
+                    comment_id: numericCommentId,
+                    body: commentBody,
+                    headers: { Accept: "application/vnd.github+json" },
+                  });
+                  const updatedUrl = response?.data?.html_url;
+                  return typeof updatedUrl === "string" && updatedUrl.trim() ? updatedUrl : reusableComment.url;
+                }
+                async function createOrReuseStatusComment(rawContext = context) {
+                  const messagesConfig = getMessages();
+                  if (!parseBoolTemplatable(messagesConfig?.activationComments, true)) {
+                    core.info("activation-comments is disabled: skipping activation comment creation");
+                    return null;
+                  }
+                  const invocationContext = resolveInvocationContext(rawContext);
+                  const reusableComment = readReusableStatusComment(rawContext);
+                  if (reusableComment) {
+                    core.info(`Reusing existing status comment ID: ${reusableComment.id}`);
+                    if (!reusableComment.repo) {
+                      core.warning("Reusable status comment repo missing; falling back to the invocation event repo.");
+                    }
+                    let reusableCommentUrl = reusableComment.url;
+                    try {
+                      reusableCommentUrl = await updateReusableStatusComment(reusableComment, invocationContext, rawContext);
+                      core.info("Updated reusable status comment with current workflow run metadata");
+                    } catch (error) {
+                      core.warning(`Failed to update reusable status comment body: ${getErrorMessage(error)}`);
+                      if (!reusableCommentUrl) {
+                        core.warning("No fallback reusable status comment URL available; comment-url output will be empty.");
+                      }
+                    }
+                    const outputs = setCommentOutputs(reusableComment.id, reusableCommentUrl, reusableComment.repo || invocationContext.eventRepo, { logReuse: true });
+                    return {
+                      ...outputs,
+                      reused: true,
+                    };
+                  }
+                  const runUrl = buildWorkflowRunUrl(rawContext, invocationContext.workflowRepo);
+                  core.info(`Run ID: ${rawContext.runId}`);
+                  core.info(`Run URL: ${runUrl}`);
+                  core.info(`Event source: ${invocationContext.source}`);
+                  let commentEndpoint;
+                  const eventName = invocationContext.eventName;
+                  const owner = invocationContext.eventRepo.owner;
+                  const repo = invocationContext.eventRepo.repo;
+                  const payload = invocationContext.eventPayload;
+                  switch (eventName) {
+                    case "issues":
+                    case "issue_comment": {
+                      const number = payload?.issue?.number;
+                      if (!number) {
+                        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Issue number not found in event payload`);
+                        return null;
+                      }
+                      commentEndpoint = { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: number } };
+                      break;
+                    }
+                    case "pull_request":
+                    case "pull_request_comment":
+                    case "pull_request_review":
+                    case "pull_request_review_comment": {
+                      const number = payload?.pull_request?.number;
+                      if (!number) {
+                        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Pull request number not found in event payload`);
+                        return null;
+                      }
+                      commentEndpoint = { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/comments", params: { owner, repo, issue_number: number } };
+                      break;
+                    }
+                    case "discussion": {
+                      const discussionNumber = payload?.discussion?.number;
+                      if (!discussionNumber) {
+                        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Discussion number not found in event payload`);
+                        return null;
+                      }
+                      commentEndpoint = `discussion:${discussionNumber}`;
+                      break;
+                    }
+                    case "discussion_comment": {
+                      const discussionCommentNumber = payload?.discussion?.number;
+                      const discussionCommentId = payload?.comment?.id;
+                      if (!discussionCommentNumber || !discussionCommentId) {
+                        reportCommentError(rawContext, `${ERR_NOT_FOUND}: Discussion or comment information not found in event payload`);
+                        return null;
+                      }
+                      commentEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`;
+                      break;
+                    }
+                    default:
+                      reportCommentError(rawContext, `${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
+                      return null;
+                  }
+                  core.info(`Creating comment on: ${typeof commentEndpoint === "object" ? commentEndpoint.route : commentEndpoint}`);
+                  return addCommentWithWorkflowLink(commentEndpoint, runUrl, eventName, invocationContext);
+                }
+                async function main() {
+                  try {
+                    await createOrReuseStatusComment(context);
+                  } catch (error) {
+                    const errorMessage = getErrorMessage(error);
+                    core.warning(`Failed to create comment with workflow link: ${errorMessage}`);
+                  }
+                }
+                function buildCommentBody(eventName, runUrl, workflowNameOverride) {
+                  const normalizedWorkflowNameOverride = workflowNameOverride?.trim();
+                  const workflowName = normalizedWorkflowNameOverride || process.env.GH_AW_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "Workflow";
+                  const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
+                  let body = sanitizeContent(getRunStartedMessage({ workflowName, runUrl, eventType: eventTypeDescription }));
+                  if (process.env.GH_AW_LOCK_FOR_AGENT === "true" && (eventName === "issues" || eventName === "issue_comment")) {
+                    body += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
+                  }
+                  const workflowId = process.env.GITHUB_WORKFLOW || "";
+                  if (workflowId) {
+                    body += `\n\n${generateWorkflowIdMarker(workflowId)}`;
+                  }
+                  const trackerId = process.env.GH_AW_TRACKER_ID || "";
+                  if (trackerId) {
+                    body += `\n\n<!-- gh-aw-tracker-id: ${trackerId} -->`;
+                  }
+                  body += `\n\n<!-- gh-aw-comment-type: reaction -->`;
+                  return body;
+                }
+                async function postDiscussionComment(discussionNumber, commentBody, replyToNodeId = null, eventRepo = context.repo) {
+                  const discussionId = await getDiscussionNodeId(discussionNumber, eventRepo);
+                  const mutation = replyToNodeId
+                    ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+                        addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+                          comment { id url }
+                        }
+                      }`
+                    : `mutation($dId: ID!, $body: String!) {
+                        addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                          comment { id url }
+                        }
+                      }`;
+                  const result = await github.graphql(mutation, { dId: discussionId, body: commentBody, ...(replyToNodeId ? { replyToId: replyToNodeId } : {}) });
+                  const comment = result.addDiscussionComment.comment;
+                  return setCommentOutputs(comment.id, comment.url, eventRepo);
+                }
+                async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocationContext = null) {
+                  const eventPayload = invocationContext?.eventPayload || context.payload;
+                  const eventRepo = invocationContext?.eventRepo || context.repo;
+                  const commentBody = buildCommentBody(eventName, runUrl);
+                  if (eventName === "discussion") {
+                    if (typeof endpoint !== "string") {
+                      throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+                    }
+                    const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                    return postDiscussionComment(discussionNumber, commentBody, null, eventRepo);
+                  }
+                  if (eventName === "discussion_comment") {
+                    if (typeof endpoint !== "string") {
+                      throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+                    }
+                    const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                    const commentNodeId = await resolveTopLevelDiscussionCommentId(github, eventPayload?.comment?.node_id);
+                    return postDiscussionComment(discussionNumber, commentBody, commentNodeId, eventRepo);
+                  }
+                  if (!isRestEndpoint(endpoint)) {
+                    throw new Error(`${ERR_VALIDATION}: Unexpected comment endpoint shape for event: ${eventName}`);
+                  }
+                  const { route, params } = endpoint;
+                  const createResponse = await github.request(route, {
+                    ...params,
+                    body: commentBody,
+                    headers: { Accept: "application/vnd.github+json" },
+                  });
+                  return setCommentOutputs(createResponse.data.id, createResponse.data.html_url, eventRepo);
+                }
+                module.exports = { main, addCommentWithWorkflowLink, buildCommentBody, postDiscussionComment, createOrReuseStatusComment };
+              },
+              "aw_context.cjs": (module, exports, require) => {
+                const { readExperimentAssignments } = require("./experiment_helpers.cjs");
+                function resolveItemContext(payload) {
+                  if (payload?.issue != null) {
+                    if (payload.issue.pull_request != null) {
+                      return {
+                        item_type: "pull_request",
+                        item_number: payload.issue.number != null ? String(payload.issue.number) : "",
+                        comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+                        comment_node_id: "",
+                      };
+                    }
+                    return {
+                      item_type: "issue",
+                      item_number: payload.issue.number != null ? String(payload.issue.number) : "",
+                      comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+                      comment_node_id: "",
+                    };
+                  }
+                  if (payload?.pull_request != null) {
+                    return {
+                      item_type: "pull_request",
+                      item_number: payload.pull_request.number != null ? String(payload.pull_request.number) : "",
+                      comment_id: payload.comment?.id != null ? String(payload.comment.id) : payload.review?.id != null ? String(payload.review.id) : "",
+                      comment_node_id: "",
+                    };
+                  }
+                  if (payload?.discussion != null) {
+                    return {
+                      item_type: "discussion",
+                      item_number: payload.discussion.number != null ? String(payload.discussion.number) : "",
+                      comment_id: payload.comment?.id != null ? String(payload.comment.id) : "",
+                      comment_node_id: payload.comment?.node_id != null ? String(payload.comment.node_id) : "",
+                    };
+                  }
+                  if (payload?.check_run != null) {
+                    return {
+                      item_type: "check_run",
+                      item_number: payload.check_run.id != null ? String(payload.check_run.id) : "",
+                      comment_id: "",
+                      comment_node_id: "",
+                    };
+                  }
+                  if (payload?.check_suite != null) {
+                    return {
+                      item_type: "check_suite",
+                      item_number: payload.check_suite.id != null ? String(payload.check_suite.id) : "",
+                      comment_id: "",
+                      comment_node_id: "",
+                    };
+                  }
+                  return { item_type: "", item_number: "", comment_id: "", comment_node_id: "" };
+                }
+                function buildWorkflowCallId(runId, runAttempt, workflowRef) {
+                  const normalizedRunId = String(runId ?? "").trim();
+                  if (!normalizedRunId) {
+                    return "";
+                  }
+                  const normalizedRunAttempt = String(runAttempt ?? "").trim() || "1";
+                  const normalizedWorkflowRef = typeof workflowRef === "string" ? workflowRef.trim() : "";
+                  const baseId = `${normalizedRunId}-${normalizedRunAttempt}`;
+                  return normalizedWorkflowRef ? `${baseId}:${normalizedWorkflowRef}` : baseId;
+                }
+                function isRecord(value) {
+                  return typeof value === "object" && value !== null && !Array.isArray(value);
+                }
+                function parseInboundAwContext(raw) {
+                  if (raw == null) {
+                    return null;
+                  }
+                  if (typeof raw === "string") {
+                    const trimmed = raw.trim();
+                    if (!trimmed) {
+                      return null;
+                    }
+                    try {
+                      const parsed = JSON.parse(trimmed);
+                      if (isRecord(parsed)) {
+                        return parsed;
+                      }
+                    } catch {
+                      return null;
+                    }
+                    return null;
+                  }
+                  if (isRecord(raw)) {
+                    return raw;
+                  }
+                  return null;
+                }
+                function readInboundAwContext(payload) {
+                  return parseInboundAwContext(payload?.inputs?.aw_context) || parseInboundAwContext(payload?.client_payload?.aw_context);
+                }
+                function buildAwContext() {
+                  const { item_type, item_number, comment_id, comment_node_id } = resolveItemContext(context.payload);
+                  const workflowRef = process.env.GITHUB_WORKFLOW_REF ?? "";
+                  const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
+                  const currentRunId = String(process.env.GITHUB_RUN_ID ?? context.runId ?? "");
+                  const currentRunAttempt = String(process.env.GITHUB_RUN_ATTEMPT ?? "1");
+                  const currentHopId = buildWorkflowCallId(currentRunId, currentRunAttempt, workflowRef);
+                  const inheritedContext = readInboundAwContext(context.payload);
+                  const inheritedHopId = typeof inheritedContext?.hop_id === "string" ? inheritedContext.hop_id.trim() : typeof inheritedContext?.workflow_call_id === "string" ? inheritedContext.workflow_call_id.trim() : "";
+                  const parentHopId = typeof inheritedContext?.parent_hop_id === "string" && inheritedContext.parent_hop_id.trim() ? inheritedContext.parent_hop_id.trim() : inheritedHopId;
+                  const episodeId = typeof inheritedContext?.episode_id === "string" && inheritedContext.episode_id.trim() ? inheritedContext.episode_id.trim() : inheritedHopId || currentHopId;
+                  const originEvent =
+                    typeof inheritedContext?.origin_event === "string" && inheritedContext.origin_event.trim()
+                      ? inheritedContext.origin_event.trim()
+                      : typeof inheritedContext?.event_type === "string" && inheritedContext.event_type.trim()
+                        ? inheritedContext.event_type.trim()
+                        : (context.eventName ?? "");
+                  const rootRepo =
+                    typeof inheritedContext?.root_repo === "string" && inheritedContext.root_repo.trim()
+                      ? inheritedContext.root_repo.trim()
+                      : typeof inheritedContext?.repo === "string" && inheritedContext.repo.trim()
+                        ? inheritedContext.repo.trim()
+                        : currentRepo;
+                  const rootWorkflowId =
+                    typeof inheritedContext?.root_workflow_id === "string" && inheritedContext.root_workflow_id.trim()
+                      ? inheritedContext.root_workflow_id.trim()
+                      : typeof inheritedContext?.workflow_id === "string" && inheritedContext.workflow_id.trim()
+                        ? inheritedContext.workflow_id.trim()
+                        : workflowRef;
+                  const rootRunId =
+                    typeof inheritedContext?.root_run_id === "string" && inheritedContext.root_run_id.trim()
+                      ? inheritedContext.root_run_id.trim()
+                      : typeof inheritedContext?.run_id === "string" && inheritedContext.run_id.trim()
+                        ? inheritedContext.run_id.trim()
+                        : currentRunId;
+                  const assignments = readExperimentAssignments();
+                  const experimentAssignments = assignments ? JSON.stringify(assignments) : "";
+                  const isIssueCommentEdited = context.eventName === "issue_comment" && context.payload?.action === "edited";
+                  const triggerCommentAuthor = context.payload?.comment?.user?.login;
+                  const triggerCommentByBot = typeof triggerCommentAuthor === "string" && triggerCommentAuthor.endsWith("[bot]");
+                  const allowBotAuthoredTriggerComment = isIssueCommentEdited && triggerCommentByBot && triggerCommentAuthor !== (context.actor ?? "");
+                  return {
+                    repo: currentRepo,
+                    run_id: String(context.runId ?? ""),
+                    run_attempt: currentRunAttempt,
+                    workflow_id: workflowRef,
+                    episode_id: episodeId,
+                    hop_id: currentHopId,
+                    parent_hop_id: parentHopId,
+                    origin_event: originEvent,
+                    root_repo: rootRepo,
+                    root_workflow_id: rootWorkflowId,
+                    root_run_id: rootRunId,
+                    workflow_call_id: currentHopId,
+                    time: new Date().toISOString(),
+                    actor: context.actor ?? "",
+                    event_type: context.eventName ?? "",
+                    item_type,
+                    item_number,
+                    comment_id,
+                    comment_node_id,
+                    deployment_state: context.eventName === "deployment_status" ? (context.payload?.deployment_status?.state ?? "") : "",
+                    workflow_run_conclusion: context.eventName === "workflow_run" ? (context.payload?.workflow_run?.conclusion ?? "") : "",
+                    otel_trace_id: process.env.GITHUB_AW_OTEL_TRACE_ID || "",
+                    otel_parent_span_id: process.env.GITHUB_AW_OTEL_PARENT_SPAN_ID || "",
+                    trigger_label: context.payload?.label?.name ?? "",
+                    experiments: experimentAssignments,
+                    allow_bot_authored_trigger_comment: allowBotAuthoredTriggerComment,
+                  };
+                }
+                module.exports = { buildAwContext, buildWorkflowCallId, resolveItemContext };
+              },
+              "error_codes.cjs": (module, exports, require) => {
+                const ERR_VALIDATION = "ERR_VALIDATION";
+                const ERR_PERMISSION = "ERR_PERMISSION";
+                const ERR_API = "ERR_API";
+                const ERR_CONFIG = "ERR_CONFIG";
+                const ERR_NOT_FOUND = "ERR_NOT_FOUND";
+                const ERR_PARSE = "ERR_PARSE";
+                const ERR_SYSTEM = "ERR_SYSTEM";
+                const SAFE_OUTPUT_E001 = "E001";
+                const SAFE_OUTPUT_E009 = "E009";
+                const SAFE_OUTPUT_E010 = "E010";
+                const SAFE_OUTPUT_E099 = "E099";
+                const CONFIG_HASH_MISMATCH = "CONFIG_HASH_MISMATCH";
+                const RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED";
+                module.exports = {
+                  ERR_VALIDATION,
+                  ERR_PERMISSION,
+                  ERR_API,
+                  ERR_CONFIG,
+                  ERR_NOT_FOUND,
+                  ERR_PARSE,
+                  ERR_SYSTEM,
+                  SAFE_OUTPUT_E001,
+                  SAFE_OUTPUT_E009,
+                  SAFE_OUTPUT_E010,
+                  SAFE_OUTPUT_E099,
+                  CONFIG_HASH_MISMATCH,
+                  RATE_LIMIT_EXCEEDED,
+                };
+              },
+              "error_helpers.cjs": (module, exports, require) => {
+                function isHtmlContent(str) {
+                  return /^\s*<!DOCTYPE\s/i.test(str) || /^\s*<html[\s>]/i.test(str);
+                }
+                function getErrorMessage(error) {
+                  const errorAsAny =  (error);
+                  let message;
+                  if (error instanceof Error) {
+                    message = error.message;
+                  } else if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+                    message = error.message;
+                  } else {
+                    message = String(error);
+                  }
+                  if (isHtmlContent(message)) {
+                    const status = errorAsAny != null && typeof errorAsAny.status === "number" ? errorAsAny.status : null;
+                    return status != null ? `GitHub returned an unexpected HTML response (HTTP ${status})` : "GitHub returned an unexpected HTML response";
+                  }
+                  return message;
+                }
+                function isLockedError(error) {
+                  const is403Error = error && typeof error === "object" && "status" in error && error.status === 403;
+                  if (!is403Error) {
+                    return false;
+                  }
+                  const errorMessage = getErrorMessage(error);
+                  const hasLockedMessage = Boolean(errorMessage && (errorMessage.includes("locked") || errorMessage.includes("Lock conversation")));
+                  return hasLockedMessage;
+                }
+                function isRateLimitError(error) {
+                  const errorMessage = getErrorMessage(error);
+                  return /\bapi rate limit\b|\brate limit exceeded\b/i.test(errorMessage);
+                }
+                module.exports = { getErrorMessage, isHtmlContent, isLockedError, isRateLimitError };
+              },
+              "experiment_helpers.cjs": (module, exports, require) => {
+                const fs = require("fs");
+                const path = require("path");
+                const EXPERIMENT_ASSIGNMENTS_PATH = "/tmp/gh-aw/experiments/assignments.json";
+                function readExperimentAssignments() {
+                  const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "";
+                  const filePath = stateDir ? path.join(stateDir, "assignments.json") : EXPERIMENT_ASSIGNMENTS_PATH;
+                  try {
+                    const raw = fs.readFileSync(filePath, "utf8");
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                      return parsed;
+                    }
+                    return null;
+                  } catch {
+                    return null;
+                  }
+                }
+                module.exports = { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH };
+              },
+              "generate_footer.cjs": (module, exports, require) => {
+                const { getDetectionReasonText, getThreatDetectedMarker, isToolingFailureReason } = require("./threat_detection_warning.cjs");
+                const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
+                function generateWorkflowIdMarker(workflowId) {
+                  return `<!-- gh-aw-workflow-id: ${workflowId} -->`;
+                }
+                function getWorkflowIdMarkerContent(workflowId) {
+                  return `gh-aw-workflow-id: ${workflowId}`;
+                }
+                function matchesWorkflowId(body, workflowId) {
+                  if (!body || body.includes(`<!-- gh-aw-comment-type: reaction -->`)) return false;
+                  if (body.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`)) return true;
+                  return body.includes(`<!-- gh-aw-agentic-workflow:`) && (body.includes(`workflow_id: ${workflowId},`) || body.includes(`workflow_id: ${workflowId} -->`));
+                }
+                function generateXMLMarker(workflowName, runUrl) {
+                  const engineId = process.env.GH_AW_ENGINE_ID || "";
+                  const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
+                  const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
+                  const trackerId = process.env.GH_AW_TRACKER_ID || "";
+                  const runId = process.env.GITHUB_RUN_ID || "";
+                  const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+                  const parts = [];
+                  parts.push(`gh-aw-agentic-workflow: ${workflowName}`);
+                  if (trackerId) {
+                    parts.push(`gh-aw-tracker-id: ${trackerId}`);
+                  }
+                  if (engineId) {
+                    parts.push(`engine: ${engineId}`);
+                  }
+                  if (engineVersion) {
+                    parts.push(`version: ${engineVersion}`);
+                  }
+                  if (engineModel) {
+                    parts.push(`model: ${engineModel}`);
+                  }
+                  if (runId) {
+                    parts.push(`id: ${runId}`);
+                  }
+                  if (workflowId) {
+                    parts.push(`workflow_id: ${workflowId}`);
+                  }
+                  parts.push(`run: ${runUrl}`);
+                  return `<!-- ${parts.join(", ")} -->`;
+                }
+                function getExpiredEntityCautionAlert(workflowName, runUrl) {
+                  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
+                  if (detectionConclusion !== "warning") {
+                    return "";
+                  }
+                  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+                  const reasonText = getDetectionReasonText(detectionReason);
+                  const context = { threat_detected_marker: getThreatDetectedMarker(detectionReason), reason_text: reasonText, run_url: runUrl };
+                  if (isToolingFailureReason(detectionReason)) {
+                    return renderTemplateFromFile(getPromptPath("threat_detection_engine_error.md"), context).trimEnd();
+                  }
+                  return renderTemplateFromFile(getPromptPath("threat_detection_caution.md"), context).trimEnd();
+                }
+                function generateExpiredEntityFooter(workflowName, runUrl, workflowId) {
+                  let footer = "";
+                  footer += `\n\n> Closed by [${workflowName}](${runUrl})`;
+                  footer += "\n\n<!-- gh-aw-expired-comments -->";
+                  if (workflowId) {
+                    footer += "\n" + generateWorkflowIdMarker(workflowId);
+                  }
+                  footer += "\n" + generateXMLMarker(workflowName, runUrl);
+                  return footer;
+                }
+                function generateWorkflowCallIdMarker(callerWorkflowId) {
+                  return `<!-- gh-aw-workflow-call-id: ${callerWorkflowId} -->`;
+                }
+                function normalizeCloseOlderKey(key) {
+                  return key
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_-]+/g, "-")
+                    .replace(/-+/g, "-")
+                    .replace(/^[-_]+|[-_]+$/g, "");
+                }
+                function generateCloseKeyMarker(closeKey) {
+                  return `<!-- gh-aw-close-key: ${closeKey} -->`;
+                }
+                function getCloseKeyMarkerContent(closeKey) {
+                  return `gh-aw-close-key: ${closeKey}`;
+                }
+                function isValidWorkflowId(id) {
+                  return id.length > 0 && id.length <= 100 && /^[\w.-]+$/.test(id) && !id.includes("..");
+                }
+                function extractWorkflowId(body) {
+                  if (!body) return null;
+                  const standaloneMatch = body.match(/<!--\s*gh-aw-workflow-id:\s*([\w.-]+)\s*-->/);
+                  if (standaloneMatch) {
+                    const id = normalizeWorkflowId(standaloneMatch[1].trim());
+                    return isValidWorkflowId(id) ? id : null;
+                  }
+                  const commentMatch = body.match(/<!--\s*gh-aw-agentic-workflow:[^>]*?workflow_id:\s*([\w.-]+)[\s,>]/s);
+                  if (commentMatch) {
+                    const id = normalizeWorkflowId(commentMatch[1].trim());
+                    return isValidWorkflowId(id) ? id : null;
+                  }
+                  const callIdMatch = body.match(/<!--\s*gh-aw-workflow-call-id:\s*([^\s>][^>]*?)\s*-->/);
+                  if (callIdMatch) {
+                    const segments = callIdMatch[1].trim().split("/");
+                    const raw = segments[segments.length - 1].trim();
+                    if (raw.length === 0) return null;
+                    const id = normalizeWorkflowId(raw);
+                    return isValidWorkflowId(id) ? id : null;
+                  }
+                  return null;
+                }
+                function normalizeWorkflowId(id) {
+                  return id.replace(/\.(lock\.yml|yml|yaml)$/i, "");
+                }
+                module.exports = {
+                  generateXMLMarker,
+                  generateWorkflowIdMarker,
+                  generateWorkflowCallIdMarker,
+                  getWorkflowIdMarkerContent,
+                  matchesWorkflowId,
+                  isValidWorkflowId,
+                  extractWorkflowId,
+                  normalizeWorkflowId,
+                  generateExpiredEntityFooter,
+                  getExpiredEntityCautionAlert,
+                  normalizeCloseOlderKey,
+                  generateCloseKeyMarker,
+                  getCloseKeyMarkerContent,
+                };
+              },
+              "github_api_helpers.cjs": (module, exports, require) => {
+                const { getErrorMessage } = require("./error_helpers.cjs");
+                function logGraphQLError(error, operation, hints = {}) {
+                  core.info(`GraphQL error during: ${operation}`);
+                  core.info(`Message: ${getErrorMessage(error)}`);
+                  const errorList = Array.isArray(error.errors) ? error.errors : [];
+                  const hasInsufficientScopes = errorList.some(e => e?.type === "INSUFFICIENT_SCOPES");
+                  const hasNotFound = errorList.some(e => e?.type === "NOT_FOUND");
+                  if (hasInsufficientScopes && hints.insufficientScopesHint) {
+                    core.info(hints.insufficientScopesHint);
+                  }
+                  if (hasNotFound && hints.notFoundHint) {
+                    const predicatePasses = !hints.notFoundPredicate || hints.notFoundPredicate(getErrorMessage(error));
+                    if (predicatePasses) {
+                      core.info(hints.notFoundHint);
+                    }
+                  }
+                  if (error.errors) {
+                    core.info(`Errors array (${error.errors.length} error(s)):`);
+                    error.errors.forEach((err, idx) => {
+                      core.info(`  [${idx + 1}] ${err.message}`);
+                      if (err.type) core.info(`      Type: ${err.type}`);
+                      if (err.path) core.info(`      Path: ${JSON.stringify(err.path)}`);
+                      if (err.locations) core.info(`      Locations: ${JSON.stringify(err.locations)}`);
+                    });
+                  }
+                  if (error.status) core.info(`HTTP status: ${error.status}`);
+                  if (error.request) core.info("Request details omitted");
+                  if (error.data) core.info("Response data omitted");
+                }
+                async function getFileContent(github, owner, repo, path, ref) {
+                  try {
+                    const response = await github.rest.repos.getContent({
+                      owner,
+                      repo,
+                      path,
+                      ref,
+                    });
+                    if (Array.isArray(response.data)) {
+                      core.info(`Path ${path} is a directory, not a file`);
+                      return { content: null, errorStatus: null };
+                    }
+                    if (response.data.type !== "file") {
+                      core.info(`Path ${path} is not a file (type: ${response.data.type})`);
+                      return { content: null, errorStatus: null };
+                    }
+                    if (response.data.encoding === "base64" && response.data.content) {
+                      return { content: Buffer.from(response.data.content, "base64").toString("utf8"), errorStatus: null };
+                    }
+                    return { content: response.data.content || null, errorStatus: null };
+                  } catch (error) {
+                    const errorMessage = getErrorMessage(error);
+                    core.info(`Could not fetch content for ${path}: ${errorMessage}`);
+                    return { content: null, errorStatus: error.status ?? null };
+                  }
+                }
+                async function fetchAllRepoLabels(githubClient, owner, repo) {
+                  const labelsQuery = `
+                    query($owner: String!, $repo: String!, $cursor: String) {
+                      repository(owner: $owner, name: $repo) {
+                        labels(first: 100, after: $cursor) {
+                          nodes {
+                            id
+                            name
+                          }
+                          pageInfo {
+                            hasNextPage
+                            endCursor
+                          }
+                        }
+                      }
+                    }
+                  `;
+                  const allLabels =  [];
+                  let cursor =  null;
+                  let hasNextPage = true;
+                  while (hasNextPage) {
+                    const queryResult = await githubClient.graphql(labelsQuery, { owner, repo, cursor });
+                    const labelsPage = queryResult?.repository?.labels;
+                    const nodes = labelsPage?.nodes || [];
+                    allLabels.push(...nodes);
+                    hasNextPage = labelsPage?.pageInfo?.hasNextPage ?? false;
+                    cursor = labelsPage?.pageInfo?.endCursor ?? null;
+                  }
+                  return allLabels;
+                }
+                async function resolveTopLevelDiscussionCommentId(github, commentNodeId) {
+                  if (!commentNodeId) {
+                    return commentNodeId;
+                  }
+                  try {
+                    const result = await github.graphql(
+                      `query($nodeId: ID!) {
+                        node(id: $nodeId) {
+                          ... on DiscussionComment {
+                            replyTo {
+                              id
+                            }
+                          }
+                        }
+                      }`,
+                      { nodeId: commentNodeId }
+                    );
+                    return result?.node?.replyTo?.id ?? commentNodeId;
+                  } catch (error) {
+                    logGraphQLError( error, "resolving top-level discussion comment");
+                    return commentNodeId;
+                  }
+                }
+                function isRestEndpoint(endpoint) {
+                  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
+                }
+                async function createDiscussionComment(github, discussionId, body, replyToId) {
+                  const mutation = replyToId
+                    ?  `
+                        mutation ($dId: ID!, $body: String!, $replyToId: ID!) {
+                          addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+                            comment {
+                              id
+                              url
+                            }
+                          }
+                        }
+                      `
+                    :  `
+                        mutation ($dId: ID!, $body: String!) {
+                          addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                            comment {
+                              id
+                              url
+                            }
+                          }
+                        }
+                      `;
+                  const variables = { dId: discussionId, body, ...(replyToId ? { replyToId } : {}) };
+                  const result = await github.graphql(mutation, variables);
+                  return result.addDiscussionComment.comment;
+                }
+                module.exports = {
+                  createDiscussionComment,
+                  fetchAllRepoLabels,
+                  getFileContent,
+                  isRestEndpoint,
+                  logGraphQLError,
+                  resolveTopLevelDiscussionCommentId,
+                };
+              },
+              "glob_pattern_helpers.cjs": (module, exports, require) => {
+                function escapeRegexChars(pattern) {
+                  return pattern
+                    .replace(/\\/g, "\\\\")
+                    .replace(/\./g, "\\.")
+                    .replace(/[+?^${}()|[\]]/g, "\\$&");
+                }
+                function globPatternToRegex(pattern, options) {
+                  const { pathMode = true, caseSensitive = true, matchSubfolderRoot = false } = options || {};
+                  let regexPattern = escapeRegexChars(pattern);
+                  if (pathMode) {
+                    regexPattern = regexPattern
+                      .replace(/\*\*/g, "<!DOUBLESTAR>")
+                      .replace(/\*/g, "[^/]*")
+                      .replace(/<!DOUBLESTAR>/g, ".*");
+                  } else {
+                    regexPattern = regexPattern.replace(/\*/g, ".*");
+                  }
+                  if (matchSubfolderRoot && !pattern.includes("/")) {
+                    regexPattern = `[^/]+/${regexPattern}`;
+                  }
+                  return new RegExp(`^${regexPattern}$`, caseSensitive ? "" : "i");
+                }
+                function parseGlobPatterns(fileGlobFilter) {
+                  return fileGlobFilter
+                    .trim()
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .map(pattern => globPatternToRegex(pattern));
+                }
+                function matchesGlobPattern(filePath, fileGlobFilter) {
+                  const patterns = parseGlobPatterns(fileGlobFilter);
+                  return patterns.some(pattern => pattern.test(filePath));
+                }
+                function simpleGlobToRegex(pattern, caseSensitive = false) {
+                  return globPatternToRegex(pattern, { pathMode: false, caseSensitive });
+                }
+                function matchesSimpleGlob(str, pattern, caseSensitive = false) {
+                  if (!str || !pattern) {
+                    return false;
+                  }
+                  if (!caseSensitive && str.toLowerCase() === pattern.toLowerCase()) {
+                    return true;
+                  } else if (caseSensitive && str === pattern) {
+                    return true;
+                  }
+                  const regex = simpleGlobToRegex(pattern, caseSensitive);
+                  return regex.test(str);
+                }
+                module.exports = {
+                  globPatternToRegex,
+                  parseGlobPatterns,
+                  matchesGlobPattern,
+                  simpleGlobToRegex,
+                  matchesSimpleGlob,
+                };
+              },
+              "invocation_context_helpers.cjs": (module, exports, require) => {
+                const { parseRepoSlug: parseSharedRepoSlug, parseAllowedRepos, validateTargetRepo } = require("./repo_helpers.cjs");
+                const { ERR_VALIDATION } = require("./error_codes.cjs");
+                function parseRepoSlug(value) {
+                  if (typeof value !== "string") {
+                    return null;
+                  }
+                  const trimmed = value.trim();
+                  if (!trimmed) {
+                    return null;
+                  }
+                  return parseSharedRepoSlug(trimmed);
+                }
+                function normalizeRepo(repoValue) {
+                  if (!repoValue || typeof repoValue !== "object") {
+                    return null;
+                  }
+                  const maybeRepo = repoValue;
+                  if (typeof maybeRepo.owner === "string" && typeof maybeRepo.repo === "string" && maybeRepo.owner && maybeRepo.repo) {
+                    return {
+                      owner: maybeRepo.owner,
+                      repo: maybeRepo.repo,
+                    };
+                  }
+                  return null;
+                }
+                function extractRepoFromPayload(payload) {
+                  if (!payload || typeof payload !== "object") {
+                    return null;
+                  }
+                  const payloadObject = payload;
+                  const repositoryValue = payloadObject.repository;
+                  if (!repositoryValue || typeof repositoryValue !== "object") {
+                    return null;
+                  }
+                  const repository = repositoryValue;
+                  let owner;
+                  const ownerValue = repository.owner;
+                  if (typeof ownerValue === "string") {
+                    owner = ownerValue;
+                  } else if (ownerValue && typeof ownerValue === "object" && "login" in ownerValue && typeof ownerValue.login === "string") {
+                    owner = ownerValue.login;
+                  }
+                  const repo = typeof repository.name === "string" ? repository.name : typeof repository.repo === "string" ? repository.repo : undefined;
+                  if (owner && repo) {
+                    return { owner, repo };
+                  }
+                  return null;
+                }
+                function parseJSONPayload(value) {
+                  if (typeof value !== "string" || value.trim() === "") {
+                    return null;
+                  }
+                  try {
+                    const parsed = JSON.parse(value);
+                    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                      return  parsed;
+                    }
+                  } catch (_error) {
+                  }
+                  return null;
+                }
+                function buildPayloadFromAwContext(awContext, eventName) {
+                  const itemType = typeof awContext.item_type === "string" ? awContext.item_type : "";
+                  const itemNumberRaw = awContext.item_number;
+                  const commentIdRaw = awContext.comment_id;
+                  const commentNodeId = typeof awContext.comment_node_id === "string" ? awContext.comment_node_id : "";
+                  const itemNumber = Number(itemNumberRaw);
+                  const commentId = Number(commentIdRaw);
+                  if (!itemType || !Number.isFinite(itemNumber) || itemNumber <= 0) {
+                    return null;
+                  }
+                  const payload = {};
+                  if (itemType === "issue") {
+                    payload.issue = { number: itemNumber };
+                  } else if (itemType === "pull_request") {
+                    payload.pull_request = { number: itemNumber };
+                    if (eventName === "issue_comment") {
+                      payload.issue = { number: itemNumber, pull_request: {} };
+                    }
+                  } else if (itemType === "discussion") {
+                    payload.discussion = { number: itemNumber };
+                  }
+                  if (Number.isFinite(commentId) && commentId > 0) {
+                    payload.comment = { id: commentId };
+                    if (commentNodeId) {
+                      payload.comment.node_id = commentNodeId;
+                    }
+                  } else if (commentNodeId) {
+                    payload.comment = { node_id: commentNodeId };
+                  }
+                  return Object.keys(payload).length > 0 ? payload : null;
+                }
+                function checkAllowedRepo(workflowRepo, targetRepo) {
+                  const defaultRepo = `${workflowRepo.owner}/${workflowRepo.repo}`;
+                  const targetRepoSlug = `${targetRepo.owner}/${targetRepo.repo}`;
+                  const allowedRepos = parseAllowedRepos(process.env.GH_AW_ALLOWED_REPOS);
+                  if (allowedRepos.size === 0) {
+                    const handlerConfigRaw = process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
+                    if (typeof handlerConfigRaw === "string" && handlerConfigRaw.trim() !== "") {
+                      try {
+                        const handlerConfig = JSON.parse(handlerConfigRaw);
+                        if (handlerConfig && typeof handlerConfig === "object" && !Array.isArray(handlerConfig)) {
+                          for (const value of Object.values(handlerConfig)) {
+                            if (!value || typeof value !== "object" || Array.isArray(value)) {
+                              continue;
+                            }
+                            const parsed = parseAllowedRepos(value.allowed_repos);
+                            for (const repo of parsed) {
+                              allowedRepos.add(repo);
+                            }
+                          }
+                        }
+                      } catch (_error) {
+                      }
+                    }
+                  }
+                  const validation = validateTargetRepo(targetRepoSlug, defaultRepo, allowedRepos);
+                  if (!validation.valid) {
+                    throw Object.assign(new Error(`${ERR_VALIDATION}: ${validation.error}`), { code: ERR_VALIDATION });
+                  }
+                }
+                function resolveInvocationContext(rawContext) {
+                  const contextRepo = normalizeRepo(rawContext?.repo) || { owner: "", repo: "" };
+                  const workflowRepo = normalizeRepo(rawContext?.workflowRepo) || contextRepo;
+                  let source = "native";
+                  let eventName = rawContext?.eventName || "";
+                  let eventPayload = rawContext?.payload || {};
+                  let eventRepo = normalizeRepo(rawContext?.eventRepo);
+                  if (eventName === "repository_dispatch") {
+                    const clientPayload = rawContext?.payload?.client_payload;
+                    if (clientPayload && typeof clientPayload === "object") {
+                      source = "repository_dispatch";
+                      eventName = rawContext?.payload?.action || eventName;
+                      eventPayload = clientPayload;
+                      eventRepo = eventRepo || extractRepoFromPayload(clientPayload) || parseRepoSlug(clientPayload?.aw_context?.repo);
+                    }
+                  } else if (eventName === "workflow_dispatch") {
+                    source = "workflow_dispatch";
+                    const inputs = rawContext?.payload?.inputs;
+                    if (inputs && typeof inputs === "object") {
+                      const inputsEventName = typeof inputs.event_name === "string" ? inputs.event_name : typeof inputs.eventName === "string" ? inputs.eventName : "";
+                      const parsedPayload = parseJSONPayload(inputs.event_payload) || parseJSONPayload(inputs.eventPayload);
+                      const awContext = parseJSONPayload(inputs.aw_context) || parseJSONPayload(inputs.awContext);
+                      const targetRepo = parseRepoSlug(inputs.target_repo) || parseRepoSlug(inputs.targetRepo);
+                      if (targetRepo) {
+                        checkAllowedRepo(workflowRepo, targetRepo);
+                      }
+                      if (inputsEventName) {
+                        eventName = inputsEventName;
+                      } else if (typeof awContext?.event_type === "string" && awContext.event_type.trim()) {
+                        eventName = awContext.event_type.trim();
+                      }
+                      if (parsedPayload) {
+                        eventPayload = parsedPayload;
+                      } else if (awContext && typeof awContext === "object") {
+                        const awPayload = buildPayloadFromAwContext(awContext, eventName);
+                        if (awPayload) {
+                          eventPayload = awPayload;
+                        }
+                      }
+                      eventRepo = eventRepo || parseRepoSlug(inputs.event_repo) || parseRepoSlug(inputs.eventRepo) || parseRepoSlug(typeof awContext?.repo === "string" ? awContext.repo : undefined) || targetRepo;
+                    }
+                  }
+                  if (!eventRepo) {
+                    eventRepo = extractRepoFromPayload(eventPayload) || workflowRepo;
+                  }
+                  return {
+                    source,
+                    eventName,
+                    eventPayload,
+                    workflowRepo,
+                    eventRepo,
+                  };
+                }
+                module.exports = {
+                  resolveInvocationContext,
+                };
+              },
+              "markdown_code_region_balancer.cjs": (module, exports, require) => {
+                function balanceCodeRegions(markdown) {
+                  if (!markdown || typeof markdown !== "string") {
+                    return markdown || "";
+                  }
+                  const normalizedMarkdown = markdown.replace(/\r\n/g, "\n");
+                  const lines = normalizedMarkdown.split("\n");
+                  const result = [];
+                  const xmlCommentRegions = [];
+                  let inXmlComment = false;
+                  let xmlCommentStart = -1;
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (!inXmlComment && line.includes("<!--")) {
+                      inXmlComment = true;
+                      xmlCommentStart = i;
+                    }
+                    if (inXmlComment && line.includes("-->")) {
+                      xmlCommentRegions.push({ start: xmlCommentStart, end: i });
+                      inXmlComment = false;
+                      xmlCommentStart = -1;
+                    }
+                  }
+                  const isInXmlComment = lineIndex => {
+                    for (const region of xmlCommentRegions) {
+                      if (lineIndex >= region.start && lineIndex <= region.end) {
+                        return true;
+                      }
+                    }
+                    return false;
+                  };
+                  const fences = [];
+                  for (let i = 0; i < lines.length; i++) {
+                    if (isInXmlComment(i)) continue;
+                    const fenceMatch = lines[i].match(/^(\s*)(`{3,}|~{3,})([^`~\s]*)?(.*)$/);
+                    if (fenceMatch) {
+                      fences.push({
+                        lineIndex: i,
+                        indent: fenceMatch[1],
+                        char: fenceMatch[2][0],
+                        length: fenceMatch[2].length,
+                        language: fenceMatch[3] || "",
+                        trailing: fenceMatch[4] || "",
+                      });
+                    }
+                  }
+                  const processed = new Set();
+                  const deferred = new Set();
+                  const unclosedFences = [];
+                  const pairedBlocks = [];
+                  const isInsideBlock = lineIndex => {
+                    for (const block of pairedBlocks) {
+                      if (lineIndex > block.start && lineIndex < block.end) {
+                        return true;
+                      }
+                    }
+                    for (const fence of unclosedFences) {
+                      if (lineIndex > fence.lineIndex) {
+                        return true;
+                      }
+                    }
+                    return false;
+                  };
+                  let i = 0;
+                  while (i < fences.length) {
+                    if (processed.has(i)) {
+                      i++;
+                      continue;
+                    }
+                    const openFence = fences[i];
+                    processed.add(i);
+                    const potentialClosers = [];
+                    const openIndentLength = openFence.indent.length;
+                    for (let j = i + 1; j < fences.length; j++) {
+                      if (processed.has(j)) continue;
+                      const fence = fences[j];
+                      if (isInsideBlock(fence.lineIndex)) {
+                        continue;
+                      }
+                      const canClose = fence.char === openFence.char && fence.length >= openFence.length && fence.language === "";
+                      if (canClose) {
+                        const fenceIndentLength = fence.indent.length;
+                        if (fenceIndentLength === openIndentLength) {
+                          let hasOpenerBetween = false;
+                          for (let k = i + 1; k < j; k++) {
+                            if (processed.has(k)) continue;
+                            const intermediateFence = fences[k];
+                            if (intermediateFence.language !== "" && intermediateFence.indent.length === openIndentLength) {
+                              hasOpenerBetween = true;
+                              break;
+                            }
+                          }
+                          potentialClosers.push({
+                            index: j,
+                            length: fence.length,
+                            hasOpenerBetween,
+                          });
+                        }
+                      }
+                    }
+                    if (potentialClosers.length > 0) {
+                      const firstCloser = potentialClosers[0];
+                      if (firstCloser.hasOpenerBetween) {
+                        deferred.add(i);
+                        processed.delete(i);
+                        i++;
+                      } else {
+                        const closerIndex = firstCloser.index;
+                        processed.add(closerIndex);
+                        pairedBlocks.push({
+                          start: fences[i].lineIndex,
+                          end: fences[closerIndex].lineIndex,
+                          openIndex: i,
+                          closeIndex: closerIndex,
+                        });
+                        i = closerIndex + 1;
+                      }
+                    } else {
+                      const fenceLine = fences[i].lineIndex;
+                      if (!isInsideBlock(fenceLine)) {
+                        unclosedFences.push(openFence);
+                      }
+                      i++;
+                    }
+                  }
+                  for (const deferredIndex of deferred) {
+                    if (processed.has(deferredIndex)) continue;
+                    const openFence = fences[deferredIndex];
+                    processed.add(deferredIndex);
+                    const potentialClosers = [];
+                    const openIndentLength = openFence.indent.length;
+                    for (let j = deferredIndex + 1; j < fences.length; j++) {
+                      if (processed.has(j)) continue;
+                      const fence = fences[j];
+                      if (isInsideBlock(fence.lineIndex)) continue;
+                      const canClose = fence.char === openFence.char && fence.length >= openFence.length && fence.language === "";
+                      if (canClose && fence.indent.length === openIndentLength) {
+                        potentialClosers.push({ index: j, length: fence.length });
+                      }
+                    }
+                    if (potentialClosers.length > 0) {
+                      const closerIndex = potentialClosers[0].index;
+                      processed.add(closerIndex);
+                      pairedBlocks.push({
+                        start: fences[deferredIndex].lineIndex,
+                        end: fences[closerIndex].lineIndex,
+                        openIndex: deferredIndex,
+                        closeIndex: closerIndex,
+                      });
+                    } else {
+                      if (!isInsideBlock(fences[deferredIndex].lineIndex)) {
+                        unclosedFences.push(openFence);
+                      }
+                    }
+                  }
+                  for (let i = 0; i < lines.length; i++) {
+                    result.push(lines[i]);
+                  }
+                  for (const openFence of unclosedFences) {
+                    const closingFence = `${openFence.indent}${openFence.char.repeat(openFence.length)}`;
+                    result.push(closingFence);
+                  }
+                  const resultMarkdown = result.join("\n");
+                  const originalCounts = countCodeRegions(normalizedMarkdown);
+                  const resultCounts = countCodeRegions(resultMarkdown);
+                  if (resultCounts.unbalanced > originalCounts.unbalanced) {
+                    return normalizedMarkdown;
+                  }
+                  if (resultCounts.unbalanced === originalCounts.unbalanced && resultMarkdown !== normalizedMarkdown) {
+                    if (resultCounts.total > originalCounts.total) {
+                      return normalizedMarkdown;
+                    }
+                  }
+                  return resultMarkdown;
+                }
+                function isBalanced(markdown) {
+                  if (!markdown || typeof markdown !== "string") {
+                    return true;
+                  }
+                  const normalizedMarkdown = markdown.replace(/\r\n/g, "\n");
+                  const lines = normalizedMarkdown.split("\n");
+                  let inCodeBlock = false;
+                  let openingFence = null;
+                  for (const line of lines) {
+                    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})([^`~\s]*)?(.*)$/);
+                    if (fenceMatch) {
+                      const fence = fenceMatch[2];
+                      const fenceChar = fence[0];
+                      const fenceLength = fence.length;
+                      if (!inCodeBlock) {
+                        inCodeBlock = true;
+                        openingFence = {
+                          char: fenceChar,
+                          length: fenceLength,
+                        };
+                      } else {
+                        const language = fenceMatch[3] || "";
+                        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length && language === "";
+                        if (canClose) {
+                          inCodeBlock = false;
+                          openingFence = null;
+                        }
+                      }
+                    }
+                  }
+                  return !inCodeBlock;
+                }
+                function countCodeRegions(markdown) {
+                  if (!markdown || typeof markdown !== "string") {
+                    return { total: 0, balanced: 0, unbalanced: 0 };
+                  }
+                  const normalizedMarkdown = markdown.replace(/\r\n/g, "\n");
+                  const lines = normalizedMarkdown.split("\n");
+                  let total = 0;
+                  let balanced = 0;
+                  let inCodeBlock = false;
+                  let openingFence = null;
+                  for (const line of lines) {
+                    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})([^`~\s]*)?(.*)$/);
+                    if (fenceMatch) {
+                      const fence = fenceMatch[2];
+                      const fenceChar = fence[0];
+                      const fenceLength = fence.length;
+                      if (!inCodeBlock) {
+                        inCodeBlock = true;
+                        total++;
+                        openingFence = {
+                          char: fenceChar,
+                          length: fenceLength,
+                        };
+                      } else {
+                        const language = fenceMatch[3] || "";
+                        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length && language === "";
+                        if (canClose) {
+                          inCodeBlock = false;
+                          balanced++;
+                          openingFence = null;
+                        }
+                      }
+                    }
+                  }
+                  const unbalanced = total - balanced;
+                  return { total, balanced, unbalanced };
+                }
+                module.exports = {
+                  balanceCodeRegions,
+                  isBalanced,
+                  countCodeRegions,
+                };
+              },
+              "messages_core.cjs": (module, exports, require) => {
+                const { getErrorMessage } = require("./error_helpers.cjs");
+                const fs = require("fs");
+                function getMessages() {
+                  const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+                  if (!messagesEnv) {
+                    return null;
+                  }
+                  try {
+                    return JSON.parse(messagesEnv);
+                  } catch (error) {
+                    core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${getErrorMessage(error)}`);
+                    return null;
+                  }
+                }
+                function renderTemplate(template, context) {
+                  return template.replace(/\{(\w+)\}/g, (match, key) => {
+                    const value = context[key];
+                    if (value === undefined || value === null) {
+                      return match;
+                    }
+                    return String(value);
+                  });
+                }
+                function renderFilesList(value) {
+                  const files = Array.isArray(value) ? value : String(value).split(",");
+                  const normalizedFiles = files.map(file => String(file).trim()).filter(Boolean);
+                  return normalizedFiles
+                    .map(file => {
+                      let normalized = file;
+                      if (normalized.startsWith("`") && normalized.endsWith("`")) {
+                        normalized = normalized.slice(1, -1).trim();
+                      }
+                      if (!normalized || normalized.includes("`")) {
+                        normalized = "redacted";
+                      }
+                      return `\`${normalized}\``;
+                    })
+                    .join(", ");
+                }
+                function getPromptPath(name) {
+                  const promptsDir = process.env.GH_AW_PROMPTS_DIR || (process.env.RUNNER_TEMP ? `${process.env.RUNNER_TEMP}/gh-aw/prompts` : null);
+                  if (!promptsDir) {
+                    throw new Error("Cannot resolve prompt path: neither GH_AW_PROMPTS_DIR nor RUNNER_TEMP is set");
+                  }
+                  return `${promptsDir}/${name}`;
+                }
+                function renderTemplateFromFile(templatePath, context) {
+                  let template;
+                  try {
+                    template = fs.readFileSync(templatePath, "utf8");
+                  } catch (err) {
+                    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
+                  }
+                  return renderTemplate(template, context);
+                }
+                function toSnakeCase(obj) {
+                  return Object.fromEntries(
+                    Object.entries(obj).flatMap(([key, value]) => {
+                      const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+                      return snakeKey === key
+                        ? [[key, value]]
+                        : [
+                            [snakeKey, value],
+                            [key, value],
+                          ];
+                    })
+                  );
+                }
+                function encodeRFC3986URIComponent(value) {
+                  return encodeURIComponent(value).replace(/[!'()*]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0"));
+                }
+                function encodePathSegments(path) {
+                  return path.split("/").map(encodeRFC3986URIComponent).join("/");
+                }
+                function buildProtectedFileList(files, githubServer, owner, repo, branch) {
+                  const encodedBranch = encodePathSegments(branch);
+                  return files
+                    .map(f => {
+                      if (f.includes("/")) {
+                        const encodedPath = encodePathSegments(f);
+                        return `- [${f}](${githubServer}/${owner}/${repo}/blob/${encodedBranch}/${encodedPath})`;
+                      }
+                      return `- \`${f}\``;
+                    })
+                    .join("\n");
+                }
+                module.exports = {
+                  getMessages,
+                  getPromptPath,
+                  renderTemplate,
+                  renderFilesList,
+                  renderTemplateFromFile,
+                  toSnakeCase,
+                  encodePathSegments,
+                  buildProtectedFileList,
+                };
+              },
+              "messages_run_status.cjs": (module, exports, require) => {
+                const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase, getPromptPath } = require("./messages_core.cjs");
+                const { getDetectionReasonText, getThreatDetectedMarkerTemplate, getThreatEngineErrorMarkerTemplate, normalizeThreatKinds, isToolingFailureReason } = require("./threat_detection_warning.cjs");
+                function renderConfiguredMessage(messageKey, defaultTemplate, ctx) {
+                  const messages = getMessages();
+                  const template = messages?.[messageKey] ?? defaultTemplate;
+                  return renderTemplate(template, toSnakeCase(ctx));
+                }
+                function getRunStartedMessage(ctx) {
+                  return renderConfiguredMessage("runStarted", "🚀 [{workflow_name}]({run_url}) has started processing this {event_type}", ctx);
+                }
+                function getRunSuccessMessage(ctx) {
+                  return renderConfiguredMessage("runSuccess", "✅ [{workflow_name}]({run_url}) completed successfully!", ctx);
+                }
+                function getRunFailureMessage(ctx) {
+                  return renderConfiguredMessage("runFailure", "❌ [{workflow_name}]({run_url}) {status}. Please review the logs for details.", ctx);
+                }
+                function getDetectionFailureMessage(ctx) {
+                  return renderConfiguredMessage("detectionFailure", "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", ctx);
+                }
+                function getPullRequestCreatedMessage(ctx) {
+                  return renderConfiguredMessage("pullRequestCreated", "Pull request created: [#{item_number}]({item_url})", ctx);
+                }
+                function getIssueCreatedMessage(ctx) {
+                  return renderConfiguredMessage("issueCreated", "Issue created: [#{item_number}]({item_url})", ctx);
+                }
+                function getCommitPushedMessage(ctx) {
+                  return renderConfiguredMessage("commitPushed", "Commit pushed: [`{short_sha}`]({commit_url})", ctx);
+                }
+                function getDetectionWarningMessage(ctx) {
+                  const reasonText = getDetectionReasonText(ctx.reason);
+                  const isEngineError = isToolingFailureReason(ctx.reason);
+                  const templateFile = isEngineError ? "threat_detection_engine_error.md" : "threat_detection_caution.md";
+                  const messageKey = isEngineError ? "detectionEngineError" : "detectionWarning";
+                  const markerTemplate = isEngineError ? getThreatEngineErrorMarkerTemplate() : getThreatDetectedMarkerTemplate();
+                  const messages = getMessages();
+                  const configTemplate = messages?.[messageKey];
+                  if (configTemplate) {
+                    return renderTemplate(configTemplate, toSnakeCase({ ...ctx, reasonText, threat_detected_marker: markerTemplate, threatKinds: normalizeThreatKinds(ctx.reason) }));
+                  }
+                  return renderTemplateFromFile(getPromptPath(templateFile), toSnakeCase({ ...ctx, reasonText, threat_detected_marker: markerTemplate, threatKinds: normalizeThreatKinds(ctx.reason) })).trimEnd();
+                }
+                module.exports = {
+                  getRunStartedMessage,
+                  getRunSuccessMessage,
+                  getRunFailureMessage,
+                  getDetectionFailureMessage,
+                  getDetectionWarningMessage,
+                  getPullRequestCreatedMessage,
+                  getIssueCreatedMessage,
+                  getCommitPushedMessage,
+                };
+              },
+              "repo_helpers.cjs": (module, exports, require) => {
+                const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
+                const { ERR_VALIDATION } = require("./error_codes.cjs");
+                function parseAllowedRepos(allowedReposValue) {
+                  const set = new Set();
+                  if (Array.isArray(allowedReposValue)) {
+                    allowedReposValue
+                      .map(repo => repo.trim())
+                      .filter(repo => repo)
+                      .forEach(repo => set.add(repo));
+                  } else if (typeof allowedReposValue === "string") {
+                    allowedReposValue
+                      .split(",")
+                      .map(repo => repo.trim())
+                      .filter(repo => repo)
+                      .forEach(repo => set.add(repo));
+                  }
+                  return set;
+                }
+                function getDefaultTargetRepo(config) {
+                  if (config && config["target-repo"]) {
+                    return config["target-repo"];
+                  }
+                  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+                  if (targetRepoSlug) {
+                    return targetRepoSlug;
+                  }
+                  if (typeof context !== "undefined" && context.repo?.owner && context.repo?.repo) {
+                    return `${context.repo.owner}/${context.repo.repo}`;
+                  }
+                  const githubRepo = process.env.GITHUB_REPOSITORY;
+                  if (githubRepo) {
+                    return githubRepo;
+                  }
+                  return "";
+                }
+                function isRepoAllowed(qualifiedRepo, allowedRepos) {
+                  if (allowedRepos.has(qualifiedRepo)) {
+                    return true;
+                  }
+                  for (const pattern of allowedRepos) {
+                    if (pattern === "*") {
+                      return true;
+                    }
+                    if (pattern.includes("*") && globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }).test(qualifiedRepo)) {
+                      return true;
+                    }
+                  }
+                  return false;
+                }
+                function validateRepo(repo, defaultRepo, allowedRepos) {
+                  let qualifiedRepo = repo;
+                  if (!repo.includes("/")) {
+                    const defaultRepoParts = parseRepoSlug(defaultRepo);
+                    if (defaultRepoParts) {
+                      qualifiedRepo = `${defaultRepoParts.owner}/${repo}`;
+                    }
+                  }
+                  if (defaultRepo === "*") {
+                    const parsed = parseRepoSlug(qualifiedRepo);
+                    if (!parsed) {
+                      return {
+                        valid: false,
+                        error: `Repository '${repo}' is not a valid 'owner/repo' slug.`,
+                        qualifiedRepo,
+                      };
+                    }
+                    qualifiedRepo = `${parsed.owner}/${parsed.repo}`;
+                    return { valid: true, error: null, qualifiedRepo };
+                  }
+                  if (qualifiedRepo === defaultRepo) {
+                    return { valid: true, error: null, qualifiedRepo };
+                  }
+                  if (isRepoAllowed(qualifiedRepo, allowedRepos)) {
+                    return { valid: true, error: null, qualifiedRepo };
+                  }
+                  return {
+                    valid: false,
+                    error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
+                    qualifiedRepo,
+                  };
+                }
+                function parseRepoSlug(repoSlug) {
+                  const parts = repoSlug.split("/");
+                  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                    return null;
+                  }
+                  return { owner: parts[0], repo: parts[1] };
+                }
+                function resolveTargetRepoConfig(config) {
+                  const defaultTargetRepo = getDefaultTargetRepo(config);
+                  const allowedRepos = parseAllowedRepos(config.allowed_repos);
+                  return {
+                    defaultTargetRepo,
+                    allowedRepos,
+                  };
+                }
+                function resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, operationType) {
+                  const trimmedDefaultTargetRepo = defaultTargetRepo ? String(defaultTargetRepo).trim() : "";
+                  const rawItemRepo = item && item.repo != null ? String(item.repo).trim() : "";
+                  const itemRepo = rawItemRepo || trimmedDefaultTargetRepo;
+                  if (!itemRepo) {
+                    return {
+                      success: false,
+                      error: `Unable to determine target repository for ${operationType}. Set GH_AW_TARGET_REPO_SLUG, ensure GITHUB_REPOSITORY is available, or configure target-repo in safe-outputs settings.`,
+                    };
+                  }
+                  const repoValidation = validateRepo(itemRepo, trimmedDefaultTargetRepo, allowedRepos);
+                  if (!repoValidation.valid) {
+                    const errorMessage = repoValidation.error;
+                    if (!errorMessage) {
+                      throw new Error(`${ERR_VALIDATION}: Internal error: repoValidation.error should not be null when valid is false`);
+                    }
+                    return {
+                      success: false,
+                      error: errorMessage,
+                    };
+                  }
+                  const qualifiedItemRepo = repoValidation.qualifiedRepo;
+                  const repoParts = parseRepoSlug(qualifiedItemRepo);
+                  if (!repoParts) {
+                    return {
+                      success: false,
+                      error: `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`,
+                    };
+                  }
+                  return {
+                    success: true,
+                    repo: qualifiedItemRepo,
+                    repoParts: repoParts,
+                  };
+                }
+                function validateTargetRepo(repo, defaultRepo, allowedRepos) {
+                  return validateRepo(repo, defaultRepo, allowedRepos);
+                }
+                function resolveExecutionOwnerRepo() {
+                  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+                  if (targetRepoSlug) {
+                    const parsed = parseRepoSlug(targetRepoSlug);
+                    if (!parsed) {
+                      throw new Error(`Invalid GH_AW_TARGET_REPO_SLUG: "${targetRepoSlug}". Expected exact "owner/repo" format (one slash, non-empty on both sides).`);
+                    }
+                    return parsed;
+                  }
+                  return { owner: context.repo.owner, repo: context.repo.repo };
+                }
+                module.exports = {
+                  parseAllowedRepos,
+                  getDefaultTargetRepo,
+                  isRepoAllowed,
+                  validateRepo,
+                  validateTargetRepo,
+                  parseRepoSlug,
+                  resolveTargetRepoConfig,
+                  resolveAndValidateRepo,
+                  resolveExecutionOwnerRepo,
+                };
+              },
+              "route_slash_command.cjs": (module, exports, require) => {
+                const { REACTION_MAP } = require("./add_reaction.cjs");
+                const { createOrReuseStatusComment } = require("./add_workflow_run_comment.cjs");
+                const nodePath = require("node:path");
+                const { matchesCommandName, parseSlashCommand } = require("./slash_command_matcher.cjs");
+                const { getErrorMessage } = require("./error_helpers.cjs");
+                const GITHUB_API_VERSION = "2022-11-28";
+                async function appendRoutingSummary(existingCommands, selectedCommand) {
+                  const summary = core.summary;
+                  if (!summary || typeof summary.addHeading !== "function" || typeof summary.addRaw !== "function" || typeof summary.write !== "function") {
+                    return;
+                  }
+                  const normalizedCommands = existingCommands
+                    .filter(command => typeof command === "string" && command.trim())
+                    .map(command => `/${command.trim()}`)
+                    .sort();
+                  const selectedCommandText = selectedCommand ? `\`/${selectedCommand}\`` : "`<none>`";
+                  const existingCommandsList = normalizedCommands.map(command => `- \`${command}\``).join("\n");
+                  try {
+                    summary.addHeading("Agentic Commands Router", 3).addRaw(`- Selected command: ${selectedCommandText}`, true).addEOL().addRaw(`- Configured commands: ${normalizedCommands.length}`, true).addEOL();
+                    if (existingCommandsList) {
+                      summary.addEOL().addRaw(`<details><summary>Configured commands</summary>\n\n${existingCommandsList}\n\n</details>`, true).addEOL();
+                    }
+                    await summary.write({ overwrite: false });
+                  } catch (error) {
+                    core.warning(`Failed to write centralized routing details to step summary: ${getErrorMessage(error)}`);
+                  }
+                }
+                function eventIdentifier() {
+                  if (context.eventName !== "issue_comment") {
+                    return context.eventName;
+                  }
+                  return context.payload?.issue?.pull_request ? "pull_request_comment" : "issue_comment";
+                }
+                function resolveBodyText() {
+                  const bodyByEvent = {
+                    issues: context.payload?.issue?.body ?? "",
+                    pull_request: context.payload?.pull_request?.body ?? "",
+                    issue_comment: context.payload?.comment?.body ?? "",
+                    pull_request_review_comment: context.payload?.comment?.body ?? "",
+                    pull_request_review: context.payload?.review?.body ?? "",
+                    discussion: context.payload?.discussion?.body ?? "",
+                    discussion_comment: context.payload?.comment?.body ?? "",
+                  };
+                  return bodyByEvent[context.eventName] ?? "";
+                }
+                function isPRClosedAtStart() {
+                  const pullRequestState = context.payload?.pull_request?.state;
+                  if (pullRequestState === "closed") {
+                    return true;
+                  }
+                  const issueState = context.payload?.issue?.state;
+                  if (context.payload?.issue?.pull_request && issueState === "closed") {
+                    return true;
+                  }
+                  return false;
+                }
+                function normalizeDispatchRef(ref) {
+                  if (!ref) {
+                    return "";
+                  }
+                  return ref.startsWith("refs/") ? ref : `refs/heads/${ref}`;
+                }
+                async function resolveIssueBackedPRHeadRef() {
+                  const isIssueBackedPullRequest = context.payload?.issue?.pull_request;
+                  const pullNumber = context.payload?.issue?.number;
+                  if (!isIssueBackedPullRequest || !pullNumber) {
+                    return "";
+                  }
+                  try {
+                    const response = await github.rest.pulls.get({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      pull_number: pullNumber,
+                      headers: {
+                        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+                      },
+                    });
+                    const headRef = response?.data?.head?.ref;
+                    if (!headRef) {
+                      return "";
+                    }
+                    return normalizeDispatchRef(headRef);
+                  } catch (error) {
+                    core.warning(`Failed to resolve PR head ref for #${pullNumber}: ${getErrorMessage(error)}`);
+                    return "";
+                  }
+                }
+                async function resolveDispatchRef() {
+                  if (process.env.GITHUB_HEAD_REF) {
+                    return normalizeDispatchRef(process.env.GITHUB_HEAD_REF);
+                  }
+                  const payloadHeadRef = context.payload?.pull_request?.head?.ref;
+                  if (payloadHeadRef) {
+                    return normalizeDispatchRef(payloadHeadRef);
+                  }
+                  const issuePullRequestHeadRef = await resolveIssueBackedPRHeadRef();
+                  if (issuePullRequestHeadRef) {
+                    return issuePullRequestHeadRef;
+                  }
+                  const fallbackRef = process.env.GITHUB_REF || context.ref;
+                  if (fallbackRef) {
+                    return normalizeDispatchRef(fallbackRef);
+                  }
+                  const defaultBranch = context.payload?.repository?.default_branch || "main";
+                  return normalizeDispatchRef(defaultBranch);
+                }
+                function isReactionName(value) {
+                  return Object.hasOwn(REACTION_MAP, value);
+                }
+                function normalizeReaction(reaction) {
+                  if (typeof reaction !== "string") {
+                    return "";
+                  }
+                  const trimmed = reaction.trim();
+                  if (!trimmed || trimmed === "none") {
+                    return "";
+                  }
+                  return isReactionName(trimmed) ? trimmed : "";
+                }
+                function maintainsStatusComment(route) {
+                  return route?.status_comment === true;
+                }
+                function resolveImmediateReaction(routes) {
+                  for (const route of routes) {
+                    const reaction = normalizeReaction(route?.ai_reaction);
+                    if (reaction) {
+                      return reaction;
+                    }
+                  }
+                  return "";
+                }
+                async function addImmediateReaction(reaction) {
+                  const normalized = normalizeReaction(reaction);
+                  if (!normalized) {
+                    return;
+                  }
+                  const { owner, repo } = context.repo;
+                  try {
+                    switch (context.eventName) {
+                      case "issues": {
+                        const issueNumber = context.payload?.issue?.number;
+                        if (!issueNumber) {
+                          core.warning("Skipping immediate reaction: issue number was not found in payload.");
+                          return;
+                        }
+                        await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
+                          owner,
+                          repo,
+                          issue_number: issueNumber,
+                          content: normalized,
+                          headers: { Accept: "application/vnd.github+json" },
+                        });
+                        return;
+                      }
+                      case "issue_comment": {
+                        const commentId = context.payload?.comment?.id;
+                        if (!commentId) {
+                          core.warning("Skipping immediate reaction: comment id was not found in payload.");
+                          return;
+                        }
+                        await github.request("POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", {
+                          owner,
+                          repo,
+                          comment_id: commentId,
+                          content: normalized,
+                          headers: { Accept: "application/vnd.github+json" },
+                        });
+                        return;
+                      }
+                      case "pull_request": {
+                        const prNumber = context.payload?.pull_request?.number;
+                        if (!prNumber) {
+                          core.warning("Skipping immediate reaction: pull request number was not found in payload.");
+                          return;
+                        }
+                        await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
+                          owner,
+                          repo,
+                          issue_number: prNumber,
+                          content: normalized,
+                          headers: { Accept: "application/vnd.github+json" },
+                        });
+                        return;
+                      }
+                      case "pull_request_review_comment": {
+                        const reviewCommentId = context.payload?.comment?.id;
+                        if (!reviewCommentId) {
+                          core.warning("Skipping immediate reaction: review comment id was not found in payload.");
+                          return;
+                        }
+                        await github.request("POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", {
+                          owner,
+                          repo,
+                          comment_id: reviewCommentId,
+                          content: normalized,
+                          headers: { Accept: "application/vnd.github+json" },
+                        });
+                        return;
+                      }
+                      case "discussion_comment": {
+                        const commentNodeId = context.payload?.comment?.node_id;
+                        if (!commentNodeId) {
+                          core.warning("Skipping immediate reaction: discussion comment node id was not found in payload.");
+                          return;
+                        }
+                        await github.graphql(
+                          `
+                            mutation($subjectId: ID!, $content: ReactionContent!) {
+                              addReaction(input: { subjectId: $subjectId, content: $content }) {
+                                reaction { id }
+                              }
+                            }`,
+                          { subjectId: commentNodeId, content: REACTION_MAP[normalized] }
+                        );
+                        return;
+                      }
+                      case "discussion": {
+                        const discussionNumber = context.payload?.discussion?.number;
+                        if (!discussionNumber) {
+                          core.warning("Skipping immediate reaction: discussion number was not found in payload.");
+                          return;
+                        }
+                        const { repository } = await github.graphql(
+                          `
+                            query($owner: String!, $repo: String!, $num: Int!) {
+                              repository(owner: $owner, name: $repo) {
+                                discussion(number: $num) { id }
+                              }
+                            }`,
+                          { owner, repo, num: discussionNumber }
+                        );
+                        const discussionNodeId = repository?.discussion?.id;
+                        if (!discussionNodeId) {
+                          core.warning("Skipping immediate reaction: discussion node id was not found.");
+                          return;
+                        }
+                        await github.graphql(
+                          `
+                            mutation($subjectId: ID!, $content: ReactionContent!) {
+                              addReaction(input: { subjectId: $subjectId, content: $content }) {
+                                reaction { id }
+                              }
+                            }`,
+                          { subjectId: discussionNodeId, content: REACTION_MAP[normalized] }
+                        );
+                        return;
+                      }
+                      default:
+                        core.warning(`Skipping immediate reaction: unsupported event type '${context.eventName}'.`);
+                        return;
+                    }
+                  } catch (error) {
+                    core.warning(`Immediate reaction '${normalized}' failed: ${getErrorMessage(error)}`);
+                  }
+                }
+                async function addImmediateStatusComment() {
+                  try {
+                    const comment = await createOrReuseStatusComment({
+                      ...context,
+                      nonFatalStatusCommentErrors: true,
+                    });
+                    if (!comment?.id) {
+                      return null;
+                    }
+                    return {
+                      status_comment_id: String(comment.id),
+                      ...(comment.url ? { status_comment_url: comment.url } : {}),
+                      ...(comment.repo?.owner && comment.repo?.repo ? { status_comment_repo: `${comment.repo.owner}/${comment.repo.repo}` } : {}),
+                    };
+                  } catch (error) {
+                    core.warning(`Immediate status comment failed: ${getErrorMessage(error)}`);
+                    return null;
+                  }
+                }
+                function firstNonEmptyString(values) {
+                  for (const value of values) {
+                    if (typeof value === "string" && value.trim()) {
+                      return value;
+                    }
+                  }
+                  return "";
+                }
+                async function dispatchWorkflow(workflowId, ref, inputs) {
+                  try {
+                    const dispatchArgs = {
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      workflow_id: workflowId,
+                      ref,
+                      inputs,
+                      headers: {
+                        "X-GitHub-Api-Version": GITHUB_API_VERSION,
+                      },
+                    };
+                    let response;
+                    try {
+                      response = await github.request("POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches", {
+                        ...dispatchArgs,
+                        return_run_details: true,
+                      });
+                    } catch (dispatchError) {
+                      const err = dispatchError;
+                      const status = err && typeof err === "object" ? err.status : undefined;
+                      const message = typeof err?.response?.data?.message === "string" ? err.response.data.message : String(dispatchError);
+                      const isValidationStatus = status === 400 || status === 422;
+                      const mentionsReturnRunDetails = typeof message === "string" && message.toLowerCase().includes("return_run_details");
+                      if (!(isValidationStatus && mentionsReturnRunDetails)) {
+                        throw err;
+                      }
+                      core.info("Workflow dispatch endpoint rejected 'return_run_details' (common on older GHES versions); retrying without it.");
+                      response = await github.request("POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches", dispatchArgs);
+                    }
+                    const responseData = response?.data || {};
+                    const parsedRunId = Number(responseData?.workflow_run_id ?? responseData?.workflow_run?.id);
+                    const runId = Number.isFinite(parsedRunId) && parsedRunId > 0 ? parsedRunId : undefined;
+                    const serverUrl = context.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
+                    const runUrlFromRunId = runId ? `${serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}` : undefined;
+                    const runUrlFromResponse = firstNonEmptyString([responseData?.workflow_run?.html_url]);
+                    const runUrl = runUrlFromRunId || runUrlFromResponse;
+                    return {
+                      dispatched: true,
+                      ...(runId ? { run_id: runId } : {}),
+                      ...(runUrl ? { run_url: runUrl } : {}),
+                    };
+                  } catch (error) {
+                    if (isDisabledWorkflowDispatchError(error)) {
+                      core.info(`Skipping workflow '${workflowId}' because it is disabled.`);
+                      return { dispatched: false };
+                    }
+                    throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${getErrorMessage(error)}`, { cause: error });
+                  }
+                }
+                async function updateStatusCommentWithDispatch(statusCommentContext, eventName, workflowId, runUrl) {
+                  if (!statusCommentContext?.status_comment_id) {
+                    return;
+                  }
+                  if (!runUrl) {
+                    return;
+                  }
+                  try {
+                    await createOrReuseStatusComment({
+                      ...context,
+                      eventName: "workflow_dispatch",
+                      payload: {
+                        inputs: {
+                          event_name: eventName,
+                          event_payload: JSON.stringify(context.payload || {}),
+                          aw_context: JSON.stringify({
+                            ...statusCommentContext,
+                            dispatched_workflow_name: workflowId.replace(/\.lock\.yml$/, ""),
+                            dispatched_run_url: runUrl,
+                          }),
+                        },
+                      },
+                      nonFatalStatusCommentErrors: true,
+                    });
+                  } catch (error) {
+                    core.warning(`Failed to update immediate status comment with dispatched run details: ${getErrorMessage(error)}`);
+                  }
+                }
+                function isBuiltinHelpEnabled() {
+                  const raw = (process.env.GH_AW_HELP_COMMAND_ENABLED || "").trim().toLowerCase();
+                  if (!raw || raw === "true") {
+                    return true;
+                  }
+                  if (raw === "false") {
+                    return false;
+                  }
+                  core.warning(`Invalid value for GH_AW_HELP_COMMAND_ENABLED (expected 'true' or 'false', got '${raw}'). Using default: enabled.`);
+                  return true;
+                }
+                function parseHelpCommandsMetadata() {
+                  const raw = process.env.GH_AW_HELP_COMMANDS || "[]";
+                  try {
+                    const parsed = JSON.parse(raw);
+                    if (!Array.isArray(parsed)) {
+                      return [];
+                    }
+                    return parsed
+                      .flatMap(item => {
+                        const command = typeof item?.command === "string" ? item.command.trim() : "";
+                        if (!command) {
+                          return [];
+                        }
+                        const description = typeof item?.description === "string" ? item.description.trim() : "";
+                        return [
+                          {
+                            command,
+                            description,
+                            centralized: Boolean(item?.centralized),
+                            decentralized: Boolean(item?.decentralized),
+                            label: Boolean(item?.label),
+                            source_file: typeof item?.source_file === "string" ? item.source_file.trim() : "",
+                          },
+                        ];
+                      })
+                      .sort((left, right) => left.command.localeCompare(right.command));
+                  } catch (error) {
+                    core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${getErrorMessage(error)}`);
+                    return [];
+                  }
+                }
+                const GITHUB_MENTION_RE = /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?)/g;
+                function neutralizeDescriptionMentions(description) {
+                  return description.replace(GITHUB_MENTION_RE, (_, p1, p2) => `${p1}\`@${p2}\``);
+                }
+                function buildCommandBulletLine(entry) {
+                  const desc = entry.description ? neutralizeDescriptionMentions(entry.description) : "";
+                  const suffix = desc ? ` — ${desc}` : "";
+                  const commandText = `\`/${entry.command}\``;
+                  if (entry.source_file) {
+                    const owner = context.repo.owner;
+                    const repo = context.repo.repo;
+                    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                    const sourceUrl = `${githubServer}/${owner}/${repo}/blob/HEAD/.github/workflows/${entry.source_file}.md`;
+                    return `- [${commandText}](${sourceUrl})${suffix}`;
+                  }
+                  return `- ${commandText}${suffix}`;
+                }
+                function buildLabelBulletLine(entry) {
+                  const desc = entry.description ? neutralizeDescriptionMentions(entry.description) : "";
+                  const suffix = desc ? ` — ${desc}` : "";
+                  return `- \`${entry.command}\`${suffix}`;
+                }
+                function buildHelpCommentBody(helpCommands) {
+                  const centralized = helpCommands.filter(entry => entry.centralized);
+                  const centralizedNames = new Set(centralized.map(entry => entry.command));
+                  const decentralized = helpCommands.filter(entry => entry.decentralized && !centralizedNames.has(entry.command));
+                  const labels = helpCommands.filter(entry => entry.label);
+                  const lines = ["### Agentic Workflow Commands", "", "**Centralized slash commands**"];
+                  if (centralized.length === 0) {
+                    lines.push("- _None_");
+                  } else {
+                    for (const entry of centralized) {
+                      lines.push(buildCommandBulletLine(entry));
+                    }
+                  }
+                  lines.push("", "**Non-centralized slash commands**");
+                  if (decentralized.length === 0) {
+                    lines.push("- _None_");
+                  } else {
+                    for (const entry of decentralized) {
+                      lines.push(buildCommandBulletLine(entry));
+                    }
+                  }
+                  lines.push("", "**Label commands**");
+                  if (labels.length === 0) {
+                    lines.push("- _None_");
+                  } else {
+                    for (const entry of labels) {
+                      lines.push(buildLabelBulletLine(entry));
+                    }
+                  }
+                  const docsUrl = (process.env.GH_AW_SLASH_COMMAND_DOCS_URL || "").trim();
+                  if (docsUrl) {
+                    lines.push("", `Learn more: [Slash command documentation](${docsUrl})`);
+                  }
+                  return lines.join("\n");
+                }
+                async function postBuiltinHelpComment(commentBody) {
+                  const owner = context.repo.owner;
+                  const repo = context.repo.repo;
+                  try {
+                    const issueNumber = context.payload?.issue?.number ?? context.payload?.pull_request?.number;
+                    if (issueNumber) {
+                      await github.rest.issues.createComment({
+                        owner,
+                        repo,
+                        issue_number: issueNumber,
+                        body: commentBody,
+                        headers: {
+                          "X-GitHub-Api-Version": GITHUB_API_VERSION,
+                        },
+                      });
+                      return true;
+                    }
+                    if (context.eventName === "discussion" || context.eventName === "discussion_comment") {
+                      const discussionID = context.payload?.discussion?.node_id;
+                      if (!discussionID) {
+                        core.warning("Unable to post builtin /help response: discussion node_id missing.");
+                        return false;
+                      }
+                      await github.graphql(
+                        `
+                          mutation($discussionId: ID!, $body: String!) {
+                            addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
+                              comment { id }
+                            }
+                          }`,
+                        { discussionId: discussionID, body: commentBody }
+                      );
+                      return true;
+                    }
+                    core.warning(`Unable to post builtin /help response for event '${context.eventName}'.`);
+                    return false;
+                  } catch (error) {
+                    core.warning(`Failed to post builtin /help comment: ${getErrorMessage(error)}`);
+                    return false;
+                  }
+                }
+                function toWorkflowDispatchID(route) {
+                  if (!route?.workflow || typeof route.workflow !== "string" || !route.workflow.trim()) {
+                    return "";
+                  }
+                  const baseName = nodePath.posix.basename(route.workflow.trim());
+                  if (!baseName) {
+                    return "";
+                  }
+                  return baseName.endsWith(".lock.yml") ? baseName : `${baseName}.lock.yml`;
+                }
+                function isDisabledWorkflowDispatchError(error) {
+                  const status = error?.status ?? error?.response?.status;
+                  const message = [error?.message, error?.response?.data?.message]
+                    .filter(value => typeof value === "string" && value.trim())
+                    .join(" ")
+                    .toLowerCase();
+                  if (status !== 422 || !message) {
+                    return false;
+                  }
+                  return message.includes("workflow is disabled") || message.includes("workflow was disabled") || message.includes("disabled workflow");
+                }
+                function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
+                  const specificRoutes = [];
+                  const catchAllRoutes = [];
+                  const seen = new Set();
+                  for (const [configuredCommand, configuredRoutes] of Object.entries(slashRouteMap)) {
+                    if (!matchesCommandName(configuredCommand, actualCommand) || !Array.isArray(configuredRoutes)) {
+                      continue;
+                    }
+                    const isCatchAll = configuredCommand === "*";
+                    for (const route of configuredRoutes) {
+                      const key = JSON.stringify([route?.workflow ?? "", route?.ai_reaction ?? "", route?.status_comment === true, Array.isArray(route?.events) ? route.events : []]);
+                      if (seen.has(key)) {
+                        continue;
+                      }
+                      seen.add(key);
+                      if (isCatchAll) {
+                        catchAllRoutes.push(route);
+                      } else {
+                        specificRoutes.push(route);
+                      }
+                    }
+                  }
+                  return specificRoutes.length > 0 ? specificRoutes : catchAllRoutes;
+                }
+                async function main() {
+                  core.info("Starting centralized command routing.");
+                  core.info(`Incoming event name: '${context.eventName}'.`);
+                  let slashRouteMap;
+                  try {
+                    slashRouteMap = JSON.parse(process.env.GH_AW_SLASH_ROUTING || "{}");
+                  } catch (err) {
+                    throw new Error("Failed to parse GH_AW_SLASH_ROUTING: " + getErrorMessage(err), { cause: err });
+                  }
+                  let labelRouteMap;
+                  try {
+                    labelRouteMap = JSON.parse(process.env.GH_AW_LABEL_ROUTING || "{}");
+                  } catch (err) {
+                    throw new Error("Failed to parse GH_AW_LABEL_ROUTING: " + getErrorMessage(err), { cause: err });
+                  }
+                  core.info(`Configured centralized slash commands: ${Object.keys(slashRouteMap).length}.`);
+                  core.info(`Configured decentralized label commands: ${Object.keys(labelRouteMap).length}.`);
+                  const text = resolveBodyText();
+                  const selectedCommand = parseSlashCommand(text);
+                  await appendRoutingSummary(Object.keys(slashRouteMap), selectedCommand);
+                  const identifier = eventIdentifier();
+                  const { buildAwContext } = require("./aw_context.cjs");
+                  const ref = await resolveDispatchRef();
+                  if (isPRClosedAtStart()) {
+                    core.info("Pull request is closed at workflow start; skipping centralized routing.");
+                    return;
+                  }
+                  if (context.payload?.action === "labeled") {
+                    const labelName = context.payload?.label?.name ?? "";
+                    if (!labelName) {
+                      core.info("Labeled event missing label name; skipping dispatch.");
+                      return;
+                    }
+                    const configuredRoutes = labelRouteMap[labelName] ?? [];
+                    core.info(`Configured routes for label '${labelName}': ${configuredRoutes.length}.`);
+                    const routes = configuredRoutes.filter(route => Array.isArray(route.events) && route.events.includes(identifier));
+                    if (routes.length === 0) {
+                      core.info(`No decentralized label routes matched label '${labelName}' for event '${identifier}'.`);
+                      return;
+                    }
+                    core.info(`Matched routes for label '${labelName}' on '${identifier}': ${routes.map(route => route.workflow).join(", ")}.`);
+                    const immediateReaction = resolveImmediateReaction(routes);
+                    if (immediateReaction) {
+                      core.info(`Adding immediate '${immediateReaction}' reaction for label '${labelName}'.`);
+                      await addImmediateReaction(immediateReaction);
+                    }
+                    for (const route of routes) {
+                      const workflowID = toWorkflowDispatchID(route);
+                      if (!workflowID) {
+                        core.warning("Skipping label route with missing workflow identifier.");
+                        continue;
+                      }
+                      const routeReaction = normalizeReaction(route?.ai_reaction);
+                      const awContext = {
+                        ...buildAwContext(),
+                        command_name: "",
+                        ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
+                      };
+                      core.info(`Dispatching workflow '${workflowID}' for label '${labelName}'.`);
+                      const dispatched = await dispatchWorkflow(workflowID, ref, {
+                        aw_context: JSON.stringify(awContext),
+                      });
+                      if (dispatched.dispatched) {
+                        core.info(`Dispatched '${workflowID}' for label '${labelName}'`);
+                      }
+                    }
+                    core.info(`Completed decentralized label routing for '${labelName}'.`);
+                    return;
+                  }
+                  core.info(`Resolved payload text length: ${String(text).length}.`);
+                  core.info(`First token in payload: '${selectedCommand ? `/${selectedCommand}` : "<empty>"}'.`);
+                  if (!selectedCommand) {
+                    core.info("No slash command found at start of payload text; skipping dispatch.");
+                    return;
+                  }
+                  const commandName = selectedCommand;
+                  if (commandName === "help") {
+                    if (isBuiltinHelpEnabled()) {
+                      await addImmediateReaction("eyes");
+                      const posted = await postBuiltinHelpComment(buildHelpCommentBody(parseHelpCommandsMetadata()));
+                      if (posted) {
+                        core.info("Posted builtin /help command response.");
+                      }
+                      return;
+                    }
+                    core.info("Builtin /help command is disabled by aw.json (help_command=false); routing normally.");
+                  }
+                  core.info(`Resolved command '/${commandName}' for event identifier '${identifier}'.`);
+                  const configuredRoutes = resolveMatchingSlashRoutes(slashRouteMap, commandName);
+                  core.info(`Configured routes for '/${commandName}': ${configuredRoutes.length}.`);
+                  const routes = configuredRoutes.filter(route => Array.isArray(route.events) && route.events.includes(identifier));
+                  if (routes.length === 0) {
+                    core.info(`No centralized routes matched command '/${commandName}' for event '${identifier}'.`);
+                    return;
+                  }
+                  core.info(`Matched routes for '/${commandName}' on '${identifier}': ${routes.map(route => route.workflow).join(", ")}.`);
+                  const immediateReaction = resolveImmediateReaction(routes);
+                  if (immediateReaction) {
+                    core.info(`Adding immediate '${immediateReaction}' reaction for '/${commandName}'.`);
+                    await addImmediateReaction(immediateReaction);
+                  }
+                  let statusCommentContext = null;
+                  if (routes.some(maintainsStatusComment)) {
+                    core.info(`Adding immediate status comment for '/${commandName}'.`);
+                    statusCommentContext = await addImmediateStatusComment();
+                  }
+                  core.info(`Dispatch ref resolved to '${ref}'.`);
+                  for (const route of routes) {
+                    const workflowID = toWorkflowDispatchID(route);
+                    if (!workflowID) {
+                      core.warning("Skipping slash route with missing workflow identifier.");
+                      continue;
+                    }
+                    const routeReaction = normalizeReaction(route?.ai_reaction);
+                    const awContext = {
+                      ...buildAwContext(),
+                      command_name: commandName,
+                      ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
+                      ...(maintainsStatusComment(route) && statusCommentContext ? statusCommentContext : {}),
+                    };
+                    core.info(`Dispatching workflow '${workflowID}' for '/${commandName}'.`);
+                    const dispatched = await dispatchWorkflow(workflowID, ref, {
+                      aw_context: JSON.stringify(awContext),
+                    });
+                    if (dispatched.dispatched) {
+                      core.info(`Dispatched '${workflowID}' for '/${commandName}'`);
+                      if (maintainsStatusComment(route) && statusCommentContext) {
+                        await updateStatusCommentWithDispatch(statusCommentContext, identifier, workflowID, dispatched.run_url);
+                      }
+                    }
+                  }
+                  core.info(`Completed centralized routing for '/${commandName}'.`);
+                }
+                module.exports = { main, parseSlashCommand, eventIdentifier, resolveBodyText, resolveDispatchRef, GITHUB_API_VERSION };
+              },
+              "sanitize_content.cjs": (module, exports, require) => {
+                const {
+                  sanitizeContentCore,
+                  getRedactedDomains,
+                  clearRedactedDomains,
+                  writeRedactedDomainsLog,
+                  buildAllowedDomains,
+                  buildAllowedGitHubReferences,
+                  getCurrentRepoSlug,
+                  applyURLSanitizationPolicy,
+                  neutralizeCommands,
+                  neutralizeGitHubReferences,
+                  removeXmlComments,
+                  neutralizeMarkdownLinkTitles,
+                  convertXmlTags,
+                  applyToNonCodeRegions,
+                  neutralizeBotTriggers,
+                  neutralizeTemplateDelimiters,
+                  applyTruncation,
+                  hardenUnicodeText,
+                } = require("./sanitize_content_core.cjs");
+                const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
+                const RUNTIME_TO_MENTION_ALIAS_MAP = {
+                  "copilot-swe-agent": ["copilot"],
+                };
+                function sanitizeContent(content, maxLengthOrOptions) {
+                  let maxLength;
+                  let allowedAliasesLowercase = [];
+                  let maxBotMentions;
+                  if (typeof maxLengthOrOptions === "number") {
+                    maxLength = maxLengthOrOptions;
+                  } else if (maxLengthOrOptions && typeof maxLengthOrOptions === "object") {
+                    maxLength = maxLengthOrOptions.maxLength;
+                    const normalizedAllowedAliases = normalizeAllowedAliases(maxLengthOrOptions.allowedAliases);
+                    allowedAliasesLowercase = expandAllowedAliases(normalizedAllowedAliases);
+                    maxBotMentions = maxLengthOrOptions.maxBotMentions;
+                  }
+                  if (allowedAliasesLowercase.length === 0) {
+                    return sanitizeContentCore(content, maxLength, maxBotMentions);
+                  }
+                  if (!content || typeof content !== "string") {
+                    return "";
+                  }
+                  const allowedDomains = buildAllowedDomains();
+                  const allowedGitHubRefs = buildAllowedGitHubReferences();
+                  let sanitized = content;
+                  sanitized = hardenUnicodeText(sanitized);
+                  sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+                  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+                  sanitized = neutralizeCommands(sanitized);
+                  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
+                  sanitized = applyToNonCodeRegions(sanitized, neutralizeMarkdownLinkTitles);
+                  sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);
+                  sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
+                  sanitized = applyURLSanitizationPolicy(sanitized, allowedDomains);
+                  sanitized = applyTruncation(sanitized, maxLength);
+                  sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
+                  sanitized = neutralizeBotTriggers(sanitized, maxBotMentions);
+                  sanitized = neutralizeTemplateDelimiters(sanitized);
+                  sanitized = balanceCodeRegions(sanitized);
+                  return sanitized.trim();
+                  function normalizeAllowedAliases(aliases) {
+                    if (Array.isArray(aliases)) {
+                      return aliases;
+                    }
+                    if (typeof aliases === "string") {
+                      return [aliases];
+                    }
+                    return [];
+                  }
+                  function expandAllowedAliases(aliases) {
+                    const expanded = new Set();
+                    for (const alias of aliases) {
+                      if (typeof alias !== "string" || alias.length === 0) {
+                        continue;
+                      }
+                      const normalized = alias.toLowerCase();
+                      expanded.add(normalized);
+                      const mentionAliases = RUNTIME_TO_MENTION_ALIAS_MAP[normalized];
+                      if (Array.isArray(mentionAliases)) {
+                        for (const mentionAlias of mentionAliases) {
+                          expanded.add(mentionAlias.toLowerCase());
+                        }
+                      }
+                    }
+                    return [...expanded];
+                  }
+                  function neutralizeMentions(s, allowedLowercase) {
+                    return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
+                      const isAllowed = allowedLowercase.includes(p2.toLowerCase());
+                      if (isAllowed) {
+                        return `${p1}@${p2}`;
+                      }
+                      if (typeof core !== "undefined" && core.info) {
+                        core.info(`Escaped mention: @${p2} (not in allowed list)`);
+                      }
+                      return `${p1}\`@${p2}\``;
+                    });
+                  }
+                }
+                module.exports = { sanitizeContent, getRedactedDomains, clearRedactedDomains, writeRedactedDomainsLog };
+              },
+              "sanitize_content_core.cjs": (module, exports, require) => {
+                const { isRepoAllowed } = require("./repo_helpers.cjs");
+                const { resolveMatchedCommand } = require("./slash_command_matcher.cjs");
+                const SAFE_OUTPUTS_URLS_ENV = "GH_AW_SAFE_OUTPUTS_URLS";
+                const SAFE_OUTPUTS_URLS_ALLOWED_ONLY = "allowed-only";
+                const SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION = "allowed-or-code-region";
+                const angleBracketHttpsAutolinkRegex = /<https:\/\/([\w.-]+(?::\d+)?)(\/[^\s<>|]*)?(?:\|([^<>]*))?>/g;
+                const redactedDomains = [];
+                function getRedactedDomains() {
+                  return [...redactedDomains];
+                }
+                function addRedactedDomain(domain) {
+                  redactedDomains.push(domain);
+                }
+                function clearRedactedDomains() {
+                  redactedDomains.length = 0;
+                }
+                function writeRedactedDomainsLog(filePath) {
+                  if (redactedDomains.length === 0) {
+                    return null;
+                  }
+                  const fs = require("fs");
+                  const path = require("path");
+                  const targetPath = filePath || "/tmp/gh-aw/redacted-urls.log";
+                  const dir = path.dirname(targetPath);
+                  if (!fs.existsSync(dir)) {
+                    try {
+                      fs.mkdirSync(dir, { recursive: true });
+                    } catch (err) {
+                      throw new Error(`Failed to create directory ${dir}: ${String(err)}`, { cause: err });
+                    }
+                  }
+                  try {
+                    fs.writeFileSync(targetPath, redactedDomains.join("\n") + "\n");
+                  } catch (err) {
+                    throw new Error(`Failed to write file ${targetPath}: ${String(err)}`, { cause: err });
+                  }
+                  return targetPath;
+                }
+                function extractDomainsFromUrl(url) {
+                  if (!url || typeof url !== "string") {
+                    return [];
+                  }
+                  try {
+                    const urlObj = new URL(url);
+                    const hostname = urlObj.hostname.toLowerCase();
+                    const domains = [hostname];
+                    if (hostname === "github.com") {
+                      domains.push("api.github.com");
+                      domains.push("raw.githubusercontent.com");
+                      domains.push("*.githubusercontent.com");
+                    }
+                    else if (!hostname.startsWith("api.")) {
+                      domains.push("api." + hostname);
+                      domains.push("raw." + hostname);
+                    }
+                    return domains;
+                  } catch (e) {
+                    return [];
+                  }
+                }
+                function buildAllowedDomains() {
+                  const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
+                  const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
+                  let allowedDomains = allowedDomainsEnv
+                    ? allowedDomainsEnv
+                        .split(",")
+                        .map(d => d.trim())
+                        .filter(d => d)
+                    : defaultAllowedDomains;
+                  const githubServerUrl = process.env.GITHUB_SERVER_URL;
+                  const githubApiUrl = process.env.GITHUB_API_URL;
+                  if (githubServerUrl) {
+                    const serverDomains = extractDomainsFromUrl(githubServerUrl);
+                    allowedDomains = allowedDomains.concat(serverDomains);
+                  }
+                  if (githubApiUrl) {
+                    const apiDomains = extractDomainsFromUrl(githubApiUrl);
+                    allowedDomains = allowedDomains.concat(apiDomains);
+                  }
+                  return [...new Set(allowedDomains)];
+                }
+                function sanitizeDomainName(domain) {
+                  if (!domain || typeof domain !== "string") {
+                    return "";
+                  }
+                  const parts = domain.split(".");
+                  const sanitizedParts = parts.map(part => part.replace(/[^a-zA-Z0-9]/g, ""));
+                  const nonEmptyParts = sanitizedParts.filter(part => part.length > 0);
+                  const joined = nonEmptyParts.join(".");
+                  if (joined.length > 48) {
+                    const first24 = joined.substring(0, 24);
+                    const last24 = joined.substring(joined.length - 24);
+                    return first24 + "…" + last24;
+                  }
+                  return joined;
+                }
+                const URL_START_DELIMITERS = "[\\s([{\"'<=,>|`]";
+                const URL_AUTHORITY_CHAR = "[^\\s/?#,()<>[\\]{}\"'`|\\\\]";
+                function stripUrlIgnorableWhitespace(authority) {
+                  return authority.replace(/[\t\r\n]/g, "");
+                }
+                function stripUrlUserinfo(s) {
+                  const schemeUserinfoRegex = new RegExp(`([a-z][a-z0-9+.-]{0,30}://)((?:${URL_AUTHORITY_CHAR}|[\\t\\r\\n])*)`, "gi");
+                  return s.replace(schemeUserinfoRegex, (match, scheme, authority) => {
+                    const cleaned = stripUrlIgnorableWhitespace(authority);
+                    const at = cleaned.lastIndexOf("@");
+                    if (at === -1) return match;
+                    return scheme + cleaned.slice(at + 1);
+                  });
+                }
+                function stripProtocolRelativeUserinfo(s) {
+                  const protoRelativeUserinfoRegex = new RegExp(`(^|${URL_START_DELIMITERS})([/\\\\]{2})((?:${URL_AUTHORITY_CHAR}|[\\t\\r\\n])*)`, "g");
+                  return s.replace(protoRelativeUserinfoRegex, (match, prefix, _slashes, authority) => {
+                    const cleaned = stripUrlIgnorableWhitespace(authority);
+                    const at = cleaned.lastIndexOf("@");
+                    if (at === -1) return match;
+                    return prefix + "//" + cleaned.slice(at + 1);
+                  });
+                }
+                function sanitizeUrlProtocols(s) {
+                  s = stripUrlUserinfo(s);
+                  let normalized = s;
+                  for (let i = 0; i < 4; i++) {
+                    const next = normalized.replace(/%25([0-9A-Fa-f]{2})/gi, "%$1");
+                    if (next === normalized) break;
+                    normalized = next;
+                  }
+                  normalized = normalized.replace(/%3[Aa]/gi, ":");
+                  let result = normalized.replace(/(?<![a-z0-9])(?!https:\/\/)([a-z][a-z0-9+.-]*)(:\/\/)([\w.-]*)([^\s]*)/gi, (_match, scheme, _slashes, domain, _rest) => {
+                    const fullMatch = _match;
+                    if (!domain) {
+                      const truncated = fullMatch.length > 12 ? fullMatch.substring(0, 12) + "..." : fullMatch;
+                      core.info(`Redacted URL: ${truncated}`);
+                      addRedactedDomain(scheme.toLowerCase() + "://");
+                      return "(redacted)";
+                    }
+                    const domainLower = domain.toLowerCase();
+                    const sanitized = sanitizeDomainName(domainLower);
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    core.info(`Redacted URL: ${truncated}`);
+                    addRedactedDomain(domainLower);
+                    return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
+                  });
+                  return result.replace(/(?:data|javascript|vbscript|about|mailto|tel|magnet):[^\s]+/gi, match => {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                      core.info(`Redacted URL: ${truncated}`);
+                      addRedactedDomain(protocol);
+                    }
+                    return "(redacted)";
+                  });
+                }
+                function sanitizeUrlDomains(s, allowed) {
+                  s = stripUrlUserinfo(s);
+                  s = stripProtocolRelativeUserinfo(s);
+                  const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
+                  function applyDomainFilter(match, hostnameWithPort) {
+                    const hostname = hostnameWithPort.split(":")[0].toLowerCase();
+                    const isAllowed = allowed.some(allowedDomain => {
+                      const normalizedAllowed = allowedDomain.toLowerCase();
+                      if (hostname === normalizedAllowed) {
+                        return true;
+                      }
+                      if (normalizedAllowed.startsWith("*.")) {
+                        const baseDomain = normalizedAllowed.substring(2);
+                        return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
+                      }
+                      return hostname.endsWith("." + normalizedAllowed);
+                    });
+                    if (isAllowed) {
+                      return match;
+                    } else {
+                      const sanitized = sanitizeDomainName(hostname);
+                      const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
+                      core.info(`Redacted URL: ${truncated}`);
+                      addRedactedDomain(hostname);
+                      return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
+                    }
+                  }
+                  s = s.replace(angleBracketHttpsAutolinkRegex, (match, hostnameWithPort, path = "", label = "") => {
+                    const url = `https://${hostnameWithPort}${path}`;
+                    const filtered = applyDomainFilter(url, hostnameWithPort);
+                    if (filtered === url) return match;
+                    return label ? `${filtered}|${label}` : filtered;
+                  });
+                  s = s.replace(httpsUrlRegex, (match, hostnameWithPort) => applyDomainFilter(match, hostnameWithPort));
+                  const protoRelativeUrlRegex = new RegExp(`(^|${URL_START_DELIMITERS})([/\\\\]{2})([\\w.-]+(?::\\d+)?)((?:/(?:(?![/\\\\]{2})[^\\s,])*)?)`, "gi");
+                  s = s.replace(protoRelativeUrlRegex, (match, prefix, _separator, hostnameWithPort, path = "") => {
+                    const url = `//${hostnameWithPort}${path}`;
+                    return prefix + applyDomainFilter(url, hostnameWithPort);
+                  });
+                  return s;
+                }
+                function neutralizeCommands(s) {
+                  let commandNames = [];
+                  const commandsJSON = process.env.GH_AW_COMMANDS;
+                  if (commandsJSON) {
+                    try {
+                      const parsed = JSON.parse(commandsJSON);
+                      if (Array.isArray(parsed)) {
+                        commandNames = parsed.filter(c => typeof c === "string" && c.length > 0);
+                      }
+                    } catch {
+                    }
+                  }
+                  if (commandNames.length === 0) {
+                    return s;
+                  }
+                  const leadingWhitespace = s.match(/^\s*/)?.[0] ?? "";
+                  const remainder = s.slice(leadingWhitespace.length);
+                  const matchedCommand = resolveMatchedCommand(remainder, commandNames);
+                  if (matchedCommand) {
+                    const escapedCommand = matchedCommand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+                  }
+                  for (const name of commandNames) {
+                    if (name.endsWith("*")) {
+                      continue;
+                    }
+                    const escapedCommand = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    const result = s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+                    if (result !== s) {
+                      return result;
+                    }
+                  }
+                  return s;
+                }
+                function neutralizeAllMentions(s) {
+                  return s.replace(/(^|[^A-Za-z0-9`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
+                    core.info(`Escaped mention: @${p2} (not in allowed list)`);
+                    return `${p1}\`@${p2}\``;
+                  });
+                }
+                function getFencedCodeRanges(s) {
+                  const ranges = [];
+                  const lines = s.split("\n");
+                  let pos = 0;
+                  let inBlock = false;
+                  let blockStart = -1;
+                  let fenceChar = "";
+                  let fenceLen = 0;
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    const trimmed = line.trim();
+                    const lineContentEnd = pos + line.length;
+                    const lineEnd = i < lines.length - 1 ? lineContentEnd + 1 : lineContentEnd;
+                    if (!inBlock) {
+                      const m = trimmed.match(/^(`{3,}|~{3,})/);
+                      if (m) {
+                        inBlock = true;
+                        blockStart = pos;
+                        fenceChar = m[1][0];
+                        fenceLen = m[1].length;
+                      }
+                    } else {
+                      const fc = fenceChar === "`" ? "\\`" : "~";
+                      const closingRegex = new RegExp(`^[${fc}]{${fenceLen},}\\s*$`);
+                      if (closingRegex.test(trimmed)) {
+                        ranges.push([blockStart, lineEnd]);
+                        inBlock = false;
+                        blockStart = -1;
+                        fenceChar = "";
+                        fenceLen = 0;
+                      }
+                    }
+                    pos = lineEnd;
+                  }
+                  if (inBlock && blockStart !== -1) {
+                    ranges.push([blockStart, s.length]);
+                  }
+                  return ranges;
+                }
+                function applyFnOutsideInlineCode(text, fn) {
+                  if (!text) return fn(text || "");
+                  const parts = [];
+                  let i = 0;
+                  let textStart = 0;
+                  while (i < text.length) {
+                    if (text[i] !== "`") {
+                      i++;
+                      continue;
+                    }
+                    const btStart = i;
+                    let btCount = 0;
+                    while (i < text.length && text[i] === "`") {
+                      btCount++;
+                      i++;
+                    }
+                    let closeIdx = -1;
+                    let j = i;
+                    while (j < text.length) {
+                      if (text[j] === "`") {
+                        let closeCount = 0;
+                        const jStart = j;
+                        while (j < text.length && text[j] === "`") {
+                          closeCount++;
+                          j++;
+                        }
+                        if (closeCount === btCount) {
+                          closeIdx = jStart;
+                          break;
+                        }
+                      } else {
+                        j++;
+                      }
+                    }
+                    if (closeIdx !== -1) {
+                      if (textStart < btStart) {
+                        parts.push(fn(text.slice(textStart, btStart)));
+                      }
+                      parts.push(text.slice(btStart, closeIdx + btCount));
+                      textStart = closeIdx + btCount;
+                      i = textStart;
+                    }
+                  }
+                  if (textStart < text.length) {
+                    parts.push(fn(text.slice(textStart)));
+                  }
+                  return parts.join("");
+                }
+                function applyToNonCodeRegions(s, fn) {
+                  if (!s || typeof s !== "string") {
+                    return s || "";
+                  }
+                  try {
+                    const codeRanges = getFencedCodeRanges(s);
+                    if (codeRanges.length === 0) {
+                      return applyFnOutsideInlineCode(s, fn);
+                    }
+                    const parts = [];
+                    let pos = 0;
+                    for (const [start, end] of codeRanges) {
+                      if (pos < start) {
+                        parts.push(applyFnOutsideInlineCode(s.slice(pos, start), fn));
+                      }
+                      parts.push(s.slice(start, end));
+                      pos = end;
+                    }
+                    if (pos < s.length) {
+                      parts.push(applyFnOutsideInlineCode(s.slice(pos), fn));
+                    }
+                    return parts.join("");
+                  } catch (_e) {
+                    return fn(s);
+                  }
+                }
+                function removeXmlComments(s) {
+                  let result = "";
+                  let commentDepth = 0;
+                  let position = 0;
+                  while (position < s.length) {
+                    const ch = s[position];
+                    if (ch === "<" && s.startsWith("<!--", position)) {
+                      commentDepth++;
+                      position += 4;
+                    } else if (commentDepth > 0 && ch === "-" && s.startsWith("--!>", position)) {
+                      commentDepth--;
+                      position += 4;
+                    } else if (commentDepth > 0 && ch === "-" && s.startsWith("-->", position)) {
+                      commentDepth--;
+                      position += 3;
+                    } else {
+                      if (commentDepth === 0) {
+                        result += ch;
+                      }
+                      position++;
+                    }
+                  }
+                  return result;
+                }
+                function neutralizeMarkdownLinkTitles(s) {
+                  s = s.replace(/(\[)([^\]]*)(\]\()(?:(<[^>]*>)|([^\s)]+))\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\))(\s*\))/g, (match, ob, linkText, mid, angUrl, bareUrl, dqT, sqT, pT, close) => {
+                    const url = angUrl !== undefined ? angUrl : bareUrl;
+                    const title = dqT !== undefined ? dqT : sqT !== undefined ? sqT : pT;
+                    return `${ob}${linkText} (${title})${mid}${url}${close}`;
+                  });
+                  s = s.replace(/^(\[[^\]]+\]:\s+\S+)\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/gm, "$1");
+                  return s;
+                }
+                function convertXmlTags(s) {
+                  const allowedTags = [
+                    "abbr",
+                    "b",
+                    "blockquote",
+                    "br",
+                    "code",
+                    "del",
+                    "details",
+                    "em",
+                    "h1",
+                    "h2",
+                    "h3",
+                    "h4",
+                    "h5",
+                    "h6",
+                    "hr",
+                    "i",
+                    "img",
+                    "ins",
+                    "kbd",
+                    "li",
+                    "mark",
+                    "ol",
+                    "p",
+                    "pre",
+                    "s",
+                    "span",
+                    "strong",
+                    "sub",
+                    "summary",
+                    "sup",
+                    "table",
+                    "tbody",
+                    "td",
+                    "th",
+                    "thead",
+                    "tr",
+                    "ul",
+                  ];
+                  function isHttpsAngleBracketAutolink(tagContent) {
+                    return /^https:\/\/[\w.-]+(?::\d+)?(\/[^\s<>|]*)?(?:\|[^<>]*)?$/.test(tagContent);
+                  }
+                  s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                    const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                    return `(![CDATA[${convertedContent}]])`;
+                  });
+                  function stripDangerousAttributes(tagContent) {
+                    return tagContent.replace(/[\s/]+(?:on\w+|style|title|data-[\w-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"'`]*))?/gi, "");
+                  }
+                  return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                    if (isHttpsAngleBracketAutolink(tagContent)) {
+                      return match;
+                    }
+                    const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                    if (tagNameMatch) {
+                      const tagName = tagNameMatch[1].toLowerCase();
+                      if (allowedTags.includes(tagName)) {
+                        const sanitizedContent = stripDangerousAttributes(tagContent);
+                        return `<${sanitizedContent}>`;
+                      }
+                    }
+                    return `(${tagContent})`;
+                  });
+                }
+                const MAX_BOT_TRIGGER_REFERENCES = 10;
+                function neutralizeBotTriggers(s, maxBotMentions = MAX_BOT_TRIGGER_REFERENCES) {
+                  const pattern = /(?<!`)\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi;
+                  const matches = s.match(pattern);
+                  if (!matches || matches.length <= maxBotMentions) {
+                    return s;
+                  }
+                  let count = 0;
+                  return s.replace(pattern, (match, action, ref) => {
+                    count++;
+                    if (count <= maxBotMentions) {
+                      return match;
+                    }
+                    return `\`${action} #${ref}\``;
+                  });
+                }
+                function neutralizeTemplateDelimiters(s) {
+                  if (!s || typeof s !== "string") {
+                    return "";
+                  }
+                  const detectedTypes = new Set();
+                  function escapeInText(text) {
+                    let result = text;
+                    if (/\{\{/.test(result)) {
+                      if (!detectedTypes.has("jinja2")) {
+                        detectedTypes.add("jinja2");
+                        core.info("Template syntax detected: Jinja2/Liquid double braces {{");
+                      }
+                      result = result.replace(/\{\{/g, "\\{\\{");
+                    }
+                    if (/<%=/.test(result)) {
+                      if (!detectedTypes.has("erb")) {
+                        detectedTypes.add("erb");
+                        core.info("Template syntax detected: ERB delimiter <%=");
+                      }
+                      result = result.replace(/<%=/g, "\\<%=");
+                    }
+                    if (/\$\{/.test(result)) {
+                      if (!detectedTypes.has("js")) {
+                        detectedTypes.add("js");
+                        core.info("Template syntax detected: JavaScript template literal ${");
+                      }
+                      result = result.replace(/\$\{/g, "\\$\\{");
+                    }
+                    if (/\{#/.test(result)) {
+                      if (!detectedTypes.has("jinja2comment")) {
+                        detectedTypes.add("jinja2comment");
+                        core.info("Template syntax detected: Jinja2 comment {#");
+                      }
+                      result = result.replace(/\{#/g, "\\{\\#");
+                    }
+                    if (/\{%/.test(result)) {
+                      if (!detectedTypes.has("jekyll")) {
+                        detectedTypes.add("jekyll");
+                        core.info("Template syntax detected: Jekyll/Liquid directive {%");
+                      }
+                      result = result.replace(/\{%/g, "\\{\\%");
+                    }
+                    return result;
+                  }
+                  const result = applyToNonCodeRegions(s, escapeInText);
+                  if (detectedTypes.size > 0) {
+                    core.warning(
+                      "Template-like syntax detected and escaped. " +
+                        "This is a defense-in-depth measure to prevent potential template injection " +
+                        "if content is processed by downstream template engines. " +
+                        "GitHub's markdown rendering does not evaluate template syntax."
+                    );
+                  }
+                  return result;
+                }
+                function buildAllowedGitHubReferences() {
+                  const allowedRefsEnv = process.env.GH_AW_ALLOWED_GITHUB_REFS;
+                  if (allowedRefsEnv === undefined) {
+                    return null;
+                  }
+                  if (allowedRefsEnv === "") {
+                    core.info("GitHub reference filtering: all references will be escaped (GH_AW_ALLOWED_GITHUB_REFS is empty)");
+                    return [];
+                  }
+                  const refs = allowedRefsEnv
+                    .split(",")
+                    .map(ref => ref.trim().toLowerCase())
+                    .filter(ref => ref);
+                  core.info(`GitHub reference filtering: allowed repos = ${refs.join(", ")}`);
+                  return refs;
+                }
+                function getCurrentRepoSlug() {
+                  const repoSlug = process.env.GITHUB_REPOSITORY;
+                  if (repoSlug) {
+                    return repoSlug.toLowerCase();
+                  }
+                  return "";
+                }
+                function neutralizeGitHubReferences(s, allowedRepos) {
+                  if (allowedRepos === null) {
+                    return s;
+                  }
+                  const currentRepo = getCurrentRepoSlug();
+                  const allowedSet = new Set(allowedRepos.map(r => (r === "repo" ? currentRepo : r)));
+                  return s.replace(/(^|[^\w`])(?:([a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?)\/([a-z0-9._-]+))?#(\w+)/gi, (match, prefix, owner, repo, issueNum) => {
+                    let targetRepo;
+                    if (owner && repo) {
+                      targetRepo = `${owner}/${repo}`.toLowerCase();
+                    } else {
+                      targetRepo = currentRepo;
+                    }
+                    if (isRepoAllowed(targetRepo, allowedSet)) {
+                      return match;
+                    } else {
+                      const refText = owner && repo ? `${owner}/${repo}#${issueNum}` : `#${issueNum}`;
+                      core.info(`Escaped GitHub reference: ${refText} (not in allowed list)`);
+                      return `${prefix}\`${refText}\``;
+                    }
+                  });
+                }
+                function applyTruncation(content, maxLength) {
+                  maxLength = maxLength || 524288;
+                  const lines = content.split("\n");
+                  const maxLines = 65000;
+                  if (lines.length > maxLines) {
+                    const truncationMsg = "\n[Content truncated due to line count]";
+                    const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                    if (truncatedLines.length > maxLength) {
+                      return truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                    } else {
+                      return truncatedLines;
+                    }
+                  } else if (content.length > maxLength) {
+                    return content.substring(0, maxLength) + "\n[Content truncated due to length]";
+                  }
+                  return content;
+                }
+                function decodeHtmlEntities(text) {
+                  if (!text || typeof text !== "string") {
+                    return "";
+                  }
+                  let result = text;
+                  result = result.replace(/&(?:amp;)?commat;/gi, "@");
+                  result = result.replace(/&(?:amp;)?gt;/gi, ">");
+                  result = result.replace(/&(?:amp;)?lt;/gi, "<");
+                  result = result.replace(/&(?:amp;)?amp;/gi, "&");
+                  result = result.replace(/&(?:amp;)?shy;/gi, "\u00AD");
+                  result = result.replace(/&(?:amp;)?zwnj;/gi, "\u200C");
+                  result = result.replace(/&(?:amp;)?zwj;/gi, "\u200D");
+                  result = result.replace(/&(?:amp;)?lrm;/gi, "\u200E");
+                  result = result.replace(/&(?:amp;)?rlm;/gi, "\u200F");
+                  result = result.replace(/&(?:amp;)?ZeroWidthSpace;/gi, "\u200B");
+                  result = result.replace(/&(?:amp;)?NoBreak;/gi, "\u2060");
+                  result = result.replace(/&(?:amp;)?(?:af|ApplyFunction);/gi, "\u2061");
+                  result = result.replace(/&(?:amp;)?(?:it|InvisibleTimes);/gi, "\u2062");
+                  result = result.replace(/&(?:amp;)?(?:ic|InvisibleComma);/gi, "\u2063");
+                  result = result.replace(/&(?:amp;)?(?:ip|InvisiblePlus);/gi, "\u2064");
+                  result = result.replace(/&(?:amp;)?#(\d+);/g, (match, code) => {
+                    const codePoint = parseInt(code, 10);
+                    if (codePoint >= 0 && codePoint <= 0x10ffff) {
+                      return String.fromCodePoint(codePoint);
+                    }
+                    return match;
+                  });
+                  result = result.replace(/&(?:amp;)?#[xX]([0-9a-fA-F]+);/g, (match, code) => {
+                    const codePoint = parseInt(code, 16);
+                    if (codePoint >= 0 && codePoint <= 0x10ffff) {
+                      return String.fromCodePoint(codePoint);
+                    }
+                    return match;
+                  });
+                  return result;
+                }
+                const HOMOGLYPH_MAP = {
+                  "\u0410": "A",
+                  "\u0412": "B",
+                  "\u0415": "E",
+                  "\u041A": "K",
+                  "\u041C": "M",
+                  "\u041D": "H",
+                  "\u041E": "O",
+                  "\u0420": "P",
+                  "\u0421": "C",
+                  "\u0422": "T",
+                  "\u0425": "X",
+                  "\u0405": "S",
+                  "\u0406": "I",
+                  "\u0430": "a",
+                  "\u0435": "e",
+                  "\u043E": "o",
+                  "\u0440": "p",
+                  "\u0441": "c",
+                  "\u0445": "x",
+                  "\u0443": "y",
+                  "\u0456": "i",
+                  "\u0455": "s",
+                  "\u0458": "j",
+                  "\u0391": "A",
+                  "\u0392": "B",
+                  "\u0395": "E",
+                  "\u0396": "Z",
+                  "\u0397": "H",
+                  "\u0399": "I",
+                  "\u039A": "K",
+                  "\u039C": "M",
+                  "\u039D": "N",
+                  "\u039F": "O",
+                  "\u03A1": "P",
+                  "\u03A4": "T",
+                  "\u03A5": "Y",
+                  "\u03A7": "X",
+                  "\u03BF": "o",
+                  "\u03BD": "v",
+                  "\u03B9": "i",
+                };
+                const HOMOGLYPH_REGEX = new RegExp("[" + Object.keys(HOMOGLYPH_MAP).join("") + "]", "g");
+                function hardenUnicodeText(text) {
+                  if (!text || typeof text !== "string") {
+                    return "";
+                  }
+                  let result = text;
+                  result = result.normalize("NFC");
+                  result = decodeHtmlEntities(result);
+                  result = result.replace(/[\u00AD\u034F\u200B-\u200F\u2060-\u2064\uFEFF]/g, "");
+                  result = result.replace(/\uDB40[\uDC00-\uDC7F]/g, "");
+                  result = result.replace(/[\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069]/g, "");
+                  result = result.replace(/[\uFF01-\uFF5E]/g, char => {
+                    const code = char.charCodeAt(0);
+                    const standardCode = code - 0xfee0;
+                    return String.fromCharCode(standardCode);
+                  });
+                  result = result.normalize("NFKC");
+                  result = result.replace(HOMOGLYPH_REGEX, char => HOMOGLYPH_MAP[char]);
+                  return result;
+                }
+                function sanitizeContentCore(content, maxLength, maxBotMentions) {
+                  if (!content || typeof content !== "string") {
+                    return "";
+                  }
+                  content = applyTruncation(content, maxLength);
+                  const allowedDomains = buildAllowedDomains();
+                  const allowedGitHubRefs = buildAllowedGitHubReferences();
+                  let sanitized = content;
+                  sanitized = hardenUnicodeText(sanitized);
+                  sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+                  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+                  sanitized = neutralizeCommands(sanitized);
+                  sanitized = applyToNonCodeRegions(sanitized, removeXmlComments);
+                  sanitized = applyToNonCodeRegions(sanitized, neutralizeMarkdownLinkTitles);
+                  sanitized = neutralizeAllMentions(sanitized);
+                  sanitized = applyToNonCodeRegions(sanitized, convertXmlTags);
+                  sanitized = applyURLSanitizationPolicy(sanitized, allowedDomains);
+                  sanitized = applyTruncation(sanitized, maxLength);
+                  sanitized = neutralizeGitHubReferences(sanitized, allowedGitHubRefs);
+                  sanitized = neutralizeBotTriggers(sanitized, maxBotMentions);
+                  sanitized = neutralizeTemplateDelimiters(sanitized);
+                  const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
+                  sanitized = balanceCodeRegions(sanitized);
+                  return sanitized.trim();
+                }
+                function applyURLSanitizationPolicy(content, allowedDomains) {
+                  const urlPolicy = process.env[SAFE_OUTPUTS_URLS_ENV] || SAFE_OUTPUTS_URLS_ALLOWED_ONLY;
+                  if (urlPolicy === SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION) {
+                    let sanitized = applyToNonCodeRegions(content, sanitizeUrlProtocols);
+                    sanitized = applyToNonCodeRegions(sanitized, s => sanitizeUrlDomains(s, allowedDomains));
+                    return sanitized;
+                  }
+                  let sanitized = sanitizeUrlProtocols(content);
+                  sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
+                  return sanitized;
+                }
+                module.exports = {
+                  sanitizeContentCore,
+                  getRedactedDomains,
+                  addRedactedDomain,
+                  clearRedactedDomains,
+                  writeRedactedDomainsLog,
+                  extractDomainsFromUrl,
+                  buildAllowedDomains,
+                  buildAllowedGitHubReferences,
+                  getCurrentRepoSlug,
+                  sanitizeDomainName,
+                  sanitizeUrlProtocols,
+                  sanitizeUrlDomains,
+                  applyURLSanitizationPolicy,
+                  neutralizeCommands,
+                  neutralizeGitHubReferences,
+                  removeXmlComments,
+                  neutralizeMarkdownLinkTitles,
+                  convertXmlTags,
+                  applyToNonCodeRegions,
+                  neutralizeBotTriggers,
+                  MAX_BOT_TRIGGER_REFERENCES,
+                  neutralizeTemplateDelimiters,
+                  applyTruncation,
+                  hardenUnicodeText,
+                  decodeHtmlEntities,
+                };
+              },
+              "slash_command_matcher.cjs": (module, exports, require) => {
+                function parseSlashCommand(text) {
+                  const match = /^\/([a-zA-Z0-9][a-zA-Z0-9._-]*)(?=$|\s)/.exec(String(text));
+                  return match ? match[1] : "";
+                }
+                const CATCH_ALL_COMMAND = "*";
+                function isWildcardCommandName(commandName) {
+                  return typeof commandName === "string" && commandName.endsWith("*");
+                }
+                function isCatchAllCommandName(commandName) {
+                  return commandName === CATCH_ALL_COMMAND;
+                }
+                function wildcardCommandPrefix(configuredCommand) {
+                  return isWildcardCommandName(configuredCommand) ? configuredCommand.slice(0, -1) : "";
+                }
+                function matchesCommandName(configuredCommand, actualCommand) {
+                  if (typeof configuredCommand !== "string" || typeof actualCommand !== "string") {
+                    return false;
+                  }
+                  if (isCatchAllCommandName(configuredCommand)) {
+                    return actualCommand !== "";
+                  }
+                  if (isWildcardCommandName(configuredCommand)) {
+                    const prefix = wildcardCommandPrefix(configuredCommand);
+                    return prefix !== "" && actualCommand.startsWith(prefix);
+                  }
+                  return configuredCommand === actualCommand;
+                }
+                function resolveMatchedCommand(text, configuredCommands) {
+                  const actualCommand = parseSlashCommand(text);
+                  if (!actualCommand) {
+                    return "";
+                  }
+                  for (const configuredCommand of configuredCommands) {
+                    if (matchesCommandName(configuredCommand, actualCommand)) {
+                      return actualCommand;
+                    }
+                  }
+                  return "";
+                }
+                module.exports = {
+                  CATCH_ALL_COMMAND,
+                  isCatchAllCommandName,
+                  isWildcardCommandName,
+                  matchesCommandName,
+                  parseSlashCommand,
+                  resolveMatchedCommand,
+                  wildcardCommandPrefix,
+                };
+              },
+              "templatable.cjs": (module, exports, require) => {
+                function parseBoolTemplatable(value, defaultValue = true) {
+                  if (value === undefined || value === null) return defaultValue;
+                  return String(value).trim().toLowerCase() !== "false";
+                }
+                function parseIntTemplatable(value, defaultValue = 0) {
+                  if (value === undefined || value === null) return defaultValue;
+                  const n = parseInt(String(value), 10);
+                  return Number.isNaN(n) ? defaultValue : n;
+                }
+                module.exports = { parseBoolTemplatable, parseIntTemplatable };
+              },
+              "threat_detection_warning.cjs": (module, exports, require) => {
+                function normalizeThreatKinds(reason) {
+                  const value = String(reason || "").trim();
+                  if (!value) return "unknown";
+                  const kinds = value
+                    .split(/[\s,]+/)
+                    .map(kind => kind.toLowerCase())
+                    .filter(Boolean)
+                    .map(kind => kind.replace(/[^a-z0-9_-]/g, ""))
+                    .filter(Boolean);
+                  return kinds.length > 0 ? Array.from(new Set(kinds)).join(",") : "unknown";
+                }
+                function getDetectionReasonText(reason) {
+                  const reasonDescriptions = {
+                    threat_detected: "Potential security threats were detected in the agent output.",
+                    agent_failure: "The threat detection engine failed to produce results.",
+                    parse_error: "The threat detection results could not be parsed.",
+                  };
+                  const normalizedReason = String(reason || "").trim();
+                  return reasonDescriptions[normalizedReason] || "The threat detection analysis could not be completed.";
+                }
+                function isToolingFailureReason(reason) {
+                  const normalized = String(reason || "").trim();
+                  return normalized === "agent_failure" || normalized === "parse_error";
+                }
+                function getThreatEngineErrorMarker() {
+                  return "<!-- gh-aw-threat-engine-error -->";
+                }
+                function getThreatEngineErrorMarkerTemplate() {
+                  return "<!-- gh-aw-threat-engine-error -->";
+                }
+                function getThreatWarningPresentation(reason) {
+                  if (isToolingFailureReason(reason)) {
+                    return {
+                      admonition: "WARNING",
+                      title: "threat detection engine error",
+                      summary: "The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.",
+                      marker: getThreatEngineErrorMarker(),
+                    };
+                  }
+                  return {
+                    admonition: "CAUTION",
+                    title: "agentic threat detected",
+                    summary: "Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.",
+                    marker: getThreatDetectedMarker(reason),
+                  };
+                }
+                function getThreatDetectedMarker(reason) {
+                  if (isToolingFailureReason(reason)) {
+                    return getThreatEngineErrorMarker();
+                  }
+                  return "<!-- gh-aw-threat-detected -->";
+                }
+                function getThreatDetectedMarkerTemplate() {
+                  return "<!-- gh-aw-threat-detected -->";
+                }
+                module.exports = {
+                  normalizeThreatKinds,
+                  getThreatWarningPresentation,
+                  getThreatDetectedMarker,
+                  getThreatDetectedMarkerTemplate,
+                  getThreatEngineErrorMarker,
+                  getThreatEngineErrorMarkerTemplate,
+                  getDetectionReasonText,
+                  isToolingFailureReason,
+                };
+              },
+              "workflow_metadata_helpers.cjs": (module, exports, require) => {
+                function getWorkflowMetadata(owner, repo) {
+                  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                  const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+                  const runId = context.runId ?? 0;
+                  const runUrl = buildWorkflowRunUrl({ runId, serverUrl: context.serverUrl }, { owner, repo });
+                  return { workflowName, workflowId, runId, runUrl };
+                }
+                function buildWorkflowRunUrl(ctx, workflowRepo) {
+                  const server = ctx.serverUrl || process.env.GITHUB_SERVER_URL || "https://github.com";
+                  let { owner = "", repo = "" } = workflowRepo ?? {};
+                  if (!owner || !repo) {
+                    const [envOwner = "", envRepo = ""] = (process.env.GITHUB_REPOSITORY || "").split("/");
+                    if (envOwner && envRepo) {
+                      owner = owner || envOwner;
+                      repo = repo || envRepo;
+                    }
+                  }
+                  return `${server}/${owner}/${repo}/actions/runs/${ctx.runId}`;
+                }
+                const EVENT_TYPE_DESCRIPTIONS = {
+                  issues: "issue",
+                  pull_request: "pull request",
+                  pull_request_comment: "pull request comment",
+                  pull_request_review: "pull request review",
+                  issue_comment: "issue comment",
+                  pull_request_review_comment: "pull request review comment",
+                  discussion: "discussion",
+                  discussion_comment: "discussion comment",
+                };
+                module.exports = {
+                  getWorkflowMetadata,
+                  buildWorkflowRunUrl,
+                  EVENT_TYPE_DESCRIPTIONS,
+                };
+              },
+            };
+            const __ghAwModuleCache = Object.create(null);
+            function __ghAwRequire(request, parentDirectory = "") {
+              if (!request.startsWith(".")) {
+                return __ghAwNativeRequire(request);
+              }
+              let moduleName = __ghAwPath.normalize(__ghAwPath.join(parentDirectory, request));
+              if (!moduleName.endsWith(".cjs") && !moduleName.endsWith(".js")) {
+                moduleName += ".cjs";
+              }
+              if (!Object.hasOwn(__ghAwModules, moduleName)) {
+                throw new Error(`Agentic commands module not found: ${moduleName}`);
+              }
+              if (Object.hasOwn(__ghAwModuleCache, moduleName)) {
+                return __ghAwModuleCache[moduleName].exports;
+              }
+              const module = { exports: {} };
+              __ghAwModuleCache[moduleName] = module;
+              const localRequire = dependency => __ghAwRequire(dependency, __ghAwPath.dirname(moduleName));
+              __ghAwModules[moduleName](module, module.exports, localRequire);
+              return module.exports;
+            }
+            const { main: __ghAwMain } = __ghAwRequire("./route_slash_command.cjs");
+            await __ghAwMain();
