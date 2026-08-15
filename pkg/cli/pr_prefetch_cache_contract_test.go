@@ -45,4 +45,7 @@ func TestTopReviewWorkflowsHaveHeadAwarePRDataCacheKeys(t *testing.T) {
 	text := string(sentinelContent)
 	assert.Contains(t, text, "key: pr-test-prefetch-${{ github.event.pull_request.head.sha || github.event.issue.number }}", "Test Quality Sentinel should define a head-aware cache key")
 	assert.Contains(t, text, "test-data-head-sha.txt", "Test Quality Sentinel should persist cache head SHA marker")
+	assert.Contains(t, text, "set -uo pipefail", "Test Quality Sentinel prefetch should not hard-fail under errexit before the agent can noop")
+	assert.Contains(t, text, "test-prefetch-unavailable.txt", "Test Quality Sentinel should write a fallback marker when prefetch data is unavailable")
+	assert.Contains(t, text, "Test Quality Sentinel skipped because pre-fetch PR data was unavailable", "Test Quality Sentinel prompt should instruct the agent to noop with the fallback reason")
 }
