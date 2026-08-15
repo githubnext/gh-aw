@@ -25,9 +25,11 @@ func makeRunDir(t *testing.T, parent string, id int64, createdAt time.Time, writ
 			CLIVersion:  "test",
 			RunID:       id,
 			ProcessedAt: time.Now(),
-			Run: WorkflowRun{
-				DatabaseID: id,
-				CreatedAt:  createdAt,
+			RunAnalysis: RunAnalysis{
+				Run: WorkflowRun{
+					DatabaseID: id,
+					CreatedAt:  createdAt,
+				},
 			},
 		}
 		data, err := json.Marshal(summary)

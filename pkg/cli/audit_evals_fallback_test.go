@@ -26,8 +26,10 @@ func TestRenderCachedAuditIfAvailableBypassesCacheWhenExplicitEvalsArtifactReque
 		CLIVersion:  GetVersion(),
 		RunID:       123,
 		ProcessedAt: time.Now(),
-		Run: WorkflowRun{
-			DatabaseID: 123,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{
+				DatabaseID: 123,
+			},
 		},
 	}
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))

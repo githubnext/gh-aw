@@ -236,10 +236,7 @@ var ErrNoArtifacts = errors.New("no artifacts found for this run")
 // Cache invalidation:
 // - If the CLI version in the summary doesn't match the current version, the run is reprocessed
 // - This ensures that bug fixes and improvements in log parsing are automatically applied
-type RunSummary struct {
-	CLIVersion              string                   `json:"cli_version"`                       // CLI version used to process this run
-	RunID                   int64                    `json:"run_id"`                            // Workflow run database ID
-	ProcessedAt             time.Time                `json:"processed_at"`                      // When this summary was created
+type RunAnalysis struct {
 	Run                     WorkflowRun              `json:"run"`                               // Full workflow run metadata
 	Metrics                 LogMetrics               `json:"metrics"`                           // Extracted log metrics
 	AwContext               *AwContext               `json:"context,omitempty"`                 // aw_context data from aw_info.json
@@ -248,7 +245,6 @@ type RunSummary struct {
 	AgenticAssessments      []AgenticAssessment      `json:"agentic_assessments,omitempty"`     // Derived agentic judgments
 	AccessAnalysis          *DomainAnalysis          `json:"access_analysis"`                   // Network access analysis
 	FirewallAnalysis        *FirewallAnalysis        `json:"firewall_analysis"`                 // Firewall log analysis
-	PolicyAnalysis          *PolicyAnalysis          `json:"policy_analysis,omitempty"`         // Firewall policy rule attribution
 	RedactedDomainsAnalysis *RedactedDomainsAnalysis `json:"redacted_domains_analysis"`         // Redacted URL domains analysis
 	MissingTools            []MissingToolReport      `json:"missing_tools"`                     // Missing tool reports
 	MissingData             []MissingDataReport      `json:"missing_data"`                      // Missing data reports
@@ -258,34 +254,25 @@ type RunSummary struct {
 	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`          // MCP tool usage data
 	TokenUsage              *TokenUsageSummary       `json:"token_usage_summary,omitempty"`     // Token usage from firewall proxy
 	GitHubRateLimitUsage    *GitHubRateLimitUsage    `json:"github_rate_limit_usage,omitempty"` // GitHub API quota consumption
-	ArtifactsList           []string                 `json:"artifacts_list"`                    // List of downloaded artifact files
 	JobDetails              []JobInfoWithDuration    `json:"job_details"`                       // Job execution details
+}
+
+type RunSummary struct {
+	CLIVersion  string    `json:"cli_version"`  // CLI version used to process this run
+	RunID       int64     `json:"run_id"`       // Workflow run database ID
+	ProcessedAt time.Time `json:"processed_at"` // When this summary was created
+	RunAnalysis
+	PolicyAnalysis *PolicyAnalysis `json:"policy_analysis,omitempty"` // Firewall policy rule attribution
+	ArtifactsList  []string        `json:"artifacts_list"`            // List of downloaded artifact files
 }
 
 // DownloadResult represents the result of downloading and processing a workflow run
 type DownloadResult struct {
-	Run                     WorkflowRun
-	Metrics                 LogMetrics
-	AwContext               *AwContext
-	TaskDomain              *TaskDomainInfo
-	BehaviorFingerprint     *BehaviorFingerprint
-	AgenticAssessments      []AgenticAssessment
-	AccessAnalysis          *DomainAnalysis
-	FirewallAnalysis        *FirewallAnalysis
-	RedactedDomainsAnalysis *RedactedDomainsAnalysis
-	MissingTools            []MissingToolReport
-	MissingData             []MissingDataReport
-	Noops                   []NoopReport
-	MCPFailures             []MCPFailureReport
-	SkillActivations        []SkillActivation
-	MCPToolUsage            *MCPToolUsageData
-	TokenUsage              *TokenUsageSummary
-	GitHubRateLimitUsage    *GitHubRateLimitUsage
-	JobDetails              []JobInfoWithDuration
-	Error                   error
-	Skipped                 bool
-	Cached                  bool // True if loaded from cached summary
-	LogsPath                string
+	RunAnalysis
+	Error    error
+	Skipped  bool
+	Cached   bool // True if loaded from cached summary
+	LogsPath string
 }
 
 // JobInfo represents basic information about a workflow job
