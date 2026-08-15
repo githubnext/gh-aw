@@ -49,6 +49,7 @@ timeout-minutes: 10
 imports:
   - shared/otlp.md
   - shared/token-telemetry-check.md
+  - shared/reporting.md
 tools:
   cli-proxy: true
 experiments:
