@@ -609,8 +609,37 @@ content there could realistically breach 4096 KB).
   ahead-single/multi (210-211).** Remaining in shallow-single-large tier: ahead-merge_msg,
   diverged×3 (idx212-215).
 - **Zero real fail/error/rejected across 212 cells.**
-- **Next index: 212** = tiny-shallow-single-large-ahead-merge_msg (continue closing
-  shallow-single-large tier: ahead-merge_msg + diverged×3 remain, idx212-215). Recommend
-  idx212 stay measurement-only too (ahead branch) — reserve next real create_pull_request
-  quota slot for the next BRANCH=clean cell reached (shallow-single-xlarge-clean tier) or
-  for probing allowed-files/max-patch-size/max-patch-files rejection boundaries directly.
+## Run 2026-08-15: idx212-215 (shallow-single-large tier CLOSED, all measurement-only)
+
+- **All 4 selected cells (212 ahead-merge_msg, 213/214/215 diverged-single/multi/
+  merge_msg) landed in ahead/diverged BRANCH modes with zero clean cells in this
+  batch** — deviated from prior practice of spending 1 real create_pull_request call
+  per run, since no clean cell was available and real push-chaining is already fully
+  diagnosed (2026-08-13) as architecturally impossible same-run. Outer session policy
+  also forbids using safe-output tools for probing/experiments, so no real safe-output
+  call was made this run at all (pure local git measurement for all 4).
+- **idx212 ahead-merge_msg: PASS.** 1020.64KB/1f probe + 0.51KB ahead follow-up
+  (519B)/2c total, ff rc0. Filename leak reconfirmed:
+  `0001-Merge-branch-feature-sim-probe-212-into-main.patch` despite single-parent
+  structure (rev-list --merges empty). Note: sandbox git init defaults to `master`,
+  required local rename to `main` before diffing — environment quirk, not a finding.
+- **idx213 diverged-single: PASS.** two-dot format-patch 1038006B/1c (clean) vs
+  three-dot 1038527B/2c (+521B phantom main commit) — confirms format-patch two-dot
+  authoritative. INVERSE for tree-diff: `diff --name-only` two-dot=2 files (leaks
+  main's history.md) vs three-dot=1 file (clean) — reconfirms the opposite-polarity
+  law between format-patch and tree-diff commands holds at this tier too. Both
+  merge-base --is-ancestor directions rc1 (genuine divergence, no FF possible).
+- **idx214 diverged-multi: PASS.** Same-file 3-commit wrapped append (fold -w100,
+  no mega-lines): two-dot 1403292B/3c vs three-dot 1403826B/4c (+534B/+1c phantom).
+  Single-commit 1000KB baseline = 1401834B → 3-commit/1-commit ratio ≈1.0010x,
+  reconfirming wrapped-append stays ~1x (not ~3x) even at diverged+large tier.
+- **idx215 diverged-merge_msg: PASS.** two-dot 1037958B/1c vs three-dot 1038562B/2c
+  (+604B phantom). Filename leak + single-parent/merges-empty + bidirectional
+  divergence (both is-ancestor checks rc1) all reconfirmed together.
+- **Shallow-single-large tier now FULLY CLOSED (idx207-215, 9/9 pass).**
+- **Zero real fail/error/rejected across 216 cells** (only the 5 already-filed,
+  already-diagnosed issues from idx196/197/199/201/204 remain the total findings set).
+- **Next index: 216** = tiny-shallow-single-xlarge-clean-single — opens the LAST
+  PATCH tier (xlarge, 4000KB target, under corrected 5120KB cap) within
+  SIZE=tiny/HISTORY=shallow/FILES=single. This is a genuine BRANCH=clean cell —
+  recommend spending the real create_pull_request quota slot here next run.
