@@ -397,6 +397,7 @@ func TestParseAndBuildSafeJobsRunsOnList(t *testing.T) {
 		break
 	}
 
+	// Multiple labels are rendered as a YAML block sequence indented to the job level
 	require.Equal(t, "runs-on:\n      - self-hosted\n      - linux", job.RunsOn)
 }
 
