@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,6 +15,19 @@ type ThreatDetectionSuppression struct {
 	Rule    string `json:"rule"`
 	Reason  string `json:"reason"`
 	Expires string `json:"expires,omitempty"`
+}
+
+type threatDetectionDiagnosticError struct {
+	Rule string
+	Err  error
+}
+
+func (e *threatDetectionDiagnosticError) Error() string {
+	return fmt.Sprintf("%s: %v", e.Rule, e.Err)
+}
+
+func (e *threatDetectionDiagnosticError) Unwrap() error {
+	return e.Err
 }
 
 func validateThreatDetectionSuppressions(suppressions []ThreatDetectionSuppression) error {
@@ -63,4 +77,19 @@ func activeThreatDetectionSuppressions(suppressions []ThreatDetectionSuppression
 		}
 	}
 	return active
+}
+
+func isThreatDetectionRuleSuppressed(suppressions []ThreatDetectionSuppression, rule string, now time.Time) bool {
+	for _, suppression := range activeThreatDetectionSuppressions(suppressions, now) {
+		if suppression.Rule == rule {
+			return true
+		}
+	}
+	return false
+}
+
+func isThreatDetectionDiagnosticSuppressed(err error, suppressions []ThreatDetectionSuppression, now time.Time) bool {
+	var diagnosticErr *threatDetectionDiagnosticError
+	return errors.As(err, &diagnosticErr) &&
+		isThreatDetectionRuleSuppressed(suppressions, diagnosticErr.Rule, now)
 }

@@ -166,11 +166,9 @@ pre-agent-steps:
       AWF_SNAPSHOT_AGE_SECONDS=$(snapshot_age_seconds || true)
       if [ -e "$AWF_SNAPSHOT_DIR/awf-config.schema.json" ] && [ -z "$AWF_SNAPSHOT_AGE_SECONDS" ]; then
         AWF_SNAPSHOT_EXPIRED=true
-        AWF_CANONICAL_FETCH_DEGRADED=true
         echo "AWF last-known snapshot has no valid refresh timestamp; stale data will not suppress drift warnings"
       elif [ -n "$AWF_SNAPSHOT_AGE_SECONDS" ] && [ "$AWF_SNAPSHOT_AGE_SECONDS" -gt "$AWF_SNAPSHOT_MAX_AGE_SECONDS" ]; then
         AWF_SNAPSHOT_EXPIRED=true
-        AWF_CANONICAL_FETCH_DEGRADED=true
         echo "AWF last-known snapshot is older than 7 days; stale data will not suppress drift warnings"
         if [ "$AWF_SNAPSHOT_AGE_SECONDS" -gt "$AWF_SNAPSHOT_DELETE_AGE_SECONDS" ]; then
           rm -rf "$AWF_SNAPSHOT_DIR" "$AWF_SNAPSHOT_CACHE_DIR"

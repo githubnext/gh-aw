@@ -490,7 +490,7 @@ func TestFormal_FC_P6_FailedRunFixture(t *testing.T) {
 // (status == "completed" and conclusion != "skipped") but is not counted as a success.
 //
 // Formal predicate (FC-P7): fixture["run"]["conclusion"] = "cancelled"
-// Specification reference: T-FC-036; specs/forecast-compliance-fixtures/README.md
+// Specification reference: T-FC-035; specs/forecast-compliance-fixtures/README.md
 func TestFormal_FC_P7_CancelledRunFixture(t *testing.T) {
 	fixture := loadFixture(t, "run_summary_cancelled.json")
 
@@ -500,7 +500,7 @@ func TestFormal_FC_P7_CancelledRunFixture(t *testing.T) {
 	conclusion, ok := run["conclusion"].(string)
 	require.True(t, ok, "FC-P7: run.conclusion must be a string")
 	assert.Equal(t, "cancelled", conclusion,
-		"FC-P7 (T-FC-036): run_summary_cancelled.json must have conclusion == \"cancelled\" "+
+		"FC-P7 (T-FC-035): run_summary_cancelled.json must have conclusion == \"cancelled\" "+
 			"so it is included in the sample but not counted as a Bernoulli success")
 }
 

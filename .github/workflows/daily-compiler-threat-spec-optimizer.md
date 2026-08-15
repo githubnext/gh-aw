@@ -34,6 +34,17 @@ max-tool-denials: 3
 name: Daily Compiler Threat Spec Optimizer
 strict: true
 timeout-minutes: 30
+post-steps:
+- name: Emit optimizer timeout diagnostic
+  if: failure() && steps.agentic_execution.outcome == 'failure'
+  run: |
+    if [ ! -f /tmp/gh-aw/agent_execution_exit_code.txt ]; then
+      git reset --hard HEAD
+      git clean -fd
+      mkdir -p /tmp/gh-aw/agent
+      printf '{"diagnostic":"OPTIMIZER_TIMEOUT","last_completed_step":"","unevaluated_rules":[],"failed_at":"%s"}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/gh-aw/agent/optimizer-diagnostic.json
+    fi
 sandbox:
   agent:
     id: awf
@@ -158,6 +169,10 @@ Do not emit a noop or create/update a pull request from incomplete threat-covera
   `{"diagnostic":"OPTIMIZER_RATE_LIMITED","endpoints":[],"retry_after":"","failed_at":"<UTC timestamp>"}`
 
 Each diagnostic field shown above is required. A failed or rate-limited run does not count as a completed coverage cycle.
+
+The compiler enforces the workflow schedule, timeout, and the post-agent timeout handler. API retry,
+rate-limit, partial-artifact, and same-day retry behavior is enforced by the optimizer prompt and is
+audited from its structured diagnostic artifact; it is not a general-purpose compiler validation path.
 
 ## Output Requirements
 

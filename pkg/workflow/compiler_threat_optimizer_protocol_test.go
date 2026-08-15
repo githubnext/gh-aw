@@ -122,6 +122,23 @@ func TestThreatSuppression_TCTR029_ExpiresHandling(t *testing.T) {
 	require.Error(t, parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidDateFrontmatter, "/tmp/threat-suppression-invalid-date.md"))
 }
 
+func TestThreatSuppression_TCTR029_ActiveRuleMatching(t *testing.T) {
+	now := time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC)
+	suppressions := []ThreatDetectionSuppression{
+		{Rule: "CTR-006", Reason: "Reviewed safe", Expires: "2026-08-15"},
+		{Rule: "CTR-015", Reason: "Expired", Expires: "2026-08-14"},
+	}
+	assert.True(t, isThreatDetectionRuleSuppressed(suppressions, "CTR-006", now))
+	assert.False(t, isThreatDetectionRuleSuppressed(suppressions, "CTR-015", now))
+	assert.False(t, isThreatDetectionRuleSuppressed(suppressions, "CTR-001", now))
+	assert.True(t, isThreatDetectionDiagnosticSuppressed(
+		&threatDetectionDiagnosticError{Rule: "CTR-006", Err: assert.AnError},
+		suppressions,
+		now,
+	))
+	assert.False(t, isThreatDetectionDiagnosticSuppressed(assert.AnError, suppressions, now))
+}
+
 func TestThreatOptimizer_TCTR030Through038_FailureDiagnostics(t *testing.T) {
 	source := optimizerWorkflowSource(t)
 	assert.Contains(t, source, "schedule: daily")
@@ -145,4 +162,6 @@ func TestThreatOptimizer_TCTR030Through038_FailureDiagnostics(t *testing.T) {
 	assert.Contains(t, source, "Do not emit a noop or create/update a pull request from incomplete threat-coverage data.")
 	assert.Contains(t, source, "discard partial artifacts")
 	assert.Contains(t, source, "does not count as a completed coverage cycle")
+	assert.Contains(t, source, "steps.agentic_execution.outcome == 'failure'")
+	assert.Contains(t, source, "/tmp/gh-aw/agent/optimizer-diagnostic.json")
 }
