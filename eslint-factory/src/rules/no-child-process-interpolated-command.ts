@@ -27,35 +27,51 @@ function getShellPropertyValue(optionsArg: TSESTree.ObjectExpression): boolean {
   return false;
 }
 
-function resolveObjectExpression(arg: TSESTree.CallExpressionArgument, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): TSESTree.ObjectExpression | null {
-  if (arg.type === AST_NODE_TYPES.ObjectExpression) return arg;
-  if (arg.type !== AST_NODE_TYPES.Identifier) return null;
+/**
+ * Result of resolving an identifier argument to a concrete initializer:
+ * either the initializer expression, or "unresolved" when the binding cannot
+ * be statically resolved with confidence (missing declaration, no initializer,
+ * or a re-assigned binding whose declarator value is stale at call time).
+ */
+type ResolvedArgument = { kind: "expression"; node: TSESTree.Expression } | { kind: "unresolved" };
 
+function resolveIdentifierInitializer(arg: TSESTree.Identifier, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): ResolvedArgument {
   let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
   while (scope) {
     const variable = scope.set.get(arg.name);
     if (variable && variable.defs.length > 0) {
+      // Reject re-assigned bindings (write references that are not the
+      // initializer): the declarator value is not a reliable proxy for the
+      // value at call time.
+      if (variable.references.some(ref => ref.isWrite() && !ref.init)) return { kind: "unresolved" };
       for (const def of variable.defs) {
         if (def.type !== "Variable") continue;
         const declarator = def.node as TSESTree.VariableDeclarator;
         if (declarator.id.type !== AST_NODE_TYPES.Identifier || declarator.id.name !== arg.name) continue;
-        if (declarator.init?.type === AST_NODE_TYPES.ObjectExpression) return declarator.init;
+        if (declarator.init) return { kind: "expression", node: declarator.init };
       }
-      return null;
+      return { kind: "unresolved" };
     }
     scope = scope.upper;
   }
 
-  return null;
+  return { kind: "unresolved" };
 }
 
 function isShellTrueOption(optionsArg: TSESTree.CallExpressionArgument | undefined, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
   if (!optionsArg) return false;
   if (optionsArg.type === AST_NODE_TYPES.SpreadElement) return true; // Conservative: spread arguments are treated as possibly shell-enabled.
+  if (optionsArg.type === AST_NODE_TYPES.ObjectExpression) return getShellPropertyValue(optionsArg);
+  if (optionsArg.type !== AST_NODE_TYPES.Identifier) return false;
 
-  const resolvedObject = resolveObjectExpression(optionsArg, scopeNode, sourceCode);
-  if (!resolvedObject) return false;
-  return getShellPropertyValue(resolvedObject);
+  const resolved = resolveIdentifierInitializer(optionsArg, scopeNode, sourceCode);
+  // Conservative: an identifier that cannot be resolved to a concrete value
+  // (for example a re-assigned binding) is treated as possibly shell-enabled.
+  if (resolved.kind === "unresolved") return true;
+  if (resolved.node.type === AST_NODE_TYPES.ObjectExpression) return getShellPropertyValue(resolved.node);
+  // An array initializer is the argument list, not an options object.
+  if (resolved.node.type === AST_NODE_TYPES.ArrayExpression) return false;
+  return true;
 }
 
 function requiresShellTrue(method: ChildProcessMethod): boolean {

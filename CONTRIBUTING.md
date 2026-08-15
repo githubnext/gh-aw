@@ -409,7 +409,7 @@ The following licenses are **not allowed** as they conflict with our MIT license
 
 ### Container Base OS Packages
 
-The license policy in `.grant.yaml` is also applied to the container images referenced by compiled workflows (`gh aw compile --grant`). Base OS packages that ship with the Alpine base image (`busybox`, `apk-tools`, `alpine-baselayout`, `musl-utils`, `scanelf`, `ssl_client`, `ca-certificates`, `zlib`, and their variants) are listed under `ignore-packages` as a documented exception: they are executed as part of a third-party image, never linked into or redistributed with gh-aw, and cannot be changed without replacing the upstream image. Every other package in those images is still evaluated against the allowlist above.
+The license policy in `.grant.yaml` is also applied to the container images referenced by compiled workflows (`gh aw compile --grant`). Packages that ship with the upstream base images are listed under `ignore-packages` as a documented exception: the Alpine base OS packages (`busybox`, `apk-tools`, `alpine-baselayout`, `musl-utils`, `git`, `libgcc`, `libstdc++`, and their variants) and the Node.js/npm runtime with npm's bundled dependencies (`node`, `npm`, `tar`, `glob`, `minipass`, and friends). They are executed as part of a third-party image, never linked into or redistributed with gh-aw, and cannot be changed without replacing the upstream image. Every other package in those images is still evaluated against the allowlist above.
 
 ### Before Adding a Dependency
 
