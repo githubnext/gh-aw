@@ -1051,6 +1051,9 @@ func TestGenerateGoMod_SkipsEmptyRequireBlock(t *testing.T) {
 	}
 
 	content := string(data)
+	if !strings.Contains(content, "module github.com/github/gh-aw-workflows-deps") {
+		t.Fatalf("go.mod should contain the generated module declaration:\n%s", content)
+	}
 	if strings.Contains(content, "require (") {
 		t.Fatalf("go.mod should not contain a require block when all dependencies are skipped:\n%s", content)
 	}
