@@ -69,7 +69,7 @@ export const noEmptyCatchBlockRule = createRule({
         if (handler.type !== AST_NODE_TYPES.ArrowFunctionExpression && handler.type !== AST_NODE_TYPES.FunctionExpression) return;
         if (handler.body.type !== AST_NODE_TYPES.BlockStatement) return;
         if (handler.body.body.length !== 0) return;
-        if (hasIntentionalIgnoreComment(handler.body, node)) return;
+        if (hasIntentionalIgnoreComment(handler.body, handler)) return;
 
         context.report({
           node: handler.body,
