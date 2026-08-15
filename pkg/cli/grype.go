@@ -27,16 +27,26 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var grypeLog = logger.New("cli:grype")
+
+const (
+	// grypeConfigFilename is the optional grype configuration file at the repository
+	// root. It carries documented, risk-accepted ignore rules for vulnerabilities that
+	// have no upstream fix available.
+	grypeConfigFilename      = ".grype.yaml"
+	grypeContainerConfigPath = "/tmp/gh-aw-grype-config.yaml"
+)
 
 // grypeFinding represents a single vulnerability match from grype JSON output.
 type grypeFinding struct {
@@ -180,6 +190,11 @@ func runGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	totalFindings := 0
 	var scanErrors []string
 
+	configFile := grypeConfigFile()
+	if configFile != "" {
+		grypeLog.Printf("Using grype config %s", configFile)
+	}
+
 	for _, img := range images {
 		// Prefer the pinned reference (image@sha256:...) for immutability guarantees.
 		imageRef := img.PinnedImage
@@ -187,7 +202,7 @@ func runGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 			imageRef = img.Image
 		}
 
-		output, err := grypeRunOnImage(imageRef, verbose)
+		output, err := grypeRunOnImage(imageRef, configFile, verbose)
 		if err != nil {
 			grypeLog.Printf("Grype scan failed for %s: %v", img.Image, err)
 			scanErrors = append(scanErrors, fmt.Sprintf("%s: %v", img.Image, err))
@@ -214,9 +229,58 @@ func runGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	return nil
 }
 
+// grypeConfigFile returns the path to the optional repository-root grype configuration
+// file, or an empty string when the file is absent or the current directory is not a
+// git checkout. The config carries documented ignore rules for risk-accepted findings.
+func grypeConfigFile() string {
+	repoRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		grypeLog.Printf("Skipping grype config lookup: %v", err)
+		return ""
+	}
+
+	configFile := filepath.Join(repoRoot, grypeConfigFilename)
+	info, err := os.Stat(configFile)
+	if err != nil || !info.Mode().IsRegular() {
+		grypeLog.Printf("No grype config found at %s", configFile)
+		return ""
+	}
+
+	return configFile
+}
+
+// grypeDockerArgs builds the `docker run` arguments used to scan a single image.
+// When configFile is non-empty, it is mounted read-only into the scanner container
+// and passed to grype via --config so repository-level ignore rules are applied.
+func grypeDockerArgs(validatedImageRef, configFile string) ([]string, error) {
+	args := []string{"run", "--rm"}
+
+	var configArgs []string
+	if configFile != "" {
+		containerConfigPath, err := validateContainerMountPath(grypeContainerConfigPath)
+		if err != nil {
+			return nil, fmt.Errorf("invalid grype container config path %q: %w", grypeContainerConfigPath, err)
+		}
+		volumeMount, err := buildDockerReadonlyFileMount(configFile, containerConfigPath)
+		if err != nil {
+			return nil, fmt.Errorf("invalid grype config mount: %w", err)
+		}
+		args = append(args, "-v", volumeMount)
+		configArgs = []string{"--config", containerConfigPath}
+	}
+
+	args = append(args, GrypeImage)
+	args = append(args, configArgs...)
+	args = append(args, validatedImageRef, "-o", "json")
+
+	return args, nil
+}
+
 // grypeRunOnImage runs grype on a single container image reference via Docker,
 // using the result cache to avoid re-scanning images already checked in this run.
-func grypeRunOnImage(imageRef string, verbose bool) (*grypeOutput, error) {
+// When configFile is non-empty it is mounted read-only into the scanner container
+// and passed to grype via --config.
+func grypeRunOnImage(imageRef, configFile string, verbose bool) (*grypeOutput, error) {
 	// Check cache first.
 	if result, err, ok := grypeScanResultCache.get(imageRef); ok {
 		grypeLog.Printf("Grype cache hit for %s", imageRef)
@@ -238,20 +302,18 @@ func grypeRunOnImage(imageRef string, verbose bool) (*grypeOutput, error) {
 		return nil, fmt.Errorf("docker command not found: %w", err)
 	}
 
+	dockerArgs, err := grypeDockerArgs(validatedImageRef, configFile)
+	if err != nil {
+		return nil, err
+	}
+
 	// #nosec G204 -- dockerPath is resolved from the fixed executable name "docker" and
 	// validatedImageRef is allow-list validated above. exec.Command passes args directly to
 	// the OS without shell interpretation, preventing command injection.
-	cmd := exec.Command(
-		dockerPath,
-		"run",
-		"--rm",
-		GrypeImage,
-		validatedImageRef,
-		"-o", "json",
-	)
+	cmd := exec.Command(dockerPath, dockerArgs...)
 
 	if verbose {
-		dockerCmd := shellJoinArgs([]string{"docker", "run", "--rm", GrypeImage, validatedImageRef, "-o", "json"})
+		dockerCmd := shellJoinArgs(append([]string{"docker"}, dockerArgs...))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run grype directly: "+dockerCmd))
 	}
 
