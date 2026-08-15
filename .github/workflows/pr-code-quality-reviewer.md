@@ -46,8 +46,8 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
-  cache-memory:
-    key: pr-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  comment-memory:
+    memory-id: pr-code-quality-reviewer
 cache:
   key: pr-prefetch-${{ github.event.pull_request.head.sha || github.event.issue.number }}
   path: /tmp/gh-aw/agent
@@ -96,7 +96,7 @@ In **one parallel turn**, read those three files:
 - `/tmp/gh-aw/agent/pr-meta.json` — PR metadata
 - `/tmp/gh-aw/agent/pr-review-comments.json` — existing review comments (use to avoid duplication; each entry has `id`, `path`, `line`, `body`, `user`)
 
-If this PR has been reviewed before, also read `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json` before Step 2 to inform theme continuity; otherwise skip.
+If this PR has been reviewed before, also read `/tmp/gh-aw/comment-memory/pr-code-quality-reviewer.md` before Step 2 to inform theme continuity; otherwise skip.
 
 **Do not** call `get_diff` or `get_review_comments`; use the pre-fetched files instead — they are already capped to prevent token-heavy context payloads.
 
@@ -162,6 +162,17 @@ Use `REQUEST_CHANGES` when any of the following are true:
 - Sub-agent output is invalid and your second pass still finds at least one clearly actionable correctness/security/performance issue.
 
 Use `COMMENT` when all findings are non-blocking. Keep the overall review body concise and focused on blocking themes. Use h3 (###) or lower for any headers, and structure the body as verdict + one-line summary (always visible) → themes/highlights (in `<details>`).
+
+### Step 6: Update PR Continuity Memory
+
+After submitting the review, update `/tmp/gh-aw/comment-memory/pr-code-quality-reviewer.md` so repeat reviews of this PR can load continuity context in Step 1.
+
+Include the same compact continuity fields:
+- `reviewed_at` timestamp
+- `review_event` (`COMMENT` or `REQUEST_CHANGES`)
+- `top_themes` (short list of blocking/non-blocking themes from this run)
+- `files_reviewed` (changed files you analyzed)
+- `comment_count` (number of review comments posted)
 
 ## Guidelines
 

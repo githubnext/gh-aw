@@ -29,6 +29,16 @@ var ghAwInternalSecrets = map[string]bool{
 	"COPILOT_GITHUB_TOKEN":          true,
 }
 
+// PullRequestEventTransition captures the pull_request / pull_request_target trigger
+// presence before and after a workflow update, used to detect privilege escalation
+// where a workflow is converted from pull_request to pull_request_target.
+type PullRequestEventTransition struct {
+	OldHasPullRequest           bool
+	OldHasPullRequestTarget     bool
+	CurrentHasPullRequest       bool
+	CurrentHasPullRequestTarget bool
+}
+
 // EnforceSafeUpdate validates that no new restricted secrets or unapproved action
 // changes have been introduced compared to those recorded in the existing manifest.
 //
@@ -50,7 +60,7 @@ var ghAwInternalSecrets = map[string]bool{
 // e.g. "actions/checkout@abc1234 # v4".
 //
 // Returns a structured, actionable error when violations are found.
-func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool, currentMemoryValidationScripts []GHAWManifestMemoryValidationScript) error {
+func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, prTransition PullRequestEventTransition, currentMemoryValidationScripts []GHAWManifestMemoryValidationScript) error {
 	if manifest == nil {
 		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
 		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
@@ -62,7 +72,7 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 	addedActions, removedActions := collectActionViolations(manifest, actionRefs)
 	addedRedirect, removedRedirect := collectRedirectViolations(manifest, currentRedirect)
 	memoryValidationScriptChanges := collectMemoryValidationScriptChanges(manifest, currentMemoryValidationScripts)
-	pullRequestTargetEscalation := hasPullRequestTargetEscalation(oldHasPullRequest, oldHasPullRequestTarget, currentHasPullRequest, currentHasPullRequestTarget)
+	pullRequestTargetEscalation := hasPullRequestTargetEscalation(prTransition.OldHasPullRequest, prTransition.OldHasPullRequestTarget, prTransition.CurrentHasPullRequest, prTransition.CurrentHasPullRequestTarget)
 
 	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" && len(memoryValidationScriptChanges) == 0 && !pullRequestTargetEscalation {
 		safeUpdateLog.Printf("Safe update check passed (%d secret(s), %d action(s) verified)",
