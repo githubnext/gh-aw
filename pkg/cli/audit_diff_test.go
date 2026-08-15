@@ -502,18 +502,22 @@ func TestComputeMCPToolsDiff_SortedOutput(t *testing.T) {
 func TestComputeRunMetricsDiff_WithData(t *testing.T) {
 	summary1 := &RunSummary{
 		RunID: 100,
-		Run: WorkflowRun{
-			TokenUsage: 5000,
-			Duration:   10 * time.Minute,
-			Turns:      8,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{
+				TokenUsage: 5000,
+				Duration:   10 * time.Minute,
+				Turns:      8,
+			},
 		},
 	}
 	summary2 := &RunSummary{
 		RunID: 200,
-		Run: WorkflowRun{
-			TokenUsage: 7500,
-			Duration:   15 * time.Minute,
-			Turns:      12,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{
+				TokenUsage: 7500,
+				Duration:   15 * time.Minute,
+				Turns:      12,
+			},
 		},
 	}
 
@@ -534,19 +538,21 @@ func TestComputeRunMetricsDiff_WithData(t *testing.T) {
 }
 
 func TestComputeRunMetricsDiff_NegativeChange(t *testing.T) {
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 8000,
 			Duration:   20 * time.Minute,
 			Turns:      15,
 		},
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 4000,
 			Duration:   12 * time.Minute,
 			Turns:      10,
 		},
+	},
 	}
 
 	diff := computeRunMetricsDiff(summary1, summary2)
@@ -563,8 +569,8 @@ func TestComputeRunMetricsDiff_BothNil(t *testing.T) {
 }
 
 func TestComputeRunMetricsDiff_AllZero(t *testing.T) {
-	summary1 := &RunSummary{Run: WorkflowRun{}}
-	summary2 := &RunSummary{Run: WorkflowRun{}}
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{Run: WorkflowRun{}}}
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{Run: WorkflowRun{}}}
 
 	diff := computeRunMetricsDiff(summary1, summary2)
 	assert.Nil(t, diff, "Should return nil when all metrics are zero")
@@ -573,33 +579,37 @@ func TestComputeRunMetricsDiff_AllZero(t *testing.T) {
 func TestComputeAuditDiff_CombinesAllSections(t *testing.T) {
 	summary1 := &RunSummary{
 		RunID: 100,
-		FirewallAnalysis: &FirewallAnalysis{
-			RequestsByDomain: map[string]DomainRequestStats{
-				"api.github.com:443": {Allowed: 5, Blocked: 0},
+		RunAnalysis: RunAnalysis{
+			FirewallAnalysis: &FirewallAnalysis{
+				RequestsByDomain: map[string]DomainRequestStats{
+					"api.github.com:443": {Allowed: 5, Blocked: 0},
+				},
 			},
-		},
-		MCPToolUsage: &MCPToolUsageData{
-			Summary: []MCPToolSummary{
-				{ServerName: "github", ToolName: "issue_read", CallCount: 3, ErrorCount: 0},
+			MCPToolUsage: &MCPToolUsageData{
+				Summary: []MCPToolSummary{
+					{ServerName: "github", ToolName: "issue_read", CallCount: 3, ErrorCount: 0},
+				},
 			},
+			Run: WorkflowRun{TokenUsage: 2000, Turns: 5},
 		},
-		Run: WorkflowRun{TokenUsage: 2000, Turns: 5},
 	}
 	summary2 := &RunSummary{
 		RunID: 200,
-		FirewallAnalysis: &FirewallAnalysis{
-			RequestsByDomain: map[string]DomainRequestStats{
-				"api.github.com:443":  {Allowed: 5, Blocked: 0},
-				"new.example.com:443": {Allowed: 3, Blocked: 0},
+		RunAnalysis: RunAnalysis{
+			FirewallAnalysis: &FirewallAnalysis{
+				RequestsByDomain: map[string]DomainRequestStats{
+					"api.github.com:443":  {Allowed: 5, Blocked: 0},
+					"new.example.com:443": {Allowed: 3, Blocked: 0},
+				},
 			},
-		},
-		MCPToolUsage: &MCPToolUsageData{
-			Summary: []MCPToolSummary{
-				{ServerName: "github", ToolName: "issue_read", CallCount: 7, ErrorCount: 0},
-				{ServerName: "github", ToolName: "create_issue", CallCount: 2, ErrorCount: 0},
+			MCPToolUsage: &MCPToolUsageData{
+				Summary: []MCPToolSummary{
+					{ServerName: "github", ToolName: "issue_read", CallCount: 7, ErrorCount: 0},
+					{ServerName: "github", ToolName: "create_issue", CallCount: 2, ErrorCount: 0},
+				},
 			},
+			Run: WorkflowRun{TokenUsage: 3000, Turns: 8},
 		},
-		Run: WorkflowRun{TokenUsage: 3000, Turns: 8},
 	}
 
 	diff := computeAuditDiff(100, 200, summary1, summary2)
@@ -630,7 +640,7 @@ func TestComputeAuditDiff_NilSummaries(t *testing.T) {
 }
 
 func TestAuditDiffJSONSerialization(t *testing.T) {
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		FirewallAnalysis: &FirewallAnalysis{
 			RequestsByDomain: map[string]DomainRequestStats{
 				"api.github.com:443": {Allowed: 5},
@@ -642,8 +652,9 @@ func TestAuditDiffJSONSerialization(t *testing.T) {
 			},
 		},
 		Run: WorkflowRun{TokenUsage: 1000, Turns: 4},
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		FirewallAnalysis: &FirewallAnalysis{
 			RequestsByDomain: map[string]DomainRequestStats{
 				"api.github.com:443":  {Allowed: 5},
@@ -656,6 +667,7 @@ func TestAuditDiffJSONSerialization(t *testing.T) {
 			},
 		},
 		Run: WorkflowRun{TokenUsage: 1500, Turns: 6},
+	},
 	}
 
 	diff := computeAuditDiff(100, 200, summary1, summary2)
@@ -810,24 +822,28 @@ func TestComputeTokenUsageDiff_Run2Nil(t *testing.T) {
 func TestComputeRunMetricsDiff_WithTokenUsageDetails(t *testing.T) {
 	summary1 := &RunSummary{
 		RunID: 100,
-		Run:   WorkflowRun{Duration: 5 * time.Minute, Turns: 4},
-		TokenUsage: &TokenUsageSummary{
-			TotalInputTokens:  8000,
-			TotalOutputTokens: 1500,
-			TotalAIC:          0.6,
-			TotalRequests:     8,
-			CacheEfficiency:   0.25,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{Duration: 5 * time.Minute, Turns: 4},
+			TokenUsage: &TokenUsageSummary{
+				TotalInputTokens:  8000,
+				TotalOutputTokens: 1500,
+				TotalAIC:          0.6,
+				TotalRequests:     8,
+				CacheEfficiency:   0.25,
+			},
 		},
 	}
 	summary2 := &RunSummary{
 		RunID: 200,
-		Run:   WorkflowRun{Duration: 7 * time.Minute, Turns: 6},
-		TokenUsage: &TokenUsageSummary{
-			TotalInputTokens:  12000,
-			TotalOutputTokens: 2000,
-			TotalAIC:          0.9,
-			TotalRequests:     11,
-			CacheEfficiency:   0.30,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{Duration: 7 * time.Minute, Turns: 6},
+			TokenUsage: &TokenUsageSummary{
+				TotalInputTokens:  12000,
+				TotalOutputTokens: 2000,
+				TotalAIC:          0.9,
+				TotalRequests:     11,
+				CacheEfficiency:   0.30,
+			},
 		},
 	}
 
@@ -848,19 +864,21 @@ func TestComputeRunMetricsDiff_WithTokenUsageDetails(t *testing.T) {
 func TestComputeRunMetricsDiff_TokenUsageDetailsAloneNotNil(t *testing.T) {
 	// Verify that detailed token usage data alone (without Run.TokenUsage set)
 	// still produces a non-nil RunMetricsDiff
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{},
 		TokenUsage: &TokenUsageSummary{
 			TotalInputTokens: 5000,
 			TotalRequests:    5,
 		},
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{},
 		TokenUsage: &TokenUsageSummary{
 			TotalInputTokens: 8000,
 			TotalRequests:    7,
 		},
+	},
 	}
 
 	diff := computeRunMetricsDiff(summary1, summary2)
@@ -874,58 +892,64 @@ func TestComputeRunMetricsDiff_TokenUsageDetailsAloneNotNil(t *testing.T) {
 func TestComputeAuditDiff_MultipleRuns(t *testing.T) {
 	base := &RunSummary{
 		RunID: 100,
-		FirewallAnalysis: &FirewallAnalysis{
-			RequestsByDomain: map[string]DomainRequestStats{
-				"api.github.com:443": {Allowed: 5, Blocked: 0},
+		RunAnalysis: RunAnalysis{
+			FirewallAnalysis: &FirewallAnalysis{
+				RequestsByDomain: map[string]DomainRequestStats{
+					"api.github.com:443": {Allowed: 5, Blocked: 0},
+				},
 			},
-		},
-		MCPToolUsage: &MCPToolUsageData{
-			Summary: []MCPToolSummary{
-				{ServerName: "github", ToolName: "issue_read", CallCount: 3, ErrorCount: 0},
+			MCPToolUsage: &MCPToolUsageData{
+				Summary: []MCPToolSummary{
+					{ServerName: "github", ToolName: "issue_read", CallCount: 3, ErrorCount: 0},
+				},
 			},
-		},
-		Run: WorkflowRun{Turns: 5},
-		TokenUsage: &TokenUsageSummary{
-			TotalInputTokens:  10000,
-			TotalOutputTokens: 2000,
-			TotalRequests:     10,
+			Run: WorkflowRun{Turns: 5},
+			TokenUsage: &TokenUsageSummary{
+				TotalInputTokens:  10000,
+				TotalOutputTokens: 2000,
+				TotalRequests:     10,
+			},
 		},
 	}
 
 	compare1 := &RunSummary{
 		RunID: 200,
-		FirewallAnalysis: &FirewallAnalysis{
-			RequestsByDomain: map[string]DomainRequestStats{
-				"api.github.com:443":   {Allowed: 5, Blocked: 0},
-				"new1.example.com:443": {Allowed: 3, Blocked: 0},
+		RunAnalysis: RunAnalysis{
+			FirewallAnalysis: &FirewallAnalysis{
+				RequestsByDomain: map[string]DomainRequestStats{
+					"api.github.com:443":   {Allowed: 5, Blocked: 0},
+					"new1.example.com:443": {Allowed: 3, Blocked: 0},
+				},
 			},
-		},
-		MCPToolUsage: &MCPToolUsageData{
-			Summary: []MCPToolSummary{
-				{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+			MCPToolUsage: &MCPToolUsageData{
+				Summary: []MCPToolSummary{
+					{ServerName: "github", ToolName: "issue_read", CallCount: 5, ErrorCount: 0},
+				},
 			},
-		},
-		Run: WorkflowRun{Turns: 7},
-		TokenUsage: &TokenUsageSummary{
-			TotalInputTokens:  15000,
-			TotalOutputTokens: 3000,
-			TotalRequests:     12,
+			Run: WorkflowRun{Turns: 7},
+			TokenUsage: &TokenUsageSummary{
+				TotalInputTokens:  15000,
+				TotalOutputTokens: 3000,
+				TotalRequests:     12,
+			},
 		},
 	}
 
 	compare2 := &RunSummary{
 		RunID: 300,
-		FirewallAnalysis: &FirewallAnalysis{
-			RequestsByDomain: map[string]DomainRequestStats{
-				"api.github.com:443":   {Allowed: 5, Blocked: 0},
-				"new2.example.com:443": {Allowed: 1, Blocked: 2},
+		RunAnalysis: RunAnalysis{
+			FirewallAnalysis: &FirewallAnalysis{
+				RequestsByDomain: map[string]DomainRequestStats{
+					"api.github.com:443":   {Allowed: 5, Blocked: 0},
+					"new2.example.com:443": {Allowed: 1, Blocked: 2},
+				},
 			},
-		},
-		Run: WorkflowRun{Turns: 4},
-		TokenUsage: &TokenUsageSummary{
-			TotalInputTokens:  8000,
-			TotalOutputTokens: 1500,
-			TotalRequests:     8,
+			Run: WorkflowRun{Turns: 4},
+			TokenUsage: &TokenUsageSummary{
+				TotalInputTokens:  8000,
+				TotalOutputTokens: 1500,
+				TotalRequests:     8,
+			},
 		},
 	}
 
@@ -1007,7 +1031,7 @@ func TestComputeGitHubRateLimitDiff_Run1Nil(t *testing.T) {
 }
 
 func TestComputeRunMetricsDiff_WithRateLimitData(t *testing.T) {
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 1000,
 			Duration:   2 * time.Minute,
@@ -1019,8 +1043,9 @@ func TestComputeRunMetricsDiff_WithRateLimitData(t *testing.T) {
 			CoreRemaining:     4960,
 			CoreLimit:         5000,
 		},
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 1200,
 			Duration:   3 * time.Minute,
@@ -1032,6 +1057,7 @@ func TestComputeRunMetricsDiff_WithRateLimitData(t *testing.T) {
 			CoreRemaining:     4940,
 			CoreLimit:         5000,
 		},
+	},
 	}
 
 	diff := computeRunMetricsDiff(summary1, summary2)
@@ -1044,15 +1070,17 @@ func TestComputeRunMetricsDiff_WithRateLimitData(t *testing.T) {
 
 func TestComputeRunMetricsDiff_RateLimitAloneNotNil(t *testing.T) {
 	// RunMetricsDiff should be non-nil when only rate limit data is present
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		GitHubRateLimitUsage: &GitHubRateLimitUsage{
 			TotalRequestsMade: 10,
 		},
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		GitHubRateLimitUsage: &GitHubRateLimitUsage{
 			TotalRequestsMade: 15,
 		},
+	},
 	}
 
 	diff := computeRunMetricsDiff(summary1, summary2)
@@ -1331,17 +1359,19 @@ func TestComputeBashCommandsDiff_BashCapitalized(t *testing.T) {
 // --- Tokens per turn tests ---
 
 func TestComputeRunMetricsDiff_TokensPerTurn(t *testing.T) {
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 10000,
 			Turns:      5,
 		},
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 18000,
 			Turns:      6,
 		},
+	},
 	}
 
 	diff := computeRunMetricsDiff(summary1, summary2)
@@ -1355,7 +1385,7 @@ func TestComputeRunMetricsDiff_TokensPerTurn(t *testing.T) {
 
 func TestComputeRunMetricsDiff_TokensPerTurnIgnoresEffectiveTokenTotals(t *testing.T) {
 	// Tokens/turn should continue to use engine token usage even when effective totals exist.
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 10000,
 			Turns:      4,
@@ -1365,8 +1395,9 @@ func TestComputeRunMetricsDiff_TokensPerTurnIgnoresEffectiveTokenTotals(t *testi
 			TotalInputTokens:     10000,
 			TotalRequests:        4,
 		},
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 16000,
 			Turns:      4,
@@ -1376,6 +1407,7 @@ func TestComputeRunMetricsDiff_TokensPerTurnIgnoresEffectiveTokenTotals(t *testi
 			TotalInputTokens:     16000,
 			TotalRequests:        4,
 		},
+	},
 	}
 
 	diff := computeRunMetricsDiff(summary1, summary2)
@@ -1387,17 +1419,19 @@ func TestComputeRunMetricsDiff_TokensPerTurnIgnoresEffectiveTokenTotals(t *testi
 
 func TestComputeRunMetricsDiff_TokensPerTurnZeroTurns(t *testing.T) {
 	// When turns = 0, tokens per turn should remain 0 (no division)
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 5000,
 			Turns:      0,
 		},
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run: WorkflowRun{
 			TokenUsage: 8000,
 			Turns:      4,
 		},
+	},
 	}
 
 	diff := computeRunMetricsDiff(summary1, summary2)
@@ -1425,13 +1459,15 @@ func TestComputeRunMetricsDiff_WithToolCallsDiff(t *testing.T) {
 		},
 		Turns: 6,
 	}
-	summary1 := &RunSummary{
+	summary1 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{TokenUsage: 5000, Turns: 4},
 		Metrics: m1,
+	},
 	}
-	summary2 := &RunSummary{
+	summary2 := &RunSummary{RunAnalysis: RunAnalysis{
 		Run:     WorkflowRun{TokenUsage: 9000, Turns: 6},
 		Metrics: m2,
+	},
 	}
 
 	diff := computeRunMetricsDiff(summary1, summary2)

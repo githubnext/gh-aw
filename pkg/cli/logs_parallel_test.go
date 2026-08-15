@@ -117,8 +117,9 @@ func TestDownloadResult(t *testing.T) {
 		Status:     "completed",
 	}
 
-	result := DownloadResult{
-		Run:      run,
+	result := DownloadResult{RunAnalysis: RunAnalysis{
+		Run: run,
+	},
 		LogsPath: "./test-path",
 		Skipped:  false,
 		Cached:   false,
@@ -146,8 +147,9 @@ func TestDownloadResult(t *testing.T) {
 	}
 
 	// Test cached result
-	cachedResult := DownloadResult{
-		Run:      run,
+	cachedResult := DownloadResult{RunAnalysis: RunAnalysis{
+		Run: run,
+	},
 		LogsPath: "./test-path",
 		Cached:   true,
 	}

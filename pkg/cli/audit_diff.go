@@ -989,8 +989,10 @@ func loadRunSummaryForDiff(ctx context.Context, runID int64, outputDir string, o
 	}
 
 	return &RunSummary{
-		RunID:                runID,
-		FirewallAnalysis:     analysis,
-		GitHubRateLimitUsage: rateLimitUsage,
+		RunID: runID,
+		RunAnalysis: RunAnalysis{
+			FirewallAnalysis:     analysis,
+			GitHubRateLimitUsage: rateLimitUsage,
+		},
 	}, nil
 }

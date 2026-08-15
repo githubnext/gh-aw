@@ -538,14 +538,16 @@ func TestFormal_FC_P8_RunSummaryRoundTrip(t *testing.T) {
 		CLIVersion:  "0.0.0-test",
 		RunID:       12345678,
 		ProcessedAt: now,
-		Run: WorkflowRun{
-			DatabaseID: 12345678,
-			Conclusion: "success",
-			StartedAt:  start,
-			UpdatedAt:  updated,
+		RunAnalysis: RunAnalysis{
+			Run: WorkflowRun{
+				DatabaseID: 12345678,
+				Conclusion: "success",
+				StartedAt:  start,
+				UpdatedAt:  updated,
+			},
+			JobDetails: []JobInfoWithDuration{},
 		},
 		ArtifactsList: []string{},
-		JobDetails:    []JobInfoWithDuration{},
 	}
 
 	data, err := json.Marshal(original)
