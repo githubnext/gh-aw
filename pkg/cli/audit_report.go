@@ -845,13 +845,40 @@ func extractGHErrorLines(filePath string) []string {
 	for line := range strings.SplitSeq(string(content), "\n") {
 		if strings.Contains(line, "##[error]") {
 			stripped := stripGHALogTimestamps(line)
-			if stripped != "" {
+			if stripped != "" && !isAgentToolResultAnnotation(stripped) {
 				errorLines = append(errorLines, stripped)
 			}
 		}
 	}
 
 	return errorLines
+}
+
+func isAgentToolResultAnnotation(line string) bool {
+	_, payload, found := strings.Cut(line, "##[error]")
+	if !found {
+		return false
+	}
+
+	var event struct {
+		Type    string `json:"type"`
+		Message struct {
+			Content []struct {
+				Type string `json:"type"`
+			} `json:"content"`
+		} `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(payload)), &event); err != nil || event.Type != "user" {
+		return false
+	}
+	hasToolResult := false
+	for _, content := range event.Message.Content {
+		if content.Type != "tool_result" {
+			return false
+		}
+		hasToolResult = true
+	}
+	return hasToolResult
 }
 
 func extractAgentFailureError(agentRan bool, agentStdioPath string, maxMessageLen int) []ValidationIssue {
