@@ -2870,3 +2870,29 @@ func TestValidateMainWorkflowFrontmatter_JobsInputsRejectedBeforeSchema(t *testi
 		t.Fatalf("expected pre-schema validation error instead of schema unknown-property error, got: %v", err)
 	}
 }
+
+func TestGetParsedSchemaDocReturnsObject(t *testing.T) {
+	// The cached well-known schemas and arbitrary schemas alike are returned as
+	// map[string]any, so callers do not need a type assertion.
+	for name, schemaJSON := range map[string]string{
+		"main workflow": mainWorkflowSchema,
+		"mcp config":    mcpConfigSchema,
+		"custom":        `{"type": "object"}`,
+	} {
+		doc, err := getParsedSchemaDoc(schemaJSON)
+		if err != nil {
+			t.Fatalf("getParsedSchemaDoc(%s) returned error: %v", name, err)
+		}
+		if len(doc) == 0 {
+			t.Errorf("getParsedSchemaDoc(%s) returned empty document", name)
+		}
+	}
+
+	if _, err := getParsedSchemaDoc(`["not", "an", "object"]`); err == nil {
+		t.Error("getParsedSchemaDoc() should return an error for a non-object schema")
+	}
+
+	if _, err := getParsedSchemaDoc(`null`); err == nil {
+		t.Error("getParsedSchemaDoc() should return an error for a null schema")
+	}
+}
