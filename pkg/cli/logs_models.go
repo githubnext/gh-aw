@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -185,11 +186,24 @@ type MissingToolSummary struct {
 
 // MCPFailureSummary aggregates MCP server failure reports across runs
 type MCPFailureSummary struct {
-	ServerName       string   `json:"server_name" console:"header:Server"`
-	Count            int      `json:"count" console:"header:Failures"`
-	Workflows        []string `json:"workflows" console:"-"`                  // List of workflow names that had this server fail
-	WorkflowsDisplay string   `json:"-" console:"header:Workflows,maxlen:60"` // Formatted display of workflows
-	RunIDs           []int64  `json:"run_ids" console:"-"`                    // List of run IDs where this server failed
+	ServerName            string `json:"server_name" console:"header:Server"`
+	AggregatedSummaryBase `console:"-"`
+}
+
+// MarshalJSON preserves the MCP failure JSON schema while sharing aggregation state with
+// the other summary types.
+func (s MCPFailureSummary) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		ServerName string   `json:"server_name"`
+		Count      int      `json:"count"`
+		Workflows  []string `json:"workflows"`
+		RunIDs     []int64  `json:"run_ids"`
+	}{
+		ServerName: s.ServerName,
+		Count:      s.Count,
+		Workflows:  s.Workflows,
+		RunIDs:     s.RunIDs,
+	})
 }
 
 // MissingDataSummary aggregates missing data reports across runs
