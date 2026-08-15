@@ -95,6 +95,29 @@ initialize_cache_memory_git_repo() {
   echo "Cache memory git repository initialized with branches: ${LEVELS[*]}"
 }
 
+scrub_git_config_entries() {
+  local key_prefix="$1"
+  while IFS= read -r key_name; do
+    [ -n "$key_name" ] || continue
+    git config --unset-all "$key_name" >/dev/null 2>&1 || true
+  done < <(
+    git config --local --name-only --list 2>/dev/null \
+      | grep -E -i "^${key_prefix}\\." \
+      | sort -u
+  )
+}
+
+has_symlinked_git_metadata() {
+  local repo_root="$1"
+  local path
+  for path in "$repo_root/.git" "$repo_root/.git/config" "$repo_root/.git/info" "$repo_root/.git/hooks"; do
+    if [ -L "$path" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 mkdir -p "$CACHE_DIR"
 cd "$CACHE_DIR"
 
@@ -128,6 +151,14 @@ if [ -d .git ]; then
   echo "Cache hit detected: git repository found (restored from a previous run)"
 else
   echo "Cache cold start: no git repository found, will initialize"
+fi
+
+# --- Security: reject symlinked git metadata before any .git operations ---
+if [ -d .git ] && has_symlinked_git_metadata "$CACHE_DIR"; then
+  echo "WARNING: Detected symlinked cache-memory git metadata; reinitializing git metadata"
+  rm -rf .git
+  IS_CACHE_HIT=false
+  initialize_cache_memory_git_repo
 fi
 
 # --- Log cache directory contents after restore (before git setup) ---
@@ -188,13 +219,16 @@ if [ -d .git ]; then
   mkdir -p .git/info
   rm -f .git/info/exclude .git/info/attributes .git/info/grafts .git/info/sparse-checkout
 
+  git config --unset-all core.attributesFile >/dev/null 2>&1 || true
   git config --unset-all core.fsmonitor >/dev/null 2>&1 || true
   git config --unset-all core.sshCommand >/dev/null 2>&1 || true
   git config --unset-all core.hooksPath >/dev/null 2>&1 || true
-  git config --remove-section include >/dev/null 2>&1 || true
-  git config --remove-section includeIf >/dev/null 2>&1 || true
-  git config --remove-section credential >/dev/null 2>&1 || true
-  git config --remove-section alias >/dev/null 2>&1 || true
+  scrub_git_config_entries include
+  scrub_git_config_entries includeif
+  scrub_git_config_entries credential
+  scrub_git_config_entries alias
+  scrub_git_config_entries filter
+  scrub_git_config_entries merge
 
   git config user.email "gh-aw@github.com"
   git config user.name "gh-aw"
