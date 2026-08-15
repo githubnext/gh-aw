@@ -11,6 +11,7 @@ import (
 	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/semverutil"
@@ -77,32 +78,11 @@ func (e packageRemoteNotFoundError) Unwrap() []error {
 }
 
 func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host string) (*resolvedRepositoryPackage, error) {
-	parts := strings.SplitN(repoSpec.RepoSlug, "/", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("repository slug %q is not in 'owner/repo' format. Example: owner/repo", repoSpec.RepoSlug)
+	owner, repo, err := splitRepositoryPackageSlug(repoSpec.RepoSlug)
+	if err != nil {
+		return nil, err
 	}
-
-	owner := parts[0]
-	repo := parts[1]
-	// At manifest-fetch time there is no resolved package metadata yet.
-	ref := repositoryPackageEffectiveRef(repoSpec, nil)
-	if ref == "" {
-		if isGhAwRepository(repoSpec.RepoSlug) {
-			if latestRelease, err := getRepositoryPackageLatestRelease(ctx, repoSpec.RepoSlug, host); err == nil {
-				ref = latestRelease
-			} else {
-				addPackageManifestLog.Printf("failed to resolve latest release for %s (host=%q): %v", repoSpec.RepoSlug, host, err)
-			}
-		}
-		if ref == "" {
-			ref = "main"
-			if defaultBranch, err := getRepositoryPackageDefaultBranch(ctx, repoSpec.RepoSlug, host); err == nil {
-				ref = defaultBranch
-			} else {
-				addPackageManifestLog.Printf("failed to resolve default branch for %s (host=%q), falling back to %q: %v", repoSpec.RepoSlug, host, ref, err)
-			}
-		}
-	}
+	ref := resolveRepositoryPackageRef(ctx, repoSpec, host)
 	packagePath := strings.Trim(repoSpec.PackagePath, "/")
 
 	manifestPath, manifestContent, err := loadRepositoryPackageManifestFile(ctx, owner, repo, packagePath, ref, host)
@@ -115,17 +95,8 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		return nil, err
 	}
 
-	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(manifest.Includes)
-	includeInstallablePaths = append(includeInstallablePaths, manifest.Files...)
-
-	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
-	if len(installationSources) == 0 {
-		installationSources, err = scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
+	installationSources, includeSkillDirs, includeAgentFiles, err := resolveRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host, manifest, manifestPath)
+	if err != nil {
 		return nil, err
 	}
 
@@ -134,6 +105,74 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		return nil, err
 	}
 
+	extensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, owner, repo, packagePath, ref, host, manifest, includeSkillDirs, includeAgentFiles)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, extensionFiles.warnings...)
+
+	if len(installationSources) == 0 && len(extensionFiles.skillFiles) == 0 && len(extensionFiles.agentFiles) == 0 {
+		return nil, fmt.Errorf("repository %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered). Add workflows under 'workflows/', skills under 'skills/', or agents under 'agents/', or declare them explicitly in aw.yml", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
+	}
+
+	return newResolvedRepositoryPackage(manifestPath, ref, docsPath, manifest, installationSources, extensionFiles, warnings), nil
+}
+
+func splitRepositoryPackageSlug(repoSlug string) (string, string, error) {
+	parts := strings.SplitN(repoSlug, "/", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("repository slug %q is not in 'owner/repo' format. Example: owner/repo", repoSlug)
+	}
+	return parts[0], parts[1], nil
+}
+
+func resolveRepositoryPackageRef(ctx context.Context, repoSpec *RepoSpec, host string) string {
+	// At manifest-fetch time there is no resolved package metadata yet.
+	ref := repositoryPackageEffectiveRef(repoSpec, nil)
+	if ref != "" {
+		return ref
+	}
+	if isGhAwRepository(repoSpec.RepoSlug) {
+		if latestRelease, err := getRepositoryPackageLatestRelease(ctx, repoSpec.RepoSlug, host); err == nil {
+			return latestRelease
+		} else {
+			addPackageManifestLog.Printf("failed to resolve latest release for %s (host=%q): %v", repoSpec.RepoSlug, host, err)
+		}
+	}
+	ref = "main"
+	if defaultBranch, err := getRepositoryPackageDefaultBranch(ctx, repoSpec.RepoSlug, host); err == nil {
+		ref = defaultBranch
+	} else {
+		addPackageManifestLog.Printf("failed to resolve default branch for %s (host=%q), falling back to %q: %v", repoSpec.RepoSlug, host, ref, err)
+	}
+	return ref
+}
+
+func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, manifestPath string) ([]string, []string, []string, error) {
+	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(manifest.Includes)
+	includeInstallablePaths = append(includeInstallablePaths, manifest.Files...)
+
+	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
+	if len(installationSources) == 0 {
+		var err error
+		installationSources, err = scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
+		return nil, nil, nil, err
+	}
+	return installationSources, includeSkillDirs, includeAgentFiles, nil
+}
+
+type repositoryPackageExtensionFiles struct {
+	skillFiles []resolvedPackageSkillFile
+	agentFiles []string
+	warnings   []string
+}
+
+func resolveRepositoryPackageExtensionFiles(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, includeSkillDirs, includeAgentFiles []string) (*repositoryPackageExtensionFiles, error) {
 	// Resolve skill files: explicit from manifest or auto-scanned.
 	explicitSkillDirs := append([]string{}, manifest.Skills...)
 	explicitSkillDirs = append(explicitSkillDirs, includeSkillDirs...)
@@ -141,7 +180,6 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	if err != nil {
 		return nil, err
 	}
-	warnings = append(warnings, skillWarnings...)
 
 	// Resolve agent files: explicit from manifest or auto-scanned.
 	explicitAgentFiles := append([]string{}, manifest.Agents...)
@@ -150,12 +188,16 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	if err != nil {
 		return nil, err
 	}
-	warnings = append(warnings, agentWarnings...)
 
-	if len(installationSources) == 0 && len(skillFiles) == 0 && len(agentFiles) == 0 {
-		return nil, fmt.Errorf("repository %q does not contain any installable workflows, skills, or agents (either explicitly declared or auto-discovered). Add workflows under 'workflows/', skills under 'skills/', or agents under 'agents/', or declare them explicitly in aw.yml", repositoryPackageIdentifier(repoSpec.RepoSlug, packagePath))
-	}
+	warnings := append(skillWarnings, agentWarnings...)
+	return &repositoryPackageExtensionFiles{
+		skillFiles: skillFiles,
+		agentFiles: agentFiles,
+		warnings:   warnings,
+	}, nil
+}
 
+func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *repositoryPackageManifest, installationSources []string, extensionFiles *repositoryPackageExtensionFiles, warnings []string) *resolvedRepositoryPackage {
 	return &resolvedRepositoryPackage{
 		ManifestPath:       manifestPath,
 		ResolvedRef:        ref,
@@ -166,10 +208,10 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		DocsPath:           docsPath,
 		InstallationSource: installationSources,
 		Bootstrap:          manifest.Bootstrap,
-		SkillFiles:         skillFiles,
-		AgentFiles:         agentFiles,
+		SkillFiles:         extensionFiles.skillFiles,
+		AgentFiles:         extensionFiles.agentFiles,
 		Warnings:           warnings,
-	}, nil
+	}
 }
 
 func loadRepositoryPackageManifestFile(ctx context.Context, owner, repo, packagePath, ref, host string) (string, []byte, error) {
@@ -205,32 +247,60 @@ type repositoryPackageManifest struct {
 }
 
 func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repositoryPackageManifest, []string, error) {
+	root, name, err := parseRepositoryPackageManifestRoot(manifestPath, content)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	manifest := &repositoryPackageManifest{
+		Name: strings.TrimSpace(name),
+	}
+	warnings, err := populateRepositoryPackageManifest(manifest, root, manifestPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	return manifest, warnings, nil
+}
+
+func parseRepositoryPackageManifestRoot(manifestPath string, content []byte) (map[string]any, string, error) {
 	var raw any
 	if err := yaml.Unmarshal(content, &raw); err != nil {
-		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: %s. Ensure the manifest is valid YAML. Example:\nname: My Package", manifestPath, parser.FormatYAMLError(err, 1, string(content)))
+		return nil, "", fmt.Errorf("invalid Agentic Workflow manifest %q: %s. Ensure the manifest is valid YAML. Example:\nname: My Package", manifestPath, parser.FormatYAMLError(err, 1, string(content)))
 	}
 
 	root, ok := raw.(map[string]any)
 	if !ok {
-		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: top-level document must be a mapping, not a list or scalar. Example:\nname: My Package", manifestPath)
+		return nil, "", fmt.Errorf("invalid Agentic Workflow manifest %q: top-level document must be a mapping, not a list or scalar. Example:\nname: My Package", manifestPath)
 	}
 
 	// Validate name before schema validation to provide a clear error message for
 	// the most common manifest authoring error (missing or empty name).
 	name, ok := stringValue(root["name"])
 	if !ok || strings.TrimSpace(name) == "" {
-		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string. Example:\nname: My Package", manifestPath)
+		return nil, "", fmt.Errorf("invalid Agentic Workflow manifest %q: name must be a non-empty string. Example:\nname: My Package", manifestPath)
 	}
 
 	if err := parser.ValidateRepositoryPackageManifestWithSchemaAndLocation(root, manifestPath); err != nil {
-		return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: %w", manifestPath, err)
+		return nil, "", fmt.Errorf("invalid Agentic Workflow manifest %q: %w", manifestPath, err)
 	}
 
-	manifest := &repositoryPackageManifest{
-		Name: strings.TrimSpace(name),
-	}
+	return root, name, nil
+}
+
+func populateRepositoryPackageManifest(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) ([]string, error) {
 	var warnings []string
+	if err := populateRepositoryPackageManifestVersions(manifest, root, manifestPath); err != nil {
+		return nil, err
+	}
+	metadataWarnings, err := populateRepositoryPackageManifestMetadata(manifest, root, manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, metadataWarnings...)
+	return warnings, nil
+}
 
+func populateRepositoryPackageManifestVersions(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) error {
 	if manifestVersion, ok := stringValue(root["manifest-version"]); ok {
 		manifest.ManifestVersion = strings.TrimSpace(manifestVersion)
 	} else {
@@ -240,18 +310,22 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 	if minVersion, ok := stringValue(root["min-version"]); ok {
 		manifest.MinVersion = strings.TrimSpace(minVersion)
 		if !isSupportedManifestMinVersion(manifest.MinVersion) {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must use vMAJOR.minor.patch, got %q. Example:\nmin-version: v1.2.3", manifestPath, minVersion)
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: min-version must use vMAJOR.minor.patch, got %q. Example:\nmin-version: v1.2.3", manifestPath, minVersion)
 		}
 		currentVersion := GetVersion()
 		if !semverutil.IsValid(currentVersion) {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version. This indicates a build issue; rebuild gh-aw with a proper version tag. Example: v1.2.3", manifestPath, currentVersion)
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: min-version validation requires a semantic-versioned compiler, but the current compiler version %q is not a valid semantic version. This indicates a build issue; rebuild gh-aw with a proper version tag. Example: v1.2.3", manifestPath, currentVersion)
 		}
 		currentVersion = semverutil.NormalizeGitDescribeSemver(currentVersion)
 		if semverutil.Compare(currentVersion, manifest.MinVersion) < 0 {
-			return nil, nil, fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s). Upgrade gh-aw, or lower min-version in aw.yml to a version at or below the current one. Example:\nmin-version: %s", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion, currentVersion)
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: min-version %q requires gh-aw %s or newer (current: %s). Upgrade gh-aw, or lower min-version in aw.yml to a version at or below the current one. Example:\nmin-version: %s", manifestPath, manifest.MinVersion, manifest.MinVersion, currentVersion, currentVersion)
 		}
 	}
+	return nil
+}
 
+func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManifest, root map[string]any, manifestPath string) ([]string, error) {
+	var warnings []string
 	if description, ok := stringValue(root["description"]); ok {
 		manifest.Description = description
 		if len(description) > 255 {
@@ -299,12 +373,12 @@ func parseRepositoryPackageManifest(manifestPath string, content []byte) (*repos
 		warnings = append(warnings, "Using experimental feature: config")
 		bootstrap, err := extractManifestConfig(configValue, manifestPath)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		manifest.Bootstrap = bootstrap
 	}
 
-	return manifest, warnings, nil
+	return warnings, nil
 }
 
 func extractManifestIncludes(value any, manifestPath string) ([]string, []string) {
@@ -542,42 +616,11 @@ func agentDirectoryRoot(cleaned string) string {
 // contain a SKILL.md file but are not already covered by the manifest. Each skill folder
 // is traversed recursively so that all nested files are included.
 func resolvePackageSkillFiles(ctx context.Context, owner, repo, packagePath, ref, host string, explicitSkillDirs []string) ([]resolvedPackageSkillFile, []string, error) {
-	// seenSkillDirs tracks full skill directories already added so that auto-scanned
-	// duplicates of manifest-specified skills are not added a second time.
-	seenSkillDirs := make(map[string]struct{})
-	var warnings []string
-
 	// Step 1: resolve manifest skills first (explicit dirs).
-	var manifestSkillDirs []string
-	for _, dir := range explicitSkillDirs {
-		manifestSkillDirs = append(manifestSkillDirs, joinRepositoryPackagePath(packagePath, dir))
-	}
-
-	// Step 2: always auto-scan and append any skills not already in the manifest.
-	autoScanned, err := scanPackageSkillDirs(ctx, owner, repo, packagePath, ref, host)
+	manifestSkillDirs := normalizeManifestSkillDirs(explicitSkillDirs, packagePath)
+	skillDirs, warnings, err := resolvePackageSkillDirs(ctx, owner, repo, packagePath, ref, host, manifestSkillDirs)
 	if err != nil {
-		// Auto-scan is supplementary for manifest-declared skills; preserve manifest
-		// resolution even when scan fails transiently.
-		if len(manifestSkillDirs) > 0 {
-			warnings = append(warnings, fmt.Sprintf("failed to auto-scan skills directory, proceeding with manifest skills only: %v", err))
-		} else {
-			return nil, nil, err
-		}
-	}
-
-	// Build the final ordered list: manifest skills first, then auto-scanned extras.
-	var skillDirs []string
-	appendIfNew := func(dir string) {
-		if _, exists := seenSkillDirs[dir]; !exists {
-			seenSkillDirs[dir] = struct{}{}
-			skillDirs = append(skillDirs, dir)
-		}
-	}
-	for _, dir := range manifestSkillDirs {
-		appendIfNew(dir)
-	}
-	for _, dir := range autoScanned {
-		appendIfNew(dir)
+		return nil, nil, err
 	}
 
 	// manifestSkillDirSet is used to know which dirs require a SKILL.md marker check.
@@ -588,35 +631,82 @@ func resolvePackageSkillFiles(ctx context.Context, owner, repo, packagePath, ref
 
 	var skillFiles []resolvedPackageSkillFile
 	for _, skillDir := range skillDirs {
-		// For skills that came from the manifest, validate that the SKILL.md marker
-		// exists so that typos in the manifest surface as clear warnings.
-		if _, fromManifest := manifestSkillDirSet[skillDir]; fromManifest {
-			markerPath := joinRepositoryPackagePath(skillDir, packageSkillMarkerFile)
-			if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, markerPath, ref, host); err != nil {
-				if isRepositoryFileNotFound(err) {
-					warnings = append(warnings, fmt.Sprintf("Skill directory %q is missing required %s marker file", skillDir, packageSkillMarkerFile))
-					continue
-				}
-				return nil, nil, fmt.Errorf("failed to validate skill marker %q (check the repository, ref, and network connectivity): %w", markerPath, err)
-			}
-		}
-		skillName := filepath.Base(skillDir)
-		// Use recursive listing so that the entire skill folder (including any
-		// subdirectories) is copied, not just the top-level files.
-		files, err := listPackageDirFilesRecursivelyForHost(ctx, owner, repo, ref, skillDir, host)
+		files, fileWarnings, err := resolvePackageSkillDirFiles(ctx, owner, repo, ref, host, skillDir, manifestSkillDirSet)
 		if err != nil {
+			return nil, nil, err
+		}
+		warnings = append(warnings, fileWarnings...)
+		skillFiles = append(skillFiles, files...)
+	}
+	return skillFiles, warnings, nil
+}
+
+func normalizeManifestSkillDirs(explicitSkillDirs []string, packagePath string) []string {
+	var manifestSkillDirs []string
+	for _, dir := range explicitSkillDirs {
+		manifestSkillDirs = append(manifestSkillDirs, joinRepositoryPackagePath(packagePath, dir))
+	}
+	return manifestSkillDirs
+}
+
+func resolvePackageSkillDirs(ctx context.Context, owner, repo, packagePath, ref, host string, manifestSkillDirs []string) ([]string, []string, error) {
+	var warnings []string
+	// Step 2: always auto-scan and append any skills not already in the manifest.
+	autoScanned, err := scanPackageSkillDirs(ctx, owner, repo, packagePath, ref, host)
+	if err != nil {
+		// Auto-scan is supplementary for manifest-declared skills; preserve manifest
+		// resolution even when scan fails transiently.
+		if len(manifestSkillDirs) == 0 {
+			return nil, nil, err
+		}
+		warnings = append(warnings, fmt.Sprintf("failed to auto-scan skills directory, proceeding with manifest skills only: %v", err))
+	}
+
+	// Build the final ordered list: manifest skills first, then auto-scanned extras.
+	var skillDirs []string
+	seenSkillDirs := make(map[string]struct{})
+	for _, dir := range append(manifestSkillDirs, autoScanned...) {
+		if _, exists := seenSkillDirs[dir]; exists {
+			continue
+		}
+		seenSkillDirs[dir] = struct{}{}
+		skillDirs = append(skillDirs, dir)
+	}
+	return skillDirs, warnings, nil
+}
+
+func resolvePackageSkillDirFiles(ctx context.Context, owner, repo, ref, host, skillDir string, manifestSkillDirSet map[string]struct{}) ([]resolvedPackageSkillFile, []string, error) {
+	var warnings []string
+	// For skills that came from the manifest, validate that the SKILL.md marker
+	// exists so that typos in the manifest surface as clear warnings.
+	if _, fromManifest := manifestSkillDirSet[skillDir]; fromManifest {
+		markerPath := joinRepositoryPackagePath(skillDir, packageSkillMarkerFile)
+		if _, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, markerPath, ref, host); err != nil {
 			if isRepositoryFileNotFound(err) {
-				warnings = append(warnings, fmt.Sprintf("Skill directory %q not found in package, skipping", skillDir))
-				continue
+				return nil, []string{fmt.Sprintf("Skill directory %q is missing required %s marker file", skillDir, packageSkillMarkerFile)}, nil
 			}
-			return nil, nil, fmt.Errorf("failed to list files in skill directory %q (check the repository, ref, and network connectivity): %w", skillDir, err)
+			return nil, nil, fmt.Errorf("failed to validate skill marker %q (check the repository, ref, and network connectivity): %w", markerPath, err)
 		}
-		for _, file := range files {
-			skillFiles = append(skillFiles, resolvedPackageSkillFile{
-				SourcePath: file,
-				SkillName:  skillName,
-			})
+	}
+
+	// Use recursive listing so that the entire skill folder (including any
+	// subdirectories) is copied, not just the top-level files.
+	files, err := listPackageDirFilesRecursivelyForHost(ctx, owner, repo, ref, skillDir, host)
+	if err != nil {
+		if isRepositoryFileNotFound(err) {
+			warnings = append(warnings, fmt.Sprintf("Skill directory %q not found in package, skipping", skillDir))
+			return nil, warnings, nil
 		}
+		return nil, nil, fmt.Errorf("failed to list files in skill directory %q (check the repository, ref, and network connectivity): %w", skillDir, err)
+	}
+
+	skillFiles := make([]resolvedPackageSkillFile, 0, len(files))
+	skillName := filepath.Base(skillDir)
+	for _, file := range files {
+		skillFiles = append(skillFiles, resolvedPackageSkillFile{
+			SourcePath: file,
+			SkillName:  skillName,
+		})
 	}
 	return skillFiles, warnings, nil
 }
@@ -916,18 +1006,10 @@ func listRepositoryPackageDirSubdirsForHost(ctx context.Context, owner, repo, re
 }
 
 func normalizeRepositoryPackageRemoteError(err error) error {
-	if err == nil || !isRepositoryPackageRemoteNotFound(err) {
+	if err == nil || !errorutil.IsNotFoundError(err) {
 		return err
 	}
 	return packageRemoteNotFoundError{cause: err}
-}
-
-func isRepositoryPackageRemoteNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	errText := strings.ToLower(err.Error())
-	return strings.Contains(errText, "404") || strings.Contains(errText, "not found")
 }
 
 func resolveRepositoryPackageDefaultBranch(ctx context.Context, repoSlug, host string) (string, error) {

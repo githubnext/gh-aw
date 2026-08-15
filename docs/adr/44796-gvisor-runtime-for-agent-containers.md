@@ -22,7 +22,7 @@ Continue using only Linux cgroups/namespaces for agent container isolation witho
 
 #### Alternative 2: Kata Containers
 
-Kata Containers provide VM-level isolation — each container runs in a lightweight QEMU/Firecracker VM with a dedicated kernel. This gives stronger isolation guarantees than gVisor in some threat models. It was not chosen because: (a) Kata requires KVM hardware virtualization support, which is not available in all GitHub-hosted runner configurations; (b) the AWF daemon already has native support for `containerRuntime: "gvisor"` but not for Kata; and (c) gVisor's installation footprint (two binaries + `runsc install`) is far smaller than Kata's, reducing runner setup time and dependency surface.
+Kata Containers provide VM-level isolation — each container runs in a lightweight hardware-virtualized VM with a dedicated kernel. This gives stronger isolation guarantees than gVisor in some threat models. It was not chosen because: (a) Kata requires KVM hardware virtualization support, which is not available in all GitHub-hosted runner configurations; (b) the AWF daemon already has native support for `containerRuntime: "gvisor"` but not for Kata; and (c) gVisor's installation footprint (two binaries + `runsc install`) is far smaller than Kata's, reducing runner setup time and dependency surface.
 
 #### Alternative 3: Seccomp / AppArmor profiles
 

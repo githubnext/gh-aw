@@ -26,6 +26,7 @@ imports:
   - shared/go-source-analysis.md
 
   - shared/otlp.md
+  - shared/reporting.md
 safe-outputs:
   close-issue:
     required-title-prefix: "[refactor] "
@@ -263,34 +264,37 @@ Apply deep reasoning to identify refactoring opportunities:
 
 Create a comprehensive issue with findings:
 
-**Report Structure:**
+**Report Structure:** Follow the `reporting` skill (headers `###`+, `<details>` for long content):
 
 ```markdown
-# 🔧 Semantic Function Clustering Analysis
+### 🔧 Semantic Function Clustering Analysis
 
 *Analysis of repository: ${{ github.repository }}*
 
-## Executive Summary
+### Executive Summary
 
 [Brief overview of findings - total files analyzed, clusters found, outliers identified, duplicates detected]
 
-## Function Inventory
+<details>
+<summary><b>Function Inventory</b></summary>
 
-### By Package
+#### By Package
 
 [List of packages with file counts and primary purposes]
 
-### Clustering Results
+#### Clustering Results
 
 [Summary of function clusters identified by semantic similarity]
 
-## Identified Issues
+</details>
 
-### 1. Outlier Functions (Functions in Wrong Files)
+### Identified Issues
+
+#### 1. Outlier Functions (Functions in Wrong Files)
 
 **Issue**: Functions that don't match their file's primary purpose
 
-#### Example: Validation in Compiler File
+##### Example: Validation in Compiler File
 
 - **File**: `pkg/workflow/compiler.go`
 - **Function**: `validateConfig(cfg *Config) error`
@@ -300,11 +304,12 @@ Create a comprehensive issue with findings:
 
 [... more outliers ...]
 
-### 2. Duplicate or Near-Duplicate Functions
+#### 2. Duplicate or Near-Duplicate Functions
 
 **Issue**: Functions with similar or identical implementations
 
-#### Example: String Processing Duplicates
+<details>
+<summary><b>Example: String Processing Duplicates</b></summary>
 
 - **Occurrence 1**: `pkg/workflow/helpers.go:processString(s string) string`
 - **Occurrence 2**: `pkg/workflow/utils.go:cleanString(s string) string`
@@ -329,7 +334,9 @@ Create a comprehensive issue with findings:
 
 [... more duplicates ...]
 
-### 3. Scattered Helper Functions
+</details>
+
+#### 3. Scattered Helper Functions
 
 **Issue**: Similar helper functions spread across multiple files
 
@@ -341,15 +348,16 @@ Create a comprehensive issue with findings:
 **Recommendation**: Create `pkg/workflow/helpers.go` or enhance existing helper files
 **Estimated Impact**: Centralized utilities, easier testing
 
-### 4. Opportunities for Generics
+#### 4. Opportunities for Generics
 
 **Issue**: Type-specific functions that could use generics
 
 [Examples of functions that differ only by type]
 
-## Detailed Function Clusters
+<details>
+<summary><b>Detailed Function Clusters</b></summary>
 
-### Cluster 1: Creation Functions
+##### Cluster 1: Creation Functions
 
 **Pattern**: `create*` functions
 **Files**: [list of files]
@@ -360,7 +368,7 @@ Create a comprehensive issue with findings:
 
 **Analysis**: Well-organized - each creation function has its own file ✓
 
-### Cluster 2: Parsing Functions
+##### Cluster 2: Parsing Functions
 
 **Pattern**: `parse*` functions
 **Files**: [list of files]
@@ -370,9 +378,11 @@ Create a comprehensive issue with findings:
 
 [... more clusters ...]
 
-## Refactoring Recommendations
+</details>
 
-### Priority 1: High Impact
+### Refactoring Recommendations
+
+#### Priority 1: High Impact
 
 1. **Move Outlier Functions**
    - Move validation functions to validation.go
@@ -386,7 +396,7 @@ Create a comprehensive issue with findings:
    - Estimated effort: 3-5 hours
    - Benefits: Reduced code size, single source of truth
 
-### Priority 2: Medium Impact
+#### Priority 2: Medium Impact
 
 3. **Centralize Helper Functions**
    - Create or enhance helper utility files
@@ -394,14 +404,14 @@ Create a comprehensive issue with findings:
    - Estimated effort: 4-6 hours
    - Benefits: Easier discoverability, reduced duplication
 
-### Priority 3: Long-term Improvements
+#### Priority 3: Long-term Improvements
 
 4. **Consider Generics for Type-Specific Functions**
    - Identify candidates for generic implementations
    - Estimated effort: 6-8 hours
    - Benefits: Type-safe code reuse
 
-## Implementation Checklist
+### Implementation Checklist
 
 - [ ] Review findings and prioritize refactoring tasks
 - [ ] Create detailed refactoring plan for Priority 1 items
@@ -411,7 +421,8 @@ Create a comprehensive issue with findings:
 - [ ] Verify no functionality broken
 - [ ] Consider Priority 2 and 3 items for future work
 
-## Analysis Metadata
+<details>
+<summary><b>Analysis Metadata</b></summary>
 
 - **Total Go Files Analyzed**: [count]
 - **Total Functions Cataloged**: [count]
@@ -420,6 +431,8 @@ Create a comprehensive issue with findings:
 - **Duplicates Detected**: [count]
 - **Detection Method**: Serena semantic code analysis + naming pattern analysis
 - **Analysis Date**: [timestamp]
+
+</details>
 ```
 
 ## Operational Guidelines

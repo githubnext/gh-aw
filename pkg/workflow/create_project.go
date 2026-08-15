@@ -7,7 +7,6 @@ var createProjectLog = logger.New("workflow:create_project")
 // CreateProjectsConfig holds configuration for creating GitHub Projects V2
 type CreateProjectsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	GitHubToken          string                   `yaml:"github-token,omitempty"`
 	TargetOwner          string                   `yaml:"target-owner,omitempty"`      // Default target owner (org/user) for the new project
 	TitlePrefix          string                   `yaml:"title-prefix,omitempty"`      // Default prefix for auto-generated project titles
 	Views                []ProjectView            `yaml:"views,omitempty"`             // Project views to create automatically after project creation
@@ -24,14 +23,6 @@ func (c *Compiler) parseCreateProjectsConfig(outputMap map[string]any) *CreatePr
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse base config (max, github-token)
 			c.parseBaseSafeOutputConfig(configMap, &createProjectsConfig.BaseSafeOutputConfig, 1)
-
-			// Parse github-token override if specified
-			if token, exists := configMap["github-token"]; exists {
-				if tokenStr, ok := token.(string); ok {
-					createProjectsConfig.GitHubToken = tokenStr
-					createProjectLog.Print("Using custom GitHub token for create-project")
-				}
-			}
 
 			// Parse target-owner if specified
 			if targetOwner, exists := configMap["target-owner"]; exists {

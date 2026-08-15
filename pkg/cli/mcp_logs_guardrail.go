@@ -29,9 +29,26 @@ const (
 // MCPLogsGuardrailResponse represents the response returned by the logs tool.
 // The full data is always written to a file; this response provides the file
 // path so the caller can read the data.
+// Partial is true when the download stopped early (timeout or count limit) and
+// the written data contains a continuation cursor; Continuation then carries the
+// parameters needed to fetch the remaining logs.
 type MCPLogsGuardrailResponse struct {
-	Message  string `json:"message"`
-	FilePath string `json:"file_path,omitempty"`
+	Message      string            `json:"message"`
+	FilePath     string            `json:"file_path,omitempty"`
+	Partial      bool              `json:"partial,omitempty"`
+	Continuation *ContinuationData `json:"continuation,omitempty"`
+}
+
+// extractLogsContinuation returns the continuation cursor embedded in the logs
+// JSON output, or nil when the output is not JSON or the results are complete.
+func extractLogsContinuation(outputStr string) *ContinuationData {
+	var parsed struct {
+		Continuation *ContinuationData `json:"continuation"`
+	}
+	if err := json.Unmarshal([]byte(outputStr), &parsed); err != nil {
+		return nil
+	}
+	return parsed.Continuation
 }
 
 // buildLogsFileResponse writes the logs JSON output to a content-addressed cache
@@ -119,6 +136,11 @@ func buildLogsFileResponse(outputStr string) string {
 	response := MCPLogsGuardrailResponse{
 		Message:  fmt.Sprintf("Logs data has been written to '%s'. Use the file_path to read the full data.", filePath),
 		FilePath: filePath,
+	}
+	if continuation := extractLogsContinuation(outputStr); continuation != nil {
+		response.Partial = true
+		response.Continuation = continuation
+		response.Message = fmt.Sprintf("PARTIAL RESULTS: the download stopped before all matching runs were collected. %s Partial logs data has been written to '%s'. Use the file_path to read the collected data and the continuation parameters to fetch the remaining logs.", continuation.Message, filePath)
 	}
 
 	responseJSON, err := json.MarshalIndent(response, "", "  ")
