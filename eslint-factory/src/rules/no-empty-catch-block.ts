@@ -19,7 +19,7 @@ export const noEmptyCatchBlockRule = createRule({
   create(context) {
     const sourceCode = context.sourceCode;
     const intentionalIgnoreCommentRes = [/\bintentional\b/i, /\bbest[- ]effort\b/i, /\bnon[- ]fatal\b/i, /(?<![-\w])(?:safe to )?ignore(?:d|s)?\b/i, /\bfall[- ]through\b/i, /\bno[- ]?op\b/i];
-    const negatedIntentionalIgnoreCommentRe = /\b(?:do not|don't|must not|never|not|should not)\s+(?:an?\s+)?(?:(?:safe to\s+)?ignore|(?:silently\s+)?swallow|fall[- ]through|no[- ]?op|best[- ]effort|non[- ]fatal)\b/i;
+    const negatedIntentionalIgnoreCommentRe = /\b(?:can't|cannot|do not|don't|must not|never|not|should not)\s+(?:an?\s+)?(?:(?:safe to\s+)?ignore|(?:silently\s+)?swallow|fall[- ]through|no[- ]?op|best[- ]effort|non[- ]fatal)\b/i;
     const swallowIntentionalIgnoreCommentRe = /\bsilently swallow(?:ed|s|ing)?\b|\bswallow(?:ed|s|ing)?\b(?=[^.!?]*(?:\bbecause\b|\bsince\b))/i;
 
     function commentSignalsIntentionalIgnore(comment: TSESTree.Comment): boolean {
