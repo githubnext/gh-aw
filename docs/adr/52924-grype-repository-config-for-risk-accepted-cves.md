@@ -12,7 +12,7 @@ The `gh aw compile --grype` scanner gates CI on `[Critical]` vulnerability findi
 
 ### Decision
 
-We will add optional repository-level grype configuration support to `pkg/cli/grype.go`. When `.grype.yaml` exists at the repository root it is mounted read-only into the grype scanner container and passed via `--config`, applying its `ignore` rules to the scan. The `.grype.yaml` file is reserved for documented, CVE-scoped risk acceptances where no upstream fix exists, mirroring the existing pattern used by `--grant` with `.grant.yaml`. Each ignore rule is scoped to a specific CVE ID and package so newly disclosed vulnerabilities in the same package remain visible. Rules carry a `reason` field for auditability and must be removed as soon as Debian ships a patched base image.
+We will add optional repository-level grype configuration support to `pkg/cli/grype.go`. When `.grype.yaml` exists at the repository root it is mounted read-only into the grype scanner container and passed via `--config`, applying its `ignore` rules to the scan. The `.grype.yaml` file is reserved for documented, CVE-scoped risk acceptances where no upstream fix exists, mirroring the existing pattern used by `--grant` with `.grant.yaml`. Each ignore rule is scoped to a specific CVE ID, package, and affected version so newly disclosed vulnerabilities and rebuilt packages remain visible. Rules carry a `reason` field for auditability and must be removed as soon as Debian ships a patched base image.
 
 ### Alternatives Considered
 
@@ -32,8 +32,8 @@ Roll back the pinned digest for `ghcr.io/github/github-mcp-server` to a tag unaf
 
 #### Positive
 - Daily container scans pass again without manual intervention once Debian ships patches.
-- Each risk acceptance is explicitly documented with a CVE ID, package scope, and `reason`, making the security posture auditable via normal code review.
-- Newly disclosed `libc6` vulnerabilities are still reported because rules are scoped to specific CVE IDs, not to the package as a whole.
+- Each risk acceptance is explicitly documented with a CVE ID, package/version scope, and `reason`, making the security posture auditable via normal code review.
+- Newly disclosed `libc6` vulnerabilities and rebuilt packages are still reported because rules are scoped to specific CVE IDs and versions, not to the package as a whole.
 - The approach is consistent with the existing `.grant.yaml` pattern already used for license policy, reducing cognitive overhead.
 
 #### Negative

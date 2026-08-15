@@ -413,7 +413,7 @@ The license policy in `.grant.yaml` is also applied to the container images refe
 
 ### Container Vulnerability Exceptions
 
-`gh aw compile --grype` reads the optional `.grype.yaml` file at the repository root and applies its `ignore` rules. The file is reserved for documented risk acceptances: findings that have no fixed version available upstream, where there is nothing to upgrade to. Each rule is scoped to a specific vulnerability ID and package so newly disclosed vulnerabilities in the same package are still reported, and each carries a `reason` explaining the acceptance. Remove a rule as soon as the upstream image ships a fix — the daily container scan runs `gh aw compile --force-refresh-container-pins` and picks up rebuilt base images automatically. When `.grype.yaml` is absent, grype runs with its defaults.
+`gh aw compile --grype` reads the optional `.grype.yaml` file at the repository root and applies its `ignore` rules. The file is reserved for documented risk acceptances: findings that have no fixed version available upstream, where there is nothing to upgrade to. Each rule is scoped to a specific vulnerability ID, package, and affected version so newly disclosed vulnerabilities and rebuilt packages are still reported, and each carries a `reason` explaining the acceptance. Remove a rule as soon as the upstream image ships a fix — the daily container scan runs `gh aw compile --force-refresh-container-pins` and picks up rebuilt base images automatically. When `.grype.yaml` is absent, grype runs with its defaults.
 
 ### Before Adding a Dependency
 

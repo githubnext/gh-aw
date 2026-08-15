@@ -1,10 +1,10 @@
 # Grype configuration used by `gh aw compile --grype`.
 #
 # Ignore rules below are documented risk acceptances for findings that have no
-# upstream fix available. Each rule is scoped to a specific vulnerability ID and
-# package so newly disclosed vulnerabilities in the same package are still
-# reported. Remove a rule as soon as the upstream base image ships a fix; the
-# daily `--force-refresh-container-pins` scan picks the fix up automatically.
+# upstream fix available. Each rule is scoped to a specific vulnerability ID,
+# package, and version so other builds remain reported. Remove a rule as soon as
+# the upstream base image ships a fix; the daily
+# `--force-refresh-container-pins` scan picks the fix up automatically.
 ignore:
   # Debian glibc advisories affecting the Debian base layer of
   # ghcr.io/github/github-mcp-server. Debian lists no fixed version for these
@@ -15,14 +15,17 @@ ignore:
     reason: "Debian lists no fixed libc6 version; risk-accepted until a patched base image ships."
     package:
       name: libc6
+      version: 2.36-9+deb12u14
       type: deb
   - vulnerability: CVE-2026-5928
     reason: "Debian lists no fixed libc6 version; risk-accepted until a patched base image ships."
     package:
       name: libc6
+      version: 2.36-9+deb12u14
       type: deb
   - vulnerability: CVE-2026-5435
     reason: "Debian lists no fixed libc6 version; risk-accepted until a patched base image ships."
     package:
       name: libc6
+      version: 2.36-9+deb12u14
       type: deb
