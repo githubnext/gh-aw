@@ -215,10 +215,10 @@
       "digest": "sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5",
       "pinned_image": "ghcr.io/github/serena-mcp-server:sha-891c160@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"
     },
-    "grafana/mcp-grafana:1.0.0-alpine": {
-      "image": "grafana/mcp-grafana:1.0.0-alpine",
-      "digest": "sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198",
-      "pinned_image": "grafana/mcp-grafana:1.0.0-alpine@sha256:b04c198d78ef3ae9bf22147802df510460b71ea573ef3932a4ab8ad87e595198"
+    "grafana/mcp-grafana:1.1.0-alpine": {
+      "image": "grafana/mcp-grafana:1.1.0-alpine",
+      "digest": "sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4",
+      "pinned_image": "grafana/mcp-grafana:1.1.0-alpine@sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4"
     },
     "node:lts-alpine": {
       "image": "node:lts-alpine",

@@ -321,6 +321,7 @@ steps:
 
   - name: Predownload models.dev API index
     shell: bash
+    # runner-guard:ignore RGS-012 -- unauthenticated GET from a public read-only model index; no secrets are sent.
     run: |
       set -euo pipefail
       OUT="/tmp/gh-aw/agent/model-inventory/models-dev"
