@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -67,13 +66,13 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// enforcement.
 	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.RawFrontmatter["on"])
 	if data.ParsedFrontmatter != nil {
-		manifest.ThreatDetectionSuppressions = activeThreatDetectionSuppressions(data.ParsedFrontmatter.ThreatDetectionSuppressions, time.Now())
+		manifest.ThreatDetectionSuppressions = data.ParsedFrontmatter.ThreatDetectionSuppressions
 	} else {
 		suppressions, err := parseThreatDetectionSuppressions(data.RawFrontmatter["threat-detection-suppress"])
 		if err != nil {
 			return fmt.Errorf("invalid threat-detection-suppress: %w", err)
 		}
-		manifest.ThreatDetectionSuppressions = activeThreatDetectionSuppressions(suppressions, time.Now())
+		manifest.ThreatDetectionSuppressions = suppressions
 	}
 	manifest.MemoryValidationScripts = collectMemoryValidationScripts(data)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {

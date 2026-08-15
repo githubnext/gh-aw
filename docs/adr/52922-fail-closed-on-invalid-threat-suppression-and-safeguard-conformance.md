@@ -1,7 +1,7 @@
 # ADR-52922: Fail Closed on Invalid Threat Suppression and Enforce Safeguard Conformance via Formal Tests
 
 **Date**: 2026-08-15
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -12,7 +12,7 @@ The AWF config and compiler threat-detection specifications defined safeguards �
 
 ### Decision
 
-We will enforce `threat-detection-suppress` entries through a validated JSON schema (added to `main_workflow_schema.json`) and carry only active, non-expired suppressions into the compiled lock-file manifest via `activeThreatDetectionSuppressions`. The compiler (`generateWorkflowHeader`) now returns an error when suppression data is invalid, failing closed at compile time rather than producing a potentially unsafe lock file. We will back every spec safeguard (snapshot expiry, degraded-run marking, retrieval warning completeness, scheduled persistence threshold, and all T-CTR-024–T-CTR-038 threat-optimizer protocol requirements) with formal conformance tests so that the spec's guarantees are machine-verifiable. The threat optimizer schedule is corrected from weekly to daily to match the spec's coverage-frequency requirement.
+We will enforce `threat-detection-suppress` entries through a validated JSON schema (added to `main_workflow_schema.json`) and carry all validated suppressions into the compiled lock-file manifest. Retaining expired entries keeps compilation deterministic and preserves the complete audit record; runtime and audit consumers determine whether a suppression is active. The compiler (`generateWorkflowHeader`) now returns an error when suppression data is invalid, failing closed at compile time rather than producing a potentially unsafe lock file. We will back every spec safeguard (snapshot expiry, degraded-run marking, retrieval warning completeness, scheduled persistence threshold, and all T-CTR-024–T-CTR-038 threat-optimizer protocol requirements) with formal conformance tests so that the spec's guarantees are machine-verifiable. The threat optimizer schedule is corrected from weekly to daily to match the spec's coverage-frequency requirement.
 
 ### Alternatives Considered
 
@@ -28,7 +28,7 @@ Update the spec documents to state the safeguard requirements without adding Go 
 
 #### Positive
 - The compiler fails closed on invalid suppression configuration: a workflow with a malformed `threat-detection-suppress` entry cannot be compiled to a lock file.
-- Active suppressions are persisted in the lock-file manifest, creating an auditable record of which suppression annotations were in effect at compile time.
+- All validated suppressions are persisted in the lock-file manifest, creating a deterministic audit record without wall-clock-dependent lock-file churn.
 - Formal conformance tests (T-DR-SAFE-001 through T-DR-SAFE-004, T-CTR-024 through T-CTR-038) make all spec safeguard guarantees machine-verifiable and regression-proof.
 - The optimizer runs daily, closing the coverage-frequency gap with the spec.
 
@@ -42,4 +42,4 @@ Update the spec documents to state the safeguard requirements without adding Go 
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent].*

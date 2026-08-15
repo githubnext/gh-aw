@@ -74,13 +74,15 @@ func TestThreatSuppression_TCTR024_ReasonRequired(t *testing.T) {
 }
 
 func TestThreatSuppression_TCTR025_AuditFields(t *testing.T) {
-	suppression := ThreatDetectionSuppression{Rule: "CTR-006", Reason: "Reviewed safe", Expires: "2026-08-31"}
-	manifest := GHAWManifest{ThreatDetectionSuppressions: activeThreatDetectionSuppressions(
-		[]ThreatDetectionSuppression{suppression},
-		time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC),
-	)}
-	require.Len(t, manifest.ThreatDetectionSuppressions, 1)
-	assert.Equal(t, suppression, manifest.ThreatDetectionSuppressions[0])
+	suppression := ThreatDetectionSuppression{Rule: "CTR-006", Reason: "Reviewed safe", Expires: "2000-01-01"}
+	var header strings.Builder
+	require.NoError(t, (&Compiler{}).generateWorkflowHeader(&header, &WorkflowData{
+		RawFrontmatter: map[string]any{"on": map[string]any{"schedule": "daily"}},
+		ParsedFrontmatter: &FrontmatterConfig{
+			ThreatDetectionSuppressions: []ThreatDetectionSuppression{suppression},
+		},
+	}, "", "", nil, nil))
+	assert.Contains(t, header.String(), `"threat_detection_suppressions":[{"rule":"CTR-006","reason":"Reviewed safe","expires":"2000-01-01"}]`)
 }
 
 func TestThreatSuppression_TCTR026Through028_SLAAndEscalation(t *testing.T) {
