@@ -53,7 +53,7 @@ func TestFormatSafeJobRunsOn(t *testing.T) {
 			want:          "runs-on:\n  - self-hosted\n  - linux",
 		},
 		{
-			name:          "multi-element value not marked as array still falls back to FormatRunsOn",
+			name:          "multi-element scalar-mode renders as JSON array inline",
 			runsOn:        RunsOnValue{"self-hosted", "linux"},
 			runsOnArray:   false,
 			defaultRunsOn: "ubuntu-latest",
