@@ -154,6 +154,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
       - Preferred: provide GitHub App credentials (`app-id`/`client-id` + `private-key`) to mint a token with `actions/create-github-app-token` before `actions/setup`.
       - OIDC mode is used when `github-app` is configured without credentials (`app-id`/`client-id` + `private-key`).
       - OIDC mode requires `permissions.id-token: write` on the workflow/job.
+    - `workload-identity:` - Exchange a GitHub Actions OIDC token for a cloud access token before OTLP export. Only `provider: google` is currently supported; requires `audience:` (Google Workload Identity Provider resource name) and accepts optional `service-account:` to impersonate after STS token exchange.
     - `headers:` - Comma-separated `key=value` HTTP headers included in every OTLP export request (e.g. `Authorization=Bearer <token>`). Injected as `OTEL_EXPORTER_OTLP_HEADERS`. Supports GitHub Actions expressions.
     - `resource-attributes:` - Optional map of additional OTEL resource attributes appended to gh-aw/GitHub defaults. Values may be static strings or GitHub Actions expressions. Do not use `secrets.*` or `vars.*` here because resource attributes are exported to external observability backends and are not treated as secret values.
   - Example:
@@ -179,6 +180,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     - `action-repo:` - GitHub Actions repository for setup (e.g., 'actions/setup-node')
     - `action-version:` - Version of the setup action (e.g., 'v4', 'v5')
     - `if:` - Optional GitHub Actions condition to control when runtime setup runs (e.g., `"hashFiles('go.mod') != ''"`)
+    - `cooldown:` - Enable a default 3-day dependency cooldown for installs on this runtime (boolean, default: `true`); set `false` to disable
   - Example:
 
     ```yaml
