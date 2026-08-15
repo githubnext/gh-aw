@@ -140,6 +140,16 @@ describe("detect_agent_errors.cjs", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("model 'claude-3-5-sonnet@20241022' not found")).toBe(true);
     });
 
+    it("matches the Copilot SDK driver policy-enablement error", () => {
+      const errorOutput = "[copilot-sdk-driver] [sdk-driver] error: Execution failed: Error: No model available. Check policy enablement under GitHub Settings > Copilot";
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    it("does not match 'No model available' without the policy-enablement hint", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("No model available\nCheck policy enablement under GitHub Settings > Copilot")).toBe(false);
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("warning: no model available yet, waiting")).toBe(false);
+    });
+
     it("matches AIC api-proxy 404 standalone 'Model not found' shape", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("404 Not Found: Model not found")).toBe(true);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("ResponseError: 404 Not Found: Model not found")).toBe(true);
