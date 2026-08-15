@@ -31,6 +31,7 @@ type SafeJobConfig struct {
 	GitHubToken string                      `yaml:"github-token,omitempty"`
 	Output      string                      `yaml:"output,omitempty"`
 	Max         int                         `yaml:"max,omitempty"` // Maximum number of times this output type may be emitted per run (default: 1)
+	runsOnArray bool                        `yaml:"-"`
 }
 
 // parseSafeJobsConfig parses safe-jobs configuration from a jobs map.
@@ -69,8 +70,10 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 		// Parse runs-on (also accept "runner" as alias)
 		if runsOn, exists := jobConfig["runs-on"]; exists {
 			safeJob.RunsOn = toRunsOnValue(runsOn)
+			safeJob.runsOnArray = isRunsOnArrayValue(runsOn)
 		} else if runner, exists := jobConfig["runner"]; exists {
 			safeJob.RunsOn = toRunsOnValue(runner)
+			safeJob.runsOnArray = isRunsOnArrayValue(runner)
 		}
 
 		// Parse if condition
@@ -231,9 +234,21 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Add any additional dependencies from the config
 		job.Needs = append(job.Needs, jobConfig.Needs...)
 
+		const defaultRunsOn = "ubuntu-latest"
+
 		// Set runs-on.
-		// FormatRunsOn handles defaulting and YAML-safe rendering.
-		job.RunsOn = "runs-on: " + FormatRunsOn(jobConfig.RunsOn, "ubuntu-latest")
+		// Preserve list-shaped input from safe-outputs.jobs as a YAML array.
+		if jobConfig.runsOnArray && len(jobConfig.RunsOn) > 0 {
+			// Keep []string{""} semantically unset, matching FormatRunsOn behavior.
+			if len(jobConfig.RunsOn) == 1 && jobConfig.RunsOn[0] == "" {
+				job.RunsOn = "runs-on: " + defaultRunsOn
+			} else {
+				job.RunsOn = c.indentYAMLLines(renderRunsOnSnippet([]string(jobConfig.RunsOn)), "    ")
+			}
+		} else {
+			// FormatRunsOn handles defaulting and YAML-safe rendering.
+			job.RunsOn = "runs-on: " + FormatRunsOn(jobConfig.RunsOn, defaultRunsOn)
+		}
 
 		// Set if condition - combine safe output type check with user-provided condition
 		// Custom safe jobs should only run if the agent output contains the job name (tool call)

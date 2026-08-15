@@ -379,6 +379,7 @@ func TestParseAndBuildSafeJobsRunsOnList(t *testing.T) {
 	})
 
 	require.Equal(t, RunsOnValue{"self-hosted", "linux"}, safeJobs["deploy"].RunsOn)
+	require.True(t, safeJobs["deploy"].runsOnArray)
 
 	workflowData := &WorkflowData{
 		Name:        "test-workflow",
@@ -397,8 +398,43 @@ func TestParseAndBuildSafeJobsRunsOnList(t *testing.T) {
 		break
 	}
 
-	// Multiple labels are rendered as a YAML flow sequence.
-	require.Equal(t, `runs-on: ["self-hosted","linux"]`, job.RunsOn)
+	// Multiple labels parsed as a list are rendered as a YAML list.
+	require.Equal(t, "runs-on:\n      - self-hosted\n      - linux", job.RunsOn)
+}
+
+func TestParseAndBuildSafeJobsSingleRunsOnList(t *testing.T) {
+	c := NewCompiler()
+
+	safeJobs := c.parseSafeJobsConfig(map[string]any{
+		"deploy": map[string]any{
+			"runs-on": []any{"self-hosted"},
+			"steps": []any{
+				map[string]any{"run": "echo 'Deploying'"},
+			},
+		},
+	})
+
+	require.Equal(t, RunsOnValue{"self-hosted"}, safeJobs["deploy"].RunsOn)
+	require.True(t, safeJobs["deploy"].runsOnArray)
+
+	workflowData := &WorkflowData{
+		Name:        "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{Jobs: safeJobs},
+	}
+
+	_, err := c.buildSafeJobs(workflowData, false)
+	require.NoError(t, err)
+
+	jobs := c.jobManager.GetAllJobs()
+	require.Len(t, jobs, 1)
+
+	var job *Job
+	for _, j := range jobs {
+		job = j
+		break
+	}
+
+	require.Equal(t, "runs-on:\n      - self-hosted", job.RunsOn)
 }
 
 func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {

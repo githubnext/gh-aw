@@ -115,6 +115,15 @@ func toRunsOnValue(value any) RunsOnValue {
 	}
 }
 
+func isRunsOnArrayValue(value any) bool {
+	switch value.(type) {
+	case []any, []string:
+		return true
+	default:
+		return false
+	}
+}
+
 // MaintenanceConfig holds maintenance-workflow-specific settings from aw.json.
 type MaintenanceCompileConfig struct {
 	// CreatePullRequestGitHubToken is the secret name used by the compile-workflows
