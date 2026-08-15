@@ -31,7 +31,13 @@ function isPotentiallyInvalidDateConstruction(node: TSESTree.NewExpression): boo
 /** Returns true when the callee is the global `isNaN` or the static `Number.isNaN` function. */
 function isIsNaNCallee(callee: TSESTree.Expression): boolean {
   const isNaNGlobal = callee.type === AST_NODE_TYPES.Identifier && callee.name === "isNaN";
-  const isNaNStatic = callee.type === AST_NODE_TYPES.MemberExpression && callee.object.type === AST_NODE_TYPES.Identifier && callee.object.name === "Number" && !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "isNaN";
+  const isNaNStatic =
+    callee.type === AST_NODE_TYPES.MemberExpression &&
+    callee.object.type === AST_NODE_TYPES.Identifier &&
+    callee.object.name === "Number" &&
+    !callee.computed &&
+    callee.property.type === AST_NODE_TYPES.Identifier &&
+    callee.property.name === "isNaN";
   return isNaNGlobal || isNaNStatic;
 }
 
@@ -60,7 +66,13 @@ function extractDirectNaNCheckTarget(node: TSESTree.CallExpression): TSESTree.Id
 /** Returns true when the callee is the global `isFinite` or the static `Number.isFinite` function. */
 function isIsFiniteCallee(callee: TSESTree.Expression): boolean {
   const isFiniteGlobal = callee.type === AST_NODE_TYPES.Identifier && callee.name === "isFinite";
-  const isFiniteStatic = callee.type === AST_NODE_TYPES.MemberExpression && callee.object.type === AST_NODE_TYPES.Identifier && callee.object.name === "Number" && !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "isFinite";
+  const isFiniteStatic =
+    callee.type === AST_NODE_TYPES.MemberExpression &&
+    callee.object.type === AST_NODE_TYPES.Identifier &&
+    callee.object.name === "Number" &&
+    !callee.computed &&
+    callee.property.type === AST_NODE_TYPES.Identifier &&
+    callee.property.name === "isFinite";
   return isFiniteGlobal || isFiniteStatic;
 }
 

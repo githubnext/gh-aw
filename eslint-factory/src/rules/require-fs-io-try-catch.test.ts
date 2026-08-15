@@ -9,6 +9,22 @@ const cjsRuleTester = new RuleTester({
   },
 });
 
+function expectedWrapInTryCatchSuggestion(method: string, statement: string, prefix = "") {
+  return {
+    messageId: "wrapInTryCatch",
+    output:
+      `${prefix}try {\n` +
+      `  ${statement}\n` +
+      `} catch (err) {\n` +
+      `  // TODO: handle I/O failure for this fs.${method} call.\n` +
+      `  throw new Error(\n` +
+      `    "fs.${method} failed: " + (err instanceof Error ? err.message : String(err)),\n` +
+      `    { cause: err },\n` +
+      `  );\n` +
+      `}`,
+  };
+}
+
 describe("require-fs-io-try-catch", () => {
   it("valid: fs.statSync inside try block passes", () => {
     cjsRuleTester.run("require-fs-io-try-catch", requireFsIoTryCatchRule, {
@@ -36,7 +52,7 @@ describe("require-fs-io-try-catch", () => {
       invalid: [
         {
           code: `fs.statSync(path);`,
-          errors: [{ messageId: "requireTryCatch", data: { method: "statSync", arg: "path" } }],
+          errors: [{ messageId: "requireTryCatch", data: { method: "statSync", arg: "path" }, suggestions: [expectedWrapInTryCatchSuggestion("statSync", "fs.statSync(path);")] }],
         },
       ],
     });
@@ -60,7 +76,7 @@ describe("require-fs-io-try-catch", () => {
       invalid: [
         {
           code: `fs.copyFileSync(src, dest);`,
-          errors: [{ messageId: "requireTryCatch", data: { method: "copyFileSync", arg: "src" } }],
+          errors: [{ messageId: "requireTryCatch", data: { method: "copyFileSync", arg: "src" }, suggestions: [expectedWrapInTryCatchSuggestion("copyFileSync", "fs.copyFileSync(src, dest);")] }],
         },
       ],
     });
@@ -72,7 +88,7 @@ describe("require-fs-io-try-catch", () => {
       invalid: [
         {
           code: `fs.unlinkSync(outputFile);`,
-          errors: [{ messageId: "requireTryCatch", data: { method: "unlinkSync", arg: "outputFile" } }],
+          errors: [{ messageId: "requireTryCatch", data: { method: "unlinkSync", arg: "outputFile" }, suggestions: [expectedWrapInTryCatchSuggestion("unlinkSync", "fs.unlinkSync(outputFile);")] }],
         },
       ],
     });
@@ -84,7 +100,7 @@ describe("require-fs-io-try-catch", () => {
       invalid: [
         {
           code: `fs.renameSync(tmpPath, finalPath);`,
-          errors: [{ messageId: "requireTryCatch", data: { method: "renameSync", arg: "tmpPath" } }],
+          errors: [{ messageId: "requireTryCatch", data: { method: "renameSync", arg: "tmpPath" }, suggestions: [expectedWrapInTryCatchSuggestion("renameSync", "fs.renameSync(tmpPath, finalPath);")] }],
         },
       ],
     });
@@ -103,7 +119,7 @@ describe("require-fs-io-try-catch", () => {
       invalid: [
         {
           code: `const { statSync } = require("node:fs"); statSync(path);`,
-          errors: [{ messageId: "requireTryCatch" }],
+          errors: [{ messageId: "requireTryCatch", suggestions: [expectedWrapInTryCatchSuggestion("statSync", "statSync(path);", `const { statSync } = require("node:fs"); `)] }],
         },
       ],
     });
