@@ -600,9 +600,11 @@ Why: command strings evaluated by a shell (`exec`, `execSync`, `spawn` / `spawnS
 - `execFileSync("git " + branch, ["status"], { shell: true })` — shell-enabled execFileSync.
 - `spawn("git checkout " + branch, ...opts)` — spread options are treated conservatively as potentially shell-enabled.
 - ESM imports are recognized (`import { execSync } from "node:child_process"`).
+- `` execSync(`git checkout ${branch}`.trim()) `` — chained string-normalizing methods (`trim`, `trimStart`, `trimEnd`, `toLowerCase`, `toUpperCase`, `toLocaleLowerCase`, `toLocaleUpperCase`, `replace`, `replaceAll`, `normalize`) are unwrapped before the check.
+- `` execSync("git checkout PLACEHOLDER".replace("PLACEHOLDER", () => branch)) `` — a `.replace()` / `.replaceAll()` replacer callback's return value is also inspected.
 
 **Not flagged:**
-- Fully static command strings (`"git status"`, `` `git status` ``, and fully static `+` concatenations).
+- Fully static command strings (`"git status"`, `` `git status` ``, and fully static `+` concatenations), including when a string-normalizing method is chained onto them.
 - `spawn(cmd, [args])` / `spawnSync(cmd, [args])` without `shell: true`.
 - `execFile` / `execFileSync` without `shell: true`.
 
@@ -718,9 +720,11 @@ Disallow passing an interpolated template literal or dynamic string concatenatio
 **Detected forms:**
 - `` exec.exec(`git checkout ${branchName}`) `` — interpolated template literal.
 - `exec.exec("git " + branchName)` — dynamic string concatenation.
+- `` exec.exec(`git checkout ${branchName}`.trim()) `` — chained string-normalizing methods (`trim`, `trimStart`, `trimEnd`, `toLowerCase`, `toUpperCase`, `toLocaleLowerCase`, `toLocaleUpperCase`, `replace`, `replaceAll`, `normalize`) are unwrapped before the check.
+- `` exec.exec("git checkout PLACEHOLDER".replace("PLACEHOLDER", () => branchName)) `` — a `.replace()` / `.replaceAll()` replacer callback's return value is also inspected.
 
 **Not flagged:**
-- Static command strings, including string concatenation of only static expressions.
+- Static command strings, including string concatenation of only static expressions and chained string-normalizing methods on them.
 - Arguments passed correctly via the `args` array.
 
 ### `no-setfailed-then-exit-zero`
