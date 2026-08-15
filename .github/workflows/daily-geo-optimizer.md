@@ -72,8 +72,8 @@ jobs:
             > /tmp/gh-aw/agent/geo-optimizer/readme-audit.json 2>&1 || true
 
       - name: Verify documentation robots.txt
-        # runner-guard:ignore RGS-012 -- unauthenticated GET from the public documentation site; no secrets are sent.
         run: |
+          # runner-guard:ignore RGS-012 -- unauthenticated GET from the public documentation site; no secrets are sent.
           ROBOTS_URL="https://github.github.com/gh-aw/robots.txt"
           ROBOTS_BODY="/tmp/gh-aw/agent/geo-optimizer/docs-robots.txt"
           rm -f "$ROBOTS_BODY"
