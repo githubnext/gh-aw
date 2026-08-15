@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,6 +65,12 @@ func TestThreatSuppression_TCTR024_ReasonRequired(t *testing.T) {
 	require.Error(t, validateThreatDetectionSuppressions([]ThreatDetectionSuppression{{Rule: "CTR-006"}}))
 	require.Error(t, validateThreatDetectionSuppressions([]ThreatDetectionSuppression{{Rule: "CTR-006", Reason: "  "}}))
 	require.Error(t, validateThreatDetectionSuppressions([]ThreatDetectionSuppression{{Rule: "invalid", Reason: "Safe"}}))
+
+	var header strings.Builder
+	err = (&Compiler{}).generateWorkflowHeader(&header, &WorkflowData{
+		RawFrontmatter: missingReasonFrontmatter,
+	}, "", "", nil, nil)
+	require.ErrorContains(t, err, "reason must not be empty")
 }
 
 func TestThreatSuppression_TCTR025_AuditFields(t *testing.T) {
