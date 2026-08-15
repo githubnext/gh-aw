@@ -975,7 +975,6 @@ async function main() {
   const omittedRequiredServers = findOmittedRequiredMCPServers(configObj, gatewayOutput, optionalServerNames);
   if (omittedRequiredServers.length > 0) {
     const message = formatOmittedRequiredMCPServersMessage(omittedRequiredServers);
-    core.error(message);
     try {
       process.kill(gatewayPid);
     } catch {

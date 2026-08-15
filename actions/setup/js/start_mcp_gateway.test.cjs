@@ -405,10 +405,20 @@ describe("start_mcp_gateway omitted required MCP server detection", () => {
     ]);
   });
 
-  it("does not report optional servers omitted from gateway output", () => {
+  it("does not report servers marked optional in their config", () => {
     const inputConfig = {
       mcpServers: {
         datadog: { type: "http", url: "https://example.com/mcp", required: false },
+      },
+    };
+    const gatewayOutput = { mcpServers: {} };
+
+    expect(findOmittedRequiredMCPServers(inputConfig, gatewayOutput)).toEqual([]);
+  });
+
+  it("does not report servers forwarded as optional after required flags are stripped", () => {
+    const inputConfig = {
+      mcpServers: {
         slack: { type: "http", url: "https://example.com/slack" },
       },
     };
