@@ -20,6 +20,9 @@ func init() {
 	initialized = append(initialized, 1)
 	globalMap["seed"] = 1
 	delete(globalMap, "seed")
+	go func() {
+		globalSlice = append(globalSlice, 2) // want `package-level slice/map variable globalSlice is mutated via append\(\) re-assignment; mutating shared package state risks data races and can leak state across calls`
+	}()
 }
 
 func appendToGlobal(v int) {
