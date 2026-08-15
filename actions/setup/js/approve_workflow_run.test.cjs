@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockGetWorkflowRun = vi.fn();
 const mockApproveWorkflowRun = vi.fn();
 const mockListFiles = vi.fn();
+const mockGetPullRequest = vi.fn();
 
 global.core = {
   info: vi.fn(),
@@ -23,6 +24,7 @@ global.github = {
       approveWorkflowRun: mockApproveWorkflowRun,
     },
     pulls: {
+      get: mockGetPullRequest,
       listFiles: mockListFiles,
     },
   },
@@ -42,9 +44,11 @@ const externalTokenConfig = { "github-token": "external-token" };
 describe("approve_workflow_run", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    global.context.eventName = undefined;
     global.context.payload = { pull_request: { number: 42 } };
     mockGetWorkflowRun.mockResolvedValue({ data: pendingPullRequestRun });
     mockApproveWorkflowRun.mockResolvedValue({ status: 201 });
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { fork: false } } } });
     mockListFiles.mockResolvedValue({ data: [] });
   });
 
@@ -105,6 +109,7 @@ describe("approve_workflow_run", () => {
     mockGetWorkflowRun.mockResolvedValue({
       data: { ...pendingPullRequestRun, status: "completed" },
     });
+
     const { main } = require("./approve_workflow_run.cjs");
     const handler = await main(externalTokenConfig);
 
@@ -112,6 +117,43 @@ describe("approve_workflow_run", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("not awaiting approval");
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects fork pull requests by default", async () => {
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { fork: true } } } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("set fork: true");
+    expect(mockListFiles).not.toHaveBeenCalled();
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("allows fork pull requests when explicitly enabled", async () => {
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: { fork: true } } } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, fork: true });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects pull_request_target events before accessing GitHub", async () => {
+    global.context.eventName = "pull_request_target";
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("pull_request_target");
+    expect(mockGetWorkflowRun).not.toHaveBeenCalled();
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
   });
 

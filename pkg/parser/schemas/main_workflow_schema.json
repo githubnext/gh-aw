@@ -6879,6 +6879,10 @@
                     }
                   ]
                 },
+                "fork": {
+                  "type": "boolean",
+                  "description": "Allow approval of workflow runs associated with fork pull requests. Defaults to false."
+                },
                 "allowed-pull-requests": {
                   "description": "Additional pull request numbers whose pending workflow runs may be approved. The triggering pull request is always allowed. Supports a list of strings or a GitHub Actions expression that resolves to a list.",
                   "oneOf": [

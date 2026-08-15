@@ -63,6 +63,23 @@ async function getModifiedPullRequestFiles(githubClient, pullRequestNumber) {
 }
 
 /**
+ * @param {any} githubClient
+ * @param {number} pullRequestNumber
+ * @returns {Promise<boolean>}
+ */
+async function isForkPullRequest(githubClient, pullRequestNumber) {
+  const { data: pullRequest } = await githubClient.rest.pulls.get({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: pullRequestNumber,
+  });
+  if (typeof pullRequest?.head?.repo?.fork !== "boolean") {
+    throw new Error(`Unable to verify fork status for pull request #${pullRequestNumber}`);
+  }
+  return pullRequest.head.repo.fork;
+}
+
+/**
  * Main handler factory for approve_workflow_run.
  * @type {HandlerFactoryFunction}
  */
@@ -86,6 +103,12 @@ async function main(config = {}) {
     const runId = parsePositiveInt(message.run_id);
     if (!runId) {
       const error = "run_id must be a positive integer";
+      core.warning(error);
+      return { success: false, error };
+    }
+
+    if (context.eventName === "pull_request_target") {
+      const error = "approve_workflow_run cannot run on pull_request_target events; use pull_request instead";
       core.warning(error);
       return { success: false, error };
     }
@@ -138,6 +161,11 @@ async function main(config = {}) {
           core.warning(error);
           return { success: false, error };
         }
+        if ((await isForkPullRequest(githubClient, pullRequestNumber)) && config.fork !== true) {
+          const error = `Workflow run ${runId} cannot be approved because pull request #${pullRequestNumber} is from a fork; set fork: true to allow fork pull requests`;
+          core.warning(error);
+          return { success: false, error };
+        }
         const files = await getModifiedPullRequestFiles(githubClient, pullRequestNumber);
         const protection = checkFileProtectionPostApply(files, {
           ...config,
@@ -168,4 +196,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, parseAllowedPullRequests, parsePositiveInt, getModifiedPullRequestFiles };
+module.exports = { main, parseAllowedPullRequests, parsePositiveInt, getModifiedPullRequestFiles, isForkPullRequest };

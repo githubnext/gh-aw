@@ -24,6 +24,7 @@ safe-outputs:
     github-app:
       app-id: ${{ vars.APPROVE_WORKFLOW_RUN_APP_ID }}
       private-key: ${{ secrets.APPROVE_WORKFLOW_RUN_APP_PRIVATE_KEY }}
+    fork: true
     protected-files:
       exclude:
         - AGENTS.md
@@ -41,6 +42,7 @@ Approve the pending workflow run for this pull request.
 		assert.Contains(t, step, "permission-pull-requests: read")
 		assert.Contains(t, compiled, "steps.approve-workflow-run-app-token.outputs.token")
 		handlerConfig := extractApproveWorkflowRunHandlerConfig(t, compiled)
+		assert.Equal(t, true, handlerConfig["fork"])
 		protectedFiles, ok := handlerConfig["protected_files"].([]any)
 		require.True(t, ok)
 		assert.NotContains(t, protectedFiles, "AGENTS.md")

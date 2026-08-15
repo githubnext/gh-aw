@@ -20,6 +20,7 @@ safe-outputs:
   approve-workflow-run:
     max: 2
     staged: true
+    fork: true
     allowed-pull-requests:
       - "42"
     protected-files:
@@ -38,6 +39,7 @@ Approve eligible workflow runs.
 	assert.Equal(t, strPtr("2"), data.SafeOutputs.ApproveWorkflowRun.Max)
 	require.NotNil(t, data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.Equal(t, TemplatableBool("true"), *data.SafeOutputs.ApproveWorkflowRun.Staged)
+	assert.True(t, data.SafeOutputs.ApproveWorkflowRun.Fork)
 	assert.Equal(t, []string{"42"}, data.SafeOutputs.ApproveWorkflowRun.AllowedPullRequests)
 	assert.Equal(t, []string{"AGENTS.md"}, data.SafeOutputs.ApproveWorkflowRun.ProtectedFilesExclude)
 
@@ -53,6 +55,7 @@ func TestApproveWorkflowRunDefaultConfiguration(t *testing.T) {
 
 	require.NotNil(t, config)
 	assert.Equal(t, strPtr("1"), config.Max)
+	assert.False(t, config.Fork)
 }
 
 func TestValidateSafeOutputsApproveWorkflowRunAuthentication(t *testing.T) {

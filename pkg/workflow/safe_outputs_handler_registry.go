@@ -316,6 +316,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		c := cfg.ApproveWorkflowRun
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
+			AddDefault("fork", c.Fork).
 			AddTemplatableStringSlice("allowed_pull_requests", c.AllowedPullRequests).
 			AddStringSlice("protected_files", getAllManifestFiles()).
 			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
