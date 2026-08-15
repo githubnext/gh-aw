@@ -104,3 +104,13 @@
 - Orphaned custom agents UNCHANGED for 13th consecutive run: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer (interactive-agent-designer remains referenced/resolved).
 - No new Copilot CLI Go features detected in codebase since last run (same file set: copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, copilot_installer.go, copilot_inline_driver.go, copilot_logs.go).
 - DECISION: Filing noop this run - the only real news (top-level model migration) was already the headline finding of the immediately preceding issue (run 31666761449, filed 2026-08-12/13), and its continued progress doesn't yet warrant a fresh issue. Orphaned agents remain the same unaddressed low-priority cleanup item flagged for 13 runs. No new actionable finding distinct from what's already tracked in open issues.
+
+## Run 31862974294 (2026-08-15)
+- Total workflows flat at 285. Narrow `engine: copilot` count flat at 38.
+- --share flag: still 1 (this research workflow only) — 13th+ consecutive run confirming persistent non-issue.
+- engine.args: reconfirmed still 0 — the "args:" hits in eslint-miner.md/jsweep.md/smoke-copilot.md are LSP server config args (`lsp.typescript.args: ["--stdio"]`), not engine.args; true engine.args usage remains 0.
+- Orphaned custom agents unchanged again: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer (4, interactive-agent-designer remains resolved with 1 ref).
+- disable-builtin-mcps: flat at 2 real usages (auto-triage-issues.md + this research workflow).
+- CODEBASE CHANGE DETECTED: commit c35faf4 "feat!: remove Firecracker support" (#52774) removed Firecracker sandbox support entirely from the repo (no remaining references in pkg/workflow or docs). This shrinks the sandbox feature surface (AWF/SRT remain) but is not a Copilot CLI usage gap — no action needed, just noted for inventory accuracy.
+- No other new Copilot CLI Go features detected since last run.
+- DECISION: Filed noop per established policy (run 31354820498+) — only file new issue when (a) new Copilot CLI feature appears, (b) orphaned agent status changes, or (c) --share/engine.args adoption changes from 0/1. None of these conditions met this run.
