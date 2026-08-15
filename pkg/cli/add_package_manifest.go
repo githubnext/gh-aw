@@ -11,6 +11,7 @@ import (
 	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/semverutil"
@@ -1005,18 +1006,10 @@ func listRepositoryPackageDirSubdirsForHost(ctx context.Context, owner, repo, re
 }
 
 func normalizeRepositoryPackageRemoteError(err error) error {
-	if err == nil || !isRepositoryPackageRemoteNotFound(err) {
+	if err == nil || !errorutil.IsNotFoundError(err) {
 		return err
 	}
 	return packageRemoteNotFoundError{cause: err}
-}
-
-func isRepositoryPackageRemoteNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	errText := strings.ToLower(err.Error())
-	return strings.Contains(errText, "404") || strings.Contains(errText, "not found")
 }
 
 func resolveRepositoryPackageDefaultBranch(ctx context.Context, repoSlug, host string) (string, error) {

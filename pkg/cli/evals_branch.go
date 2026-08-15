@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -141,7 +142,7 @@ func resolveRunStateBranchRef(ctx context.Context, repoOverride, branchName stri
 		cmd := workflow.ExecGHContext(ctx, args...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			if isRemoteFileNotFoundOutput(string(out)) {
+			if errorutil.IsNotFoundOutput(string(out)) {
 				return "", os.ErrNotExist
 			}
 			return "", fmt.Errorf("failed to list commits for state branch %s: %w", branchName, err)
