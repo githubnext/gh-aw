@@ -6,7 +6,7 @@ description: Label usage guidelines for GitHub Agentic Workflows issue tracking
 
 ## Purpose of Labels
 
-Labels help organize and triage issues for better project management. Use labels to:
+Labels help organize and triage issues for project management. Use labels to:
 - Categorize issue type (bug, enhancement, documentation)
 - Indicate priority level
 - Mark workflow automation status
@@ -134,7 +134,7 @@ Analysis of the repository (as of December 2024) shows:
 
 ### Key Findings
 
-**The label distribution is healthy and working as intended.** The high percentage of workflow labels reflects active AI-assisted planning, not a labeling problem.
+**The label distribution reflects expected usage and is working as intended.** The high percentage of workflow labels reflects active AI-assisted planning, not a labeling problem.
 
 **Why this is not a concern:**
 1. Labels reflect actual project activity (active AI planning)
