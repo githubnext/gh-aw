@@ -7,7 +7,7 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.28.3<br>
+**Version**: 1.28.4<br>
 **Status**: Working Draft<br>
 **Publication Date**: 2026-08-07<br>
 **Editor**: GitHub Agentic Workflows Team<br>
@@ -2119,6 +2119,7 @@ The following table defines the exact `createHandlers()` function used for each 
 | `close_discussion` | `defaultHandler("close_discussion")` |
 | `update_pull_request` | `updatePullRequestHandler` |
 | `close_pull_request` | `defaultHandler("close_pull_request")` |
+| `approve_workflow_run` | `approve_workflow_run.cjs` (`main`) |
 | `merge_pull_request` | `defaultHandler("merge_pull_request")` |
 | `mark_pull_request_as_ready_for_review` | `defaultHandler("mark_pull_request_as_ready_for_review")` |
 | `push_to_pull_request_branch` | `pushToPullRequestBranchHandler` |
@@ -2165,7 +2166,7 @@ Fields used for privileged transport metadata, including patch anchoring and upl
 
 **Purpose**: Create GitHub issues for bug tracking, feature requests, or task management.
 
-**Default Max**: 1  
+**Default Max**: 1
 **Cross-Repository Support**: Yes (via `target-repo`)  
 **Mandatory**: Yes (required for full conformance)
 
@@ -3117,6 +3118,69 @@ This section provides complete definitions for all remaining safe output types. 
 - Higher default max (10) enables bulk PR cleanup operations
 - Does NOT merge changes - use GitHub's merge functionality for that
 - When `safe-outputs.close-pull-request.target` is `"*"`, requests MUST include `pull_request_number`.
+
+---
+
+#### Type: approve_workflow_run
+
+**Purpose**: Approve a workflow run waiting for a repository's fork pull request approval gate.
+
+**Default Max**: 1
+**Cross-Repository Support**: No
+**Mandatory**: No
+
+**MCP Tool Schema**:
+
+```json
+{
+  "name": "approve_workflow_run",
+  "description": "Approve a GitHub Actions workflow run awaiting fork pull request approval.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["run_id"],
+    "properties": {
+      "run_id": {
+        "type": ["number", "string"],
+        "description": "Positive integer workflow run ID from /actions/runs/<run_id>."
+      }
+    },
+    "additionalProperties": false
+  }
+}
+```
+
+**Operational Semantics**:
+
+1. **Input Validation**: `run_id` MUST be a positive safe integer.
+2. **Staged Preview**: When `staged` is true, the handler MUST return a preview without reading GitHub state or consuming the configured max limit.
+3. **Eligibility**: Before approval, the handler MUST fetch the run and verify `event` is `pull_request`, the `pull_requests` array is non-empty, and `status` is `waiting`.
+4. **Authorization**: The run MUST be associated with the pull request that triggered the workflow, unless its pull request number is in `allowed-pull-requests`.
+5. **Execution**: Only after all preceding checks pass MAY the handler invoke GitHub's workflow-run approval API and consume one max-count slot.
+
+**Configuration Parameters**:
+
+- `max`: Operation limit (default: 1)
+- `staged`: Preview without a GitHub API call or max-count consumption
+- `github-token`: Explicit external token for this handler or inherited from `safe-outputs.github-token`
+- `github-app`: GitHub App configuration that mints a handler-scoped token
+- `allowed-pull-requests`: Additional authorized pull request numbers as strings or an expression resolving to a list
+
+**Security Requirements**:
+
+- Live approvals MUST use an explicit external `github-token` or a GitHub App token; implementations MUST NOT use the default `github.token`.
+- The handler MUST reject a run that is not a pull request run, is not associated with an authorized pull request, or is not waiting for approval.
+- The handler MUST be classified as an Abort type for warn-mode threat-detection failures.
+
+**Required Permissions**:
+
+*GitHub Actions Token*:
+
+- `actions: write` - Workflow-run approval
+
+*GitHub App*:
+
+- `actions: write` - Workflow-run approval
+- `metadata: read` - Repository metadata (automatically granted)
 
 ---
 
@@ -4644,6 +4708,7 @@ When threat detection executes in `warn` mode and reports a threat signal for a 
 | `close_discussion` | Abort |
 | `update_pull_request` | Reviewable |
 | `close_pull_request` | Abort |
+| `approve_workflow_run` | Abort |
 | `merge_pull_request` | Abort |
 | `mark_pull_request_as_ready_for_review` | Abort |
 | `push_to_pull_request_branch` | Convertible (`create_pull_request`) |
@@ -5422,6 +5487,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.28.4** (2026-08-15):
+
+- **Added**: `approve_workflow_run` safe output definition, including its positive run-ID schema, fork-approval eligibility checks, triggering-PR authorization default, optional `allowed-pull-requests`, explicit credential requirement, and `actions: write` permission.
+- **Specified**: Staged approval previews MUST not access GitHub or consume the handler max limit; live approvals are Abort operations for warn-mode threat-detection failures.
+- **Updated**: Publication metadata to 1.28.4.
 
 **Version 1.28.3** (2026-08-14):
 

@@ -186,7 +186,7 @@ safe-outputs:
 
 ## Approve Workflow Run (`approve-workflow-run:`)
 
-Approves a GitHub Actions workflow run that is waiting for the repository's fork pull request approval gate. The agent supplies the positive integer `run_id`; the handler verifies that the run belongs to a pull request and has a `waiting` status before calling GitHub's workflow-run approval API.
+Approves a GitHub Actions workflow run waiting at the repository's fork pull request approval gate. The agent supplies a positive integer `run_id`; the handler verifies that the run is a pull request run, is associated with an authorized pull request, and has status `waiting` before calling GitHub's workflow-run approval API.
 
 ```yaml wrap
 safe-outputs:
@@ -198,9 +198,9 @@ safe-outputs:
       - "123"
 ```
 
-This operation requires `actions: write` and an explicit external `github-token` or `github-app`; the default `github.token` cannot approve fork pull-request workflow runs. Use `staged: true` to preview approvals without executing them.
+This operation requires `actions: write` and an explicit external `github-token` or `github-app`; the default `github.token` cannot approve fork pull-request workflow runs. GitHub App tokens are minted with `actions: write`. Use `staged: true` to preview an approval without accessing the GitHub API or consuming the configured `max` limit.
 
-Approvals are limited to the pull request that triggered the workflow. Use `allowed-pull-requests` to permit additional pull requests; it accepts a list of string PR numbers or a GitHub Actions expression that resolves to a list of PR numbers.
+Approvals are limited to the pull request that triggered the workflow by default. Use `allowed-pull-requests` to permit additional pull requests; it accepts a list of string PR numbers or a GitHub Actions expression that resolves to a list of PR numbers. Invalid entries are not authorized. A workflow run that is not a pull request run, is not associated with an authorized pull request, or no longer has status `waiting` is rejected.
 
 ## Merge Pull Request (`merge-pull-request:`)
 

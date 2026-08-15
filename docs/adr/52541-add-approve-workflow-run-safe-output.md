@@ -14,7 +14,7 @@ The safe outputs system is the established extension point for granting AI agent
 
 ### Decision
 
-We will add `approve-workflow-run` as a new opt-in safe output type backed by a dedicated handler (`approve_workflow_run.cjs` / `approve_workflow_run.go`). The handler fetches the workflow run from the GitHub API, verifies that its `event` is `pull_request` and its `conclusion` is `action_required`, and only then calls `actions.approveWorkflowRun`. The operation requires `actions: write` and is classified as a non-reviewable mutation under threat-detection warn mode, consistent with `merge-pull-request` and `close-pull-request`.
+We will add `approve-workflow-run` as a new opt-in safe output type backed by a dedicated handler (`approve_workflow_run.cjs` / `approve_workflow_run.go`). The handler fetches the workflow run from the GitHub API, verifies that its `event` is `pull_request`, it has an associated pull request, its `status` is `waiting`, and that pull request is the triggering pull request or explicitly configured in `allowed-pull-requests`; it then calls `actions.approveWorkflowRun`. The operation requires `actions: write` and an explicit external `github-token` or GitHub App token because `github.token` cannot approve fork pull-request workflow runs. It is classified as a non-reviewable mutation under threat-detection warn mode, consistent with `merge-pull-request` and `close-pull-request`.
 
 ### Alternatives Considered
 
@@ -38,9 +38,9 @@ A more general "re-run workflow" or "dispatch workflow" primitive could be repur
 
 #### Positive
 - AI agents can unblock fork PR workflow runs without human intervention, enabling fully automated fork PR triage flows.
-- The handler enforces a server-side precondition (`conclusion === "action_required"`) before approving, so agents cannot accidentally approve runs that are already completed or succeeded.
+- The handler accepts only positive workflow run IDs and enforces server-side eligibility checks before approving, so agents cannot accidentally approve completed, non-PR, or unauthorized PR runs.
 - `actions: write` is granted only when `approve-workflow-run` is explicitly enabled in the workflow's `safe-outputs` config, preserving the principle of least privilege for workflows that do not need this capability.
-- Staged mode (`staged: true`) allows preview of which runs would be approved without executing the actual API call, supporting safe rollout.
+- Staged mode (`staged: true`) previews the requested run without GitHub API access or max-count consumption, supporting safe rollout.
 
 #### Negative
 - `actions: write` is a broad GitHub permission scope — a compromised or misbehaving agent with this safe output enabled could approve workflow runs from malicious forks.
