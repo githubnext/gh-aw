@@ -100,6 +100,34 @@ run_script "${D}" none >/dev/null
 assert ".git directory still exists"   "[ -d '${D}/.git' ]"
 echo ""
 
+# ── Test 2b: Cached git config/info state is cleared and reset ─────────────────
+echo "Test 2b: cached git config/info state is cleared"
+D="${WORKSPACE}/test2b"
+make_cache_dir "${D}" "file.txt"
+mkdir -p "${D}/.git/info"
+cat > "${D}/.git/config" <<'EOF'
+[user]
+	email = attacker@example.com
+[core]
+	fsmonitor = /tmp/evil.sh
+EOF
+echo "*.txt" > "${D}/.git/info/exclude"
+run_script "${D}" none >/dev/null
+EMAIL_CFG="$(git -C "${D}" config user.email)"
+NAME_CFG="$(git -C "${D}" config user.name)"
+FSMONITOR_CFG="$(git -C "${D}" config core.fsmonitor)"
+HOOKSPATH_CFG="$(git -C "${D}" config core.hooksPath)"
+assert ".git config user email reset" \
+  "[ \"${EMAIL_CFG}\" = 'gh-aw@github.com' ]"
+assert ".git config user name reset" \
+  "[ \"${NAME_CFG}\" = 'gh-aw' ]"
+assert ".git fsmonitor disabled" \
+  "[ \"${FSMONITOR_CFG}\" = 'false' ]"
+assert ".git hooksPath reset to /dev/null" \
+  "[ \"${HOOKSPATH_CFG}\" = '/dev/null' ]"
+assert ".git info/exclude removed" "[ ! -f '${D}/.git/info/exclude' ]"
+echo ""
+
 # ── Test 3: No extension filter — all files kept when GH_AW_ALLOWED_EXTENSIONS is empty ─
 echo "Test 3: No extension filter when GH_AW_ALLOWED_EXTENSIONS is unset"
 D="${WORKSPACE}/test3"

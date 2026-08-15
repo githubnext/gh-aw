@@ -149,6 +149,14 @@ if [ -d .git/hooks ]; then
   find .git/hooks -type f ! -name '*.sample' -delete
 fi
 
+# --- Security: clear git config/info state from restored cache ---
+# Cache restores can carry forward untrusted git configuration and info files
+# from prior runs. Remove both so the repo is reconfigured from scratch.
+if [ -d .git ]; then
+  rm -f .git/config
+  rm -rf .git/info
+fi
+
 # --- Format detection & migration ---
 if [ ! -d .git ]; then
   initialize_cache_memory_git_repo
@@ -178,6 +186,14 @@ else
     initialize_cache_memory_git_repo
   fi
   rm -f "$_hooks_config_err" 2>/dev/null || true
+fi
+
+# --- Security: enforce fresh hardened git config for this run ---
+if [ -d .git ]; then
+  git config user.email "gh-aw@github.com"
+  git config user.name "gh-aw"
+  git config core.hooksPath /dev/null
+  git config core.fsmonitor false
 fi
 
 # --- Checkout current integrity branch ---
