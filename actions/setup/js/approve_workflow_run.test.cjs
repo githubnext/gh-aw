@@ -144,6 +144,35 @@ describe("approve_workflow_run", () => {
     expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects a run when any associated pull request is from a fork by default", async () => {
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, pull_requests: [{ number: 42 }, { number: 43 }] },
+    });
+    mockGetPullRequest.mockImplementation(async ({ pull_number: pullRequestNumber }) => ({
+      data: { head: { repo: { fork: pullRequestNumber === 43 } } },
+    }));
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("set fork: true");
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects pull requests with an unavailable fork repository", async () => {
+    mockGetPullRequest.mockResolvedValue({ data: { head: { repo: null } } });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("fork repository is unavailable");
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
   it("rejects pull_request_target events before accessing GitHub", async () => {
     global.context.eventName = "pull_request_target";
     const { main } = require("./approve_workflow_run.cjs");
@@ -278,5 +307,15 @@ describe("approve_workflow_run", () => {
     expect((await handler({ run_id: 122 }, {})).success).toBe(false);
     expect((await handler({ run_id: 123 }, {})).success).toBe(true);
     expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not consume the maximum when approval fails", async () => {
+    mockApproveWorkflowRun.mockRejectedValueOnce(new Error("temporary API failure")).mockResolvedValueOnce({ status: 201 });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, max: 1 });
+
+    expect((await handler({ run_id: 122 }, {})).success).toBe(false);
+    expect((await handler({ run_id: 123 }, {})).success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(2);
   });
 });

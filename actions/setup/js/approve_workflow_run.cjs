@@ -32,7 +32,7 @@ function parsePositiveInt(value) {
  * @returns {Set<number>}
  */
 function parseAllowedPullRequests(value) {
-  const parsed = (Array.isArray(value) ? value : [value]).map(parsePositiveInt).filter(value => value !== undefined);
+  const parsed = (Array.isArray(value) ? value : [value]).map(parsePositiveInt).filter(candidate => candidate !== undefined);
   return new Set(parsed);
 }
 
@@ -73,6 +73,9 @@ async function isForkPullRequest(githubClient, pullRequestNumber) {
     repo: context.repo.repo,
     pull_number: pullRequestNumber,
   });
+  if (pullRequest?.head?.repo === null) {
+    throw new Error(`Cannot approve pull request #${pullRequestNumber}: its fork repository is unavailable`);
+  }
   if (typeof pullRequest?.head?.repo?.fork !== "boolean") {
     throw new Error(`Unable to verify fork status for pull request #${pullRequestNumber}`);
   }
@@ -179,12 +182,16 @@ async function main(config = {}) {
       }
 
       processedCount++;
-
-      await githubClient.rest.actions.approveWorkflowRun({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        run_id: runId,
-      });
+      try {
+        await githubClient.rest.actions.approveWorkflowRun({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          run_id: runId,
+        });
+      } catch (error) {
+        processedCount--;
+        throw error;
+      }
 
       core.info(`Approved workflow run ${runId}: ${run.html_url}`);
       return { success: true, run_id: runId, url: run.html_url };
