@@ -107,6 +107,10 @@ func TestMajorVersionPreference(t *testing.T) {
 		})
 	}
 }
+
+// TestGetLatestActionRelease_FallsBackToGitWhenNoReleases verifies that when the GitHub
+// Releases API returns an empty list, getLatestActionRelease falls back to the git
+// ls-remote tag scan (getLatestActionReleaseViaGitFn) rather than returning an error.
 func TestGetLatestActionRelease_FallsBackToGitWhenNoReleases(t *testing.T) {
 	deps := newTestActionUpdateDeps()
 
@@ -289,9 +293,9 @@ func TestFindCooledDownActionVersion_EmptySHASkipped(t *testing.T) {
 	}
 }
 
-// TestUpdateActions_CooldownFallbackToOlderRelease verifies that updateActions
-// falls back to an older cooled-down release instead of skipping the update
-// entirely when the newest candidate is still in cooldown.
+// TestFindCooledDownActionVersion_SHAErrorFallsToNext verifies that
+// findCooledDownActionVersion skips a candidate whose SHA lookup fails and
+// falls back to the next cooled-down candidate instead of failing outright.
 func TestFindCooledDownActionVersion_SHAErrorFallsToNext(t *testing.T) {
 	deps := newTestActionUpdateDeps()
 	deps.runGHReleasesAPI = func(_ context.Context, _ string) ([]byte, error) {

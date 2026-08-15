@@ -220,9 +220,9 @@ func TestUpdateSkillRefsInContentWithResolver_NoFrontmatterNoChange(t *testing.T
 	}
 }
 
-// TestGetLatestActionRelease_FallsBackToGitWhenNoReleases verifies that when the GitHub
-// Releases API returns an empty list, getLatestActionRelease falls back to the git
-// ls-remote tag scan (getLatestActionReleaseViaGitFn) rather than returning an error.
+// TestUpdateActionRefsInContent_CooldownFallback verifies that
+// updateActionRefsInContentWithDeps falls back to an older cooled-down release
+// when the newest candidate is still within the cooldown window.
 func TestUpdateActionRefsInContent_CooldownFallback(t *testing.T) {
 	deps := newTestActionUpdateDeps()
 

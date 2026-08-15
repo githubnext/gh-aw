@@ -323,9 +323,9 @@ func savedEntryKeys(cache *workflow.ActionCache) []string {
 	return keys
 }
 
-// TestFindCooledDownActionVersion_SelectsOlderCooledRelease verifies that when the
-// newest release is in cooldown, findCooledDownActionVersion falls back to the next
-// older release that has passed the cooldown period.
+// TestUpdateActions_CooldownFallbackToOlderRelease verifies that updateActions
+// falls back to an older cooled-down release instead of skipping the update
+// entirely when the newest candidate is still in cooldown.
 func TestUpdateActions_CooldownFallbackToOlderRelease(t *testing.T) {
 	deps := newTestActionUpdateDeps()
 
@@ -391,9 +391,9 @@ func TestUpdateActions_CooldownFallbackToOlderRelease(t *testing.T) {
 	}
 }
 
-// TestUpdateActionRefsInContent_CooldownFallback verifies that
-// updateActionRefsInContentWithDeps falls back to an older cooled-down release
-// when the newest candidate is still within the cooldown window.
+// TestUpdateActions_EmptyResolvedSHARetainsExistingEntry verifies that
+// updateActions keeps the existing cache entry unchanged when the resolved
+// SHA for a candidate release comes back empty.
 func TestUpdateActions_EmptyResolvedSHARetainsExistingEntry(t *testing.T) {
 	deps := newTestActionUpdateDeps()
 	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, _, _ bool) (string, string, error) {
