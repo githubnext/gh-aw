@@ -8,7 +8,7 @@ require (
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/charmbracelet/colorprofile v0.4.3
-	github.com/charmbracelet/x/exp/golden v0.0.0-20260803091719-3755ebad01b1
+	github.com/charmbracelet/x/exp/golden v0.0.0-20260813141921-f091cedeaf78
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.55.0
-	golang.org/x/mod v0.39.0
+	golang.org/x/mod v0.40.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.45.0
 	golang.org/x/tools v0.49.0

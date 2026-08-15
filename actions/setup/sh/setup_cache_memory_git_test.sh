@@ -100,6 +100,103 @@ run_script "${D}" none >/dev/null
 assert ".git directory still exists"   "[ -d '${D}/.git' ]"
 echo ""
 
+# ── Test 2b: Cached git config/info state is cleared and reset ─────────────────
+echo "Test 2b: cached git config/info state is cleared"
+D="${WORKSPACE}/test2b"
+make_cache_dir "${D}" "file.txt"
+mkdir -p "${D}/.git/info"
+cat > "${D}/.git/config" <<'EOF'
+[user]
+	email = attacker@example.com
+	name = attacker
+[core]
+	fsmonitor = /tmp/evil.sh
+	sshCommand = /tmp/ssh-wrapper.sh
+	hooksPath = /tmp/hooks
+	attributesFile = /tmp/evil-attributes
+[include]
+	path = /tmp/evil-include
+[includeIf "onbranch:approved"]
+	path = /tmp/evil-includeif
+[credential]
+	helper = /tmp/credential-helper
+[credential "https://github.com"]
+	helper = /tmp/credential-helper-url
+[alias]
+	co = !/tmp/evil-alias.sh
+[filter "evil"]
+	smudge = /tmp/evil-smudge.sh
+	process = /tmp/evil-process.sh
+[merge "evil"]
+	driver = /tmp/evil-merge-driver.sh %O %A %B %L
+EOF
+echo "*.txt" > "${D}/.git/info/exclude"
+echo "*.txt -text" > "${D}/.git/info/attributes"
+echo "0000000000000000000000000000000000000000 1111111111111111111111111111111111111111" > "${D}/.git/info/grafts"
+echo "/tmp" > "${D}/.git/info/sparse-checkout"
+run_script "${D}" none >/dev/null
+EMAIL_CFG="$(git -C "${D}" config user.email)"
+NAME_CFG="$(git -C "${D}" config user.name)"
+FSMONITOR_CFG="$(git -C "${D}" config --default '' core.fsmonitor)"
+HOOKSPATH_CFG="$(git -C "${D}" config --default '' core.hooksPath)"
+SSHCOMMAND_CFG="$(git -C "${D}" config --default '' core.sshCommand)"
+ATTRIBUTES_FILE_CFG="$(git -C "${D}" config --default '' core.attributesFile)"
+INCLUDE_CFG="$(git -C "${D}" config --local --name-only --get-regexp '^include\.' 2>/dev/null || true)"
+INCLUDEIF_CFG="$(git -C "${D}" config --local --name-only --get-regexp '^includeif\.' 2>/dev/null || true)"
+CREDENTIAL_CFG="$(git -C "${D}" config --local --name-only --get-regexp '^credential\.' 2>/dev/null || true)"
+ALIAS_CFG="$(git -C "${D}" config --local --name-only --get-regexp '^alias\.' 2>/dev/null || true)"
+FILTER_CFG="$(git -C "${D}" config --local --name-only --get-regexp '^filter\.' 2>/dev/null || true)"
+MERGE_CFG="$(git -C "${D}" config --local --name-only --get-regexp '^merge\.' 2>/dev/null || true)"
+assert ".git config user email reset" \
+  "[ \"${EMAIL_CFG}\" = 'gh-aw@github.com' ]"
+assert ".git config user name reset" \
+  "[ \"${NAME_CFG}\" = 'gh-aw' ]"
+assert ".git fsmonitor disabled" \
+  "[ \"${FSMONITOR_CFG}\" = 'false' ]"
+assert ".git hooksPath reset to /dev/null" \
+  "[ \"${HOOKSPATH_CFG}\" = '/dev/null' ]"
+assert ".git sshCommand removed" \
+  "[ -z \"${SSHCOMMAND_CFG}\" ]"
+assert ".git core.attributesFile removed" \
+  "[ -z \"${ATTRIBUTES_FILE_CFG}\" ]"
+assert ".git include sections removed" \
+  "[ -z \"${INCLUDE_CFG}\" ]"
+assert ".git includeIf sections removed" \
+  "[ -z \"${INCLUDEIF_CFG}\" ]"
+assert ".git credential sections removed" \
+  "[ -z \"${CREDENTIAL_CFG}\" ]"
+assert ".git alias sections removed" \
+  "[ -z \"${ALIAS_CFG}\" ]"
+assert ".git filter sections removed" \
+  "[ -z \"${FILTER_CFG}\" ]"
+assert ".git merge sections removed" \
+  "[ -z \"${MERGE_CFG}\" ]"
+assert ".git info/exclude removed" "[ ! -f '${D}/.git/info/exclude' ]"
+assert ".git info/attributes removed" "[ ! -f '${D}/.git/info/attributes' ]"
+assert ".git info/grafts removed" "[ ! -f '${D}/.git/info/grafts' ]"
+assert ".git info/sparse-checkout removed" "[ ! -f '${D}/.git/info/sparse-checkout' ]"
+echo ""
+
+# ── Test 2c: Symlinked git metadata is rejected before .git operations ─────────
+echo "Test 2c: symlinked .git metadata is rejected"
+D="${WORKSPACE}/test2c"
+make_cache_dir "${D}" "file.txt"
+mkdir -p "${D}/outside-info"
+echo "*.tmp" > "${D}/outside-info/exclude"
+mv "${D}/.git/config" "${D}/outside-config"
+ln -s "${D}/outside-config" "${D}/.git/config"
+rm -rf "${D}/.git/info"
+ln -s "${D}/outside-info" "${D}/.git/info"
+run_script "${D}" none >/dev/null
+EMAIL_CFG_2C="$(git -C "${D}" config user.email)"
+assert "external info file remains untouched" "[ -f '${D}/outside-info/exclude' ]"
+assert "external config file remains untouched" "[ -f '${D}/outside-config' ]"
+assert "local .git/info is rebuilt as directory" "[ -d '${D}/.git/info' ] && [ ! -L '${D}/.git/info' ]"
+assert "local .git/config is rebuilt as regular file" "[ -f '${D}/.git/config' ] && [ ! -L '${D}/.git/config' ]"
+assert "reinitialized config sets safe user.email" \
+  "[ \"${EMAIL_CFG_2C}\" = 'gh-aw@github.com' ]"
+echo ""
+
 # ── Test 3: No extension filter — all files kept when GH_AW_ALLOWED_EXTENSIONS is empty ─
 echo "Test 3: No extension filter when GH_AW_ALLOWED_EXTENSIONS is unset"
 D="${WORKSPACE}/test3"
