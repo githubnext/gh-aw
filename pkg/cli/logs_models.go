@@ -223,19 +223,9 @@ type MCPToolUsageSummary struct {
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
 
-// RunSummary represents a complete summary of a workflow run's artifacts and metrics.
-// This file is written to each run folder as "run_summary.json" to cache processing results
-// and avoid re-downloading and re-processing already analyzed runs.
-//
-// Key features:
-// - Acts as a marker that a run has been fully processed
-// - Stores all extracted metrics and analysis results
-// - Includes CLI version for cache invalidation when the tool is updated
-// - Enables fast reloading of run data without re-parsing logs
-//
-// Cache invalidation:
-// - If the CLI version in the summary doesn't match the current version, the run is reprocessed
-// - This ensures that bug fixes and improvements in log parsing are automatically applied
+// RunAnalysis holds the run metadata, metrics and analysis reports extracted from a
+// workflow run's logs and artifacts. It is embedded by both RunSummary and DownloadResult
+// so both carriers share a single definition of the analysis surface.
 type RunAnalysis struct {
 	Run                     WorkflowRun              `json:"run"`                               // Full workflow run metadata
 	Metrics                 LogMetrics               `json:"metrics"`                           // Extracted log metrics
@@ -257,6 +247,19 @@ type RunAnalysis struct {
 	JobDetails              []JobInfoWithDuration    `json:"job_details"`                       // Job execution details
 }
 
+// RunSummary represents a complete summary of a workflow run's artifacts and metrics.
+// This file is written to each run folder as "run_summary.json" to cache processing results
+// and avoid re-downloading and re-processing already analyzed runs.
+//
+// Key features:
+// - Acts as a marker that a run has been fully processed
+// - Stores all extracted metrics and analysis results
+// - Includes CLI version for cache invalidation when the tool is updated
+// - Enables fast reloading of run data without re-parsing logs
+//
+// Cache invalidation:
+// - If the CLI version in the summary doesn't match the current version, the run is reprocessed
+// - This ensures that bug fixes and improvements in log parsing are automatically applied
 type RunSummary struct {
 	CLIVersion  string    `json:"cli_version"`  // CLI version used to process this run
 	RunID       int64     `json:"run_id"`       // Workflow run database ID
