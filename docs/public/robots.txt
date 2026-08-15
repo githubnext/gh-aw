@@ -19,6 +19,9 @@ Allow: /
 User-agent: Claude-SearchBot
 Allow: /
 
+User-agent: Claude-User
+Allow: /
+
 User-agent: claude-web
 Allow: /
 
@@ -26,6 +29,9 @@ User-agent: PerplexityBot
 Allow: /
 
 User-agent: Perplexity-User
+Allow: /
+
+User-agent: Googlebot
 Allow: /
 
 User-agent: Google-Extended

@@ -42,6 +42,7 @@ evals:
     question: Did the agent report an actionable documentation recommendation or explain why no update was needed?
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
     sudo: false
 ---

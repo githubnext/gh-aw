@@ -154,6 +154,7 @@ safe-outputs:
   noop:
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     sudo: false
 evals:
   - id: candidate_selected
