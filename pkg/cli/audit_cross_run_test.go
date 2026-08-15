@@ -14,6 +14,7 @@ import (
 )
 
 func TestBuildCrossRunAuditReport_EmptyInputs(t *testing.T) {
+	t.Parallel()
 	report := buildCrossRunAuditReport([]crossRunInput{})
 
 	assert.Equal(t, 0, report.RunsAnalyzed, "Should have 0 runs analyzed")
@@ -25,6 +26,7 @@ func TestBuildCrossRunAuditReport_EmptyInputs(t *testing.T) {
 }
 
 func TestBuildCrossRunAuditReport_SingleRunWithData(t *testing.T) {
+	t.Parallel()
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -68,6 +70,7 @@ func TestBuildCrossRunAuditReport_SingleRunWithData(t *testing.T) {
 }
 
 func TestBuildCrossRunAuditReport_MultipleRuns(t *testing.T) {
+	t.Parallel()
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -159,6 +162,7 @@ func TestBuildCrossRunAuditReport_MultipleRuns(t *testing.T) {
 }
 
 func TestBuildCrossRunAuditReport_AllRunsWithoutData(t *testing.T) {
+	t.Parallel()
 	inputs := []crossRunInput{
 		{RunID: 100, WorkflowName: "wf", Conclusion: "success", FirewallAnalysis: nil},
 		{RunID: 200, WorkflowName: "wf", Conclusion: "failure", FirewallAnalysis: nil},
@@ -174,6 +178,7 @@ func TestBuildCrossRunAuditReport_AllRunsWithoutData(t *testing.T) {
 }
 
 func TestBuildCrossRunAuditReport_DomainInventorySorted(t *testing.T) {
+	t.Parallel()
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -203,6 +208,7 @@ func TestBuildCrossRunAuditReport_DomainInventorySorted(t *testing.T) {
 }
 
 func TestRenderCrossRunReportJSON(t *testing.T) {
+	t.Parallel()
 	report := &CrossRunAuditReport{
 		RunsAnalyzed:    2,
 		RunsWithData:    1,
@@ -263,6 +269,7 @@ func TestRenderCrossRunReportJSON(t *testing.T) {
 }
 
 func TestRenderCrossRunReportMarkdown(t *testing.T) {
+	t.Parallel()
 	report := &CrossRunAuditReport{
 		RunsAnalyzed:    1,
 		RunsWithData:    1,
@@ -345,6 +352,7 @@ func TestRenderPrettyMetricsTrend_IncludesDurationWithoutTokens(t *testing.T) {
 }
 
 func TestNewLogsCommand_HasFormatFlag(t *testing.T) {
+	t.Parallel()
 	cmd := NewLogsCommand()
 
 	// Check that the --format flag exists
@@ -365,6 +373,7 @@ func TestNewLogsCommand_HasFormatFlag(t *testing.T) {
 }
 
 func TestLogsCommand_FormatPrecedence(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		jsonOutput bool
@@ -432,6 +441,7 @@ func TestLogsCommand_FormatPrecedence(t *testing.T) {
 }
 
 func TestLogsCommand_RepoParsingWithHost(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		repoFlag  string
@@ -491,6 +501,7 @@ func TestLogsCommand_RepoParsingWithHost(t *testing.T) {
 }
 
 func TestBuildCrossRunAuditReport_MetricsTrend(t *testing.T) {
+	t.Parallel()
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -539,6 +550,7 @@ func TestBuildCrossRunAuditReport_MetricsTrend(t *testing.T) {
 }
 
 func TestBuildCrossRunAuditReport_MCPHealth(t *testing.T) {
+	t.Parallel()
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -599,11 +611,13 @@ func TestBuildCrossRunAuditReport_MCPHealth(t *testing.T) {
 }
 
 func TestBuildMetricsTrend_Empty(t *testing.T) {
+	t.Parallel()
 	trend := buildMetricsTrend(nil)
 	assert.Equal(t, 0, trend.TotalTokens, "Empty rows should produce zero total tokens")
 }
 
 func TestBuildMetricsTrend_NoSpikes(t *testing.T) {
+	t.Parallel()
 	rows := []metricsRawRow{
 		{runID: 1, tokens: 100, turns: 3},
 		{runID: 2, tokens: 110, turns: 4},
@@ -614,6 +628,7 @@ func TestBuildMetricsTrend_NoSpikes(t *testing.T) {
 }
 
 func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
+	t.Parallel()
 	report := &CrossRunAuditReport{
 		RunsAnalyzed:    2,
 		RunsWithData:    2,
@@ -717,6 +732,7 @@ func TestRenderCrossRunReportMarkdown_IncludesNewSections(t *testing.T) {
 }
 
 func TestBuildDrain3InsightsFromCrossRunInputs_Empty(t *testing.T) {
+	t.Parallel()
 	insights := buildDrain3InsightsFromCrossRunInputs(nil)
 	assert.Nil(t, insights, "should return nil for empty inputs")
 
@@ -725,6 +741,7 @@ func TestBuildDrain3InsightsFromCrossRunInputs_Empty(t *testing.T) {
 }
 
 func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
+	t.Parallel()
 	inputs := []crossRunInput{
 		{
 			RunID:        1,
@@ -786,6 +803,7 @@ func TestBuildDrain3InsightsFromCrossRunInputs_WithInputs(t *testing.T) {
 }
 
 func TestBuildCrossRunAuditReport_IncludesDrain3Insights(t *testing.T) {
+	t.Parallel()
 	inputs := []crossRunInput{
 		{
 			RunID:        100,
@@ -819,6 +837,7 @@ func TestBuildCrossRunAuditReport_IncludesDrain3Insights(t *testing.T) {
 }
 
 func TestRenderCrossRunReportMarkdown_IncludesDrain3Section(t *testing.T) {
+	t.Parallel()
 	report := &CrossRunAuditReport{
 		RunsAnalyzed: 1,
 		Drain3Insights: []ObservabilityInsight{

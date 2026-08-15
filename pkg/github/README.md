@@ -42,34 +42,38 @@ This package defines how GitHub issue labels are translated into numeric objecti
 
 ### Constants
 
-The package exports named constants for every label and its default value, grouped by priority tier:
-
-| Group | Label constants | Value constants |
-|-------|----------------|-----------------|
-| Critical | `ObjectiveLabelCritical`, `ObjectiveLabelP0` | `ObjectiveValueCritical` (100), `ObjectiveValueP0` (100) |
-| Security | `ObjectiveLabelSecurityFix` | `ObjectiveValueSecurityFix` (70) |
-| Copilot | `ObjectiveLabelCopilotOpt` | `ObjectiveValueCopilotOpt` (75) |
-| Bug | `ObjectiveLabelBug` | `ObjectiveValueBug` (60) |
-| High | `ObjectiveLabelHighPriority`, `ObjectiveLabelP1` | `ObjectiveValueHighPriority` (35), `ObjectiveValueP1` (35) |
-| Safety | `ObjectiveLabelTesting`, `ObjectiveLabelReliability` | `ObjectiveValueTesting` (50), `ObjectiveValueReliability` (50) |
-| Engine | `ObjectiveLabelWorkflow`, `ObjectiveLabelEngine` | `ObjectiveValueWorkflow` (45), `ObjectiveValueEngine` (40) |
-| Integration | `ObjectiveLabelMCP`, `ObjectiveLabelActions`, `ObjectiveLabelCLI` | `ObjectiveValueMCP` (45), `ObjectiveValueActions` (40), `ObjectiveValueCLI` (40) |
-| Performance | `ObjectiveLabelPerformance` | `ObjectiveValuePerformance` (30) |
-| Medium | `ObjectiveLabelMediumPriority`, `ObjectiveLabelP2` | `ObjectiveValueMediumPriority` (20), `ObjectiveValueP2` (20) |
-| Quality | `ObjectiveLabelLintMonster` | `ObjectiveValueLintMonster` (25) |
-| Enhancement | `ObjectiveLabelEnhancement` | `ObjectiveValueEnhancement` (15) |
-| Dependencies | `ObjectiveLabelDependencies` | `ObjectiveValueDependencies` (10) |
-| Low | `ObjectiveLabelLowPriority`, `ObjectiveLabelP3` | `ObjectiveValueLowPriority` (10), `ObjectiveValueP3` (10) |
-| Documentation | `ObjectiveLabelDocumentation` | `ObjectiveValueDocumentation` (5) |
-| No value | `ObjectiveLabelAIGenerated`, `ObjectiveLabelAIInspected`, `ObjectiveLabelSmokeCopilot`, `ObjectiveLabelQuestion`, `ObjectiveLabelGoodFirstIssue` | 0 |
-
-Multi-label logic option constants:
+The package exports constants for multi-label logic options:
 
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `MultiLabelLogicMax` | `"max"` | Use the highest matching label value (default) |
 | `MultiLabelLogicSum` | `"sum"` | Sum all matching label values |
 | `MultiLabelLogicFirst` | `"first"` | Use the first match in priority order |
+
+For backward compatibility, deprecated exported `ObjectiveLabel*` and
+`ObjectiveValue*` constants are still available for external consumers. Runtime
+scoring behavior is not derived from those constants.
+
+Default label-to-value entries are provided by `DefaultObjectiveMapping()`:
+
+| Label | Value |
+|-------|-------|
+| `critical` | 100 |
+| `p0` | 100 |
+| `security-fix` | 75 |
+| `high-priority` | 50 |
+| `copilot-opt` | 50 |
+| `p1` | 50 |
+| `performance` | 30 |
+| `medium-priority` | 25 |
+| `p2` | 25 |
+| `low-priority` | 10 |
+| `p3` | 10 |
+| `documentation` | 5 |
+
+Labels not listed above (for example `bug`, `testing`, and `reliability`) are
+not part of the default mapping and evaluate to `0` unless provided by
+configuration.
 
 ## Configuration Precedence
 

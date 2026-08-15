@@ -30,7 +30,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-max-turns: 20
+max-turns: 30
 model: claude-sonnet-4-6
 engine:
   id: claude

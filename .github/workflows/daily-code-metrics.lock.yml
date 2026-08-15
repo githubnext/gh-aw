@@ -1800,6 +1800,7 @@ jobs:
         run: crush --version
       - name: Install threat-detect binary
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        continue-on-error: true
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/install_threat_detect_binary.sh" latest
       - name: Execute threat detection with AWF
