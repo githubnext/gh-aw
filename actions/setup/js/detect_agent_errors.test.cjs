@@ -146,6 +146,7 @@ describe("detect_agent_errors.cjs", () => {
     });
 
     it("does not match 'No model available' without the policy-enablement hint", () => {
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test("No model available. Retrying shortly.")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("No model available\nCheck policy enablement under GitHub Settings > Copilot")).toBe(false);
       expect(MODEL_NOT_SUPPORTED_PATTERN.test("warning: no model available yet, waiting")).toBe(false);
     });
