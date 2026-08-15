@@ -177,6 +177,38 @@ describe("require-invalid-date-check-before-compare", () => {
     });
   });
 
+  it("valid: new Date(x) validated with Number.isFinite(d.getTime()) before comparison", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [
+        `const d = new Date(input); if (!Number.isFinite(d.getTime())) { return; } if (d > threshold) { doIt(); }`,
+        `const d = new Date(input); if (!Number.isFinite(d.getTime())) { throw new Error("bad date"); } if (d.getTime() < threshold) { doIt(); }`,
+        `const d = new Date(input); if (Number.isFinite(d.getTime()) && d > threshold) { doIt(); }`,
+        `const d = new Date(input); if (isFinite(d.getTime()) && d > threshold) { doIt(); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: Number.isFinite(d.getTime()) guards that do not protect the comparison still report", () => {
+    cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const d = new Date(input); if (d > threshold) { doIt(); } if (!Number.isFinite(d.getTime())) { return; }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: ">", getTimeTarget: "d" } }],
+        },
+        {
+          code: `const d = new Date(input); if (!Number.isFinite(d.getTime())) { core.warning("bad date"); } if (d > threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: ">", getTimeTarget: "d" } }],
+        },
+        {
+          code: `const d = new Date(input); if (someUnrelatedFlag) { if (!Number.isFinite(d.getTime())) { return; } } if (d > threshold) { doIt(); }`,
+          errors: [{ messageId: "requireInvalidDateCheck", data: { subject: "'d'", operator: ">", getTimeTarget: "d" } }],
+        },
+      ],
+    });
+  });
+
   it("invalid: Date.parse(x) compared without a Number.isFinite/isNaN guard (check_daily_aic_workflow_guardrail.cjs pattern)", () => {
     cjsRuleTester.run("require-invalid-date-check-before-compare", requireInvalidDateCheckBeforeCompareRule, {
       valid: [],
