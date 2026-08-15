@@ -49,6 +49,14 @@ func TestThreatSuppression_TCTR024_ReasonRequired(t *testing.T) {
 	}
 	require.Error(t, parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(missingReasonFrontmatter, "/tmp/threat-suppression-missing-reason.md"))
 
+	whitespaceReasonFrontmatter := map[string]any{
+		"on": map[string]any{"schedule": "daily"},
+		"threat-detection-suppress": []any{map[string]any{
+			"rule": "CTR-006", "reason": "  ",
+		}},
+	}
+	require.Error(t, parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(whitespaceReasonFrontmatter, "/tmp/threat-suppression-whitespace-reason.md"))
+
 	require.NoError(t, validateThreatDetectionSuppressions([]ThreatDetectionSuppression{{
 		Rule:   "CTR-006",
 		Reason: "Expression is passed through a trusted environment variable.",
@@ -95,6 +103,14 @@ func TestThreatSuppression_TCTR029_ExpiresHandling(t *testing.T) {
 	require.Error(t, validateThreatDetectionSuppressions([]ThreatDetectionSuppression{{
 		Rule: "CTR-006", Reason: "Safe", Expires: "08/15/2026",
 	}}))
+
+	invalidDateFrontmatter := map[string]any{
+		"on": map[string]any{"schedule": "daily"},
+		"threat-detection-suppress": []any{map[string]any{
+			"rule": "CTR-006", "reason": "Safe", "expires": "2026-99-99",
+		}},
+	}
+	require.Error(t, parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidDateFrontmatter, "/tmp/threat-suppression-invalid-date.md"))
 }
 
 func TestThreatOptimizer_TCTR030Through038_FailureDiagnostics(t *testing.T) {

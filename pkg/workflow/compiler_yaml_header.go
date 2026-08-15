@@ -68,6 +68,8 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.RawFrontmatter["on"])
 	if suppressions, err := parseThreatDetectionSuppressions(data.RawFrontmatter["threat-detection-suppress"]); err == nil {
 		manifest.ThreatDetectionSuppressions = activeThreatDetectionSuppressions(suppressions, time.Now())
+	} else {
+		compilerYamlHeaderLog.Printf("Invalid threat-detection-suppress value omitted from manifest: %v", err)
 	}
 	manifest.MemoryValidationScripts = collectMemoryValidationScripts(data)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {

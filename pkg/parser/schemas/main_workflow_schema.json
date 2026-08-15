@@ -57,10 +57,12 @@
           },
           "reason": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "pattern": ".*\\S.*"
           },
           "expires": {
             "type": "string",
+            "format": "date",
             "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
           }
         }
