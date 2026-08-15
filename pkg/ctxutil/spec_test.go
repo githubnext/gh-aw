@@ -30,7 +30,7 @@ func TestSpec_PublicAPI_OrBackground(t *testing.T) {
 
 		got := ctxutil.OrBackground(ctx)
 
-		assert.Equal(t, ctx, got, "OrBackground should return a non-nil context unchanged")
+		assert.Same(t, ctx, got, "OrBackground should return the exact same non-nil context instance")
 		assert.Equal(t, "value", got.Value(testKey), "OrBackground should preserve values carried by the input context")
 	})
 
