@@ -198,7 +198,7 @@ Create an issue with this structure:
 
 ### Architecture Diagram
 
-Post the ASCII diagram inside a code block (triple backticks) so it renders with monospace font.
+Wrap the ASCII diagram in a `<details><summary><b>View Diagram</b></summary>...</details>` block (with the diagram inside a code block, triple backticks, so it renders with monospace font) so the issue stays short by default.
 
 {{#if experiments.detail_level == 'comprehensive' }}
 ### Summary
@@ -214,7 +214,7 @@ If this was an incremental update, include a short section listing:
 
 ### Package Reference
 
-A compact table of all packages with their layer and one-line description:
+A compact table of all packages with their layer and one-line description, wrapped in a `<details><summary><b>View Package Reference</b></summary>...</details>` block:
 
 | Package | Layer | Description |
 |---------|-------|-------------|

@@ -16,60 +16,38 @@ import (
 // source. Each test function maps to a documented section of the package
 // specification (Public API, Types, Constants, Design Notes, Usage Examples).
 
-// TestSpec_Constants_ObjectiveValues validates that the documented objective
-// value constants have the values listed in the README "Constants" table.
-func TestSpec_Constants_ObjectiveValues(t *testing.T) {
-	tests := []struct {
-		name     string
-		got      int
-		expected int
-	}{
-		{"ObjectiveValueCritical", github.ObjectiveValueCritical, 100},
-		{"ObjectiveValueP0", github.ObjectiveValueP0, 100},
-		{"ObjectiveValueSecurityFix", github.ObjectiveValueSecurityFix, 70},
-		{"ObjectiveValueCopilotOpt", github.ObjectiveValueCopilotOpt, 75},
-		{"ObjectiveValueBug", github.ObjectiveValueBug, 60},
-		{"ObjectiveValueHighPriority", github.ObjectiveValueHighPriority, 35},
-		{"ObjectiveValueP1", github.ObjectiveValueP1, 35},
-		{"ObjectiveValueTesting", github.ObjectiveValueTesting, 50},
-		{"ObjectiveValueReliability", github.ObjectiveValueReliability, 50},
-		{"ObjectiveValueWorkflow", github.ObjectiveValueWorkflow, 45},
-		{"ObjectiveValueEngine", github.ObjectiveValueEngine, 40},
-		{"ObjectiveValueMCP", github.ObjectiveValueMCP, 45},
-		{"ObjectiveValueActions", github.ObjectiveValueActions, 40},
-		{"ObjectiveValueCLI", github.ObjectiveValueCLI, 40},
-		{"ObjectiveValuePerformance", github.ObjectiveValuePerformance, 30},
-		{"ObjectiveValueMediumPriority", github.ObjectiveValueMediumPriority, 20},
-		{"ObjectiveValueP2", github.ObjectiveValueP2, 20},
-		{"ObjectiveValueLintMonster", github.ObjectiveValueLintMonster, 25},
-		{"ObjectiveValueEnhancement", github.ObjectiveValueEnhancement, 15},
-		{"ObjectiveValueDependencies", github.ObjectiveValueDependencies, 10},
-		{"ObjectiveValueLowPriority", github.ObjectiveValueLowPriority, 10},
-		{"ObjectiveValueP3", github.ObjectiveValueP3, 10},
-		{"ObjectiveValueDocumentation", github.ObjectiveValueDocumentation, 5},
-	}
+// TestSpec_DefaultObjectiveMapping_Values validates that the documented default
+// objective mapping values match DefaultObjectiveMapping.
+func TestSpec_DefaultObjectiveMapping_Values(t *testing.T) {
+	om := github.DefaultObjectiveMapping()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.got,
-				"documented constant %s value mismatch", tt.name)
-		})
-	}
+	// This assertion intentionally locks the full default shape so score changes
+	// require an explicit spec update in one place.
+	assert.Equal(t, map[string]int{
+		"critical":        100,
+		"p0":              100,
+		"high-priority":   50,
+		"copilot-opt":     50,
+		"p1":              50,
+		"security-fix":    75,
+		"p2":              25,
+		"medium-priority": 25,
+		"performance":     30,
+		"p3":              10,
+		"low-priority":    10,
+		"documentation":   5,
+	}, om.LabelToValue)
 }
 
-// TestSpec_Constants_ZeroValueLabels validates that the labels documented as
-// having "no objective value" all map to 0.
-func TestSpec_Constants_ZeroValueLabels(t *testing.T) {
-	assert.Equal(t, 0, github.ObjectiveValueAIGenerated,
-		"ai-generated should have no objective value")
-	assert.Equal(t, 0, github.ObjectiveValueAIInspected,
-		"ai-inspected should have no objective value")
-	assert.Equal(t, 0, github.ObjectiveValueSmokeCopilot,
-		"smoke-copilot should have no objective value")
-	assert.Equal(t, 0, github.ObjectiveValueQuestion,
-		"question should have no objective value")
-	assert.Equal(t, 0, github.ObjectiveValueGoodFirstIssue,
-		"good first issue should have no objective value")
+// TestSpec_DefaultObjectiveMapping_ExcludesUnmappedLabels validates labels that
+// are intentionally not part of the default mapping.
+func TestSpec_DefaultObjectiveMapping_ExcludesUnmappedLabels(t *testing.T) {
+	om := github.DefaultObjectiveMapping()
+	for _, label := range []string{
+		"bug", "testing", "reliability", "workflow", "engine", "mcp", "enhancement", "dependencies",
+	} {
+		assert.NotContains(t, om.LabelToValue, label, "label %q should not be in the default mapping", label)
+	}
 }
 
 // TestSpec_Constants_MultiLabelLogic validates the documented multi-label logic
@@ -92,14 +70,14 @@ func TestSpec_Constants_MultiLabelLogic(t *testing.T) {
 // Tests construct explicit mappings so they validate documented behavior rather
 // than the contents of the built-in default mapping.
 func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
-	// Mapping mirroring the README constants table for the relevant labels.
+	// Mapping is intentionally explicit for this test and independent of defaults.
 	mapping := func(logic string, priorities ...string) *github.ObjectiveMapping {
 		return &github.ObjectiveMapping{
-			// Values mirror the README constants table: bug=60, high-priority=35.
+			// Explicit values used by this test: bug=60, high-priority=35.
 			LabelToValue: map[string]int{
-				"bug":           github.ObjectiveValueBug,
-				"high-priority": github.ObjectiveValueHighPriority,
-				"documentation": github.ObjectiveValueDocumentation,
+				"bug":           60,
+				"high-priority": 35,
+				"documentation": 5,
 			},
 			MultiLabelLogic: logic,
 			PriorityLabels:  priorities,
@@ -107,7 +85,7 @@ func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
 	}
 
 	t.Run("max logic returns highest matching value (documented default)", func(t *testing.T) {
-		// README example: max of bug=60, high-priority=35 -> 60.
+		// Explicit test mapping: max of bug=60, high-priority=35 -> 60.
 		got := mapping(github.MultiLabelLogicMax).ComputeObjectiveValue([]string{"bug", "high-priority"})
 		assert.Equal(t, 60, got, "max logic should return the highest matching value")
 	})
@@ -162,8 +140,8 @@ func TestSpec_PublicAPI_ComputeObjectiveValue(t *testing.T) {
 func TestSpec_PublicAPI_FilterObjectiveLabels(t *testing.T) {
 	om := &github.ObjectiveMapping{
 		LabelToValue: map[string]int{
-			"bug":           github.ObjectiveValueBug,
-			"high-priority": github.ObjectiveValueHighPriority,
+			"bug":           60,
+			"high-priority": 35,
 		},
 	}
 
@@ -189,7 +167,7 @@ func TestSpec_PublicAPI_FilterObjectiveLabels(t *testing.T) {
 // reports whether a label has a defined objective value.
 func TestSpec_PublicAPI_HasObjectiveLabel(t *testing.T) {
 	om := &github.ObjectiveMapping{
-		LabelToValue: map[string]int{"bug": github.ObjectiveValueBug},
+		LabelToValue: map[string]int{"bug": 60},
 	}
 
 	assert.True(t, om.HasObjectiveLabel("bug"),
@@ -203,9 +181,9 @@ func TestSpec_PublicAPI_HasObjectiveLabel(t *testing.T) {
 func TestSpec_PublicAPI_GetAllLabels(t *testing.T) {
 	om := &github.ObjectiveMapping{
 		LabelToValue: map[string]int{
-			"high-priority": github.ObjectiveValueHighPriority,
-			"bug":           github.ObjectiveValueBug,
-			"documentation": github.ObjectiveValueDocumentation,
+			"high-priority": 35,
+			"bug":           60,
+			"documentation": 5,
 		},
 	}
 
@@ -218,7 +196,7 @@ func TestSpec_PublicAPI_GetAllLabels(t *testing.T) {
 // json.Marshaler and produces indented JSON output.
 func TestSpec_PublicAPI_MarshalJSON(t *testing.T) {
 	om := &github.ObjectiveMapping{
-		LabelToValue:    map[string]int{"bug": github.ObjectiveValueBug},
+		LabelToValue:    map[string]int{"bug": 60},
 		MultiLabelLogic: github.MultiLabelLogicMax,
 	}
 

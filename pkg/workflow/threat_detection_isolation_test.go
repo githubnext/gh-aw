@@ -213,6 +213,13 @@ Test workflow`
 	if !strings.Contains(detectionSection, "install_threat_detect_binary.sh") {
 		t.Error("External detector path must emit 'install_threat_detect_binary.sh' install step")
 	}
+	// In warn mode (continue-on-error default: true), the install step itself must be
+	// continue-on-error so a transient download failure doesn't mark the detection job
+	// as failure when the workflow logic already tolerates a missing binary.
+	installStepBlock := extractInstallThreatDetectStepBlock(t, detectionSection)
+	if !strings.Contains(installStepBlock, "continue-on-error: true") {
+		t.Error("Install threat-detect binary step must set continue-on-error: true in warn mode")
+	}
 	if !strings.Contains(detectionSection, "install_copilot_cli.sh") {
 		t.Error("External detector path must emit engine installation step for copilot")
 	}
@@ -336,6 +343,91 @@ Test workflow`
 		t.Error("External detector path must configure engine auth env like the agent job")
 	}
 
+}
+
+// extractInstallThreatDetectStepBlock returns the "Install threat-detect binary" step block
+// (from its "- name:" line up to, but not including, the next step's "- name:" line) within
+// the given detection job section.
+func extractInstallThreatDetectStepBlock(t *testing.T, detectionSection string) string {
+	t.Helper()
+	installStepIdx := strings.Index(detectionSection, "Install threat-detect binary")
+	if installStepIdx == -1 {
+		t.Fatal("Could not find 'Install threat-detect binary' step in detection section")
+	}
+	installStepBlock := detectionSection[installStepIdx:]
+	if nextStepIdx := strings.Index(installStepBlock[1:], "\n      - name:"); nextStepIdx != -1 {
+		installStepBlock = installStepBlock[:nextStepIdx+1]
+	}
+	return installStepBlock
+}
+
+// compileExternalDetectorWorkflow compiles a minimal gh-aw-detection workflow with the given
+// threat-detection frontmatter snippet appended to safe-outputs, and returns the detection job
+// section of the compiled lock file.
+func compileExternalDetectorWorkflow(t *testing.T, threatDetectionYAML string) string {
+	t.Helper()
+	compiler := NewCompiler()
+
+	tmpDir := testutil.TempDir(t, "test-external-detector-coe-*")
+	workflowPath := filepath.Join(tmpDir, "test-external-detector-coe.md")
+
+	workflowContent := "---\n" +
+		"on: push\n" +
+		"engine: copilot\n" +
+		"safe-outputs:\n" +
+		"  create-issue:\n" +
+		threatDetectionYAML +
+		"features:\n" +
+		"  gh-aw-detection: true\n" +
+		"tools:\n" +
+		"  github:\n" +
+		"    allowed: [\"*\"]\n" +
+		"---\n" +
+		"Test workflow"
+
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowPath)
+	result, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	detectionSection := extractJobSection(string(result), "detection")
+	if detectionSection == "" {
+		t.Fatal("Detection job not found in compiled workflow")
+	}
+	return detectionSection
+}
+
+// TestExternalDetectorInstallStepContinueOnErrorStrictMode verifies that when
+// threat-detection.continue-on-error is explicitly set to false (strict mode), the
+// "Install threat-detect binary" step must NOT carry continue-on-error: so a download
+// failure fails the detection job, matching the job's own strict-mode intolerance of
+// detection failures.
+func TestExternalDetectorInstallStepContinueOnErrorStrictMode(t *testing.T) {
+	detectionSection := compileExternalDetectorWorkflow(t, "  threat-detection:\n    continue-on-error: false\n")
+	installStepBlock := extractInstallThreatDetectStepBlock(t, detectionSection)
+	if strings.Contains(installStepBlock, "continue-on-error") {
+		t.Error("Install threat-detect binary step must NOT set continue-on-error in strict mode")
+	}
+}
+
+// TestExternalDetectorInstallStepContinueOnErrorExpressionMode verifies that when
+// threat-detection.continue-on-error is a runtime expression, the "Install threat-detect
+// binary" step emits that exact expression rather than a literal true/false value.
+func TestExternalDetectorInstallStepContinueOnErrorExpressionMode(t *testing.T) {
+	detectionSection := compileExternalDetectorWorkflow(t, "  threat-detection:\n    continue-on-error: ${{ inputs.coe }}\n")
+	installStepBlock := extractInstallThreatDetectStepBlock(t, detectionSection)
+	if !strings.Contains(installStepBlock, "continue-on-error: ${{ inputs.coe }}") {
+		t.Error("Install threat-detect binary step must emit the configured continue-on-error expression")
+	}
 }
 
 // TestExternalDetectorConcludeDoesNotReceiveStepSummaryFlag verifies that

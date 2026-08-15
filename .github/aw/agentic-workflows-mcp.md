@@ -30,6 +30,8 @@ Download workflow run logs to `/tmp/gh-aw/aw-mcp/logs/`.
 | `filtered_integrity` | Only runs with DIFC integrity-filtered events in gateway logs |
 | `after_run_id` / `before_run_id` | Paginate by run database ID |
 
+If a gateway timeout or token budget guardrail cuts the call short, the response sets `partial: true` and includes `after_run_id`/`before_run_id` — reissue `logs` with that parameter to fetch the rest.
+
 ### `audit`
 
 Inspect a specific run in detail (missing tools, safe outputs, metrics).
