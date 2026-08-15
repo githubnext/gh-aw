@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -8,6 +10,117 @@ import (
 )
 
 var runsOnSnippetLog = logger.New("workflow:runs_on_snippet")
+
+// RunsOnValue is a JSON-deserializable type for runs_on/runs-on fields that
+// accept either a single runner label string or an array of runner label
+// strings (e.g. aw.json's maintenance.runs_on and safe-outputs.jobs runs-on).
+// When unmarshalled, a plain string is normalised to a single-element slice so
+// the rest of the code works with a uniform []string type.
+type RunsOnValue []string
+
+// UnmarshalJSON implements json.Unmarshaler, accepting either a JSON string or
+// a JSON array of strings for the runs_on field.
+func (r *RunsOnValue) UnmarshalJSON(data []byte) error {
+	// Try plain string first (runs_on: "ubuntu-latest")
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*r = RunsOnValue{s}
+		return nil
+	}
+
+	// Try array of strings (runs_on: ["self-hosted", "linux"])
+	var ss []string
+	if err := json.Unmarshal(data, &ss); err != nil {
+		return fmt.Errorf("runs_on value is not recognized: %w. Expected a string or array of strings, for example: runs_on: \"ubuntu-latest\"", err)
+	}
+	*r = RunsOnValue(ss)
+	return nil
+}
+
+// toRunsOnValue converts a YAML-decoded runs-on value (a string or a list of
+// strings) into a RunsOnValue. Values with an unsupported shape, and non-string
+// list entries, are ignored.
+func toRunsOnValue(value any) RunsOnValue {
+	switch v := value.(type) {
+	case string:
+		return RunsOnValue{v}
+	case []any:
+		labels := make(RunsOnValue, 0, len(v))
+		for _, item := range v {
+			if itemStr, ok := item.(string); ok {
+				labels = append(labels, itemStr)
+			}
+		}
+		if len(labels) == 0 {
+			return nil
+		}
+		return labels
+	case []string:
+		if len(v) == 0 {
+			return nil
+		}
+		return RunsOnValue(v)
+	default:
+		return nil
+	}
+}
+
+// isRunsOnArrayValue reports whether a YAML-decoded runs-on value has array
+// shape (as opposed to a single string label).
+func isRunsOnArrayValue(value any) bool {
+	switch value.(type) {
+	case []any, []string:
+		return true
+	default:
+		return false
+	}
+}
+
+// FormatRunsOn serialises a RunsOnValue to a YAML-compatible string that can
+// be inlined directly after "runs-on: " in a generated workflow.
+//
+//   - empty / nil  → defaultRunsOn is returned
+//   - single label → the label string (e.g. "ubuntu-latest")
+//   - multiple labels → JSON-encoded flow sequence, e.g. ["self-hosted","linux"]
+//
+// For multi-label values json.Marshal is used so that any characters that are
+// special in YAML or JSON (quotes, backslashes, …) are properly escaped.
+// The schema already forbids newlines and control characters, providing a
+// defence-in-depth against YAML injection.
+func FormatRunsOn(runsOn RunsOnValue, defaultRunsOn string) string {
+	if len(runsOn) == 0 {
+		return defaultRunsOn
+	}
+	if len(runsOn) == 1 {
+		if runsOn[0] == "" {
+			return defaultRunsOn
+		}
+		return runsOn[0]
+	}
+	// Multiple labels: use json.Marshal to produce a properly-escaped YAML
+	// flow sequence.  A JSON array is valid YAML flow sequence notation.
+	encoded, err := json.Marshal([]string(runsOn))
+	if err != nil {
+		// []string marshalling never fails; fall back to the default just in case.
+		return defaultRunsOn
+	}
+	return string(encoded)
+}
+
+// formatSafeJobRunsOn renders the runs-on YAML fragment (including the
+// leading "runs-on:" key) for a safe-job, given its parsed RunsOnValue and
+// whether the original configured value had array shape. This centralizes the
+// array-vs-scalar rendering decision so callers don't need to special-case it.
+func formatSafeJobRunsOn(runsOn RunsOnValue, runsOnArray bool, defaultRunsOn string) string {
+	// Keep []string{""} semantically unset, matching FormatRunsOn behavior.
+	if runsOnArray && len(runsOn) > 0 && (len(runsOn) != 1 || runsOn[0] != "") {
+		if snippet := renderRunsOnSnippet([]string(runsOn)); snippet != "" {
+			return snippet
+		}
+	}
+	// FormatRunsOn handles defaulting and YAML-safe rendering for scalar values.
+	return "runs-on: " + FormatRunsOn(runsOn, defaultRunsOn)
+}
 
 func runsOnMarshalOptions() []yaml.EncodeOption {
 	opts := append([]yaml.EncodeOption{}, DefaultMarshalOptions...)

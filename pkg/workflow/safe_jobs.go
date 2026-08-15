@@ -236,19 +236,10 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		const defaultRunsOn = "ubuntu-latest"
 
-		// Set runs-on.
-		// Preserve list-shaped input from safe-outputs.jobs as a YAML array.
-		if jobConfig.runsOnArray && len(jobConfig.RunsOn) > 0 {
-			// Keep []string{""} semantically unset, matching FormatRunsOn behavior.
-			if len(jobConfig.RunsOn) == 1 && jobConfig.RunsOn[0] == "" {
-				job.RunsOn = "runs-on: " + defaultRunsOn
-			} else {
-				job.RunsOn = c.indentYAMLLines(renderRunsOnSnippet([]string(jobConfig.RunsOn)), "    ")
-			}
-		} else {
-			// FormatRunsOn handles defaulting and YAML-safe rendering.
-			job.RunsOn = "runs-on: " + FormatRunsOn(jobConfig.RunsOn, defaultRunsOn)
-		}
+		// Set runs-on. Preserve list-shaped input from safe-outputs.jobs as a
+		// YAML array; formatSafeJobRunsOn centralizes the array-vs-scalar
+		// rendering decision shared with other runs-on parsers.
+		job.RunsOn = c.indentYAMLLines(formatSafeJobRunsOn(jobConfig.RunsOn, jobConfig.runsOnArray, defaultRunsOn), "    ")
 
 		// Set if condition - combine safe output type check with user-provided condition
 		// Custom safe jobs should only run if the agent output contains the job name (tool call)
