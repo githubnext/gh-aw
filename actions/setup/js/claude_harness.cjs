@@ -58,6 +58,7 @@ const {
 const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
+const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
@@ -98,20 +99,6 @@ const MAX_TURNS_EXIT_PATTERN = /"subtype"\s*:\s*"error_max_turns"/;
 // this path must not be retried via --continue (fall back to a fresh run if budget remains).
 const NO_DEFERRED_MARKER_PATTERN = /No deferred tool marker found/i;
 const SIGNAL_TERMINATION_EXIT_CODES = new Set([137, 143]);
-// Exit codes (128 + signal number) that indicate the Claude Code CLI subprocess was
-// killed by a fatal OS-level signal rather than exiting normally or being cancelled.
-// These signify a sandbox/runtime-level crash (e.g. a bad syscall trapped by seccomp,
-// a segfault, or an illegal instruction) rather than an application-level error, so
-// resuming the same on-disk session with --continue risks immediately reproducing the
-// same crash. Map: SIGILL=4, SIGABRT=6, SIGBUS=7, SIGFPE=8, SIGSEGV=11, SIGSYS=31.
-const CRASH_SIGNAL_EXIT_CODES = new Map([
-  [132, "SIGILL"],
-  [134, "SIGABRT"],
-  [135, "SIGBUS"],
-  [136, "SIGFPE"],
-  [139, "SIGSEGV"],
-  [159, "SIGSYS"],
-]);
 const MAX_STARTUP_RETRIES = 2;
 
 /**
@@ -256,28 +243,6 @@ function isInvalidModelError(output) {
  */
 function isSignalTerminationExitCode(exitCode) {
   return SIGNAL_TERMINATION_EXIT_CODES.has(exitCode);
-}
-
-/**
- * Determines whether the exit code corresponds to a fatal-signal crash of the CLI
- * subprocess (e.g. SIGSEGV=139, SIGSYS=159) as opposed to a normal application error
- * or an expected timeout/cancellation signal (SIGKILL=137/SIGTERM=143).
- * @param {number} exitCode
- * @returns {boolean}
- */
-function isCrashSignalExitCode(exitCode) {
-  return CRASH_SIGNAL_EXIT_CODES.has(exitCode);
-}
-
-/**
- * Best-effort mapping of a fatal-signal exit code (128 + signal number) to its
- * signal name, for diagnostic logging. Returns null when the exit code is not a
- * recognized crash signal.
- * @param {number} exitCode
- * @returns {string | null}
- */
-function crashSignalNameForExitCode(exitCode) {
-  return CRASH_SIGNAL_EXIT_CODES.get(exitCode) ?? null;
 }
 
 /**

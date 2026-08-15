@@ -53,6 +53,8 @@ const {
   resolvePromptFileArgs,
   resolveRetryConfig,
   shouldRetryFailedExecution,
+  isCrashSignalExitCode,
+  crashSignalNameForExitCode,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
   applyCopilotWireAPI,
@@ -1773,6 +1775,76 @@ describe("copilot_harness.cjs", () => {
       };
       const { shouldRetry } = applyRetryPolicy(result, 0, false, false);
       expect(shouldRetry).toBe(false);
+    });
+  });
+
+  describe("fatal-signal crash exit codes disable --continue", () => {
+    it("recognizes known fatal-signal exit codes", () => {
+      expect(isCrashSignalExitCode(134)).toBe(true); // SIGABRT
+      expect(isCrashSignalExitCode(139)).toBe(true); // SIGSEGV
+      expect(isCrashSignalExitCode(159)).toBe(true); // SIGSYS
+      expect(crashSignalNameForExitCode(134)).toBe("SIGABRT");
+      expect(crashSignalNameForExitCode(139)).toBe("SIGSEGV");
+      expect(crashSignalNameForExitCode(159)).toBe("SIGSYS");
+    });
+
+    it("does not classify normal exit codes or timeout/cancellation signals as crashes", () => {
+      expect(isCrashSignalExitCode(1)).toBe(false);
+      expect(isCrashSignalExitCode(137)).toBe(false); // SIGKILL — timeout/cancellation, not a crash
+      expect(isCrashSignalExitCode(143)).toBe(false); // SIGTERM — timeout/cancellation, not a crash
+      expect(crashSignalNameForExitCode(1)).toBeNull();
+      expect(crashSignalNameForExitCode(137)).toBeNull();
+    });
+
+    // Inline the same retry logic as the driver's shouldRetryFailedExecution handler,
+    // including the crash-signal guard: a fatal-signal crash (SIGSEGV, SIGSYS, ...)
+    // must never be retried with --continue since resuming the on-disk session risks
+    // immediately reproducing the crash.
+    const MAX_RETRIES = 3;
+
+    /**
+     * @param {{hasOutput: boolean, exitCode: number}} result
+     * @param {number} attempt
+     * @param {boolean} continueDisabledPermanently
+     * @returns {{ shouldRetry: boolean, useContinueOnRetry: boolean, continueDisabledPermanently: boolean }}
+     */
+    function applyRetryPolicy(result, attempt, continueDisabledPermanently = false) {
+      if (result.exitCode === 0) return { shouldRetry: false, useContinueOnRetry: false, continueDisabledPermanently };
+      if (!(attempt < MAX_RETRIES && result.hasOutput)) {
+        return { shouldRetry: false, useContinueOnRetry: false, continueDisabledPermanently };
+      }
+      const isCrashSignal = isCrashSignalExitCode(result.exitCode);
+      const nextContinueDisabledPermanently = continueDisabledPermanently || isCrashSignal;
+      return { shouldRetry: true, useContinueOnRetry: !nextContinueDisabledPermanently, continueDisabledPermanently: nextContinueDisabledPermanently };
+    }
+
+    it("disables --continue and restarts fresh after a SIGSYS (159) crash", () => {
+      const result = { exitCode: 159, hasOutput: true };
+      const { shouldRetry, useContinueOnRetry, continueDisabledPermanently } = applyRetryPolicy(result, 0, false);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(false);
+      expect(continueDisabledPermanently).toBe(true);
+    });
+
+    it("disables --continue and restarts fresh after a SIGSEGV (139) crash", () => {
+      const result = { exitCode: 139, hasOutput: true };
+      const { shouldRetry, useContinueOnRetry, continueDisabledPermanently } = applyRetryPolicy(result, 0, false);
+      expect(shouldRetry).toBe(true);
+      expect(useContinueOnRetry).toBe(false);
+      expect(continueDisabledPermanently).toBe(true);
+    });
+
+    it("keeps --continue disabled on subsequent retries after a crash-signal restart", () => {
+      const crashResult = { exitCode: 134, hasOutput: true };
+      const after0 = applyRetryPolicy(crashResult, 0, false);
+      expect(after0.useContinueOnRetry).toBe(false);
+      expect(after0.continueDisabledPermanently).toBe(true);
+
+      const nextResult = { exitCode: 1, hasOutput: true };
+      const after1 = applyRetryPolicy(nextResult, 1, after0.continueDisabledPermanently);
+      expect(after1.shouldRetry).toBe(true);
+      expect(after1.useContinueOnRetry).toBe(false); // must not re-enable --continue
+      expect(after1.continueDisabledPermanently).toBe(true);
     });
   });
 
