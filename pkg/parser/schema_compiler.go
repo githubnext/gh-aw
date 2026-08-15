@@ -43,8 +43,8 @@ var (
 	// Cached parsed schema documents (as any) for suggestion generation.
 	// Parsing the large JSON schema on every error call is expensive; these caches
 	// ensure the schema is parsed at most once per process lifetime.
-	parsedMainWorkflowSchemaDocLoader syncutil.OnceLoader[any]
-	parsedMcpConfigSchemaDocLoader    syncutil.OnceLoader[any]
+	parsedMainWorkflowSchemaDocLoader syncutil.OnceLoader[map[string]any]
+	parsedMcpConfigSchemaDocLoader    syncutil.OnceLoader[map[string]any]
 )
 
 // getCompiledMainWorkflowSchema returns the compiled main workflow schema, compiling it once and caching
@@ -75,29 +75,35 @@ func getCompiledAwManifestSchema() (*jsonschema.Schema, error) {
 	})
 }
 
-// getParsedSchemaDoc returns the parsed (any) representation of a known schema JSON string.
+// getParsedSchemaDoc returns the parsed object representation of a known schema JSON string.
 // For the two well-known schemas (mainWorkflowSchema, mcpConfigSchema) the result is cached
 // so the expensive json.Unmarshal is only ever performed once per process lifetime.
 // Unknown schema strings fall back to an uncached parse.
-func getParsedSchemaDoc(schemaJSON string) (any, error) {
+func getParsedSchemaDoc(schemaJSON string) (map[string]any, error) {
 	switch schemaJSON {
 	case mainWorkflowSchema:
-		return parsedMainWorkflowSchemaDocLoader.Get(func() (any, error) {
-			var doc any
-			err := json.Unmarshal([]byte(mainWorkflowSchema), &doc)
-			return doc, err
+		return parsedMainWorkflowSchemaDocLoader.Get(func() (map[string]any, error) {
+			return unmarshalSchemaDoc(mainWorkflowSchema)
 		})
 	case mcpConfigSchema:
-		return parsedMcpConfigSchemaDocLoader.Get(func() (any, error) {
-			var doc any
-			err := json.Unmarshal([]byte(mcpConfigSchema), &doc)
-			return doc, err
+		return parsedMcpConfigSchemaDocLoader.Get(func() (map[string]any, error) {
+			return unmarshalSchemaDoc(mcpConfigSchema)
 		})
 	default:
-		var doc any
-		err := json.Unmarshal([]byte(schemaJSON), &doc)
-		return doc, err
+		return unmarshalSchemaDoc(schemaJSON)
 	}
+}
+
+// unmarshalSchemaDoc parses a JSON schema string into an object document.
+func unmarshalSchemaDoc(schemaJSON string) (map[string]any, error) {
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(schemaJSON), &doc); err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		return nil, errors.New("schema root is not an object")
+	}
+	return doc, nil
 }
 
 // CompileSchema compiles a JSON schema from a JSON string.
@@ -156,13 +162,9 @@ func GetSafeOutputTypeKeys() ([]string, error) {
 	schemaCompilerLog.Print("Extracting safe output type keys from main workflow schema")
 
 	// Use the cached parsed schema document to avoid re-parsing on every call.
-	rawDoc, err := getParsedSchemaDoc(mainWorkflowSchema)
+	schemaDoc, err := getParsedSchemaDoc(mainWorkflowSchema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse main workflow schema: %w", err)
-	}
-	schemaDoc, ok := rawDoc.(map[string]any)
-	if !ok {
-		return nil, errors.New("schema root is not an object")
 	}
 
 	// Navigate to properties.safe-outputs.properties
