@@ -178,6 +178,14 @@ func TestEmbeddedContainerPins_DoNotIncludeVulnerableAWFCliProxy02744(t *testing
 	assert.False(t, ok, "ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.44 should not be embedded as a pinned container image")
 }
 
+func TestEmbeddedContainerPins_DoNotIncludeVulnerableAWFSquid02744(t *testing.T) {
+	t.Parallel()
+
+	_, ok := GetContainerPin("ghcr.io/github/gh-aw-firewall/squid:0.27.44")
+
+	assert.False(t, ok, "ghcr.io/github/gh-aw-firewall/squid:0.27.44 should not be embedded as a pinned container image")
+}
+
 func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 	t.Parallel()
 	assert.PanicsWithValue(t,
