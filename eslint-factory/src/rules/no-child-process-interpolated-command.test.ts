@@ -39,6 +39,8 @@ describe("no-child-process-interpolated-command", () => {
         { code: `const { execSync } = require("child_process"); execSync(("git" + " status").toLowerCase());` },
         // Static replacer callback with a fully static return value — safe
         { code: `const { execSync } = require("child_process"); execSync("git-status".replace("-", () => " "));` },
+        // Un-reassigned options object without shell — safe, must not over-flag
+        { code: `const { spawnSync } = require("child_process"); const cmd = \`git checkout \${branch}\`; const opts = {}; spawnSync(cmd, [], opts);` },
       ],
       invalid: [
         {
@@ -96,6 +98,11 @@ describe("no-child-process-interpolated-command", () => {
         },
         {
           code: `const { spawn } = require("child_process"); spawn(\`git checkout \${branch}\`, { shell: "/bin/bash" });`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
+        },
+        // Re-assigned options binding must not resolve to its stale initializer
+        {
+          code: `const { spawn } = require("child_process"); let opts = {}; if (x) { opts = { shell: true }; } spawn(\`git checkout \${branch}\`, [], opts);`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
         },
         {

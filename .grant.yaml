@@ -9,3 +9,49 @@ allow:
   - BSD-3-Clause
   - ISC
 
+# Base OS packages of upstream container images that gh-aw executes (Alpine
+# variants of the MCP server and runtime images) and the Node/npm runtime those
+# images ship. These packages come with the upstream base image, are never linked
+# into or redistributed with gh-aw, and are therefore accepted as a documented
+# policy exception. The allowlist above still applies to every other package in
+# those images.
+ignore-packages:
+  # Alpine base OS
+  - alpine-baselayout
+  - alpine-baselayout-data
+  - apk-tools
+  - busybox
+  - busybox-binsh
+  - ca-certificates
+  - ca-certificates-bundle
+  - git
+  - git-init-template
+  - libapk
+  - libcurl
+  - libgcc
+  - libidn2
+  - libstdc++
+  - libunistring
+  - musl-utils
+  - scanelf
+  - ssl_client
+  - zlib
+  - zstd-libs
+  # Node.js runtime and npm with its bundled dependencies
+  - chownr
+  - common-ancestor-path
+  - glob
+  - isexe
+  - lru-cache
+  - minimatch
+  - minipass
+  - minipass-flush
+  - node
+  - npm
+  - path-scurry
+  - qrcode-terminal
+  - spdx-exceptions
+  - spdx-license-ids
+  - tar
+  - yallist
+
