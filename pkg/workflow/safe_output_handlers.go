@@ -126,7 +126,10 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ApproveWorkflowRun") {
 				return nil
 			}
-			return NewPermissionsActionsWrite()
+			return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionActions:      PermissionWrite,
+				PermissionPullRequests: PermissionRead,
+			})
 		},
 	},
 	{

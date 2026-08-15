@@ -317,6 +317,10 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
 			AddTemplatableStringSlice("allowed_pull_requests", c.AllowedPullRequests).
+			AddStringSlice("protected_files", getAllManifestFiles()).
+			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+			AddDefault("protect_top_level_dot_folders", true).
+			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
 			AddIfNotEmpty("github-token", resolveApproveWorkflowRunGitHubToken(cfg, c)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()

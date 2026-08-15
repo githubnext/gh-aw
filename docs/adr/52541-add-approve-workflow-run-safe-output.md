@@ -14,7 +14,7 @@ The safe outputs system is the established extension point for granting AI agent
 
 ### Decision
 
-We will add `approve-workflow-run` as a new experimental opt-in safe output type backed by a dedicated handler (`approve_workflow_run.cjs` / `approve_workflow_run.go`). The compiler emits an experimental feature warning when a workflow enables it. The handler fetches the workflow run from the GitHub API, verifies that its `event` is `pull_request`, it has an associated pull request, its `status` is `waiting`, and that pull request is the triggering pull request or explicitly configured in `allowed-pull-requests`; it then calls `actions.approveWorkflowRun`. The operation requires `actions: write` and an explicit external `github-token` or GitHub App token because `github.token` cannot approve fork pull-request workflow runs. It is classified as a non-reviewable mutation under threat-detection warn mode, consistent with `merge-pull-request` and `close-pull-request`.
+We will add `approve-workflow-run` as a new experimental opt-in safe output type backed by a dedicated handler (`approve_workflow_run.cjs` / `approve_workflow_run.go`). The compiler emits an experimental feature warning when a workflow enables it. The handler fetches the workflow run from the GitHub API, verifies that its `event` is `pull_request`, it has an associated pull request, its `status` is `waiting`, and that pull request is the triggering pull request or explicitly configured in `allowed-pull-requests`. Before approval, it lists files modified by each associated pull request and rejects protected-file changes, except for filenames or path prefixes excluded with `protected-files.exclude`; it then calls `actions.approveWorkflowRun`. The operation requires `actions: write`, `pull-requests: read`, and an explicit external `github-token` or GitHub App token because `github.token` cannot approve fork pull-request workflow runs. It is classified as a non-reviewable mutation under threat-detection warn mode, consistent with `merge-pull-request` and `close-pull-request`.
 
 ### Alternatives Considered
 
@@ -38,13 +38,13 @@ A more general "re-run workflow" or "dispatch workflow" primitive could be repur
 
 #### Positive
 - AI agents can unblock fork PR workflow runs without human intervention, enabling fully automated fork PR triage flows.
-- The handler accepts only positive workflow run IDs and enforces server-side eligibility checks before approving, so agents cannot accidentally approve completed, non-PR, or unauthorized PR runs.
+- The handler accepts only positive workflow run IDs and enforces server-side eligibility and protected-file checks before approving, so agents cannot accidentally approve completed, non-PR, unauthorized, or protected-file-changing PR runs.
 - `actions: write` is granted only when `approve-workflow-run` is explicitly enabled in the workflow's `safe-outputs` config, preserving the principle of least privilege for workflows that do not need this capability.
 - Staged mode (`staged: true`) previews the requested run without GitHub API access or max-count consumption, supporting safe rollout.
 
 #### Negative
 - `actions: write` is a broad GitHub permission scope — a compromised or misbehaving agent with this safe output enabled could approve workflow runs from malicious forks.
-- The approval check (fetch run → verify conclusion → approve) is not atomic; a time-of-check/time-of-use (TOCTOU) race is theoretically possible if a run's status changes between the GET and the approval POST, though the practical risk is low since the approval endpoint itself validates eligibility server-side.
+- The approval check (fetch run and pull request files → verify status and protection → approve) is not atomic; a time-of-check/time-of-use (TOCTOU) race is theoretically possible if a run's status or pull request changes between the GET and the approval POST, though the practical risk is low since the approval endpoint itself validates eligibility server-side.
 
 #### Neutral
 - `approve_workflow_run` is added to `THREAT_WARNING_ABORT_TYPES` in the handler manager, placing it in the same threat-detection category as `merge-pull-request` and `close-pull-request`.

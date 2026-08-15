@@ -22,6 +22,9 @@ safe-outputs:
     staged: true
     allowed-pull-requests:
       - "42"
+    protected-files:
+      exclude:
+        - AGENTS.md
 ---
 
 Approve eligible workflow runs.
@@ -36,6 +39,7 @@ Approve eligible workflow runs.
 	require.NotNil(t, data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.Equal(t, TemplatableBool("true"), *data.SafeOutputs.ApproveWorkflowRun.Staged)
 	assert.Equal(t, []string{"42"}, data.SafeOutputs.ApproveWorkflowRun.AllowedPullRequests)
+	assert.Equal(t, []string{"AGENTS.md"}, data.SafeOutputs.ApproveWorkflowRun.ProtectedFilesExclude)
 
 	enabledTools := computeEnabledToolNames(data)
 	assert.Contains(t, enabledTools, "approve_workflow_run")

@@ -3157,7 +3157,8 @@ This section provides complete definitions for all remaining safe output types. 
 2. **Staged Preview**: When `staged` is true, the handler MUST return a preview without reading GitHub state or consuming the configured max limit.
 3. **Eligibility**: Before approval, the handler MUST fetch the run and verify `event` is `pull_request`, the `pull_requests` array is non-empty, and `status` is `waiting`.
 4. **Authorization**: The run MUST be associated with the pull request that triggered the workflow, unless its pull request number is in `allowed-pull-requests`.
-5. **Execution**: Only after all preceding checks pass MAY the handler invoke GitHub's workflow-run approval API and consume one max-count slot.
+5. **Protected Files**: Before approval, the handler MUST list the files modified by every pull request associated with the run and reject approval when any file is protected. `protected-files.exclude` MAY remove specific filenames or path prefixes from the default protected set.
+6. **Execution**: Only after all preceding checks pass MAY the handler invoke GitHub's workflow-run approval API and consume one max-count slot.
 
 **Configuration Parameters**:
 
@@ -3166,11 +3167,12 @@ This section provides complete definitions for all remaining safe output types. 
 - `github-token`: Explicit external token for this handler or inherited from `safe-outputs.github-token`
 - `github-app`: GitHub App configuration that mints a handler-scoped token
 - `allowed-pull-requests`: Additional authorized pull request numbers as strings or an expression resolving to a list
+- `protected-files.exclude`: Filenames or path prefixes to remove from the default protected-file set
 
 **Security Requirements**:
 
 - Live approvals MUST use an explicit external `github-token` or a GitHub App token; implementations MUST NOT use the default `github.token`.
-- The handler MUST reject a run that is not a pull request run, is not associated with an authorized pull request, or is not waiting for approval.
+- The handler MUST reject a run that is not a pull request run, is not associated with an authorized pull request, has modified protected files, or is not waiting for approval.
 - The handler MUST be classified as an Abort type for warn-mode threat-detection failures.
 
 **Required Permissions**:
@@ -3178,10 +3180,12 @@ This section provides complete definitions for all remaining safe output types. 
 *GitHub Actions Token*:
 
 - `actions: write` - Workflow-run approval
+- `pull-requests: read` - Listing associated pull request files
 
 *GitHub App*:
 
 - `actions: write` - Workflow-run approval
+- `pull-requests: read` - Listing associated pull request files
 - `metadata: read` - Repository metadata (automatically granted)
 
 ---

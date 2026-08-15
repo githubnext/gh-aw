@@ -6895,6 +6895,19 @@
                     }
                   ]
                 },
+                "protected-files": {
+                  "type": "object",
+                  "description": "Protected files prevent workflow run approval when modified by the associated pull request. Use exclude to remove filenames or path prefixes from the default protected set.",
+                  "properties": {
+                    "exclude": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."

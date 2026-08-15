@@ -415,14 +415,15 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "approve-workflow-run requires actions write",
+			name: "approve-workflow-run requires actions write and pull-requests read",
 			safeOutputs: &SafeOutputsConfig{
 				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionActions: PermissionWrite,
+				PermissionActions:      PermissionWrite,
+				PermissionPullRequests: PermissionRead,
 			},
 		},
 		{

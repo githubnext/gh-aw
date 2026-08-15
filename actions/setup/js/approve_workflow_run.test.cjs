@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetWorkflowRun = vi.fn();
 const mockApproveWorkflowRun = vi.fn();
+const mockListFiles = vi.fn();
 
 global.core = {
   info: vi.fn(),
@@ -21,7 +22,11 @@ global.github = {
       getWorkflowRun: mockGetWorkflowRun,
       approveWorkflowRun: mockApproveWorkflowRun,
     },
+    pulls: {
+      listFiles: mockListFiles,
+    },
   },
+  paginate: vi.fn(async (method, params) => (await method(params)).data),
 };
 global.getOctokit = vi.fn(() => global.github);
 
@@ -40,6 +45,7 @@ describe("approve_workflow_run", () => {
     global.context.payload = { pull_request: { number: 42 } };
     mockGetWorkflowRun.mockResolvedValue({ data: pendingPullRequestRun });
     mockApproveWorkflowRun.mockResolvedValue({ status: 201 });
+    mockListFiles.mockResolvedValue({ data: [] });
   });
 
   it("approves an eligible pull request workflow run", async () => {
@@ -121,6 +127,29 @@ describe("approve_workflow_run", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("not associated");
     expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects a run when its pull request modifies protected files", async () => {
+    mockListFiles.mockResolvedValue({ data: [{ filename: ".github/workflows/ci.yml" }] });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, protected_path_prefixes: [".github/"] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("modifies protected files");
+    expect(mockApproveWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("allows files absent from the handler's protected-file configuration", async () => {
+    mockListFiles.mockResolvedValue({ data: [{ filename: "package.json" }] });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, protected_files: [] });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
   });
 
   it("rejects malformed workflow run pull request data without a triggering pull request", async () => {

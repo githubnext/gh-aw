@@ -200,11 +200,14 @@ safe-outputs:
     github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}
     allowed-pull-requests:
       - "123"
+    protected-files:
+      exclude:
+        - AGENTS.md
 ```
 
-This operation requires `actions: write` and an explicit external `github-token` or `github-app`; the default `github.token` cannot approve fork pull-request workflow runs. GitHub App tokens are minted with `actions: write`. Use `staged: true` to preview an approval without accessing the GitHub API or consuming the configured `max` limit.
+This operation requires `actions: write`, `pull-requests: read`, and an explicit external `github-token` or `github-app`; the default `github.token` cannot approve fork pull-request workflow runs. GitHub App tokens are minted with both permissions. Use `staged: true` to preview an approval without accessing the GitHub API or consuming the configured `max` limit.
 
-Approvals are limited to the pull request that triggered the workflow by default. Use `allowed-pull-requests` to permit additional pull requests; it accepts a list of string PR numbers or a GitHub Actions expression that resolves to a list of PR numbers. Invalid entries are not authorized. A workflow run that is not a pull request run, is not associated with an authorized pull request, or no longer has status `waiting` is rejected.
+Approvals are limited to the pull request that triggered the workflow by default. Use `allowed-pull-requests` to permit additional pull requests; it accepts a list of string PR numbers or a GitHub Actions expression that resolves to a list of PR numbers. Invalid entries are not authorized. A workflow run that is not a pull request run, is not associated with an authorized pull request, has modified protected files, or no longer has status `waiting` is rejected. Protected files use the standard manifest and protected-directory set; use `protected-files.exclude` to remove specific filenames or path prefixes from that set.
 
 ## Merge Pull Request (`merge-pull-request:`)
 

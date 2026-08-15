@@ -9,6 +9,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
+const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "approve_workflow_run";
@@ -41,6 +42,24 @@ function parseAllowedPullRequests(value) {
 function getCurrentPullRequestNumber() {
   const payload = context.payload || {};
   return parsePositiveInt(payload.pull_request?.number || (payload.issue?.pull_request ? payload.issue.number : undefined));
+}
+
+/**
+ * @param {any} githubClient
+ * @param {number} pullRequestNumber
+ * @returns {Promise<string[]>}
+ */
+async function getModifiedPullRequestFiles(githubClient, pullRequestNumber) {
+  const files = await githubClient.paginate(githubClient.rest.pulls.listFiles, {
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: pullRequestNumber,
+    per_page: 100,
+  });
+  if (!Array.isArray(files) || files.some(file => typeof file?.filename !== "string")) {
+    throw new Error(`Unable to verify modified files for pull request #${pullRequestNumber}`);
+  }
+  return files.map(file => file.filename);
 }
 
 /**
@@ -112,6 +131,25 @@ async function main(config = {}) {
         return { success: false, error };
       }
 
+      for (const pullRequest of run.pull_requests) {
+        const pullRequestNumber = parsePositiveInt(pullRequest.number);
+        if (pullRequestNumber === undefined) {
+          const error = `Workflow run ${runId} has invalid pull request data`;
+          core.warning(error);
+          return { success: false, error };
+        }
+        const files = await getModifiedPullRequestFiles(githubClient, pullRequestNumber);
+        const protection = checkFileProtectionPostApply(files, {
+          ...config,
+          protected_files_policy: "blocked",
+        });
+        if (protection.action !== "allow") {
+          const error = `Workflow run ${runId} cannot be approved because pull request #${pullRequestNumber} modifies protected files (${protection.files.join(", ")})`;
+          core.warning(error);
+          return { success: false, error };
+        }
+      }
+
       processedCount++;
 
       await githubClient.rest.actions.approveWorkflowRun({
@@ -130,4 +168,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main, parseAllowedPullRequests, parsePositiveInt };
+module.exports = { main, parseAllowedPullRequests, parsePositiveInt, getModifiedPullRequestFiles };

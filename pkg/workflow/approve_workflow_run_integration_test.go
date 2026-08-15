@@ -24,6 +24,9 @@ safe-outputs:
     github-app:
       app-id: ${{ vars.APPROVE_WORKFLOW_RUN_APP_ID }}
       private-key: ${{ secrets.APPROVE_WORKFLOW_RUN_APP_PRIVATE_KEY }}
+    protected-files:
+      exclude:
+        - AGENTS.md
 engine: copilot
 ---
 
@@ -35,7 +38,13 @@ Approve the pending workflow run for this pull request.
 		step := compiledStepBlock(compiled, "approve-workflow-run-app-token")
 		require.NotEmpty(t, step)
 		assert.Contains(t, step, "permission-actions: write")
+		assert.Contains(t, step, "permission-pull-requests: read")
 		assert.Contains(t, compiled, "steps.approve-workflow-run-app-token.outputs.token")
+		handlerConfig := extractApproveWorkflowRunHandlerConfig(t, compiled)
+		protectedFiles, ok := handlerConfig["protected_files"].([]any)
+		require.True(t, ok)
+		assert.NotContains(t, protectedFiles, "AGENTS.md")
+		assert.Contains(t, protectedFiles, "package.json")
 	})
 
 	t.Run("emits configured pull request list and expression", func(t *testing.T) {
