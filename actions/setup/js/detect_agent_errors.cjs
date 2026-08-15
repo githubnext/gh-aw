@@ -122,8 +122,12 @@ function isAgenticEngineTimeout(logContent) {
 //   - "model ... not found"
 //   - "model ... does not exist"
 //   - "Model not found" (standalone, e.g. AIC api-proxy 404: "404 Not Found: Model not found")
+//   - "No model available. Check policy enablement under GitHub Settings > Copilot" (Copilot SDK
+//     driver, typically raised when a subagent/`task` dispatch requests a model that is disabled
+//     by the org/repo Copilot policy). Anchored to the "policy enablement" phrase so that the
+//     generic "No model available" wording alone does not produce false positives.
 const MODEL_NOT_SUPPORTED_PATTERN =
-  /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable)|404\b[^\n]*\bModel\s+not\s+found)/i;
+  /(?:The requested model is not supported|invalid model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|unknown model\s+['"`]?[a-z0-9._:/@-]+['"`]?(?=(?:\s*$|\s*[\n\r.,;:!?)]))|model(?:\s+name)?\s+['"`]?[a-z0-9._:/@-]+['"`]?\s+(?:is\s+)?(?:not found|does not exist|not supported|not available|unavailable)|404\b[^\n]*\bModel\s+not\s+found|No model available\b[^\n]*policy enablement)/i;
 
 // Pattern: Generic HTTP 400 Bad Request responses emitted by engine / SDK wrappers.
 // NOTE: keep in sync with HTTP_400_RESPONSE_ERROR_PATTERN in copilot_harness.cjs.
