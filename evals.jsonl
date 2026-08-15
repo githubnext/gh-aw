@@ -10,3 +10,6 @@
 {"id":"release-updated","question":"Did the agent update the release with generated highlights?","answer":"YES","model":"evals","timestamp":"2026-08-11T16:25:20.819Z","runid":"31509781310"}
 {"id":"highlights-included","question":"Does the agent output confirm that release highlights were generated and prepended to the release notes?","answer":"YES","model":"evals","timestamp":"2026-08-11T16:25:20.819Z","runid":"31509781310"}
 {"id":"community-attribution","question":"Does the agent output include attribution to community contributors in the release highlights?","answer":"NO","model":"evals","timestamp":"2026-08-11T16:25:20.819Z","runid":"31509781310"}
+{"id":"release-updated","question":"Did the agent update the release with generated highlights?","answer":"YES","model":"evals","timestamp":"2026-08-15T17:25:10.463Z","runid":"31896438034"}
+{"id":"highlights-included","question":"Does the agent output confirm that release highlights were generated and prepended to the release notes?","answer":"YES","model":"evals","timestamp":"2026-08-15T17:25:10.463Z","runid":"31896438034"}
+{"id":"community-attribution","question":"Does the agent output include attribution to community contributors in the release highlights?","answer":"NO","model":"evals","timestamp":"2026-08-15T17:25:10.463Z","runid":"31896438034"}
