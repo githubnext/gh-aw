@@ -1,40 +1,8 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
-import { resolveWriteOnceInitializerChain } from "./command-initializer-utils";
+import { getDynamicCommandKind } from "./command-initializer-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 type ExecMethodName = "exec" | "getExecOutput";
-
-/**
- * Returns true when the node is a purely static expression (no runtime
- * interpolation): a literal, a no-expression template literal, or a binary
- * `+` of two static expressions.
- */
-function isStaticExpression(node: TSESTree.Expression): boolean {
-  if (node.type === "Literal") return true;
-  if (node.type === "TemplateLiteral") return node.expressions.length === 0;
-  if (node.type === "BinaryExpression" && node.operator === "+") {
-    return isStaticExpression(node.left) && isStaticExpression(node.right);
-  }
-  return false;
-}
-
-/**
- * Returns true when the node is a dynamic string concatenation (binary `+`
- * that is not entirely static).
- */
-function isDynamicStringConcatenation(node: TSESTree.Expression): boolean {
-  return node.type === "BinaryExpression" && node.operator === "+" && !isStaticExpression(node);
-}
-
-/**
- * Returns the display kind string for the problematic first argument, or null
- * when the argument is not one of the flagged shapes.
- */
-function getDynamicCommandKind(node: TSESTree.Expression): string | null {
-  if (node.type === "TemplateLiteral" && node.expressions.length > 0) return "interpolated template literal";
-  if (isDynamicStringConcatenation(node)) return "dynamic string concatenation";
-  return null;
-}
 
 /**
  * Returns true when the call expression looks like `exec.exec(...)` or
@@ -86,8 +54,7 @@ export const noExecInterpolatedCommandRule = createRule({
         const firstArg = node.arguments[0];
         if (!firstArg || firstArg.type === AST_NODE_TYPES.SpreadElement) return;
 
-        const candidate = resolveWriteOnceInitializerChain(firstArg as TSESTree.Expression, sourceCode);
-        const kind = getDynamicCommandKind(candidate);
+        const kind = getDynamicCommandKind(firstArg as TSESTree.Expression, sourceCode);
         if (!kind) return;
 
         context.report({
