@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -49,6 +50,38 @@ func TestTimeoutFlagParsing(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEffectiveMCPLogsToolSoftTimeoutSeconds(t *testing.T) {
+	t.Run("no gateway deadline leaves CLI timeout unchanged", func(t *testing.T) {
+		got, ok := effectiveMCPLogsToolSoftTimeoutSeconds(context.Background(), 5)
+		if ok || got != 0 {
+			t.Fatalf("effectiveMCPLogsToolSoftTimeoutSeconds without deadline = (%d, %v), want (0, false)", got, ok)
+		}
+	})
+
+	t.Run("gateway deadline below CLI timeout returns safety margin", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		got, ok := effectiveMCPLogsToolSoftTimeoutSeconds(ctx, 5)
+		if !ok {
+			t.Fatal("expected soft timeout when gateway deadline is shorter than CLI timeout")
+		}
+		if got < 50 || got > 54 {
+			t.Fatalf("soft timeout = %d seconds, want between 50 and 54 seconds", got)
+		}
+	})
+
+	t.Run("gateway deadline beyond CLI timeout leaves CLI timeout unchanged", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		got, ok := effectiveMCPLogsToolSoftTimeoutSeconds(ctx, 5)
+		if ok || got != 0 {
+			t.Fatalf("effectiveMCPLogsToolSoftTimeoutSeconds with long deadline = (%d, %v), want (0, false)", got, ok)
+		}
+	})
 }
 
 // TestTimeoutLogic tests the timeout logic without making network calls

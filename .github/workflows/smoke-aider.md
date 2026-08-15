@@ -24,6 +24,8 @@ engine:
 strict: true
 imports:
   - shared/aider.md
+  - shared/smoke-test-brevity.md
+  - shared/reporting.md
 network:
   allowed: []
 tools:
@@ -57,11 +59,6 @@ sandbox:
 ---
 
 # Smoke Test: Aider Engine Validation
-
-**CRITICAL EFFICIENCY REQUIREMENTS:**
-- Keep ALL outputs extremely short and concise. Use single-line responses.
-- NO verbose explanations or unnecessary context.
-- Minimize file reading - only read what is absolutely necessary for the task.
 
 Aider has no MCP client support, so this smoke test exercises only the CLI-native
 capabilities: prompt delivery, shell commands, and file editing. Safe outputs are

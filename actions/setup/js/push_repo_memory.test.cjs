@@ -1597,11 +1597,13 @@ describe("push_repo_memory.cjs - changed-file limit checks", () => {
     const nodeFs = require("fs");
     const nodePath = require("path");
     const scriptPath = nodePath.join(import.meta.dirname, "push_repo_memory.cjs");
+    const helperPath = nodePath.join(import.meta.dirname, "memory_custom_validation.cjs");
     const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
+    const helperContent = nodeFs.readFileSync(helperPath, "utf8");
 
-    expect(scriptContent).toContain('Buffer.byteLength(formatted, "utf8")');
-    expect(scriptContent).toContain("Formatted JSON exceeds MAX_FILE_SIZE");
-    expect(scriptContent).toContain("FormatJSONSizeLimitError");
+    expect(scriptContent).toContain("formatJSONFiles(destMemoryPath, maxFileSize)");
+    expect(helperContent).toContain('Buffer.byteLength(formatted, "utf8")');
+    expect(helperContent).toContain("Formatted JSON exceeds max file size");
   });
 });
 

@@ -36,6 +36,8 @@ imports:
   - shared/github-mcp-app.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
+  - shared/smoke-test-brevity.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults
@@ -141,8 +143,6 @@ features:
 ---
 
 # Smoke Test: Claude Engine Validation.
-
-**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
 ## Test Requirements
 

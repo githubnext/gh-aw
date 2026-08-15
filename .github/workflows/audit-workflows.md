@@ -51,6 +51,7 @@ imports:
       description: "Historical audit data and patterns"
       max-patch-size: 51200
   - ../skills/jqschema/SKILL.md
+  - shared/reporting.md
 
 
   - shared/otlp.md
@@ -153,7 +154,6 @@ When updating repo memory:
 **Security**: Never execute untrusted code, validate data, sanitize paths
 **Quality**: Be thorough, specific, actionable, accurate  
 **Efficiency**: Use repo memory, batch operations, respect timeouts
-**Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
 Memory structure: `/tmp/gh-aw/repo-memory/default/{audit-history.jsonl,workflow-trends.json,known-issues.json,recommendations.json,anomalies.json,metrics-summary.json}`
 

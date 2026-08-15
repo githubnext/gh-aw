@@ -33,14 +33,11 @@ safe-outputs:
     run-started: "🧪 [{workflow_name}]({run_url}) — credit limit test running (intentionally broken, limit: 1 AI credit/day)."
     run-success: "⚠️ [{workflow_name}]({run_url}) completed without hitting the daily limit of 1 AI credit — verify that credit accounting is working."
     run-failure: "🚫 [{workflow_name}]({run_url}) {status} — expected: the daily AI credit limit of 1 was reached and this run was blocked."
+imports:
+  - shared/reporting.md
 ---
 
 ### Daily Credit Limit Test (Intentionally Broken)
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 > ⚠️ **This workflow is intentionally broken.** It exists solely to verify that
 > `max-daily-ai-credits: 1` is enforced by the activation guardrail and that the

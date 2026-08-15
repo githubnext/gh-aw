@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -25,6 +26,20 @@ const envVar = "GH_AW_LINT_COVERAGE_PROFILE"
 // profileIndex holds the lazily loaded coverage profiles indexed by filename.
 type profileIndex struct {
 	profiles map[string]*xcov.Profile // key: Profile.FileName (package-qualified path)
+}
+
+// modulePrefix returns the module path of the running binary's main module
+// (e.g. "github.com/github/gh-aw"), or "" if it cannot be determined. This is
+// used to strip the module-qualified prefix from coverage profile keys so
+// they can be matched against real OS absolute paths, which have no notion
+// of the module's import path (e.g. GitHub Actions checkouts under
+// "/home/runner/work/<repo>/<repo>/...").
+func modulePrefix() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok || bi.Main.Path == "" {
+		return ""
+	}
+	return bi.Main.Path
 }
 
 var (
@@ -54,16 +69,29 @@ func load() {
 }
 
 // findProfile looks up the profile entry that corresponds to the given on-disk
-// filename. Coverage profile keys are package-qualified paths such as
-// "github.com/org/repo/pkg/foo/foo.go", while pass.Fset returns absolute OS
-// paths. We match by checking whether the normalised on-disk path ends with
-// the profile key.
+// filename. Coverage profile keys are module-qualified paths such as
+// "github.com/github/gh-aw/pkg/foo/foo.go", while pass.Fset returns real OS
+// absolute paths (e.g. "/home/runner/work/gh-aw/gh-aw/pkg/foo/foo.go" on a
+// standard GitHub Actions checkout). Since the module's import path has no
+// relation to the on-disk checkout directory name, we strip the running
+// binary's main module path from each profile key (when present) before
+// matching, so comparisons use the module-relative path shared by both
+// forms. We still fall back to matching the raw key as-is, to support
+// profiles built from a different module than the running binary.
 func (idx *profileIndex) findProfile(filename string) *xcov.Profile {
 	norm := filepath.ToSlash(filename)
+	modPrefix := modulePrefix()
 	for key, p := range idx.profiles {
 		normKey := filepath.ToSlash(key)
 		if strings.HasSuffix(norm, "/"+normKey) || norm == normKey {
 			return p
+		}
+		if modPrefix != "" {
+			if rel, ok := strings.CutPrefix(normKey, modPrefix+"/"); ok {
+				if strings.HasSuffix(norm, "/"+rel) || norm == rel {
+					return p
+				}
+			}
 		}
 	}
 	return nil

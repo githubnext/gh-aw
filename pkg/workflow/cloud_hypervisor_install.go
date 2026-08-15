@@ -7,6 +7,14 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var cloudHypervisorInstallLog = logger.New("workflow:cloud_hypervisor_install")
 
+func generateCloudHypervisorKVMAccessStep() GitHubActionStep {
+	cloudHypervisorInstallLog.Print("Generating cloud-hypervisor KVM access step")
+	return GitHubActionStep([]string{
+		"      - name: Grant runner access to KVM",
+		`        run: bash "${RUNNER_TEMP}/gh-aw/actions/cloud_hypervisor_kvm_access.sh"`,
+	})
+}
+
 func generateCloudHypervisorHostPreflightStep() GitHubActionStep {
 	cloudHypervisorInstallLog.Print("Generating cloud-hypervisor host eligibility preflight step")
 	return GitHubActionStep([]string{

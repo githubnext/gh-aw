@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,7 +52,7 @@ func buildWorkflowRunMetadataArgs(runID int64, owner, repo, hostname string) []s
 func classifyWorkflowRunMetadataError(runID int64, err error, output []byte) error {
 	outputStr := string(output)
 	if errorutil.IsNotFoundError(err) ||
-		errorutil.IsNotFoundError(errors.New(outputStr)) ||
+		errorutil.IsNotFoundOutput(outputStr) ||
 		strings.Contains(outputStr, "Could not resolve") {
 		return fmt.Errorf("workflow run %d not found. Please verify the run ID is correct and that you have access to the repository", runID)
 	}

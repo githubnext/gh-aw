@@ -65,6 +65,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// skills detected at compile time so that subsequent compilations can perform safe update
 	// enforcement.
 	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.RawFrontmatter["on"])
+	manifest.MemoryValidationScripts = collectMemoryValidationScripts(data)
 	if manifestJSON, err := manifest.ToJSON(); err == nil {
 		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON)
 	} else {

@@ -1584,6 +1584,68 @@ safe-outputs:
 
 **Behavior**: All workflow runs complete in order, preventing incomplete operations.
 
+#### Example 5: Pre-Activation, Detection, and Conclusion Job Structure
+
+The following excerpt (abridged from a compiled `.lock.yml`) shows the three implementation-detail jobs referenced in the Minor Discrepancies section of `specs/security-architecture-spec-validation.md`: `pre_activation` (role-based access control ahead of `activation`), `detection` (runtime manifestation of the Threat Detection Layer, Section 9), and `conclusion` (cleanup/summary reporting job that always runs).
+
+```yaml
+jobs:
+  pre_activation:
+    if: >
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@<pinned-sha> # vX.Y.Z
+        env:
+          GH_AW_REQUIRED_ROLES: "admin,maintainer,write"
+
+  activation:
+    needs: [pre_activation]
+    # ... timestamp/lockdown validation (Section 11.1) ...
+
+  agent:
+    needs: [activation]
+    permissions:
+      contents: read
+    # ... agentic execution (read-only) ...
+
+  detection:
+    needs: [activation, agent]
+    if: always() && needs.agent.result != 'skipped'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
+      detection_success: ${{ steps.detection_conclusion.outputs.success }}
+    # ... AI threat-detection scan of agent output (Section 9.1) ...
+
+  safe_outputs:
+    needs: [activation, agent, detection]
+    if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
+    permissions:
+      issues: write
+      pull-requests: write
+    # ... write operations gated on successful detection ...
+
+  conclusion:
+    needs: [activation, agent, detection, safe_outputs]
+    if: always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true')
+    permissions:
+      actions: read
+      issues: write
+      pull-requests: write
+    # ... run summary, cleanup, and failure reporting ...
+```
+
+**Behavior**: `pre_activation` gates `activation` on role membership; `detection` runs after `agent` and gates `safe_outputs` on a successful threat-detection conclusion; `conclusion` always runs last (subject to `always()`) to report status regardless of upstream success or failure.
+
 ### Appendix E: Concurrency Control Examples
 
 #### Example 1: Pull Request Workflow with Cancellation

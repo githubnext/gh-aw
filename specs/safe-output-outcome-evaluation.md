@@ -815,6 +815,45 @@ The table below specifies one conformance test row per safe-output type. Each ro
 | §29 | `missing_tool` | `pkg/cli/outcome_eval_test.go` | covered |
 | §30 | `replace_label` | `pkg/cli/outcome_eval_update_test.go`, `pkg/workflow/replace_label_formal_test.go` | covered |
 
+### Structure: Safe-Output Section-to-Implementation Mapping
+
+Each numbered safe-output-type section above corresponds to a dedicated configuration/compilation implementation file under `pkg/workflow/`. This mapping is distinct from the Compliance test mapping above; it maps specification sections to the Go source that defines and compiles the output type (shared cross-cutting logic such as `safe_output_handlers.go` and `compiler_safe_outputs_job.go` is omitted for brevity since it applies to all types).
+
+| Section | Output type | Implementation file(s) |
+|---|---|---|
+| §1 | `create_pull_request` | `pkg/workflow/create_pull_request.go` |
+| §2 | `create_issue` | `pkg/workflow/create_issue.go` |
+| §3 | `add_comment` | `pkg/workflow/add_comment.go` |
+| §4 | `add_labels` | `pkg/workflow/add_labels.go` |
+| §5 | `add_reviewer` | `pkg/workflow/add_reviewer.go` |
+| §6 | `update_issue` | `pkg/workflow/update_issue.go` |
+| §7 | `update_pull_request` | `pkg/workflow/update_pull_request.go` |
+| §8 | `close_issue` | `pkg/workflow/close_entity_helpers.go` |
+| §9 | `close_pull_request` | `pkg/workflow/close_entity_helpers.go` |
+| §10 | `close_discussion` | `pkg/workflow/close_entity_helpers.go` |
+| §11 | `create_discussion` | `pkg/workflow/create_discussion.go` |
+| §12 | `update_discussion` | `pkg/workflow/update_discussion.go` |
+| §13 | `create_pull_request_review_comment` | `pkg/workflow/create_pr_review_comment.go` |
+| §14 | `submit_pull_request_review` | `pkg/workflow/submit_pr_review.go` |
+| §15 | `reply_to_pull_request_review_comment` | `pkg/workflow/reply_to_pr_review_comment.go` |
+| §16 | `resolve_pull_request_review_thread` | `pkg/workflow/resolve_pr_review_thread.go` |
+| §17 | `push_to_pull_request_branch` | `pkg/workflow/push_to_pull_request_branch.go`, `pkg/workflow/push_to_pull_request_branch_validation.go` |
+| §18 | `mark_pull_request_as_ready_for_review` | `pkg/workflow/mark_pull_request_as_ready_for_review.go` |
+| §19 | `assign_to_agent` | `pkg/workflow/assign_to_agent.go` |
+| §20 | `dispatch_workflow` | `pkg/workflow/dispatch_workflow.go`, `pkg/workflow/dispatch_workflow_validation.go`, `pkg/workflow/dispatch_workflow_file_resolver.go` |
+| §21 | `autofix_code_scanning_alert` | `pkg/workflow/autofix_code_scanning_alert.go` |
+| §22 | `create_code_scanning_alert` | `pkg/workflow/create_code_scanning_alert.go` |
+| §23 | `link_sub_issue` | `pkg/workflow/link_sub_issue.go` |
+| §24 | `hide_comment` | `pkg/workflow/hide_comment.go` |
+| §25 | `assign_milestone` | `pkg/workflow/assign_milestone.go` |
+| §26 | `update_project` | `pkg/workflow/update_project.go` |
+| §27 | `update_release` | `pkg/workflow/update_release.go` |
+| §28 | `noop` | `pkg/workflow/noop.go` |
+| §29 | `missing_tool` | `pkg/workflow/missing_issue_reporting.go` |
+| §30 | `replace_label` | `pkg/workflow/replace_label.go` |
+
+Sync procedure: when a safe-output type's implementation file is renamed, split, or removed, update the corresponding row in this table in the same change that moves the code.
+
 ### OTel Backend Unavailability
 
 When the OTLP exporter is unavailable (e.g., endpoint unreachable, network timeout, authentication failure) during outcome evaluation, the following safeguards **MUST** apply:

@@ -13,6 +13,7 @@ network:
   - defaults
   - github
 imports:
+- shared/reporting.md
 - uses: shared/skip-if-issue-open.md
   with:
     title-prefix: "[spec-librarian]"
@@ -255,10 +256,9 @@ The following specifications are outdated:
 1. **Be thorough**: Check ALL packages, not just a sample
 2. **Be precise**: Reference exact file paths, function names, and dates
 3. **Be actionable**: Every finding should have a clear recommendation
-4. **Report Formatting**: Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
-5. **Use progressive disclosure**: Wrap details in `<details>` tags
-6. **One issue per run**: The `max: 1` limit ensures no issue spam
-7. **Skip if open**: The `skip-if-match` rule prevents duplicate issues
+4. **Use progressive disclosure**: Wrap details in `<details>` tags
+5. **One issue per run**: The `max: 1` limit ensures no issue spam
+6. **Skip if open**: The `skip-if-match` rule prevents duplicate issues
 
 ## Success Criteria
 

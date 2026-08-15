@@ -71,6 +71,14 @@ The compiler-computed value that authorizes host-path mounts for MCP backend ser
 
 A service that implements the Model Context Protocol to provide specific capabilities to AI agents. Examples include the GitHub MCP server (for GitHub API operations), Playwright MCP server (for browser automation), or custom MCP servers for specialized tools. See [Playwright Reference](/gh-aw/reference/playwright/) for browser automation configuration.
 
+### Required Field (`required`)
+
+An MCP server field that controls startup criticality. By default every configured MCP server is startup-critical: the agent job fails if the server cannot be reached during the pre-flight connectivity check. Setting `required: false` marks a server as best-effort, so an unreachable server logs a warning and the workflow continues without it, rather than aborting the run. At least one server must still connect successfully for startup to proceed. See [MCPs Guide](/gh-aw/guides/mcps/).
+
+### Partial Results (MCP Logs)
+
+A response pattern used by the `gh aw` MCP server's `logs` tool when a gateway timeout or token budget guardrail prevents returning a complete result set. Instead of failing the call, the tool returns the JSON data it collected so far with `partial: true` and continuation parameters (such as `after_run_id`/`before_run_id`) so the caller can request the remaining results in a follow-up call. See [`gh aw` as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/).
+
 ### QMD Documentation Search (`qmd:`)
 
 A built-in tool that provides vector similarity search over documentation files. Configured via `tools.qmd:` in frontmatter, the `qmd` tool runs [tobi/qmd](https://github.com/tobi/qmd) as an MCP server so agents can find relevant documentation by natural language query. The search index is built in a dedicated indexing job (which has `contents: read`) and shared with the agent job via `actions/cache`, so the agent job does not need `contents: read`. Supports indexing from repository checkouts, GitHub code search queries, and cache-only read-only mode. See [QMD Documentation Search](/gh-aw/reference/qmd/).
@@ -134,6 +142,10 @@ safe-outputs:
 ```
 
 ## Security and Outputs
+
+### Enclaves (`enclaves:`)
+
+A top-level frontmatter array that enables finite-disclosure access to approved private repositories from within a public-facing workflow. The compiler registers `enclave_run_script` or `enclave_run_agent` tools from the keyed `script`/`agent` entries present on the `awf-enclave` MCP route, compiled through [mcpg](#mcp-gateway) with run-scoped capability handoff, timeout derivation, and network validation. Enclaves require AWF network isolation (`sandbox.agent.sudo: false` or the `docker-sbx` runtime) so the compiler can launch mcpg in bridge mode. Each request uses a fresh masked capability generated per workflow run, passed only to mcpg and AWF and excluded from the primary agent environment. See [Private Repository Enclaves](/gh-aw/reference/enclaves/).
 
 ### MCP Scripts
 
@@ -614,6 +626,14 @@ engine:
 Sample CLI engine definitions bundled as reference patterns rather than officially supported engines. The repository ships **OpenCode**, **Aider**, **Crush**, **Cursor**, and **Kiro** as sample [engine behaviors](#engine-behaviors-enginebehaviors) definitions under `.github/workflows/shared/<id>.md`. These have no compatibility or maintenance commitment from `gh-aw`; copy or adapt them only under the support terms of their respective owners. See [AI Engines Reference](/gh-aw/reference/engines/#unsupported-engine-samples).
 
 See [AI Engines Reference](/gh-aw/reference/engines/#pinning-a-specific-engine-version).
+
+### Post-Result Watchdog (`engine.harness.watchdog-timeout`)
+
+A harness setting that terminates a quiet child process after the agent has already produced a terminal safe output, such as `noop` or an ordinary task output (comment, label, push, pull request creation). Diagnostic safe outputs like `missing_tool`, `missing_data`, and `report_incomplete` are not terminal and do not arm the watchdog. The watchdog stays dormant until armed, and once armed, any stdout or stderr activity resets its inactivity clock — so a quiet process doing useful work can still be terminated, with the harness treating that termination as successful because the requested safe output already exists. Configure with `engine.harness.watchdog-timeout` (seconds) or the raw `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` environment variable (milliseconds, default `120000`, min `50`, max `600000`). See [Harness Retry and Post-result Watchdog Policy](/gh-aw/reference/engines/#harness-retry-and-post-result-watchdog-policy) and [Environment Variables Reference](/gh-aw/reference/environment-variables/#shared-post-result-watchdog).
+
+### Harness Retry Runner
+
+A shared retry module used by the built-in Copilot, Claude, and Codex engine harnesses to re-launch the agent CLI with exponential backoff after a failed or interrupted run. Configurable via `engine.harness` fields (or `GH_AW_HARNESS_*` environment variables) for retry count and backoff multiplier/max-delay. Extracted as a common component so all harnesses share the same retry behavior instead of duplicating it per engine. See [AI Engines Reference](/gh-aw/reference/engines/#harness-retry-and-post-result-watchdog-policy).
 
 ### Anthropic Workload Identity Federation (WIF)
 
@@ -1121,6 +1141,10 @@ A failure category reported when one or more frontmatter skills could not be ins
 
 A GitHub Personal Access Token with granular permission control, specifying exactly which repositories the token can access and what permissions it has. Created at github.com/settings/personal-access-tokens.
 
+### Copilot-Only Artifacts (`--no-mcp`, `--no-agent`)
+
+Configuration files that `gh aw init` creates only when the Copilot engine is selected (`--engine copilot`): the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and MCP server integration. Both are enabled by default with the Copilot engine; pass `--no-mcp` to skip MCP server integration or `--no-agent` to skip custom agent creation. Non-Copilot engines skip these artifacts automatically. See [CLI Reference](/gh-aw/setup/cli/#init).
+
 ### `RUNNER_TEMP` / `${{ runner.temp }}`
 
 A GitHub Actions environment variable pointing to a per-job temporary directory on the runner. Agentic workflows store compiled scripts and runtime artifacts under `${RUNNER_TEMP}/gh-aw/` for compatibility with self-hosted runners that may not have write access to system directories. In shell `run:` blocks, use the shell variable form `${RUNNER_TEMP}`; in `with:` or `env:` YAML fields, use the expression form `${{ runner.temp }}`.
@@ -1496,7 +1520,7 @@ A KVM-hardware-virtualized microVM runtime. When `sandbox.agent.runtime: docker-
 
 ### cloud-hypervisor
 
-A preview KVM-hardware-virtualized microVM runtime in AWF. When `sandbox.agent.runtime: cloud-hypervisor` is set, gh-aw emits host eligibility checks and digest-pinned release-asset provisioning for the Cloud Hypervisor binary, kernel, rootfs, and supervisor bundle. Support is intentionally limited to GitHub-hosted Ubuntu x86_64 runners with `/dev/kvm`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+A preview KVM-hardware-virtualized microVM runtime in AWF. When `sandbox.agent.runtime: cloud-hypervisor` is set, gh-aw grants the runner scoped KVM access and emits host eligibility checks plus digest-pinned release-asset provisioning for the Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor bundle. AWF uses the host privileges needed to create the VM while retaining strict topology isolation. Support is intentionally limited to GitHub-hosted Ubuntu x86_64 runners with `/dev/kvm`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
 ### Strict Mode
 

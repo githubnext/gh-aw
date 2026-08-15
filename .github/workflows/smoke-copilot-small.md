@@ -19,6 +19,9 @@ model: small
 engine:
   id: copilot
   bare: true
+imports:
+  - shared/smoke-test-brevity.md
+  - shared/reporting.md
 tools:
   bash:
     - "*"
@@ -40,8 +43,6 @@ sandbox:
 ---
 
 # Smoke Test: Copilot Small Model Validation
-
-**IMPORTANT: Keep all outputs extremely short and concise.**
 
 ## Tasks
 

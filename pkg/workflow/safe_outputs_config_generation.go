@@ -191,13 +191,23 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		var memories []map[string]any
 		for _, memory := range data.RepoMemoryConfig.Memories {
-			memories = append(memories, map[string]any{
+			memoryConfig := map[string]any{
 				"id":             memory.ID,
 				"dir":            constants.TmpRepoMemoryDir + memory.ID,
 				"max_file_size":  memory.MaxFileSize,
 				"max_patch_size": memory.MaxPatchSize,
 				"max_file_count": memory.MaxFileCount,
-			})
+			}
+			if memory.FormatJSON {
+				memoryConfig["format_json"] = true
+			}
+			if memory.Validation != nil {
+				memoryConfig["validation"] = map[string]any{
+					"script":  memory.Validation.Script,
+					"timeout": memoryValidationTimeoutSeconds(memory.Validation),
+				}
+			}
+			memories = append(memories, memoryConfig)
 		}
 		safeOutputsConfig["push_repo_memory"] = map[string]any{
 			"memories": memories,

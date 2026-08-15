@@ -30,6 +30,7 @@ imports:
     with:
       title-prefix: "[safe-outputs-conformance] "
       expires: 1d
+  - shared/reporting.md
 
 
   - shared/otlp.md
@@ -194,8 +195,6 @@ If multiple similar issues are found (e.g., 3 handlers missing the same validati
 ```
 
 ## Phase 4: Summary Report
-
-- **Report Formatting**: Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
 
 After processing all issues, provide a summary in the workflow output:
 

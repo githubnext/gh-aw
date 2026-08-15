@@ -33,6 +33,7 @@ imports:
     with:
       title-prefix: "[daily secrets] "
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: secrets_analyzed
     question: Did the agent analyze secret usage patterns across compiled lock.yml workflow files?
@@ -307,7 +308,6 @@ For detailed information about secret usage patterns, see:
 
 ## Notes
 
-- **Report Formatting**: Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
 - Focus on **trends and changes** rather than static inventory
 - Highlight **security concerns** prominently
 - Keep the report **concise but comprehensive**

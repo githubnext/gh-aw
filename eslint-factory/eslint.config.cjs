@@ -53,10 +53,13 @@ module.exports = [
       "gh-aw-custom/require-escaped-regexp-interpolation": "warn",
       "gh-aw-custom/require-fetch-timeout": "warn",
       "gh-aw-custom/require-nan-check-after-env-numeric-parse": "warn",
+      "gh-aw-custom/require-nan-check-after-split-index-parse": "warn",
       "gh-aw-custom/prefer-structured-clone": "warn",
       "gh-aw-custom/require-fetch-response-body-try-catch": "warn",
       "gh-aw-custom/require-error-code-in-thrown-error": "warn",
       "gh-aw-custom/require-invalid-date-check-before-compare": "warn",
+      "gh-aw-custom/require-sync-exec-timeout": "warn",
+      "gh-aw-custom/no-empty-catch-block": "warn",
     },
   },
   {

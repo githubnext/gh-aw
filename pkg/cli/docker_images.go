@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -67,17 +68,10 @@ var pullState = &dockerPullState{
 	mockDockerAvailable: true,
 }
 
-func normalizeDockerContext(ctx context.Context) context.Context {
-	if ctx == nil {
-		return context.TODO()
-	}
-	return ctx
-}
-
 // isDockerImageAvailableUnlocked checks if a Docker image is available locally
 // This function must be called with pullState.mu held (either RLock or Lock)
 func isDockerImageAvailableUnlocked(ctx context.Context, image string) bool {
-	ctx = normalizeDockerContext(ctx)
+	ctx = ctxutil.OrBackground(ctx)
 
 	// Check if we're in mock mode (for testing)
 	if pullState.mockAvailableInUse {
@@ -100,7 +94,7 @@ func isDockerImageAvailableUnlocked(ctx context.Context, image string) bool {
 
 // IsDockerImageAvailable checks if a Docker image is available locally
 func IsDockerImageAvailable(ctx context.Context, image string) bool {
-	ctx = normalizeDockerContext(ctx)
+	ctx = ctxutil.OrBackground(ctx)
 
 	pullState.mu.RLock()
 	defer pullState.mu.RUnlock()
@@ -116,7 +110,7 @@ func IsDockerImageDownloading(image string) bool {
 
 // IsDockerAvailable checks if the Docker daemon is running and accessible
 func IsDockerAvailable(ctx context.Context) bool {
-	ctx = normalizeDockerContext(ctx)
+	ctx = ctxutil.OrBackground(ctx)
 
 	mockEnabled, mockAvailable := func() (bool, bool) {
 		pullState.mu.RLock()
@@ -146,7 +140,7 @@ func IsDockerAvailable(ctx context.Context) bool {
 // The returned join function blocks until the download goroutine exits and returns
 // any error that occurred (nil on success or context cancellation).
 func StartDockerImageDownload(ctx context.Context, image string) (bool, func() error) {
-	ctx = normalizeDockerContext(ctx)
+	ctx = ctxutil.OrBackground(ctx)
 
 	// Check availability and downloading status atomically under lock
 	pullState.mu.Lock()

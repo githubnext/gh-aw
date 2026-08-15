@@ -58,11 +58,13 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `gemini-3.1-flash` | `copilot/gemini-3.1*flash*`, `google/gemini-3.1*flash*`, `gemini/gemini-3.1*flash*` |
 | `gemini-3.5-flash` | `copilot/gemini-3.5*flash*`, `google/gemini-3.5*flash*`, `gemini/gemini-3.5*flash*` |
 | `gemini-3.6-flash` | `copilot/gemini-3.6*flash*`, `google/gemini-3.6*flash*`, `gemini/gemini-3.6*flash*` |
+| `antigravity` | `copilot/antigravity*`, `google/antigravity*`, `gemini/antigravity*` |
 | `nano-banana` | `copilot/nano-banana*`, `google/nano-banana*`, `gemini/nano-banana*` |
 | `computer-use` | `copilot/*computer-use*`, `google/*computer-use*`, `gemini/*computer-use*`, `openai/*computer-use*` |
 | `robotics` | `copilot/*robotics*`, `google/*robotics*`, `gemini/*robotics*` |
 | `veo` | `google/veo*`, `gemini/veo*` |
 | `lyria` | `google/lyria*`, `gemini/lyria*`, `copilot/lyria*` |
+| `grok` | `copilot/*grok*`, `openai/*grok*` |
 
 ### Meta-Aliases
 
@@ -72,8 +74,10 @@ Meta-aliases reference other aliases by name. They are resolved recursively unti
 |------------|------------|
 | `opusplan` | `opus?effort=high` |
 | `small` | `mini` |
+| `detection` | `small` |
+| `evals` | `small` |
 | `mini` | `haiku` → `gpt-5-mini` → `gpt-5-nano` → `gemini-flash-lite` |
-| `large` | `fable` → `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
+| `large` | `sonnet` → `gpt-5-pro` → `gpt-5` → `gemini-pro` |
 | `agent` | `sonnet-6x` → `gpt-5.4` → `gpt-5.5` → `gpt-5.6` → `gpt-5.3` → `gemini-pro` → `any` |
 | `small-agent` | `haiku` → `gpt-5-mini` → `gemini-flash` |
 | `copilot` | `agent` |

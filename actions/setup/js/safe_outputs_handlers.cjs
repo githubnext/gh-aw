@@ -31,6 +31,7 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
 const { resolveDataSchema } = require("./data_schema_normalizer.cjs");
+const { clearValidationMarker, formatJSONFiles, runCustomMemoryValidation, writeValidationMarker } = require("./memory_custom_validation.cjs");
 
 /** PR event names used for target:triggering context validation across all safe-output handlers. */
 const PR_EVENT_NAMES = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
@@ -1663,6 +1664,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const maxFileSize = memoryConf.max_file_size || 10240;
     const maxPatchSize = memoryConf.max_patch_size || 10240;
     const maxFileCount = memoryConf.max_file_count || 100;
+    const validationConfig = memoryConf.validation || null;
+    const validationScript = validationConfig && typeof validationConfig.script === "string" ? validationConfig.script : "";
+    const validationTimeoutSeconds = validationConfig && Number.isFinite(validationConfig.timeout) ? validationConfig.timeout : undefined;
     // The effective limit is max_patch_size × 1.2, matching the push gate in push_repo_memory.cjs.
     // This catches cases where total memory content is close to or exceeds the push diff limit.
     const effectiveMaxPatchSize = Math.floor(maxPatchSize * 1.2);
@@ -1676,6 +1680,30 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           },
         ],
       };
+    }
+
+    clearValidationMarker("repo", memoryId);
+
+    if (memoryConf.format_json === true) {
+      try {
+        const formattedFiles = formatJSONFiles(memoryDir, maxFileSize);
+        if (formattedFiles.length > 0) {
+          core.info(`Formatted ${formattedFiles.length} repo-memory JSON file(s) before validation: ${formattedFiles.join(", ")}`);
+        }
+      } catch (/** @type {any} */ error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: `Failed to format repo-memory JSON before validation: ${getErrorMessage(error)}`,
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
     }
 
     // Recursively scan all files in the memory directory
@@ -1816,13 +1844,68 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
+    /** @type {ReturnType<typeof runCustomMemoryValidation> | null} */
+    let customValidation = null;
+    if (validationConfig) {
+      customValidation = runCustomMemoryValidation({
+        script: validationScript,
+        memoryDir,
+        memoryId,
+        kind: "repo",
+        timeoutSeconds: validationTimeoutSeconds,
+      });
+      if (!customValidation.ok) {
+        const reason = customValidation.timedOut ? `timed out after ${validationTimeoutSeconds || 30} second(s)` : `exited with code ${customValidation.exitCode}`;
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                result: "error",
+                error: `Custom repo-memory validation failed for '${memoryId}': ${reason}.`,
+                storage_validation: {
+                  result: "success",
+                  message: `Storage validation passed: ${files.length} file(s), ${totalSizeKb} KB total content, ${patchSizeKb} KB patch diff (${patchSizeBytes} bytes).`,
+                },
+                custom_validation: {
+                  result: "error",
+                  stdout: customValidation.stdout,
+                  stderr: customValidation.stderr,
+                },
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+
+    const markerPath = writeValidationMarker("repo", memoryId);
     return {
       content: [
         {
           type: "text",
           text: JSON.stringify({
             result: "success",
-            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total content, ` + `${patchSizeKb} KB patch diff (${patchSizeBytes} bytes) (limit: ${effectiveMaxKb} KB / ${effectiveMaxPatchSize} bytes).`,
+            message:
+              `Storage validation passed: ${files.length} file(s), ${totalSizeKb} KB total content, ` +
+              `${patchSizeKb} KB patch diff (${patchSizeBytes} bytes) (limit: ${effectiveMaxKb} KB / ${effectiveMaxPatchSize} bytes).` +
+              (customValidation ? " Custom domain validation passed." : ""),
+            storage_validation: {
+              result: "success",
+              files: files.length,
+              total_size_kb: totalSizeKb,
+              patch_size_bytes: patchSizeBytes,
+              effective_patch_limit_bytes: effectiveMaxPatchSize,
+            },
+            custom_validation: customValidation
+              ? {
+                  result: "success",
+                  stdout: customValidation.stdout,
+                  stderr: customValidation.stderr,
+                }
+              : undefined,
+            validation_marker: markerPath,
           }),
         },
       ],

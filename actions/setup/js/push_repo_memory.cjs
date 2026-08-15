@@ -9,6 +9,7 @@ const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { getGitAuthEnv } = require("./git_auth_helpers.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
 const { getStagedPatchDiffSizeBytes } = require("./git_patch_utils.cjs");
+const { formatJSONFiles, runCustomMemoryValidation } = require("./memory_custom_validation.cjs");
 const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
@@ -51,6 +52,8 @@ async function main() {
   const maxPatchSize = parseInt(process.env.MAX_PATCH_SIZE || "10240", 10);
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
   const formatJSON = process.env.FORMAT_JSON === "true";
+  const validationScriptBase64 = process.env.VALIDATION_SCRIPT_B64 || "";
+  const validationTimeoutSeconds = parseInt(process.env.VALIDATION_TIMEOUT_SECONDS || "60", 10);
 
   // Parse allowed extensions with error handling
   let allowedExtensions = [".json", ".jsonl", ".txt", ".md", ".csv"];
@@ -446,57 +449,47 @@ async function main() {
   if (formatJSON) {
     core.info("FORMAT_JSON is enabled: formatting .json files as human-readable...");
 
-    /**
-     * Recursively find and format all .json files under a directory
-     * @param {string} dirPath - Directory to scan
-     */
-    function formatJSONFilesInDir(dirPath) {
-      let entries;
-      try {
-        entries = fs.readdirSync(dirPath, { withFileTypes: true });
-      } catch (err) {
-        throw new Error(`Failed to read directory ${dirPath}: ${getErrorMessage(err)}`, { cause: err });
-      }
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-        if (entry.isDirectory()) {
-          if (entry.name !== ".git") {
-            formatJSONFilesInDir(fullPath);
-          }
-        } else if (entry.isFile() && entry.name.endsWith(".json")) {
-          try {
-            const raw = fs.readFileSync(fullPath, "utf8");
-            if (!raw.trim()) {
-              continue;
-            }
-            const parsed = JSON.parse(raw);
-            const formatted = JSON.stringify(parsed, null, 2) + "\n";
-            if (raw !== formatted) {
-              const formattedSize = Buffer.byteLength(formatted, "utf8");
-              if (formattedSize > maxFileSize) {
-                const sizeError = new Error(`Formatted JSON exceeds MAX_FILE_SIZE: ${path.relative(destMemoryPath, fullPath)} (${formattedSize} bytes > ${maxFileSize} bytes)`);
-                sizeError.name = "FormatJSONSizeLimitError";
-                throw sizeError;
-              }
-              fs.writeFileSync(fullPath, formatted, "utf8");
-              core.info(`Formatted JSON: ${path.relative(destMemoryPath, fullPath)}`);
-            }
-          } catch (/** @type {any} */ error) {
-            if (error?.name === "FormatJSONSizeLimitError") {
-              throw error;
-            }
-            core.warning(`Skipping JSON formatting for ${path.relative(destMemoryPath, fullPath)}: ${getErrorMessage(error)}`);
-          }
-        }
-      }
-    }
-
     try {
-      formatJSONFilesInDir(destMemoryPath);
+      const formattedFiles = formatJSONFiles(destMemoryPath, maxFileSize);
+      for (const formattedFile of formattedFiles) {
+        core.info(`Formatted JSON: ${formattedFile}`);
+      }
     } catch (error) {
       core.setFailed(`Failed to format JSON files: ${getErrorMessage(error)}`);
       return;
     }
+  }
+
+  if (validationScriptBase64) {
+    core.info("Running custom repo-memory validation before commit...");
+    const customValidation = runCustomMemoryValidation({
+      scriptBase64: validationScriptBase64,
+      memoryDir: destMemoryPath,
+      memoryId,
+      kind: "repo",
+      timeoutSeconds: validationTimeoutSeconds,
+    });
+    if (!customValidation.ok) {
+      const reason = customValidation.timedOut ? `timed out after ${validationTimeoutSeconds} second(s)` : `exited with code ${customValidation.exitCode}`;
+      const errorMessage = `Custom repo-memory validation failed for '${memoryId}': ${reason}.`;
+      if (customValidation.stdout) {
+        core.info(`Custom repo-memory validation stdout:\n${customValidation.stdout}`);
+      }
+      if (customValidation.stderr) {
+        core.error(`Custom repo-memory validation stderr:\n${customValidation.stderr}`);
+      }
+      core.setOutput("validation_failed", "true");
+      core.setOutput("validation_error", errorMessage);
+      core.setFailed(errorMessage);
+      return;
+    }
+    if (customValidation.stdout) {
+      core.info(`Custom repo-memory validation stdout:\n${customValidation.stdout}`);
+    }
+    if (customValidation.stderr) {
+      core.info(`Custom repo-memory validation stderr:\n${customValidation.stderr}`);
+    }
+    core.info("Custom repo-memory validation passed.");
   }
 
   // Build literal pathspecs from the relative paths of files to copy.

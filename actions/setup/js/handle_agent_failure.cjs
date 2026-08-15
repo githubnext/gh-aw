@@ -19,7 +19,7 @@ const {
   parseUnknownModelAICreditsFromAuditLog,
   parseMaxCacheMissesExceededFromEventLog,
 } = require("./ai_credits_context.cjs");
-const { MAX_CACHE_MISSES_EXCEEDED_PATTERN } = require("./detect_agent_errors.cjs");
+const { MAX_CACHE_MISSES_EXCEEDED_PATTERN, SHELL_EXPANSION_GUARD_REJECTED_PATTERN } = require("./detect_agent_errors.cjs");
 const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
@@ -272,6 +272,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasEngineRateLimit429) categories.push("engine_rate_limit_429");
   if (options.unknownModelAICredits) categories.push("unknown_model_ai_credits");
   if (options.missingModelPricingError) categories.push("missing_model_pricing");
+  if (options.shellExpansionGuardRejected) categories.push("shell_expansion_guard_rejected");
   if (options.maxAICreditsExceeded) categories.push("max_ai_credits_exceeded");
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
@@ -316,6 +317,7 @@ function buildFailureMatchCategories(options) {
  * @param {boolean} [options.hasDockerSbxSecretsFailed]
  * @param {boolean} [options.missingModelPricingError]
  * @param {string} [options.missingModelPricingModelName]
+ * @param {boolean} [options.shellExpansionGuardRejected]
  * @returns {string}
  */
 function buildFailureIssueTitle(options) {
@@ -340,6 +342,7 @@ function buildFailureIssueTitle(options) {
   if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
   if (options.hasOAuthTokenCheckFailed) return `[aw] ${workflowName} has OAuth token misconfiguration`;
   if (options.hasStaleLockFileFailed) return `[aw] ${workflowName} has stale lock file`;
+  if (options.shellExpansionGuardRejected) return `[aw] ${workflowName} hit shell expansion guard rejection`;
   if (options.hasDockerSbxSecretsFailed) return `[aw] ${workflowName} is missing docker-sbx Docker Hub secrets`;
   if (options.isTimedOut) return `[aw] ${workflowName} timed out`;
   if (options.hasToolDenialsExceeded) return `[aw] ${workflowName} exceeded tool denial limit`;
@@ -1687,10 +1690,11 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
  * @param {boolean} hasToolDenialsExceeded
  * @param {boolean} isTimedOut
  * @param {boolean} hasMissingModelPricingError
+ * @param {boolean} hasShellExpansionGuardRejected
  * @returns {boolean}
  */
-function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, hasMissingModelPricingError = false) {
-  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut && !hasMissingModelPricingError;
+function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, hasMissingModelPricingError = false, hasShellExpansionGuardRejected = false) {
+  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut && !hasMissingModelPricingError && !hasShellExpansionGuardRejected;
 }
 
 /**
@@ -2055,6 +2059,30 @@ function hasEngineMaxCacheMissesExceededSignal(content) {
     return false;
   }
   return MAX_CACHE_MISSES_EXCEEDED_PATTERN.test(content);
+}
+
+/**
+ * Detect sandbox shell-expansion guard rejections in text payloads.
+ * @param {string|null|undefined} content
+ * @returns {boolean}
+ */
+function hasShellExpansionGuardRejectedSignal(content) {
+  if (!content) {
+    return false;
+  }
+  return SHELL_EXPANSION_GUARD_REJECTED_PATTERN.test(content);
+}
+
+/**
+ * Build dedicated context for sandbox shell-expansion guard rejections.
+ * @param {boolean} hasShellExpansionGuardRejected
+ * @returns {string}
+ */
+function buildShellExpansionGuardRejectedContext(hasShellExpansionGuardRejected) {
+  if (!hasShellExpansionGuardRejected) {
+    return "";
+  }
+  return "\n" + renderPromptTemplate("shell_expansion_guard_rejected.md");
 }
 
 /**
@@ -2716,6 +2744,7 @@ function detectEngineRateLimit429Failure() {
 function buildEngineFailureContext(options = {}) {
   const suppressEngineRateLimit429 = options.suppressEngineRateLimit429 === true;
   const maxCacheMissesExceededFromDetection = options.maxCacheMissesExceeded === true;
+  const shellExpansionGuardRejectedFromDetection = options.shellExpansionGuardRejected === true;
   // Derive agent-stdio.log path from the agent output file path (same directory)
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
@@ -2727,6 +2756,10 @@ function buildEngineFailureContext(options = {}) {
 
   try {
     if (!fs.existsSync(stdioLogPath)) {
+      if (shellExpansionGuardRejectedFromDetection) {
+        core.info("agent-stdio.log not found, but shell expansion guard rejection was detected — using dedicated context message");
+        return buildShellExpansionGuardRejectedContext(true);
+      }
       if (hasStructuredMaxCacheMissesSignal) {
         core.info("agent-stdio.log not found, but structured max cache misses signal was detected — using dedicated context message");
         return buildEngineMaxCacheMissesExceededContext(engineLabel);
@@ -2737,6 +2770,10 @@ function buildEngineFailureContext(options = {}) {
 
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
     if (!logContent.trim()) {
+      if (shellExpansionGuardRejectedFromDetection) {
+        core.info("agent-stdio.log is empty, but shell expansion guard rejection was detected — using dedicated context message");
+        return buildShellExpansionGuardRejectedContext(true);
+      }
       if (hasStructuredMaxCacheMissesSignal) {
         core.info("agent-stdio.log is empty, but structured max cache misses signal was detected — using dedicated context message");
         return buildEngineMaxCacheMissesExceededContext(engineLabel);
@@ -2758,6 +2795,11 @@ function buildEngineFailureContext(options = {}) {
     if (!suppressEngineRateLimit429 && (hasEngineRateLimit429Signal(logContent) || hasEngineRateLimit429InOTELMirror())) {
       core.info("Detected engine HTTP 429/rate-limit signal — using dedicated context message");
       return buildEngineRateLimit429Context(engineLabel);
+    }
+
+    if (hasShellExpansionGuardRejectedSignal(logContent) || shellExpansionGuardRejectedFromDetection) {
+      core.info("Detected shell expansion guard rejection — using dedicated context message");
+      return buildShellExpansionGuardRejectedContext(true);
     }
 
     if (hasEngineMaxRunsExceededSignal(logContent)) {
@@ -3249,6 +3291,7 @@ async function main() {
     const unknownModelAICredits = unknownModelAICreditsFromAudit || (unknownModelAICreditsFromOutput && agentConclusion === "failure");
     const missingModelPricingError = process.env.GH_AW_MISSING_MODEL_PRICING_ERROR === "true" && agentConclusion === "failure";
     const missingModelPricingModelName = process.env.GH_AW_MISSING_MODEL_PRICING_MODEL_NAME || "";
+    const shellExpansionGuardRejected = process.env.GH_AW_SHELL_EXPANSION_GUARD_REJECTED === "true" && agentConclusion === "failure";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = parseBoolTemplatable(process.env.GH_AW_FAILURE_REPORT_AS_ISSUE, true);
     // Parse included categories filter for report-failure-as-issue (optional JSON array of category strings)
@@ -3362,6 +3405,7 @@ async function main() {
     core.info(`Unknown model AI credits error: ${unknownModelAICredits}`);
     core.info(`Unknown model AI credits sources (audit/output): ${unknownModelAICreditsFromAudit}/${unknownModelAICreditsFromOutput}`);
     core.info(`Missing model pricing error: ${missingModelPricingError} (model: ${missingModelPricingModelName || "(unknown)"})`);
+    core.info(`Shell expansion guard rejected: ${shellExpansionGuardRejected}`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -3377,7 +3421,7 @@ async function main() {
     // A step-level timeout (timeout-minutes on the engine execution step) is detected by
     // the detect-copilot-errors step which checks for SIGTERM/SIGKILL/SIGINT signals
     // in the engine output and sets the agentic_engine_timeout output.
-    const isTimedOut = agentConclusion === "timed_out" || agenticEngineTimeout;
+    const isTimedOut = (agentConclusion === "timed_out" || agenticEngineTimeout) && !shellExpansionGuardRejected;
 
     // Check if there are assignment errors (regardless of agent job status).
     // Use assignment_errors as the single source of truth because it includes
@@ -3661,6 +3705,7 @@ async function main() {
       aiCreditsRateLimitError,
       hasEngineRateLimit429,
       maxAICreditsExceeded,
+      shellExpansionGuardRejected,
       hasAssignmentErrors,
       http400ResponseError,
       unknownModelAICredits,
@@ -3847,7 +3892,7 @@ async function main() {
         // context is the more actionable signal.
         // Also suppress when missing-model-pricing is detected: the pricing error is the
         // root cause and the engine error block would be redundant noise.
-        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError)
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError, shellExpansionGuardRejected)
           ? buildEngineFailureContext({
               suppressEngineRateLimit429: maxAICreditsExceeded,
               maxCacheMissesExceeded,
@@ -3924,6 +3969,7 @@ async function main() {
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
           unknown_model_ai_credits_context: unknownModelAICreditsContext,
           missing_model_pricing_context: missingModelPricingContext,
+          shell_expansion_guard_rejected_context: buildShellExpansionGuardRejectedContext(shellExpansionGuardRejected),
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           oauth_token_check_failed_context: oauthTokenCheckFailedContext,
@@ -4074,7 +4120,9 @@ async function main() {
         // context is the more actionable signal.
         // Also suppress when missing-model-pricing is detected: the pricing error is the
         // root cause and the engine error block would be redundant noise.
-        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError, shellExpansionGuardRejected)
+          ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded })
+          : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
@@ -4151,6 +4199,7 @@ async function main() {
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
           unknown_model_ai_credits_context: unknownModelAICreditsContext,
           missing_model_pricing_context: missingModelPricingContext,
+          shell_expansion_guard_rejected_context: buildShellExpansionGuardRejectedContext(shellExpansionGuardRejected),
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           oauth_token_check_failed_context: oauthTokenCheckFailedContext,
@@ -4274,6 +4323,8 @@ module.exports = {
   buildEngineRateLimit429Context,
   hasEngineMaxCacheMissesExceededSignal,
   buildEngineMaxCacheMissesExceededContext,
+  hasShellExpansionGuardRejectedSignal,
+  buildShellExpansionGuardRejectedContext,
   readTokenUsageMarkdown,
   parseFirewallAuthErrors,
   parseMaxAICreditsFromAuditLog,

@@ -65,6 +65,7 @@ imports:
     with:
       title-prefix: "[architecture-diagram] "
       expires: 3d
+  - shared/reporting.md
 
   - shared/otlp.md
 timeout-minutes: 20
@@ -79,11 +80,6 @@ evals:
 ---
 
 ### Architecture Diagram Generator
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 You are an AI agent that generates a **high-level ASCII architecture diagram** of this repository, focusing on the layered structure from CLI entry points down to utility packages.
 

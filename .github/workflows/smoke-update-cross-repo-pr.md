@@ -64,13 +64,13 @@ safe-outputs:
 timeout-minutes: 10
 imports:
   - shared/otlp.md
+  - shared/smoke-test-brevity.md
+  - shared/reporting.md
 features:
   gh-aw-detection: false
 ---
 
 # Smoke Test: Cross-Repo Pull Request Update
-
-**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible.**
 
 The workspace is checked out from `githubnext/gh-aw-side-repo`. You will update PR #1 in that repo by appending the next sequential line from Homer's Odyssey to the README. Determine the next line by inspecting the Odyssey lines already in the README and choosing the line that immediately follows them, avoiding duplicates.
 

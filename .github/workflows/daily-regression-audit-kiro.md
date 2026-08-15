@@ -2,6 +2,8 @@
 private: true
 emoji: "🧭"
 description: Daily analysis of recent CI test failures and regression patterns
+features:
+  gh-aw-detection: true
 on:
   schedule: daily
   workflow_dispatch:

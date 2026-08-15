@@ -67,7 +67,7 @@ cd ${{ github.workspace }} && sentrux gate --save .
 cd ${{ github.workspace }} && sentrux gate .
 ```
 
-Capture the JSON output for reporting:
+Capture the rule-check output for reporting:
 ```bash
-cd ${{ github.workspace }} && sentrux check . --json 2>/dev/null || true
+cd ${{ github.workspace }} && sentrux check . 2>&1 || true
 ```

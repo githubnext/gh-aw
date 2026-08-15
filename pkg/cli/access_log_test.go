@@ -94,6 +94,7 @@ func TestAnalyzeAccessLogsDirectory(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-*")
 
 	t.Run("multiple access logs in subdirectory", func(t *testing.T) {
+		t.Parallel()
 		// Test case 1: Multiple access logs in access-logs subdirectory
 		accessLogsDir := filepath.Join(tempDir, "run1", "access.log")
 		err := os.MkdirAll(accessLogsDir, 0755)
@@ -111,6 +112,7 @@ func TestAnalyzeAccessLogsDirectory(t *testing.T) {
 	})
 
 	t.Run("no access logs - returns nil", func(t *testing.T) {
+		t.Parallel()
 		// Test case 2: No access logs
 		run2Dir := filepath.Join(tempDir, "run2")
 		err := os.MkdirAll(run2Dir, 0755)
@@ -122,6 +124,7 @@ func TestAnalyzeAccessLogsDirectory(t *testing.T) {
 	})
 
 	t.Run("access logs in sandbox/firewall/logs/ (new path)", func(t *testing.T) {
+		t.Parallel()
 		// Test case 3: Access logs in sandbox/firewall/logs/ directory after artifact download
 		sandboxLogsDir := filepath.Join(tempDir, "run3", "sandbox", "firewall", "logs")
 		err := os.MkdirAll(sandboxLogsDir, 0755)

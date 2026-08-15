@@ -15,6 +15,7 @@ permissions:
 imports:
   - shared/mcp-pagination.md
   - shared/otlp.md
+  - shared/reporting.md
 sandbox:
   agent:
     runtime: gvisor
@@ -883,8 +884,6 @@ Maintain a **single** open triage issue with the exact title:
 - If you found **no meaningful suspicious activity**, emit **no safe outputs**.
 
 ## Report Format (Issue Body)
-
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 Produce a concise, evidence-driven report:
 

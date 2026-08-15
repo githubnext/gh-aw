@@ -440,9 +440,14 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	// $GITHUB_PATH so the bare awf invocation in later steps resolves correctly.
 	// Also check Disabled to match isAWFNetworkIsolationEnabled() behavior.
 	//
-	// Exception: legacy-security mode uses `sudo -E awf`, so the binary must be
-	// installed to /usr/local/bin (the non-rootless path) to be on sudo's secure_path.
-	if agentConfig != nil && agentConfig.NetworkIsolation && !agentConfig.Disabled && !agentConfig.LegacySecurity {
+	// Exceptions: legacy-security and Cloud Hypervisor use privileged AWF
+	// invocations, so the binary must be installed to /usr/local/bin to be on
+	// sudo's secure_path.
+	if agentConfig != nil &&
+		agentConfig.NetworkIsolation &&
+		!agentConfig.Disabled &&
+		!agentConfig.LegacySecurity &&
+		agentConfig.Runtime != AgentRuntimeCloudHypervisor {
 		installCmd += " --rootless"
 	}
 

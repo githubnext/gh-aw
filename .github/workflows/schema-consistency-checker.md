@@ -43,10 +43,12 @@ pre-agent-steps:
       # 1. All top-level fields in the main JSON schema
       SCHEMA_FIELDS=$(jq -r '.properties | keys[]' pkg/parser/schemas/main_workflow_schema.json 2>/dev/null | sort -u || echo "")
 
-      # 2. yaml-tagged struct fields in pkg/parser/*.go
-      PARSER_YAML_FIELDS=$(grep -rh 'yaml:"' pkg/parser/*.go 2>/dev/null \
-        | grep -o 'yaml:"[^"]*"' \
-        | sed 's/yaml:"//;s/"//' \
+      # 2. JSON/YAML-tagged fields in the top-level frontmatter type.
+      # pkg/parser/frontmatter.go is only a logger declaration; frontmatter fields
+      # are extracted and represented in pkg/workflow/frontmatter_types.go.
+      FRONTMATTER_FIELDS=$(sed -n '/^type FrontmatterConfig struct {$/,/^}$/p' pkg/workflow/frontmatter_types.go 2>/dev/null \
+        | grep -Eo '(json|yaml):"[^"]*"' \
+        | sed -E 's/^(json|yaml):"//;s/"$//' \
         | sed 's/,omitempty//' \
         | sed 's/,.*$//' \
         | grep -v '^-$' \
@@ -74,14 +76,14 @@ pre-agent-steps:
         "\(.key): \(.value.type // (.value.anyOf // .value.oneOf // [] | map(.type // "complex") | unique | join("|")) // "complex")"' \
         pkg/parser/schemas/main_workflow_schema.json 2>/dev/null | sort || echo "")
 
-      # 6. Fields in schema but absent as yaml tags in parser structs
-      IN_SCHEMA_NOT_PARSER=$(comm -23 \
+      # 6. Fields in schema but absent from the frontmatter type definitions
+      IN_SCHEMA_NOT_FRONTMATTER=$(comm -23 \
         <(echo "$SCHEMA_FIELDS") \
-        <(echo "$PARSER_YAML_FIELDS" | sort -u) 2>/dev/null || echo "")
+        <(echo "$FRONTMATTER_FIELDS" | sort -u) 2>/dev/null || echo "")
 
-      # 7. yaml tags in parser structs absent from schema
-      IN_PARSER_NOT_SCHEMA=$(comm -23 \
-        <(echo "$PARSER_YAML_FIELDS" | sort -u) \
+      # 7. Fields in frontmatter type definitions absent from schema
+      IN_FRONTMATTER_NOT_SCHEMA=$(comm -23 \
+        <(echo "$FRONTMATTER_FIELDS" | sort -u) \
         <(echo "$SCHEMA_FIELDS") 2>/dev/null || echo "")
 
       # 8. Fields in schema but absent from workflow compiler structs
@@ -98,24 +100,24 @@ pre-agent-steps:
       jq -n \
         --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --arg schema_fields "$SCHEMA_FIELDS" \
-        --arg parser_yaml_fields "$PARSER_YAML_FIELDS" \
+        --arg frontmatter_fields "$FRONTMATTER_FIELDS" \
         --arg workflow_yaml_fields "$WORKFLOW_YAML_FIELDS" \
         --arg used_in_workflows "$USED_FIELDS" \
         --arg field_types "$FIELD_TYPES" \
-        --arg in_schema_not_parser "$IN_SCHEMA_NOT_PARSER" \
-        --arg in_parser_not_schema "$IN_PARSER_NOT_SCHEMA" \
+        --arg in_schema_not_frontmatter "$IN_SCHEMA_NOT_FRONTMATTER" \
+        --arg in_frontmatter_not_schema "$IN_FRONTMATTER_NOT_SCHEMA" \
         --arg in_schema_not_workflow "$IN_SCHEMA_NOT_WORKFLOW" \
         --arg in_used_not_schema "$IN_USED_NOT_SCHEMA" \
         '{
           generated_at: $generated_at,
           schema_fields: ($schema_fields | split("\n") | map(select(. != ""))),
-          parser_yaml_fields: ($parser_yaml_fields | split("\n") | map(select(. != ""))),
+          frontmatter_fields: ($frontmatter_fields | split("\n") | map(select(. != ""))),
           workflow_yaml_fields: ($workflow_yaml_fields | split("\n") | map(select(. != ""))),
           used_in_workflows: ($used_in_workflows | split("\n") | map(select(. != ""))),
           field_types: ($field_types | split("\n") | map(select(. != ""))),
           field_gaps: {
-            in_schema_not_parser: ($in_schema_not_parser | split("\n") | map(select(. != ""))),
-            in_parser_not_schema: ($in_parser_not_schema | split("\n") | map(select(. != ""))),
+            in_schema_not_frontmatter: ($in_schema_not_frontmatter | split("\n") | map(select(. != ""))),
+            in_frontmatter_not_schema: ($in_frontmatter_not_schema | split("\n") | map(select(. != ""))),
             in_schema_not_workflow: ($in_schema_not_workflow | split("\n") | map(select(. != ""))),
             in_used_not_schema: ($in_used_not_schema | split("\n") | map(select(. != "")))
           }
@@ -125,11 +127,11 @@ pre-agent-steps:
       echo "Summary:"
       jq '{
         schema_field_count: (.schema_fields | length),
-        parser_yaml_field_count: (.parser_yaml_fields | length),
+        frontmatter_field_count: (.frontmatter_fields | length),
         workflow_yaml_field_count: (.workflow_yaml_fields | length),
         gaps: {
-          in_schema_not_parser: (.field_gaps.in_schema_not_parser | length),
-          in_parser_not_schema: (.field_gaps.in_parser_not_schema | length),
+          in_schema_not_frontmatter: (.field_gaps.in_schema_not_frontmatter | length),
+          in_frontmatter_not_schema: (.field_gaps.in_frontmatter_not_schema | length),
           in_schema_not_workflow: (.field_gaps.in_schema_not_workflow | length),
           in_used_not_schema: (.field_gaps.in_used_not_schema | length)
         }
@@ -245,7 +247,7 @@ sandbox:
 
 You are an expert system that detects inconsistencies between:
 - The main JSON schema of the frontmatter (`pkg/parser/schemas/main_workflow_schema.json`)
-- The parser and compiler implementation (`pkg/parser/*.go` and `pkg/workflow/*.go`)
+- The parser and compiler implementation (`pkg/workflow/frontmatter_types.go` and `pkg/workflow/*.go`)
 - The documentation (`docs/src/content/docs/**/*.md`)
 - The workflows in the project (`.github/workflows/*.md`)
 
@@ -296,7 +298,7 @@ Strategy database structure:
 **Key files to analyze:**
 - `pkg/parser/schemas/main_workflow_schema.json`
 - `pkg/parser/schemas/mcp_config_schema.json`
-- `pkg/parser/frontmatter.go` and `pkg/parser/*.go`
+- `pkg/workflow/frontmatter_types.go` and `pkg/workflow/frontmatter_extraction_yaml.go`
 - `pkg/workflow/compiler.go` - main workflow compiler
 - `pkg/workflow/tools.go` - tools configuration processing
 - `pkg/workflow/safe_outputs.go` - safe-outputs configuration
@@ -351,7 +353,7 @@ Strategy database structure:
 - Validation rules not documented
 
 **Focus on:**
-- `pkg/parser/*.go` - frontmatter parsing
+- `pkg/workflow/frontmatter_types.go` - frontmatter field definitions
 - `pkg/workflow/*.go` - workflow compilation and feature processing
 
 ## Detection Strategies
@@ -417,12 +419,12 @@ echo "=== STRATEGIES ===" && \
 
 The schema diff contains:
 - `schema_fields`: All top-level field names in the main JSON schema
-- `parser_yaml_fields`: All yaml-tagged struct fields in `pkg/parser/*.go`
+- `frontmatter_fields`: All JSON/YAML-tagged fields in `pkg/workflow/frontmatter_types.go`
 - `workflow_yaml_fields`: All yaml-tagged struct fields in `pkg/workflow/*.go`
 - `used_in_workflows`: All top-level frontmatter keys used in `.github/workflows/*.md`
 - `field_types`: Schema field types for all top-level fields
-- `field_gaps.in_schema_not_parser`: Fields in schema absent from parser yaml tags
-- `field_gaps.in_parser_not_schema`: Fields as parser yaml tags absent from schema
+- `field_gaps.in_schema_not_frontmatter`: Fields in schema absent from frontmatter type definitions
+- `field_gaps.in_frontmatter_not_schema`: Fields in frontmatter type definitions absent from schema
 - `field_gaps.in_schema_not_workflow`: Fields in schema absent from workflow compiler yaml tags
 - `field_gaps.in_used_not_schema`: Fields used in workflow files but not in schema
 

@@ -18,6 +18,8 @@ engine:
   model-provider: github
   bare: true
 strict: true
+imports:
+  - shared/reporting.md
 tools:
   github:
     mode: gh-proxy

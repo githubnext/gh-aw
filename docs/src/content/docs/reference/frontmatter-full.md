@@ -60,19 +60,15 @@ labels: []
   # Array of strings
 
 # Optional list of skill references to install during activation. Supports remote
-# repository-wide installs (`owner/repo@<ref>`), remote path-scoped installs
-# (`owner/repo/skill/path@<ref>`), and local path references (e.g. `skills/rig` or
-# `.github/skills/my-skill`). `<ref>` may be a branch, tag, or full 40-character
-# lowercase commit SHA; non-SHA refs are resolved and rewritten to the matching commit
-# SHA at compile time. If resolution fails (e.g. no network access or authentication),
-# the compiler keeps the original unpinned ref and emits a warning. Omitting the ref
-# (`owner/repo@`) installs from the
-# repository's default branch and is not pinned, which triggers a compiler warning.
-# Local paths are installed with --from-local at runtime and are rewritten to a
-# remote repospec by `gh aw add`. GitHub Actions expressions (`${{ ... }}`) are also
-# accepted and are evaluated at runtime.
-# Entries may also be objects to configure per-skill authentication via
-# github-token or github-app.
+# repository-wide installs (`owner/repo@<sha>`), remote path-scoped installs
+# (`owner/repo/skill/path@<sha>`), and local path references (e.g. `skills/rig` or
+# `.github/skills/my-skill`). Remote static references may use a full 40-character
+# lowercase commit SHA, or a branch/tag name (resolved to a SHA at compile time).
+# Omitting the ref (`owner/repo@`) opts out of pinning and triggers a compile-time
+# warning. Local paths are installed with --from-local at runtime and are
+# rewritten to a remote repospec by `gh aw add`. GitHub Actions expressions (`${{
+# ... }}`) are also accepted and are evaluated at runtime. Entries may also be
+# objects to configure per-skill authentication via github-token or github-app.
 # (optional)
 skills: []
 
@@ -124,6 +120,13 @@ resources: []
 # content will invalidate the hash.
 # (optional)
 inlined-imports: true
+
+# Workspace-relative folders to bundle in the activation artifact and restore
+# before the agent runs. Useful for activation steps that generate reusable
+# prompt, skill, or agent context.
+# (optional)
+ambient-folders: []
+  # Array of strings
 
 # Workflow triggers that define when the agentic workflow should run. Supports
 # standard GitHub Actions trigger events plus special command triggers for
@@ -1046,13 +1049,6 @@ on:
   # (optional)
   allow-bot-authored-trigger-comment: true
 
-  # Workspace-relative folders to bundle in the activation artifact and restore
-  # before the agent runs. Useful for activation steps that generate reusable
-  # prompt, skill, or agent context.
-  # (optional)
-  ambient-folders: []
-    # Array of strings
-
   # Environment name that requires manual approval before the workflow can run. Must
   # match a valid environment configured in the repository settings.
   # (optional)
@@ -1909,7 +1905,7 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
@@ -2037,6 +2033,11 @@ network:
     # '*.example.com' (matches sub.example.com, deep.nested.example.com, and
     # example.com itself) and ecosystem names like 'python', 'node'.
 
+# AWF-owned private-repository executors exposed only through the
+# compiler-launched MCP gateway. Omit this field to disable enclaves.
+# (optional)
+enclaves: []
+
 # Sandbox configuration for AI engines. Controls agent sandbox (AWF) and MCP
 # gateway. The MCP gateway is always enabled and cannot be disabled.
 # (optional)
@@ -2047,8 +2048,8 @@ network:
 # automatically migrated to 'awf'
 sandbox: "default"
 
-# Format 2: Object format for full sandbox configuration with agent and mcp
-# options
+# Format 2: Object format for full sandbox configuration with agent and MCP
+# gateway options
 sandbox:
   # Legacy sandbox type field (use agent instead). Note: Legacy 'srt' and
   # 'sandbox-runtime' values are automatically migrated to 'awf'
@@ -2130,12 +2131,21 @@ sandbox:
     # Container runtime for the agent container. Use 'gvisor' to run the agent under
     # gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx'
     # to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation
-    # — requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and
-    # a KVM-capable runner. Use 'cloud-hypervisor' for AWF's preview Cloud Hypervisor
-    # microVM runtime (GitHub-hosted Ubuntu x86_64 + /dev/kvm only). Incompatible with
-    # runner.topology: arc-dind.
+    # — when runtime-install is left enabled, it requires sandbox.agent.sudo: true,
+    # DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Use
+    # 'cloud-hypervisor' to run the agent in AWF's preview Cloud Hypervisor microVM
+    # runtime on GitHub-hosted Ubuntu x86_64. The compiler grants the runner user
+    # scoped /dev/kvm access, launches the Cloud Hypervisor host process with the
+    # required privileges while retaining strict network isolation, and sizes the
+    # guest at 2 vCPUs and 4096 MiB. Incompatible with runner.topology: arc-dind.
     # (optional)
     runtime: "gvisor"
+
+    # Controls generation of sandbox runtime installation steps for gVisor and
+    # docker-sbx. Defaults to true. Set to false when the runtime is already installed
+    # on the runner; docker-sbx credential refresh still runs.
+    # (optional)
+    runtime-install: true
 
     # Custom sandbox runtime configuration. Note: Network configuration is controlled
     # by the top-level 'network' field, not here.
@@ -2231,8 +2241,8 @@ sandbox:
 
     # Additional host TCP ports the agent may connect to when legacy-security is
     # enabled. Ports published by `services:` are reached via
-    # --allow-host-service-ports instead; use this only for host daemons not
-    # declared there.
+    # --allow-host-service-ports instead; use this only for host daemons not declared
+    # there.
     # (optional)
     allow-host-ports: []
 
@@ -2789,6 +2799,11 @@ engine:
   # Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'pi')
   id: "example-value"
 
+  # Default CLI version applied when a workflow references this engine without
+  # specifying engine.version
+  # (optional)
+  version: null
+
   # Human-readable display name for the engine
   display-name: "example-value"
 
@@ -2800,6 +2815,11 @@ engine:
   # warning.
   # (optional)
   experimental: true
+
+  # Whether the engine supports MCP. When false, the compiler automatically enables
+  # gh-proxy and cli-proxy and rejects attempts to disable either proxy.
+  # (optional)
+  mcp: true
 
   # Runtime adapter identifier. Maps to the CodingAgentEngine registered in the
   # engine registry. Defaults to id when omitted.
@@ -3049,6 +3069,14 @@ engine:
       # (optional)
       config-path: "example-value"
 
+      # JavaScript source of a Node.js script that converts the MCP gateway's raw output
+      # configuration into the format expected by this engine. When set, the script is
+      # written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_mcp_config_adapter.cjs
+      # before the MCP gateway starts, and start_mcp_gateway.cjs executes it (instead of
+      # a built-in per-engine converter) once the gateway has produced its output.
+      # (optional)
+      config-adapter: "example-value"
+
     # JavaScript source of a Node.js harness that spawns the engine CLI. When set, the
     # script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before
     # execution and the engine is launched as: node <harness-path> <command-name>
@@ -3058,6 +3086,18 @@ engine:
     # CLI.
     # (optional)
     harness-script: "example-value"
+
+    # JavaScript source of a log-parser function for the engine. When set, the script
+    # is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_log_parser.cjs and used
+    # in the post-agent log-parsing step. The script must define a
+    # parseLog(logContent) function (not export it) that returns {markdown,
+    # logEntries, mcpFailures, maxTurnsHit}. A createEngineLogParser wrapper from
+    # log_parser_shared.cjs is automatically appended so the author only provides the
+    # parsing function; the wrapper handles exports and bootstrap. This enables
+    # behavior-defined engines (e.g. crush, opencode, goose, aider) to produce
+    # normalized events files like built-in engine parsers.
+    # (optional)
+    log-parser: "example-value"
 
 # Format 5: MCP gateway configuration for shared workflows. Declares engine.mcp
 # settings (tool-timeout, session-timeout) that consumers inherit during import
@@ -3965,6 +4005,17 @@ tools:
     allowed-extensions: []
       # Array of strings
 
+    # Custom domain validation hook for this cache-memory entry
+    # (optional)
+    validation:
+      # JavaScript validator body that runs over the complete cache-memory directory
+      # before persistence. Throw, return false, or exit nonzero to reject the update.
+      script: "example-value"
+
+      # Maximum validator runtime in minutes (default: 1, max: 5)
+      # (optional)
+      timeout-minutes: 1
+
   # Format 4: Array of cache-memory configurations for multiple caches
   cache-memory: []
     # Array items: object
@@ -4167,6 +4218,18 @@ tools:
     # committed, making them human-readable in the repository (default: false)
     # (optional)
     format-json: true
+
+    # Custom domain validation hook for this repo-memory entry
+    # (optional)
+    validation:
+      # JavaScript validator body that runs over the complete repo-memory directory
+      # after optional JSON formatting and before persistence. Throw, return false, or
+      # exit nonzero to reject the update.
+      script: "example-value"
+
+      # Maximum validator runtime in minutes (default: 1, max: 5)
+      # (optional)
+      timeout-minutes: 1
 
   # Format 4: Array of repo-memory configurations for multiple memory locations
   repo-memory: []
@@ -8693,7 +8756,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: request_review (default),
     # blocked, allowed, or fallback-to-issue — or a GitHub Actions expression for
-    # reusable workflows. Object form: { policy, exclude } to customize the
+    # reusable workflows. Object form: { policy, exclude } to customise the
     # protected-file set.
     # (optional)
     # Accepted formats:
@@ -8709,7 +8772,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed',
     # 'fallback-to-issue', or 'request_review' at runtime. Use in reusable
-    # workflow_call workflows to parameterize the policy per caller.
+    # workflow_call workflows to parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -8789,7 +8852,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -15166,7 +15229,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
     # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
-    # Object form: { policy, exclude } to customize the protected-file set.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # Accepted formats:
 
@@ -15179,7 +15242,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
     # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterize the policy per caller.
+    # parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -15241,7 +15304,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -18358,7 +18421,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behavior when no files match: 'error' (default) or 'ignore'
+      # Behaviour when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 
@@ -19212,6 +19275,11 @@ safe-outputs:
   # (optional)
   failure-issue-repo: "example-value"
 
+  # Controls whether to report failed non-builtin jobs as issues (default: true).
+  # Set to false to disable.
+  # (optional)
+  report-failed-jobs: true
+
   # Maximum number of bot trigger references (e.g. 'fixes #123', 'closes #456')
   # allowed in output before all of them are neutralized. Default: 10. Supports
   # integer or GitHub Actions expression (e.g. '${{ inputs.max-bot-mentions }}').
@@ -20029,6 +20097,24 @@ observability:
       # (optional)
       audience: "example-value"
 
+    # Exchange a GitHub Actions OIDC token for a cloud access token before OTLP
+    # export. Google Workload Identity Federation is currently supported.
+    # (optional)
+    workload-identity:
+      # Cloud workload identity provider.
+      provider: "google"
+
+      # Google Workload Identity Provider resource name (e.g.
+      # projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER).
+      # The GitHub OIDC audience (https://iam.googleapis.com/...) and Google STS
+      # audience (//iam.googleapis.com/...) are derived from it; either fully-qualified
+      # form is also accepted.
+      audience: "example-value"
+
+      # Optional Google service account email to impersonate after STS token exchange.
+      # (optional)
+      service-account: "example-value"
+
 # Rate limiting configuration to restrict how frequently users can trigger the
 # workflow. Helps prevent abuse and resource exhaustion from programmatically
 # triggered events.
@@ -20117,7 +20203,41 @@ mcp-scripts:
 # workflows are also merged.
 # (optional)
 runtimes:
-  {}
+  # Runtime configuration object identified by runtime ID (e.g., 'node', 'python',
+  # 'go')
+  node:
+    # Runtime version as a string (e.g., '22', '3.12', 'latest') or number (e.g.,
+    # 22, 3.12). Numeric values are automatically converted to strings at runtime.
+    # (optional)
+    version: "example-value"
+
+    # GitHub Actions repository for setting up the runtime (e.g., 'actions/setup-node',
+    # 'custom/setup-runtime'). Overrides the default setup action.
+    # (optional)
+    action-repo: "example-value"
+
+    # Version of the setup action to use (e.g., 'v4', 'v5'). Overrides the default
+    # action version.
+    # (optional)
+    action-version: "example-value"
+
+    # Optional GitHub Actions if condition to control when the runtime setup step runs.
+    # Supports standard GitHub Actions expression syntax. Useful for conditionally
+    # installing runtimes based on file presence (e.g., "hashFiles('go.mod') != ''" to
+    # install Go only when go.mod exists).
+    # (optional)
+    if: "example-value"
+
+    # Enable a default 3-day dependency cooldown for installs associated with this
+    # runtime. Set to false to disable.
+    # (optional)
+    cooldown: true
+
+    # Allow npm pre/post install scripts to execute during package installation. A
+    # supply chain security warning is emitted at compile time; in strict mode this is
+    # an error. See: https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts
+    # (optional)
+    run-install-scripts: true
 
 # Checkout configuration for the agent job. Controls how actions/checkout is
 # invoked. Can be a single checkout configuration, an array for multiple

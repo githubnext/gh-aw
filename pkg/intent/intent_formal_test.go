@@ -392,3 +392,76 @@ func TestFormal_AllowedToolsIntersection(t *testing.T) {
 			"P12: intersection with deny-all must yield deny-all")
 	})
 }
+
+// TestFormal_SeedRuleEnumValidation (P13 — SeedEnumsValidated)
+// Invariant: an unrecognized Autonomy or WriteScope on the rule that seeds the
+// accumulator must not be carried into the compiled policy; it falls back to the
+// safest default for that field (fail-closed).
+func TestFormal_SeedRuleEnumValidation(t *testing.T) {
+	repo := intent.RepositoryContext{Owner: "owner", Name: "repo"}
+	// Use a mapped record (labels required for non-unlinked status).
+	rec := matchingResolver().ResolvePullRequest(intent.PullRequestData{
+		ClosingIssues: []intent.RootReference{
+			{NodeID: "I_1", Labels: []string{"security"}},
+		},
+	})
+
+	t.Run("typo_in_seed_rule_falls_back_to_safest", func(t *testing.T) {
+		rule := intent.PolicyRule{
+			ID: "typo",
+			Set: intent.ExecutionPolicy{
+				Autonomy:   "boundeed",    // typo for "bounded"
+				WriteScope: "any_branchh", // typo for "any_branch"
+			},
+		}
+		compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{rule}}
+		policy := compiler.Compile(rec, repo)
+
+		assert.Equal(t, "propose_only", policy.Autonomy,
+			"P13: unrecognized autonomy must fall back to the safest default")
+		assert.Equal(t, "none", policy.WriteScope,
+			"P13: unrecognized write scope must fall back to the safest default")
+	})
+
+	t.Run("valid_seed_values_preserved", func(t *testing.T) {
+		rule := intent.PolicyRule{
+			ID:  "valid",
+			Set: intent.ExecutionPolicy{Autonomy: "bounded", WriteScope: "any_branch"},
+		}
+		compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{rule}}
+		policy := compiler.Compile(rec, repo)
+
+		assert.Equal(t, "bounded", policy.Autonomy, "P13: recognized autonomy must be preserved")
+		assert.Equal(t, "any_branch", policy.WriteScope, "P13: recognized write scope must be preserved")
+	})
+
+	t.Run("unset_seed_values_remain_unspecified", func(t *testing.T) {
+		rule := intent.PolicyRule{
+			ID:  "unset",
+			Set: intent.ExecutionPolicy{MaxAttempts: 3},
+		}
+		compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{rule}}
+		policy := compiler.Compile(rec, repo)
+
+		assert.Empty(t, policy.Autonomy, "P13: unset autonomy must stay unspecified for later merges")
+		assert.Empty(t, policy.WriteScope, "P13: unset write scope must stay unspecified for later merges")
+	})
+
+	t.Run("invalid_seed_cannot_be_relaxed_by_later_rule", func(t *testing.T) {
+		seed := intent.PolicyRule{
+			ID:  "typo-seed",
+			Set: intent.ExecutionPolicy{Autonomy: "boundeed", WriteScope: "any_branchh"},
+		}
+		later := intent.PolicyRule{
+			ID:  "permissive",
+			Set: intent.ExecutionPolicy{Autonomy: "bounded", WriteScope: "any_branch"},
+		}
+		compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{seed, later}}
+		policy := compiler.Compile(rec, repo)
+
+		assert.Equal(t, "propose_only", policy.Autonomy,
+			"P13: sanitized seed must not be relaxed by a later permissive rule")
+		assert.Equal(t, "none", policy.WriteScope,
+			"P13: sanitized seed must not be relaxed by a later permissive rule")
+	})
+}

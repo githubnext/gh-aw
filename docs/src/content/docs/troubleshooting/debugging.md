@@ -115,6 +115,12 @@ See [Network Configuration](/gh-aw/guides/network-configuration/) for common dom
 
 The safe-outputs job failed, the agent didn't produce the expected output, or permissions are missing. Inspect the safe-outputs section in `gh aw audit <run-id>` and review the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
 
+### Silent Long-running Commands After a Result
+
+If the harness log says `post-result watchdog terminating idle process`, the agent already emitted a terminal safe output and then the child process went quiet. The watchdog is dormant until a terminal safe output such as `noop`, a comment, label, push, or pull request creation is observed; diagnostic outputs such as `missing_tool`, `missing_data`, and `report_incomplete` do not arm it. After arming, stdout or stderr activity resets the clock, so quiet builds, tests, or monorepo scans can be terminated even while they are still doing useful CPU or I/O work.
+
+Increase `engine.harness.watchdog-timeout` for literal frontmatter values, or set `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` when you need a millisecond environment-variable override. See [Harness Settings and Runtime Tuning Variables](/gh-aw/reference/environment-variables/#harness-settings-and-runtime-tuning-variables).
+
 ### Compilation Errors
 
 The frontmatter has schema validation errors or unsupported fields. Use `--verbose` to diagnose, `gh aw fix --write` to auto-correct, and `--validate` to check without writing the lock file. See [Error Reference](/gh-aw/troubleshooting/errors/) for specific messages.

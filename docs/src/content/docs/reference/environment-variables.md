@@ -121,6 +121,63 @@ env:
 > [!NOTE]
 > These variables are injected by the compiler and cannot be overridden by user-defined `env:` blocks in the workflow frontmatter.
 
+## Harness Settings and Runtime Tuning Variables
+
+The built-in Copilot, Claude, and Codex harnesses expose a small set of supported runtime controls. Prefer the structured `engine.harness` frontmatter fields when possible; set the underlying environment variables only when you need a value that is supplied by a GitHub Actions expression or shared across a workflow.
+
+### Shared harness retry settings
+
+These settings apply to the built-in Copilot, Claude, and Codex harnesses.
+
+| Variable | Frontmatter field | Default | Units / range | Description |
+| --- | --- | --- | --- | --- |
+| `GH_AW_HARNESS_MAX_RETRIES` | `engine.harness.max-retries` | `3` | retry attempts after the initial run; minimum `0`, maximum `100` | Maximum number of harness retries. `0` disables retries. Invalid values use the default; values above `100` are clamped to `100`. |
+| `GH_AW_HARNESS_INITIAL_DELAY_MS` | `engine.harness.initial-delay-ms` | `5000` | milliseconds; minimum `1` | Delay before the first retry. Invalid values use the default. |
+| `GH_AW_HARNESS_BACKOFF_MULTIPLIER` | `engine.harness.backoff-multiplier` | `2` | decimal multiplier; minimum `1` | Multiplier applied after each retry. Invalid values use the default. |
+| `GH_AW_HARNESS_MAX_DELAY_MS` | `engine.harness.max-delay-ms` | `60000` | milliseconds; minimum `1` | Maximum retry delay. Invalid values use the default. If set below `GH_AW_HARNESS_INITIAL_DELAY_MS`, it is clamped up to the initial delay. |
+
+### Shared post-result watchdog
+
+`GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` configures the post-result stdio inactivity watchdog used by the built-in Copilot and Codex harnesses. It is measured in **milliseconds**. The default is `120000` ms (2 minutes), the minimum is `50` ms, and the maximum is `600000` ms (10 minutes). Unset, non-numeric, zero, and negative values use the default; positive values outside the supported range are clamped.
+
+The watchdog is dormant until the agent emits a terminal safe output. `noop` and ordinary task outputs such as comments, labels, pushes, and pull request creation are terminal. Diagnostic safe outputs such as `missing_tool`, `missing_data`, and `report_incomplete` are not terminal and do not arm the watchdog by themselves.
+
+After the watchdog arms, any stdout or stderr activity resets the inactivity clock. A quiet child process can therefore be terminated even while it is doing useful CPU or I/O work, such as a monorepo scan, build, or test command that produces no logs. If the watchdog fires after a terminal safe output already exists, the harness may still treat the run as successful because the requested safe output was already produced.
+
+For literal frontmatter values, use `engine.harness.watchdog-timeout` in seconds. For raw environment variables, use milliseconds:
+
+```yaml wrap
+---
+env:
+  # Allow quiet monorepo scans and builds after an intermediate safe output.
+  # Workflow-level env is visible to the agent; do not put secrets here.
+  GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "600000"
+---
+```
+
+```yaml wrap
+---
+engine:
+  id: copilot
+  harness:
+    # Same timeout expressed as a literal frontmatter value in seconds.
+    watchdog-timeout: 600
+---
+```
+
+### Engine-specific harness settings
+
+| Variable | Engine | Default | Units / range | Description |
+| --- | --- | --- | --- | --- |
+| `GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD` | Copilot | `10000` | tokens; minimum `0` | Token threshold used to classify long-running partial executions as `long_run_exit` instead of a generic partial execution. Invalid or negative values use the default. |
+| `GH_AW_CLAUDE_STARTUP_RETRIES` | Claude | `1` | retry attempts; range `0`-`2` | Additional fresh-run retry budget for zero-output Claude startup failures. Invalid values use the default; out-of-range integers are clamped. |
+
+There is no separate public Codex, Gemini, or Copilot startup-retry environment variable beyond the shared retry policy above. Copilot SDK driver settings such as `COPILOT_SDK_SEND_TIMEOUT_MS` are documented in [Copilot SDK Support](/gh-aw/reference/engines/#copilot-sdk-support) and the [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/).
+
+### Internal runtime variables
+
+`GH_AW_TIMEOUT_MINUTES` is compiler-managed. gh-aw derives it from the workflow `timeout-minutes` frontmatter value and passes it to harness and driver code so soft timeouts and SDK send timeouts stay below the GitHub Actions job timeout. Do not set `GH_AW_TIMEOUT_MINUTES` directly; set `timeout-minutes` in frontmatter instead.
+
 ## CLI Configuration Variables
 
 These variables configure the `gh aw` CLI tool. Set them in your local shell environment or as repository/organization variables in GitHub Actions.

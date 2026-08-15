@@ -8,6 +8,7 @@ permissions:
   issues: read
   pull-requests: read
 imports:
+- shared/reporting.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 1d
@@ -197,8 +198,6 @@ Using the type definitions from Phase 1 and the untyped usages from Phase 2:
 ### Phase 4: Generate Refactoring Discussion
 
 Create a comprehensive discussion with your findings.
-
-**Report Formatting**: Use h3 (`###`) or lower for all headers in the discussion to maintain proper document hierarchy. Wrap verbose tables and long sections in `<details><summary>Section Name</summary>` blocks.
 
 **Discussion Structure**:
 

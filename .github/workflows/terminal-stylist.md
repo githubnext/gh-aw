@@ -21,6 +21,7 @@ imports:
       title-prefix: "[terminal-stylist] "
       expires: 1d
   - shared/mcp/serena-go.md
+  - shared/reporting.md
 
   - shared/otlp.md
 tools:
@@ -140,28 +141,6 @@ Create a discussion with:
   - Interactive prompts that could benefit from forms
   - Validation and accessibility improvements
   - User experience enhancements through better field types
-
-### Report Formatting Requirements
-
-- **Header Levels**: Use h3 (`###`) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (`#`) or h2 (`##`) headers — these are reserved for issue/discussion titles.
-- **Progressive Disclosure**: Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
-
-Example:
-
-```markdown
-<details>
-<summary><b>Full Analysis Details</b></summary>
-
-[Long detailed content here...]
-
-</details>
-```
-
-- **Recommended Structure**:
-  1. Brief summary (always visible)
-  2. Key metrics or highlights (always visible)
-  3. Detailed analysis (in `<details>` tags)
-  4. Recommendations (always visible)
 
 ## Success Criteria
 

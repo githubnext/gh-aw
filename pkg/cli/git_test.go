@@ -23,6 +23,28 @@ import (
 // - TestStageWorkflowChanges (tests staging behavior during workflow compilation)
 // - TestStageGitAttributesIfChanged (tests conditional staging during compilation)
 
+func TestIsSafeGitRevisionArg(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		want bool
+	}{
+		{"empty", "", false},
+		{"leading dash", "-oops", false},
+		{"leading double dash", "--upload-pack=evil", false},
+		{"plain branch", "main", true},
+		{"remote branch", "origin/main", true},
+		{"contains dash not leading", "feature-branch", true},
+		{"short sha", "abc1234", true},
+		{"fully qualified ref", "refs/heads/main", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSafeGitRevisionArg(tt.ref))
+		})
+	}
+}
+
 func TestGetCurrentBranch(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 

@@ -179,6 +179,18 @@ Specifies which AI engine interprets the markdown section. See [AI Engines](/gh-
 engine: copilot
 ```
 
+Harness retry and post-result watchdog settings live under `engine.harness` for built-in Copilot, Claude, and Codex harnesses:
+
+```yaml wrap
+engine:
+  id: copilot
+  harness:
+    # Allow quiet monorepo scans and builds after an intermediate safe output.
+    watchdog-timeout: 600  # seconds
+```
+
+See [Harness Retry and Post-result Watchdog Policy](/gh-aw/reference/engines/#harness-retry-and-post-result-watchdog-policy) for defaults, units, and the equivalent `GH_AW_HARNESS_*` environment variables.
+
 ### Engine Driver (`engine.driver:`)
 
 Overrides the built-in engine runtime driver for engines that support driver mode. For Copilot, setting `engine.driver` also enables SDK mode. `engine.driver` accepts either a string path/command or an inline source object with exactly one of `node:`, `python:`, `go:`, or `java:`. See [AI Engines](/gh-aw/reference/engines/#copilot-sdk-support) for driver requirements and supported formats.

@@ -50,7 +50,7 @@ var ghAwInternalSecrets = map[string]bool{
 // e.g. "actions/checkout@abc1234 # v4".
 //
 // Returns a structured, actionable error when violations are found.
-func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool) error {
+func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool, currentMemoryValidationScripts []GHAWManifestMemoryValidationScript) error {
 	if manifest == nil {
 		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
 		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
@@ -61,9 +61,10 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 	secretViolations := collectSecretViolations(manifest, secretNames)
 	addedActions, removedActions := collectActionViolations(manifest, actionRefs)
 	addedRedirect, removedRedirect := collectRedirectViolations(manifest, currentRedirect)
+	memoryValidationScriptChanges := collectMemoryValidationScriptChanges(manifest, currentMemoryValidationScripts)
 	pullRequestTargetEscalation := hasPullRequestTargetEscalation(oldHasPullRequest, oldHasPullRequestTarget, currentHasPullRequest, currentHasPullRequestTarget)
 
-	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" && !pullRequestTargetEscalation {
+	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" && len(memoryValidationScriptChanges) == 0 && !pullRequestTargetEscalation {
 		safeUpdateLog.Printf("Safe update check passed (%d secret(s), %d action(s) verified)",
 			len(secretNames), len(actionRefs))
 		return nil
@@ -87,11 +88,15 @@ func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs 
 	if removedRedirect != "" {
 		safeUpdateLog.Printf("Safe update violation: redirect removed: %s", removedRedirect)
 	}
+	if len(memoryValidationScriptChanges) > 0 {
+		safeUpdateLog.Printf("Safe update violation: %d memory validation script change(s) detected: %s",
+			len(memoryValidationScriptChanges), strings.Join(memoryValidationScriptChanges, ", "))
+	}
 	if pullRequestTargetEscalation {
 		safeUpdateLog.Print("Safe update violation: pull_request event converted to pull_request_target")
 	}
 
-	return buildSafeUpdateError(secretViolations, addedActions, removedActions, addedRedirect, removedRedirect, pullRequestTargetEscalation)
+	return buildSafeUpdateError(secretViolations, addedActions, removedActions, addedRedirect, removedRedirect, pullRequestTargetEscalation, memoryValidationScriptChanges)
 }
 
 func hasPullRequestTargetEscalation(oldHasPullRequest bool, oldHasPullRequestTarget bool, currentHasPullRequest bool, currentHasPullRequestTarget bool) bool {
@@ -265,9 +270,36 @@ func collectRedirectViolations(manifest *GHAWManifest, currentRedirect string) (
 	return current, knownRedirect
 }
 
+func collectMemoryValidationScriptChanges(manifest *GHAWManifest, current []GHAWManifestMemoryValidationScript) []string {
+	previous := make(map[string]string, len(manifest.MemoryValidationScripts))
+	for _, script := range manifest.MemoryValidationScripts {
+		previous[script.Memory] = script.SHA256
+	}
+	currentByMemory := make(map[string]string, len(current))
+	for _, script := range current {
+		currentByMemory[script.Memory] = script.SHA256
+	}
+	var changes []string
+	for memory, hash := range currentByMemory {
+		switch previousHash, ok := previous[memory]; {
+		case !ok:
+			changes = append(changes, memory+" (added)")
+		case previousHash != hash:
+			changes = append(changes, memory+" (modified)")
+		}
+	}
+	for memory := range previous {
+		if _, ok := currentByMemory[memory]; !ok {
+			changes = append(changes, memory+" (removed)")
+		}
+	}
+	sort.Strings(changes)
+	return changes
+}
+
 // buildSafeUpdateError creates a clear, structured error message that names the
 // offending secrets, actions, and redirects and tells the user how to remediate.
-func buildSafeUpdateError(secretViolations, addedActions, removedActions []string, addedRedirect, removedRedirect string, hasPullRequestTargetEscalation bool) error {
+func buildSafeUpdateError(secretViolations, addedActions, removedActions []string, addedRedirect, removedRedirect string, hasPullRequestTargetEscalation bool, memoryValidationScriptChanges []string) error {
 	var sb strings.Builder
 	sb.WriteString("safe update mode detected unapproved changes\n")
 
@@ -290,6 +322,10 @@ func buildSafeUpdateError(secretViolations, addedActions, removedActions []strin
 	if removedRedirect != "" {
 		sb.WriteString("\nPreviously-approved redirect removed:\n  - ")
 		sb.WriteString(removedRedirect)
+	}
+	if len(memoryValidationScriptChanges) > 0 {
+		sb.WriteString("\nMemory validation script changes:\n  - ")
+		sb.WriteString(strings.Join(memoryValidationScriptChanges, "\n  - "))
 	}
 	if hasPullRequestTargetEscalation {
 		sb.WriteString("\nEvent trigger security escalation:\n  - pull_request was converted to pull_request_target")

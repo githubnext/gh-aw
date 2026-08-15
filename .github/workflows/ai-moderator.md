@@ -34,6 +34,7 @@ network:
     - github
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   bash: false
   cli-proxy: true
@@ -226,9 +227,3 @@ If no spam was detected, you may still update the log to remove stale entries, b
 - Provide clear reasoning for each detection in your analysis
 - Only take action if you have high confidence in the detection
 - **You MUST always emit at least one safe output.** After completing your analysis, if no spam was detected and no labels were applied, call the `noop` safe output to confirm that the content was reviewed and no action was required. Never exit without calling a safe output.
-
-## Report Formatting
-
-- Use h3 (###) or lower for all headers in your analysis output to maintain proper document hierarchy.
-- Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
-- Structure: Brief summary (always visible) → Key findings (always visible) → Detailed analysis (in `<details>`) → Actions taken (always visible)

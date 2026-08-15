@@ -227,16 +227,60 @@ func getCurrentUser(ctx context.Context) (string, error) {
 	return login, nil
 }
 
+// The GraphQL documents below are hardcoded static query templates. They are declared as
+// named constants (never built with fmt.Sprintf or string concatenation) so that all
+// user-controlled input, such as the project owner login, is passed exclusively through
+// GraphQL variables (CWE-89 / workflow-graphql-static-concat).
+const (
+	validateOrgOwnerQuery  = `query($login: String!) { organization(login: $login) { id login } }`
+	validateUserOwnerQuery = `query($login: String!) { user(login: $login) { id login } }`
+
+	orgOwnerNodeIDQuery  = `query($login: String!) { organization(login: $login) { id } }`
+	userOwnerNodeIDQuery = `query($login: String!) { user(login: $login) { id } }`
+
+	orgProjectFieldsQuery = `query($login: String!, $number: Int!) {
+		organization(login: $login) {
+			projectV2(number: $number) {
+				id
+				fields(first: 100) {
+					nodes {
+						... on ProjectV2SingleSelectField {
+							id
+							name
+							options { name color description }
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	userProjectFieldsQuery = `query($login: String!, $number: Int!) {
+		user(login: $login) {
+			projectV2(number: $number) {
+				id
+				fields(first: 100) {
+					nodes {
+						... on ProjectV2SingleSelectField {
+							id
+							name
+							options { name color description }
+						}
+					}
+				}
+			}
+		}
+	}`
+)
+
 // validateOwner validates that the owner exists
 func validateOwner(ctx context.Context, ownerType, owner string, verbose bool) error {
 	projectLog.Printf("Validating %s: %s", ownerType, owner)
 	console.LogVerbose(verbose, fmt.Sprintf("Validating %s exists: %s", ownerType, owner))
 
-	var query string
+	query := validateUserOwnerQuery
 	if ownerType == "org" {
-		query = `query($login: String!) { organization(login: $login) { id login } }`
-	} else {
-		query = `query($login: String!) { user(login: $login) { id login } }`
+		query = validateOrgOwnerQuery
 	}
 
 	_, err := runProjectGraphQLQueryWithVariables(ctx, "Validating owner...", query, map[string]any{
@@ -266,14 +310,11 @@ func getOwnerNodeId(ctx context.Context, ownerType, owner string, verbose bool) 
 	projectLog.Printf("Getting node ID for %s: %s", ownerType, owner)
 	console.LogVerbose(verbose, fmt.Sprintf("Getting node ID for %s: %s", ownerType, owner))
 
-	var query string
-	var jqPath string
+	query := userOwnerNodeIDQuery
+	jqPath := ".data.user.id"
 	if ownerType == "org" {
-		query = `query($login: String!) { organization(login: $login) { id } }`
+		query = orgOwnerNodeIDQuery
 		jqPath = ".data.organization.id"
-	} else {
-		query = `query($login: String!) { user(login: $login) { id } }`
-		jqPath = ".data.user.id"
 	}
 
 	output, err := runProjectGraphQLQueryWithVariables(ctx, "Getting owner ID...", query, map[string]any{
@@ -651,47 +692,14 @@ type statusFieldInfo struct {
 
 // getStatusField retrieves the Status field information for a project
 func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (statusFieldInfo, error) {
-	var query string
-	var jqProjectID, jqFields string
+	query := userProjectFieldsQuery
+	jqProjectID := ".data.user.projectV2.id"
+	jqFields := ".data.user.projectV2.fields.nodes"
 
 	if info.scope == "orgs" {
-		query = `query($login: String!, $number: Int!) {
-			organization(login: $login) {
-				projectV2(number: $number) {
-					id
-					fields(first: 100) {
-						nodes {
-							... on ProjectV2SingleSelectField {
-								id
-								name
-								options { name color description }
-							}
-						}
-					}
-				}
-			}
-		}`
+		query = orgProjectFieldsQuery
 		jqProjectID = ".data.organization.projectV2.id"
 		jqFields = ".data.organization.projectV2.fields.nodes"
-	} else {
-		query = `query($login: String!, $number: Int!) {
-			user(login: $login) {
-				projectV2(number: $number) {
-					id
-					fields(first: 100) {
-						nodes {
-							... on ProjectV2SingleSelectField {
-								id
-								name
-								options { name color description }
-							}
-						}
-					}
-				}
-			}
-		}`
-		jqProjectID = ".data.user.projectV2.id"
-		jqFields = ".data.user.projectV2.fields.nodes"
 	}
 
 	// Get project ID

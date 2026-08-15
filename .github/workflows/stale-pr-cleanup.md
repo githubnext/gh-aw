@@ -16,6 +16,7 @@ engine: copilot
 strict: true
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 tools:
   cli-proxy: true
   github:
@@ -185,8 +186,6 @@ Add warning comment (do not close):
 ```
 
 ### Step 4: Generate Summary Report
-
-**Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 Output the following summary to stdout after processing:
 

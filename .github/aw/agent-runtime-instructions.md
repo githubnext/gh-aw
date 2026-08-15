@@ -5,22 +5,24 @@ disable-model-invocation: true
 
 # Agent Runtime Instructions
 
-Use these instructions when creating or updating workflows that mention Docker, gVisor, Docker sbx, ARC DinD, self-hosted runners, or `sandbox.agent.runtime-install`.
+Use these instructions when creating or updating workflows that mention Docker, gVisor, Docker sbx, Cloud Hypervisor, ARC DinD, self-hosted runners, or `sandbox.agent.runtime-install`.
 
 ## Runtime fields
 
 - Omit `sandbox.agent.runtime` for the default Docker agent runtime.
 - Set `sandbox.agent.runtime: gvisor` only when the runner has a local Docker daemon and can install or already has `runsc`.
 - Set `sandbox.agent.runtime: docker-sbx` only when the runner supports KVM-backed microVMs.
+- Set `sandbox.agent.runtime: cloud-hypervisor` only for the preview microVM runtime on a GitHub-hosted Ubuntu x86_64 runner with `/dev/kvm`; prefer `docker-sbx` or `gvisor` when those host constraints are not guaranteed.
 - Do not set `sandbox.agent.runtime: docker`; Docker is selected by omitting the field.
 - Do not set `sandbox.agent.runtime: sbx`; `sbx` is only a bounded-query runtime name.
 - Set `runner.topology: arc-dind` for ARC or equivalent Kubernetes runners that use a Docker-in-Docker sidecar. This is a runner topology, not an agent runtime.
 
 ## Compatibility
 
-- Do not combine `runner.topology: arc-dind` with `sandbox.agent.runtime: gvisor` or `sandbox.agent.runtime: docker-sbx`.
+- Do not combine `runner.topology: arc-dind` with `sandbox.agent.runtime: gvisor`, `sandbox.agent.runtime: docker-sbx`, or `sandbox.agent.runtime: cloud-hypervisor`.
 - ARC DinD workflows must be rootless: do not add `sudo`, `apt-get install`, or other host package bootstrap steps.
 - Docker sbx requires KVM and normally does not work on ARC DinD because the sbx daemon must run on the runner host.
+- Cloud Hypervisor requires `RUNNER_ENVIRONMENT=github-hosted`, Ubuntu Linux x86_64, and `/dev/kvm`; it is not supported on self-hosted or ARC DinD runners.
 
 ## `runtime-install`
 
@@ -42,6 +44,14 @@ Use these instructions when creating or updating workflows that mention Docker, 
 - Docker sbx requires both `DOCKER_USERNAME` and `DOCKER_PAT` Actions secrets. `DOCKER_PAT` must be a Docker Hub personal access token that can authenticate Docker Hub pulls for the sandbox template.
 - `DOCKER_USERNAME` and `DOCKER_PAT` remain required even with `runtime-install: false`, because compiled workflows refresh sbx credentials immediately before agent execution.
 - Do not use Docker sbx for workflows triggered from untrusted forks unless the trigger and credential model safely provide those secrets.
+
+## Cloud Hypervisor guidance (preview)
+
+- Preview scope is narrow: GitHub-hosted runners only, Ubuntu Linux x86_64 only, and `/dev/kvm` must be present.
+- The compiler emits host preflight and release-asset provisioning steps that download and checksum-verify the pinned Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor from the `gh-aw-firewall` release before AWF starts, and grants only the runner user scoped read/write access to `/dev/kvm`.
+- AWF launches with the host privileges required to create the VM but keeps strict network isolation; the guest defaults to 2 vCPUs and 4096 MiB, and its trusted topology attachment is limited to the MCP gateway on TCP 8080 (no CLI proxy).
+- Not supported under Cloud Hypervisor: `tools.github.mode: gh-proxy`, the `integrity-reactions` feature, `sandbox.agent.legacy-security: enable`, `sandbox.agent.allow-host-ports`, and `enclaves:` configuration.
+- Do not recommend this runtime for self-hosted, non-Ubuntu, or non-x86_64 runners; use `docker-sbx` or `gvisor` instead.
 
 ## ARC DinD guidance
 

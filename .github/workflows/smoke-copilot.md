@@ -34,6 +34,7 @@ imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
+  - shared/smoke-test-brevity.md
 network:
   allowed:
     - defaults
@@ -183,8 +184,6 @@ sandbox:
 {{#if experiments.caveman }}
 Talk like a caveman in all your responses and outputs. Use short, broken sentences. Me test. You run.
 {{/if}}
-
-**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
 ## Hard Limit: `add_comment` Budget
 

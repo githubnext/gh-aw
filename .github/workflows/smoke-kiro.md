@@ -28,6 +28,7 @@ imports:
   - shared/reporting-otlp.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
+  - shared/smoke-test-brevity.md
 network:
   allowed:
     - defaults
@@ -59,11 +60,6 @@ sandbox:
 ---
 
 # Smoke Test: Kiro Engine Validation
-
-**CRITICAL EFFICIENCY REQUIREMENTS:**
-- Keep ALL outputs extremely short and concise. Use single-line responses.
-- NO verbose explanations or unnecessary context.
-- Minimize file reading - only read what is absolutely necessary for the task.
 
 ## Test Requirements
 

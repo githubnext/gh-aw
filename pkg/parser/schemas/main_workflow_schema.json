@@ -3586,7 +3586,7 @@
                     },
                     "runtime": {
                       "type": "string",
-                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation \u2014 when runtime-install is left enabled, it requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Use 'cloud-hypervisor' to run the agent in AWF's preview Cloud Hypervisor microVM runtime (GitHub-hosted Ubuntu x86_64 + /dev/kvm only). Incompatible with runner.topology: arc-dind.",
+                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation \u2014 when runtime-install is left enabled, it requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Use 'cloud-hypervisor' to run the agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu x86_64. The compiler grants the runner user scoped /dev/kvm access, launches the Cloud Hypervisor host process with the required privileges while retaining strict network isolation, and sizes the guest at 2 vCPUs and 4096 MiB. Incompatible with runner.topology: arc-dind.",
                       "enum": ["gvisor", "docker-sbx", "cloud-hypervisor"],
                       "examples": ["gvisor", "docker-sbx", "cloud-hypervisor"]
                     },
@@ -4659,6 +4659,25 @@
                     "type": "string"
                   },
                   "description": "List of allowed file extensions (e.g., [\".json\", \".txt\"]). Default: [\".json\", \".jsonl\", \".txt\", \".md\", \".csv\"]"
+                },
+                "validation": {
+                  "type": "object",
+                  "properties": {
+                    "script": {
+                      "type": "string",
+                      "description": "JavaScript validator body that runs over the complete cache-memory directory before persistence. Throw, return false, or exit nonzero to reject the update."
+                    },
+                    "timeout-minutes": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "default": 1,
+                      "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
+                    }
+                  },
+                  "required": ["script"],
+                  "additionalProperties": false,
+                  "description": "Custom domain validation hook for this cache-memory entry"
                 }
               },
               "additionalProperties": false,
@@ -4712,6 +4731,25 @@
                       "type": "string"
                     },
                     "description": "List of allowed file extensions (e.g., [\".json\", \".txt\"]). Default: [\".json\", \".jsonl\", \".txt\", \".md\", \".csv\"]"
+                  },
+                  "validation": {
+                    "type": "object",
+                    "properties": {
+                      "script": {
+                        "type": "string",
+                        "description": "JavaScript validator body that runs over the complete cache-memory directory before persistence. Throw, return false, or exit nonzero to reject the update."
+                      },
+                      "timeout-minutes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "default": 1,
+                        "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
+                      }
+                    },
+                    "required": ["script"],
+                    "additionalProperties": false,
+                    "description": "Custom domain validation hook for this cache-memory entry"
                   }
                 },
                 "required": ["id", "key"],
@@ -4968,6 +5006,25 @@
                 "format-json": {
                   "type": "boolean",
                   "description": "When true, all .json files are pretty-printed (2-space indent) before being committed, making them human-readable in the repository (default: false)"
+                },
+                "validation": {
+                  "type": "object",
+                  "properties": {
+                    "script": {
+                      "type": "string",
+                      "description": "JavaScript validator body that runs over the complete repo-memory directory after optional JSON formatting and before persistence. Throw, return false, or exit nonzero to reject the update."
+                    },
+                    "timeout-minutes": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "default": 1,
+                      "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
+                    }
+                  },
+                  "required": ["script"],
+                  "additionalProperties": false,
+                  "description": "Custom domain validation hook for this repo-memory entry"
                 }
               },
               "additionalProperties": false,
@@ -5063,6 +5120,25 @@
                   "format-json": {
                     "type": "boolean",
                     "description": "When true, all .json files are pretty-printed (2-space indent) before being committed, making them human-readable in the repository (default: false)"
+                  },
+                  "validation": {
+                    "type": "object",
+                    "properties": {
+                      "script": {
+                        "type": "string",
+                        "description": "JavaScript validator body that runs over the complete repo-memory directory after optional JSON formatting and before persistence. Throw, return false, or exit nonzero to reject the update."
+                      },
+                      "timeout-minutes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5,
+                        "default": 1,
+                        "description": "Maximum validator runtime in minutes (default: 1, max: 5)"
+                      }
+                    },
+                    "required": ["script"],
+                    "additionalProperties": false,
+                    "description": "Custom domain validation hook for this repo-memory entry"
                   }
                 },
                 "additionalProperties": false
@@ -12039,6 +12115,7 @@
     "runtimes": {
       "type": "object",
       "description": "Runtime environment version overrides. Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared workflows are also merged.",
+      "x-example-key": "node",
       "patternProperties": {
         "^[a-z][a-z0-9-]*$": {
           "type": "object",

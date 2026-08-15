@@ -72,6 +72,30 @@ Can be imported
 	assert.True(t, result.isSharedWorkflow, "Should be detected as shared workflow")
 }
 
+func TestParseFrontmatterSection_RedirectOnlyWorkflow(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-redirect-only")
+
+	testContent := `---
+redirect: "  owner/repo/.github/workflows/new-location.md  "
+engine: copilot
+---
+
+# Redirect placeholder
+`
+
+	testFile := filepath.Join(tmpDir, "redirect-only.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.isRedirectOnly, "Should be detected as redirect-only workflow")
+	assert.Equal(t, "owner/repo/.github/workflows/new-location.md", result.redirectTarget)
+	assert.False(t, result.isSharedWorkflow, "Redirect-only workflow should not be marked as shared workflow")
+}
+
 // TestParseFrontmatterSection_TriggersInsteadOfOn tests that using "triggers:" gives a helpful error
 func TestParseFrontmatterSection_TriggersInsteadOfOn(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "frontmatter-triggers")

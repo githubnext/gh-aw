@@ -264,6 +264,17 @@ Step-by-step checklist for verifying that a compiled `.lock.yml` file meets all 
 ### Appendix H: Security Best Practices
 Six key best practices with "Don't" and "Do" examples.
 
+**Safeguards — compile-time vs. runtime enforcement**:
+
+| Practice | Enforcement | Mechanism |
+|---|---|---|
+| BP-01 Sanitized context | Compile-time | Compiler rewrites `${{ github.event.* }}` expressions in `prompt:` to `${{ steps.sanitized.outputs.text }}` during compilation; unsanitized expressions never reach the generated `.lock.yml` |
+| BP-02 Strict mode for production | Compile-time | `strict: true` causes the compiler to reject workflows with write permissions on the `agent` job or missing `safe-outputs:`; violations fail `gh aw compile` |
+| BP-03 Specific domain allowlists | Runtime | The AWF network proxy/firewall enforces the configured `network.allowed` domain list against outbound requests during workflow execution; a wildcard (`"*"`) is accepted at compile time but only its effect is observed at runtime |
+| BP-04 Pin actions to SHAs | Compile-time (advisory) / CI-time (enforced) | The compiler itself does not reject unpinned `uses:` references; SHA-pinning is enforced by CI tooling (`actionlint`, `poutine`, `zizmor`) run against compiled `.lock.yml` files, not by the compiler at `gh aw compile` time (see Appendix G.1 coverage gap) |
+| BP-05 Enable threat detection | Compile-time (job generation) / Runtime (detection execution) | The compiler generates a `detection` job when `threat-detection.enabled` is not explicitly `false`; the actual AI-based/TruffleHog scan and the `needs.detection.outputs.success` gate on `safe_outputs` are evaluated at runtime |
+| BP-06 Role-based access control | Runtime | `roles:` configures the `GH_AW_REQUIRED_ROLES` environment variable consumed by the `pre_activation` job's `check_membership.cjs` step, which queries GitHub's API for the triggering actor's role at workflow run time; the compiler does not verify roles ahead of time |
+
 ## Target Audience
 
 - **Security Engineers**: Audit and verify security controls

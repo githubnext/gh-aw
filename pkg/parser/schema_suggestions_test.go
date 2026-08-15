@@ -376,6 +376,12 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 			wantValue: "copilot",
 		},
 		{
+			name:      "top-level unquoted value with inline comment",
+			yaml:      "engine: coplit # typo\n",
+			path:      "/engine",
+			wantValue: "coplit",
+		},
+		{
 			name:      "nested path - child not in yaml returns empty",
 			yaml:      "engine: copilot\n",
 			path:      "/permissions/issues",
@@ -402,6 +408,12 @@ func TestExtractYAMLValueAtPath(t *testing.T) {
 		{
 			name:      "nested path - double-quoted value",
 			yaml:      "permissions:\n  contents: \"raed\"\n",
+			path:      "/permissions/contents",
+			wantValue: "raed",
+		},
+		{
+			name:      "nested path - unquoted value with inline comment",
+			yaml:      "permissions:\n    contents: raed # typo\n",
 			path:      "/permissions/contents",
 			wantValue: "raed",
 		},

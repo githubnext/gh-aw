@@ -57,6 +57,7 @@ imports:
   - shared/copilot-session-data-fetch.md
   - shared/session-analysis-charts.md
   - shared/session-analysis-strategies.md
+  - shared/reporting.md
 
   - shared/otlp.md
 timeout-minutes: 45
@@ -273,12 +274,6 @@ Generate a human-readable Markdown report and create a discussion.
 ```
 Daily Copilot Agent Session Analysis — [YYYY-MM-DD]
 ```
-
-### Report Formatting
-
-- Use h3 (`###`) or lower for all headers in the discussion body. Never use h1 (`#`) or h2 (`##`) — these are reserved for the discussion title.
-- Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.
-- Keep Executive Summary, Key Metrics, and Recommendations always visible; collapse verbose per-session data in `<details>` blocks.
 
 **Discussion Template**:
 

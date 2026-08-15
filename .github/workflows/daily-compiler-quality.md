@@ -11,6 +11,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 imports:
+- shared/reporting.md
 - uses: shared/daily-audit-base.md
   with:
     expires: 1d
@@ -720,8 +721,6 @@ The compiler codebase maintains **good overall quality** with an average score o
 ---
 
 ## Important Guidelines
-
-- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
 ### Tool Guardrails (Required)
 

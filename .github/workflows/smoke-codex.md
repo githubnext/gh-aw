@@ -33,6 +33,7 @@ imports:
   - shared/trufflehog.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
+  - shared/smoke-test-brevity.md
 network:
   allowed:
     - defaults
@@ -99,12 +100,6 @@ sandbox:
 ---
 
 # Smoke Test: Codex Engine Validation
-
-**CRITICAL EFFICIENCY REQUIREMENTS:**
-- Keep ALL outputs extremely short and concise. Use single-line responses.
-- NO verbose explanations or unnecessary context.
-- Minimize file reading - only read what is absolutely necessary for the task.
-- Use targeted, specific queries - avoid broad searches or large data retrievals.
 
 ## Test Requirements
 

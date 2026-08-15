@@ -190,14 +190,11 @@ models:
   default-ai-credits-pricing:
     input: 0.000001
     output: 0.000001
+imports:
+  - shared/reporting.md
 ---
 
 ### Daily BYOK Endpoint Test
-
-**Report Formatting**: Use h3 (###) or lower for all headers in your report
-to maintain proper document hierarchy. Wrap long sections in
-`<details><summary>View Full Details</summary>` tags to improve readability.
-
 
 You are a BYOK connectivity test. Your only task is to compose a haiku and report the result.
 

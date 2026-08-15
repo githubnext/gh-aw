@@ -1273,3 +1273,70 @@ func TestResolveSymlinkExtraPaths(t *testing.T) {
 		assert.Equal(t, 1, count, "already-present path should not be duplicated")
 	})
 }
+
+func TestActivationEventSet(t *testing.T) {
+	t.Run("string on value", func(t *testing.T) {
+		events, ok := activationEventSet("on: issues")
+		require.True(t, ok)
+		assert.Equal(t, map[string]struct{}{"issues": {}}, events)
+	})
+
+	t.Run("list on value", func(t *testing.T) {
+		events, ok := activationEventSet("on: [issues, pull_request]")
+		require.True(t, ok)
+		assert.Equal(t, map[string]struct{}{"issues": {}, "pull_request": {}}, events)
+	})
+
+	t.Run("map on value excludes metadata trigger fields", func(t *testing.T) {
+		onSection := "on:\n  issues:\n    types: [opened]\n  reaction: eyes\n  stop-after: +48h\n"
+		events, ok := activationEventSet(onSection)
+		require.True(t, ok)
+		assert.Equal(t, map[string]struct{}{"issues": {}}, events, "metadata fields like reaction/stop-after should be excluded")
+	})
+
+	t.Run("invalid yaml returns not ok", func(t *testing.T) {
+		events, ok := activationEventSet("on: [unterminated")
+		assert.False(t, ok)
+		assert.Empty(t, events)
+	})
+
+	t.Run("missing on key returns not ok", func(t *testing.T) {
+		events, ok := activationEventSet("permissions:\n  contents: read\n")
+		assert.False(t, ok)
+		assert.Empty(t, events)
+	})
+
+	t.Run("unsupported on value type returns not ok", func(t *testing.T) {
+		events, ok := activationEventSet("on: 5\n")
+		assert.False(t, ok)
+		assert.Empty(t, events)
+	})
+}
+
+func TestBuildCentralizedCommandOnSection(t *testing.T) {
+	t.Run("single event produces synthetic on section", func(t *testing.T) {
+		result := buildCentralizedCommandOnSection([]string{"issues"})
+		assert.Equal(t, "on:\n  issues:\n    types: [created]\n", result)
+	})
+
+	t.Run("pull_request_comment and issue_comment dedupe to issue_comment", func(t *testing.T) {
+		result := buildCentralizedCommandOnSection([]string{"pull_request_comment", "issue_comment"})
+		assert.Equal(t, "on:\n  issue_comment:\n    types: [created]\n", result)
+	})
+
+	t.Run("unknown identifiers produce empty on section", func(t *testing.T) {
+		result := buildCentralizedCommandOnSection([]string{"not-a-real-event"})
+		assert.Empty(t, result)
+	})
+
+	t.Run("empty input defaults to all comment events", func(t *testing.T) {
+		expected := "on:\n" +
+			"  issues:\n    types: [created]\n" +
+			"  issue_comment:\n    types: [created]\n" +
+			"  pull_request:\n    types: [created]\n" +
+			"  pull_request_review_comment:\n    types: [created]\n" +
+			"  discussion:\n    types: [created]\n" +
+			"  discussion_comment:\n    types: [created]\n"
+		assert.Equal(t, expected, buildCentralizedCommandOnSection(nil))
+	})
+}

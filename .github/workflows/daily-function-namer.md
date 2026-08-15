@@ -441,4 +441,6 @@ Only include a rename suggestion if you are confident it would measurably improv
 
 ### Output Format
 
-Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
+- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks to reduce scrolling.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

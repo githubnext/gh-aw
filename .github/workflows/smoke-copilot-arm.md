@@ -29,6 +29,7 @@ imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
+  - shared/smoke-test-brevity.md
 network:
   allowed:
     - defaults
@@ -124,8 +125,6 @@ sandbox:
 ---
 
 # Smoke Test: Copilot Engine Validation (ARM64)
-
-**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
 **PURPOSE**: This smoke test validates that the Copilot engine, AWF firewall, MCP servers, and safe outputs work correctly on Linux ARM64 (ubuntu-24.04-arm) runners. This is critical for ensuring multi-architecture support.
 

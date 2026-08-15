@@ -1,5 +1,9 @@
 package typeutil
 
+import "github.com/github/gh-aw/pkg/logger"
+
+var lookupLog = logger.New("typeutil:lookup")
+
 // ParseBool extracts a boolean value from a map[string]any by key.
 // Returns false if the map is nil, the key is absent, or the value is not a bool.
 func ParseBool(m map[string]any, key string) bool {
@@ -62,12 +66,14 @@ func LookupStringPath(m map[string]any, path ...string) (string, bool) {
 	for i, key := range path {
 		value, ok := current[key]
 		if !ok {
+			lookupLog.Printf("Path lookup stopped: key %q missing at step %d/%d", key, i, len(path))
 			return "", false
 		}
 
 		if i == len(path)-1 {
 			result, ok := value.(string)
 			if !ok {
+				lookupLog.Printf("Path lookup failed: final value at key %q is not a string", key)
 				return "", false
 			}
 			return result, true
@@ -75,6 +81,7 @@ func LookupStringPath(m map[string]any, path ...string) (string, bool) {
 
 		next, ok := value.(map[string]any)
 		if !ok {
+			lookupLog.Printf("Path lookup failed: value at key %q is not a nested map (step %d/%d)", key, i, len(path))
 			return "", false
 		}
 		current = next

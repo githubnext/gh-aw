@@ -347,6 +347,7 @@ GitHub Actions marks the run as `timed_out` when the job exceeds `timeout-minute
 | Codex | `Tool call timed out after 120 seconds` | `tools: timeout: N` (default: 120s) |
 | Copilot | *(task incomplete, workflow succeeds)* | `max-continuations: N` |
 | Any | `Failed to register tools error="initialize: timeout"` | `tools: startup-timeout: N` |
+| Copilot/Codex | Harness log says `post-result watchdog terminating idle process` after a comment, label, PR, push, or `noop` output | Increase `engine.harness.watchdog-timeout` (seconds) or `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` (milliseconds) |
 
 ```yaml wrap
 timeout-minutes: 60      # job-level limit
@@ -356,6 +357,17 @@ tools:
 max-turns: 30            # Claude: max turns
 max-continuations: 5     # Copilot: autopilot continuations
 ```
+
+The post-result watchdog only starts after a terminal safe output is written. It is useful for cleaning up child processes after a result, but it can terminate silent long-running shell commands and builds that continue doing CPU or I/O work without writing stdout or stderr. For quiet monorepo scans or builds, increase the watchdog window:
+
+```yaml wrap
+engine:
+  id: copilot
+  harness:
+    watchdog-timeout: 600  # seconds
+```
+
+See [Harness Settings and Runtime Tuning Variables](/gh-aw/reference/environment-variables/#harness-settings-and-runtime-tuning-variables) for the raw `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` environment variable, default, range, and clamping behavior.
 
 ### Why Did My Workflow Fail?
 

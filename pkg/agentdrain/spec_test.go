@@ -15,6 +15,7 @@ import (
 // Spec: Depth=4, SimThreshold=0.4, MaxChildren=100, ParamToken="<*>", RareClusterThreshold=2,
 // ExcludeFields=["session_id","trace_id","span_id","timestamp"]
 func TestSpec_PublicAPI_DefaultConfig(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 
 	assert.Equal(t, 4, cfg.Depth, "Depth default should be 4")
@@ -32,6 +33,7 @@ func TestSpec_PublicAPI_DefaultConfig(t *testing.T) {
 
 // TestSpec_PublicAPI_NewMiner validates that NewMiner creates a usable miner.
 func TestSpec_PublicAPI_NewMiner(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err, "NewMiner with valid config should not error")
@@ -40,6 +42,7 @@ func TestSpec_PublicAPI_NewMiner(t *testing.T) {
 
 // TestSpec_PublicAPI_Miner_TrainEvent validates that TrainEvent processes known-good events.
 func TestSpec_PublicAPI_Miner_TrainEvent(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -56,6 +59,7 @@ func TestSpec_PublicAPI_Miner_TrainEvent(t *testing.T) {
 
 // TestSpec_PublicAPI_Miner_AnalyzeEvent validates that AnalyzeEvent produces a match result and anomaly report.
 func TestSpec_PublicAPI_Miner_AnalyzeEvent(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -72,6 +76,7 @@ func TestSpec_PublicAPI_Miner_AnalyzeEvent(t *testing.T) {
 
 // TestSpec_PublicAPI_Miner_Clusters validates that Clusters and ClusterCount report trained state.
 func TestSpec_PublicAPI_Miner_Clusters(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -87,6 +92,7 @@ func TestSpec_PublicAPI_Miner_Clusters(t *testing.T) {
 
 // TestSpec_PublicAPI_Miner_Persistence validates SaveJSON/LoadJSON round-trip preserves cluster state.
 func TestSpec_PublicAPI_Miner_Persistence(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -107,6 +113,7 @@ func TestSpec_PublicAPI_Miner_Persistence(t *testing.T) {
 
 // TestSpec_PublicAPI_NewCoordinator validates that NewCoordinator creates a coordinator for given stages.
 func TestSpec_PublicAPI_NewCoordinator(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	stages := []string{"plan", "tool_call", "finish"}
 	coord, err := agentdrain.NewCoordinator(cfg, stages)
@@ -116,6 +123,7 @@ func TestSpec_PublicAPI_NewCoordinator(t *testing.T) {
 
 // TestSpec_PublicAPI_Coordinator_AllClusters validates that AllClusters returns a map keyed by stage.
 func TestSpec_PublicAPI_Coordinator_AllClusters(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	stages := []string{"plan", "tool_call", "finish"}
 	coord, err := agentdrain.NewCoordinator(cfg, stages)
@@ -131,6 +139,7 @@ func TestSpec_PublicAPI_Coordinator_AllClusters(t *testing.T) {
 
 // TestSpec_PublicAPI_Coordinator_Snapshots validates SaveSnapshots/LoadSnapshots round-trip.
 func TestSpec_PublicAPI_Coordinator_Snapshots(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	stages := []string{"plan", "finish"}
 	coord, err := agentdrain.NewCoordinator(cfg, stages)
@@ -152,6 +161,7 @@ func TestSpec_PublicAPI_Coordinator_Snapshots(t *testing.T) {
 
 // TestSpec_PublicAPI_Utility_Tokenize validates that Tokenize splits on whitespace boundaries.
 func TestSpec_PublicAPI_Utility_Tokenize(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		line     string
@@ -185,6 +195,7 @@ func TestSpec_PublicAPI_Utility_Tokenize(t *testing.T) {
 // TestSpec_PublicAPI_Utility_FlattenEvent validates that FlattenEvent excludes specified fields
 // and produces deterministic (sorted) output.
 func TestSpec_PublicAPI_Utility_FlattenEvent(t *testing.T) {
+	t.Parallel()
 	t.Run("excludes listed fields", func(t *testing.T) {
 		evt := agentdrain.AgentEvent{
 			Stage: "plan",
@@ -216,6 +227,7 @@ func TestSpec_PublicAPI_Utility_FlattenEvent(t *testing.T) {
 // TestSpec_PublicAPI_Utility_StageSequence validates space-separated stage extraction.
 // Spec: returns "a space-separated string of the stages from a slice of events"
 func TestSpec_PublicAPI_Utility_StageSequence(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		events   []agentdrain.AgentEvent
@@ -253,6 +265,7 @@ func TestSpec_PublicAPI_Utility_StageSequence(t *testing.T) {
 
 // TestSpec_PublicAPI_NewMasker validates that NewMasker creates a masker and Mask applies substitutions.
 func TestSpec_PublicAPI_NewMasker(t *testing.T) {
+	t.Parallel()
 	rules := []agentdrain.MaskRule{
 		{
 			Name:        "number_test",
@@ -271,6 +284,7 @@ func TestSpec_PublicAPI_NewMasker(t *testing.T) {
 
 // TestSpec_PublicAPI_NewAnomalyDetector validates AnomalyDetector construction.
 func TestSpec_PublicAPI_NewAnomalyDetector(t *testing.T) {
+	t.Parallel()
 	detector, err := agentdrain.NewAnomalyDetector(0.4, 2)
 	require.NoError(t, err, "NewAnomalyDetector should not error with valid thresholds")
 	assert.NotNil(t, detector, "NewAnomalyDetector should return non-nil detector")
@@ -279,6 +293,7 @@ func TestSpec_PublicAPI_NewAnomalyDetector(t *testing.T) {
 // TestSpec_Types_AgentEvent validates the documented AgentEvent type structure.
 // Spec: Stage string, Fields map[string]string
 func TestSpec_Types_AgentEvent(t *testing.T) {
+	t.Parallel()
 	evt := agentdrain.AgentEvent{
 		Stage:  "plan",
 		Fields: map[string]string{"key": "value"},
@@ -290,6 +305,7 @@ func TestSpec_Types_AgentEvent(t *testing.T) {
 // TestSpec_Types_MaskRule validates the documented MaskRule type structure.
 // Spec: Name, Pattern, Replacement fields
 func TestSpec_Types_MaskRule(t *testing.T) {
+	t.Parallel()
 	rule := agentdrain.MaskRule{
 		Name:        "test-rule",
 		Pattern:     `\d+`,
@@ -303,6 +319,7 @@ func TestSpec_Types_MaskRule(t *testing.T) {
 // TestSpec_DesignDecision_SimThreshold validates that SimThreshold=0.4 means 40% token match.
 // Spec: "SimThreshold of 0.4 means at least 40% of tokens must match exactly"
 func TestSpec_DesignDecision_SimThreshold(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	assert.InEpsilon(t, 0.4, cfg.SimThreshold, 1e-9, "40%% token match threshold as documented")
 }
@@ -311,6 +328,7 @@ func TestSpec_DesignDecision_SimThreshold(t *testing.T) {
 // are routed to separate miners so templates do not interfere.
 // Spec: "The Coordinator routes each AgentEvent to its stage-specific Miner"
 func TestSpec_DesignDecision_CoordinatorRouting(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	stages := []string{"plan", "tool_call"}
 	coord, err := agentdrain.NewCoordinator(cfg, stages)
@@ -332,6 +350,7 @@ func TestSpec_DesignDecision_CoordinatorRouting(t *testing.T) {
 // TestSpec_PublicAPI_Coordinator_AnalyzeEvent validates Coordinator.AnalyzeEvent routes events
 // to stage-specific miners and returns MatchResult and AnomalyReport.
 func TestSpec_PublicAPI_Coordinator_AnalyzeEvent(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	stages := []string{"plan", "tool_call", "finish"}
 	coord, err := agentdrain.NewCoordinator(cfg, stages)
@@ -351,6 +370,7 @@ func TestSpec_PublicAPI_Coordinator_AnalyzeEvent(t *testing.T) {
 // TestSpec_PublicAPI_Coordinator_WeightsPersistence validates SaveWeightsJSON/LoadWeightsJSON
 // round-trip as documented in the specification.
 func TestSpec_PublicAPI_Coordinator_WeightsPersistence(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	stages := []string{"plan", "finish"}
 	coord, err := agentdrain.NewCoordinator(cfg, stages)
@@ -373,6 +393,7 @@ func TestSpec_PublicAPI_Coordinator_WeightsPersistence(t *testing.T) {
 // TestSpec_PublicAPI_AnomalyDetector_Analyze validates that AnomalyDetector.Analyze
 // returns an AnomalyReport with AnomalyScore in the documented [0, 1] range.
 func TestSpec_PublicAPI_AnomalyDetector_Analyze(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -389,6 +410,7 @@ func TestSpec_PublicAPI_AnomalyDetector_Analyze(t *testing.T) {
 // TestSpec_Types_Cluster validates the documented Cluster type structure.
 // Spec: ID (unique identifier), Template (tokenized template), Size (count), Stage (pipeline stage).
 func TestSpec_Types_Cluster(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -409,6 +431,7 @@ func TestSpec_Types_Cluster(t *testing.T) {
 // TestSpec_Types_MatchResult validates the documented MatchResult type structure.
 // Spec: ClusterID, Template (space-joined), Params, Similarity in [0,1], Stage.
 func TestSpec_Types_MatchResult(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -427,6 +450,7 @@ func TestSpec_Types_MatchResult(t *testing.T) {
 // TestSpec_Types_AnomalyReport validates the documented AnomalyReport type structure.
 // Spec: IsNewTemplate, LowSimilarity, RareCluster, AnomalyScore in [0,1], Reason.
 func TestSpec_Types_AnomalyReport(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -448,6 +472,7 @@ func TestSpec_Types_AnomalyReport(t *testing.T) {
 // events to the correct stage miner and returns a MatchResult.
 // Spec: "Training phase — call for known-good events" on Coordinator
 func TestSpec_PublicAPI_Coordinator_TrainEvent(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	stages := []string{"plan", "tool_call", "finish"}
 	coord, err := agentdrain.NewCoordinator(cfg, stages)
@@ -467,6 +492,7 @@ func TestSpec_PublicAPI_Coordinator_TrainEvent(t *testing.T) {
 // does not error on a freshly constructed coordinator.
 // Spec: "Call coord.LoadDefaultWeights() to initialize the coordinator with pre-trained cluster weights"
 func TestSpec_PublicAPI_Coordinator_LoadDefaultWeights(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	stages := []string{"plan", "tool_call", "finish"}
 	coord, err := agentdrain.NewCoordinator(cfg, stages)
@@ -479,6 +505,7 @@ func TestSpec_PublicAPI_Coordinator_LoadDefaultWeights(t *testing.T) {
 // TestSpec_PublicAPI_Miner_Train validates that Miner.Train processes a raw log line.
 // Spec: "Process a raw log line (training + matching in one step)"
 func TestSpec_PublicAPI_Miner_Train(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)
@@ -493,6 +520,7 @@ func TestSpec_PublicAPI_Miner_Train(t *testing.T) {
 // TestSpec_Types_Snapshot validates the documented Snapshot/SnapshotCluster type structures.
 // Spec: Snapshot{Config, Clusters []SnapshotCluster, NextID}, SnapshotCluster{ID, Template, Size, Stage}.
 func TestSpec_Types_Snapshot(t *testing.T) {
+	t.Parallel()
 	cfg := agentdrain.DefaultConfig()
 	miner, err := agentdrain.NewMiner(cfg)
 	require.NoError(t, err)

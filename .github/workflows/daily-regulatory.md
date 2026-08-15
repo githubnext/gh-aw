@@ -35,6 +35,7 @@ imports:
     with:
       title-prefix: "[daily regulatory] "
   - shared/github-queries-mcp-script.md
+  - shared/reporting.md
 
 
   - shared/otlp.md
@@ -275,8 +276,6 @@ fi
 Create a comprehensive discussion report with findings.
 
 ### Discussion Format
-
-- **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
 **Title**: `[daily regulatory] Regulatory Report - YYYY-MM-DD`
 

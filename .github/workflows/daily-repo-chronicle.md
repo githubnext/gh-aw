@@ -55,6 +55,7 @@ imports:
       expires: 3d
   - shared/trends.md
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 evals:
