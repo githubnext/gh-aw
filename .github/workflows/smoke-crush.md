@@ -22,6 +22,7 @@ name: Smoke Crush
 model: copilot/claude-sonnet-4.5
 engine:
   id: crush
+max-turn-cache-misses: 15
 strict: true
 imports:
   - shared/crush.md
