@@ -1031,6 +1031,31 @@ func TestGenerateGoMod(t *testing.T) {
 	}
 }
 
+func TestGenerateGoMod_SkipsEmptyRequireBlock(t *testing.T) {
+	compiler := NewCompiler()
+	tempDir := testutil.TempDir(t, "test-*")
+	goModPath := filepath.Join(tempDir, "go.mod")
+
+	deps := []GoDependency{
+		{Path: "github.com/user/tool", Version: "latest"},
+		{Path: "golang.org/x/tools"},
+	}
+
+	if err := compiler.generateGoMod(goModPath, deps, false); err != nil {
+		t.Fatalf("failed to generate go.mod: %v", err)
+	}
+
+	data, err := os.ReadFile(goModPath)
+	if err != nil {
+		t.Fatalf("failed to read go.mod: %v", err)
+	}
+
+	content := string(data)
+	if strings.Contains(content, "require (") {
+		t.Fatalf("go.mod should not contain an empty require block:\n%s", content)
+	}
+}
+
 // Tests for multi-ecosystem support
 
 func TestGenerateDependabotConfig_MultipleEcosystems(t *testing.T) {

@@ -520,12 +520,12 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 	managedPatternsWithComment := managedPatternsWithInlineComment(originalStr, managedPatterns)
 
 	for i, updateAny := range updates {
-		updateMap, changedEntry, writeBack := reconcileGithubActionsIgnoreEntry(updateAny, managedPatterns, managedPatternsWithComment)
-		if changedEntry {
+		result := reconcileGithubActionsIgnoreEntry(updateAny, managedPatterns, managedPatternsWithComment)
+		if result.changed {
 			changed = true
 		}
-		if writeBack {
-			updates[i] = updateMap
+		if result.writeBack {
+			updates[i] = result.updateMap
 		}
 	}
 
@@ -549,19 +549,23 @@ func (c *Compiler) ReconcileManagedDependabotIgnores(path string) error {
 	return nil
 }
 
+type reconcileGithubActionsIgnoreResult struct {
+	updateMap map[string]any
+	changed   bool
+	writeBack bool
+}
+
 // reconcileGithubActionsIgnoreEntry adds compiler-managed ignore rules to a single
-// dependabot.yml update entry if it targets the github-actions ecosystem. It returns the
-// (possibly modified) update entry, whether it was changed, and whether the entry was a
-// github-actions entry that should be written back into the updates list.
-func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, managedPatternsWithComment map[string]struct{}) (map[string]any, bool, bool) {
+// dependabot.yml update entry if it targets the github-actions ecosystem.
+func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, managedPatternsWithComment map[string]struct{}) reconcileGithubActionsIgnoreResult {
 	updateMap, ok := dependabotToStringAnyMap(updateAny)
 	if !ok {
-		return nil, false, false
+		return reconcileGithubActionsIgnoreResult{}
 	}
 
 	ecosystem, _ := updateMap["package-ecosystem"].(string)
 	if ecosystem != "github-actions" {
-		return nil, false, false
+		return reconcileGithubActionsIgnoreResult{}
 	}
 
 	changed := false
@@ -575,15 +579,12 @@ func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, 
 
 	ignoreEntries, ok := dependabotToAnySlice(ignoreAny)
 	if !ok {
-		// Note: this can only be reached when the ignore field pre-existed with a
-		// non-empty, non-list value (e.g. a scalar), since the []any{} literal set
-		// above always converts successfully. In that case changed is still false,
-		// matching the original loop's behavior of skipping the write-back.
-		return nil, changed, false
+		// Only reached for a pre-existing non-empty, non-list ignore value; preserve
+		// the original skip-without-write-back behavior.
+		return reconcileGithubActionsIgnoreResult{changed: changed}
 	}
 
-	managedPresent := make(map[string]struct {
-	}, len(managedPatterns))
+	managedPresent := make(map[string]struct{}, len(managedPatterns))
 	for _, ignoreEntryAny := range ignoreEntries {
 		ignoreEntryMap, ok := dependabotToStringAnyMap(ignoreEntryAny)
 		if !ok {
@@ -596,8 +597,7 @@ func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, 
 
 		for _, pattern := range managedPatterns {
 			if dependencyName == pattern {
-				managedPresent[pattern] = struct {
-				}{}
+				managedPresent[pattern] = struct{}{}
 				if !setutil.Contains(managedPatternsWithComment, pattern) {
 					changed = true
 				}
@@ -614,7 +614,7 @@ func reconcileGithubActionsIgnoreEntry(updateAny any, managedPatterns []string, 
 	}
 
 	updateMap["ignore"] = ignoreEntries
-	return updateMap, changed, true
+	return reconcileGithubActionsIgnoreResult{updateMap: updateMap, changed: changed, writeBack: true}
 }
 
 // DependabotConfigPath resolves the repository-local Dependabot config path.
@@ -1017,12 +1017,7 @@ func (c *Compiler) loadOrInitGoModLines(path string) ([]string, error) {
 // appendGoModRequireSection appends a require block for the given dependencies to lines,
 // skipping dependencies without an explicit version.
 func appendGoModRequireSection(lines []string, deps []GoDependency) []string {
-	if len(deps) == 0 {
-		return lines
-	}
-
-	lines = append(lines, "")
-	lines = append(lines, "require (")
+	var entries []string
 	for _, dep := range deps {
 		version := dep.Version
 		if version == "latest" || version == "" {
@@ -1032,8 +1027,14 @@ func appendGoModRequireSection(lines []string, deps []GoDependency) []string {
 			dependabotLog.Printf("Skipping %s: no version specified (use 'go get %s@latest' to resolve)", dep.Path, dep.Path)
 			continue
 		}
-		lines = append(lines, fmt.Sprintf("\t%s %s", dep.Path, version))
+		entries = append(entries, fmt.Sprintf("\t%s %s", dep.Path, version))
 	}
+	if len(entries) == 0 {
+		return lines
+	}
+
+	lines = append(lines, "", "require (")
+	lines = append(lines, entries...)
 	lines = append(lines, ")")
 
 	return lines
