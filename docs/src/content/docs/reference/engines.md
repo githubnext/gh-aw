@@ -23,7 +23,7 @@ Copilot CLI is the default, so `engine:` can be omitted when using Copilot. Copi
 
 ## Unsupported engine samples
 
-The OpenCode, Aider, Crush, Cursor, and Kiro integrations in this repository are **samples only**. They are not officially supported by gh-aw and have no compatibility or maintenance commitment.
+The OpenCode, Aider, Crush, Cursor, DeepSeek Harness, and Kiro integrations in this repository are **samples only**. They are not officially supported by gh-aw and have no compatibility or maintenance commitment.
 
 | Sample engine | Sample definition |
 |---------------|-------------------|
@@ -31,6 +31,7 @@ The OpenCode, Aider, Crush, Cursor, and Kiro integrations in this repository are
 | [Aider](https://aider.chat/docs/) | `.github/workflows/shared/aider.md` |
 | [Crush](https://github.com/charmbracelet/crush) | `.github/workflows/shared/crush.md` |
 | [Cursor](https://cursor.com/docs/cli) | `.github/workflows/shared/cursor.md` |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | `.github/workflows/shared/deepseek-harness.md` |
 | [Kiro](https://kiro.dev/) | `.github/workflows/shared/kiro.md` |
 
 Engine owners should publish and maintain their own Markdown integration definition. Users should import the definition from that owner-maintained source, pinned to a tag or commit SHA. The in-repository files are examples for authors, not supported engine integrations.

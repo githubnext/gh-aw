@@ -13,6 +13,10 @@
       "import": "github/gh-aw/.github/workflows/shared/cursor.md"
     },
     {
+      "id": "deepseek-harness",
+      "import": "github/gh-aw/.github/workflows/shared/deepseek-harness.md"
+    },
+    {
       "id": "custom",
       "import": "github/gh-aw/.github/workflows/shared/genaiscript.md"
     },
