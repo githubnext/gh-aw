@@ -365,7 +365,7 @@ func TestDailyFormalSpecVerifierDefinesDirectSafeOutputContract(t *testing.T) {
 		t.Fatal("Expected daily-formal-spec-verifier workflow to require a single final create_issue safe output")
 	}
 
-	noShellGuidance := "Do **not** use `bash`, `cli-proxy`, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments."
+	noShellGuidance := "Do **not** use `bash`, MCP CLI wrappers, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments."
 	if !strings.Contains(workflow, noShellGuidance) {
 		t.Fatal("Expected daily-formal-spec-verifier workflow to forbid bash/CLI safe-output invocation")
 	}

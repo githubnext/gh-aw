@@ -240,9 +240,9 @@ func renameCliProxyToMCPMode(lines []string) ([]string, bool) {
 		}
 
 		if inTools && strings.HasPrefix(trimmed, "cli-proxy:") && isDescendant(getIndentation(line), toolsIndent) {
-			value := strings.ToLower(extractScalarValue(line))
+			value := extractScalarValue(line)
 			newVal := "cli"
-			if value == "false" {
+			if strings.EqualFold(value, "false") {
 				newVal = "default"
 			}
 			result = append(result, rewriteKeyValueLine(line, "mcp-mode", newVal))
