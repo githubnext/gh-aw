@@ -54,6 +54,8 @@ engine:
       command-name: aider
       args:
         - --yes-always
+        - --edit-format
+        - diff
         - --no-auto-commits
         - --no-check-update
         - --no-show-release-notes
@@ -112,6 +114,20 @@ engine:
       fail(result, `${result.stdout || ""}\n${result.stderr || ""}`, "Aider execution");
 ---
 
+## Aider execution constraints
+
+Aider runs one non-interactive turn: the prompt is delivered with `--message-file` and your
+single reply is the whole run. Plan for that:
+
+- **Edit files with *SEARCH/REPLACE* blocks.** Aider applies them for you, including for new
+  files (empty `SEARCH` section). Do not write source files with `cat`/heredocs.
+- **Put shell commands in ```bash blocks, one complete command per line.** Aider executes each
+  line separately, so multi-line commands, backslash continuations and heredocs do not work.
+  Chain steps with `&&` or `;` on a single line instead.
+- **Suggest at most a few commands**; they all run from the repository root.
+- **Emit safe outputs with a single-line command**, for example
+  `printf '%s\n' '{"type":"noop","message":"..."}' >> "$GH_AW_SAFE_OUTPUTS"`.
+
 <!--
 # Aider CLI
 
@@ -136,6 +152,9 @@ model IDs exposed by the proxy, such as `claude-sonnet-4.5`.
 
 Aider runs in scripting mode: the generated prompt file is passed with
 `--message-file` and all confirmations are auto-accepted (`--yes-always`).
+The edit format is pinned to `diff` (the editblock coder) because the proxied
+model names are unknown to Aider and would otherwise fall back to the `whole`
+format, which rejects ```bash blocks and cannot run shell commands.
 Aider reports some LiteLLM request failures with exit code 0, so the harness
 also detects those errors in its output and fails the workflow.
 Aider has no MCP client, so the compiler exposes MCP-backed tools through
