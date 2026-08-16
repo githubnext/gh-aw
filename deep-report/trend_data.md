@@ -1,18 +1,17 @@
-## Trend Data (2026-08-14)
+## Trend Data (2026-08-16)
 
-Baseline was 2026-08-13; this cycle's deltas:
+Baseline was 2026-08-14; this cycle's deltas:
 
-- **Fleet agent-job reliability**: 32/40 (80.0%) raw / 31/39 (79.5%) excl. intentional-failure runs — essentially flat vs. 2026-08-13's 82.5%/84.6%, well within noise. A short failure cluster on Aug 14 12:03-14:32 UTC (5 failures/2.5h) was mostly driver/infra crashes (`total_driver_exit_failures=5` vs `total_agent_logic_failures=1`).
-- **Shared PR-review infra flakiness (#52518)**: RESOLVED this cycle — Test Quality Sentinel/Matt Pocock/Ponytail Reviewer all 15/15 (100%), up from 38.9%/54.5%/33.3% on 2026-08-13. Commented on the tracking issue recommending closure.
-- **Firewall hostname bug**: still RESOLVED, 3rd consecutive cycle verified (0 blocked, 0 wrong-hostname requests, PR Code Quality Reviewer 15-run sample).
-- **`agenticworkflows logs` tool timeout**: CONFIRMED again this cycle (hard ~60s cap, `--timeout` ignored, ~40-run effective ceiling) — reproduced with both `--count 60` and `--start_date`-filtered `--count 100` failing while `--count 40` succeeds. 9th confirmed occurrence; not re-filed as a duplicate issue this cycle (8 prior closures without a durable fix).
-- **New workflow-health finding**: Design Decision Gate (merge-blocking) shows a 28.6% failure rate with `Turns=0` engine-crash signature (#52590), independently corroborated by a 0/126-success gate-workflow cluster finding (#52668) and top-5 REST API consumption (#52697). Filed as this cycle's top-priority new issue.
-- **Code Scanning Fixer**: 6/15 (40%) overall this cycle but a clear day-by-day upward trend (Aug 11: 0%, Aug 12: 20%, Aug 13: 75%, Aug 14: 100%) — possible recovery in progress, not yet confirmed durable.
-- **Token usage**: fleet avg ~26.4k tokens/run (35-run sample); AI Moderator flagged as an outlier at ~123.7k avg (2-run sample, ~4.7x average) — filed as an investigate task given the small sample.
-- **Sentrux / Repository Quality**: not independently re-measured this cycle; #52598 (daily-sentrux) appears to be treated as a fresh/first-tracked baseline by this cycle's discussion-mining pass — no delta computed, carry forward next cycle to establish a real trend line once 2+ data points exist under this report format.
-- **Issues (500-sample, past 7 days)**: 173 open / 327 closed. Dataset window narrower than prior cycles (Aug 11-14 only per the sub-agent's read), so not a clean apples-to-apples with 2026-08-13's 161/339 figure — treat as a fresh snapshot, not a trend point, until sampling windows are confirmed consistent across cycles.
-- **Discussion volume**: 52 discussions touched in the last 7 days (37 Audits / 10 General / 5 Announcements); 31 new Audits-category reports mined since the 2026-08-13 cycle (processed through #52509, this cycle covers #52520-#52733).
-- **Issue creation this cycle**: 7 of 7 planned issues filed (full cap used, all dedup-checked); plus 1 add_comment filed on #52518 with recovery evidence.
-- **New meta-theme**: 3 independent monitoring agents (audit-workflows, sergo, eslint-refiner) reported their own repo-memory as stale/gapped (38 days, 5 weeks, since 07-08 respectively) this cycle — not yet actionable as a single filed issue, watch for a 4th recurrence.
+- **Fleet reliability**: 96.93% raw / 97.26% excl. intentional-failures (293 runs) — sharp jump from 79.5-82.1%. Caveat: audit-workflows itself resumed after a 40-day gap, so partly reflects catch-up sampling, not a single fix. Corroborated by agent-job-health (0/15 failures) and #52518 closure.
+- **#52518 (PR-review infra flakiness)**: CLOSED, as predicted last cycle. Retire from watchlist.
+- **Design Decision Gate**: invocation-cap root cause fixed (#52836 merged); SECOND distinct root cause (pr_number/workflow_dispatch hard-fail) found still broken despite #52987 closed-without-fix. Re-filed.
+- **Firewall hostname fix**: not re-checked this cycle (was slated for retirement after 3 clean cycles last time) — resume spot-check if it regresses.
+- **`agenticworkflows logs` timeout**: not re-tested (used only `--count 15`, succeeded). Re-verify ~40-run ceiling next cycle.
+- **Sentrux god_files_ceiling**: now confirmed enforcing (gap from 08-13 resolved). New regression found instead: `api.sentrux.dev` missing from network.allowed (3rd fix attempt after #43655/#40546 closed).
+- **Monitoring-staleness meta-theme (3 agents, flagged 08-14)**: resolved via catch-up runs this cycle, not recurring. Closed as a watch item.
+- **Cross-engine 0-turn crash**: signature spread from Copilot-only to Aider (first) and Crush (2 first) this window — small sample, filed as investigation.
+- **Issue creation**: 7/7 filed, all dedup-checked via `gh api search/issues`. 2 were near-misses caught by direct source verification (1 false-positive not filed, 1 chronic-duplicate not re-filed).
 
-Going forward: use 2026-08-14 as the updated trend baseline. Next cycle should check (a) whether #52518 gets formally closed given this cycle's 100%/100%/100% recovery evidence, (b) whether Design Decision Gate gets investigated/fixed or the failure pattern persists, (c) whether Code Scanning Fixer's upward trend holds for a 2nd confirming day, (d) whether the `agenticworkflows logs` timeout bug ever gets a durable fix or should be escalated differently, (e) whether the repo-memory-staleness meta-theme recurs a 4th time (would justify its own issue), (f) re-verify the firewall hostname fix one more time then consider retiring that specific check.
+See `last_analysis_timestamp.md` for full narrative detail on each item above.
+
+Next cycle checks: (a) did the 2 new Design Decision Gate issues get real fixes this time, (b) does sentrux firewall regress a 4th time, (c) does Aider/Crush crash signature grow or stay noise, (d) re-confirm firewall-hostname and logs-timeout items which went unchecked this cycle.
