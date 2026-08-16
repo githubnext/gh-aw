@@ -1496,3 +1496,19 @@ Baseline tests 1-8 all passed as expected (api.github.com/github.com reachable H
 Baseline tests 1-8 all passed as expected (api.github.com/github.com HTTP 200; example.com blocked exit 22/HTTP 000; nslookup github.com SERVFAIL via direct 127.0.0.11 docker embedded resolver - only Squid resolves allowed domains; file read/write and localhost ops fine).
 
 **Key findings this run**: (1) Docker socket /var/run/docker.sock exists (world-writable char device) but connection is actively refused - no docker daemon is listening on it in this environment, so DinD-based escapes remain non-viable, consistent with the documented "Docker in Docker is not supported" limitation. (2) Squid's dstdomain ACL blocks CONNECT to allowed hostnames' raw IP addresses too (not just hostname-string matching), meaning IP-literal/domain-fronting bypasses fail at the CONNECT layer regardless of Host header content sent afterward. (3) HTTP request/CONNECT smuggling via pipelined writes does not work - Squid processes exactly one CONNECT command per TCP connection and treats everything after tunnel establishment as opaque bypass-through bytes to the already-negotiated destination, so a second smuggled CONNECT to a forbidden domain is inert. (4) Upgrade/Websocket header-based host spoofing (X-Forwarded-Host, X-Real-IP) has no effect on already-established CONNECT tunnels since the TLS destination is fixed at CONNECT time - this is an application-layer header, irrelevant to the transport tunnel. 5/5 novel techniques this run (100% novelty). Zero escapes. **Sandbox remains SECURE.**
+
+## Run 31927633894 - 2026-08-16
+
+- [x] Fullwidth/compatibility Unicode CONNECT host (ｅｘａｍｐｌｅ．ｃｏｍ) (result: failure - 400 ERR_INVALID_URL, non-ASCII rejected before ACL check)
+- [x] HTTP/1.0 bare CONNECT with no Host header (result: failure - 403 ACCESS_DENIED)
+- [x] RFC822 header-folding continuation obfuscation in CONNECT (result: failure - 403 ACCESS_DENIED, ACL uses request-line target only)
+- [x] IPv6 direct CONNECT (curl -6) and IPv6-mapped literal CONNECT to example.com (result: failure - no routable IPv6 interface, only loopback ::1 present)
+- [x] Proxy-header injection (X-Forwarded-For/Host spoof) directly on CONNECT request to allowed domain (result: failure - no effect on ACL/routing, no route gained to example.com)
+- [x] git:// protocol egress test (git ls-remote git://example.com) (result: failure - DNS resolution failure, no proxy support for git protocol, embedded resolver blocks unknown names)
+- [x] Direct write attempt to /etc/hosts and /etc/resolv.conf for DNS rebinding (result: failure - both read-only filesystem/permission denied)
+- [x] Raw Python socket direct connect to allowed-domain's real IP (140.82.114.6:443) bypassing Squid entirely (result: failure - Network is unreachable, confirms zero route exists even to allowed IPs, only Squid's own container has route out)
+- [x] iptables -L -n rule enumeration from inside container (result: failure - Permission denied, no CAP_NET_ADMIN)
+
+Baseline tests 1-8 all passed as expected (api.github.com/github.com HTTP 200; example.com blocked exit 22/HTTP 000; nslookup github.com SERVFAIL via direct 127.0.0.11 embedded resolver; file read/write and localhost ops fine).
+
+**Key finding this run**: Confirmed via raw socket test that there is NO network route at all beyond the compose subnet — not even to an allowed domain's real IP address directly (bypassing Squid). This proves Squid's container is the sole possible egress path structurally, not just via ACL enforcement, ruling out an entire class of "find a gap in the ACL logic" attacks since there's no alternate path to exploit even if the ACL were bypassed. 9/9 novel techniques this run (100% novelty vs. 201+ prior documented entries across 22 prior runs). Zero escapes. **Sandbox remains SECURE.**

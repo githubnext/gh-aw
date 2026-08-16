@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-15T04:54:18Z",
-  "run_id": "31865432665",
+  "last_updated": "2026-08-16T04:57:00Z",
+  "run_id": "31927633894",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -1410,6 +1410,69 @@
       "description": "Sent Upgrade:websocket with X-Forwarded-Host/X-Real-IP:example.com over already-established CONNECT tunnel to api.github.com",
       "result": "failure",
       "date": "2026-08-15"
+    },
+    {
+      "name": "Fullwidth Unicode CONNECT Host (NFKC bypass)",
+      "category": "Encoding trick",
+      "description": "CONNECT with fullwidth Unicode chars for example.com",
+      "result": "failure",
+      "date": "2026-08-16"
+    },
+    {
+      "name": "HTTP/1.0 Bare CONNECT (no Host header)",
+      "category": "Protocol-level",
+      "description": "CONNECT example.com:443 HTTP/1.0 with no Host header",
+      "result": "failure",
+      "date": "2026-08-16"
+    },
+    {
+      "name": "RFC822 Header-Folding Obfuscation in CONNECT",
+      "category": "Protocol-level",
+      "description": "Legacy header continuation folding in CONNECT request",
+      "result": "failure",
+      "date": "2026-08-16"
+    },
+    {
+      "name": "IPv6 Direct CONNECT/curl -6 to example.com",
+      "category": "Protocol-level",
+      "description": "IPv6 -6 flag and IPv6-mapped literal CONNECT",
+      "result": "failure",
+      "date": "2026-08-16"
+    },
+    {
+      "name": "Proxy-Header Injection on CONNECT Request Itself",
+      "category": "Header spoofing",
+      "description": "--proxy-header X-Forwarded-For/Host spoof during CONNECT",
+      "result": "failure",
+      "date": "2026-08-16"
+    },
+    {
+      "name": "Git Protocol (git://) Egress Test",
+      "category": "Protocol-level bypass",
+      "description": "git ls-remote git://example.com/foo.git",
+      "result": "failure",
+      "date": "2026-08-16"
+    },
+    {
+      "name": "/etc/hosts and /etc/resolv.conf Direct-Write DNS Rebinding",
+      "category": "Environment manipulation",
+      "description": "Attempt to append entries to hosts/resolv.conf",
+      "result": "failure",
+      "date": "2026-08-16"
+    },
+    {
+      "name": "Raw Socket Direct Connect to Allowed-Domain Real IP",
+      "category": "Network stack manipulation",
+      "description": "Python raw connect to api.github.com IP bypassing Squid",
+      "result": "failure",
+      "date": "2026-08-16"
+    },
+    {
+      "name": "iptables Rule Enumeration (listing)",
+      "category": "Container escape recon",
+      "description": "iptables -L -n from inside container",
+      "result": "failure",
+      "date": "2026-08-16"
     }
   ]
 }
