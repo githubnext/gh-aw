@@ -86,10 +86,6 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
-func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string) {
-	writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayEnvVars, sanitizedGatewayEnvNames(gatewayEnvVars))
-}
-
 func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string, customEnvVarNames []string) {
 	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(customEnvVarNames) == 0 {
 		return
@@ -658,10 +654,6 @@ func appendMCPGatewaySafeOutputsInputEnvFlags(containerCmd *strings.Builder, saf
 	for _, envVarName := range envVarNames {
 		containerCmd.WriteString(" -e " + envVarName)
 	}
-}
-
-func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) {
-	appendMCPGatewayCustomAndHTTPEnvFlagsWithCustomGatewayEnvNames(containerCmd, workflowData, sanitizedGatewayEnvNames(gatewayConfig.Env), mcpEnvVars, hasGitHub, githubTool, tools, engine)
 }
 
 func appendMCPGatewayCustomAndHTTPEnvFlagsWithCustomGatewayEnvNames(containerCmd *strings.Builder, workflowData *WorkflowData, customGatewayEnvNames []string, mcpEnvVars map[string]string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) {

@@ -11,6 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func writeMCPGatewayStepEnvForTest(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string) {
+	writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayEnvVars, sanitizedGatewayEnvNames(gatewayEnvVars))
+}
+
+func appendMCPGatewayCustomAndHTTPEnvFlagsForTest(containerCmd *strings.Builder, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) {
+	appendMCPGatewayCustomAndHTTPEnvFlagsWithCustomGatewayEnvNames(containerCmd, workflowData, sanitizedGatewayEnvNames(gatewayConfig.Env), mcpEnvVars, hasGitHub, githubTool, tools, engine)
+}
+
 func TestMCPGatewayCustomEnvValuesStayOutOfRunScript(t *testing.T) {
 	gatewayEnv := map[string]string{
 		"AAA_INJECT":   "legit; echo PWNED_$(id) > /tmp/pwned #",
@@ -19,7 +27,7 @@ func TestMCPGatewayCustomEnvValuesStayOutOfRunScript(t *testing.T) {
 	}
 
 	var stepEnv strings.Builder
-	writeMCPGatewayStepEnv(&stepEnv, nil, nil, gatewayEnv)
+	writeMCPGatewayStepEnvForTest(&stepEnv, nil, nil, gatewayEnv)
 
 	assert.Contains(t, stepEnv.String(), `GH_AW_MCP_GATEWAY_ENV_0: "legit; echo PWNED_$(id) > /tmp/pwned #"`)
 	assert.Contains(t, stepEnv.String(), `GH_AW_MCP_GATEWAY_ENV_1: "ok\n          echo PWNED_NEWLINE"`)
@@ -44,7 +52,7 @@ func TestMCPGatewayCustomEnvValuesStayOutOfRunScript(t *testing.T) {
 	assert.NotContains(t, runScript.String(), "CCC_BACKTICK")
 
 	var containerCommand strings.Builder
-	appendMCPGatewayCustomAndHTTPEnvFlags(
+	appendMCPGatewayCustomAndHTTPEnvFlagsForTest(
 		&containerCommand,
 		&WorkflowData{},
 		&MCPGatewayRuntimeConfig{Env: gatewayEnv},
@@ -59,7 +67,7 @@ func TestMCPGatewayCustomEnvValuesStayOutOfRunScript(t *testing.T) {
 
 func TestMCPGatewayCustomEnvOverridesGeneratedStepEnv(t *testing.T) {
 	var yaml strings.Builder
-	writeMCPGatewayStepEnv(
+	writeMCPGatewayStepEnvForTest(
 		&yaml,
 		map[string]string{
 			"API_TOKEN":               "${{ secrets.DEFAULT_TOKEN }}",
@@ -84,7 +92,7 @@ func TestMCPGatewayCustomEnvOverridesGeneratedStepEnv(t *testing.T) {
 
 func TestMCPGatewayCustomEnvDoesNotSetBashEnvOnHost(t *testing.T) {
 	var yaml strings.Builder
-	writeMCPGatewayStepEnv(&yaml, nil, nil, map[string]string{
+	writeMCPGatewayStepEnvForTest(&yaml, nil, nil, map[string]string{
 		"BASH_ENV": "$(touch /tmp/pwned)",
 	})
 
@@ -94,7 +102,7 @@ func TestMCPGatewayCustomEnvDoesNotSetBashEnvOnHost(t *testing.T) {
 
 func TestMCPGatewayCustomEnvPreservesGitHubExpressionAsData(t *testing.T) {
 	var yaml strings.Builder
-	writeMCPGatewayStepEnv(&yaml, nil, nil, map[string]string{
+	writeMCPGatewayStepEnvForTest(&yaml, nil, nil, map[string]string{
 		"API_TOKEN": "${{ inputs.api_token }}",
 	})
 
@@ -104,7 +112,7 @@ func TestMCPGatewayCustomEnvPreservesGitHubExpressionAsData(t *testing.T) {
 
 func TestMCPGatewayCustomEnvReservesTransportMetadataName(t *testing.T) {
 	var yaml strings.Builder
-	writeMCPGatewayStepEnv(&yaml, map[string]string{
+	writeMCPGatewayStepEnvForTest(&yaml, map[string]string{
 		mcpGatewayCustomEnvNamesVar: "${{ secrets.COLLISION }}",
 	}, nil, map[string]string{
 		"API_TOKEN": "custom-token",
@@ -118,7 +126,7 @@ func TestMCPGatewayCustomEnvReservesTransportMetadataName(t *testing.T) {
 
 func TestMCPGatewayCustomEnvReservesTransportPrefix(t *testing.T) {
 	var yaml strings.Builder
-	writeMCPGatewayStepEnv(&yaml, map[string]string{
+	writeMCPGatewayStepEnvForTest(&yaml, map[string]string{
 		"GH_AW_MCP_GATEWAY_ENV_5": "${{ secrets.COLLISION }}",
 	}, nil, map[string]string{
 		"API_TOKEN": "custom-token",
@@ -176,7 +184,7 @@ func TestMCPGatewayCustomEnvNamesAreFilteredAtEmissionBoundary(t *testing.T) {
 	assert.Equal(t, []string{"API_TOKEN"}, sanitizedGatewayEnvNames(gatewayEnv))
 
 	var yaml strings.Builder
-	writeMCPGatewayStepEnv(&yaml, nil, nil, gatewayEnv)
+	writeMCPGatewayStepEnvForTest(&yaml, nil, nil, gatewayEnv)
 
 	output := yaml.String()
 	assert.Contains(t, output, `GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: "[\"API_TOKEN\"]"`)
@@ -185,11 +193,18 @@ func TestMCPGatewayCustomEnvNamesAreFilteredAtEmissionBoundary(t *testing.T) {
 	assert.NotContains(t, output, "reserved")
 }
 
+func TestMCPGatewayFilteredCustomEnvIsOmittedFromStepEnv(t *testing.T) {
+	var yaml strings.Builder
+	writeMCPGatewayStepEnvForTest(&yaml, nil, nil, map[string]string{"BAD-NAME": "shell-unsafe"})
+
+	assert.Empty(t, yaml.String())
+}
+
 func TestMCPGatewayCustomEnvMarkerOmittedWhenAllNamesFiltered(t *testing.T) {
 	gatewayEnv := map[string]string{"BAD-NAME": "shell-unsafe"}
 
 	var containerCommand strings.Builder
-	appendMCPGatewayCustomAndHTTPEnvFlags(
+	appendMCPGatewayCustomAndHTTPEnvFlagsForTest(
 		&containerCommand,
 		&WorkflowData{},
 		&MCPGatewayRuntimeConfig{Env: gatewayEnv},
@@ -204,7 +219,7 @@ func TestMCPGatewayCustomEnvMarkerOmittedWhenAllNamesFiltered(t *testing.T) {
 
 func TestMCPGatewayFilteredCustomEnvDoesNotSuppressHTTPMCPEnvForwarding(t *testing.T) {
 	var containerCommand strings.Builder
-	appendMCPGatewayCustomAndHTTPEnvFlags(
+	appendMCPGatewayCustomAndHTTPEnvFlagsForTest(
 		&containerCommand,
 		&WorkflowData{},
 		&MCPGatewayRuntimeConfig{Env: map[string]string{"GH_AW_MCP_GATEWAY_ENV_0": "filtered"}},
