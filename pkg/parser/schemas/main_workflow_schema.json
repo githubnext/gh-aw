@@ -6887,7 +6887,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for approving workflow runs that are awaiting approval for a fork pull request.",
+              "description": "Configuration for approving workflow runs that are awaiting required approval.",
               "properties": {
                 "max": {
                   "description": "Maximum number of workflow runs to approve (default: 1). Supports an integer or GitHub Actions expression.",
@@ -6984,7 +6984,7 @@
               "description": "Enable workflow run approval with default configuration"
             }
           ],
-          "description": "Enable AI agents to approve pending workflow runs from fork pull requests."
+          "description": "Enable AI agents to approve pending workflow runs in the action required state."
         },
         "add-comment": {
           "oneOf": [

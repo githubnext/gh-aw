@@ -341,7 +341,7 @@ func validateSafeOutputsApproveWorkflowRun(safeOutputs *SafeOutputsConfig) error
 	}
 
 	return errors.New(
-		"safe-outputs.approve-workflow-run: requires an external github-token or github-app because github.token cannot approve workflow runs for fork pull requests.\n\n" +
+		"safe-outputs.approve-workflow-run: requires an external github-token or github-app because github.token cannot approve workflow runs requiring approval.\n\n" +
 			"Example:\n  safe-outputs:\n    approve-workflow-run:\n      github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}",
 	)
 }

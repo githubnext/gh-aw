@@ -4,7 +4,7 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var approveWorkflowRunLog = logger.New("workflow:approve_workflow_run")
 
-// ApproveWorkflowRunConfig holds configuration for approving workflow runs from fork pull requests.
+// ApproveWorkflowRunConfig holds configuration for approving workflow runs awaiting required approval.
 type ApproveWorkflowRunConfig struct {
 	BaseSafeOutputConfig  `yaml:",inline"`
 	Fork                  bool     `yaml:"fork,omitempty"`
