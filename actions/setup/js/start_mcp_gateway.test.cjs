@@ -2,6 +2,9 @@ import fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyOTLPIgnoreIfMissing,
+  customGatewayEnvNamesVar,
+  customGatewayReservedEnvPrefix,
+  customGatewayEnvTransportPrefix,
   detectEngineType,
   extractOptionalServerNames,
   getJSONParseErrorContext,
@@ -35,8 +38,8 @@ describe("start_mcp_gateway custom environment arguments", () => {
   it("passes hostile values as one atomic Docker argument", () => {
     const hostileValue = `x" --privileged -v /workspace/evil:/evil --entrypoint /evil -e X="x`;
     const args = injectCustomGatewayEnvArgs(["run", "--rm", marker, "gateway-image"], {
-      GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["BASH_ENV"]',
-      GH_AW_MCP_GATEWAY_ENV_0: hostileValue,
+      [customGatewayEnvNamesVar]: '["BASH_ENV"]',
+      [`${customGatewayEnvTransportPrefix}0`]: hostileValue,
     });
 
     expect(args).toEqual(["run", "--rm", "-e", `BASH_ENV=${hostileValue}`, "gateway-image"]);
@@ -44,10 +47,10 @@ describe("start_mcp_gateway custom environment arguments", () => {
 
   it("preserves sorted multi-value index mapping and empty values", () => {
     const args = injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
-      GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["ALPHA","EMPTY","OMEGA"]',
-      GH_AW_MCP_GATEWAY_ENV_0: "first",
-      GH_AW_MCP_GATEWAY_ENV_1: "",
-      GH_AW_MCP_GATEWAY_ENV_2: "last\nline",
+      [customGatewayEnvNamesVar]: '["ALPHA","EMPTY","OMEGA"]',
+      [`${customGatewayEnvTransportPrefix}0`]: "first",
+      [`${customGatewayEnvTransportPrefix}1`]: "",
+      [`${customGatewayEnvTransportPrefix}2`]: "last\nline",
     });
 
     expect(args).toEqual(["run", "-e", "ALPHA=first", "-e", "EMPTY=", "-e", "OMEGA=last\nline", "gateway-image"]);
@@ -55,8 +58,8 @@ describe("start_mcp_gateway custom environment arguments", () => {
 
   it("uses an empty value when transport metadata is missing", () => {
     const args = injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
-      GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["PRESENT","MISSING"]',
-      GH_AW_MCP_GATEWAY_ENV_0: "value",
+      [customGatewayEnvNamesVar]: '["PRESENT","MISSING"]',
+      [`${customGatewayEnvTransportPrefix}0`]: "value",
     });
 
     expect(args).toEqual(["run", "-e", "PRESENT=value", "-e", "MISSING=", "gateway-image"]);
@@ -64,13 +67,13 @@ describe("start_mcp_gateway custom environment arguments", () => {
 
   it("leaves commands without the marker unchanged", () => {
     const args = ["run", "--rm", "gateway-image"];
-    expect(injectCustomGatewayEnvArgs(args, { GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: "not-json" })).toBe(args);
+    expect(injectCustomGatewayEnvArgs(args, { [customGatewayEnvNamesVar]: "not-json" })).toBe(args);
   });
 
   it("rejects malformed JSON metadata", () => {
     expect(() =>
       injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
-        GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: "not-json",
+        [customGatewayEnvNamesVar]: "not-json",
       })
     ).toThrow(/must be valid JSON/);
   });
@@ -78,9 +81,25 @@ describe("start_mcp_gateway custom environment arguments", () => {
   it("rejects malformed or unsafe environment variable names", () => {
     expect(() =>
       injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
-        GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["BAD-NAME"]',
+        [customGatewayEnvNamesVar]: '["BAD-NAME"]',
       })
     ).toThrow(/valid environment variable names/);
+  });
+
+  it.each([[`${customGatewayEnvTransportPrefix}0`], [customGatewayEnvNamesVar], [`${customGatewayReservedEnvPrefix}FOO`]])("rejects the reserved name %s", reservedName => {
+    expect(() =>
+      injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
+        [customGatewayEnvNamesVar]: JSON.stringify([reservedName]),
+      })
+    ).toThrow(/reserved/);
+  });
+
+  it("rejects duplicate environment variable names", () => {
+    expect(() =>
+      injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
+        [customGatewayEnvNamesVar]: '["API_TOKEN","API_TOKEN"]',
+      })
+    ).toThrow(/duplicate/);
   });
 });
 

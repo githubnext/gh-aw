@@ -285,7 +285,7 @@ func RenderJSONMCPConfig(
 	// against PATH modifications that may occur later in the workflow.
 	yaml.WriteString("          GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)\n")
 	// Write the configuration to the YAML output
-	yaml.WriteString("          cat << " + delimiter + " | \"$GH_AW_NODE\" \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs\"\n")
+	yaml.WriteString("          cat << " + delimiter + " | \"$GH_AW_NODE\" \"${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs\"\n") //nolint:generatedyamlheredoc // Gateway stdin rendering remains to be migrated.
 	yaml.WriteString(generatedConfig)
 	yaml.WriteString("          " + delimiter + "\n")
 

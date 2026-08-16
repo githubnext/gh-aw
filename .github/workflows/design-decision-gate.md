@@ -92,8 +92,29 @@ steps:
       set -euo pipefail
 
       if [ "$EXPR_GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ -z "${PR_NUMBER:-}" ]; then
-        echo "::error::workflow_dispatch requires inputs.pr_number"
-        exit 1
+        echo "::notice::workflow_dispatch did not include inputs.pr_number; skipping ADR gate."
+        mkdir -p /tmp/gh-aw/agent
+        printf '{"number":null,"title":"No pull request provided","body":"","labels":[],"baseRefName":"","headRefName":"","author":null,"url":""}\n' \
+          > /tmp/gh-aw/agent/pr.json
+        printf '[]\n' > /tmp/gh-aw/agent/pr-files.json
+        printf '# ADR gate skipped: workflow_dispatch did not include inputs.pr_number.\n' \
+          > /tmp/gh-aw/agent/pr.diff
+        printf 'No .design-gate.yml read because workflow_dispatch did not include inputs.pr_number.\n' \
+          > /tmp/gh-aw/agent/design-gate-config.yml
+        jq -n \
+          --arg skip_reason "workflow_dispatch did not include inputs.pr_number" \
+          '{
+            pr_number: null,
+            threshold: 100,
+            has_custom_config: false,
+            has_implementation_label: false,
+            default_business_additions: 0,
+            requires_adr_by_default_volume: false,
+            file_count: 0,
+            diff_available: false,
+            skip_reason: $skip_reason
+          }' > /tmp/gh-aw/agent/adr-prefetch-summary.json
+        exit 0
       fi
 
       mkdir -p /tmp/gh-aw/agent
@@ -186,6 +207,7 @@ Stop at the first step where you have sufficient information to emit a safe outp
 
 Stop and emit a safe output **immediately** when any of the following is true:
 
+- **Skipped prefetch**: `adr-prefetch-summary.json` contains `skip_reason` → call `noop` with that reason and **stop**.
 - **Noop exit**: `has_implementation_label` is `false` AND `requires_adr_by_default_volume` is `false` → call `noop` and **stop**.
 - **ADR found, no divergence**: ADR contains all four required sections and the diff does not contradict the decision → call `add-comment` (approved) and **stop**.
 - **ADR found, divergence**: Divergences identified → call `add-comment` (divergence list) and **stop**.

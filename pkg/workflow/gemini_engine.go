@@ -266,7 +266,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 		command = BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "gemini",
-			EngineCommand:  geminiCommandWithPath,
+			EngineCommand:  buildShellHarnessCommand("gemini", geminiCommandWithPath),
 			LogFile:        logFile,
 			WorkflowData:   workflowData,
 			UsesTTY:        false,
@@ -284,7 +284,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-%s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, geminiCommand, logFile)
+%s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, buildShellHarnessCommand("gemini", geminiCommand), logFile)
 	}
 
 	// Build environment variables
@@ -292,9 +292,10 @@ touch %s
 	env := map[string]string{
 		"GH_AW_PROMPT": constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
-		"GITHUB_AW":        "true",
-		"GITHUB_WORKSPACE": "${{ github.workspace }}",
-		"RUNNER_TEMP":      "${{ runner.temp }}",
+		"GITHUB_AW":             "true",
+		"GITHUB_WORKSPACE":      "${{ github.workspace }}",
+		"RUNNER_TEMP":           "${{ runner.temp }}",
+		"GH_AW_TIMEOUT_MINUTES": resolveStepTimeoutValue(workflowData),
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
 		// The runner's original path is unreachable within the AWF isolated filesystem;
 		// we create this file before the agent starts and append it to the real

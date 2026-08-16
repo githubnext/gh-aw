@@ -42,6 +42,9 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 let activeGatewayPid = null;
 const customGatewayEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__";
 const customGatewayEnvNamePattern = /^[A-Z_][A-Z0-9_]*$/;
+const customGatewayEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES";
+const customGatewayEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_";
+const customGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_";
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -88,18 +91,24 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
 
   let names;
   try {
-    names = JSON.parse(env.GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES || "[]");
+    names = JSON.parse(env[customGatewayEnvNamesVar] || "[]");
   } catch (err) {
-    throw new Error(`GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must be valid JSON: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${customGatewayEnvNamesVar} must be valid JSON: ${getErrorMessage(err)}`, { cause: err });
   }
   if (!Array.isArray(names) || !names.every(name => typeof name === "string" && customGatewayEnvNamePattern.test(name))) {
-    throw new Error("GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must be an array of valid environment variable names");
+    throw new Error(`${customGatewayEnvNamesVar} must be an array of valid environment variable names`);
+  }
+  if (names.some(name => name.startsWith(customGatewayReservedEnvPrefix))) {
+    throw new Error(`${customGatewayEnvNamesVar} must not contain names reserved by the ${customGatewayReservedEnvPrefix} namespace`);
+  }
+  if (new Set(names).size !== names.length) {
+    throw new Error(`${customGatewayEnvNamesVar} must not contain duplicate environment variable names`);
   }
 
   // Missing indexed transport values intentionally become empty container env vars.
   // This preserves deterministic NAME→slot mapping and keeps Docker argument injection
   // impossible even if the compiler/runtime metadata ever diverges.
-  const customArgs = names.flatMap((name, index) => ["-e", `${name}=${env[`GH_AW_MCP_GATEWAY_ENV_${index}`] || ""}`]);
+  const customArgs = names.flatMap((name, index) => ["-e", `${name}=${env[`${customGatewayEnvTransportPrefix}${index}`] || ""}`]);
   return [...args.slice(0, markerIndex), ...customArgs, ...args.slice(markerIndex + 1)];
 }
 
@@ -1098,6 +1107,9 @@ if (require.main === module) {
 
 module.exports = {
   applyOTLPIgnoreIfMissing,
+  customGatewayEnvNamesVar,
+  customGatewayEnvTransportPrefix,
+  customGatewayReservedEnvPrefix,
   detectEngineType,
   extractOptionalServerNames,
   getOTLPIfMissingMode,

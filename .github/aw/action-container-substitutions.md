@@ -26,8 +26,6 @@ These are repository-level settings in `aw.json`, not workflow frontmatter, so o
 - Map each source version individually — no wildcard or prefix matching.
 - The replacement target must itself be resolvable by the pin machinery (dynamic lookup, embedded pins, or local cache); otherwise resolution fails.
 
-One console message per mapped key is logged at compile time.
-
 ## Container substitutions (`container_pins`)
 
 `container_pins` maps source container image references (e.g. `ghcr.io/owner/image:tag`) to replacement targets. Applied before digest-pin resolution, so a mirrored image can replace the public source.
@@ -37,8 +35,8 @@ Each value is an object with separate `image` (ref name) and `digest` (SHA-256) 
 ```json title=".github/workflows/aw.json"
 {
   "container_pins": {
-    "ghcr.io/actions/runner:latest": {
-      "image": "registry.acme.com/runner:latest",
+    "ghcr.io/github/gh-aw-firewall:0.27.22": {
+      "image": "registry.acme.com/gh-aw-firewall:0.27.22",
       "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     },
     "node:lts-alpine": {
@@ -54,32 +52,11 @@ Each value is an object with separate `image` (ref name) and `digest` (SHA-256) 
 - `image` must be a valid reference without a digest component (e.g. `registry.acme.com/image:tag`).
 - `digest` must be a full SHA-256 digest in `sha256:<64 lowercase hex chars>` form.
 
-One console message per mapped key is logged at compile time.
-
-## Combined example
-
-```json title=".github/workflows/aw.json"
-{
-  "action_pins": {
-    "actions/checkout@v4": "acme-corp/checkout-mirror@v4",
-    "actions/setup-node@v4": "acme-corp/setup-node-mirror@v4"
-  },
-  "container_pins": {
-    "ghcr.io/github/gh-aw-firewall:0.27.22": {
-      "image": "registry.acme.com/gh-aw-firewall:0.27.22",
-      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-    },
-    "node:lts-alpine": {
-      "image": "registry.acme.com/node:lts-alpine",
-      "digest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
-    }
-  }
-}
-```
+Both keys may be set in the same `aw.json`.
 
 ## Notes
 
 - Substitutions apply at compile time and are baked into the generated `.lock.yml` files.
-- Neither `action_pins` nor `container_pins` works in workflow frontmatter; both are `aw.json` repository-level settings.
+- One console message per mapped key is logged at compile time.
 - Re-run `gh aw compile` after modifying `aw.json`.
 - See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/#action-and-container-substitutions-awjson) for full docs.
