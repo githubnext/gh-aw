@@ -68,6 +68,19 @@ describe("create_files", () => {
     expect(() => renderFiles({ files: [{ path: "file", content_env: "MISSING" }] }, {}, tempDir)).toThrow("environment variable is missing");
   });
 
+  it("rejects a symlinked parent directory that escapes the root", () => {
+    if (process.platform === "win32") return;
+
+    const root = path.join(tempDir, "gh-aw");
+    const outside = path.join(tempDir, "outside");
+    fs.mkdirSync(root);
+    fs.mkdirSync(outside);
+    fs.symlinkSync(outside, path.join(root, "linked"), "dir");
+
+    expect(() => renderFiles({ files: [{ path: "linked/config.json", content_env: "CONTENT" }] }, { CONTENT: "secret" }, root)).toThrow("configured root");
+    expect(fs.existsSync(path.join(outside, "config.json"))).toBe(false);
+  });
+
   it("rejects a configured root outside runner temp", async () => {
     process.env = {
       ...originalEnv,

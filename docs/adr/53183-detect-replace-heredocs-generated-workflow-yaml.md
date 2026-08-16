@@ -1,18 +1,25 @@
 # ADR-53183: Detect and Replace Heredocs in Generated Workflow YAML
 
 **Date**: 2026-08-16
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
 
 ### Context
 
-Workflow shell steps that generate YAML content via heredocs embed that content in shell-evaluated strings. When the workflow YAML itself is generated (rather than hand-authored), this creates a shell injection vector: content flowing through `GH_AW_SAFE_OUTPUTS_CONFIG` or similar environment variables is evaluated by the shell as part of the heredoc, allowing unexpected expansion or injection. The codebase had accumulated a number of such heredoc patterns in generated workflow files, and there was no systematic mechanism to prevent new ones from being introduced.
+Workflow shell steps that generate files via heredocs embed content in shell-evaluated strings. When the workflow YAML itself is generated, this creates a shell injection vector: content flowing through `GH_AW_SAFE_OUTPUTS_CONFIG` or similar environment variables can undergo command, parameter, or backtick expansion. The codebase had accumulated a number of such patterns with no systematic mechanism to prevent new ones.
+
+The change must preserve arbitrary file content byte for byte, avoid base64 as an indirect shell transport, keep generated files inside the runner-owned directory, and permit existing heredocs to be migrated incrementally without weakening enforcement for new code.
 
 ### Decision
 
-We will enforce a two-part strategy: (1) add a Go static-analysis linter (`generatedyamlheredoc`) that detects heredocs inside generated workflow shell steps and fails the build on new violations, and (2) introduce a JavaScript file renderer (`create_files.cjs`) that writes environment-provided content directly to disk without shell evaluation or base64 encoding. Existing heredoc sites are explicitly suppressed to capture migration debt. New sites are blocked at lint time.
+We will enforce a two-part strategy:
+
+1. Add a Go static-analysis linter (`generatedyamlheredoc`) that detects heredoc operators inside string literals used to generate workflow shell and fails the build on new violations. Existing sites are explicitly suppressed to record migration debt.
+2. Introduce a JavaScript file renderer (`create_files.cjs`) that accepts a typed JSON file manifest and writes environment-provided content without shell evaluation or base64 encoding. The renderer confines paths to the configured runner directory, rejects traversal and symlinked-parent escapes, requires `O_NOFOLLOW`, and writes files with `0600` permissions.
+
+The safe-outputs configuration is the first migrated caller. Remaining suppressed sites will be migrated separately so this change can establish enforcement without combining every heredoc migration into one review.
 
 ### Alternatives Considered
 
@@ -24,6 +31,10 @@ Heredoc payloads could be base64-encoded before injection, eliminating shell-spe
 
 Existing heredoc sites could be left in place, with the environment variable values sanitized at injection time (escaping shell metacharacters). This was rejected because sanitization rules are fragile—they must track every shell-special character and every quoting context—and do not compose well with multi-step pipelines. A missing escape in any one place reintroduces the vulnerability. The JavaScript renderer eliminates the category of risk by never invoking shell evaluation on the content at all.
 
+#### Alternative 3: Migrate every existing heredoc before adding enforcement
+
+All existing sites could be migrated in one change and the linter enabled without suppressions. This was rejected because it would combine many independent workflow-generation paths into a single high-risk review. Explicit suppressions make the debt visible while ensuring new heredocs cannot be added unnoticed.
+
 ### Consequences
 
 #### Positive
@@ -34,11 +45,8 @@ Existing heredoc sites could be left in place, with the environment variable val
 #### Negative
 - Existing heredoc sites must be explicitly suppressed, creating a tracked but unresolved migration backlog that must be addressed in follow-on PRs.
 - The JavaScript renderer introduces a new runtime dependency on Node.js being available in the workflow runner environment; environments without Node.js are unsupported.
+- File rendering fails closed on platforms without `O_NOFOLLOW` rather than silently writing without symlink protection.
 
 #### Neutral
 - Compiled workflow locks must be regenerated when the workflow YAML changes; this is a normal part of the workflow authoring cycle and is handled by the existing regeneration process.
 - The analyzer is registered with the Go analyzer framework; adding it follows the same pattern as existing analyzers in the codebase.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

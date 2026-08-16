@@ -68,7 +68,10 @@ function resolveRelativePath(root, relativePath) {
  * @param {string} content
  */
 function writeFile(filePath, content) {
-  const flags = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC | (fs.constants.O_NOFOLLOW || 0);
+  if (fs.constants.O_NOFOLLOW === undefined) {
+    throw new Error(`${ERR_SYSTEM}: O_NOFOLLOW is not available on this platform; cannot write generated files safely`);
+  }
+  const flags = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC | fs.constants.O_NOFOLLOW;
   const fd = fs.openSync(filePath, flags, 0o600);
   try {
     fs.fchmodSync(fd, 0o600);
@@ -119,9 +122,12 @@ function renderFiles(config, env, root) {
 
     const filePath = resolveRelativePath(resolvedRoot, item.path);
     const parentPath = path.dirname(filePath);
+    const expectedParent = path.resolve(resolvedRoot, path.dirname(item.path));
+    assertPathWithin(resolvedRoot, expectedParent);
     makeDirectory(parentPath);
-    assertPathWithin(resolvedRoot, fs.realpathSync(parentPath));
-    writeFile(filePath, env[item.content_env] || "");
+    const resolvedParent = fs.realpathSync(parentPath);
+    assertPathWithin(resolvedRoot, resolvedParent);
+    writeFile(path.join(resolvedParent, path.basename(filePath)), String(env[item.content_env] ?? ""));
   }
 }
 

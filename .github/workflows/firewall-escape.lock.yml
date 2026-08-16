@@ -589,7 +589,7 @@ jobs:
       - name: Generate Safe Outputs Config
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_FILE_ROOT: ${{ runner.temp }}/gh-aw
+          GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[Firewall Escape] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"false\"},\"push_repo_memory\":{\"memories\":[{\"dir\":\"/tmp/gh-aw/repo-memory/default\",\"id\":\"default\",\"max_file_count\":50,\"max_file_size\":524288,\"max_patch_size\":10240}]},\"report_incomplete\":{}}"
         with:

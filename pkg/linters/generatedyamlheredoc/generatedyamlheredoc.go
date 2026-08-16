@@ -81,28 +81,28 @@ func containsShellHeredoc(value string) bool {
 
 func lineContainsShellHeredoc(line string) bool {
 	for {
-		catIndex := strings.Index(line, "cat")
-		if catIndex < 0 {
+		operatorIndex := strings.Index(line, "<<")
+		if operatorIndex < 0 {
 			return false
 		}
-		beforeIsWord := catIndex > 0 && isShellWordByte(line[catIndex-1])
-		afterIndex := catIndex + len("cat")
-		afterIsWord := afterIndex < len(line) && isShellWordByte(line[afterIndex])
-		if beforeIsWord || afterIsWord {
+		afterIndex := operatorIndex + len("<<")
+		if afterIndex < len(line) && line[afterIndex] == '<' {
+			line = line[afterIndex+1:]
+			continue
+		}
+		if strings.LastIndex(line[:operatorIndex], "$((") > strings.LastIndex(line[:operatorIndex], "))") {
 			line = line[afterIndex:]
 			continue
 		}
-
-		rest := line[afterIndex:]
-		_, afterOperator, found := strings.Cut(rest, "<<")
-		if !found {
+		afterOperator := strings.TrimLeft(line[afterIndex:], " \t")
+		if afterOperator == "" {
 			return false
 		}
-		if strings.HasPrefix(afterOperator, "<") {
-			line = afterOperator
-			continue
-		}
-		return true
+		delimiterStart := afterOperator[0]
+		return delimiterStart == '-' ||
+			delimiterStart == '\'' ||
+			delimiterStart == '"' ||
+			isShellWordByte(delimiterStart)
 	}
 }
 

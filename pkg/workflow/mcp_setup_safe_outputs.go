@@ -20,6 +20,15 @@ var safeOutputsSetupLog = logger.New("workflow:mcp_setup_safe_outputs")
 // by the JavaScript safe-outputs loader (resolveEnvPlaceholders in safe_outputs_config.cjs).
 const safeOutputsSecretEnvPrefix = "GH_AW_SECRET_"
 
+type fileRenderItem struct {
+	Path       string `json:"path"`
+	ContentEnv string `json:"content_env"`
+}
+
+type fileRenderConfig struct {
+	Files []fileRenderItem `json:"files"`
+}
+
 func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConfig string, workflowData *WorkflowData) {
 	if !HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return
@@ -40,11 +49,20 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 
 	if safeOutputConfig != "" {
 		safeOutputsSetupLog.Printf("Safe outputs config: envVars=%d", len(envKeys))
+		fileConfigJSON, err := json.Marshal(fileRenderConfig{
+			Files: []fileRenderItem{{
+				Path:       "safeoutputs/config.json",
+				ContentEnv: "GH_AW_SAFE_OUTPUTS_CONFIG",
+			}},
+		})
+		if err != nil {
+			panic(fmt.Sprintf("BUG: failed to marshal generated file render config: %v", err))
+		}
 		yaml.WriteString("      - name: Generate Safe Outputs Config\n")
 		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", workflowData))
 		yaml.WriteString("        env:\n")
-		fmt.Fprintf(yaml, "          GH_AW_FILE_ROOT: %s\n", constants.GhAwRootDir)
-		writeYAMLEnv(yaml, "          ", "GH_AW_FILE_CONFIG", `{"files":[{"path":"safeoutputs/config.json","content_env":"GH_AW_SAFE_OUTPUTS_CONFIG"}]}`)
+		writeYAMLEnv(yaml, "          ", "GH_AW_FILE_ROOT", constants.GhAwRootDir)
+		writeYAMLEnv(yaml, "          ", "GH_AW_FILE_CONFIG", string(fileConfigJSON))
 		writeYAMLEnv(yaml, "          ", "GH_AW_SAFE_OUTPUTS_CONFIG", sanitizedConfig)
 		writeStepEnvVars(yaml, envKeys, envValues)
 		yaml.WriteString("        with:\n")

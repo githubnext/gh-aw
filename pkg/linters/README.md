@@ -22,7 +22,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `execcommandwithoutcontext` — reports `exec.Command(...)` calls inside functions that already receive `context.Context` and should use `exec.CommandContext(...)`.
 - `fmterrorfnoverbs` — reports `fmt.Errorf` calls whose format string contains no verbs, recommending `errors.New` instead.
 - `fprintlnsprintf` — reports `fmt.Fprintln(..., fmt.Sprintf(...))` patterns and recommends direct formatting calls.
-- `generatedyamlheredoc` — reports shell heredocs embedded in generated workflow YAML and recommends passing plain environment-variable content to a JavaScript renderer.
+- `generatedyamlheredoc` — reports shell heredocs embedded in generated workflow YAML and recommends passing plain environment-variable content to a JavaScript renderer. Run `make golint-custom` to verify that an unsuppressed heredoc in `pkg/workflow` is reported.
 - `globwalkignorederror` — reports `filepath.Glob` and `os.ReadDir` calls where the error return is discarded with `_`.
 - `goroutinemissingrecover` — reports goroutines started via a function literal whose body does not install a top-level `defer func() { recover() }()` guard.
 - `hardcodedfilepath` — reports hard-coded file path string literals that match known path constants or should be extracted into named constants; also annotates paths that appear in log/print calls.

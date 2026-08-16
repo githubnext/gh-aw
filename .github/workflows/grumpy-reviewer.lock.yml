@@ -589,7 +589,7 @@ jobs:
       - name: Generate Safe Outputs Config
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_FILE_ROOT: ${{ runner.temp }}/gh-aw
+          GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_check_run\":{\"max\":1},\"create_pull_request_review_comment\":{\"max\":5,\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"submit_pull_request_review\":{\"max\":1}}"
         with:
