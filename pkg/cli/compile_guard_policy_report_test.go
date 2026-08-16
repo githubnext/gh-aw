@@ -130,6 +130,7 @@ func TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos(t *testing.T) {
 	rendered := formatGuardPolicyDryRunReport(report)
 	assert.Contains(t, rendered, "lockdown: true")
 	assert.Contains(t, rendered, "allowed-repos: all")
+	assert.NotContains(t, rendered, "\n  repos:")
 }
 
 // TestPrintGuardPolicyDryRunReport_OnlyWhenStrict verifies that the dry-run
