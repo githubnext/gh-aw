@@ -313,6 +313,16 @@ describe("Safe Output Handler Manager", () => {
         { type: "dismiss_pull_request_review", success: false, error: "wrong actor" },
       ]);
     });
+
+    it("does not treat a resolve_pull_request_review_thread result marked skipped as a fatal failure", () => {
+      const { fatalFailures, reportOnlyFailures } = partitionFailureResults([
+        { type: "resolve_pull_request_review_thread", success: false, skipped: true, error: "Repository 'other-owner/other-repo' is not in the allowed-repos list. Allowed: github/gh-aw" },
+        { type: "create_issue", success: false, error: "Validation failed" },
+      ]);
+
+      expect(reportOnlyFailures).toEqual([]);
+      expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+    });
   });
 
   describe("loadHandlers", () => {
