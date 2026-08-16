@@ -25,6 +25,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-child-process-interpolated-command`](#no-child-process-interpolated-command) | Disallow interpolated command strings in shell-evaluated `child_process` calls |
 | [`no-github-request-interpolated-route`](#no-github-request-interpolated-route) | Disallow interpolated route arguments in Octokit `.request()` calls |
 | [`no-json-stringify-error`](#no-json-stringify-error) | Disallow `JSON.stringify()` on caught error variables |
+| [`no-json-stringify-set-or-map`](#no-json-stringify-set-or-map) | Disallow `JSON.stringify()` directly on `Set` or `Map` instances |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
 | [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
 | [`no-unsafe-promise-catch-error-property`](#no-unsafe-promise-catch-error-property) | Disallow unsafe property access in promise rejection handlers |
@@ -35,6 +36,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
+| [`require-error-code-in-thrown-error`](#require-error-code-in-thrown-error) | Require standardized error codes in thrown errors when `error_codes.cjs` is imported |
 | [`require-fetch-response-body-try-catch`](#require-fetch-response-body-try-catch) | Require try/catch around `.json()` or `.text()` on Responses from `fetch(...)` |
 | [`require-fetch-timeout`](#require-fetch-timeout) | Require `fetch(...)` calls to include a non-nullish abort `signal` option |
 | [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around awaited `fetch(...)` calls, including chained promise forms without rejection handlers |
@@ -46,9 +48,12 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-new-url-try-catch`](#require-new-url-try-catch) | Require try/catch around `new URL(variable)` calls |
 | [`require-parseInt-radix`](#require-parseInt-radix) | Require an explicit radix argument to `parseInt()` |
 | [`require-nan-check-after-env-numeric-parse`](#require-nan-check-after-env-numeric-parse) | Require NaN validation after parsing numeric values from `process.env` |
+| [`require-nan-check-after-split-index-parse`](#require-nan-check-after-split-index-parse) | Require NaN validation after parsing a `split(...)[index]` value |
+| [`require-invalid-date-check-before-compare`](#require-invalid-date-check-before-compare) | Require Invalid Date validation before relational comparisons |
 | [`require-return-after-core-setfailed`](#require-return-after-core-setfailed) | Require a control-transfer statement after `core.setFailed()` |
 | [`require-execsync-try-catch`](#require-execsync-try-catch) | Require try/catch around `execSync(...)` calls from `child_process` |
 | [`require-execfilesync-try-catch`](#require-execfilesync-try-catch) | Require try/catch around `execFileSync(...)` calls from `child_process` |
+| [`require-sync-exec-timeout`](#require-sync-exec-timeout) | Require positive timeouts for synchronous `child_process` calls |
 | [`require-spawn-error-listener`](#require-spawn-error-listener) | Require an `'error'` event listener on async `spawn(...)` child processes |
 | [`require-spawnsync-error-check`](#require-spawnsync-error-check) | Require checking `result.error` after `spawnSync` calls |
 | [`prefer-get-error-message-over-string`](#prefer-get-error-message-over-string) | Prefer `getErrorMessage(err)` over `String(err)` when interpolating a caught error |
@@ -61,6 +66,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-caught-error-interpolation`](#no-caught-error-interpolation) | Disallow directly interpolating a caught error in a template literal |
 | [`no-core-error-then-setfailed`](#no-core-error-then-setfailed) | Disallow a redundant `core.error()` call immediately before `core.setFailed()` with the same message |
 | [`require-escaped-regexp-interpolation`](#require-escaped-regexp-interpolation) | Require regex-escaping of interpolated values in `new RegExp()` template literals |
+| [`require-lastindex-reset-before-global-exec-loop`](#require-lastindex-reset-before-global-exec-loop) | Require resetting stateful regexes before global `exec()` loops |
 
 ### `no-empty-catch-block`
 
@@ -792,3 +798,102 @@ Interpolating an unescaped, user- or runtime-controlled value directly into a `n
 - `` new RegExp(`^${escapeRegExp(value)}$`) `` — interpolated value passed through a call whose name matches an escaping-helper pattern (contains both "escape" and "reg", e.g. `escapeRegExp`, `utils.escapeRegex`).
 - `` new RegExp(`^${escapedValue}$`) `` — interpolated identifier whose name starts with `escaped` (e.g. `escapedValue`, `ESCAPED_NAME`).
 - Static (non-interpolated) template literals.
+
+### `no-json-stringify-set-or-map`
+
+Disallow `JSON.stringify()` directly on `Set` and `Map` instances. Their entries are not own enumerable properties, so serialization silently produces `{}`.
+
+**Flagged form:**
+```js
+const serverNames = new Set(["api", "web"]);
+JSON.stringify(serverNames);
+```
+
+**Safe alternatives:**
+```js
+JSON.stringify([...serverNames]);
+JSON.stringify(Object.fromEntries(cache));
+```
+
+### `require-nan-check-after-split-index-parse`
+
+Require NaN validation after parsing a value selected from `split(...)[index]`. A malformed delimited string can otherwise silently pass `NaN` to downstream API calls.
+
+**Flagged form:**
+```js
+const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+getDiscussionNodeId(owner, repo, discussionNumber);
+```
+
+**Safe alternative:**
+```js
+const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+if (Number.isNaN(discussionNumber)) throw new Error("invalid discussion number");
+getDiscussionNodeId(owner, repo, discussionNumber);
+```
+
+### `require-error-code-in-thrown-error`
+
+Require errors thrown in files that import `error_codes.cjs` to include an imported standardized `ERR_*` code. This keeps error-code coverage consistent for log and dashboard filtering.
+
+**Flagged form:**
+```js
+const { ERR_API } = require("./error_codes.cjs");
+throw new Error("failed to fetch");
+```
+
+**Safe alternative:**
+```js
+const { ERR_API } = require("./error_codes.cjs");
+throw new Error(`${ERR_API}: failed to fetch`);
+```
+
+### `require-invalid-date-check-before-compare`
+
+Require validation of `new Date(...)` and `Date.parse(...)` results before relational comparisons. Invalid dates and NaN timestamps compare as neither greater nor less than other values, silently defeating time-window checks.
+
+**Flagged form:**
+```js
+const createdAt = new Date(run.created_at);
+if (createdAt < cutoff) archive(run);
+```
+
+**Safe alternative:**
+```js
+const createdAt = new Date(run.created_at);
+if (Number.isNaN(createdAt.getTime())) throw new Error("invalid created_at");
+if (createdAt < cutoff) archive(run);
+```
+
+### `require-sync-exec-timeout`
+
+Require `execSync`, `execFileSync`, and `spawnSync` calls from `child_process` to use a positive `timeout`. Without one, a hung child process can block the action until the job-level timeout kills it.
+
+**Flagged form:**
+```js
+const { execSync } = require("child_process");
+execSync("git status");
+```
+
+**Safe alternative:**
+```js
+const { execSync } = require("child_process");
+execSync("git status", { timeout: 5_000 });
+```
+
+### `require-lastindex-reset-before-global-exec-loop`
+
+Require module-scoped global or sticky regexes to reset `.lastIndex` before a `while ((match = RE.exec(text)))` loop. Stateful regexes otherwise resume from a previous invocation and can skip matches.
+
+**Flagged form:**
+```js
+const RE = /foo/g;
+while ((match = RE.exec(text)) !== null) process(match);
+```
+
+**Safe alternative:**
+```js
+const RE = /foo/g;
+RE.lastIndex = 0;
+while ((match = RE.exec(text)) !== null) process(match);
+```
