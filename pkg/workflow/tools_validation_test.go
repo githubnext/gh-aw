@@ -629,6 +629,7 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"min-integrity": "approved",
 				},
 			},
+			shouldError: false,
 		},
 		{
 			name: "deprecated repos alias and min-integrity",
@@ -650,6 +651,7 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"blocked-users": []string{"spam-bot"},
 				},
 			},
+			shouldError: false,
 		},
 		{
 			name: "trusted-users with min-integrity",
@@ -660,6 +662,7 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"trusted-users": []any{"trusted-user"},
 				},
 			},
+			shouldError: false,
 		},
 		{
 			name: "approval-labels with min-integrity",
@@ -670,6 +673,7 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"approval-labels": []string{"human-reviewed"},
 				},
 			},
+			shouldError: false,
 		},
 	}
 

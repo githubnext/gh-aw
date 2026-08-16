@@ -107,6 +107,7 @@ func TestBuildGuardPolicyDryRunReport_Lockdown(t *testing.T) {
 	report := buildGuardPolicyDryRunReport("test-workflow.md", github)
 	require.NotNil(t, report)
 	assert.True(t, report.Lockdown)
+	assert.Equal(t, "all", report.PermittedRepos)
 
 	rendered := formatGuardPolicyDryRunReport(report)
 	assert.Contains(t, rendered, "lockdown: true")
