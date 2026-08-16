@@ -186,8 +186,8 @@ safe-outputs:
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	lockContentStr := string(lockContent)
-	if !strings.Contains(lockContentStr, `"ignore_missing_branch_failure":true`) && !strings.Contains(lockContentStr, `"ignore_missing_branch_failure": true`) {
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+	if pushConfig["ignore_missing_branch_failure"] != true {
 		t.Errorf("Generated workflow should contain ignore_missing_branch_failure in handler config JSON")
 	}
 }
@@ -374,14 +374,14 @@ This workflow allows pushing to any pull request.
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	lockContentStr := string(lockContent)
-
 	// Verify that the target configuration is in handler config JSON
-	if !strings.Contains(lockContentStr, `"target":"*"`) && !strings.Contains(lockContentStr, `"target": "*"`) {
+	pushConfig := extractPushToPullRequestBranchHandlerConfig(t, lockContent)
+	if pushConfig["target"] != "*" {
 		t.Errorf("Generated workflow should contain target configuration with asterisk in handler config JSON")
 	}
 
 	// Verify conditional execution allows any context
+	lockContentStr := string(lockContent)
 	if !strings.Contains(lockContentStr, "safe_outputs:") {
 		t.Errorf("Generated workflow should have always() condition for target: *")
 	}

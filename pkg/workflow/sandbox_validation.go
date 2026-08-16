@@ -262,7 +262,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 
 	if sandboxConfig.MCP != nil {
 		for _, name := range sliceutil.SortedKeys(sandboxConfig.MCP.Env) {
-			if isReservedMCPGatewayTransportEnvVar(name) {
+			if isReservedMCPGatewayEnvVar(name) {
 				return NewValidationError(
 					"sandbox.mcp.env."+name,
 					name,

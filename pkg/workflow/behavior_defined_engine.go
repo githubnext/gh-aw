@@ -305,7 +305,7 @@ func (e *BehaviorDefinedEngine) buildScriptWriteStep(stepName, filename, script,
 		return nil
 	}
 	command := fmt.Sprintf(
-		"mkdir -p \"%[1]s\"\ncat <<'%[4]s' > \"%[1]s/%[2]s\"\n%[3]s\n%[4]s\nchmod 755 \"%[1]s/%[2]s\"",
+		"mkdir -p \"%[1]s\"\ncat <<'%[4]s' > \"%[1]s/%[2]s\"\n%[3]s\n%[4]s\nchmod 755 \"%[1]s/%[2]s\"", //nolint:generatedyamlheredoc // Legacy engine script rendering remains to be migrated.
 		SetupActionDestinationShell,
 		filename,
 		script,
@@ -455,7 +455,7 @@ func (e *BehaviorDefinedEngine) buildLogParserWriteStep() GitHubActionStep {
 		"        if: always()",
 	}
 	command := fmt.Sprintf(
-		"mkdir -p \"%[1]s\"\ncat <<'%[4]s' > \"%[1]s/%[2]s\"\n%[3]s\n%[4]s\nchmod 755 \"%[1]s/%[2]s\"",
+		"mkdir -p \"%[1]s\"\ncat <<'%[4]s' > \"%[1]s/%[2]s\"\n%[3]s\n%[4]s\nchmod 755 \"%[1]s/%[2]s\"", //nolint:generatedyamlheredoc // Legacy log-parser rendering remains to be migrated.
 		SetupActionDestinationShell,
 		e.logParserScriptFilename()+".cjs",
 		script,
@@ -713,6 +713,7 @@ else
 fi
 chmod 600 "$CONFIG"`, config.Path, config.Path, shellcheckDirective, config.Content)
 	if config.MergeStrategy != behaviorConfigMergeJSON {
+		//nolint:generatedyamlheredoc // Legacy behavior config rendering remains to be migrated to the JavaScript renderer.
 		command = fmt.Sprintf(`umask 077
 mkdir -p "$(dirname "$GITHUB_WORKSPACE/%s")"
 cat <<'EOF' > "$GITHUB_WORKSPACE/%s"
