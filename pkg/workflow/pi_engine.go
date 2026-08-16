@@ -233,6 +233,19 @@ func (e *PiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActi
 		},
 	)
 
+	// microVM runtimes (docker-sbx/cloud-hypervisor) cannot see the globally installed
+	// CLI in the hosted tool cache, so stage a second copy under RUNNER_TEMP.
+	if isDockerSbxRuntime(workflowData) || isCloudHypervisorRuntime(workflowData) {
+		npmSteps = append(npmSteps, GenerateDockerSbxNpmCLIInstallStep(
+			"@earendil-works/pi-coding-agent",
+			version,
+			"Install Pi CLI in docker-sbx path",
+			"pi",
+			false,
+			false,
+		))
+	}
+
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
 
 	// Install extensions declared in engine.extensions: [...]
@@ -369,6 +382,9 @@ func (e *PiEngine) buildPiCommand(workflowData *WorkflowData, commandName string
 func (e *PiEngine) buildPiExecutionCommand(workflowData *WorkflowData, logFile, piCommand string, firewallEnabled, modelConfigured bool, profile universalLLMBackendProfile) string {
 	if firewallEnabled {
 		piCommandWithPath := fmt.Sprintf("%s && %s", GetNpmBinPathSetup(), piCommand)
+		if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {
+			piCommandWithPath = fmt.Sprintf("%s && %s", dockerSbxCLIPath, piCommandWithPath)
+		}
 		if mcpCLIPath := GetMCPCLIPathSetup(workflowData); mcpCLIPath != "" {
 			piCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, piCommandWithPath)
 		}
@@ -385,6 +401,12 @@ func (e *PiEngine) buildPiExecutionCommand(workflowData *WorkflowData, logFile, 
 			PathSetup:          pathSetup,
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, profile.coreSecretNames),
 		})
+	}
+	// Even without AWF, a docker-sbx/cloud-hypervisor runtime can be configured
+	// (e.g. network.firewall: false paired with sandbox.agent.runtime: docker-sbx),
+	// so the staged CLI path must still be exported for the microVM to see `pi`.
+	if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {
+		piCommand = fmt.Sprintf("%s && %s", dockerSbxCLIPath, piCommand)
 	}
 	return fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s

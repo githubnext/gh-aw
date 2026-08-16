@@ -353,6 +353,40 @@ func TestDockerSbxEngineCLIWiring(t *testing.T) {
 		execContent := strings.Join(execSteps[0], "\n")
 		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
 	})
+
+	t.Run("pi install and execution use sbx-visible CLI path", func(t *testing.T) {
+		engine := NewPiEngine()
+		workflowData.EngineConfig = &EngineConfig{ID: "pi"}
+		installSteps := engine.GetInstallationSteps(workflowData)
+		installContent := strings.Join(flattenSteps(installSteps), "\n")
+		assert.Contains(t, installContent, `npm install --ignore-scripts --prefix "${RUNNER_TEMP}/gh-aw/engine-cli" @earendil-works/pi-coding-agent@`+string(constants.DefaultPiVersion))
+		assert.Contains(t, installContent, `ln -sf "../node_modules/.bin/pi" "${RUNNER_TEMP}/gh-aw/engine-cli/bin/pi"`)
+
+		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		require.NotEmpty(t, execSteps)
+		execContent := strings.Join(execSteps[0], "\n")
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+	})
+
+	t.Run("pi execution uses sbx-visible CLI path even with firewall disabled", func(t *testing.T) {
+		// sandbox.agent.runtime: docker-sbx can be configured alongside an explicit
+		// network.firewall: false, which takes the non-AWF execution path. The
+		// staged CLI PATH export must still be present so the microVM can see `pi`.
+		nonFirewallWorkflowData := &WorkflowData{
+			Name:          "test-workflow",
+			EngineConfig:  &EngineConfig{ID: "pi"},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx, SudoExplicitlyEnabled: true}},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: false},
+			},
+		}
+
+		engine := NewPiEngine()
+		execSteps := engine.GetExecutionSteps(nonFirewallWorkflowData, "/tmp/gh-aw/test.log")
+		require.NotEmpty(t, execSteps)
+		execContent := strings.Join(execSteps[0], "\n")
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+	})
 }
 
 // flattenSteps joins a small slice of GitHubActionStep values so docker-sbx tests can
