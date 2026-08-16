@@ -8205,7 +8205,7 @@
                 },
                 "target": {
                   "type": "string",
-                  "description": "Target pull request for check run attachment: 'triggering' (default), '*' (any PR), or explicit PR number"
+                  "description": "Target pull request for check run attachment: 'triggering', '*' (any PR), or explicit PR number"
                 },
                 "max": {
                   "description": "Maximum number of check runs to create per workflow run (default: 1). Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
