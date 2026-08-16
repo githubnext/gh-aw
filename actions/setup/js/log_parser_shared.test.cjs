@@ -2225,6 +2225,37 @@ describe("log_parser_shared.cjs", () => {
       expect(result).not.toContain("Body:");
     });
 
+    it("should surface the message field for noop entries in plain text mode", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = JSON.stringify({ type: "noop", message: "Nothing to do here" });
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: true });
+
+      expect(result).toContain("[1] noop");
+      expect(result).toContain("Message: Nothing to do here");
+    });
+
+    it("should surface the message field for noop entries in markdown mode", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = JSON.stringify({ type: "noop", message: "Nothing to do here" });
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
+
+      expect(result).toContain("**1. noop**");
+      expect(result).toContain("**Message:** Nothing to do here");
+    });
+
+    it("should surface the reason field for missing_tool/missing_data entries", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = JSON.stringify({ type: "missing_tool", tool: "docker", reason: "Docker is not available" });
+      const plain = formatSafeOutputsPreview(safeOutputs, { isPlainText: true });
+      const markdown = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
+
+      expect(plain).toContain("Reason: Docker is not available");
+      expect(markdown).toContain("**Reason:** Docker is not available");
+    });
+
     it("should skip invalid JSON lines", async () => {
       const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
 
