@@ -249,6 +249,7 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// In workflow_call context, apply the per-invocation prefix to avoid name clashes.
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
 	compilerYamlLog.Printf("Emitting unified agent artifact upload with %d path(s)", len(artifactPaths))
+	c.generateAgentOutputFallbackUpload(yaml, data, agentArtifactPrefix)
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix)
 
 	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files

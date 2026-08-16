@@ -40,7 +40,9 @@ const (
 	ArtifactSetActivation ArtifactSet = "activation"
 
 	// ArtifactSetAgent downloads the unified agent artifact containing agent logs,
-	// safe outputs, token usage, and agent-side github_rate_limits.jsonl.
+	// safe outputs, token usage, and agent-side github_rate_limits.jsonl, plus the
+	// tiny fallback artifact that carries critical agent-output files when the
+	// unified upload fails.
 	ArtifactSetAgent ArtifactSet = "agent"
 
 	// ArtifactSetMCP downloads the agent artifact which now includes MCP
@@ -82,7 +84,7 @@ const (
 var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetAll:        nil, // no filtering – download all artifacts
 	ArtifactSetActivation: {constants.ActivationArtifactName},
-	ArtifactSetAgent:      {constants.AgentArtifactName},
+	ArtifactSetAgent:      {constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
 	ArtifactSetMCP:        {constants.AgentArtifactName},
 	ArtifactSetFirewall:   {constants.AgentArtifactName},
 	ArtifactSetDetection:  {constants.DetectionArtifactName},
@@ -283,7 +285,7 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 			// hypothetical directory named "super-agent" would satisfy filter entry "agent",
 			// but in practice artifact directories in a run folder only come from GitHub
 			// Actions downloads and follow the "{hash}-{base}" or exact-base patterns.
-			if d == f || strings.HasSuffix(d, "-"+f) {
+			if d == f || strings.HasSuffix(d, "-"+f) || agentOutputTransportAlternates(f, d) {
 				found = true
 				break
 			}
@@ -298,6 +300,23 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 		artifactSetLog.Printf("All %d artifact filter entries present in %s", len(filter), outputDir)
 	}
 	return missing
+}
+
+func agentOutputTransportAlternates(filterEntry, downloadedName string) bool {
+	if filterEntry == constants.AgentArtifactName {
+		return artifactNameMatchesBase(downloadedName, constants.AgentOutputFallbackArtifactName)
+	}
+	if filterEntry == constants.AgentOutputFallbackArtifactName {
+		return artifactNameMatchesBase(downloadedName, constants.AgentArtifactName)
+	}
+	return false
+}
+
+func artifactNameMatchesBase(name, base string) bool {
+	if base == "" {
+		return false
+	}
+	return name == base || strings.HasSuffix(name, "-"+base)
 }
 
 func markArtifactDownloaded(outputDir, artifactName string) error {

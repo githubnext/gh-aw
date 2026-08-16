@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
@@ -262,8 +263,9 @@ func TestIsDockerBuildArtifact(t *testing.T) {
 func TestCriticalArtifactNames(t *testing.T) {
 	// Verify the list of critical artifacts includes the expected names
 	expected := map[string]bool{
-		"activation": true,
-		"agent":      true,
+		constants.ActivationArtifactName:          true,
+		constants.AgentArtifactName:               true,
+		constants.AgentOutputFallbackArtifactName: true,
 	}
 
 	if len(criticalArtifactNames) != len(expected) {

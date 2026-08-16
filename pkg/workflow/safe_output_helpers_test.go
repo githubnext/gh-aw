@@ -717,7 +717,10 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"id: download-agent-output",
 		"continue-on-error: true",
 		"uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
-		"name: agent",
+		// Both the unified agent artifact and the small fallback copy are matched so the
+		// agent output survives a failed upload of the larger agent artifact.
+		`pattern: "{agent,agent-output-fallback}"`,
+		"merge-multiple: true",
 		"path: /tmp/gh-aw/",
 		"- name: Setup agent output environment variable",
 		"id: setup-agent-output-env",
@@ -725,7 +728,9 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"mkdir -p /tmp/gh-aw/",
 		`find "/tmp/gh-aw/" -type f -print`,
 		// Hardcoded path is correct because GetPreBundleSteps ensures LCA is /tmp/gh-aw/
+		`if [ -f "/tmp/gh-aw/agent_output.json" ]; then`,
 		`echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"`,
+		"fi",
 	}
 
 	for _, expected := range expectedComponents {

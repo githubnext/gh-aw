@@ -101,6 +101,13 @@ const AgentOutputArtifactName = "agent-output"
 // including safe outputs, agent output, engine logs, and other agent-related files.
 const AgentArtifactName = "agent"
 
+// AgentOutputFallbackArtifactName is the name of a small, dedicated artifact that contains
+// only the processed agent output JSON and the raw safe-output NDJSON. Those files are also
+// part of the large "agent" artifact, but that upload is best-effort (continue-on-error) and
+// occasionally times out against blob storage. When it does, every safe output is silently
+// dropped, so downstream jobs fall back to this tiny artifact instead.
+const AgentOutputFallbackArtifactName = "agent-output-fallback"
+
 // DetectionArtifactName is the artifact name for the threat detection log.
 const DetectionArtifactName = "detection"
 
