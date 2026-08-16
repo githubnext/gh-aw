@@ -234,11 +234,42 @@ if [ ! -f /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl ]; then
   touch /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl
 fi
 
-# Prune history to the last 14 entries (bounded context window)
 HISTORY_FILE="/tmp/gh-aw/repo-memory/default/benchmark_history.jsonl"
 MAX_HISTORY_ENTRIES=14
+
+# Drop any lines that are not valid single-line JSON objects. This repairs files
+# corrupted by earlier runs that appended pretty-printed (multi-line) JSON.
+python3 - "$HISTORY_FILE" << 'PYEOF' || { echo "Error: failed to sanitize history file"; exit 1; }
+import json
+import sys
+
+path = sys.argv[1]
+valid = []
+dropped = 0
+with open(path, 'r') as f:
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            dropped += 1
+            continue
+        if isinstance(entry, dict):
+            valid.append(json.dumps(entry, separators=(',', ':')))
+        else:
+            dropped += 1
+if dropped:
+    print(f"Dropped {dropped} malformed history line(s)")
+with open(path, 'w') as f:
+    for line in valid:
+        f.write(line + "\n")
+print(f"Valid history entries: {len(valid)}")
+PYEOF
+
+# Prune history to the last 14 entries (bounded context window)
 ENTRY_COUNT=$(wc -l < "$HISTORY_FILE" | tr -d ' ')
-echo "Current history entries: $ENTRY_COUNT"
 if [ "$ENTRY_COUNT" -gt "$MAX_HISTORY_ENTRIES" ]; then
   echo "Pruning history to last $MAX_HISTORY_ENTRIES entries (was $ENTRY_COUNT)"
   tail -"$MAX_HISTORY_ENTRIES" "$HISTORY_FILE" > "${HISTORY_FILE}.tmp" \
@@ -247,11 +278,12 @@ if [ "$ENTRY_COUNT" -gt "$MAX_HISTORY_ENTRIES" ]; then
     || { echo "Error: failed to replace history file after pruning"; exit 1; }
 fi
 
-# Append current results to history
-{
-  cat /tmp/gh-aw/agent/benchmarks/current_metrics.json
-  echo ""
-} >> "$HISTORY_FILE"
+# Append current results to history as a single compacted JSONL line.
+# NOTE: current_metrics.json is pretty-printed, so it MUST be compacted before
+# appending — appending it verbatim breaks the one-object-per-line JSONL format.
+python3 -c "import json,sys; print(json.dumps(json.load(open(sys.argv[1])), separators=(',', ':')))" \
+  /tmp/gh-aw/agent/benchmarks/current_metrics.json >> "$HISTORY_FILE" \
+  || { echo "Error: failed to append current metrics to history file"; exit 1; }
 
 echo "Historical data updated ($(wc -l < "$HISTORY_FILE" | tr -d ' ') entries)"
 ```
@@ -692,10 +724,11 @@ Target compilation times (from PR description):
 Performance data is stored in:
 - **Location**: `/tmp/gh-aw/repo-memory/default/`
 - **File**: `benchmark_history.jsonl`
-- **Format**: JSON Lines (one entry per day)
+- **Format**: JSON Lines (one compacted single-line JSON object per day — never pretty-printed)
 - **Retention**: Last 14 entries (≈2 weeks) — older entries are pruned each run to bound context size (`MAX_HISTORY_ENTRIES` in the bash pruning step and `analyze_trends.py`)
+- **Self-healing**: Lines that are not valid single-line JSON objects are dropped before appending, repairing any previously corrupted file
 
-Each entry contains:
+Each entry is written as one line; shown formatted here for readability:
 ```json
 {
   "timestamp": "2025-12-31T17:00:00Z",
