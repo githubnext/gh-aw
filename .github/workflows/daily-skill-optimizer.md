@@ -155,6 +155,7 @@ imports:
 sandbox:
   agent:
     id: awf
+    sudo: false
 evals:
   - id: issue-created
     question: Did the agent create an issue with skill improvement suggestions?

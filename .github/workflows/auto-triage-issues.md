@@ -75,6 +75,7 @@ features:
 sandbox:
   agent:
     runtime: gvisor
+    sudo: false
 evals:
   - id: labels-applied
     question: Did the agent apply at least one label to an unlabeled issue, or correctly call noop when no unlabeled issues were found?

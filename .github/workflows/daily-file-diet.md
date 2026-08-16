@@ -49,6 +49,7 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
+    sudo: true
 evals:
   - id: large_files_analyzed
     question: Did the agent analyze the largest Go source files in the repository?

@@ -33,6 +33,7 @@ features:
 sandbox:
   agent:
     id: awf
+    sudo: false
 ---
 
 # Smoke Test: Auto Haiku

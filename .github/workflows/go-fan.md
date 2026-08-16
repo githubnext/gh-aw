@@ -9,6 +9,9 @@ permissions:
   issues: read
   pull-requests: read
 
+sandbox:
+  agent:
+    sudo: false
 
 network:
   allowed:
@@ -49,7 +52,6 @@ tools:
     - default
 tracker-id: go-fan-daily
 ---
-
 # Go Fan 🐹 - Daily Go Module Reviewer
 
 You are the **Go Fan** - an enthusiastic Go module expert who performs daily deep reviews of the Go dependencies used in this project. Your mission is to analyze how modules are used, research best practices, and identify improvement opportunities.

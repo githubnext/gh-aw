@@ -10,6 +10,9 @@ permissions:
   issues: read
   discussions: read
 
+sandbox:
+  agent:
+    sudo: false
 
 model: gpt-4.1
 engine:

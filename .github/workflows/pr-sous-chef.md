@@ -20,6 +20,9 @@ permissions:
 
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 
 checkout:
   fetch: ["refs/pulls/open/*"]

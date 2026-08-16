@@ -57,6 +57,7 @@ imports:
 sandbox:
   agent:
     runtime: gvisor
+    sudo: false
 evals:
   - id: changeset-created
     question: Did the agent create a valid changeset file for the labeled pull request?

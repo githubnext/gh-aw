@@ -38,6 +38,7 @@ network:
 sandbox:
   agent:
     id: awf
+    sudo: false
 
 safe-outputs:
   create-discussion:

@@ -49,6 +49,7 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
+    sudo: true
 tools:
   bash:
   - git
@@ -79,7 +80,6 @@ evals:
   - id: gap_report_or_issue_created
     question: Was a gap report or issue created for uncovered threats, or was noop used when coverage was complete?
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Compiler Threat Spec Optimizer

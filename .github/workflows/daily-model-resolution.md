@@ -43,6 +43,7 @@ features:
 sandbox:
   agent:
     id: awf
+    sudo: false
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

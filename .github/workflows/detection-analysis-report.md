@@ -35,6 +35,9 @@ imports:
   - shared/reporting.md
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 evals:
   - id: detection_runs_analyzed
     question: Did the agent analyze detection jobs for workflow misconfiguration and performance differences?

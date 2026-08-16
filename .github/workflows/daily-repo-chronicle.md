@@ -28,6 +28,7 @@ network:
 sandbox:
   agent:
     id: awf
+    sudo: false
 tools:
   cli-proxy: true
   edit:

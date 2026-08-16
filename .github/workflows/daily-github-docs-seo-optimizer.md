@@ -44,6 +44,7 @@ sandbox:
   agent:
     runtime: cloud-hypervisor
     id: awf
+    sudo: false
 ---
 
 # Daily GitHub Docs SEO Optimizer

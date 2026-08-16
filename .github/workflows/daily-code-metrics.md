@@ -19,6 +19,7 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
+    sudo: true
 tools:
   cli-proxy: true
   github:
@@ -97,7 +98,6 @@ evals:
   - id: output_format_adherence
     question: Does the report match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Code Metrics and Trend Tracking Agent

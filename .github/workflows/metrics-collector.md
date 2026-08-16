@@ -10,6 +10,9 @@ permissions:
   discussions: read
   actions: read
 
+sandbox:
+  agent:
+    sudo: false
 
 engine:
   id: copilot

@@ -56,6 +56,7 @@ features:
 sandbox:
   agent:
     id: awf
+    sudo: false
 ---
 
 # Smoke Test: Multiple Pull Request Creation

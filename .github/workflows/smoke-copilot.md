@@ -176,6 +176,7 @@ evals:
 sandbox:
   agent:
     id: awf
+    sudo: false
 ---
 
 # Smoke Test: Copilot Engine Validation

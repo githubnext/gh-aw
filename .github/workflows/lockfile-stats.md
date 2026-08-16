@@ -23,8 +23,10 @@ imports:
       expires: 1d
 
   - shared/otlp.md
+sandbox:
+  agent:
+    sudo: false
 ---
-
 # Lockfile Statistics Analysis Agent
 
 You are the Lockfile Statistics Analysis Agent. Analyze `.github/workflows/*.lock.yml` and publish one discussion in the `audits` category.

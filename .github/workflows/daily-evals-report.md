@@ -20,6 +20,7 @@ sandbox:
     id: awf
     runtime: docker-sbx
     memory: 4g
+    sudo: true
 features:
   gh-aw-detection: true
 timeout-minutes: 45

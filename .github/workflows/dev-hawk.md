@@ -21,6 +21,9 @@ permissions:
   pull-requests: read
   copilot-requests: write
 
+sandbox:
+  agent:
+    sudo: false
 
 engine:
   id: copilot

@@ -13,6 +13,9 @@ permissions:
   actions: read
 tracker-id: agent-job-health
 
+sandbox:
+  agent:
+    sudo: false
 
 engine:
   id: claude

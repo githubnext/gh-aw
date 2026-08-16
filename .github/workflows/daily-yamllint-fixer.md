@@ -103,6 +103,7 @@ imports:
 sandbox:
   agent:
     id: awf
+    sudo: false
 evals:
   - id: lint_issues_identified
     question: Does the agent output confirm that yamllint issues were identified and analyzed in the generated lock files?

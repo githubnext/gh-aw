@@ -149,6 +149,9 @@ safe-outputs:
 # Global timeout
 timeout-minutes: 10
 strict: true
+sandbox:
+  agent:
+    sudo: false
 evals:
   - id: issue-created
     question: Did the agent create an issue containing a poem?

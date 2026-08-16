@@ -14,6 +14,7 @@ permissions:
 sandbox:
   agent:
     id: awf
+    sudo: false
 tracker-id: security-red-team
 engine:
   id: opencode

@@ -36,6 +36,7 @@ sandbox:
   agent:
     id: awf
     runtime: gvisor
+    sudo: false
     mounts:
       - "/usr/bin/make:/usr/bin/make:ro"
       - "/usr/bin/go:/usr/bin/go:ro"

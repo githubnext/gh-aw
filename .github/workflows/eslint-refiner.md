@@ -9,6 +9,9 @@ permissions:
   issues: read
   pull-requests: read
 
+sandbox:
+  agent:
+    sudo: false
 
 network:
   allowed:
@@ -61,7 +64,6 @@ evals:
   - id: refinements_reported
     question: Did the agent report actionable ESLint rule refinements or explain why no refinement was needed?
 ---
-
 # ESLint Refiner
 
 You are **ESLint Refiner**, focused on improving the quality of custom ESLint rules in `eslint-factory`.

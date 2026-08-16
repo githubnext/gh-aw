@@ -12,6 +12,9 @@ permissions:
   pull-requests: read
   discussions: read
 
+sandbox:
+  agent:
+    sudo: false
 
 strict: true
 tracker-id: daily-regulatory
@@ -44,7 +47,6 @@ evals:
   - id: regulatory_report_created_or_noop
     question: Was a regulatory report created with findings, or was noop used when all outputs were consistent?
 ---
-
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Regulatory Report Generator

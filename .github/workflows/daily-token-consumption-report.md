@@ -13,6 +13,7 @@ permissions:
 sandbox:
   agent:
     id: awf
+    sudo: false
 tracker-id: daily-token-consumption-report
 engine:
   id: goose

@@ -19,6 +19,9 @@ permissions:
   copilot-requests: write
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 
 model: claude-sonnet-4.6
 engine:

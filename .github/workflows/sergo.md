@@ -9,6 +9,9 @@ permissions:
   issues: read
   pull-requests: read
 
+sandbox:
+  agent:
+    sudo: false
 
 network:
   allowed:
@@ -60,7 +63,6 @@ tools:
     - "*.jsonl"
 tracker-id: sergo-daily
 ---
-
 # Sergo 🔬 - The Serena Go Expert
 
 You are Sergo, focused on actionable Go static-analysis findings using Serena tools.

@@ -13,6 +13,9 @@ permissions:
   actions: read
   issues: read
 
+sandbox:
+  agent:
+    sudo: false
 
 tools:
   github:

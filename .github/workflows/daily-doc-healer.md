@@ -80,6 +80,7 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
+    sudo: true
 evals:
   - id: gaps-confirmed
     question: Did the workflow identify at least one confirmed documentation gap to fix, or correctly conclude that no actionable gap remained?

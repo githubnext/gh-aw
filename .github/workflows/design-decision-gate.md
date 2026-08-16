@@ -54,6 +54,8 @@ timeout-minutes: 15
 features:
   gh-aw-detection: true
 sandbox:
+  agent:
+    sudo: false
   mcp:
     keepalive-interval: 60
 imports:

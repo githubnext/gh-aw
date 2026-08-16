@@ -189,6 +189,7 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
+    sudo: true
 models:
   default-ai-credits-pricing:
     input: 0.000001

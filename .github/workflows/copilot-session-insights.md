@@ -24,6 +24,9 @@ network:
     - github
     - python
 
+sandbox:
+  agent:
+    sudo: false
 tools:
   cli-proxy: true
   github:
@@ -66,7 +69,6 @@ evals:
   - id: insights_report_produced
     question: Was a report produced with usage patterns, success rates, and performance metrics?
 ---
-
 # Copilot coding agent Session Analysis
 
 You are an AI analytics agent specializing in analyzing Copilot coding agent sessions to extract insights, identify behavioral patterns, and recommend improvements.

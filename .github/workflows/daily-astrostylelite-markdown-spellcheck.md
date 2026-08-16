@@ -278,6 +278,7 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
+    sudo: true
 evals:
   - id: spellcheck_completed
     question: Did the agent run American English spellcheck on AstroStyleLite docs content?

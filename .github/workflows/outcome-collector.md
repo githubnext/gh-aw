@@ -59,6 +59,9 @@ pre-agent-steps:
       else
         echo "No outcome evaluations to export"
       fi
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Outcome Collector

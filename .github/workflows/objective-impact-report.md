@@ -10,6 +10,9 @@ permissions:
   actions: read
   issues: read
 
+sandbox:
+  agent:
+    sudo: false
 
 cache:
   - key: objective-impact-report-cache-${{ github.run_id }}

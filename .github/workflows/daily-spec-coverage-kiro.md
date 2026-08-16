@@ -12,6 +12,7 @@ permissions:
 sandbox:
   agent:
     id: awf
+    sudo: false
 tracker-id: daily-spec-coverage-kiro
 engine:
   id: copilot

@@ -118,6 +118,7 @@ sandbox:
   agent:
     runtime: cloud-hypervisor
     id: awf
+    sudo: false
 steps:
   - name: Download VulnHunter bundle artifact
     uses: actions/download-artifact@v8.0.1

@@ -48,6 +48,7 @@ features:
 sandbox:
   agent:
     runtime: gvisor
+    sudo: false
 evals:
   - id: mermaid_diagram_generated
     question: Did the agent generate a Mermaid diagram visualizing issue and pull request relationships?

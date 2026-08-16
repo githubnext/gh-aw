@@ -105,6 +105,9 @@ tools:
   bash:
     - "*"
 
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # Super Linter Analysis Report

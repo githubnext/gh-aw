@@ -56,6 +56,9 @@ timeout-minutes: 20
 strict: true
 
 
+sandbox:
+  agent:
+    sudo: false
 ---
 
 # jsweep - JavaScript Unbloater

@@ -80,8 +80,10 @@ steps:
       echo "✅ Quality metrics collected → /tmp/gh-aw/agent/analysis-context.md"
 
 
+sandbox:
+  agent:
+    sudo: false
 ---
-
 # Repository Quality Improvement Agent
 
 You are the Repository Quality Improvement Agent — an expert system that periodically analyses and improves different aspects of the repository's quality by focusing on a specific software development lifecycle area each day.

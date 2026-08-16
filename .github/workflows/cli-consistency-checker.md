@@ -87,6 +87,7 @@ features:
 sandbox:
   agent:
     runtime: gvisor
+    sudo: false
 evals:
   - id: cli_inspected
     question: Did the agent inspect the gh-aw CLI commands and analyze their output for inconsistencies, typos, or documentation gaps?

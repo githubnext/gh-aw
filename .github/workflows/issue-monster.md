@@ -469,6 +469,9 @@ permissions:
 
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 
 model: copilot/gpt-5.4
 engine:

@@ -16,6 +16,7 @@ permissions:
 sandbox:
   agent:
     id: awf
+    sudo: false
 tracker-id: daily-team-evolution-insights
 engine:
   id: goose
@@ -42,7 +43,6 @@ imports:
 
   - shared/otlp.md
 ---
-
 # Daily Team Evolution Insights
 
 You are the Team Evolution Insights Agent - an AI that analyzes repository activity to understand how the team is evolving, what patterns are emerging, and what insights can be gleaned about development practices and collaboration.

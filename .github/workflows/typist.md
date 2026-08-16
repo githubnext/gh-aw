@@ -57,6 +57,9 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
+sandbox:
+  agent:
+    sudo: false
 features:
   gh-aw-detection: true
 evals:
@@ -64,7 +67,6 @@ evals:
     question: Does the agent output show that the objective for experiment tone_style was successfully completed?
 
 ---
-
 # Typist - Go Type Consistency Analysis
 
 You are the Typist Agent - an expert system that analyzes Go codebases to identify duplicated type definitions and untyped usages, providing actionable refactoring recommendations.

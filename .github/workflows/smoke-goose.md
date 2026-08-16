@@ -65,6 +65,7 @@ features:
 sandbox:
   agent:
     id: awf
+    sudo: false
 ---
 
 # Smoke Test: Goose Engine Validation

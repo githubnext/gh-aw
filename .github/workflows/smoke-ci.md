@@ -76,6 +76,7 @@ features:
 sandbox:
   agent:
     id: awf
+    sudo: false
 ---
 
 For all events, call the tools in this exact order:

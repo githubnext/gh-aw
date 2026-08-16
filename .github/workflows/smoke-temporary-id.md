@@ -78,6 +78,7 @@ evals:
 sandbox:
   agent:
     id: awf
+    sudo: false
 ---
 
 # Smoke Test: Temporary ID Functionality

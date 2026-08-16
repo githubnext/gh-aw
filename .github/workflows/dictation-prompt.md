@@ -15,6 +15,9 @@ permissions:
 
   copilot-requests: write
 
+sandbox:
+  agent:
+    sudo: false
 
 engine:
   id: copilot

@@ -25,6 +25,7 @@ features:
 sandbox:
   agent:
     runtime: cloud-hypervisor
+    sudo: false
 imports:
   - uses: shared/pr-review-base.md
     with:

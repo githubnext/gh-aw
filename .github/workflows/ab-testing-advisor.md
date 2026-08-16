@@ -54,6 +54,7 @@ features:
 sandbox:
   agent:
     runtime: gvisor
+    sudo: false
 evals:
   - id: experiment_issue_created
     question: Did the agent create a GitHub issue with an A/B experiment campaign for a selected workflow?

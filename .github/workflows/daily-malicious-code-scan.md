@@ -37,6 +37,7 @@ features:
 sandbox:
   agent:
     id: awf
+    sudo: false
 evals:
   - id: scan_completed
     question: Did the agent complete a scan of recent code changes and report on whether malicious patterns were found?

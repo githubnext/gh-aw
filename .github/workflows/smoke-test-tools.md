@@ -59,6 +59,7 @@ sandbox:
   agent:
     id: awf
     runtime: cloud-hypervisor
+    sudo: false
 ---
 
 # Smoke Test: Agent Container Tools

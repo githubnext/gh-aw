@@ -13,6 +13,7 @@ permissions:
 sandbox:
   agent:
     id: awf
+    sudo: false
 engine: claude
 strict: true
 tools:

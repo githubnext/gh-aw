@@ -27,6 +27,9 @@ permissions:
 
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 
 network:
   allowed:

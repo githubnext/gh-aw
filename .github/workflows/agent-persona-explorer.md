@@ -38,6 +38,7 @@ experiments:
 sandbox:
   agent:
     runtime: gvisor
+    sudo: false
 tools:
   cli-proxy: true
   github:

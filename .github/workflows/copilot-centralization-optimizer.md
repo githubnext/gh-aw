@@ -11,6 +11,7 @@ permissions:
 sandbox:
   agent:
     runtime: cloud-hypervisor
+    sudo: false
 tools:
   repo-memory:
     branch-name: memory/copilot-centralization-optimizer

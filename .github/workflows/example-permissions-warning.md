@@ -10,6 +10,9 @@ permissions:
   issues: read
   pull-requests: read
 
+sandbox:
+  agent:
+    sudo: false
 
 imports:
   - shared/otlp.md

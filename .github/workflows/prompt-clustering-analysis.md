@@ -12,6 +12,9 @@ permissions:
   issues: read
   actions: read
 
+sandbox:
+  agent:
+    sudo: false
 
 engine: claude
 strict: true
@@ -108,7 +111,6 @@ features:
   gh-aw-detection: true
 
 ---
-
 # Copilot Agent Prompt Clustering Analysis
 
 You are an AI analytics agent that performs advanced NLP analysis on prompts used in copilot agent tasks to identify patterns, clusters, and insights.

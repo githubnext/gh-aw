@@ -37,6 +37,7 @@ imports:
 sandbox:
   agent:
     id: awf
+    sudo: false
 evals:
   - id: conformance_checked
     question: Did the agent run a conformance check against the Safe Outputs specification implementation?

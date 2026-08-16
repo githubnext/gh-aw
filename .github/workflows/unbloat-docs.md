@@ -58,6 +58,7 @@ network:
 sandbox:
   agent:
     id: awf
+    sudo: false
 
 # Tools configuration
 tools:

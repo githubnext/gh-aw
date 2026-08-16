@@ -41,6 +41,7 @@ features:
 sandbox:
   agent:
     runtime: gvisor
+    sudo: false
 evals:
   - id: animated_diagram_generated
     question: Did the agent generate an animated HTML diagram using glowmotion?

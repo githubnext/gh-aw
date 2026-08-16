@@ -21,6 +21,7 @@ timeout-minutes: 20
 sandbox:
   agent:
     id: awf
+    sudo: false
 imports:
   - uses: shared/daily-issue-base.md
     with:

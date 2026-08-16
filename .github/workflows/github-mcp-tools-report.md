@@ -12,6 +12,9 @@ permissions:
   pull-requests: read
   security-events: read
 
+sandbox:
+  agent:
+    sudo: false
 
 engine: claude
 tools:
@@ -37,7 +40,6 @@ imports:
 
   - shared/otlp.md
 ---
-
 # GitHub MCP Remote Server Tools Report Generator
 
 You are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.

@@ -12,6 +12,9 @@ permissions:
   discussions: read
   pull-requests: read
 
+sandbox:
+  agent:
+    sudo: false
 
 tracker-id: lint-monster
 model: copilot/gpt-5.4

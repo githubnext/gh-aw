@@ -14,6 +14,9 @@ permissions:
 
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    sudo: false
 
 tracker-id: eslint-monster
 model: copilot/gpt-5.4

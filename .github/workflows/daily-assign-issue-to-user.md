@@ -20,6 +20,7 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
+    sudo: true
 tools:
   cli-proxy: true
   github:

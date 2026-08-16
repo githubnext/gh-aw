@@ -96,6 +96,7 @@ features:
 sandbox:
   agent:
     id: awf
+    sudo: false
 ---
 
 # Smoke Test: Codex Engine Validation
