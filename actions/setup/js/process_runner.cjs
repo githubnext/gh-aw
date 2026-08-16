@@ -79,7 +79,8 @@ function sleep(ms) {
  *     inactivityTimeoutMs: number,
  *     pollIntervalMs?: number,
  *     termGraceMs?: number
- *   }
+ *   },
+ *   stallWarningIntervalMs?: number
  * }} options
  *   - command   - The executable to run
  *   - args      - Arguments to pass to the command
@@ -87,9 +88,12 @@ function sleep(ms) {
  *   - log       - Caller-supplied logging function (harness-specific prefix)
  *   - logArgs   - Safe arg list used only for logging; defaults to `args`.
  *                 Pass a redacted copy to avoid leaking sensitive values.
+ *   - stallWarningIntervalMs - Interval of child-process silence after which the
+ *                 driver logs a stall warning. Defaults to the value resolved from
+ *                 GH_AW_HARNESS_STALL_WARNING_MS; 0 disables the warnings.
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean}>}
  */
-function runProcess({ command, args, attempt, log, logArgs, env, postResultWatchdog }) {
+function runProcess({ command, args, attempt, log, logArgs, env, postResultWatchdog, stallWarningIntervalMs }) {
   return new Promise(resolve => {
     const startTime = Date.now();
     // Guard against the promise being settled more than once.  On some systems Node
@@ -101,6 +105,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
       if (settled) return;
       settled = true;
       if (postResultWatchdogTimer) clearInterval(postResultWatchdogTimer);
+      if (stallWatchdogTimer) clearInterval(stallWatchdogTimer);
       resolve(result);
     }
 
@@ -129,6 +134,22 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     const watchdogInactivityTimeoutMs = Number.isFinite(rawInactivityTimeout) && rawInactivityTimeout > 0 ? Math.max(50, rawInactivityTimeout) : 0;
     /** @type {NodeJS.Timeout | null} */
     let postResultWatchdogTimer = null;
+    /** @type {NodeJS.Timeout | null} */
+    let stallWatchdogTimer = null;
+    const stallIntervalMs = Number.isFinite(Number(stallWarningIntervalMs)) ? Math.max(0, Number(stallWarningIntervalMs)) : resolveStallWarningIntervalMs(env ?? process.env);
+    let stallWarnings = 0;
+    let stalledSinceMs = 0;
+
+    // Record child-process output activity. When the driver previously reported a
+    // stall, log an explicit recovery line so the step log distinguishes "was hung,
+    // then resumed" from "still silent".
+    function recordActivity() {
+      lastActivityAt = Date.now();
+      if (stallWarnings > 0 && stalledSinceMs > 0) {
+        log(`attempt ${attempt + 1}: stall watchdog: output resumed after ${formatDuration(Date.now() - stalledSinceMs)} of silence`);
+        stalledSinceMs = 0;
+      }
+    }
 
     child.stdout.on(
       "data",
@@ -136,7 +157,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         hasOutput = true;
         stdoutBytes += data.length;
         collectedOutput += data.toString();
-        lastActivityAt = Date.now();
+        recordActivity();
         process.stdout.write(data);
       }
     );
@@ -147,10 +168,30 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         hasOutput = true;
         stderrBytes += data.length;
         collectedOutput += data.toString();
-        lastActivityAt = Date.now();
+        recordActivity();
         process.stderr.write(data);
       }
     );
+
+    // Driver-level stall watchdog: a hung agent CLI leaves the "Execute ... CLI" step
+    // in_progress with no log output at all until GitHub Actions cancels the step at
+    // timeout-minutes, which is indistinguishable from a slow-but-healthy run without
+    // cross-referencing job/step metadata. Emitting a periodic, greppable warning makes
+    // the hang self-diagnosable from the step log alone.
+    if (stallIntervalMs > 0) {
+      stallWatchdogTimer = setInterval(() => {
+        if (settled) return;
+        const idleMs = Date.now() - lastActivityAt;
+        if (idleMs < stallIntervalMs) return;
+        if (stalledSinceMs === 0) stalledSinceMs = lastActivityAt;
+        stallWarnings++;
+        log(
+          `attempt ${attempt + 1}: stall watchdog: no output from '${command}' for ${formatDuration(idleMs)}` +
+            ` (elapsed=${formatDuration(Date.now() - startTime)} pid=${child.pid ?? "unknown"} warnings=${stallWarnings})` +
+            ` - the step may be hung${formatStepTimeoutBudget(startTime, env ?? process.env)}`
+        );
+      }, stallIntervalMs);
+    }
 
     if (postResultWatchdog && watchdogInactivityTimeoutMs > 0) {
       postResultWatchdogTimer = setInterval(() => {
@@ -201,7 +242,8 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
           (signal ? ` signal=${signal}` : "") +
           ` duration=${formatDuration(durationMs)}` +
           ` stdout=${stdoutBytes}B stderr=${stderrBytes}B hasOutput=${hasOutput}` +
-          (watchdogFired ? ` watchdogFired=true` : "")
+          (watchdogFired ? ` watchdogFired=true` : "") +
+          (stallWarnings > 0 ? ` stallWarnings=${stallWarnings}` : "")
       );
       settle({ exitCode, output: collectedOutput, hasOutput, durationMs, watchdogFired });
     });
@@ -222,6 +264,55 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
       });
     });
   });
+}
+
+// Driver-level stall watchdog: how long the spawned agent CLI may stay completely
+// silent before the driver logs a warning marking the step as potentially hung.
+const DEFAULT_STALL_WARNING_INTERVAL_MS = 5 * 60 * 1000;
+const MIN_STALL_WARNING_INTERVAL_MS = 1000;
+const MAX_STALL_WARNING_INTERVAL_MS = 60 * 60 * 1000;
+
+/**
+ * Resolve the stall-warning interval from the environment.
+ * Falls back to DEFAULT_STALL_WARNING_INTERVAL_MS when unset or non-numeric, and
+ * returns 0 (warnings disabled) when explicitly set to a value <= 0.
+ * Otherwise clamps to [MIN_STALL_WARNING_INTERVAL_MS, MAX_STALL_WARNING_INTERVAL_MS].
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {number}
+ */
+function resolveStallWarningIntervalMs(env = process.env) {
+  const raw = env.GH_AW_HARNESS_STALL_WARNING_MS;
+  if (raw === undefined || String(raw).trim() === "") {
+    return DEFAULT_STALL_WARNING_INTERVAL_MS;
+  }
+  const configured = Number(raw);
+  if (!Number.isFinite(configured)) {
+    return DEFAULT_STALL_WARNING_INTERVAL_MS;
+  }
+  if (configured <= 0) {
+    return 0;
+  }
+  return Math.min(MAX_STALL_WARNING_INTERVAL_MS, Math.max(MIN_STALL_WARNING_INTERVAL_MS, configured));
+}
+
+/**
+ * Build the trailing "; the step timeout ... will cancel this step in ..." fragment of
+ * the stall warning, based on the step timeout advertised via GH_AW_TIMEOUT_MINUTES.
+ * Returns an empty string when the timeout is unknown or invalid.
+ * @param {number} startTime - Timestamp (ms) when the child process was spawned
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string}
+ */
+function formatStepTimeoutBudget(startTime, env = process.env) {
+  const timeoutMinutes = Number(env.GH_AW_TIMEOUT_MINUTES);
+  if (!Number.isFinite(timeoutMinutes) || timeoutMinutes <= 0) {
+    return "";
+  }
+  const remainingMs = startTime + Math.floor(timeoutMinutes * 60 * 1000) - Date.now();
+  if (remainingMs <= 0) {
+    return `; the ${timeoutMinutes}-minute step timeout has been reached and GitHub Actions will cancel this step`;
+  }
+  return `; GitHub Actions will cancel this step in about ${formatDuration(remainingMs)} (timeout-minutes=${timeoutMinutes})`;
 }
 
 // Post-result watchdog: shared constants and timeout resolver used by all harnesses.
@@ -306,5 +397,10 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
     MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS,
     resolvePostResultWatchdogIdleTimeoutMs,
+    DEFAULT_STALL_WARNING_INTERVAL_MS,
+    MIN_STALL_WARNING_INTERVAL_MS,
+    MAX_STALL_WARNING_INTERVAL_MS,
+    resolveStallWarningIntervalMs,
+    formatStepTimeoutBudget,
   };
 }

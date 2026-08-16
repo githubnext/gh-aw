@@ -2,7 +2,18 @@ import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { runProcess, formatDuration, sleep, buildCopilotSDKEnv, isCopilotSDKEnabled } = require("./process_runner.cjs");
+const {
+  runProcess,
+  formatDuration,
+  sleep,
+  buildCopilotSDKEnv,
+  isCopilotSDKEnabled,
+  resolveStallWarningIntervalMs,
+  formatStepTimeoutBudget,
+  DEFAULT_STALL_WARNING_INTERVAL_MS,
+  MIN_STALL_WARNING_INTERVAL_MS,
+  MAX_STALL_WARNING_INTERVAL_MS,
+} = require("./process_runner.cjs");
 
 describe("process_runner.cjs", () => {
   describe("formatDuration", () => {
@@ -436,6 +447,99 @@ describe("process_runner.cjs", () => {
           COPILOT_SDK_LOG_LEVEL: "error",
         });
       });
+    });
+  });
+  describe("resolveStallWarningIntervalMs", () => {
+    it("defaults when the env var is unset or blank", () => {
+      expect(resolveStallWarningIntervalMs({})).toBe(DEFAULT_STALL_WARNING_INTERVAL_MS);
+      expect(resolveStallWarningIntervalMs({ GH_AW_HARNESS_STALL_WARNING_MS: "  " })).toBe(DEFAULT_STALL_WARNING_INTERVAL_MS);
+    });
+
+    it("defaults when the env var is not a number", () => {
+      expect(resolveStallWarningIntervalMs({ GH_AW_HARNESS_STALL_WARNING_MS: "soon" })).toBe(DEFAULT_STALL_WARNING_INTERVAL_MS);
+    });
+
+    it("disables stall warnings when explicitly set to zero or negative", () => {
+      expect(resolveStallWarningIntervalMs({ GH_AW_HARNESS_STALL_WARNING_MS: "0" })).toBe(0);
+      expect(resolveStallWarningIntervalMs({ GH_AW_HARNESS_STALL_WARNING_MS: "-1" })).toBe(0);
+    });
+
+    it("clamps configured values to the supported range", () => {
+      expect(resolveStallWarningIntervalMs({ GH_AW_HARNESS_STALL_WARNING_MS: "10" })).toBe(MIN_STALL_WARNING_INTERVAL_MS);
+      expect(resolveStallWarningIntervalMs({ GH_AW_HARNESS_STALL_WARNING_MS: String(MAX_STALL_WARNING_INTERVAL_MS * 2) })).toBe(MAX_STALL_WARNING_INTERVAL_MS);
+      expect(resolveStallWarningIntervalMs({ GH_AW_HARNESS_STALL_WARNING_MS: "60000" })).toBe(60000);
+    });
+  });
+
+  describe("formatStepTimeoutBudget", () => {
+    it("returns an empty string when the step timeout is unknown or invalid", () => {
+      expect(formatStepTimeoutBudget(Date.now(), {})).toBe("");
+      expect(formatStepTimeoutBudget(Date.now(), { GH_AW_TIMEOUT_MINUTES: "0" })).toBe("");
+      expect(formatStepTimeoutBudget(Date.now(), { GH_AW_TIMEOUT_MINUTES: "nope" })).toBe("");
+    });
+
+    it("reports the remaining step budget when the timeout is known", () => {
+      const fragment = formatStepTimeoutBudget(Date.now(), { GH_AW_TIMEOUT_MINUTES: "10" });
+      expect(fragment).toContain("timeout-minutes=10");
+      expect(fragment).toContain("GitHub Actions will cancel this step in about");
+    });
+
+    it("reports an exhausted budget when the step timeout has elapsed", () => {
+      const fragment = formatStepTimeoutBudget(Date.now() - 20 * 60 * 1000, { GH_AW_TIMEOUT_MINUTES: "10" });
+      expect(fragment).toContain("has been reached");
+    });
+  });
+
+  describe("runProcess stall watchdog", () => {
+    it("logs a stall warning when the process produces no output", async () => {
+      const logs = [];
+      await runProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => process.exit(0), 400);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        stallWarningIntervalMs: 100,
+      });
+      const stallLogs = logs.filter(line => line.includes("stall watchdog: no output"));
+      expect(stallLogs.length).toBeGreaterThan(0);
+      expect(stallLogs[0]).toContain("the step may be hung");
+      expect(logs.some(line => line.includes("stallWarnings="))).toBe(true);
+    });
+
+    it("logs a recovery line when output resumes after a stall", async () => {
+      const logs = [];
+      await runProcess({
+        command: process.execPath,
+        args: ["-e", 'setTimeout(() => { process.stdout.write("late"); process.exit(0); }, 300);'],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        stallWarningIntervalMs: 100,
+      });
+      expect(logs.some(line => line.includes("stall watchdog: output resumed after"))).toBe(true);
+    });
+
+    it("does not log stall warnings when the process keeps producing output", async () => {
+      const logs = [];
+      await runProcess({
+        command: process.execPath,
+        args: ["-e", 'const t = setInterval(() => process.stdout.write("."), 25); setTimeout(() => { clearInterval(t); process.exit(0); }, 400);'],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        stallWarningIntervalMs: 200,
+      });
+      expect(logs.some(line => line.includes("stall watchdog: no output"))).toBe(false);
+    });
+
+    it("does not log stall warnings when the interval is disabled", async () => {
+      const logs = [];
+      await runProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => process.exit(0), 300);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        stallWarningIntervalMs: 0,
+      });
+      expect(logs.some(line => line.includes("stall watchdog"))).toBe(false);
     });
   });
 });
