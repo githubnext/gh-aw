@@ -55,25 +55,7 @@ graph TD
 
 Validates workflow configs before compilation. Centralized in `validation.go`, or domain-specific in dedicated files.
 
-### Validation Flow
-
-```mermaid
-graph TD
-    A[Workflow YAML] --> B[Parser]
-    B --> C[Validation System]
-    C --> D[Centralized Validation]
-    C --> E[Domain-Specific Validation]
-    D --> F[validation.go]
-    E --> G[strict_mode_validation.go]
-    E --> H[pip.go]
-    E --> I[npm.go]
-    F --> J{Valid?}
-    G --> J
-    H --> J
-    I --> J
-    J -->|Yes| K[Compiler]
-    J -->|No| L[Error Report]
-```
+Workflow YAML → parser → validation (centralized + domain-specific) → compiler on pass, error report on fail.
 
 ### Centralized Validation: `pkg/workflow/validation.go`
 
@@ -142,20 +124,6 @@ graph TD
 ## String Processing
 
 ### Sanitize vs Normalize
-
-```mermaid
-graph TD
-    A[Need String Processing?] --> B{Security Concern?}
-    B -->|Yes| C[Sanitize]
-    B -->|No| D{Consistency Needed?}
-    C --> E[sanitizeGitHubLabel]
-    C --> F[sanitizeGitHubBranch]
-    C --> G[sanitizeGitHubIssueTitle]
-    D -->|Yes| H[Normalize]
-    D -->|No| I[Use As-Is]
-    H --> J[normalizeWhitespace]
-    H --> K[normalizeLineEndings]
-```
 
 **Sanitize** — fix chars that break security or GitHub API:
 - `sanitizeGitHubLabel()` — label requirements (no emoji, length limits)
@@ -229,17 +197,6 @@ safe_outputs:
 ---
 
 ## Custom GitHub Actions
-
-### Architecture
-
-```mermaid
-graph LR
-    MD[Workflow .md] --> Compiler
-    Compiler --> YAML[.lock.yml]
-    YAML --> GHA[GitHub Actions Runner]
-    GHA --> Actions[Custom Actions]
-    Actions --> API[GitHub API]
-```
 
 ### Build System
 
@@ -335,20 +292,6 @@ make update-golden  # only when intentionally changing output
 
 Persistent, git-backed storage across workflow runs. State lives in dedicated git branches with auto-sync.
 
-### Architecture Overview
-
-```mermaid
-graph TD
-    A[Agent Job Start] --> B[Clone memory/{id} branch]
-    B --> C[Agent reads/writes files]
-    C --> D[Upload artifact: repo-memory-{id}]
-    D --> E[Push Repo Memory Job]
-    E --> F[Download artifact]
-    F --> G[Validate files]
-    G --> H[Commit to memory/{id}]
-    H --> I[Push to repository]
-```
-
 ### Path Conventions
 
 | Pattern | Format | Example | Purpose |
@@ -359,10 +302,10 @@ graph TD
 
 ### Data Flow
 
-1. Clone `memory/{id}` branch
+1. Agent job clones `memory/{id}` branch
 2. Agent reads/writes files
-3. Upload directory as artifact
-4. Download artifact, validate constraints
+3. Upload directory as artifact `repo-memory-{id}`
+4. Push Repo Memory job downloads artifact, validates constraints
 5. Commit and push to `memory/{id}`
 
 ### Key Configuration
