@@ -231,6 +231,7 @@ func expectedCodemodOrder() []string {
 		"rate-limit-to-user-rate-limit",
 		"effective-tokens-to-ai-credits",
 		"messages-effective-tokens-suffix-to-ai-credits-suffix",
+		"serena-mcp-location-migration",
 		"serena-tools-to-shared-import",
 		"workflow-run-branches-default",
 		"checkout-persist-credentials-false",
