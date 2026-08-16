@@ -3,9 +3,7 @@ private: true
 emoji: "🔬"
 description: Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
 on:
-  schedule:
-    # ~3 PM UTC, weekdays only (scattered to avoid thundering herd)
-    - cron: "daily around 15:00 on weekdays"
+  schedule: every 6 hours
   workflow_dispatch:
 
 permissions:
