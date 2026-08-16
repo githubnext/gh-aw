@@ -40,7 +40,7 @@ engine:
       # lifecycle scripts, so they must run for `dsh --profile headless` to boot.
       # Risk is bounded by the pinned version above.
       post-install-scripts: true
-      cooldown: true
+      cooldown: false
       verify-command: dsh --version
       verify-step-name: Verify DeepSeek Harness installation
       docs-url: https://github.com/deepseek-ai/deepseek-harness
