@@ -25,7 +25,7 @@ scenarios:
       Both P5_NotBlocked and P6_IntegrityMet pass.
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         min-integrity: "approved"
         blocked-users:
@@ -46,7 +46,7 @@ scenarios:
       P5_NotBlocked passes (user not blocked); P6_IntegrityMet passes (merged > approved).
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         min-integrity: "approved"
         blocked-users:
@@ -68,7 +68,7 @@ scenarios:
       though P6_IntegrityMet would also have failed.
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         min-integrity: "approved"
         blocked-users:
@@ -89,7 +89,7 @@ scenarios:
       P5_NotBlocked blocks unconditionally regardless of integrity level.
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         min-integrity: "approved"
         blocked-users:
@@ -110,7 +110,7 @@ scenarios:
       P5_NotBlocked passes; P6_IntegrityMet fails → error code -32006.
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         min-integrity: "approved"
         blocked-users:

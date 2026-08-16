@@ -531,10 +531,11 @@ Defaults: Claude `60s`, Codex `120s`. Other engines (Copilot, Gemini) are engine
 | `timeout-minutes` | ✅ | ✅ | ✅ | Job-level wall clock |
 | `tools.timeout` | ✅ | ✅ | ✅ | Per tool-call limit (seconds) |
 | `tools.startup-timeout` | ✅ | ✅ | ✅ | MCP server startup limit |
-| `max-turns` | ❌ | ✅ | ❌ | Iteration budget |
+| `max-turns` | ✅ | ✅ | ✅ | Top-level AWF invocation cap (enforced by the proxy) |
+| `engine.max-turns` (deprecated) | ❌ | ✅ | ❌ | Claude-only nested iteration budget |
 | `max-continuations` | ✅ | ❌ | ❌ | Autopilot run budget |
 
-Copilot uses `max-continuations` for autopilot runs; Claude uses `max-turns` to cap iterations. Codex and Gemini rely solely on `timeout-minutes` and `tools.timeout`.
+The top-level `max-turns` field applies to every engine because the proxy enforces the AWF invocation cap. In addition, Copilot uses `max-continuations` for autopilot runs, and Claude supports the deprecated nested `engine.max-turns` to cap its own iterations. Beyond `max-turns`, Codex and Gemini rely solely on `timeout-minutes` and `tools.timeout`.
 
 ```yaml wrap
 # Claude — combine iteration cap with per-tool timeout

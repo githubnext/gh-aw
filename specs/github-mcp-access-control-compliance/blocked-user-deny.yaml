@@ -20,7 +20,7 @@ scenarios:
     description: "A user in blocked-users is denied even when repo matches and role is sufficient"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"
@@ -44,7 +44,7 @@ scenarios:
     description: "A user NOT in blocked-users is allowed when all other conditions are satisfied"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"

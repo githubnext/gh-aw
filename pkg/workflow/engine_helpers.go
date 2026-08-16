@@ -155,6 +155,7 @@ func applyEngineHarnessRetryEnv(env map[string]string, workflowData *WorkflowDat
 	if workflowData == nil || workflowData.EngineConfig == nil {
 		return
 	}
+
 	cfg := workflowData.EngineConfig
 	if cfg.HarnessMaxRetries != "" {
 		env["GH_AW_HARNESS_MAX_RETRIES"] = cfg.HarnessMaxRetries
@@ -171,6 +172,19 @@ func applyEngineHarnessRetryEnv(env map[string]string, workflowData *WorkflowDat
 	if cfg.HarnessWatchdogTimeoutMs != "" {
 		env["GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS"] = cfg.HarnessWatchdogTimeoutMs
 	}
+}
+
+// buildShellHarnessCommand runs a shell command through the shared process runner.
+// This gives engines with shell pipeline execution the same stall diagnostics as
+// the dedicated JavaScript harnesses.
+func buildShellHarnessCommand(engineName, command string) string {
+	return fmt.Sprintf(
+		`%s %s/shell_harness.cjs %s %s`,
+		nodeRuntimeResolutionCommand,
+		SetupActionDestinationShell,
+		shellEscapeArg(engineName),
+		shellEscapeArg(command),
+	)
 }
 
 // applyEngineAndAgentEnv merges custom environment variables from engine and agent configs.

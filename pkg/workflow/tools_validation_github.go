@@ -54,8 +54,9 @@ func hasGitHubGuardPolicyFields(github *GitHubToolConfig) bool {
 
 	// This is a presence check, not a validity check. Explicit but invalid values
 	// (for example an empty string or wrong type injected programmatically) still
-	// count as configured guard-policy fields and are validated later.
-	hasRepos := github.AllowedRepos != nil
+	// count as configured guard-policy fields and are validated later. Include the
+	// deprecated Repos alias so lockdown conflict warnings also cover legacy input.
+	hasRepos := github.AllowedRepos != nil || github.Repos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
 	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
 	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""
@@ -124,7 +125,14 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		toolsValidationLog.Printf("lockdown enabled with guard policy fields in workflow: %s", workflowName)
 	}
 
-	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
+	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated
+	// 'repos' during parsing. Normalize the deprecated alias here as well so that
+	// configurations built programmatically (bypassing the parser) are validated
+	// identically to parsed frontmatter.
+	if github.AllowedRepos == nil && github.Repos != nil {
+		toolsValidationLog.Printf("Normalizing deprecated 'repos' alias to 'allowed-repos' in workflow: %s", workflowName)
+		github.AllowedRepos = github.Repos
+	}
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
 	// blocked-users / approval-labels / trusted-users can be an array or a

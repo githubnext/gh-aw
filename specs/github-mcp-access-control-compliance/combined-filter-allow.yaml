@@ -22,7 +22,7 @@ scenarios:
     description: "Request satisfying all four conditions (repo, role, visibility, integrity) is allowed"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"
@@ -43,7 +43,7 @@ scenarios:
     description: "Request with wrong repository is denied even when role, visibility, and integrity match"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"
@@ -64,7 +64,7 @@ scenarios:
     description: "Request with insufficient integrity is denied even when repo, role, and visibility match"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"
@@ -85,7 +85,7 @@ scenarios:
     description: "Request with insufficient role is denied even when repo, visibility, and integrity match"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"
@@ -106,7 +106,7 @@ scenarios:
     description: "Request targeting a private repository is denied when private-repos: false"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"

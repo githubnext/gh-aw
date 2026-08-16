@@ -40,6 +40,13 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 pre-agent-steps:
+  - name: Setup Go
+    uses: actions/setup-go@v7.0.0
+    with:
+      go-version-file: go.mod
+      cache: true
+  - name: Verify Go installation
+    run: go version
   - name: Preload linter source and cache context
     run: |
       set -euo pipefail
