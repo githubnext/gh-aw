@@ -33,6 +33,15 @@ tools:
     - cat
     - grep
     - wc
+    - head
+    - tail
+    - sort
+    - uniq
+    - date
+    - echo
+    - printf
+    - ls
+    - pwd
 safe-outputs:
   create-issue:
     expires: 2d
