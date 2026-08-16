@@ -354,7 +354,11 @@ func TestToolsetPermissionsMapping_RestoredGitHubMCPTools(t *testing.T) {
 	}{
 		{
 			toolset: "issues",
-			tools:   []string{"semantic_issue_similarity_search", "semantic_issues_search"},
+			tools:   []string{"find_duplicate", "semantic_issue_similarity_search", "semantic_issues_search"},
+		},
+		{
+			toolset: "copilot_issue_intents",
+			tools:   []string{"assign_copilot_to_issue_with_intent"},
 		},
 		{
 			toolset: "secret_protection",

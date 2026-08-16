@@ -124,6 +124,57 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 	})
 }
 
+// TestEnableFirewallByDefaultForGemini tests the automatic firewall enablement for the gemini engine.
+func TestEnableFirewallByDefaultForGemini(t *testing.T) {
+	t.Run("gemini engine with network restrictions enables firewall by default", func(t *testing.T) {
+		networkPerms := &NetworkPermissions{
+			Allowed:           []string{"example.com"},
+			ExplicitlyDefined: true,
+		}
+
+		enableFirewallByDefaultForGemini("gemini", networkPerms, nil)
+
+		if networkPerms.Firewall == nil {
+			t.Fatal("Expected firewall to be enabled by default for gemini engine with network restrictions")
+		}
+
+		if !networkPerms.Firewall.Enabled {
+			t.Error("Expected firewall.Enabled to be true")
+		}
+	})
+
+	t.Run("non-gemini engine does not enable firewall", func(t *testing.T) {
+		networkPerms := &NetworkPermissions{
+			Allowed:           []string{"example.com"},
+			ExplicitlyDefined: true,
+		}
+
+		enableFirewallByDefaultForGemini("claude", networkPerms, nil)
+
+		if networkPerms.Firewall != nil {
+			t.Error("Expected firewall to remain nil for non-gemini engine")
+		}
+	})
+
+	t.Run("wildcard allowed domain skips auto-enablement", func(t *testing.T) {
+		networkPerms := &NetworkPermissions{
+			Allowed:           []string{"*"},
+			ExplicitlyDefined: true,
+		}
+
+		enableFirewallByDefaultForGemini("gemini", networkPerms, nil)
+
+		if networkPerms.Firewall != nil {
+			t.Error("Expected firewall to remain nil when wildcard '*' is in allowed domains")
+		}
+	})
+
+	t.Run("nil network permissions does not cause error", func(t *testing.T) {
+		// Should not panic
+		enableFirewallByDefaultForGemini("gemini", nil, nil)
+	})
+}
+
 // TestCopilotFirewallDefaultIntegration tests the integration with workflow compilation
 func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 	t.Run("copilot workflow with network restrictions includes AWF installation", func(t *testing.T) {

@@ -137,6 +137,7 @@ Quote specific file + line references for every finding.
 - Focus on the **user experience** of reading and following the docs
 - Think about what would prevent successful adoption, not perfection
 - This is a daily workflow - findings should be stored in cache-memory for tracking trends over time
+- Read `/tmp/gh-aw/cache-memory/review-history.jsonl` when it exists. Its absence is an expected cold start; continue with no prior history and do not call `missing_data`.
 - Write findings summary ONLY to `review-history.jsonl` (append one JSON line per run). Do not create new history file names. Ignore legacy files if they exist.
 
 Execute your review systematically and provide a comprehensive report that helps make gh-aw accessible to all AI tool users, not just Copilot users.

@@ -990,3 +990,191 @@ func TestRenderUnifiedTimelineStream_SteeringEvent(t *testing.T) {
 		t.Errorf("output missing steering message; got:\n%s", out)
 	}
 }
+
+// ─── gatewayEntryToTimelineEvent ───────────────────────────────────────────────
+
+func TestGatewayEntryToTimelineEvent(t *testing.T) {
+	baseTS := "2024-01-15T10:00:00Z"
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name       string
+		entry      GatewayLogEntry
+		wantOK     bool
+		wantKind   TimelineEventKind
+		wantServer string
+		wantTool   string
+		wantStatus string
+		wantError  string
+		wantReason string
+		wantAuthor string
+	}{
+		{
+			name:   "unparseable timestamp returns false",
+			entry:  GatewayLogEntry{Timestamp: "not-a-timestamp", Event: "tool_call"},
+			wantOK: false,
+		},
+		{
+			name:   "empty timestamp returns false",
+			entry:  GatewayLogEntry{Timestamp: "", Event: "tool_call"},
+			wantOK: false,
+		},
+		{
+			name: "DIFC_FILTERED uses ServerID when present",
+			entry: GatewayLogEntry{
+				Timestamp:   baseTS,
+				Type:        "DIFC_FILTERED",
+				ServerID:    "srv-1",
+				ServerName:  "srv-fallback",
+				ToolName:    "tool-a",
+				Reason:      "blocked secrecy",
+				AuthorLogin: "octocat",
+			},
+			wantOK:     true,
+			wantKind:   TimelineKindDIFCFiltered,
+			wantServer: "srv-1",
+			wantTool:   "tool-a",
+			wantReason: "blocked secrecy",
+			wantAuthor: "octocat",
+		},
+		{
+			name: "DIFC_FILTERED falls back to ServerName when ServerID empty",
+			entry: GatewayLogEntry{
+				Timestamp:  baseTS,
+				Type:       "DIFC_FILTERED",
+				ServerName: "srv-fallback",
+			},
+			wantOK:     true,
+			wantKind:   TimelineKindDIFCFiltered,
+			wantServer: "srv-fallback",
+		},
+		{
+			name: "GUARD_POLICY_BLOCKED uses ServerID when present",
+			entry: GatewayLogEntry{
+				Timestamp: baseTS,
+				Type:      "GUARD_POLICY_BLOCKED",
+				ServerID:  "srv-2",
+				ToolName:  "tool-b",
+				Reason:    "policy violation",
+				Message:   "guard rejected the call",
+			},
+			wantOK:     true,
+			wantKind:   TimelineKindGuardPolicyBlocked,
+			wantServer: "srv-2",
+			wantTool:   "tool-b",
+			wantReason: "policy violation",
+			wantError:  "guard rejected the call",
+		},
+		{
+			name: "GUARD_POLICY_BLOCKED falls back to ServerName when ServerID empty",
+			entry: GatewayLogEntry{
+				Timestamp:  baseTS,
+				Type:       "GUARD_POLICY_BLOCKED",
+				ServerName: "srv-fallback-guard",
+			},
+			wantOK:     true,
+			wantKind:   TimelineKindGuardPolicyBlocked,
+			wantServer: "srv-fallback-guard",
+		},
+		{
+			name: "tool_call event with explicit status is preserved",
+			entry: GatewayLogEntry{
+				Timestamp:  baseTS,
+				Event:      "tool_call",
+				ServerName: "srv-3",
+				ToolName:   "tool-c",
+				Method:     "call",
+				Duration:   12.5,
+				Status:     "success",
+			},
+			wantOK:     true,
+			wantKind:   TimelineKindToolCall,
+			wantServer: "srv-3",
+			wantTool:   "tool-c",
+			wantStatus: "success",
+		},
+		{
+			name: "rpc_call event with error sets status to error",
+			entry: GatewayLogEntry{
+				Timestamp: baseTS,
+				Event:     "rpc_call",
+				ToolName:  "tool-d",
+				Error:     "boom",
+			},
+			wantOK:     true,
+			wantKind:   TimelineKindToolCall,
+			wantTool:   "tool-d",
+			wantStatus: "error",
+			wantError:  "boom",
+		},
+		{
+			name: "request event with error level sets status to error",
+			entry: GatewayLogEntry{
+				Timestamp: baseTS,
+				Event:     "request",
+				Level:     "error",
+			},
+			wantOK:     true,
+			wantKind:   TimelineKindToolCall,
+			wantStatus: "error",
+		},
+		{
+			name: "request event with no error defaults to success",
+			entry: GatewayLogEntry{
+				Timestamp: baseTS,
+				Event:     "request",
+			},
+			wantOK:     true,
+			wantKind:   TimelineKindToolCall,
+			wantStatus: "success",
+		},
+		{
+			name: "unknown type and unknown event returns false",
+			entry: GatewayLogEntry{
+				Timestamp: baseTS,
+				Type:      "SOMETHING_ELSE",
+				Event:     "unknown_event",
+			},
+			wantOK: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evt, ok := gatewayEntryToTimelineEvent(tt.entry)
+			if ok != tt.wantOK {
+				t.Fatalf("gatewayEntryToTimelineEvent() ok = %v, want %v", ok, tt.wantOK)
+			}
+			if !tt.wantOK {
+				return
+			}
+			if !evt.Time.Equal(baseTime) {
+				t.Errorf("Time = %v, want %v", evt.Time, baseTime)
+			}
+			if evt.Source != TimelineSourceGateway {
+				t.Errorf("Source = %v, want %v", evt.Source, TimelineSourceGateway)
+			}
+			if evt.Kind != tt.wantKind {
+				t.Errorf("Kind = %v, want %v", evt.Kind, tt.wantKind)
+			}
+			if tt.wantServer != "" && evt.ServerName != tt.wantServer {
+				t.Errorf("ServerName = %q, want %q", evt.ServerName, tt.wantServer)
+			}
+			if tt.wantTool != "" && evt.ToolName != tt.wantTool {
+				t.Errorf("ToolName = %q, want %q", evt.ToolName, tt.wantTool)
+			}
+			if tt.wantStatus != "" && evt.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", evt.Status, tt.wantStatus)
+			}
+			if tt.wantError != "" && evt.Error != tt.wantError {
+				t.Errorf("Error = %q, want %q", evt.Error, tt.wantError)
+			}
+			if tt.wantReason != "" && evt.Reason != tt.wantReason {
+				t.Errorf("Reason = %q, want %q", evt.Reason, tt.wantReason)
+			}
+			if tt.wantAuthor != "" && evt.AuthorLogin != tt.wantAuthor {
+				t.Errorf("AuthorLogin = %q, want %q", evt.AuthorLogin, tt.wantAuthor)
+			}
+		})
+	}
+}

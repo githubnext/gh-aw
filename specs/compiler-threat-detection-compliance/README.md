@@ -1,6 +1,6 @@
 # Compiler Threat Detection Compliance Map
 
-This directory maps the threat-detection rule catalog in the [Compiler Threat Detection Specification](../compiler-threat-detection-spec.md#8-compliance-testing) to its conformance test IDs. Each active `CTR-*` rule has one required `T-CTR-*` test ID.
+This directory maps the threat-detection rule catalog in the [Compiler Threat Detection Specification](../compiler-threat-detection-spec.md#8-compliance-testing) to its conformance test IDs. Each active `CTR-*` rule has one required `T-CTR-*` test ID. Test IDs are allocated from a single sequence shared with the Section 6 norm tests below, so a test ID number does not necessarily match its rule ID number.
 
 | Rule ID | Test ID |
 |---------|---------|
