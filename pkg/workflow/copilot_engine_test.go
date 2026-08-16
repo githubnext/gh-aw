@@ -421,6 +421,9 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	if !strings.Contains(stepContent, `"--port"`) {
 		t.Fatalf("Expected GH_AW_COPILOT_SDK_SERVER_ARGS to include --port, got:\n%s", stepContent)
 	}
+	if strings.Contains(stepContent, `"--host"`) {
+		t.Fatalf("Expected default SDK server args to omit --host, got:\n%s", stepContent)
+	}
 	if !strings.Contains(stepContent, `"--disable-builtin-mcps"`) {
 		t.Fatalf("Expected GH_AW_COPILOT_SDK_SERVER_ARGS to include --disable-builtin-mcps, got:\n%s", stepContent)
 	}
@@ -449,6 +452,31 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 	// The promptFile JSON field must not appear (old stdin-payload format is gone).
 	if strings.Contains(stepContent, `"promptFile"`) {
 		t.Fatalf("Expected SDK driver mode to not embed promptFile JSON (old stdin format), got:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCopilotSDKCloudHypervisorBindHost(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			CopilotSDK: true,
+		},
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{Runtime: AgentRuntimeCloudHypervisor}},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	if !strings.Contains(stepContent, `"--host","0.0.0.0","--port","`+strconv.Itoa(constants.DefaultCopilotSDKPort)+`"`) {
+		t.Fatalf("Expected Cloud Hypervisor SDK server args to bind on all guest interfaces before port, got:\n%s", stepContent)
+	}
+	expectedURI := constants.CopilotSDKURIEnvVar + ": http://127.0.0.1:" + strconv.Itoa(constants.DefaultCopilotSDKPort)
+	if !strings.Contains(stepContent, expectedURI) {
+		t.Fatalf("Expected SDK client URI to remain loopback (%s), got:\n%s", expectedURI, stepContent)
 	}
 }
 
