@@ -179,6 +179,7 @@ func TestMCPGatewayCustomEnvNamesAreFilteredAtEmissionBoundary(t *testing.T) {
 		"$(touch /tmp/pwned)":       "shell-unsafe",
 		mcpGatewayCustomEnvNamesVar: "reserved",
 		"GH_AW_MCP_GATEWAY_ENV_3":   "reserved",
+		"GH_AW_MCP_GATEWAY_FOO":     "reserved",
 	}
 
 	assert.Equal(t, []string{"API_TOKEN"}, sanitizedGatewayEnvNames(gatewayEnv))

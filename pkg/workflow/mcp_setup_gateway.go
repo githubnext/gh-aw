@@ -16,6 +16,7 @@ import (
 
 const mcpGatewayCustomEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES"
 const mcpGatewayCustomEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_"
+const mcpGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_"
 const mcpGatewayCustomEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__"
 
 func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error {
@@ -102,7 +103,7 @@ func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpE
 		if setutil.Contains(overriddenNames, envVarName) {
 			continue
 		}
-		if isReservedMCPGatewayTransportEnvVar(envVarName) {
+		if isReservedMCPGatewayEnvVar(envVarName) {
 			continue
 		}
 		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, mcpEnvVars[envVarName])
@@ -114,7 +115,7 @@ func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpE
 		if setutil.Contains(overriddenNames, envVarName) {
 			continue
 		}
-		if isReservedMCPGatewayTransportEnvVar(envVarName) {
+		if isReservedMCPGatewayEnvVar(envVarName) {
 			continue
 		}
 		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, safeOutputsInputEnvVars[envVarName])
@@ -147,7 +148,7 @@ func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpE
 func sanitizedGatewayEnvNames(gatewayEnvVars map[string]string) []string {
 	names := make([]string, 0, len(gatewayEnvVars))
 	for _, name := range sliceutil.SortedKeys(gatewayEnvVars) {
-		if isReservedMCPGatewayTransportEnvVar(name) {
+		if isReservedMCPGatewayEnvVar(name) {
 			mcpSetupGeneratorLog.Printf("Skipping reserved MCP gateway environment variable name: %s", name)
 			continue
 		}
@@ -164,10 +165,8 @@ func mcpGatewayCustomEnvTransportName(index int) string {
 	return fmt.Sprintf("%s%d", mcpGatewayCustomEnvTransportPrefix, index)
 }
 
-func isReservedMCPGatewayTransportEnvVar(name string) bool {
-	// GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES is reserved alongside, not within,
-	// the indexed GH_AW_MCP_GATEWAY_ENV_* transport namespace.
-	return name == mcpGatewayCustomEnvNamesVar || strings.HasPrefix(name, mcpGatewayCustomEnvTransportPrefix)
+func isReservedMCPGatewayEnvVar(name string) bool {
+	return strings.HasPrefix(name, mcpGatewayReservedEnvPrefix)
 }
 
 func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) (int, string, string, string, int) {

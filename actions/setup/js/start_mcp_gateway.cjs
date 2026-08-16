@@ -44,6 +44,7 @@ const customGatewayEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__";
 const customGatewayEnvNamePattern = /^[A-Z_][A-Z0-9_]*$/;
 const customGatewayEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES";
 const customGatewayEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_";
+const customGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_";
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -97,8 +98,8 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
   if (!Array.isArray(names) || !names.every(name => typeof name === "string" && customGatewayEnvNamePattern.test(name))) {
     throw new Error(`${customGatewayEnvNamesVar} must be an array of valid environment variable names`);
   }
-  if (names.some(name => name === customGatewayEnvNamesVar || name.startsWith(customGatewayEnvTransportPrefix))) {
-    throw new Error(`${customGatewayEnvNamesVar} must not contain names reserved by the ${customGatewayEnvTransportPrefix} transport namespace`);
+  if (names.some(name => name.startsWith(customGatewayReservedEnvPrefix))) {
+    throw new Error(`${customGatewayEnvNamesVar} must not contain names reserved by the ${customGatewayReservedEnvPrefix} namespace`);
   }
   if (new Set(names).size !== names.length) {
     throw new Error(`${customGatewayEnvNamesVar} must not contain duplicate environment variable names`);
@@ -1108,6 +1109,7 @@ module.exports = {
   applyOTLPIgnoreIfMissing,
   customGatewayEnvNamesVar,
   customGatewayEnvTransportPrefix,
+  customGatewayReservedEnvPrefix,
   detectEngineType,
   extractOptionalServerNames,
   getOTLPIfMissingMode,

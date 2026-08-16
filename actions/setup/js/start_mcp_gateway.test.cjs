@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyOTLPIgnoreIfMissing,
   customGatewayEnvNamesVar,
+  customGatewayReservedEnvPrefix,
   customGatewayEnvTransportPrefix,
   detectEngineType,
   extractOptionalServerNames,
@@ -85,7 +86,7 @@ describe("start_mcp_gateway custom environment arguments", () => {
     ).toThrow(/valid environment variable names/);
   });
 
-  it.each([[`${customGatewayEnvTransportPrefix}0`], [customGatewayEnvNamesVar]])("rejects the reserved transport name %s", reservedName => {
+  it.each([[`${customGatewayEnvTransportPrefix}0`], [customGatewayEnvNamesVar], [`${customGatewayReservedEnvPrefix}FOO`]])("rejects the reserved name %s", reservedName => {
     expect(() =>
       injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
         [customGatewayEnvNamesVar]: JSON.stringify([reservedName]),
