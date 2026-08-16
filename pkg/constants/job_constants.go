@@ -55,11 +55,6 @@ func (m MCPServerID) String() string {
 	return string(m)
 }
 
-// IsValid returns true if the MCP server ID is non-empty
-func (m MCPServerID) IsValid() bool {
-	return m != ""
-}
-
 // Job name constants for GitHub Actions workflow jobs
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
