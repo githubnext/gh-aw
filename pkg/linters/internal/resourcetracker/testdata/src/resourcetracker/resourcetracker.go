@@ -34,6 +34,18 @@ func ReleaseResultAssigned() {
 	_ = err
 }
 
+func ConditionalAcquisition(ok bool) {
+	if ok {
+		r := acquire() // want `resource should be released with defer`
+		r.Release()
+	}
+}
+
+func EarlyReturn() *resource {
+	r := acquire()
+	return r
+}
+
 func ClosureBodyNotTracked() {
 	r := acquire()
 	defer r.Release()

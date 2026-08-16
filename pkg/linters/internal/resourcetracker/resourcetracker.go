@@ -50,7 +50,7 @@ type Config[K comparable] struct {
 }
 
 // NewAnalyzer builds an analysis pass implementing the deferred-cleanup check
-// described by cfg.
+// described by cfg. cfg must not be modified after NewAnalyzer returns.
 func NewAnalyzer[K comparable](cfg Config[K]) *analysis.Analyzer {
 	return analyzerutil.New(cfg.Name, cfg.Doc, cfg.run)
 }
