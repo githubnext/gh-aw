@@ -5,6 +5,7 @@ package cli
 import (
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow"
@@ -130,7 +131,9 @@ func TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos(t *testing.T) {
 	rendered := formatGuardPolicyDryRunReport(report)
 	assert.Contains(t, rendered, "lockdown: true")
 	assert.Contains(t, rendered, "allowed-repos: all")
-	assert.NotContains(t, rendered, "\n  repos:")
+	for line := range strings.SplitSeq(rendered, "\n") {
+		assert.NotEqual(t, "repos:", strings.TrimSpace(line))
+	}
 }
 
 // TestPrintGuardPolicyDryRunReport_OnlyWhenStrict verifies that the dry-run
