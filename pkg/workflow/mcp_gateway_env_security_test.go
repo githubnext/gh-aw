@@ -141,9 +141,10 @@ func TestMCPGatewayCustomEnvCommandContract(t *testing.T) {
 	}
 
 	command := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOptions{
-		engine:        NewCopilotEngine(),
-		workflowData:  workflowData,
-		gatewayConfig: gatewayConfig,
+		engine:                NewCopilotEngine(),
+		workflowData:          workflowData,
+		gatewayConfig:         gatewayConfig,
+		customGatewayEnvNames: sanitizedGatewayEnvNames(gatewayConfig.Env),
 	})
 
 	markerIndex := strings.Index(command, mcpGatewayCustomEnvMarker)
@@ -187,20 +188,32 @@ func TestMCPGatewayCustomEnvNamesAreFilteredAtEmissionBoundary(t *testing.T) {
 func TestMCPGatewayCustomEnvMarkerOmittedWhenAllNamesFiltered(t *testing.T) {
 	gatewayEnv := map[string]string{"BAD-NAME": "shell-unsafe"}
 
-	var yaml strings.Builder
-	writeMCPGatewayStepEnv(&yaml, nil, nil, gatewayEnv)
-	assert.Empty(t, yaml.String())
-
 	var containerCommand strings.Builder
 	appendMCPGatewayCustomAndHTTPEnvFlags(
 		&containerCommand,
 		&WorkflowData{},
 		&MCPGatewayRuntimeConfig{Env: gatewayEnv},
-		nil,
+		map[string]string{"HTTP_MCP_TOKEN": "forwarded"},
 		false,
 		nil,
 		nil,
 		NewCopilotEngine(),
 	)
-	assert.Empty(t, containerCommand.String())
+	assert.NotContains(t, containerCommand.String(), mcpGatewayCustomEnvMarker)
+}
+
+func TestMCPGatewayFilteredCustomEnvDoesNotSuppressHTTPMCPEnvForwarding(t *testing.T) {
+	var containerCommand strings.Builder
+	appendMCPGatewayCustomAndHTTPEnvFlags(
+		&containerCommand,
+		&WorkflowData{},
+		&MCPGatewayRuntimeConfig{Env: map[string]string{"GH_AW_MCP_GATEWAY_ENV_0": "filtered"}},
+		map[string]string{"GH_AW_MCP_GATEWAY_ENV_0": "forwarded"},
+		false,
+		nil,
+		nil,
+		NewCopilotEngine(),
+	)
+
+	assert.Equal(t, " -e GH_AW_MCP_GATEWAY_ENV_0", containerCommand.String())
 }

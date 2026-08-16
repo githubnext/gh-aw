@@ -1106,6 +1106,8 @@ if (require.main === module) {
 
 module.exports = {
   applyOTLPIgnoreIfMissing,
+  customGatewayEnvNamesVar,
+  customGatewayEnvTransportPrefix,
   detectEngineType,
   extractOptionalServerNames,
   getOTLPIfMissingMode,
