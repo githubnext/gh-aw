@@ -1,5 +1,7 @@
 //go:build !integration
 
+// Package syncutil tests validate that OnceLoader permits concurrent Get calls
+// while invoking its loader at most once.
 package syncutil
 
 import (
@@ -8,6 +10,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOnceLoaderGetCachesSuccess(t *testing.T) {
@@ -22,15 +27,11 @@ func TestOnceLoaderGetCachesSuccess(t *testing.T) {
 	got1, err1 := loader.Get(load)
 	got2, err2 := loader.Get(load)
 
-	if err1 != nil || err2 != nil {
-		t.Fatalf("expected nil errors, got err1=%v err2=%v", err1, err2)
-	}
-	if got1 != "ok" || got2 != "ok" {
-		t.Fatalf("expected cached value 'ok', got %q and %q", got1, got2)
-	}
-	if calls.Load() != 1 {
-		t.Fatalf("expected loader to be called once, got %d", calls.Load())
-	}
+	require.NoError(t, err1)
+	require.NoError(t, err2)
+	assert.Equal(t, "ok", got1)
+	assert.Equal(t, "ok", got2)
+	assert.Equal(t, int32(1), calls.Load())
 }
 
 func TestOnceLoaderGetCachesError(t *testing.T) {
@@ -46,15 +47,11 @@ func TestOnceLoaderGetCachesError(t *testing.T) {
 	got1, err1 := loader.Get(load)
 	got2, err2 := loader.Get(load)
 
-	if got1 != "" || got2 != "" {
-		t.Fatalf("expected empty cached values, got %q and %q", got1, got2)
-	}
-	if !errors.Is(err1, expectedErr) || !errors.Is(err2, expectedErr) {
-		t.Fatalf("expected cached errors to wrap %v, got err1=%v err2=%v", expectedErr, err1, err2)
-	}
-	if calls.Load() != 1 {
-		t.Fatalf("expected loader to be called once, got %d", calls.Load())
-	}
+	assert.Empty(t, got1)
+	assert.Empty(t, got2)
+	require.ErrorIs(t, err1, expectedErr)
+	require.ErrorIs(t, err2, expectedErr)
+	assert.Equal(t, int32(1), calls.Load())
 }
 
 func TestOnceLoaderGetConcurrentSingleInvoke(t *testing.T) {
@@ -73,89 +70,123 @@ func TestOnceLoaderGetConcurrentSingleInvoke(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			got, err := loader.Get(load)
-			if err != nil {
-				t.Errorf("expected nil error, got %v", err)
-				return
-			}
-			if got != "value" {
-				t.Errorf("expected value, got %q", got)
-			}
+			assert.NoError(t, err)
+			assert.Equal(t, "value", got)
 		}()
 	}
 	wg.Wait()
 
-	if calls.Load() != 1 {
-		t.Fatalf("expected loader to be called once under concurrency, got %d", calls.Load())
-	}
+	assert.Equal(t, int32(1), calls.Load())
 }
 
 func TestOnceLoaderOverride(t *testing.T) {
-	var loader OnceLoader[string]
-	var calls atomic.Int32
-
-	load := func() (string, error) {
-		calls.Add(1)
-		return "from-loader", nil
+	overrideErr := errors.New("override-err")
+	tests := []struct {
+		name    string
+		value   string
+		err     error
+		wantErr error
+	}{
+		{name: "value", value: "forced"},
+		{name: "error", err: overrideErr, wantErr: overrideErr},
 	}
 
-	loader.Override("forced", nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var loader OnceLoader[string]
+			var calls atomic.Int32
 
-	got, err := loader.Get(load)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != "forced" {
-		t.Fatalf("expected overridden value 'forced', got %q", got)
-	}
-	if calls.Load() != 0 {
-		t.Fatalf("expected loader never to be called after Override, got %d calls", calls.Load())
-	}
-}
+			loader.Override(tt.value, tt.err)
 
-func TestOnceLoaderOverrideError(t *testing.T) {
-	var loader OnceLoader[string]
-	expected := errors.New("override-err")
+			got, err := loader.Get(func() (string, error) {
+				calls.Add(1)
+				return "should-not-run", nil
+			})
 
-	loader.Override("", expected)
-
-	got, err := loader.Get(func() (string, error) {
-		return "should-not-run", nil
-	})
-	if !errors.Is(err, expected) {
-		t.Fatalf("expected overridden error %v, got %v", expected, err)
-	}
-	if got != "" {
-		t.Fatalf("expected empty string, got %q", got)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.value, got)
+			assert.Equal(t, int32(0), calls.Load())
+		})
 	}
 }
 
 func TestOnceLoaderReset(t *testing.T) {
-	var loader OnceLoader[string]
-	var calls atomic.Int32
+	t.Run("after successful load", func(t *testing.T) {
+		var loader OnceLoader[string]
+		var calls atomic.Int32
 
-	load := func() (string, error) {
-		call := calls.Add(1)
-		return "value-" + strconv.Itoa(int(call)), nil
-	}
+		load := func() (string, error) {
+			call := calls.Add(1)
+			return "value-" + strconv.Itoa(int(call)), nil
+		}
 
-	got1, err1 := loader.Get(load)
-	if err1 != nil {
-		t.Fatalf("unexpected error on first Get: %v", err1)
-	}
-	if got1 != "value-1" {
-		t.Fatalf("expected first value %q, got %q", "value-1", got1)
-	}
+		got1, err1 := loader.Get(load)
+		require.NoError(t, err1)
+		assert.Equal(t, "value-1", got1)
 
-	loader.Reset()
+		loader.Reset()
 
-	got2, err2 := loader.Get(load)
-	if err2 != nil {
-		t.Fatalf("unexpected error on Get after Reset: %v", err2)
-	}
-	if got2 != "value-2" {
-		t.Fatalf("expected value after Reset %q, got %q", "value-2", got2)
-	}
-	if calls.Load() != 2 {
-		t.Fatalf("expected loader to be called twice across Reset, got %d", calls.Load())
-	}
+		got2, err2 := loader.Get(load)
+		require.NoError(t, err2)
+		assert.Equal(t, "value-2", got2)
+		assert.Equal(t, int32(2), calls.Load())
+	})
+
+	t.Run("after cached error", func(t *testing.T) {
+		var loader OnceLoader[string]
+		var calls atomic.Int32
+		expectedErr := errors.New("boom")
+
+		got, err := loader.Get(func() (string, error) {
+			calls.Add(1)
+			return "", expectedErr
+		})
+		assert.Empty(t, got)
+		require.ErrorIs(t, err, expectedErr)
+
+		loader.Reset()
+
+		got, err = loader.Get(func() (string, error) {
+			calls.Add(1)
+			return "recovered", nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "recovered", got)
+		assert.Equal(t, int32(2), calls.Load())
+	})
+
+	t.Run("after override", func(t *testing.T) {
+		var loader OnceLoader[string]
+		var calls atomic.Int32
+		loader.Override("forced", nil)
+
+		loader.Reset()
+
+		got, err := loader.Get(func() (string, error) {
+			calls.Add(1)
+			return "loaded", nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "loaded", got)
+		assert.Equal(t, int32(1), calls.Load())
+	})
+
+	t.Run("on zero-value loader", func(t *testing.T) {
+		var loader OnceLoader[string]
+		var calls atomic.Int32
+
+		loader.Reset()
+
+		got, err := loader.Get(func() (string, error) {
+			calls.Add(1)
+			return "loaded", nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "loaded", got)
+		assert.Equal(t, int32(1), calls.Load())
+	})
 }

@@ -20,7 +20,7 @@ scenarios:
     description: "Exact pattern 'github/gh-aw' allows request for repository 'github/gh-aw'"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"
@@ -41,7 +41,7 @@ scenarios:
     description: "Exact pattern 'github/gh-aw' denies request for repository 'github/other-repo'"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "github/gh-aw"
         roles:
           - "write"

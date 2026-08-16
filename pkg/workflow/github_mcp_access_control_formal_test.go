@@ -409,6 +409,7 @@ type fixtureInput struct {
 }
 
 type fixtureToolConfig struct {
+	AllowedRepos []string `yaml:"allowed-repos"`
 	Repos        []string `yaml:"repos"`
 	Roles        []string `yaml:"roles"`
 	PrivateRepos *bool    `yaml:"private-repos"`
@@ -458,8 +459,13 @@ func TestFormal_FixtureRunner(t *testing.T) {
 		for _, sc := range ff.Scenarios {
 			totalScenarios++
 			t.Run(sc.ScenarioID, func(t *testing.T) {
+				// 'repos' is a deprecated alias for 'allowed-repos' in fixtures.
+				repos := sc.Input.ToolConfig.AllowedRepos
+				if repos == nil {
+					repos = sc.Input.ToolConfig.Repos
+				}
 				cfg := formalToolConfig{
-					Repos:        sc.Input.ToolConfig.Repos,
+					Repos:        repos,
 					Roles:        sc.Input.ToolConfig.Roles,
 					PrivateRepos: sc.Input.ToolConfig.PrivateRepos,
 					AllowedTools: sc.Input.ToolConfig.AllowedTools,

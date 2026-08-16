@@ -21,7 +21,7 @@ scenarios:
     description: "User with 'write' role is allowed when roles: [write, admin]"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         roles:
           - "write"
@@ -41,7 +41,7 @@ scenarios:
     description: "User with 'read' role is denied when roles: [write, admin]"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         roles:
           - "write"
@@ -61,7 +61,7 @@ scenarios:
     description: "User with no role (outside collaborator) is denied when any roles restriction is set"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         roles:
           - "triage"

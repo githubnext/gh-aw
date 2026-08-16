@@ -1,26 +1,26 @@
-# Empty Repos Block — Compliance Fixture
+# Empty Allowed-Repos Block — Compliance Fixture
 # Tests: T-GH-015, T-GH-016
 # Spec: §5 Repository Scoping, §5.3 Empty or Absent Repository List
 
 fixture_id: "empty-repos-block"
 description: >
-  When the `repos` field is absent (omitted), all accessible repositories are allowed (§4.4.1).
-  When the `repos` field is present but empty (`repos: []`), it is rejected at compile time as
+  When the repository scope field is absent (omitted), all accessible repositories are allowed (§4.4.1).
+  When the `allowed-repos` field is present but empty (`allowed-repos: []`), it is rejected at compile time as
   an invalid configuration; at runtime the formal model treats it as a no-match, denying access
   to every repository (T-GH-016).
 
 spec_refs:
-  - "§4.4.1 — Absent repos field allows all accessible repositories"
-  - "§5.3 — Empty repos array is a compile-time validation error; runtime treats as no-match"
-  - "§5.3 — T-GH-016: empty repos list results in deny at runtime"
+  - "§4.4.1 — Absent repository scope field allows all accessible repositories"
+  - "§5.3 — Empty allowed-repos array is a compile-time validation error; runtime treats as no-match"
+  - "§5.3 — T-GH-016: empty allowed-repos list results in deny at runtime"
 
 scenarios:
-  # --- Scenario A: absent repos field allows all repositories ---
+  # --- Scenario A: absent repository scope field allows all repositories ---
   - scenario_id: "empty-repos-block-A"
-    description: "Tool config with no repos field allows request for any repository"
+    description: "Tool config with no repository scope field allows request for any repository"
     input:
       tool_config:
-        # repos field is intentionally absent — all accessible repos are allowed
+        # repository scope field is intentionally absent — all accessible repos are allowed
         min-integrity: "unapproved"
       request:
         repository: "github/gh-aw"
@@ -30,12 +30,12 @@ scenarios:
       error_code: null
       reason: ""
 
-  # --- Scenario B: empty repos list denies all repositories ---
+  # --- Scenario B: empty allowed-repos list denies all repositories ---
   - scenario_id: "empty-repos-block-B"
-    description: "Tool config with an empty repos: [] denies request for any repository (invalid config; runtime no-match)"
+    description: "Tool config with an empty allowed-repos: [] denies request for any repository (invalid config; runtime no-match)"
     input:
       tool_config:
-        repos: []
+        allowed-repos: []
         min-integrity: "unapproved"
       request:
         repository: "github/gh-aw"

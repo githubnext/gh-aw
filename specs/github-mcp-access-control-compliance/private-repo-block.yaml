@@ -23,7 +23,7 @@ scenarios:
     description: "private-repos: true allows request for a private repository"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "myorg/*"
         private-repos: true
         min-integrity: "none"
@@ -41,7 +41,7 @@ scenarios:
     description: "private-repos: false denies request for a private repository"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "myorg/*"
         private-repos: false
         min-integrity: "none"
@@ -59,7 +59,7 @@ scenarios:
     description: "private-repos: false does not block access to a public repository"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "myorg/*"
         private-repos: false
         min-integrity: "none"

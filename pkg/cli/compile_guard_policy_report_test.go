@@ -5,6 +5,7 @@ package cli
 import (
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow"
@@ -107,9 +108,33 @@ func TestBuildGuardPolicyDryRunReport_Lockdown(t *testing.T) {
 	report := buildGuardPolicyDryRunReport("test-workflow.md", github)
 	require.NotNil(t, report)
 	assert.True(t, report.Lockdown)
+	assert.Equal(t, "all", report.PermittedRepos)
 
 	rendered := formatGuardPolicyDryRunReport(report)
 	assert.Contains(t, rendered, "lockdown: true")
+}
+
+// TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos verifies that the
+// lockdown indicator is also surfaced for the deprecated repos alias.
+func TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos(t *testing.T) {
+	github := &workflow.GitHubToolConfig{
+		Lockdown:     true,
+		Repos:        "all",
+		MinIntegrity: workflow.GitHubIntegrityApproved,
+	}
+
+	report := buildGuardPolicyDryRunReport("test-workflow.md", github)
+	require.NotNil(t, report)
+	assert.True(t, report.Lockdown)
+	assert.Equal(t, "all", report.PermittedRepos)
+
+	rendered := formatGuardPolicyDryRunReport(report)
+	assert.Contains(t, rendered, "lockdown: true")
+	assert.Contains(t, rendered, "allowed-repos: all")
+	for line := range strings.SplitSeq(rendered, "\n") {
+		assert.False(t, strings.HasPrefix(strings.TrimSpace(line), "repos:"),
+			"rendered output should not contain deprecated 'repos:' key: %q", line)
+	}
 }
 
 // TestPrintGuardPolicyDryRunReport_OnlyWhenStrict verifies that the dry-run
