@@ -784,7 +784,7 @@ imports:
 		if strings.Contains(lockContent, "github.aw.import-inputs.expires") {
 			t.Error("Lock file should not contain unresolved github.aw.import-inputs.expires expression")
 		}
-		if !strings.Contains(lockContent, `"expires":72`) {
+		if !strings.Contains(lockContent, `\"expires\":72`) {
 			t.Errorf("Lock file should contain expires:72 (3d = 72h) from the schema default; got:\n%s", lockContent)
 		}
 	})
