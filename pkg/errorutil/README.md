@@ -15,8 +15,8 @@ This package currently exposes focused helpers for identifying common error cate
 | `IsNotFoundError` | `func(err error) bool` | Returns `true` when `err` indicates a "not found" condition by matching case-insensitive `404` or `not found` text; returns `false` for `nil` and non-matching errors |
 | `IsForbiddenError` | `func(err error) bool` | Returns `true` when `err` indicates an HTTP-style `403`/"forbidden" response by matching case-insensitive patterns like `HTTP 403` or `403 Forbidden`; returns `false` for `nil` and non-matching errors |
 | `IsGoneError` | `func(err error) bool` | Returns `true` when `err` indicates an HTTP-style `410`/"gone" response by matching case-insensitive patterns like `HTTP 410` or `410 Gone`; returns `false` for `nil` and non-matching errors |
-| `IsRateLimitError` | `func(output string) bool` | Returns `true` when `output` indicates GitHub API rate limiting by matching case-insensitive `api rate limit exceeded`, `rate limit exceeded`, or `secondary rate limit` text |
-| `IsAuthError` | `func(output string) bool` | Returns `true` when `output` indicates authentication or authorization failures by matching case-insensitive markers including `GH_TOKEN`, `GITHUB_TOKEN`, `authentication`, `not logged into`, `unauthorized`, `forbidden`, `permission denied`, or `SAML enforcement` |
+| `IsRateLimitError` | `func(output string) bool` | Returns `true` when `output` indicates GitHub API rate limiting by matching case-insensitive `rate limit exceeded` or `secondary rate limit` text |
+| `IsAuthError` | `func(output string) bool` | Returns `true` when `output` indicates authentication or authorization failures by matching case-insensitive credential-specific markers including `GH_TOKEN`, `GITHUB_TOKEN`, `authentication`, `not logged into`, `unauthorized`, `permission denied`, or `SAML enforcement` |
 
 ## Usage Examples
 

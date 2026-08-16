@@ -150,7 +150,7 @@ func TestIsAuthError(t *testing.T) {
 		{name: "authentication", output: "authentication required", want: true},
 		{name: "not logged into", output: "not logged into any GitHub hosts", want: true},
 		{name: "unauthorized", output: "HTTP 401: Unauthorized", want: true},
-		{name: "forbidden", output: "HTTP 403: Forbidden", want: true},
+		{name: "forbidden is not inherently an auth failure", output: "HTTP 403: Forbidden", want: false},
 		{name: "permission denied", output: "permission denied: insufficient scope", want: true},
 		{name: "saml enforcement", output: "Resource protected by organization SAML enforcement", want: true},
 		{name: "non-auth error", output: "API rate limit exceeded for installation", want: false},

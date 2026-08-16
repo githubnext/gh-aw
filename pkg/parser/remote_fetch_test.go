@@ -65,6 +65,18 @@ func TestBuildCommitLookupAPIPath(t *testing.T) {
 	})
 }
 
+func TestResolveRefToSHAAcceptsUppercaseFullSHA(t *testing.T) {
+	const ref = "EA222E359276C0702A5F5203547FF9D88D0DDD76"
+
+	sha, err := resolveRefToSHA(context.Background(), "owner", "repo", ref, "github.com")
+	if err != nil {
+		t.Fatalf("resolveRefToSHA() error = %v", err)
+	}
+	if sha != ref {
+		t.Fatalf("resolveRefToSHA() = %q, want %q", sha, ref)
+	}
+}
+
 func TestBuildContentsAPIPath(t *testing.T) {
 	t.Run("escapes refs with reserved query chars", func(t *testing.T) {
 		got := buildContentsAPIPath("owner", "repo", ".github/workflows/demo.md", "release+candidate#1")

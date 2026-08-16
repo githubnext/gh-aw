@@ -68,7 +68,7 @@ func IsRateLimitError(output string) bool {
 		"secondary rate limit",
 	)
 	if matched {
-		errorutilLog.Printf("Classified output as rate-limit related: %s", output)
+		errorutilLog.Printf("Classified output as rate-limit related (len=%d)", len(output))
 	}
 	return matched
 }
@@ -82,12 +82,11 @@ func IsAuthError(output string) bool {
 		"authentication",
 		"not logged into",
 		"unauthorized",
-		"forbidden",
 		"permission denied",
 		"saml enforcement",
 	)
 	if matched {
-		errorutilLog.Printf("Classified output as auth-related: %s", output)
+		errorutilLog.Printf("Classified output as auth-related (len=%d)", len(output))
 	}
 	return matched
 }

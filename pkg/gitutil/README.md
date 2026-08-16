@@ -24,6 +24,7 @@ The `gitutil` package contains helpers for:
 |----------|-----------|-------------|
 | `IsHexString` | `func(s string) bool` | Returns `true` if `s` consists entirely of hexadecimal characters (`0–9`, `a–f`, `A–F`); returns `false` for the empty string |
 | `IsValidFullSHA` | `func(s string) bool` | Returns `true` if `s` is a valid 40-character lowercase hexadecimal SHA (matches `^[0-9a-f]{40}$`) |
+| `IsValidFullSHACaseInsensitive` | `func(s string) bool` | Returns `true` if `s` is a valid 40-character hexadecimal SHA with either uppercase or lowercase letters |
 | `ValidateGitRef` | `func(ref string) error` | Returns an error if `ref` would be unsafe to pass as a positional argument to a `git` subprocess: rejects empty refs, refs starting with `-` (argument injection, CWE-88), refs containing NUL bytes, and refs containing `..` (object traversal expressions) |
 | `ValidateGitPath` | `func(path string) error` | Returns an error if `path` would be unsafe to pass as a positional argument to a `git` subprocess: rejects empty paths, paths starting with `-` (argument injection, CWE-88), absolute paths, and paths that resolve (after `path.Clean`) to `..` or contain a leading `../` traversal segment |
 | `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
@@ -37,6 +38,7 @@ The `gitutil` package contains helpers for:
 
 - `IsHexString` MUST return `false` for the empty string.
 - `IsValidFullSHA` MUST require exactly 40 lowercase hexadecimal characters; mixed-case or shorter strings MUST return `false`.
+- `IsValidFullSHACaseInsensitive` MUST require exactly 40 hexadecimal characters and accept uppercase and lowercase letters.
 - `ValidateGitRef` MUST return an error for an empty ref, a ref starting with `-`, a ref containing a NUL byte, or a ref containing `..`.
 - `ValidateGitPath` MUST return an error for an empty path, a path starting with `-`, an absolute path, or a path that is `..` or starts with `../` after `path.Clean`.
 - `FindGitRoot` and `FindGitRootFrom` MUST return `ErrNotGitRepository` (not a wrapped error) when the filesystem root is reached without finding a `.git` entry.

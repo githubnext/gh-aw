@@ -164,6 +164,27 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 	}
 }
 
+// TestSpec_PublicAPI_IsValidFullSHACaseInsensitive validates the documented
+// behavior of IsValidFullSHACaseInsensitive as described in the package README.md.
+func TestSpec_PublicAPI_IsValidFullSHACaseInsensitive(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{name: "40-character lowercase hex returns true", input: "da39a3ee5e6b4b0d3255bfef95601890afd80709", expected: true},
+		{name: "40-character uppercase hex returns true", input: "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709", expected: true},
+		{name: "39 characters returns false", input: "da39a3ee5e6b4b0d3255bfef95601890afd807", expected: false},
+		{name: "non-hex character returns false", input: "za39a3ee5e6b4b0d3255bfef95601890afd80709", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, gitutil.IsValidFullSHACaseInsensitive(tt.input))
+		})
+	}
+}
+
 // TestSpec_PublicAPI_FindGitRoot validates the documented behavior of
 // FindGitRoot as described in the package README.md.
 //

@@ -241,11 +241,11 @@ func StepsToSlice(steps []*WorkflowStep) []any {
 // serialization stay aligned. Scalar values (int, bool, float64, etc.)
 // fall back to fmt.Sprint.
 func marshalEnvValue(v any) string {
-	if s, ok := importinpututil.FormatResolvedValue(v); ok {
-		return s
-	}
 	if v == nil {
 		return ""
+	}
+	if s, ok := importinpututil.FormatResolvedValue(v); ok {
+		return s
 	}
 	return fmt.Sprint(v)
 }

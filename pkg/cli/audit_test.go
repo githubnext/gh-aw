@@ -106,6 +106,11 @@ func TestIsPermissionErrorStr(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "GitHub CLI authentication marker",
+			s:        "GitHub CLI authentication token is missing",
+			expected: true,
+		},
+		{
 			name:     "Empty string",
 			s:        "",
 			expected: false,

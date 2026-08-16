@@ -130,7 +130,7 @@ func downloadWorkflowContentViaGitClone(ctx context.Context, repo, path, ref str
 	}
 
 	// Check if ref is a SHA (40 hex characters)
-	isSHA := gitutil.IsValidFullSHA(ref)
+	isSHA := gitutil.IsValidFullSHACaseInsensitive(ref)
 	downloadLog.Printf("Fetching ref via sparse checkout: is_sha=%t", isSHA)
 
 	if isSHA {

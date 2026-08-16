@@ -399,7 +399,7 @@ func downloadFileViaGitClone(ctx context.Context, owner, repo, path, ref, host s
 	defer os.RemoveAll(tmpDir)
 
 	repoURL := getRepoGitURL(owner, repo, host)
-	if gitutil.IsValidFullSHA(ref) {
+	if gitutil.IsValidFullSHACaseInsensitive(ref) {
 		if err := cloneAndCheckoutSHA(ctx, repoURL, tmpDir, ref); err != nil {
 			return nil, err
 		}

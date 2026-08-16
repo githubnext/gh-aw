@@ -41,6 +41,11 @@ func IsValidFullSHA(s string) bool {
 	return fullSHARegex.MatchString(s)
 }
 
+// IsValidFullSHACaseInsensitive checks if s is a valid 40-character hexadecimal SHA.
+func IsValidFullSHACaseInsensitive(s string) bool {
+	return len(s) == 40 && IsHexString(s)
+}
+
 // ValidateGitRef returns an error if ref would be unsafe to pass as a positional
 // argument to a git subprocess. A ref starting with '-' would be parsed as an
 // option flag rather than a value (argument injection, CWE-88). Refs containing

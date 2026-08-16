@@ -76,7 +76,7 @@ func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (
 	sha := parts[0]
 
 	// Validate it's a valid SHA
-	if !gitutil.IsValidFullSHA(sha) {
+	if !gitutil.IsValidFullSHACaseInsensitive(sha) {
 		return "", fmt.Errorf("invalid SHA format from git ls-remote: %s", sha)
 	}
 
@@ -87,7 +87,7 @@ func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (
 // resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
 func resolveRefToSHA(ctx context.Context, owner, repo, ref, host string) (string, error) {
 	// If ref is already a full SHA (40 hex characters), return it as-is
-	if gitutil.IsValidFullSHA(ref) {
+	if gitutil.IsValidFullSHACaseInsensitive(ref) {
 		return ref, nil
 	}
 
@@ -153,7 +153,7 @@ func resolveRefToSHAWithFallbacks(
 	}
 
 	// Validate it's a valid SHA (40 hex characters)
-	if !gitutil.IsValidFullSHA(sha) {
+	if !gitutil.IsValidFullSHACaseInsensitive(sha) {
 		return "", fmt.Errorf("invalid SHA format returned: %s", sha)
 	}
 
@@ -205,7 +205,7 @@ func resolveRefToSHAViaPublicAPI(ctx context.Context, owner, repo, ref string) (
 	if err := json.Unmarshal(body, &result); err != nil {
 		return "", fmt.Errorf("failed to parse commit response: %w", err)
 	}
-	if !gitutil.IsValidFullSHA(result.SHA) {
+	if !gitutil.IsValidFullSHACaseInsensitive(result.SHA) {
 		return "", fmt.Errorf("invalid SHA returned from public API: %q", result.SHA)
 	}
 	return result.SHA, nil

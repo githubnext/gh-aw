@@ -184,7 +184,7 @@ func ParseTagRefTSV(line string) (sha, objType string, err error) {
 	}
 	sha = parts[0]
 	objType = parts[1]
-	if !gitutil.IsValidFullSHA(sha) {
+	if !gitutil.IsValidFullSHACaseInsensitive(sha) {
 		return "", "", fmt.Errorf("invalid SHA format: expected 40 hex characters, got %d (%s)", len(sha), sha)
 	}
 	return sha, objType, nil

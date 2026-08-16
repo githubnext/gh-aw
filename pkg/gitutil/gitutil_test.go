@@ -119,6 +119,25 @@ func TestIsValidFullSHA(t *testing.T) {
 	}
 }
 
+func TestIsValidFullSHACaseInsensitive(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{name: "valid lowercase full SHA", input: "abcdef0123456789abcdef0123456789abcdef01", expected: true},
+		{name: "valid uppercase full SHA", input: "ABCDEF0123456789ABCDEF0123456789ABCDEF01", expected: true},
+		{name: "invalid short SHA", input: "abcdef0", expected: false},
+		{name: "invalid non-hex character", input: "abcdef0123456789abcdef0123456789abcdef0g", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IsValidFullSHACaseInsensitive(tt.input))
+		})
+	}
+}
+
 func TestIsGitObjectID(t *testing.T) {
 	tests := []struct {
 		name     string
