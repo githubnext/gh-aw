@@ -14,6 +14,7 @@ on:
   reaction: "rocket"
   status-comment: true
 permissions:
+  copilot-requests: write
   contents: read
   issues: read
   pull-requests: read

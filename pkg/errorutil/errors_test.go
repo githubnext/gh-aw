@@ -118,3 +118,47 @@ func TestIsGoneError(t *testing.T) {
 		})
 	}
 }
+
+func TestIsRateLimitError(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{name: "api rate limit exceeded", output: "API rate limit exceeded", want: true},
+		{name: "rate limit exceeded", output: "rate limit exceeded", want: true},
+		{name: "secondary rate limit", output: "secondary rate limit triggered", want: true},
+		{name: "case-insensitive", output: "API RATE LIMIT EXCEEDED", want: true},
+		{name: "non-rate-limit error", output: "HTTP 404: Not Found", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, errorutil.IsRateLimitError(tt.output))
+		})
+	}
+}
+
+func TestIsAuthError(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{name: "gh_token", output: "GH_TOKEN is not set", want: true},
+		{name: "github_token", output: "GITHUB_TOKEN is invalid", want: true},
+		{name: "authentication", output: "authentication required", want: true},
+		{name: "not logged into", output: "not logged into any GitHub hosts", want: true},
+		{name: "unauthorized", output: "HTTP 401: Unauthorized", want: true},
+		{name: "forbidden is not inherently an auth failure", output: "HTTP 403: Forbidden", want: false},
+		{name: "permission denied", output: "permission denied: insufficient scope", want: true},
+		{name: "saml enforcement", output: "Resource protected by organization SAML enforcement", want: true},
+		{name: "non-auth error", output: "API rate limit exceeded for installation", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, errorutil.IsAuthError(tt.output))
+		})
+	}
+}

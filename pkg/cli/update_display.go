@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -68,11 +68,11 @@ func groupUpdateFailures(failures []updateFailure) []updateFailureGroup {
 
 func compactUpdateFailureReason(message string) string {
 	switch {
-	case gitutil.IsAuthError(message) && gitutil.IsRateLimitError(message):
+	case errorutil.IsAuthError(message) && errorutil.IsRateLimitError(message):
 		return "SAML-restricted authenticated access; anonymous GitHub API fallback is rate-limited"
-	case gitutil.IsAuthError(message):
+	case errorutil.IsAuthError(message):
 		return "GitHub API access is restricted by authentication or SAML"
-	case gitutil.IsRateLimitError(message):
+	case errorutil.IsRateLimitError(message):
 		return "GitHub API rate limit exceeded"
 	}
 

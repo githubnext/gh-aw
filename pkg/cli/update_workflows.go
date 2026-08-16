@@ -14,10 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/github/gh-aw/pkg/constants"
-
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -187,7 +186,7 @@ func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
 // (non-fatal) from genuine update failures (fatal).
 func allFailuresAreRateLimited(failures []updateFailure) bool {
 	for _, f := range failures {
-		if !gitutil.IsRateLimitError(f.Error) {
+		if !errorutil.IsRateLimitError(f.Error) {
 			return false
 		}
 	}
@@ -472,7 +471,7 @@ func fetchPublicReleaseTagsPaginated(ctx context.Context, repo string) ([]string
 // getRepoDefaultBranch fetches the default branch name for a repository.
 func getRepoDefaultBranch(ctx context.Context, repo string) (string, error) {
 	output, err := workflow.RunGHContext(ctx, "Fetching repo info...", "api", "/repos/"+repo, "--jq", ".default_branch")
-	if err != nil && gitutil.IsAuthError(err.Error()) {
+	if err != nil && errorutil.IsAuthError(err.Error()) {
 		updateLog.Printf("GitHub API auth failed for %s, retrying without token", repo)
 		body, fallbackErr := fetchPublicGitHubAPI(ctx, "/repos/"+repo)
 		if fallbackErr != nil {
@@ -506,7 +505,7 @@ func getLatestBranchCommitInfo(ctx context.Context, repo, branch string) (latest
 	// URL-encode the branch name since it may contain slashes (e.g. "feature/foo")
 	endpoint := fmt.Sprintf("/repos/%s/commits/%s", repo, url.PathEscape(branch))
 	output, err := workflow.RunGHContext(ctx, "Fetching commit info...", "api", endpoint)
-	if err != nil && gitutil.IsAuthError(err.Error()) {
+	if err != nil && errorutil.IsAuthError(err.Error()) {
 		updateLog.Printf("GitHub API auth failed for branch %s of %s, retrying without token", branch, repo)
 		body, fallbackErr := fetchPublicGitHubAPI(ctx, endpoint)
 		if fallbackErr != nil {
@@ -564,7 +563,7 @@ func defaultWorkflowUpdateDeps() workflowUpdateDeps {
 		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
 			endpoint := fmt.Sprintf("/repos/%s/releases", repo)
 			output, err := workflow.RunGHContext(ctx, "Fetching releases...", "api", "--paginate", endpoint, "--jq", ".[].tag_name")
-			if err != nil && gitutil.IsAuthError(err.Error()) {
+			if err != nil && errorutil.IsAuthError(err.Error()) {
 				updateLog.Printf("GitHub API auth failed for releases of %s, retrying without token", repo)
 				tags, fallbackErr := fetchPublicReleaseTagsPaginated(ctx, repo)
 				if fallbackErr != nil {

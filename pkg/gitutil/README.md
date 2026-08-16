@@ -1,11 +1,10 @@
 # gitutil Package
 
-> Utility functions for Git repository operations and GitHub API error classification.
+> Utility functions for Git repository operations and SHA/ref validation.
 
 ## Overview
 
 The `gitutil` package contains helpers for:
-- Detecting rate-limit and authentication errors from GitHub API responses.
 - Validating hex strings (e.g. commit SHAs).
 - Extracting base repository slugs from action paths.
 - Finding the root directory of the current Git repository using pure Go filesystem traversal.
@@ -23,10 +22,9 @@ The `gitutil` package contains helpers for:
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `IsRateLimitError` | `func(errMsg string) bool` | Returns `true` when `errMsg` indicates a GitHub API rate-limit error (case-insensitive match against "api rate limit exceeded", "rate limit exceeded", or "secondary rate limit") |
-| `IsAuthError` | `func(errMsg string) bool` | Returns `true` when `errMsg` indicates an authentication or authorization failure (case-insensitive match against `GH_TOKEN`, `GITHUB_TOKEN`, `authentication`, `not logged into`, `unauthorized`, `forbidden`, `permission denied`, or `SAML enforcement`) |
 | `IsHexString` | `func(s string) bool` | Returns `true` if `s` consists entirely of hexadecimal characters (`0–9`, `a–f`, `A–F`); returns `false` for the empty string |
 | `IsValidFullSHA` | `func(s string) bool` | Returns `true` if `s` is a valid 40-character lowercase hexadecimal SHA (matches `^[0-9a-f]{40}$`) |
+| `IsValidFullSHACaseInsensitive` | `func(s string) bool` | Returns `true` if `s` is a valid 40-character hexadecimal SHA with either uppercase or lowercase letters |
 | `ValidateGitRef` | `func(ref string) error` | Returns an error if `ref` would be unsafe to pass as a positional argument to a `git` subprocess: rejects empty refs, refs starting with `-` (argument injection, CWE-88), refs containing NUL bytes, and refs containing `..` (object traversal expressions) |
 | `ValidateGitPath` | `func(path string) error` | Returns an error if `path` would be unsafe to pass as a positional argument to a `git` subprocess: rejects empty paths, paths starting with `-` (argument injection, CWE-88), absolute paths, and paths that resolve (after `path.Clean`) to `..` or contain a leading `../` traversal segment |
 | `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
@@ -38,10 +36,9 @@ The `gitutil` package contains helpers for:
 
 **Behavioral contracts**:
 
-- `IsRateLimitError` and `IsAuthError` MUST perform case-insensitive string matching.
-- `IsAuthError` MUST return `true` for messages containing any of: `gh_token`, `github_token`, `authentication`, `not logged into`, `unauthorized`, `forbidden`, `permission denied`, or `saml enforcement`.
 - `IsHexString` MUST return `false` for the empty string.
 - `IsValidFullSHA` MUST require exactly 40 lowercase hexadecimal characters; mixed-case or shorter strings MUST return `false`.
+- `IsValidFullSHACaseInsensitive` MUST require exactly 40 hexadecimal characters and accept uppercase and lowercase letters.
 - `ValidateGitRef` MUST return an error for an empty ref, a ref starting with `-`, a ref containing a NUL byte, or a ref containing `..`.
 - `ValidateGitPath` MUST return an error for an empty path, a path starting with `-`, an absolute path, or a path that is `..` or starts with `../` after `path.Clean`.
 - `FindGitRoot` and `FindGitRootFrom` MUST return `ErrNotGitRepository` (not a wrapped error) when the filesystem root is reached without finding a `.git` entry.
@@ -54,11 +51,6 @@ The `gitutil` package contains helpers for:
 
 ```go
 import "github.com/github/gh-aw/pkg/gitutil"
-
-// Check for rate-limit errors from GitHub API
-if gitutil.IsRateLimitError(err.Error()) {
-    // Back off and retry
-}
 
 // Validate a commit SHA
 if gitutil.IsValidFullSHA(commitSHA) {
@@ -95,7 +87,7 @@ content, err := gitutil.ReadFileFromHEAD(filepath.Join(root, "go.mod"), root)
 
 ## Thread Safety
 
-All exported functions are safe for concurrent use. The error-classification functions (`IsRateLimitError`, `IsAuthError`) and SHA-validation functions (`IsHexString`, `IsValidFullSHA`) are pure functions with no shared state. `FindGitRoot` and `FindGitRootFrom` read only the filesystem and the process working directory. `ReadFileFromHEAD` spawns a `git` subprocess per call with no shared state.
+All exported functions are safe for concurrent use. The SHA-validation functions (`IsHexString`, `IsValidFullSHA`) are pure functions with no shared state. `FindGitRoot` and `FindGitRootFrom` read only the filesystem and the process working directory. `ReadFileFromHEAD` spawns a `git` subprocess per call with no shared state.
 
 ## Dependencies
 
