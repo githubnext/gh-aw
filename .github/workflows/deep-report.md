@@ -3,9 +3,7 @@ private: true
 emoji: "🔬"
 description: Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions
 on:
-  schedule:
-    # ~3 PM UTC, weekdays only (scattered to avoid thundering herd)
-    - cron: "daily around 15:00 on weekdays"
+  schedule: every 6 hours
   workflow_dispatch:
 
 permissions:
@@ -198,6 +196,7 @@ Use the gh-aw `logs` tool to:
    - Firewall activity (if enabled)
 3. For any run flagged as risky due to an actuation posture change (for example `write_capable` → `read_only`), run `audit` and inspect failed job logs before drawing conclusions.
    - If checkout/setup fails first (for example git fetch/checkout 5xx, missing setup modules, or workspace prep errors), classify it as an infrastructure/preflight failure.
+   - Classify `Failed to resolve action download info` with `Service Unavailable` or `Internal Server Error` as a GitHub Actions infrastructure/preflight failure, even when it occurs in a post-agent job such as safe outputs or cache persistence.
    - Only describe a "silent partial-write" degradation when there is evidence the agent reached actuation and attempted write-capable behavior.
 
 **Success Rate Rollups — Exclude Intentional-Failure Workflows**: When computing fleet-wide or prod-main success rates, **exclude** runs where `intentional_failure` is `true`. These are credit-guardrail stress tests designed to fail; including them depresses the real-regression baseline. The `logs` tool marks them via `runs[].intentional_failure` and `summary.intentional_failure_runs`. Always report the adjusted rate alongside the raw rate, e.g. `"92.7% raw (94.2% excl. intentional failures)"`.
