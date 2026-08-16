@@ -95,6 +95,7 @@ func GetAllCodemods() []Codemod {
 		getRateLimitToUserRateLimitCodemod(),                       // Rename rate-limit to user-rate-limit with max key migration
 		getEffectiveTokensToAICreditsCodemod(),                     // Migrate obsolete effective-token budget keys to AI credits keys
 		getMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod(), // Migrate safe-outputs.messages ET suffix placeholders to AI credits suffix placeholders
+		getSerenaMCPContainerLocationCodemod(),                    // Update legacy Serena MCP image and entrypoint to the project-maintained location
 		getSerenaToSharedImportCodemod(),                           // Migrate removed tools.serena to shared/mcp/serena.md import
 		getWorkflowRunBranchesCodemod(),                            // Add default branches to bare on.workflow_run trigger
 		getCheckoutPersistCredentialsFalseCodemod(),                // Add with.persist-credentials: false to actions/checkout steps
