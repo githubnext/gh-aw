@@ -20,6 +20,7 @@
 
   "issue_dependency_read": "issues",
   "issue_dependency_write": "issues",
+  "find_duplicate": "issues",
   "issue_read": "issues",
   "list_issues": "issues",
   "create_issue": "issues",
@@ -56,6 +57,7 @@
   "assign_copilot_to_issue": "copilot",
   "create_pull_request_with_copilot": "copilot",
   "request_copilot_review": "copilot",
+  "assign_copilot_to_issue_with_intent": "copilot_issue_intents",
 
   "list_dependabot_alerts": "dependabot",
   "get_dependabot_alert": "dependabot",

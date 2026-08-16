@@ -28,6 +28,7 @@ safe-outputs:
     labels: [cookie]
     max: 1
 imports:
+  - shared/aw-logs-24h-fetch.md
   - shared/reporting.md
 
   - shared/otlp.md
@@ -87,9 +88,9 @@ Focus on workflows that create reports or generate documentation, especially:
 
 ### Step 1: Identify Active Workflows
 
-Read recent workflow run data from `/tmp/gh-aw/logs-cache/` (pre-cached JSON files):
-1. Use `ls -t /tmp/gh-aw/logs-cache/*.json | head -1` to find the most recent file.
-2. Read that file once and extract all workflow names executed in the last 24 hours.
+Read the pre-fetched workflow run data from `/tmp/gh-aw/aw-mcp/logs/`:
+1. Read each `run-*/aw_info.json` and `run-*/run_summary.json` file to identify workflow names executed in the last 24 hours.
+2. Skip malformed or missing files and note how many were skipped in the summary.
 3. Focus on workflows that create reports (look for `create-issue`, `create-discussion`, `add-comment` in safe-outputs).
 
 ### Step 2: Analyze Workflow Prompts
@@ -182,7 +183,7 @@ Create a summary comment or discussion showing:
 
 ## Technical Requirements
 
-1. Read recent workflow run data from `/tmp/gh-aw/logs-cache/` (pre-cached JSON files). Use `ls` to find the most recent file, then read it once and extract all needed workflow names.
+1. Read recent workflow run data from `/tmp/gh-aw/aw-mcp/logs/` using the pre-fetched `run-*/aw_info.json` and `run-*/run_summary.json` files.
 2. Read workflow markdown files from `.github/workflows/`
 3. Create issues using the `create-issue` safe output
 4. Keep track of workflows already reported to avoid duplicates (check for existing open issues with same title)

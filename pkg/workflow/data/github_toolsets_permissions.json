@@ -1,6 +1,6 @@
 {
-  "version": "2.4",
-  "description": "GitHub MCP server toolsets and their required permissions (synced to github/github-mcp-server main: restored semantic search, advisory, and secret scanning tools; search tools remain redistributed to repos/orgs/users/issues; experiments toolset removed; list_org_repository_security_advisories moved orgs->security_advisories; get_label dual-registered in issues; create_pull_request_with_copilot added)",
+  "version": "2.5",
+  "description": "GitHub MCP server toolsets and their required permissions (synced to github/github-mcp-server main: restored semantic search, advisory, and secret scanning tools; search tools remain redistributed to repos/orgs/users/issues; experiments toolset removed; list_org_repository_security_advisories moved orgs->security_advisories; get_label dual-registered in issues; create_pull_request_with_copilot added; find_duplicate added to issues; copilot_issue_intents added)",
   "toolsets": {
     "actions": {
       "description": "GitHub Actions workflows",
@@ -31,6 +31,12 @@
       "read_permissions": [],
       "write_permissions": ["issues", "pull-requests"],
       "tools": ["assign_copilot_to_issue", "create_pull_request_with_copilot", "request_copilot_review"]
+    },
+    "copilot_issue_intents": {
+      "description": "Opt-in Copilot issue assignment tools with intent metadata",
+      "read_permissions": [],
+      "write_permissions": ["issues"],
+      "tools": ["assign_copilot_to_issue_with_intent"]
     },
     "copilot_spaces": {
       "description": "GitHub Copilot Spaces (remote-only)",
@@ -74,6 +80,7 @@
       "write_permissions": ["issues"],
       "tools": [
         "add_issue_comment",
+        "find_duplicate",
         "get_label",
         "issue_dependency_read",
         "issue_dependency_write",
