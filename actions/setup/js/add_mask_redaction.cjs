@@ -53,10 +53,13 @@ function collectAddMaskedValues(logContent) {
   for (const line of logContent.split("\n")) {
     const match = line.match(ADD_MASK_COMMAND_RE);
     if (!match) continue;
-    const decoded = unescapeWorkflowCommandValue(match[1]).replace(/\r$/, "");
+    const decoded = unescapeWorkflowCommandValue(match[1]).replace(/\r/g, "");
     for (const candidate of decoded.split("\n")) {
-      const value = candidate.trim();
-      if (value) values.add(value);
+      if (!candidate.trim()) continue;
+      // Register both the verbatim value and its trimmed form so that surrounding
+      // whitespace in either the command payload or the log text never defeats redaction.
+      values.add(candidate);
+      values.add(candidate.trim());
     }
   }
   return Array.from(values).sort((a, b) => b.length - a.length);

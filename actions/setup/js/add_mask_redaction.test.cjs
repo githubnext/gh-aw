@@ -31,6 +31,12 @@ describe("add_mask_redaction", () => {
       expect(collectAddMaskedValues(log).sort()).toEqual(["line-one", "line-two"]);
     });
 
+    it("keeps both the verbatim and trimmed forms of a padded value", () => {
+      const values = collectAddMaskedValues("::add-mask:: padded-secret \n");
+      expect(values).toContain(" padded-secret ");
+      expect(values).toContain("padded-secret");
+    });
+
     it("ignores empty values and de-duplicates", () => {
       const log = ["::add-mask::", "::add-mask::   ", "::add-mask::dup", "::add-mask::dup"].join("\n");
       expect(collectAddMaskedValues(log)).toEqual(["dup"]);
