@@ -68,6 +68,8 @@ evals:
     question: Did the agent report actionable image findings, or use noop when no findings required action?
   - id: critical_burn_down_tracked
     question: When Critical or High findings existed, did the agent create a consolidated burn-down issue linking the per-image issues and stating the remediation SLA?
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Container Image Security Scan

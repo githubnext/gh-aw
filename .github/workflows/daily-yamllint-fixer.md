@@ -109,6 +109,8 @@ evals:
     question: Does the agent output confirm that yamllint issues were identified and analyzed in the generated lock files?
   - id: pr_created_or_noop
     question: Was a pull request created with Go generator fixes for yamllint issues, or was noop used when no issues required changes?
+features:
+  gh-aw-detection: true
 ---
 
 # Daily yamllint Fixer

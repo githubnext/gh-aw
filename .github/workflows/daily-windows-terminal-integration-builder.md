@@ -34,6 +34,8 @@ evals:
     question: Did the agent create an issue for an actionable integration failure, or use noop when no action was required?
 imports:
   - shared/reporting.md
+features:
+  gh-aw-detection: true
 ---
 
 ### Daily Windows Terminal Integration Builder

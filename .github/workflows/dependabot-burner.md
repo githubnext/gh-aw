@@ -288,6 +288,8 @@ evals:
     question: Did the agent analyze the selected grouped Dependabot remediation batch?
   - id: remediation_reported
     question: Did the agent create a remediation pull request or clearly report why no remediation was needed?
+features:
+  gh-aw-detection: true
 ---
 
 # Dependabot Burner
