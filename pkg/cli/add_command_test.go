@@ -24,6 +24,7 @@ func validateEngineStub(engine string) error {
 }
 
 func TestNewAddCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddCommand(validateEngineStub)
 
 	require.NotNil(t, cmd, "NewAddCommand should not return nil")
@@ -84,6 +85,7 @@ func TestNewAddCommand(t *testing.T) {
 }
 
 func TestNewAddCommand_MentionsEnterpriseSourceResolution(t *testing.T) {
+	t.Parallel()
 	cmd := NewAddCommand(validateEngineStub)
 	require.NotNil(t, cmd)
 

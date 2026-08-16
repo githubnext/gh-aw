@@ -360,6 +360,7 @@ func TestFindCompatiblePin_SemverFallback(t *testing.T) {
 }
 
 func TestFindVersionBySHA_ReturnsVersionForKnownSHA(t *testing.T) {
+	t.Parallel()
 	t.Run("returns version for a known SHA in embedded data", func(t *testing.T) {
 		pins := GetActionPinsByRepo("actions/checkout")
 		require.NotEmpty(t, pins, "prerequisite: embedded pins must exist for actions/checkout")

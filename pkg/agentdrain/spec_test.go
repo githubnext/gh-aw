@@ -186,6 +186,7 @@ func TestSpec_PublicAPI_Utility_Tokenize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := agentdrain.Tokenize(tt.line)
 			assert.Equal(t, tt.expected, result, "Tokenize(%q) mismatch", tt.line)
 		})
@@ -197,6 +198,7 @@ func TestSpec_PublicAPI_Utility_Tokenize(t *testing.T) {
 func TestSpec_PublicAPI_Utility_FlattenEvent(t *testing.T) {
 	t.Parallel()
 	t.Run("excludes listed fields", func(t *testing.T) {
+		t.Parallel()
 		evt := agentdrain.AgentEvent{
 			Stage: "plan",
 			Fields: map[string]string{
@@ -210,6 +212,7 @@ func TestSpec_PublicAPI_Utility_FlattenEvent(t *testing.T) {
 	})
 
 	t.Run("produces deterministic output for same input", func(t *testing.T) {
+		t.Parallel()
 		evt := agentdrain.AgentEvent{
 			Stage: "tool_call",
 			Fields: map[string]string{
@@ -257,6 +260,7 @@ func TestSpec_PublicAPI_Utility_StageSequence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := agentdrain.StageSequence(tt.events)
 			assert.Equal(t, tt.expected, result, "StageSequence mismatch for %q", tt.name)
 		})

@@ -11,6 +11,7 @@ import (
 )
 
 func TestUsageAppearsBeforeExamplesInHelpOutput(t *testing.T) {
+	t.Parallel()
 	commands := []*cobra.Command{
 		compileCmd,
 		disableCmd,
@@ -23,6 +24,7 @@ func TestUsageAppearsBeforeExamplesInHelpOutput(t *testing.T) {
 
 	for _, cmd := range commands {
 		t.Run(cmd.CommandPath(), func(t *testing.T) {
+			t.Parallel()
 			var out bytes.Buffer
 			originalOut := cmd.OutOrStdout()
 			originalErr := cmd.ErrOrStderr()
