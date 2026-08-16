@@ -129,6 +129,15 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 - **`resources:`** - Additional workflow or action files fetched alongside this workflow when running `gh aw add` (array). Entries are relative paths from the same directory to `.md` or `.yml`/`.yaml` files.
   - Example: `resources: [shared/tool-setup.md, shared/mcp/tavily.md]`
 
+- **`threat-detection-suppress:`** - Auditable false-positive suppression annotations for compiler threat-detection rules (array of objects)
+  - Each entry requires `rule:` (a `CTR-###` identifier) and `reason:` (non-empty string); optional `expires:` (ISO-8601 date)
+  - Example: `threat-detection-suppress: [{ rule: CTR-025, reason: "reviewed false positive", expires: "2026-12-31" }]`
+
+- **`ambient-folders:`** - Workspace-relative folders bundled into the activation artifact and restored before the agent runs (array of strings)
+  - Useful for activation steps that generate reusable prompt, skill, or agent context ahead of the agent job
+  - Merges with `ambient-folders` declared by imported workflows
+  - Example: `ambient-folders: [".claude/skills", ".github/agents"]`
+
 - **`tracker-id:`** - Optional identifier to tag all created assets (string)
   - Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores
   - This identifier is inserted in the body/description of all created assets (issues, discussions, comments, pull requests)
@@ -323,7 +332,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
 - **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
 
-- **`safe-outputs:`** - Safe output processing configuration. See [safe-outputs.md](safe-outputs.md) for complete documentation of all output types: `create-issue`, `create-discussion`, `add-comment`, `create-pull-request`, `push-to-pull-request-branch`, `close-issue`, `close-discussion`, `update-issue`, `update-pull-request`, `add-labels`, `remove-labels`, `replace-label`, `dispatch-workflow`, `call-workflow`, `create-code-scanning-alert`, `upload-asset`, `upload-artifact`, `assign-to-agent`, `assign-to-user`, and more.
+- **`safe-outputs:`** - Safe output processing configuration. See [safe-outputs.md](safe-outputs.md) for complete documentation of all output types: `create-issue`, `create-discussion`, `add-comment`, `create-pull-request`, `push-to-pull-request-branch`, `close-issue`, `close-discussion`, `update-issue`, `update-pull-request`, `add-labels`, `remove-labels`, `replace-label`, `dispatch-workflow`, `call-workflow`, `create-code-scanning-alert`, `upload-asset`, `upload-artifact`, `assign-to-agent`, `assign-to-user`, `approve-workflow-run`, and more.
 
   **Key safe-outputs global fields** (detail in [safe-outputs-runtime.md](safe-outputs-runtime.md)): `github-token`, `github-app`, `staged` (preview mode, no API calls), `footer`, `threat-detection`, `runs-on` (default `ubuntu-slim`), `messages`, `env`, `max-patch-size` (KB, default `4096`).
 

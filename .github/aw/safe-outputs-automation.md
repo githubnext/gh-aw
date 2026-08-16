@@ -243,6 +243,19 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   ```
 
   Agent calls `set_issue_field` with `value` plus either `field_name` (preferred) or `field_node_id`. `issue_number` is optional and defaults to the triggering issue.
+- `approve-workflow-run:` - Approve a pending workflow run from a fork pull request
+
+  ```yaml
+  safe-outputs:
+    approve-workflow-run:
+      allowed-workflows: [ci.yml]     # Required: workflow filenames eligible for approval (no paths)
+      fork: true                      # Optional: restrict to fork pull requests (default: false)
+      allowed-pull-requests: ["123"]  # Optional: restrict to specific PR numbers
+      protected-files: blocked        # Optional: "blocked" (default), "fallback-to-issue", or "allowed"
+      github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}  # Required: external token/app (github.token cannot approve fork PR runs)
+  ```
+
+  Requires `actions: write` (added automatically) plus an external `github-token` or `github-app` — the default `github.token` is not permitted to approve workflow runs for fork pull requests.
 - `noop:` - Log completion message for transparency (auto-enabled)
 
   ```yaml

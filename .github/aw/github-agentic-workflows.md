@@ -57,10 +57,7 @@ Natural language instructions for the AI agent.
 
 ## Recompilation Rule
 
-- Edit the **frontmatter** → run `gh aw compile <workflow-id>`.
-- Edit the **markdown body** only → no recompilation required.
-
-See also: [workflow-editing.md](workflow-editing.md)
+See [workflow-editing.md](workflow-editing.md) for when `gh aw compile` is required.
 
 ## Core Rules
 
@@ -78,18 +75,9 @@ Use `@.github/aw/instructions.md` as the canonical repository-local overlay for 
 - Installed gh-aw agents should load and apply it automatically when present.
 - Precedence: apply upstream defaults first, then apply repository overlay rules; when they conflict, repository overlay rules win.
 
-## Trigger Selection Quick Reference
+## Trigger Selection
 
-Use the smallest trigger that matches the requested automation.
-
-| Need | Trigger | Notes |
-|---|---|---|
-| Review pull request changes or UI diffs | `pull_request` | Use for PR-scoped analysis, comments, and optional `playwright`-based visual regression. |
-| React to the result of another GitHub Actions workflow | `workflow_run` | Scope `workflows:` explicitly, use `types: [completed]`, and gate conclusions before creating incidents. |
-| Publish recurring reports or stakeholder digests | `schedule` | Define the exact reporting window and default to `create-issue`; add `workflow_dispatch` when manual reruns are useful. |
-| Run the workflow on demand | `workflow_dispatch` | Use for manual tests, backfills, and operator-invoked runs; often pair with `schedule` or `workflow_run`. |
-
-See also: [workflow-constraints.md](workflow-constraints.md)
+Use the smallest trigger that matches the requested automation. See the [Decision Matrix](triggers.md#decision-matrix) in triggers.md for the canonical trigger-to-use-case mapping, and [workflow-constraints.md](workflow-constraints.md) for the security posture.
 
 ## Ad Hoc Scenario Evaluation
 

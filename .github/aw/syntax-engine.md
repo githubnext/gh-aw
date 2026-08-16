@@ -12,6 +12,7 @@ See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
   - The experimental `deepseek-harness` engine is available through `imports: [shared/deepseek-harness.md]`; see [`smoke-deepseek-harness.md`](../workflows/smoke-deepseek-harness.md) for an example. It runs the developer-preview `dsh` headless profile with AWF provider routing and uses `provider/model` syntax.
   - The experimental `cursor` engine is available through `imports: [shared/cursor.md]`; see [`smoke-cursor.md`](../workflows/smoke-cursor.md) for an example. Requires the `CURSOR_API_KEY` secret. Cursor reads project rules from `.cursor/rules/*.mdc` and respects the root-level `.cursorignore` and `AGENTS.md`; both are protected in the manifest. Use `model: cursor/auto` or a specific model such as `cursor/claude-3-7-sonnet`.
   - The experimental `kiro` engine is available through `imports: [shared/kiro.md]`; see [`smoke-kiro.md`](../workflows/smoke-kiro.md) for an example. Requires the `KIRO_API_KEY` secret. Kiro reads steering documents from `.kiro/steering/` and hook definitions from `.kiro/hooks/`; these directories and `AGENTS.md` are protected in the manifest. Model must use `kiro/` prefix, e.g. `model: kiro/claude-sonnet-4-5`.
+  - The experimental `crush`, `aider`, `goose`, and `custom` (GenAIScript) engines are also available through `imports: [shared/<engine>.md]`; see [`smoke-crush.md`](../workflows/smoke-crush.md), [`smoke-aider.md`](../workflows/smoke-aider.md), and [`smoke-goose.md`](../workflows/smoke-goose.md) for examples. Full list of import-based engines: see `.github/aw/engines.json`.
   - Object format for extended configuration:
 
     ```yaml
@@ -29,7 +30,7 @@ See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
       args: ["--verbose"]               # Optional: custom CLI arguments injected before prompt (array)
       api-target: api.acme.ghe.com      # Optional: custom API endpoint hostname for GHEC/GHES (hostname only, no protocol/path)
       command: /usr/local/bin/copilot   # Optional: override default engine executable (skips installation)
-      bare: true                        # Optional: disable automatic context loading (copilot: --no-custom-instructions; claude: --bare; codex: --no-system-prompt; gemini: GEMINI_SYSTEM_MD=/dev/null). Default: false
+      bare: true                        # Optional: disable automatic context loading. Only supported by 'copilot' (--no-custom-instructions) and 'claude' (--bare); ignored with a warning on other engines. Default: false
       user-agent: "myapp/1.0"           # Optional: custom user agent string (codex engine only)
       config: |                         # Optional: additional TOML config appended to config.toml (codex engine only)
         [extra]

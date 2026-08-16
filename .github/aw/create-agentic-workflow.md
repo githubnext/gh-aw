@@ -144,17 +144,7 @@ When evaluating scenarios, classify any failure before stopping:
 
 ### 2. Choose the trigger
 
-Use the smallest trigger that matches the request.
-
-Common mappings:
-
-- issue automation → `on: issues:`
-- pull request automation → `on: pull_request:`
-- scheduled reporting → fuzzy `schedule:` such as `daily on weekdays`
-- on-demand comments → `slash_command`
-- UI-driven actions → `label_command`
-- GitHub Actions pipeline monitoring → `workflow_run`
-- external deployment monitoring → `deployment_status`
+Use the smallest trigger that matches the request. See the [Decision Matrix](triggers.md#decision-matrix) in triggers.md for the base trigger-to-use-case mapping.
 
 | Scenario | Trigger and default output | Details |
 |---|---|---|
