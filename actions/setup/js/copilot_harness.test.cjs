@@ -35,6 +35,9 @@ const {
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isDetectionPhase,
   isAuthenticationFailedError,
+  isConnectionRefusedError,
+  shouldRetryFirstConnectionRefused,
+  FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS,
   isRetryableProxyAuthenticationFailure,
   isMCPGatewayShutdownError,
   isModelAvailableInReflectData,
@@ -125,6 +128,17 @@ describe("copilot_harness.cjs", () => {
     it("matches the exact error from the failed workflow run", () => {
       const errorOutput = "Execution failed: CAPIError: 400 400 Bad Request\n (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)";
       expect(CAPI_ERROR_400_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    describe("connection refused detection", () => {
+      it("detects ECONNREFUSED signals in SDK driver output", () => {
+        const output = "Failed native model HTTP request: error sending request for url (http://api-proxy:10002/chat/completions): " + "client error (Connect): tcp connect error: Connection refused (os error 111) [ECONNREFUSED]";
+        expect(isConnectionRefusedError(output)).toBe(true);
+      });
+
+      it("does not match unrelated output", () => {
+        expect(isConnectionRefusedError("CAPIError: 400 bad request")).toBe(false);
+      });
     });
 
     describe("CAPI quota-exceeded detection pattern", () => {
@@ -1851,6 +1865,30 @@ describe("copilot_harness.cjs", () => {
       expect(after1.shouldRetry).toBe(true);
       expect(after1.useContinueOnRetry).toBe(false); // must not re-enable --continue
       expect(after1.continueDisabledPermanently).toBe(true);
+    });
+  });
+
+  describe("connection-refused retries once on first attempt", () => {
+    it("retries once as a fresh run with a short delay on the first SDK-mode attempt", () => {
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 0, isConnectionRefused: true, maxRetries: 3 })).toBe(true);
+      expect(FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS).toBe(1000);
+    });
+
+    it("does not take this path in CLI mode", () => {
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: false, attempt: 0, isConnectionRefused: true, maxRetries: 3 })).toBe(false);
+    });
+
+    it("does not take this path on later attempts", () => {
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 1, isConnectionRefused: true, maxRetries: 3 })).toBe(false);
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 2, isConnectionRefused: true, maxRetries: 3 })).toBe(false);
+    });
+
+    it("does not take this path when the retry budget is zero", () => {
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 0, isConnectionRefused: true, maxRetries: 0 })).toBe(false);
+    });
+
+    it("does not take this path when the error is not a connection refusal", () => {
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 0, isConnectionRefused: false, maxRetries: 3 })).toBe(false);
     });
   });
 

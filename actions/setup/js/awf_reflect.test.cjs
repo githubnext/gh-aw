@@ -13,6 +13,9 @@ const {
   AWF_MODELS_URL_MAX_ATTEMPTS,
   AWF_MODELS_URL_RETRY_BASE_MS,
   AWF_MODELS_URL_RETRY_MAX_MS,
+  AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
+  AWF_PROVIDER_LISTENER_READY_RETRY_MS,
+  AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS,
   DEFAULT_API_PROXY_HOST_BRIDGE,
   GEMINI_MODEL_NAME_PREFIX,
   deriveBaseUrlFromModelsURL,
@@ -20,6 +23,7 @@ const {
   extractModelIds,
   fetchAWFReflect,
   fetchModelsFromUrl,
+  waitForProviderListenerReady,
   getCatalogModelEntry,
   hasAPIProxyLocalhostAlias,
   inferProviderTypeForModel,
@@ -40,8 +44,195 @@ describe("awf_reflect.cjs", () => {
       expect(AWF_MODELS_URL_MAX_ATTEMPTS).toBe(5);
       expect(AWF_MODELS_URL_RETRY_BASE_MS).toBe(250);
       expect(AWF_MODELS_URL_RETRY_MAX_MS).toBe(2000);
+      expect(AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS).toBe(15000);
+      expect(AWF_PROVIDER_LISTENER_READY_RETRY_MS).toBe(250);
+      expect(AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS).toBe(2000);
       expect(DEFAULT_API_PROXY_HOST_BRIDGE).toBe("host.docker.internal");
       expect(GEMINI_MODEL_NAME_PREFIX).toBe("models/");
+    });
+  });
+
+  describe("waitForProviderListenerReady", () => {
+    it("returns ok when listener accepts a connection", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        queueMicrotask(() => listeners.connect && listeners.connect());
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          removeAllListeners() {
+            return this;
+          },
+          end() {},
+          destroy() {},
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "http://api-proxy:10002",
+        timeoutMs: 500,
+        retryDelayMs: 1,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result).toEqual({ ok: true });
+      expect(probingConnect).toHaveBeenCalled();
+    });
+
+    it("returns timeout when listener keeps refusing connections", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        queueMicrotask(() => listeners.error && listeners.error(new Error("connect ECONNREFUSED")));
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          end() {},
+          destroy() {},
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "http://api-proxy:10002",
+        timeoutMs: 20,
+        retryDelayMs: 1,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("timeout");
+      expect(result.error).toContain("ECONNREFUSED");
+    });
+
+    it("returns invalid_base_url for malformed baseUrl", async () => {
+      const result = await waitForProviderListenerReady({
+        baseUrl: "not a url",
+        logger: () => {},
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("invalid_base_url");
+    });
+
+    it("returns timeout when the per-attempt timer fires (hung connect)", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        // Never fire "connect" or "error" — simulates a hung connection attempt.
+        return {
+          once() {
+            return this;
+          },
+          end() {},
+          destroy() {},
+          removeAllListeners() {
+            return this;
+          },
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "http://api-proxy:10002",
+        timeoutMs: 50,
+        retryDelayMs: 1,
+        perAttemptTimeoutMs: 5,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("timeout");
+      expect(result.error).toContain("timed out after");
+    });
+
+    it("uses a TLS secureConnect handshake for https:// baseUrls", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        queueMicrotask(() => listeners.secureConnect && listeners.secureConnect());
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          removeAllListeners() {
+            return this;
+          },
+          end() {},
+          destroy() {},
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "https://api-proxy:10443",
+        timeoutMs: 500,
+        retryDelayMs: 1,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result).toEqual({ ok: true });
+    });
+
+    it("does not report ready on a bare TCP connect for https:// baseUrls", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        // Only fires "connect" (bare TCP), never "secureConnect" (TLS handshake complete).
+        queueMicrotask(() => listeners.connect && listeners.connect());
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          removeAllListeners() {
+            return this;
+          },
+          end() {},
+          destroy() {},
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "https://api-proxy:10443",
+        timeoutMs: 20,
+        retryDelayMs: 1,
+        perAttemptTimeoutMs: 5,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("timeout");
+    });
+
+    it("ignores a late error emitted after a successful connect", async () => {
+      const probingConnect = vi.fn().mockImplementation(() => {
+        const listeners = {};
+        queueMicrotask(() => listeners.connect && listeners.connect());
+        return {
+          once(event, cb) {
+            listeners[event] = cb;
+            return this;
+          },
+          removeAllListeners(event) {
+            delete listeners[event];
+            return this;
+          },
+          end() {},
+          destroy() {
+            // Simulate a trailing error emitted after destroy(). The "error" listener must
+            // still be installed (an EventEmitter without one would throw), and the handler
+            // must ignore it because the probe already settled as ready.
+            if (!listeners.error) throw new Error("error listener was removed before destroy()");
+            listeners.error(new Error("late ECONNRESET"));
+          },
+        };
+      });
+
+      const result = await waitForProviderListenerReady({
+        baseUrl: "http://api-proxy:10002",
+        timeoutMs: 500,
+        retryDelayMs: 1,
+        connectImpl: probingConnect,
+        logger: () => {},
+      });
+      expect(result).toEqual({ ok: true });
     });
   });
 
