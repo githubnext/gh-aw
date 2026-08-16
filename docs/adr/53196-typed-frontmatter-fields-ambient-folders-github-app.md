@@ -1,18 +1,20 @@
 # ADR-53196: Typed Top-Level Frontmatter Fields for `ambient-folders` and `github-app`
 
 **Date**: 2026-08-16
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
 
 ### Context
 
-`FrontmatterConfig` is the central typed struct that represents parsed workflow YAML frontmatter in `pkg/workflow`. Two schema-backed top-level keys — `ambient-folders` (a list of paths the agent may read without explicit tool calls) and `github-app` (GitHub App credentials for minting scoped tokens) — were absent from this struct. Typed consumers such as the safe-outputs pipeline and the deep-report workflow could not observe these fields without reaching directly into an untyped `map[string]any`, which duplicates parsing logic and bypasses validation. The `GitHubAppConfig` struct and its `parseAppConfig` helper already existed in `safe_outputs_app_config.go` for a related purpose; `AmbientFolders` parsing also needed a dedicated extractor to handle `[]any` → `[]string` coercion.
+`FrontmatterConfig` is the central typed struct that represents parsed workflow YAML frontmatter in `pkg/workflow`. Two schema-backed top-level keys — `ambient-folders` (a list of paths the agent may read without explicit tool calls) and `github-app` (GitHub App credentials for minting scoped tokens) — were absent from this struct. Typed consumers could not observe these fields without reaching directly into an untyped `map[string]any`, which duplicates parsing logic and bypasses validation. The `GitHubAppConfig` struct and its `parseAppConfig` helper already existed in `safe_outputs_app_config.go`; ambient folder extraction and normalization already existed in `ambient_folders.go`.
 
 ### Decision
 
-We will add `AmbientFolders []string` and `GitHubApp *GitHubAppConfig` fields to `FrontmatterConfig`, wire them into `ParseFrontmatterConfig()` using the existing `extractAmbientFolders` and `parseAppConfig` helpers, and serialize them back through `ToMap()` via a new `githubAppConfigToMap` function. The deprecated `app-id` input key is accepted on parse and normalized to the canonical `client-id` on serialization.
+Add `AmbientFolders []string` and `GitHubApp *GitHubAppConfig` fields to `FrontmatterConfig`. `ParseFrontmatterConfig()` normalizes ambient folders with the same path validation and deduplication used by the compiler. It exposes a top-level GitHub App only when both required credentials are present, matching the compiler fallback path even when `ignore-if-missing` is enabled.
+
+`ToMap()` serializes both fields in raw-frontmatter-compatible forms without retaining caller-owned slices or maps. The deprecated `app-id` input key is accepted and normalized to the canonical `client-id` key. `GitHubAppConfig` uses matching JSON and YAML field names for direct consumers.
 
 ### Alternatives Considered
 
@@ -28,17 +30,15 @@ Introduce standalone helper functions (`GetAmbientFolders(fc *FrontmatterConfig)
 
 #### Positive
 - Typed access to `ambient-folders` and `github-app` is now available to all consumers of `FrontmatterConfig` without duplicating parse logic.
-- Round-trip fidelity is guaranteed: `ParseFrontmatterConfig(fc.ToMap())` returns equivalent values, and the `app-id` alias is normalized to `client-id` on the way out.
+- Round trips produce independent slices and maps, and the `app-id` alias is normalized to `client-id`.
+- Typed ambient folders have the same normalized values as compiler consumers.
+- Typed and compiler consumers agree on whether a top-level GitHub App is present.
 - The `parseAppConfig` helper is now exercised through the typed frontmatter path, giving it broader test coverage via the new `frontmatter_types_test.go` cases.
 
 #### Negative
 - `FrontmatterConfig` must be extended for each new top-level frontmatter key that needs typed exposure; the struct will grow over time as the schema evolves.
-- `parseAppConfig` (originally private to `safe_outputs_app_config.go`) is now shared across two parsing contexts (safe-outputs and general frontmatter), coupling those subsystems through a package-level function.
+- Typed parsing depends on the compiler's top-level GitHub App extraction semantics so the two paths cannot disagree.
 
 #### Neutral
-- The type-switch idiom (`case []string:`, `case map[string]string:`) is adopted in `safe_outputs_app_config.go` to handle values that may already be typed (e.g., after a round-trip through `ToMap()`), which is an internal implementation detail not visible to callers.
+- `ToMap()` emits `[]any` and `map[string]any` for nested GitHub App collections, matching raw frontmatter representation.
 - No changes to the YAML schema or external API contracts are introduced; this is purely a typed-struct promotion of existing documented fields.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

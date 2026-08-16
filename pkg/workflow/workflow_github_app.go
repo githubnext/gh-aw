@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -26,6 +27,24 @@ func extractTopLevelGitHubApp(frontmatter map[string]any) *GitHubAppConfig {
 		return nil
 	}
 	return app
+}
+
+func extractTypedTopLevelGitHubApp(frontmatter map[string]any) (*GitHubAppConfig, error) {
+	appRaw, exists := frontmatter["github-app"]
+	if !exists || appRaw == nil {
+		return nil, nil
+	}
+	if appMap, ok := appRaw.(map[string]any); ok {
+		return extractTopLevelGitHubApp(map[string]any{"github-app": appMap}), nil
+	}
+	if appMap, ok := appRaw.(map[string]string); ok {
+		converted := make(map[string]any, len(appMap))
+		for key, value := range appMap {
+			converted[key] = value
+		}
+		return extractTopLevelGitHubApp(map[string]any{"github-app": converted}), nil
+	}
+	return nil, fmt.Errorf("github-app has an unsupported type, expected an object: %T", appRaw)
 }
 
 // resolveTopLevelGitHubApp resolves the top-level github-app for token minting fallback.

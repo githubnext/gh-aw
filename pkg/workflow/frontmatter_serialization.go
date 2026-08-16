@@ -256,10 +256,18 @@ func githubAppConfigToMap(app *GitHubAppConfig) map[string]any {
 		result["owner"] = app.Owner
 	}
 	if len(app.Repositories) > 0 {
-		result["repositories"] = app.Repositories
+		repositories := make([]any, len(app.Repositories))
+		for i, repository := range app.Repositories {
+			repositories[i] = repository
+		}
+		result["repositories"] = repositories
 	}
 	if len(app.Permissions) > 0 {
-		result["permissions"] = app.Permissions
+		permissions := make(map[string]any, len(app.Permissions))
+		for permission, level := range app.Permissions {
+			permissions[permission] = level
+		}
+		result["permissions"] = permissions
 	}
 	return result
 }

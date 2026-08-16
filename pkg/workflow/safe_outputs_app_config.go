@@ -19,12 +19,14 @@ var githubExpressionWhitespaceReplacer = strings.NewReplacer("\r\n", " ", "\n", 
 
 // GitHubAppConfig holds configuration for GitHub App-based token minting
 type GitHubAppConfig struct {
-	AppID           string            `yaml:"client-id,omitempty"`         // GitHub App client ID (or legacy app ID) (e.g., "${{ vars.APP_ID }}")
-	PrivateKey      string            `yaml:"private-key,omitempty"`       // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
-	IgnoreIfMissing bool              `yaml:"ignore-if-missing,omitempty"` // If true, skip token minting when client-id/private-key resolve empty
-	Owner           string            `yaml:"owner,omitempty"`             // Optional: owner of the GitHub App installation (defaults to checkout.repository owner when derivable, otherwise current repository owner)
-	Repositories    []string          `yaml:"repositories,omitempty"`      // Optional: comma or newline-separated list of repositories to grant access to
-	Permissions     map[string]string `yaml:"permissions,omitempty"`       // Optional: extra permission-* fields to merge into the minted token (nested wins over job-level)
+	// AppID holds the canonical "client-id" value. The deprecated "app-id" key is
+	// accepted on input and normalized to "client-id" on output.
+	AppID           string            `json:"client-id,omitempty" yaml:"client-id,omitempty"`                 // GitHub App client ID (or legacy app ID) (e.g., "${{ vars.APP_ID }}")
+	PrivateKey      string            `json:"private-key,omitempty" yaml:"private-key,omitempty"`             // GitHub App private key (e.g., "${{ secrets.APP_PRIVATE_KEY }}")
+	IgnoreIfMissing bool              `json:"ignore-if-missing,omitempty" yaml:"ignore-if-missing,omitempty"` // If true, skip token minting when client-id/private-key resolve empty
+	Owner           string            `json:"owner,omitempty" yaml:"owner,omitempty"`                         // Optional: owner of the GitHub App installation (defaults to checkout.repository owner when derivable, otherwise current repository owner)
+	Repositories    []string          `json:"repositories,omitempty" yaml:"repositories,omitempty"`           // Optional: comma or newline-separated list of repositories to grant access to
+	Permissions     map[string]string `json:"permissions,omitempty" yaml:"permissions,omitempty"`             // Optional: extra permission-* fields to merge into the minted token (nested wins over job-level)
 }
 
 // ========================================
@@ -83,7 +85,7 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 			}
 			appConfig.Repositories = repoStrings
 		case []string:
-			appConfig.Repositories = reposArray
+			appConfig.Repositories = append([]string(nil), reposArray...)
 		}
 	}
 
@@ -100,7 +102,7 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 				}
 			}
 		case map[string]string:
-			appConfig.Permissions = permsMap
+			appConfig.Permissions = maps.Clone(permsMap)
 		default:
 			safeOutputsAppLog.Printf("Ignoring github-app.permissions: expected object, got %T", perms)
 		}
