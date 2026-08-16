@@ -42,6 +42,22 @@ func TestFindGrok45CacheReadPricing(t *testing.T) {
 	assert.InDelta(t, 0.0000005, pricing["cache_read"], 1e-12)
 }
 
+func TestFindGrok46Pricing(t *testing.T) {
+	pricing, ok := findModelPricing("github-copilot", "grok-4.6")
+	require.True(t, ok)
+	assert.InDelta(t, 0.000002, pricing["input"], 1e-12)
+	assert.InDelta(t, 0.000006, pricing["output"], 1e-12)
+	assert.InDelta(t, 0.0000005, pricing["cache_read"], 1e-12)
+}
+
+func TestFindGemini37FlashPricing(t *testing.T) {
+	pricing, ok := findModelPricing("github-copilot", "gemini-3.7-flash")
+	require.True(t, ok)
+	assert.InDelta(t, 0.00000075, pricing["input"], 1e-12)
+	assert.InDelta(t, 0.00000375, pricing["output"], 1e-12)
+	assert.InDelta(t, 0.000000075, pricing["cache_read"], 1e-12)
+}
+
 func TestComputeModelInferenceAIC(t *testing.T) {
 	aic := computeModelInferenceAIC("anthropic", "claude-sonnet-4.6", 1000, 200, 400, 50, 25)
 	assert.InDelta(t, 0.54825, aic, 1e-9)
