@@ -54,8 +54,9 @@ func hasGitHubGuardPolicyFields(github *GitHubToolConfig) bool {
 
 	// This is a presence check, not a validity check. Explicit but invalid values
 	// (for example an empty string or wrong type injected programmatically) still
-	// count as configured guard-policy fields and are validated later.
-	hasRepos := github.AllowedRepos != nil
+	// count as configured guard-policy fields and are validated later. Include the
+	// deprecated Repos alias so lockdown conflict warnings also cover legacy input.
+	hasRepos := github.AllowedRepos != nil || github.Repos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
 	hasBlockedUsers := len(github.BlockedUsers) > 0 || github.BlockedUsersExpr != ""
 	hasApprovalLabels := len(github.ApprovalLabels) > 0 || github.ApprovalLabelsExpr != ""

@@ -112,6 +112,24 @@ func TestBuildGuardPolicyDryRunReport_Lockdown(t *testing.T) {
 	assert.Contains(t, rendered, "lockdown: true")
 }
 
+// TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos verifies that the
+// lockdown indicator is also surfaced for the deprecated repos alias.
+func TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos(t *testing.T) {
+	github := &workflow.GitHubToolConfig{
+		Lockdown:     true,
+		Repos:        "all",
+		MinIntegrity: workflow.GitHubIntegrityApproved,
+	}
+
+	report := buildGuardPolicyDryRunReport("test-workflow.md", github)
+	require.NotNil(t, report)
+	assert.True(t, report.Lockdown)
+
+	rendered := formatGuardPolicyDryRunReport(report)
+	assert.Contains(t, rendered, "lockdown: true")
+	assert.Contains(t, rendered, "allowed-repos: all")
+}
+
 // TestPrintGuardPolicyDryRunReport_OnlyWhenStrict verifies that the dry-run
 // report is only emitted when --strict is set, and only when guard-policy
 // fields are configured.

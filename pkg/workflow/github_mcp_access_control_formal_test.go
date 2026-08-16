@@ -409,12 +409,20 @@ type fixtureInput struct {
 }
 
 type fixtureToolConfig struct {
+	AllowedRepos []string `yaml:"allowed-repos"`
 	Repos        []string `yaml:"repos"`
 	Roles        []string `yaml:"roles"`
 	PrivateRepos *bool    `yaml:"private-repos"`
 	AllowedTools []string `yaml:"allowed-tools"`
 	BlockedUsers []string `yaml:"blocked-users"`
 	MinIntegrity string   `yaml:"min-integrity"`
+}
+
+func (c fixtureToolConfig) repositoryScope() []string {
+	if c.AllowedRepos != nil {
+		return c.AllowedRepos
+	}
+	return c.Repos
 }
 
 type fixtureRequest struct {
@@ -459,7 +467,7 @@ func TestFormal_FixtureRunner(t *testing.T) {
 			totalScenarios++
 			t.Run(sc.ScenarioID, func(t *testing.T) {
 				cfg := formalToolConfig{
-					Repos:        sc.Input.ToolConfig.Repos,
+					Repos:        sc.Input.ToolConfig.repositoryScope(),
 					Roles:        sc.Input.ToolConfig.Roles,
 					PrivateRepos: sc.Input.ToolConfig.PrivateRepos,
 					AllowedTools: sc.Input.ToolConfig.AllowedTools,

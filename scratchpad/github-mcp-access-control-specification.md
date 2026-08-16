@@ -1857,7 +1857,7 @@ This subsection specifies normative failure-mode behavior for the case where gua
 
 1. **Should the `--strict` compile-time guard-policy dry-run report (§4.7, deferred design in guard-policies-specification.md Open Question #4) also surface the effective lockdown/guard-policy precedence outcome, so operators can see at a glance which fields are ignored?**
 
-   **Decision**: Yes. The `--strict` dry-run report MUST include a `lockdown` indicator alongside the reported `allowed-repos`/`min-integrity`/`blocked-users`/`trusted-users`/`approval-labels` values, so that operators reviewing the report can immediately see that guard-policy fields are ignored at runtime when `lockdown: true` is set (§9.5.1). This is implemented in `pkg/cli/compile_guard_policy_report.go`.
+   **Decision**: Yes. The `--strict` dry-run report MUST include a `lockdown` indicator alongside the reported `allowed-repos`/`min-integrity`/`blocked-users`/`trusted-users`/`approval-labels` values, so that operators reviewing the report can immediately see that guard-policy fields are ignored at runtime when `lockdown: true` is set (§9.5.1). This is implemented in `pkg/cli/compile_guard_policy_report.go` and covered by `pkg/cli/compile_guard_policy_report_test.go` (`TestBuildGuardPolicyDryRunReport_Lockdown`, `TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos`).
    *Rationale*: A dry-run report that omits the lockdown/guard-policy precedence relationship would be misleading — it would list "permitted" repositories that are, in fact, never consulted at runtime because lockdown supersedes them. Surfacing the precedence outcome directly in the report keeps the report consistent with the runtime enforcement behavior it is meant to preview, and reuses the same conflict-detection logic (`hasGitHubLockdownGuardPolicyConflict()`) already used for the compile-time warning (§9.5.2).
 
 ---
@@ -2761,7 +2761,7 @@ Cross-reference of `scratchpad/github-mcp-access-control-specification.md` and `
 
 | Topic | Spec says | Implementation in code | Status |
 |---|---|---|---|
-| Frontmatter field name for repository scope | `allowed-repos` (§4.4.1 of this spec uses `repos` as the access-control field name, but §4.1 configuration structure example and guard-policies-spec use `allowed-repos` as the frontmatter key) | `pkg/workflow/mcp_github_config.go` reads `allowed-repos` (preferred) with `repos` as deprecated alias; compiled gateway config uses `repos` internally (line ~323) | **Resolved** — frontmatter uses `allowed-repos`; `repos` is a deprecated alias supported for backwards compatibility. Compliance tests in `pkg/workflow/tools_validation_test.go` SHOULD use `allowed-repos`. |
+| Frontmatter field name for repository scope | `allowed-repos` (§4.4.1 of this spec uses `repos` as the access-control field name, but §4.1 configuration structure example and guard-policies-spec use `allowed-repos` as the frontmatter key) | `pkg/workflow/mcp_github_config.go` reads `allowed-repos` (preferred) with `repos` as deprecated alias; compiled gateway config uses `repos` internally (line ~323) | **Resolved; re-confirmed 2026-08-16** — frontmatter uses `allowed-repos`; `repos` is a deprecated alias supported for backwards compatibility. Compliance fixtures under `specs/github-mcp-access-control-compliance/` and preferred-path tests in `pkg/workflow/tools_validation_test.go` use `allowed-repos`; legacy alias coverage remains explicit where needed. |
 | `min-integrity` required when `allowed-repos` present | guard-policies-spec §Conformance GP-02 and GP-11 | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy()`) validates `min-integrity` enum values | **Consistent** |
 | Empty `allowed-repos` array rejected | guard-policies-spec §Conformance GP-04 | `pkg/workflow/tools_validation_github.go` rejects empty arrays | **Consistent** |
 | Derived safe-outputs `write-sink` policy | guard-policies-spec §5 normative requirements | `pkg/workflow/mcp_github_config.go` `deriveSafeOutputsGuardPolicyFromGitHub()` | **Consistent** |
@@ -2780,6 +2780,8 @@ This section lists the files that **MUST** be reviewed and updated whenever a no
 When the relative order of P5_NotBlocked and P6_IntegrityMet (or any other guard predicates in §4.6.3) changes:
 
 1. **Gateway runtime implementation** — The production P1–P6 guard-chain evaluator lives in the gateway implementation (not in this repository). Locate the six-predicate evaluation loop in the gateway and update the ordering and first-failing-guard error-code selection logic accordingly. (The local formal model in `pkg/workflow/github_mcp_access_control_formal_test.go` — function `formalEvaluateAccess` — mirrors the spec ordering for test purposes only; update it in parallel.)
+
+   **SPDD confirmation note (2026-08-16)**: This PR does not change §8.5 predicate order. If §8.5 changes in a future PR, that PR MUST include a linked external gateway issue or confirmation comment demonstrating that the production gateway evaluator was reviewed in lockstep.
 
 2. **`specs/github-mcp-access-control-compliance/README.md`** — Update the Formal Model section (`ALLOW(r, c) ≜ …`) and the Behavioral Coverage Map table to reflect the new predicate order. Regenerate `TestFormal_BlockedUserSafetyProperty` and `TestFormal_ErrorCodeFirstFailingGuard` test cases to match.
 
