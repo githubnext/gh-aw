@@ -67,7 +67,7 @@ If any stubs were created, run these commands (one per line):
 
 ```bash
 make fmt || true
-GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && printf '%s\n' "{\"type\":\"create_pull_request\",\"title\":\"Add test stubs for uncovered packages\",\"body\":\"Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in.\",\"branch\":\"add-test-stubs-$GITHUB_RUN_ID\"}" >> "$GH_AW_SAFE_OUTPUTS"
+GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && printf '%s\n' "{\"type\":\"create_pull_request\",\"title\":\"Add test stubs for uncovered packages\",\"body\":\"Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in.\",\"branch\":\"add-test-stubs-$GITHUB_RUN_ID\"}" >> "$GH_AW_SAFE_OUTPUTS" || printf '%s\n' '{"type":"noop","message":"Could not build or commit the generated test stubs — no pull request created."}' >> "$GH_AW_SAFE_OUTPUTS"
 ```
 
 If no packages needed stubs (all packages already had tests), run instead:

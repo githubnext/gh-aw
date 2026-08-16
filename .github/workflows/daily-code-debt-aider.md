@@ -72,10 +72,11 @@ If any code was changed, run these commands (one per line):
 
 ```bash
 make fmt || true
-GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b code-debt-$GITHUB_RUN_ID && git add -A && git commit -m "Resolve actionable TODO/FIXME comments" && printf '%s\n' "{\"type\":\"create_pull_request\",\"title\":\"Resolve actionable TODO/FIXME comments\",\"body\":\"Automated cleanup of self-contained TODO and FIXME comments.\",\"branch\":\"code-debt-$GITHUB_RUN_ID\"}" >> "$GH_AW_SAFE_OUTPUTS"
+GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b code-debt-$GITHUB_RUN_ID && git add -A && git commit -m "Resolve actionable TODO/FIXME comments" && printf '%s\n' "{\"type\":\"create_pull_request\",\"title\":\"Resolve actionable TODO/FIXME comments\",\"body\":\"Automated cleanup of self-contained TODO and FIXME comments.\",\"branch\":\"code-debt-$GITHUB_RUN_ID\"}" >> "$GH_AW_SAFE_OUTPUTS" || printf '%s\n' '{"type":"noop","message":"Could not build or commit the cleanup changes — no pull request created."}' >> "$GH_AW_SAFE_OUTPUTS"
 ```
 
-If the build fails, discard the changes with `git checkout -- .` and report a `noop` instead.
+The trailing `|| printf ...` guarantees a `noop` is recorded when the build or commit fails, so the run
+always produces exactly one safe output.
 
 If nothing was changed (no actionable items found), run instead:
 
