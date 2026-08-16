@@ -90,7 +90,9 @@ function sleep(ms) {
  *                 Pass a redacted copy to avoid leaking sensitive values.
  *   - stallWarningIntervalMs - Interval of child-process silence after which the
  *                 driver logs a stall warning. Defaults to the value resolved from
- *                 GH_AW_HARNESS_STALL_WARNING_MS; 0 disables the warnings.
+ *                 GH_AW_HARNESS_STALL_WARNING_MS; 0 disables the warnings. An explicit
+ *                 caller value is used as-is (not clamped to the environment range) so
+ *                 tests can use short intervals.
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number, watchdogFired: boolean}>}
  */
 function runProcess({ command, args, attempt, log, logArgs, env, postResultWatchdog, stallWarningIntervalMs }) {
@@ -145,7 +147,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     // then resumed" from "still silent".
     function recordActivity() {
       lastActivityAt = Date.now();
-      if (stallWarnings > 0 && stalledSinceMs > 0) {
+      if (stalledSinceMs > 0) {
         log(`attempt ${attempt + 1}: stall watchdog: output resumed after ${formatDuration(Date.now() - stalledSinceMs)} of silence`);
         stalledSinceMs = 0;
       }
