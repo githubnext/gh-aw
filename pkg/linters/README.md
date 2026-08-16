@@ -304,6 +304,7 @@ _ = trimleftright.Analyzer
 **Transitive / Internal helpers**:
 - `github.com/github/gh-aw/pkg/linters/internal/filecheck` — shared file-path filtering helpers used by multiple analyzers
 - `github.com/github/gh-aw/pkg/linters/internal/nolint` — shared `//nolint` directive parsing helpers used by multiple analyzers
+- `github.com/github/gh-aw/pkg/linters/internal/librarycall` — shared implementation for analyzers that ban specific package functions in library packages
 
 **External**:
 - `golang.org/x/tools/go/analysis` — analyzer framework

@@ -3,62 +3,20 @@
 package ossetenvlibrary
 
 import (
-	"go/ast"
-	"strings"
+	"fmt"
 
-	"golang.org/x/tools/go/analysis"
-
-	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
-	"github.com/github/gh-aw/pkg/linters/internal/astutil"
-	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
-	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/linters/internal/librarycall"
 )
 
-// Analyzer is the os-setenv-in-library analysis pass.
-var Analyzer = analyzerutil.New("ossetenvlibrary", "reports calls to os.Setenv or os.Unsetenv in non-main, non-test packages", run)
-
-func run(pass *analysis.Pass) (any, error) {
-	pkgPath := pass.Pkg.Path()
-	if pass.Pkg.Name() == "main" || strings.HasSuffix(pkgPath, "/main") || strings.Contains(pkgPath, "/cmd/") {
-		return nil, nil
-	}
-
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
-
-		if strings.HasSuffix(pkgPath, ".test") || filecheck.ShouldSkipFilename(pass.Fset.PositionFor(call.Pos(), false).Filename, generatedFiles) {
-			return
-		}
-
-		fn, ok := astutil.CalledOSFunc(pass, call, "Setenv", "Unsetenv")
-		if !ok {
-			return
-		}
-		position := pass.Fset.PositionFor(call.Pos(), false)
-		if nolint.HasDirectiveForLinter(position, noLintIndex, "ossetenvlibrary") {
-			return
-		}
-		switch fn.Name() {
-		case "Setenv":
-			pass.ReportRangef(call, "os.Setenv mutates the process environment; pass configuration explicitly instead")
-		case "Unsetenv":
-			pass.ReportRangef(call, "os.Unsetenv mutates the process environment; pass configuration explicitly instead")
-		}
-	})
+// restriction bans environment mutation outside of main and cmd/ packages.
+var restriction = librarycall.Restriction{
+	Linter:  "ossetenvlibrary",
+	PkgPath: "os",
+	Funcs:   []string{"Setenv", "Unsetenv"},
+	Message: func(funcName, _ string) string {
+		return fmt.Sprintf("os.%s mutates the process environment; pass configuration explicitly instead", funcName)
+	},
 }
+
+// Analyzer is the os-setenv-in-library analysis pass.
+var Analyzer = restriction.Analyzer("reports calls to os.Setenv or os.Unsetenv in non-main, non-test packages")

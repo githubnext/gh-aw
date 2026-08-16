@@ -131,6 +131,14 @@ func IsFmtErrorf(pass *analysis.Pass, call *ast.CallExpr) bool {
 // CalledOSFunc reports whether call resolves to a function in package os. If
 // allowedNames are provided, the function name must match one of them.
 func CalledOSFunc(pass *analysis.Pass, call *ast.CallExpr, allowedNames ...string) (*types.Func, bool) {
+	return CalledPkgFunc(pass, call, "os", allowedNames...)
+}
+
+// CalledPkgFunc reports whether call resolves to a function in the package with
+// import path pkgPath. If allowedNames are provided, the function name must
+// match one of them. Aliased and dot imports are resolved through type
+// information.
+func CalledPkgFunc(pass *analysis.Pass, call *ast.CallExpr, pkgPath string, allowedNames ...string) (*types.Func, bool) {
 	if pass == nil || pass.TypesInfo == nil || call == nil {
 		return nil, false
 	}
@@ -146,7 +154,7 @@ func CalledOSFunc(pass *analysis.Pass, call *ast.CallExpr, allowedNames ...strin
 	}
 
 	fn, ok := obj.(*types.Func)
-	if !ok || fn.Pkg() == nil || fn.Pkg().Path() != "os" {
+	if !ok || fn.Pkg() == nil || fn.Pkg().Path() != pkgPath {
 		return nil, false
 	}
 	if len(allowedNames) == 0 {
