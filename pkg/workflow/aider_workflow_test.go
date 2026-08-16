@@ -60,9 +60,13 @@ func TestAiderHarnessPreservesProcessFailureDetails(t *testing.T) {
 		}
 	})
 
+	exitPath := filepath.Join(tempDir, "exit-aider")
+	if err := os.WriteFile(exitPath, []byte("#!/bin/sh\nexit 7\n"), 0o700); err != nil {
+		t.Fatalf("failed to write exit fixture: %v", err)
+	}
 	t.Run("exit code", func(t *testing.T) {
-		output := runHarness(t, "/bin/false")
-		if !strings.Contains(output, "Aider execution failed with exit code 1") {
+		output := runHarness(t, exitPath)
+		if !strings.Contains(output, "Aider execution failed with exit code 7") {
 			t.Fatalf("expected exit code detail, got:\n%s", output)
 		}
 	})
