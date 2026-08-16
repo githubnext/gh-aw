@@ -194,8 +194,8 @@ func TestInstallCopilotCLIScriptUsesBoundedRetriesForReleaseDownloads(t *testing
 	require.NoError(t, err)
 
 	for _, download := range []string{
-		`curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"`,
-		`curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"`,
+		`curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"`,
+		`curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"`,
 	} {
 		assert.Contains(t, string(script), download)
 	}
