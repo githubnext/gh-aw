@@ -190,7 +190,7 @@ safe-outputs:
 `approve-workflow-run` is an experimental safe output. `gh aw compile` emits an experimental feature warning when a workflow uses it.
 :::
 
-Approves a GitHub Actions workflow run waiting at the repository's fork pull request approval gate. The agent supplies a positive integer `run_id`; the handler verifies that the run is a pull request run, is associated with an authorized pull request, and has status `waiting` before calling GitHub's workflow-run approval API.
+Approves a GitHub Actions workflow run in the "action required" state, such as runs for fork pull requests or pull requests created by Copilot. The agent supplies a positive integer `run_id`; the handler verifies that the run is a pull request run, is associated with an authorized pull request, and has status `waiting` before calling GitHub's workflow-run approval API.
 
 ```yaml wrap
 safe-outputs:
@@ -208,7 +208,7 @@ safe-outputs:
         - AGENTS.md
 ```
 
-This operation requires `actions: write`, `pull-requests: read`, and an explicit external `github-token` or `github-app`; the default `github.token` cannot approve fork pull-request workflow runs. GitHub App tokens are minted with both permissions. Use `staged: true` to preview an approval without accessing the GitHub API or consuming the configured `max` limit.
+This operation requires `actions: write`, `pull-requests: read`, and an explicit external `github-token` or `github-app`; the default `github.token` cannot approve workflow runs requiring approval. GitHub App tokens are minted with both permissions. Use `staged: true` to preview an approval without accessing the GitHub API or consuming the configured `max` limit.
 
 `allowed-workflows` is required and restricts approval to workflow filenames matching one of its wildcard patterns. The handler compares the basename from GitHub's workflow metadata, treating `.yml` and `.yaml` as equivalent; directory paths are not accepted. Approvals permit any pending run from an allowed workflow whose associated pull requests are all authorized. By default, only the pull request that triggered the workflow is authorized. Use `allowed-pull-requests` to authorize additional pull requests; it accepts a list of string PR numbers or a GitHub Actions expression that resolves to a list of PR numbers. Invalid entries are not authorized. Fork pull requests are refused unless `fork: true` is explicitly configured, and this safe output always refuses to run from a `pull_request_target` event. A workflow run that is not a pull request run, is not from an allowed workflow, has any unauthorized associated pull request, has modified protected files, or no longer has status `waiting` is rejected. Protected files use the standard manifest and protected-directory set; use `protected-files.exclude` to remove specific filenames or path prefixes from that set.
 

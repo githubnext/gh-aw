@@ -73,7 +73,7 @@ interface MarkPullRequestAsReadyForReviewConfig extends SafeOutputConfig {
 }
 
 /**
- * Configuration for approving pending workflow runs from fork pull requests
+ * Configuration for approving pending workflow runs awaiting required approval
  */
 interface ApproveWorkflowRunConfig extends SafeOutputConfig {
   fork?: boolean;
