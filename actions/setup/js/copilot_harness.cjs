@@ -70,6 +70,8 @@ const {
   AWF_REFLECT_TIMEOUT_MS,
   AWF_MODELS_URL_TIMEOUT_MS,
   GEMINI_MODEL_NAME_PREFIX,
+  AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
+  waitForProviderListenerReady,
   enrichReflectModels,
   extractModelIds,
   fetchAWFReflect,
@@ -175,6 +177,8 @@ const SDK_SESSION_IDLE_TIMEOUT_PATTERN = /Timeout after \d+ms waiting for sessio
 // avoid false positives from any process that logs "Gateway shutdown initiated"
 // as plain text.
 const MCP_GATEWAY_SHUTDOWN_PATTERN = /"message"\s*:\s*"Gateway shutdown initiated"/;
+const CONNECTION_REFUSED_ERROR_PATTERN = /connection refused|ECONNREFUSED/i;
+const FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS = 1000;
 
 // Pattern to detect null-type tool_call error that poisons conversation history.
 // Matches the Copilot API 400 error:
@@ -499,6 +503,15 @@ function isSDKSessionIdleTimeoutError(output) {
  */
 function isMCPGatewayShutdownError(output) {
   return MCP_GATEWAY_SHUTDOWN_PATTERN.test(output);
+}
+
+/**
+ * Determine whether output contains a connection-refused signal.
+ * @param {string} output
+ * @returns {boolean}
+ */
+function isConnectionRefusedError(output) {
+  return CONNECTION_REFUSED_ERROR_PATTERN.test(output);
 }
 
 /**
@@ -994,6 +1007,17 @@ async function main() {
   applyCopilotModelAliasResolution({ awfReflectData, logger: log });
   applyCopilotWireAPI({ modelsJson: loadModelsJson(), logger: log });
 
+  // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
+  // A noop indicates the work is complete or there is nothing to do — starting the agent
+  // (and, in SDK mode, probing provider listener readiness below) would be wasteful and
+  // potentially harmful. This must run before the provider-listener readiness gate so a
+  // legitimate noop exit is never turned into an infrastructure-incomplete failure by an
+  // unrelated listener being unavailable.
+  const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
+  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
+    process.exit(0);
+  }
+
   // Resolve BYOK provider from live reflect data (SDK mode only).
   // Multi-provider BYOK is the only supported mode — fail immediately if the
   // provider cannot be resolved so retries are not wasted on a misconfigured environment.
@@ -1030,6 +1054,23 @@ async function main() {
     }
 
     log(`copilot-sdk driver mode: multi-provider config resolved (${multiProvider.providers.length} providers, ${multiProvider.models.length} models, model=${resolvedModel})`);
+
+    const uniqueProviderBaseUrls = [...new Set(multiProvider.providers.map(provider => String(provider.baseUrl || "").trim()).filter(Boolean))];
+    if (uniqueProviderBaseUrls.length === 0) {
+      log("copilot-sdk driver mode: no provider baseUrls to probe — skipping listener readiness check");
+    }
+    for (const providerBaseUrlToProbe of uniqueProviderBaseUrls) {
+      const readiness = await waitForProviderListenerReady({
+        baseUrl: providerBaseUrlToProbe,
+        timeoutMs: AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,
+        logger: log,
+      });
+      if (!readiness.ok) {
+        emitInfrastructureIncomplete(`api-proxy provider listener was not ready at ${providerBaseUrlToProbe} before first Copilot SDK request (${readiness.error}).`);
+        log(`copilot-sdk driver mode: provider listener readiness probe failed for ${providerBaseUrlToProbe}: ${readiness.error}`);
+        process.exit(1);
+      }
+    }
   }
 
   // Merge SDK env additions into the child process env only when the SDK helper
@@ -1055,14 +1096,6 @@ async function main() {
     multiProviderJson,
   });
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
-
-  // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.
-  // A noop indicates the work is complete or there is nothing to do — starting the agent
-  // would be wasteful and potentially harmful.
-  const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
-  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
-    process.exit(0);
-  }
 
   let delay = initialDelayMs;
   let lastExitCode = 1;
@@ -1192,6 +1225,7 @@ async function main() {
           const isNullTypeToolCall = isNullTypeToolCallError(result.output);
           const isSDKSessionIdleTimeout = isSDKSessionIdleTimeoutError(result.output);
           const isMCPGatewayShutdown = isMCPGatewayShutdownError(result.output);
+          const isConnectionRefused = isConnectionRefusedError(result.output);
           const permissionDeniedCount = countPermissionDeniedIssues(result.output);
           const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
           const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
@@ -1228,6 +1262,7 @@ async function main() {
               ` isNullTypeToolCallError=${isNullTypeToolCall}` +
               ` isSDKSessionIdleTimeoutError=${isSDKSessionIdleTimeout}` +
               ` isMCPGatewayShutdownError=${isMCPGatewayShutdown}` +
+              ` isConnectionRefusedError=${isConnectionRefused}` +
               ` isAuthError=${isAuthErr}` +
               ` isAuthenticationFailedError=${isAuthenticationFailed}` +
               ` permissionDeniedCount=${permissionDeniedCount}` +
@@ -1380,6 +1415,17 @@ async function main() {
             }
           }
 
+          // The listener readiness probe above ensures the api-proxy provider listener is
+          // accepting connections before attempt 0 is sent. A ECONNREFUSED here means the
+          // provider died in the narrow window between the probe and the first request — retry
+          // once as a fresh run. Later attempts (attempt > 0) fall through to the generic retry
+          // handling below instead of taking this one-shot path.
+          if (attempt === 0 && isConnectionRefused && maxRetries > 0) {
+            useContinueOnRetry = false;
+            log(`attempt ${attempt + 1}: connection refused on first request path — retrying as fresh run with short backoff (${FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS}ms) (attempt ${attempt + 2}/${maxRetries + 1})`);
+            return { action: "retry", nextDelayMs: FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS };
+          }
+
           if (isStartupRetryEligible && isStartupNoOutputRetryCandidate(result) && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < maxRetries) {
             scheduledExit2Retries += 1;
             scheduledExit2RetryAttempted = true;
@@ -1493,6 +1539,7 @@ if (typeof module !== "undefined" && module.exports) {
     AGENTIC_ENGINE_TIMEOUT_PATTERN,
     buildMissingToolPermissionIssuePayload,
     isAuthenticationFailedError,
+    isConnectionRefusedError,
     isMCPGatewayShutdownError,
     isSDKSessionIdleTimeoutError,
     startCopilotSDKServer,

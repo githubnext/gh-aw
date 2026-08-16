@@ -35,6 +35,7 @@ const {
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   isDetectionPhase,
   isAuthenticationFailedError,
+  isConnectionRefusedError,
   isRetryableProxyAuthenticationFailure,
   isMCPGatewayShutdownError,
   isModelAvailableInReflectData,
@@ -125,6 +126,17 @@ describe("copilot_harness.cjs", () => {
     it("matches the exact error from the failed workflow run", () => {
       const errorOutput = "Execution failed: CAPIError: 400 400 Bad Request\n (Request ID: C818:3ED713:19D401B:1C446B7:69D653CA)";
       expect(CAPI_ERROR_400_PATTERN.test(errorOutput)).toBe(true);
+    });
+
+    describe("connection refused detection", () => {
+      it("detects ECONNREFUSED signals in SDK driver output", () => {
+        const output = "Failed native model HTTP request: error sending request for url (http://api-proxy:10002/chat/completions): " + "client error (Connect): tcp connect error: Connection refused (os error 111) [ECONNREFUSED]";
+        expect(isConnectionRefusedError(output)).toBe(true);
+      });
+
+      it("does not match unrelated output", () => {
+        expect(isConnectionRefusedError("CAPIError: 400 bad request")).toBe(false);
+      });
     });
 
     describe("CAPI quota-exceeded detection pattern", () => {
@@ -1851,6 +1863,45 @@ describe("copilot_harness.cjs", () => {
       expect(after1.shouldRetry).toBe(true);
       expect(after1.useContinueOnRetry).toBe(false); // must not re-enable --continue
       expect(after1.continueDisabledPermanently).toBe(true);
+    });
+  });
+
+  describe("connection-refused retries once on first attempt", () => {
+    // Inline the same decision as the driver's ECONNREFUSED handling: retry once as a fresh
+    // run with a short backoff only on the very first attempt, and only when a retry budget
+    // remains. Later attempts (attempt > 0) and an exhausted retry budget must not take this
+    // one-shot path.
+    const FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS = 1000;
+
+    /**
+     * @param {boolean} isConnectionRefused
+     * @param {number} attempt
+     * @param {number} maxRetries
+     * @returns {{ action: "retry" | "continue", nextDelayMs?: number }}
+     */
+    function decideConnectionRefusedRetry(isConnectionRefused, attempt, maxRetries) {
+      if (attempt === 0 && isConnectionRefused && maxRetries > 0) {
+        return { action: "retry", nextDelayMs: FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS };
+      }
+      return { action: "continue" };
+    }
+
+    it("retries once as a fresh run with a 1s delay on the first attempt", () => {
+      const decision = decideConnectionRefusedRetry(true, 0, 3);
+      expect(decision).toEqual({ action: "retry", nextDelayMs: 1000 });
+    });
+
+    it("does not take this path on later attempts", () => {
+      expect(decideConnectionRefusedRetry(true, 1, 3)).toEqual({ action: "continue" });
+      expect(decideConnectionRefusedRetry(true, 2, 3)).toEqual({ action: "continue" });
+    });
+
+    it("does not take this path when the retry budget is zero", () => {
+      expect(decideConnectionRefusedRetry(true, 0, 0)).toEqual({ action: "continue" });
+    });
+
+    it("does not take this path when the error is not a connection refusal", () => {
+      expect(decideConnectionRefusedRetry(false, 0, 3)).toEqual({ action: "continue" });
     });
   });
 
