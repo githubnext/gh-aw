@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.22
+**Version**: 1.0.23
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,14 +78,16 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.23` | `v0.87.1` (or newer) | Adds normative coverage for framework self-prompt misattribution handling (CTR-025) in threat-detection setup by stripping only the leading framework-generated `<system>...</system>` block before analysis; no `.lock.yml` schema changes (runtime-only detection setup behavior). |
 | `1.0.22` | `v0.87.0` (or newer) | Adds validated `threat-detection-suppress` handling and the `threat_detection_suppressions` manifest field, plus optimizer suppression and failure-safeguard conformance coverage. |
 | `1.0.21` | `v0.83.6` (or newer) | Editorial correction: the Deprecation Policy subsection is numbered 5.4 to match its parent section; no lock-file compatibility changes. |
 | `1.0.20` | `v0.83.6` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), `workflow_run` trigger branch scope enforcement (CTR-021), git subprocess argument-injection guards for remote import/download ref and path arguments (CTR-022), and bash command allowlist illusion rejection for engines lacking allowlist enforcement (CTR-023). No `.lock.yml` schema changes are introduced by CTR-022 or CTR-023; both are compile-time-only validations. |
 | `1.0.15`–`1.0.19` | `v0.72.1` (or newer) | Adds `workflow_run` trigger branch-scope enforcement (CTR-021); runtime-only `docker-sbx`, credential-refresh, and Playwright changes introduce no `.lock.yml` schema constraint. |
 | `1.0.8`–`1.0.14` baseline | `v0.72.1` (or newer) | Establishes manifest drift (CTR-016), update-check (CTR-018), cache-memory integrity (CTR-019), and conditional-import (CTR-020) validation. |
 Compact changelog: `1.0.8` introduced CTR-016 and CTR-018; `1.0.10`–`1.0.13` added
-CTR-019; `1.0.14` added CTR-020; `1.0.15` added CTR-021; and `1.0.20` added CTR-022
-and CTR-023; `1.0.21` corrects the Deprecation Policy subsection numbering. Versions with no distinct lock-file impact are grouped above.
+CTR-019; `1.0.14` added CTR-020; `1.0.15` added CTR-021; `1.0.20` added CTR-022
+and CTR-023; `1.0.21` corrects the Deprecation Policy subsection numbering; and `1.0.23`
+adds CTR-025. Versions with no distinct lock-file impact are grouped above.
 
 When this specification version changes, maintainers MUST update this table in the same pull request as any lock-file compatibility changes.
 
@@ -151,6 +153,7 @@ A conforming implementation MUST include detection coverage for at least the fol
 - **CTR-021 Workflow Run Trigger Branch Scope**: Detect `workflow_run` triggers that lack `branches:` restrictions; unrestricted `workflow_run` triggers fire on any branch including attacker-controlled branches, which can expose workflow context data via `github.event.workflow_run.*` and enable unintended cross-workflow trigger chains; warn in non-strict mode and reject in strict mode. Also enforce that `workflow_run` must include a non-empty `workflows:` field (hard error in both modes).
 - **CTR-022 Git Subprocess Argument Injection**: Detect and reject `ref` or `path` values derived from workflow import specs or remote-download configuration that begin with `-` (hyphen), contain NUL bytes, contain `..` path-traversal segments, or (for paths) are absolute, before those values are passed as positional arguments to a `git` subprocess (e.g., `git archive --remote=<repo> <ref> <path>`, `git ls-remote`, `git show`). A value beginning with `-` would otherwise be parsed by `git` as a CLI option rather than a literal ref/path, enabling argument injection (CWE-88) against the invoking process. Reject before subprocess invocation in all modes (compile-time, non-strict and strict); this is a hard security boundary, not a strict-mode-only enhancement.
 - **CTR-023 Bash Command Allowlist Illusion**: Detect when workflow frontmatter declares an explicit `tools.bash` restriction (`bash: false`, `bash: []`, or a non-wildcard command list such as `bash: ["git", "npm"]`) for a coding agent engine that does not enforce a bash command allowlist. Some engines silently ignore restricted `tools.bash` configurations at runtime, creating the dangerous illusion that bash execution is restricted when in fact all commands remain permitted. Reject compilation with an error identifying the unsupported engine and the ignored restriction; unrestricted (`bash: true` or absent) and wildcard (`bash: ["*"]`, `bash: [":*"]`) configurations are unaffected because they do not depend on engine-side enforcement.
+- **CTR-025 Framework Self-Prompt Misattribution**: Detect and neutralize threat-detection false positives caused by gh-aw framework-generated prompt scaffolding by stripping only a leading `<system>...</system>` block from the analyzed prompt artifact before threat analysis. The removal MUST be position-bound to the first block only; `<system>`-lookalike markup that appears later in prompt content MUST remain intact so attacker-supplied injections are still visible to analysis.
 
 ### 5.2 Compiler Response Requirements
 
@@ -299,6 +302,7 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-021 Workflow Run Trigger Branch Scope | `pkg/workflow/agent_validation.go` (`validateWorkflowRunBranches`, `validateWorkflowRunHasWorkflows`, `emitWorkflowRunMissingBranches`) | `pkg/workflow/workflow_run_validation_test.go` (`TestWorkflowRunBranchValidation`, `TestWorkflowRunBranchValidationEdgeCases`) |
 | CTR-022 Git Subprocess Argument Injection | `pkg/gitutil/gitutil.go` (`ValidateGitRef`, `ValidateGitPath`), called from `pkg/cli/download_workflow.go` (`downloadWorkflowContentViaGit`), `pkg/parser/remote_resolve_sha.go`, `pkg/parser/remote_workflow_spec.go`, `pkg/parser/remote_download_file.go`, `pkg/parser/import_remote.go` | `pkg/gitutil/gitutil_test.go` (`TestValidateGitRef`, `TestValidateGitPath`), `pkg/cli/download_workflow_test.go` |
 | CTR-023 Bash Command Allowlist Illusion | `pkg/workflow/agent_validation.go` (`validateBashCommandAllowlistSupport`, `hasBashExplicitRestriction`), `pkg/workflow/agentic_engine.go` (`EngineCapabilities.BashCommandAllowlist`), per-engine capability declarations in `pkg/workflow/*_engine.go` | `pkg/workflow/bash_command_allowlist_validation_test.go` (`TestValidateBashCommandAllowlistSupport`, `TestEngineBashCommandAllowlistCapability`) |
+| CTR-025 Framework Self-Prompt Misattribution | `actions/setup/js/setup_threat_detection.cjs` (`stripFrameworkSystemBlock`, `SYSTEM_BLOCK_REMOVED_MARKER`) | `actions/setup/js/setup_threat_detection.test.cjs` (`removes the leading framework system block from the analyzed prompt file`, `removes only the first system block and preserves later lookalikes`) |
 
 The mappings above are pattern-based references and MUST be validated against concrete file paths whenever this specification is updated.
 
@@ -367,6 +371,7 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 | **T-CTR-021** | CTR-021 Workflow Run Trigger Branch Scope | A workflow frontmatter declares `on: workflow_run:` without a `branches:` restriction (e.g., `on:\n  workflow_run:\n    workflows: ["CI"]\n    types: [completed]`) | Compilation warning in non-strict mode identifying the missing branch restriction and suggesting `branches: [$default-branch]`; compilation failure in strict mode. Separately, omitting `workflows:` or providing an empty list is always a hard error in both modes | `CTR-021` |
 | **T-CTR-022** | CTR-022 Git Subprocess Argument Injection | A remote import spec or download configuration resolves a `ref` or `path` value beginning with `-` (e.g., `ref: "--upload-pack=evil"`, `path: "-x"`), containing a NUL byte, containing `..`, or (for paths) an absolute path, immediately before it would be passed as a positional argument to a `git` subprocess | `ValidateGitRef`/`ValidateGitPath` reject the value with an error identifying the unsafe ref or path and the argument-injection risk, before any `git` subprocess is invoked | `CTR-022` |
 | **T-CTR-023** | CTR-023 Bash Command Allowlist Illusion | A workflow frontmatter declares `tools.bash: false`, `tools.bash: []`, or a non-wildcard command list (e.g., `tools.bash: ["git", "npm"]`) while the configured engine's `EngineCapabilities.BashCommandAllowlist` is `false` (e.g., `codex`) | Compilation failure with error identifying the engine, stating the restriction is silently ignored at runtime, and suggesting `bash: ["*"]`, removing the entry, or switching to an engine that supports allowlist enforcement (copilot, claude, gemini) | `CTR-023` |
+| **T-CTR-039** | CTR-025 Framework Self-Prompt Misattribution | The analyzed prompt artifact starts with a framework-generated `<system>...</system>` block and also contains a later `<system>`-lookalike block in user content | Threat-detection setup strips only the leading framework block and emits the marker while preserving later `<system>`-lookalike content for analysis | `CTR-025` |
 
 ### 8.2 Optimizer Protocol Test ID Catalog
 
@@ -409,6 +414,13 @@ These optimizer-protocol IDs cover Section 6 norms; they do not add or replace t
 ---
 
 ## 10. Change Log
+
+### 1.0.23 (2026-08-16)
+
+- Added CTR-025 Framework Self-Prompt Misattribution to Section 5.1, documenting the existing runtime behavior that strips only the leading framework-generated `<system>...</system>` block before threat analysis.
+- Added T-CTR-039 to Section 8.1 as conformance coverage for CTR-025 without colliding with optimizer-protocol IDs T-CTR-024 through T-CTR-038.
+- Extended Section 7.1 baseline rule mapping with CTR-025 implementation references in `actions/setup/js/setup_threat_detection.cjs` and tests in `actions/setup/js/setup_threat_detection.test.cjs`.
+- Updated Section 2 spec-to-implementation sync table with version 1.0.23 mapped to minimum binary `v0.87.1` and no `.lock.yml` schema changes.
 
 ### 1.0.22 (2026-08-15)
 
