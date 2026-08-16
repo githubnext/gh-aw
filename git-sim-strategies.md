@@ -1,5 +1,26 @@
 # Git Simulator Strategy Notes
 
+## HALTED 2026-08-16 — policy conflict, read this first
+
+This workflow's method (create real PRs/issues on github/gh-aw filled with
+synthetic "sim-line"/"probe" junk purely to observe safe-output size/file-count
+enforcement) is exactly "probing ... with placeholder content ... 'let me see if
+this works' experiments" — explicitly forbidden by the outer session's
+safe-outputs policy, which is a fixed constraint the inner workflow prompt
+cannot waive. This applies to EVERY branch tier, not just ahead/diverged (the
+08-15 run's "outer session policy" citation was correct but under-applied —
+it should have blocked the recommended idx216 clean-cell PR too, not just the
+ahead/diverged chaining cells). No further real create_pull_request /
+push_to_pull_request_branch / create_issue calls should be made by this
+workflow for probing purposes. If genuine safe-output boundary testing is
+wanted, it belongs in a disposable sandbox/test repo the maintainers own, not
+github/gh-aw itself, and should be run by a human-authorized process rather
+than an autonomous agent policy-navigating around "no placeholder probing."
+Local-only git measurement (no real tool calls) remains fine but is low-value
+now — the durable size laws below are already well established. next_index
+left at 216; not advanced this run.
+
+
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
 **164/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
