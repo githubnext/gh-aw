@@ -588,6 +588,34 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.rmdirSync(tmpDir);
             if (fs.existsSync(stdioLogPath)) fs.unlinkSync(stdioLogPath);
           }
+        }),
+        it("redacts add-mask values in agent-stdio.log before artifact upload", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
+          const secret = "mask_" + "a1b2c3d4".repeat(6);
+          try {
+            fs.writeFileSync(logFile, "content");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            fs.mkdirSync(path.dirname(stdioLogPath), { recursive: true });
+            fs.writeFileSync(stdioLogPath, `before\n::add-mask::${secret}\nvalue=${secret}\nafter\n`, "utf8");
+            const mockParseLog = vi.fn().mockReturnValue({
+              markdown: "## Result\n",
+              mcpFailures: [],
+              maxTurnsHit: false,
+              logEntries: [],
+            });
+            runLogParser({ parseLog: mockParseLog, parserName: "Copilot" });
+            const redacted = fs.readFileSync(stdioLogPath, "utf8");
+            expect(redacted).not.toContain(secret);
+            expect(redacted).not.toContain("::add-mask::");
+            expect(redacted).toContain("value=***");
+            expect(mockCore.info).toHaveBeenCalledWith("[log-parser] Sanitized agent-stdio.log before artifact upload using 1 collected add-mask value(s)");
+          } finally {
+            fs.unlinkSync(logFile);
+            fs.rmdirSync(tmpDir);
+            if (fs.existsSync(stdioLogPath)) fs.unlinkSync(stdioLogPath);
+          }
         }));
     }));
 
