@@ -36,6 +36,8 @@ const {
   isDetectionPhase,
   isAuthenticationFailedError,
   isConnectionRefusedError,
+  shouldRetryFirstConnectionRefused,
+  FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS,
   isRetryableProxyAuthenticationFailure,
   isMCPGatewayShutdownError,
   isModelAvailableInReflectData,
@@ -1867,41 +1869,26 @@ describe("copilot_harness.cjs", () => {
   });
 
   describe("connection-refused retries once on first attempt", () => {
-    // Inline the same decision as the driver's ECONNREFUSED handling: retry once as a fresh
-    // run with a short backoff only on the very first attempt, and only when a retry budget
-    // remains. Later attempts (attempt > 0) and an exhausted retry budget must not take this
-    // one-shot path.
-    const FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS = 1000;
+    it("retries once as a fresh run with a short delay on the first SDK-mode attempt", () => {
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 0, isConnectionRefused: true, maxRetries: 3 })).toBe(true);
+      expect(FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS).toBe(1000);
+    });
 
-    /**
-     * @param {boolean} isConnectionRefused
-     * @param {number} attempt
-     * @param {number} maxRetries
-     * @returns {{ action: "retry" | "continue", nextDelayMs?: number }}
-     */
-    function decideConnectionRefusedRetry(isConnectionRefused, attempt, maxRetries) {
-      if (attempt === 0 && isConnectionRefused && maxRetries > 0) {
-        return { action: "retry", nextDelayMs: FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS };
-      }
-      return { action: "continue" };
-    }
-
-    it("retries once as a fresh run with a 1s delay on the first attempt", () => {
-      const decision = decideConnectionRefusedRetry(true, 0, 3);
-      expect(decision).toEqual({ action: "retry", nextDelayMs: 1000 });
+    it("does not take this path in CLI mode", () => {
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: false, attempt: 0, isConnectionRefused: true, maxRetries: 3 })).toBe(false);
     });
 
     it("does not take this path on later attempts", () => {
-      expect(decideConnectionRefusedRetry(true, 1, 3)).toEqual({ action: "continue" });
-      expect(decideConnectionRefusedRetry(true, 2, 3)).toEqual({ action: "continue" });
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 1, isConnectionRefused: true, maxRetries: 3 })).toBe(false);
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 2, isConnectionRefused: true, maxRetries: 3 })).toBe(false);
     });
 
     it("does not take this path when the retry budget is zero", () => {
-      expect(decideConnectionRefusedRetry(true, 0, 0)).toEqual({ action: "continue" });
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 0, isConnectionRefused: true, maxRetries: 0 })).toBe(false);
     });
 
     it("does not take this path when the error is not a connection refusal", () => {
-      expect(decideConnectionRefusedRetry(false, 0, 3)).toEqual({ action: "continue" });
+      expect(shouldRetryFirstConnectionRefused({ copilotSDKMode: true, attempt: 0, isConnectionRefused: false, maxRetries: 3 })).toBe(false);
     });
   });
 

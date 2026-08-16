@@ -515,6 +515,21 @@ function isConnectionRefusedError(output) {
 }
 
 /**
+ * Decide whether a failed attempt qualifies for the one-shot connection-refused retry.
+ *
+ * This path only exists to cover the narrow window in which the api-proxy provider listener
+ * dies between the SDK-mode readiness probe and the first request. It is therefore restricted
+ * to SDK mode (CLI failures keep the generic retry policy, which may reuse `--continue`), to
+ * the very first attempt, and to runs that still have a retry budget.
+ *
+ * @param {{ copilotSDKMode: boolean, attempt: number, isConnectionRefused: boolean, maxRetries: number }} params
+ * @returns {boolean}
+ */
+function shouldRetryFirstConnectionRefused({ copilotSDKMode, attempt, isConnectionRefused, maxRetries }) {
+  return Boolean(copilotSDKMode) && attempt === 0 && Boolean(isConnectionRefused) && maxRetries > 0;
+}
+
+/**
  * Extract a compact tail preview from combined process output for failure logs.
  * @param {string} output
  * @param {{ maxChars?: number, maxLines?: number }} [options]
@@ -1416,11 +1431,11 @@ async function main() {
           }
 
           // The listener readiness probe above ensures the api-proxy provider listener is
-          // accepting connections before attempt 0 is sent. A ECONNREFUSED here means the
-          // provider died in the narrow window between the probe and the first request — retry
-          // once as a fresh run. Later attempts (attempt > 0) fall through to the generic retry
-          // handling below instead of taking this one-shot path.
-          if (attempt === 0 && isConnectionRefused && maxRetries > 0) {
+          // accepting connections before attempt 0 is sent in SDK mode. A ECONNREFUSED here
+          // means the provider died in the narrow window between the probe and the first
+          // request — retry once as a fresh run. CLI mode and later attempts (attempt > 0) fall
+          // through to the generic retry handling below instead of taking this one-shot path.
+          if (shouldRetryFirstConnectionRefused({ copilotSDKMode, attempt, isConnectionRefused, maxRetries })) {
             useContinueOnRetry = false;
             log(`attempt ${attempt + 1}: connection refused on first request path — retrying as fresh run with short backoff (${FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS}ms) (attempt ${attempt + 2}/${maxRetries + 1})`);
             return { action: "retry", nextDelayMs: FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS };
@@ -1540,6 +1555,8 @@ if (typeof module !== "undefined" && module.exports) {
     buildMissingToolPermissionIssuePayload,
     isAuthenticationFailedError,
     isConnectionRefusedError,
+    shouldRetryFirstConnectionRefused,
+    FIRST_CONNECTION_REFUSED_RETRY_DELAY_MS,
     isMCPGatewayShutdownError,
     isSDKSessionIdleTimeoutError,
     startCopilotSDKServer,

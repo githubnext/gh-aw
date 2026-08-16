@@ -201,7 +201,7 @@ describe("awf_reflect.cjs", () => {
       expect(result.reason).toBe("timeout");
     });
 
-    it("clears a late error after a successful connect without affecting the result", async () => {
+    it("ignores a late error emitted after a successful connect", async () => {
       const probingConnect = vi.fn().mockImplementation(() => {
         const listeners = {};
         queueMicrotask(() => listeners.connect && listeners.connect());
@@ -216,9 +216,11 @@ describe("awf_reflect.cjs", () => {
           },
           end() {},
           destroy() {
-            // Simulate a trailing error emitted after destroy(); it must be a no-op
-            // since the "error" listener was removed on successful connect.
-            if (listeners.error) listeners.error(new Error("late ECONNRESET"));
+            // Simulate a trailing error emitted after destroy(). The "error" listener must
+            // still be installed (an EventEmitter without one would throw), and the handler
+            // must ignore it because the probe already settled as ready.
+            if (!listeners.error) throw new Error("error listener was removed before destroy()");
+            listeners.error(new Error("late ECONNRESET"));
           },
         };
       });

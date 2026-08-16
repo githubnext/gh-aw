@@ -489,19 +489,20 @@ async function waitForProviderListenerReady(options) {
       timer = setTimeout(() => {
         clear();
         lastError = `connect attempt timed out after ${attemptTimeoutMs}ms`;
-        socket.destroy();
         settle(false);
+        socket.destroy();
       }, attemptTimeoutMs);
       socket.once(readyEvent, () => {
         clear();
-        // Remove the error listener before tearing down the socket: a successful handshake has
-        // already settled this probe as ready, and a late/trailing error (e.g. an abrupt RST)
-        // must not overwrite lastError or otherwise affect the already-settled result.
-        socket.removeAllListeners("error");
-        socket.destroy();
+        // Settle as ready before tearing down the socket, and keep the "error" listener
+        // installed: destroy() can surface a late/trailing error (e.g. an abrupt RST), and an
+        // EventEmitter with no "error" listener would throw and terminate the process. The
+        // handler below ignores errors once the probe is settled.
         settle(true);
+        socket.destroy();
       });
       socket.once("error", err => {
+        if (settled) return;
         clear();
         lastError = getErrorMessage(err);
         socket.destroy();
