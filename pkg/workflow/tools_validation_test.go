@@ -616,8 +616,9 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 
 func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 	tests := []struct {
-		name     string
-		toolsMap map[string]any
+		name        string
+		toolsMap    map[string]any
+		shouldError bool
 	}{
 		{
 			name: "allowed-repos and min-integrity",
@@ -638,6 +639,7 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"min-integrity": "approved",
 				},
 			},
+			shouldError: false,
 		},
 		{
 			name: "blocked-users with min-integrity",
@@ -674,7 +676,12 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tools := NewTools(tt.toolsMap)
-			require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
+			err := validateGitHubGuardPolicy(tools, "test-workflow")
+			if tt.shouldError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 
 			compiler := NewCompiler()
 			stderrOutput := captureStderr(func() {
