@@ -96,6 +96,30 @@ Ad hoc scenario evaluation is a **conversation-mode capability** of the installe
 - To run ad hoc evaluation, address the request directly to the `agentic-workflows` custom agent in conversation (for example, as an issue/PR comment or chat prompt directed at the agent) using phrasing like `agentic-workflows evaluate this scenario without creating files: ...`. Do not attempt to pass the scenario text as a parameter to a CLI/MCP tool call — those calls will fail with an "Unknown parameter" error because no tool schema defines a prompt-like field.
 - If a CLI/MCP invocation returns `Unknown parameter 'prompt'` (or similarly for `scenario`/`query`), that confirms freeform evaluation is unavailable through that path; fall back to conversation mode and use the recommendation pattern documented above and in [create-agentic-workflow.md](create-agentic-workflow.md#ad-hoc-evaluation-mode) instead of retrying with a different parameter name.
 
+### Program Manager digest example
+
+```yaml
+on:
+  schedule:
+    - cron: "0 9 * * 1" # weekly, Monday 09:00
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+tools:
+  github:
+    mode: gh-proxy
+    toolsets: [default]
+safe-outputs:
+  create-issue:
+    close-older-issues: true
+```
+
+- Reporting window: 7 days, ending at run time; use `workflow_dispatch` for previews, reruns, or backfills of a prior window.
+- Grouping dimensions: group items by owning team or repository, then by status (in-progress, blocked, at-risk).
+- Dedup key example: `pm-digest:<window-id>` (for example `pm-digest:2026-W33`); combine with `close-older-issues: true` so each run supersedes the previous digest issue instead of accumulating duplicates.
+- Call `noop` when the reporting window has no qualifying updates.
+
 ### Non-technical persona examples
 
 Trigger and write-path are the same as the [Persona-to-Pattern Quick Matrix](#persona-to-pattern-quick-matrix) above. For ad hoc evaluation, also gather:

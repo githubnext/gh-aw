@@ -106,6 +106,31 @@ For dependency-license compliance and policy review on PRs:
 | Dependencies in needs-review tier | `add-comment` listing them with license details and requesting maintainer confirmation |
 | Blocked dependency added | `add-comment` flagging the violation + `create-issue` for team-wide record (skip `create-issue` if a matching open issue already exists) |
 
+### Scheduled compliance-policy audit example
+
+Monthly (or otherwise recurring) audits of policy/disclosure files use `schedule` instead of `pull_request`, since there is no single triggering PR event to react to:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 9 1 * *" # first of the month
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+safe-outputs:
+  create-issue:
+    close-older-issues: true
+```
+
+Prompt guidance:
+
+- Check for the presence and freshness of required policy/disclosure files (for example `SECURITY.md`, `CODE_OF_CONDUCT.md`, `LICENSE`, a responsible-disclosure contact) against the project's compliance checklist.
+- Reporting window: one calendar month; dedup key example `compliance-audit:<window-id>` (for example `compliance-audit:2026-08`).
+- Group findings by policy area (security disclosure, licensing, code of conduct) rather than by file.
+- Escalate with `create-issue` only when a required file is missing, stale (for example no update in over a year), or contains a broken disclosure contact; use `close-older-issues: true` so each month's audit supersedes the prior one.
+- Call `noop` when every required policy/disclosure file is present and current.
+
 ## Coverage-analysis guidance
 
 For workflows that read, analyze, or comment on test coverage (PR comments, trend tracking, coverage gates):
