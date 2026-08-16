@@ -85,6 +85,42 @@ describe("require-nan-check-after-split-index-parse", () => {
     });
   });
 
+  it("invalid: parseInt from split-index accesses on both ternary branches without NaN check", () => {
+    cjsRuleTester.run("require-nan-check-after-split-index-parse", requireNanCheckAfterSplitIndexParseRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const port = parseInt(useFallback ? fallbackEndpoint.split(":")[1] : endpoint.split(":")[1], 10); use(port);`,
+          errors: [{ messageId: "requireNaNCheck" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: parseInt from split-index accesses on both logical operands without NaN check", () => {
+    cjsRuleTester.run("require-nan-check-after-split-index-parse", requireNanCheckAfterSplitIndexParseRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const port = parseInt(endpoint.split(":")[1] || alternateEndpoint.split(":")[1], 10); use(port);`,
+          errors: [{ messageId: "requireNaNCheck" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: parseInt from a split-index access with a non-split fallback without NaN check", () => {
+    cjsRuleTester.run("require-nan-check-after-split-index-parse", requireNanCheckAfterSplitIndexParseRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const port = parseInt(endpoint.split(":")[1] ?? fallbackPort, 10); use(port);`,
+          errors: [{ messageId: "requireNaNCheck" }],
+        },
+      ],
+    });
+  });
+
   it("invalid: same-named variable validated in one scope does not suppress an unvalidated occurrence in another scope", () => {
     cjsRuleTester.run("require-nan-check-after-split-index-parse", requireNanCheckAfterSplitIndexParseRule, {
       valid: [],
