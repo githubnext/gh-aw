@@ -393,7 +393,7 @@ func (e *PiEngine) buildPiExecutionCommand(workflowData *WorkflowData, logFile, 
 			"export GH_AW_NODE_BIN"
 		return BuildAWFCommand(AWFCommandConfig{
 			EngineName:         "pi",
-			EngineCommand:      piCommandWithPath,
+			EngineCommand:      buildShellHarnessCommand("pi", piCommandWithPath),
 			LogFile:            logFile,
 			WorkflowData:       workflowData,
 			UsesTTY:            false,
@@ -412,7 +412,7 @@ func (e *PiEngine) buildPiExecutionCommand(workflowData *WorkflowData, logFile, 
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
 (umask 177 && touch %s)
-%s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, piCommand, logFile)
+%s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, buildShellHarnessCommand("pi", piCommand), logFile)
 }
 
 func (e *PiEngine) piAllowedDomains(workflowData *WorkflowData, modelConfigured bool) string {
@@ -432,12 +432,13 @@ func (e *PiEngine) piAllowedDomains(workflowData *WorkflowData, modelConfigured 
 
 func (e *PiEngine) buildPiExecutionEnv(workflowData *WorkflowData, profile universalLLMBackendProfile, backend UniversalLLMBackend, firewallEnabled, modelConfigured, hasModelsJSONSetup bool) map[string]string {
 	env := map[string]string{
-		"GH_AW_PROMPT":        constants.AwPromptsFile,
-		"GITHUB_AW":           "true",
-		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
-		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
-		"PI_OFFLINE":          "1",
-		"RUNNER_TEMP":         "${{ runner.temp }}",
+		"GH_AW_PROMPT":          constants.AwPromptsFile,
+		"GITHUB_AW":             "true",
+		"GITHUB_STEP_SUMMARY":   AgentStepSummaryPath,
+		"GITHUB_WORKSPACE":      "${{ github.workspace }}",
+		"GH_AW_TIMEOUT_MINUTES": resolveStepTimeoutValue(workflowData),
+		"PI_OFFLINE":            "1",
+		"RUNNER_TEMP":           "${{ runner.temp }}",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	if modelConfigured {

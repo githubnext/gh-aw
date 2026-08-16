@@ -165,6 +165,18 @@ engine:
 ---
 ```
 
+### Shared stall watchdog
+
+`GH_AW_HARNESS_STALL_WARNING_MS` configures the driver-level stall watchdog shared by all built-in harnesses. It is measured in **milliseconds**. The default is `300000` ms (5 minutes), the minimum is `1000` ms, and the maximum is `3600000` ms (1 hour). Unset and non-numeric values use the default; positive values outside the supported range are clamped; zero or negative values disable the warnings.
+
+Unlike the post-result watchdog, the stall watchdog never terminates the agent process. Whenever the agent CLI produces no stdout or stderr output for the configured interval, the harness logs a warning in the `Execute ... CLI` step, for example:
+
+```text wrap
+[copilot-harness] attempt 1: stall watchdog: no output from '/usr/bin/copilot' for 5m 0s (elapsed=5m 1s pid=1234 warnings=1) - the step may be hung; GitHub Actions will cancel this step in about 14m 59s (timeout-minutes=20)
+```
+
+The warning repeats on each interval while the silence continues, and a `stall watchdog: output resumed after ...` line is logged once output comes back. This makes a hung step diagnosable from the step log alone, without cross-referencing job or step metadata. The final `process closed` line reports `stallWarnings=<count>` when any warning fired.
+
 ### Engine-specific harness settings
 
 | Variable | Engine | Default | Units / range | Description |
