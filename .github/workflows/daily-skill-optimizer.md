@@ -163,6 +163,8 @@ evals:
     question: Does the agent output include at least three specific skill improvement recommendations?
   - id: improvements-actionable
     question: Does the agent output describe each improvement in enough detail to be actionable rather than only describing the general area?
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Skill Optimizer Improvements

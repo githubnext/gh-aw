@@ -74,6 +74,8 @@ evals:
     question: Did the agent analyze open Dependabot PRs or available dependency updates for the Go modules?
   - id: issue_created_or_noop
     question: Was an issue created for dependency updates, or was noop used when no actionable updates were found?
+features:
+  gh-aw-detection: true
 ---
 # Dependabot Dependency Checker
 

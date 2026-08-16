@@ -137,6 +137,8 @@ sandbox:
     id: awf
     runtime: docker-sbx
     sudo: true
+features:
+  gh-aw-detection: true
 ---
 
 # arXiv Paper Researcher: GitHub Agentic Workflows
