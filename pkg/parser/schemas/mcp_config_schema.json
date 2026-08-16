@@ -65,7 +65,7 @@
     },
     "container": {
       "type": "string",
-      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*(?:@sha256:[a-f0-9]{64})?$",
       "description": "Container image for stdio MCP connections (alternative to command)",
       "examples": ["docker.io/mcp/brave-search", "ghcr.io/example/mcp-server:latest", "ghcr.io/github/github-mcp-server:latest"]
     },

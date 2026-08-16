@@ -594,7 +594,7 @@ jobs:
           GH_AW_SKILL_DIR: ".github/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:AWF_VERSION ghcr.io/github/gh-aw-firewall/api-proxy:AWF_VERSION ghcr.io/github/gh-aw-firewall/squid:AWF_VERSION ghcr.io/github/gh-aw-mcpg:v0.4.4 ghcr.io/github/github-mcp-server:GH_MCP_VERSION ghcr.io/oraios/serena:latest mcr.microsoft.com/playwright/mcp
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:AWF_VERSION ghcr.io/github/gh-aw-firewall/api-proxy:AWF_VERSION ghcr.io/github/gh-aw-firewall/squid:AWF_VERSION ghcr.io/github/gh-aw-mcpg:v0.4.4 ghcr.io/github/github-mcp-server:GH_MCP_VERSION ghcr.io/oraios/serena:latest@sha256:0944b2ffe66dbcddeed531694b6819d7f9efd8125b442b282a1cc863f570a03e mcr.microsoft.com/playwright/mcp
       - name: Build and install gh-aw CLI from source
         run: |
           gh extension remove aw || true
@@ -717,7 +717,7 @@ jobs:
               },
               "serena": {
                 "type": "stdio",
-                "container": "ghcr.io/oraios/serena:latest",
+                "container": "ghcr.io/oraios/serena:latest@sha256:0944b2ffe66dbcddeed531694b6819d7f9efd8125b442b282a1cc863f570a03e",
                 "entrypoint": "/workspaces/serena/.venv/bin/serena",
                 "entrypointArgs": [
                   "start-mcp-server",
