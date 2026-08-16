@@ -16,6 +16,7 @@ import (
 
 const mcpGatewayCustomEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES"
 const mcpGatewayCustomEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_"
+const mcpGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_"
 const mcpGatewayCustomEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__"
 
 func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error {
@@ -35,7 +36,8 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	ensureDefaultMCPGatewayConfig(workflowData)
 	gatewayConfig := workflowData.SandboxConfig.MCP
 	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
-	writeMCPGatewayStepEnv(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayConfig.Env)
+	customGatewayEnvNames := sanitizedGatewayEnvNames(gatewayConfig.Env)
+	writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml, mcpEnvVars, safeOutputsInputEnvVars, gatewayConfig.Env, customGatewayEnvNames)
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-config\"\n")
@@ -70,6 +72,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 		githubTool:              githubTool,
 		tools:                   tools,
 		safeOutputsInputEnvVars: safeOutputsInputEnvVars,
+		customGatewayEnvNames:   customGatewayEnvNames,
 	})
 	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
@@ -84,20 +87,23 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
-func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string) {
-	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(gatewayEnvVars) == 0 {
+func writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string, customEnvVarNames []string) {
+	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(customEnvVarNames) == 0 {
 		return
 	}
 	yaml.WriteString("        env:\n")
-	customEnvVarNames := sliceutil.SortedKeys(gatewayEnvVars)
+	overriddenNames := make(map[string]struct{}, len(customEnvVarNames))
+	for _, name := range customEnvVarNames {
+		overriddenNames[name] = struct{}{}
+	}
 	// Write MCP env vars first (sorted)
 	envVarNames := sliceutil.MapKeys(mcpEnvVars)
 	sort.Strings(envVarNames)
 	for _, envVarName := range envVarNames {
-		if _, overridden := gatewayEnvVars[envVarName]; overridden {
+		if setutil.Contains(overriddenNames, envVarName) {
 			continue
 		}
-		if isReservedMCPGatewayTransportEnvVar(envVarName) {
+		if isReservedMCPGatewayEnvVar(envVarName) {
 			continue
 		}
 		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, mcpEnvVars[envVarName])
@@ -106,10 +112,10 @@ func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string,
 	// runner step environment so the docker -e flag can forward them to the container.
 	inputVarNames := sliceutil.SortedKeys(safeOutputsInputEnvVars)
 	for _, envVarName := range inputVarNames {
-		if _, overridden := gatewayEnvVars[envVarName]; overridden {
+		if setutil.Contains(overriddenNames, envVarName) {
 			continue
 		}
-		if isReservedMCPGatewayTransportEnvVar(envVarName) {
+		if isReservedMCPGatewayEnvVar(envVarName) {
 			continue
 		}
 		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, safeOutputsInputEnvVars[envVarName])
@@ -128,14 +134,39 @@ func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string,
 	}
 }
 
+// sanitizedGatewayEnvNames returns the sorted subset of user-supplied gateway
+// environment variable names that are safe to emit.
+//
+// Names are already constrained by the frontmatter schema and by
+// validateSandboxConfig, but this is the last boundary before a name is handed
+// to the runtime launcher (which turns it into a `docker run -e NAME=value`
+// argument). Re-checking here guarantees that a name can never carry shell or
+// Docker argument metacharacters, even if an earlier validation path is
+// bypassed. Values need no such filtering: they are transported through
+// compiler-controlled GH_AW_MCP_GATEWAY_ENV_<n> variables and never appear in
+// the generated shell script or in the Docker command string.
+func sanitizedGatewayEnvNames(gatewayEnvVars map[string]string) []string {
+	names := make([]string, 0, len(gatewayEnvVars))
+	for _, name := range sliceutil.SortedKeys(gatewayEnvVars) {
+		if isReservedMCPGatewayEnvVar(name) {
+			mcpSetupGeneratorLog.Printf("Skipping reserved MCP gateway environment variable name: %s", name)
+			continue
+		}
+		if !mcpGatewayEnvNamePattern.MatchString(name) {
+			mcpSetupGeneratorLog.Printf("Skipping invalid MCP gateway environment variable name: %s", name)
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
 func mcpGatewayCustomEnvTransportName(index int) string {
 	return fmt.Sprintf("%s%d", mcpGatewayCustomEnvTransportPrefix, index)
 }
 
-func isReservedMCPGatewayTransportEnvVar(name string) bool {
-	// GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES is reserved alongside, not within,
-	// the indexed GH_AW_MCP_GATEWAY_ENV_* transport namespace.
-	return name == mcpGatewayCustomEnvNamesVar || strings.HasPrefix(name, mcpGatewayCustomEnvTransportPrefix)
+func isReservedMCPGatewayEnvVar(name string) bool {
+	return strings.HasPrefix(name, mcpGatewayReservedEnvPrefix)
 }
 
 func resolveMCPGatewayValues(workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig) (int, string, string, string, int) {
@@ -285,6 +316,7 @@ type buildMCPGatewayContainerCommandOptions struct {
 	githubTool              map[string]any
 	tools                   map[string]any
 	safeOutputsInputEnvVars map[string]string
+	customGatewayEnvNames   []string
 }
 
 func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions) string {
@@ -298,6 +330,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	githubTool := opts.githubTool
 	tools := opts.tools
 	safeOutputsInputEnvVars := opts.safeOutputsInputEnvVars
+	customGatewayEnvNames := opts.customGatewayEnvNames
 	containerImage := gatewayConfig.Container
 	if gatewayConfig.Version != "" {
 		containerImage += ":" + gatewayConfig.Version
@@ -348,7 +381,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	appendMCPGatewayBaseEnvFlags(&containerCmd, payloadPathPrefix)
 	appendMCPGatewayConditionalEnvFlags(&containerCmd, workflowData, engine, hasGitHub, githubTool, tools)
 	appendMCPGatewaySafeOutputsInputEnvFlags(&containerCmd, safeOutputsInputEnvVars)
-	appendMCPGatewayCustomAndHTTPEnvFlags(&containerCmd, workflowData, gatewayConfig, mcpEnvVars, hasGitHub, githubTool, tools, engine)
+	appendMCPGatewayCustomAndHTTPEnvFlagsWithCustomGatewayEnvNames(&containerCmd, workflowData, customGatewayEnvNames, mcpEnvVars, hasGitHub, githubTool, tools, engine)
 	if payloadDir != "" {
 		containerCmd.WriteString(" -v " + payloadDir + ":" + payloadDir + ":rw")
 	}
@@ -622,14 +655,14 @@ func appendMCPGatewaySafeOutputsInputEnvFlags(containerCmd *strings.Builder, saf
 	}
 }
 
-func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) {
-	if len(gatewayConfig.Env) > 0 {
+func appendMCPGatewayCustomAndHTTPEnvFlagsWithCustomGatewayEnvNames(containerCmd *strings.Builder, workflowData *WorkflowData, customGatewayEnvNames []string, mcpEnvVars map[string]string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) {
+	if len(customGatewayEnvNames) > 0 {
 		containerCmd.WriteString(" " + mcpGatewayCustomEnvMarker)
 	}
 	if len(mcpEnvVars) == 0 {
 		return
 	}
-	addedEnvVars := buildAddedGatewayEnvVarSet(workflowData, gatewayConfig, hasGitHub, githubTool, tools, engine)
+	addedEnvVars := buildAddedGatewayEnvVarSet(workflowData, customGatewayEnvNames, hasGitHub, githubTool, tools, engine)
 	var envVarNames []string
 	for envVarName := range mcpEnvVars {
 		if !setutil.Contains(addedEnvVars, envVarName) {
@@ -645,7 +678,7 @@ func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workfl
 	}
 }
 
-func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) map[string]struct{} {
+func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, customGatewayEnvNames []string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) map[string]struct{} {
 	addedEnvVars := make(map[string]struct{})
 	standardEnvVars := []string{
 		"MCP_GATEWAY_PORT", "MCP_GATEWAY_DOMAIN", "MCP_GATEWAY_API_KEY", "MCP_GATEWAY_PAYLOAD_DIR", "DEBUG",
@@ -681,7 +714,7 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 		addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_URL"] = struct{}{}
 		addedEnvVars["ACTIONS_ID_TOKEN_REQUEST_TOKEN"] = struct{}{}
 	}
-	for envVarName := range gatewayConfig.Env {
+	for _, envVarName := range customGatewayEnvNames {
 		addedEnvVars[envVarName] = struct{}{}
 	}
 	return addedEnvVars

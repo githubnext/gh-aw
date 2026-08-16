@@ -162,8 +162,10 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "--skip-trust", "Should include --skip-trust flag to prevent workspace trust check from overriding --yolo")
 		assert.Contains(t, stepContent, "--output-format stream-json", "Should use streaming JSON output format")
 		assert.Contains(t, stepContent, `--prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument with correct shell quoting")
+		assert.Contains(t, stepContent, "shell_harness.cjs", "Should run the CLI through the shared shell harness")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should set GEMINI_API_KEY env var")
+		assert.Contains(t, stepContent, "GH_AW_TIMEOUT_MINUTES: 20", "Should expose the step timeout to the shared harness")
 	})
 
 	t.Run("with model", func(t *testing.T) {
@@ -341,6 +343,7 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 
 		// Should use AWF command
 		assert.Contains(t, stepContent, "awf", "Should use AWF when firewall is enabled")
+		assert.Contains(t, stepContent, "shell_harness.cjs", "Should run the sandboxed CLI through the shared shell harness")
 		// With config file support, domains and apiProxy are in the JSON config
 		assert.Contains(t, stepContent, "allowDomains", "Should include allowDomains in config JSON")
 		assert.Contains(t, stepContent, `\"enabled\":true`, "Should include apiProxy enabled in config JSON")
