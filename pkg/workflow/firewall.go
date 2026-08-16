@@ -244,6 +244,22 @@ func enableFirewallByDefaultForPi(engineID string, networkPermissions *NetworkPe
 	enableFirewallByDefaultForEngine(engineID, networkPermissions, sandboxConfig)
 }
 
+// enableFirewallByDefaultForGemini enables firewall by default for Gemini engine
+// when network restrictions are present but no explicit firewall configuration exists
+// and sandbox.agent is not explicitly set to false
+//
+// The firewall is enabled by default for Gemini UNLESS:
+// - allowed contains "*" (unrestricted network access)
+// - sandbox.agent is explicitly set to false
+func enableFirewallByDefaultForGemini(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
+	// Only apply to gemini engine
+	if engineID != string(constants.GeminiEngine) {
+		return
+	}
+
+	enableFirewallByDefaultForEngine(engineID, networkPermissions, sandboxConfig)
+}
+
 // enableFirewallByDefaultForEngine enables firewall by default for a given engine
 // when network restrictions are present but no explicit firewall configuration exists
 // and no SRT sandbox is configured (SRT and AWF are mutually exclusive)

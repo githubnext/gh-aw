@@ -502,6 +502,7 @@ func (c *Compiler) runPostEngineValidations(
 	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions, sandboxConfig)
 	enableFirewallByDefaultForClaude(engineSetting, networkPermissions, sandboxConfig)
 	enableFirewallByDefaultForPi(engineSetting, networkPermissions, sandboxConfig)
+	enableFirewallByDefaultForGemini(engineSetting, networkPermissions, sandboxConfig)
 	return c.withEffectiveStrictMode(frontmatter, func() error {
 		orchestratorEngineLog.Printf("Validating strict firewall (strict=%v)", c.strictMode)
 		if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {
