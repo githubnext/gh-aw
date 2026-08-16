@@ -5,18 +5,12 @@ package manualmutexunlock
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 
-	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
-	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
-	"github.com/github/gh-aw/pkg/linters/internal/nolint"
-	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/linters/internal/resourcetracker"
 )
-
-var pkgLog = logger.New("linters:manualmutexunlock")
 
 // mutexKey uniquely identifies a mutex receiver so that distinct struct
 // instances holding the same field type are tracked independently.
@@ -38,131 +32,33 @@ type mutexKey struct {
 }
 
 // Analyzer is the manual-mutex-unlock analysis pass.
-var Analyzer = analyzerutil.New("manualmutexunlock", "reports mutex Unlock() calls that are not deferred", run)
+var Analyzer = resourcetracker.NewAnalyzer(resourcetracker.Config[mutexKey]{
+	Name:         "manualmutexunlock",
+	Doc:          "reports mutex Unlock() calls that are not deferred",
+	Message:      "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
+	Acquisitions: mutexLockAcquisitions,
+	CleanupKey:   unlockCallKey,
+})
 
-func run(pass *analysis.Pass) (any, error) {
-	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
+// mutexLockAcquisitions reports mutexes locked by statements such as mu.Lock().
+func mutexLockAcquisitions(pass *analysis.Pass, node ast.Node) []resourcetracker.Acquisition[mutexKey] {
+	exprStmt, ok := node.(*ast.ExprStmt)
+	if !ok {
+		return nil
 	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
+	call, ok := exprStmt.X.(*ast.CallExpr)
+	if !ok {
+		return nil
 	}
-
-	nodeFilter := []ast.Node{
-		(*ast.FuncDecl)(nil),
+	key, ok := lockCallKey(pass, call)
+	if !ok {
+		return nil
 	}
-
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		inspectMutexFuncDecl(pass, noLintIndex, generatedFiles, n)
-	})
+	return []resourcetracker.Acquisition[mutexKey]{{Key: key, Pos: call.Pos()}}
 }
 
-func inspectMutexFuncDecl(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex, generatedFiles filecheck.GeneratedIndex, n ast.Node) {
-	fn, ok := n.(*ast.FuncDecl)
-	if !ok || fn.Body == nil {
-		return
-	}
-
-	pos := pass.Fset.PositionFor(fn.Pos(), false)
-	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-		return
-	}
-
-	// Track mutex variables: mutexKey -> *mutexVarState (lock position, hasDefer, hasManualUnlock)
-	mutexVars := make(map[mutexKey]*mutexVarState)
-
-	// Walk all statements in the function body
-	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		return inspectMutexNode(pass, noLintIndex, mutexVars, node)
-	})
-
-	// Report mutexes with manual unlock but no defer
-	for _, state := range mutexVars {
-		if state.hasManualUnlock && !state.hasDefer {
-			position := pass.Fset.PositionFor(state.lockPos, false)
-			if nolint.HasDirectiveForLinter(position, noLintIndex, "manualmutexunlock") {
-				continue
-			}
-			pkgLog.Printf("flagging non-deferred mutex Unlock() at %s", position)
-			pass.Report(analysis.Diagnostic{
-				Pos:     state.lockPos,
-				Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
-			})
-		}
-	}
-}
-
-func inspectMutexNode(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex, mutexVars map[mutexKey]*mutexVarState, node ast.Node) bool {
-	if node == nil {
-		return false
-	}
-
-	// Do not descend into function literals — closures are independent
-	if _, ok := node.(*ast.FuncLit); ok {
-		return false
-	}
-
-	// Look for mutex Lock() calls
-	if exprStmt, ok := node.(*ast.ExprStmt); ok {
-		if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-			if key, ok := getLockCallKey(pass, call); ok {
-				// If this mutex was already tracked from a prior lock on the same
-				// binding, report any unresolved violation before overwriting state.
-				if prev, exists := mutexVars[key]; exists && prev.hasManualUnlock && !prev.hasDefer {
-					position := pass.Fset.PositionFor(prev.lockPos, false)
-					if nolint.HasDirectiveForLinter(position, noLintIndex, "manualmutexunlock") {
-						mutexVars[key] = &mutexVarState{
-							lockPos: call.Pos(),
-						}
-						return true
-					}
-					pass.Report(analysis.Diagnostic{
-						Pos:     prev.lockPos,
-						Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
-					})
-				}
-				mutexVars[key] = &mutexVarState{
-					lockPos: call.Pos(),
-				}
-			}
-		}
-	}
-
-	// Look for defer mu.Unlock()
-	if deferStmt, ok := node.(*ast.DeferStmt); ok {
-		if key, ok := getUnlockCallKey(pass, deferStmt.Call); ok {
-			if state, found := mutexVars[key]; found {
-				state.hasDefer = true
-			}
-		}
-	}
-
-	// Look for non-deferred mu.Unlock() in expression statements
-	if exprStmt, ok := node.(*ast.ExprStmt); ok {
-		if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-			if key, ok := getUnlockCallKey(pass, call); ok {
-				if state, found := mutexVars[key]; found {
-					state.hasManualUnlock = true
-				}
-			}
-		}
-	}
-
-	return true
-}
-
-type mutexVarState struct {
-	lockPos         token.Pos
-	hasDefer        bool
-	hasManualUnlock bool
-}
-
-// getLockCallKey returns the mutexKey for the receiver if call is like mu.Lock() or mu.RLock()
-func getLockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
+// lockCallKey returns the mutexKey for the receiver if call is like mu.Lock() or mu.RLock()
+func lockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return mutexKey{}, false
@@ -173,8 +69,8 @@ func getLockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
 	return getMutexReceiverKey(pass, sel.X)
 }
 
-// getUnlockCallKey returns the mutexKey for the receiver if call is like mu.Unlock() or mu.RUnlock()
-func getUnlockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
+// unlockCallKey returns the mutexKey for the receiver if call is like mu.Unlock() or mu.RUnlock()
+func unlockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return mutexKey{}, false
