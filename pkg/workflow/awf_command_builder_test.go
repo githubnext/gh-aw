@@ -752,6 +752,64 @@ func TestBuildAWFCommand_ServicePortsRequireLegacy(t *testing.T) {
 	})
 }
 
+func TestBuildAWFCommandScript_OptionalSections(t *testing.T) {
+	base := buildAWFCommandScriptInput{
+		writeAgentCLIStartMs:   "start",
+		preCreateLog:           "pre",
+		modelsJSONPathExport:   "models",
+		arcDindDockerHostProbe: "probe",
+		arcDindPrefixProbe:     "prefix",
+		toolCacheMountProbe:    "tool",
+		awfCommand:             "awf",
+		expandableArgs:         "--expand",
+		toolCacheMountRef:      "--tool-ref",
+		arcDindDockerHostRef:   "--docker-ref",
+		awfArgs:                []string{"--arg", "value"},
+		shellWrappedCommand:    "wrapped",
+		logFile:                "/tmp/test.log",
+	}
+
+	tests := []struct {
+		name       string
+		pathSetup  string
+		configFile string
+		expect     string
+	}{
+		{
+			name:       "includes both path and config setup when provided",
+			pathSetup:  "path",
+			configFile: "cfg",
+			expect:     "\npath\npre\ncfg\nmodels\n",
+		},
+		{
+			name:      "includes only path setup when config is empty",
+			pathSetup: "path",
+			expect:    "\npath\npre\nmodels\n",
+		},
+		{
+			name:       "includes only config setup when path is empty",
+			configFile: "cfg",
+			expect:     "\npre\ncfg\nmodels\n",
+		},
+		{
+			name:   "omits both optional sections when empty",
+			expect: "\npre\nmodels\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := base
+			input.pathSetup = tt.pathSetup
+			input.configFileSetup = tt.configFile
+			command := buildAWFCommandScript(input)
+			assert.Contains(t, command, tt.expect)
+			assert.Contains(t, command, "awf --expand --tool-ref --docker-ref")
+			assert.Contains(t, command, "-- wrapped 2>&1 | tee -a /tmp/test.log")
+		})
+	}
+}
+
 func argValue(args []string, flag string) string {
 	for i, arg := range args {
 		if arg == flag && i+1 < len(args) {

@@ -32,7 +32,8 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	isCloudHypervisor := isCloudHypervisorRuntime(config.WorkflowData)
 	arcDindPrefixProbe, arcDindDockerHostProbe, arcDindDockerHostRef := buildArcDindDockerHostSettings(config, firewallConfig)
 	toolCacheMountProbe, toolCacheMountRef := buildToolCacheMountSettings(isCloudHypervisor)
-	expandableArgs, arcDindDockerHostProbe := buildExpandableAWFArgs(config, isCloudHypervisor, isArcDind, arcDindDockerHostProbe)
+	var expandableArgs string
+	expandableArgs, arcDindDockerHostProbe = buildExpandableAWFArgs(config, isCloudHypervisor, isArcDind, arcDindDockerHostProbe)
 	var configFileSetup string
 	awfConfigJSON, err := BuildAWFConfigJSON(config)
 	if err != nil {
@@ -81,10 +82,10 @@ func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDin
 		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
 		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
 	}
-	return appendExpandableServiceAndHypervisorArgs(config, expandableArgs), arcDindDockerHostProbe
+	return appendExpandableServiceAndHypervisorArgs(config, isCloudHypervisor, expandableArgs), arcDindDockerHostProbe
 }
 
-func appendExpandableServiceAndHypervisorArgs(config AWFCommandConfig, expandableArgs string) string {
+func appendExpandableServiceAndHypervisorArgs(config AWFCommandConfig, isCloudHypervisor bool, expandableArgs string) string {
 	agentCfg := getAgentConfig(config.WorkflowData)
 	isLegacyMode := agentCfg != nil && agentCfg.LegacySecurity
 	if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" && isLegacyMode {
@@ -93,7 +94,7 @@ func appendExpandableServiceAndHypervisorArgs(config AWFCommandConfig, expandabl
 	} else if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
 		awfHelpersLog.Print("Skipping --allow-host-service-ports: requires legacy-security mode")
 	}
-	if isCloudHypervisorRuntime(config.WorkflowData) {
+	if isCloudHypervisor {
 		expandableArgs += ` --cloud-hypervisor-binary "${GH_AW_CLOUD_HYPERVISOR_BINARY}"` +
 			` --cloud-hypervisor-kernel "${GH_AW_CLOUD_HYPERVISOR_KERNEL}"` +
 			` --cloud-hypervisor-rootfs "${GH_AW_CLOUD_HYPERVISOR_ROOTFS}"` +
@@ -329,7 +330,7 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfHelpersLog.Printf("Building AWF args for engine: %s", config.EngineName)
 	firewallConfig := getFirewallConfig(config.WorkflowData)
 	agentConfig := getAgentConfig(config.WorkflowData)
-	awfArgs := appendTTYAndContainerRuntimeArgs(config, firewallConfig, nil)
+	awfArgs := appendTTYAndContainerRuntimeArgs(config, firewallConfig)
 	awfArgs = appendEnvAndMountArgs(config, firewallConfig, agentConfig, awfArgs)
 	awfArgs = appendLogAndLegacySecurityArgs(config, firewallConfig, agentConfig, awfArgs)
 	awfArgs = append(awfArgs, "--skip-pull")
@@ -341,7 +342,8 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	return awfArgs
 }
 
-func appendTTYAndContainerRuntimeArgs(config AWFCommandConfig, firewallConfig *FirewallConfig, awfArgs []string) []string {
+func appendTTYAndContainerRuntimeArgs(config AWFCommandConfig, firewallConfig *FirewallConfig) []string {
+	var awfArgs []string
 	if config.UsesTTY && !isDockerSbxRuntime(config.WorkflowData) && !isCloudHypervisorRuntime(config.WorkflowData) {
 		awfArgs = append(awfArgs, "--tty")
 	}
