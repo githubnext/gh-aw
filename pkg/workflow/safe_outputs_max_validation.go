@@ -191,6 +191,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	if config.ApproveWorkflowRun != nil {
+		if err := checkMaxField("approve_workflow_run", config.ApproveWorkflowRun.Max); err != nil {
+			return err
+		}
+	}
 	if config.MergePullRequest != nil {
 		if err := checkMaxField("merge_pull_request", config.MergePullRequest.Max); err != nil {
 			return err

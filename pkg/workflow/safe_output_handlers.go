@@ -118,6 +118,21 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		},
 	},
 	{
+		Key:         "approve-workflow-run",
+		StructField: "ApproveWorkflowRun",
+		ToolName:    "approve_workflow_run",
+		NewConfig:   func() any { return &ApproveWorkflowRunConfig{} },
+		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
+			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ApproveWorkflowRun") {
+				return nil
+			}
+			return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionActions:      PermissionWrite,
+				PermissionPullRequests: PermissionRead,
+			})
+		},
+	},
+	{
 		Key:         "dismiss-pull-request-review",
 		Aliases:     []string{"dismiss-review"},
 		StructField: "DismissPullRequestReview",

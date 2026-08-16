@@ -44,8 +44,7 @@ async function main(config = {}) {
   try {
     invocationContext = resolveInvocationContext(context);
   } catch (error) {
-    const typedError = /** @type {Error & { code?: string }} */ (error);
-    const isValidationError = typedError.code === ERR_VALIDATION;
+    const isValidationError = error instanceof Error && "code" in error && error.code === ERR_VALIDATION;
     if (isValidationError) {
       throw error;
     }

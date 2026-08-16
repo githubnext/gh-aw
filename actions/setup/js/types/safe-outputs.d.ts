@@ -130,6 +130,15 @@ interface MarkPullRequestAsReadyForReviewItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for approving a pending workflow run from a fork pull request
+ */
+interface ApproveWorkflowRunItem extends BaseSafeOutputItem {
+  type: "approve_workflow_run";
+  /** Positive integer workflow run ID */
+  run_id: number | string;
+}
+
+/**
  * JSONL item for adding a comment to an issue or PR
  */
 interface AddCommentItem extends BaseSafeOutputItem {
@@ -496,6 +505,7 @@ type SafeOutputItem =
   | CloseIssueItem
   | ClosePullRequestItem
   | MarkPullRequestAsReadyForReviewItem
+  | ApproveWorkflowRunItem
   | AddCommentItem
   | CommentMemoryItem
   | CreatePullRequestItem
@@ -541,6 +551,7 @@ export {
   CloseIssueItem,
   ClosePullRequestItem,
   MarkPullRequestAsReadyForReviewItem,
+  ApproveWorkflowRunItem,
   AddCommentItem,
   CommentMemoryItem,
   CreatePullRequestItem,
