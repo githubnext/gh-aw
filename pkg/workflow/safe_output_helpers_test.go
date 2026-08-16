@@ -728,7 +728,9 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"mkdir -p /tmp/gh-aw/",
 		`find "/tmp/gh-aw/" -type f -print`,
 		// Hardcoded path is correct because GetPreBundleSteps ensures LCA is /tmp/gh-aw/
+		`if [ -f "/tmp/gh-aw/agent_output.json" ]; then`,
 		`echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"`,
+		"fi",
 	}
 
 	for _, expected := range expectedComponents {

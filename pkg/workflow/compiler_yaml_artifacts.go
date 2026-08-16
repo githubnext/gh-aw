@@ -66,7 +66,7 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 // gives those jobs a reliable fallback source.
 // prefix is prepended to the artifact name to avoid clashes in workflow_call context.
 func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data *WorkflowData, prefix string) {
-	if data.SafeOutputs == nil {
+	if data.SafeOutputs == nil || data.SafeOutputs.AutoInjectedCreateIssue {
 		return
 	}
 

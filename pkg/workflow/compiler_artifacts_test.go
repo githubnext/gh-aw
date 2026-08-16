@@ -14,6 +14,28 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
+func extractWorkflowStepByName(t *testing.T, workflowYAML, stepName string) string {
+	t.Helper()
+
+	marker := "- name: " + stepName
+	nameIdx := strings.Index(workflowYAML, marker)
+	if nameIdx == -1 {
+		t.Fatalf("Expected %q step in generated workflow", stepName)
+	}
+
+	lineStart := nameIdx
+	for lineStart > 0 && workflowYAML[lineStart-1] != '\n' {
+		lineStart--
+	}
+	indent := workflowYAML[lineStart:nameIdx]
+	stepSection := workflowYAML[lineStart:]
+	nextStepMarker := "\n" + indent + "- name:"
+	if next := strings.Index(stepSection[1:], nextStepMarker); next != -1 {
+		stepSection = stepSection[:next+1]
+	}
+	return stepSection
+}
+
 func TestAccessLogUploadConditional(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -551,14 +573,7 @@ Body.
 	}
 	lockYAML := string(lockContent)
 
-	uploadIdx := strings.Index(lockYAML, "- name: Upload agent output fallback artifact")
-	if uploadIdx == -1 {
-		t.Fatal("Expected 'Upload agent output fallback artifact' step in generated workflow")
-	}
-	uploadSection := lockYAML[uploadIdx:]
-	if next := strings.Index(uploadSection[1:], "- name:"); next != -1 {
-		uploadSection = uploadSection[:next+1]
-	}
+	uploadSection := extractWorkflowStepByName(t, lockYAML, "Upload agent output fallback artifact")
 	for _, expected := range []string{
 		"name: agent-output-fallback\n",
 		"/tmp/gh-aw/agent_output.json",
@@ -572,6 +587,7 @@ Body.
 	}
 
 	// The fallback artifact must be uploaded before the (large, failure-prone) agent artifact.
+	uploadIdx := strings.Index(lockYAML, "- name: Upload agent output fallback artifact")
 	agentUploadIdx := strings.Index(lockYAML, "- name: Upload agent artifacts")
 	if agentUploadIdx == -1 {
 		t.Fatal("Upload agent artifacts step not found")
@@ -587,5 +603,42 @@ Body.
 	}
 	if !strings.Contains(lockYAML, "merge-multiple: true") {
 		t.Error("Expected 'merge-multiple: true' so both artifacts extract into the same directory")
+	}
+}
+
+func TestAgentOutputFallbackArtifact_NoSafeOutputs(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "agent-output-fallback-no-safe-outputs-test")
+
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test No Agent Output Fallback
+
+Body.
+`
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockContent, err := os.ReadFile(stringutil.MarkdownToLockFile(testFile))
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockYAML := string(lockContent)
+
+	if strings.Contains(lockYAML, "Upload agent output fallback artifact") {
+		t.Error("Expected no fallback artifact upload when safe-outputs is not declared")
 	}
 }
