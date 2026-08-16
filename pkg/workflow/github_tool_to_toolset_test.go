@@ -101,6 +101,12 @@ func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
 			expectError:     false,
 		},
 		{
+			name:            "assign_copilot_to_issue_with_intent belongs to copilot_issue_intents toolset",
+			allowedTools:    []string{"assign_copilot_to_issue_with_intent"},
+			enabledToolsets: []string{"copilot_issue_intents"},
+			expectError:     false,
+		},
+		{
 			name:            "Actions toolset missing",
 			allowedTools:    []string{"actions_list", "actions_get"},
 			enabledToolsets: []string{"repos"},
@@ -291,7 +297,7 @@ func TestGitHubToolToToolsetMap_Completeness(t *testing.T) {
 	// Verify that the map contains entries for all expected tool categories
 	expectedToolsets := []string{
 		"context", "repos", "issues", "pull_requests", "actions",
-		"code_quality", "code_security", "copilot", "discussions", "gists", "labels",
+		"code_quality", "code_security", "copilot", "copilot_issue_intents", "discussions", "gists", "labels",
 		"notifications", "orgs", "users", "secret_protection", "security_advisories",
 	}
 
@@ -359,6 +365,20 @@ func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 			continue
 		}
 		if actualToolset != expectedToolset {
+			t.Errorf("Tool %q: expected toolset %q, got %q", tool, expectedToolset, actualToolset)
+		}
+	}
+}
+
+func TestGitHubToolToToolsetMap_NewGitHubMCPTools(t *testing.T) {
+	expectedMappings := map[string]string{
+		"assign_copilot_to_issue_with_intent": "copilot_issue_intents",
+		"find_duplicate":                      "issues",
+	}
+
+	toolToToolsetMap := loadGitHubToolToToolsetMap(t)
+	for tool, expectedToolset := range expectedMappings {
+		if actualToolset := toolToToolsetMap[tool]; actualToolset != expectedToolset {
 			t.Errorf("Tool %q: expected toolset %q, got %q", tool, expectedToolset, actualToolset)
 		}
 	}
