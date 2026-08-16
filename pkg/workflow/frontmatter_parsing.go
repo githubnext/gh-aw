@@ -98,6 +98,9 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	if rawSkills, ok := frontmatter["skills"].([]any); ok {
 		config.SkillReferences = parseRawSkillReferences(rawSkills)
 	}
+	if appRaw, ok := frontmatter["github-app"].(map[string]any); ok {
+		config.GitHubApp = parseAppConfig(appRaw)
+	}
 
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil

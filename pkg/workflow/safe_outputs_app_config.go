@@ -73,7 +73,8 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 
 	// Parse repositories (optional)
 	if repos, exists := appMap["repositories"]; exists {
-		if reposArray, ok := repos.([]any); ok {
+		switch reposArray := repos.(type) {
+		case []any:
 			var repoStrings []string
 			for _, repo := range reposArray {
 				if repoStr, ok := repo.(string); ok {
@@ -81,12 +82,15 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 				}
 			}
 			appConfig.Repositories = repoStrings
+		case []string:
+			appConfig.Repositories = reposArray
 		}
 	}
 
 	// Parse permissions (optional) - extra permission-* fields to merge into the minted token
 	if perms, exists := appMap["permissions"]; exists {
-		if permsMap, ok := perms.(map[string]any); ok {
+		switch permsMap := perms.(type) {
+		case map[string]any:
 			appConfig.Permissions = make(map[string]string, len(permsMap))
 			for key, val := range permsMap {
 				if valStr, ok := val.(string); ok {
@@ -95,7 +99,9 @@ func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
 					safeOutputsAppLog.Printf("Ignoring github-app.permissions[%q]: expected string value, got %T", key, val)
 				}
 			}
-		} else {
+		case map[string]string:
+			appConfig.Permissions = permsMap
+		default:
 			safeOutputsAppLog.Printf("Ignoring github-app.permissions: expected object, got %T", perms)
 		}
 	}

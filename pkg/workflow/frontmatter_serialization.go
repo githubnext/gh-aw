@@ -95,6 +95,12 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if len(fc.Labels) > 0 {
 		result["labels"] = fc.Labels
 	}
+	if len(fc.AmbientFolders) > 0 {
+		result["ambient-folders"] = fc.AmbientFolders
+	}
+	if fc.GitHubApp != nil {
+		result["github-app"] = githubAppConfigToMap(fc.GitHubApp)
+	}
 
 	// Configuration sections
 	if fc.Tools != nil {
@@ -232,6 +238,29 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		result["secret-masking"] = fc.SecretMasking
 	}
 
+	return result
+}
+
+func githubAppConfigToMap(app *GitHubAppConfig) map[string]any {
+	result := make(map[string]any)
+	if app.AppID != "" {
+		result["client-id"] = app.AppID
+	}
+	if app.PrivateKey != "" {
+		result["private-key"] = app.PrivateKey
+	}
+	if app.IgnoreIfMissing {
+		result["ignore-if-missing"] = true
+	}
+	if app.Owner != "" {
+		result["owner"] = app.Owner
+	}
+	if len(app.Repositories) > 0 {
+		result["repositories"] = app.Repositories
+	}
+	if len(app.Permissions) > 0 {
+		result["permissions"] = app.Permissions
+	}
 	return result
 }
 

@@ -335,6 +335,8 @@ type FrontmatterConfig struct {
 	Labels                      []string                     `json:"labels,omitempty"`
 	Skills                      []any                        `json:"skills,omitempty"`
 	SkillReferences             []SkillReference             `json:"-"`
+	AmbientFolders              []string                     `json:"ambient-folders,omitempty"`
+	GitHubApp                   *GitHubAppConfig             `json:"github-app,omitempty"`
 
 	// Configuration sections - using strongly-typed structs
 	Tools            *ToolsConfig               `json:"tools,omitempty"`
