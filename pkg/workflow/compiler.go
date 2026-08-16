@@ -574,7 +574,14 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			CurrentHasPullRequest:       currentHasPR,
 			CurrentHasPullRequestTarget: currentHasPRTarget,
 		}
-		if enforceErr := EnforceSafeUpdate(oldManifest, bodySecrets, bodyActions, workflowData.Redirect, prTransition, collectMemoryValidationScripts(workflowData)); enforceErr != nil {
+		if enforceErr := EnforceSafeUpdate(SafeUpdateOptions{
+			Manifest:                oldManifest,
+			SecretNames:             bodySecrets,
+			ActionRefs:              bodyActions,
+			CurrentRedirect:         workflowData.Redirect,
+			PullRequestTransition:   prTransition,
+			MemoryValidationScripts: collectMemoryValidationScripts(workflowData),
+		}); enforceErr != nil {
 			warningMsg := buildSafeUpdateWarningPrompt(enforceErr.Error())
 			c.AddSafeUpdateWarning(warningMsg)
 			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", enforceErr.Error()))

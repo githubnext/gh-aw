@@ -39,10 +39,20 @@ type PullRequestEventTransition struct {
 	CurrentHasPullRequestTarget bool
 }
 
+// SafeUpdateOptions contains the inputs used to validate a safe update.
+type SafeUpdateOptions struct {
+	Manifest                *GHAWManifest
+	SecretNames             []string
+	ActionRefs              []string
+	CurrentRedirect         string
+	PullRequestTransition   PullRequestEventTransition
+	MemoryValidationScripts []GHAWManifestMemoryValidationScript
+}
+
 // EnforceSafeUpdate validates that no new restricted secrets or unapproved action
 // changes have been introduced compared to those recorded in the existing manifest.
 //
-// manifest is the gh-aw-manifest extracted from the current lock file before
+// Manifest is the gh-aw-manifest extracted from the current lock file before
 // recompilation.
 //
 //   - nil means a lock file was found but it predates the safe-updates feature
@@ -52,31 +62,31 @@ type PullRequestEventTransition struct {
 //     baseline to compare against. Pass &GHAWManifest{} when no lock file
 //     exists yet (first compilation); all new secrets/actions will be flagged.
 //
-// secretNames contains the raw names produced by CollectSecretReferences (i.e.
+// SecretNames contains the raw names produced by CollectSecretReferences (i.e.
 // they may or may not carry the "secrets." prefix; both forms are normalized
 // via normalizeSecretName before comparison).
 //
-// actionRefs contains the raw action reference strings produced by CollectActionReferences,
+// ActionRefs contains the raw action reference strings produced by CollectActionReferences,
 // e.g. "actions/checkout@abc1234 # v4".
 //
 // Returns a structured, actionable error when violations are found.
-func EnforceSafeUpdate(manifest *GHAWManifest, secretNames []string, actionRefs []string, currentRedirect string, prTransition PullRequestEventTransition, currentMemoryValidationScripts []GHAWManifestMemoryValidationScript) error {
-	if manifest == nil {
+func EnforceSafeUpdate(options SafeUpdateOptions) error {
+	if options.Manifest == nil {
 		// Lock file exists but predates the safe-updates feature (no gh-aw-manifest
 		// section). Skip enforcement so legacy lock files are not flagged on upgrade.
 		safeUpdateLog.Print("Lock file has no gh-aw-manifest; skipping safe update enforcement (legacy lock file)")
 		return nil
 	}
 
-	secretViolations := collectSecretViolations(manifest, secretNames)
-	addedActions, removedActions := collectActionViolations(manifest, actionRefs)
-	addedRedirect, removedRedirect := collectRedirectViolations(manifest, currentRedirect)
-	memoryValidationScriptChanges := collectMemoryValidationScriptChanges(manifest, currentMemoryValidationScripts)
-	pullRequestTargetEscalation := hasPullRequestTargetEscalation(prTransition.OldHasPullRequest, prTransition.OldHasPullRequestTarget, prTransition.CurrentHasPullRequest, prTransition.CurrentHasPullRequestTarget)
+	secretViolations := collectSecretViolations(options.Manifest, options.SecretNames)
+	addedActions, removedActions := collectActionViolations(options.Manifest, options.ActionRefs)
+	addedRedirect, removedRedirect := collectRedirectViolations(options.Manifest, options.CurrentRedirect)
+	memoryValidationScriptChanges := collectMemoryValidationScriptChanges(options.Manifest, options.MemoryValidationScripts)
+	pullRequestTargetEscalation := hasPullRequestTargetEscalation(options.PullRequestTransition.OldHasPullRequest, options.PullRequestTransition.OldHasPullRequestTarget, options.PullRequestTransition.CurrentHasPullRequest, options.PullRequestTransition.CurrentHasPullRequestTarget)
 
 	if len(secretViolations) == 0 && len(addedActions) == 0 && len(removedActions) == 0 && addedRedirect == "" && removedRedirect == "" && len(memoryValidationScriptChanges) == 0 && !pullRequestTargetEscalation {
 		safeUpdateLog.Printf("Safe update check passed (%d secret(s), %d action(s) verified)",
-			len(secretNames), len(actionRefs))
+			len(options.SecretNames), len(options.ActionRefs))
 		return nil
 	}
 

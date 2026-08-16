@@ -369,7 +369,13 @@ func TestEnforceSafeUpdate(t *testing.T) {
 				CurrentHasPullRequest:       tt.currentHasPR,
 				CurrentHasPullRequestTarget: tt.currentHasPRTarget,
 			}
-			err := EnforceSafeUpdate(tt.manifest, tt.secretNames, tt.actionRefs, tt.redirect, prTransition, nil)
+			err := EnforceSafeUpdate(SafeUpdateOptions{
+				Manifest:              tt.manifest,
+				SecretNames:           tt.secretNames,
+				ActionRefs:            tt.actionRefs,
+				CurrentRedirect:       tt.redirect,
+				PullRequestTransition: prTransition,
+			})
 			if tt.wantErr {
 				require.Error(t, err, "expected safe update enforcement error")
 				for _, msg := range tt.wantErrMsgs {
@@ -476,7 +482,11 @@ func TestMemoryValidationScriptChangesRequireSafeUpdateReview(t *testing.T) {
 		"repo-memory:removed (removed)",
 	}, changes)
 
-	err := EnforceSafeUpdate(manifest, nil, nil, "", PullRequestEventTransition{}, current)
+	err := EnforceSafeUpdate(SafeUpdateOptions{
+		Manifest:                manifest,
+		PullRequestTransition:   PullRequestEventTransition{},
+		MemoryValidationScripts: current,
+	})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Memory validation script changes")
 	require.ErrorContains(t, err, "cache-memory:added (added)")

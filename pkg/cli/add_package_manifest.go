@@ -105,7 +105,16 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		return nil, err
 	}
 
-	extensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, owner, repo, packagePath, ref, host, manifest, includeSkillDirs, includeAgentFiles)
+	extensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, repositoryPackageExtensionFilesOptions{
+		owner:             owner,
+		repo:              repo,
+		packagePath:       packagePath,
+		ref:               ref,
+		host:              host,
+		manifest:          manifest,
+		includeSkillDirs:  includeSkillDirs,
+		includeAgentFiles: includeAgentFiles,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -172,19 +181,30 @@ type repositoryPackageExtensionFiles struct {
 	warnings   []string
 }
 
-func resolveRepositoryPackageExtensionFiles(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, includeSkillDirs, includeAgentFiles []string) (*repositoryPackageExtensionFiles, error) {
+type repositoryPackageExtensionFilesOptions struct {
+	owner             string
+	repo              string
+	packagePath       string
+	ref               string
+	host              string
+	manifest          *repositoryPackageManifest
+	includeSkillDirs  []string
+	includeAgentFiles []string
+}
+
+func resolveRepositoryPackageExtensionFiles(ctx context.Context, options repositoryPackageExtensionFilesOptions) (*repositoryPackageExtensionFiles, error) {
 	// Resolve skill files: explicit from manifest or auto-scanned.
-	explicitSkillDirs := append([]string{}, manifest.Skills...)
-	explicitSkillDirs = append(explicitSkillDirs, includeSkillDirs...)
-	skillFiles, skillWarnings, err := resolvePackageSkillFiles(ctx, owner, repo, packagePath, ref, host, explicitSkillDirs)
+	explicitSkillDirs := append([]string{}, options.manifest.Skills...)
+	explicitSkillDirs = append(explicitSkillDirs, options.includeSkillDirs...)
+	skillFiles, skillWarnings, err := resolvePackageSkillFiles(ctx, options.owner, options.repo, options.packagePath, options.ref, options.host, explicitSkillDirs)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve agent files: explicit from manifest or auto-scanned.
-	explicitAgentFiles := append([]string{}, manifest.Agents...)
-	explicitAgentFiles = append(explicitAgentFiles, includeAgentFiles...)
-	agentFiles, agentWarnings, err := resolvePackageAgentFiles(ctx, owner, repo, packagePath, ref, host, explicitAgentFiles)
+	explicitAgentFiles := append([]string{}, options.manifest.Agents...)
+	explicitAgentFiles = append(explicitAgentFiles, options.includeAgentFiles...)
+	agentFiles, agentWarnings, err := resolvePackageAgentFiles(ctx, options.owner, options.repo, options.packagePath, options.ref, options.host, explicitAgentFiles)
 	if err != nil {
 		return nil, err
 	}
