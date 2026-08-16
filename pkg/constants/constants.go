@@ -184,7 +184,7 @@ const (
 )
 
 // AWFLegacySecurityCommand is the AWF command prefix for legacy security mode.
-// Used when legacy-security: enable is set in frontmatter.
+// Used by the docker-sudo-iptables runtime profile.
 const AWFLegacySecurityCommand = "sudo -E awf"
 
 // AWFProxyLogsDir is the default directory for AWF proxy logs

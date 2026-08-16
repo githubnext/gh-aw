@@ -168,7 +168,6 @@ imports:
 sandbox:
   agent:
     id: awf
-    sudo: false
 evals:
   - id: security_data_analyzed
     question: Did the agent analyze firewall traffic and DIFC integrity-filtered events for the reporting period?
@@ -177,6 +176,7 @@ evals:
 features:
   gh-aw-detection: true
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Security Observability Report

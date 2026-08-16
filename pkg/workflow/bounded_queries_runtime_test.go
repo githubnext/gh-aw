@@ -18,12 +18,11 @@ func TestBoundedQueryRuntimeMatrix(t *testing.T) {
 	agentRuntimes := []struct {
 		name                     string
 		runtime                  AgentRuntime
-		sudo                     bool
 		expectedContainerRuntime string
 	}{
 		{name: "docker"},
-		{name: "gvisor", runtime: AgentRuntimeGVisor, sudo: true, expectedContainerRuntime: "gvisor"},
-		{name: "sbx", runtime: AgentRuntimeDockerSbx, sudo: true},
+		{name: "gvisor", runtime: AgentRuntimeGVisor, expectedContainerRuntime: "gvisor"},
+		{name: "sbx", runtime: AgentRuntimeDockerSbx},
 	}
 	queryRuntimes := []BoundedQueryRuntime{
 		BoundedQueryRuntimeDocker,
@@ -48,10 +47,9 @@ func TestBoundedQueryRuntimeMatrix(t *testing.T) {
 					},
 					SandboxConfig: &SandboxConfig{
 						Agent: &AgentSandboxConfig{
-							ID:                    "awf",
-							Version:               string(constants.AWFBoundedQueriesMinVersion),
-							Runtime:               agentRuntime.runtime,
-							SudoExplicitlyEnabled: agentRuntime.sudo,
+							ID:      "awf",
+							Version: string(constants.AWFBoundedQueriesMinVersion),
+							Runtime: agentRuntime.runtime,
 						},
 					},
 					ParsedTools: &ToolsConfig{

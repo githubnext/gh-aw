@@ -39,7 +39,7 @@ const (
 // from reaching sensitive services directly. --allow-host-service-ports
 // intentionally bypasses this list because it restricts traffic to the host
 // gateway only (for GitHub Actions services:), but that flag requires
-// sandbox.agent.legacy-security: enable.
+// sandbox.agent.runtime: docker-sudo-iptables.
 //
 // If the pinned AWF version is bumped and its DANGEROUS_PORTS list changes,
 // update this map to match; there is no automated sync with upstream.

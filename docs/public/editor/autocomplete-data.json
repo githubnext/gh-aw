@@ -30,6 +30,11 @@
       "desc": "Optional tracker identifier to tag all created assets (issues, discussions, comments, pull requests).",
       "leaf": true
     },
+    "threat-detection-suppress": {
+      "type": "array",
+      "desc": "Auditable false-positive suppression annotations for compiler threat-detection rules.",
+      "array": true
+    },
     "labels": {
       "type": "array",
       "desc": "Optional array of labels to categorize and organize workflows.",
@@ -768,12 +773,6 @@
               "enum": ["github.com", "ghes", "ghec", "ghec-self-hosted"],
               "leaf": true
             },
-            "sudo": {
-              "type": "boolean",
-              "desc": "Controls whether AWF runs in root mode.",
-              "enum": [true, false],
-              "leaf": true
-            },
             "command": {
               "type": "string",
               "desc": "Custom command to replace the default AWF installation.",
@@ -811,13 +810,13 @@
             },
             "runtime": {
               "type": "string",
-              "desc": "Container runtime for the agent container.",
-              "enum": ["gvisor", "docker-sbx", "cloud-hypervisor"],
+              "desc": "Sandbox runtime profile for the agent container.",
+              "enum": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor"],
               "leaf": true
             },
             "runtime-install": {
               "type": "boolean",
-              "desc": "Controls generation of sandbox runtime installation steps for gVisor and docker-sbx.",
+              "desc": "Controls generation of sandbox runtime installation steps.",
               "enum": [true, false],
               "leaf": true
             },
@@ -859,15 +858,9 @@
                 }
               }
             },
-            "legacy-security": {
-              "type": "string",
-              "desc": "Opt into legacy security mode.",
-              "enum": ["enable"],
-              "leaf": true
-            },
             "allow-host-ports": {
               "type": "array",
-              "desc": "Additional host TCP ports the agent may connect to when legacy-security is enabled.",
+              "desc": "Additional host TCP ports the agent may connect to.",
               "array": true
             }
           }
@@ -2203,6 +2196,11 @@
         "mark-pull-request-as-ready-for-review": {
           "type": "object|null",
           "desc": "Enable AI agents to mark draft pull requests as ready for review when criteria are met.",
+          "leaf": true
+        },
+        "approve-workflow-run": {
+          "type": "object|null",
+          "desc": "Enable AI agents to approve pending workflow runs in the action required state.",
           "leaf": true
         },
         "add-comment": {

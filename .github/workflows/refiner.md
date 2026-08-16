@@ -38,9 +38,6 @@ concurrency:
   cancel-in-progress: true
 
 
-sandbox:
-  agent:
-    sudo: false
 evals:
   - id: pr_analyzed
     question: Did the agent analyze the pull request for code style alignment, security issues, and test improvements?

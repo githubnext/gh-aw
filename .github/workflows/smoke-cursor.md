@@ -54,7 +54,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: Cursor Engine Validation

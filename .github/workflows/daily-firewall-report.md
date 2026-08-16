@@ -31,9 +31,6 @@ safe-outputs:
     title-prefix: "Daily Firewall Report"
     close-older-discussions: true
     expires: 14
-sandbox:
-  agent:
-    sudo: false
 tools:
   cli-proxy: true
   agentic-workflows:

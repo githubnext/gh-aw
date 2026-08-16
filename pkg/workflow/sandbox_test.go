@@ -46,8 +46,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						Type:             SandboxTypeAWF,
-						NetworkIsolation: true,
+						Type: SandboxTypeAWF,
 					},
 				},
 				Tools: map[string]any{

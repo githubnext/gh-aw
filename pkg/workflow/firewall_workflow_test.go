@@ -178,8 +178,9 @@ func TestFirewallWorkflowBlocksExampleCom(t *testing.T) {
 	}
 }
 
-// TestCompileWorkflow_LegacySecurityFromFrontmatter validates that legacy-security: enable
-// passes schema validation and produces the expected AWF command with sudo and --legacy-security.
+// TestCompileWorkflow_LegacySecurityFromFrontmatter validates that
+// runtime: docker-sudo-iptables passes schema validation and produces the expected AWF
+// command with sudo and --legacy-security.
 func TestCompileWorkflow_LegacySecurityFromFrontmatter(t *testing.T) {
 	frontmatter := `---
 on: workflow_dispatch
@@ -187,7 +188,7 @@ engine: copilot
 sandbox:
   agent:
     id: awf
-    legacy-security: enable
+    runtime: docker-sudo-iptables
 network:
   allowed:
     - defaults
@@ -204,7 +205,7 @@ Test workflow with legacy security.`
 
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
-	require.NoError(t, err, "Compilation with legacy-security: enable should succeed")
+	require.NoError(t, err, "Compilation with runtime: docker-sudo-iptables should succeed")
 
 	lockFile := stringutil.MarkdownToLockFile(testFile)
 	lockContent, err := os.ReadFile(lockFile)

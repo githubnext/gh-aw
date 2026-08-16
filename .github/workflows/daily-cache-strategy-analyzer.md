@@ -41,7 +41,6 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
-    sudo: true
 tools:
   cache-memory: true
   cli-proxy: true

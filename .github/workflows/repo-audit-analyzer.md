@@ -16,9 +16,6 @@ permissions:
   issues: read
   pull-requests: read
 
-sandbox:
-  agent:
-    sudo: false
 
 tools:
   cli-proxy: true
@@ -51,6 +48,7 @@ evals:
   - id: evidence-cited
     question: Does the agent output cite specific repository characteristics or existing workflows as evidence supporting its recommendations?
 ---
+
 # Repository Audit & Agentic Workflow Opportunity Analyzer
 
 You are a repository audit specialist that analyzes GitHub repositories to identify opportunities for productivity improvements using agentic workflows.

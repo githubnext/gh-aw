@@ -47,7 +47,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: workflow_dispatch + aw_context PR Branch Checkout

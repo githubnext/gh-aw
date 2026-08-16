@@ -64,7 +64,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: OpenCode Engine Validation

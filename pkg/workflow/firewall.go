@@ -124,12 +124,14 @@ func getAgentContainerRuntime(workflowData *WorkflowData) string {
 	if agentConfig == nil || agentConfig.Disabled {
 		return ""
 	}
-	// docker-sbx and cloud-hypervisor are not OCI runtimes and must not appear in
-	// container.containerRuntime.
-	if agentConfig.Runtime == AgentRuntimeDockerSbx || agentConfig.Runtime == AgentRuntimeCloudHypervisor {
+	// Only gVisor is an OCI runtime that AWF passes through as
+	// container.containerRuntime. The docker/docker-sudo-iptables profiles use the
+	// default Docker runtime, and docker-sbx/cloud-hypervisor pass
+	// --container-runtime via CLI flags in BuildAWFArgs instead.
+	if agentConfig.Runtime != AgentRuntimeGVisor {
 		return ""
 	}
-	return string(agentConfig.Runtime)
+	return string(AgentRuntimeGVisor)
 }
 
 // isGVisorRuntime returns true when the agent container should use gVisor (runsc).
@@ -170,8 +172,8 @@ func isRuntimeInstallEnabled(workflowData *WorkflowData) bool {
 	if agentConfig == nil || agentConfig.Disabled {
 		return true
 	}
-	// Noop when no runtime is specified.
-	if agentConfig.Runtime == "" {
+	// Noop when the runtime does not provision anything on the runner.
+	if !resolveSandboxRuntimeProfile(agentConfig).SupportsRuntimeInstall {
 		return true
 	}
 	if agentConfig.RuntimeInstall != nil && !*agentConfig.RuntimeInstall {
@@ -185,13 +187,12 @@ func isAWFNetworkIsolationEnabled(workflowData *WorkflowData) bool {
 	if agentConfig == nil || agentConfig.Disabled {
 		return false
 	}
-	// docker-sbx and cloud-hypervisor always use network isolation regardless of
-	// the sudo setting.
-	// The sudo flag is only for the install steps, not for network enforcement.
-	if agentConfig.Runtime == AgentRuntimeDockerSbx || agentConfig.Runtime == AgentRuntimeCloudHypervisor {
-		return true
+	// Inline threat detection and evals run a standalone AWF with no MCP sidecars, so
+	// there is nothing to attach to the isolated topology.
+	if workflowData != nil && (workflowData.IsDetectionRun || workflowData.IsEvalsRun) {
+		return false
 	}
-	return agentConfig.NetworkIsolation
+	return resolveSandboxRuntimeProfile(agentConfig).NetworkIsolation
 }
 
 // enableFirewallByDefaultForCopilot enables firewall by default for copilot and codex engines

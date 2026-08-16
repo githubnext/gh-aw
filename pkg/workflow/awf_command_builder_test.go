@@ -80,7 +80,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 					Firewall: &FirewallConfig{Enabled: true},
 				},
 				SandboxConfig: &SandboxConfig{
-					Agent: &AgentSandboxConfig{LegacySecurity: true},
+					Agent: &AgentSandboxConfig{Runtime: AgentRuntimeDockerSudoIptables},
 				},
 			},
 			AllowedDomains: "github.com",
@@ -103,7 +103,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 					Firewall: &FirewallConfig{Enabled: true},
 				},
 				SandboxConfig: &SandboxConfig{
-					Agent: &AgentSandboxConfig{LegacySecurity: true},
+					Agent: &AgentSandboxConfig{Runtime: AgentRuntimeDockerSudoIptables},
 					MCP:   &MCPGatewayRuntimeConfig{Port: 9090},
 				},
 			},
@@ -138,7 +138,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 		assert.NotContains(t, argsStr, "--enable-host-access", "Strict mode (default) should not emit --enable-host-access")
 	})
 
-	t.Run("strict mode ignores services and warns when explicit ports are set", func(t *testing.T) {
+	t.Run("strict mode ignores services and explicit ports", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName: "copilot",
 			WorkflowData: &WorkflowData{
@@ -160,15 +160,11 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 			AllowedDomains: "github.com",
 		}
 
-		var args []string
-		stderr := captureStderr(func() {
-			args = BuildAWFArgs(config)
-		})
+		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 
 		assert.NotContains(t, argsStr, "--allow-host-ports", "--allow-host-ports requires --enable-host-access, so strict mode (the default) must not emit it")
 		assert.NotContains(t, argsStr, "--enable-host-access", "Strict mode should not imply broad host access")
-		assert.Contains(t, stderr, "sandbox.agent.allow-host-ports", "Should warn that allow-host-ports has no effect in strict mode")
 	})
 
 	t.Run("skips --allow-host-ports and warns when AWF version is too old", func(t *testing.T) {
@@ -186,7 +182,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
 						ID:             "awf",
-						LegacySecurity: true,
+						Runtime:        AgentRuntimeDockerSudoIptables,
 						AllowHostPorts: []int{9000},
 					},
 				},
@@ -215,8 +211,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						Type:             SandboxTypeAWF,
-						NetworkIsolation: true,
+						Type: SandboxTypeAWF,
 					},
 				},
 			},
@@ -248,7 +243,7 @@ func TestBuildAWFArgsAllowHostPorts(t *testing.T) {
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
 						ID:             "awf",
-						LegacySecurity: true,
+						Runtime:        AgentRuntimeDockerSudoIptables,
 						AllowHostPorts: []int{9000, 80},
 					},
 				},
@@ -470,8 +465,7 @@ func TestBuildAWFArgsCliProxy(t *testing.T) {
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						Type:             SandboxTypeAWF,
-						NetworkIsolation: true,
+						Type: SandboxTypeAWF,
 					},
 				},
 				Features: map[string]any{"cli-proxy": true},
@@ -589,35 +583,34 @@ func TestBuildModelsJSONPathExportScript(t *testing.T) {
 }
 
 func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
-	t.Run("returns awf (no sudo) when sudo is false (network isolation mode)", func(t *testing.T) {
+	t.Run("returns awf (no sudo) for the default docker runtime profile", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:               "awf",
-					NetworkIsolation: true,
+					ID: "awf",
 				},
 			},
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
-		assert.Equal(t, "awf", cmd, "Should return rootless 'awf' when sudo is false (network isolation mode)")
-		assert.NotContains(t, cmd, "sudo", "Should not contain sudo when sudo is false (network isolation mode)")
+		assert.Equal(t, "awf", cmd, "Should return rootless 'awf' for the default docker runtime profile")
+		assert.NotContains(t, cmd, "sudo", "Should not contain sudo for the default docker runtime profile")
 	})
 
-	t.Run("returns awf (no sudo) by default in strict security mode", func(t *testing.T) {
+	t.Run("returns awf (no sudo) for the explicit docker runtime", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:               "awf",
-					NetworkIsolation: false,
+					ID:      "awf",
+					Runtime: AgentRuntimeDocker,
 				},
 			},
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
-		assert.Equal(t, "awf", cmd, "Should return 'awf' (no sudo) in strict security mode even with sudo: true")
+		assert.Equal(t, "awf", cmd, "Should return 'awf' (no sudo) for the default docker runtime profile")
 	})
 
 	t.Run("returns awf (no sudo) when no sandbox config is set", func(t *testing.T) {
@@ -635,8 +628,8 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:             "awf",
-					LegacySecurity: true,
+					ID:      "awf",
+					Runtime: AgentRuntimeDockerSudoIptables,
 				},
 			},
 		}
@@ -644,20 +637,19 @@ func TestGetAWFCommandPrefixNetworkIsolation(t *testing.T) {
 		assert.Equal(t, "sudo -E awf", cmd, "Should return 'sudo -E awf' when legacy-security is enabled")
 	})
 
-	t.Run("custom command takes precedence over sudo setting", func(t *testing.T) {
+	t.Run("custom command takes precedence over the runtime profile", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:         "test-workflow",
 			EngineConfig: &EngineConfig{ID: "copilot"},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:               "awf",
-					NetworkIsolation: true,
-					Command:          "custom-awf",
+					ID:      "awf",
+					Command: "custom-awf",
 				},
 			},
 		}
 		cmd := GetAWFCommandPrefix(workflowData)
-		assert.Equal(t, "custom-awf", cmd, "Custom command should take precedence over sudo rootless mode")
+		assert.Equal(t, "custom-awf", cmd, "Custom command should take precedence over the runtime profile command")
 	})
 }
 
@@ -669,8 +661,8 @@ func TestBuildAWFArgs_LegacySecurityVersionGuard(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "copilot"},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						ID:             "awf",
-						LegacySecurity: true,
+						ID:      "awf",
+						Runtime: AgentRuntimeDockerSudoIptables,
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
@@ -692,8 +684,8 @@ func TestBuildAWFArgs_LegacySecurityVersionGuard(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "copilot"},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						ID:             "awf",
-						LegacySecurity: true,
+						ID:      "awf",
+						Runtime: AgentRuntimeDockerSudoIptables,
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
@@ -720,8 +712,8 @@ func TestBuildAWFCommand_ServicePortsRequireLegacy(t *testing.T) {
 				ServicePortExpressions: "${{ job.services.db.ports['5432'] }}",
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						ID:             "awf",
-						LegacySecurity: true,
+						ID:      "awf",
+						Runtime: AgentRuntimeDockerSudoIptables,
 					},
 				},
 			},

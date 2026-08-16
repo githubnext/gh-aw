@@ -48,9 +48,6 @@ tools:
     file-glob: "security-compliance-*/**"
 
 
-sandbox:
-  agent:
-    sudo: false
 ---
 
 # Security Compliance Campaign

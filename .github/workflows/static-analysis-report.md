@@ -120,9 +120,6 @@ steps:
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/agent/compile-output.txt"
 
-sandbox:
-  agent:
-    sudo: false
 ---
 
 # Static Analysis Report

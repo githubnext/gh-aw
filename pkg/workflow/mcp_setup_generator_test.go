@@ -575,7 +575,6 @@ on: workflow_dispatch
 engine: copilot
 sandbox:
   agent:
-    sudo: false
 tools:
   github:
     mode: remote
@@ -627,7 +626,6 @@ on: workflow_dispatch
 engine: gemini
 sandbox:
   agent:
-    sudo: false
 tools:
   github:
     mode: remote
@@ -672,7 +670,6 @@ sandbox:
   agent:
     runtime: docker-sbx
     version: v0.28.0
-    sudo: true
 tools:
   github:
     mode: remote
@@ -718,7 +715,6 @@ on: workflow_dispatch
 engine: copilot
 sandbox:
   agent:
-    sudo: false
 tools:
   github:
     mode: remote
@@ -772,7 +768,6 @@ on: workflow_dispatch
 engine: copilot
 sandbox:
   agent:
-    sudo: false
 tools:
   github:
     mode: remote

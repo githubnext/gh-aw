@@ -346,7 +346,7 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
 			SandboxConfig: &SandboxConfig{
-				Agent: &AgentSandboxConfig{AllowHostPorts: []int{8081, 9000}},
+				Agent: &AgentSandboxConfig{Runtime: AgentRuntimeDockerSudoIptables, AllowHostPorts: []int{8081, 9000}},
 			},
 		}
 
@@ -358,7 +358,7 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
 			SandboxConfig: &SandboxConfig{
-				Agent: &AgentSandboxConfig{AllowHostPorts: []int{0}},
+				Agent: &AgentSandboxConfig{Runtime: AgentRuntimeDockerSudoIptables, AllowHostPorts: []int{0}},
 			},
 		}
 
@@ -372,7 +372,7 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
 			SandboxConfig: &SandboxConfig{
-				Agent: &AgentSandboxConfig{AllowHostPorts: []int{5432}},
+				Agent: &AgentSandboxConfig{Runtime: AgentRuntimeDockerSudoIptables, AllowHostPorts: []int{5432}},
 			},
 		}
 
@@ -381,6 +381,20 @@ func TestValidateSandboxConfigAllowHostPorts(t *testing.T) {
 		assert.Contains(t, err.Error(), "allow-host-ports value 5432")
 		assert.Contains(t, err.Error(), "PostgreSQL")
 		assert.Contains(t, err.Error(), "services:")
-		assert.Contains(t, err.Error(), "legacy-security: enable")
+		assert.Contains(t, err.Error(), string(AgentRuntimeDockerSudoIptables))
+	})
+
+	t.Run("allow-host-ports requires the docker-sudo-iptables runtime", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{AllowHostPorts: []int{9000}},
+			},
+		}
+
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err, "allow-host-ports on the default docker runtime should fail validation")
+		assert.Contains(t, err.Error(), "allow-host-ports")
+		assert.Contains(t, err.Error(), string(AgentRuntimeDockerSudoIptables))
 	})
 }

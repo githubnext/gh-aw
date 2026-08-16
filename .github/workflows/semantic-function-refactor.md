@@ -15,9 +15,6 @@ permissions:
   issues: read
   pull-requests: read
 
-sandbox:
-  agent:
-    sudo: false
 
 model: claude-sonnet-4.6
 engine:

@@ -36,7 +36,6 @@ tools:
 sandbox:
   agent:
     id: awf
-    sudo: false
 if: needs.check_ci_status.outputs.ci_needs_fix == 'true'
 jobs:
   check_ci_status:

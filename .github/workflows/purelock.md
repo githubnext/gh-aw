@@ -155,7 +155,6 @@ safe-outputs:
 sandbox:
   agent:
     runtime: cloud-hypervisor
-    sudo: false
 evals:
   - id: candidate_selected
     question: Did the agent select one pure function from the precomputed candidate list, skipping functions already recorded in cache memory?

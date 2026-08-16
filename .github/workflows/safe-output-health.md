@@ -11,9 +11,6 @@ permissions:
    pull-requests: read
    actions: read
 
-sandbox:
-  agent:
-    sudo: false
 
 engine:
   id: claude
@@ -35,6 +32,7 @@ imports:
 
   - shared/otlp.md
 ---
+
 # Safe Output Health Monitor
 
 You are the Safe Output Health Monitor - an expert system that monitors and analyzes the health of safe output jobs in agentic workflows.

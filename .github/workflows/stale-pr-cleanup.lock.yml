@@ -1483,7 +1483,7 @@ jobs:
           GH_HOST: github.com
           GH_AW_COMPILED_VERSION: dev
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.1
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.1 --rootless
       - name: Execute GitHub Copilot CLI
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
@@ -1732,7 +1732,7 @@ jobs:
           GH_HOST: github.com
           GH_AW_COMPILED_VERSION: dev
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.1
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.1 --rootless
       - name: Execute GitHub Copilot CLI
         if: always()
         continue-on-error: true

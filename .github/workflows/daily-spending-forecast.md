@@ -92,7 +92,6 @@ timeout-minutes: 45
 sandbox:
   agent:
     runtime: cloud-hypervisor
-    sudo: false
 evals:
   - id: spending_forecast_analyzed
     question: Did the agent analyze the agentic workflow spending forecast and its data quality?

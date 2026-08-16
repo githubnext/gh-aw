@@ -53,6 +53,18 @@ redirect: "example-value"
 # (optional)
 tracker-id: "example-value"
 
+# Auditable false-positive suppression annotations for compiler threat-detection
+# rules.
+# (optional)
+threat-detection-suppress: []
+  # Array items:
+    rule: "example-value"
+
+    reason: "example-value"
+
+    # (optional)
+    expires: "example-value"
+
 # Optional array of labels to categorize and organize workflows. Labels can be
 # used to filter workflows in status/list commands.
 # (optional)
@@ -2092,13 +2104,6 @@ sandbox:
     # (optional)
     platform: "github.com"
 
-    # Controls whether AWF runs in root mode. When set to false, AWF runs without sudo
-    # in network-isolation topology egress mode (--network-isolation): MCP sidecars
-    # run as bridge containers and AWF attaches them to its internal awf-net network.
-    # Defaults to true (sudo enabled, normal mode).
-    # (optional)
-    sudo: true
-
     # Container mounts to add when using AWF. Each mount is specified using Docker
     # mount syntax: 'source:destination:mode' where mode can be 'ro' (read-only) or
     # 'rw' (read-write). Example: '/host/path:/container/path:ro'
@@ -2128,22 +2133,26 @@ sandbox:
     # (optional)
     token-steering: true
 
-    # Container runtime for the agent container. Use 'gvisor' to run the agent under
-    # gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx'
-    # to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation
-    # — when runtime-install is left enabled, it requires sandbox.agent.sudo: true,
-    # DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Use
-    # 'cloud-hypervisor' to run the agent in AWF's preview Cloud Hypervisor microVM
-    # runtime on GitHub-hosted Ubuntu x86_64. The compiler grants the runner user
-    # scoped /dev/kvm access, launches the Cloud Hypervisor host process with the
-    # required privileges while retaining strict network isolation, and sizes the
-    # guest at 2 vCPUs and 4096 MiB. Incompatible with runner.topology: arc-dind.
+    # Sandbox runtime profile for the agent container. Each value selects one
+    # supported security and topology profile: 'docker' (default) runs the agent under
+    # Docker with a rootless AWF and network isolation; 'docker-sudo-iptables' runs
+    # Docker with a privileged AWF, legacy iptables networking, and host/service
+    # access (required for allow-host-ports and GitHub Actions services:
+    # connectivity); 'gvisor' runs the agent under gVisor's runsc runtime with strict
+    # network isolation; 'docker-sbx' runs the agent inside a Docker sbx KVM microVM
+    # (requires DOCKER_PAT and DOCKER_USERNAME secrets and a KVM-capable runner; the
+    # compiler handles the required privileged setup); 'cloud-hypervisor' runs the
+    # agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu
+    # x86_64, sized at 2 vCPUs and 4096 MiB. Omitting runtime is equivalent to
+    # 'docker'. gvisor, docker-sbx and cloud-hypervisor are incompatible with
+    # runner.topology: arc-dind.
     # (optional)
-    runtime: "gvisor"
+    runtime: "docker"
 
-    # Controls generation of sandbox runtime installation steps for gVisor and
-    # docker-sbx. Defaults to true. Set to false when the runtime is already installed
-    # on the runner; docker-sbx credential refresh still runs.
+    # Controls generation of sandbox runtime installation steps. Only valid with
+    # runtime: gvisor or runtime: docker-sbx. Defaults to true. Set to false when the
+    # runtime is already installed on the runner; docker-sbx credential refresh still
+    # runs.
     # (optional)
     runtime-install: true
 
@@ -2233,14 +2242,8 @@ sandbox:
         # (optional)
         sessionId: "example-value"
 
-    # Opt into legacy security mode. When set to 'enable', AWF runs with sudo and
-    # --enable-host-access for backward compatibility. The default (omitted) uses
-    # strict security mode where AWF runs rootless without host-access flags.
-    # (optional)
-    legacy-security: "enable"
-
-    # Additional host TCP ports the agent may connect to when legacy-security is
-    # enabled. Ports published by `services:` are reached via
+    # Additional host TCP ports the agent may connect to. Requires runtime:
+    # docker-sudo-iptables. Ports published by `services:` are reached via
     # --allow-host-service-ports instead; use this only for host daemons not declared
     # there.
     # (optional)
@@ -7919,6 +7922,281 @@ safe-outputs:
   # configuration
   mark-pull-request-as-ready-for-review: null
 
+  # Enable AI agents to approve pending workflow runs in the action required state.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: Configuration for approving workflow runs that are awaiting required
+  # approval.
+  approve-workflow-run:
+    # Maximum number of workflow runs to approve (default: 1). Supports an integer or
+    # GitHub Actions expression.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: integer
+    max: 1
+
+    # Format 2: GitHub Actions expression that resolves to an integer at runtime
+    max: "example-value"
+
+    # Allow approval of workflow runs associated with fork pull requests. Defaults to
+    # false.
+    # (optional)
+    fork: true
+
+    # Additional pull request numbers whose pending workflow runs may be approved. The
+    # triggering pull request is always allowed. Supports a list of strings or a
+    # GitHub Actions expression that resolves to a list.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    allowed-pull-requests: []
+      # Array items: string
+
+    # Format 2: GitHub Actions expression that resolves to a list of pull request
+    # numbers at runtime
+    allowed-pull-requests: "example-value"
+
+    # Required workflow filename patterns allowed for approval. Patterns support
+    # wildcards and treat .yml and .yaml as equivalent.
+    allowed-workflows: []
+      # Array of strings
+
+    # Protected files prevent workflow run approval when modified by the associated
+    # pull request. Use exclude to remove filenames or path prefixes from the default
+    # protected set.
+    # (optional)
+    protected-files:
+      # (optional)
+      exclude: []
+        # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # When true, preview the approval without making the GitHub API call.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: boolean
+    staged: true
+
+    # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+    staged: "example-value"
+
+    # Internal hidden feature. Optional list of declarative sample payloads that
+    # exercise this safe-output handler.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    samples: []
+      # Array items: object
+
+    # Format 2: object
+    samples:
+      {}
+
+    # GitHub App authentication. Mints a short-lived installation access token via
+    # actions/create-github-app-token. Mutually exclusive with github-token.
+    # (optional)
+    github-app:
+      # Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID
+      # }}').
+      # (optional)
+      app-id: "example-value"
+
+      # GitHub App client ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App
+      # token.
+      # (optional)
+      client-id: "example-value"
+
+      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
+      # mint a GitHub App token.
+      # (optional)
+      private-key: "example-value"
+
+      # If true, skip token minting when client-id/private-key resolve to empty strings
+      # at runtime. Defaults to false.
+      # (optional)
+      ignore-if-missing: true
+
+      # Optional owner of the GitHub App installation (defaults to current repository
+      # owner if not specified)
+      # (optional)
+      owner: "example-value"
+
+      # Optional list of repositories to grant access to (defaults to current repository
+      # if not specified)
+      # (optional)
+      repositories: []
+        # Array of strings
+
+      # Optional extra GitHub App-only permissions to merge into the minted token. Takes
+      # effect for tools.github.github-app and safe-outputs.github-app; ignored in
+      # on.github-app and the top-level github-app fallback. Use to add GitHub App-only
+      # scopes (e.g. members, organization-administration) not expressible via standard
+      # handler declarations.
+      # (optional)
+      permissions:
+        # Permission level for repository administration (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission for repository administration.
+        # (optional)
+        administration: "read"
+
+        # Permission level for Codespaces (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        codespaces: "read"
+
+        # Permission level for Codespaces lifecycle administration (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        codespaces-lifecycle-admin: "read"
+
+        # Permission level for Codespaces metadata (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        codespaces-metadata: "read"
+
+        # Permission level for user email addresses (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        email-addresses: "read"
+
+        # Permission level for repository environments (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        environments: "read"
+
+        # Permission level for git signing (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        git-signing: "read"
+
+        # Permission level for organization members (read/none; "write" is rejected by the
+        # compiler). Required for org team membership API calls.
+        # (optional)
+        members: "read"
+
+        # Permission level for organization administration (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-administration: "read"
+
+        # Permission level for organization announcement banners (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-announcement-banners: "read"
+
+        # Permission level for organization Codespaces (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-codespaces: "read"
+
+        # Permission level for organization Copilot (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-copilot: "read"
+
+        # Permission level for organization custom org roles (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-org-roles: "read"
+
+        # Permission level for organization custom properties (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-properties: "read"
+
+        # Permission level for organization custom repository roles (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-repository-roles: "read"
+
+        # Permission level for organization events (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-events: "read"
+
+        # Permission level for organization webhooks (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-hooks: "read"
+
+        # Permission level for organization members management (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-members: "read"
+
+        # Permission level for organization packages (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-packages: "read"
+
+        # Permission level for organization personal access token requests (read/none;
+        # "write" is rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-personal-access-token-requests: "read"
+
+        # Permission level for organization personal access tokens (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-personal-access-tokens: "read"
+
+        # Permission level for organization plan (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-plan: "read"
+
+        # Permission level for organization self-hosted runners (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-self-hosted-runners: "read"
+
+        # Permission level for organization user blocking (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-user-blocking: "read"
+
+        # Permission level for repository custom properties (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        repository-custom-properties: "read"
+
+        # Permission level for repository webhooks (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        repository-hooks: "read"
+
+        # Permission level for single file access (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        single-file: "read"
+
+        # Permission level for team discussions (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        team-discussions: "read"
+
+        # Permission level for Dependabot vulnerability alerts (read/none; "write" is
+        # rejected by the compiler). Also available as a GITHUB_TOKEN scope. When used
+        # with a GitHub App, forwarded as permission-vulnerability-alerts input.
+        # (optional)
+        vulnerability-alerts: "read"
+
+        # Permission level for GitHub Actions workflow files (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        workflows: "read"
+
+  # Format 2: Enable workflow run approval with default configuration
+  approve-workflow-run: null
+
   # Enable AI agents to add comments to GitHub issues, pull requests, or
   # discussions. Supports templating, cross-repository commenting, and automatic
   # mentions.
@@ -11344,6 +11622,11 @@ safe-outputs:
     # omitted, defaults to the workflow name.
     # (optional)
     name: "My Workflow"
+
+    # Target pull request for check run attachment: 'triggering', '*' (any PR), or
+    # explicit PR number
+    # (optional)
+    target: "example-value"
 
     # Maximum number of check runs to create per workflow run (default: 1). Supports
     # integer or GitHub Actions expression (e.g. '${{ inputs.max }}').
@@ -20206,13 +20489,14 @@ runtimes:
   # Runtime configuration object identified by runtime ID (e.g., 'node', 'python',
   # 'go')
   node:
-    # Runtime version as a string (e.g., '22', '3.12', 'latest') or number (e.g.,
-    # 22, 3.12). Numeric values are automatically converted to strings at runtime.
+    # Runtime version as a string (e.g., '22', '3.12', 'latest') or number (e.g., 22,
+    # 3.12). Numeric values are automatically converted to strings at runtime.
     # (optional)
-    version: "example-value"
+    version: null
 
-    # GitHub Actions repository for setting up the runtime (e.g., 'actions/setup-node',
-    # 'custom/setup-runtime'). Overrides the default setup action.
+    # GitHub Actions repository for setting up the runtime (e.g.,
+    # 'actions/setup-node', 'custom/setup-runtime'). Overrides the default setup
+    # action.
     # (optional)
     action-repo: "example-value"
 
@@ -20221,10 +20505,10 @@ runtimes:
     # (optional)
     action-version: "example-value"
 
-    # Optional GitHub Actions if condition to control when the runtime setup step runs.
-    # Supports standard GitHub Actions expression syntax. Useful for conditionally
-    # installing runtimes based on file presence (e.g., "hashFiles('go.mod') != ''" to
-    # install Go only when go.mod exists).
+    # Optional GitHub Actions if condition to control when the runtime setup step
+    # runs. Supports standard GitHub Actions expression syntax. Useful for
+    # conditionally installing runtimes based on file presence (e.g.,
+    # "hashFiles('go.mod') != ''" to install Go only when go.mod exists).
     # (optional)
     if: "example-value"
 
@@ -20235,7 +20519,8 @@ runtimes:
 
     # Allow npm pre/post install scripts to execute during package installation. A
     # supply chain security warning is emitted at compile time; in strict mode this is
-    # an error. See: https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts
+    # an error. See:
+    # https://github.github.com/gh-aw/reference/frontmatter/#run-install-scripts
     # (optional)
     run-install-scripts: true
 

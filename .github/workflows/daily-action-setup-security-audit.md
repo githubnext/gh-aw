@@ -34,7 +34,6 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
-    sudo: true
 imports:
   - shared/otlp.md
 evals:

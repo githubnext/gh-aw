@@ -52,7 +52,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: MAI-Code-1-Flash Commit Summary

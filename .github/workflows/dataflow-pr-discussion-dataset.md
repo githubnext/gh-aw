@@ -12,9 +12,6 @@ permissions:
   pull-requests: read
   issues: read
 
-sandbox:
-  agent:
-    sudo: false
 
 network:
   allowed:

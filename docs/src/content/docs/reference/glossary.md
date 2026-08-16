@@ -145,7 +145,7 @@ safe-outputs:
 
 ### Enclaves (`enclaves:`)
 
-A top-level frontmatter array that enables finite-disclosure access to approved private repositories from within a public-facing workflow. The compiler registers `enclave_run_script` or `enclave_run_agent` tools from the keyed `script`/`agent` entries present on the `awf-enclave` MCP route, compiled through [mcpg](#mcp-gateway) with run-scoped capability handoff, timeout derivation, and network validation. Enclaves require AWF network isolation (`sandbox.agent.sudo: false` or the `docker-sbx` runtime) so the compiler can launch mcpg in bridge mode. Each request uses a fresh masked capability generated per workflow run, passed only to mcpg and AWF and excluded from the primary agent environment. See [Private Repository Enclaves](/gh-aw/reference/enclaves/).
+A top-level frontmatter array that enables finite-disclosure access to approved private repositories from within a public-facing workflow. The compiler registers `enclave_run_script` or `enclave_run_agent` tools from the keyed `script`/`agent` entries present on the `awf-enclave` MCP route, compiled through [mcpg](#mcp-gateway) with run-scoped capability handoff, timeout derivation, and network validation. Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler can launch mcpg in bridge mode. Each request uses a fresh masked capability generated per workflow run, passed only to mcpg and AWF and excluded from the primary agent environment. See [Private Repository Enclaves](/gh-aw/reference/enclaves/).
 
 ### MCP Scripts
 
@@ -1430,19 +1430,23 @@ Persistent file storage via Git branches with unlimited retention. Unlike cache-
 
 Configuration for the AI agent execution environment, providing two isolation layers: the **Coding Agent Sandbox** ([AWF](#awf-agent-workflow-firewall) by default) for network egress control, and the **MCP Gateway** for routing MCP server calls through a unified HTTP endpoint. Configured via the `sandbox:` field in frontmatter. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
-### `sandbox.agent.sudo` (`sandbox.agent.sudo`)
+### `sandbox.agent.runtime` (`sandbox.agent.runtime`)
 
-A `sandbox.agent` field that controls whether AWF (Agent Workflow Firewall) runs with elevated `sudo` privileges. Defaults to `false` (network isolation mode) — AWF runs rootless with `--network-isolation` for container-boundary egress control without requiring host-level `sudo`.
+A `sandbox.agent` field that selects the sandbox security and topology profile. It is the single selector for the supported combinations of container runtime, AWF privileges, and host access; the compiler derives every privilege the selected profile needs.
 
-- `sudo: false` (default) — AWF enforces network egress at the container level. The secure default for all workflows.
-- `sudo: true` (deprecated) — AWF runs as `sudo -E awf`, granting host-level `iptables` control. Emits a compile-time warning in non-strict mode and an error in [Strict Mode](#strict-mode).
+- `docker` (default) — Default Docker runtime, rootless AWF, network isolation.
+- `docker-sudo-iptables` — Docker with privileged AWF, legacy `iptables` networking, and host/service access.
+- `gvisor` — gVisor with strict network isolation.
+- `docker-sbx` — KVM microVM; the compiler handles the required privileged setup.
+- `cloud-hypervisor` — Preview KVM runtime with its required privileged launcher.
 
-Omitting `sudo` is equivalent to `sudo: false`. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
+Omitting `runtime` is equivalent to `runtime: docker`. The removed `sandbox.agent.sudo` and `sandbox.agent.legacy-security` fields are migrated by `gh aw fix --write`. See [Sandbox Configuration](/gh-aw/reference/sandbox/) and [Agent Runtimes](/gh-aw/reference/agent-runtimes/).
 
 ```aw wrap
 sandbox:
   agent:
-    sudo: false
+    runtime: docker-sudo-iptables
+    allow-host-ports: [9000]
 ```
 
 ### `sandbox.agent.mounts` (`sandbox.agent.mounts`)
@@ -1458,12 +1462,12 @@ sandbox:
 
 ### Host Service Ports (`services:`)
 
-A GitHub Actions `services:` container port that the AWF coding agent sandbox reaches via `--allow-host-service-ports`, which resolves each service's actual (possibly dynamically assigned) host port at runtime. Requires `sandbox.agent.legacy-security: enable`, since AWF's strict (default) security mode provides no route to host services. For host daemons not declared under `services:`, the related `allow-host-ports` escape hatch (also legacy-security only) allowlists specific TCP ports; the compiler rejects ports outside the `1`–`65535` range and blocks dangerous ports (e.g. `22`, `3306`, `5432`, `6379`, `9200`). See [Sandbox Configuration](/gh-aw/reference/sandbox/#host-service-ports-services).
+A GitHub Actions `services:` container port that the AWF coding agent sandbox reaches via `--allow-host-service-ports`, which resolves each service's actual (possibly dynamically assigned) host port at runtime. Requires `sandbox.agent.runtime: docker-sudo-iptables`, since the default (strict) runtime profile provides no route to host services. For host daemons not declared under `services:`, the related `allow-host-ports` escape hatch (also `docker-sudo-iptables` only) allowlists specific TCP ports; the compiler rejects ports outside the `1`–`65535` range and blocks dangerous ports (e.g. `22`, `3306`, `5432`, `6379`, `9200`). See [Sandbox Configuration](/gh-aw/reference/sandbox/#host-service-ports-services).
 
 ```aw wrap
 sandbox:
   agent:
-    legacy-security: enable
+    runtime: docker-sudo-iptables
 
 services:
   postgres:

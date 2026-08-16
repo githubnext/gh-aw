@@ -12,9 +12,6 @@ permissions:
   # Note: PR write operations handled via safe-outputs
   copilot-requests: write
 
-sandbox:
-  agent:
-    sudo: false
 
 engine:
   id: copilot

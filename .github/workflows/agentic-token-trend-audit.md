@@ -31,7 +31,6 @@ safe-outputs:
 sandbox:
   agent:
     runtime: gvisor
-    sudo: false
 tools:
   agentic-workflows:
   bash:

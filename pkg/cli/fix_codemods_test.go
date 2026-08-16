@@ -248,6 +248,7 @@ func expectedCodemodOrder() []string {
 		"sandbox-mcp-container-removal",
 		"sandbox-mcp-version-removal",
 		"sandbox-agent-false-removal",
+		"sandbox-runtime-profiles",
 		"infer-to-disable-model-invocation",
 		"run-install-scripts-to-runtimes-node",
 		"mentions-allow-team-members-to-allowed-collaborators",

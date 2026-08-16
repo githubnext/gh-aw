@@ -52,9 +52,6 @@ imports:
 timeout-minutes: 30
 features:
   gh-aw-detection: true
-sandbox:
-  agent:
-    sudo: false
 evals:
   - id: sessions_analyzed
     question: Did the agent analyze Copilot sessions from the last 14 days?
@@ -95,6 +92,7 @@ steps:
         done
       fi
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Copilot Opt — Session Optimization Analyzer

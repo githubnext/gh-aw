@@ -55,6 +55,29 @@ sandbox:
 > [!WARNING]
 > Disabling the agent sandbox removes a security trust boundary. The `dangerously-disable-sandbox-agent` value is a permanent, reviewable record of why this workflow runs without the agent firewall. Write a reason that will be meaningful to future reviewers.
 
+### Runtime Profiles
+
+`sandbox.agent.runtime` is the single selector for the sandbox security and topology profile. Each value resolves to one supported combination of container runtime, AWF privileges, and host access:
+
+| Runtime | Effective behavior |
+| --- | --- |
+| `docker` (default) | Default Docker runtime, rootless AWF, network isolation |
+| `docker-sudo-iptables` | Docker with privileged AWF, legacy `iptables` networking, and host/service access |
+| `gvisor` | gVisor with strict network isolation |
+| `docker-sbx` | KVM microVM; the compiler handles the required privileged setup |
+| `cloud-hypervisor` | Preview KVM runtime with its required privileged launcher |
+
+Omitting `runtime` is equivalent to `runtime: docker`, which keeps the secure default.
+
+```yaml wrap
+sandbox:
+  agent:
+    runtime: docker-sudo-iptables
+    allow-host-ports: [9000]
+```
+
+The compiler derives every privilege the selected runtime needs, including the `sudo` used by the gVisor and Docker sbx installation steps. Unsupported combinations — such as `allow-host-ports` outside `docker-sudo-iptables`, or `runtime-install` outside `gvisor` and `docker-sbx` — fail at compile time. See [Agent Runtimes](/gh-aw/reference/agent-runtimes/) for runner prerequisites.
+
 ### MCP Gateway (Experimental)
 
 Route MCP server calls through a unified HTTP gateway:
@@ -120,12 +143,12 @@ All host binaries are available without explicit mounts: system utilities, `gh`,
 
 #### Host Service Ports (`services:`)
 
-The AWF sandbox reaches GitHub Actions `services:` containers through `--allow-host-service-ports`, which resolves each service's actual (possibly dynamically assigned) host port at runtime. This mechanism, and the explicit `allow-host-ports` escape hatch below, both require `sandbox.agent.legacy-security: enable`: AWF's strict (default) security mode does not provide a route to host services, even when host-access flags are combined.
+The AWF sandbox reaches GitHub Actions `services:` containers through `--allow-host-service-ports`, which resolves each service's actual (possibly dynamically assigned) host port at runtime. This mechanism, and the explicit `allow-host-ports` escape hatch below, both require `sandbox.agent.runtime: docker-sudo-iptables`: the default (strict) runtime profile does not provide a route to host services, even when host-access flags are combined.
 
 ```yaml wrap
 sandbox:
   agent:
-    legacy-security: enable
+    runtime: docker-sudo-iptables
 
 services:
   postgres:
@@ -134,12 +157,12 @@ services:
       - 5432:5432
 ```
 
-For host daemons that are not declared in `services:`, add an explicit allowlist (also legacy-security only):
+For host daemons that are not declared in `services:`, add an explicit allowlist (also `docker-sudo-iptables` only):
 
 ```yaml wrap
 sandbox:
   agent:
-    legacy-security: enable
+    runtime: docker-sudo-iptables
     allow-host-ports: [9000]
 ```
 

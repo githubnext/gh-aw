@@ -23,7 +23,6 @@ network:
 sandbox:
   agent:
     id: awf
-    sudo: false
 timeout-minutes: 20
 strict: false
 imports:
@@ -58,6 +57,7 @@ tools:
 
 
 ---
+
 # MCP Inspector Agent
 
 Systematically investigate and document all MCP server configurations in `.github/workflows/shared/mcp/*.md`.

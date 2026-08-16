@@ -23,12 +23,10 @@ imports:
 
 
   - shared/otlp.md
-sandbox:
-  agent:
-    sudo: false
 features:
   gh-aw-detection: true
 ---
+
 # Weekly Workflow Analysis
 
 Analyze GitHub Actions workflow runs from the past week and identify improvement opportunities.

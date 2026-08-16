@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -246,62 +247,32 @@ func TestValidateStrictSandboxCustomizationSetsAWFDefault(t *testing.T) {
 	}
 }
 
-// TestValidateStrictSandboxCustomizationSudoTrue tests that sandbox.agent.sudo: true
-// (SudoExplicitlyEnabled=true) is an error in strict mode and a warning in non-strict mode.
-func TestValidateStrictSandboxCustomizationSudoTrue(t *testing.T) {
-	sudoTrueSandbox := &SandboxConfig{
-		Agent: &AgentSandboxConfig{
-			ID:                    "awf",
-			NetworkIsolation:      false, // sudo: true
-			SudoExplicitlyEnabled: true,
-		},
-	}
-
-	t.Run("strict mode: sudo: true is an error", func(t *testing.T) {
-		compiler := NewCompiler()
-		compiler.strictMode = true
-
-		err := compiler.validateStrictSandboxCustomization(sudoTrueSandbox)
-		if err == nil {
-			t.Fatal("Expected error for sandbox.agent.sudo: true in strict mode, got nil")
-		}
-		if !strings.Contains(err.Error(), "strict mode") {
-			t.Errorf("Expected error to mention strict mode, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "sudo: true") {
-			t.Errorf("Expected error to mention sudo: true, got: %v", err)
-		}
-	})
-
-	t.Run("non-strict mode: sudo: true emits warning but no error", func(t *testing.T) {
-		compiler := NewCompiler()
-		compiler.strictMode = false
-		initialWarnings := compiler.GetWarningCount()
-
-		err := compiler.validateStrictSandboxCustomization(sudoTrueSandbox)
-		if err != nil {
-			t.Errorf("Expected no error for sandbox.agent.sudo: true in non-strict mode, got: %v", err)
-		}
-		if compiler.GetWarningCount() <= initialWarnings {
-			t.Error("Expected warning count to increase for sandbox.agent.sudo: true in non-strict mode")
-		}
-	})
-
-	t.Run("sudo: false does not trigger warning or error", func(t *testing.T) {
-		sandbox := &SandboxConfig{
-			Agent: &AgentSandboxConfig{
-				ID:               "awf",
-				NetworkIsolation: true, // sudo: false (default)
-			},
-		}
+// TestValidateStrictSandboxCustomizationRuntimeProfiles tests that every supported
+// runtime profile passes strict-mode sandbox customization validation: the privileged
+// setup each runtime needs is derived by the compiler instead of being requested with
+// a dedicated sudo field.
+func TestValidateStrictSandboxCustomizationRuntimeProfiles(t *testing.T) {
+	for _, runtime := range append([]AgentRuntime{""}, supportedAgentRuntimes...) {
 		for _, strict := range []bool{true, false} {
-			compiler := NewCompiler()
-			compiler.strictMode = strict
+			t.Run(fmt.Sprintf("runtime=%q strict=%v", runtime, strict), func(t *testing.T) {
+				sandbox := &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						ID:      "awf",
+						Runtime: runtime,
+					},
+				}
 
-			err := compiler.validateStrictSandboxCustomization(sandbox)
-			if err != nil {
-				t.Errorf("Expected no error for sudo: false (strict=%v), got: %v", strict, err)
-			}
+				compiler := NewCompiler()
+				compiler.strictMode = strict
+				initialWarnings := compiler.GetWarningCount()
+
+				if err := compiler.validateStrictSandboxCustomization(sandbox); err != nil {
+					t.Errorf("Expected no error for runtime %q (strict=%v), got: %v", runtime, strict, err)
+				}
+				if compiler.GetWarningCount() != initialWarnings {
+					t.Errorf("Expected no warnings for runtime %q (strict=%v)", runtime, strict)
+				}
+			})
 		}
-	})
+	}
 }

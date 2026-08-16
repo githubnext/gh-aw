@@ -56,7 +56,6 @@ features:
 sandbox:
   agent:
     runtime: gvisor
-    sudo: false
 evals:
   - id: repair-or-optimization-path
     question: Did the workflow check validation-status first and then follow the correct repair or optimization path for this run?
