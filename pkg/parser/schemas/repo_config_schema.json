@@ -31,7 +31,7 @@
           "image": {
             "type": "string",
             "description": "Replacement container image reference without digest component (e.g. 'registry.acme.com/image:tag').",
-            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*(?:@sha256:[a-f0-9]{64})?$"
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$"
           },
           "digest": {
             "type": "string",
@@ -41,7 +41,7 @@
         }
       },
       "propertyNames": {
-        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*(?:@sha256:[a-f0-9]{64})?$"
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$"
       }
     },
     "ghes": {
