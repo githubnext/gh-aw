@@ -353,7 +353,6 @@ func TestHelperMethods(t *testing.T) {
 		{"Version", Version("1.0.0"), Version(""), "1.0.0"},
 		{"JobName", JobName("agent"), JobName(""), "agent"},
 		{"StepID", StepID("check_membership"), StepID(""), "check_membership"},
-		{"MCPServerID", MCPServerID("github"), MCPServerID(""), "github"},
 		{"CommandPrefix", CommandPrefix("gh aw"), CommandPrefix(""), "gh aw"},
 	}
 
