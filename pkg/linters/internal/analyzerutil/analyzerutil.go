@@ -31,9 +31,9 @@ func NewAtPath(name, doc, packagePath string, run func(*analysis.Pass) (any, err
 	}
 }
 
-// Indexes builds the nolint directive index and the generated-file index that
+// Indexes builds the generated-file index and the nolint directive index that
 // every linter needs before walking the AST.
-func Indexes(pass *analysis.Pass) (nolint.DirectiveIndex, filecheck.GeneratedIndex, error) {
+func Indexes(pass *analysis.Pass) (filecheck.GeneratedIndex, nolint.DirectiveIndex, error) {
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, nil, err
@@ -42,13 +42,13 @@ func Indexes(pass *analysis.Pass) (nolint.DirectiveIndex, filecheck.GeneratedInd
 	if err != nil {
 		return nil, nil, err
 	}
-	return noLintIndex, generatedFiles, nil
+	return generatedFiles, noLintIndex, nil
 }
 
 // PreorderIndexed builds the shared nolint and generated-file indexes and runs
 // visit for each node matching nodeFilter.
 func PreorderIndexed(pass *analysis.Pass, nodeFilter []ast.Node, visit func(*analysis.Pass, ast.Node, filecheck.GeneratedIndex, nolint.DirectiveIndex)) (any, error) {
-	noLintIndex, generatedFiles, err := Indexes(pass)
+	generatedFiles, noLintIndex, err := Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

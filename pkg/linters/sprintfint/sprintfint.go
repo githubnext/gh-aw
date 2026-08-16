@@ -24,7 +24,7 @@ const (
 var Analyzer = analyzerutil.New("sprintfint", `reports fmt.Sprintf("%d", x) calls where x is a single int value; use strconv.Itoa(x) instead`, run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
+	generatedFiles, noLintIndex, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

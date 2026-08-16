@@ -31,7 +31,7 @@ var brittleErrStringFuncs = map[string]bool{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
+	generatedFiles, noLintIndex, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

@@ -42,7 +42,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
+	generatedFiles, noLintIndex, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

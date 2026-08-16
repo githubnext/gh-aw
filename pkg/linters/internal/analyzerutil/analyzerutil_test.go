@@ -80,7 +80,7 @@ func TestIndexes(t *testing.T) {
 		},
 	}
 
-	gotNoLint, gotGenerated, err := Indexes(pass)
+	gotGenerated, gotNoLint, err := Indexes(pass)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,12 +100,12 @@ func TestIndexesError(t *testing.T) {
 
 	for name, resultOf := range tests {
 		t.Run(name, func(t *testing.T) {
-			noLintIndex, generatedFiles, err := Indexes(&analysis.Pass{ResultOf: resultOf})
+			generatedFiles, noLintIndex, err := Indexes(&analysis.Pass{ResultOf: resultOf})
 			if err == nil {
 				t.Fatal("Indexes() error = nil, want error")
 			}
-			if noLintIndex != nil || generatedFiles != nil {
-				t.Errorf("Indexes() = (%v, %v), want (nil, nil) on error", noLintIndex, generatedFiles)
+			if generatedFiles != nil || noLintIndex != nil {
+				t.Errorf("Indexes() = (%v, %v), want (nil, nil) on error", generatedFiles, noLintIndex)
 			}
 		})
 	}

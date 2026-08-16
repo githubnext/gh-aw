@@ -18,7 +18,7 @@ import (
 var Analyzer = analyzerutil.New("fprintlnsprintf", "reports fmt.Fprintln(w, fmt.Sprintf(...)) calls that should be rewritten as fmt.Fprintf(w, ...)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
+	generatedFiles, noLintIndex, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

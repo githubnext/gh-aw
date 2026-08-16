@@ -32,7 +32,7 @@ func init() {
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s (max-params=%d)", pass.Pkg.Path(), maxParams)
 
-	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
+	generatedFiles, noLintIndex, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

@@ -21,7 +21,7 @@ var Analyzer = analyzerutil.New("lenstringzero", "reports len(s) == 0, len(s) !=
 	"that should use == \"\" or != \"\" instead", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
+	generatedFiles, noLintIndex, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

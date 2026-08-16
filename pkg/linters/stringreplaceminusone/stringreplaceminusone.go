@@ -20,7 +20,7 @@ import (
 var Analyzer = analyzerutil.New("stringreplaceminusone", "reports strings.Replace calls with n=-1 that should use strings.ReplaceAll", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
+	generatedFiles, noLintIndex, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
