@@ -1,6 +1,6 @@
 # Formal Notes: awf-config-sources-spec.md
 
-**Last formalized**: 2026-08-09-15-35-55
+**Last formalized**: 2026-08-16-15-36-00
 **Notation**: TLA+ / Z3-style guard conjunction / F*
 **Issue**: see notes-index.json
 
@@ -24,6 +24,9 @@
 | P14 | `formalEscalationOwnerNonEmpty` | Escalation issue MUST NOT be left unassigned (CR-06a(c)) |
 | P15 | `formalEscalationAcknowledgementWindow` | Owner MUST acknowledge assignment within 1 business day (CR-06a(c)) |
 | P16 | `formalCoverageVerificationEveryRun` | Per-run top-level schema-vs-CLI-mapping coverage check (CR-04) |
+| P17 | `formalEscalationLabelPairComplete` | Escalation issue MUST carry both `workflow` + `bug` labels (Section 7.4.1) |
+| P18 | `formalEscalationTitlePrefix` | Escalation issue title MUST begin with `[Schema Drift SLA]` (Section 7.4.1) |
+| P19 | `formalEscalationTemplateFieldsComplete` | Minimum required escalation template fields non-empty; waiver rationale optional (Section 7.4.1) |
 
 ## Key Invariants
 
@@ -37,6 +40,7 @@
 - Escalation ownership must never be left unassigned; fallback last-maintainer -> on-call.
 - Escalation owner MUST acknowledge within 1 business day of assignment.
 - CR-04: every run SHOULD verify full top-level schema property coverage against CLI mapping table.
+- Section 7.4.1: escalation issues MUST carry both `workflow` and `bug` labels, MUST have title prefixed `[Schema Drift SLA]`, and MUST populate all template fields except the optional waiver rationale.
 
 ## Edge Cases Identified
 
@@ -45,6 +49,9 @@
 - Escalation assignment on a Friday requiring skip-to-Monday business-day math for 1-day ack window.
 - `LastMaintainerKnown=true` but maintainer string empty — must still fall back to on-call (CR-06a).
 - Partial CLI mapping coverage surfacing exactly the uncovered top-level property (CR-04).
+- Escalation title exactly equal to or shorter than the required `[Schema Drift SLA]` prefix (false-prefix-match edge case, P18).
+- Escalation label set containing only one of `workflow`/`bug` (P17).
+- Escalation template with empty unblock plan but all other fields populated (P19).
 
 ## Notes for Future Runs
 
@@ -59,3 +66,11 @@
 - IMPORTANT correction for future runs: verify claimed predicate implementations actually exist in
   `pkg/workflow/` before marking notes-index entries as done — the previous run's notes overstated
   completion of P11-P15.
+- This run (2026-08-16) closed the previously identified gap by adding P17-P19 covering Section 7.4.1's
+  escalation label pair (`workflow` + `bug`), title prefix (`[Schema Drift SLA]`), and minimum required
+  template fields (waiver rationale optional). New test file:
+  `pkg/workflow/awf_config_escalation_template_formal_test.go` (stub helpers, no production code yet).
+- Remaining gaps for future runs: none of P1-P19 have production implementations backing the stub
+  predicates yet (all are illustrative/stub-based per the constraint against runtime formal-tool
+  dependencies) — a future pass could audit whether `pkg/workflow/` has since grown real drift-detection
+  and escalation-issue-construction logic that these stubs should be replaced with.
