@@ -426,6 +426,8 @@ check_schema_consistency
 check_safe_output_config_schema_coverage() {
     local missing_properties
 
+    echo "Running IMP-004: Safe Output Config Schema Coverage..."
+
     missing_properties=$(python3 - <<'PY'
 import json
 import re
@@ -443,8 +445,14 @@ for path in Path("pkg/workflow").glob("*.go"):
         structs[match.group(1)] = match.group(2)
 
 handlers = Path("pkg/workflow/safe_output_handlers.go").read_text()
-for match in re.finditer(r'Key:\s*"([^"]+)"[^}]*?StructField:\s*"([^"]+)"', handlers):
-    handler_fields[match.group(2)] = match.group(1)
+handler_key = None
+for line in handlers.splitlines():
+    key_match = re.search(r'Key:\s*"([^"]+)"', line)
+    if key_match:
+        handler_key = key_match.group(1)
+    field_match = re.search(r'StructField:\s*"([^"]+)"', line)
+    if field_match and handler_key:
+        handler_fields[field_match.group(1)] = handler_key
 
 
 def yaml_fields(struct_name):
@@ -503,7 +511,6 @@ PY
         log_pass "IMP-004: All safe output config properties are declared in the schema"
     fi
 }
-echo "Running IMP-004: Safe Output Config Schema Coverage..."
 check_safe_output_config_schema_coverage
 
 # MCE-001: Tool Description Constraint Disclosure (Section 8.3 MCE2)
