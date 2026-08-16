@@ -444,7 +444,7 @@ for path in Path("pkg/workflow").glob("*.go"):
         structs[match.group(1)] = match.group(2)
 
 handlers = Path("pkg/workflow/safe_output_handlers.go").read_text()
-for match in re.finditer(r'Key:\s*"([^"]+)"(?:(?!Key:).){0,500}?StructField:\s*"([^"]+)"', handlers, re.S):
+for match in re.finditer(r'Key:\s*"([^"]+)".*?StructField:\s*"([^"]+)"', handlers, re.S):
     handler_fields[match.group(2)] = match.group(1)
 
 
@@ -460,10 +460,13 @@ def yaml_fields(struct_name):
 
 
 def properties(node):
-    result = node.get("properties", {})
+    result = dict(node.get("properties", {}))
     for alternative in ("allOf", "anyOf", "oneOf"):
         for child in node.get(alternative, []):
-            result = {**result, **properties(child)}
+            for name, definition in properties(child).items():
+                if name in result and result[name] != definition:
+                    raise ValueError(f"conflicting schema definitions for property: {name}")
+                result[name] = definition
     return result
 
 
