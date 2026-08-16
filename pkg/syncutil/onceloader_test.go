@@ -1,5 +1,7 @@
 //go:build !integration
 
+// Package syncutil tests validate that OnceLoader permits concurrent Get calls
+// while invoking its loader at most once.
 package syncutil
 
 import (
@@ -13,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// OnceLoader permits concurrent Get calls while invoking its loader at most once.
 func TestOnceLoaderGetCachesSuccess(t *testing.T) {
 	var loader OnceLoader[string]
 	var calls atomic.Int32
