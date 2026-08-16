@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
@@ -129,7 +130,7 @@ func downloadWorkflowContentViaGitClone(ctx context.Context, repo, path, ref str
 	}
 
 	// Check if ref is a SHA (40 hex characters)
-	isSHA := len(ref) == 40 && gitutil.IsHexString(ref)
+	isSHA := gitutil.IsValidFullSHA(ref)
 	downloadLog.Printf("Fetching ref via sparse checkout: is_sha=%t", isSHA)
 
 	if isSHA {
@@ -197,7 +198,7 @@ func downloadWorkflowContent(ctx context.Context, repo, path, ref string, verbos
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
-		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
+		if errorutil.IsAuthError(outputStr) || errorutil.IsAuthError(err.Error()) {
 			downloadLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s@%s", repo, path, ref)
 			// Try fallback using git commands
 			content, gitErr := downloadWorkflowContentViaGit(ctx, repo, path, ref, verbose)

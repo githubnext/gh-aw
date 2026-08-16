@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"golang.org/x/sync/singleflight"
 )
@@ -199,7 +199,7 @@ func listWorkflowFilesForHost(ctx context.Context, owner, repo, ref, workflowPat
 		errStr := err.Error()
 
 		// Check if this is an authentication error
-		if gitutil.IsAuthError(errStr) {
+		if errorutil.IsAuthError(errStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
 			// Try fallback using git commands for public repositories
 			files, gitErr := listWorkflowFilesViaGitForHost(ctx, owner, repo, ref, workflowPath, host)
@@ -321,7 +321,7 @@ func listDirAllFilesForHost(ctx context.Context, owner, repo, ref, dirPath, host
 	err = client.DoWithContext(ctx, http.MethodGet, endpoint, nil, &contents)
 	if err != nil {
 		errStr := err.Error()
-		if gitutil.IsAuthError(errStr) {
+		if errorutil.IsAuthError(errStr) {
 			remoteLog.Printf("GitHub API auth failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
 			files, gitErr := listDirAllFilesViaGitForHost(ctx, owner, repo, ref, dirPath, host)
 			if gitErr != nil {
@@ -427,7 +427,7 @@ func listDirAllFilesRecursivelyForHost(ctx context.Context, owner, repo, ref, di
 	files, err := listContentsRecursively(ctx, client, owner, repo, ref, dirPath)
 	if err != nil {
 		errStr := err.Error()
-		if gitutil.IsAuthError(errStr) {
+		if errorutil.IsAuthError(errStr) {
 			remoteLog.Printf("GitHub API auth failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
 			gitFiles, gitErr := listDirAllFilesRecursivelyViaGitForHost(ctx, owner, repo, ref, dirPath, host)
 			if gitErr != nil {
@@ -541,7 +541,7 @@ func listDirSubdirsForHost(ctx context.Context, owner, repo, ref, dirPath, host 
 	err = client.DoWithContext(ctx, http.MethodGet, endpoint, nil, &contents)
 	if err != nil {
 		errStr := err.Error()
-		if gitutil.IsAuthError(errStr) {
+		if errorutil.IsAuthError(errStr) {
 			remoteLog.Printf("GitHub API auth failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
 			dirs, gitErr := listDirSubdirsViaGitForHost(ctx, owner, repo, ref, dirPath, host)
 			if gitErr != nil {

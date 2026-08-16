@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 )
 
@@ -75,7 +76,7 @@ func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (
 	sha := parts[0]
 
 	// Validate it's a valid SHA
-	if len(sha) != 40 || !gitutil.IsHexString(sha) {
+	if !gitutil.IsValidFullSHA(sha) {
 		return "", fmt.Errorf("invalid SHA format from git ls-remote: %s", sha)
 	}
 
@@ -86,13 +87,13 @@ func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (
 // resolveRefToSHA resolves a git ref (branch, tag, or SHA) to its commit SHA
 func resolveRefToSHA(ctx context.Context, owner, repo, ref, host string) (string, error) {
 	// If ref is already a full SHA (40 hex characters), return it as-is
-	if len(ref) == 40 && gitutil.IsHexString(ref) {
+	if gitutil.IsValidFullSHA(ref) {
 		return ref, nil
 	}
 
 	client, err := createRESTClientForHostFunc(host)
 	if err != nil {
-		if gitutil.IsAuthError(err.Error()) {
+		if errorutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git ls-remote fallback for %s/%s@%s: %v", owner, repo, ref, err)
 			sha, gitErr := resolveRefToSHAViaGitFunc(ctx, owner, repo, ref, host)
 			if gitErr != nil {
@@ -152,7 +153,7 @@ func resolveRefToSHAWithFallbacks(
 	}
 
 	// Validate it's a valid SHA (40 hex characters)
-	if len(sha) != 40 || !gitutil.IsHexString(sha) {
+	if !gitutil.IsValidFullSHA(sha) {
 		return "", fmt.Errorf("invalid SHA format returned: %s", sha)
 	}
 
@@ -204,7 +205,7 @@ func resolveRefToSHAViaPublicAPI(ctx context.Context, owner, repo, ref string) (
 	if err := json.Unmarshal(body, &result); err != nil {
 		return "", fmt.Errorf("failed to parse commit response: %w", err)
 	}
-	if result.SHA == "" || len(result.SHA) != 40 || !gitutil.IsHexString(result.SHA) {
+	if !gitutil.IsValidFullSHA(result.SHA) {
 		return "", fmt.Errorf("invalid SHA returned from public API: %q", result.SHA)
 	}
 	return result.SHA, nil

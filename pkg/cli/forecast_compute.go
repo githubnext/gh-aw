@@ -15,8 +15,8 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
-	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -76,7 +76,7 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 
 	runs, _, err := listRunsWithBackoff(ctx, opts, result.WorkflowID)
 	if err != nil {
-		if gitutil.IsRateLimitError(err.Error()) {
+		if errorutil.IsRateLimitError(err.Error()) {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
 				fmt.Sprintf("Skipping %s: GitHub API rate limit exceeded", result.WorkflowID)))
 			return result, nil

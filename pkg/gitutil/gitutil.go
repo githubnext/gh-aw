@@ -22,35 +22,6 @@ var osUserHomeDir = os.UserHomeDir
 var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var gitObjectIDRegex = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 
-// IsRateLimitError checks if an error message indicates a GitHub API rate limit error.
-// This is used to detect transient failures caused by hitting the GitHub API rate limit
-// (HTTP 403 "API rate limit exceeded" or HTTP 429 responses).
-func IsRateLimitError(errMsg string) bool {
-	lowerMsg := strings.ToLower(errMsg)
-	return strings.Contains(lowerMsg, "api rate limit exceeded") ||
-		strings.Contains(lowerMsg, "rate limit exceeded") ||
-		strings.Contains(lowerMsg, "secondary rate limit")
-}
-
-// IsAuthError checks if an error message indicates an authentication issue.
-// This is used to detect when GitHub API calls fail due to missing or invalid credentials.
-func IsAuthError(errMsg string) bool {
-	gitutilLog.Printf("Checking if error is auth-related: %s", errMsg)
-	lowerMsg := strings.ToLower(errMsg)
-	isAuth := strings.Contains(lowerMsg, "gh_token") ||
-		strings.Contains(lowerMsg, "github_token") ||
-		strings.Contains(lowerMsg, "authentication") ||
-		strings.Contains(lowerMsg, "not logged into") ||
-		strings.Contains(lowerMsg, "unauthorized") ||
-		strings.Contains(lowerMsg, "forbidden") ||
-		strings.Contains(lowerMsg, "permission denied") ||
-		strings.Contains(lowerMsg, "saml enforcement")
-	if isAuth {
-		gitutilLog.Print("Detected authentication error")
-	}
-	return isAuth
-}
-
 // IsHexString checks if a string contains only hexadecimal characters.
 // This is used to validate Git commit SHAs and other hexadecimal identifiers.
 func IsHexString(s string) bool {
