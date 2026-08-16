@@ -18,6 +18,7 @@ func TestShortDescriptionConsistency(t *testing.T) {
 	t.Parallel()
 	for _, cmd := range collectCommandTree(rootCmd) {
 		t.Run("command "+cmd.Name()+" has no trailing punctuation", func(t *testing.T) {
+			t.Parallel()
 			short := cmd.Short
 			if short == "" {
 				t.Skip("Command has no Short description")

@@ -83,6 +83,7 @@ func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.wantPanic != "" {
 				assert.Empty(t, tt.expected, "test case %q: wantPanic and expected are mutually exclusive", tt.name)
 				require.PanicsWithValue(t, tt.wantPanic, func() {
@@ -140,6 +141,7 @@ func TestSpec_PublicAPI_FormatCacheKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := actionpins.FormatCacheKey(tt.repo, tt.version)
 			assert.Equal(t, tt.expected, result, "FormatCacheKey(%q, %q) should match spec format", tt.repo, tt.version)
 		})
@@ -188,6 +190,7 @@ func TestSpec_PublicAPI_ExtractRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := actionpins.ExtractRepo(tt.uses)
 			assert.Equal(t, tt.expected, result, "ExtractRepo(%q) should return repo part", tt.uses)
 		})
@@ -236,6 +239,7 @@ func TestSpec_PublicAPI_ExtractVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := actionpins.ExtractVersion(tt.uses)
 			assert.Equal(t, tt.expected, result, "ExtractVersion(%q) should return version part", tt.uses)
 		})
@@ -359,6 +363,7 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var failures []actionpins.ResolutionFailure
 			ctx := &actionpins.PinContext{
 				Resolver:        tt.resolver,
@@ -703,6 +708,7 @@ func TestSpec_PublicAPI_RecordResolutionFailure(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var failures []actionpins.ResolutionFailure
 			ctx := &actionpins.PinContext{
 				Resolver: tt.resolver,

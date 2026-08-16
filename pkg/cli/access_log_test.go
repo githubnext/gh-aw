@@ -158,6 +158,7 @@ func TestExtractDomainFromURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.url, func(t *testing.T) {
+			t.Parallel()
 			result := stringutil.ExtractDomainFromURL(tt.url)
 			assert.Equal(t, tt.expected, result, "should extract correct domain from URL")
 		})
@@ -225,6 +226,7 @@ func TestParseSquidLogLine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := parseSquidLogLine(tt.line)
 
 			if tt.shouldErr {
@@ -296,6 +298,7 @@ func TestAddMetrics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.base.AddMetrics(tt.toAdd)
 			assert.Equal(t, tt.expected.TotalRequests, tt.base.TotalRequests, "total requests should match")
 			assert.Equal(t, tt.expected.AllowedRequests, tt.base.AllowedRequests, "allowed requests should match")

@@ -486,6 +486,7 @@ func TestAnalyzeEvent(t *testing.T) {
 
 // TestAnalyzeEvent_Variants covers edge-case event shapes: empty stage and nil/empty fields.
 func TestAnalyzeEvent_Variants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		evt        AgentEvent

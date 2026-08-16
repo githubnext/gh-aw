@@ -13,6 +13,7 @@ import (
 )
 
 func TestNewMiner(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	m, err := NewMiner(cfg)
 	require.NoError(t, err, "NewMiner should not return an error")
