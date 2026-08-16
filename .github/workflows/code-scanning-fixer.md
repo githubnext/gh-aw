@@ -32,7 +32,7 @@ imports:
   - shared/otlp.md
 tools:
   cli-proxy: true
-  bash: ["git diff:*", "git restore:*", wc]
+  bash: ["git diff:*", "git restore:*", "git status:*", "sed:*", wc]
   github:
     mode: gh-proxy
     github-token: "${{ secrets.GITHUB_TOKEN }}"
@@ -75,11 +75,12 @@ You are a security-focused code analysis agent that automatically fixes code sca
 - Record the alert fingerprint and patch-size outcome in cache memory, then discard the local edits and emit `noop`
 - Skip that alert on later runs while its fingerprint is unchanged; reconsider it only if its rule, location, or message changes
 
-**Tool Usage**: Use the pre-authenticated `gh` CLI for all GitHub read operations, the `edit` tool for code changes, and the restricted `bash` tool only for the patch preflight and discarding its local edits:
-- List code scanning alerts: `gh api "repos/githubnext/gh-aw/code-scanning/alerts?state=open&per_page=100"`
-- Get alert details: `gh api "repos/githubnext/gh-aw/code-scanning/alerts/{alert_number}"`
-- Read file contents: `gh api "repos/githubnext/gh-aw/contents/{path}" --jq '.content' | base64 -d`
+**Tool Usage**: Use the pre-authenticated `gh` CLI for all GitHub read operations, the `edit` tool for code changes, and the restricted `bash` tool only for allowed local inspection, patch preflight, and discarding local edits:
+- List code scanning alerts: `gh api "repos/${{ github.repository }}/code-scanning/alerts?state=open&per_page=100"`
+- Get alert details: `gh api "repos/${{ github.repository }}/code-scanning/alerts/{alert_number}"`
+- Read file contents: `gh api "repos/${{ github.repository }}/contents/{path}" --jq '.content' | base64 -d`
 - Edit files: use the `edit` tool
+- Do not use the Copilot `read` tool for temporary files; use allowed shell readers such as `cat`, `head`, or `sed`
 - Create pull request: emit a `create-pull-request` safe output after edits
 
 ## Mission
@@ -107,7 +108,7 @@ Before selecting an alert, check the cache memory for prior outcomes:
 ### 2. List All Open Alerts
 
 Use the `gh` CLI to list all open code scanning alerts:
-- Run: `gh api "repos/githubnext/gh-aw/code-scanning/alerts?state=open&per_page=100"`
+- Run: `gh api "repos/${{ github.repository }}/code-scanning/alerts?state=open&per_page=100"`
 - Sort the results in reverse importance/severity priority (highest first)
 - Use `rule.security_severity_level` when available (`critical > high > medium > low`)
 - Fall back to alert/rule severity when no security severity is present (`error > warning > note`)
@@ -126,7 +127,7 @@ From the list of open alerts (sorted highest priority first):
 ### 4. Get Alert Details
 
 Get detailed information about the selected alert using the `gh` CLI:
-- Run: `gh api repos/githubnext/gh-aw/code-scanning/alerts/{alert_number}`
+- Run: `gh api repos/${{ github.repository }}/code-scanning/alerts/{alert_number}`
 - Extract key information:
   - Alert number
   - Severity level (critical, high, medium, low, warning, note, or error)
@@ -139,7 +140,7 @@ Get detailed information about the selected alert using the `gh` CLI:
 
 Understand the security issue:
 - Read the affected file using the `gh` CLI:
-  - Run: `gh api repos/githubnext/gh-aw/contents/{path} --jq '.content' | base64 -d`
+  - Run: `gh api repos/${{ github.repository }}/contents/{path} --jq '.content' | base64 -d`
 - Review the code context around the vulnerability (at least 20 lines before and after)
 - Understand the root cause of the security issue
 - Research the specific vulnerability type (use the rule ID and CWE)
