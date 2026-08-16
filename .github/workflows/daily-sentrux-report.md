@@ -27,6 +27,7 @@ network:
   allowed:
     - defaults
     - github
+    - api.sentrux.dev
 tools:
   bash: true
   cli-proxy: true

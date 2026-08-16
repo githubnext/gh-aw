@@ -28,6 +28,11 @@ steps:
       chmod +x /tmp/gh-aw/agent/sentrux
       sudo mv /tmp/gh-aw/agent/sentrux /usr/local/bin/sentrux
       sentrux --version
+network:
+  allowed:
+    - defaults
+    - github
+    - api.sentrux.dev
 ---
 
 <!--
