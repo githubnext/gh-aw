@@ -7,8 +7,10 @@ describe("ESLint rule documentation", () => {
     const readme = readFileSync(resolve(__dirname, "../README.md"), "utf8");
     const index = readFileSync(resolve(__dirname, "index.ts"), "utf8");
     const documentedRuleNames = [...readme.matchAll(/^### `([^`]+)`$/gm)].map(match => match[1]);
-    const exportedRuleNames = [...index.matchAll(/^\s+"([^"]+)":/gm)].map(match => match[1]);
+    const rulesBlock = index.match(/^\s+rules: \{\n([\s\S]*?)^\s+\},$/m)?.[1] ?? "";
+    const exportedRuleNames = [...rulesBlock.matchAll(/^\s+"([^"]+)":/gm)].map(match => match[1]);
 
+    expect(rulesBlock).not.toBe("");
     expect(documentedRuleNames).toHaveLength(exportedRuleNames.length);
     expect([...documentedRuleNames].sort()).toEqual([...exportedRuleNames].sort());
   });
