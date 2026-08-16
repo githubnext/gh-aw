@@ -26,6 +26,7 @@ on: workflow_dispatch
 engine: copilot
 safe-outputs:
   approve-workflow-run:
+    allowed-workflows: ["ci.yml"]
     github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}
 ---
 
