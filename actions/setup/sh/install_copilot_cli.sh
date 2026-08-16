@@ -232,7 +232,7 @@ resolve_compat_with_jq() {
   local compiled_version="$2"
   local compiled_no_v="${compiled_version#v}"
   
-  jq -r --arg compiled "$compiled_no_v" '
+  jq -r --arg compiled "$compiled_no_v" --arg compiled_version "$compiled_version" '
     # Semver comparison: returns -1 if a<b, 0 if equal, 1 if a>b
     def semver_cmp(a; b):
       (a | split(".") | map(tonumber)) as $a_parts |
@@ -258,9 +258,11 @@ resolve_compat_with_jq() {
       $row["min-agent"] as $min_agent |
       $row["max-agent"] as $max_agent |
       
-      # Check if gh-aw version is in range
-      if (semver_cmp($compiled; $min_aw) >= 0) and
-         (($max_aw == "*") or (semver_cmp($compiled; $max_aw) <= 0)) then
+      # Use the open row for development builds, which do not have a semver release tag.
+      if (($compiled_version == "dev") and ($row.open == true)) or
+         (($compiled_version != "dev") and
+          (semver_cmp($compiled; $min_aw) >= 0) and
+          (($max_aw == "*") or (semver_cmp($compiled; $max_aw) <= 0))) then
         "\($max_agent)|\($idx)|\($min_aw)|\($max_aw)|\($min_agent)|\($max_agent)|\($cache_ttl)"
       else empty end
     ) | first // ""
@@ -279,7 +281,7 @@ resolve_version_from_compat() {
     return 1
   fi
 
-  if [[ ! "$compiled_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  if [[ ! "$compiled_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ && "$compiled_version" != "dev" ]]; then
     echo "GH_AW_COMPILED_VERSION '${compiled_version}' is not in vMAJOR.MINOR.PATCH format; skipping compatibility matrix resolution." >&2
     return 1
   fi
@@ -566,11 +568,11 @@ CHECKSUMS_URL="${BASE_URL}/SHA256SUMS.txt"
 
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
-curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
+curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
 
 # Download binary tarball
 echo "Downloading binary from ${TARBALL_URL}..."
-curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
+curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
 
 # Verify checksum
 echo "Verifying SHA256 checksum for ${TARBALL_NAME}..."

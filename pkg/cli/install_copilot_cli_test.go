@@ -135,7 +135,8 @@ if [[ "$url" == *"/compat.json" ]]; then
         "min-gh-aw": "0.72.0",
         "max-gh-aw": "*",
         "min-agent": "1.0.21",
-        "max-agent": "`+compatVersion+`"
+        "max-agent": "`+compatVersion+`",
+        "open": true
       }
     ]
   }
@@ -152,7 +153,7 @@ exit 97
 	cmd.Env = append(os.Environ(),
 		"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
 		"GITHUB_PATH="+githubPath,
-		"GH_AW_COMPILED_VERSION=v0.72.5",
+		"GH_AW_COMPILED_VERSION=dev",
 		"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
 	)
 
@@ -182,6 +183,22 @@ exit 97
 		}
 	}
 	assert.Equal(t, 1, compatFetches, "compat.json should be fetched exactly once (no double fallback)")
+}
+
+func TestInstallCopilotCLIScriptUsesBoundedRetriesForReleaseDownloads(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	installScript := filepath.Join(wd, "..", "..", "actions", "setup", "sh", "install_copilot_cli.sh")
+	script, err := os.ReadFile(installScript)
+	require.NoError(t, err)
+
+	for _, download := range []string{
+		`curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"`,
+		`curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"`,
+	} {
+		assert.Contains(t, string(script), download)
+	}
 }
 
 func TestInstallCopilotCLIScriptRootlessModeUsesRealScriptWithToolcacheAndNoSudo(t *testing.T) {
