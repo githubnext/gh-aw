@@ -44,6 +44,7 @@ type SafeOutputsConfig struct {
 	CloseIssues                            *CloseIssuesConfig                     `yaml:"close-issue,omitempty"`
 	ClosePullRequests                      *ClosePullRequestsConfig               `yaml:"close-pull-request,omitempty"`
 	MarkPullRequestAsReadyForReview        *MarkPullRequestAsReadyForReviewConfig `yaml:"mark-pull-request-as-ready-for-review,omitempty"`
+	ApproveWorkflowRun                     *ApproveWorkflowRunConfig              `yaml:"approve-workflow-run,omitempty"`        // Approve a pending workflow run from a fork pull request
 	DismissPullRequestReview               *DismissPullRequestReviewConfig        `yaml:"dismiss-pull-request-review,omitempty"` // Dismiss a pull request review authored by the workflow actor
 	AddComments                            *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
 	CommentMemory                          *CommentMemoryConfig                   `yaml:"comment-memory,omitempty"` // Persist and update managed memory comments on issues/PRs

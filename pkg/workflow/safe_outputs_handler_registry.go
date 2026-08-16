@@ -25,6 +25,19 @@ func resolveHandlerGitHubToken(app *GitHubAppConfig, handlerKey, fallbackToken s
 	return fallbackToken
 }
 
+// resolveApproveWorkflowRunGitHubToken returns an explicitly configured token for
+// workflow-run approval. GitHub's default Actions token cannot approve fork PR
+// workflow runs, so this handler must never fall back to it.
+func resolveApproveWorkflowRunGitHubToken(cfg *SafeOutputsConfig, config *ApproveWorkflowRunConfig) string {
+	if token := resolveHandlerGitHubToken(config.GitHubApp, "approve-workflow-run", config.GitHubToken); token != "" {
+		return token
+	}
+	if cfg.GitHubApp != nil {
+		return "${{ steps.safe-outputs-app-token.outputs.token }}"
+	}
+	return cfg.GitHubToken
+}
+
 func resolveHandlerGitHubTokenWithStepID(app *GitHubAppConfig, stepID, fallbackToken string) string {
 	if app != nil && stepID != "" {
 		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
@@ -293,6 +306,24 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "mark-pull-request-as-ready-for-review", c.GitHubToken)).
+			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
+			Build()
+	},
+	"approve_workflow_run": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.ApproveWorkflowRun == nil {
+			return nil
+		}
+		c := cfg.ApproveWorkflowRun
+		return newHandlerConfigBuilder().
+			AddTemplatableInt("max", c.Max).
+			AddDefault("fork", c.Fork).
+			AddTemplatableStringSlice("allowed_pull_requests", c.AllowedPullRequests).
+			AddStringSlice("allowed_workflows", c.AllowedWorkflows).
+			AddStringSlice("protected_files", getAllManifestFiles()).
+			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+			AddDefault("protect_top_level_dot_folders", true).
+			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
+			AddIfNotEmpty("github-token", resolveApproveWorkflowRunGitHubToken(cfg, c)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},

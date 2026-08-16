@@ -1898,6 +1898,30 @@
     }
   },
   {
+    "name": "approve_workflow_run",
+    "description": "Approve a GitHub Actions workflow run awaiting fork pull request approval. Supply the positive run ID from the workflow run URL only when the run belongs to the triggering pull request or an explicitly allowed pull request. The handler approves only pull request runs with status waiting; it rejects other runs.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["run_id"],
+      "properties": {
+        "run_id": {
+          "type": ["number", "string"],
+          "description": "Positive integer workflow run ID to approve (for example, 123456789 from /actions/runs/123456789).",
+          "x-synonyms": ["runId", "workflow_run_id"]
+        },
+        "secrecy": {
+          "type": "string",
+          "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
+        },
+        "integrity": {
+          "type": "string",
+          "description": "Trustworthiness level of the message source (e.g., \"low\", \"medium\", \"high\")."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "push_repo_memory",
     "description": "Validate repo-memory files are within configured size limits before the workflow completes. Call this after writing files to memory to check that the total size is within limits. Returns an error if files are too large, with guidance on how to reduce memory size so the memory can be saved successfully.",
     "inputSchema": {

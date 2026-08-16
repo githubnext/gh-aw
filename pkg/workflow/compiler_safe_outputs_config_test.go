@@ -531,6 +531,21 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"mark_pull_request_as_ready_for_review"},
 		},
 		{
+			name: "approve_workflow_run config",
+			safeOutputs: &SafeOutputsConfig{
+				ApproveWorkflowRun: &ApproveWorkflowRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: strPtr("1"),
+					},
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"approve_workflow_run"},
+		},
+		{
 			name: "create_pull_request_review_comment config",
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
