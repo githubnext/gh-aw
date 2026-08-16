@@ -148,7 +148,7 @@ func buildInlineCopilotSDKDriverWriteStep(workflowData *WorkflowData) GitHubActi
 
 	appendHeredocWrite := func(path, content string, chmod bool) {
 		delimiter := GenerateHeredocDelimiterFromContent("INLINE_COPILOT_SDK_DRIVER", content)
-		step = append(step, fmt.Sprintf("          cat > \"${GITHUB_WORKSPACE}/%s\" << '%s'", path, delimiter))
+		step = append(step, fmt.Sprintf("          cat > \"${GITHUB_WORKSPACE}/%s\" << '%s'", path, delimiter)) //nolint:generatedyamlheredoc // Legacy inline-driver rendering remains to be migrated.
 		// Trim all trailing newlines before splitting so source files ending with
 		// one or more newlines don't emit extra blank lines before the heredoc delimiter.
 		for line := range strings.SplitSeq(strings.TrimRight(content, "\n"), "\n") {

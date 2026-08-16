@@ -1054,7 +1054,7 @@ func buildCustomScriptFilesStep(scripts map[string]*SafeScriptConfig) ([]string,
 			return nil, fmt.Errorf("safe-output script %q: %w", scriptName, err)
 		}
 
-		steps = append(steps, fmt.Sprintf("          cat > \"%s\" << '%s'\n", filePath, delimiter))
+		steps = append(steps, fmt.Sprintf("          cat > \"%s\" << '%s'\n", filePath, delimiter)) //nolint:generatedyamlheredoc // Legacy safe-output script rendering remains to be migrated.
 		for line := range strings.SplitSeq(scriptContent, "\n") {
 			steps = append(steps, "          "+line+"\n")
 		}

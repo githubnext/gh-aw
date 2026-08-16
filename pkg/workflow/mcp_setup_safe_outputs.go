@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
@@ -24,13 +25,8 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		return
 	}
 	safeOutputsSetupLog.Printf("Generating safe outputs setup: configLen=%d", len(safeOutputConfig))
-	yaml.WriteString("      - name: Generate Safe Outputs Config\n")
 	sanitizedConfig, envKeys, envValues := buildSafeOutputsConfigRuntimeData(safeOutputConfig)
-	if len(envKeys) > 0 {
-		safeOutputsSetupLog.Printf("Safe outputs config: envVars=%d", len(envKeys))
-		yaml.WriteString("        env:\n")
-		writeStepEnvVars(yaml, envKeys, envValues)
-	}
+	yaml.WriteString("      - name: Prepare Safe Outputs Directories\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs\"\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
@@ -42,11 +38,18 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs/assets\"\n")
 	}
 
-	delimiter := GenerateHeredocDelimiterFromContent("SAFE_OUTPUTS_CONFIG", sanitizedConfig)
 	if safeOutputConfig != "" {
-		yaml.WriteString("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '" + delimiter + "'\n")
-		yaml.WriteString("          " + sanitizedConfig + "\n")
-		yaml.WriteString("          " + delimiter + "\n")
+		safeOutputsSetupLog.Printf("Safe outputs config: envVars=%d", len(envKeys))
+		yaml.WriteString("      - name: Generate Safe Outputs Config\n")
+		fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", workflowData))
+		yaml.WriteString("        env:\n")
+		fmt.Fprintf(yaml, "          GH_AW_FILE_ROOT: %s\n", constants.GhAwRootDir)
+		writeYAMLEnv(yaml, "          ", "GH_AW_FILE_CONFIG", `{"files":[{"path":"safeoutputs/config.json","content_env":"GH_AW_SAFE_OUTPUTS_CONFIG"}]}`)
+		writeYAMLEnv(yaml, "          ", "GH_AW_SAFE_OUTPUTS_CONFIG", sanitizedConfig)
+		writeStepEnvVars(yaml, envKeys, envValues)
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          script: |\n")
+		yaml.WriteString(generateGitHubScriptWithRequire("create_files.cjs"))
 	}
 
 	toolsMetaJSON, err := generateToolsMetaJSON(workflowData, c.markdownPath)
