@@ -3761,7 +3761,7 @@
                 "container": {
                   "type": "string",
                   "x-internal": true,
-                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*(?:@sha256:[a-f0-9]{64})?$",
                   "description": "Container image for the MCP gateway executable (required)"
                 },
                 "version": {
@@ -13844,7 +13844,7 @@
         },
         "container": {
           "type": "string",
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*(?:@sha256:[a-f0-9]{64})?$",
           "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified. Validated by 'not.allOf' constraint below.",
           "description": "Container image for stdio MCP connections"
         },
