@@ -484,13 +484,14 @@ async function waitForProviderListenerReady(options) {
         settled = true;
         resolve(value);
       };
-      const timer = setTimeout(() => {
+      let timer;
+      const clear = () => clearTimeout(timer);
+      timer = setTimeout(() => {
         clear();
         lastError = `connect attempt timed out after ${attemptTimeoutMs}ms`;
         socket.destroy();
         settle(false);
       }, attemptTimeoutMs);
-      const clear = () => clearTimeout(timer);
       socket.once(readyEvent, () => {
         clear();
         // Remove the error listener before tearing down the socket: a successful handshake has
