@@ -416,6 +416,13 @@ To build and test repository custom linters:
 [@zarenner (5)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azarenner)
 [@zkoppert (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azkoppert)
 
+
+### ⚠️ Attribution Candidates Need Review
+
+The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
+
+- **@bryanchen-d** for [safe-outputs: configured GH_AW_GITHUB_TOKEN shadows checkout token](https://github.com/github/gh-aw/issues/47156) — closed 2026-07-22, `NOT_PLANNED`
+- **@jeffhandley** for [Add repo-specific extension hooks to gh aw upgrade for post-upgrade synchronization](https://github.com/github/gh-aw/issues/41994) — closed 2026-08-02, `NOT_PLANNED`
 ## Related Projects
 
 GitHub Agentic Workflows is supported by companion projects that provide additional security and integration capabilities:
