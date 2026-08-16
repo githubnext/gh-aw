@@ -161,6 +161,11 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, config.GitHubApp)
 		assert.Equal(t, "${{ vars.APP_ID }}", config.GitHubApp.AppID)
+
+		reconstructedApp, ok := config.ToMap()["github-app"].(map[string]any)
+		require.True(t, ok, "github-app should round-trip as a map")
+		assert.Equal(t, "${{ vars.APP_ID }}", reconstructedApp["client-id"])
+		assert.NotContains(t, reconstructedApp, "app-id")
 	})
 
 	t.Run("parses complete workflow config", func(t *testing.T) {
