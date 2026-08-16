@@ -3,6 +3,7 @@ package parser
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 	"sync"
@@ -14,7 +15,8 @@ var virtualFsLog = logger.New("parser:virtual_fs")
 
 // builtinVirtualFiles holds embedded built-in files registered at startup.
 // Keys use the "@builtin:" path prefix (e.g. "@builtin:engines/copilot.md").
-// The map is populated once and then read-only; concurrent reads are safe.
+// The map is replaced using copy-on-write during registration and then treated
+// as read-only; concurrent reads are safe.
 var (
 	builtinVirtualFiles   map[string][]byte
 	builtinVirtualFilesMu sync.RWMutex
@@ -31,9 +33,6 @@ func RegisterBuiltinVirtualFile(path string, content []byte) {
 	}
 	builtinVirtualFilesMu.Lock()
 	defer builtinVirtualFilesMu.Unlock()
-	if builtinVirtualFiles == nil {
-		builtinVirtualFiles = make(map[string][]byte)
-	}
 	if existing, ok := builtinVirtualFiles[path]; ok {
 		if !bytes.Equal(existing, content) {
 			panic(fmt.Sprintf("RegisterBuiltinVirtualFile: path %q already registered with different content", path))
@@ -41,7 +40,10 @@ func RegisterBuiltinVirtualFile(path string, content []byte) {
 		return // idempotent: same content, no-op
 	}
 	virtualFsLog.Printf("Registering builtin virtual file: %s (%d bytes)", path, len(content))
-	builtinVirtualFiles[path] = content
+	next := make(map[string][]byte, len(builtinVirtualFiles)+1)
+	maps.Copy(next, builtinVirtualFiles)
+	next[path] = bytes.Clone(content)
+	builtinVirtualFiles = next
 }
 
 // BuiltinVirtualFileExists returns true if the given path is registered as a builtin virtual file.
