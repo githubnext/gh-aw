@@ -46,7 +46,7 @@ steps:
     echo "Wrote $(jq 'length' "$MANIFEST_JSON") step records to $MANIFEST_JSON"
 description: Scans step names in .lock.yml files and aligns them with step intent and project glossary
 emoji: 📋
-max-turns: 30
+max-turns: 50
 engine:
   id: claude
 # Keep /tmp/gh-aw/agent writable so the agent can consume the prebuilt manifest
