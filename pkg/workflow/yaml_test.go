@@ -657,9 +657,17 @@ func TestPrepareNestedMapValueForYAML(t *testing.T) {
 		if _, ok := copied["nested"]; !ok {
 			t.Errorf("expected nested key to be preserved")
 		}
-		// original map must not be mutated by copy
-		if &copied == &value {
-			t.Errorf("expected a distinct copied map")
+		value["added"] = 2
+		if _, ok := copied["added"]; ok {
+			t.Errorf("expected top-level map copy to be independent of original")
+		}
+		value["nested"].(map[string]any)["x"] = 2
+		nestedCopied, ok := copied["nested"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected nested map[string]any, got %T", copied["nested"])
+		}
+		if nestedCopied["x"] != 1 {
+			t.Errorf("expected nested map copy to be independent of original; got x=%v", nestedCopied["x"])
 		}
 	})
 
