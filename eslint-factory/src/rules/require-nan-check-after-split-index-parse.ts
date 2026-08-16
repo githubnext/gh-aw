@@ -79,6 +79,20 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
     }
 
     /**
+     * Returns true when the given node is or contains a split-index access within
+     * a logical fallback or conditional branch.
+     */
+    function isSplitIndexAccessDeep(node: TSESTree.Node): boolean {
+      if (node.type === "LogicalExpression") {
+        return isSplitIndexAccessDeep(node.left) || isSplitIndexAccessDeep(node.right);
+      }
+      if (node.type === "ConditionalExpression") {
+        return isSplitIndexAccessDeep(node.consequent) || isSplitIndexAccessDeep(node.alternate);
+      }
+      return isSplitIndexAccess(node);
+    }
+
+    /**
      * Returns true when the call expression is a numeric-parse function whose
      * first argument is a `split(...)[index]` access.
      */
@@ -91,7 +105,7 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
 
       // Global parseInt(splitExpr, ...) or parseFloat(splitExpr)
       if (callee.type === "Identifier" && (callee.name === "parseInt" || callee.name === "parseFloat") && !hasLocalBinding(callee, callee.name)) {
-        return isSplitIndexAccess(firstArg);
+        return isSplitIndexAccessDeep(firstArg);
       }
 
       // Number.parseInt(splitExpr, ...) or Number.parseFloat(splitExpr)
@@ -104,7 +118,7 @@ export const requireNanCheckAfterSplitIndexParseRule = createRule({
         callee.property.type === "Identifier" &&
         (callee.property.name === "parseInt" || callee.property.name === "parseFloat")
       ) {
-        return isSplitIndexAccess(firstArg);
+        return isSplitIndexAccessDeep(firstArg);
       }
 
       return false;
