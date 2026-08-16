@@ -2,7 +2,7 @@
 
 **Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 **Mapping File**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
-**Last Updated**: 2026-08-02
+**Last Updated**: 2026-08-16
 
 ## Overview
 
@@ -69,6 +69,7 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | `code_quality` | Code quality finding lookups |
 | `code_security` | Code scanning alert management |
 | `copilot` | Copilot assignment, PR creation, and review requests |
+| `copilot_issue_intents` | Intent-aware Copilot issue assignment |
 | `copilot_spaces` | GitHub Copilot Spaces (remote mode only) |
 | `dependabot` | Dependency vulnerability management |
 | `discussions` | Community discussion workflows |
@@ -117,6 +118,15 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 
 ---
 
+### copilot_issue_intents
+**Description**: Opt-in Copilot issue assignment tools with intent metadata
+
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `assign_copilot_to_issue_with_intent` | Assign Copilot to an issue with intent metadata | `owner`, `repo`, `issue_number`, `rationale`, `confidence`, `is_suggestion` |
+
+---
+
 ### copilot_spaces
 **Description**: GitHub Copilot Spaces (remote-only)
 
@@ -140,6 +150,7 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | `delete_file` | Delete a file from a repository | `owner`, `repo`, `path`, `message`, `sha`, `branch` |
 | `fork_repository` | Fork a repository | `owner`, `repo`, `organization` |
 | `get_commit` | Get details of a specific commit | `owner`, `repo`, `sha` |
+| `get_file_blame` | Get line-by-line blame information for a file | `owner`, `repo`, `path`, `ref` |
 | `get_file_contents` | Read file or directory contents | `owner`, `repo`, `path`, `ref` |
 | `get_latest_release` | Get the latest release for a repository | `owner`, `repo` |
 | `get_release_by_tag` | Get a release by its tag name | `owner`, `repo`, `tag` |
@@ -184,13 +195,18 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 ### issues
 **Description**: Issue management
 
+> **Note**: `find_duplicate`, `issue_dependency_read`, and `issue_dependency_write` require their upstream feature flags to be enabled, independently of toolset selection.
+
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
 | `add_issue_comment` | Add a comment to an issue | `owner`, `repo`, `issue_number`, `body` |
+| `find_duplicate` | Find likely duplicate issues for an existing issue | `owner`, `repo`, `issue_number`, `confidence_threshold` |
+| `get_label` | Get details of a specific label | `owner`, `repo`, `name` |
 | `issue_dependency_read` | Read an issue's dependency relationships | `owner`, `repo`, `issue_number` |
 | `issue_dependency_write` | Add or remove issue dependencies | `owner`, `repo`, `issue_number` |
 | `issue_read` | Read issue details and comments | `owner`, `repo`, `issue_number` |
 | `issue_write` | Create or update an issue | `owner`, `repo`, `title`, `body`, `labels`, `assignees` |
+| `list_issue_fields` | List available issue fields for a repository | `owner`, `repo` |
 | `list_issue_types` | List available issue types for a repository | `owner`, `repo` |
 | `list_issues` | List issues in a repository | `owner`, `repo`, `state`, `labels`, `page` |
 | `search_issues` | Search issues across GitHub | `query`, `page`, `per_page` |

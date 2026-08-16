@@ -422,6 +422,97 @@ check_schema_consistency() {
 }
 check_schema_consistency
 
+# IMP-004: Safe Output Config Schema Coverage
+check_safe_output_config_schema_coverage() {
+    local missing_properties
+
+    echo "Running IMP-004: Safe Output Config Schema Coverage..."
+
+    missing_properties=$(python3 - <<'PY'
+import json
+import re
+from pathlib import Path
+
+schema = json.loads(Path("pkg/parser/schemas/main_workflow_schema.json").read_text())
+structs = {}
+handler_fields = {}
+
+for path in Path("pkg/workflow").glob("*.go"):
+    if path.name.endswith("_test.go"):
+        continue
+    content = path.read_text()
+    for match in re.finditer(r"(?ms)^type\s+(\w+)\s+struct\s*\{(.*?)^\}", content):
+        structs[match.group(1)] = match.group(2)
+
+handlers = Path("pkg/workflow/safe_output_handlers.go").read_text()
+handler_key = None
+for line in handlers.splitlines():
+    key_match = re.search(r'Key:\s*"([^"]+)"', line)
+    if key_match:
+        handler_key = key_match.group(1)
+    field_match = re.search(r'StructField:\s*"([^"]+)"', line)
+    if field_match and handler_key:
+        handler_fields[field_match.group(1)] = handler_key
+
+
+def yaml_fields(struct_name):
+    for line in structs.get(struct_name, "").splitlines():
+        match = re.match(r'\s*(.*?)\s+`yaml:"([^"]+)"', line)
+        if not match:
+            continue
+        tag = match.group(2).split(",", 1)[0]
+        if tag == "-":
+            continue
+        yield tag, ",inline" in match.group(2)
+
+
+def properties(node):
+    result = dict(node.get("properties", {}))
+    for alternative in ("allOf", "anyOf", "oneOf"):
+        for child in node.get(alternative, []):
+            for name, definition in properties(child).items():
+                if name in result and result[name] != definition:
+                    raise ValueError(f"conflicting schema definitions for property: {name}")
+                result[name] = definition
+    return result
+
+
+missing = []
+
+
+safe_outputs = properties(schema["properties"]["safe-outputs"])
+for line in structs["SafeOutputsConfig"].splitlines():
+    match = re.match(r'\s*(\w+)\s+\*?(\w+)\s+`yaml:"([^"]+)"', line)
+    if not match:
+        continue
+    struct_field, config_type, output_name = match.groups()
+    if struct_field not in handler_fields:
+        continue
+    output_name = output_name.split(",", 1)[0]
+    output_schema = safe_outputs.get(output_name)
+    if output_schema is None:
+        missing.append(f"safe-outputs.{output_name}")
+        continue
+
+    output_properties = properties(output_schema)
+    for tag, inline in yaml_fields(config_type):
+        if not inline and tag not in output_properties:
+            missing.append(f"safe-outputs.{output_name}.{tag}")
+
+print("\n".join(sorted(set(missing))))
+PY
+)
+
+    if [ -n "$missing_properties" ]; then
+        while IFS= read -r property; do
+            log_high "IMP-004: Safe output config property is missing from schema: $property"
+        done <<< "$missing_properties"
+    else
+        log_pass "IMP-004: All safe output config properties are declared in the schema"
+    fi
+}
+check_safe_output_config_schema_coverage
+
 # MCE-001: Tool Description Constraint Disclosure (Section 8.3 MCE2)
 echo "Running MCE-001: Tool Description Constraint Disclosure..."
 check_mce_constraint_disclosure() {

@@ -67,6 +67,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-core-error-then-setfailed`](#no-core-error-then-setfailed) | Disallow a redundant `core.error()` call immediately before `core.setFailed()` with the same message |
 | [`require-escaped-regexp-interpolation`](#require-escaped-regexp-interpolation) | Require regex-escaping of interpolated values in `new RegExp()` template literals |
 | [`require-lastindex-reset-before-global-exec-loop`](#require-lastindex-reset-before-global-exec-loop) | Require resetting stateful regexes before global `exec()` loops |
+| [`require-page-counter-increment-in-while-true-loop`](#require-page-counter-increment-in-while-true-loop) | Require page counters to advance in manual `while (true)` pagination loops |
 
 ### `no-empty-catch-block`
 
@@ -896,4 +897,27 @@ while ((match = RE.exec(text)) !== null) process(match);
 const RE = /foo/g;
 RE.lastIndex = 0;
 while ((match = RE.exec(text)) !== null) process(match);
+```
+
+### `require-page-counter-increment-in-while-true-loop`
+
+Require a numeric page counter immediately preceding a terminating `while (true)` pagination loop to be incremented or reassigned when used by the loop.
+
+**Flagged form:**
+```js
+let page = 1;
+while (true) {
+  const { data } = await github.rest.issues.listComments({ page });
+  if (data.length === 0) break;
+}
+```
+
+**Safe alternative:**
+```js
+let page = 1;
+while (true) {
+  const { data } = await github.rest.issues.listComments({ page });
+  if (data.length === 0) break;
+  page++;
+}
 ```

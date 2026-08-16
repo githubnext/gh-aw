@@ -613,3 +613,144 @@ func TestFormatYAMLValue(t *testing.T) {
 		})
 	}
 }
+
+func TestPrepareNestedMapValueForYAML(t *testing.T) {
+	t.Run("map[string]any under with field is ordered", func(t *testing.T) {
+		value := map[string]any{"b": 1, "a": 2}
+		result := prepareNestedMapValueForYAML("with", value)
+		ms, ok := result.(yaml.MapSlice)
+		if !ok {
+			t.Fatalf("expected yaml.MapSlice, got %T", result)
+		}
+		if len(ms) != 2 || ms[0].Key != "a" || ms[1].Key != "b" {
+			t.Errorf("expected sorted keys a,b; got %+v", ms)
+		}
+	})
+
+	t.Run("map[string]any under env field is ordered", func(t *testing.T) {
+		value := map[string]any{"z": 1, "a": 2}
+		result := prepareNestedMapValueForYAML("env", value)
+		ms, ok := result.(yaml.MapSlice)
+		if !ok {
+			t.Fatalf("expected yaml.MapSlice, got %T", result)
+		}
+		if len(ms) != 2 || ms[0].Key != "a" {
+			t.Errorf("expected sorted keys; got %+v", ms)
+		}
+	})
+
+	t.Run("map[string]any under secrets field is ordered", func(t *testing.T) {
+		value := map[string]any{"token": "x"}
+		result := prepareNestedMapValueForYAML("secrets", value)
+		if _, ok := result.(yaml.MapSlice); !ok {
+			t.Fatalf("expected yaml.MapSlice, got %T", result)
+		}
+	})
+
+	t.Run("map[string]any under other field is recursively copied not ordered", func(t *testing.T) {
+		value := map[string]any{"nested": map[string]any{"x": 1}}
+		result := prepareNestedMapValueForYAML("other", value)
+		copied, ok := result.(map[string]any)
+		if !ok {
+			t.Fatalf("expected map[string]any, got %T", result)
+		}
+		if _, ok := copied["nested"]; !ok {
+			t.Errorf("expected nested key to be preserved")
+		}
+		// original map must not be mutated by copy
+		if &copied == &value {
+			t.Errorf("expected a distinct copied map")
+		}
+	})
+
+	t.Run("map[string]string under with field is ordered", func(t *testing.T) {
+		value := map[string]string{"b": "1", "a": "2"}
+		result := prepareNestedMapValueForYAML("with", value)
+		if _, ok := result.(yaml.MapSlice); !ok {
+			t.Fatalf("expected yaml.MapSlice, got %T", result)
+		}
+	})
+
+	t.Run("map[string]string under other field returned unchanged", func(t *testing.T) {
+		value := map[string]string{"b": "1", "a": "2"}
+		result := prepareNestedMapValueForYAML("other", value)
+		m, ok := result.(map[string]string)
+		if !ok {
+			t.Fatalf("expected map[string]string, got %T", result)
+		}
+		if m["a"] != "2" || m["b"] != "1" {
+			t.Errorf("expected value unchanged; got %+v", m)
+		}
+	})
+
+	t.Run("[]any recursively processes elements", func(t *testing.T) {
+		value := []any{
+			map[string]any{"b": 1, "a": 2},
+			"plain",
+		}
+		result := prepareNestedMapValueForYAML("other", value)
+		arr, ok := result.([]any)
+		if !ok {
+			t.Fatalf("expected []any, got %T", result)
+		}
+		if len(arr) != 2 {
+			t.Fatalf("expected 2 elements, got %d", len(arr))
+		}
+		if arr[1] != "plain" {
+			t.Errorf("expected second element unchanged; got %v", arr[1])
+		}
+		if _, ok := arr[0].(map[string]any); !ok {
+			t.Errorf("expected nested map to remain a map[string]any (fieldName empty means no special ordering); got %T", arr[0])
+		}
+	})
+
+	t.Run("yaml.MapSlice with string keys recurses using key as fieldName", func(t *testing.T) {
+		value := yaml.MapSlice{
+			{Key: "with", Value: map[string]any{"b": 1, "a": 2}},
+			{Key: "plain", Value: "value"},
+		}
+		result := prepareNestedMapValueForYAML("other", value)
+		ms, ok := result.(yaml.MapSlice)
+		if !ok {
+			t.Fatalf("expected yaml.MapSlice, got %T", result)
+		}
+		if len(ms) != 2 {
+			t.Fatalf("expected 2 items, got %d", len(ms))
+		}
+		if ms[0].Key != "with" {
+			t.Errorf("expected first key 'with', got %v", ms[0].Key)
+		}
+		if _, ok := ms[0].Value.(yaml.MapSlice); !ok {
+			t.Errorf("expected nested 'with' value to become ordered yaml.MapSlice, got %T", ms[0].Value)
+		}
+		if ms[1].Value != "value" {
+			t.Errorf("expected plain value unchanged; got %v", ms[1].Value)
+		}
+	})
+
+	t.Run("yaml.MapSlice with non-string key falls back to empty fieldName", func(t *testing.T) {
+		value := yaml.MapSlice{
+			{Key: 42, Value: "x"},
+		}
+		result := prepareNestedMapValueForYAML("other", value)
+		ms, ok := result.(yaml.MapSlice)
+		if !ok {
+			t.Fatalf("expected yaml.MapSlice, got %T", result)
+		}
+		if len(ms) != 1 || ms[0].Key != 42 {
+			t.Errorf("expected non-string key preserved; got %+v", ms)
+		}
+		if ms[0].Value != "x" {
+			t.Errorf("expected value unchanged; got %v", ms[0].Value)
+		}
+	})
+
+	t.Run("default case returns value unchanged for scalar types", func(t *testing.T) {
+		for _, v := range []any{42, "hello", true, 3.14, nil} {
+			result := prepareNestedMapValueForYAML("field", v)
+			if result != v {
+				t.Errorf("expected %v unchanged, got %v", v, result)
+			}
+		}
+	})
+}

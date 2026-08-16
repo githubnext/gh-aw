@@ -344,7 +344,7 @@ Test updates SHOULD be included whenever rules are added or modified.
 
 ### 8.1 Test ID Catalog
 
-The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test case MUST exercise the described detection trigger and verify the expected compiler action.
+The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test case MUST exercise the described detection trigger and verify the expected compiler action. Test IDs are allocated from a single sequence shared with the Section 8.2 optimizer protocol catalog, so a test ID number does not necessarily match its rule ID number (for example, CTR-025 maps to `T-CTR-039`).
 
 | Test ID | Rule | Detection Trigger | Expected Compiler Action | Stable Diagnostic ID |
 |---------|------|-------------------|--------------------------|----------------------|

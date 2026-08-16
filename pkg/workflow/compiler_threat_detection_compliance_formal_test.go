@@ -97,11 +97,15 @@ func TestFormal_RuleTestIDBijection(t *testing.T) {
 }
 
 func TestFormal_TestIDFormatWellFormed(t *testing.T) {
-	for ruleID, testID := range formalComplianceMap(t) {
+	mapping := formalComplianceMap(t)
+	for ruleID, testID := range mapping {
 		require.Regexp(t, formalRuleIDPattern, ruleID)
 		require.Regexp(t, formalTestIDPattern, testID)
-		require.Equal(t, "T-"+ruleID, testID)
 	}
+	// Test IDs are allocated from a single sequence shared with the Section 8.2
+	// optimizer protocol catalog, so a test ID number need not match its rule ID
+	// number; only uniqueness is required.
+	require.True(t, formalHasUniqueTestIDs(mapping))
 }
 
 func TestFormal_NoOrphanTestID(t *testing.T) {
