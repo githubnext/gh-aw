@@ -29,3 +29,86 @@ ignore:
       name: libc6
       version: 2.36-9+deb12u14
       type: deb
+  # grafana/mcp-grafana 1.1.0 embeds Go 1.26.5 and module versions with
+  # published fixes, but Grafana has not released a rebuilt image containing
+  # them. Keep these exceptions scoped to the affected versions so a rebuilt
+  # image is scanned normally.
+  - vulnerability: GO-2026-5026
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with Go 1.26.6 or newer."
+    package:
+      name: stdlib
+      version: go1.26.5
+      type: go-module
+  - vulnerability: GO-2026-5942
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with Go 1.26.6 or newer."
+    package:
+      name: stdlib
+      version: go1.26.5
+      type: go-module
+  - vulnerability: GO-2026-5972
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with Go 1.26.6 or newer."
+    package:
+      name: stdlib
+      version: go1.26.5
+      type: go-module
+  - vulnerability: GO-2026-6088
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with Go 1.26.6 or newer."
+    package:
+      name: stdlib
+      version: go1.26.5
+      type: go-module
+  - vulnerability: GO-2026-6089
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with Go 1.26.6 or newer."
+    package:
+      name: stdlib
+      version: go1.26.5
+      type: go-module
+  - vulnerability: GO-2026-6090
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with Go 1.26.6 or newer."
+    package:
+      name: stdlib
+      version: go1.26.5
+      type: go-module
+  - vulnerability: GO-2026-6091
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with Go 1.26.6 or newer."
+    package:
+      name: stdlib
+      version: go1.26.5
+      type: go-module
+  - vulnerability: GO-2026-6218
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with Go 1.26.6 or newer."
+    package:
+      name: stdlib
+      version: go1.26.5
+      type: go-module
+  - vulnerability: GO-2026-5970
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with golang.org/x/text 0.39.0 or newer."
+    package:
+      name: golang.org/x/text
+      version: v0.37.0
+      type: go-module
+  - vulnerability: GHSA-hrxh-6v49-42gf
+    reason: "No fixed grafana/mcp-grafana image is available; risk-accepted until Grafana rebuilds with google.golang.org/grpc 1.82.1 or newer."
+    package:
+      name: google.golang.org/grpc
+      version: v1.80.0
+      type: go-module
+  # Alpine has not published a fixed busybox package for CVE-2025-60876.
+  - vulnerability: CVE-2025-60876
+    reason: "Alpine lists no fixed busybox version; risk-accepted until a patched grafana/mcp-grafana base image ships."
+    package:
+      name: busybox
+      version: 1.37.0-r30
+      type: apk
+  - vulnerability: CVE-2025-60876
+    reason: "Alpine lists no fixed busybox-binsh version; risk-accepted until a patched grafana/mcp-grafana base image ships."
+    package:
+      name: busybox-binsh
+      version: 1.37.0-r30
+      type: apk
+  - vulnerability: CVE-2025-60876
+    reason: "Alpine lists no fixed ssl_client version; risk-accepted until a patched grafana/mcp-grafana base image ships."
+    package:
+      name: ssl_client
+      version: 1.37.0-r30
+      type: apk
