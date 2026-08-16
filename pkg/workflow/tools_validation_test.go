@@ -643,6 +643,16 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 			shouldError: false,
 		},
 		{
+			name: "allowed-repos without min-integrity still fails under lockdown",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"lockdown":      true,
+					"allowed-repos": "all",
+				},
+			},
+			shouldError: true,
+		},
+		{
 			name: "blocked-users with min-integrity",
 			toolsMap: map[string]any{
 				"github": map[string]any{
@@ -683,6 +693,7 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 			err := validateGitHubGuardPolicy(tools, "test-workflow")
 			if tt.shouldError {
 				require.Error(t, err)
+				return
 			} else {
 				require.NoError(t, err)
 			}
