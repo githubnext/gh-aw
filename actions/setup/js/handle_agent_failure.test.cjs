@@ -2633,6 +2633,29 @@ describe("handle_agent_failure", () => {
       expect(result).not.toContain("Last agent output");
     });
 
+    it("strips ::add-mask:: command lines and redacts masked values from the last agent output", () => {
+      const logLines = ["   The Docker agent cgroup cannot be passed through.", "token is 79aab19823c27dbc1f3fcd49f16666ca8ab130b4b234b54f286cfcae347a844d", "::add-mask::79aab19823c27dbc1f3fcd49f16666ca8ab130b4b234b54f286cfcae347a844d"];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+
+      const result = buildEngineFailureContext();
+
+      expect(result).toContain("Last agent output");
+      expect(result).not.toContain("::add-mask::");
+      expect(result).not.toContain("79aab19823c27dbc1f3fcd49f16666ca8ab130b4b234b54f286cfcae347a844d");
+      expect(result).toContain("token is ***");
+    });
+
+    it("redacts masked values from engine error details", () => {
+      const logLines = ["::add-mask::sup3rs3cr3t", "Error: authentication failed with token sup3rs3cr3t"];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+
+      const result = buildEngineFailureContext();
+
+      expect(result).toContain("Error details:");
+      expect(result).toContain("authentication failed with token ***");
+      expect(result).not.toContain("sup3rs3cr3t");
+    });
+
     it("detects Error: prefix pattern (Node.js style)", () => {
       fs.writeFileSync(stdioLogPath, "Error: connect ECONNREFUSED 127.0.0.1:8080\n");
       const result = buildEngineFailureContext();

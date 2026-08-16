@@ -5,6 +5,7 @@ const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogIn
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const { redactStepSummaryContent } = require("./redact_secrets.cjs");
+const { collectAddMaskedValues, applyAddMaskRedaction } = require("./add_mask_redaction.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
@@ -17,6 +18,7 @@ const CLAUDE_HTTP_5XX_REQUEST_ERROR_PATTERN = /(?:http|fetch|request)\s+(?:faile
 const CLAUDE_HTTP_5XX_STATUS_PATTERN = new RegExp([CLAUDE_HTTP_5XX_PROTOCOL_PATTERN.source, CLAUDE_HTTP_5XX_STATUS_FIELD_PATTERN.source, CLAUDE_HTTP_5XX_REQUEST_ERROR_PATTERN.source].join("|"), "i");
 const STARTUP_DIAGNOSTIC_LINE_PATTERN = /(?:ERR_|Error:|CAPIError|Authentication failed|rate[_ -]?limit|429|\b5\d{2}\b|overloaded|inference)/i;
 const MAX_DIAGNOSTIC_TAIL_LINES = 8;
+const AGENT_STDIO_LOG_PATH = "/tmp/gh-aw/agent-stdio.log";
 
 /**
  * Build startup diagnostics for Claude failures with no structured entries.
@@ -287,7 +289,7 @@ async function runLogParser(options) {
             output_tokens: typeof resultEntry.usage?.output_tokens === "number" && Number.isFinite(resultEntry.usage.output_tokens) && resultEntry.usage.output_tokens >= 0 ? resultEntry.usage.output_tokens : 0,
           },
         };
-        const stdioLogPath = "/tmp/gh-aw/agent-stdio.log";
+        const stdioLogPath = AGENT_STDIO_LOG_PATH;
         try {
           let alreadyHasResult = false;
           if (fs.existsSync(stdioLogPath)) {
@@ -324,6 +326,25 @@ async function runLogParser(options) {
           core.warning(`[log-parser] Failed to enrich agent-stdio.log with result entry: ${getErrorMessage(err)}`);
         }
       }
+    }
+
+    // Redact add-mask values from agent-stdio.log before it is uploaded as an
+    // artifact so plaintext secrets do not persist outside live job logs.
+    const stdioLogPath = AGENT_STDIO_LOG_PATH;
+    try {
+      if (fs.existsSync(stdioLogPath)) {
+        const stdioContent = fs.readFileSync(stdioLogPath, "utf8");
+        const maskedValues = collectAddMaskedValues(stdioContent);
+        if (maskedValues.length > 0) {
+          const redactedContent = applyAddMaskRedaction(stdioContent, maskedValues);
+          if (redactedContent !== stdioContent) {
+            fs.writeFileSync(stdioLogPath, redactedContent, "utf8");
+            core.info(`[log-parser] Sanitized agent-stdio.log before artifact upload using ${maskedValues.length} collected add-mask value(s)`);
+          }
+        }
+      }
+    } catch (err) {
+      core.warning(`[log-parser] Failed to redact add-mask values in agent-stdio.log: ${getErrorMessage(err)}`);
     }
 
     // Read safe outputs file if available

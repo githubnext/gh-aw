@@ -11,6 +11,7 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
+const { applyAddMaskRedaction, collectAddMaskedValues, isAddMaskCommandLine } = require("./add_mask_redaction.cjs");
 const {
   resolveFirewallAuditLogPath,
   resolveAICreditsFailureState,
@@ -2783,6 +2784,14 @@ function buildEngineFailureContext(options = {}) {
 
     const lines = logContent.split("\n");
 
+    // Values registered through `::add-mask::` are masked in the live job log but appear
+    // verbatim in the captured log file. Collect them so every excerpt rendered into the
+    // failure issue is redacted.
+    const maskedValues = collectAddMaskedValues(logContent);
+    if (maskedValues.length > 0) {
+      core.info(`Detected ${maskedValues.length} add-mask value(s) in agent-stdio.log; redacting them from rendered output`);
+    }
+
     // Guard: if the agent completed successfully (terminal_reason: "completed"), the job
     // failure was caused by something other than the agent itself (e.g., post-processing
     // or infrastructure). Suppress the engine failure context to avoid false positive labels.
@@ -2922,7 +2931,7 @@ function buildEngineFailureContext(options = {}) {
         }
         context += "\n<details>\n<summary>Error details</summary>\n\n";
         for (const message of errorMessages) {
-          context += `- ${message}\n`;
+          context += `- ${applyAddMaskRedaction(message, maskedValues)}\n`;
         }
         context += `\n</details>\n\nSee [Diagnosing AWF Failures](https://github.com/github/gh-aw-firewall/blob/main/docs/diagnosing-awf-failures.md) for troubleshooting guidance.\n\n`;
         return context;
@@ -2930,7 +2939,7 @@ function buildEngineFailureContext(options = {}) {
 
       let context = buildWarningAlertLine("Engine Failure", `The${engineLabel} engine terminated before producing output.`) + "\n**Error details:**\n";
       for (const message of errorMessages) {
-        context += `- ${message}\n`;
+        context += `- ${applyAddMaskRedaction(message, maskedValues)}\n`;
       }
       context += "\n";
       return context;
@@ -2953,7 +2962,9 @@ function buildEngineFailureContext(options = {}) {
     }
 
     // Exclude AWF infrastructure lines so the fallback displays only actual engine output.
-    const agentLines = nonEmptyLines.filter(entry => !INFRA_LINE_RE.test(entry.line) && !isRecoveredNoDeferredMarkerLine(entry.index)).map(entry => entry.line);
+    // `::add-mask::` command lines are runner directives, not agent output: drop them so the
+    // rendered tail neither leaks the masked value nor wastes a tail slot.
+    const agentLines = nonEmptyLines.filter(entry => !INFRA_LINE_RE.test(entry.line) && !isAddMaskCommandLine(entry.line) && !isRecoveredNoDeferredMarkerLine(entry.index)).map(entry => entry.line);
 
     if (agentLines.length === 0) {
       // The log contains only AWF infrastructure lines — the engine exited before producing
@@ -2988,7 +2999,7 @@ function buildEngineFailureContext(options = {}) {
     core.info(`No specific error patterns found; including last ${tailLines.length} line(s) of agent-stdio.log as fallback`);
 
     let context = buildWarningAlertLine("Engine Failure", `The${engineLabel} engine terminated unexpectedly.`) + "\n**Last agent output:**\n\`\`\`\n";
-    context += tailLines.join("\n");
+    context += applyAddMaskRedaction(tailLines.join("\n"), maskedValues);
     context += "\n```\n\n";
     return context;
   } catch (error) {
