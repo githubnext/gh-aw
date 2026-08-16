@@ -11,6 +11,7 @@ var artifactsLog = logger.New("workflow:artifacts")
 // ArtifactDownloadConfig holds configuration for building artifact download steps
 type ArtifactDownloadConfig struct {
 	ArtifactName     string // Name of the artifact to download (e.g., "agent-output", "prompt")
+	FallbackArtifact string // Optional secondary artifact name; when set, both artifacts are matched and merged
 	ArtifactFilename string // Filename inside the artifact directory (e.g., "agent_output.json", "prompt.txt")
 	DownloadPath     string // Path where artifact will be downloaded (e.g., "/tmp/gh-aw/safeoutputs/")
 	SetupEnvStep     bool   // Whether to add environment variable setup step
@@ -51,7 +52,15 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 	steps = append(steps, "        continue-on-error: true\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
+	if config.FallbackArtifact != "" {
+		// Match both artifacts with a single brace-expanded pattern and merge their contents into
+		// the download path. The primary artifact may be missing when its (best-effort) upload
+		// failed; the fallback artifact then supplies the critical files.
+		steps = append(steps, fmt.Sprintf("          pattern: \"{%s,%s}\"\n", config.ArtifactName, config.FallbackArtifact))
+		steps = append(steps, "          merge-multiple: true\n")
+	} else {
+		steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
+	}
 	steps = append(steps, fmt.Sprintf("          path: %s\n", config.DownloadPath))
 
 	// Add environment variable setup if requested

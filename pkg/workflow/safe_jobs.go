@@ -274,10 +274,11 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Safe-jobs depend on the agent job, so the prefix comes from needs.agent.outputs.
 		agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 		downloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
-			DownloadPath: SafeJobsDownloadDirExpr,
-			SetupEnvStep: false, // We'll handle env vars separately to add job-specific ones
-			StepName:     "Download agent output artifact",
+			ArtifactName:     agentArtifactPrefix + constants.AgentArtifactName,
+			FallbackArtifact: agentArtifactPrefix + constants.AgentOutputFallbackArtifactName,
+			DownloadPath:     SafeJobsDownloadDirExpr,
+			SetupEnvStep:     false, // We'll handle env vars separately to add job-specific ones
+			StepName:         "Download agent output artifact",
 		}, c.getActionPin)
 		steps = append(steps, downloadSteps...)
 
