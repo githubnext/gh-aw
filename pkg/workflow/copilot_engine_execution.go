@@ -413,7 +413,7 @@ func (e *CopilotEngine) buildCopilotCommand(workflowData *WorkflowData, copilotA
 
 func (e *CopilotEngine) buildCopilotBaseCommand(workflowData *WorkflowData, copilotArgs []string, execPrefix string) (string, string) {
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK {
-		return e.buildCopilotSDKCommand(execPrefix, copilotArgs)
+		return e.buildCopilotSDKCommand(workflowData, execPrefix, copilotArgs)
 	}
 	// On ARC/DinD, /tmp/gh-aw is not daemon-visible; prompts are copied to ${RUNNER_TEMP}/gh-aw/
 	promptFilePath := constants.AwPromptsFile
@@ -428,12 +428,17 @@ func (e *CopilotEngine) buildCopilotBaseCommand(workflowData *WorkflowData, copi
 	return fmt.Sprintf(`%s %s --prompt-file %s`, execPrefix, shellJoinArgs(copilotArgs), promptFilePath), ""
 }
 
-func (e *CopilotEngine) buildCopilotSDKCommand(execPrefix string, copilotArgs []string) (string, string) {
+func (e *CopilotEngine) buildCopilotSDKCommand(workflowData *WorkflowData, execPrefix string, copilotArgs []string) (string, string) {
 	// SDK driver mode: configuration is passed via environment variables so that
 	// copilot_sdk_driver.cjs is a self-contained program started by the harness like any other command.
 	// GH_AW_COPILOT_SDK_SERVER_ARGS carries the JSON-encoded CLI argument list for the headless
 	// Copilot CLI sidecar, and the driver appends --add-dir $GITHUB_WORKSPACE automatically.
-	serverArgs := append([]string{"--headless", "--no-auto-update", "--port", strconv.Itoa(constants.DefaultCopilotSDKPort)}, copilotArgs...)
+	serverArgsPrefix := []string{"--headless", "--no-auto-update"}
+	if isCloudHypervisorRuntime(workflowData) {
+		serverArgsPrefix = append(serverArgsPrefix, "--host", "0.0.0.0")
+	}
+	serverArgsPrefix = append(serverArgsPrefix, "--port", strconv.Itoa(constants.DefaultCopilotSDKPort))
+	serverArgs := append(serverArgsPrefix, copilotArgs...)
 	serverArgsJSON, err := json.Marshal(serverArgs)
 	if err != nil {
 		// This should never happen with a plain string slice, but fall back to an
