@@ -710,6 +710,25 @@ func TestSpec_VirtualFilesystem_RegisterBuiltinVirtualFile(t *testing.T) {
 		assert.False(t, BuiltinVirtualFileExists(path),
 			"BuiltinVirtualFileExists should return false for paths that were never registered")
 	})
+
+	t.Run("registered content is stable if caller mutates input slice", func(t *testing.T) {
+		path := "@builtin:spec-test-content-copy-" + t.Name()
+		content := []byte("immutable builtin content")
+
+		RegisterBuiltinVirtualFile(path, content)
+		content[0] = 'X'
+
+		readContent, err := ReadFile(path)
+		require.NoError(t, err, "ReadFile should resolve registered builtin path")
+		assert.Equal(t, []byte("immutable builtin content"), readContent,
+			"builtin virtual file content should not change when caller mutates source slice")
+
+		readContent[0] = 'X'
+		readContent, err = ReadFile(path)
+		require.NoError(t, err, "ReadFile should resolve registered builtin path")
+		assert.Equal(t, []byte("immutable builtin content"), readContent,
+			"builtin virtual file content should not change when caller mutates read data")
+	})
 }
 
 // TestSpec_PublicAPI_FindClosestMatches validates the documented behavior of

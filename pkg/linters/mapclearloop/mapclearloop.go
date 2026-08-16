@@ -83,7 +83,7 @@ func analyzeRangeStmt(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 	if !builtinVisibleAtPos(pass.Pkg, rangeStmt.Pos(), "clear") {
 		return
 	}
-	if !coverage.ShouldApply(pass, rangeStmt.Pos(), *hotThreshold) {
+	if !coverage.ShouldApply(pass, rangeStmt.Body.List[0].Pos(), *hotThreshold) {
 		return
 	}
 

@@ -542,13 +542,18 @@ func isLocalValue(pkg *packages.Package, expr ast.Expr, locals map[types.Object]
 		if e.Name == "nil" {
 			return true
 		}
-		obj := pkg.TypesInfo.Uses[e]
-		if obj == nil {
-			obj = pkg.TypesInfo.Defs[e]
-		}
+		obj := resolveObj(pkg, e)
 		return obj != nil && locals[obj]
 	}
 	return false
+}
+
+func resolveObj(pkg *packages.Package, ident *ast.Ident) types.Object {
+	obj := pkg.TypesInfo.Uses[ident]
+	if obj == nil {
+		obj = pkg.TypesInfo.Defs[ident]
+	}
+	return obj
 }
 
 // escapingTarget reports why writing to expr escapes the function, or "" when
@@ -559,10 +564,7 @@ func escapingTarget(pkg *packages.Package, expr ast.Expr, locals map[types.Objec
 		if e.Name == "_" {
 			return ""
 		}
-		obj := pkg.TypesInfo.Uses[e]
-		if obj == nil {
-			obj = pkg.TypesInfo.Defs[e]
-		}
+		obj := resolveObj(pkg, e)
 		if obj == nil {
 			return ""
 		}
@@ -588,10 +590,7 @@ func escapingWriteThroughBase(pkg *packages.Package, base ast.Expr, locals map[t
 	if !ok {
 		return "writes into a non-local composite value"
 	}
-	obj := pkg.TypesInfo.Uses[ident]
-	if obj == nil {
-		obj = pkg.TypesInfo.Defs[ident]
-	}
+	obj := resolveObj(pkg, ident)
 	if obj == nil || !locals[obj] {
 		return "writes into shared value " + ident.Name
 	}
@@ -782,10 +781,8 @@ func loadFuncCoverage(path string) (map[string]float64, map[string]bool, bool, e
 }
 
 func writeJSON(path string, report Report) error {
-	if dir := filepath.Dir(path); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
-		}
+	if err := ensureDir(path); err != nil {
+		return err
 	}
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
@@ -808,12 +805,19 @@ func writeSummary(path string, report Report) error {
 		fmt.Fprintf(&b, "| %d | `%s%s` | `%s:%d` | %.1f | %d | %t | %.1f |\n",
 			i+1, c.Receiver, c.Name, c.File, c.Line, c.Coverage, c.Complexity, c.FuzzFriendly, c.Score)
 	}
+	if err := ensureDir(path); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+func ensureDir(path string) error {
 	if dir := filepath.Dir(path); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
 	}
-	return os.WriteFile(path, []byte(b.String()), 0o644)
+	return nil
 }
 
 func dedupe(values []string) []string {

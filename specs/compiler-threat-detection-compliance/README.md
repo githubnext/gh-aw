@@ -27,6 +27,7 @@ This directory maps the threat-detection rule catalog in the [Compiler Threat De
 | CTR-021 | T-CTR-021 |
 | CTR-022 | T-CTR-022 |
 | CTR-023 | T-CTR-023 |
+| CTR-025 | T-CTR-039 |
 
 The test triggers, expected compiler actions, and stable diagnostics are defined in [Section 8.1](../compiler-threat-detection-spec.md#81-test-id-catalog). The implementation and concrete test-file mappings are defined in [Section 7.1](../compiler-threat-detection-spec.md#71-baseline-rule-mapping).
 
