@@ -219,9 +219,14 @@ This workflow tests that job-level environment variables are properly set for sa
 		t.Error("Expected job-level 'env:' section in agent job")
 	}
 
-	// Check that GH_AW_SAFE_OUTPUTS_CONFIG is NOT in environment variables
-	if strings.Contains(agentJobSection, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
-		t.Error("GH_AW_SAFE_OUTPUTS_CONFIG should NOT be in environment variables - config is now in file")
+	// Check that GH_AW_SAFE_OUTPUTS_CONFIG is not in the job-level environment.
+	// The file-rendering step passes the content through its own env block.
+	jobLevelSection, _, found := strings.Cut(agentJobSection, "    steps:\n")
+	if !found {
+		t.Fatal("Expected agent job to contain steps")
+	}
+	if strings.Contains(jobLevelSection, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
+		t.Error("GH_AW_SAFE_OUTPUTS_CONFIG should not be in the job-level environment")
 	}
 
 	// Clean up

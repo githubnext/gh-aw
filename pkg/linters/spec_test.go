@@ -27,6 +27,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
+	"github.com/github/gh-aw/pkg/linters/generatedyamlheredoc"
 	"github.com/github/gh-aw/pkg/linters/globwalkignorederror"
 	"github.com/github/gh-aw/pkg/linters/goroutinemissingrecover"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
@@ -91,7 +92,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 65 analyzers
+// "Public API > Subpackages" table. The README documents 66 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -99,7 +100,7 @@ type docAnalyzer struct {
 //
 //	appendbytestring, appendoneelement, bytesbufferstring, bytescomparestring, contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
 //	errortypeassertion, errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
-//	globwalkignorederror, goroutinemissingrecover, hardcodedfilepath, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
+//	generatedyamlheredoc, globwalkignorederror, goroutinemissingrecover, hardcodedfilepath, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	logfatallibrary, manualmutexunlock, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, osgetenvlibrary, ossetenvlibrary, packagelevelmutableslicemap, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, regexpdynamicpattern, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, sprintfbool, sprintfint, ssljson,
 //	strconvparseignorederror, stringbytesroundtrip, stringreplaceminusone, stringsconcatloop, stringscountcontains, stringsindexcontains, stringsindexhasprefix, stringsjoinone, timeafterleak, timesleepnocontext, timenowsub,
@@ -122,6 +123,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"fileclosenotdeferred", fileclosenotdeferred.Analyzer},
 		{"fmterrorfnoverbs", fmterrorfnoverbs.Analyzer},
 		{"fprintlnsprintf", fprintlnsprintf.Analyzer},
+		{"generatedyamlheredoc", generatedyamlheredoc.Analyzer},
 		{"globwalkignorederror", globwalkignorederror.Analyzer},
 		{"goroutinemissingrecover", goroutinemissingrecover.Analyzer},
 		{"hardcodedfilepath", hardcodedfilepath.Analyzer},

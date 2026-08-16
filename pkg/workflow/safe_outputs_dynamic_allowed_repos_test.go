@@ -5,7 +5,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -62,18 +61,19 @@ Test workflow
 		"GH_AW_INPUT_TARGET_REPO should appear in both the Generate Safe Outputs Config step and the Start MCP Gateway step")
 	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_INPUT_BASE_BRANCH: ${{ inputs.base_branch }}"), 2,
 		"GH_AW_INPUT_BASE_BRANCH should appear in both the Generate Safe Outputs Config step and the Start MCP Gateway step")
-	assert.Contains(t, compiled, `"allowed_repos":"${GH_AW_INPUT_TARGET_REPO}"`,
+	assert.Contains(t, compiled, `\"allowed_repos\":\"${GH_AW_INPUT_TARGET_REPO}\"`,
 		"config.json payload should preserve env placeholder for allowed_repos")
-	assert.Contains(t, compiled, `"allowed_base_branches":"${GH_AW_INPUT_BASE_BRANCH}"`,
+	assert.Contains(t, compiled, `\"allowed_base_branches\":\"${GH_AW_INPUT_BASE_BRANCH}\"`,
 		"config.json payload should preserve env placeholder for allowed_base_branches")
 
-	quotedHeredocPattern := regexp.MustCompile(`cat > "\$\{RUNNER_TEMP\}/gh-aw/safeoutputs/config\.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_[0-9a-f]{16}_EOF'`)
-	assert.True(t, quotedHeredocPattern.MatchString(compiled),
-		"Safe outputs config heredoc should be single-quoted so placeholders are not expanded onto disk")
-
-	unquotedHeredocPattern := regexp.MustCompile(`cat > "\$\{RUNNER_TEMP\}/gh-aw/safeoutputs/config\.json" << GH_AW_SAFE_OUTPUTS_CONFIG_[0-9a-f]{16}_EOF`)
-	assert.False(t, unquotedHeredocPattern.MatchString(compiled),
-		"Safe outputs config heredoc should never be unquoted for dynamic config placeholders")
+	assert.Contains(t, compiled, "create_files.cjs",
+		"Safe outputs config should be written by the JavaScript file renderer")
+	assert.Contains(t, compiled, "GH_AW_SAFE_OUTPUTS_CONFIG:",
+		"Safe outputs config should pass plain content through an environment variable")
+	assert.NotContains(t, compiled, `cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"`,
+		"Safe outputs config should not be emitted through a shell heredoc")
+	assert.NotContains(t, compiled, "GH_AW_SAFE_OUTPUTS_CONFIG_B64",
+		"Safe outputs config should not use base64 transport")
 
 	// Verify GH_AW_INPUT_* env vars are forwarded to the MCP gateway container via -e flags.
 	// Without this the safe-outputs MCP server cannot resolve ${GH_AW_INPUT_…} placeholders in
@@ -127,16 +127,15 @@ Test workflow
 		"Generate Safe Outputs Config step should map secret expressions to prefixed env vars")
 	assert.GreaterOrEqual(t, strings.Count(compiled, "GH_AW_SECRET_WRITE_PROJECT_PAT: ${{ secrets.WRITE_PROJECT_PAT }}"), 1,
 		"Secret env vars should be exported anywhere the runtime still resolves the placeholder in memory")
-	assert.Contains(t, compiled, `"github-token":"${GH_AW_SECRET_WRITE_PROJECT_PAT}"`,
+	assert.Contains(t, compiled, `\"github-token\":\"${GH_AW_SECRET_WRITE_PROJECT_PAT}\"`,
 		"config.json payload should preserve the prefixed secret placeholder instead of the secret value")
 
-	quotedHeredocPattern := regexp.MustCompile(`cat > "\$\{RUNNER_TEMP\}/gh-aw/safeoutputs/config\.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_[0-9a-f]{16}_EOF'`)
-	assert.True(t, quotedHeredocPattern.MatchString(compiled),
-		"Safe outputs config heredoc should be single-quoted so secret placeholders are not expanded onto disk")
-
-	unquotedHeredocPattern := regexp.MustCompile(`cat > "\$\{RUNNER_TEMP\}/gh-aw/safeoutputs/config\.json" << GH_AW_SAFE_OUTPUTS_CONFIG_[0-9a-f]{16}_EOF`)
-	assert.False(t, unquotedHeredocPattern.MatchString(compiled),
-		"Safe outputs config heredoc should not be unquoted when secrets are present")
+	assert.Contains(t, compiled, "create_files.cjs",
+		"Safe outputs config should be written by the JavaScript file renderer")
+	assert.NotContains(t, compiled, `cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"`,
+		"Safe outputs config should not be emitted through a shell heredoc")
+	assert.NotContains(t, compiled, "GH_AW_SAFE_OUTPUTS_CONFIG_B64",
+		"Safe outputs config should not use base64 transport")
 }
 
 // TestSafeOutputsDynamicBaseBranchPassedToMCPContainer is a regression test for
@@ -180,7 +179,7 @@ Test workflow
 	compiled := string(compiledBytes)
 
 	// The placeholder must appear in config.json on disk so no shell expansion happens at write-time.
-	assert.Contains(t, compiled, `"base_branch":"${GH_AW_INPUT_BASE_BRANCH}"`,
+	assert.Contains(t, compiled, `\"base_branch\":\"${GH_AW_INPUT_BASE_BRANCH}\"`,
 		"config.json payload should preserve the ${GH_AW_INPUT_BASE_BRANCH} placeholder for runtime resolution")
 
 	// The env var must be set in both the "Generate Safe Outputs Config" step and the

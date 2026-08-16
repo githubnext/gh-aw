@@ -62,11 +62,11 @@ the agent can modify when using update-discussion.
 	lockContent := string(lockBytes)
 
 	// allow_title must be present (title: is configured in the workflow)
-	assert.Contains(t, lockContent, `"allow_title":true`,
+	assert.Contains(t, lockContent, `\"allow_title\":true`,
 		"Lock file should contain allow_title:true in handler config")
 
 	// allow_labels must be present (labels: is configured in the workflow)
-	assert.Contains(t, lockContent, `"allow_labels":true`,
+	assert.Contains(t, lockContent, `\"allow_labels\":true`,
 		"Lock file should contain allow_labels:true in handler config")
 
 	// allow_body must be absent (body: is NOT configured — filtered by filterToolSchemaFields)
@@ -74,7 +74,7 @@ the agent can modify when using update-discussion.
 		"Lock file must NOT contain allow_body since body updates are not configured")
 
 	// allowed_labels must list the configured allowed labels
-	assert.Contains(t, lockContent, `"allowed_labels":["smoke-test","general"]`,
+	assert.Contains(t, lockContent, `\"allowed_labels\":[\"smoke-test\",\"general\"]`,
 		`Lock file should contain allowed_labels:["smoke-test","general"] in handler config`)
 
 	// handler config must be embedded in the lock file

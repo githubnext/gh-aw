@@ -657,7 +657,8 @@ This test verifies that auto-merge configuration is properly handled.
 	}
 
 	// Verify that the auto-merge configuration is in the handler config JSON
-	if !strings.Contains(lockContentStr, `"auto_merge":true`) {
+	handlerConfig := extractHandlerConfig(t, lockContentStr)
+	if handlerConfig["create_pull_request"]["auto_merge"] != true {
 		t.Error("Expected auto_merge:true in handler config JSON")
 	}
 }
@@ -710,7 +711,8 @@ safe-outputs:
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	if !strings.Contains(string(lockContent), `"auto_merge":"squash"`) {
+	handlerConfig := extractHandlerConfig(t, string(lockContent))
+	if handlerConfig["create_pull_request"]["auto_merge"] != "squash" {
 		t.Error(`Expected auto_merge:"squash" in handler config JSON`)
 	}
 }
@@ -860,7 +862,8 @@ safe-outputs:
 	if err != nil {
 		t.Fatalf("Failed to read generated lock file: %v", err)
 	}
-	if !strings.Contains(string(lockContent), `"signed_commits":false`) {
+	handlerConfig := extractHandlerConfig(t, string(lockContent))
+	if handlerConfig["create_pull_request"]["signed_commits"] != false {
 		t.Error("Expected signed_commits:false in handler config JSON")
 	}
 }
