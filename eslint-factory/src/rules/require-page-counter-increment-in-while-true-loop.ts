@@ -71,7 +71,8 @@ export const requirePageCounterIncrementInWhileTrueLoopRule = createRule({
 
     function isCounterAdvanceAssignment(node: TSESTree.AssignmentExpression, counter: TSESTree.VariableDeclarator): boolean {
       if (node.operator === "+=") return true;
-      if (node.operator !== "=" || node.right.type === "Literal" || (node.right.type === "Identifier" && isCounterIdentifier(node.right, counter))) return false;
+      if (node.operator !== "=") return false;
+      if (node.right.type === "Literal" || (node.right.type === "Identifier" && isCounterIdentifier(node.right, counter))) return false;
       return node.right.type !== "BinaryExpression" || node.right.operator !== "-" || ![node.right.left, node.right.right].some(operand => operand.type === "Identifier" && isCounterIdentifier(operand, counter));
     }
 
