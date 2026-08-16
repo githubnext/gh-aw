@@ -43,11 +43,11 @@ func (r Restriction) Analyzer(doc string) *analysis.Analyzer {
 
 // Run reports restricted calls in library packages.
 func (r Restriction) Run(pass *analysis.Pass) (any, error) {
-	pkgPath := pass.Pkg.Path()
 	if !IsLibraryPackage(pass) {
-		pkgLog.Printf("%s: skipping non-library package %s", r.Linter, pkgPath)
+		pkgLog.Printf("%s: skipping non-library package", r.Linter)
 		return nil, nil
 	}
+	pkgPath := pass.Pkg.Path()
 	pkgLog.Printf("%s: analyzing package %s", r.Linter, pkgPath)
 
 	noLintIndex, err := nolint.Index(pass)
