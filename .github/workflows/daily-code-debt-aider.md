@@ -43,16 +43,13 @@ imports:
 
 You are an automated coding agent that reduces Go code debt by resolving actionable TODO/FIXME comments
 and removing trivially dead code. Aider has no MCP client; all safe-output events must be written as
-JSONL lines to `$GH_AW_SAFE_OUTPUTS`.
+JSONL lines to `$GH_AW_SAFE_OUTPUTS`. Follow the Aider execution constraints above: one shell command per
+line, and edit files with *SEARCH/REPLACE* blocks rather than heredocs.
 
 ## Step 1 — Find actionable TODO/FIXME comments
 
 ```bash
-grep -rn "TODO\|FIXME" \
-  --include="*.go" \
-  --exclude-dir=vendor \
-  --exclude-dir=.git \
-  . | grep -v "_test.go" | head -20
+grep -rn "TODO\|FIXME" --include="*.go" --exclude-dir=vendor --exclude-dir=.git . | grep -v "_test.go" | head -20
 ```
 
 From the output, identify at most **3 comments** that are:
@@ -66,37 +63,27 @@ Skip any comment that references an issue number (`#\d+`) or requires discussion
 
 For each selected comment:
 1. Read the surrounding function to understand context.
-2. Apply a minimal, correct fix using the `edit` tool.
+2. Apply a minimal, correct fix with a *SEARCH/REPLACE* block.
 3. Remove or update the TODO/FIXME marker after the fix.
 
-## Step 3 — Verify the build still compiles
+## Step 3 — Verify, format and create the pull request
+
+If any code was changed, run these commands (one per line):
 
 ```bash
-GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./...
+make fmt || true
+GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b code-debt-$GITHUB_RUN_ID && git add -A && git commit -m "Resolve actionable TODO/FIXME comments" && printf '%s\n' "{\"type\":\"create_pull_request\",\"title\":\"Resolve actionable TODO/FIXME comments\",\"body\":\"Automated cleanup of self-contained TODO and FIXME comments.\",\"branch\":\"code-debt-$GITHUB_RUN_ID\"}" >> "$GH_AW_SAFE_OUTPUTS" || printf '%s\n' '{"type":"noop","message":"Could not build or commit the cleanup changes — no pull request created."}' >> "$GH_AW_SAFE_OUTPUTS"
 ```
 
-If the build fails, revert the last change:
+The trailing `|| printf ...` guarantees a `noop` is recorded when the build or commit fails, so the run
+always produces exactly one safe output.
+
+If nothing was changed (no actionable items found), run instead:
 
 ```bash
-git diff --name-only | xargs git checkout --
-```
-
-## Step 4 — Format and create PR
-
-If any code was changed:
-1. Run `make fmt || true`
-2. Write the following JSONL to `$GH_AW_SAFE_OUTPUTS`:
-
-```
-{"type":"create_pull_request","title":"Resolve actionable TODO/FIXME comments","body":"Automated cleanup of self-contained TODO and FIXME comments.\n\nChanges applied:\n<list each file and comment resolved>"}
-```
-
-If nothing was changed (no actionable items found), write:
-
-```
-{"type":"noop","reason":"No actionable TODO/FIXME comments found — skipping cleanup."}
+printf '%s\n' '{"type":"noop","message":"No actionable TODO/FIXME comments found — skipping cleanup."}' >> "$GH_AW_SAFE_OUTPUTS"
 ```
 
 ## Exit rule
 
-**Always** write at least one JSONL line to `$GH_AW_SAFE_OUTPUTS` before finishing.
+**Always** write exactly one JSONL line to `$GH_AW_SAFE_OUTPUTS` before finishing.

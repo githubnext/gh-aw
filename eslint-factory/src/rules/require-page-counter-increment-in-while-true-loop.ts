@@ -69,9 +69,16 @@ export const requirePageCounterIncrementInWhileTrueLoopRule = createRule({
       return breaks.some(node => isWithin(node, loop.body) && !isInNestedFunction(node, loop));
     }
 
+    function isNonPositiveNumericLiteral(node: TSESTree.Expression): boolean {
+      if (node.type === "Literal" && typeof node.value === "number") return node.value <= 0;
+      if (node.type === "UnaryExpression" && node.operator === "-" && node.argument.type === "Literal" && typeof node.argument.value === "number") return true;
+      return false;
+    }
+
     function isCounterAdvanceAssignment(node: TSESTree.AssignmentExpression, counter: TSESTree.VariableDeclarator): boolean {
-      if (node.operator === "+=") return true;
-      if (node.operator !== "=" || node.right.type === "Literal" || (node.right.type === "Identifier" && isCounterIdentifier(node.right, counter))) return false;
+      if (node.operator === "+=") return !isNonPositiveNumericLiteral(node.right);
+      if (node.operator !== "=") return false;
+      if (node.right.type === "Literal" || (node.right.type === "Identifier" && isCounterIdentifier(node.right, counter))) return false;
       return node.right.type !== "BinaryExpression" || node.right.operator !== "-" || ![node.right.left, node.right.right].some(operand => operand.type === "Identifier" && isCounterIdentifier(operand, counter));
     }
 

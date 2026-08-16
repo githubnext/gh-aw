@@ -113,16 +113,15 @@ To compare multiple persona or task slices in a single request, use the followin
 > 2. Product Manager — recurring backlog triage report sorted by staleness
 > 3. Backend Engineer — API contract diff review on every pull request
 
-For each scenario, return a compact recommendation table covering:
+Expected comparison output: return one combined table with one row per scenario (not a separate table per scenario), so the trigger/tool/safe-output choices can be compared side by side. Use the scenario's persona/task label as the row key and cover these columns:
 
-| Field | Value |
-|---|---|
-| Trigger | event + key options |
-| Scope | paths filter or scheduling window |
-| Read tools | gh-proxy toolsets or optional tools |
-| Safe outputs | add-comment / create-issue / noop |
-| Permissions | read-only scopes required |
-| Noop condition | when no action is needed |
+| Scenario | Trigger | Scope | Read tools | Safe outputs | Permissions | Noop condition |
+|---|---|---|---|---|---|---|
+| Information Worker — weekly digest | `schedule` + `workflow_dispatch` | 7-day window, grouped by assignee | `github` (`gh-proxy`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | window has no assigned issues/PRs |
+| Product Manager — backlog triage | `schedule` + `workflow_dispatch` | recurring window, grouped by staleness bucket | `github` (`gh-proxy`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | no items cross the staleness threshold |
+| Backend Engineer — API contract review | `pull_request` with `paths:` scoped to API/schema files | per-PR, no window | `github` (`gh-proxy`, default toolset) | `add-comment` on the PR | `contents: read`, `pull-requests: write` | no API contract files changed in the PR |
+
+This is the same invocation surface as [Single-Scenario Evaluation Example](#single-scenario-evaluation-example) above — reached only by addressing the `agentic-workflows` custom agent directly in conversation, never via a CLI/MCP tool parameter. After the comparison table, call out any scenario that shares a trigger or write path with another (for example two digests that could share a schedule) before offering to generate files.
 
 ### Failure Classification
 

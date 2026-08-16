@@ -55,11 +55,6 @@ func (m MCPServerID) String() string {
 	return string(m)
 }
 
-// IsValid returns true if the MCP server ID is non-empty
-func (m MCPServerID) IsValid() bool {
-	return m != ""
-}
-
 // Job name constants for GitHub Actions workflow jobs
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
@@ -100,6 +95,13 @@ const AgentOutputArtifactName = "agent-output"
 // AgentArtifactName is the name of the unified agent artifact that contains all agent job outputs,
 // including safe outputs, agent output, engine logs, and other agent-related files.
 const AgentArtifactName = "agent"
+
+// AgentOutputFallbackArtifactName is the name of a small, dedicated artifact that contains
+// only the processed agent output JSON and the raw safe-output NDJSON. Those files are also
+// part of the large "agent" artifact, but that upload is best-effort (continue-on-error) and
+// occasionally times out against blob storage. When it does, every safe output is silently
+// dropped, so downstream jobs fall back to this tiny artifact instead.
+const AgentOutputFallbackArtifactName = "agent-output-fallback"
 
 // DetectionArtifactName is the artifact name for the threat detection log.
 const DetectionArtifactName = "detection"

@@ -42,6 +42,14 @@ describe("require-page-counter-increment-in-while-true-loop", () => {
           errors: [{ messageId: "requirePageCounterIncrement", data: { name: "page" } }],
         },
         {
+          code: `let page = 1; while (true) { api({ page }); if (done) break; page += 0; }`,
+          errors: [{ messageId: "requirePageCounterIncrement", data: { name: "page" } }],
+        },
+        {
+          code: `let page = 1; while (true) { api({ page }); if (done) break; page += -1; }`,
+          errors: [{ messageId: "requirePageCounterIncrement", data: { name: "page" } }],
+        },
+        {
           code: `let page = 1; while (true) { api({ page }); if (done) break; page--; }`,
           errors: [{ messageId: "requirePageCounterIncrement", data: { name: "page" } }],
         },

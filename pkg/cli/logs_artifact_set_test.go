@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -123,9 +124,9 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: []string{"activation"},
 		},
 		{
-			name:     "agent resolves to agent artifact",
+			name:     "agent resolves to agent artifact and output fallback",
 			sets:     []string{"agent"},
-			expected: []string{"agent"},
+			expected: []string{constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
 		},
 		{
 			name:     "mcp resolves to agent artifact",
@@ -165,12 +166,12 @@ func TestResolveArtifactFilter(t *testing.T) {
 		{
 			name:     "multiple sets are merged and deduplicated",
 			sets:     []string{"activation", "agent"},
-			expected: []string{"activation", "agent"},
+			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
 		},
 		{
 			name:     "github-api and agent deduplicates agent",
 			sets:     []string{"github-api", "agent"},
-			expected: []string{"activation", "agent"},
+			expected: []string{constants.ActivationArtifactName, constants.AgentArtifactName, constants.AgentOutputFallbackArtifactName},
 		},
 	}
 
@@ -401,6 +402,24 @@ func TestFindMissingFilterEntries(t *testing.T) {
 			filter:       []string{"agent"},
 			existingDirs: []string{"agent-output"},
 			expected:     []string{"agent"},
+		},
+		{
+			name:         "agent fallback satisfies agent transport filter",
+			filter:       []string{"agent", "agent-output-fallback"},
+			existingDirs: []string{"agent-output-fallback"},
+			expected:     nil,
+		},
+		{
+			name:         "prefixed agent fallback satisfies agent transport filter",
+			filter:       []string{"agent", "agent-output-fallback"},
+			existingDirs: []string{"abc123-agent-output-fallback"},
+			expected:     nil,
+		},
+		{
+			name:         "agent satisfies fallback transport filter",
+			filter:       []string{"agent", "agent-output-fallback"},
+			existingDirs: []string{"agent"},
+			expected:     nil,
 		},
 		{
 			name:         "any-suffix directory matches filter entry (mirrors artifactMatchesFilter behavior)",

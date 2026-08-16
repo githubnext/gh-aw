@@ -377,6 +377,7 @@ For each PR that is not skipped:
    - Include a thread only when all of the following are true: the thread is currently unresolved; contains reviewer feedback; and has a later reply from the PR author or `@copilot`.
    - For each thread ID, call `safeoutputs resolve_pull_request_review_thread --thread_id <ID>`.
    - Each `<ID>` must be the review thread node ID (`PRRT_...`) taken from `reviewThreads`; never pass a review comment node ID (`PRRC_...`).
+   - Copy each `<ID>` verbatim, character-for-character, from the `reviewThreads` data returned for the current PR. Never guess, truncate, extend, or otherwise fabricate a thread ID.
    - If resolving one thread fails, record `{thread_id: <ID>, skip_reason: "resolve_review_thread_failed"}` in the `skipped` array and continue.
 
 4. **Dismiss stale `github-actions[bot]` blocking reviews when all PR review threads are resolved**

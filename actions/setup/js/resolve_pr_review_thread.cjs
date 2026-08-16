@@ -488,9 +488,16 @@ async function main(config = {}) {
 
         const legacyRepoValidation = validateTargetRepo(threadRepo, defaultTargetRepo, allowedRepos);
         if (!legacyRepoValidation.valid) {
-          core.warning(`Thread ${resolvedThreadId} repository ${threadRepo} is not allowed in legacy mode`);
+          // In legacy mode, no cross-repo behavior was ever configured, so a thread_id resolving
+          // to an unrelated repository almost always indicates a stale or malformed ID (e.g. a
+          // hallucinated GraphQL node ID) rather than a genuine cross-repo access attempt. Treat
+          // this the same as an already-resolved/stale thread (skipped) so a single bad ID does
+          // not fail the entire safe_outputs job, while still refusing to perform the action.
+          core.warning(`Thread ${resolvedThreadId} repository ${threadRepo} is not allowed in legacy mode; skipping`);
           return {
             success: false,
+            skipped: true,
+            thread_id: resolvedThreadId,
             error: legacyRepoValidation.error || `Repository ${threadRepo} is not allowed for this handler`,
           };
         }

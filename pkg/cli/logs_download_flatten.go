@@ -240,6 +240,18 @@ func flattenUnifiedArtifact(outputDir string, verbose bool) error {
 	return flattenArtifactTree(sourceDir, agentArtifactsDir, outputDir, "unified agent artifact", verbose)
 }
 
+// flattenAgentOutputFallbackArtifact flattens the tiny fallback artifact that carries
+// agent_output.json and safeoutputs.jsonl when the unified agent artifact upload fails.
+func flattenAgentOutputFallbackArtifact(outputDir string, verbose bool) error {
+	fallbackDir := findArtifactDir(outputDir, constants.AgentOutputFallbackArtifactName, "")
+	if fallbackDir == "" {
+		return nil
+	}
+
+	logsDownloadLog.Printf("Flattening agent output fallback artifact directory: %s", fallbackDir)
+	return flattenArtifactTree(fallbackDir, fallbackDir, outputDir, "agent output fallback artifact", verbose)
+}
+
 // flattenActivationArtifact flattens the activation artifact directory structure.
 // The activation artifact contains aw_info.json and aw-prompts/prompt.txt.
 // This function moves those files to the root output directory and removes the nested structure.
@@ -310,6 +322,13 @@ func flattenDownloadedArtifacts(ctx context.Context, opts downloadArtifactsOptio
 	// Flatten unified agent directory structure
 	if err := flattenUnifiedArtifact(opts.outputDir, opts.verbose); err != nil {
 		return fmt.Errorf("failed to flatten unified artifact: %w", err)
+	}
+
+	// Flatten the fallback after the unified artifact so primary files win when
+	// both artifacts are present, while fallback files populate the run root when
+	// the unified upload failed.
+	if err := flattenAgentOutputFallbackArtifact(opts.outputDir, opts.verbose); err != nil {
+		return fmt.Errorf("failed to flatten agent output fallback artifact: %w", err)
 	}
 
 	// Flatten agent_outputs artifact if present

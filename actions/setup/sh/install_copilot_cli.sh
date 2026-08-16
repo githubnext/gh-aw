@@ -206,7 +206,7 @@ download_compat_json() {
   local source_file="$2"
 
   echo "Attempting to download compatibility matrix from ${COMPAT_URL}..." >&2
-  if curl -fsSL --retry 3 --retry-delay 5 -o "$compat_file" "$COMPAT_URL"; then
+  if curl -fsSL --retry 3 --retry-delay 5 --retry-all-errors -o "$compat_file" "$COMPAT_URL"; then
     echo "$COMPAT_URL" > "$source_file"
     echo "Successfully downloaded compatibility matrix from ${COMPAT_URL}" >&2
     return 0
