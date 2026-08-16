@@ -132,7 +132,8 @@ func TestBuildGuardPolicyDryRunReport_LockdownDeprecatedRepos(t *testing.T) {
 	assert.Contains(t, rendered, "lockdown: true")
 	assert.Contains(t, rendered, "allowed-repos: all")
 	for line := range strings.SplitSeq(rendered, "\n") {
-		assert.NotEqual(t, "repos:", strings.TrimSpace(line))
+		assert.False(t, strings.HasPrefix(strings.TrimSpace(line), "repos:"),
+			"rendered output should not contain deprecated 'repos:' key: %q", line)
 	}
 }
 

@@ -125,7 +125,14 @@ func validateGitHubGuardPolicy(tools *Tools, workflowName string) error {
 		toolsValidationLog.Printf("lockdown enabled with guard policy fields in workflow: %s", workflowName)
 	}
 
-	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated 'repos' during parsing
+	// AllowedRepos is populated from either 'allowed-repos' (preferred) or deprecated
+	// 'repos' during parsing. Normalize the deprecated alias here as well so that
+	// configurations built programmatically (bypassing the parser) are validated
+	// identically to parsed frontmatter.
+	if github.AllowedRepos == nil && github.Repos != nil {
+		toolsValidationLog.Printf("Normalizing deprecated 'repos' alias to 'allowed-repos' in workflow: %s", workflowName)
+		github.AllowedRepos = github.Repos
+	}
 	hasRepos := github.AllowedRepos != nil
 	hasMinIntegrity := github.MinIntegrity != ""
 	// blocked-users / approval-labels / trusted-users can be an array or a
