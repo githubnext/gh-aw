@@ -348,10 +348,8 @@ func (c *Compiler) appendUploadArtifactStagingDownloadStep(data *WorkflowData, a
 			"      - name: Download upload-artifact staging\n",
 			"        continue-on-error: true\n",
 			fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")),
-			"        with:\n",
-			fmt.Sprintf("          name: %s\n", stagingArtifactName),
-			fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
 		)
+		state.steps = append(state.steps, optionalArtifactDownloadInputs(stagingArtifactName, artifactStagingDirExpr)...)
 	}
 }
 

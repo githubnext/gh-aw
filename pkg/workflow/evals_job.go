@@ -145,10 +145,8 @@ func (c *Compiler) buildPushEvalsStateJob(data *WorkflowData) (*Job, error) {
 		"      - name: Download evals artifact\n",
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")),
 		"        continue-on-error: true\n",
-		"        with:\n",
-		fmt.Sprintf("          name: %s\n", evalsArtifactName),
-		fmt.Sprintf("          path: %s\n", evalsStateDir),
 	)
+	steps = append(steps, optionalArtifactDownloadInputs(evalsArtifactName, evalsStateDir)...)
 
 	branchName := evalsBranchName(data.WorkflowID)
 	steps = append(steps,

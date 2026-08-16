@@ -20,6 +20,25 @@ type ArtifactDownloadConfig struct {
 	StepID           string // Optional step ID; when set, the env-setup step is gated on this step's success
 }
 
+// optionalArtifactDownloadInputs returns the `with:` block for downloading an artifact that may
+// legitimately be missing, for example when the agent job died before uploading its artifact.
+//
+// `pattern:` is used instead of `name:` because actions/download-artifact only fails with
+// "Artifact not found for name: <name>" for name-based downloads; a pattern that matches nothing
+// is a silent no-op. This keeps the real upstream failure visible in the run instead of burying it
+// under a misleading artifact error in every downstream job.
+//
+// `merge-multiple: true` keeps the extraction layout identical to a name-based download: files land
+// directly in the download path rather than in a per-artifact subdirectory.
+func optionalArtifactDownloadInputs(artifactName, downloadPath string) []string {
+	return []string{
+		"        with:\n",
+		fmt.Sprintf("          pattern: %s\n", artifactName),
+		"          merge-multiple: true\n",
+		fmt.Sprintf("          path: %s\n", downloadPath),
+	}
+}
+
 // buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact.
 // pinAction is used to resolve the download-artifact action reference; callers inside
 // a Compiler method should pass c.getActionPin to honour the per-compilation GHES compat flag.
@@ -50,9 +69,7 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 	}
 	steps = append(steps, "        continue-on-error: true\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          name: %s\n", config.ArtifactName))
-	steps = append(steps, fmt.Sprintf("          path: %s\n", config.DownloadPath))
+	steps = append(steps, optionalArtifactDownloadInputs(config.ArtifactName, config.DownloadPath)...)
 
 	// Add environment variable setup if requested
 	if config.SetupEnvStep {
@@ -72,7 +89,14 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig, pinAction func(st
 		// artifacts are extracted directly to {download-path}, not {download-path}/{artifact-name}/
 		// The actual filename is specified in ArtifactFilename
 		artifactPath := fmt.Sprintf("%s%s", config.DownloadPath, config.ArtifactFilename)
-		steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_OUTPUT\"\n", config.EnvVarName, artifactPath))
+		// The artifact is missing when the agent job failed (or was cancelled) before uploading it.
+		// Emit an explicit annotation naming the upstream failure instead of silently continuing
+		// with an environment variable pointing at a file that does not exist.
+		steps = append(steps, fmt.Sprintf("          if [ -f \"%s\" ]; then\n", artifactPath))
+		steps = append(steps, fmt.Sprintf("            echo \"%s=%s\" >> \"$GITHUB_OUTPUT\"\n", config.EnvVarName, artifactPath))
+		steps = append(steps, "          else\n")
+		steps = append(steps, "            echo \"::warning title=Upstream agent job failure::The agent artifact is missing, so there is no agent output to process. The agent job did not complete and did not upload its artifact; check the agent job logs for the root cause.\"\n")
+		steps = append(steps, "          fi\n")
 	}
 
 	return steps

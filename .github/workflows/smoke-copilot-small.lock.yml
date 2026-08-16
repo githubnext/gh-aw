@@ -1102,7 +1102,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: agent
+          pattern: agent
+          merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
         id: setup-agent-output-env
@@ -1110,14 +1111,19 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
+          if [ -f "/tmp/gh-aw/agent_output.json" ]; then
+            echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=Upstream agent job failure::The agent artifact is missing, so there is no agent output to process. The agent job did not complete and did not upload its artifact; check the agent job logs for the root cause."
+          fi
       - name: Download Safe Outputs Items Manifest
         id: download-safe-outputs-manifest
         if: always()
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: safe-outputs-items
+          pattern: safe-outputs-items
+          merge-multiple: true
           path: /tmp/gh-aw/
       - name: Collect usage artifact files
         if: always()
@@ -1380,7 +1386,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: agent
+          pattern: agent
+          merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
         id: setup-agent-output-env
@@ -1388,7 +1395,11 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
+          if [ -f "/tmp/gh-aw/agent_output.json" ]; then
+            echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=Upstream agent job failure::The agent artifact is missing, so there is no agent output to process. The agent job did not complete and did not upload its artifact; check the agent job logs for the root cause."
+          fi
       - name: Checkout repository for patch context
         if: needs.agent.outputs.has_patch == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1745,7 +1756,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: agent
+          pattern: agent
+          merge-multiple: true
           path: /tmp/gh-aw/
       - name: Setup agent output environment variable
         id: setup-agent-output-env
@@ -1753,7 +1765,11 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/
           find "/tmp/gh-aw/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
+          if [ -f "/tmp/gh-aw/agent_output.json" ]; then
+            echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=Upstream agent job failure::The agent artifact is missing, so there is no agent output to process. The agent job did not complete and did not upload its artifact; check the agent job logs for the root cause."
+          fi
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
         shell: bash

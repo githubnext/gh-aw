@@ -1414,7 +1414,7 @@ func TestConclusionJobIncludesEvalsInUsageArtifact(t *testing.T) {
 	if !strings.Contains(allSteps, "id: download-evals-artifact") {
 		t.Errorf("Expected evals artifact download step to have an id field.\nGenerated steps:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "name: evals") {
+	if !strings.Contains(allSteps, "pattern: evals") {
 		t.Errorf("Expected evals artifact download step to use the evals artifact name.\nGenerated steps:\n%s", allSteps)
 	}
 

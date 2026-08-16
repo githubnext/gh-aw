@@ -126,10 +126,8 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
-		"        with:\n",
-		fmt.Sprintf("          name: %s\n", safeOutputsItemsArtifactName),
-		"          path: /tmp/gh-aw/\n",
 	}
+	steps = append(steps, optionalArtifactDownloadInputs(safeOutputsItemsArtifactName, "/tmp/gh-aw/")...)
 	if hasEvals {
 		evalsArtifactName := prefix + constants.EvalsArtifactName
 		steps = append(steps,
@@ -138,10 +136,8 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 			"        if: always()\n",
 			"        continue-on-error: true\n",
 			fmt.Sprintf("        uses: %s\n", pinAction("actions/download-artifact")),
-			"        with:\n",
-			fmt.Sprintf("          name: %s\n", evalsArtifactName),
-			"          path: /tmp/gh-aw/evals/\n",
 		)
+		steps = append(steps, optionalArtifactDownloadInputs(evalsArtifactName, "/tmp/gh-aw/evals/")...)
 	}
 	steps = append(steps,
 		"      - name: Collect usage artifact files\n",

@@ -683,9 +683,9 @@ func (c *Compiler) buildPushExperimentsStateJob(data *WorkflowData) (*Job, error
 	downloadStep.WriteString("      - name: Download experiment artifact\n")
 	fmt.Fprintf(&downloadStep, "        uses: %s\n", c.getActionPin("actions/download-artifact"))
 	downloadStep.WriteString("        continue-on-error: true\n")
-	downloadStep.WriteString("        with:\n")
-	fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
-	fmt.Fprintf(&downloadStep, "          path: %s\n", experimentsCacheDir)
+	for _, line := range optionalArtifactDownloadInputs(artifactName, experimentsCacheDir) {
+		downloadStep.WriteString(line)
+	}
 	steps = append(steps, downloadStep.String())
 
 	// Push experiment state to the git branch via push_experiment_state.cjs.
