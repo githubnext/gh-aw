@@ -367,6 +367,26 @@ func TestDockerSbxEngineCLIWiring(t *testing.T) {
 		execContent := strings.Join(execSteps[0], "\n")
 		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
 	})
+
+	t.Run("pi execution uses sbx-visible CLI path even with firewall disabled", func(t *testing.T) {
+		// sandbox.agent.runtime: docker-sbx can be configured alongside an explicit
+		// network.firewall: false, which takes the non-AWF execution path. The
+		// staged CLI PATH export must still be present so the microVM can see `pi`.
+		nonFirewallWorkflowData := &WorkflowData{
+			Name:          "test-workflow",
+			EngineConfig:  &EngineConfig{ID: "pi"},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx, SudoExplicitlyEnabled: true}},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: false},
+			},
+		}
+
+		engine := NewPiEngine()
+		execSteps := engine.GetExecutionSteps(nonFirewallWorkflowData, "/tmp/gh-aw/test.log")
+		require.NotEmpty(t, execSteps)
+		execContent := strings.Join(execSteps[0], "\n")
+		assert.Contains(t, execContent, `export PATH="${RUNNER_TEMP}/gh-aw/engine-cli/bin:$PATH"`)
+	})
 }
 
 // flattenSteps joins a small slice of GitHubActionStep values so docker-sbx tests can

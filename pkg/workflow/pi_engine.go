@@ -402,6 +402,12 @@ func (e *PiEngine) buildPiExecutionCommand(workflowData *WorkflowData, logFile, 
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, profile.coreSecretNames),
 		})
 	}
+	// Even without AWF, a docker-sbx/cloud-hypervisor runtime can be configured
+	// (e.g. network.firewall: false paired with sandbox.agent.runtime: docker-sbx),
+	// so the staged CLI path must still be exported for the microVM to see `pi`.
+	if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {
+		piCommand = fmt.Sprintf("%s && %s", dockerSbxCLIPath, piCommand)
+	}
 	return fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
