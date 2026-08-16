@@ -430,7 +430,18 @@
       "avg_agent_duration_minutes": 99.3,
       "success_rate": 0.8947,
       "note": "rolling 24h window from 08-14 18:18Z; author app/copilot-swe-agent only; 3 of 41 PRs still open (all <24h old); success_rate over 38 completed; avg_duration created->merged; 3 human comments (issue+review) across 41 PRs via per-PR REST API (only #52837 had any, 3); success_rate up sharply 73.3%->89.5% (+16.2pp) vs 08-14; avg_duration down sharply 272->99.3min (-63.5%); none of the 4 closures were WIP placeholder text (all substantive: dependency-already-satisfied, MCP fail-fast, lint-param-refactor, Serena latest-tag superseded by #52923); no PRs open >24h; high volume of container/CVE remediation PRs (Serena, cli-proxy, gh-aw-mcpg, squid, github-mcp-server, grafana, api-proxy) reflecting active daily scan burn-down"
+    },
+    {
+      "date": "2026-08-16",
+      "total_prs": 91,
+      "merged_prs": 73,
+      "closed_prs": 15,
+      "open_prs": 3,
+      "avg_comments": 0.68,
+      "avg_agent_duration_minutes": 80.5,
+      "success_rate": 0.8295,
+      "note": "rolling 24h window from 08-15 18:17Z; author app/copilot-swe-agent only; 3 of 91 PRs still open (all <2.3h old); success_rate over 88 completed; avg_duration created->merged; 62 human issue comments across 91 PRs via per-PR REST API (34 PRs had >=1, top #53048 with 7); volume up sharply 41->91 (+122%); avg_duration down sharply 99.3->80.5min (-18.9%); success_rate roughly stable 89.5%->82.9% (-7.3%, within 10% threshold); 8 of 15 closures were [WIP] placeholder closures, other 7 had substantive bodies; no PRs open >24h"
     }
   ],
-  "last_updated": "2026-08-14"
+  "last_updated": "2026-08-16"
 }
