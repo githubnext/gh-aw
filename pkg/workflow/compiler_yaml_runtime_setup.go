@@ -323,7 +323,7 @@ func (c *Compiler) generateCommentMemoryEarlyConfigLines(data *WorkflowData) ([]
 	lines = append(lines, "      - name: Write comment-memory configuration\n")
 	lines = append(lines, "        run: |\n")
 	lines = append(lines, "          mkdir -p \"${RUNNER_TEMP}/gh-aw/safeoutputs\"\n")
-	lines = append(lines, fmt.Sprintf("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '%s'\n", delimiter))
+	lines = append(lines, fmt.Sprintf("          cat > \"${RUNNER_TEMP}/gh-aw/safeoutputs/config.json\" << '%s'\n", delimiter)) //nolint:generatedyamlheredoc // Early config rendering runs before the reusable JavaScript step is available.
 	// The 10-space YAML block-scalar indentation is stripped by the YAML parser before the
 	// shell script is executed, so the JSON content lands at column 0 inside the heredoc.
 	// This matches the pattern used by mcp_setup_generator.go for the full config write.

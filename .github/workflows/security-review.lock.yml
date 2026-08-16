@@ -651,14 +651,23 @@ jobs:
             echo "::error::Failed to find gh-aw binary for MCP server"
             exit 1
           fi
-      - name: Generate Safe Outputs Config
+      - name: Prepare Safe Outputs Directories
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_08323f214296a804_EOF'
-          {"create_check_run":{"max":1},"create_pull_request_review_comment":{"data_enabled":true,"data_schema":{"additionalProperties":false,"properties":{"confidence":{"type":"string"},"file":{"type":"string"},"finding_type":{"type":"string"},"severity":{"type":"string"}},"required":["confidence","file","finding_type","severity"],"type":"object"},"max":10,"side":"RIGHT"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"submit_pull_request_review":{"data_enabled":true,"data_schema":{"additionalProperties":false,"properties":{"confidence":{"type":"string"},"file":{"type":"string"},"finding_type":{"type":"string"},"severity":{"type":"string"}},"required":["confidence","file","finding_type","severity"],"type":"object"},"max":1}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_08323f214296a804_EOF
+      - name: Generate Safe Outputs Config
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
+          GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_check_run\":{\"max\":1},\"create_pull_request_review_comment\":{\"data_enabled\":true,\"data_schema\":{\"additionalProperties\":false,\"properties\":{\"confidence\":{\"type\":\"string\"},\"file\":{\"type\":\"string\"},\"finding_type\":{\"type\":\"string\"},\"severity\":{\"type\":\"string\"}},\"required\":[\"confidence\",\"file\",\"finding_type\",\"severity\"],\"type\":\"object\"},\"max\":10,\"side\":\"RIGHT\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"submit_pull_request_review\":{\"data_enabled\":true,\"data_schema\":{\"additionalProperties\":false,\"properties\":{\"confidence\":{\"type\":\"string\"},\"file\":{\"type\":\"string\"},\"finding_type\":{\"type\":\"string\"},\"severity\":{\"type\":\"string\"}},\"required\":[\"confidence\",\"file\",\"finding_type\",\"severity\"],\"type\":\"object\"},\"max\":1}}"
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/create_files.cjs');
+            await main();
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |

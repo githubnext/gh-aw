@@ -763,6 +763,7 @@ func buildEngineCommandScriptSetup(command string) string {
 		heredocDelimiter += "_X"
 	}
 
+	//nolint:generatedyamlheredoc // Legacy trusted engine-command rendering remains to be migrated to the JavaScript renderer.
 	return fmt.Sprintf(`mkdir -p /tmp/gh-aw
 GH_AW_PREV_UMASK="$(umask)"
 umask 0177

@@ -76,7 +76,8 @@ Test workflow
 		"Expected create_project_status_update in handler config")
 
 	// Verify max is set in the handler config
-	require.Contains(t, compiledStr, `"max":5`,
+	handlerConfig := extractHandlerConfig(t, compiledStr)
+	require.InDelta(t, 5, handlerConfig["create_project_status_update"]["max"], 0,
 		"Expected max:5 in create_project_status_update handler config")
 }
 

@@ -638,17 +638,25 @@ jobs:
             echo "::error::Failed to find gh-aw binary for MCP server"
             exit 1
           fi
-      - name: Generate Safe Outputs Config
-        env:
-          GITHUB_WORKFLOW: ${{ github.workflow }}
+      - name: Prepare Safe Outputs Directories
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/assets"
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_de225701775d259f_EOF'
-          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[api-consumption] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"false"},"report_incomplete":{},"upload_asset":{"allowed-exts":[".png",".jpg",".jpeg",".svg"],"branch":"assets/${GITHUB_WORKFLOW}","max":5,"max-size":10240}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_de225701775d259f_EOF
+      - name: Generate Safe Outputs Config
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
+          GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[api-consumption] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"upload_asset\":{\"allowed-exts\":[\".png\",\".jpg\",\".jpeg\",\".svg\"],\"branch\":\"assets/${GITHUB_WORKFLOW}\",\"max\":5,\"max-size\":10240}}"
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/create_files.cjs');
+            await main();
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |

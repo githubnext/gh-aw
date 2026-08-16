@@ -530,14 +530,23 @@ jobs:
 
       - name: Download container images
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.1@sha256:5e3f6ee27eeae07195838b97ac4aa2f8aea42a7c55f1c0d3e17d8e88e294ad0d ghcr.io/github/gh-aw-firewall/api-proxy:0.28.1@sha256:288e7d2a12d5b430500d739f9c16e20bb1ed51b91f986f3f3eccde189f489f5c ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.1@sha256:f931e5e1e13f765605d03ef9511fc755d779a51b76581ea14586e9871506a610 ghcr.io/github/gh-aw-firewall/squid:0.28.1@sha256:9d428af47899bf18ef2d5618075777d76ef344c91e76c1f44ec1aaa0ee347e5f ghcr.io/github/gh-aw-mcpg:v0.4.9@sha256:e5a1569aeaf41820fa7bdee3e94468cae448133cdbf00119ad24f5b74db1ab9f ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196 ghcr.io/github/github-mcp-server:v1.9.0@sha256:881b53d6f75f69bdbc1b5b10fc2f1361717c19054143b3a8529fb5c32061a50e
-      - name: Generate Safe Outputs Config
+      - name: Prepare Safe Outputs Directories
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_06821e5880a947a1_EOF'
-          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":24,"fallback_to_issue":true,"max":1,"title_prefix":"[Schema Consistency] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"false"},"report_incomplete":{}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_06821e5880a947a1_EOF
+      - name: Generate Safe Outputs Config
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
+          GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[Schema Consistency] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"false\"},\"report_incomplete\":{}}"
+        with:
+          script: |
+            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/create_files.cjs');
+            await main();
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -808,7 +817,7 @@ jobs:
           fi
           # shellcheck disable=SC1003,SC2016,SC2086
           awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"} --env-all --exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN --exclude-env ACTIONS_ID_TOKEN_REQUEST_URL --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GH_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_API_KEY --mount /tmp/gh-aw:/tmp/gh-aw:rw --log-level info --skip-pull --difc-proxy-host awmg-cli-proxy:18443 --difc-proxy-ca-cert /tmp/gh-aw/difc-proxy-tls/ca.crt \
-            -- /bin/bash -c 'set +o histexpand; export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && : "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true && cd "${GITHUB_WORKSPACE}" && mkdir -p /tmp/gh-aw/pi-agent-dir && printf '\''%s\n'\'' '\''{"providers":{"aw-gateway":{"api":"openai-completions","apiKey":"COPILOT_GITHUB_TOKEN","baseUrl":"http://api-proxy:10002","models":[{"id":"gpt-5.4"}]}}}'\'' > /tmp/gh-aw/pi-agent-dir/models.json && cat /tmp/gh-aw/aw-prompts/prompt.txt | pi --print --mode json --no-session --model aw-gateway/gpt-5.4 --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs" 2>&1 | tee /tmp/gh-aw/pi-streaming.jsonl' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c 'set +o histexpand; GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi; "$GH_AW_NODE_EXEC" ${RUNNER_TEMP}/gh-aw/actions/shell_harness.cjs pi '\''export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && : "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; export PATH="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\'\'''\''\n'\''\'\'''\'' '\''\'\'''\'':'\''\'\'''\'')$PATH"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true && cd "${GITHUB_WORKSPACE}" && mkdir -p /tmp/gh-aw/pi-agent-dir && printf '\''\'\'''\''%s\n'\''\'\'''\'' '\''\'\'''\''{"providers":{"aw-gateway":{"api":"openai-completions","apiKey":"COPILOT_GITHUB_TOKEN","baseUrl":"http://api-proxy:10002","models":[{"id":"gpt-5.4"}]}}}'\''\'\'''\'' > /tmp/gh-aw/pi-agent-dir/models.json && cat /tmp/gh-aw/aw-prompts/prompt.txt | pi --print --mode json --no-session --model aw-gateway/gpt-5.4 --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs" 2>&1 | tee /tmp/gh-aw/pi-streaming.jsonl'\''' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -817,6 +826,7 @@ jobs:
           GH_AW_PI_MODEL: copilot/gpt-5.4
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_TIMEOUT_MINUTES: 30
           GH_AW_VERSION: dev
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || github.token }}
           GITHUB_AW: true

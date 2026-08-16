@@ -31,7 +31,7 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 		fmt.Sprintf("          mkdir -p %q %q %q\n", constants.ShellMcpConfigDir, constants.TmpMcpConfigDir, constants.TmpMcpConfigLogsDir),
 		fmt.Sprintf("          printf '%%s\\n' %q > %q\n", emptyMCPServersJSON, constants.ShellMcpServersJsonPath),
 		"          # Point Codex at the AWF OpenAI proxy and disable websocket startup.\n",
-		fmt.Sprintf("          cat > %q << %s\n", shellCodexConfigPath, codexConfigDelimiter),
+		fmt.Sprintf("          cat > %q << %s\n", shellCodexConfigPath, codexConfigDelimiter), //nolint:generatedyamlheredoc // Legacy detector config rendering remains to be migrated.
 		codexConfig,
 		fmt.Sprintf("          %s\n", codexConfigDelimiter),
 		fmt.Sprintf("          cp %q %q\n", shellCodexConfigPath, codexHomeConfigPath),
