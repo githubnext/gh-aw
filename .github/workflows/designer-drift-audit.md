@@ -11,9 +11,6 @@ permissions:
   issues: read
   pull-requests: read # required by pull_requests
 
-sandbox:
-  agent:
-    sudo: false
 
 tools:
   github:

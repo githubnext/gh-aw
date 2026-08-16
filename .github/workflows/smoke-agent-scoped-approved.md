@@ -50,7 +50,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Guard Policy Smoke Test: scoped/approved (scoped patterns)

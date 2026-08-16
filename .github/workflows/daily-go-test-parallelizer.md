@@ -18,7 +18,6 @@ network:
 sandbox:
   agent:
     runtime: cloud-hypervisor
-    sudo: false
 tools:
   cache-memory:
     retention-days: 30

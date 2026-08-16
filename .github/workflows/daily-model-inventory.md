@@ -341,7 +341,6 @@ steps:
 sandbox:
   agent:
     id: awf
-    sudo: false
 tools:
   cli-proxy: true
   playwright:

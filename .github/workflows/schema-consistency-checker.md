@@ -284,9 +284,6 @@ pre-agent-steps:
           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$AWF_FETCH_FAILED_SOURCES"
         echo "AWF canonical source fetch failed; run marked degraded (non-fatal)"
       fi
-sandbox:
-  agent:
-    sudo: false
 ---
 
 # Schema Consistency Checker

@@ -50,7 +50,6 @@ features:
 sandbox:
   agent:
     runtime: gvisor
-    sudo: false
 evals:
   - id: alerts_analyzed
     question: Did the agent analyze code scanning alerts and identify at least one fixable alert, or correctly skip when no fixable alerts were found?

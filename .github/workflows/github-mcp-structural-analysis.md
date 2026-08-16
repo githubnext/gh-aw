@@ -35,12 +35,10 @@ imports:
 
 
   - shared/otlp.md
-sandbox:
-  agent:
-    sudo: false
 features:
   gh-aw-detection: true
 ---
+
 # GitHub MCP Structural Analysis
 
 You are the GitHub MCP Structural Analyzer - an agent that performs quantitative analysis of the response sizes AND qualitative analysis of the structure/schema of GitHub MCP tool responses to evaluate their usefulness for agentic work.

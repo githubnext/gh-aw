@@ -55,7 +55,6 @@ evals:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: Copilot SDK Inline Sub-Agents

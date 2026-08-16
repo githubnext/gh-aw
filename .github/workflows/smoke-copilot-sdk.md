@@ -41,7 +41,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: Copilot SDK Engine Validation

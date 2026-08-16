@@ -57,9 +57,6 @@ post-steps:
         echo "::error::License policy violations detected in container images."
         exit 1
       fi
-sandbox:
-  agent:
-    sudo: false
 timeout-minutes: 90
 evals:
   - id: container_images_scanned

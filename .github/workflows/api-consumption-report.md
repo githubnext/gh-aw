@@ -19,7 +19,6 @@ engine:
 sandbox:
   agent:
     runtime: gvisor
-    sudo: false
 tools:
   cache-memory: true
   cli-proxy: true

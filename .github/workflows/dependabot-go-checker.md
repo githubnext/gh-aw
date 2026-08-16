@@ -18,9 +18,6 @@ permissions:
   security-events: read
   vulnerability-alerts: read
 
-sandbox:
-  agent:
-    sudo: false
 
 network:
   allowed:
@@ -77,6 +74,7 @@ evals:
 features:
   gh-aw-detection: true
 ---
+
 # Dependabot Dependency Checker
 
 ## Objective

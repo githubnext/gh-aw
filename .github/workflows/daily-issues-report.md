@@ -21,7 +21,6 @@ tracker-id: daily-issues-report
 sandbox:
   agent:
     id: awf
-    sudo: false
 tools:
   cli-proxy: true
   github:

@@ -79,7 +79,6 @@ sandbox:
   agent:
     id: awf
     runtime: cloud-hypervisor
-    sudo: false
 ---
 
 # Smoke Test: Gemini Engine Validation

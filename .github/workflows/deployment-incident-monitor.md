@@ -34,9 +34,6 @@ safe-outputs:
   noop:
 timeout-minutes: 10
 
-sandbox:
-  agent:
-    sudo: false
 evals:
   - id: incident-or-noop
     question: Did the agent either create an incident issue or call noop?
