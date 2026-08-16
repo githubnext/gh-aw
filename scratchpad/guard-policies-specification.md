@@ -110,12 +110,13 @@ tools:
    - Extracts `allowed-repos` and `min-integrity` directly from GitHub tool config
    - Stores them as fields on `GitHubToolConfig`
    - Validates structure and types
+   - MUST complete before guard-policy validation in the same compiler pass. The compiler orchestration invariant is `ParseWorkflowFile()` → `setupWorkflowBuildContext()` / `processToolsAndMarkdown()` (frontmatter and tool parsing) → `validateWorkflowBuildContext()` / `validateWorkflowToolConfigurations()` (validation) in `pkg/workflow/compiler_orchestrator_workflow.go`.
 
 2. **Validation** (`tools_validation.go`):
    - Validates allowed-repos format (all/public or valid patterns)
    - Validates min-integrity level (none/unapproved/approved/merged)
    - Validates repository pattern syntax (lowercase, valid characters, wildcard placement)
-   - Called during workflow compilation
+   - MUST run after frontmatter parsing has populated `GitHubToolConfig` and before workflow compilation completes or emits a compiled workflow. A guard-policy validation error MUST abort the same compiler pass.
 
 3. **Compilation**:
    - Guard policy fields (allowed-repos, min-integrity) included in compiled GitHub tool configuration
@@ -465,7 +466,7 @@ Any value outside the four literals above MUST be rejected with a compilation er
 |---|---|---|---|---|
 | `AllowedRepos` | `allowed-repos` | `GitHubReposScope` | No | Repository access scope. Defaults to `"all"` when `min-integrity` is present. |
 | `Repos` | `repos` | `GitHubReposScope` | No | **Deprecated** alias for `allowed-repos`. |
-| `MinIntegrity` | `min-integrity` | `GitHubIntegrityLevel` | Conditionally | Required when `allowed-repos` is set to a non-`"all"` scope or to any explicit pattern array. |
+| `MinIntegrity` | `min-integrity` | `GitHubIntegrityLevel` | Conditionally | Required whenever `allowed-repos` is explicitly configured, including `allowed-repos: "all"`. |
 
 Implementations MUST ensure `AllowedRepos` and `Repos` are not both set simultaneously; if both are present, implementations SHOULD error or use `AllowedRepos` and warn.
 
@@ -505,7 +506,7 @@ A conforming implementation of the guard policies framework **MUST** satisfy all
 
 **GP-10**: When `lockdown: true` is set in the same workflow, implementations MUST treat `lockdown` as taking absolute precedence. Guard policy fields (`allowed-repos`, `min-integrity`) MUST NOT widen access beyond the single triggering repository when lockdown is active. The compiler SHOULD emit a warning when both `lockdown: true` and guard policy fields are present.
 
-**GP-11**: When `allowed-repos` is configured explicitly, implementations MUST require `min-integrity` to be present. In particular, any non-`"all"` `allowed-repos` scope MUST NOT be accepted without `min-integrity`, and implementations MAY enforce the same requirement for explicit `allowed-repos: "all"` for consistency with the general guard-policy validation rule.
+**GP-11**: When `allowed-repos` is configured explicitly, implementations MUST require `min-integrity` to be present. This requirement applies to every explicit repository scope, including `allowed-repos: "all"`, `allowed-repos: "public"`, the expression `"${{ github.repository }}"`, and explicit pattern arrays. Implementations MUST NOT accept any explicit `allowed-repos` value without `min-integrity`.
 
 ---
 
@@ -525,9 +526,9 @@ Implementations MUST emit a compilation warning when both `lockdown: true` and a
 
 ### GP-S003: Cross-Field Consistency
 
-When `allowed-repos` is set to an explicit pattern array or `"public"`, implementations MUST require `min-integrity` to also be present. Permitting a restricted repository scope without a minimum integrity level could allow low-integrity content to reach restricted repositories undetected.
+When `allowed-repos` is set to any explicit value, including `"all"`, `"public"`, `"${{ github.repository }}"`, or an explicit pattern array, implementations MUST require `min-integrity` to also be present. Permitting a repository scope without a minimum integrity level could allow low-integrity content to reach repositories undetected.
 
-Implementations MUST reject the combination `{ allowed-repos: <non-"all" scope>, min-integrity: (absent) }` with a compilation error that names both the missing field and the reason it is required.
+Implementations MUST reject the combination `{ allowed-repos: <any explicit scope>, min-integrity: (absent) }` with a compilation error that names both the missing field and the reason it is required.
 
 ### GP-S004: Legacy Field Isolation
 
@@ -555,7 +556,7 @@ This section maps normative sections of this specification to the implementation
 | GP-01, GP-03 pattern validation | Repository pattern format validation (exact, wildcard, prefix) | `pkg/workflow/tools_validation_github.go` (`validateReposScope`, `validateRepoPattern`, `isValidOwnerOrRepo`) |
 | GP-02 `min-integrity` validation | Enum value check for `none`/`unapproved`/`approved`/`merged` | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`) |
 | GP-04 empty array rejection | Empty `allowed-repos` array detection and error | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`) |
-| GP-11 cross-field consistency | `allowed-repos` non-`"all"` without `min-integrity` MUST fail validation | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`), `pkg/workflow/tools_validation_test.go` (`allowed-repos non-all without min-integrity fails`) |
+| GP-11 cross-field consistency | Any explicit `allowed-repos` value without `min-integrity` MUST fail validation, including `allowed-repos: "all"` | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`), `pkg/workflow/tools_validation_test.go` (`missing min-integrity field`, `allowed-repos non-all without min-integrity fails`) |
 | GP-10 lockdown precedence | Lockdown + guard-policy conflict detection and warning | `pkg/workflow/tools_validation_github.go` (`validateGitHubGuardPolicy`, `emitGitHubLockdownGuardPolicyWarning`) |
 
 ### Safe-Outputs Guard Policy Derivation

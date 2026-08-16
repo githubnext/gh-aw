@@ -36,3 +36,68 @@ Guard policies are only evaluated when lockdown is not active.`
 	assert.Contains(t, stderrOutput, specExampleMessage,
 		"the emitted warning must contain the exact §9.5.2 example message")
 }
+
+// TestHasGitHubLockdownGuardPolicyConflictDeprecatedReposField covers the
+// deprecated 'repos' alias branch directly on GitHubToolConfig, which the
+// frontmatter parser never populates because it normalizes 'repos' into
+// 'allowed-repos'.
+func TestHasGitHubLockdownGuardPolicyConflictDeprecatedReposField(t *testing.T) {
+	github := &GitHubToolConfig{Lockdown: true, Repos: "all"}
+	assert.True(t, hasGitHubGuardPolicyFields(github),
+		"deprecated 'repos' alias must count as a configured guard-policy field")
+	assert.True(t, hasGitHubLockdownGuardPolicyConflict(github),
+		"lockdown combined with deprecated 'repos' alias must be reported as a conflict")
+
+	tools := &Tools{GitHub: github}
+	compiler := NewCompiler()
+	stderrOutput := captureStderr(func() {
+		emitGitHubLockdownGuardPolicyWarning(compiler, tools, "test-workflow.md")
+	})
+
+	assert.Contains(t, stderrOutput, githubLockdownGuardPolicyWarningMessage)
+	assert.Equal(t, 1, compiler.GetWarningCount())
+}
+
+// TestValidateGitHubGuardPolicyNormalizesDeprecatedReposField verifies that
+// validation treats a struct-literal 'repos' value identically to
+// 'allowed-repos', including the min-integrity requirement.
+func TestValidateGitHubGuardPolicyNormalizesDeprecatedReposField(t *testing.T) {
+	tools := &Tools{GitHub: &GitHubToolConfig{Repos: "all"}}
+	err := validateGitHubGuardPolicy(tools, "test-workflow")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "'github.min-integrity' is required")
+
+	tools = &Tools{GitHub: &GitHubToolConfig{Repos: "not-a-valid-scope", MinIntegrity: GitHubIntegrityApproved}}
+	err = validateGitHubGuardPolicy(tools, "test-workflow")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "'github.allowed-repos' string must be")
+
+	tools = &Tools{GitHub: &GitHubToolConfig{Repos: "all", MinIntegrity: GitHubIntegrityApproved}}
+	require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
+	assert.Equal(t, GitHubReposScope("all"), tools.GitHub.AllowedRepos,
+		"deprecated 'repos' alias must be normalized into 'allowed-repos'")
+}
+
+// TestEmitGitHubLockdownGuardPolicyWarningWhenValidationFails verifies that the
+// lockdown warning is still emitted when guard-policy validation fails, so the
+// warning and error paths are not mutually exclusive.
+func TestEmitGitHubLockdownGuardPolicyWarningWhenValidationFails(t *testing.T) {
+	tools := NewTools(map[string]any{
+		"github": map[string]any{
+			"lockdown":      true,
+			"allowed-repos": "all",
+		},
+	})
+
+	err := validateGitHubGuardPolicy(tools, "test-workflow")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "'github.min-integrity' is required")
+
+	compiler := NewCompiler()
+	stderrOutput := captureStderr(func() {
+		emitGitHubLockdownGuardPolicyWarning(compiler, tools, "test-workflow.md")
+	})
+
+	assert.Contains(t, stderrOutput, githubLockdownGuardPolicyWarningMessage)
+	assert.Equal(t, 1, compiler.GetWarningCount())
+}

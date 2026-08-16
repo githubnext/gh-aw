@@ -265,30 +265,30 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "valid guard policy with repos=all",
+			name: "valid guard policy with allowed-repos=all",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         "all",
+					"allowed-repos": "all",
 					"min-integrity": "unapproved",
 				},
 			},
 			shouldError: false,
 		},
 		{
-			name: "valid guard policy with repos=public",
+			name: "valid guard policy with allowed-repos=public",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         "public",
+					"allowed-repos": "public",
 					"min-integrity": "approved",
 				},
 			},
 			shouldError: false,
 		},
 		{
-			name: "valid guard policy with repos array ([]any)",
+			name: "valid guard policy with allowed-repos array ([]any)",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         []any{"owner/repo", "owner/*"},
+					"allowed-repos": []any{"owner/repo", "owner/*"},
 					"min-integrity": "merged",
 				},
 			},
@@ -298,14 +298,14 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "valid guard policy with min-integrity=none",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         "all",
+					"allowed-repos": "all",
 					"min-integrity": "none",
 				},
 			},
 			shouldError: false,
 		},
 		{
-			name: "missing repos field defaults to all",
+			name: "missing allowed-repos field defaults to all",
 			toolsMap: map[string]any{
 				"github": map[string]any{
 					"min-integrity": "unapproved",
@@ -317,7 +317,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "missing min-integrity field",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos": "all",
+					"allowed-repos": "all",
 				},
 			},
 			shouldError: true,
@@ -327,7 +327,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			name: "invalid min-integrity value",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         "all",
+					"allowed-repos": "all",
 					"min-integrity": "superuser",
 				},
 			},
@@ -335,10 +335,10 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			errorMsg:    "'github.min-integrity' must be one of",
 		},
 		{
-			name: "invalid repos string value",
+			name: "invalid allowed-repos string value",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         "private",
+					"allowed-repos": "private",
 					"min-integrity": "unapproved",
 				},
 			},
@@ -356,10 +356,10 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "empty repos array",
+			name: "empty allowed-repos array",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         []any{},
+					"allowed-repos": []any{},
 					"min-integrity": "unapproved",
 				},
 			},
@@ -367,10 +367,10 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			errorMsg:    "'github.allowed-repos' array cannot be empty",
 		},
 		{
-			name: "repos array with uppercase pattern",
+			name: "allowed-repos array with uppercase pattern",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         []any{"Owner/repo"},
+					"allowed-repos": []any{"Owner/repo"},
 					"min-integrity": "unapproved",
 				},
 			},
@@ -378,10 +378,10 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			errorMsg:    "must be lowercase",
 		},
 		{
-			name: "repos array with invalid pattern format",
+			name: "allowed-repos array with invalid pattern format",
 			toolsMap: map[string]any{
 				"github": map[string]any{
-					"repos":         []any{"just-a-name"},
+					"allowed-repos": []any{"just-a-name"},
 					"min-integrity": "unapproved",
 				},
 			},
@@ -616,8 +616,10 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 
 func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 	tests := []struct {
-		name     string
-		toolsMap map[string]any
+		name        string
+		toolsMap    map[string]any
+		shouldError bool
+		errorMsg    string
 	}{
 		{
 			name: "allowed-repos and min-integrity",
@@ -628,6 +630,29 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"min-integrity": "approved",
 				},
 			},
+			shouldError: false,
+		},
+		{
+			name: "deprecated repos alias and min-integrity",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"lockdown":      true,
+					"repos":         "all",
+					"min-integrity": "approved",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "allowed-repos without min-integrity still fails under lockdown",
+			toolsMap: map[string]any{
+				"github": map[string]any{
+					"lockdown":      true,
+					"allowed-repos": "all",
+				},
+			},
+			shouldError: true,
+			errorMsg:    "'github.min-integrity' is required",
 		},
 		{
 			name: "blocked-users with min-integrity",
@@ -638,6 +663,7 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"blocked-users": []string{"spam-bot"},
 				},
 			},
+			shouldError: false,
 		},
 		{
 			name: "trusted-users with min-integrity",
@@ -648,6 +674,7 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"trusted-users": []any{"trusted-user"},
 				},
 			},
+			shouldError: false,
 		},
 		{
 			name: "approval-labels with min-integrity",
@@ -658,13 +685,22 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 					"approval-labels": []string{"human-reviewed"},
 				},
 			},
+			shouldError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tools := NewTools(tt.toolsMap)
-			require.NoError(t, validateGitHubGuardPolicy(tools, "test-workflow"))
+			err := validateGitHubGuardPolicy(tools, "test-workflow")
+			if tt.shouldError {
+				require.Error(t, err)
+				if tt.errorMsg != "" {
+					require.ErrorContains(t, err, tt.errorMsg)
+				}
+				return
+			}
+			require.NoError(t, err)
 
 			compiler := NewCompiler()
 			stderrOutput := captureStderr(func() {

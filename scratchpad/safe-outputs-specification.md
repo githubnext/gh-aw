@@ -390,6 +390,8 @@ This subsection formalizes the primary schema types referenced throughout this s
 
 The `SafeOutputRequest` entity represents a single validated NDJSON line written by the MCP server (§3.3.4) before it is consumed by an execution handler (§3.5).
 
+Norms cross-reference: this entity satisfies §2.4 by making each payload field's RFC 2119 requirement level explicit and by scoping those requirements to the Basic/Standard/Complete conformance classes that define the operation using the request.
+
 | Field | Type | Requirement | Description |
 |-------|------|-------------|--------------|
 | `type` | string | MUST | Normalized safe-output operation identifier (e.g. `create-issue`, `add-comment`) |
@@ -401,6 +403,8 @@ The `SafeOutputRequest` entity represents a single validated NDJSON line written
 
 The `GuardrailViolation` entity represents a rejected `SafeOutputRequest` that failed schema validation, max-count enforcement, sanitization, or target/cross-repository validation (§3.4).
 
+Norms cross-reference: this entity satisfies §2.4 by distinguishing mandatory diagnostic fields from optional field-specific context, so implementations can document any SHOULD-level deviations without weakening MUST-level rejection behavior.
+
 | Field | Type | Requirement | Description |
 |-------|------|-------------|--------------|
 | `code` | string | MUST | Error code from Appendix B (e.g. `E004`) |
@@ -411,6 +415,8 @@ The `GuardrailViolation` entity represents a rejected `SafeOutputRequest` that f
 #### 3.6.3 ExecutionResult
 
 The `ExecutionResult` entity represents the outcome of an execution handler (§3.5) processing a single `SafeOutputRequest`.
+
+Norms cross-reference: this entity satisfies §2.4 by marking status reporting as mandatory while keeping resource URLs and errors conditional on the operation outcome, avoiding conflicting requirements across conformance classes.
 
 | Field | Type | Requirement | Description |
 |-------|------|-------------|--------------|

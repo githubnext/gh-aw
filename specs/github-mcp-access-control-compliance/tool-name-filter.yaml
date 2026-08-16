@@ -21,7 +21,7 @@ scenarios:
     description: "Tool 'issue_read' is allowed when allowed-tools contains 'issue_read'"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         allowed-tools:
           - "issue_read"
@@ -41,7 +41,7 @@ scenarios:
     description: "Tool 'delete_repository' is denied when not in allowed-tools"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         allowed-tools:
           - "issue_read"
@@ -61,7 +61,7 @@ scenarios:
     description: "Any tool name is permitted when allowed-tools is not configured"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         # no allowed-tools field
         min-integrity: "unapproved"
