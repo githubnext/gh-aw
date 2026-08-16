@@ -1,7 +1,7 @@
 # ADR-53221: Extract Shared resourcetracker Framework for Deferred-Cleanup Linters
 
 **Date**: 2026-08-16
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -44,7 +44,3 @@ Extract a non-generic package using `interface{}` or `any` as the key type, with
 - Existing `testdata` directories for all three linters are unchanged; the `analysistest` suites act as behavior-preservation checks.
 - The `resourcetracker` package itself gains its own `analysistest` suite covering the shared scenarios (manual cleanup, deferred cleanup, closure isolation, reassignment, shadowing, and `//nolint` suppression).
 - `manualmutexunlock` retains its composite `mutexKey{base, field}` by instantiating the framework at that key type, so `a.mu` and `b.mu` remain independently tracked without special-casing.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

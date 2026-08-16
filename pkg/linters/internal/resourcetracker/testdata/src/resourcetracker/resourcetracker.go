@@ -16,6 +16,18 @@ func DeferredRelease() {
 	defer r.Release()
 }
 
+func AcquiredAndLeaked() {
+	r := acquire()
+	_ = r
+}
+
+func WrapperClosureDeferredRelease() {
+	r := acquire()
+	defer func() {
+		r.Release()
+	}()
+}
+
 func ReleaseResultAssigned() {
 	r := acquire() // want `resource should be released with defer`
 	err := r.Release()

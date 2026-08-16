@@ -131,8 +131,8 @@ func (c Config[K]) inspectNode(pass *analysis.Pass, noLintIndex nolint.Directive
 		return false
 	}
 
-	// Do not descend into function literals — closures are independent
-	// execution contexts and are analyzed separately to avoid false positives.
+	// Do not descend into function literals — closures are intentionally outside
+	// the current function-body analysis to avoid false positives.
 	if _, ok := node.(*ast.FuncLit); ok {
 		return false
 	}
