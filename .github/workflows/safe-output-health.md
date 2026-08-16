@@ -20,6 +20,7 @@ engine:
   mcp:
     tool-timeout: 10m
 max-ai-credits: 1500
+max-turns: 200
 tools:
   cli-proxy: true
 timeout-minutes: 30
