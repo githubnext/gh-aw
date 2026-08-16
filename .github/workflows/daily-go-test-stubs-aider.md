@@ -37,6 +37,8 @@ imports:
   - shared/aider.md
   - shared/otlp.md
   - shared/reporting.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Go Test Stubs — Aider

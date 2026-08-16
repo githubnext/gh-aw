@@ -307,6 +307,8 @@ evals:
     question: Were recommendations produced for new workflows, tools, shared prompts, or other automations?
 imports:
   - shared/reporting.md
+features:
+  gh-aw-detection: true
 ---
 
 # Copilot Centralization Optimizer

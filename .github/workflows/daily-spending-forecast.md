@@ -98,6 +98,8 @@ evals:
     question: Did the agent analyze the agentic workflow spending forecast and its data quality?
   - id: forecast_report_created
     question: Did the agent create a report with spending projections and supporting evidence?
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Spending Forecast

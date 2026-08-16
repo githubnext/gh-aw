@@ -150,6 +150,8 @@ evals:
     question: Did the agent download the prepared VulnHunter bundle artifact, load the vulnhunt skill instructions, and scan the pre-ranked candidate files?
   - id: issue_created_or_noop
     question: Was a security issue created for verified exploitable findings, or was noop used when VulnHunter found nothing actionable?
+features:
+  gh-aw-detection: true
 ---
 
 # Daily VulnHunter Scan

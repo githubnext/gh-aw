@@ -46,6 +46,8 @@ evals:
     question: Did the agent create a pull request for a safe test change, or use noop when no safe change was available?
 imports:
   - shared/reporting.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Go Test Parallelizer
