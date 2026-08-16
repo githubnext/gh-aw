@@ -694,9 +694,8 @@ func TestValidateGitHubGuardPolicyLockdownWarning(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err)
 				return
-			} else {
-				require.NoError(t, err)
 			}
+			require.NoError(t, err)
 
 			compiler := NewCompiler()
 			stderrOutput := captureStderr(func() {
