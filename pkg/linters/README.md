@@ -164,7 +164,7 @@ environment variable and gates findings on the recorded execution hit count for 
 | `walkfuncerrshadow` | Custom `go/analysis` analyzer that flags `filepath.Walk`/`filepath.WalkDir` callbacks whose `err` parameter shadows an outer `err` variable assigned from the walk call |
 | `wgdonenotdeferred` | Custom `go/analysis` analyzer that flags non-deferred `sync.WaitGroup.Done()` calls |
 | `writebytestring` | Custom `go/analysis` analyzer that flags `w.Write([]byte(s))` calls where `s` is a string that can be replaced with `io.WriteString` |
-| `internal` | Shared helper subpackages used by analyzers (`internal/filecheck`, `internal/nolint`) |
+| `internal` | Shared helper subpackages used by analyzers (`internal/filecheck`, `internal/nolint`, `internal/resourcetracker`) |
 
 ### Namespace exports
 
@@ -304,6 +304,7 @@ _ = trimleftright.Analyzer
 **Transitive / Internal helpers**:
 - `github.com/github/gh-aw/pkg/linters/internal/filecheck` — shared file-path filtering helpers used by multiple analyzers
 - `github.com/github/gh-aw/pkg/linters/internal/nolint` — shared `//nolint` directive parsing helpers used by multiple analyzers
+- `github.com/github/gh-aw/pkg/linters/internal/resourcetracker` — shared deferred-cleanup state machine used by analyzers that flag manual resource cleanup
 
 **External**:
 - `golang.org/x/tools/go/analysis` — analyzer framework

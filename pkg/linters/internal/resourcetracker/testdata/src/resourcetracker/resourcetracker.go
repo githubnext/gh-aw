@@ -27,6 +27,7 @@ func ClosureBodyNotTracked() {
 	defer r.Release()
 
 	fn := func() {
+		// Closure bodies are independent execution contexts; no diagnostic expected.
 		inner := acquire()
 		inner.Release()
 	}
