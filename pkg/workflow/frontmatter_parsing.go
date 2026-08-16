@@ -98,6 +98,11 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	if rawSkills, ok := frontmatter["skills"].([]any); ok {
 		config.SkillReferences = parseRawSkillReferences(rawSkills)
 	}
+	if ambientFolders, err := extractAmbientFolders(frontmatter); err != nil {
+		return nil, err
+	} else if ambientFolders != nil {
+		config.AmbientFolders = ambientFolders
+	}
 	if appRaw, ok := frontmatter["github-app"].(map[string]any); ok {
 		config.GitHubApp = parseAppConfig(appRaw)
 	}

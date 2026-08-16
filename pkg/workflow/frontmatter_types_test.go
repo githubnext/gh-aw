@@ -107,6 +107,10 @@ func TestParseFrontmatterConfig(t *testing.T) {
 
 		require.Equal(t, []string{"docs", "src/lib"}, config.AmbientFolders)
 		require.Equal(t, []string{"docs", "src/lib"}, config.ToMap()["ambient-folders"])
+
+		roundTripped, err := ParseFrontmatterConfig(config.ToMap())
+		require.NoError(t, err)
+		require.Equal(t, config.AmbientFolders, roundTripped.AmbientFolders)
 	})
 
 	t.Run("parses top-level github-app", func(t *testing.T) {
