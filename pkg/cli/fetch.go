@@ -12,7 +12,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -273,8 +272,7 @@ func isTransientSHAResolutionError(err error) bool {
 	}
 
 	errorText := strings.ToLower(err.Error())
-	if errorutil.IsRateLimitError(errorText) ||
-		strings.Contains(errorText, "http 429") ||
+	if strings.Contains(errorText, "http 429") ||
 		strings.Contains(errorText, "rate limit") ||
 		strings.Contains(errorText, "timeout") ||
 		strings.Contains(errorText, "timed out") ||

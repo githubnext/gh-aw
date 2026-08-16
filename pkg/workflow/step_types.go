@@ -236,14 +236,16 @@ func StepsToSlice(steps []*WorkflowStep) []any {
 
 // marshalEnvValue serializes a non-string env var value to a string suitable
 // for use in a GitHub Actions step env block.
-// Arrays and maps are serialized as JSON (e.g. ["a","b"]) so that shell
-// consumers such as `jq --argjson` receive valid JSON.
-// Typed slices produced by goccy/go-yaml (e.g. []string instead of []any)
-// are normalized via reflection before marshaling.
-// Scalar values (int, bool, float64, etc.) fall back to fmt.Sprint.
+// Arrays and maps are serialized as JSON (e.g. ["a","b"]) via
+// importinpututil.FormatResolvedValue so import substitutions and env
+// serialization stay aligned. Scalar values (int, bool, float64, etc.)
+// fall back to fmt.Sprint.
 func marshalEnvValue(v any) string {
 	if s, ok := importinpututil.FormatResolvedValue(v); ok {
 		return s
 	}
-	return ""
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprint(v)
 }

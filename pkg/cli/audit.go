@@ -303,6 +303,7 @@ func isPermissionErrorStr(s string) bool {
 	}
 	lower := strings.ToLower(s)
 	return strings.Contains(lower, "exit status 4") ||
+		strings.Contains(lower, "permission") ||
 		strings.Contains(lower, "gh auth login") ||
 		strings.Contains(lower, "to use github cli in a github actions workflow")
 }

@@ -64,7 +64,6 @@ func IsGoneError(err error) bool {
 // The check is case-insensitive and matches known API phrases.
 func IsRateLimitError(output string) bool {
 	matched := containsSubstring(output,
-		"api rate limit exceeded",
 		"rate limit exceeded",
 		"secondary rate limit",
 	)
