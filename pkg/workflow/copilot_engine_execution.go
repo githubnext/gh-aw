@@ -433,10 +433,11 @@ func (e *CopilotEngine) buildCopilotSDKCommand(workflowData *WorkflowData, execP
 	// copilot_sdk_driver.cjs is a self-contained program started by the harness like any other command.
 	// GH_AW_COPILOT_SDK_SERVER_ARGS carries the JSON-encoded CLI argument list for the headless
 	// Copilot CLI sidecar, and the driver appends --add-dir $GITHUB_WORKSPACE automatically.
-	serverArgsPrefix := []string{"--headless", "--no-auto-update", "--port", strconv.Itoa(constants.DefaultCopilotSDKPort)}
+	serverArgsPrefix := []string{"--headless", "--no-auto-update"}
 	if isCloudHypervisorRuntime(workflowData) {
-		serverArgsPrefix = []string{"--headless", "--no-auto-update", "--host", "0.0.0.0", "--port", strconv.Itoa(constants.DefaultCopilotSDKPort)}
+		serverArgsPrefix = append(serverArgsPrefix, "--host", "0.0.0.0")
 	}
+	serverArgsPrefix = append(serverArgsPrefix, "--port", strconv.Itoa(constants.DefaultCopilotSDKPort))
 	serverArgs := append(serverArgsPrefix, copilotArgs...)
 	serverArgsJSON, err := json.Marshal(serverArgs)
 	if err != nil {
