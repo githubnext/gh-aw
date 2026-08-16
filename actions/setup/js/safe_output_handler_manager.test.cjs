@@ -313,6 +313,23 @@ describe("Safe Output Handler Manager", () => {
         { type: "dismiss_pull_request_review", success: false, error: "wrong actor" },
       ]);
     });
+
+    it("does not treat a resolve_pull_request_review_thread result marked skipped as a fatal failure", () => {
+      const results = [
+        { type: "resolve_pull_request_review_thread", success: false, skipped: true, error: "Repository 'other-owner/other-repo' is not in the allowed-repos list. Allowed: github/gh-aw" },
+        { type: "create_issue", success: false, error: "Validation failed" },
+      ];
+      const { fatalFailures, reportOnlyFailures } = partitionFailureResults(results);
+
+      expect(reportOnlyFailures).toEqual([]);
+      expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+
+      // The skipped result is neither a fatal nor a report-only failure; it is counted
+      // as a skip in the overall item status instead of being silently dropped.
+      const status = computeSafeOutputsStatus(results);
+      expect(status.itemsSkipped).toBe(1);
+      expect(status.itemsFailed).toBe(1);
+    });
   });
 
   describe("loadHandlers", () => {

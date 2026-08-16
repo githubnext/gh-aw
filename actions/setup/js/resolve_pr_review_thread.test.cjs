@@ -592,11 +592,13 @@ describe("resolve_pr_review_thread", () => {
     expect(result.error).toContain("Unable to determine repository");
   });
 
-  it("should fail in legacy mode when schedule-triggered and thread belongs to a different repo", async () => {
+  it("should skip (not fail fatally) in legacy mode when schedule-triggered and thread belongs to a different repo", async () => {
     // Simulate a schedule-triggered workflow (no pull_request in payload)
     global.context.payload = {};
 
-    // Thread belongs to a different repo, not the default context repo
+    // Thread belongs to a different repo, not the default context repo. In legacy mode this is
+    // treated as a stale/mistaken thread_id (e.g. a hallucinated GraphQL node ID) rather than a
+    // genuine cross-repo access attempt, so it should be skipped instead of failing the whole job.
     mockGraphqlForThread(10, "other-owner/other-repo");
 
     const { main } = require("./resolve_pr_review_thread.cjs");
@@ -610,6 +612,7 @@ describe("resolve_pr_review_thread", () => {
     const result = await freshHandler(message, {});
 
     expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
     expect(result.error).toContain("other-owner/other-repo");
   });
 
