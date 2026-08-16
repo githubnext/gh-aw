@@ -15,9 +15,9 @@ permissions:
 
 engine: claude
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: "remote"
+    mode: mcp-remote
     toolsets: [all]
   cache-memory: true
   edit:
@@ -51,7 +51,7 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
 
 - **Repository**: ${{ github.repository }}
 - **Report Date**: Today's date
-- **MCP Server**: GitHub MCP Remote (mode: remote, toolsets: all)
+- **MCP Server**: GitHub MCP Remote (mode: mcp-remote, toolsets: all)
 
 ## Report Generation Process
 

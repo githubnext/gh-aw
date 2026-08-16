@@ -201,7 +201,26 @@ func TestCloudHypervisorValidationRequiresPreviewVersion(t *testing.T) {
 	require.ErrorContains(t, err, string(constants.AWFCloudHypervisorMinVersion))
 }
 
-func TestCloudHypervisorValidationRejectsGHProxy(t *testing.T) {
+func TestCloudHypervisorValidationRejectsCLI(t *testing.T) {
+	workflowData := &WorkflowData{
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
+			ID:      "awf",
+			Runtime: AgentRuntimeCloudHypervisor,
+			Version: string(constants.AWFCloudHypervisorMinVersion),
+		}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
+		},
+		Tools: map[string]any{"github": map[string]any{"mode": "cli"}},
+	}
+
+	err := validateSandboxConfig(workflowData)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "cli")
+	require.ErrorContains(t, err, "cloud-hypervisor")
+}
+
+func TestCloudHypervisorValidationRejectsLegacyGHProxy(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
 			ID:      "awf",
@@ -216,7 +235,6 @@ func TestCloudHypervisorValidationRejectsGHProxy(t *testing.T) {
 
 	err := validateSandboxConfig(workflowData)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "gh-proxy")
 	require.ErrorContains(t, err, "cloud-hypervisor")
 }
 

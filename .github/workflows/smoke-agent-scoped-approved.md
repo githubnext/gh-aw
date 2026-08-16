@@ -25,7 +25,7 @@ imports:
   - shared/reporting.md
 tools:
   github:
-    mode: local
+    mode: mcp-local
     allowed-repos:
       - "github/gh-aw"
       - "github/*"

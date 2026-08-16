@@ -18,7 +18,7 @@ permissions:
 
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
     toolsets: [default]
   web-fetch:

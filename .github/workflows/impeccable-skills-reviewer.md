@@ -32,9 +32,9 @@ imports:
   - shared/otlp.md
   - shared/pr-diff-data-fetch.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
 cache:
   key: pr-prefetch-${{ github.event.pull_request.head.sha }}
   path: /tmp/gh-aw/agent

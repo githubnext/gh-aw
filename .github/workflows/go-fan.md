@@ -41,10 +41,10 @@ tools:
   - find scratchpad/mods/ -maxdepth 1 -ls
   - cat scratchpad/mods/*
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: go-fan-daily

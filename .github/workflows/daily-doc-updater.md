@@ -61,11 +61,11 @@ tools:
   bash:
   - "*"
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
     min-integrity: approved
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: daily-doc-updater

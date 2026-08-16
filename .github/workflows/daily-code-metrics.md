@@ -20,9 +20,9 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   repo-memory:
     branch-prefix: daily
     description: "Historical code quality and health metrics"

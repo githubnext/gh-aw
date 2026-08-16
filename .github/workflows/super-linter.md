@@ -99,7 +99,7 @@ steps:
       name: super-linter-log
       path: /tmp/gh-aw/agent/
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   edit:
   bash:

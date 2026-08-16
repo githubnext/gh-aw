@@ -37,7 +37,7 @@ safe-outputs:
     group: true
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
     toolsets: [default, dependabot]
   web-fetch:

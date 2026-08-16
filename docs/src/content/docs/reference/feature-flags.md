@@ -64,7 +64,7 @@ Debug workflow using script mode for custom actions.
 Copilot offline Bring Your Own Key (BYOK) behavior is now the default for `engine: copilot`, bundling four behaviors:
 
 1. Injecting a dummy `COPILOT_API_KEY` to trigger the AWF BYOK runtime path.
-2. Implicitly enabling `cli-proxy`.
+2. Implicitly enabling `cli` GitHub access mode (`tools.github.mode: cli`).
 3. Forcing the Copilot CLI to install at `latest` (ignoring any pinned `engine.version`).
 4. Setting `COPILOT_MODEL` to `${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'default' }}` — Copilot BYOK providers require a non-empty model, so the compiler provides the `default` sentinel as the fallback when `GH_AW_MODEL_AGENT_COPILOT` is not set.
 
@@ -100,7 +100,7 @@ features:
   integrity-reactions: true
 ```
 
-When set, the compiler automatically enables the CLI proxy (required to identify reaction authors) and injects default endorsement and disapproval reaction configuration. Only the `features.integrity-reactions` flag is required — the reaction fields under `tools.github` (`endorsement-reactions`, `disapproval-reactions`, `endorser-min-integrity`, `disapproval-integrity`) are optional overrides.
+When set, the compiler automatically enables CLI GitHub access mode (required to identify reaction authors) and injects default endorsement and disapproval reaction configuration. Only the `features.integrity-reactions` flag is required — the reaction fields under `tools.github` (`endorsement-reactions`, `disapproval-reactions`, `endorser-min-integrity`, `disapproval-integrity`) are optional overrides.
 
 See [Promoting and demoting items via reactions](/gh-aw/reference/integrity/#promoting-and-demoting-items-via-reactions) in the Integrity Filtering Reference for complete configuration details.
 

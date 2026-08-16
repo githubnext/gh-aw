@@ -34,7 +34,7 @@ safe-outputs:
     expires: 1d
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
     toolsets: [default]
   edit:

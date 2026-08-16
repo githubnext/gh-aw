@@ -21,9 +21,9 @@ engine:
 max-ai-credits: 1500
 max-daily-ai-credits: 10000
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, actions, issues]
 timeout-minutes: 30
 strict: true

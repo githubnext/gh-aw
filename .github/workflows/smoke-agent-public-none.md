@@ -26,7 +26,7 @@ strict: true
 tools:
   bash: false
   github:
-    mode: local
+    mode: mcp-local
     allowed-repos: "public"
     min-integrity: none
 network:

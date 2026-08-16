@@ -342,7 +342,7 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   playwright:
     mode: cli
   bash:

@@ -26,7 +26,7 @@ network:
 tools:
   cache-memory: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [issues]
   edit:
 safe-outputs:

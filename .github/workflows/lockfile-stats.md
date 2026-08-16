@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
 engine: claude
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   bash: true
 timeout-minutes: 15

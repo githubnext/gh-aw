@@ -114,7 +114,7 @@ engine:
   api-target: api.acme.ghe.com
 tools:
   github:
-    mode: remote
+    mode: mcp-remote
     toolsets: [default]
 network:
   allowed:
@@ -223,7 +223,7 @@ In GitHub Actions workflow runs:
 **Solutions:**
 1. Ensure your GHEC/GHES domain is in `network.allowed`
 2. Verify the GitHub token has appropriate scopes for your enterprise tenant
-3. Use `mode: remote` for the GitHub MCP server when on GHEC/GHES
+3. Use `mode: mcp-remote` for the GitHub MCP server when on GHEC/GHES
 
 ## GHES Artifact Compatibility
 

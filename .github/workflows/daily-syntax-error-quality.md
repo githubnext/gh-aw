@@ -27,7 +27,7 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: true
 safe-outputs:
   create-issue:

@@ -14,11 +14,11 @@ engine:
   id: pi
 max-ai-credits: 1500
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   bash: ["*"]
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, discussions]
   cache-memory:
     key: schema-consistency-cache-${{ github.workflow }}

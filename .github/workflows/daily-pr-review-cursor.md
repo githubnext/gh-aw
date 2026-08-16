@@ -23,7 +23,7 @@ network:
     - github
 tools:
   github:
-    mode: local
+    mode: mcp-local
     toolsets: [repos, pull_requests]
   bash:
     - cat

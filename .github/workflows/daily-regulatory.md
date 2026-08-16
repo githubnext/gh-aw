@@ -17,7 +17,7 @@ strict: true
 tracker-id: daily-regulatory
 max-ai-credits: 1000
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
     toolsets: [default, discussions]
   bash:

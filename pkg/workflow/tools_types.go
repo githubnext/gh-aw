@@ -84,13 +84,23 @@ type ToolsConfig struct {
 	// Custom MCP tools (anything not in the above list)
 	Custom map[string]MCPServerConfig `yaml:",inline"`
 
+	// MCPMode selects how user-facing MCP servers are surfaced to the agent.
+	// It is the public tools.mcp-mode selector:
+	//   - "cli"             each user-facing MCP server is mounted as a standalone
+	//                       CLI tool on PATH (token-efficient shell invocation).
+	//   - "default"/""/"mcp" normal MCP behavior (servers exposed via the MCP protocol).
+	// The parser derives CLIProxy from this value; "cli" sets CLIProxy true.
+	MCPMode string `yaml:"mcp-mode,omitempty"`
+
 	// CLIProxy enables mounting MCP servers as standalone CLI tools on PATH.
 	// When true, each user-facing MCP server gets a bash wrapper script placed in
 	// a read-only directory added to PATH. The servers remain in the MCP gateway
 	// config, but are filtered out of the agent's final MCP config so the agent
 	// uses the CLI instead of the MCP protocol.
+	// Derived from tools.mcp-mode: cli. The legacy tools.cli-proxy: true boolean is
+	// still accepted (and migrated by `gh aw fix`).
 	// Default is false.
-	CLIProxy bool `yaml:"cli-proxy,omitempty"`
+	CLIProxy bool `yaml:"-"`
 
 	// Raw map for backwards compatibility
 	raw map[string]any
@@ -273,14 +283,24 @@ func (g GitHubToolsets) ToStringSlice() []string {
 type GitHubMCPMode string
 
 const (
-	// GitHubMCPModeLocal runs the GitHub MCP server as a Docker container on the runner.
+	// GitHubMCPModeLocal is the legacy MCP transport value for a local Docker
+	// GitHub MCP server. The homogeneous author-facing spelling is "mcp-local".
 	GitHubMCPModeLocal GitHubMCPMode = "local"
-	// GitHubMCPModeRemote connects to the hosted GitHub MCP service.
+	// GitHubMCPModeRemote is the legacy MCP transport value for the hosted GitHub
+	// MCP service. The homogeneous author-facing spelling is "mcp-remote".
 	GitHubMCPModeRemote GitHubMCPMode = "remote"
-	// GitHubMCPModeGHProxy routes GitHub operations through the gh CLI proxy.
-	GitHubMCPModeGHProxy GitHubMCPMode = "gh-proxy"
-	// GitHubMCPModeCLI is a legacy alias for GitHubMCPModeGHProxy.
+	// GitHubMCPModeMCPLocal is the homogeneous author-facing value for a local
+	// Docker GitHub MCP server.
+	GitHubMCPModeMCPLocal GitHubMCPMode = "mcp-local"
+	// GitHubMCPModeMCPRemote is the homogeneous author-facing value for the hosted
+	// GitHub MCP service.
+	GitHubMCPModeMCPRemote GitHubMCPMode = "mcp-remote"
+	// GitHubMCPModeCLI reaches GitHub through the pre-authenticated gh CLI protected
+	// by the host policy proxy (no GitHub MCP server is registered).
 	GitHubMCPModeCLI GitHubMCPMode = "cli"
+	// GitHubMCPModeGHProxy is the deprecated spelling of GitHubMCPModeCLI. It is
+	// still accepted and normalized to "cli"; the `gh aw fix` codemod migrates it.
+	GitHubMCPModeGHProxy GitHubMCPMode = "gh-proxy"
 )
 
 // GitHubIntegrityLevel represents the minimum integrity level required for repository access

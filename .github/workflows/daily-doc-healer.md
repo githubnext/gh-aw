@@ -67,10 +67,10 @@ tools:
   - git show:*
   - grep:*
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: daily-doc-healer

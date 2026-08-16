@@ -180,12 +180,12 @@ timeout-minutes: 480     # long-running; calibrate to expected depth
 max-ai-credits: 5000     # set based on expected sub-agent fan-out
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
   cache-memory:
     key: research-state-${{ github.run_id }}
     retention-days: 30
     allowed-extensions: [".json", ".md"]
-  cli-proxy: true
+  mcp-mode: cli
   bash: ["cat *", "ls *"]
 safe-outputs:
   create-issue:

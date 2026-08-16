@@ -62,9 +62,9 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, repos]
   edit:
   bash:

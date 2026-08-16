@@ -49,14 +49,14 @@ tools:
   bash:
     - "*"
   github:
-    mode: gh-proxy
+    mode: cli
     min-integrity: approved
     trusted-users:
       - pelikhan
   playwright:
     mode: cli
   web-fetch:
-  cli-proxy: true
+  mcp-mode: cli
 lsp:
   typescript:
     command: typescript-language-server
@@ -197,7 +197,7 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
 
 Run these checks and mark each as ✅/❌:
 
-1. `github` tool (configured with `mode: gh-proxy`): review 2 merged PRs in `${{ github.repository }}`.
+1. `github` tool (configured with `mode: cli`): review 2 merged PRs in `${{ github.repository }}`.
 2. `mcpscripts-gh`: query 2 PRs using `pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`.
 3. Serena CLI (bash only): run `serena activate_project --path ${{ github.workspace }}`, then `serena find_symbol --name_path <symbol>` and confirm at least 3 symbols.
 4. Playwright CLI (bash only): run `playwright-cli open https://github.com` then `playwright-cli screenshot`; confirm successful GitHub navigation.

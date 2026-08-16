@@ -15,9 +15,9 @@ model: gpt-4.1
 engine:
   id: copilot
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: remote
+    mode: mcp-remote
     toolsets: [repos, issues, discussions]
     allowed: [get_repository, list_issues, issue_read]
 timeout-minutes: 5
@@ -108,7 +108,7 @@ If the test fails, create a discussion using safe-outputs based on the failure t
   ```yaml
   tools:
     github:
-      mode: remote
+      mode: mcp-remote
       toolsets: [repos, issues, discussions]
       allowed: [get_repository, list_issues, issue_read]
   ```
@@ -117,7 +117,7 @@ If the test fails, create a discussion using safe-outputs based on the failure t
   1. **Verify MCP server initialization**: Check if GitHub MCP server is starting properly
   2. **Check remote mode availability**: Verify https://api.githubcopilot.com/mcp/ is accessible
   3. **Review runner logs**: Look for MCP server startup errors or tool loading failures
-  4. **Consider local mode fallback**: Add fallback configuration to use `mode: local` if remote fails
+  4. **Consider local mode fallback**: Add fallback configuration to use `mode: mcp-local` if remote fails
   5. **Test manually**: Run `gh aw mcp inspect github-remote-mcp-auth-test` locally to verify tool configuration
   
   ### Test Configuration

@@ -1,5 +1,5 @@
 ---
-description: Guide for reducing token consumption in agentic workflows — DataOps, gh-proxy, inline sub-agents, caveman experiments, and audit-based measurement.
+description: Guide for reducing token consumption in agentic workflows — DataOps, cli mode, inline sub-agents, caveman experiments, and audit-based measurement.
 ---
 
 # Token Consumption Optimization
@@ -13,8 +13,8 @@ Apply these in order, measuring cost and quality after each change:
 - [ ] **Cheap triage first**: classify duplicates, stale items, low-value events, and known cases before escalating
 - [ ] **Frontier model as planner**: use frontier models for planning, synthesis, ambiguous decisions, and final judgment — not bulk extraction
 - [ ] **DataOps**: Move data fetching into `steps:` — agent reads compact JSON, not raw API responses
-- [ ] **gh-proxy**: Set `tools.github.mode: gh-proxy` — skips Docker MCP server startup and extra tool definitions
-- [ ] **cli-proxy**: Mount additional MCP servers as CLIs via `cli-proxy: true` — agent pipes output through `jq` before it enters context
+- [ ] **GitHub CLI mode**: Set `tools.github.mode: cli` — skips Docker MCP server startup and extra tool definitions
+- [ ] **MCP CLI mode**: Mount additional MCP servers as CLIs via `tools.mcp-mode: cli` — agent pipes output through `jq` before it enters context
 - [ ] **Sub-agents**: Delegate repetitive per-item tasks to `model: small` sub-agents (~10–20× cheaper)
 - [ ] **Sub-skills (inline `## skill:` blocks)**: Keep the main prompt as a short execution plan; move detailed playbooks, output templates, and formatting rules into `## skill:` blocks — the runtime extracts these before the first model call, so they are available on demand without entering the initial request context
 - [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
@@ -83,7 +83,7 @@ The single biggest optimization. Replace agentic data fetching with deterministi
 engine: copilot
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, pull_requests]
 ---
 
@@ -97,7 +97,7 @@ Fetch all open PRs in ${{ github.repository }}, compute the merge rate, identify
 engine: copilot
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
   bash: ["*"]
 
 steps:
@@ -137,41 +137,41 @@ Create a concise weekly PR summary discussion.
 
 ---
 
-## Technique 2 — Use `gh-proxy` and `cli-proxy` Instead of the MCP Server
+## Technique 2 — Use `cli` Mode Instead of the MCP Server
 
-### `mode: gh-proxy` (GitHub reads)
+### `mode: cli` (GitHub reads)
 
 ```yaml
 tools:
   github:
-    mode: gh-proxy      # ✅ preferred — pre-authenticated gh CLI, no MCP server startup
+    mode: cli      # ✅ preferred — pre-authenticated gh CLI, no MCP server startup
     toolsets: [default]
 ```
 
-Agent reads GitHub via `gh issue list`, `gh pr view`, etc. and pipes through `jq` before data enters context. `mode: local` starts a Docker-based MCP server with startup latency and verbose tool results.
+Agent reads GitHub via `gh issue list`, `gh pr view`, etc. and pipes through `jq` before data enters context. `mode: mcp-local` starts a Docker-based MCP server with startup latency and verbose tool results.
 
-### `cli-proxy: true` (other MCP servers as CLIs)
+### `tools.mcp-mode: cli` (other MCP servers as CLIs)
 
-When a workflow uses additional MCP servers (e.g., a custom Notion or Slack MCP), `cli-proxy: true` mounts each server as a standalone CLI tool on `PATH`:
+When a workflow uses additional MCP servers (e.g., a custom Notion or Slack MCP), `tools.mcp-mode: cli` mounts each server as a standalone CLI tool on `PATH`:
 
 ```yaml
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   my-custom-mcp:
     ...
 ```
 
-With `cli-proxy`, the agent calls `my-custom-mcp <tool> <args>` from bash and pipes output through `jq`/`grep` to extract only needed fields — instead of receiving the full MCP tool response in context.
+With `mcp-mode: cli`, the agent calls `my-custom-mcp <tool> <args>` from bash and pipes output through `jq`/`grep` to extract only needed fields — instead of receiving the full MCP tool response in context.
 
 **Summary:**
 
 | Mode | Docker startup | Extra tool definitions | Agent output processing |
 |---|---|---|---|
-| `mode: local` + MCP tools | Yes | Yes | Tool result (full JSON) |
-| `mode: gh-proxy` + bash | No | No | Agent pipes through jq |
-| `cli-proxy: true` + bash | Yes (once) | Reduced | Agent pipes through jq |
+| `mode: mcp-local` + MCP tools | Yes | Yes | Tool result (full JSON) |
+| `mode: cli` + bash | No | No | Agent pipes through jq |
+| `mcp-mode: cli` + bash | Yes (once) | Reduced | Agent pipes through jq |
 
 ---
 
@@ -332,7 +332,7 @@ Fetch open issues from ${{ github.repository }} using the GitHub tools.
 | Data source | `agentic-fetch` / `dataops-steps` |
 | Model tier | Run separate workflows for each engine |
 | Sub-agent usage | `single-agent` / `with-subagents` |
-| Tool mode | `mcp-local` / `gh-proxy` |
+| Tool mode | `mcp-local` / `cli` |
 
 ---
 

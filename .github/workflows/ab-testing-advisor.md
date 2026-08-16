@@ -42,9 +42,9 @@ tools:
   bash:
   - "*"
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
     - actions

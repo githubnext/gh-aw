@@ -15,7 +15,7 @@ imports:
   - shared/trending-charts-simple.md
 tools:
   github:
-    mode: local
+    mode: mcp-local
   agentic-workflows: true
 steps:
   - name: Build gh-aw from source

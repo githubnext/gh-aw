@@ -251,7 +251,7 @@ steps:
       path: /tmp/gh-aw/agent/spellcheck
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: true
   edit:
 

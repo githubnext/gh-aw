@@ -132,9 +132,9 @@ pre-agent-steps:
       echo "Context file written to $CONTEXT ($(wc -l < "$CONTEXT") lines)"
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [pull_requests]
   cache-memory: true
   edit:

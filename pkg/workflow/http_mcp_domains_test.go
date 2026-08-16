@@ -75,6 +75,25 @@ func TestExtractHTTPMCPDomains(t *testing.T) {
 			expected: []string{constants.GitHubCopilotMCPDomain},
 		},
 		{
+			name: "github MCP legacy type remote",
+			tools: map[string]any{
+				"github": map[string]any{
+					"type": "remote",
+				},
+			},
+			expected: []string{constants.GitHubCopilotMCPDomain},
+		},
+		{
+			name: "github MCP mode takes precedence over legacy type",
+			tools: map[string]any{
+				"github": map[string]any{
+					"mode": "mcp-local",
+					"type": "remote",
+				},
+			},
+			expected: []string{},
+		},
+		{
 			name: "github MCP in local mode (no domain extraction)",
 			tools: map[string]any{
 				"github": map[string]any{

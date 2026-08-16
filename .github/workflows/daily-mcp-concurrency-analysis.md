@@ -60,10 +60,10 @@ tools:
   - "git log -1 --format=\"%ai\" -- actions/setup/js/*.cjs"
   - "git log -3 --format=\"%ai %s\" -- actions/setup/js/*.cjs"
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: mcp-concurrency-analysis

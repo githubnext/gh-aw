@@ -22,7 +22,7 @@ imports:
 
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: true
 
 safe-outputs:

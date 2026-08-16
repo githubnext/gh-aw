@@ -26,9 +26,9 @@ imports:
       labels: [refactoring, ai-generated]
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [repos, issues]
   bash: true
   cache-memory: true

@@ -25,9 +25,9 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   agentic-workflows:
   bash: true
 safe-outputs:
@@ -193,8 +193,8 @@ Use the `agentic-workflows` MCP server instead of shelling out to `gh aw`:
 
 - call the `logs` MCP tool with `start_date: "-1d"` and `count: 60`
 - use the JSON artifacts under `/tmp/gh-aw/aw-mcp/logs/` as your source of run metadata
-- keep GitHub reads on `tools.github.mode: gh-proxy`
-- use `tools.cli-proxy: true` only for other proxied `gh` CLI commands when they are truly needed
+- keep GitHub reads on `tools.github.mode: cli`
+- use `tools.mcp-mode: cli` only when MCP servers should be exposed as CLI wrappers
 - do not run `gh aw logs` or `gh aw audit` through the CLI proxy because the `agentic-workflows` MCP server already provides dedicated `logs` and `audit` tools for those operations
 
 ### Step 2 — Pick the sample set
@@ -326,8 +326,8 @@ Review `prompt.txt` only as a compiler cross-check artifact:
 
 Also review proxy/CLI feature readiness for each sampled workflow:
 
-- GitHub gh-proxy enabled (`tools.github.mode: gh-proxy`)
-- CLI proxy enabled (`tools.cli-proxy: true`)
+- GitHub CLI access enabled (`tools.github.mode: cli`)
+- MCP CLI mode enabled (`tools.mcp-mode: cli`)
 
 When one or more are missing, include a recommendation to enable them and rewrite raw `gh aw` shell instructions into explicit `agentic-workflows` MCP-tool usage.
 
@@ -369,7 +369,7 @@ Prioritize recommendations that:
 2. reduce broad skill loading or oversized skill fusion
 3. simplify or remove low-value inline agents
 4. move deterministic data gathering out of the main prompt
-5. enable `gh-proxy` and `cli-proxy` when missing, then rewrite raw CLI-oriented problem wording to explicit `agentic-workflows` MCP-tool calls
+5. enable GitHub CLI access and MCP CLI mode when missing, then rewrite raw CLI-oriented problem wording to explicit `agentic-workflows` MCP-tool calls
 6. move large inline output templates (issue body, discussion body, report formats) into `## skill:` blocks so they are loaded on demand rather than unconditionally inflating the first request
 
 Do not recommend changes that would obviously weaken safety or remove necessary task context.

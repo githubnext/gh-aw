@@ -28,9 +28,9 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: local
+    mode: mcp-local
     allowed-repos: "public"
     min-integrity: approved
 network:

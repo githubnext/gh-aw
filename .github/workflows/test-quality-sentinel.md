@@ -24,9 +24,9 @@ cache:
   restore-keys:
     - pr-test-prefetch-${{ github.event.pull_request.number || github.event.issue.number }}-
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   bash:
     - "git diff:*"
     - "grep:*"

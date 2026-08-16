@@ -22,9 +22,9 @@ max-tool-denials: 3
 strict: true
 tracker-id: daily-performance-summary
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, discussions]
 safe-outputs:
   upload-asset:

@@ -87,35 +87,105 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 	})
 }
 
-func TestValidatePiEngineRequirements(t *testing.T) {
+func TestPiEngineAutoDerivesCLIAccess(t *testing.T) {
+	piEngine := NewPiEngine()
+
+	t.Run("pi with bare github derives cli mode and mcp-mode cli", func(t *testing.T) {
+		tools, err := enforceMCPProxyTools(piEngine, map[string]any{"github": true})
+		require.NoError(t, err)
+		assert.Equal(t, map[string]any{"mode": "cli"}, tools["github"])
+		assert.Equal(t, "cli", tools["mcp-mode"])
+		assert.NotContains(t, tools, "cli-proxy")
+	})
+
+	t.Run("pi with no github tool derives cli github and mcp-mode cli", func(t *testing.T) {
+		tools, err := enforceMCPProxyTools(piEngine, map[string]any{})
+		require.NoError(t, err)
+		assert.Equal(t, map[string]any{"mode": "cli"}, tools["github"])
+		assert.Equal(t, "cli", tools["mcp-mode"])
+	})
+
+	t.Run("pi rejects explicit mcp mode", func(t *testing.T) {
+		_, err := enforceMCPProxyTools(piEngine, map[string]any{
+			"github": map[string]any{"mode": "mcp-local"},
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "tools.github.mode must be cli")
+	})
+
+	t.Run("pi ignores MCP-only fields (auto-derives cli)", func(t *testing.T) {
+		tools, err := enforceMCPProxyTools(piEngine, map[string]any{
+			"github": map[string]any{"toolsets": []any{"default"}},
+		})
+		require.NoError(t, err)
+		github := tools["github"].(map[string]any)
+		assert.Equal(t, "cli", github["mode"])
+		assert.Equal(t, "cli", tools["mcp-mode"])
+	})
+
+	t.Run("pi rejects disabling cli-proxy", func(t *testing.T) {
+		_, err := enforceMCPProxyTools(piEngine, map[string]any{"cli-proxy": false})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "tools.cli-proxy cannot be disabled")
+	})
+
+	t.Run("copilot (MCP engine) is unchanged", func(t *testing.T) {
+		in := map[string]any{"github": map[string]any{"toolsets": []any{"default"}}}
+		tools, err := enforceMCPProxyTools(NewCopilotEngine(), in)
+		require.NoError(t, err)
+		assert.Equal(t, in, tools)
+	})
+}
+
+func TestValidateGitHubAccessConfig(t *testing.T) {
 	compiler := NewCompiler()
 
-	t.Run("non pi engine skips validation", func(t *testing.T) {
-		err := compiler.validatePiEngineRequirements(NewTools(map[string]any{}), NewCopilotEngine())
+	t.Run("explicit cli with toolsets warns but does not error", func(t *testing.T) {
+		err := compiler.validateGitHubAccessConfig(map[string]any{}, map[string]any{
+			"github": map[string]any{"mode": "cli", "toolsets": []any{"default"}},
+		}, nil)
 		assert.NoError(t, err)
 	})
 
-	t.Run("pi requires github gh-proxy mode", func(t *testing.T) {
-		err := compiler.validatePiEngineRequirements(NewTools(map[string]any{
-			"github": true,
-		}), NewPiEngine())
-		require.Error(t, err)
-		require.ErrorContains(t, err, "tools.github.mode: gh-proxy")
+	t.Run("explicit cli without MCP-only fields is allowed", func(t *testing.T) {
+		err := compiler.validateGitHubAccessConfig(map[string]any{}, map[string]any{
+			"github": map[string]any{"mode": "cli", "min-integrity": "approved"},
+		}, nil)
+		assert.NoError(t, err)
 	})
 
-	t.Run("pi requires cli-proxy", func(t *testing.T) {
-		err := compiler.validatePiEngineRequirements(NewTools(map[string]any{
-			"github": map[string]any{"mode": "gh-proxy"},
-		}), NewPiEngine())
+	t.Run("integrity-reactions with explicit mcp mode is rejected", func(t *testing.T) {
+		err := compiler.validateGitHubAccessConfig(
+			map[string]any{"features": map[string]any{"integrity-reactions": true}},
+			map[string]any{"github": map[string]any{"mode": "mcp-remote"}},
+			nil,
+		)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "tools.cli-proxy: true")
+		require.ErrorContains(t, err, "features.integrity-reactions requires CLI")
 	})
 
-	t.Run("valid pi tool config passes", func(t *testing.T) {
-		err := compiler.validatePiEngineRequirements(NewTools(map[string]any{
-			"github":    map[string]any{"mode": "gh-proxy"},
+	t.Run("both cli-proxy and mcp-mode is rejected", func(t *testing.T) {
+		err := compiler.validateGitHubAccessConfig(map[string]any{}, map[string]any{
 			"cli-proxy": true,
-		}), NewPiEngine())
+			"mcp-mode":  "cli",
+		}, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "cannot both be set")
+	})
+
+	t.Run("mcp-local with toolsets is allowed", func(t *testing.T) {
+		err := compiler.validateGitHubAccessConfig(map[string]any{}, map[string]any{
+			"github": map[string]any{"mode": "mcp-local", "toolsets": []any{"default"}},
+		}, nil)
 		assert.NoError(t, err)
+	})
+
+	t.Run("derived cli for non-MCP engine does not warn about MCP-only fields", func(t *testing.T) {
+		before := compiler.GetWarningCount()
+		err := compiler.validateGitHubAccessConfig(map[string]any{}, map[string]any{
+			"github": map[string]any{"mode": "cli", "toolsets": []any{"default"}},
+		}, NewPiEngine())
+		require.NoError(t, err)
+		assert.Equal(t, before, compiler.GetWarningCount())
 	})
 }

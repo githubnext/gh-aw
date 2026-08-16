@@ -18,9 +18,9 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   cache-memory: true
   bash: true
 safe-outputs:

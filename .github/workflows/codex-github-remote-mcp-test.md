@@ -12,9 +12,9 @@ engine: codex
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: remote
+    mode: mcp-remote
     toolsets: [repos, issues]
 timeout-minutes: 5
 strict: true

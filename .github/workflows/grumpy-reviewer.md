@@ -17,7 +17,7 @@ imports:
       min-integrity: approved
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 safe-outputs:
   create-pull-request-review-comment:
     max: 5

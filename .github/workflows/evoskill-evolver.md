@@ -17,9 +17,9 @@ engine:
   id: copilot
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [actions, repos]
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   edit:
   bash:

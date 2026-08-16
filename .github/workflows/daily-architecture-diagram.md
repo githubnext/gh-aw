@@ -40,7 +40,7 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   bash:
     - "*"

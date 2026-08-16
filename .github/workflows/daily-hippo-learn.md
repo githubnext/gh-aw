@@ -37,11 +37,11 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "*"
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 
 safe-outputs:

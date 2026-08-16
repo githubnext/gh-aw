@@ -14,7 +14,7 @@ permissions:
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
     toolsets: [repos, issues, pull_requests]
 strict: false

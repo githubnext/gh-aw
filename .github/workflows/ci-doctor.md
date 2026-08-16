@@ -39,12 +39,12 @@ safe-outputs:
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   web-fetch:
   web-search:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs and artifacts
 
 timeout-minutes: 20

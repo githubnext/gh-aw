@@ -58,10 +58,10 @@ tools:
   - cd * && git diff --name-only
   - cat > /tmp/gh-aw/agent/*.py
   - python3 *
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: daily-safe-output-integrator

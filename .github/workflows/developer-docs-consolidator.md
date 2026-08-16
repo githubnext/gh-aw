@@ -45,10 +45,10 @@ tools:
   - git
   cache-memory:
     key: developer-docs-cache
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
   repo-memory:

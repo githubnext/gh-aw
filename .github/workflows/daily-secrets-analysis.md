@@ -21,9 +21,9 @@ max-tool-denials: 3
 strict: true
 tracker-id: daily-secrets-analysis
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, discussions]
   bash: true
 timeout-minutes: 20

@@ -12,9 +12,9 @@ tracker-id: safe-outputs-conformance
 engine: claude
 strict: true
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [repos, issues]
   bash: true
 safe-outputs:

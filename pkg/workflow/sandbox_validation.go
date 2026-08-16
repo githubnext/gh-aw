@@ -214,15 +214,15 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 
 		// cloud-hypervisor rejects --difc-proxy-host: the CLI proxy sidecar (awmg-cli-proxy)
-		// is intentionally not attached to the isolated topology, so gh-proxy mode
-		// (and integrity-reactions, which implicitly enables it) has no route to the host.
-		if isCliProxyNeeded(workflowData) {
+		// is intentionally not attached to the isolated topology, so CLI access mode
+		// (and integrity-reactions, which resolves to it) has no route to the host.
+		if resolveGitHubAccessProfile(workflowData).IsCLI() {
 			return NewValidationError(
 				"sandbox.agent.runtime",
 				string(AgentRuntimeCloudHypervisor),
-				"cloud-hypervisor is incompatible with tools.github.mode: gh-proxy",
+				"cloud-hypervisor is incompatible with tools.github.mode: cli",
 				"cloud-hypervisor does not attach the CLI proxy sidecar, and the AWF runtime rejects "+
-					"--difc-proxy-host for this runtime. Remove tools.github.mode: gh-proxy and the "+
+					"--difc-proxy-host for this runtime. Remove tools.github.mode: cli and the "+
 					"integrity-reactions feature, or change sandbox.agent.runtime.",
 			)
 		}

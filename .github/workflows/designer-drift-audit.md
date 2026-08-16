@@ -14,7 +14,7 @@ permissions:
 
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 steps:
   - name: Extract reference doc metadata

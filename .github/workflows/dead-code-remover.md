@@ -32,12 +32,12 @@ network:
     - defaults
     - go
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "*"
   edit:
   github:
-    mode: gh-proxy
+    mode: cli
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [default, pull_requests]
   cache-memory: true

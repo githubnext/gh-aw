@@ -160,10 +160,10 @@ tools:
   - ./gh-aw compile
   - git
   cache-memory: null
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 evals:

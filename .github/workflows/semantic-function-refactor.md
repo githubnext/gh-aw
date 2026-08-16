@@ -36,9 +36,9 @@ safe-outputs:
     max: 1
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, issues]
   edit:
 

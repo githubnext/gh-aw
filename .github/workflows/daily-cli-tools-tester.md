@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
   actions: read
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   bash: ["*"]
   edit:

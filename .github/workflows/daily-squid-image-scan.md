@@ -16,7 +16,7 @@ network:
     - defaults
     - go
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "cat /tmp/gh-aw/agent/image-scan/compile-output.txt"
 safe-outputs:

@@ -14,7 +14,7 @@ max-ai-credits: 500
 skills:
   - SylphAI-Inc/skills/skills/glowmotion@0a3dc91bab4ca2be12882540f5812ccbbcf01e40
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   bash: true
 steps:

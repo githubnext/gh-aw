@@ -73,16 +73,16 @@ The engine is detected at compile time from the `engine:` field and injected as 
 
 Sub-agents **do not have their own MCP servers** — they run in the parent's agent environment without independent tool config. For file system and shell access, enable on the parent workflow:
 
-- **`cli-proxy: true`** — GitHub CLI proxy for authenticated `gh` calls. Recommended for any sub-agent that reads/writes repo content.
-- **`tools.github.mode: gh-proxy`** — routes GitHub API calls through the gh proxy sidecar; required for private repos or the GitHub MCP toolset.
+- **`tools.mcp-mode: cli`** — mounts MCP servers as CLI tools for authenticated `gh` calls. Recommended for any sub-agent that reads/writes repo content.
+- **`tools.github.mode: cli`** — routes GitHub API calls through the `gh` CLI; recommended for private repos or the GitHub MCP toolset.
 
 ```yaml
 ---
 engine: copilot
 tools:
   github:
-    mode: gh-proxy
-  cli-proxy: true
+    mode: cli
+  mcp-mode: cli
 ---
 ```
 
@@ -172,8 +172,8 @@ See also: [token-optimization.md](token-optimization.md) and [workflow-patterns.
 engine: copilot
 tools:
   github:
-    mode: gh-proxy
-  cli-proxy: true
+    mode: cli
+  mcp-mode: cli
   bash:
     - "cat *"
     - "ls *"

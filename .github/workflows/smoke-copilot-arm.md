@@ -37,7 +37,7 @@ network:
     - github
     - playwright
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   cache-memory: true
   edit:

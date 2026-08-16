@@ -968,7 +968,7 @@ steps:
       echo "    closing_refs_by_issue.json, pull_requests.json)"
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - jq
     - awk

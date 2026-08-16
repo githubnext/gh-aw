@@ -21,12 +21,12 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   bash:
     - "*"
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 steps:
   - name: Install gh-aw extension
@@ -251,7 +251,7 @@ permissions:
 engine: copilot
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 safe-outputs:
   add-comment:

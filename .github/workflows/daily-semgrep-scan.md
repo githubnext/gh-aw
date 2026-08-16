@@ -32,7 +32,7 @@ network:
     - semgrep.dev
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 
 experiments:
   semgrep_output_format:

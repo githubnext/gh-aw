@@ -21,9 +21,9 @@ imports:
 features:
   gh-aw-detection: true
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [repos, actions]
 safe-outputs:
   create-issue:

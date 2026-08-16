@@ -40,11 +40,11 @@ network:
     - github
     - playwright
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   comment-memory: true
   github:
-    mode: gh-proxy
+    mode: cli
   playwright:
     mode: cli
   edit:

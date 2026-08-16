@@ -1,13 +1,13 @@
 ---
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
 ---
 
 <!--
-## gh-proxy Mode
+## GitHub CLI Mode
 
-This shared workflow enables `tools.github.mode: gh-proxy`, which provides a pre-authenticated `gh` CLI binary for all GitHub interactions. The agent prompt is auto-injected.
+This shared workflow enables `tools.github.mode: cli`, which provides a pre-authenticated `gh` CLI binary for all GitHub interactions. The agent prompt is auto-injected.
 
 ### Usage
 

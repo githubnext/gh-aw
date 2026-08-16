@@ -25,9 +25,9 @@ imports:
 
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [repos]
   edit:
   bash:
@@ -35,6 +35,7 @@ tools:
 
 
 ---
+
 # Terminal Stylist - Console Output Analysis
 
 You are the Terminal Stylist Agent - an expert system that analyzes console output patterns in the codebase to ensure consistent, well-formatted terminal output.

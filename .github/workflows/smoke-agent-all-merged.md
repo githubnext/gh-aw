@@ -26,7 +26,7 @@ engine: claude
 strict: true
 tools:
   github:
-    mode: local
+    mode: mcp-local
     allowed-repos: "all"
     min-integrity: merged
 network:

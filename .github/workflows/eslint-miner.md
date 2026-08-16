@@ -32,9 +32,9 @@ network:
     - defaults
     - node
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, discussions, issues, repos]
   cache-memory:
     key: eslint-miner-state-${{ github.workflow }}

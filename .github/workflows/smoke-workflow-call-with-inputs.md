@@ -30,7 +30,7 @@ network:
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "echo *"
     - "date"

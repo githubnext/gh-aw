@@ -44,12 +44,12 @@ tools:
   cache-memory: true
   github:
     toolsets: [repos, pull_requests]
-    mode: gh-proxy
+    mode: cli
   edit:
   bash:
     - "*"
   web-fetch:
-  cli-proxy: true
+  mcp-mode: cli
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:

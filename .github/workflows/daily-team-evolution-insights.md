@@ -26,9 +26,9 @@ network:
     - defaults
     - github
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: local
+    mode: mcp-local
     toolsets: [repos, issues, pull_requests, discussions]
 timeout-minutes: 90
 max-ai-credits: 1500

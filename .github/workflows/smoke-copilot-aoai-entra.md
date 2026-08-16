@@ -66,14 +66,14 @@ tools:
   bash:
     - "*"
   github:
-    mode: gh-proxy
+    mode: cli
     min-integrity: approved
     trusted-users:
       - pelikhan
   playwright:
     mode: cli
   web-fetch:
-  cli-proxy: true
+  mcp-mode: cli
 runtimes:
   go:
     version: "1.26"
@@ -199,7 +199,7 @@ CLI-proxy tools (call via `bash` only, not as MCP): `playwright-cli`, `serena`, 
 
 Run each check NOW and mark as ✅/❌. Do NOT create files to automate this — execute directly using bash and tools:
 
-1. `github` tool (configured with `mode: gh-proxy`): review 2 merged PRs in `${{ github.repository }}`.
+1. `github` tool (configured with `mode: cli`): review 2 merged PRs in `${{ github.repository }}`.
 2. `mcpscripts-gh`: query 2 PRs using `pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`.
 3. Serena CLI (bash only): run `serena activate_project --path ${{ github.workspace }}`, then `serena find_symbol --name_path <symbol>` and confirm at least 3 symbols.
 4. Playwright CLI (bash only): run `playwright-cli open https://github.com` then `playwright-cli screenshot`; confirm successful GitHub navigation.

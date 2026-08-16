@@ -21,7 +21,7 @@ imports:
   - shared/reporting.md
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 safe-outputs:
   add-comment:

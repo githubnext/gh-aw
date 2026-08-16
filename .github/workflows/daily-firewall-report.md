@@ -32,10 +32,10 @@ safe-outputs:
     close-older-discussions: true
     expires: 14
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
       - all
   bash:

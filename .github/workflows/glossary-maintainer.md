@@ -39,13 +39,13 @@ safe-outputs:
     draft: false
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   repo-memory:
     wiki: true
     description: "Project glossary and terminology reference"
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [repos, pull_requests]  # scoped to avoid search_repositories (in default); repos covers commits/files, pull_requests covers PRs
   edit:
   bash: true

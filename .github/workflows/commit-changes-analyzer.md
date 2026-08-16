@@ -20,9 +20,9 @@ model: copilot/gpt-5.4
 engine:
   id: pi
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
   bash:
     - "*"

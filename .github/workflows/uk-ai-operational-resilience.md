@@ -27,9 +27,9 @@ engine: copilot
 strict: true
 timeout-minutes: 30
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, actions, repos, code_security, issues]
   bash:
     - "git *"
@@ -98,6 +98,7 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # UK AI Open Code Risk & Resilience Governance

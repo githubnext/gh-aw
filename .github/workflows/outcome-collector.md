@@ -28,7 +28,7 @@ tools:
   bash: true
   cache-memory: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 safe-outputs:
   create-issue:

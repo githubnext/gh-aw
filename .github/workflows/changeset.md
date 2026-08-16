@@ -42,9 +42,9 @@ network:
     - node
     - go
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   bash:
     - "*"
   edit:

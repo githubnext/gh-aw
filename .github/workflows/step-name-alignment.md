@@ -69,7 +69,7 @@ tools:
   - "git log --since=\"24 hours ago\" --oneline --name-only -- \".github/workflows/*.lock.yml\""
   cache-memory: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 ---

@@ -92,9 +92,9 @@ tools:
   - uniq
   - yq
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - discussions
 tracker-id: daily-compiler-quality

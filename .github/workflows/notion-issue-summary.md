@@ -17,7 +17,7 @@ permissions:
 
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
 imports:
   - shared/mcp/notion.md

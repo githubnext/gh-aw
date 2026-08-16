@@ -2819,8 +2819,9 @@ engine:
   # (optional)
   experimental: true
 
-  # Whether the engine supports MCP. When false, the compiler automatically enables
-  # gh-proxy and cli-proxy and rejects attempts to disable either proxy.
+  # Whether the engine supports MCP. When false, the compiler automatically resolves
+  # GitHub access to CLI mode (tools.github.mode: cli) and surfaces MCP servers as
+  # CLI tools (tools.mcp-mode: cli), and rejects attempts to disable either.
   # (optional)
   mcp: true
 
@@ -3430,17 +3431,16 @@ tools:
     # (optional)
     allowed: []
 
-    # GitHub access mode. Prefer 'gh-proxy' for better performance (uses
-    # pre-authenticated gh CLI prompt guidance). Legacy MCP transport values 'local'
-    # and 'remote' are accepted for backward compatibility and use GitHub MCP server
-    # prompt guidance.
+    # GitHub access mode (homogeneous enum): 'cli' reaches GitHub through the
+    # pre-authenticated gh CLI protected by the host policy proxy (recommended);
+    # 'mcp-local' uses a local Docker GitHub MCP server; 'mcp-remote' uses the hosted
+    # GitHub MCP service. When omitted, the compiler preserves existing behavior and
+    # resolves to 'mcp-local' (except for non-MCP engines, integrity-reactions, or
+    # legacy features.cli-proxy, which resolve to 'cli'). Legacy values 'gh-proxy'
+    # (=cli), 'local' (=mcp-local), and 'remote' (=mcp-remote) are still accepted and
+    # migrated by `gh aw fix`.
     # (optional)
-    mode: "gh-proxy"
-
-    # GitHub MCP transport type: 'local' (Docker-based, default) or 'remote' (hosted
-    # at api.githubcopilot.com)
-    # (optional)
-    type: "local"
+    mode: "cli"
 
     # Optional version specification for the GitHub MCP server (used with 'local'
     # type). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11).
@@ -4136,13 +4136,13 @@ tools:
   # Format 2: GitHub Actions expression (e.g. '${{ inputs.startup-timeout }}')
   startup-timeout: "example-value"
 
-  # When true, each user-facing MCP server is mounted as a standalone CLI tool on
-  # PATH. The agent can then call MCP servers via shell commands (e.g. 'github
-  # issue_read --method get ...'). CLI-mounted servers remain in the MCP gateway
-  # config so their containers can start, and are removed only from the agent's
-  # final config during convert_gateway_config_*.sh processing. Default: false.
+  # How user-facing MCP servers are surfaced to the agent. 'cli' mounts each
+  # user-facing MCP server as a standalone CLI tool on PATH (the agent calls them
+  # via shell commands, e.g. 'github issue_read --method get ...'); 'default' (or
+  # 'mcp') keeps normal MCP protocol behavior. Replaces the deprecated
+  # tools.cli-proxy boolean.
   # (optional)
-  cli-proxy: true
+  mcp-mode: "cli"
 
   # Repo memory configuration for git-based persistent storage
   # (optional)

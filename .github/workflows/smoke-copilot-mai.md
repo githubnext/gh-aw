@@ -34,7 +34,7 @@ tools:
   bash:
     - "*"
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 safe-outputs:
   create-issue:

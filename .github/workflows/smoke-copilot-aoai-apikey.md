@@ -56,14 +56,14 @@ tools:
   bash:
     - "*"
   github:
-    mode: gh-proxy
+    mode: cli
     min-integrity: approved
     trusted-users:
       - pelikhan
   playwright:
     mode: cli
   web-fetch:
-  cli-proxy: true
+  mcp-mode: cli
 runtimes:
   go:
     version: "1.26"
@@ -183,7 +183,7 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
 
 ## Tool Access Overview
 
-This workflow uses `cli-proxy: true`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
+This workflow uses `tools.mcp-mode: cli`. The following MCP servers are **NOT available as MCP tools** — they are mounted exclusively as **shell CLI commands** (see `<mcp-clis>` section above). You **must** use them via the `bash` tool:
 
 - **`playwright`** — installed as `@playwright/cli`, use `playwright-cli <command>` in bash (e.g. `playwright-cli open https://github.com`, `playwright-cli screenshot`)
 - **`serena`** — use `serena <tool> [--param value...]` in bash (e.g. `serena activate_project --path ...`)
@@ -201,7 +201,7 @@ These are **not** MCP protocol tools — they are bash executables. Call them wi
 
 Run each check NOW and mark as ✅/❌. Do NOT create files to automate this — execute directly using bash and tools:
 
-1. `github` tool (configured with `mode: gh-proxy`): review 2 merged PRs in `${{ github.repository }}`.
+1. `github` tool (configured with `mode: cli`): review 2 merged PRs in `${{ github.repository }}`.
 2. `mcpscripts-gh`: query 2 PRs using `pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`.
 3. Serena CLI (bash only): run `serena activate_project --path ${{ github.workspace }}`, then `serena find_symbol --name_path <symbol>` and confirm at least 3 symbols.
 4. Playwright CLI (bash only): run `playwright-cli open https://github.com` then `playwright-cli screenshot`; confirm successful GitHub navigation.

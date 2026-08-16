@@ -27,9 +27,9 @@ network:
     - repo.hex.pm
     - builds.hex.pm
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
   bash:
     - "*"

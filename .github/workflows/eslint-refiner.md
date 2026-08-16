@@ -41,10 +41,10 @@ tools:
   - find actions/setup/js -name "*.cjs" -type f
   - find eslint-factory/src/rules -name "*.ts" -type f
   - wc -l
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
     - issues

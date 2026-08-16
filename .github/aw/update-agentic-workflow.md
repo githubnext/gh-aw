@@ -59,7 +59,7 @@ When refining existing workflows, keep edits minimal and confirm the design stil
 ## Security Rules
 
 - never suggest GitHub mutation through raw GitHub tools when a safe output exists
-- do not recommend `mode: remote` for GitHub tools unless explicitly required and properly configured
+- do not recommend `mode: mcp-remote` for GitHub tools unless explicitly required and properly configured
 - do not replace `pull_request` with `pull_request_target` unless the user explicitly needs a `pull_request_target` design
 - do not use `post-steps:` for agent-driven write behavior that belongs in a safe-output job
 

@@ -12,7 +12,7 @@ permissions:
 tracker-id: agentic-token-optimizer
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [issues]
   bash:
     - "*"

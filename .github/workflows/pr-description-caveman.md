@@ -17,9 +17,9 @@ features:
 strict: true
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "git diff*"
     - "git log*"

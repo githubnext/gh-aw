@@ -20,9 +20,9 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: local
+    mode: mcp-local
     read-only: true
     toolsets: [default]
 if: needs.precompute.outputs.action != 'none'

@@ -61,10 +61,10 @@ sandbox:
 
 # Tools configuration
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
   edit:
   bash:

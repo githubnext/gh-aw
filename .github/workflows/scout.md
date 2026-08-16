@@ -38,12 +38,12 @@ imports:
   # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   cache-memory: true
   bash: ["cat", "ls", "find", "grep", "head", "tail", "wc"]
   github:
-    mode: gh-proxy
+    mode: cli
     allowed-repos: all
     min-integrity: none
 safe-outputs:

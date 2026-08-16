@@ -31,10 +31,10 @@ imports:
       reviewers: [copilot]
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: ["git diff:*", "git restore:*", "git status:*", "sed:*", wc]
   github:
-    mode: gh-proxy
+    mode: cli
     github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, pull_requests, code_security]
   edit:

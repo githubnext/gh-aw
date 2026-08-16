@@ -49,7 +49,7 @@ imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   edit:
   bash: true

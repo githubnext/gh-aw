@@ -17,9 +17,9 @@ permissions:
 engine: claude
 strict: true
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: local
+    mode: mcp-local
     read-only: true
     toolsets: [all]
   cache-memory:

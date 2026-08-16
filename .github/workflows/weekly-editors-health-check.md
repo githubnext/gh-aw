@@ -25,7 +25,7 @@ network:
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   playwright:
     mode: cli
   web-fetch:

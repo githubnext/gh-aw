@@ -163,6 +163,6 @@ format, which rejects ```bash blocks and cannot run shell commands.
 Aider reports some LiteLLM request failures with exit code 0, so the harness
 also detects those errors in its output and fails the workflow.
 Aider has no MCP client, so the compiler exposes MCP-backed tools through
-`cli-proxy` and GitHub access through `gh-proxy`. Both proxies are enabled
-automatically and cannot be disabled for this engine.
+`tools.mcp-mode: cli` and GitHub access through `tools.github.mode: cli`. Both
+settings are derived automatically and cannot be disabled for this engine.
 -->

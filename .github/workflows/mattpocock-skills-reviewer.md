@@ -64,9 +64,9 @@ skills:
 - mattpocock/skills/codebase-design@801dca688564c529fa84f247f64472520d9ebe28
 timeout-minutes: 15
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
 ---
 
 # Matt Pocock Skills Reviewer

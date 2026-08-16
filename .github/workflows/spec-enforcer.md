@@ -43,10 +43,10 @@ tools:
   bash:
   - "*"
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: spec-enforcer

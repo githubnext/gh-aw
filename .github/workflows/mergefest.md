@@ -18,7 +18,7 @@ max-tool-denials: 3
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "git fetch"
     - "git checkout"
@@ -43,7 +43,7 @@ tools:
     - "grep"
   edit:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [pull_requests, repos]
 safe-outputs:
   push-to-pull-request-branch:

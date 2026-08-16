@@ -18,9 +18,9 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [issues, pull_requests]
   edit:
 safe-outputs:

@@ -10,15 +10,15 @@ Use the smallest trigger that matches the request.
 
 | User intent | Trigger | Typical read tools | Typical safe output |
 |---|---|---|---|
-| Review PR changes, comment on quality, suggest fixes | `pull_request` | `github` (`gh-proxy`), optional `playwright` for UI diffs | `add-comment` |
-| Investigate failed CI/Actions runs and summarize incident | `workflow_run` | `github` (`gh-proxy`) with `actions: read` | `create-issue` |
-| Monitor external service deployment failures (Heroku, Vercel, Fly.io) | `deployment_status` | `github` (`gh-proxy`) with `deployments: read` | `create-issue` |
+| Review PR changes, comment on quality, suggest fixes | `pull_request` | `github` (`cli`), optional `playwright` for UI diffs | `add-comment` |
+| Investigate failed CI/Actions runs and summarize incident | `workflow_run` | `github` (`cli`) with `actions: read` | `create-issue` |
+| Monitor external service deployment failures (Heroku, Vercel, Fly.io) | `deployment_status` | `github` (`cli`) with `deployments: read` | `create-issue` |
 | Run visual regression checks on PR UI changes | `pull_request` | `playwright` + `cache-memory` | `add-comment` |
-| Publish weekly stakeholder/product digest | `schedule` | `github` (`gh-proxy`) | `create-issue` (default), `create-discussion` only if explicitly requested |
-| Review dependency licenses or design-token governance on PRs | `pull_request` with `paths:` | `github` (`gh-proxy`) | `add-comment`; `create-issue` only for blocked/policy-violating findings |
-| Govern documentation content (stale pages, broken links, outdated ownership) | `schedule` or `pull_request` with `paths:` | `github` (`gh-proxy`) | `add-comment` on PR; `create-issue` for stale content |
-| PM / product health digest (release velocity, open issues by area) | `schedule` | `github` (`gh-proxy`) | `create-issue` with `close-older-issues: true` |
-| Compliance or regulatory review | `pull_request` with `paths:` or `schedule` | `github` (`gh-proxy`) | `add-comment` for findings; `create-issue` for violations |
+| Publish weekly stakeholder/product digest | `schedule` | `github` (`cli`) | `create-issue` (default), `create-discussion` only if explicitly requested |
+| Review dependency licenses or design-token governance on PRs | `pull_request` with `paths:` | `github` (`cli`) | `add-comment`; `create-issue` only for blocked/policy-violating findings |
+| Govern documentation content (stale pages, broken links, outdated ownership) | `schedule` or `pull_request` with `paths:` | `github` (`cli`) | `add-comment` on PR; `create-issue` for stale content |
+| PM / product health digest (release velocity, open issues by area) | `schedule` | `github` (`cli`) | `create-issue` with `close-older-issues: true` |
+| Compliance or regulatory review | `pull_request` with `paths:` or `schedule` | `github` (`cli`) | `add-comment` for findings; `create-issue` for violations |
 
 > **`workflow_run` vs `deployment_status`**: Use `workflow_run` when monitoring another GitHub Actions workflow in the same repository. Use `deployment_status` when an external service (Heroku, Vercel, Fly.io) reports deployment results back to GitHub via the Deployments API. See [deployment-status.md](deployment-status.md) for the full pattern.
 >
@@ -28,22 +28,22 @@ Use the smallest trigger that matches the request.
 
 Engineering-focused:
 
-- **Schema/API review on PRs**: trigger `pull_request` with `paths:` scoped to backend contract files (for example `db/migrate/**`, `migrations/**`, `schema/**`, `openapi/**`, `api/**`), read via `github` (`gh-proxy`), publish findings with `add-comment`, call `noop` when contracts are unchanged.
+- **Schema/API review on PRs**: trigger `pull_request` with `paths:` scoped to backend contract files (for example `db/migrate/**`, `migrations/**`, `schema/**`, `openapi/**`, `api/**`), read via `github` (`cli`), publish findings with `add-comment`, call `noop` when contracts are unchanged.
 - **Visual regression on UI changes**: trigger `pull_request`, use only `playwright` + `cache-memory` (no extra tools), keep network minimal (allowlist only target preview/app hosts if required), state the exact baseline source (`cache-memory` key, artifact, or branch path), publish via `add-comment`, call `noop` when UI paths are unchanged.
 - **Design-token governance on PRs**:
   - trigger `pull_request` with `paths:` scoped to token sources and theme/config files (for example `tokens/**`, `**/*tokens*.json`, `**/theme/**`, `**/tailwind*.{js,ts}`, `**/*design-token*`)
-  - read via `github` (`gh-proxy`) and validate linked token references (style dictionary source, token registry, or design-spec URL) before assessment
+  - read via `github` (`cli`) and validate linked token references (style dictionary source, token registry, or design-spec URL) before assessment
   - publish actionable findings with `add-comment`
   - call `noop` when no token files changed, when required references are absent from the in-scope changes, or when no policy/token drift is detected
 - **Deployment incident triage**: use `deployment_status` for external provider failures and `workflow_run` for GitHub Actions failures, publish incident reports via `create-issue`, derive a stable failure key (for example workflow + job + failing step or error signature), and call `noop` when a failure self-recovers or matches an existing open incident.
-- **Dependency-license compliance review on PRs**: trigger `pull_request` with `paths:` scoped to dependency manifests (for example `package.json`, `go.mod`, `requirements.txt`, `Cargo.toml`), read new dependency additions via `github` (`gh-proxy`), classify each addition by license tier (allowed / needs-review / blocked), publish findings with `add-comment`, escalate blocked additions with `create-issue` for team-wide follow-up, call `noop` when no new dependencies were added or all additions are pre-approved.
+- **Dependency-license compliance review on PRs**: trigger `pull_request` with `paths:` scoped to dependency manifests (for example `package.json`, `go.mod`, `requirements.txt`, `Cargo.toml`), read new dependency additions via `github` (`cli`), classify each addition by license tier (allowed / needs-review / blocked), publish findings with `add-comment`, escalate blocked additions with `create-issue` for team-wide follow-up, call `noop` when no new dependencies were added or all additions are pre-approved.
 
 Non-engineering personas:
 
-- **Documentation governance**: trigger `schedule` (weekly) or `pull_request` with `paths:` scoped to docs directories, check for stale ownership, broken links, or missing metadata using `github` (`gh-proxy`), publish findings with `create-issue` for pages needing owner action, call `noop` when all docs pass checks.
+- **Documentation governance**: trigger `schedule` (weekly) or `pull_request` with `paths:` scoped to docs directories, check for stale ownership, broken links, or missing metadata using `github` (`cli`), publish findings with `create-issue` for pages needing owner action, call `noop` when all docs pass checks.
 - **PM / roadmap health digest**:
   - trigger `schedule` (weekly on weekdays)
-  - aggregate open issues by label, milestone, or area using `github` (`gh-proxy`)
+  - aggregate open issues by label, milestone, or area using `github` (`cli`)
   - publish a structured summary with `create-issue` and `close-older-issues: true`
   - use an explicit window such as `last 7 full days ending at run start (UTC)`
   - derive a stable key such as `pm-digest:<scope>:2026-W27`
@@ -58,10 +58,10 @@ Non-engineering personas:
 - **Compliance audit (material drift example)**:
   - trigger `schedule: daily on weekdays` as the preferred baseline cadence, and add `workflow_dispatch` for ad hoc reruns
   - define **material drift** as any control-state change that affects compliance posture (for example: required policy file removed, control owner missing, control status downgraded from pass to fail, or required approval evidence link missing)
-  - use `github` (`gh-proxy`) to compare current control evidence with the previous successful run window
+  - use `github` (`cli`) to compare current control evidence with the previous successful run window
   - publish violations with `create-issue` using `close-older-issues: true` and a stable key such as `compliance-drift:<framework>:<window-id>`
   - call `noop` when no material drift is detected in the selected window
-- **Compliance review (regulatory/policy)**: trigger `schedule` (monthly) or `pull_request` with `paths:` scoped to policy files, read current policy state via `github` (`gh-proxy`), produce a structured compliance report per control or requirement, publish with `create-issue` and `close-older-issues: true`, call `noop` when all controls pass.
+- **Compliance review (regulatory/policy)**: trigger `schedule` (monthly) or `pull_request` with `paths:` scoped to policy files, read current policy state via `github` (`cli`), produce a structured compliance report per control or requirement, publish with `create-issue` and `close-older-issues: true`, call `noop` when all controls pass.
 
 ### Recurring digest defaults
 

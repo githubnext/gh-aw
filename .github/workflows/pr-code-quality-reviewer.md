@@ -40,9 +40,9 @@ imports:
   - shared/otlp.md
   - shared/pr-diff-data-fetch.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   comment-memory:
     memory-id: pr-code-quality-reviewer
 cache:

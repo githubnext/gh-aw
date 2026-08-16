@@ -22,7 +22,7 @@ imports:
   - shared/reporting.md
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
 safe-outputs:
   allowed-domains: [default-safe-outputs]
   add-comment:

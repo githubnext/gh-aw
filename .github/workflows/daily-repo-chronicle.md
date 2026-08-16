@@ -29,12 +29,12 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   bash:
     - "*"
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
       - default
       - discussions

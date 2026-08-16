@@ -15,10 +15,10 @@ import-schema:
     description: "GitHub MCP toolsets to enable (e.g. [default, actions, repos])"
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: ${{ github.aw.import-inputs.toolsets }}
 ---
 

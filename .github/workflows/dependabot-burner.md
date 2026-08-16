@@ -57,9 +57,9 @@ imports:
   - shared/reporting.md
 tools:
   edit:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, pull_requests]
   bash:
     - "make dependabot && make build"

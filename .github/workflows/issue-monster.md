@@ -482,9 +482,9 @@ imports:
 timeout-minutes: 30
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     min-integrity: approved
     toolsets: [issues]
 

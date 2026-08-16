@@ -36,9 +36,9 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, issues, pull_requests]
   cache-memory: true
   repo-memory:
@@ -186,7 +186,7 @@ Create exactly one issue using the `create_issue` safe output.
 ### Output Contract (Required)
 
 1. Draft the title and body locally first if needed, but emit exactly one final `create_issue` safe output only after the full payload is complete.
-2. Do **not** use `bash`, `cli-proxy`, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments.
+2. Do **not** use `bash`, MCP CLI wrappers, or the `safeoutputs` CLI to create the issue or inspect the tool schema. Emit the safe output directly with `title` and `body` arguments.
 3. Do **not** use `python3`, `node`, `jq`, or any other scripting runtime to construct or validate the issue payload — build the body string inline and emit the safe output directly.
 4. Never retry `create_issue` with empty, placeholder, or partial arguments.
 5. If the quality checks below cannot be met, emit `report_incomplete` directly as a safe output instead of `create_issue`.

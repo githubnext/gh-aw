@@ -30,8 +30,8 @@ imports:
   - shared/reporting.md
 tools:
   github:
-    mode: gh-proxy
-  cli-proxy: true
+    mode: cli
+  mcp-mode: cli
 
 evals:
   - id: project_activity_analyzed

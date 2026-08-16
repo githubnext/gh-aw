@@ -197,22 +197,74 @@ func (c *Compiler) validateUniversalLLMConsumerModel(frontmatter map[string]any,
 	return nil
 }
 
-// validatePiEngineRequirements validates Pi's required tool configuration.
-func (c *Compiler) validatePiEngineRequirements(tools *ToolsConfig, engine CodingAgentEngine) error {
-	if engine.GetID() != "pi" {
+// validateGitHubAccessConfig validates the homogeneous tools.github.mode selector
+// and the tools.mcp-mode selector.
+//
+// Rules:
+//   - An explicit CLI access mode (tools.github.mode: cli) cannot set MCP-only
+//     fields (toolsets/allowed/version/args); those configure the GitHub MCP server.
+//   - features.integrity-reactions resolves the access mode to CLI, so it cannot be
+//     combined with an explicit MCP access mode (mcp-local/mcp-remote).
+//   - tools.cli-proxy (legacy) and tools.mcp-mode cannot both be set.
+func (c *Compiler) validateGitHubAccessConfig(frontmatter map[string]any, tools map[string]any, engine CodingAgentEngine) error {
+	if tools == nil {
 		return nil
 	}
 
-	if tools == nil || tools.GitHub == nil ||
-		(tools.GitHub.Mode != GitHubMCPModeGHProxy && tools.GitHub.Mode != GitHubMCPModeCLI) {
-		return errors.New("engine 'pi' requires tools.github.mode: gh-proxy")
+	// Two MCP-mode switches must not be configured at once.
+	_, hasCliProxy := tools["cli-proxy"]
+	_, hasMCPMode := tools["mcp-mode"]
+	if hasCliProxy && hasMCPMode {
+		return errors.New("tools.cli-proxy and tools.mcp-mode cannot both be set; use tools.mcp-mode: cli")
 	}
 
-	if !tools.CLIProxy {
-		return errors.New("engine 'pi' requires tools.cli-proxy: true")
+	githubTool, ok := tools["github"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	explicitMode, hasExplicitMode := explicitGitHubAccessMode(githubTool)
+
+	if hasExplicitMode && explicitMode == GitHubAccessModeCLI && (engine == nil || engine.GetCapabilities().MCP) {
+		if field, mcpOnly := firstMCPOnlyGitHubField(githubTool); mcpOnly {
+			// MCP-only fields configure the GitHub MCP server, which is not
+			// registered in CLI mode. They are ignored rather than rejected so the
+			// many existing workflows that pair a CLI mode with toolsets keep
+			// compiling; warn so authors can remove the redundant field.
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("tools.github.%s is ignored with tools.github.mode: cli (MCP-only field). Remove it, or use tools.github.mode: mcp-local / mcp-remote.", field)))
+			c.IncrementWarningCount()
+		}
+	}
+
+	if hasExplicitMode && (explicitMode == GitHubAccessModeMCPLocal || explicitMode == GitHubAccessModeMCPRemote) {
+		if frontmatterFeatureEnabled(frontmatter, constants.IntegrityReactionsFeatureFlag) {
+			return fmt.Errorf("features.integrity-reactions requires CLI GitHub access; it cannot be combined with tools.github.mode: %s. Remove the explicit MCP mode or disable integrity-reactions", explicitMode)
+		}
 	}
 
 	return nil
+}
+
+// frontmatterFeatureEnabled reports whether a feature flag is truthy in the
+// frontmatter features map.
+func frontmatterFeatureEnabled(frontmatter map[string]any, flag constants.FeatureFlag) bool {
+	features, ok := frontmatter["features"].(map[string]any)
+	if !ok {
+		return false
+	}
+	value, exists := features[string(flag)]
+	if !exists {
+		return false
+	}
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.TrimSpace(v) != ""
+	default:
+		return false
+	}
 }
 
 // validateWebSearchSupport validates that web-search tool is only used with engines that support this feature

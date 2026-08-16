@@ -51,10 +51,10 @@ sandbox:
           - /tmp/gh-aw/agent
 tools:
   agentic-workflows:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [repos, pull_requests]
   playwright:
     mode: cli
@@ -148,7 +148,7 @@ features:
 For tests below, mark a test as passed only if the required tool call succeeds.
 
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **GH CLI Testing (via `gh-proxy`)**: Use `bash` to run `gh pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`
+2. **GitHub CLI Testing (`tools.github.mode: cli`)**: Use `bash` to run `gh pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`
 3. **Make Build Testing**: Use the `mcpscripts-make` tool to build the project (use args: "build") and verify it succeeds
 4. **Playwright Testing**: Use playwright-cli to navigate to https://github.com and verify the page title contains "GitHub": run `playwright-cli browser_navigate --url https://github.com` then `playwright-cli browser_snapshot` in bash
 5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item

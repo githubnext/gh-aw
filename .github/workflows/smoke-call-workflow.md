@@ -32,7 +32,7 @@ timeout-minutes: 20
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 features:
   gh-aw-detection: false
 sandbox:

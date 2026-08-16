@@ -107,9 +107,11 @@ func GetAllCodemods() []Codemod {
 		getCopilotRequestsFeatureToPermissionsCodemod(),            // Migrate features.copilot-requests to permissions.copilot-requests
 		getByokCopilotFeatureRemovalCodemod(),                      // Remove deprecated features.byok-copilot (Copilot BYOK is default)
 		getInlineAgentsFeatureRemovalCodemod(),                     // Remove deprecated features.inline-agents (inline sub-agents now default)
-		getCliProxyFeatureToGitHubModeCodemod(),                    // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
+		getCliProxyFeatureToGitHubModeCodemod(),                    // Migrate features.cli-proxy: true to tools.github.mode: cli
+		getGitHubModeHomogeneousEnumCodemod(),                      // Normalize tools.github.mode/type to cli/mcp-local/mcp-remote
 		getDIFCProxyToIntegrityProxyCodemod(),                      // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
 		getMountAsCLIsToCLIProxyCodemod(),                          // Rename tools.mount-as-clis to tools.cli-proxy and remove features.mcp-cli
+		getCliProxyToMCPModeCodemod(),                              // Rename tools.cli-proxy to tools.mcp-mode
 		getSandboxMCPContainerRemovalCodemod(),                     // Remove deprecated sandbox.mcp.container (now managed internally)
 		getSandboxMCPVersionRemovalCodemod(),                       // Remove deprecated sandbox.mcp.version (now managed internally)
 		getSandboxAgentFalseRemovalCodemod(),                       // Remove deprecated sandbox.agent: false (rejected in strict mode)

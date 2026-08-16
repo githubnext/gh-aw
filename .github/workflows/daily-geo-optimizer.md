@@ -20,9 +20,9 @@ max-tool-denials: 3
 strict: true
 timeout-minutes: 30
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
   bash:
     - "cat *"

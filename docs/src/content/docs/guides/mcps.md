@@ -70,7 +70,7 @@ The `default` toolset includes `context`, `repos`, `issues`, and `pull_requests`
 
 ### Operating Modes
 
-Remote mode (`mode: remote`) connects to a hosted server with no Docker required. Local mode (`mode: local`) runs in Docker, enabling version pinning for offline or restricted environments. See [Remote vs Local Mode](/gh-aw/reference/github-tools/#github-tools-access-modes).
+Remote mode (`mode: mcp-remote`) connects to a hosted server with no Docker required. Local mode (`mode: mcp-local`) runs in Docker, enabling version pinning for offline or restricted environments. See [GitHub Tools Access Modes](/gh-aw/reference/github-tools/#github-tools-access-modes).
 
 The GitHub MCP server always operates read-only. Write operations are handled through [safe outputs](/gh-aw/reference/safe-outputs/), which run in a separate permission-controlled job.
 

@@ -39,7 +39,7 @@ safe-outputs:
 timeout-minutes: 10
 strict: true
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 evals:
   - id: discussion-created
     question: Did the agent create a discussion with research findings?

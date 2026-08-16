@@ -155,8 +155,8 @@ func TestCompiledLockFiles_SmokePiKeepsCLIProxySafeoutputsWiring(t *testing.T) {
 	require.NoError(t, err, "should read smoke-pi source workflow")
 
 	source := string(sourceBytes)
-	assert.Contains(t, source, "cli-proxy: true",
-		"smoke-pi source workflow should keep cli-proxy enabled so safeoutputs CLI wrappers are generated")
+	assert.Contains(t, source, "mcp-mode: cli",
+		"smoke-pi source workflow should keep tools.mcp-mode: cli so safeoutputs CLI wrappers are generated")
 
 	lockPath := filepath.Join(workflowsDir, "smoke-pi.lock.yml")
 	lockBytes, err := os.ReadFile(lockPath)

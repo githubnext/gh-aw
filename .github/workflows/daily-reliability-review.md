@@ -25,9 +25,9 @@ network:
     - github
 tools:
   bash: true
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, issues]
 safe-outputs:
   mentions: false

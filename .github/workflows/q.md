@@ -26,10 +26,10 @@ max-tool-denials: 3
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   github:
-    mode: gh-proxy
+    mode: cli
     min-integrity: none
     toolsets:
       - default
@@ -206,7 +206,7 @@ Example:
 ```yaml
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     allowed: 
       - issue_read
       - list_commits

@@ -25,9 +25,9 @@ imports:
   - shared/mcp/serena-go.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
       - default
   edit:

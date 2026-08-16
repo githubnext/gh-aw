@@ -22,10 +22,10 @@ max-tool-denials: 3
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: ["cat", "ls", "find", "grep", "head", "tail", "wc"]
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, discussions]
     allowed-repos: all
     min-integrity: none

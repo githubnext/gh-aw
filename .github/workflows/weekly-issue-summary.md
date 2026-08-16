@@ -21,12 +21,12 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   bash:
     - "*"
   github:
-    mode: gh-proxy
+    mode: cli
     min-integrity: approved
     toolsets: 
       - issues

@@ -90,7 +90,7 @@ For example:
 ```yaml wrap
 tools:
   github:
-    mode: remote
+    mode: mcp-remote
     toolsets: [default]
     allowed-repos:
       - "myorg/*"

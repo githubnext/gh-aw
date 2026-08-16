@@ -23,7 +23,7 @@ permissions:
   pull-requests: read
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
     min-integrity: ${{ github.aw.import-inputs.min-integrity }}
     toolsets: [pull_requests, repos]

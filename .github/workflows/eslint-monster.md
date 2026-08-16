@@ -22,9 +22,9 @@ engine:
 strict: true
 timeout-minutes: 45
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, issues, discussions]
   bash:
     - "*"

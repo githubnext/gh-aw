@@ -30,9 +30,9 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, pull_requests, issues]
   bash:
     - "cat:*"

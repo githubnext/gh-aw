@@ -51,7 +51,7 @@ imports:
   - shared/token-telemetry-check.md
   - shared/reporting.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 experiments:
   sub_agent_strategy:
     variants: [single_agent, sub_agents]

@@ -18,7 +18,7 @@ strict: true
 tracker-id: daily-action-setup-security-audit
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [issues]
   cache-memory: true
   bash: ["*"]

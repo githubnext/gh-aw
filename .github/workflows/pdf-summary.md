@@ -40,7 +40,7 @@ imports:
 
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
 
 safe-outputs:

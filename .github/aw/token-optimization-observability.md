@@ -39,7 +39,7 @@ Treat the agent harness as six separate control surfaces rather than one prompt:
 | Dimension | gh-aw control surface |
 |---|---|
 | Context assembly | Prompt structure, imports, DataOps, and context compression |
-| Tool interaction | Tool selection, `gh-proxy`, `cli-proxy`, permissions, and result filtering |
+| Tool interaction | Tool selection, `cli`/`mcp-mode`, permissions, and result filtering |
 | Generation control | Engine and model selection, `max-turns`, and `timeout-minutes` |
 | Orchestration | Deterministic steps, sub-agents, planning, execution, and refinement |
 | Memory management | `cache-memory`, `repo-memory`, summaries, and stale-context removal |

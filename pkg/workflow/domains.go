@@ -527,14 +527,13 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 		}
 
 		// Special handling for GitHub MCP in remote mode
-		// When mode: remote is set, the URL is implicitly the hosted GitHub Copilot MCP server
+		// When mode is mcp-remote (or legacy remote), the URL is implicitly the hosted
+		// GitHub Copilot MCP server.
 		if toolName == "github" {
-			if modeField, hasMode := configMap["mode"]; hasMode {
-				if modeStr, ok := modeField.(string); ok && modeStr == "remote" {
-					domainsLog.Printf("Detected GitHub MCP remote mode, adding %s to domains", constants.GitHubCopilotMCPDomain)
-					domains = append(domains, constants.GitHubCopilotMCPDomain)
-					continue
-				}
+			if mode, explicit := explicitGitHubAccessMode(configMap); explicit && mode == GitHubAccessModeMCPRemote {
+				domainsLog.Printf("Detected GitHub MCP remote mode, adding %s to domains", constants.GitHubCopilotMCPDomain)
+				domains = append(domains, constants.GitHubCopilotMCPDomain)
+				continue
 			}
 		}
 

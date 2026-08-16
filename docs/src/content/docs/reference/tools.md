@@ -126,14 +126,18 @@ tools:
 
 See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
 
-### MCP CLI Mounting (`cli-proxy:`)
+### MCP CLI Mounting (`mcp-mode: cli`)
 
-Set `tools.cli-proxy: true` to mount each user-facing MCP server as a standalone CLI tool on `PATH`. When enabled, the agent can invoke MCP servers as shell commands rather than through the MCP protocol:
+Set `tools.mcp-mode: cli` to mount each user-facing MCP server as a standalone CLI tool on `PATH`. When enabled, the agent can invoke MCP servers as shell commands rather than through the MCP protocol:
 
 ```yaml wrap
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 ```
+
+:::note
+The legacy `tools.cli-proxy: true` is still accepted for backward compatibility and is automatically migrated to `tools.mcp-mode: cli` by `gh aw fix`. New workflows should use `tools.mcp-mode: cli`.
+:::
 
 With CLI mounting enabled, MCP servers accessible to the workflow (such as `safeoutputs` and `mcpscripts`) are wrapped as executable commands. For example:
 

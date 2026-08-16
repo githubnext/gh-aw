@@ -50,7 +50,7 @@ Use these instructions when creating or updating workflows that mention Docker, 
 - Preview scope is narrow: GitHub-hosted runners only, Ubuntu Linux x86_64 only, and `/dev/kvm` must be present.
 - The compiler emits host preflight and release-asset provisioning steps that download and checksum-verify the pinned Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor from the `gh-aw-firewall` release before AWF starts, and grants only the runner user scoped read/write access to `/dev/kvm`.
 - AWF launches with the host privileges required to create the VM but keeps strict network isolation; the guest defaults to 2 vCPUs and 4096 MiB, and its trusted topology attachment is limited to the MCP gateway on TCP 8080 (no CLI proxy).
-- Not supported under Cloud Hypervisor: `tools.github.mode: gh-proxy`, the `integrity-reactions` feature, `sandbox.agent.allow-host-ports`, GitHub Actions `services:` with published ports, and `enclaves:` configuration.
+- Not supported under Cloud Hypervisor: `tools.github.mode: cli`, the `integrity-reactions` feature, `sandbox.agent.allow-host-ports`, GitHub Actions `services:` with published ports, and `enclaves:` configuration.
 - Do not recommend this runtime for self-hosted, non-Ubuntu, or non-x86_64 runners; use `docker-sbx` or `gvisor` instead.
 
 ## ARC DinD guidance

@@ -21,7 +21,7 @@ sandbox:
     runtime: gvisor
 tools:
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   timeout: 300
 safe-outputs:

@@ -196,7 +196,7 @@ For PRs touching design tokens or CSS files that require a linked design referen
 For PR QA coverage summaries (gaps, risks, suggested test focus):
 
 - trigger: `pull_request` (optionally scoped with `paths:`)
-- tools: `github` (`gh-proxy`) for changed files, PR metadata, labels, checks
+- tools: `github` (`cli`) for changed files, PR metadata, labels, checks
 - permissions: `contents: read`, `pull-requests: read`; agent job read-only
 - output: `add-comment` with coverage matrix and untested/high-risk areas
 - fallback: `noop` for non-testable changes (e.g. docs-only)
@@ -206,7 +206,7 @@ For PR QA coverage summaries (gaps, risks, suggested test focus):
 For recurring product/stakeholder digests:
 
 - trigger: fuzzy `schedule` (e.g. `weekly on mondays`)
-- tools: `github` (`gh-proxy`), optional `cache-memory` for period-over-period continuity
+- tools: `github` (`cli`), optional `cache-memory` for period-over-period continuity
 - permissions: read-only
 - output: `create-issue` by default; `create-discussion` only when requested
 - prompt: audience-aware language (summary first, details second)
@@ -228,7 +228,7 @@ For workflows that build, test, publish a GitHub release, and generate release h
 - trigger: `workflow_dispatch` with a `release_type` input (`patch`, `minor`, `major`); restrict with `roles: [admin, maintainer]`
 - structure: **Classic + Agent** hybrid — all build/test/release jobs are standard GitHub Actions jobs; the agent job runs last and only updates the release description
 - classic jobs: `config` (compute semver), `build` (compile + upload artifact), `test`, `release` (create prerelease with `--generate-notes --latest=false`); output `release_id` from the release job
-- agent job: depends on `release` job; pre-fetches merged PRs and changelog in `steps:`; uses `tools: cli-proxy: true`; writes highlights via `update-release` with `operation: prepend`
+- agent job: depends on `release` job; pre-fetches merged PRs and changelog in `steps:`; uses `tools: mcp-mode: cli`; writes highlights via `update-release` with `operation: prepend`
 - safe output: `update-release` with `threat-detection: false` (release bodies contain code snippets)
 - permissions: global `contents: read`; per-job `contents: write` only on jobs that push tags or create releases
 

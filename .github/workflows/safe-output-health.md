@@ -19,7 +19,7 @@ engine:
 max-ai-credits: 1500
 max-turns: 200
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 timeout-minutes: 30
 strict: true
 imports:

@@ -39,9 +39,9 @@ tools:
   - grep -r "func Test" . --include="*_test.go"
   - go test -v ./...
   - wc -l **/*_test.go
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
   repo-memory:

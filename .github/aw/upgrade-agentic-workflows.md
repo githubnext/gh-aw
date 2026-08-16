@@ -155,9 +155,9 @@ If compilation fails, work through errors systematically:
    # Old format (deprecated)
    mcp-servers:
      github:
-       mode: remote
+       mode: mcp-remote
    
-   # New format (do NOT include mode: remote - it does not work with GitHub Actions token)
+   # New format (prefer cli mode — use mcp-local or mcp-remote only when MCP-specific fields are needed)
    tools:
      github:
        toolsets: [default]

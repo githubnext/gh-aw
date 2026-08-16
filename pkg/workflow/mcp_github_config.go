@@ -54,7 +54,7 @@
 //
 //	tools:
 //	  github:
-//	    mode: remote                    # or "local" for Docker
+//	    mode: mcp-remote                # or mcp-local for Docker, cli for gh CLI
 //	    github-token: ${{ secrets.PAT }}
 //	    lockdown: true                  # or omit for automatic detection
 //	    toolsets: [repos, issues, pull_requests]
@@ -88,69 +88,25 @@ func hasGitHubApp(githubTool map[string]any) bool {
 	return hasApp
 }
 
-// isGitHubCLIModeEnabled returns true when GitHub prompt/runtime mode is explicitly set
-// to `tools.github.mode: gh-proxy`. If mode is explicitly set to `local` or `remote`, it
-// takes precedence over the legacy features.cli-proxy flag (treated as MCP mode).
-// When mode is not explicitly set, this returns the legacy `features.cli-proxy` flag
-// value for backward compatibility.
+// isGitHubCLIModeEnabled reports whether GitHub is reached through the pre-authenticated
+// gh CLI (protected by the host policy proxy) rather than a GitHub MCP server.
+//
+// It is a thin accessor over the single resolveGitHubAccessProfile result so that
+// prompt selection, MCP registration, GH_TOKEN exclusion, AWF flags, and the gh:*
+// bash allowlist can never disagree about the effective access mode.
 func isGitHubCLIModeEnabled(data *WorkflowData) bool {
-	if data == nil {
-		return false
-	}
-	githubTool, hasGitHub := data.Tools["github"]
-	if hasGitHub && githubTool == false {
-		return false
-	}
-	if hasGitHub {
-		if toolConfig, ok := githubTool.(map[string]any); ok {
-			if modeSetting, exists := toolConfig["mode"]; exists {
-				if stringValue, ok := modeSetting.(string); ok {
-					switch GitHubMCPMode(strings.ToLower(strings.TrimSpace(stringValue))) {
-					case GitHubMCPModeGHProxy, GitHubMCPModeCLI:
-						return true
-					case GitHubMCPModeLocal, GitHubMCPModeRemote:
-						return false
-					default:
-						githubConfigLog.Printf("Unrecognized tools.github.mode value: %s, falling back to legacy behavior", stringValue)
-					}
-				}
-			}
-		}
-	}
-	return isFeatureEnabled(constants.CliProxyFeatureFlag, data)
-}
-
-// normalizeGitHubType normalizes and validates GitHub MCP transport values.
-// Supported values are `local` and `remote`.
-func normalizeGitHubType(value string) (GitHubMCPMode, bool) {
-	normalizedValue := GitHubMCPMode(strings.ToLower(strings.TrimSpace(value)))
-	switch normalizedValue {
-	case GitHubMCPModeLocal, GitHubMCPModeRemote:
-		return normalizedValue, true
-	default:
-		return "", false
-	}
+	return resolveGitHubAccessProfile(data).IsCLI()
 }
 
 // getGitHubType extracts the MCP transport type from GitHub tool configuration
-// (local or remote). Supports both `type` (preferred) and legacy `mode` values.
+// (local or remote). It reads the resolved access profile's transport, honoring
+// tools.github.mode (mcp-local/mcp-remote and legacy local/remote) and the legacy
+// tools.github.type field. Only meaningful when the GitHub MCP server is registered.
 func getGitHubType(githubTool map[string]any) GitHubMCPMode {
-	if typeSetting, exists := githubTool["type"]; exists {
-		if stringValue, ok := typeSetting.(string); ok {
-			if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
-				githubConfigLog.Printf("GitHub MCP type set explicitly: %s", normalizedValue)
-				return normalizedValue
-			}
-			githubConfigLog.Printf("Unrecognized tools.github.type value: %q, falling back to default", stringValue)
-		}
-	}
-	if modeSetting, exists := githubTool["mode"]; exists {
-		if stringValue, ok := modeSetting.(string); ok {
-			if normalizedValue, valid := normalizeGitHubType(stringValue); valid {
-				githubConfigLog.Printf("GitHub MCP type read from legacy mode field: %s", normalizedValue)
-				return normalizedValue
-			}
-		}
+	if mode, explicit := explicitGitHubAccessMode(githubTool); explicit {
+		transport := GitHubAccessProfile{Mode: mode}.MCPTransport()
+		githubConfigLog.Printf("GitHub MCP transport resolved from access profile: %s", transport)
+		return transport
 	}
 	githubConfigLog.Print("GitHub MCP mode: local (default)")
 	return GitHubMCPModeLocal // default to local (Docker)

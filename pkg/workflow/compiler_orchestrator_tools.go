@@ -236,38 +236,72 @@ func enforceMCPProxyTools(engine MCPProxyEngine, tools map[string]any) (map[stri
 		return tools, nil
 	}
 
+	cliMode := string(GitHubMCPModeCLI)
+
 	if githubValue, exists := tools["github"]; exists {
 		switch github := githubValue.(type) {
 		case bool:
 			if !github {
-				return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github cannot be disabled because gh-proxy is required", engine.GetID())
+				return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github cannot be disabled because CLI access is required", engine.GetID())
 			}
 		case map[string]any:
 			if modeValue, hasMode := github["mode"]; hasMode {
 				mode, ok := modeValue.(string)
-				if !ok || (mode != string(GitHubMCPModeGHProxy) && mode != string(GitHubMCPModeCLI)) {
-					return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github.mode must be gh-proxy", engine.GetID())
+				if !ok {
+					return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github.mode must be cli", engine.GetID())
+				}
+				if resolved, valid := normalizeGitHubAccessMode(mode); !valid || resolved != GitHubAccessModeCLI {
+					return nil, fmt.Errorf("engine '%s' does not support MCP; tools.github.mode must be cli", engine.GetID())
 				}
 			}
-			github["mode"] = string(GitHubMCPModeGHProxy)
+			// MCP-only fields (toolsets/allowed/version/args) are ignored for non-MCP
+			// engines (they force CLI access); leave them untouched rather than error.
+			github["mode"] = cliMode
 		case nil, string:
-			tools["github"] = map[string]any{"mode": string(GitHubMCPModeGHProxy)}
+			tools["github"] = map[string]any{"mode": cliMode}
 		}
 	}
 
 	if _, exists := tools["github"]; !exists {
-		tools["github"] = map[string]any{"mode": string(GitHubMCPModeGHProxy)}
+		tools["github"] = map[string]any{"mode": cliMode}
 	} else if enabled, ok := tools["github"].(bool); ok && enabled {
-		tools["github"] = map[string]any{"mode": string(GitHubMCPModeGHProxy)}
+		tools["github"] = map[string]any{"mode": cliMode}
 	}
 
+	if err := enforceMCPModeCLI(engine, tools); err != nil {
+		return nil, err
+	}
+	return tools, nil
+}
+
+// enforceMCPModeCLI derives the CLI MCP-mode for engines without MCP support so
+// user-facing MCP servers are surfaced as CLI tools. It rejects an explicit
+// contradicting selection (tools.mcp-mode / legacy tools.cli-proxy set to disable).
+func enforceMCPModeCLI(engine MCPProxyEngine, tools map[string]any) error {
 	if cliProxy, exists := tools["cli-proxy"]; exists {
 		if enabled, ok := cliProxy.(bool); ok && !enabled {
-			return nil, fmt.Errorf("engine '%s' does not support MCP; tools.cli-proxy cannot be disabled", engine.GetID())
+			return fmt.Errorf("engine '%s' does not support MCP; tools.cli-proxy cannot be disabled", engine.GetID())
+		}
+		delete(tools, "cli-proxy")
+	}
+	if mcpMode, exists := tools["mcp-mode"]; exists {
+		if mode, ok := mcpMode.(string); ok && strings.TrimSpace(mode) != "" && !strings.EqualFold(strings.TrimSpace(mode), "cli") {
+			return fmt.Errorf("engine '%s' does not support MCP; tools.mcp-mode must be cli", engine.GetID())
 		}
 	}
-	tools["cli-proxy"] = true
-	return tools, nil
+	tools["mcp-mode"] = "cli"
+	return nil
+}
+
+// firstMCPOnlyGitHubField returns the first MCP-only GitHub field present in the
+// configuration (toolsets/allowed/version/args), or ("", false) if none are set.
+func firstMCPOnlyGitHubField(githubTool map[string]any) (string, bool) {
+	for _, field := range mcpOnlyGitHubFields {
+		if _, exists := githubTool[field]; exists {
+			return field, true
+		}
+	}
+	return "", false
 }
 
 func nonEmptyStrings(values ...string) []string {
@@ -359,7 +393,7 @@ func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, ag
 		func() error { return c.validateMaxContinuationsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxToolDenialsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateUniversalLLMConsumerModel(frontmatter, agenticEngine) },
-		func() error { return c.validatePiEngineRequirements(NewTools(tools), agenticEngine) },
+		func() error { return c.validateGitHubAccessConfig(frontmatter, tools, agenticEngine) },
 		func() error { return c.validateBashCommandAllowlistSupport(tools, agenticEngine) },
 	}
 	for _, validator := range validators {

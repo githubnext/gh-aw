@@ -104,6 +104,7 @@ var knownTools = map[string]struct{}{
 	"timeout":           {},
 	"startup-timeout":   {},
 	"cli-proxy":         {},
+	"mcp-mode":          {},
 }
 
 func NewTools(toolsMap map[string]any) *Tools {
@@ -165,9 +166,25 @@ func NewTools(toolsMap map[string]any) *Tools {
 		tools.StartupTimeout = parseStartupTimeoutTool(val)
 	}
 
+	// tools.mcp-mode is the public selector for how MCP servers are surfaced.
+	// "cli" mounts each user-facing MCP server as a CLI tool on PATH.
+	if val, exists := toolsMap["mcp-mode"]; exists {
+		if s, ok := val.(string); ok {
+			tools.MCPMode = s
+			if strings.EqualFold(strings.TrimSpace(s), "cli") {
+				tools.CLIProxy = true
+			}
+		} else {
+			toolsParserLog.Printf("Warning: mcp-mode must be a string (cli/default), ignoring value: %v", val)
+		}
+	}
+
+	// Legacy tools.cli-proxy: true boolean (migrated to tools.mcp-mode: cli by `gh aw fix`).
 	if val, exists := toolsMap["cli-proxy"]; exists {
 		if b, ok := val.(bool); ok {
-			tools.CLIProxy = b
+			if b {
+				tools.CLIProxy = true
+			}
 		} else {
 			toolsParserLog.Printf("Warning: cli-proxy must be a boolean (true/false), ignoring value: %v", val)
 		}

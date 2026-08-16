@@ -15,7 +15,7 @@ permissions:
 engine: copilot
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   bash:
     - "*"

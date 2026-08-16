@@ -29,9 +29,9 @@ imports:
 
 tools:
   startup-timeout: 300
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, actions]
   web-fetch:
   edit:

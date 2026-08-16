@@ -39,7 +39,7 @@ tools:
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
 
-> ⚠️ **Do NOT use `mode: remote`** in GitHub Actions workflows. Remote mode does not work with the GitHub Actions token (`GITHUB_TOKEN`) — it requires a special PAT or GitHub App token with MCP access. The default `mode: local` (Docker-based) works with `GITHUB_TOKEN` and should always be used.
+> ⚠️ **Do NOT use `mode: mcp-remote`** in GitHub Actions workflows. Remote mode does not work with the GitHub Actions token (`GITHUB_TOKEN`) — it requires a special PAT or GitHub App token with MCP access. Prefer `mode: cli` (the default), which uses the pre-authenticated `gh` CLI with no MCP server overhead. Use `mode: mcp-local` (Docker-based) when MCP-specific fields are needed and you have `GITHUB_TOKEN`.
 
 ### Toolset Options
 

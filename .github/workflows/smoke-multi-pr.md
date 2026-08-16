@@ -24,7 +24,7 @@ network:
     - defaults
     - node
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   bash:
     - "date"

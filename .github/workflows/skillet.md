@@ -26,7 +26,7 @@ imports:
   - shared/otlp.md
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [pull_requests, repos]
 safe-outputs:
   messages:

@@ -38,10 +38,10 @@ sandbox:
   agent:
     id: awf
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, issues]
   bash: true
 

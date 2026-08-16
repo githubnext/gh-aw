@@ -31,7 +31,7 @@ imports:
 
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 features:
   gh-aw-detection: true
 sandbox:

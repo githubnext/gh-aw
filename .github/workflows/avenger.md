@@ -26,9 +26,9 @@ network:
     - defaults
     - go
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
   bash: ["*"]
   edit:

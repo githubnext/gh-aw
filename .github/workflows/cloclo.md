@@ -31,7 +31,7 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   edit:
   playwright:

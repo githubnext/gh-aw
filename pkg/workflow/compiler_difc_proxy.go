@@ -452,24 +452,17 @@ func (c *Compiler) generateStopDIFCProxyStep(yaml *strings.Builder, data *Workfl
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh\"\n")
 }
 
-// isCliProxyNeeded returns true if the CLI proxy should be started on the host.
+// isCliProxyNeeded returns true if the host policy proxy (CLI proxy) should be
+// started on the host.
 //
-// The CLI proxy is needed when:
-//  1. tools.github.mode is set to gh-proxy (or legacy cli-proxy behavior is enabled), and
-//  2. The AWF sandbox (firewall) is enabled, and
-//  3. The AWF version supports CLI proxy flags
-//
-// The cli-proxy feature is implicitly enabled when integrity-reactions is enabled,
-// because reaction-based integrity decisions require the proxy to identify reaction authors.
+// It is needed when the resolved GitHub access profile is CLI mode (which already
+// folds in integrity-reactions and non-MCP engines), the AWF sandbox (firewall) is
+// enabled, and the AWF version supports the CLI proxy flags. Basing this on the
+// single resolveGitHubAccessProfile result keeps host-proxy startup in lock-step
+// with prompt selection, MCP registration, and GH_TOKEN exclusion.
 func isCliProxyNeeded(data *WorkflowData) bool {
-	cliProxyEnabled := isGitHubCLIModeEnabled(data)
-	integrityReactionsEnabled := isFeatureEnabled(constants.IntegrityReactionsFeatureFlag, data)
-
-	if !cliProxyEnabled && !integrityReactionsEnabled {
+	if !resolveGitHubAccessProfile(data).IsCLI() {
 		return false
-	}
-	if integrityReactionsEnabled && !cliProxyEnabled {
-		difcProxyLog.Print("integrity-reactions enabled: implicitly enabling CLI proxy")
 	}
 	if !isFirewallEnabled(data) {
 		return false

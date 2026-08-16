@@ -68,7 +68,7 @@ safe-outputs:
 strict: true
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 
 
 ---

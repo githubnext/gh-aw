@@ -101,8 +101,9 @@ tools:
   - wc *
   - python3 *
   - cat > /tmp/gh-aw/agent/*.py
-  cli-proxy: true
+  mcp-mode: cli
 ---
+
 # Workflow Skill Extractor
 
 You are an AI workflow analyst specialized in identifying reusable skills in GitHub Agentic Workflows.

@@ -32,7 +32,7 @@ safe-outputs:
     max: 1
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   github:
     toolsets: [default]

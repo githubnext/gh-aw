@@ -79,9 +79,9 @@ tools:
   - awk
   - sed
   - shuf
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
     - discussions
@@ -547,7 +547,7 @@ Configure MCP servers in your workflow frontmatter under the `tools` section. Fo
 \`\`\`yaml
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 \`\`\`
 

@@ -51,10 +51,10 @@ tools:
   - grep -r "interface{}" pkg --include="*.go"
   - "grep -r \"\\\\bany\\\\b\" pkg --include=\"*.go\""
   - cat pkg/**/*.go
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 features:

@@ -46,7 +46,7 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 evals:
   - id: ace_link_generated
     question: Did the agent generate an ACE editor session link in response to the /ace command?

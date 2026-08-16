@@ -289,7 +289,7 @@ Preview scope is intentionally narrow:
 - Ubuntu Linux x86_64 only (`RUNNER_OS=Linux`, `RUNNER_ARCH=X64`, `ImageOS=ubuntu*`).
 - `/dev/kvm` must be present.
 - `runner.topology: arc-dind` is not supported.
-- `tools.github.mode: gh-proxy` and the `integrity-reactions` feature are not supported: the CLI proxy sidecar is not attached to the isolated topology.
+- `tools.github.mode: cli` and the `integrity-reactions` feature are not supported: the CLI proxy sidecar is not attached to the isolated topology.
 - `sandbox.agent.allow-host-ports` and GitHub Actions `services:` with published ports are not supported: host access requires `sandbox.agent.runtime: docker-sudo-iptables`.
 - `enclaves` configuration is not supported.
 

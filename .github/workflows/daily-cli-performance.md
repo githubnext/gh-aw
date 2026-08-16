@@ -41,7 +41,7 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   repo-memory:
     branch-name: memory/cli-performance
     description: "Historical CLI compilation performance benchmark results"
@@ -50,7 +50,7 @@ tools:
   bash: true
   edit:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, issues]
 safe-outputs:
   create-issue:

@@ -24,10 +24,10 @@ engine:
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: ["cat", "ls", "find", "grep", "head", "tail", "wc", "git", "jq *"]
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [pull_requests, repos, issues]
     allowed-repos: all
     min-integrity: none

@@ -38,7 +38,7 @@ runtimes:
   node:
     version: "24"
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   cache-memory: true
   playwright:
     mode: cli

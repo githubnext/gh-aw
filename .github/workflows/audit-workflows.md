@@ -32,7 +32,7 @@ engine:
   mcp:
     tool-timeout: 10m
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   agentic-workflows:
   timeout: 300
 safe-outputs:

@@ -25,7 +25,7 @@ sandbox:
 imports:
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   web-fetch:
 
 timeout-minutes: 5

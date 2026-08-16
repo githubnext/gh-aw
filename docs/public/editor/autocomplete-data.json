@@ -1552,14 +1552,16 @@
             },
             "mode": {
               "type": "string",
-              "desc": "GitHub access mode.",
-              "enum": ["gh-proxy", "local", "remote"],
+              "desc": "GitHub access mode (homogeneous enum): 'cli' reaches GitHub through the pre-authenticated gh CLI protected by the hos...",
+              "enum": ["cli", "mcp-local", "mcp-remote", "gh-proxy", "local", "remote"],
               "leaf": true
             },
             "type": {
               "type": "string",
-              "desc": "GitHub MCP transport type: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)",
+              "desc": "Deprecated.",
               "enum": ["local", "remote"],
+              "deprecated": true,
+              "x-deprecation-message": "tools.github.type is deprecated. Use tools.github.mode: mcp-local or mcp-remote instead.",
               "leaf": true
             },
             "version": {
@@ -1963,10 +1965,18 @@
           "desc": "Timeout in seconds for MCP server startup.",
           "leaf": true
         },
+        "mcp-mode": {
+          "type": "string",
+          "desc": "How user-facing MCP servers are surfaced to the agent.",
+          "enum": ["cli", "default", "mcp"],
+          "leaf": true
+        },
         "cli-proxy": {
           "type": "boolean",
-          "desc": "When true, each user-facing MCP server is mounted as a standalone CLI tool on PATH.",
+          "desc": "Deprecated.",
           "enum": [true, false],
+          "deprecated": true,
+          "x-deprecation-message": "tools.cli-proxy is deprecated. Use tools.mcp-mode: cli instead.",
           "leaf": true
         },
         "serena": {

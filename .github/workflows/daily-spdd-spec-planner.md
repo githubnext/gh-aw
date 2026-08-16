@@ -34,9 +34,9 @@ imports:
 
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, repos, issues, pull_requests]
   cache-memory: true
   edit: null

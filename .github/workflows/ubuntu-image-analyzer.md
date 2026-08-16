@@ -36,15 +36,16 @@ tools:
   - find .github/workflows -name "*.lock.yml" -type f
   - cat research/ubuntulatest.md
   - git
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
     - actions
 tracker-id: ubuntu-image-analyzer
 ---
+
 # Ubuntu Actions Image Analyzer
 
 You are an AI agent that analyzes the default Ubuntu Actions runner image and maintains documentation about its contents and how to create Docker images that mimic it.

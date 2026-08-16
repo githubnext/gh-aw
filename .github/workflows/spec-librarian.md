@@ -69,10 +69,10 @@ tools:
   - "git log --oneline --since=\"30 days ago\" -- pkg/*"
   - "git log --oneline --since=\"7 days ago\" -- pkg/*/README.md"
   - "git log -1 --format=%H -- pkg/*"
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: spec-librarian

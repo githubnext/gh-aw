@@ -18,7 +18,7 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: [":*"]
   repo-memory:
     branch-name: memory/meta-orchestrators

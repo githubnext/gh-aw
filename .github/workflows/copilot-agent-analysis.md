@@ -55,9 +55,9 @@ imports:
 timeout-minutes: 15
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
 features:
   gh-aw-detection: true
 evals:

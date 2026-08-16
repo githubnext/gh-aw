@@ -73,7 +73,7 @@ tools:
   bash:
     - "*"
   edit:
-  cli-proxy: true
+  mcp-mode: cli
 
 imports:
   - uses: shared/meta-analysis-base.md

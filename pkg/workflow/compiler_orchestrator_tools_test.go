@@ -894,8 +894,9 @@ func TestEnforceMCPProxyTools(t *testing.T) {
 	t.Run("enables required proxies", func(t *testing.T) {
 		tools, err := enforceMCPProxyTools(engine, map[string]any{})
 		require.NoError(t, err)
-		assert.Equal(t, true, tools["cli-proxy"])
-		assert.Equal(t, map[string]any{"mode": "gh-proxy"}, tools["github"])
+		assert.Equal(t, "cli", tools["mcp-mode"])
+		assert.Equal(t, map[string]any{"mode": "cli"}, tools["github"])
+		assert.NotContains(t, tools, "cli-proxy")
 	})
 
 	t.Run("preserves github configuration", func(t *testing.T) {
@@ -904,10 +905,10 @@ func TestEnforceMCPProxyTools(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, map[string]any{
-			"mode":     "gh-proxy",
+			"mode":     "cli",
 			"toolsets": []any{"repos"},
 		}, tools["github"])
-		assert.Equal(t, true, tools["cli-proxy"])
+		assert.Equal(t, "cli", tools["mcp-mode"])
 	})
 
 	t.Run("normalizes default-enabled github forms", func(t *testing.T) {
@@ -918,8 +919,8 @@ func TestEnforceMCPProxyTools(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				tools, err := enforceMCPProxyTools(engine, map[string]any{"github": github})
 				require.NoError(t, err)
-				assert.Equal(t, map[string]any{"mode": "gh-proxy"}, tools["github"])
-				assert.Equal(t, true, tools["cli-proxy"])
+				assert.Equal(t, map[string]any{"mode": "cli"}, tools["github"])
+				assert.Equal(t, "cli", tools["mcp-mode"])
 			})
 		}
 	})
@@ -931,9 +932,9 @@ func TestEnforceMCPProxyTools(t *testing.T) {
 
 	t.Run("rejects non proxy github mode", func(t *testing.T) {
 		_, err := enforceMCPProxyTools(engine, map[string]any{
-			"github": map[string]any{"mode": "remote"},
+			"github": map[string]any{"mode": "mcp-remote"},
 		})
-		require.ErrorContains(t, err, "tools.github.mode must be gh-proxy")
+		require.ErrorContains(t, err, "tools.github.mode must be cli")
 	})
 
 	t.Run("rejects disabled cli proxy", func(t *testing.T) {

@@ -30,7 +30,7 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "cat:*"
 safe-outputs:

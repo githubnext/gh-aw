@@ -21,7 +21,7 @@ runtimes:
   node:
     version: "22"
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   timeout: 120  # Playwright navigation on Astro dev server can take >60s; increase to 120s
   playwright:
     mode: cli

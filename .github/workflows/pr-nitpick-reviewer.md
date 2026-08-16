@@ -20,7 +20,7 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 safe-outputs:
   create-discussion:
     expires: 1d

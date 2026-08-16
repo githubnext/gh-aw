@@ -145,7 +145,7 @@ steps:
       path: /tmp/gh-aw/agent/skill-optimizer-results
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "*"
   edit:

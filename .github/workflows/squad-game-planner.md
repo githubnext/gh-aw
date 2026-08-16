@@ -20,7 +20,7 @@ imports:
 tools:
   bash: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 safe-outputs:
   create-issue:
@@ -28,7 +28,7 @@ safe-outputs:
     labels: [squad:plan]
     group: true
     max: 12
-    expires: 1
+    expires: 1d
     close-older-issues: true
     close-older-key: squad-game-planner
 pre-agent-steps:

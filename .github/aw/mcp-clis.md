@@ -4,7 +4,7 @@ description: MCP CLI command usage guidance and JSON payload patterns
 
 # MCP CLI Usage
 
-MCP CLI exposes mounted MCP servers as shell commands on `PATH`. Enabled by `tools.cli-proxy: true`.
+MCP CLI exposes mounted MCP servers as shell commands on `PATH`. Enabled by `tools.mcp-mode: cli`.
 
 > **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** instead of the equivalent MCP tools — do **not** call their MCP tools directly even if they appear in your tool list.
 >

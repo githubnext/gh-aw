@@ -16,7 +16,7 @@ permissions:
 
 tools:
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default]
 
 safe-outputs:

@@ -21,11 +21,11 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: ["*"]
   edit:
   github:
-    mode: remote
+    mode: mcp-remote
     toolsets: [default]
 safe-outputs:
   create-pull-request:

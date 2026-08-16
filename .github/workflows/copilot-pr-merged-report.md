@@ -24,7 +24,7 @@ max-tool-denials: 3
 strict: false
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github: false
 
 network:

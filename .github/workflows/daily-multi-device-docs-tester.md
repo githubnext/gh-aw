@@ -30,9 +30,9 @@ runtimes:
   node:
     version: "24"
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   timeout: 120  # Multi-device runs include preview startup and Playwright tests
   playwright:
     mode: cli

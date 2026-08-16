@@ -43,9 +43,9 @@ sandbox:
     runtime: docker-sbx
 tools:
   cache-memory: true
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
 safe-outputs:
   create-issue:
     expires: 7d

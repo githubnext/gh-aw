@@ -1,5 +1,4 @@
 ---
-private: true
 on:
   schedule: daily
   workflow_dispatch: null
@@ -34,6 +33,7 @@ description: Daily Go code quality analysis using Serena MCP language service pr
 emoji: 🤖
 engine: claude
 name: "Sergo - Serena Go Expert"
+private: true
 strict: true
 timeout-minutes: 45
 tools:
@@ -43,12 +43,12 @@ tools:
   - go list -m all
   - find . -name "*.go" -type f
   - grep -r "func " --include="*.go"
-  - grep -c '.Analyzer,' pkg/linters/registry.go
+  - grep -c ".Analyzer," pkg/linters/registry.go
   - wc -l
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
     - issues

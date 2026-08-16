@@ -15,7 +15,7 @@ Set `engine: pi`. A model without a provider prefix uses the Copilot backend; an
 | `anthropic/` | [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) |
 | `openai/` or `codex/` | `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) |
 
-Pi requires `tools.github.mode: gh-proxy` and `tools.cli-proxy: true`. The compiler rejects Pi workflows that omit either requirement.
+Pi does not provide native MCP server integration, so the compiler automatically derives CLI GitHub access (`tools.github.mode: cli`) and CLI MCP mode (`tools.mcp-mode: cli`). No explicit configuration of these fields is required — Pi "just works" without GitHub access or proxy configuration.
 
 ## Example: scheduled repository report
 
@@ -35,9 +35,7 @@ engine:
   model: copilot/gpt-5.4
 
 tools:
-  cli-proxy: true
   github:
-    mode: gh-proxy
     toolsets: [default]
 
 safe-outputs:
@@ -56,7 +54,7 @@ For a production example, see the [`unbloat-docs` Pi workflow](https://github.co
 
 ## Capabilities and limitations
 
-Pi supports top-level `max-turns`, provider-prefixed models, and `engine.extensions`. Pi already runs in bare mode, so `engine.bare: true` is accepted but has no effect. Pi does not provide native MCP server integration, native `tools.web-search`, per-command bash allowlisting, `max-continuations`, native `engine.agent` selection, or custom `engine.harness` scripts. MCP-backed tools must be exposed through the required CLI proxy.
+Pi supports top-level `max-turns`, provider-prefixed models, and `engine.extensions`. Pi already runs in bare mode, so `engine.bare: true` is accepted but has no effect. Pi does not provide native MCP server integration, native `tools.web-search`, per-command bash allowlisting, `max-continuations`, native `engine.agent` selection, or custom `engine.harness` scripts. MCP-backed tools are automatically exposed through CLI mode, which Pi derives automatically.
 
 See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison) and [Pi extensions reference](/gh-aw/reference/engines/#pi-extensions-extensions).
 

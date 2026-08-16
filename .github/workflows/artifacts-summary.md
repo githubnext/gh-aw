@@ -23,11 +23,11 @@ sandbox:
     id: awf
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   edit:
   bash: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [actions, repos]
 safe-outputs:
   create-discussion:

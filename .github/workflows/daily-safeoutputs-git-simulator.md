@@ -16,10 +16,10 @@ sandbox:
 engine: claude
 strict: true
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash: true
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, repos, pull_requests]
   repo-memory:
     branch-name: memory/git-simulator

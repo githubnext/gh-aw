@@ -21,9 +21,9 @@ timeout-minutes: 25
 network:
   allowed: [defaults, github, node, go]
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [default, pull_requests]
   bash:
     - "*"

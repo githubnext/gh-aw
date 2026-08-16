@@ -28,7 +28,7 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   bash:
     - "*"
   edit:

@@ -28,9 +28,9 @@ sandbox:
     id: awf
     runtime: docker-sbx
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets: [issues]
   repo-memory:
     wiki: true

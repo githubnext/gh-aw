@@ -39,7 +39,7 @@ features:
 tools:
   bash:
     - "*"
-  cli-proxy: true
+  mcp-mode: cli
 
 evals:
   - id: analysis-completed

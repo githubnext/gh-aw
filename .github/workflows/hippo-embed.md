@@ -34,9 +34,9 @@ sandbox:
     id: awf
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
   bash:
     - "*"
 

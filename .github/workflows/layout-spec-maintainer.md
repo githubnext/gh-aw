@@ -57,10 +57,10 @@ tools:
   - sed -n
   - git status --short
   - git checkout -b * && git add scratchpad/layout.md && git status --short
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: layout-spec-maintainer

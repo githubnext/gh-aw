@@ -72,7 +72,7 @@ steps:
 timeout-minutes: 20
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
 features:
   gh-aw-detection: true
 evals:

@@ -10,7 +10,7 @@ permissions:
 
 
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
     min-integrity: approved
     toolsets: [issues, labels]

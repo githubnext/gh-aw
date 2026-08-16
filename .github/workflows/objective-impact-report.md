@@ -18,9 +18,9 @@ cache:
     restore-keys: |
       objective-impact-report-cache-
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   github:
-    mode: gh-proxy
+    mode: cli
     read-only: true
     toolsets: [default]
   bash:

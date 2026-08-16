@@ -21,11 +21,9 @@ var piLog = logger.New("workflow:pi_engine")
 // firewall can route LLM traffic through the correct sidecar port.  Without a provider
 // prefix Pi defaults to the GitHub/Copilot gateway.
 //
-// Requirements:
-//   - tools.github.mode: gh-proxy must be enabled (pre-authenticated gh CLI).
-//   - tools.cli-proxy: true must be enabled (MCP servers mounted as CLI tools).
-//
-// Both requirements are validated at compile time by validatePiEngineRequirements.
+// Because Pi has no MCP client, the compiler automatically resolves GitHub access
+// to CLI mode (pre-authenticated gh CLI) and surfaces MCP servers as CLI tools.
+// Authors do not configure tools.github.mode or tools.mcp-mode for Pi.
 type PiEngine struct {
 	BaseEngine
 }

@@ -36,10 +36,10 @@ timeout-minutes: 20
 tools:
   bash:
   - "find pkg -name \"*.go\" ! -name \"*_test.go\" -type f -exec wc -l {} \\; | sort -rn"
-  cli-proxy: true
+  mcp-mode: cli
   edit: null
   github:
-    mode: gh-proxy
+    mode: cli
     toolsets:
     - default
 tracker-id: daily-file-diet

@@ -22,7 +22,7 @@ sandbox:
   agent:
     runtime: gvisor
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   web-fetch:
   cache-memory: true
   bash:

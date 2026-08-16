@@ -18,9 +18,9 @@ Use these defaults when the requester frames the automation in non-engineering p
 
 | Persona or scenario | Trigger and scope | Typical tools and outputs | Required prompt details |
 |---|---|---|---|
-| Program Manager or information-worker digest | `schedule` plus `workflow_dispatch` for previews, reruns, and backfills | `github` (`gh-proxy`); `create-issue` by default | Define the report window, grouping dimensions, deduplication key, and `noop` behavior for empty windows |
-| Designer or design-governance review | `pull_request` with `paths:` scoped to UI, design-token, copy, or asset files | `github` (`gh-proxy`); optional `playwright`; `add-comment` on the PR | State the review rubric (for example accessibility, token consistency, asset policy), and call `noop` when scoped files are unchanged |
-| Legal / compliance / documentation-policy review | `pull_request` with scoped `paths:` or `schedule` for recurring audits | `github` (`gh-proxy`); `add-comment` for findings; `create-issue` only for violations needing follow-up | Classify findings against the policy, search for existing open issues before escalating, and call `noop` when there is no in-scope change or violation |
+| Program Manager or information-worker digest | `schedule` plus `workflow_dispatch` for previews, reruns, and backfills | `github` (`cli`); `create-issue` by default | Define the report window, grouping dimensions, deduplication key, and `noop` behavior for empty windows |
+| Designer or design-governance review | `pull_request` with `paths:` scoped to UI, design-token, copy, or asset files | `github` (`cli`); optional `playwright`; `add-comment` on the PR | State the review rubric (for example accessibility, token consistency, asset policy), and call `noop` when scoped files are unchanged |
+| Legal / compliance / documentation-policy review | `pull_request` with scoped `paths:` or `schedule` for recurring audits | `github` (`cli`); `add-comment` for findings; `create-issue` only for violations needing follow-up | Classify findings against the policy, search for existing open issues before escalating, and call `noop` when there is no in-scope change or violation |
 
 ## Milestone slip / dependency-escalation trigger decision
 
@@ -135,7 +135,7 @@ Prompt guidance:
 
 For workflows that read, analyze, or comment on test coverage (PR comments, trend tracking, coverage gates):
 
-- **Prefer existing artifacts**: check for a coverage artifact from the current or parent CI run before recomputing; use `actions: read` via `gh-proxy` to list and download artifacts.
+- **Prefer existing artifacts**: check for a coverage artifact from the current or parent CI run before recomputing; use `actions: read` via `cli` mode to list and download artifacts.
 - **Prefer PR signals**: read existing check run annotations or coverage diff comments before fetching raw data; only recompute when no artifact or annotation is available.
 - **Explicit fallback**: when no artifact exists, document the fallback computation step in the workflow prompt; never invent coverage values.
 - call `noop` when no coverage data can be retrieved or computed and there is no meaningful output to report.

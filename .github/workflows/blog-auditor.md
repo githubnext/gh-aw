@@ -37,7 +37,7 @@ network:
     - githubnext.com
     - www.githubnext.com
 tools:
-  cli-proxy: true
+  mcp-mode: cli
   playwright:
     mode: cli
   bash:

@@ -1,5 +1,5 @@
 ---
-description: Analyze and reduce token consumption in agentic workflows — audit-based measurement, DataOps, gh-proxy, sub-agents, and prompt optimization.
+description: Analyze and reduce token consumption in agentic workflows — audit-based measurement, DataOps, cli mode, sub-agents, and prompt optimization.
 disable-model-invocation: true
 ---
 
@@ -100,7 +100,7 @@ After measuring token usage, produce a prioritized plan:
 1. **Measure** — run `gh aw audit <run-id>` and summarize AI Credits and per-call token breakdown
 2. **Diagnose the harness** — classify failures across context assembly, tool interaction, generation control, orchestration, memory management, and output processing
 3. **Identify top cost drivers** — list the three most expensive phases/tool calls
-4. **Apply quick wins first** — DataOps pre-steps, `gh-proxy`, `cli-proxy`, prompt trimming
+4. **Apply quick wins first** — DataOps pre-steps, `cli` mode, `mcp-mode: cli`, prompt trimming
 5. **Sub-agent delegation** — identify repetitive per-item loops suitable for small-model workers
 6. **Bound repetitive work** — for very large backlogs, cap each run to a budget-safe subset and rotate through work with a persisted cache cursor or deterministic heuristic so items are not starved
 7. **Reuse execution experience** — preserve compact task features, configuration deltas, outcomes, costs, and diagnoses in `cache-memory` when cross-run reuse is useful; apply relevant recurring patterns to similar cases
