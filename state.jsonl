@@ -161,3 +161,4 @@
 {"run_id":"31264779776","timestamp":"2026-08-08T15:34:56.520Z","assignments":{"caveman":"no","subagent_model":"small"}}
 {"run_id":"31491013978","timestamp":"2026-08-11T12:25:12.813Z","assignments":{"caveman":"yes","subagent_model":"large"}}
 {"run_id":"31732550397","timestamp":"2026-08-13T18:48:34.677Z","assignments":{"caveman":"yes","subagent_model":"large"}}
+{"run_id":"31974722434","timestamp":"2026-08-16T21:53:09.316Z","assignments":{"caveman":"no","subagent_model":"small"}}
