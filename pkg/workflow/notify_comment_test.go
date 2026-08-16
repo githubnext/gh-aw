@@ -256,6 +256,23 @@ func TestConclusionJob(t *testing.T) {
 	}
 }
 
+func TestBuildUsageArtifactUploadStepsReportsMissingEvalsArtifact(t *testing.T) {
+	steps := strings.Join(buildUsageArtifactUploadSteps("", true, func(action string) string {
+		return action + "@test"
+	}), "")
+
+	for _, expected := range []string{
+		"id: download-evals-artifact",
+		"continue-on-error: true",
+		"if: always() && steps.download-evals-artifact.outcome == 'failure'",
+		"Evals artifact unavailable; evals were skipped or failed upstream.",
+	} {
+		if !strings.Contains(steps, expected) {
+			t.Errorf("Expected evals artifact handling to contain %q", expected)
+		}
+	}
+}
+
 func TestConclusionJobIntegration(t *testing.T) {
 	// Test that the job is properly integrated with activation job outputs
 	compiler := NewCompiler()

@@ -117,6 +117,30 @@ else
   fail "No WARNING when GITHUB_PATH is unset" "$warning_output"
 fi
 
+# Test 7: all release downloads use the retrying download helper
+echo "Test 7: release downloads use the retrying download helper..."
+download_calls=$(grep -cE '^[[:space:]]*(if ! )?download ' "${SCRIPT_DIR}/install_awf_binary.sh")
+if [ "$download_calls" -eq 4 ]; then
+  pass "All four release downloads use the download helper"
+else
+  fail "Expected four download helper calls" "Found ${download_calls}"
+fi
+
+# Test 8: download helper retries transient failures and reports exhausted retries
+echo "Test 8: download helper retries transient failures and reports exhausted retries..."
+download_helper=$(sed -n '/^download() {$/,/^}$/p' "${SCRIPT_DIR}/install_awf_binary.sh")
+missing_options=()
+for option in "--retry 5" "--retry-delay 10" "--retry-max-time 180" "--retry-all-errors"; do
+  if ! grep -q -- "$option" <<<"$download_helper"; then
+    missing_options+=("$option")
+  fi
+done
+if [ "${#missing_options[@]}" -eq 0 ] && grep -q "after retries; check network connectivity" <<<"$download_helper"; then
+  pass "Download helper retries transient failures and reports the network cause"
+else
+  fail "Download helper retry policy is incomplete" "Missing options: ${missing_options[*]}"
+fi
+
 echo
 echo "Tests passed: $TESTS_PASSED"
 echo "Tests failed: $TESTS_FAILED"

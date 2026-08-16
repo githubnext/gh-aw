@@ -141,6 +141,9 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, pinAction func(
 			"        with:\n",
 			fmt.Sprintf("          name: %s\n", evalsArtifactName),
 			"          path: /tmp/gh-aw/evals/\n",
+			"      - name: Report unavailable evals artifact\n",
+			"        if: always() && steps.download-evals-artifact.outcome == 'failure'\n",
+			"        run: echo \"::notice::Evals artifact unavailable; evals were skipped or failed upstream.\"\n",
 		)
 	}
 	steps = append(steps,

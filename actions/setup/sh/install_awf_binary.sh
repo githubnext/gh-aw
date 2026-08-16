@@ -120,9 +120,19 @@ sha256_hash() {
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
+download() {
+  local output="$1"
+  local url="$2"
+
+  if ! curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 --retry-all-errors -o "$output" "$url"; then
+    echo "ERROR: Failed to download ${url@Q} after retries; check network connectivity" >&2
+    return 1
+  fi
+}
+
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL@Q}..."
-curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 --retry-all-errors -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
+download "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
 
 verify_checksum() {
   local file="$1"
@@ -174,7 +184,7 @@ install_bundle() {
 
   echo "Node.js >= 20 detected ($(node --version)), using lightweight bundle..."
   echo "Downloading bundle from ${bundle_url@Q}..."
-  if ! curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 --retry-all-errors -o "${TEMP_DIR}/${bundle_name}" "${bundle_url}"; then
+  if ! download "${TEMP_DIR}/${bundle_name}" "${bundle_url}"; then
     echo "⚠ Bundle download failed (asset may not exist for this version)"
     return 1
   fi
@@ -213,7 +223,7 @@ install_linux_binary() {
 
   local binary_url="${BASE_URL}/${awf_binary}"
   echo "Downloading binary from ${binary_url@Q}..."
-  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 --retry-all-errors -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
+  download "${TEMP_DIR}/${awf_binary}" "${binary_url}"
 
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${awf_binary}" "${awf_binary}"
@@ -238,7 +248,7 @@ install_darwin_binary() {
 
   local binary_url="${BASE_URL}/${awf_binary}"
   echo "Downloading binary from ${binary_url@Q}..."
-  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 --retry-all-errors -o "${TEMP_DIR}/${awf_binary}" "${binary_url}"
+  download "${TEMP_DIR}/${awf_binary}" "${binary_url}"
 
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${awf_binary}" "${awf_binary}"

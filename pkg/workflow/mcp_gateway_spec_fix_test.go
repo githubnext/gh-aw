@@ -3,11 +3,59 @@
 package workflow
 
 import (
+	"encoding/json"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMCPGatewaySchemaAcceptsDigestPinnedContainer(t *testing.T) {
+	schemaPaths := []string{
+		"schemas/mcp-gateway-config.schema.json",
+		"../../docs/public/schemas/mcp-gateway-config.schema.json",
+	}
+	var schemaPattern string
+	var runtimeSchemaJSON []byte
+	for _, schemaPath := range schemaPaths {
+		schemaJSON, err := os.ReadFile(schemaPath)
+		require.NoError(t, err)
+		var schemaDocument map[string]any
+		require.NoError(t, json.Unmarshal(schemaJSON, &schemaDocument))
+		pattern := schemaDocument["definitions"].(map[string]any)["stdioServerConfig"].(map[string]any)["properties"].(map[string]any)["container"].(map[string]any)["pattern"].(string)
+		if schemaPattern == "" {
+			schemaPattern = pattern
+			runtimeSchemaJSON = schemaJSON
+		} else {
+			require.Equal(t, schemaPattern, pattern, "published and runtime schemas must use the same container pattern")
+		}
+	}
+
+	container := "ghcr.io/oraios/serena:latest@sha256:" + strings.Repeat("a", 64)
+	config := map[string]any{
+		"mcpServers": map[string]any{
+			"serena": map[string]any{
+				"type":      "stdio",
+				"container": container,
+			},
+		},
+		"gateway": map[string]any{
+			"port":   8080,
+			"domain": "localhost",
+			"apiKey": "test-key",
+		},
+	}
+
+	schema, err := parser.CompileSchema(string(runtimeSchemaJSON), "https://example.test/mcp-gateway-config.schema.json")
+	require.NoError(t, err)
+	require.NoError(t, schema.Validate(config))
+
+	config["mcpServers"].(map[string]any)["serena"].(map[string]any)["container"] = container[:len(container)-1]
+	require.Error(t, schema.Validate(config), "truncated SHA-256 digests must remain invalid")
+}
 
 // TestMCPServerEntrypointField tests that MCP servers support optional entrypoint field
 func TestMCPServerEntrypointField(t *testing.T) {
