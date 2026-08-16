@@ -118,7 +118,7 @@ var readFileFunc = func(path string) ([]byte, error) {
 	defer builtinVirtualFilesMu.RUnlock()
 	content, ok := builtinVirtualFiles[path]
 	if ok {
-		return content, nil
+		return bytes.Clone(content), nil
 	}
 	return os.ReadFile(path)
 }

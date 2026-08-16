@@ -722,6 +722,12 @@ func TestSpec_VirtualFilesystem_RegisterBuiltinVirtualFile(t *testing.T) {
 		require.NoError(t, err, "ReadFile should resolve registered builtin path")
 		assert.Equal(t, []byte("immutable builtin content"), readContent,
 			"builtin virtual file content should not change when caller mutates source slice")
+
+		readContent[0] = 'X'
+		readContent, err = ReadFile(path)
+		require.NoError(t, err, "ReadFile should resolve registered builtin path")
+		assert.Equal(t, []byte("immutable builtin content"), readContent,
+			"builtin virtual file content should not change when caller mutates read data")
 	})
 }
 
