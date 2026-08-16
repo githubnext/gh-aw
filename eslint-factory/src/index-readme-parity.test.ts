@@ -14,7 +14,8 @@ describe("ESLint rule documentation", () => {
       .flatMap(statement => statement.declarationList.declarations)
       .find(declaration => declaration.name.getText(sourceFile) === "plugin");
     const plugin = pluginDeclaration?.initializer;
-    const rulesProperty = plugin && ts.isObjectLiteralExpression(plugin) ? plugin.properties.find(property => ts.isPropertyAssignment(property) && property.name.getText(sourceFile) === "rules") : undefined;
+    const rulesProperty =
+      plugin && ts.isObjectLiteralExpression(plugin) ? plugin.properties.find((property): property is ts.PropertyAssignment => ts.isPropertyAssignment(property) && property.name.getText(sourceFile) === "rules") : undefined;
     const rules = rulesProperty?.initializer;
     const exportedRuleNames = rules && ts.isObjectLiteralExpression(rules) ? rules.properties.filter(ts.isPropertyAssignment).map(property => property.name.getText(sourceFile).replace(/^"|"$/g, "")) : [];
 
