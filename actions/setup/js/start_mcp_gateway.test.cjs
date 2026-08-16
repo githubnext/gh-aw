@@ -82,6 +82,22 @@ describe("start_mcp_gateway custom environment arguments", () => {
       })
     ).toThrow(/valid environment variable names/);
   });
+
+  it.each([["GH_AW_MCP_GATEWAY_ENV_0"], ["GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES"]])("rejects the reserved transport name %s", reservedName => {
+    expect(() =>
+      injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
+        GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: JSON.stringify([reservedName]),
+      })
+    ).toThrow(/reserved/);
+  });
+
+  it("rejects duplicate environment variable names", () => {
+    expect(() =>
+      injectCustomGatewayEnvArgs(["run", marker, "gateway-image"], {
+        GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: '["API_TOKEN","API_TOKEN"]',
+      })
+    ).toThrow(/duplicate/);
+  });
 });
 
 describe("start_mcp_gateway OTLP if-missing helpers", () => {

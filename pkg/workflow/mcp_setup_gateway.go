@@ -85,16 +85,20 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 }
 
 func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string, gatewayEnvVars map[string]string) {
-	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(gatewayEnvVars) == 0 {
+	customEnvVarNames := sanitizedGatewayEnvNames(gatewayEnvVars)
+	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 && len(customEnvVarNames) == 0 {
 		return
 	}
 	yaml.WriteString("        env:\n")
-	customEnvVarNames := sliceutil.SortedKeys(gatewayEnvVars)
+	overriddenNames := make(map[string]struct{}, len(customEnvVarNames))
+	for _, name := range customEnvVarNames {
+		overriddenNames[name] = struct{}{}
+	}
 	// Write MCP env vars first (sorted)
 	envVarNames := sliceutil.MapKeys(mcpEnvVars)
 	sort.Strings(envVarNames)
 	for _, envVarName := range envVarNames {
-		if _, overridden := gatewayEnvVars[envVarName]; overridden {
+		if setutil.Contains(overriddenNames, envVarName) {
 			continue
 		}
 		if isReservedMCPGatewayTransportEnvVar(envVarName) {
@@ -106,7 +110,7 @@ func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string,
 	// runner step environment so the docker -e flag can forward them to the container.
 	inputVarNames := sliceutil.SortedKeys(safeOutputsInputEnvVars)
 	for _, envVarName := range inputVarNames {
-		if _, overridden := gatewayEnvVars[envVarName]; overridden {
+		if setutil.Contains(overriddenNames, envVarName) {
 			continue
 		}
 		if isReservedMCPGatewayTransportEnvVar(envVarName) {
@@ -126,6 +130,33 @@ func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string,
 			yaml.WriteString(formatYAMLEnv("          ", mcpGatewayCustomEnvTransportName(i), gatewayEnvVars[envVarName]))
 		}
 	}
+}
+
+// sanitizedGatewayEnvNames returns the sorted subset of user-supplied gateway
+// environment variable names that are safe to emit.
+//
+// Names are already constrained by the frontmatter schema and by
+// validateSandboxConfig, but this is the last boundary before a name is handed
+// to the runtime launcher (which turns it into a `docker run -e NAME=value`
+// argument). Re-checking here guarantees that a name can never carry shell or
+// Docker argument metacharacters, even if an earlier validation path is
+// bypassed. Values need no such filtering: they are transported through
+// compiler-controlled GH_AW_MCP_GATEWAY_ENV_<n> variables and never appear in
+// the generated shell script or in the Docker command string.
+func sanitizedGatewayEnvNames(gatewayEnvVars map[string]string) []string {
+	names := make([]string, 0, len(gatewayEnvVars))
+	for _, name := range sliceutil.SortedKeys(gatewayEnvVars) {
+		if isReservedMCPGatewayTransportEnvVar(name) {
+			mcpSetupGeneratorLog.Printf("Skipping reserved MCP gateway environment variable name: %s", name)
+			continue
+		}
+		if !mcpGatewayEnvNamePattern.MatchString(name) {
+			mcpSetupGeneratorLog.Printf("Skipping invalid MCP gateway environment variable name: %s", name)
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
 }
 
 func mcpGatewayCustomEnvTransportName(index int) string {
@@ -623,7 +654,7 @@ func appendMCPGatewaySafeOutputsInputEnvFlags(containerCmd *strings.Builder, saf
 }
 
 func appendMCPGatewayCustomAndHTTPEnvFlags(containerCmd *strings.Builder, workflowData *WorkflowData, gatewayConfig *MCPGatewayRuntimeConfig, mcpEnvVars map[string]string, hasGitHub bool, githubTool map[string]any, tools map[string]any, engine CodingAgentEngine) {
-	if len(gatewayConfig.Env) > 0 {
+	if len(sanitizedGatewayEnvNames(gatewayConfig.Env)) > 0 {
 		containerCmd.WriteString(" " + mcpGatewayCustomEnvMarker)
 	}
 	if len(mcpEnvVars) == 0 {

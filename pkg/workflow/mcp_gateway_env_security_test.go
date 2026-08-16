@@ -157,5 +157,50 @@ func TestMCPGatewayCustomEnvCommandContract(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(launcher), `const customGatewayEnvMarker = "`+mcpGatewayCustomEnvMarker+`"`)
 	assert.Contains(t, string(launcher), mcpGatewayCustomEnvNamesVar)
-	assert.Contains(t, string(launcher), "GH_AW_MCP_GATEWAY_ENV_${index}")
+	assert.Contains(t, string(launcher), `const customGatewayEnvTransportPrefix = "`+mcpGatewayCustomEnvTransportPrefix+`"`)
+	assert.Contains(t, string(launcher), "${customGatewayEnvTransportPrefix}${index}")
+}
+
+func TestMCPGatewayCustomEnvNamesAreFilteredAtEmissionBoundary(t *testing.T) {
+	gatewayEnv := map[string]string{
+		"API_TOKEN":                 "custom-token",
+		"BAD-NAME":                  "shell-unsafe",
+		"lowercase":                 "shell-unsafe",
+		"NAME; touch /tmp/pwned":    "shell-unsafe",
+		"$(touch /tmp/pwned)":       "shell-unsafe",
+		mcpGatewayCustomEnvNamesVar: "reserved",
+		"GH_AW_MCP_GATEWAY_ENV_3":   "reserved",
+	}
+
+	assert.Equal(t, []string{"API_TOKEN"}, sanitizedGatewayEnvNames(gatewayEnv))
+
+	var yaml strings.Builder
+	writeMCPGatewayStepEnv(&yaml, nil, nil, gatewayEnv)
+
+	output := yaml.String()
+	assert.Contains(t, output, `GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: "[\"API_TOKEN\"]"`)
+	assert.Contains(t, output, `GH_AW_MCP_GATEWAY_ENV_0: "custom-token"`)
+	assert.NotContains(t, output, "shell-unsafe")
+	assert.NotContains(t, output, "reserved")
+}
+
+func TestMCPGatewayCustomEnvMarkerOmittedWhenAllNamesFiltered(t *testing.T) {
+	gatewayEnv := map[string]string{"BAD-NAME": "shell-unsafe"}
+
+	var yaml strings.Builder
+	writeMCPGatewayStepEnv(&yaml, nil, nil, gatewayEnv)
+	assert.Empty(t, yaml.String())
+
+	var containerCommand strings.Builder
+	appendMCPGatewayCustomAndHTTPEnvFlags(
+		&containerCommand,
+		&WorkflowData{},
+		&MCPGatewayRuntimeConfig{Env: gatewayEnv},
+		nil,
+		false,
+		nil,
+		nil,
+		NewCopilotEngine(),
+	)
+	assert.Empty(t, containerCommand.String())
 }
