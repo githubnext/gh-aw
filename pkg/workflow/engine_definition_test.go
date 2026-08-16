@@ -156,6 +156,7 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 			{"id": "opencode", "import": "github/gh-aw/.github/workflows/shared/opencode.md"},
 			{"id": "crush", "import": "github/gh-aw/.github/workflows/shared/crush.md"},
 			{"id": "cursor", "import": "github/gh-aw/.github/workflows/shared/cursor.md"},
+			{"id": "deepseek-harness", "import": "github/gh-aw/.github/workflows/shared/deepseek-harness.md"},
 			{"id": "aider", "import": "github/gh-aw/.github/workflows/shared/aider.md"},
 			{"id": "goose", "import": "github/gh-aw/.github/workflows/shared/goose.md"},
 			{"id": "kiro", "import": "github/gh-aw/.github/workflows/shared/kiro.md"},
@@ -192,6 +193,11 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 			name:           "cursor tip",
 			engineID:       "cursor",
 			wantImportPath: "github/gh-aw/.github/workflows/shared/cursor.md@" + knownEngineImportTestRef,
+		},
+		{
+			name:           "deepseek-harness tip",
+			engineID:       "deepseek-harness",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/deepseek-harness.md@" + knownEngineImportTestRef,
 		},
 		{
 			name:           "aider tip",
