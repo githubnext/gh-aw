@@ -47,6 +47,7 @@ import { requireInvalidDateCheckBeforeCompareRule } from "./rules/require-invali
 import { requireSyncExecTimeoutRule } from "./rules/require-sync-exec-timeout";
 import { noEmptyCatchBlockRule } from "./rules/no-empty-catch-block";
 import { requireLastIndexResetBeforeGlobalExecLoopRule } from "./rules/require-lastindex-reset-before-global-exec-loop";
+import { requirePageCounterIncrementInWhileTrueLoopRule } from "./rules/require-page-counter-increment-in-while-true-loop";
 
 const plugin = {
   meta: {
@@ -103,6 +104,7 @@ const plugin = {
     "require-sync-exec-timeout": requireSyncExecTimeoutRule,
     "no-empty-catch-block": noEmptyCatchBlockRule,
     "require-lastindex-reset-before-global-exec-loop": requireLastIndexResetBeforeGlobalExecLoopRule,
+    "require-page-counter-increment-in-while-true-loop": requirePageCounterIncrementInWhileTrueLoopRule,
   },
 };
 
