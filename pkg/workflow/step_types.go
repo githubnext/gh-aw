@@ -1,14 +1,12 @@
 package workflow
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
-	"reflect"
-	"sort"
 	"strconv"
 
+	"github.com/github/gh-aw/pkg/importinpututil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -238,48 +236,16 @@ func StepsToSlice(steps []*WorkflowStep) []any {
 
 // marshalEnvValue serializes a non-string env var value to a string suitable
 // for use in a GitHub Actions step env block.
-// Arrays and maps are serialized as JSON (e.g. ["a","b"]) so that shell
-// consumers such as `jq --argjson` receive valid JSON.
-// Typed slices produced by goccy/go-yaml (e.g. []string instead of []any)
-// are normalized via reflection before marshaling.
-// Scalar values (int, bool, float64, etc.) fall back to fmt.Sprint.
+// Arrays and maps are serialized as JSON (e.g. ["a","b"]) via
+// importinpututil.FormatResolvedValue so import substitutions and env
+// serialization stay aligned. Scalar values (int, bool, float64, etc.)
+// fall back to fmt.Sprint.
 func marshalEnvValue(v any) string {
-	switch val := v.(type) {
-	case []any:
-		if b, err := json.Marshal(val); err == nil {
-			return string(b)
-		}
-	case map[string]any:
-		if b, err := json.Marshal(val); err == nil {
-			return string(b)
-		}
-	case nil:
+	if v == nil {
 		return ""
-	default:
-		rv := reflect.ValueOf(v)
-		switch rv.Kind() {
-		case reflect.Slice:
-			normalized := make([]any, rv.Len())
-			for i := range rv.Len() {
-				normalized[i] = rv.Index(i).Interface()
-			}
-			if b, err := json.Marshal(normalized); err == nil {
-				return string(b)
-			}
-		case reflect.Map:
-			keys := make([]string, 0, rv.Len())
-			for _, key := range rv.MapKeys() {
-				keys = append(keys, key.String())
-			}
-			sort.Strings(keys)
-			normalized := make(map[string]any, rv.Len())
-			for _, k := range keys {
-				normalized[k] = rv.MapIndex(reflect.ValueOf(k)).Interface()
-			}
-			if b, err := json.Marshal(normalized); err == nil {
-				return string(b)
-			}
-		}
+	}
+	if s, ok := importinpututil.FormatResolvedValue(v); ok {
+		return s
 	}
 	return fmt.Sprint(v)
 }

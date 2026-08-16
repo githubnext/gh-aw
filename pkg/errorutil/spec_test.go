@@ -111,6 +111,51 @@ func TestSpec_PublicAPI_IsGoneError(t *testing.T) {
 	}
 }
 
+// TestSpec_PublicAPI_IsRateLimitError validates the documented behavior of
+// IsRateLimitError as described in the errorutil README.md.
+func TestSpec_PublicAPI_IsRateLimitError(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{name: "documented phrase api rate limit exceeded", output: "403: API rate limit exceeded", want: true},
+		{name: "documented phrase rate limit exceeded", output: "rate limit exceeded for installation", want: true},
+		{name: "documented phrase secondary rate limit", output: "secondary rate limit triggered", want: true},
+		{name: "case-insensitive", output: "API RATE LIMIT EXCEEDED", want: true},
+		{name: "non-matching output", output: "404: not found", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, errorutil.IsRateLimitError(tt.output))
+		})
+	}
+}
+
+// TestSpec_PublicAPI_IsAuthError validates the documented behavior of
+// IsAuthError as described in the errorutil README.md.
+func TestSpec_PublicAPI_IsAuthError(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{name: "GH_TOKEN reference", output: "GH_TOKEN is invalid or expired", want: true},
+		{name: "GITHUB_TOKEN reference", output: "GITHUB_TOKEN: authentication failed", want: true},
+		{name: "unauthorized", output: "401: unauthorized", want: true},
+		{name: "forbidden is not inherently an auth failure", output: "403: forbidden", want: false},
+		{name: "saml enforcement", output: "Resource protected by organization SAML enforcement", want: true},
+		{name: "non-auth output", output: "404: not found", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, errorutil.IsAuthError(tt.output))
+		})
+	}
+}
+
 // TestSpec_UsageExample_ErrorClassifiers validates that the documented usage
 // example pattern compiles and runs.
 //
@@ -119,14 +164,20 @@ func TestSpec_PublicAPI_IsGoneError(t *testing.T) {
 //	if errorutil.IsNotFoundError(err) { ... }
 //	if errorutil.IsForbiddenError(err) { ... }
 //	if errorutil.IsGoneError(err) { ... }
+//	if errorutil.IsRateLimitError(output) { ... }
+//	if errorutil.IsAuthError(output) { ... }
 func TestSpec_UsageExample_ErrorClassifiers(t *testing.T) {
 	notFound := errors.New("HTTP 404: Not Found")
 	forbidden := errors.New("HTTP 403: Forbidden")
 	gone := errors.New("HTTP 410: Gone")
+	rateLimit := "API rate limit exceeded"
+	authOutput := "GH_TOKEN is missing"
 
 	assert.True(t, errorutil.IsNotFoundError(notFound), "usage example: 404 path triggered")
 	assert.True(t, errorutil.IsForbiddenError(forbidden), "usage example: 403 path triggered")
 	assert.True(t, errorutil.IsGoneError(gone), "usage example: 410 path triggered")
+	assert.True(t, errorutil.IsRateLimitError(rateLimit), "usage example: rate-limit path triggered")
+	assert.True(t, errorutil.IsAuthError(authOutput), "usage example: auth path triggered")
 
 	assert.False(t, errorutil.IsForbiddenError(notFound), "documented: classifiers are exclusive — 404 is not forbidden")
 	assert.False(t, errorutil.IsGoneError(notFound), "documented: classifiers are exclusive — 404 is not gone")

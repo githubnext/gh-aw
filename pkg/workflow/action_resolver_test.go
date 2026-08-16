@@ -205,6 +205,12 @@ func TestParseTagRefTSV(t *testing.T) {
 			wantType: "commit",
 		},
 		{
+			name:     "uppercase SHA is accepted",
+			input:    "EA222E359276C0702A5F5203547FF9D88D0DDD76\tcommit",
+			wantSHA:  "EA222E359276C0702A5F5203547FF9D88D0DDD76",
+			wantType: "commit",
+		},
+		{
 			name:        "empty input is rejected",
 			input:       "",
 			wantErr:     true,

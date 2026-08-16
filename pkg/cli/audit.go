@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -293,18 +294,18 @@ func runAuditMulti(ctx context.Context, args []string, repoFlag, outputDir strin
 	})
 }
 
-// isPermissionErrorStr checks if a string contains any known permission/authentication error marker.
-// This is the canonical union of all auth-error substrings used across the codebase; update here
-// rather than adding new inline strings.Contains checks in callers.
+// isPermissionErrorStr checks if a string contains known permission/authentication markers.
+// It delegates to the shared classifier and augments with gh CLI specific hints
+// that are only emitted in audit command contexts.
 func isPermissionErrorStr(s string) bool {
-	return strings.Contains(s, "authentication required") ||
-		strings.Contains(s, "exit status 4") ||
-		strings.Contains(s, "GitHub CLI authentication") ||
-		strings.Contains(s, "permission") ||
-		strings.Contains(s, "GH_TOKEN") ||
-		strings.Contains(s, "not logged into any GitHub hosts") ||
-		strings.Contains(s, "To use GitHub CLI in a GitHub Actions workflow") ||
-		strings.Contains(s, "gh auth login")
+	if errorutil.IsAuthError(s) {
+		return true
+	}
+	lower := strings.ToLower(s)
+	return strings.Contains(lower, "exit status 4") ||
+		strings.Contains(lower, "permission") ||
+		strings.Contains(lower, "gh auth login") ||
+		strings.Contains(lower, "to use github cli in a github actions workflow")
 }
 
 // isPermissionError checks if an error is related to permissions/authentication.

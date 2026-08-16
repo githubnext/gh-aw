@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -116,7 +116,7 @@ func fetchWorkflowsWithBackoff(ctx context.Context, ids []string, repoOverride s
 		if err == nil {
 			return githubWorkflows, nil
 		}
-		if !gitutil.IsRateLimitError(err.Error()) {
+		if !errorutil.IsRateLimitError(err.Error()) {
 			return nil, err
 		}
 
@@ -160,7 +160,7 @@ func listRunsWithBackoff(ctx context.Context, opts ListWorkflowRunsOptions, work
 		if err == nil {
 			return runs, total, nil
 		}
-		if !gitutil.IsRateLimitError(err.Error()) {
+		if !errorutil.IsRateLimitError(err.Error()) {
 			return nil, 0, err
 		}
 

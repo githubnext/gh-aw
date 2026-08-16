@@ -12,117 +12,6 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 )
 
-// TestSpec_PublicAPI_IsRateLimitError validates the documented behavior of
-// IsRateLimitError as described in the package README.md.
-//
-// Specification: Returns true when errMsg indicates a GitHub API rate-limit
-// error (case-insensitive match against "api rate limit exceeded",
-// "rate limit exceeded", or "secondary rate limit").
-func TestSpec_PublicAPI_IsRateLimitError(t *testing.T) {
-	tests := []struct {
-		name     string
-		errMsg   string
-		expected bool
-	}{
-		{
-			name:     "documented phrase 'api rate limit exceeded' returns true",
-			errMsg:   "403: API rate limit exceeded",
-			expected: true,
-		},
-		{
-			name:     "documented phrase 'rate limit exceeded' returns true",
-			errMsg:   "rate limit exceeded for user ID 123",
-			expected: true,
-		},
-		{
-			name:     "documented phrase 'secondary rate limit' returns true",
-			errMsg:   "secondary rate limit triggered",
-			expected: true,
-		},
-		{
-			name:     "case-insensitive match returns true (documented as case-insensitive)",
-			errMsg:   "API RATE LIMIT EXCEEDED",
-			expected: true,
-		},
-		{
-			name:     "unrelated error message returns false",
-			errMsg:   "404: not found",
-			expected: false,
-		},
-		{
-			name:     "empty string returns false",
-			errMsg:   "",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := gitutil.IsRateLimitError(tt.errMsg)
-			assert.Equal(t, tt.expected, result,
-				"IsRateLimitError(%q) should match documented behavior", tt.errMsg)
-		})
-	}
-}
-
-// TestSpec_PublicAPI_IsAuthError validates the documented behavior of
-// IsAuthError as described in the package README.md.
-//
-// Specification: Returns true when errMsg indicates an authentication or
-// authorization failure (GH_TOKEN, GITHUB_TOKEN, unauthorized, forbidden,
-// SAML enforcement, etc.).
-func TestSpec_PublicAPI_IsAuthError(t *testing.T) {
-	tests := []struct {
-		name     string
-		errMsg   string
-		expected bool
-	}{
-		{
-			name:     "GH_TOKEN reference returns true",
-			errMsg:   "GH_TOKEN is invalid or expired",
-			expected: true,
-		},
-		{
-			name:     "GITHUB_TOKEN reference returns true",
-			errMsg:   "GITHUB_TOKEN: authentication failed",
-			expected: true,
-		},
-		{
-			name:     "unauthorized returns true",
-			errMsg:   "401: unauthorized",
-			expected: true,
-		},
-		{
-			name:     "forbidden returns true",
-			errMsg:   "403: forbidden",
-			expected: true,
-		},
-		{
-			name:     "SAML enforcement message returns true (documented)",
-			errMsg:   "Resource protected by organization SAML enforcement",
-			expected: true,
-		},
-		{
-			name:     "unrelated error returns false",
-			errMsg:   "404: not found",
-			expected: false,
-		},
-		{
-			name:     "empty string returns false",
-			errMsg:   "",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := gitutil.IsAuthError(tt.errMsg)
-			assert.Equal(t, tt.expected, result,
-				"IsAuthError(%q) should match documented behavior", tt.errMsg)
-		})
-	}
-}
-
 // TestSpec_PublicAPI_IsHexString validates the documented behavior of
 // IsHexString as described in the package README.md.
 //
@@ -271,6 +160,27 @@ func TestSpec_PublicAPI_IsValidFullSHA(t *testing.T) {
 			result := gitutil.IsValidFullSHA(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"IsValidFullSHA(%q) should match documented behavior", tt.input)
+		})
+	}
+}
+
+// TestSpec_PublicAPI_IsValidFullSHACaseInsensitive validates the documented
+// behavior of IsValidFullSHACaseInsensitive as described in the package README.md.
+func TestSpec_PublicAPI_IsValidFullSHACaseInsensitive(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{name: "40-character lowercase hex returns true", input: "da39a3ee5e6b4b0d3255bfef95601890afd80709", expected: true},
+		{name: "40-character uppercase hex returns true", input: "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709", expected: true},
+		{name: "39 characters returns false", input: "da39a3ee5e6b4b0d3255bfef95601890afd807", expected: false},
+		{name: "non-hex character returns false", input: "za39a3ee5e6b4b0d3255bfef95601890afd80709", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, gitutil.IsValidFullSHACaseInsensitive(tt.input))
 		})
 	}
 }

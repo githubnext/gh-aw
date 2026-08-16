@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -39,7 +40,7 @@ func getLatestActionReleaseWithDeps(ctx context.Context, deps actionUpdateDeps, 
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
-		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
+		if errorutil.IsAuthError(outputStr) || errorutil.IsAuthError(err.Error()) {
 			updateLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s", repo)
 			// Try fallback using git ls-remote
 			latestRelease, latestSHA, gitErr := deps.getLatestReleaseViaGit(ctx, repo, currentVersion, allowMajor, verbose)

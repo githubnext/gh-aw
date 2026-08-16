@@ -60,6 +60,37 @@ func IsGoneError(err error) bool {
 	return matched
 }
 
+// IsRateLimitError reports whether output indicates a GitHub API rate-limit error.
+// The check is case-insensitive and matches known API phrases.
+func IsRateLimitError(output string) bool {
+	matched := containsSubstring(output,
+		"rate limit exceeded",
+		"secondary rate limit",
+	)
+	if matched {
+		errorutilLog.Printf("Classified output as rate-limit related (len=%d)", len(output))
+	}
+	return matched
+}
+
+// IsAuthError reports whether output indicates an authentication or
+// authorization issue from the GitHub API or gh CLI.
+func IsAuthError(output string) bool {
+	matched := containsSubstring(output,
+		"gh_token",
+		"github_token",
+		"authentication",
+		"not logged into",
+		"unauthorized",
+		"permission denied",
+		"saml enforcement",
+	)
+	if matched {
+		errorutilLog.Printf("Classified output as auth-related (len=%d)", len(output))
+	}
+	return matched
+}
+
 // containsErrorSubstring reports whether err contains any of the provided
 // substrings after lowercasing the full error message for case-insensitive
 // matching.

@@ -10,7 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -133,7 +133,7 @@ func RunHealth(config HealthConfig) error {
 	// Fetch workflow runs from GitHub
 	runs, err := fetchWorkflowRuns(workflowAPIName, startDate, config.RepoOverride, config.Verbose)
 	if err != nil {
-		if gitutil.IsRateLimitError(err.Error()) {
+		if errorutil.IsRateLimitError(err.Error()) {
 			// Rate limiting is a transient infrastructure condition, not a code error.
 			// Warn and exit cleanly so CI jobs are not marked as failed.
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Skipping health check: GitHub API rate limit exceeded"))
