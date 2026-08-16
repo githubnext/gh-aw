@@ -43,6 +43,8 @@ evals:
     question: Did the agent run a conformance check against the Safe Outputs specification implementation?
   - id: tasks_created_or_noop
     question: Were agentic tasks created for Copilot to address critical/high/medium/low issues, or was noop used when implementation was compliant?
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Safe Outputs Conformance Checker

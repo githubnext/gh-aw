@@ -174,6 +174,8 @@ evals:
     question: Did the agent analyze firewall traffic and DIFC integrity-filtered events for the reporting period?
   - id: unified_report_created
     question: Was a unified security observability report created combining both data sources?
+features:
+  gh-aw-detection: true
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

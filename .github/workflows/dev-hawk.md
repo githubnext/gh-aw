@@ -54,6 +54,8 @@ evals:
     question: Did the agent post a comment with PR or CI analysis?
   - id: insights-provided
     question: Does the agent output include specific insights about pull request status or CI results?
+features:
+  gh-aw-detection: true
 ---
 
 # Dev Hawk - Development Workflow Monitor

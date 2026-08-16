@@ -96,6 +96,8 @@ evals:
     question: Does the agent output identify at least one specific UX improvement opportunity?
   - id: actionable-findings
     question: Does the agent output include actionable recommendations rather than only generic observations?
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -47,6 +47,8 @@ timeout-minutes: 20
 imports:
   - shared/otlp.md
   - shared/reporting.md
+features:
+  gh-aw-detection: true
 ---
 
 # Daily PR Code Quality Review
