@@ -15,6 +15,13 @@ sidebar:
 
 ---
 
+## Contents
+
+- [6. Conformance Requirements](#6-conformance-requirements)
+  - [Norms](#norms)
+- [8. REASONS Canvas](#8-reasons-canvas)
+  - [Safeguards](#safeguards)
+
 ## 1. Purpose
 
 This document defines the canonical AWF configuration references in `github/gh-aw-firewall` that gh-aw agents and schema reconciliation workflows MUST use when generating or validating AWF config behavior.
@@ -139,6 +146,10 @@ Agents SHOULD treat this class of mismatch as a regression signal and open a cor
 ## 6. Conformance Requirements
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** in this section are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+
+### Norms
+
+This subsection identifies the normative behavior that conforming AWF config source checks must satisfy. The `CR-*` requirements below bind the canonical-source lookup rules, drift classification semantics, and remediation expectations to the `DriftRecord` entity in [Section 3.1](#31-driftrecord) and the drift detection procedure in [Section 7](#7-drift-detection-procedure).
 
 **CR-01**: Agents and schema reconciliation workflows MUST consult **both** the normative specification (`docs/awf-config-spec.md`) and the published JSON schema (`docs/awf-config.schema.json`) before generating or validating AWF config behavior. Consulting only one source is insufficient.
 
@@ -283,7 +294,9 @@ The drift detection procedure (Section 7.2, Step 5) **MUST** produce a list of z
 ]
 ```
 
-## 8. Safeguards
+## 8. REASONS Canvas
+
+### Safeguards
 
 Every invocation (scheduled, manual, or ad hoc) **MUST** attempt to refresh the canonical sources and evaluate snapshot freshness. When canonical sources in `github/gh-aw-firewall` are unavailable (GitHub outage, auth failure, transient fetch errors), agents and automation MUST apply the following safeguards:
 

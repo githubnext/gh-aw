@@ -23,7 +23,7 @@ scenarios:
     description: "Content with integrity 'approved' is allowed when min-integrity: approved"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         min-integrity: "approved"
       request:
@@ -39,7 +39,7 @@ scenarios:
     description: "Content with integrity 'merged' is allowed when min-integrity: approved"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         min-integrity: "approved"
       request:
@@ -55,7 +55,7 @@ scenarios:
     description: "Content with integrity 'unapproved' is denied when min-integrity: approved"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         min-integrity: "approved"
       request:
@@ -71,7 +71,7 @@ scenarios:
     description: "Content with integrity 'none' is denied when min-integrity: merged"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         min-integrity: "merged"
       request:
@@ -87,7 +87,7 @@ scenarios:
     description: "Without min-integrity, content at any integrity level is permitted"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         # no min-integrity field
       request:

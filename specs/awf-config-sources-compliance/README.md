@@ -4,26 +4,26 @@ This directory contains conformance test IDs and fixture stubs for the `DriftRec
 and safeguards defined in the [AWF Config Canonical Sources Specification](../awf-config-sources-spec.md).
 
 All automation and agents that produce or consume drift reports **MUST** use the `DriftRecord` schema
-defined in §6.5 of the specification for structured drift output.
+defined in §3.1 of the specification for structured drift output.
 
 ---
 
 ## DriftRecord Conformance Tests
 
-The following test IDs cover the `DriftRecord` schema and its usage requirements from §6.5.
+The following test IDs cover the `DriftRecord` schema and its usage requirements from §3.1 and §7.5.
 
 | Test ID | Requirement | Description |
 |---------|-------------|-------------|
-| T-DR-001 | §6.5.1 — required fields | `DriftRecord` MUST include `property_path`, `drift_category`, `suggested_action`, and `detected_at`; records missing any required field are invalid and MUST be rejected. |
-| T-DR-002 | §6.5.1 — `drift_category` enum | `drift_category` MUST be one of `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch`; any other value is invalid. |
-| T-DR-003 | §6.5.1 — `detected_at` format | `detected_at` MUST be a valid ISO 8601 UTC timestamp; non-conforming values MUST be rejected. |
-| T-DR-004 | §6.5.1 — `suggested_action` non-empty | `suggested_action` MUST NOT be empty (`minLength: 1`); an empty string MUST be rejected. |
-| T-DR-005 | §6.5.1 — no additional properties | `DriftRecord` objects MUST NOT include properties beyond the four required fields; additional properties MUST be rejected. |
-| T-DR-006 | §6.5.3 — corrective PR trigger | When any `DriftRecord` in the output list has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation MUST open a corrective PR (CR-05). |
-| T-DR-007 | §6.5.3 — SLA escalation trigger | When CR-06 SLA window is exceeded and `DriftRecord` items with actionable categories are present, an escalation issue MUST be opened or updated. |
-| T-DR-008 | §6.5.3 — corrective PR embeds records | The corrective PR description MUST embed the full `DriftRecord` list as JSON. |
-| T-DR-009 | §6.5.3 — empty list is valid | An empty `DriftRecord` list (no drift detected) is a valid output and MUST NOT trigger corrective PR or escalation actions. |
-| T-DR-010 | §6.2 Step 5 integration | The drift detection procedure Step 5 MUST produce a list of zero or more `DriftRecord` objects; the output format MUST be a JSON array conforming to the §6.5.1 schema. |
+| T-DR-001 | §3.1 — required fields | `DriftRecord` MUST include `property_path`, `drift_category`, `suggested_action`, and `detected_at`; records missing any required field are invalid and MUST be rejected. |
+| T-DR-002 | §3.1 — `drift_category` enum | `drift_category` MUST be one of `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch`; any other value is invalid. |
+| T-DR-003 | §3.1 — `detected_at` format | `detected_at` MUST be a valid ISO 8601 UTC timestamp; non-conforming values MUST be rejected. |
+| T-DR-004 | §3.1 — `suggested_action` non-empty | `suggested_action` MUST NOT be empty (`minLength: 1`); an empty string MUST be rejected. |
+| T-DR-005 | §3.1 — no additional properties | `DriftRecord` objects MUST NOT include properties beyond the four required fields; additional properties MUST be rejected. |
+| T-DR-006 | §7.5.1 — corrective PR trigger | When any `DriftRecord` in the output list has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation MUST open a corrective PR (CR-05). |
+| T-DR-007 | §7.5.1 — SLA escalation trigger | When CR-06 SLA window is exceeded and `DriftRecord` items with actionable categories are present, an escalation issue MUST be opened or updated. |
+| T-DR-008 | §7.5.1 — corrective PR embeds records | The corrective PR description MUST embed the full `DriftRecord` list as JSON. |
+| T-DR-009 | §7.5.1 — empty list is valid | An empty `DriftRecord` list (no drift detected) is a valid output and MUST NOT trigger corrective PR or escalation actions. |
+| T-DR-010 | §7.2 Step 5 integration | The drift detection procedure Step 5 MUST produce a list of zero or more `DriftRecord` objects; the output format MUST be a JSON array conforming to the §3.1 schema. |
 
 ---
 
@@ -44,8 +44,8 @@ The following test IDs cover the unavailable-source safeguards from §8.
 
 - **Specification**: `specs/awf-config-sources-spec.md`
 - **Repository structure**: [Structure](../awf-config-sources-spec.md#structure)
-- **Defining section**: §6.5 — DriftRecord Entity Schema
-- **Related sections**: §6.2 (Drift Detection Procedure), §5 (Conformance Requirements CR-05, CR-06), §8 (Safeguards)
+- **Defining section**: §3.1 — DriftRecord
+- **Related sections**: §7.2 (Drift Detection Procedure), §6 (Conformance Requirements CR-05, CR-06), §8 (Safeguards)
 
 ---
 
@@ -72,3 +72,10 @@ go test -v -run "TestDriftRecord|TestAWFConfigSafeguard" ./pkg/workflow/
 2. Add a row to the table above with the test ID, requirement reference (§ number), and description.
 3. Implement the test in the conformance test file listed above.
 4. Cross-reference the new test ID from the relevant subsection of `specs/awf-config-sources-spec.md`.
+
+## Adding New Safeguard Conformance Tests
+
+1. Assign the next available `T-DR-011+` identifier for new safeguard behavior that is not part of the existing unavailable-source series; use a placeholder such as `T-DR-NNN` in drafts until the table above confirms the exact next ID.
+2. Add a row to the Safeguards Conformance Tests table with the requirement reference, for example `§8 Safeguards — degraded-run reporting`.
+3. Implement the test in `pkg/workflow/awf_config_safeguards_formal_test.go` when it exercises safeguard behavior, or in the closest AWF config drift test file when the safeguard spans drift output and schema validation.
+4. Cross-reference the new safeguard test ID from the relevant safeguard bullet in `specs/awf-config-sources-spec.md` so the spec and fixture index stay synchronized.

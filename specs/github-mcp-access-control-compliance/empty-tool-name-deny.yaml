@@ -13,7 +13,7 @@ scenarios:
     description: "Empty tool name is not present in a non-empty allowed-tools list"
     input:
       tool_config:
-        repos:
+        allowed-repos:
           - "*/*"
         allowed-tools:
           - "issue_read"
