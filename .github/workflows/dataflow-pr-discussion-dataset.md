@@ -175,6 +175,8 @@ evals:
   - id: caveman_mode_goal_met
     question: Does the agent output show that the objective for experiment caveman_mode was successfully completed?
 
+features:
+  gh-aw-detection: true
 ---
 
 {{#if experiments.caveman_mode == 'yes' }}

@@ -61,6 +61,8 @@ evals:
   - id: output_format_adherence
     question: Does the findings report match the writing style expected for the assigned semgrep_output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 
+features:
+  gh-aw-detection: true
 ---
 
 Scan the repository for SQL injection vulnerabilities using Semgrep.

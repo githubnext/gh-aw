@@ -73,6 +73,8 @@ evals:
     question: Did the agent analyze gateway logs for errored safe output tool calls?
   - id: issues_created_or_noop
     question: Were issues created to improve tool descriptions for errored calls, or was noop used when no errors were found?
+features:
+  gh-aw-detection: true
 ---
 
 # Safe Output Tool Optimizer

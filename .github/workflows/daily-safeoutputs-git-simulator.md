@@ -68,6 +68,8 @@ evals:
     question: Did the agent simulate git configurations for create-pull-request and push-to-pull-request-branch safe outputs?
   - id: simulator_findings_reported
     question: Did the agent report the simulator results and any systematic safe-output issues it found?
+features:
+  gh-aw-detection: true
 ---
 
 # Daily Safe Outputs Git Simulator

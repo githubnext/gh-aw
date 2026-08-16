@@ -69,6 +69,8 @@ evals:
     question: Did the agent perform a deep red teaming security scan of actions/setup/js and actions/setup/sh directories?
   - id: findings_reported_or_noop
     question: Were security findings (backdoors, secret leaks, malicious code) reported, or was noop used when no issues were detected?
+features:
+  gh-aw-detection: true
 ---
 
 ### Daily Security Red Team Agent

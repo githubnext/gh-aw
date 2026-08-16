@@ -81,6 +81,8 @@ evals:
     question: Did the agent analyze repository specifications using the SPDD planning process?
   - id: prioritized_plan_reported
     question: Did the agent report a prioritized plan with actionable specification work items?
+features:
+  gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
