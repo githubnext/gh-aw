@@ -244,3 +244,4 @@
 {"run_id":"31264759827","timestamp":"2026-08-08T15:34:23.808Z","assignments":{"sub_agent_strategy":"single_agent"}}
 {"run_id":"31490942301","timestamp":"2026-08-11T12:24:06.386Z","assignments":{"sub_agent_strategy":"sub_agents"}}
 {"run_id":"31732491740","timestamp":"2026-08-13T18:47:44.201Z","assignments":{"sub_agent_strategy":"sub_agents"}}
+{"run_id":"31974687297","timestamp":"2026-08-16T21:52:10.228Z","assignments":{"sub_agent_strategy":"single_agent"}}
