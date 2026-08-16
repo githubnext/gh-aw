@@ -42,6 +42,7 @@
         { "$ref": "#/$defs/CloseIssueOutput" },
         { "$ref": "#/$defs/ClosePullRequestOutput" },
         { "$ref": "#/$defs/MarkPullRequestAsReadyForReviewOutput" },
+        { "$ref": "#/$defs/ApproveWorkflowRunOutput" },
         { "$ref": "#/$defs/MissingToolOutput" },
         { "$ref": "#/$defs/CreateCodeScanningAlertOutput" },
         { "$ref": "#/$defs/UpdateProjectOutput" },
@@ -593,6 +594,22 @@
         }
       },
       "required": ["type", "reason"],
+      "additionalProperties": false
+    },
+    "ApproveWorkflowRunOutput": {
+      "title": "Approve Workflow Run Output",
+      "description": "Output for approving a workflow run that is awaiting approval for a fork pull request",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "approve_workflow_run"
+        },
+        "run_id": {
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
+          "description": "Positive integer workflow run ID to approve"
+        }
+      },
+      "required": ["type", "run_id"],
       "additionalProperties": false
     },
     "MissingToolOutput": {

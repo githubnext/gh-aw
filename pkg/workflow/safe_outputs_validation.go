@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -302,4 +304,44 @@ func validateSafeOutputsAllowWorkflows(safeOutputs *SafeOutputsConfig) error {
 
 	safeOutputsAllowWorkflowsValidationLog.Print("allow-workflows validation passed")
 	return nil
+}
+
+func normalizeApproveWorkflowRunAllowedWorkflowPattern(pattern string) string {
+	extension := path.Ext(pattern)
+	if strings.EqualFold(extension, ".yaml") {
+		return strings.TrimSuffix(pattern, extension) + ".yml"
+	}
+	return pattern
+}
+
+// validateSafeOutputsApproveWorkflowRun requires an explicitly configured external
+// token or GitHub App because github.token cannot approve workflow runs for fork PRs.
+func validateSafeOutputsApproveWorkflowRun(safeOutputs *SafeOutputsConfig) error {
+	if safeOutputs == nil || safeOutputs.ApproveWorkflowRun == nil {
+		return nil
+	}
+
+	config := safeOutputs.ApproveWorkflowRun
+	if len(config.AllowedWorkflows) == 0 {
+		return errors.New("safe-outputs.approve-workflow-run: requires a non-empty allowed-workflows list")
+	}
+	for _, pattern := range config.AllowedWorkflows {
+		if path.Base(pattern) != pattern {
+			return fmt.Errorf("safe-outputs.approve-workflow-run.allowed-workflows: %q must match a workflow filename, not a path", pattern)
+		}
+		if _, err := path.Match(normalizeApproveWorkflowRunAllowedWorkflowPattern(pattern), ""); err != nil {
+			return fmt.Errorf("safe-outputs.approve-workflow-run.allowed-workflows: invalid wildcard pattern %q: %w", pattern, err)
+		}
+	}
+	if templatableBoolIsTrue(safeOutputs.Staged) || templatableBoolIsTrue(config.Staged) {
+		return nil
+	}
+	if config.GitHubToken != "" || config.GitHubApp != nil || safeOutputs.GitHubToken != "" || safeOutputs.GitHubApp != nil {
+		return nil
+	}
+
+	return errors.New(
+		"safe-outputs.approve-workflow-run: requires an external github-token or github-app because github.token cannot approve workflow runs for fork pull requests.\n\n" +
+			"Example:\n  safe-outputs:\n    approve-workflow-run:\n      github-token: ${{ secrets.APPROVE_WORKFLOW_RUN_TOKEN }}",
+	)
 }

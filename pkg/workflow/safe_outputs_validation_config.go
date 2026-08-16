@@ -78,6 +78,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo": {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
+	"approve_workflow_run": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"run_id": {Required: true, PositiveInteger: true},
+		},
+	},
 	"add_comment": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{

@@ -507,6 +507,9 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.MarkPullRequestAsReadyForReview != nil {
 		tools = append(tools, toolWithMaxBudget("mark_pull_request_as_ready_for_review", safeOutputs.MarkPullRequestAsReadyForReview.Max))
 	}
+	if safeOutputs.ApproveWorkflowRun != nil {
+		tools = append(tools, toolWithMaxBudget("approve_workflow_run", safeOutputs.ApproveWorkflowRun.Max))
+	}
 	if safeOutputs.DismissPullRequestReview != nil {
 		tools = append(tools, toolWithMaxBudget("dismiss_pull_request_review", safeOutputs.DismissPullRequestReview.Max))
 	}
