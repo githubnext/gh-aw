@@ -30,19 +30,7 @@ var Analyzer = analyzerutil.New("trimleftright", "reports likely mistaken string
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		analyzeTrimLeftRight(pass, n, generatedFiles, noLintIndex)
-	})
+	return analyzerutil.PreorderIndexed(pass, []ast.Node{(*ast.CallExpr)(nil)}, analyzeTrimLeftRight)
 }
 
 // analyzeTrimLeftRight checks whether a call is a strings.TrimLeft or

@@ -21,19 +21,7 @@ import (
 var Analyzer = analyzerutil.New("stringsindexhasprefix", "reports strings.Index(s, sub) comparisons with 0 (== 0 and != 0) and their yoda-order variants that should use strings.HasPrefix(s, sub) or !strings.HasPrefix(s, sub)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		analyzeIndexHasPrefix(pass, n, generatedFiles, noLintIndex)
-	})
+	return analyzerutil.PreorderIndexed(pass, []ast.Node{(*ast.BinaryExpr)(nil)}, analyzeIndexHasPrefix)
 }
 
 // analyzeIndexHasPrefix checks whether a binary expression is a strings.Index

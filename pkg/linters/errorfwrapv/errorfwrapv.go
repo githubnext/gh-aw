@@ -54,19 +54,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, errors.New("failed to resolve built-in error interface from types.Universe")
 	}
 
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		analyzeFmtErrorfCall(pass, n, generatedFiles, noLintIndex)
-	})
+	return analyzerutil.PreorderIndexed(pass, []ast.Node{(*ast.CallExpr)(nil)}, analyzeFmtErrorfCall)
 }
 
 // analyzeFmtErrorfCall checks whether a call expression is a fmt.Errorf that

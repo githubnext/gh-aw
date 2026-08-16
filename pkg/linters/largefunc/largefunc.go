@@ -32,19 +32,7 @@ func init() {
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s (max-lines=%d)", pass.Pkg.Path(), maxLines)
 
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{(*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		checkFuncBodyLength(pass, n, generatedFiles, noLintIndex)
-	})
+	return analyzerutil.PreorderIndexed(pass, []ast.Node{(*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)}, checkFuncBodyLength)
 }
 
 // checkFuncBodyLength reports a diagnostic when the body of a function

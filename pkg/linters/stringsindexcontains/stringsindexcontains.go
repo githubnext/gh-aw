@@ -20,19 +20,7 @@ import (
 var Analyzer = analyzerutil.New("stringsindexcontains", "reports strings.Index(s, substr) comparisons with -1 or 0 (e.g. != -1, >= 0, > -1, == -1, < 0, <= -1) and their yoda-order variants that should use strings.Contains(s, substr) or !strings.Contains(s, substr)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{(*ast.BinaryExpr)(nil)}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		analyzeIndexContains(pass, n, generatedFiles, noLintIndex)
-	})
+	return analyzerutil.PreorderIndexed(pass, []ast.Node{(*ast.BinaryExpr)(nil)}, analyzeIndexContains)
 }
 
 // analyzeIndexContains checks whether a binary expression is a strings.Index

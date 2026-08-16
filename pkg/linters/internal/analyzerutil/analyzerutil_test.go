@@ -69,3 +69,94 @@ func example() {
 		t.Errorf("Preorder() visited %v, want %v", names, want)
 	}
 }
+
+func TestIndexes(t *testing.T) {
+	noLintIndex := nolint.DirectiveIndex{"example.go": {1: {"example": {}}}}
+	generatedIndex := filecheck.GeneratedIndex{"generated.go": {}}
+	pass := &analysis.Pass{
+		ResultOf: map[*analysis.Analyzer]any{
+			nolint.Analyzer:    noLintIndex,
+			filecheck.Analyzer: generatedIndex,
+		},
+	}
+
+	gotNoLint, gotGenerated, err := Indexes(pass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(gotNoLint, noLintIndex) {
+		t.Errorf("Indexes() nolint index = %v, want %v", gotNoLint, noLintIndex)
+	}
+	if !reflect.DeepEqual(gotGenerated, generatedIndex) {
+		t.Errorf("Indexes() generated index = %v, want %v", gotGenerated, generatedIndex)
+	}
+}
+
+func TestIndexesError(t *testing.T) {
+	tests := map[string]map[*analysis.Analyzer]any{
+		"missing nolint result":    {filecheck.Analyzer: filecheck.GeneratedIndex{}},
+		"missing filecheck result": {nolint.Analyzer: nolint.DirectiveIndex{}},
+	}
+
+	for name, resultOf := range tests {
+		t.Run(name, func(t *testing.T) {
+			noLintIndex, generatedFiles, err := Indexes(&analysis.Pass{ResultOf: resultOf})
+			if err == nil {
+				t.Fatal("Indexes() error = nil, want error")
+			}
+			if noLintIndex != nil || generatedFiles != nil {
+				t.Errorf("Indexes() = (%v, %v), want (nil, nil) on error", noLintIndex, generatedFiles)
+			}
+		})
+	}
+}
+
+func TestPreorderIndexed(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "example.go", `package example
+func example() {
+	first()
+	second()
+}`, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	noLintIndex := nolint.DirectiveIndex{"example.go": {1: {"example": {}}}}
+	generatedIndex := filecheck.GeneratedIndex{"generated.go": {}}
+	pass := &analysis.Pass{
+		ResultOf: map[*analysis.Analyzer]any{
+			inspect.Analyzer:   inspector.New([]*ast.File{file}),
+			nolint.Analyzer:    noLintIndex,
+			filecheck.Analyzer: generatedIndex,
+		},
+	}
+
+	var names []string
+	_, err = PreorderIndexed(pass, []ast.Node{(*ast.CallExpr)(nil)}, func(gotPass *analysis.Pass, node ast.Node, gotGenerated filecheck.GeneratedIndex, gotNoLint nolint.DirectiveIndex) {
+		if gotPass != pass {
+			t.Errorf("PreorderIndexed() passed %v, want %v", gotPass, pass)
+		}
+		if !reflect.DeepEqual(gotNoLint, noLintIndex) || !reflect.DeepEqual(gotGenerated, generatedIndex) {
+			t.Errorf("PreorderIndexed() indexes = (%v, %v), want (%v, %v)", gotGenerated, gotNoLint, generatedIndex, noLintIndex)
+		}
+		names = append(names, node.(*ast.CallExpr).Fun.(*ast.Ident).Name)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want := []string{"first", "second"}; !reflect.DeepEqual(names, want) {
+		t.Errorf("PreorderIndexed() visited %v, want %v", names, want)
+	}
+}
+
+func TestPreorderIndexedError(t *testing.T) {
+	visited := false
+	_, err := PreorderIndexed(&analysis.Pass{ResultOf: map[*analysis.Analyzer]any{}}, []ast.Node{(*ast.CallExpr)(nil)},
+		func(*analysis.Pass, ast.Node, filecheck.GeneratedIndex, nolint.DirectiveIndex) { visited = true })
+	if err == nil {
+		t.Fatal("PreorderIndexed() error = nil, want error")
+	}
+	if visited {
+		t.Error("PreorderIndexed() visited nodes despite index error")
+	}
+}

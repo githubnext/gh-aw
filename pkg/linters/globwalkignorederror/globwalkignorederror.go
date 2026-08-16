@@ -25,19 +25,7 @@ var checkedFuncs = map[string]map[string]struct{}{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	nolintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{(*ast.AssignStmt)(nil)}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		analyzeGlobWalkAssign(pass, n, generatedFiles, nolintIndex)
-	})
+	return analyzerutil.PreorderIndexed(pass, []ast.Node{(*ast.AssignStmt)(nil)}, analyzeGlobWalkAssign)
 }
 
 // analyzeGlobWalkAssign checks whether an assignment discards the error

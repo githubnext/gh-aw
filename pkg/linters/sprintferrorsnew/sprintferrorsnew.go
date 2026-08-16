@@ -17,11 +17,7 @@ import (
 var Analyzer = analyzerutil.New("sprintferrorsnew", "reports errors.New(fmt.Sprintf(...)) calls that should use fmt.Errorf instead", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

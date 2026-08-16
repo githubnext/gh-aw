@@ -38,19 +38,7 @@ func universeErrorInterface() *types.Interface {
 var Analyzer = analyzerutil.New("sprintferrdot", "reports redundant .Error() calls on error arguments passed to fmt format functions", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		analyzeErrDotCall(pass, n, generatedFiles, noLintIndex)
-	})
+	return analyzerutil.PreorderIndexed(pass, []ast.Node{(*ast.CallExpr)(nil)}, analyzeErrDotCall)
 }
 
 // analyzeErrDotCall checks whether a call expression is a fmt format function

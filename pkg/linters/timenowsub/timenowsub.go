@@ -19,19 +19,7 @@ import (
 var Analyzer = analyzerutil.New("timenowsub", "reports time.Now().Sub(t) calls that should be simplified to time.Since(t)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-	return analyzerutil.Preorder(pass, nodeFilter, func(n ast.Node) {
-		analyzeTimeNowSub(pass, n, generatedFiles, noLintIndex)
-	})
+	return analyzerutil.PreorderIndexed(pass, []ast.Node{(*ast.CallExpr)(nil)}, analyzeTimeNowSub)
 }
 
 // analyzeTimeNowSub checks whether a call is a time.Now().Sub(t) that can be
