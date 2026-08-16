@@ -92,16 +92,16 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
   try {
     names = JSON.parse(env[customGatewayEnvNamesVar] || "[]");
   } catch (err) {
-    throw new Error(`GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must be valid JSON: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${customGatewayEnvNamesVar} must be valid JSON: ${getErrorMessage(err)}`, { cause: err });
   }
   if (!Array.isArray(names) || !names.every(name => typeof name === "string" && customGatewayEnvNamePattern.test(name))) {
-    throw new Error("GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must be an array of valid environment variable names");
+    throw new Error(`${customGatewayEnvNamesVar} must be an array of valid environment variable names`);
   }
   if (names.some(name => name === customGatewayEnvNamesVar || name.startsWith(customGatewayEnvTransportPrefix))) {
-    throw new Error(`GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must not contain names reserved by the ${customGatewayEnvTransportPrefix} transport namespace`);
+    throw new Error(`${customGatewayEnvNamesVar} must not contain names reserved by the ${customGatewayEnvTransportPrefix} transport namespace`);
   }
   if (new Set(names).size !== names.length) {
-    throw new Error("GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES must not contain duplicate environment variable names");
+    throw new Error(`${customGatewayEnvNamesVar} must not contain duplicate environment variable names`);
   }
 
   // Missing indexed transport values intentionally become empty container env vars.
