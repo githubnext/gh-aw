@@ -56,6 +56,20 @@ func updateLegacySerenaMCPServerLocation(lines []string) ([]string, bool) {
 	var mcpServersIndent string
 	var inSerenaBlock bool
 	var serenaIndent string
+	var serenaBlockStart int
+	var serenaBlockEnd int
+
+	flushSerenaBlock := func() {
+		if serenaBlockStart >= serenaBlockEnd {
+			return
+		}
+		block := result[serenaBlockStart:serenaBlockEnd]
+		updated, changed := rewriteSerenaMCPBlock(block)
+		if changed {
+			result = append(result[:serenaBlockStart], updated...)
+			modified = true
+		}
+	}
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -69,36 +83,76 @@ func updateLegacySerenaMCPServerLocation(lines []string) ([]string, bool) {
 
 		if inMCPServers && trimmed != "" && !strings.HasPrefix(trimmed, "#") && hasExitedBlock(line, mcpServersIndent) {
 			inMCPServers = false
+			if inSerenaBlock {
+				flushSerenaBlock()
+			}
 			inSerenaBlock = false
 		}
 
 		if inMCPServers && strings.HasPrefix(trimmed, "serena:") {
+			if inSerenaBlock {
+				flushSerenaBlock()
+			}
 			inSerenaBlock = true
 			serenaIndent = getIndentation(line)
 			result = append(result, line)
+			serenaBlockStart = len(result)
+			serenaBlockEnd = len(result)
 			continue
 		}
 
 		if inSerenaBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") && hasExitedBlock(line, serenaIndent) {
+			flushSerenaBlock()
 			inSerenaBlock = false
 		}
 
+		result = append(result, line)
 		if inSerenaBlock {
-			if strings.HasPrefix(trimmed, "container:") {
-				updated, changed := rewriteSerenaMCPContainerValue(line)
-				if changed {
-					result = append(result, updated)
-					modified = true
-					continue
-				}
+			serenaBlockEnd = len(result)
+		}
+	}
+
+	if inSerenaBlock {
+		flushSerenaBlock()
+	}
+
+	return result, modified
+}
+
+// rewriteSerenaMCPBlock rewrites the container and entrypoint lines within a single
+// Serena MCP server block. The entrypoint is only rewritten when the same block's
+// container references the legacy image, regardless of the order the fields appear in.
+func rewriteSerenaMCPBlock(block []string) ([]string, bool) {
+	legacyContainer := false
+	for _, line := range block {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "container:") {
+			if _, changed := rewriteSerenaMCPContainerValue(line); changed {
+				legacyContainer = true
 			}
-			if strings.HasPrefix(trimmed, "entrypoint:") {
-				updated, changed := rewriteSerenaMCPEntrypointValue(line)
-				if changed {
-					result = append(result, updated)
-					modified = true
-					continue
-				}
+		}
+	}
+
+	var result []string
+	var modified bool
+	for _, line := range block {
+		trimmed := strings.TrimSpace(line)
+
+		if strings.HasPrefix(trimmed, "container:") {
+			updated, changed := rewriteSerenaMCPContainerValue(line)
+			if changed {
+				result = append(result, updated)
+				modified = true
+				continue
+			}
+		}
+
+		if legacyContainer && strings.HasPrefix(trimmed, "entrypoint:") {
+			updated, changed := rewriteSerenaMCPEntrypointValue(line)
+			if changed {
+				result = append(result, updated)
+				modified = true
+				continue
 			}
 		}
 
@@ -146,7 +200,7 @@ func rewriteSerenaMCPEntrypointValue(line string) (string, bool) {
 		return line, false
 	}
 	lowerValue := strings.ToLower(value)
-	if !(strings.EqualFold(value, "serena") || strings.HasSuffix(lowerValue, "/serena") || strings.HasSuffix(lowerValue, "\\serena")) {
+	if !strings.EqualFold(value, "serena") && !strings.HasSuffix(lowerValue, "/serena") && !strings.HasSuffix(lowerValue, "\\serena") {
 		return line, false
 	}
 
