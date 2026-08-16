@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-08-15T03:55:16Z",
-  "run_id": "31862974294",
+  "timestamp": "2026-08-16T03:57:00Z",
+  "run_id": "31925380594",
   "total_workflows": 285,
   "copilot_workflows_narrow": 38,
   "share_flag_usage": 1,
@@ -8,5 +8,5 @@
   "orphaned_agents": ["create-safe-output-type", "custom-engine-implementation", "grumpy-reviewer", "w3c-specification-writer"],
   "disable_builtin_mcps_usage": 2,
   "opportunities_found": 0,
-  "notable_change": "Firecracker sandbox support removed from codebase (PR #52774, commit c35faf4) - not itself a Copilot CLI usage gap, just a reduction in available sandbox feature surface. No new Copilot CLI Go features detected. All previously tracked gaps (--share=1, engine.args=0, 4 orphaned agents) remain unchanged from run 31769511486. Per established policy (see notes.md run 31354820498), skipping new issue since no material change in tracked metrics."
+  "notable_change": "No material change vs run 31862974294 (2026-08-15). Total workflows flat at 285, narrow engine:copilot count flat at 38. --share still 1 (this research workflow only). engine.args still 0. Orphaned agents unchanged (4). disable-builtin-mcps flat at 2. copilot-sdk:true adoption 71 (flat). max-tool-denials 65 (flat), max-continuations 11 (flat), network config 161 (flat/slight rise), sandbox 256 (flat/slight rise, consistent with routine workflow additions). No new Copilot CLI Go features detected (same file set: copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, copilot_installer.go, copilot_inline_driver.go, copilot_logs.go, copilot_participant_steps.go). Per established policy (since run 31354820498), skipped new issue since no tracked metric changed."
 }

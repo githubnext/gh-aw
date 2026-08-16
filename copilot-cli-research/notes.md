@@ -114,3 +114,13 @@
 - CODEBASE CHANGE DETECTED: commit c35faf4 "feat!: remove Firecracker support" (#52774) removed Firecracker sandbox support entirely from the repo (no remaining references in pkg/workflow or docs). This shrinks the sandbox feature surface (AWF/SRT remain) but is not a Copilot CLI usage gap — no action needed, just noted for inventory accuracy.
 - No other new Copilot CLI Go features detected since last run.
 - DECISION: Filed noop per established policy (run 31354820498+) — only file new issue when (a) new Copilot CLI feature appears, (b) orphaned agent status changes, or (c) --share/engine.args adoption changes from 0/1. None of these conditions met this run.
+
+## Run 31925380594 (2026-08-16)
+- Total workflows flat at 285. Narrow `engine: copilot` count flat at 38.
+- --share flag: still 1 (this research workflow only) — 14th+ consecutive run confirming persistent non-issue (no workflow needs conversation sharing).
+- engine.args: reconfirmed still 0 — stable across 7+ direct re-verifications.
+- Orphaned custom agents unchanged: create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer (4, interactive-agent-designer remains resolved with 1 ref via archie.md-style agent: usage).
+- disable-builtin-mcps: flat at 2 real usages (auto-triage-issues.md + this research workflow's own doc example).
+- copilot-sdk: true adoption: 71 (flat vs last run).
+- No new Copilot CLI Go features detected in codebase since last run (same 8-file module set unchanged).
+- DECISION: Filed noop per established policy (run 31354820498+) — only file new issue when (a) new Copilot CLI feature appears, (b) orphaned agent status changes, or (c) --share/engine.args adoption changes from 0/1. None of these conditions met this run.
