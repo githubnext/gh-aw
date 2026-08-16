@@ -58,6 +58,7 @@ features:
 sandbox:
   agent:
     id: awf
+    runtime: cloud-hypervisor
     sudo: false
 ---
 

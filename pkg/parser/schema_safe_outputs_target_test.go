@@ -306,6 +306,15 @@ func TestMainWorkflowSchema_SafeOutputsTargetProperties(t *testing.T) {
 			},
 		},
 		{
+			name: "create-check-run with target",
+			safeOutputs: map[string]any{
+				"create-check-run": map[string]any{
+					"name":   "Test Check",
+					"target": "*",
+				},
+			},
+		},
+		{
 			name: "issue-intent toggle accepted for close and assignment tools",
 			safeOutputs: map[string]any{
 				"close-issue": map[string]any{

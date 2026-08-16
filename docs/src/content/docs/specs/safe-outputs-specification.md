@@ -3123,7 +3123,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 #### Type: approve_workflow_run
 
-**Purpose**: Approve a workflow run waiting for a repository's fork pull request approval gate.
+**Purpose**: Approve a workflow run in the "action required" state.
 
 **Default Max**: 1
 **Cross-Repository Support**: No
@@ -3136,7 +3136,7 @@ This section provides complete definitions for all remaining safe output types. 
 ```json
 {
   "name": "approve_workflow_run",
-  "description": "Approve a GitHub Actions workflow run awaiting fork pull request approval.",
+  "description": "Approve a GitHub Actions workflow run awaiting required approval.",
   "inputSchema": {
     "type": "object",
     "required": ["run_id"],
