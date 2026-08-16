@@ -53,8 +53,8 @@ function collectAddMaskedValues(logContent) {
   for (const line of logContent.split("\n")) {
     const match = line.match(ADD_MASK_COMMAND_RE);
     if (!match) continue;
-    const decoded = unescapeWorkflowCommandValue(match[1]).replace(/\r/g, "");
-    for (const candidate of decoded.split("\n")) {
+    const decoded = unescapeWorkflowCommandValue(match[1]);
+    for (const candidate of decoded.split(/\r\n|\r|\n/)) {
       if (!candidate.trim()) continue;
       // Register both the verbatim value and its trimmed form so that surrounding
       // whitespace in either the command payload or the log text never defeats redaction.
@@ -62,6 +62,8 @@ function collectAddMaskedValues(logContent) {
       values.add(candidate.trim());
     }
   }
+  // Both verbatim and trimmed forms are included; trimming cannot increase length,
+  // so descending-length order always prefers verbatim before trimmed variants.
   return Array.from(values).sort((a, b) => b.length - a.length);
 }
 
@@ -84,11 +86,8 @@ function escapeRegExp(value) {
  */
 function redactMaskedValues(text, maskedValues) {
   if (!text || !maskedValues || maskedValues.length === 0) return text;
-  let result = text;
-  for (const value of maskedValues) {
-    result = result.replace(new RegExp(escapeRegExp(value), "g"), MASK_REPLACEMENT);
-  }
-  return result;
+  const pattern = new RegExp(`(?:${maskedValues.map(escapeRegExp).join("|")})`, "g");
+  return text.replace(pattern, MASK_REPLACEMENT);
 }
 
 /**

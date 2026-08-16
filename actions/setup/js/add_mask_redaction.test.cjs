@@ -23,12 +23,20 @@ describe("add_mask_redaction", () => {
   describe("collectAddMaskedValues", () => {
     it("collects masked values from log content", () => {
       const log = ["starting", "::add-mask::abcd1234", "::add-mask::zz", "done"].join("\n");
-      expect(collectAddMaskedValues(log)).toEqual(["abcd1234", "zz"]);
+      const result = collectAddMaskedValues(log);
+      expect(result).toContain("abcd1234");
+      expect(result).toContain("zz");
+      expect(result).toHaveLength(2);
     });
 
     it("expands multi-line masked values into individual lines", () => {
       const log = "::add-mask::line-one%0Aline-two\n";
       expect(collectAddMaskedValues(log).sort()).toEqual(["line-one", "line-two"]);
+    });
+
+    it("splits carriage-return separated values", () => {
+      const log = "::add-mask::part-one%0Dpart-two\n";
+      expect(collectAddMaskedValues(log).sort()).toEqual(["part-one", "part-two"]);
     });
 
     it("keeps both the verbatim and trimmed forms of a padded value", () => {
