@@ -338,15 +338,3 @@ func ifExpressionContainsStatusFunc(expr string) bool {
 		strings.Contains(expr, "failure(") ||
 		strings.Contains(expr, "cancelled(")
 }
-
-// validateRestrictedBuiltinSetupSteps rejects jobs.<name>.setup-steps for the
-// activation and pre-activation jobs. setup-steps run before any
-// compiler-generated token-mint or short-circuit protection steps, so
-// allowing arbitrary user-authored steps there could bypass those
-// protections. By contrast, jobs.activation.steps (see
-// validateRestrictedBuiltinSteps) is inserted later in the job, before
-// artifact staging but after the activation gate/output has already run, so
-// it is not equivalent to setup-steps and is intentionally allowed for the
-// activation job. Injected steps content is still scanned for GitHub CLI
-// write-command usage (see cacheActivationPreStepPermissions) regardless of
-// which field it came from.
