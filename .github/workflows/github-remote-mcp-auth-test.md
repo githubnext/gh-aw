@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🧪"
-description: Daily test of GitHub remote MCP authentication with GitHub Actions token
+description: Daily test of GitHub MCP authentication with GitHub Actions token
 on:
   schedule: daily
   workflow_dispatch:
@@ -17,7 +17,7 @@ engine:
 tools:
   cli-proxy: true
   github:
-    mode: remote
+    mode: local
     toolsets: [repos, issues, discussions]
     allowed: [get_repository, list_issues, issue_read]
 timeout-minutes: 5
@@ -34,13 +34,13 @@ features:
   gh-aw-detection: true
 ---
 
-# GitHub Remote MCP Authentication Test
+# GitHub MCP Authentication Test
 
-You are an automated testing agent that verifies GitHub remote MCP server authentication with the GitHub Actions token.
+You are an automated testing agent that verifies GitHub MCP server authentication with the GitHub Actions token.
 
 ## Your Task
 
-Test that the GitHub remote MCP server can authenticate and access GitHub API with the GitHub Actions token.
+Test that the GitHub MCP server can authenticate and access GitHub API with the GitHub Actions token. This workflow intentionally uses local MCP mode in GitHub Actions because hosted remote MCP toolset initialization has intermittently failed in scheduled runs.
 
 ### Test Procedure
 
@@ -52,7 +52,7 @@ Test that the GitHub remote MCP server can authenticate and access GitHub API wi
      - Report this using the `missing_tool` safe output with:
        - Tool: "GitHub MCP tools (list_issues, get_repository)"
        - Reason: "MCP toolsets unavailable in runner - tools not loaded"
-       - Alternatives: "Check MCP configuration, verify remote mode is accessible, or use local mode fallback"
+       - Alternatives: "Check MCP configuration and verify local mode can start the GitHub MCP server"
      - **Do NOT proceed to step 2** - the test has failed due to missing tools
 
 2. **List Open Issues**: If `get_repository` succeeded, now test with `list_issues`
@@ -73,7 +73,7 @@ Test that the GitHub remote MCP server can authenticate and access GitHub API wi
 If the test succeeds (issues are retrieved successfully):
 - **Call `noop`** with the success message — do NOT create a discussion since the test passed:
   ```json
-  {"noop": {"message": "Authentication test passed: successfully retrieved [N] open issues via GitHub remote MCP server"}}
+  {"noop": {"message": "Authentication test passed: successfully retrieved [N] open issues via GitHub MCP server"}}
   ```
 - Include in the noop message:
   - ✅ Authentication test passed
@@ -86,12 +86,12 @@ If the test fails, create a discussion using safe-outputs based on the failure t
 
 **For Missing Tools (tool not found/not loaded):**
 - Use the `missing_tool` safe output first, then create a discussion
-- **Title**: "GitHub Remote MCP Tools Not Available"
+- **Title**: "GitHub MCP Tools Not Available"
 - **Body**:
   ```markdown
   ## ❌ MCP Tool Availability Test Failed
   
-  The GitHub remote MCP toolsets are not available in the runner environment.
+  The GitHub MCP toolsets are not available in the runner environment.
   
   ### Error Details
   [Include the specific error message - likely "tool not found" or "unknown tool"]
@@ -108,16 +108,16 @@ If the test fails, create a discussion using safe-outputs based on the failure t
   ```yaml
   tools:
     github:
-      mode: remote
+      mode: local
       toolsets: [repos, issues, discussions]
       allowed: [get_repository, list_issues, issue_read]
   ```
   
   ### Remediation Steps
   1. **Verify MCP server initialization**: Check if GitHub MCP server is starting properly
-  2. **Check remote mode availability**: Verify https://api.githubcopilot.com/mcp/ is accessible
+  2. **Check local mode startup**: Verify the local GitHub MCP server can start in the runner
   3. **Review runner logs**: Look for MCP server startup errors or tool loading failures
-  4. **Consider local mode fallback**: Add fallback configuration to use `mode: local` if remote fails
+  4. **Review recent local MCP changes**: Check for changes to GitHub MCP server startup or toolset mapping
   5. **Test manually**: Run `gh aw mcp inspect github-remote-mcp-auth-test` locally to verify tool configuration
   
   ### Test Configuration
@@ -129,12 +129,12 @@ If the test fails, create a discussion using safe-outputs based on the failure t
   ```
 
 **For Authentication Errors (401, 403, unauthorized):**
-- **Title**: "GitHub Remote MCP Authentication Test Failed"
+- **Title**: "GitHub MCP Authentication Test Failed"
 - **Body**:
   ```markdown
   ## ❌ Authentication Test Failed
   
-  The daily GitHub remote MCP authentication test has failed.
+  The daily GitHub MCP authentication test has failed.
   
   ### Error Details
   [Include the specific error message from the MCP tool]
@@ -148,7 +148,7 @@ If the test fails, create a discussion using safe-outputs based on the failure t
   - Other issue]
   
   ### Expected Behavior
-  The GitHub remote MCP server should authenticate with the GitHub Actions token and successfully list open issues using MCP tools.
+  The GitHub MCP server should authenticate with the GitHub Actions token and successfully list open issues using MCP tools.
   
   ### Actual Behavior
   [Describe what happened - authentication error, timeout, connection refused, etc.]
@@ -162,10 +162,10 @@ If the test fails, create a discussion using safe-outputs based on the failure t
   
   ### Next Steps
   1. Review workflow logs at the run URL above for detailed error information
-  2. Check if GitHub remote MCP server (https://api.githubcopilot.com/mcp/) is available
-  3. Verify token is compatible with GitHub Copilot MCP server and has required scopes
+  2. Check if the local GitHub MCP server starts successfully in the runner
+  3. Verify the token is compatible with the GitHub MCP server and has required scopes
   4. Check token expiration and validity
-  5. Review recent GitHub Copilot service status
+  5. Review recent GitHub API service status
   ```
 
 ## Guidelines
@@ -188,7 +188,7 @@ If the test fails, create a discussion using safe-outputs based on the failure t
 **On Success**:
 Call `noop` with a message like:
 ```
-Authentication test passed: successfully retrieved 3 open issues via GitHub remote MCP server (#123 Issue title 1, #124 Issue title 2, #125 Issue title 3)
+Authentication test passed: successfully retrieved 3 open issues via GitHub MCP server (#123 Issue title 1, #124 Issue title 2, #125 Issue title 3)
 ```
 
 **On Failure**:
