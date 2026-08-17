@@ -88,6 +88,19 @@ describe("resolve_model_alias", () => {
     ).toThrow(ModelAliasResolutionError);
   });
 
+  it("throws ModelAliasResolutionError for a known alias when catalog is populated but does not include a matching model", () => {
+    const reflectData = {
+      endpoints: [{ configured: true, provider: "openai", models: ["gpt-4.1"] }],
+    };
+    expect(() =>
+      resolveConfiguredCopilotModel({
+        configuredModel: "small",
+        aliasMap: ALIAS_MAP,
+        reflectData,
+      })
+    ).toThrow(ModelAliasResolutionError);
+  });
+
   it("does not throw for a concrete model even when the catalog is empty", () => {
     const resolved = resolveConfiguredCopilotModel({
       configuredModel: "claude-sonnet-4.6",

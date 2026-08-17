@@ -294,9 +294,9 @@ function normalizeForCopilotCLI(resolved) {
  * }} options
  * @returns {string}
  * @throws {ModelAliasResolutionError} When `configuredModel` is a known alias key in
- *   `aliasMap` but the catalog built from `reflectData` is empty (e.g. a transient
- *   models-endpoint fetch failure). Callers must not forward the unresolved alias to
- *   Copilot in this case.
+ *   `aliasMap` but alias resolution cannot produce a concrete model from the catalog
+ *   built from `reflectData` (including empty or incomplete catalogs). Callers must not
+ *   forward the unresolved alias to Copilot in this case.
  */
 function resolveConfiguredCopilotModel(options) {
   const configuredModel = String(options.configuredModel || "").trim();
@@ -326,8 +326,8 @@ function resolveConfiguredCopilotModel(options) {
 
   const resolved = resolveModelAlias(configuredModel, aliasMap, catalog, { logger });
   if (!resolved) {
-    logger(`copilot model alias resolution: '${configuredModel}' did not resolve against catalog`);
-    return configuredModel;
+    logger(`copilot model alias resolution: known alias '${configuredModel}' did not resolve against catalog`);
+    throw new ModelAliasResolutionError(configuredModel);
   }
 
   const normalized = normalizeForCopilotCLI(resolved);
