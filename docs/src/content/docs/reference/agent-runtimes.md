@@ -86,12 +86,7 @@ The entire `sandbox` block may be omitted when its defaults are sufficient. AWF 
 
 ### Docker runner requirements
 
-A conventional Docker runner needs:
-
-- A Linux Docker Engine that the runner user can access.
-- Docker Compose support.
-- A daemon on the same filesystem as the runner, unless `runner.topology: arc-dind` is configured.
-- Outbound access to pull the pinned AWF, proxy, gateway, and MCP images.
+A conventional Docker runner needs a Linux Docker Engine the runner user can access, Docker Compose support, a daemon on the same filesystem as the runner unless `runner.topology: arc-dind` is configured, and outbound access to pull the pinned AWF, proxy, gateway, and MCP images.
 
 For a self-hosted runner, avoid a remote TCP Docker daemon unless the environment is intentionally configured as a split-daemon topology. Bind-mount source paths are resolved by the daemon, not by the client, so a remote daemon that cannot see the runner workspace causes missing-workspace and mount errors.
 
@@ -136,13 +131,7 @@ The generated setup step:
 5. Runs `sudo runsc install` and `sudo systemctl restart docker`.
 6. Verifies the runtime with `docker run --rm --runtime=runsc hello-world`.
 
-The runner therefore needs:
-
-- A supported Linux architecture and a Docker Engine managed by systemd.
-- Passwordless, non-interactive `sudo` for the runner user.
-- Permission to modify Docker's runtime configuration and restart Docker.
-- Outbound HTTPS access to `storage.googleapis.com/gvisor` and the registry serving `hello-world`.
-- AWF `v0.27.30` or newer. The repository default is newer; this matters when `firewall.version` or `sandbox.agent.version` is pinned.
+The runner therefore needs a supported Linux architecture, a Docker Engine managed by systemd, passwordless non-interactive `sudo` for the runner user, permission to modify Docker's runtime configuration and restart Docker, outbound HTTPS access to `storage.googleapis.com/gvisor` and the registry serving `hello-world`, and AWF `v0.27.30` or newer. The repository default is newer; this matters when `firewall.version` or `sandbox.agent.version` is pinned.
 
 > [!IMPORTANT]
 > Host-level `sudo` is required by the generated gVisor installation step, but `sandbox.agent.sudo: true` is not required. Leave that field omitted or false to retain AWF's default network-isolation mode. Setting it to true changes the agent security mode and is rejected in strict mode.
@@ -211,16 +200,7 @@ Add these Actions secrets to the repository or organization:
 
 ### Docker sbx runner requirements
 
-The runner needs:
-
-- Linux with the KVM module loaded and `/dev/kvm` exposed.
-- Nested virtualization when the runner itself is a virtual machine.
-- Passwordless, non-interactive `sudo`.
-- An apt-based distribution on which the official Docker repository and `docker-sbx` package can be installed.
-- Docker Engine and the Docker CLI.
-- Docker Hub credentials with access to `docker/sandbox-templates:shell-docker`.
-- Outbound HTTPS access to `get.docker.com`, Docker's apt repository, and Docker Hub.
-- AWF `v0.27.30` or newer.
+The runner needs Linux with the KVM module loaded and `/dev/kvm` exposed, nested virtualization when the runner itself is a virtual machine, passwordless non-interactive `sudo`, an apt-based distribution on which the official Docker repository and `docker-sbx` package can be installed, Docker Engine and the Docker CLI, Docker Hub credentials with access to `docker/sandbox-templates:shell-docker`, outbound HTTPS access to `get.docker.com`, Docker's apt repository, and Docker Hub, plus AWF `v0.27.30` or newer.
 
 The compiler generates fail-fast KVM and secret checks, installs `docker-sbx`, changes `/dev/kvm` permissions, starts the sbx daemon, authenticates both CLIs, initializes an allow-all sbx policy, pulls the template, and runs a create/exec/remove smoke test. It refreshes sbx credentials again immediately before AWF starts the agent.
 
@@ -320,15 +300,7 @@ Do not set `runtime: docker`, `runtime: gvisor`, or `runtime: docker-sbx` in thi
 
 ### ARC DinD runner requirements
 
-The ARC or equivalent Kubernetes pod needs:
-
-- `containerMode.type="dind"` or an equivalent privileged Docker sidecar. Kubernetes container mode is not supported.
-- A shared `/home/runner/_work` volume between the runner and DinD sidecar.
-- `DOCKER_HOST` set to the sidecar's `tcp://` endpoint.
-- An unprivileged runner container; only the DinD sidecar needs `privileged: true`.
-- No `sudo`, `apt install`, or other root-requiring commands in `steps`, `pre-steps`, `pre-agent-steps`, or `post-steps`.
-- AWF `v0.27.20` or newer.
-- A tool cache on a daemon-visible shared path, such as `/tmp/gh-aw/tool-cache`, rather than `/opt/hostedtoolcache`.
+The ARC or equivalent Kubernetes pod needs `containerMode.type="dind"` or an equivalent privileged Docker sidecar, a shared `/home/runner/_work` volume between the runner and DinD sidecar, `DOCKER_HOST` set to the sidecar's `tcp://` endpoint, an unprivileged runner container with `privileged: true` required only on the DinD sidecar, no `sudo`, `apt install`, or other root-requiring commands in `steps`, `pre-steps`, `pre-agent-steps`, or `post-steps`, AWF `v0.27.20` or newer, and a tool cache on a daemon-visible shared path such as `/tmp/gh-aw/tool-cache` rather than `/opt/hostedtoolcache`.
 
 The compiler uses `runner.topology: arc-dind` to enable sysroot staging, shared-volume paths, chroot identity, log relocation, network isolation, and tool-cache checks. At runtime, the generated workflow also inspects `DOCKER_HOST` and passes the Docker endpoint to AWF.
 
@@ -384,7 +356,7 @@ Runtime failures are easiest to isolate from the runner upward:
 3. Verify the specialized backend independently: `docker run --runtime=runsc ...` for gVisor, `sbx create` and `sbx exec` for Docker sbx, or Docker API access through `DOCKER_HOST` for ARC DinD.
 4. Confirm the frontmatter uses the correct field and value, then run `gh aw compile`.
 5. Inspect the generated lock file for the expected setup and pre-flight steps.
-6. Inspect AWF logs. Conventional runners use `/tmp/gh-aw/sandbox/firewall/logs/`; ARC DinD uses `$RUNNER_TEMP/gh-aw/sandbox/firewall/logs/`.
+6. Inspect AWF logs at `/tmp/gh-aw/sandbox/firewall/logs/` on conventional runners or `$RUNNER_TEMP/gh-aw/sandbox/firewall/logs/` on ARC DinD.
 
 Enable compiler diagnostics when generated configuration is unexpected:
 
