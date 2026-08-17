@@ -18,6 +18,14 @@ imports:
   - uses: ./serena.md
     with:
       languages: ["go"]
+pre-agent-steps:
+  - name: Setup Go
+    uses: actions/setup-go@v7.0.0
+    with:
+      go-version-file: go.mod
+      cache: true
+  - name: Verify Go installation
+    run: go version
 ---
 
 ## Go-specific constraints
