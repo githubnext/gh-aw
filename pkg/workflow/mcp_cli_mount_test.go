@@ -216,7 +216,7 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 
 	section := buildMCPCLIPromptSection(data)
 	require.NotNil(t, section)
-	assert.Equal(t, mcpCLIToolsPromptFile, section.Content)
+	assert.Equal(t, mcpCLIToolsWithSafeOutputsPromptFile, section.Content)
 	// GH_AW_MCP_CLI_SERVERS_LIST must be a compile-time static value, NOT a step output
 	// reference. Referencing steps.mount-mcp-clis (agent job) inside the activation job's
 	// env block is out of scope and triggers actionlint errors.
@@ -235,6 +235,20 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 	assert.NotRegexp(t, `(?m)^\s*(>\s*)?##\s+`, prompt, "prompt must not contain H2 Markdown headings")
 	assert.NotRegexp(t, `(?m)^\s*(>\s*)?###\s+`, prompt, "prompt must not contain H3 Markdown headings")
 	assert.Contains(t, prompt, "Use `<server> --help` and `<server> <tool> --help` for the same schema-derived signatures and examples before calling any command.")
+}
+
+func TestBuildMCPCLIPromptSection_UsesBaseTemplateWithoutSafeOutputs(t *testing.T) {
+	data := &WorkflowData{
+		MCPScripts: &MCPScriptsConfig{
+			Tools: map[string]*MCPScriptToolConfig{
+				"hello": {Name: "hello", Script: "return 'ok';"},
+			},
+		},
+	}
+
+	section := buildMCPCLIPromptSection(data)
+	require.NotNil(t, section)
+	assert.Equal(t, mcpCLIToolsPromptFile, section.Content)
 }
 
 func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *testing.T) {

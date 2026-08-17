@@ -14596,6 +14596,11 @@
           "enum": ["read", "none", "write"],
           "description": "Permission level for repository custom properties (read/none; \"write\" is rejected by the compiler). GitHub App-only permission."
         },
+        "secret-scanning-alerts": {
+          "type": "string",
+          "enum": ["read", "none"],
+          "description": "Permission level for secret scanning alerts (read/none). Forwarded as permission-secret-scanning-alerts input for actions/create-github-app-token."
+        },
         "repository-hooks": {
           "type": "string",
           "enum": ["read", "none", "write"],

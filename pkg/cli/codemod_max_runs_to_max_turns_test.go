@@ -10,6 +10,7 @@ import (
 )
 
 func TestMaxRunsToMaxTurnsCodemod_Metadata(t *testing.T) {
+	t.Parallel()
 	codemod := getMaxRunsToMaxTurnsCodemod()
 
 	assert.Equal(t, "max-runs-to-max-turns", codemod.ID)
@@ -20,6 +21,7 @@ func TestMaxRunsToMaxTurnsCodemod_Metadata(t *testing.T) {
 }
 
 func TestMaxRunsToMaxTurnsCodemod_NoOpWhenAbsent(t *testing.T) {
+	t.Parallel()
 	codemod := getMaxRunsToMaxTurnsCodemod()
 
 	content := `---
@@ -38,6 +40,7 @@ max-turns: 10
 }
 
 func TestMaxRunsToMaxTurnsCodemod_RenamesField(t *testing.T) {
+	t.Parallel()
 	codemod := getMaxRunsToMaxTurnsCodemod()
 
 	content := `---
@@ -59,6 +62,7 @@ engine: copilot
 }
 
 func TestMaxRunsToMaxTurnsCodemod_RemovesDeprecatedWhenBothPresent(t *testing.T) {
+	t.Parallel()
 	codemod := getMaxRunsToMaxTurnsCodemod()
 
 	content := `---

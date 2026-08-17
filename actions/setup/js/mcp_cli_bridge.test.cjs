@@ -769,22 +769,34 @@ describe("mcp_cli_bridge.cjs", () => {
       expect(args).toEqual({});
     });
 
-    it("falls through to empty args when stdinContent is empty string", () => {
-      const { args } = parseToolArgs(["."], {}, "");
-
-      expect(args).toEqual({});
+    it("throws a parse error when explicit JSON payload mode receives empty stdin", () => {
+      expect(() => parseToolArgs(["."], {}, "")).toThrow(/stdin is not valid JSON/i);
+      expect(() => parseToolArgs(["."], {}, "")).toThrow(/requested with '\.'/i);
     });
 
-    it("falls through to normal parsing when stdinContent is not valid JSON", () => {
+    it("throws a parse error when explicit JSON payload mode receives invalid JSON", () => {
       const schemaProperties = { body: { type: "string" } };
 
-      const { args } = parseToolArgs(["."], schemaProperties, "not json at all");
-
-      expect(args).toEqual({});
+      expect(() => parseToolArgs(["."], schemaProperties, "not json at all")).toThrow(/stdin is not valid JSON/i);
+      expect(() => parseToolArgs(["."], schemaProperties, "not json at all")).toThrow(/requested with '\.'/i);
     });
 
-    it("falls through when JSON is an array rather than an object", () => {
-      const { args } = parseToolArgs(["."], {}, '["a","b","c"]');
+    it("throws when JSON payload mode receives non-object JSON", () => {
+      expect(() => parseToolArgs(["."], {}, '["a","b","c"]')).toThrow(/payload must be an object/i);
+    });
+
+    it("throws a parse error when no-flag piped stdin payload is invalid JSON", () => {
+      expect(() => parseToolArgs([], {}, "{invalid json")).toThrow(/stdin is not valid JSON/i);
+      expect(() => parseToolArgs([], {}, "{invalid json")).toThrow(/from piped stdin with no flags/i);
+    });
+
+    it("throws a parse error when no-flag piped stdin payload is whitespace-only", () => {
+      expect(() => parseToolArgs([], {}, "   \n   ")).toThrow(/stdin is not valid JSON/i);
+      expect(() => parseToolArgs([], {}, "   \n   ")).toThrow(/from piped stdin with no flags/i);
+    });
+
+    it("falls through to empty args for no-flag mode when stdin is truly empty", () => {
+      const { args } = parseToolArgs([], {}, "");
 
       expect(args).toEqual({});
     });
@@ -1419,6 +1431,99 @@ describe("mcp_cli_bridge.cjs", () => {
       const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
       expect(toolsCallBody).toBeUndefined();
 
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("No arguments provided for 'create_issue'"));
+    });
+
+    it("fails with JSON parse diagnostics instead of help when '.' payload is invalid JSON", async () => {
+      setupMainCall(requiredInputTools, ["create_issue", "."]);
+
+      const fsReadSyncSpy = vi.spyOn(fs, "readSync").mockImplementationOnce((_fd, buf, _offset, length) => {
+        const encoded = Buffer.from('{"title":"broken "json"}');
+        encoded.copy(/** @type {Buffer} */ buf, 0, 0, Math.min(encoded.length, length));
+        return Math.min(encoded.length, length);
+      });
+      fsReadSyncSpy.mockImplementationOnce(() => 0); // EOF
+
+      try {
+        await expect(main()).resolves.toBeUndefined();
+      } finally {
+        fsReadSyncSpy.mockRestore();
+      }
+
+      const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
+      expect(toolsCallBody).toBeUndefined();
+      expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No arguments provided for 'create_issue'"));
+      expect(stderrChunks.join("")).toContain("stdin is not valid JSON");
+      expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Argument parsing failed"));
+    });
+
+    it("fails with JSON parse diagnostics instead of help when '.' payload is whitespace-only", async () => {
+      setupMainCall(requiredInputTools, ["create_issue", "."]);
+
+      const fsReadSyncSpy = vi.spyOn(fs, "readSync").mockImplementationOnce((_fd, buf, _offset, length) => {
+        const encoded = Buffer.from("   \n   ");
+        encoded.copy(/** @type {Buffer} */ buf, 0, 0, Math.min(encoded.length, length));
+        return Math.min(encoded.length, length);
+      });
+      fsReadSyncSpy.mockImplementationOnce(() => 0); // EOF
+
+      try {
+        await expect(main()).resolves.toBeUndefined();
+      } finally {
+        fsReadSyncSpy.mockRestore();
+      }
+
+      const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
+      expect(toolsCallBody).toBeUndefined();
+      expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No arguments provided for 'create_issue'"));
+      expect(stderrChunks.join("")).toContain("stdin is not valid JSON");
+      expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Argument parsing failed"));
+    });
+
+    it("fails with JSON parse diagnostics for no-flag whitespace-only piped stdin", async () => {
+      const origIsTTY = process.stdin.isTTY;
+      // @ts-ignore
+      process.stdin.isTTY = undefined;
+      setupMainCall(requiredInputTools, ["create_issue"]);
+
+      const fsReadSyncSpy = vi.spyOn(fs, "readSync").mockImplementationOnce((_fd, buf, _offset, length) => {
+        const encoded = Buffer.from("   \n   ");
+        encoded.copy(/** @type {Buffer} */ buf, 0, 0, Math.min(encoded.length, length));
+        return Math.min(encoded.length, length);
+      });
+      fsReadSyncSpy.mockImplementationOnce(() => 0); // EOF
+
+      try {
+        await expect(main()).resolves.toBeUndefined();
+      } finally {
+        process.stdin.isTTY = origIsTTY;
+        fsReadSyncSpy.mockRestore();
+      }
+
+      const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
+      expect(toolsCallBody).toBeUndefined();
+      expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No arguments provided for 'create_issue'"));
+      expect(stderrChunks.join("")).toContain("stdin is not valid JSON");
+      expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Argument parsing failed"));
+    });
+
+    it("still shows help for no-flag piped stdin when stdin is truly empty", async () => {
+      const origIsTTY = process.stdin.isTTY;
+      // @ts-ignore
+      process.stdin.isTTY = undefined;
+      setupMainCall(requiredInputTools, ["create_issue"]);
+
+      const fsReadSyncSpy = vi.spyOn(fs, "readSync").mockImplementationOnce(() => 0); // EOF immediately
+
+      try {
+        await main();
+      } finally {
+        process.stdin.isTTY = origIsTTY;
+        fsReadSyncSpy.mockRestore();
+      }
+
+      const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
+      expect(toolsCallBody).toBeUndefined();
       expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("No arguments provided for 'create_issue'"));
     });
   });

@@ -98,6 +98,7 @@ const (
 	PermissionSingleFile                 PermissionScope = "single-file"
 	PermissionCodespaces                 PermissionScope = "codespaces"
 	PermissionRepositoryCustomProperties PermissionScope = "repository-custom-properties"
+	PermissionSecretScanningAlerts       PermissionScope = "secret-scanning-alerts"
 
 	// Organization-level GitHub App permissions
 	PermissionMembers                             PermissionScope = "members"
@@ -164,6 +165,7 @@ func GetAllGitHubAppOnlyScopes() []PermissionScope {
 		PermissionSingleFile,
 		PermissionCodespaces,
 		PermissionRepositoryCustomProperties,
+		PermissionSecretScanningAlerts,
 		// Organization-level GitHub App permissions
 		PermissionOrganizationProj,
 		PermissionMembers,
