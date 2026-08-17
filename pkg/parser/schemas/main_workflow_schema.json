@@ -1113,7 +1113,28 @@
                   "description": "Types of issue events",
                   "items": {
                     "type": "string",
-                    "enum": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned", "typed", "untyped"]
+                    "enum": [
+                      "opened",
+                      "edited",
+                      "deleted",
+                      "transferred",
+                      "pinned",
+                      "unpinned",
+                      "closed",
+                      "reopened",
+                      "assigned",
+                      "unassigned",
+                      "labeled",
+                      "unlabeled",
+                      "locked",
+                      "unlocked",
+                      "milestoned",
+                      "demilestoned",
+                      "typed",
+                      "untyped",
+                      "field_added",
+                      "field_removed"
+                    ]
                   }
                 },
                 "names": {

@@ -9,6 +9,21 @@ import (
 	"testing"
 )
 
+func TestValidateMainWorkflowFrontmatter_IssueFieldActivityTypes(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"issues": map[string]any{
+				"types": []any{"field_added", "field_removed"},
+			},
+		},
+		"engine": "copilot",
+	}
+
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "workflow.md"); err != nil {
+		t.Fatalf("expected issue field activity types to validate: %v", err)
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 	valid := map[string]any{
 		"on":     "workflow_dispatch",
