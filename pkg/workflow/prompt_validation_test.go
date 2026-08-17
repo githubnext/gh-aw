@@ -116,8 +116,8 @@ func TestSafeOutputsPromptDoesNotRequireCLI(t *testing.T) {
 
 	assert.Contains(t, content, "Call the tool names listed in `<safe-output-tools>` directly",
 		"safe-output prompt should instruct agents to call configured safe-output tools")
-	assert.NotContains(t, content, "CLI commands required",
-		"safe-output prompt must not require CLI commands because CLI mounting is optional")
+	assert.Contains(t, content, "if a separate `<mcp-clis>` section says `safeoutputs` is available on `PATH`, you may use that CLI form instead",
+		"safe-output prompt should describe CLI usage as optional because CLI mounting is optional")
 }
 
 // TestGitHubMCPToolsPromptIncludedForCodeSecurityToolset verifies that when a
