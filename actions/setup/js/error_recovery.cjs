@@ -129,7 +129,7 @@ function sleep(ms) {
  *   - HTTP 403 with `x-ratelimit-remaining: 0` (GitHub secondary rate limit)
  *
  * In those cases GitHub returns one of two headers:
- *   - `retry-after`       – integer seconds to wait (per RFC 6585)
+ *   - `retry-after`       – integer seconds OR HTTP-date to wait until
  *   - `x-ratelimit-reset` – Unix timestamp (seconds) when the quota resets
  *
  * For any other status (5xx transient errors, etc.) returns null so normal
@@ -152,12 +152,19 @@ function getRetryAfterMs(error) {
 
   if (!isRateLimitStatus) return null;
 
-  // retry-after: number of seconds (highest priority)
+  // retry-after: number of seconds OR HTTP-date (highest priority)
   const retryAfter = headers["retry-after"];
   if (retryAfter != null) {
     const seconds = parseInt(retryAfter, 10);
     if (!Number.isNaN(seconds) && seconds > 0) {
       return seconds * 1000;
+    }
+    const retryAtMs = Date.parse(String(retryAfter));
+    if (!Number.isNaN(retryAtMs)) {
+      const waitMs = retryAtMs - Date.now();
+      if (waitMs > 0) {
+        return waitMs;
+      }
     }
   }
 

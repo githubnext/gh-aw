@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetCommandToSlashCommandCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getCommandToSlashCommandCodemod()
 
 	assert.Equal(t, "command-to-slash-command-migration", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetCommandToSlashCommandCodemod(t *testing.T) {
 }
 
 func TestSlashCommandCodemod_BasicMigration(t *testing.T) {
+	t.Parallel()
 	codemod := getCommandToSlashCommandCodemod()
 
 	content := `---
@@ -49,6 +51,7 @@ permissions:
 }
 
 func TestSlashCommandCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getCommandToSlashCommandCodemod()
 
 	content := `---
@@ -74,6 +77,7 @@ on:
 }
 
 func TestSlashCommandCodemod_PreservesComment(t *testing.T) {
+	t.Parallel()
 	codemod := getCommandToSlashCommandCodemod()
 
 	content := `---
@@ -102,6 +106,7 @@ permissions:
 }
 
 func TestSlashCommandCodemod_NoCommandField(t *testing.T) {
+	t.Parallel()
 	codemod := getCommandToSlashCommandCodemod()
 
 	content := `---
@@ -130,6 +135,7 @@ permissions:
 }
 
 func TestSlashCommandCodemod_NoOnField(t *testing.T) {
+	t.Parallel()
 	codemod := getCommandToSlashCommandCodemod()
 
 	content := `---
@@ -153,6 +159,7 @@ permissions:
 }
 
 func TestSlashCommandCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getCommandToSlashCommandCodemod()
 
 	content := `---
@@ -186,6 +193,7 @@ key: value
 }
 
 func TestSlashCommandCodemod_MultipleOnTriggers(t *testing.T) {
+	t.Parallel()
 	codemod := getCommandToSlashCommandCodemod()
 
 	content := `---

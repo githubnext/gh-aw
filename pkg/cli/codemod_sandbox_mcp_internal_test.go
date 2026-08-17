@@ -12,6 +12,7 @@ import (
 // ----- getSandboxMCPContainerRemovalCodemod tests -----
 
 func TestGetSandboxMCPContainerRemovalCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPContainerRemovalCodemod()
 
 	assert.Equal(t, "sandbox-mcp-container-removal", codemod.ID)
@@ -22,6 +23,7 @@ func TestGetSandboxMCPContainerRemovalCodemod(t *testing.T) {
 }
 
 func TestSandboxMCPContainerRemoval_RemovesContainer(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPContainerRemovalCodemod()
 
 	content := `---
@@ -59,6 +61,7 @@ permissions:
 }
 
 func TestSandboxMCPContainerRemoval_NoSandboxKey(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPContainerRemovalCodemod()
 
 	content := `---
@@ -84,6 +87,7 @@ permissions:
 }
 
 func TestSandboxMCPContainerRemoval_NoMCPKey(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPContainerRemovalCodemod()
 
 	content := `---
@@ -109,6 +113,7 @@ sandbox:
 }
 
 func TestSandboxMCPContainerRemoval_NoContainerField(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPContainerRemovalCodemod()
 
 	content := `---
@@ -137,6 +142,7 @@ sandbox:
 }
 
 func TestSandboxMCPContainerRemoval_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPContainerRemovalCodemod()
 
 	content := `---
@@ -171,6 +177,7 @@ This is a test workflow.`
 // ----- getSandboxMCPVersionRemovalCodemod tests -----
 
 func TestGetSandboxMCPVersionRemovalCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPVersionRemovalCodemod()
 
 	assert.Equal(t, "sandbox-mcp-version-removal", codemod.ID)
@@ -181,6 +188,7 @@ func TestGetSandboxMCPVersionRemovalCodemod(t *testing.T) {
 }
 
 func TestSandboxMCPVersionRemoval_RemovesVersion(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPVersionRemovalCodemod()
 
 	content := `---
@@ -218,6 +226,7 @@ permissions:
 }
 
 func TestSandboxMCPVersionRemoval_NoVersionField(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPVersionRemovalCodemod()
 
 	content := `---
@@ -246,6 +255,7 @@ sandbox:
 }
 
 func TestSandboxMCPVersionRemoval_NoSandboxKey(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPVersionRemovalCodemod()
 
 	content := `---
@@ -266,6 +276,7 @@ on: workflow_dispatch
 }
 
 func TestSandboxMCPContainerRemoval_SkipsWhenStrictFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPContainerRemovalCodemod()
 
 	content := `---
@@ -298,6 +309,7 @@ sandbox:
 }
 
 func TestSandboxMCPVersionRemoval_SkipsWhenStrictFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxMCPVersionRemovalCodemod()
 
 	content := `---
@@ -330,6 +342,7 @@ sandbox:
 }
 
 func TestSandboxMCPVersionRemoval_BothContainerAndVersion(t *testing.T) {
+	t.Parallel()
 	// Verify that version removal does not affect the container key.
 	codemod := getSandboxMCPVersionRemovalCodemod()
 
@@ -365,6 +378,7 @@ sandbox:
 }
 
 func TestSandboxMCPContainerRemoval_RemovesEmptySandboxGrandparent(t *testing.T) {
+	t.Parallel()
 	// When container: is the only field under mcp:, and mcp: is the only field
 	// under sandbox:, the codemod must remove all three levels to avoid a
 	// dangling "sandbox:" key that YAML parses as null.
@@ -404,6 +418,7 @@ permissions:
 }
 
 func TestSandboxMCPVersionRemoval_RemovesEmptySandboxGrandparent(t *testing.T) {
+	t.Parallel()
 	// When version: is the only field under mcp:, and mcp: is the only field
 	// under sandbox:, the codemod must remove all three levels to avoid a
 	// dangling "sandbox:" key that YAML parses as null.
@@ -443,6 +458,7 @@ permissions:
 }
 
 func TestSandboxMCPContainerRemoval_KeepsSandboxWhenOtherChildrenRemain(t *testing.T) {
+	t.Parallel()
 	// When sandbox: has other children besides mcp:, it must be preserved even
 	// after mcp: becomes empty and is removed.
 	codemod := getSandboxMCPContainerRemovalCodemod()
