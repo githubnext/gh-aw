@@ -123,6 +123,8 @@ The legacy values `gh-proxy` (= `cli`), `local` (= `mcp-local`), and `remote` (=
 3. Legacy `features.cli-proxy: true` present → `cli`
 4. Otherwise (mode omitted) → `mcp-local` — the historical default, so omitting the mode never changes an existing workflow's behavior.
 
+`features.cli-proxy` is a deprecated, GitHub-specific flag: it starts the GitHub-token-holding host proxy for `gh` CLI access. It is orthogonal to `tools.mcp-mode: cli` (and the legacy `tools.cli-proxy` boolean), which mounts *all* user-facing MCP servers as CLI wrappers and never affects the GitHub access mode resolved here.
+
 To opt into CLI access, set `tools.github.mode: cli` explicitly.
 
 ### Validation rules

@@ -23,6 +23,12 @@ package workflow
 //	remote (mode or type)    -> mcp-remote
 //
 // The `gh aw fix` codemods rewrite legacy frontmatter to the homogeneous enum.
+//
+// Note: tools.github.mode is distinct from tools.mcp-mode (and its legacy
+// tools.cli-proxy boolean), which mounts all user-facing MCP servers as CLI
+// wrappers on PATH and never influences the GitHub access mode resolved here.
+// The two are orthogonal: tools.mcp-mode: cli applies to every configured MCP
+// server, while tools.github.mode governs GitHub access specifically.
 
 import (
 	"strings"
@@ -146,7 +152,10 @@ var mcpOnlyGitHubFields = []string{"toolsets", "allowed", "version", "args"}
 //     to cli here via this rule.
 //  2. features.integrity-reactions enabled -> cli (reaction author identification
 //     requires the host policy proxy; explicit MCP is rejected in validation).
-//  3. Legacy features.cli-proxy: true -> cli (backward compatibility).
+//  3. Legacy features.cli-proxy: true -> cli (backward compatibility). This is a
+//     GitHub-specific flag (it starts the GitHub-token-holding host proxy) and is
+//     orthogonal to tools.mcp-mode: cli / legacy tools.cli-proxy, which mount all
+//     user-facing MCP servers as CLI wrappers and never resolve GitHub access here.
 //  4. No GitHub tool configured -> no access (mode carries no CLI semantics).
 //  5. Otherwise (omitted mode) -> mcp-local, preserving existing behavior. `cli` is
 //     the recommended homogeneous default surfaced by new-workflow scaffolds and docs,
@@ -173,7 +182,8 @@ func resolveGitHubAccessProfile(data *WorkflowData) GitHubAccessProfile {
 		return GitHubAccessProfile{Mode: GitHubAccessModeCLI, HasGitHubTool: hasGitHub}
 	}
 
-	// 3. Legacy features.cli-proxy: true selects cli.
+	// 3. Legacy features.cli-proxy: true selects cli. GitHub-specific; unrelated to
+	// tools.mcp-mode: cli (which applies to all MCP servers, not just GitHub).
 	if isFeatureEnabled(constants.CliProxyFeatureFlag, data) {
 		return GitHubAccessProfile{Mode: GitHubAccessModeCLI, HasGitHubTool: hasGitHub}
 	}

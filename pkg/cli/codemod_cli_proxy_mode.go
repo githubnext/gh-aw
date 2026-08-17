@@ -8,12 +8,15 @@ import (
 
 var cliProxyModeCodemodLog = logger.New("cli:codemod_cli_proxy_mode")
 
-// getCliProxyFeatureToGitHubModeCodemod migrates features.cli-proxy: true to tools.github.mode: cli.
+// getCliProxyFeatureToGitHubModeCodemod migrates the deprecated, GitHub-specific
+// features.cli-proxy: true flag to tools.github.mode: cli. This is unrelated to
+// tools.cli-proxy / tools.mcp-mode (see getCliProxyToMCPModeCodemod below), which
+// applies to all user-facing MCP servers, not just GitHub.
 func getCliProxyFeatureToGitHubModeCodemod() Codemod {
 	return Codemod{
 		ID:           "features-cli-proxy-to-tools-github-mode",
 		Name:         "Migrate 'features.cli-proxy: true' to 'tools.github.mode: cli'",
-		Description:  "Removes deprecated features.cli-proxy: true and sets tools.github.mode: cli (equivalent behavior).",
+		Description:  "Removes deprecated features.cli-proxy: true (a GitHub-specific flag) and sets tools.github.mode: cli (equivalent behavior). Distinct from tools.cli-proxy / tools.mcp-mode, which apply to all MCP servers.",
 		IntroducedIn: "1.0.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			if !hasLegacyCliProxyFeatureEnabled(frontmatter) {

@@ -23,12 +23,19 @@ const (
 	// by default when guard policies are configured. Set tools.github.integrity-proxy: false
 	// to disable it. The codemod "features-difc-proxy-to-tools-github" migrates this flag.
 	DIFCProxyFeatureFlag FeatureFlag = "difc-proxy"
-	// CliProxyFeatureFlag enables the AWF CLI proxy sidecar.
+	// CliProxyFeatureFlag is the deprecated feature flag name for GitHub CLI access.
+	// Deprecated: Use tools.github.mode: cli instead; the codemod
+	// "features-cli-proxy-to-tools-github-mode" migrates this flag.
+	//
 	// When enabled, the compiler starts a difc-proxy on the host before AWF and
 	// injects --difc-proxy-host and --difc-proxy-ca-cert into the AWF command,
-	// giving the agent secure gh CLI access without exposing GITHUB_TOKEN.
-	// The token is held in an mcpg DIFC proxy on the host, enforcing
+	// giving the agent secure gh CLI access to GitHub specifically without exposing
+	// GITHUB_TOKEN. The token is held in an mcpg DIFC proxy on the host, enforcing
 	// guard policies and audit logging.
+	//
+	// This flag is GitHub-specific and orthogonal to tools.mcp-mode: cli (or the
+	// legacy tools.cli-proxy: true), which mounts *all* user-facing MCP servers as
+	// standalone CLI wrappers on PATH and has no relation to the GitHub host proxy.
 	//
 	// Workflow frontmatter usage:
 	//
