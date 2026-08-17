@@ -1,3 +1,17 @@
+## Extracted code-quality tasks (2026-08-17 18:23Z cycle)
+
+5 filed, all from live-refetched data (the pre-fetched snapshot was stale, see known_patterns.md):
+1. Deep-report's own discussions/issues fetch caches by calendar day while the workflow runs every 6h — masks 3 of 4 daily runs behind stale data. Filed (meta-bug, highest value this cycle).
+2. CI failing on `main` — safe-outputs config env-var→config.json migration broke integration tests, live regression confirmed via job logs. Filed.
+3. Schema/docs drift bundle (`github-app` missing from schema, `max-runs`/`max-turns` untyped, `user-rate-limit` undocumented) from discussion #53313. Filed.
+4. Large-file decomposition of `pkg/workflow/cache.go` and `dependabot.go` from discussion #53391. Filed.
+5. Recurring GitHub Remote MCP toolset unavailability (3rd+ occurrence, prior issues auto-expired without fix) — filed as non-expiring tracking issue.
+
+Comment added (not counted against quota, avoided a duplicate issue):
+- #53263 (safe_outputs job hard-fails on one non-retryable error) — added 2 new run IDs and the `failure_kind` misclassification insight from discussion #53295.
+
+Not filed: 2 remaining quota slots declined — this cycle's ~63 fresh discussions were only sampled (7 read in depth), not exhaustively mined, because the effort went into root-causing why the prior 3 cycles wrongly reported "quiet." Next cycle should resume full-depth mining across the ~55 discussions not yet individually reviewed (see processed-discussions.md).
+
 ## Extracted code-quality tasks (2026-08-17 12:22Z cycle)
 
 1 filed from workflow-log evidence (zero discussions changed this cycle, third quiet cycle running):
