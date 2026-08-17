@@ -19,7 +19,7 @@ func TestDailyRegressionAuditAllowsPythonJSONParsing(t *testing.T) {
 	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "daily-regression-audit-kiro.md")
 	content, err := os.ReadFile(workflowPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    - python3")
+	assert.Contains(t, string(content), "- python3")
 
 	lockPath := filepath.Join(repoRoot, ".github", "workflows", "daily-regression-audit-kiro.lock.yml")
 	lockContent, err := os.ReadFile(lockPath)
