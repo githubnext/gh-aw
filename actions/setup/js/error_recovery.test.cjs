@@ -472,6 +472,14 @@ describe("error_recovery", () => {
       const error = { response: { status: 429, headers: { "retry-after": "not-a-number" } } };
       expect(getRetryAfterMs(error)).toBeNull();
     });
+
+    it("should parse retry-after HTTP-date on 429", () => {
+      const retryAt = new Date(Date.now() + 60000).toUTCString();
+      const error = { response: { status: 429, headers: { "retry-after": retryAt } } };
+      const result = getRetryAfterMs(error);
+      expect(result).toBeGreaterThan(55000);
+      expect(result).toBeLessThan(65000);
+    });
   });
 
   describe("withRetry with Retry-After header", () => {

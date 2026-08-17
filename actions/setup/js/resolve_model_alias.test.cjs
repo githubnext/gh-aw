@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const { fileURLToPath } = require("url");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const { buildCatalogFromReflect, globMatch, normalizeForCopilotCLI, resolveConfiguredCopilotModel, resolveModelAlias, selectLatestGlobMatch } = require("./resolve_model_alias.cjs");
+const { buildCatalogFromReflect, globMatch, ModelAliasResolutionError, normalizeForCopilotCLI, resolveConfiguredCopilotModel, resolveModelAlias, selectLatestGlobMatch } = require("./resolve_model_alias.cjs");
 
 const ALIAS_MAP = JSON.parse(fs.readFileSync(path.join(__dirname, "../../../pkg/workflow/data/model_aliases.json"), "utf8")).aliases;
 
@@ -60,6 +60,52 @@ describe("resolve_model_alias", () => {
       configuredModel: "claude-sonnet-4.6",
       aliasMap: ALIAS_MAP,
       reflectData,
+    });
+    expect(resolved).toBe("claude-sonnet-4.6");
+  });
+
+  it("throws ModelAliasResolutionError for a known alias when the catalog is empty", () => {
+    const logs = [];
+    expect(() =>
+      resolveConfiguredCopilotModel({
+        configuredModel: "small",
+        aliasMap: ALIAS_MAP,
+        reflectData: null,
+        logger: msg => logs.push(msg),
+      })
+    ).toThrow(ModelAliasResolutionError);
+    expect(logs.some(l => l.includes("catalog unavailable") && l.includes("small"))).toBe(true);
+  });
+
+  it("throws ModelAliasResolutionError for a known alias when reflect endpoints have no models", () => {
+    const reflectData = { endpoints: [{ configured: true, provider: "copilot", models: [] }] };
+    expect(() =>
+      resolveConfiguredCopilotModel({
+        configuredModel: "small",
+        aliasMap: ALIAS_MAP,
+        reflectData,
+      })
+    ).toThrow(ModelAliasResolutionError);
+  });
+
+  it("throws ModelAliasResolutionError for a known alias when catalog is populated but does not include a matching model", () => {
+    const reflectData = {
+      endpoints: [{ configured: true, provider: "openai", models: ["gpt-4.1"] }],
+    };
+    expect(() =>
+      resolveConfiguredCopilotModel({
+        configuredModel: "small",
+        aliasMap: ALIAS_MAP,
+        reflectData,
+      })
+    ).toThrow(ModelAliasResolutionError);
+  });
+
+  it("does not throw for a concrete model even when the catalog is empty", () => {
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "claude-sonnet-4.6",
+      aliasMap: ALIAS_MAP,
+      reflectData: null,
     });
     expect(resolved).toBe("claude-sonnet-4.6");
   });
