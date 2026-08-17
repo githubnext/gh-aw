@@ -6,6 +6,7 @@ const {
   isInvocationCapExceededError,
   isMaxCacheMissesExceededError,
   isAgenticEngineTimeout,
+  isStepTimeout,
   INFERENCE_ACCESS_ERROR_PATTERN,
   MCP_POLICY_BLOCKED_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
@@ -789,6 +790,34 @@ commentary" has no AI credits pricing`;
     it("returns false for unrelated content", () => {
       expect(isAgenticEngineTimeout("CAPIError: 400 Bad Request")).toBe(false);
       expect(isAgenticEngineTimeout("MCP server timeout")).toBe(false);
+    });
+  });
+
+  describe("isStepTimeout", () => {
+    const timeoutMinutes = "15";
+    const startMs = 1_000_000;
+
+    it("detects a step killed after reaching its timeout-minutes budget", () => {
+      expect(isStepTimeout({ outcome: "failure", timeoutMinutes, startMs, nowMs: startMs + 15 * 60_000 })).toBe(true);
+    });
+
+    it("tolerates the small delay between step start and the start timestamp write", () => {
+      expect(isStepTimeout({ outcome: "failure", timeoutMinutes, startMs, nowMs: startMs + 15 * 60_000 - 10_000 })).toBe(true);
+    });
+
+    it("returns false when the engine failed well before the timeout budget", () => {
+      expect(isStepTimeout({ outcome: "failure", timeoutMinutes, startMs, nowMs: startMs + 5 * 60_000 })).toBe(false);
+    });
+
+    it("returns false when the engine step succeeded", () => {
+      expect(isStepTimeout({ outcome: "success", timeoutMinutes, startMs, nowMs: startMs + 20 * 60_000 })).toBe(false);
+    });
+
+    it("returns false when the outcome, timeout or start timestamp is unavailable", () => {
+      expect(isStepTimeout({ outcome: "", timeoutMinutes, startMs, nowMs: startMs + 20 * 60_000 })).toBe(false);
+      expect(isStepTimeout({ outcome: "failure", timeoutMinutes: "", startMs, nowMs: startMs + 20 * 60_000 })).toBe(false);
+      expect(isStepTimeout({ outcome: "failure", timeoutMinutes: "${{ inputs.timeout }}", startMs, nowMs: startMs + 20 * 60_000 })).toBe(false);
+      expect(isStepTimeout({ outcome: "failure", timeoutMinutes, startMs: NaN, nowMs: startMs + 20 * 60_000 })).toBe(false);
     });
   });
 

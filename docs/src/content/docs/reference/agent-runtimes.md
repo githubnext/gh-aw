@@ -15,7 +15,7 @@ These similarly named fields control different layers:
 
 | Field | Purpose | Values covered here |
 | --- | --- | --- |
-| `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `gvisor`, `docker-sbx`, `cloud-hypervisor`, or omitted for Docker |
+| `sandbox.agent.runtime` | Selects the isolation backend for the main agent | `docker`, `docker-sudo-iptables`, `gvisor`, `docker-sbx`, `cloud-hypervisor`, or omitted for Docker |
 | `sandbox.agent.runtime-install` | Controls whether gh-aw installs and prepares gVisor or Docker sbx | `true` by default; `false` for a pre-provisioned runner |
 | `runner.topology` | Describes how the runner reaches Docker | `arc-dind`, or omitted for a local Docker daemon |
 | `tools.github.bounded-queries.runtime` | Selects the backend for bounded-query scripts only | `docker`, `gvisor`, `sbx` |
@@ -315,7 +315,7 @@ runner:
 Investigate this issue.
 ```
 
-Do not set `runtime: docker`, `runtime: gvisor`, or `runtime: docker-sbx` in this configuration. There is no explicit `docker` value for `sandbox.agent.runtime`.
+Do not set `runtime: gvisor`, `runtime: docker-sbx`, or `runtime: cloud-hypervisor` in this configuration. Omit `runtime` or set `runtime: docker`; both select the same Docker profile.
 
 ### ARC DinD runner requirements
 

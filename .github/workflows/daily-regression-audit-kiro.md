@@ -39,7 +39,7 @@ tools:
     - date
     - echo
     - printf
-    - python3
+    - jq
     - ls
     - pwd
 safe-outputs:
@@ -88,6 +88,10 @@ For the most recent 3 failed runs, use `list_workflow_jobs` to get the jobs and 
 - Flaky tests vs. consistent failures
 
 Summarize the top 2–3 failure patterns found.
+
+When parsing JSON from MCP tool output or local files, use `jq` (not inline `python3 -c`/heredoc parsing).
+If a tool/command is denied for this step, do not retry near-identical variants: after 2 denied attempts for the
+same intent, stop and call `missing-tool` with the denied command and required capability.
 
 ## Step 4 — Check for open regression issues
 

@@ -315,6 +315,7 @@ func (s *interactivePTYSession) close(t *testing.T) {
 }
 
 func TestTuistoryAddWizardIntegration(t *testing.T) {
+	t.Parallel()
 	const launchTimeoutMs = 30000 // 30 seconds
 
 	if _, err := exec.LookPath("npx"); err != nil {
@@ -392,6 +393,7 @@ func TestTuistoryAddWizardIntegration(t *testing.T) {
 }
 
 func TestTuistoryAddWizardManifestBootstrapRunsAfterEngineSelection(t *testing.T) {
+	t.Parallel()
 	setup := setupAddWizardManifestTuistoryTest(t)
 	defer func() {
 		_ = os.RemoveAll(setup.tempDir)
