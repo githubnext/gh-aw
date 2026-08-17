@@ -34,10 +34,6 @@ engine:
   id: pi
   model: copilot/gpt-5.4
 
-tools:
-  github:
-    toolsets: [default]
-
 safe-outputs:
   create-issue:
     title-prefix: "[status] "

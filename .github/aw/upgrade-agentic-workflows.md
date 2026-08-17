@@ -155,7 +155,7 @@ If compilation fails, work through errors systematically:
    # Old format (deprecated)
    mcp-servers:
      github:
-       mode: mcp-remote
+       mode: remote
    
    # New format for GitHub MCP tools
    tools:

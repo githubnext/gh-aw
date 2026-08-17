@@ -118,9 +118,9 @@ Expected comparison output: return one combined table with one row per scenario 
 
 | Scenario | Trigger | Scope | Read tools | Safe outputs | Permissions | Noop condition |
 |---|---|---|---|---|---|---|
-| Information Worker — weekly digest | `schedule` + `workflow_dispatch` | 7-day window, grouped by assignee | `github` (`cli`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | window has no assigned issues/PRs |
-| Product Manager — backlog triage | `schedule` + `workflow_dispatch` | recurring window, grouped by staleness bucket | `github` (`cli`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | no items cross the staleness threshold |
-| Backend Engineer — API contract review | `pull_request` with `paths:` scoped to API/schema files | per-PR, no window | `github` (`cli`, default toolset) | `add-comment` on the PR | `contents: read`, `pull-requests: write` | no API contract files changed in the PR |
+| Information Worker — weekly digest | `schedule` + `workflow_dispatch` | 7-day window, grouped by assignee | `github` (`cli`) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | window has no assigned issues/PRs |
+| Product Manager — backlog triage | `schedule` + `workflow_dispatch` | recurring window, grouped by staleness bucket | `github` (`cli`) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | no items cross the staleness threshold |
+| Backend Engineer — API contract review | `pull_request` with `paths:` scoped to API/schema files | per-PR, no window | `github` (`cli`) | `add-comment` on the PR | `contents: read`, `pull-requests: write` | no API contract files changed in the PR |
 
 This is the same invocation surface as [Single-Scenario Evaluation Example](#single-scenario-evaluation-example) above — reached only by addressing the `agentic-workflows` custom agent directly in conversation, never via a CLI/MCP tool parameter. After the comparison table, call out any scenario that shares a trigger or write path with another (for example two digests that could share a schedule) before offering to generate files.
 
