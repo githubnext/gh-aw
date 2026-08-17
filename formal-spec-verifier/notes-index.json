@@ -111,6 +111,13 @@
       "notation": "Z3-style guard conjunction / set-theoretic bijection",
       "predicate_count": 8,
       "issue_number": null
+    },
+    "specs/safe-outputs-scratchpad-removal.md": {
+      "slug": "safe-outputs-scratchpad-removal",
+      "last_formalized": "2026-08-17-15-37-40",
+      "notation": "TLA+ / Z3-style guard conjunction / F*",
+      "predicate_count": 9,
+      "issue_number": null
     }
   }
 }
