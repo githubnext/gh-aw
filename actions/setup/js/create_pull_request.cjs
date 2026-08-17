@@ -1229,7 +1229,7 @@ async function main(config = {}) {
             await githubClient.rest.repos.getBranch({ owner: repoParts.owner, repo: repoParts.repo, branch: baseBranch });
             core.info(`Base branch ${baseBranch} exists in ${itemRepo}`);
           } catch (baseBranchError) {
-            const status = /** @type {any} */ baseBranchError?.status;
+            const status = /** @type {{ status?: number }} */ (baseBranchError || {}).status;
             if (status === 404) {
               const error =
                 `Base branch '${baseBranch}' does not exist in ${itemRepo}, so the stacked pull request cannot be created. ` +
