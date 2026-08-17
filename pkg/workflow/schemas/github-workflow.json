@@ -1354,9 +1354,51 @@
                   ],
                   "items": {
                     "type": "string",
-                    "enum": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
+                    "enum": [
+                      "opened",
+                      "edited",
+                      "deleted",
+                      "transferred",
+                      "pinned",
+                      "unpinned",
+                      "closed",
+                      "reopened",
+                      "assigned",
+                      "unassigned",
+                      "labeled",
+                      "unlabeled",
+                      "locked",
+                      "unlocked",
+                      "milestoned",
+                      "demilestoned",
+                      "typed",
+                      "untyped",
+                      "field_added",
+                      "field_removed"
+                    ]
                   },
-                  "default": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
+                  "default": [
+                    "opened",
+                    "edited",
+                    "deleted",
+                    "transferred",
+                    "pinned",
+                    "unpinned",
+                    "closed",
+                    "reopened",
+                    "assigned",
+                    "unassigned",
+                    "labeled",
+                    "unlabeled",
+                    "locked",
+                    "unlocked",
+                    "milestoned",
+                    "demilestoned",
+                    "typed",
+                    "untyped",
+                    "field_added",
+                    "field_removed"
+                  ]
                 }
               }
             },
