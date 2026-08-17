@@ -1009,6 +1009,28 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
 
+  it("should continue title/body updates when updateBranch reports stacked-PR unsupported", async () => {
+    const stackedPRError = new Error("Updating a stacked PR's branch via this endpoint is not supported.");
+    stackedPRError.status = 422;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(stackedPRError);
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
   it("should continue title/body updates when updateBranch gets workflows-scope-required 403 (scope phrase variant)", async () => {
     // Message matches only the "`workflows` scope may be required" branch of hasWorkflowsScopeRequired.
     const scopeError = new Error("Validation failed; `workflows` scope may be required due to timeout in check.");

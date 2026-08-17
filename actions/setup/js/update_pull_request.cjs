@@ -45,6 +45,11 @@ function isNonFatalUpdateBranchError(error) {
   // GitHub update-branch API also returns 403 with this message when a PR contains workflow
   // file changes and the check times out, rather than the usual "refusing to allow" phrase.
   const hasWorkflowsScopeRequired = message.includes("`workflows` scope may be required") || message.includes("unable to determine if workflow can be created or updated");
+  const hasStackedPRUnsupportedError = message.includes("updating a stacked pr's branch via this endpoint is not supported");
+
+  if (hasStackedPRUnsupportedError) {
+    return true;
+  }
 
   if (status !== undefined) {
     if (status === 403 && (hasWorkflowsPermissionError || hasWorkflowsScopeRequired)) {
