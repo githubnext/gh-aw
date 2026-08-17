@@ -1,3 +1,13 @@
+## Extracted code-quality tasks (2026-08-17 12:22Z cycle)
+
+1 filed from workflow-log evidence (zero discussions changed this cycle, third quiet cycle running):
+1. Move Go toolchain provisioning (`actions/setup-go` + preflight guard) from `linter-miner.md`-only into the shared `shared/mcp/serena-go.md` import — 15 other consumers of that import, including Typist (which just exceeded its entire AI credit budget as a direct result), remain exposed to the same root cause PR #53194 already fixed for Linter Miner alone. Filed.
+
+Comment added (not counted against quota, avoided a duplicate issue):
+- #52745 (Typist AIC optimization, filed 2026-08-14) — added this cycle's credit-exhaustion recurrence (run 32025029881) and the confirmed root-cause link to the Serena Go provisioning gap above.
+
+Not filed: the standing 6-issue unlabeled-issues backlog (unchanged for 3rd cycle) — see known_patterns.md for why this is a declared do-not-repeat pattern. All other carried-forward watch items (Design Decision Gate, Sentrux, MCP type-field, Cache Strategy Analyzer, Avenger chronic driver_exit, Copilot PR prompt guidance, audit-workflows gap) had no fresh source report this cycle to re-check against.
+
 ## Extracted code-quality tasks (2026-08-17 06:26Z cycle)
 
 None extracted — zero discussions changed in this ~6h window. The only real signal was a workflow-log-level recurrence of the already-tracked #53180 (commented, not filed) and a resolved investigation into `agenticworkflows logs` timeout behavior (see known_patterns.md / flagged_items.md). Explicitly declined to re-file the chronic "label unlabeled issues" pattern (7+ prior closures, see known_patterns.md).
