@@ -16,6 +16,8 @@ const childProcess = require("child_process");
 const fs = require("fs");
 const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
 
+const SAFEOUTPUTS_CLI_TIMEOUT_MS = 120_000;
+
 /**
  * @typedef {(toolName: string, args: Record<string, string>) => void} RunSafeOutputsCLILike
  */
@@ -38,7 +40,7 @@ function runSafeOutputsCLI(toolName, args) {
     commandArgs.push(value);
   }
   try {
-    childProcess.execFileSync(command, commandArgs, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    childProcess.execFileSync(command, commandArgs, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: SAFEOUTPUTS_CLI_TIMEOUT_MS });
   } catch (error) {
     const err = /** @type {{message?: string, stderr?: string | Buffer}} */ error ?? {};
     const stderr = typeof err.stderr === "string" ? err.stderr.trim() : Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8").trim() : "";

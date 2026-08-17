@@ -45,6 +45,10 @@ const customGatewayEnvNamePattern = /^[A-Z_][A-Z0-9_]*$/;
 const customGatewayEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES";
 const customGatewayEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_";
 const customGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_";
+const CONTAINER_STATUS_TIMEOUT_MS = 15_000;
+const CONFIG_CONVERTER_TIMEOUT_MS = 120_000;
+const DOCKER_CLEANUP_TIMEOUT_MS = 30_000;
+const MCP_SERVER_CHECK_TIMEOUT_MS = 120_000;
 
 // ---------------------------------------------------------------------------
 // Timing helpers
@@ -604,7 +608,7 @@ async function main() {
   // exist, but the trailing || true (and 2>/dev/null) make the command succeed.
   core.info("Cleaning up any stale awmg-mcpg container from a previous run...");
   try {
-    execSync("docker rm -f awmg-mcpg 2>/dev/null && echo 'Removed stale awmg-mcpg container' || true", { stdio: "inherit" });
+    execSync("docker rm -f awmg-mcpg 2>/dev/null && echo 'Removed stale awmg-mcpg container' || true", { stdio: "inherit", timeout: DOCKER_CLEANUP_TIMEOUT_MS });
   } catch {
     // Non-fatal: proceed even if the cleanup command itself fails
     core.info("Could not remove stale awmg-mcpg container (may not exist)");
@@ -632,6 +636,10 @@ async function main() {
     stdio: ["pipe", outputFd, "ignore"],
     env: { ...process.env, MCP_GATEWAY_LOG_DIR: logDir },
     detached: true,
+  });
+  child.on("error", err => {
+    activeGatewayPid = null;
+    core.error(`ERROR: Failed to launch MCP gateway process: ${getErrorMessage(err)}`);
   });
   activeGatewayPid = child.pid || null;
 
@@ -782,7 +790,7 @@ async function main() {
     core.error("");
     core.error("Docker container status:");
     try {
-      execSync("docker ps -a 2>/dev/null | head -20", { stdio: "inherit" });
+      execSync("docker ps -a 2>/dev/null | head -20", { stdio: "inherit", timeout: CONTAINER_STATUS_TIMEOUT_MS });
     } catch {
       core.error("Could not list docker containers");
     }
@@ -798,7 +806,7 @@ async function main() {
     try {
       // Validate gatewayPort is numeric to prevent shell injection
       const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
-      execSync(`netstat -tlnp 2>/dev/null | grep ":${safePort}" || ss -tlnp 2>/dev/null | grep ":${safePort}" || echo "Port ${safePort} does not appear to be listening"`, { stdio: "inherit" });
+      execSync(`netstat -tlnp 2>/dev/null | grep ":${safePort}" || ss -tlnp 2>/dev/null | grep ":${safePort}" || echo "Port ${safePort} does not appear to be listening"`, { stdio: "inherit", timeout: CONTAINER_STATUS_TIMEOUT_MS });
     } catch {
       // ignore
     }
@@ -923,7 +931,13 @@ async function main() {
   if (converterFile) {
     core.info(`Using ${engineType} converter...`);
     const converterPath = path.join(runnerTemp || "", "gh-aw/actions", converterFile);
-    execFileSync("node", [converterPath], { stdio: "inherit", env: process.env });
+    try {
+      execFileSync("node", [converterPath], { stdio: "inherit", env: process.env, timeout: CONFIG_CONVERTER_TIMEOUT_MS });
+    } catch (err) {
+      stopGatewayProcess(gatewayPid);
+      core.setFailed(`ERROR: MCP config converter failed: ${getErrorMessage(err)}`);
+      return;
+    }
   } else {
     let copilotConfigDir, copilotConfigFile;
     try {
@@ -998,6 +1012,7 @@ async function main() {
       execFileSync("bash", [checkScript, outputPath, `http://localhost:${safePort}`, process.env.MCP_GATEWAY_API_KEY || ""], {
         stdio: "inherit",
         env: { ...process.env, GH_AW_MCP_OPTIONAL_SERVERS: optionalServerNames.join(",") },
+        timeout: MCP_SERVER_CHECK_TIMEOUT_MS,
       });
     } catch {
       core.error("ERROR: MCP server checks failed - no servers could be connected");

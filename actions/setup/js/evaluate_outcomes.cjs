@@ -48,6 +48,7 @@ const CLOSING_COMMENT_KEYWORDS = ["not planned", "won't fix", "wontfix", "duplic
 
 const DEFAULT_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC = 60 * 60;
 const DEFAULT_LABEL_RETENTION_WINDOW_SEC = 24 * 60 * 60;
+const GH_COMMAND_TIMEOUT_MS = 300_000;
 
 const POSITIVE_REACTIONS = ["+1", "heart", "hooray", "rocket"];
 const NEGATIVE_REACTIONS = ["-1", "confused"];
@@ -79,7 +80,7 @@ const LABEL_RETENTION_WINDOW_SEC = getEnvPositiveIntOrDefault("OUTCOME_LABEL_RET
  */
 function gh(args) {
   try {
-    return execFileSync("gh", args, { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+    return execFileSync("gh", args, { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"], timeout: GH_COMMAND_TIMEOUT_MS }).trim();
   } catch {
     return null;
   }

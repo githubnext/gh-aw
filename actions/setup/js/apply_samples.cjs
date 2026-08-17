@@ -42,6 +42,7 @@ const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
 const FETCH_TIMEOUT_MS = 120_000;
+const GIT_COMMAND_TIMEOUT_MS = 120_000;
 
 /**
  * @typedef {Object} SampleEntry
@@ -95,7 +96,7 @@ function loadSamples() {
  */
 function runGit(args, cwd) {
   const { spawnSync } = require("child_process");
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  const result = spawnSync("git", args, { cwd, encoding: "utf8", timeout: GIT_COMMAND_TIMEOUT_MS });
   if (result.error) {
     throw result.error;
   }
@@ -627,6 +628,9 @@ async function main() {
   const child = spawn(process.execPath, [serverPath], {
     stdio: ["pipe", "pipe", "inherit"],
     env: process.env,
+  });
+  child.on("error", err => {
+    core.error(`apply_samples: failed to launch MCP server: ${getErrorMessage(err)}`);
   });
 
   const stdoutIter = lineIterator(child.stdout);

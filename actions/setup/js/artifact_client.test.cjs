@@ -343,6 +343,9 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
       output: [],
       signal: null,
     });
+    const artifactClientPath = req.resolve("./artifact_client.cjs");
+    delete req.cache[artifactClientPath];
+    const { DefaultArtifactClient: FreshArtifactClient } = req("./artifact_client.cjs");
 
     let capturedName;
     const mockFetch = vi.fn().mockImplementation(async (url, opts) => {
@@ -360,7 +363,7 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     vi.stubEnv("ACTIONS_RUNTIME_TOKEN", buildFakeToken("runId:jobId"));
     vi.stubEnv("ACTIONS_RESULTS_URL", "https://results.example.com");
 
-    const client = new DefaultArtifactClient();
+    const client = new FreshArtifactClient();
     // Will fail at zip creation (no real zip output), but we still capture the name from CreateArtifact
     try {
       await client.uploadArtifact("archive-name", [filePath], tmpDir);
@@ -369,6 +372,9 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     }
 
     expect(capturedName).toBe("archive-name");
+    expect(spawnSyncSpy).toHaveBeenNthCalledWith(1, "zip", ["-v"], expect.objectContaining({ timeout: 15_000 }));
+    expect(spawnSyncSpy).toHaveBeenNthCalledWith(2, "zip", expect.any(Array), expect.objectContaining({ timeout: 300_000 }));
     spawnSyncSpy.mockRestore();
+    delete req.cache[artifactClientPath];
   });
 });
