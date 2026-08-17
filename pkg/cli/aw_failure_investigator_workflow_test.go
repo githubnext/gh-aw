@@ -8,6 +8,7 @@ import (
 )
 
 func TestAWFailureInvestigatorPrefetchUsesRunLevelFailures(t *testing.T) {
+	t.Parallel()
 	content, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "aw-failure-investigator.md"))
 	if err != nil {
 		t.Fatalf("failed to read workflow source: %v", err)
