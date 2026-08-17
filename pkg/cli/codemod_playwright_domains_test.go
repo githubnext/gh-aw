@@ -11,6 +11,7 @@ import (
 )
 
 func TestGetPlaywrightDomainsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	assert.Equal(t, "playwright-allowed-domains-migration", codemod.ID, "Codemod ID should match")
@@ -21,6 +22,7 @@ func TestGetPlaywrightDomainsCodemod(t *testing.T) {
 }
 
 func TestPlaywrightDomainsCodemod_NoTools(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
@@ -43,6 +45,7 @@ permissions:
 }
 
 func TestPlaywrightDomainsCodemod_NoPlaywright(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
@@ -69,6 +72,7 @@ tools:
 }
 
 func TestPlaywrightDomainsCodemod_NoAllowedDomains(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
@@ -95,6 +99,7 @@ tools:
 }
 
 func TestPlaywrightDomainsCodemod_BasicMigration(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
@@ -129,6 +134,7 @@ tools:
 }
 
 func TestPlaywrightDomainsCodemod_PreservesVersion(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
@@ -164,6 +170,7 @@ tools:
 }
 
 func TestPlaywrightDomainsCodemod_MergesWithExistingNetwork(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
@@ -203,6 +210,7 @@ network:
 }
 
 func TestPlaywrightDomainsCodemod_DeduplicatesDomains(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---
@@ -255,6 +263,7 @@ network:
 }
 
 func TestPlaywrightDomainsCodemod_SingleDomainString(t *testing.T) {
+	t.Parallel()
 	codemod := getPlaywrightDomainsToNetworkAllowedCodemod()
 
 	content := `---

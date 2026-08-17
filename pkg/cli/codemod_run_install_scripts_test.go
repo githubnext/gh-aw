@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetRunInstallScriptsToRuntimesNodeCodemod_Metadata(t *testing.T) {
+	t.Parallel()
 	codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 
 	assert.Equal(t, "run-install-scripts-to-runtimes-node", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetRunInstallScriptsToRuntimesNodeCodemod_Metadata(t *testing.T) {
 }
 
 func TestRunInstallScriptsToRuntimesNode_NoOp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -59,6 +61,7 @@ runtimes:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 			result, applied, err := codemod.Apply(tt.content, tt.frontmatter)
 			require.NoError(t, err)
@@ -69,6 +72,7 @@ runtimes:
 }
 
 func TestRunInstallScriptsToRuntimesNode_AppendNewRuntimesBlock(t *testing.T) {
+	t.Parallel()
 	codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 
 	content := `---
@@ -94,6 +98,7 @@ run-install-scripts: true
 }
 
 func TestRunInstallScriptsToRuntimesNode_FalseValue(t *testing.T) {
+	t.Parallel()
 	codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 
 	content := `---
@@ -117,6 +122,7 @@ run-install-scripts: false
 }
 
 func TestRunInstallScriptsToRuntimesNode_ExistingRuntimesNoNode(t *testing.T) {
+	t.Parallel()
 	codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 
 	content := `---
@@ -151,6 +157,7 @@ runtimes:
 }
 
 func TestRunInstallScriptsToRuntimesNode_ExistingRuntimesWithNode(t *testing.T) {
+	t.Parallel()
 	codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 
 	content := `---
@@ -184,6 +191,7 @@ runtimes:
 }
 
 func TestRunInstallScriptsToRuntimesNode_IdempotentBothPresent(t *testing.T) {
+	t.Parallel()
 	codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 
 	// Top-level AND nested both present: remove top-level, keep nested.
@@ -218,6 +226,7 @@ runtimes:
 }
 
 func TestRunInstallScriptsToRuntimesNode_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
 	codemod := getRunInstallScriptsToRuntimesNodeCodemod()
 
 	content := `---

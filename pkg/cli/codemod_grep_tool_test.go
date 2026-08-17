@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetGrepToolRemovalCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getGrepToolRemovalCodemod()
 
 	// Verify codemod metadata
@@ -21,6 +22,7 @@ func TestGetGrepToolRemovalCodemod(t *testing.T) {
 }
 
 func TestGrepToolRemovalCodemod_BasicRemoval(t *testing.T) {
+	t.Parallel()
 	codemod := getGrepToolRemovalCodemod()
 
 	content := `---
@@ -57,6 +59,7 @@ permissions:
 }
 
 func TestGrepToolRemovalCodemod_NoToolsBlock(t *testing.T) {
+	t.Parallel()
 	codemod := getGrepToolRemovalCodemod()
 
 	content := `---
@@ -82,6 +85,7 @@ permissions:
 }
 
 func TestGrepToolRemovalCodemod_NoGrepField(t *testing.T) {
+	t.Parallel()
 	codemod := getGrepToolRemovalCodemod()
 
 	content := `---
@@ -114,6 +118,7 @@ permissions:
 }
 
 func TestGrepToolRemovalCodemod_PreservesOtherTools(t *testing.T) {
+	t.Parallel()
 	codemod := getGrepToolRemovalCodemod()
 
 	content := `---
@@ -159,6 +164,7 @@ permissions:
 }
 
 func TestGrepToolRemovalCodemod_GrepWithFalseValue(t *testing.T) {
+	t.Parallel()
 	codemod := getGrepToolRemovalCodemod()
 
 	content := `---
@@ -191,6 +197,7 @@ permissions:
 }
 
 func TestGrepToolRemovalCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getGrepToolRemovalCodemod()
 
 	content := `---
@@ -231,6 +238,7 @@ echo "test"
 }
 
 func TestGrepToolRemovalCodemod_ToolsAsInvalidType(t *testing.T) {
+	t.Parallel()
 	codemod := getGrepToolRemovalCodemod()
 
 	content := `---

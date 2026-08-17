@@ -12,6 +12,7 @@ import (
 )
 
 func TestGetRolesToOnRolesCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getRolesToOnRolesCodemod()
 
 	assert.Equal(t, "roles-to-on-roles", codemod.ID)
@@ -22,6 +23,7 @@ func TestGetRolesToOnRolesCodemod(t *testing.T) {
 }
 
 func TestRolesToOnRolesCodemod_SingleLineArray(t *testing.T) {
+	t.Parallel()
 	codemod := getRolesToOnRolesCodemod()
 
 	content := `---
@@ -68,6 +70,7 @@ roles: [admin, maintainer, write]
 }
 
 func TestRolesToOnRolesCodemod_MultiLineArray(t *testing.T) {
+	t.Parallel()
 	codemod := getRolesToOnRolesCodemod()
 
 	content := `---
@@ -103,6 +106,7 @@ roles:
 }
 
 func TestRolesToOnRolesCodemod_AllValue(t *testing.T) {
+	t.Parallel()
 	codemod := getRolesToOnRolesCodemod()
 
 	content := `---
@@ -147,6 +151,7 @@ roles: all
 }
 
 func TestRolesToOnRolesCodemod_NoOnBlock(t *testing.T) {
+	t.Parallel()
 	codemod := getRolesToOnRolesCodemod()
 
 	content := `---
@@ -174,6 +179,7 @@ engine: copilot
 }
 
 func TestRolesToOnRolesCodemod_NoChange_NoRoles(t *testing.T) {
+	t.Parallel()
 	codemod := getRolesToOnRolesCodemod()
 
 	content := `---
@@ -202,6 +208,7 @@ engine: copilot
 }
 
 func TestRolesToOnRolesCodemod_NoChange_OnRolesExists(t *testing.T) {
+	t.Parallel()
 	codemod := getRolesToOnRolesCodemod()
 
 	content := `---

@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetMentionsAllowTeamMembersCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	assert.Equal(t, "mentions-allow-team-members-to-allowed-collaborators", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetMentionsAllowTeamMembersCodemod(t *testing.T) {
 }
 
 func TestMentionsAllowTeamMembersCodemod_HappyPath(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -47,6 +49,7 @@ safe-outputs:
 }
 
 func TestMentionsAllowTeamMembersCodemod_NoOp_NoSafeOutputs(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -67,6 +70,7 @@ name: test
 }
 
 func TestMentionsAllowTeamMembersCodemod_NoOp_NoMentions(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -90,6 +94,7 @@ safe-outputs:
 }
 
 func TestMentionsAllowTeamMembersCodemod_NoOp_MentionsBoolean(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -113,6 +118,7 @@ safe-outputs:
 }
 
 func TestMentionsAllowTeamMembersCodemod_NoOp_AlreadyMigrated(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -139,6 +145,7 @@ safe-outputs:
 }
 
 func TestMentionsAllowTeamMembersCodemod_Idempotent(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -176,6 +183,7 @@ safe-outputs:
 }
 
 func TestMentionsAllowTeamMembersCodemod_PreservesInlineComment(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -202,6 +210,7 @@ safe-outputs:
 }
 
 func TestMentionsAllowTeamMembersCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -232,6 +241,7 @@ safe-outputs:
 }
 
 func TestMentionsAllowTeamMembersCodemod_PreservesMarkdownBody(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -262,6 +272,7 @@ Some markdown content here.
 }
 
 func TestMentionsAllowTeamMembersCodemod_NoOp_OldKeyAbsent(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
@@ -288,6 +299,7 @@ safe-outputs:
 }
 
 func TestMentionsAllowTeamMembersCodemod_FlowStyleMentions(t *testing.T) {
+	t.Parallel()
 	codemod := getMentionsAllowTeamMembersCodemod()
 
 	content := `---
