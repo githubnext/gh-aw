@@ -40,6 +40,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-fetch-response-body-try-catch`](#require-fetch-response-body-try-catch) | Require try/catch around `.json()` or `.text()` on Responses from `fetch(...)` |
 | [`require-fetch-timeout`](#require-fetch-timeout) | Require `fetch(...)` calls to include a non-nullish abort `signal` option |
 | [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around awaited `fetch(...)` calls, including chained promise forms without rejection handlers |
+| [`require-fs-close-sync`](#require-fs-close-sync) | Require `fs.openSync(...)` file descriptors to be closed with `fs.closeSync(fd)` in the same function |
 | [`require-fs-io-try-catch`](#require-fs-io-try-catch) | Require try/catch around `fs.statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync` |
 | [`require-fs-sync-try-catch`](#require-fs-sync-try-catch) | Require try/catch around `fs.readFileSync`, `writeFileSync`, and `appendFileSync` |
 | [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
@@ -355,6 +356,21 @@ try {
   throw new Error("fs.statSync failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
 }
 ```
+
+### `require-fs-close-sync`
+
+Require file descriptors returned by `fs.openSync(...)` to be closed with `fs.closeSync(fd)` in the same enclosing function.
+
+Why: unclosed descriptors leak file handles for the lifetime of the process and can eventually surface as unrelated `EMFILE` failures.
+
+**Detected forms:**
+- `const fd = fs.openSync(path, "w")` with no matching `fs.closeSync(fd)` in the same enclosing function.
+- `let fd; fd = fs.openSync(path, "w")` with no matching `fs.closeSync(fd)` in the same enclosing function.
+
+**Out of scope:**
+- Destructured bindings and inline argument forms such as `consume(fs.openSync(...))`.
+- Cross-function close pairs (open in one function, close in another).
+- Strict control-flow proof. A `fs.closeSync(fd)` anywhere in the enclosing function body is accepted.
 
 ### `require-fs-sync-try-catch`
 
