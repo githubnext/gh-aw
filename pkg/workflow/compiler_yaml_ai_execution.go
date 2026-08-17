@@ -261,6 +261,12 @@ func (c *Compiler) generateDetectAgentErrorsStep(yaml *strings.Builder, data *Wo
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        id: %s\n", constants.DetectAgentErrorsStepID)
 	yaml.WriteString("        continue-on-error: true\n")
+	// The engine step outcome and its timeout-minutes budget allow the detection script to
+	// recognize a GitHub Actions step-level timeout ("The action '...' has timed out after N
+	// minutes."), which kills the engine without leaving a timeout signature in the agent log.
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_AGENTIC_EXECUTION_OUTCOME: ${{ steps.agentic_execution.outcome }}\n")
+	fmt.Fprintf(yaml, "          GH_AW_ENGINE_STEP_TIMEOUT_MINUTES: %s\n", resolveStepTimeoutValue(data))
 	fmt.Fprintf(yaml, "        run: node \"${RUNNER_TEMP}/gh-aw/actions/%s.cjs\"\n", scriptId)
 }
 
