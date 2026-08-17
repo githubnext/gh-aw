@@ -417,6 +417,7 @@ tools:
       permissions:
         members: read
         organization-administration: read
+        secret-scanning-alerts: read
 ---
 
 # Test Workflow
@@ -447,6 +448,53 @@ Test extra org-level permissions in GitHub App token.
 	// Verify that the extra org-level permissions from github-app.permissions are included
 	assert.Contains(t, lockContent, "permission-members: read", "Should include extra members permission from github-app.permissions")
 	assert.Contains(t, lockContent, "permission-organization-administration: read", "Should include extra organization-administration permission from github-app.permissions")
+	assert.Contains(t, lockContent, "permission-secret-scanning-alerts: read", "Should include extra secret-scanning-alerts permission from github-app.permissions")
+}
+
+// TestGitHubMCPAppTokenWithSecretScanningAlertsNoneOmitted tests that
+// secret-scanning-alerts: none under tools.github.github-app.permissions is omitted
+// from create-github-app-token inputs because the action does not accept "none"
+// for that permission.
+func TestGitHubMCPAppTokenWithSecretScanningAlertsNoneOmitted(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on: issues
+permissions:
+  contents: read
+strict: false
+tools:
+  github:
+    mode: local
+    github-app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      repositories: ["*"]
+      permissions:
+        members: read
+        secret-scanning-alerts: none
+---
+
+# Test Workflow
+
+Test extra secret-scanning-alerts none behavior in GitHub App token.
+`
+
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+	lockContent := string(content)
+
+	assert.Contains(t, lockContent, "permission-members: read", "Should include other app permissions")
+	assert.NotContains(t, lockContent, "permission-secret-scanning-alerts:", "secret-scanning-alerts: none should be omitted")
 }
 
 // TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel tests that extra permissions
