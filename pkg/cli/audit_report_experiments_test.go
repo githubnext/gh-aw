@@ -13,6 +13,7 @@ import (
 )
 
 func TestFindExperimentStatePath(t *testing.T) {
+	t.Parallel()
 	t.Run("returns empty when logsPath is empty", func(t *testing.T) {
 		assert.Empty(t, findExperimentStatePath(""), "should return empty string for empty logsPath")
 	})
@@ -55,6 +56,7 @@ func TestFindExperimentStatePath(t *testing.T) {
 }
 
 func TestExtractExperimentData(t *testing.T) {
+	t.Parallel()
 	t.Run("returns nil for empty logsPath", func(t *testing.T) {
 		assert.Nil(t, extractExperimentData(""), "should return nil for empty logsPath")
 	})
@@ -147,6 +149,7 @@ func TestExtractExperimentData(t *testing.T) {
 }
 
 func TestFormatExperimentLabel(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		exp      *ExperimentData
@@ -188,6 +191,7 @@ func TestFormatExperimentLabel(t *testing.T) {
 }
 
 func TestExperimentMatchesFilter(t *testing.T) {
+	t.Parallel()
 	exp := &ExperimentData{
 		Assignments: map[string]string{
 			"style":   "concise",
@@ -269,6 +273,7 @@ func TestExperimentMatchesFilter(t *testing.T) {
 }
 
 func TestFormatExperimentSkipMessage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		runID      int64
@@ -308,6 +313,7 @@ func TestFormatExperimentSkipMessage(t *testing.T) {
 }
 
 func TestDeriveLastSelectedVariant(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		counts   map[string]int
@@ -349,6 +355,7 @@ func TestDeriveLastSelectedVariant(t *testing.T) {
 }
 
 func TestFirstExperimentAssignment(t *testing.T) {
+	t.Parallel()
 	t.Run("returns false for nil", func(t *testing.T) {
 		name, variant, ok := firstExperimentAssignment(nil)
 		assert.False(t, ok)
@@ -378,6 +385,7 @@ func TestFirstExperimentAssignment(t *testing.T) {
 }
 
 func TestExtractExperimentDataWithRuns(t *testing.T) {
+	t.Parallel()
 	t.Run("uses last run record when runs array is present", func(t *testing.T) {
 		dir := t.TempDir()
 		state := map[string]any{
@@ -468,6 +476,7 @@ func TestExtractExperimentDataWithRuns(t *testing.T) {
 }
 
 func TestExtractExperimentDataFallsBackToUsageSummary(t *testing.T) {
+	t.Parallel()
 	t.Run("reads assignments from usage activity summary when no state file present", func(t *testing.T) {
 		dir := t.TempDir()
 		usageDir := filepath.Join(dir, "usage", "activity")
