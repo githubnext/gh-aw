@@ -192,6 +192,7 @@ func hasPositiveActorAllowlistContains(condition string) bool {
 }
 
 func hasPositiveExpressionBoundary(condition string, idx int) bool {
+	// condition must already be whitespace-normalized by hasWorkflowRunActorAllowlistCheck.
 	if idx == 0 {
 		return true
 	}
