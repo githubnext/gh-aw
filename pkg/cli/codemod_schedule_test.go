@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetScheduleAtToAroundCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	assert.Equal(t, "schedule-at-to-around-migration", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetScheduleAtToAroundCodemod(t *testing.T) {
 }
 
 func TestScheduleCodemod_DailyAt(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -47,6 +49,7 @@ on:
 }
 
 func TestScheduleCodemod_WeeklyOnAt(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -74,6 +77,7 @@ on:
 }
 
 func TestScheduleCodemod_MonthlyOn(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -101,6 +105,7 @@ on:
 }
 
 func TestScheduleCodemod_MonthlyOnAt(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -128,6 +133,7 @@ on:
 }
 
 func TestScheduleCodemod_DailyAround_NoChange(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -154,6 +160,7 @@ on:
 }
 
 func TestScheduleCodemod_StandardCron_NoChange(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -180,6 +187,7 @@ on:
 }
 
 func TestScheduleCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -206,6 +214,7 @@ on:
 }
 
 func TestScheduleCodemod_MultipleSchedules(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -235,6 +244,7 @@ on:
 }
 
 func TestScheduleCodemod_ScheduleField(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---
@@ -261,6 +271,7 @@ on:
 }
 
 func TestScheduleCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getScheduleAtToAroundCodemod()
 
 	content := `---

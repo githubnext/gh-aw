@@ -10,6 +10,7 @@ import (
 )
 
 func TestToolsetSingularToToolsetsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getToolsetSingularToToolsetsCodemod()
 
 	t.Run("metadata is populated", func(t *testing.T) {

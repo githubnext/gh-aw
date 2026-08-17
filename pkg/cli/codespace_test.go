@@ -64,6 +64,7 @@ func TestIsRunningInCodespace(t *testing.T) {
 }
 
 func TestIs403PermissionError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		errorMsg string
@@ -132,6 +133,7 @@ func TestIs403PermissionError(t *testing.T) {
 }
 
 func TestGetCodespacePermissionErrorMessage(t *testing.T) {
+	t.Parallel()
 	msg := getCodespacePermissionErrorMessage()
 
 	// Test that the message contains key information

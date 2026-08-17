@@ -11,6 +11,7 @@ import (
 )
 
 func TestTopLevelEnvSecretsGuidedErrorCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getTopLevelEnvSecretsGuidedErrorCodemod()
 
 	t.Run("returns guided error when top-level env contains a secret", func(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 )
 
 func TestSafeOutputRequireTitlePrefixCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeOutputRequireTitlePrefixCodemod()
 
 	t.Run("renames close and push constraint keys", func(t *testing.T) {
