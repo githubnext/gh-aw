@@ -133,7 +133,7 @@ Use [security-profiles.md](security-profiles.md) to select GitHub access and MCP
   ```
 - `timeout:` - Per-operation timeout in seconds for all tool and MCP calls (integer or expression, default: 60 s for all engines).
 - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or expression, default: 120).
-- `mcp-mode:` - MCP exposure mode (string, default: `"default"`). Set to `"cli"` to mount each user-facing MCP server, including a selected GitHub MCP server, as a standalone CLI tool on `PATH`. This is distinct from `tools.github.mode`, does not select GitHub access, and does not provide the authenticated `gh` CLI. The legacy `cli-proxy: true` is accepted for backward compatibility and migrated by `gh aw fix`.
+- `mcp-mode:` - MCP exposure mode (string, default: `"default"`). Set to `"cli"` to mount each user-facing non-GitHub MCP server as a standalone CLI tool on `PATH`. With the Copilot engine, this also mounts a selected GitHub MCP server; other MCP-capable engines keep GitHub native. This is distinct from `tools.github.mode`, does not select GitHub access, and does not provide the authenticated `gh` CLI. The legacy `cli-proxy: true` is accepted for backward compatibility and migrated by `gh aw fix`.
 
 ### Custom MCP Tools
 

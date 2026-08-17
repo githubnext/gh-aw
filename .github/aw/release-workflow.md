@@ -230,7 +230,7 @@ Do not replace the auto-generated notes — prepend only.
 - **Use `operation: "prepend"`** so highlights appear before the auto-generated GitHub notes; never `replace`
 - **The `release` job must output `release_id`** — the agent needs the database ID to reference the correct release
 - **Pre-fetch all data in `steps:`** before the agent runs; write compact JSON to `/tmp/gh-aw/agent/release-data/`
-- **Include `tools.github.mode: cli`** for authenticated `gh` access; use `tools.mcp-mode: cli` to expose selected MCP servers as CLI wrappers
+- **Include `tools.github.mode: cli` only when the agent itself runs `gh`**; pre-agent `steps:` authenticate independently through `GH_TOKEN`. Use `tools.mcp-mode: cli` to expose selected MCP servers as CLI wrappers
 - **Declare `contents: write` per-job**, not globally — only the jobs that push tags or create releases need it
 - **Set `threat-detection: false`** in `safe-outputs:` — release bodies contain code snippets that trigger false positives
 - **Network**: classic jobs installing packages need the ecosystem entry (e.g. `go`, `node`); the agent job itself only needs `defaults`

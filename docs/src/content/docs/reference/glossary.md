@@ -89,7 +89,7 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 
 ### GitHub Access Mode (`tools.github.mode`)
 
-A `tools.github` field that selects GitHub API access through the pre-authenticated `gh` CLI (`cli`), a local Docker GitHub MCP server (`mcp-local`), or the hosted GitHub MCP service (`mcp-remote`). This selector is independent from the sandbox runtime and `tools.mcp-mode`. Legacy values are accepted only for migration. See [Security Profile Selection](/gh-aw/reference/security-profiles/) and [GitHub Tools Reference](/gh-aw/reference/github-tools/).
+A `tools.github` field that selects GitHub API access through the pre-authenticated `gh` CLI (`cli`), a local Docker GitHub MCP server (`mcp-local`), or the hosted GitHub MCP service (`mcp-remote`). This selector is independent from the sandbox runtime and `tools.mcp-mode`. Legacy values remain accepted for backward compatibility and are migrated by `gh aw fix`; new workflows should use the canonical values. See [Security Profile Selection](/gh-aw/reference/security-profiles/) and [GitHub Tools Reference](/gh-aw/reference/github-tools/).
 
 ### MCP Exposure Mode (`tools.mcp-mode`)
 

@@ -11,7 +11,7 @@ Three independent selectors define how an agentic workflow is isolated and how t
 | --- | --- | --- |
 | `sandbox.agent.runtime` | Agent isolation, AWF privileges, and host/service connectivity | How GitHub APIs are exposed |
 | `tools.github.mode` | GitHub access through the `gh` CLI or a GitHub MCP server | How non-GitHub MCP servers are exposed |
-| `tools.mcp-mode` | Whether MCP servers, including a selected GitHub MCP server, are exposed as native MCP tools or CLI wrappers | GitHub transport or sandbox isolation |
+| `tools.mcp-mode` | Whether user-facing non-GitHub MCP servers are exposed as native MCP tools or CLI wrappers; Copilot also wraps a selected GitHub MCP server | GitHub transport or sandbox isolation |
 
 The policy proxy used by `tools.github.mode: cli` is an internal implementation detail. Do not use `gh-proxy` in new frontmatter.
 
@@ -41,11 +41,11 @@ GitHub Actions `services:` with published ports and `sandbox.agent.allow-host-po
 
 For MCP-capable engines, an omitted mode resolves to `mcp-local` for backward compatibility. New workflows should select `cli` explicitly unless they need GitHub MCP tools. `features.integrity-reactions: true` resolves an omitted mode to `cli`. Engines without native MCP support, including Pi, automatically derive both `tools.github.mode: cli` and `tools.mcp-mode: cli`; do not set an MCP GitHub mode for them.
 
-The fields `toolsets` and `allowed` configure either GitHub MCP mode; `version` and `args` configure only `mcp-local`. All four are ignored with an explicit `tools.github.mode: cli` and produce a compiler warning. Policy fields such as `allowed-repos`, `min-integrity`, `github-token`, and `github-app` remain meaningful in every GitHub access mode.
+The fields `toolsets` and `allowed` configure either GitHub MCP mode; `version` and `args` configure only `mcp-local`. All four are ignored with an explicit `tools.github.mode: cli` and produce a compiler warning. Policy fields such as `allowed-repos`, `min-integrity`, and `github-token` remain meaningful in every GitHub access mode. `github-app` configures GitHub MCP authentication and applies only to `mcp-local` and `mcp-remote`.
 
 ## MCP exposure profile
 
-`tools.mcp-mode: cli` exposes user-facing MCP servers as CLI wrappers on `PATH`, including the GitHub MCP server when `mcp-local` or `mcp-remote` is selected. It does not select `tools.github.mode: cli` and does not turn the GitHub MCP server into the authenticated `gh` CLI. Leave `tools.mcp-mode` omitted, or set it to `default`, for native MCP exposure.
+`tools.mcp-mode: cli` exposes user-facing non-GitHub MCP servers as CLI wrappers on `PATH`. With the Copilot engine, it also wraps the GitHub MCP server when `mcp-local` or `mcp-remote` is selected; other MCP-capable engines keep the selected GitHub server as a native MCP server. It does not select `tools.github.mode: cli` and does not turn the GitHub MCP server into the authenticated `gh` CLI. Leave `tools.mcp-mode` omitted, or set it to `default`, for native MCP exposure.
 
 The legacy `tools.cli-proxy: true` maps to `tools.mcp-mode: cli`. This field is unrelated to the internal host policy proxy used for CLI GitHub access.
 

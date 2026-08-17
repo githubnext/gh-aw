@@ -11,7 +11,7 @@ Use this file as the canonical decision reference. These selectors are independe
 | --- | --- |
 | `sandbox.agent.runtime` | Agent isolation, AWF privilege, and host/service access |
 | `tools.github.mode` | GitHub access through `gh` or a GitHub MCP server |
-| `tools.mcp-mode` | Native MCP exposure versus CLI wrappers for MCP servers, including a selected GitHub MCP server |
+| `tools.mcp-mode` | Native MCP exposure versus CLI wrappers for non-GitHub MCP servers; Copilot also wraps a selected GitHub MCP server |
 
 Never emit removed `sandbox.agent.sudo` or `sandbox.agent.legacy-security` fields. Do not emit legacy `gh-proxy`, `local`, or `remote` GitHub mode values, `features.cli-proxy`, or `tools.cli-proxy`.
 
@@ -41,13 +41,13 @@ GitHub Actions `services:` with published ports and `sandbox.agent.allow-host-po
 
 For MCP-capable engines, omitted `tools.github.mode` resolves to `mcp-local`. Select `cli` explicitly for new CLI-based workflows. Engines without MCP support, including Pi, automatically derive `tools.github.mode: cli` and `tools.mcp-mode: cli`; do not select an MCP mode for them.
 
-`toolsets` and `allowed` apply to either GitHub MCP mode; `version` and `args` apply only to `mcp-local`. Do not combine them with explicit `mode: cli`; the compiler ignores them with a warning. `allowed-repos`, `min-integrity`, `github-token`, and `github-app` remain meaningful in all modes.
+`toolsets` and `allowed` apply to either GitHub MCP mode; `version` and `args` apply only to `mcp-local`. Do not combine them with explicit `mode: cli`; the compiler ignores them with a warning. `allowed-repos`, `min-integrity`, and `github-token` remain meaningful in all modes. `github-app` applies only to `mcp-local` and `mcp-remote`.
 
 `features.integrity-reactions: true` requires CLI GitHub access and is incompatible with explicit `mcp-local`, explicit `mcp-remote`, and `cloud-hypervisor`.
 
 ## MCP exposure
 
-`tools.mcp-mode: cli` mounts user-facing MCP servers as CLI wrappers, including the GitHub MCP server when an MCP GitHub mode is selected. It does not select GitHub access and does not provide the authenticated `gh` CLI; configure `tools.github.mode` separately. Omit `mcp-mode`, or use `default`, for native MCP exposure.
+`tools.mcp-mode: cli` mounts user-facing non-GitHub MCP servers as CLI wrappers. With the Copilot engine, it also wraps the GitHub MCP server when an MCP GitHub mode is selected; other MCP-capable engines keep GitHub native. It does not select GitHub access and does not provide the authenticated `gh` CLI; configure `tools.github.mode` separately. Omit `mcp-mode`, or use `default`, for native MCP exposure.
 
 ## Minimal valid examples
 
