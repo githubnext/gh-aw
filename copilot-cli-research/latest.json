@@ -1,12 +1,17 @@
 {
-  "timestamp": "2026-08-16T03:57:00Z",
-  "run_id": "31925380594",
-  "total_workflows": 285,
+  "timestamp": "2026-08-17T03:59:00Z",
+  "run_id": "31992795476",
+  "total_workflows": 284,
   "copilot_workflows_narrow": 38,
-  "share_flag_usage": 1,
-  "engine_args_usage": 0,
-  "orphaned_agents": ["create-safe-output-type", "custom-engine-implementation", "grumpy-reviewer", "w3c-specification-writer"],
+  "share_flag_real_usage": 0,
+  "engine_args_real_usage": 0,
   "disable_builtin_mcps_usage": 2,
+  "copilot_sdk_true_usage": 70,
+  "max_tool_denials_usage": 64,
+  "max_continuations_usage": 11,
+  "network_config_usage": 158,
+  "sandbox_usage": 157,
+  "orphaned_agents": ["create-safe-output-type", "custom-engine-implementation", "grumpy-reviewer", "w3c-specification-writer"],
   "opportunities_found": 0,
-  "notable_change": "No material change vs run 31862974294 (2026-08-15). Total workflows flat at 285, narrow engine:copilot count flat at 38. --share still 1 (this research workflow only). engine.args still 0. Orphaned agents unchanged (4). disable-builtin-mcps flat at 2. copilot-sdk:true adoption 71 (flat). max-tool-denials 65 (flat), max-continuations 11 (flat), network config 161 (flat/slight rise), sandbox 256 (flat/slight rise, consistent with routine workflow additions). No new Copilot CLI Go features detected (same file set: copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, copilot_installer.go, copilot_inline_driver.go, copilot_logs.go, copilot_participant_steps.go). Per established policy (since run 31354820498), skipped new issue since no tracked metric changed."
+  "notable_change": "No material change vs run 31925380594 (2026-08-16). Total workflows 284 (was 285, one removed/renamed, not significant). Narrow engine:copilot count flat at 38. --share real usage still 0 (only appears in this research workflow's own doc example). engine.args real usage still 0 (args: hits are LSP server config, e.g. eslint-miner.md lsp.typescript.args, not engine.args). Orphaned agents unchanged (4, 15th+ consecutive run). disable-builtin-mcps flat at 2. copilot-sdk:true adoption 70 (flat/-1, noise). Same Copilot CLI Go module set as prior runs (copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, copilot_installer.go, copilot_engine_installation.go, copilot_inline_driver.go, copilot_logs.go, plus pkg/cli/copilot_*.go). No new features detected. Per established policy (since run 31354820498), skipped new issue since no tracked metric changed materially."
 }
