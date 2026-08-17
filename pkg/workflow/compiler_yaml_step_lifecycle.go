@@ -183,6 +183,10 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_RUNTIME: \"%s\"\n", agentRuntime)
+	// Only emit the cache-memory flag when at least one cache is configured.
+	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
+		yaml.WriteString("          GH_AW_INFO_CACHE_MEMORY: \"true\"\n")
+	}
 	if data.Source != "" {
 		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", data.Source)
 		// Body-modified defaults to false at compile time; update flows may override this

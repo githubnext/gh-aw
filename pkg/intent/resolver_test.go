@@ -78,6 +78,20 @@ func TestResolverResolvePullRequestArtifactFallbackMapped(t *testing.T) {
 	assert.Equal(t, "https://github.com/owner/repo/pull/77", intent.RootURL)
 }
 
+func TestResolverResolvePullRequestArtifactFallbackClonesLabels(t *testing.T) {
+	resolver := Resolver{ResolverVersion: "test-v1"}
+
+	labels := []string{"automation", "maintenance"}
+	intent := resolver.ResolvePullRequest(PullRequestData{
+		NodeID: "PR_kwDOAAABCD4",
+		URL:    "https://github.com/owner/repo/pull/77",
+		Labels: labels,
+	})
+	labels[0] = "mutated"
+
+	assert.Equal(t, []string{"automation", "maintenance"}, intent.Labels)
+}
+
 func TestResolverResolvePullRequestExplicitIntentPreservesVersion(t *testing.T) {
 	resolver := Resolver{ResolverVersion: "test-v1"}
 

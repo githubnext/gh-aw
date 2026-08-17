@@ -213,3 +213,98 @@ This workflow tests that agent runtime is empty when not configured.
 		})
 	}
 }
+
+func TestAwInfoStepsCacheMemory(t *testing.T) {
+	tests := []struct {
+		name            string
+		workflowContent string
+		expectEnvVar    bool
+		description     string
+	}{
+		{
+			name: "cache-memory enabled",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+tools:
+  cache-memory: true
+---
+
+# Test cache-memory enabled
+
+This workflow tests that cache-memory is recorded in aw_info.json.
+`,
+			expectEnvVar: true,
+			description:  "Should emit GH_AW_INFO_CACHE_MEMORY when cache-memory is enabled",
+		},
+		{
+			name: "cache-memory explicitly disabled",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+tools:
+  cache-memory: false
+---
+
+# Test cache-memory disabled
+
+This workflow tests that cache-memory is not recorded when explicitly disabled.
+`,
+			expectEnvVar: false,
+			description:  "Should not emit GH_AW_INFO_CACHE_MEMORY when cache-memory is false",
+		},
+		{
+			name: "no cache-memory configuration",
+			workflowContent: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test no cache-memory
+
+This workflow tests that cache-memory is not recorded when unconfigured.
+`,
+			expectEnvVar: false,
+			description:  "Should not emit GH_AW_INFO_CACHE_MEMORY when cache-memory is not configured",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "aw-info-cache-memory-test")
+
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.workflowContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			lockFile := stringutil.MarkdownToLockFile(testFile)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read generated lock file: %v", err)
+			}
+
+			lockStr := string(lockContent)
+			hasEnvVar := strings.Contains(lockStr, `GH_AW_INFO_CACHE_MEMORY: "true"`)
+			if hasEnvVar != tt.expectEnvVar {
+				t.Errorf("%s\nExpected GH_AW_INFO_CACHE_MEMORY present=%v, got %v", tt.description, tt.expectEnvVar, hasEnvVar)
+			}
+
+			// The env var is only ever emitted with the value "true"; it is omitted otherwise.
+			if strings.Contains(lockStr, `GH_AW_INFO_CACHE_MEMORY: "false"`) {
+				t.Error("GH_AW_INFO_CACHE_MEMORY should never be emitted with value \"false\"")
+			}
+		})
+	}
+}

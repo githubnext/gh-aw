@@ -3526,6 +3526,10 @@
               "default": "awf",
               "oneOf": [
                 {
+                  "type": "null",
+                  "description": "Null (an empty 'agent:' key) leaves the agent sandbox at its default of 'awf'"
+                },
+                {
                   "type": "boolean",
                   "const": false,
                   "description": "Set to false to disable the agent sandbox (firewall). Warning: This removes firewall protection but keeps the MCP gateway enabled. Not allowed in strict mode."

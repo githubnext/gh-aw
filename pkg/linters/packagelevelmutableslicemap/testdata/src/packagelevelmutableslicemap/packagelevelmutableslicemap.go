@@ -15,11 +15,17 @@ var namedSlice queue
 var initialized []int
 var readOnlySlice = []int{1, 2, 3}
 var suppressedSlice []int
+var resetSlice = []int{1, 2, 3}
+var resetMap = map[string]int{"a": 1}
+var trimmedSlice = []int{1, 2, 3}
+var resetSuppressedSlice = []int{1, 2, 3}
+var resetInInit = []int{1, 2, 3}
 
 func init() {
 	initialized = append(initialized, 1)
 	globalMap["seed"] = 1
 	delete(globalMap, "seed")
+	resetInInit = nil
 	go func() {
 		globalSlice = append(globalSlice, 2) // want `package-level slice/map variable globalSlice is mutated via append\(\) re-assignment; mutating shared package state risks data races and can leak state across calls`
 	}()
@@ -73,6 +79,22 @@ func readGlobal() int {
 
 func appendSuppressed(v int) {
 	suppressedSlice = append(suppressedSlice, v) //nolint:packagelevelmutableslicemap
+}
+
+func resetSliceToNil() {
+	resetSlice = nil // want `package-level slice/map variable resetSlice is mutated via wholesale re-assignment; mutating shared package state risks data races and can leak state across calls`
+}
+
+func resetMapToLiteral() {
+	resetMap = map[string]int{} // want `package-level slice/map variable resetMap is mutated via wholesale re-assignment; mutating shared package state risks data races and can leak state across calls`
+}
+
+func truncateTrimmedSlice() {
+	trimmedSlice = trimmedSlice[:0] // want `package-level slice/map variable trimmedSlice is mutated via wholesale re-assignment; mutating shared package state risks data races and can leak state across calls`
+}
+
+func resetSuppressed() {
+	resetSuppressedSlice = nil //nolint:packagelevelmutableslicemap
 }
 
 func shadowedSliceIsFine() {
