@@ -4,65 +4,60 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var safeOutputsToolsComputationLog = logger.New("workflow:safe_outputs_tools_computation")
 
-type toolEnabledCheck struct {
-	name    string
-	enabled bool
-}
-
-func addEnabledTools(enabledTools map[string]struct{}, checks ...toolEnabledCheck) {
-	for _, check := range checks {
-		if check.enabled {
-			enabledTools[check.name] = struct{}{}
-		}
+// addEnabledTool adds a single tool name to enabledTools if enabled is true.
+func addEnabledTool(enabledTools map[string]struct{}, name string, enabled bool) {
+	if enabled {
+		enabledTools[name] = struct{}{}
 	}
 }
 
-func predefinedToolChecks(safeOutputs *SafeOutputsConfig) []toolEnabledCheck {
-	return []toolEnabledCheck{
-		{name: "create_issue", enabled: safeOutputs.CreateIssues != nil},
-		{name: "create_agent_session", enabled: safeOutputs.CreateAgentSessions != nil},
-		{name: "create_discussion", enabled: safeOutputs.CreateDiscussions != nil},
-		{name: "update_discussion", enabled: safeOutputs.UpdateDiscussions != nil},
-		{name: "close_discussion", enabled: safeOutputs.CloseDiscussions != nil},
-		{name: "close_issue", enabled: safeOutputs.CloseIssues != nil},
-		{name: "close_pull_request", enabled: safeOutputs.ClosePullRequests != nil},
-		{name: "mark_pull_request_as_ready_for_review", enabled: safeOutputs.MarkPullRequestAsReadyForReview != nil},
-		{name: "approve_workflow_run", enabled: safeOutputs.ApproveWorkflowRun != nil},
-		{name: "dismiss_pull_request_review", enabled: safeOutputs.DismissPullRequestReview != nil},
-		{name: "add_comment", enabled: safeOutputs.AddComments != nil},
-		{name: "create_pull_request", enabled: safeOutputs.CreatePullRequests != nil},
-		{name: "create_pull_request_review_comment", enabled: safeOutputs.CreatePullRequestReviewComments != nil},
-		{name: "submit_pull_request_review", enabled: safeOutputs.SubmitPullRequestReview != nil},
-		{name: "reply_to_pull_request_review_comment", enabled: safeOutputs.ReplyToPullRequestReviewComment != nil},
-		{name: "resolve_pull_request_review_thread", enabled: safeOutputs.ResolvePullRequestReviewThread != nil},
-		{name: "create_code_scanning_alert", enabled: safeOutputs.CreateCodeScanningAlerts != nil},
-		{name: "autofix_code_scanning_alert", enabled: safeOutputs.AutofixCodeScanningAlert != nil},
-		{name: "create_check_run", enabled: safeOutputs.CreateCheckRun != nil},
-		{name: "add_labels", enabled: safeOutputs.AddLabels != nil},
-		{name: "remove_labels", enabled: safeOutputs.RemoveLabels != nil},
-		{name: "replace_label", enabled: safeOutputs.ReplaceLabel != nil},
-		{name: "add_reviewer", enabled: safeOutputs.AddReviewer != nil},
-		{name: "assign_milestone", enabled: safeOutputs.AssignMilestone != nil},
-		{name: "assign_to_agent", enabled: safeOutputs.AssignToAgent != nil},
-		{name: "assign_to_user", enabled: safeOutputs.AssignToUser != nil},
-		{name: "unassign_from_user", enabled: safeOutputs.UnassignFromUser != nil},
-		{name: "update_issue", enabled: safeOutputs.UpdateIssues != nil},
-		{name: "update_pull_request", enabled: safeOutputs.UpdatePullRequests != nil},
-		{name: "push_to_pull_request_branch", enabled: safeOutputs.PushToPullRequestBranch != nil},
-		{name: "upload_asset", enabled: safeOutputs.UploadAssets != nil},
-		{name: "upload_artifact", enabled: safeOutputs.UploadArtifact != nil},
-		{name: "missing_tool", enabled: safeOutputs.MissingTool != nil},
-		{name: "missing_data", enabled: safeOutputs.MissingData != nil},
-		{name: "update_release", enabled: safeOutputs.UpdateRelease != nil},
-		{name: "noop", enabled: safeOutputs.NoOp != nil},
-		{name: "link_sub_issue", enabled: safeOutputs.LinkSubIssue != nil},
-		{name: "hide_comment", enabled: safeOutputs.HideComment != nil},
-		{name: "set_issue_type", enabled: safeOutputs.SetIssueType != nil},
-		{name: "set_issue_field", enabled: safeOutputs.SetIssueField != nil},
-		{name: "update_project", enabled: safeOutputs.UpdateProjects != nil},
-		{name: "create_project_status_update", enabled: safeOutputs.CreateProjectStatusUpdates != nil},
-		{name: "create_project", enabled: safeOutputs.CreateProjects != nil},
-	}
+// addPredefinedTools adds all predefined safe-output tool names to enabledTools
+// directly, without materializing an intermediate slice, since this runs on
+// every compilation.
+func addPredefinedTools(enabledTools map[string]struct{}, safeOutputs *SafeOutputsConfig) {
+	addEnabledTool(enabledTools, "create_issue", safeOutputs.CreateIssues != nil)
+	addEnabledTool(enabledTools, "create_agent_session", safeOutputs.CreateAgentSessions != nil)
+	addEnabledTool(enabledTools, "create_discussion", safeOutputs.CreateDiscussions != nil)
+	addEnabledTool(enabledTools, "update_discussion", safeOutputs.UpdateDiscussions != nil)
+	addEnabledTool(enabledTools, "close_discussion", safeOutputs.CloseDiscussions != nil)
+	addEnabledTool(enabledTools, "close_issue", safeOutputs.CloseIssues != nil)
+	addEnabledTool(enabledTools, "close_pull_request", safeOutputs.ClosePullRequests != nil)
+	addEnabledTool(enabledTools, "mark_pull_request_as_ready_for_review", safeOutputs.MarkPullRequestAsReadyForReview != nil)
+	addEnabledTool(enabledTools, "approve_workflow_run", safeOutputs.ApproveWorkflowRun != nil)
+	addEnabledTool(enabledTools, "dismiss_pull_request_review", safeOutputs.DismissPullRequestReview != nil)
+	addEnabledTool(enabledTools, "add_comment", safeOutputs.AddComments != nil)
+	addEnabledTool(enabledTools, "create_pull_request", safeOutputs.CreatePullRequests != nil)
+	addEnabledTool(enabledTools, "create_pull_request_review_comment", safeOutputs.CreatePullRequestReviewComments != nil)
+	addEnabledTool(enabledTools, "submit_pull_request_review", safeOutputs.SubmitPullRequestReview != nil)
+	addEnabledTool(enabledTools, "reply_to_pull_request_review_comment", safeOutputs.ReplyToPullRequestReviewComment != nil)
+	addEnabledTool(enabledTools, "resolve_pull_request_review_thread", safeOutputs.ResolvePullRequestReviewThread != nil)
+	addEnabledTool(enabledTools, "create_code_scanning_alert", safeOutputs.CreateCodeScanningAlerts != nil)
+	addEnabledTool(enabledTools, "autofix_code_scanning_alert", safeOutputs.AutofixCodeScanningAlert != nil)
+	addEnabledTool(enabledTools, "create_check_run", safeOutputs.CreateCheckRun != nil)
+	addEnabledTool(enabledTools, "add_labels", safeOutputs.AddLabels != nil)
+	addEnabledTool(enabledTools, "remove_labels", safeOutputs.RemoveLabels != nil)
+	addEnabledTool(enabledTools, "replace_label", safeOutputs.ReplaceLabel != nil)
+	addEnabledTool(enabledTools, "add_reviewer", safeOutputs.AddReviewer != nil)
+	addEnabledTool(enabledTools, "assign_milestone", safeOutputs.AssignMilestone != nil)
+	addEnabledTool(enabledTools, "assign_to_agent", safeOutputs.AssignToAgent != nil)
+	addEnabledTool(enabledTools, "assign_to_user", safeOutputs.AssignToUser != nil)
+	addEnabledTool(enabledTools, "unassign_from_user", safeOutputs.UnassignFromUser != nil)
+	addEnabledTool(enabledTools, "update_issue", safeOutputs.UpdateIssues != nil)
+	addEnabledTool(enabledTools, "update_pull_request", safeOutputs.UpdatePullRequests != nil)
+	addEnabledTool(enabledTools, "push_to_pull_request_branch", safeOutputs.PushToPullRequestBranch != nil)
+	addEnabledTool(enabledTools, "upload_asset", safeOutputs.UploadAssets != nil)
+	addEnabledTool(enabledTools, "upload_artifact", safeOutputs.UploadArtifact != nil)
+	addEnabledTool(enabledTools, "missing_tool", safeOutputs.MissingTool != nil)
+	addEnabledTool(enabledTools, "missing_data", safeOutputs.MissingData != nil)
+	addEnabledTool(enabledTools, "update_release", safeOutputs.UpdateRelease != nil)
+	addEnabledTool(enabledTools, "noop", safeOutputs.NoOp != nil)
+	addEnabledTool(enabledTools, "link_sub_issue", safeOutputs.LinkSubIssue != nil)
+	addEnabledTool(enabledTools, "hide_comment", safeOutputs.HideComment != nil)
+	addEnabledTool(enabledTools, "set_issue_type", safeOutputs.SetIssueType != nil)
+	addEnabledTool(enabledTools, "set_issue_field", safeOutputs.SetIssueField != nil)
+	addEnabledTool(enabledTools, "update_project", safeOutputs.UpdateProjects != nil)
+	addEnabledTool(enabledTools, "create_project_status_update", safeOutputs.CreateProjectStatusUpdates != nil)
+	addEnabledTool(enabledTools, "create_project", safeOutputs.CreateProjects != nil)
 }
 
 // computeEnabledToolNames returns the set of predefined tool names that are enabled
@@ -76,7 +71,7 @@ func computeEnabledToolNames(data *WorkflowData) map[string]struct {
 		return enabledTools
 	}
 
-	addEnabledTools(enabledTools, predefinedToolChecks(data.SafeOutputs)...)
+	addPredefinedTools(enabledTools, data.SafeOutputs)
 
 	// Add push_repo_memory tool if repo-memory is configured
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
