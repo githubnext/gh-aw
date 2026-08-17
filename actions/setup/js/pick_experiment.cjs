@@ -169,7 +169,9 @@ function loadState(stateFile) {
         Object.defineProperty(parsed, STATE_SOURCE_FORMAT, { value: "json", configurable: true });
         return parsed;
       }
-    } catch {}
+    } catch {
+      // Fall through to JSONL state parsing.
+    }
 
     /** @type {{ counts: Record<string, Record<string, number>>, runs: ExperimentRunRecord[] }} */
     const state = { counts: {}, runs: [] };
