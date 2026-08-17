@@ -2283,7 +2283,9 @@ func TestHandlerConfigAssignToUserWithUnassignFirst(t *testing.T) {
 				// Check unassign_first
 				unassignFirst, ok := assignConfig["unassign_first"]
 				require.True(t, ok, "Should have unassign_first field")
-				assert.Equal(t, true, unassignFirst, "unassign_first should be true")
+				unassignFirstBool, ok := unassignFirst.(bool)
+				require.True(t, ok, "unassign_first should be a bool")
+				assert.True(t, unassignFirstBool, "unassign_first should be true")
 			}
 		}
 	}
@@ -2643,7 +2645,9 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 
 					stagedVal, ok := handlerConfig["staged"]
 					require.True(t, ok, "Handler config should include 'staged' field when staged: true is set")
-					assert.Equal(t, true, stagedVal, "staged field should be true")
+					stagedBool, ok := stagedVal.(bool)
+					require.True(t, ok, "staged field should be a bool")
+					assert.True(t, stagedBool, "staged field should be true")
 				}
 			}
 
@@ -3016,7 +3020,9 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 		require.True(t, ok, "%s handler should be present", handlerName)
 		val, exists := handlerCfg["protect_top_level_dot_folders"]
 		assert.True(t, exists, "%s: protect_top_level_dot_folders should be present", handlerName)
-		assert.Equal(t, true, val, "%s: protect_top_level_dot_folders should be true", handlerName)
+		boolVal, ok := val.(bool)
+		require.True(t, ok, "%s: protect_top_level_dot_folders should be a bool", handlerName)
+		assert.True(t, boolVal, "%s: protect_top_level_dot_folders should be true", handlerName)
 	}
 }
 
