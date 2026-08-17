@@ -183,7 +183,7 @@ func TestClaudeEngineNonAWFKeepsStderrOutOfTranscript(t *testing.T) {
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
 	assert.Contains(t, stepContent, "--debug-file /tmp/gh-aw/agent/claude-debug.log")
-	assert.Contains(t, stepContent, "| tee -a /tmp/gh-aw/agent-stdio.log")
+	assert.Contains(t, stepContent, `${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"} | tee -a /tmp/gh-aw/agent-stdio.log`)
 	assert.NotContains(t, stepContent, "2>&1 | tee -a /tmp/gh-aw/agent-stdio.log")
 	assert.NotContains(t, stepContent, "awf")
 }
