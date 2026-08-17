@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod()
 
 	assert.Equal(t, "messages-effective-tokens-suffix-to-ai-credits-suffix", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod(t *testing.T) 
 }
 
 func TestMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod_MigratesMessagesTemplates(t *testing.T) {
+	t.Parallel()
 	codemod := getMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod()
 
 	content := `---
@@ -50,6 +52,7 @@ safe-outputs:
 }
 
 func TestMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod_NoOpWhenPlaceholderMissing(t *testing.T) {
+	t.Parallel()
 	codemod := getMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod()
 
 	content := `---
@@ -72,6 +75,7 @@ safe-outputs:
 }
 
 func TestMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod_IdempotentAfterMigration(t *testing.T) {
+	t.Parallel()
 	codemod := getMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod()
 
 	content := `---
@@ -94,6 +98,7 @@ safe-outputs:
 }
 
 func TestMessagesETSuffixCodemod_PreservesFormattingAndBlockScalars(t *testing.T) {
+	t.Parallel()
 	codemod := getMessagesEffectiveTokensSuffixToAICreditsSuffixCodemod()
 
 	content := `---

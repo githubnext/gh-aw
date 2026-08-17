@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetInstallScriptURLCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	// Verify codemod metadata
@@ -21,6 +22,7 @@ func TestGetInstallScriptURLCodemod(t *testing.T) {
 }
 
 func TestInstallScriptURLCodemod_RawGitHubUserContent(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---
@@ -59,6 +61,7 @@ jobs:
 }
 
 func TestInstallScriptURLCodemod_RefsHeadsMain(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---
@@ -85,6 +88,7 @@ jobs:
 }
 
 func TestInstallScriptURLCodemod_ShortForm(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---
@@ -111,6 +115,7 @@ jobs:
 }
 
 func TestInstallScriptURLCodemod_AlreadyMigrated(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---
@@ -136,6 +141,7 @@ jobs:
 }
 
 func TestInstallScriptURLCodemod_NoInstallScript(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---
@@ -162,6 +168,7 @@ jobs:
 }
 
 func TestInstallScriptURLCodemod_MultipleOccurrences(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---
@@ -191,6 +198,7 @@ jobs:
 }
 
 func TestInstallScriptURLCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---
@@ -229,6 +237,7 @@ curl -fsSL https://example.com/script.sh | bash
 }
 
 func TestInstallScriptURLCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---
@@ -257,6 +266,7 @@ jobs:
 }
 
 func TestInstallScriptURLCodemod_DifferentBranches(t *testing.T) {
+	t.Parallel()
 	codemod := getInstallScriptURLCodemod()
 
 	content := `---

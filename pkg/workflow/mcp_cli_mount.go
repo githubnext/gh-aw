@@ -356,8 +356,13 @@ func buildMCPCLIPromptSection(data *WorkflowData) *PromptSection {
 		lines[i] = fmt.Sprintf("- `%s` — run `%s --help` to see available tools", server, server)
 	}
 
+	promptFile := mcpCLIToolsPromptFile
+	if slices.Contains(servers, constants.SafeOutputsMCPServerID.String()) {
+		promptFile = mcpCLIToolsWithSafeOutputsPromptFile
+	}
+
 	return &PromptSection{
-		Content: mcpCLIToolsPromptFile,
+		Content: promptFile,
 		IsFile:  true,
 		EnvVars: map[string]string{
 			"GH_AW_MCP_CLI_SERVERS_LIST": strings.Join(lines, "\n"),

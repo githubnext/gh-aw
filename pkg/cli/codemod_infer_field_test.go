@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetInferToDisableModelInvocationCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getInferToDisableModelInvocationCodemod()
 
 	assert.Equal(t, "infer-to-disable-model-invocation", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetInferToDisableModelInvocationCodemod(t *testing.T) {
 }
 
 func TestInferToDisableModelInvocation_InferFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getInferToDisableModelInvocationCodemod()
 
 	content := `---
@@ -48,6 +50,7 @@ permissions:
 }
 
 func TestInferToDisableModelInvocation_InferTrue(t *testing.T) {
+	t.Parallel()
 	codemod := getInferToDisableModelInvocationCodemod()
 
 	content := `---
@@ -71,6 +74,7 @@ infer: true
 }
 
 func TestInferToDisableModelInvocation_NoInferField(t *testing.T) {
+	t.Parallel()
 	codemod := getInferToDisableModelInvocationCodemod()
 
 	content := `---
@@ -91,6 +95,7 @@ on: workflow_dispatch
 }
 
 func TestInferToDisableModelInvocation_BothFieldsPresent(t *testing.T) {
+	t.Parallel()
 	codemod := getInferToDisableModelInvocationCodemod()
 
 	content := `---
@@ -116,6 +121,7 @@ disable-model-invocation: true
 }
 
 func TestInferToDisableModelInvocation_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
 	codemod := getInferToDisableModelInvocationCodemod()
 
 	content := `---
