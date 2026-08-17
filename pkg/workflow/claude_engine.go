@@ -406,6 +406,7 @@ func (e *ClaudeEngine) buildClaudeFullCommand(workflowData *WorkflowData, claude
 	// Run Claude command without AWF wrapper.
 	// Note: Claude Code CLI writes debug logs to a separate --debug-file and JSON output to stdout.
 	// Use tee to capture stdout (stream-json output) to the log file while also displaying on console.
+	// Leave stderr on the workflow log so non-JSON diagnostics cannot corrupt the parser input.
 	// PATH is already set correctly by actions/setup-* steps which prepend to PATH.
 	return fmt.Sprintf(`set -o pipefail
           printf '%%s' "$(date +%%s%%3N)" > %s
@@ -414,7 +415,7 @@ func (e *ClaudeEngine) buildClaudeFullCommand(workflowData *WorkflowData, claude
           mkdir -p %s
           (umask 177 && touch %s)
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, constants.TmpGhAwAgentDir, claudeDebugLogFile, claudeCommand, logFile)
+          %s | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, constants.TmpGhAwAgentDir, claudeDebugLogFile, claudeCommand, logFile)
 }
 
 // buildClaudeCommandEnv builds the environment variable map for the Claude execution step.
