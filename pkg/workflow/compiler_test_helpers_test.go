@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func containsInNonCommentLines(content, search string) bool {
@@ -71,6 +72,39 @@ func extractJobSection(yamlContent, jobName string) string {
 	}
 
 	return strings.Join(jobLines, "\n")
+}
+
+func extractStepBlock(t *testing.T, jobSection, stepName, jobName string) string {
+	t.Helper()
+
+	lines := strings.Split(jobSection, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimLeft(line, " ")
+		if !strings.HasPrefix(trimmed, "- name: "+stepName) {
+			continue
+		}
+
+		stepIndent := len(line) - len(trimmed)
+		var b strings.Builder
+		for j := i; j < len(lines); j++ {
+			cur := lines[j]
+			curTrimmed := strings.TrimLeft(cur, " ")
+			curIndent := len(cur) - len(curTrimmed)
+			if j > i && curTrimmed != "" {
+				if curIndent < stepIndent {
+					break
+				}
+				if curIndent == stepIndent && strings.HasPrefix(curTrimmed, "- ") {
+					break
+				}
+			}
+			b.WriteString(cur + "\n")
+		}
+		return b.String()
+	}
+
+	require.FailNow(t, jobName+" should contain step", stepName)
+	return ""
 }
 
 // TestExtractJobSection exercises the job-boundary parsing helper used throughout the
