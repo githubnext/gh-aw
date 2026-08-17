@@ -29,6 +29,7 @@ const mockGithub = {
       updateBranch: vi.fn(),
     },
   },
+  request: vi.fn(),
 };
 
 const mockContext = {
@@ -100,6 +101,12 @@ describe("update_pull_request.cjs - executePRUpdate function", () => {
       data: {
         message: "Branch updated",
       },
+    });
+    mockGithub.request.mockImplementation(async route => {
+      if (route === "GET /repos/{owner}/{repo}/stacks") {
+        return { data: [] };
+      }
+      throw new Error(`Unexpected route: ${route}`);
     });
   });
 
@@ -1013,6 +1020,77 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     const stackedPRError = new Error("Updating a stacked PR's branch via this endpoint is not supported.");
     stackedPRError.status = 422;
     mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(stackedPRError);
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
+  it("should sync stack when updateBranch reports stacked-PR unsupported and stack sync API is available", async () => {
+    const stackedPRError = new Error("Updating a stacked PR's branch via this endpoint is not supported.");
+    stackedPRError.status = 422;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(stackedPRError);
+    mockGithub.request.mockImplementation(async route => {
+      if (route === "GET /repos/{owner}/{repo}/stacks") {
+        return {
+          data: [{ number: 7 }],
+        };
+      }
+      if (route === "POST /repos/{owner}/{repo}/stacks/{stack_number}/sync") {
+        return { data: {} };
+      }
+      throw new Error(`Unexpected route: ${route}`);
+    });
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/stacks/{stack_number}/sync", {
+      owner: "testowner",
+      repo: "testrepo",
+      stack_number: 7,
+    });
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
+  it("should keep stacked-PR unsupported non-fatal when stack sync API attempt fails", async () => {
+    const stackedPRError = new Error("Updating a stacked PR's branch via this endpoint is not supported.");
+    stackedPRError.status = 422;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(stackedPRError);
+    mockGithub.request.mockImplementation(async route => {
+      if (route === "GET /repos/{owner}/{repo}/stacks") {
+        return {
+          data: [{ number: 7 }],
+        };
+      }
+      if (route === "POST /repos/{owner}/{repo}/stacks/{stack_number}/sync") {
+        throw new Error("stack sync endpoint unavailable");
+      }
+      throw new Error(`Unexpected route: ${route}`);
+    });
 
     const handler = await updatePRModule.main({ update_branch: true });
     const result = await handler({

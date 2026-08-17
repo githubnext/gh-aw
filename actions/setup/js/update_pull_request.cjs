@@ -19,9 +19,9 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
  * @param {unknown} error
- * @returns {boolean}
+ * @returns {number|undefined}
  */
-function isNonFatalUpdateBranchError(error) {
+function getErrorStatus(error) {
   // Resolve the effective HTTP status by checking the error and its .originalError chain.
   // withRetry wraps the original error in an enhanced error that lacks .status, so we need
   // to walk the chain to find the underlying status from the GitHub API response.
@@ -36,6 +36,25 @@ function isNonFatalUpdateBranchError(error) {
     }
     current = current.originalError ?? null;
   }
+  return status;
+}
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isStackedPRUnsupportedUpdateBranchError(error) {
+  const status = getErrorStatus(error);
+  const message = getErrorMessage(error).toLowerCase();
+  return status === 422 && message.includes("updating a stacked pr's branch via this endpoint is not supported");
+}
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isNonFatalUpdateBranchError(error) {
+  const status = getErrorStatus(error);
   const message = getErrorMessage(error).toLowerCase();
   const hasWorkflowsPermissionPhrase = /without\s+`?workflows`?\s+permission/i.test(message);
   const hasWorkflowMutationRefusal = message.includes("refusing to allow a github app to create or update workflow");
@@ -45,9 +64,7 @@ function isNonFatalUpdateBranchError(error) {
   // GitHub update-branch API also returns 403 with this message when a PR contains workflow
   // file changes and the check times out, rather than the usual "refusing to allow" phrase.
   const hasWorkflowsScopeRequired = message.includes("`workflows` scope may be required") || message.includes("unable to determine if workflow can be created or updated");
-  const hasStackedPRUnsupportedError = message.includes("updating a stacked pr's branch via this endpoint is not supported");
-
-  if (status === 422 && hasStackedPRUnsupportedError) {
+  if (isStackedPRUnsupportedUpdateBranchError(error)) {
     return true;
   }
 
@@ -76,6 +93,63 @@ function isNonFatalUpdateBranchError(error) {
     (status === 422 && (message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head"))) ||
     ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined)
   );
+}
+
+/**
+ * @param {any} github
+ * @param {any} context
+ * @param {number} prNumber
+ * @returns {Promise<boolean>}
+ */
+async function tryStackedPRUpdateBranch(github, context, prNumber) {
+  /** @type {number|undefined} */
+  let stackNumber;
+
+  try {
+    const { data: pullRequest } = await github.rest.pulls.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: prNumber,
+    });
+    if (typeof pullRequest?.stack?.number === "number") {
+      stackNumber = pullRequest.stack.number;
+    }
+  } catch {
+    // Ignore metadata fetch failures; we can still attempt list lookup below.
+  }
+
+  if (stackNumber === undefined) {
+    try {
+      const { data: stacks } = await github.request("GET /repos/{owner}/{repo}/stacks", {
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        pull_request: prNumber,
+        per_page: 1,
+      });
+      if (Array.isArray(stacks) && stacks.length > 0 && typeof stacks[0]?.number === "number") {
+        stackNumber = stacks[0].number;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  if (stackNumber === undefined) {
+    return false;
+  }
+
+  try {
+    await github.request("POST /repos/{owner}/{repo}/stacks/{stack_number}/sync", {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      stack_number: stackNumber,
+    });
+    core.info(`Synced stacked PR #${prNumber} via stack #${stackNumber}`);
+    return true;
+  } catch (error) {
+    core.info(`Unable to sync stacked PR #${prNumber} via stack #${stackNumber}: ${getErrorMessage(error)}`);
+    return false;
+  }
 }
 
 /**
@@ -116,7 +190,14 @@ async function executePRUpdate(github, context, prNumber, updateData) {
       );
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      if (isNonFatalUpdateBranchError(error)) {
+      if (isStackedPRUnsupportedUpdateBranchError(error)) {
+        const didSyncStack = await tryStackedPRUpdateBranch(github, context, prNumber);
+        if (didSyncStack) {
+          core.info(`Updated stacked PR #${prNumber} branch via stack sync`);
+        } else {
+          core.warning(`Failed to update pull request #${prNumber} branch from base (non-fatal): ${errorMessage}`);
+        }
+      } else if (isNonFatalUpdateBranchError(error)) {
         core.warning(`Failed to update pull request #${prNumber} branch from base (non-fatal): ${errorMessage}`);
       } else {
         core.warning(`Failed to update pull request #${prNumber} branch from base: ${errorMessage}`);
