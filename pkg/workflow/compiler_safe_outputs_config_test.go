@@ -1388,19 +1388,25 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 
 func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
 	tests := []struct {
-		name         string
-		updateBranch *bool
-		expected     bool
+		name               string
+		updateBranch       *bool
+		updateBranchStacks *bool
+		expectedBranch     bool
+		expectedStacks     bool
 	}{
 		{
-			name:         "defaults update_branch to false",
-			updateBranch: nil,
-			expected:     false,
+			name:               "defaults update_branch to false and update_branch_stacks to true",
+			updateBranch:       nil,
+			updateBranchStacks: nil,
+			expectedBranch:     false,
+			expectedStacks:     true,
 		},
 		{
-			name:         "sets update_branch true when configured",
-			updateBranch: testBoolPtr(true),
-			expected:     true,
+			name:               "sets update_branch true and update_branch_stacks false when configured",
+			updateBranch:       testBoolPtr(true),
+			updateBranchStacks: testBoolPtr(false),
+			expectedBranch:     true,
+			expectedStacks:     false,
 		},
 	}
 
@@ -1412,7 +1418,8 @@ func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
 					UpdatePullRequests: &UpdatePullRequestsConfig{
-						UpdateBranch: tt.updateBranch,
+						UpdateBranch:       tt.updateBranch,
+						UpdateBranchStacks: tt.updateBranchStacks,
 					},
 				},
 			}
@@ -1439,7 +1446,11 @@ func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
 
 						updateBranchValue, ok := updatePRConfig["update_branch"]
 						require.True(t, ok, "Expected update_branch key in update_pull_request config")
-						assert.Equal(t, tt.expected, updateBranchValue)
+						assert.Equal(t, tt.expectedBranch, updateBranchValue)
+
+						updateBranchStacksValue, ok := updatePRConfig["update_branch_stacks"]
+						require.True(t, ok, "Expected update_branch_stacks key in update_pull_request config")
+						assert.Equal(t, tt.expectedStacks, updateBranchStacksValue)
 					}
 				}
 			}
@@ -2272,7 +2283,9 @@ func TestHandlerConfigAssignToUserWithUnassignFirst(t *testing.T) {
 				// Check unassign_first
 				unassignFirst, ok := assignConfig["unassign_first"]
 				require.True(t, ok, "Should have unassign_first field")
-				assert.Equal(t, true, unassignFirst, "unassign_first should be true")
+				unassignFirstBool, ok := unassignFirst.(bool)
+				require.True(t, ok, "unassign_first should be a bool")
+				assert.True(t, unassignFirstBool, "unassign_first should be true")
 			}
 		}
 	}
@@ -2632,7 +2645,9 @@ func TestHandlerConfigStagedMode(t *testing.T) {
 
 					stagedVal, ok := handlerConfig["staged"]
 					require.True(t, ok, "Handler config should include 'staged' field when staged: true is set")
-					assert.Equal(t, true, stagedVal, "staged field should be true")
+					stagedBool, ok := stagedVal.(bool)
+					require.True(t, ok, "staged field should be a bool")
+					assert.True(t, stagedBool, "staged field should be true")
 				}
 			}
 
@@ -3005,7 +3020,9 @@ func TestProtectTopLevelDotFolders(t *testing.T) {
 		require.True(t, ok, "%s handler should be present", handlerName)
 		val, exists := handlerCfg["protect_top_level_dot_folders"]
 		assert.True(t, exists, "%s: protect_top_level_dot_folders should be present", handlerName)
-		assert.Equal(t, true, val, "%s: protect_top_level_dot_folders should be true", handlerName)
+		boolVal, ok := val.(bool)
+		require.True(t, ok, "%s: protect_top_level_dot_folders should be a bool", handlerName)
+		assert.True(t, boolVal, "%s: protect_top_level_dot_folders should be true", handlerName)
 	}
 }
 

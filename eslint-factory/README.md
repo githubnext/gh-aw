@@ -619,6 +619,10 @@ Prefer `@actions/core` logging methods (`core.info`, `core.debug`) over `console
 
 `console.error` and `console.warn` write to **`process.stderr`**, while `core.error` and `core.warning` emit GitHub Actions workflow commands to **`process.stdout`**. For processes that own stdout as a data/protocol channel — such as stdio MCP servers and transports — replacing stderr logging with stdout logging would corrupt the JSON-RPC stream. Because the stream change is not behavior-preserving, the rule never reports `console.error` or `console.warn` and offers no suggestion to replace them.
 
+**Why the exclusion does not extend to `log` / `info` / `debug`**
+
+The risk above comes from the stream *change* (stderr → stdout), not from workflow commands as such. `console.log`, `console.info`, and `console.debug` already write to `process.stdout` (`console.debug` is an alias of `console.log` in Node.js), and their replacements also write to `process.stdout` — `core.info` writes a plain message, `core.debug` writes a `::debug::` workflow command. Since both sides use the same stream, the substitution cannot move output onto a stdio protocol channel that was previously clean: a process that owns stdout for framing is already corrupting it by calling `console.log` at all. No stdio-owning file exclusion is therefore applied to these three methods.
+
 
 ### `no-child-process-interpolated-command`
 

@@ -10,6 +10,7 @@ import (
 )
 
 func TestActivationOutputsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getActivationOutputsCodemod()
 
 	tests := []struct {
@@ -200,6 +201,7 @@ Some other content: "${{ github.event.issue.number }}"
 }
 
 func TestActivationOutputsCodemodMetadata(t *testing.T) {
+	t.Parallel()
 	codemod := getActivationOutputsCodemod()
 
 	assert.Equal(t, "activation-outputs-to-sanitized-step", codemod.ID)

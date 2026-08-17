@@ -9,6 +9,22 @@ allow:
   - BSD-3-Clause
   - ISC
 
+# Container images excluded from license scanning entirely (glob patterns matched
+# against the image reference). This gh-aw specific key is not part of grant's
+# policy schema; grant ignores it.
+#
+# ghcr.io/oraios/serena is the project-maintained Serena MCP image: a Debian
+# development image bundling a full Rust toolchain, a Python 3.11 environment,
+# Node.js and ~1700 packages. Its cargo registry alone accounts for 566 crates
+# that ship no SPDX license metadata, which `require-license: true` reports as
+# violations even though the crates are permissively licensed upstream. gh-aw
+# runs this image as an MCP server and never links or redistributes any of its
+# contents, so per-package exceptions would add hundreds of entries that also
+# weaken the policy for every other scanned image. Vulnerability scanning
+# (`--grype`) still covers this image.
+ignore-images:
+  - "ghcr.io/oraios/serena:*"
+
 # Base OS packages of upstream container images that gh-aw executes (Alpine
 # variants of the MCP server and runtime images, the Debian-based
 # ghcr.io/github/github-mcp-server image, and the Ubuntu 22.04 based
