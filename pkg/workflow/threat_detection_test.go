@@ -1960,6 +1960,67 @@ func TestWorkspaceCheckoutStepOrdering(t *testing.T) {
 	}
 }
 
+func TestDetectionJobDownloadsActivationArtifactBeforeAgentOutput(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		Name: "test-workflow",
+		AI:   "copilot",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	job, err := compiler.buildDetectionJob(data)
+	if err != nil {
+		t.Fatalf("buildDetectionJob() error: %v", err)
+	}
+	if job == nil {
+		t.Fatal("buildDetectionJob() returned nil job")
+	}
+
+	stepsString := strings.Join(job.Steps, "")
+	activationDownloadIdx := strings.Index(stepsString, "Download activation artifact")
+	agentDownloadIdx := strings.Index(stepsString, "Download agent output artifact")
+	prepareIdx := strings.Index(stepsString, "Prepare threat detection files")
+
+	if activationDownloadIdx < 0 {
+		t.Fatal("Expected 'Download activation artifact' step in detection job")
+	}
+	if agentDownloadIdx < 0 {
+		t.Fatal("Expected 'Download agent output artifact' step in detection job")
+	}
+	if prepareIdx < 0 {
+		t.Fatal("Expected 'Prepare threat detection files' step in detection job")
+	}
+	if activationDownloadIdx > agentDownloadIdx {
+		t.Error("Activation artifact download should appear before agent output download")
+	}
+	if agentDownloadIdx > prepareIdx {
+		t.Error("Agent output download should appear before detection file preparation")
+	}
+	if !strings.Contains(stepsString, "name: activation") {
+		t.Error("Detection job should download the activation artifact so prompt files are available")
+	}
+	if !strings.Contains(stepsString, "path: /tmp/gh-aw") {
+		t.Error("Activation artifact should download into /tmp/gh-aw for prompt staging")
+	}
+}
+
+func TestDetectionActivationArtifactDownloadUsesActivationPrefixForWorkflowCall(t *testing.T) {
+	steps := strings.Join(buildDetectionActivationArtifactDownloadSteps(&WorkflowData{
+		On: "workflow_call",
+	}, getActionPin), "")
+
+	expected := "name: ${{ needs.activation.outputs.artifact_prefix }}activation"
+	if !strings.Contains(steps, expected) {
+		t.Fatalf("Expected workflow_call detection activation download to use %q, got:\n%s", expected, steps)
+	}
+	if strings.Contains(steps, "needs.agent.outputs.artifact_prefix") {
+		t.Fatalf("Detection activation artifact download must not use the agent prefix, got:\n%s", steps)
+	}
+}
+
 func TestCleanFirewallDirsStepPresent(t *testing.T) {
 	compiler := NewCompiler()
 
