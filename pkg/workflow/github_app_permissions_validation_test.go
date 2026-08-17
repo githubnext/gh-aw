@@ -447,6 +447,28 @@ func TestConvertPermissionsToAppTokenFields_GitHubAppOnly(t *testing.T) {
 			},
 		},
 		{
+			name: "secret-scanning-alerts maps correctly",
+			permissions: func() *Permissions {
+				p := NewPermissions()
+				p.Set(PermissionSecretScanningAlerts, PermissionRead)
+				return p
+			}(),
+			expectedFields: map[string]string{
+				"permission-secret-scanning-alerts": "read",
+			},
+		},
+		{
+			name: "secret-scanning-alerts none is omitted",
+			permissions: func() *Permissions {
+				p := NewPermissions()
+				p.Set(PermissionSecretScanningAlerts, PermissionNone)
+				return p
+			}(),
+			absentFields: []string{
+				"permission-secret-scanning-alerts",
+			},
+		},
+		{
 			name: "discussions permission IS mapped (actions/create-github-app-token reads all INPUT_PERMISSION-* env vars)",
 			permissions: func() *Permissions {
 				p := NewPermissions()
