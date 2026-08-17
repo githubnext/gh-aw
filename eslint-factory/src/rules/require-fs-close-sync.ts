@@ -33,6 +33,9 @@ function isNode(value: unknown): value is TSESTree.Node {
   return typeof value === "object" && value !== null && typeof (value as { type?: unknown }).type === "string";
 }
 
+/** Node fields that never contain child nodes; skipped while walking. */
+const NON_CHILD_KEYS = new Set(["parent", "loc", "range"]);
+
 function collectIdentifiers(node: TSESTree.Node, out: TSESTree.Identifier[]): void {
   if (node.type === AST_NODE_TYPES.Identifier) {
     out.push(node);
@@ -40,7 +43,7 @@ function collectIdentifiers(node: TSESTree.Node, out: TSESTree.Identifier[]): vo
   }
 
   for (const [key, value] of Object.entries(node)) {
-    if (key === "parent") continue;
+    if (NON_CHILD_KEYS.has(key)) continue;
     if (Array.isArray(value)) {
       for (const item of value) {
         if (isNode(item)) collectIdentifiers(item, out);
