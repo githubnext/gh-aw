@@ -683,6 +683,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtrOrDefault("allow_title", c.Title, true).
 			AddBoolPtrOrDefault("allow_body", c.Body, true).
 			AddBoolPtrOrDefault("update_branch", c.UpdateBranch, false).
+			AddBoolPtrOrDefault("update_branch_stacks", c.UpdateBranchStacks, true).
 			AddStringPtr("default_operation", c.Operation).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).AddStringSlice("required_labels", c.RequiredLabels).
 			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("target-repo", c.TargetRepoSlug).

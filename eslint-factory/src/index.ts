@@ -11,6 +11,7 @@ import { preferGetErrorMessageOverStringRule } from "./rules/prefer-get-error-me
 import { preferNumberIsNanRule } from "./rules/prefer-number-isnan";
 import { requireAsyncEntrypointCatchRule } from "./rules/require-async-entrypoint-catch";
 import { requireAwaitCoreSummaryWriteRule } from "./rules/require-await-core-summary-write";
+import { requireFsCloseSyncRule } from "./rules/require-fs-close-sync";
 import { requireFsSyncTryCatchRule } from "./rules/require-fs-sync-try-catch";
 import { requireJsonParseTryCatchRule } from "./rules/require-json-parse-try-catch";
 import { requireErrorCauseInRethrowRule } from "./rules/require-error-cause-in-rethrow";
@@ -68,6 +69,7 @@ const plugin = {
     "prefer-number-isnan": preferNumberIsNanRule,
     "require-async-entrypoint-catch": requireAsyncEntrypointCatchRule,
     "require-await-core-summary-write": requireAwaitCoreSummaryWriteRule,
+    "require-fs-close-sync": requireFsCloseSyncRule,
     "require-error-cause-in-rethrow": requireErrorCauseInRethrowRule,
     "require-fs-sync-try-catch": requireFsSyncTryCatchRule,
     "require-json-parse-try-catch": requireJsonParseTryCatchRule,

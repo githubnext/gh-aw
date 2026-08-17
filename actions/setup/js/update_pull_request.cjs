@@ -19,9 +19,9 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
 
 /**
  * @param {unknown} error
- * @returns {boolean}
+ * @returns {number|undefined}
  */
-function isNonFatalUpdateBranchError(error) {
+function getErrorStatus(error) {
   // Resolve the effective HTTP status by checking the error and its .originalError chain.
   // withRetry wraps the original error in an enhanced error that lacks .status, so we need
   // to walk the chain to find the underlying status from the GitHub API response.
@@ -36,6 +36,25 @@ function isNonFatalUpdateBranchError(error) {
     }
     current = current.originalError ?? null;
   }
+  return status;
+}
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isStackedPRUnsupportedUpdateBranchError(error) {
+  const status = getErrorStatus(error);
+  const message = getErrorMessage(error).toLowerCase();
+  return status === 422 && message.includes("updating a stacked pr's branch via this endpoint is not supported");
+}
+
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isNonFatalUpdateBranchError(error) {
+  const status = getErrorStatus(error);
   const message = getErrorMessage(error).toLowerCase();
   const hasWorkflowsPermissionPhrase = /without\s+`?workflows`?\s+permission/i.test(message);
   const hasWorkflowMutationRefusal = message.includes("refusing to allow a github app to create or update workflow");
@@ -48,9 +67,11 @@ function isNonFatalUpdateBranchError(error) {
 
   if (status !== undefined) {
     if (status === 403 && (hasWorkflowsPermissionError || hasWorkflowsScopeRequired)) {
+      core.info(`Treating update-branch error as non-fatal: workflows permission/scope restriction on 403 (status=${status})`);
       return true;
     }
     if (status !== 422 && !message.includes("head ref does not exist")) {
+      core.info(`Treating update-branch error as fatal: status is not 422 and head-ref is not missing (status=${status})`);
       return false;
     }
   }
@@ -66,11 +87,57 @@ function isNonFatalUpdateBranchError(error) {
   // errors. hasWorkflowsPermissionError / hasWorkflowsScopeRequired are only checked for errors
   // with no numeric status (status === undefined); the explicit 403 case is already handled by
   // the if-block above.
-  return (
+  const isNonFatal =
     (status !== undefined && message.includes("head ref does not exist")) ||
     (status === 422 && (message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head"))) ||
-    ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined)
-  );
+    ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined);
+  const finalReason = isNonFatal ? "matched known benign update-branch validation/scope condition" : "did not match any known benign update-branch condition";
+  core.info(`Treating update-branch error as ${isNonFatal ? "non-fatal" : "fatal"}: ${finalReason} (status=${status ?? "unknown"})`);
+  return isNonFatal;
+}
+
+/**
+ * @param {any} github
+ * @param {any} context
+ * @param {number} prNumber
+ * @returns {Promise<boolean>}
+ */
+async function tryStackedPRUpdateBranch(github, context, prNumber) {
+  /** @type {number|undefined} */
+  let stackNumber;
+
+  try {
+    const { data: stacks } = await github.request("GET /repos/{owner}/{repo}/stacks", {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_request: prNumber,
+      per_page: 1,
+    });
+    if (Array.isArray(stacks) && stacks.length > 0 && typeof stacks[0]?.number === "number") {
+      stackNumber = stacks[0].number;
+    }
+  } catch (error) {
+    core.info(`Unable to resolve stack number from stack list for #${prNumber}: ${getErrorMessage(error)}; skipping stack sync`);
+    return false;
+  }
+
+  if (stackNumber === undefined) {
+    core.info(`Unable to sync stacked PR #${prNumber}: no stack number could be resolved`);
+    return false;
+  }
+
+  try {
+    await github.request("POST /repos/{owner}/{repo}/stacks/{stack_number}/sync", {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      stack_number: stackNumber,
+    });
+    core.info(`Synced stacked PR #${prNumber} via stack #${stackNumber}`);
+    return true;
+  } catch (error) {
+    core.info(`Unable to sync stacked PR #${prNumber} via stack #${stackNumber}: ${getErrorMessage(error)}`);
+    return false;
+  }
 }
 
 /**
@@ -88,10 +155,12 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   const includeFooter = updateData._includeFooter !== false; // Default to true
 
   // Remove internal fields (including update_branch which is handled separately below)
-  const { _operation, _rawBody, _includeFooter, _workflowRepo, update_branch, ...apiData } = updateData;
+  const { _operation, _rawBody, _includeFooter, _workflowRepo, _update_branch_stacks, update_branch, ...apiData } = updateData;
   const updateBranch = update_branch === true;
+  const updateBranchStacksEnabled = _update_branch_stacks !== false;
 
   if (updateBranch) {
+    core.info(`update_branch stacked PR sync fallback is ${updateBranchStacksEnabled ? "enabled" : "disabled"} for pull request #${prNumber}`);
     core.info(`Updating pull request #${prNumber} branch with base branch changes`);
     try {
       await withRetry(
@@ -111,7 +180,20 @@ async function executePRUpdate(github, context, prNumber, updateData) {
       );
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      if (isNonFatalUpdateBranchError(error)) {
+      if (isStackedPRUnsupportedUpdateBranchError(error)) {
+        if (updateBranchStacksEnabled) {
+          core.info(`Attempting stacked PR stack-sync fallback for pull request #${prNumber} after update_branch 422 unsupported response`);
+          const didSyncStack = await tryStackedPRUpdateBranch(github, context, prNumber);
+          if (didSyncStack) {
+            core.info(`Updated stacked PR #${prNumber} branch via stack sync`);
+          } else {
+            core.warning(`Failed to update pull request #${prNumber} branch from base (non-fatal): ${errorMessage}`);
+          }
+        } else {
+          core.info(`Skipping stacked PR stack-sync fallback for pull request #${prNumber}: update_branch_stacks=false`);
+          core.warning(`Failed to update pull request #${prNumber} branch from base (non-fatal): ${errorMessage}`);
+        }
+      } else if (isNonFatalUpdateBranchError(error)) {
         core.warning(`Failed to update pull request #${prNumber} branch from base (non-fatal): ${errorMessage}`);
       } else {
         core.warning(`Failed to update pull request #${prNumber} branch from base: ${errorMessage}`);
@@ -207,6 +289,8 @@ function buildPRUpdateData(item, config) {
   }
 
   const updateBranch = item.update_branch !== undefined ? item.update_branch === true : config.update_branch === true;
+  const updateBranchStacksEnabled = config.update_branch_stacks !== false;
+  updateData._update_branch_stacks = updateBranchStacksEnabled;
   if (updateBranch) {
     updateData.update_branch = true;
     hasUpdates = true;
@@ -254,6 +338,7 @@ const main = createUpdateHandlerFactory({
     allow_title: true,
     allow_body: true,
     update_branch: false,
+    update_branch_stacks: true,
   },
   itemFilter: async (githubClient, repoParts, prNumber, config) => {
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
