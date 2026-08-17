@@ -30,7 +30,7 @@ require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
-const { ERR_CONFIG } = require("./error_codes.cjs");
+const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const ADD_COMMENT_DEFAULT_DISCUSSIONS_NOTE =
   "NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.";
@@ -212,7 +212,7 @@ async function main() {
     try {
       fs.writeFileSync(toolsMetaPath, process.env.GH_AW_TOOLS_META_JSON);
     } catch (err) {
-      throw new Error(`${ERR_CONFIG}: Failed to write file ${toolsMetaPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to write file ${toolsMetaPath}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
   if (process.env.GH_AW_VALIDATION_JSON) {
@@ -220,7 +220,7 @@ async function main() {
     try {
       fs.writeFileSync(validationPath, process.env.GH_AW_VALIDATION_JSON);
     } catch (err) {
-      throw new Error(`${ERR_CONFIG}: Failed to write file ${validationPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to write file ${validationPath}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 
@@ -233,9 +233,14 @@ async function main() {
   /** @type {Array<{name: string, description: string, inputSchema?: {properties?: Record<string, unknown>}}>} */
   let allTools;
   try {
-    allTools = JSON.parse(fs.readFileSync(toolsSourcePath, "utf8"));
+    allTools = fs.readFileSync(toolsSourcePath, "utf8");
   } catch (err) {
-    throw new Error(`${ERR_CONFIG}: ` + "Failed to parse tools source file " + toolsSourcePath + ": " + getErrorMessage(err), { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to read tools source file ${toolsSourcePath}: ${getErrorMessage(err)}`, { cause: err });
+  }
+  try {
+    allTools = JSON.parse(allTools);
+  } catch (err) {
+    throw new Error(`${ERR_PARSE}: ` + "Failed to parse tools source file " + toolsSourcePath + ": " + getErrorMessage(err), { cause: err });
   }
 
   // Load config to determine which tools are enabled
@@ -247,9 +252,14 @@ async function main() {
   /** @type {Record<string, unknown>} */
   let config;
   try {
-    config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    config = fs.readFileSync(configPath, "utf8");
   } catch (err) {
-    throw new Error(`${ERR_CONFIG}: ` + "Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to read config file ${configPath}: ${getErrorMessage(err)}`, { cause: err });
+  }
+  try {
+    config = JSON.parse(config);
+  } catch (err) {
+    throw new Error(`${ERR_PARSE}: ` + "Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
   }
 
   // Load tools meta (description suffixes, repo params, dynamic tools)
@@ -257,9 +267,14 @@ async function main() {
   let toolsMeta = { description_suffixes: {}, repo_params: {}, dynamic_tools: [] };
   if (fs.existsSync(toolsMetaPath)) {
     try {
-      toolsMeta = JSON.parse(fs.readFileSync(toolsMetaPath, "utf8"));
+      toolsMeta = fs.readFileSync(toolsMetaPath, "utf8");
     } catch (err) {
-      throw new Error(`${ERR_CONFIG}: ` + "Failed to parse tools meta file " + toolsMetaPath + ": " + getErrorMessage(err), { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to read tools meta file ${toolsMetaPath}: ${getErrorMessage(err)}`, { cause: err });
+    }
+    try {
+      toolsMeta = JSON.parse(toolsMeta);
+    } catch (err) {
+      throw new Error(`${ERR_PARSE}: ` + "Failed to parse tools meta file " + toolsMetaPath + ": " + getErrorMessage(err), { cause: err });
     }
   }
 
@@ -396,7 +411,7 @@ async function main() {
   try {
     fs.writeFileSync(outputPath, JSON.stringify(allFilteredTools, null, 2));
   } catch (err) {
-    throw new Error(`${ERR_CONFIG}: Failed to write file ${outputPath}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${outputPath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   const debugEnabled = process.env.DEBUG === "*" || (process.env.DEBUG || "").includes("safe_outputs");
