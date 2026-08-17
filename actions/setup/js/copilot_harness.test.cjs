@@ -8,7 +8,7 @@ import path from "path";
 const require = createRequire(import.meta.url);
 const { EventEmitter } = require("events");
 const { PassThrough } = require("stream");
-const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
+const { COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS, buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const { buildCopilotSDKEnv, isCopilotSDKEnabled } = require("./process_runner.cjs");
 const {
   appendSafeOutputLine,
@@ -997,6 +997,11 @@ describe("copilot_harness.cjs", () => {
           connectImpl,
         })
       ).resolves.toBeUndefined();
+    });
+
+    it("allows the headless server enough startup budget for Copilot CLI package extraction", () => {
+      // Package extraction alone has been observed to take ~7s on hosted runners.
+      expect(COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS).toBeGreaterThanOrEqual(30000);
     });
   });
 
