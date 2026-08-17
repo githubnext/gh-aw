@@ -39,6 +39,7 @@ func TestValidateAcceptsIssueFieldActivityTypes(t *testing.T) {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
+	// CompileWorkflows requires running inside a git repository.
 	workflowsDir := filepath.Join(".github", "workflows")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
@@ -73,7 +74,9 @@ This workflow reacts to issue field activity type changes.
 
 	// NoEmit should prevent lock file generation during validation.
 	lockFile := filepath.Join(workflowsDir, "issue-field-activity.lock.yml")
-	if _, err := os.Stat(lockFile); !os.IsNotExist(err) {
+	if _, statErr := os.Stat(lockFile); statErr == nil {
 		t.Error("Expected no lock file to be created when validating with NoEmit")
+	} else if !os.IsNotExist(statErr) {
+		t.Fatalf("Failed to stat lock file: %v", statErr)
 	}
 }
