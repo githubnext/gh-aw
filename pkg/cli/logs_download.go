@@ -190,6 +190,9 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	} else {
 		// No .dockerbuild artifacts detected (or listing failed) — use efficient bulk download.
 		if err := bulkDownloadArtifacts(ctx, opts, spinner, downloadableNames); err != nil {
+			if !opts.verbose {
+				spinner.Stop()
+			}
 			return err
 		}
 	}
@@ -510,7 +513,9 @@ func recoverBulkDownloadArtifacts(ctx context.Context, opts downloadArtifactsOpt
 
 // classifyBulkDownloadError inspects a failed gh run download invocation and reports
 // whether the failure can be recovered from by retrying artifacts individually.
-// A non-nil error means the failure is fatal for this run.
+// err is the error from CombinedOutput and is used to detect authentication failures;
+// output is the combined stdout and stderr from the same invocation.
+// A non-nil returned error means the failure is fatal for this run.
 func classifyBulkDownloadError(ctx context.Context, opts downloadArtifactsOptions, output []byte, err error) (skippedNonZip bool, skippedCaseCollision bool, fatal error) {
 	// Check if it's because there are no artifacts
 	if strings.Contains(string(output), "no valid artifacts") || strings.Contains(string(output), "not found") {

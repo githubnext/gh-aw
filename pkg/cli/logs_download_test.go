@@ -489,6 +489,33 @@ func TestDownloadRunArtifacts_CachedUsageFallbackToActivation(t *testing.T) {
 	assert.Contains(t, string(argsLog), "run download 12345 --name abc123-activation")
 }
 
+func TestDownloadRunArtifacts_CachedUsageSkipsDockerBuildOnlyRun(t *testing.T) {
+	outputDir := t.TempDir()
+	usageDir := filepath.Join(outputDir, "usage")
+	require.NoError(t, os.MkdirAll(usageDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(usageDir, "usage.jsonl"), []byte("{}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(usageDir, "aw_info.json"), []byte("{}\n"), 0o644))
+
+	fakeBinDir := t.TempDir()
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	argsLogPath := filepath.Join(fakeBinDir, "gh-args.log")
+	fakeGHScript := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLogPath + "\"\n" +
+		"printf '%s\\n' \"image.dockerbuild\"\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(fakeGHScript), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{
+		runID:          12345,
+		outputDir:      outputDir,
+		owner:          "github",
+		repo:           "gh-aw",
+		artifactFilter: []string{"usage"},
+	})
+	require.NoError(t, err)
+	assert.NoFileExists(t, argsLogPath, "cached usage should avoid listing or downloading residual artifacts")
+}
+
 func TestDownloadRunArtifacts_UsesAwInfoFromUsageArtifact(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "usage-aw-info-*")
 
