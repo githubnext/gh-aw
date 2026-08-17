@@ -5,13 +5,12 @@ description: Configure unified AWF script and agent enclaves through the trusted
 
 The top-level `enclaves` array enables finite-disclosure access to approved private repositories. The compiler registers `enclave_run_script` or `enclave_run_agent` from the keyed entries present on the `awf-enclave` MCP route. Omit the array to disable enclaves.
 
-Enclaves require AWF network isolation. Configure `sandbox.agent.sudo: false` (or the `docker-sbx` runtime) so the compiler launches mcpg in bridge mode and AWF can attach it to the isolated topology.
+Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler launches mcpg in bridge mode and AWF can attach it to the isolated topology.
 
 ```yaml
 sandbox:
   agent:
     id: awf
-    sudo: false
 enclaves:
   - script:
     repos:

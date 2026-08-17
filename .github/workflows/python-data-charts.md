@@ -33,9 +33,6 @@ safe-outputs:
 timeout-minutes: 15
 
 
-sandbox:
-  agent:
-    sudo: false
 ---
 
 # Python Data Visualization Generator

@@ -15,7 +15,7 @@ Use these instructions when a workflow needs bounded, auditable access to a priv
 
 ## Prerequisites
 
-- Enclaves require AWF network isolation. Set `sandbox.agent.sudo: false` (or use the `docker-sbx` runtime) so the compiler launches the MCP gateway in bridge mode and AWF can attach it to the isolated topology.
+- Enclaves require AWF network isolation, which every supported `sandbox.agent.runtime` profile provides, so the compiler launches the MCP gateway in bridge mode and AWF can attach it to the isolated topology.
 - Each `repos:` entry needs `repo:` (`owner/name`) and `sensitivity:` (`public`, `internal`, `confidential`, or `sealed`).
 
 ## Example
@@ -24,7 +24,6 @@ Use these instructions when a workflow needs bounded, auditable access to a priv
 sandbox:
   agent:
     id: awf
-    sudo: false
 enclaves:
   - script:
     repos:

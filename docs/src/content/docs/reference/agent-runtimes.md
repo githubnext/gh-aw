@@ -145,7 +145,7 @@ The runner therefore needs:
 - AWF `v0.27.30` or newer. The repository default is newer; this matters when `firewall.version` or `sandbox.agent.version` is pinned.
 
 > [!IMPORTANT]
-> Host-level `sudo` is required by the generated gVisor installation step, but `sandbox.agent.sudo: true` is not required. Leave that field omitted or false to retain AWF's default network-isolation mode. Setting it to true changes the agent security mode and is rejected in strict mode.
+> Host-level `sudo` is required by the generated gVisor installation step, but the agent itself keeps running rootless under AWF network isolation. The compiler derives these privileges from `sandbox.agent.runtime: gvisor`; there is no separate `sudo` field to set.
 
 Set `runtime-install: false` when the runner image already contains a working, Docker-registered `runsc` runtime:
 
@@ -173,7 +173,7 @@ The user-space kernel adds CPU, syscall, filesystem, and network overhead. Some 
 
 **Download or checksum failure:** Confirm access to `storage.googleapis.com/gvisor`, inspect proxy or TLS interception, and verify that the runner architecture is reported as `x86_64` or `aarch64`.
 
-**`sudo` prompts or fails:** Provision passwordless `sudo` for the runner service account. Setting `sandbox.agent.sudo: true` does not grant host permissions and will not fix the installer.
+**`sudo` prompts or fails:** Provision passwordless `sudo` for the runner service account. No frontmatter field can grant host permissions or fix the installer.
 
 **`systemctl: command not found` or Docker is not a systemd service:** The runner image is incompatible with the generated installer. Use a conventional systemd-based runner, pre-provision and maintain gVisor outside the workflow only if the generated setup remains compatible, or select Docker.
 
@@ -194,7 +194,6 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
-    sudo: true
 ---
 
 Investigate this issue.
@@ -224,7 +223,7 @@ The runner needs:
 
 The compiler generates fail-fast KVM and secret checks, installs `docker-sbx`, changes `/dev/kvm` permissions, starts the sbx daemon, authenticates both CLIs, initializes an allow-all sbx policy, pulls the template, and runs a create/exec/remove smoke test. It refreshes sbx credentials again immediately before AWF starts the agent.
 
-`sandbox.agent.sudo: true` is mandatory when runtime installation is enabled. Unlike gVisor, the compiler treats this as an explicit Docker sbx installation requirement. AWF still enables network isolation for Docker sbx; the field permits the required installation path rather than disabling egress enforcement for the microVM.
+These installation steps require passwordless host `sudo`; the compiler derives that requirement from `sandbox.agent.runtime: docker-sbx`. AWF itself still runs rootless with network isolation enabled for Docker sbx.
 
 Set `runtime-install: false` when the runner image already has Docker sbx, a working sbx daemon and policy, KVM access, and the required template:
 
@@ -238,7 +237,7 @@ sandbox:
 ---
 ```
 
-This skips the generated KVM check, secret check, package installation, daemon setup, template pull, and pre-flight smoke test. It also removes the compile-time requirement for `sandbox.agent.sudo: true`. The runner must already satisfy those checks; gh-aw does not verify them when installation is disabled. The credential-refresh step still runs immediately before agent execution, so `DOCKER_USERNAME` and `DOCKER_PAT` remain required. If any imported workflow sets `runtime-install: false`, false wins during import merging.
+This skips the generated KVM check, secret check, package installation, daemon setup, template pull, and pre-flight smoke test. The runner must already satisfy those checks; gh-aw does not verify them when installation is disabled. The credential-refresh step still runs immediately before agent execution, so `DOCKER_USERNAME` and `DOCKER_PAT` remain required. If any imported workflow sets `runtime-install: false`, false wins during import merging.
 
 Docker sbx cannot be combined with `runner.topology: arc-dind`. ARC DinD normally does not expose nested KVM, and the sbx daemon must run on the runner host rather than inside the DinD sidecar.
 
@@ -291,7 +290,7 @@ Preview scope is intentionally narrow:
 - `/dev/kvm` must be present.
 - `runner.topology: arc-dind` is not supported.
 - `tools.github.mode: gh-proxy` and the `integrity-reactions` feature are not supported: the CLI proxy sidecar is not attached to the isolated topology.
-- `sandbox.agent.legacy-security: enable` and `sandbox.agent.allow-host-ports` are not supported: the runtime rejects `--legacy-security` and `--enable-host-access`.
+- `sandbox.agent.allow-host-ports` and GitHub Actions `services:` with published ports are not supported: host access requires `sandbox.agent.runtime: docker-sudo-iptables`.
 - `enclaves` configuration is not supported.
 
 The compiler grants only the runner user read/write access to `/dev/kvm`, then emits host preflight and release-asset provisioning steps before AWF runs. Provisioning downloads the Cloud Hypervisor bundle, `SHA256SUMS`, and `manifest.json` from the pinned `gh-aw-firewall` release, verifies checksums, and feeds AWF digest-pinned flags for the Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor.
@@ -392,4 +391,4 @@ Enable compiler diagnostics when generated configuration is unexpected:
 DEBUG=workflow:* gh aw compile 2>debug.log
 ```
 
-Do not compensate for a missing host capability with extra agent mounts, manual AWF arguments, or `sandbox.agent.sudo`. Fix the runner prerequisite or select a compatible runtime.
+Do not compensate for a missing host capability with extra agent mounts or manual AWF arguments. Fix the runner prerequisite or select a compatible runtime.

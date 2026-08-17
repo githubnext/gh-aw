@@ -32,7 +32,6 @@ timeout-minutes: 10
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: Claude on GitHub Inference PR Summary

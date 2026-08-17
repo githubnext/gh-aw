@@ -19,9 +19,6 @@ max-turns: 100
 model: copilot/gpt-5.4
 engine:
   id: pi
-sandbox:
-  agent:
-    sudo: false
 tools:
   cli-proxy: true
   github:

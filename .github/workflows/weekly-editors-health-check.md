@@ -47,7 +47,6 @@ safe-outputs:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Weekly Editors Health Check

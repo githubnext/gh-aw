@@ -19,9 +19,6 @@ permissions:
   security-events: read
   copilot-requests: write
 
-sandbox:
-  agent:
-    sudo: false
 
 safe-outputs:
   create-code-scanning-alert:

@@ -32,9 +32,6 @@ engine:
 max-tool-denials: 3
 strict: true
 timeout-minutes: 20
-sandbox:
-  agent:
-    sudo: false
 tools:
   bash:
   - "*"

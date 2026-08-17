@@ -23,9 +23,6 @@ engine:
 max-tool-denials: 3
 strict: false
 
-sandbox:
-  agent:
-    sudo: false
 tools:
   cli-proxy: true
   github: false

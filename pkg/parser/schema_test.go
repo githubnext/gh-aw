@@ -2361,111 +2361,61 @@ func TestMainWorkflowSchema_ModelsProvidersAiCreditsPricing(t *testing.T) {
 	})
 }
 
-// TestMainWorkflowSchema_SandboxAgentSudo is a regression guard for #41679.
-// The JSON schema already contains sandbox.agent.sudo; these tests ensure it
-// stays accepted and that the legacy network-isolation field stays rejected,
-// preventing future drift between the Go struct YAML tags and the schema.
-func TestMainWorkflowSchema_SandboxAgentSudo(t *testing.T) {
+// TestMainWorkflowSchema_SandboxAgentRuntime guards the sandbox runtime profile
+// selector: sandbox.agent.runtime accepts only the supported profiles, and the removed
+// sudo / legacy-security / network-isolation fields stay rejected so that the Go struct
+// YAML tags and the schema cannot drift apart.
+func TestMainWorkflowSchema_SandboxAgentRuntime(t *testing.T) {
 	t.Parallel()
 
-	t.Run("sudo: false is accepted", func(t *testing.T) {
+	agentFrontmatter := func(agent map[string]any) map[string]any {
+		return map[string]any{
+			"on":      "push",
+			"engine":  "copilot",
+			"sandbox": map[string]any{"agent": agent},
+		}
+	}
+
+	for _, runtime := range []string{"docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor"} {
+		t.Run("runtime: "+runtime+" is accepted", func(t *testing.T) {
+			t.Parallel()
+
+			frontmatter := agentFrontmatter(map[string]any{"id": "awf", "runtime": runtime})
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-runtime-test.md")
+			if err != nil {
+				t.Fatalf("expected sandbox.agent.runtime: %s to pass schema validation, got: %v", runtime, err)
+			}
+		})
+	}
+
+	t.Run("unknown runtime is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		frontmatter := map[string]any{
-			"on":     "push",
-			"engine": "copilot",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"id":   "awf",
-					"sudo": false,
-				},
-			},
-		}
-
-		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-sudo-false-test.md")
-		if err != nil {
-			t.Fatalf("expected sandbox.agent.sudo: false to pass schema validation, got: %v", err)
-		}
-	})
-
-	t.Run("sudo: true is accepted", func(t *testing.T) {
-		t.Parallel()
-
-		frontmatter := map[string]any{
-			"on":     "push",
-			"engine": "copilot",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"id":   "awf",
-					"sudo": true,
-				},
-			},
-		}
-
-		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-sudo-true-test.md")
-		if err != nil {
-			t.Fatalf("expected sandbox.agent.sudo: true to pass schema validation, got: %v", err)
-		}
-	})
-
-	t.Run("sudo without id is accepted", func(t *testing.T) {
-		t.Parallel()
-
-		frontmatter := map[string]any{
-			"on":     "push",
-			"engine": "copilot",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"sudo": false,
-				},
-			},
-		}
-
-		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-sudo-no-id-test.md")
-		if err != nil {
-			t.Fatalf("expected sandbox.agent.sudo: false (without id) to pass schema validation, got: %v", err)
-		}
-	})
-
-	t.Run("network-isolation (old field) is rejected", func(t *testing.T) {
-		t.Parallel()
-
-		frontmatter := map[string]any{
-			"on":     "push",
-			"engine": "copilot",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"id":                "awf",
-					"network-isolation": true,
-				},
-			},
-		}
-
-		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-network-isolation-test.md")
+		frontmatter := agentFrontmatter(map[string]any{"id": "awf", "runtime": "podman"})
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-runtime-unknown-test.md")
 		if err == nil {
-			t.Error("expected sandbox.agent.network-isolation to be rejected (field was renamed to sudo)")
+			t.Error("expected an unsupported sandbox.agent.runtime to be rejected by schema validation")
 		}
 	})
 
-	t.Run("non-boolean sudo is rejected", func(t *testing.T) {
-		t.Parallel()
+	for _, removed := range []struct {
+		name  string
+		agent map[string]any
+	}{
+		{name: "sudo", agent: map[string]any{"id": "awf", "sudo": false}},
+		{name: "legacy-security", agent: map[string]any{"id": "awf", "legacy-security": "enable"}},
+		{name: "network-isolation", agent: map[string]any{"id": "awf", "network-isolation": true}},
+	} {
+		t.Run(removed.name+" is rejected", func(t *testing.T) {
+			t.Parallel()
 
-		frontmatter := map[string]any{
-			"on":     "push",
-			"engine": "copilot",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"id":   "awf",
-					"sudo": "false",
-				},
-			},
-		}
-
-		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-sudo-string-test.md")
-		if err == nil {
-			t.Error("expected sandbox.agent.sudo with string value to be rejected by schema validation")
-		}
-	})
+			frontmatter := agentFrontmatter(removed.agent)
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/sandbox-agent-removed-field-test.md")
+			if err == nil {
+				t.Errorf("expected removed field sandbox.agent.%s to be rejected (use sandbox.agent.runtime instead)", removed.name)
+			}
+		})
+	}
 }
 
 // TestValidateWithSchema_YAMLIntegerTypes verifies that validateWithSchema accepts

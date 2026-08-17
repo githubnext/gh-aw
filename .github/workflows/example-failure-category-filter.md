@@ -4,9 +4,6 @@ name: Example Failure Category Filter
 on:
   workflow_dispatch:
 
-sandbox:
-  agent:
-    sudo: false
 
 safe-outputs:
   report-failure-as-issue:

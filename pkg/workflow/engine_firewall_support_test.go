@@ -295,8 +295,7 @@ func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
 		Name: "test-workflow",
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:               "awf",
-				NetworkIsolation: true,
+				ID: "awf",
 			},
 		},
 	}
@@ -309,25 +308,25 @@ func TestGenerateFirewallLogParsingStepNetworkIsolationOmitsSudo(t *testing.T) {
 	}
 }
 
-func TestGenerateFirewallLogParsingStepWithNetworkIsolationFalse(t *testing.T) {
+func TestGenerateFirewallLogParsingStepWithPrivilegedRuntime(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:               "awf",
-				NetworkIsolation: false,
+				ID:      "awf",
+				Runtime: AgentRuntimeCloudHypervisor,
 			},
 		},
 	}
 	step := generateFirewallLogParsingStep("test-workflow", workflowData)
 	stepContent := strings.Join(step, "\n")
 
-	// With NetworkIsolation explicitly false, should invoke script without --rootless
+	// Runtime profiles that run AWF with sudo must invoke the script without --rootless
 	if !strings.Contains(stepContent, `bash "${RUNNER_TEMP}/gh-aw/actions/print_firewall_logs.sh"`) {
-		t.Error("Expected firewall log parsing step to invoke print_firewall_logs.sh when NetworkIsolation is explicitly false")
+		t.Error("Expected firewall log parsing step to invoke print_firewall_logs.sh for a privileged runtime")
 	}
 	if strings.Contains(stepContent, "--rootless") {
-		t.Error("Expected no --rootless flag when NetworkIsolation is explicitly false")
+		t.Error("Expected no --rootless flag for a privileged runtime profile")
 	}
 }
 
@@ -339,9 +338,8 @@ func TestGenerateFirewallLogParsingStepLegacySecurityOmitsRootless(t *testing.T)
 		Name: "test-workflow",
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:               "awf",
-				NetworkIsolation: true,
-				LegacySecurity:   true,
+				ID:      "awf",
+				Runtime: AgentRuntimeDockerSudoIptables,
 			},
 		},
 	}

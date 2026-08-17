@@ -23,9 +23,6 @@ engine:
 
 imports:
   - shared/otlp.md
-sandbox:
-  agent:
-    sudo: false
 tools:
   cli-proxy: true
   bash: ["cat", "ls", "find", "grep", "head", "tail", "wc", "git", "jq *"]

@@ -86,13 +86,11 @@ func buildExpandableAWFArgs(config AWFCommandConfig, isCloudHypervisor, isArcDin
 }
 
 func appendExpandableServiceAndHypervisorArgs(config AWFCommandConfig, isCloudHypervisor bool, expandableArgs string) string {
-	agentCfg := getAgentConfig(config.WorkflowData)
-	isLegacyMode := agentCfg != nil && agentCfg.LegacySecurity
-	if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" && isLegacyMode {
+	if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" && isLegacySecurityRuntime(config.WorkflowData) {
 		expandableArgs += fmt.Sprintf(` --allow-host-service-ports "%s"`, config.WorkflowData.ServicePortExpressions)
 		awfHelpersLog.Printf("Added --allow-host-service-ports with %s", config.WorkflowData.ServicePortExpressions)
 	} else if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
-		awfHelpersLog.Print("Skipping --allow-host-service-ports: requires legacy-security mode")
+		awfHelpersLog.Printf("Skipping --allow-host-service-ports: requires sandbox.agent.runtime: %s", AgentRuntimeDockerSudoIptables)
 	}
 	if isCloudHypervisor {
 		expandableArgs += ` --cloud-hypervisor-binary "${GH_AW_CLOUD_HYPERVISOR_BINARY}"` +
@@ -408,24 +406,18 @@ func appendLogAndLegacySecurityArgs(config AWFCommandConfig, firewallConfig *Fir
 }
 
 func appendLegacySecurityArgs(workflowData *WorkflowData, firewallConfig *FirewallConfig, agentConfig *AgentSandboxConfig, awfArgs []string) []string {
-	isLegacy := agentConfig != nil && agentConfig.LegacySecurity
-	if !isLegacy {
+	if !isLegacySecurityRuntime(workflowData) {
 		awfHelpersLog.Print("Strict security: skipping host-access flag (default)")
-		if agentConfig != nil && len(agentConfig.AllowHostPorts) > 0 {
-			warning := "sandbox.agent.allow-host-ports has no effect in strict security mode (the default); set sandbox.agent.legacy-security: enable to reach host ports"
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
-			awfHelpersLog.Printf("Warning: %s", warning)
-		}
 		return awfArgs
 	}
 	if awfSupportsLegacySecurity(firewallConfig) {
 		awfArgs = append(awfArgs, "--legacy-security")
-		awfHelpersLog.Print("Added --legacy-security (legacy-security: enable in frontmatter)")
+		awfHelpersLog.Printf("Added --legacy-security (sandbox.agent.runtime: %s)", AgentRuntimeDockerSudoIptables)
 	} else {
 		awfHelpersLog.Printf("Skipping --legacy-security: AWF version %q is older than minimum %s (legacy mode is the default for older versions)", getAWFImageTag(firewallConfig), constants.AWFLegacySecurityMinVersion)
 	}
 	awfArgs = append(awfArgs, "--enable-host-access")
-	awfHelpersLog.Print("Added --enable-host-access for legacy security mode")
+	awfHelpersLog.Printf("Added --enable-host-access for the %s runtime profile", AgentRuntimeDockerSudoIptables)
 	return appendLegacyHostPortsArgs(workflowData, firewallConfig, agentConfig, awfArgs)
 }
 
@@ -501,8 +493,8 @@ func appendCustomAWFArgs(firewallConfig *FirewallConfig, agentConfig *AgentSandb
 // collectAllowedHostPorts merges the default host-access ports (80, 443, and the
 // MCP gateway port) with any explicit sandbox.agent.allow-host-ports values.
 //
-// This is only called in legacy-security mode: --allow-host-ports requires
-// --enable-host-access, which is legacy-only. GitHub Actions services: ports
+// This is only called for the docker-sudo-iptables runtime profile:
+// --allow-host-ports requires --enable-host-access, which that profile alone enables. GitHub Actions services: ports
 // are intentionally NOT derived here — AWF's --allow-host-service-ports flag
 // (see ExtractServicePortExpressions) is the correct mechanism for reaching
 // services, since it resolves the actual (possibly dynamically assigned) host
@@ -567,23 +559,10 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 		return agentConfig.Command
 	}
 
-	// Cloud Hypervisor needs host privileges to access KVM and configure the VM.
-	// This is still AWF strict security: the guest remains network-isolated and
-	// no legacy-security or host-access flags are implied by the sudo prefix.
-	if isCloudHypervisorRuntime(workflowData) {
-		awfHelpersLog.Print("Using privileged AWF command for cloud-hypervisor strict security")
-		return string(constants.AWFCloudHypervisorCommand)
-	}
-
-	// Legacy security mode: use sudo for backward compatibility
-	if agentConfig != nil && agentConfig.LegacySecurity {
-		awfHelpersLog.Print("Using legacy AWF command (legacy-security: enable)")
-		return string(constants.AWFLegacySecurityCommand)
-	}
-
-	// Default strict security: AWF runs rootless (no sudo)
-	awfHelpersLog.Print("Using standard AWF command (strict security, no sudo)")
-	return string(constants.AWFDefaultCommand)
+	// The runtime profile decides whether AWF runs rootless or with host privileges.
+	profile := resolveSandboxRuntimeProfile(agentConfig)
+	awfHelpersLog.Printf("Using AWF command %q for runtime profile %s", profile.AWFCommand, profile.Runtime)
+	return profile.AWFCommand
 }
 
 // WrapCommandInShell wraps an engine command in a shell invocation for AWF execution.

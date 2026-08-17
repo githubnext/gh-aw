@@ -24,7 +24,6 @@ network:
 sandbox:
   agent:
     id: awf
-    sudo: false
 imports:
   - shared/github-guard-policy.md
 

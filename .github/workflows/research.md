@@ -25,7 +25,6 @@ network:
 sandbox:
   agent:
     id: awf
-    sudo: false
 imports:
   - shared/mcp/tavily.md
   - shared/reporting.md

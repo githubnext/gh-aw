@@ -127,7 +127,7 @@ AWF creates Docker networks inside the DinD daemon for sandbox isolation. All ag
 ### What is NOT required
 
 - **`NET_ADMIN` capability** — AWF uses Docker network topology for egress enforcement, not host `iptables`.
-- **`iptables` binary** — not used in network-isolation mode. Log lines mentioning `iptables` are a legacy artifact from `sandbox.agent.sudo: true` mode and can be ignored.
+- **`iptables` binary** — not used in network-isolation mode. Log lines mentioning `iptables` are a legacy artifact from the privileged `docker-sudo-iptables` runtime profile and can be ignored.
 - **Host network mode** — the runner pod uses standard pod networking. Do not set `hostNetwork: true`.
 - **Privileged runner container** — only the DinD sidecar needs `privileged: true`. The runner container runs unprivileged.
 

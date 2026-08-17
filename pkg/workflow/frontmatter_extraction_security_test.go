@@ -64,78 +64,45 @@ func TestExtractAgentSandboxConfigRuntimeInstall(t *testing.T) {
 	})
 }
 
-func TestExtractAgentSandboxConfigSudo(t *testing.T) {
+func TestExtractAgentSandboxConfigRuntimeProfile(t *testing.T) {
 	compiler := &Compiler{}
 
-	t.Run("extracts sandbox.agent.sudo: false as network isolation mode", func(t *testing.T) {
-		agentObj := map[string]any{
-			"id":   "awf",
-			"sudo": false,
-		}
-
-		config := compiler.extractAgentSandboxConfig(agentObj)
+	t.Run("omitted runtime resolves to the secure docker profile", func(t *testing.T) {
+		config := compiler.extractAgentSandboxConfig(map[string]any{"id": "awf"})
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.True(t, config.NetworkIsolation, "sudo: false should enable network isolation (NetworkIsolation=true)")
-		assert.False(t, config.SudoExplicitlyEnabled, "sudo: false should not set SudoExplicitlyEnabled")
+		assert.Equal(t, AgentRuntime(""), config.Runtime, "Runtime should stay unset when omitted")
+
+		profile := resolveSandboxRuntimeProfile(config)
+		assert.Equal(t, AgentRuntimeDocker, profile.Runtime, "Omitted runtime should resolve to the docker profile")
+		assert.True(t, profile.NetworkIsolation, "Default profile must keep network isolation")
+		assert.True(t, profile.Rootless, "Default profile must run AWF rootless")
+		assert.False(t, profile.LegacySecurity, "Default profile must not enable legacy security")
 	})
 
-	t.Run("extracts sandbox.agent.sudo: true as normal mode with SudoExplicitlyEnabled", func(t *testing.T) {
-		agentObj := map[string]any{
-			"id":   "awf",
-			"sudo": true,
-		}
-
-		config := compiler.extractAgentSandboxConfig(agentObj)
+	t.Run("extracts sandbox.agent.runtime: docker-sudo-iptables", func(t *testing.T) {
+		config := compiler.extractAgentSandboxConfig(map[string]any{
+			"id":      "awf",
+			"runtime": string(AgentRuntimeDockerSudoIptables),
+		})
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.False(t, config.NetworkIsolation, "sudo: true should disable network isolation (NetworkIsolation=false)")
-		assert.True(t, config.SudoExplicitlyEnabled, "sudo: true should set SudoExplicitlyEnabled")
+		assert.Equal(t, AgentRuntimeDockerSudoIptables, config.Runtime)
+
+		profile := resolveSandboxRuntimeProfile(config)
+		assert.True(t, profile.LegacySecurity, "docker-sudo-iptables must enable legacy security")
+		assert.True(t, profile.SupportsHostAccess, "docker-sudo-iptables must allow host access")
+		assert.False(t, profile.Rootless, "docker-sudo-iptables runs AWF with sudo")
 	})
 
-	t.Run("sudo omitted defaults to network isolation mode", func(t *testing.T) {
-		agentObj := map[string]any{
-			"id": "awf",
-		}
-
-		config := compiler.extractAgentSandboxConfig(agentObj)
-		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.True(t, config.NetworkIsolation, "omitting sudo should default to network isolation (NetworkIsolation=true)")
-		assert.False(t, config.SudoExplicitlyEnabled, "omitting sudo should not set SudoExplicitlyEnabled")
-	})
-}
-
-func TestExtractAgentSandboxConfigLegacySecurity(t *testing.T) {
-	compiler := &Compiler{}
-
-	t.Run("extracts sandbox.agent.legacy-security: enable", func(t *testing.T) {
-		agentObj := map[string]any{
+	t.Run("removed sudo and legacy-security fields are ignored", func(t *testing.T) {
+		config := compiler.extractAgentSandboxConfig(map[string]any{
 			"id":              "awf",
+			"sudo":            true,
 			"legacy-security": "enable",
-		}
-
-		config := compiler.extractAgentSandboxConfig(agentObj)
+		})
 		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.True(t, config.LegacySecurity, "legacy-security: enable should set LegacySecurity=true")
-	})
-
-	t.Run("ignores invalid legacy-security value", func(t *testing.T) {
-		agentObj := map[string]any{
-			"id":              "awf",
-			"legacy-security": "disable",
-		}
-
-		config := compiler.extractAgentSandboxConfig(agentObj)
-		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.False(t, config.LegacySecurity, "legacy-security: disable should not set LegacySecurity")
-	})
-
-	t.Run("legacy-security omitted defaults to false (strict mode)", func(t *testing.T) {
-		agentObj := map[string]any{
-			"id": "awf",
-		}
-
-		config := compiler.extractAgentSandboxConfig(agentObj)
-		require.NotNil(t, config, "Should extract agent sandbox config")
-		assert.False(t, config.LegacySecurity, "omitting legacy-security should default to strict mode (LegacySecurity=false)")
+		assert.Equal(t, AgentRuntime(""), config.Runtime, "Removed fields must not change the runtime profile")
+		assert.False(t, resolveSandboxRuntimeProfile(config).LegacySecurity,
+			"Removed fields must not re-enable legacy security")
 	})
 }
 

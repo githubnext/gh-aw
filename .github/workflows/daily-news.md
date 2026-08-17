@@ -57,7 +57,6 @@ network:
 sandbox:
   agent:
     id: awf
-    sudo: false
 safe-outputs:
   upload-artifact:
     max-uploads: 3

@@ -12,9 +12,6 @@ permissions:
   actions: read
   copilot-requests: write
 
-sandbox:
-  agent:
-    sudo: false
 
 tracker-id: refactoring-cadence
 engine: copilot

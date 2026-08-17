@@ -434,20 +434,15 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	}
 
 	installCmd := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version
-	// When sudo is false (network isolation mode), AWF runs rootless: pass --rootless
-	// so the install script installs into $HOME/.local/{bin,lib/awf} (always writable,
-	// even on standard GitHub-hosted runners where /usr/local is root-owned) and exports
+	// Rootless runtime profiles run AWF as the runner user: pass --rootless so the
+	// install script installs into $HOME/.local/{bin,lib/awf} (always writable, even on
+	// standard GitHub-hosted runners where /usr/local is root-owned) and exports
 	// $GITHUB_PATH so the bare awf invocation in later steps resolves correctly.
-	// Also check Disabled to match isAWFNetworkIsolationEnabled() behavior.
 	//
-	// Exceptions: legacy-security and Cloud Hypervisor use privileged AWF
-	// invocations, so the binary must be installed to /usr/local/bin to be on
+	// Exceptions: the docker-sudo-iptables and cloud-hypervisor profiles use privileged
+	// AWF invocations, so the binary must be installed to /usr/local/bin to be on
 	// sudo's secure_path.
-	if agentConfig != nil &&
-		agentConfig.NetworkIsolation &&
-		!agentConfig.Disabled &&
-		!agentConfig.LegacySecurity &&
-		agentConfig.Runtime != AgentRuntimeCloudHypervisor {
+	if agentConfig != nil && !agentConfig.Disabled && resolveSandboxRuntimeProfile(agentConfig).Rootless {
 		installCmd += " --rootless"
 	}
 

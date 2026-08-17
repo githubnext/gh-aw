@@ -165,7 +165,7 @@ permissions:
 engine: copilot
 sandbox:
   agent:
-    legacy-security: enable
+    runtime: docker-sudo-iptables
 services:
   my-postgres:
     image: postgres:15

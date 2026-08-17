@@ -12,9 +12,6 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-sandbox:
-  agent:
-    sudo: false
 tools:
   cli-proxy: true
   agentic-workflows:

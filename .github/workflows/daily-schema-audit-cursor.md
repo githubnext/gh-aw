@@ -14,7 +14,6 @@ permissions:
 sandbox:
   agent:
     id: awf
-    sudo: false
 tracker-id: daily-schema-audit-cursor
 engine:
   id: copilot

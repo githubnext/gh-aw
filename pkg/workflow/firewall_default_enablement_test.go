@@ -607,8 +607,7 @@ func TestIsAWFNetworkIsolationEnabled(t *testing.T) {
 		workflowData := &WorkflowData{
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					Disabled:         true,
-					NetworkIsolation: true,
+					Disabled: true,
 				},
 			},
 		}
@@ -620,9 +619,7 @@ func TestIsAWFNetworkIsolationEnabled(t *testing.T) {
 	t.Run("returns true when network isolation is enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			SandboxConfig: &SandboxConfig{
-				Agent: &AgentSandboxConfig{
-					NetworkIsolation: true,
-				},
+				Agent: &AgentSandboxConfig{},
 			},
 		}
 		if !isAWFNetworkIsolationEnabled(workflowData) {

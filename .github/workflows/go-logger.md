@@ -14,9 +14,6 @@ network:
     - defaults
     - go
 
-sandbox:
-  agent:
-    sudo: false
 
 imports:
 - shared/reporting.md
@@ -177,6 +174,7 @@ evals:
   - id: validation-run
     question: Does the agent output show that it ran validation commands to verify the logging changes compile correctly?
 ---
+
 # Go Logger Enhancement
 
 You are an AI agent that improves Go code by adding debug logging statements to help with troubleshooting and development.
