@@ -315,7 +315,7 @@ runner:
 Investigate this issue.
 ```
 
-Do not set `runtime: gvisor`, `runtime: docker-sbx`, or `runtime: cloud-hypervisor` in this configuration. Omit `runtime` or set `runtime: docker`.
+Do not set `runtime: gvisor`, `runtime: docker-sbx`, or `runtime: cloud-hypervisor` in this configuration. Omit `runtime` or set `runtime: docker`; both select the same Docker profile.
 
 ### ARC DinD runner requirements
 
