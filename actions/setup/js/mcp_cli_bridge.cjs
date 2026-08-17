@@ -772,10 +772,11 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
   // JSON payload mode: when args is empty or ['.'] and stdinContent is available,
   // parse stdin as a JSON object and use its properties directly as tool arguments.
   if (isJsonPayloadMode) {
-    if (trimmedStdin) {
+    const hasRawStdinBytes = typeof stdinContent === "string" && stdinContent.length > 0;
+    if (isExplicitJsonSentinel || hasRawStdinBytes) {
       let parsed;
       try {
-        parsed = JSON.parse(trimmedStdin);
+        parsed = JSON.parse(trimmedStdin ?? "");
       } catch (err) {
         const parseError = getErrorMessage(err);
         throw new Error(`stdin is not valid JSON: ${parseError}. JSON payload mode was requested ${isExplicitJsonSentinel ? "with '.'" : "from piped stdin with no flags"}. Pass --key value flags instead, or correct the JSON.`);
