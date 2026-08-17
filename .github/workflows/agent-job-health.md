@@ -50,6 +50,8 @@ evals:
     question: Did the agent measure the fleet-wide agent-job failure rate over the last 24 hours with run counts?
   - id: tracked_vs_novel_split
     question: Did the agent separate failures belonging to known chronic-failure workflows from novel failures?
+  - id: schedule_heartbeat_checked
+    question: Did the agent check every schedule-triggered workflow's most recent run against its expected cadence and report any blind spots?
 ---
 
 # Agent Job Health Monitor
@@ -126,6 +128,18 @@ Persist a daily record so regressions are detectable over time. Append one JSON 
 
 Read the existing history first and compare today's rate against the previous entries. State whether the rate is increasing, decreasing, or stable, and call out any day-over-day change of more than 10 percentage points as a regression signal.
 
+### Phase 6: Schedule Heartbeat Check
+
+Detect fleet-wide "silent gap" blind spots: `schedule`-triggered workflows that stopped firing without raising any error, missing-tool, or missing-data signal (see github/gh-aw#53252, where `audit-workflows` silently missed its own schedule for 41 days).
+
+- List every workflow file with a `schedule:` trigger in `.github/workflows/*.md` frontmatter (exclude the `shared/` includes and workflows whose only trigger is `workflow_dispatch`).
+- For each schedule-triggered workflow, resolve the expected cadence from its cron alias or expression (for example `daily` → 24h, `weekly` → 7d, `hourly` → 1h; for an explicit cron string, derive the implied interval).
+- Use the GitHub Actions API (`list_workflow_runs` on the corresponding `.lock.yml`, any status, most recent first) to find the timestamp of the **most recent run of any kind** (not just successful runs) for that workflow.
+- Flag a **blind spot** when the gap since that last run exceeds `2x` the expected cadence plus one day of slack (for example, a daily workflow silent for more than 3 days, or a weekly workflow silent for more than 15 days).
+- For each blind spot, record: workflow name, `.lock.yml` path, last observed run timestamp, expected cadence, and the gap size in days.
+
+This check is independent of the last-24-hour run collection in Phase 1 and must always run, even when Phase 1 finds zero runs in the window.
+
 ## Reporting
 
 **Always publish a discussion** with your findings, even when the fleet is healthy. Use h3 (`###`) or lower for headers and wrap long tables in `<details>`.
@@ -154,6 +168,10 @@ Table of workflow, failing runs, and the existing issue that already covers it.
 
 For each cluster: count, affected workflows, failing step, engine, representative run ID, error excerpt, suspected root cause, and recommended action. If there are none, state that explicitly.
 
+### Schedule Heartbeat
+
+Table of workflow, last observed run timestamp, expected cadence, and gap in days for every blind spot found in Phase 6. State "No blind spots detected" when there are none.
+
 <details>
 <summary>View per-workflow breakdown</summary>
 
@@ -167,20 +185,20 @@ Concrete, actionable next steps, each tied to a cluster or a chronic offender.
 
 ## Issue Creation
 
-Create **at most one** issue, and only when **all** of the following hold:
+Create **at most one** issue, and only when **any** of the following hold:
 
-- There is at least one **novel** failure cluster (not covered by an existing open issue), and
-- That cluster affects **two or more distinct workflows**, or accounts for **10% or more** of all runs in the window.
+- There is at least one **novel** failure cluster (not covered by an existing open issue), and that cluster affects **two or more distinct workflows**, or accounts for **10% or more** of all runs in the window; or
+- Phase 6 found at least one schedule blind spot not already covered by an existing open issue.
 
-The issue must include the cluster's error signature, affected workflows, representative run IDs, the measured fleet rate, and the tracked/novel split. Do not open an issue that merely restates the aggregate rate when every failure is already tracked.
+The issue must include the cluster's error signature, affected workflows, representative run IDs, the measured fleet rate, and the tracked/novel split. When triggered by a schedule blind spot, also include the affected workflow(s), last observed run timestamp, expected cadence, and gap size. Do not open an issue that merely restates the aggregate rate when every failure is already tracked, and do not open a new issue for a blind spot that is already tracked by an open issue — reference it instead.
 
 ## No-Op Criteria
 
-Call `noop` with a brief explanation when no workflow runs exist in the window or logs could not be retrieved. State the evaluated window in the message.
+Call `noop` with a brief explanation when no workflow runs exist in the window (and no Phase 6 blind spots were found) or logs could not be retrieved. State the evaluated window in the message.
 
 ## Guidelines
 
-- **In scope**: `agent` job failures across all agentic workflows, and the aggregate fleet rate.
+- **In scope**: `agent` job failures across all agentic workflows, the aggregate fleet rate, and schedule-heartbeat blind spots (schedule-triggered workflows that silently stopped firing).
 - **Out of scope**: safe-output job failures (owned by the Safe Output Health Monitor), detection job failures (owned by the Detection Analysis Report), and activation failures.
 - **Be accurate**: never report a rate without the run counts it was derived from; state when the sample is too small (fewer than 20 runs) to draw conclusions.
 - **Be specific**: exact workflow names, run IDs, step names, and error excerpts.
