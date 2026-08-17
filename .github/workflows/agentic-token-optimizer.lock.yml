@@ -137,6 +137,7 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_AGENT_RUNTIME: ""
+          GH_AW_INFO_CACHE_MEMORY: "false"
           GH_AW_INFO_FRONTMATTER_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_COMPILED_STRICT: "true"

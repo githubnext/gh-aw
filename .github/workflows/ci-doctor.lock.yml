@@ -169,6 +169,7 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_AGENT_RUNTIME: ""
+          GH_AW_INFO_CACHE_MEMORY: "true"
           GH_AW_INFO_FRONTMATTER_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@42c2ab5b4e4c9273534c39259b2e0df7f20f07e9"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_INFO_FRONTMATTER_EMOJI: "🏥"

@@ -51,6 +51,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_WORKFLOW_NAME = "my-workflow";
     process.env.GH_AW_INFO_EXPERIMENTAL = "false";
     process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST = "true";
+    process.env.GH_AW_INFO_CACHE_MEMORY = "false";
     process.env.GH_AW_INFO_STAGED = "false";
     process.env.GH_AW_INFO_ALLOWED_DOMAINS = "[]";
     process.env.GH_AW_INFO_FIREWALL_ENABLED = "false";
@@ -92,6 +93,7 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.workflow_name).toBe("my-workflow");
     expect(awInfo.experimental).toBe(false);
     expect(awInfo.supports_tools_allowlist).toBe(true);
+    expect(awInfo.cache_memory).toBe(false);
     expect(awInfo.run_id).toBe(12345);
     expect(awInfo.run_number).toBe(42);
     expect(awInfo.sha).toBe("abc123def456");
@@ -192,6 +194,14 @@ describe("generate_aw_info.cjs", () => {
 
     const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
     expect(awInfo.cli_version).toBeUndefined();
+  });
+
+  it("should set cache_memory to true when GH_AW_INFO_CACHE_MEMORY is true", async () => {
+    process.env.GH_AW_INFO_CACHE_MEMORY = "true";
+    await main(mockCore, mockContext);
+
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.cache_memory).toBe(true);
   });
 
   it("should parse allowed domains from JSON env var", async () => {
