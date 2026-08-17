@@ -377,7 +377,24 @@
         },
         "base": {
           "type": "string",
-          "description": "Target base branch for the pull request. This override is only allowed when workflow configuration sets safe-outputs.create-pull-request.allowed-base-branches and the value matches one of those patterns."
+          "description": "Target base branch for the pull request. This override is only allowed when workflow configuration sets safe-outputs.create-pull-request.allowed-base-branches and the value matches one of those patterns, or when it names the branch of a pull request created earlier in the same run (a stacked pull request). Stacked pull requests are rejected when safe-outputs.create-pull-request.stacked is false."
+        },
+        "stack_position": {
+          "type": ["number", "string"],
+          "description": "Optional 1-based position of this pull request within a stack of dependent pull requests. Recorded in the pull request body as stack metadata.",
+          "x-synonyms": ["stackPosition"]
+        },
+        "stack_root": {
+          "type": "string",
+          "description": "Optional branch name of the root of the pull request stack (the branch the first pull request in the stack targets). Recorded in the pull request body as stack metadata.",
+          "x-synonyms": ["stackRoot"]
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional list of branch names this pull request depends on (branches of earlier pull requests in the same stack). Used to detect circular stack dependencies and to record stack metadata."
         },
         "labels": {
           "type": "array",

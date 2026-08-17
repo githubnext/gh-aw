@@ -1831,3 +1831,60 @@ func TestAllListEncodingForms(t *testing.T) {
 		}
 	})
 }
+
+func TestParsePullRequestsConfigStackedPullRequests(t *testing.T) {
+	compiler := &Compiler{}
+
+	tests := []struct {
+		name          string
+		config        map[string]any
+		expectEnabled bool
+	}{
+		{
+			name:          "enabled by default",
+			config:        map[string]any{},
+			expectEnabled: true,
+		},
+		{
+			name:          "disabled with stacked: false",
+			config:        map[string]any{"stacked": false},
+			expectEnabled: false,
+		},
+		{
+			name:          "enabled explicitly",
+			config:        map[string]any{"stacked": true},
+			expectEnabled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.parseCreatePullRequestsConfig(map[string]any{"create-pull-request": tt.config})
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
+			if got := isStackedPullRequestsEnabled(result); got != tt.expectEnabled {
+				t.Errorf("expected stacked pull requests enabled=%v, got %v", tt.expectEnabled, got)
+			}
+		})
+	}
+
+	if !isStackedPullRequestsEnabled(nil) {
+		t.Error("expected stacked pull requests to be enabled for a nil config")
+	}
+}
+
+func TestCreatePullRequestHandlerConfigStackedPullRequests(t *testing.T) {
+	disabled := false
+	cfgDisabled := &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{Stacked: &disabled}}
+	handlerConfig := handlerRegistry["create_pull_request"](cfgDisabled)
+	if got, ok := handlerConfig["stacked"]; !ok || got != false {
+		t.Errorf("expected stacked=false in handler config, got %v (present=%v)", got, ok)
+	}
+
+	cfgDefault := &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{}}
+	handlerConfig = handlerRegistry["create_pull_request"](cfgDefault)
+	if _, ok := handlerConfig["stacked"]; ok {
+		t.Error("expected stacked to be omitted when stacked pull requests are enabled")
+	}
+}

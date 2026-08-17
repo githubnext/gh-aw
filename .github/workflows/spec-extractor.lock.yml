@@ -598,6 +598,12 @@ jobs:
                     "sanitize": true,
                     "maxLength": 256
                   },
+                  "dependencies": {
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 256
+                  },
                   "draft": {
                     "type": "boolean"
                   },
@@ -609,6 +615,14 @@ jobs:
                   },
                   "repo": {
                     "type": "string",
+                    "maxLength": 256
+                  },
+                  "stack_position": {
+                    "optionalPositiveInteger": true
+                  },
+                  "stack_root": {
+                    "type": "string",
+                    "sanitize": true,
                     "maxLength": 256
                   },
                   "temporary_id": {

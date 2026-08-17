@@ -53,9 +53,15 @@ Test safe outputs workflow with MCP server integration.
 	// Note: mcp-server.cjs is now copied by actions/setup from safe-outputs-mcp-server.cjs
 	// So we don't check for cat command anymore, we just check the MCP config references it
 
-	// Check that safe-outputs configuration file is written
-	if !strings.Contains(yamlStr, `cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"`) {
-		t.Error("Expected safe-outputs configuration to be written to config.json file")
+	// Check that safe-outputs configuration file generation step is present
+	if !strings.Contains(yamlStr, "Generate Safe Outputs Config") {
+		t.Error("Expected safe-outputs config generation step")
+	}
+	if !strings.Contains(yamlStr, `\"path\":\"safeoutputs/config.json\"`) {
+		t.Error("Expected safe-outputs config.json path in generated file config")
+	}
+	if !strings.Contains(yamlStr, `\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"`) {
+		t.Error("Expected safe-outputs config content env mapping")
 	}
 
 	// Check that safeoutputs is included in MCP configuration
@@ -78,18 +84,18 @@ Test safe outputs workflow with MCP server integration.
 		t.Error("Expected safeoutputs MCP server entrypointArgs to run the stdio MCP server script")
 	}
 
-	// Check that safe outputs config is written to file, not as environment variable
-	if strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
-		t.Error("GH_AW_SAFE_OUTPUTS_CONFIG should NOT be in environment variables - config is now in file")
+	// Check that safe outputs config is passed via step env and written to file by create_files.cjs
+	if !strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_CONFIG env var in Generate Safe Outputs Config step")
 	}
 
 	if strings.Contains(yamlStr, "Start Safe Outputs MCP HTTP Server") {
 		t.Error("Expected safeoutputs MCP server to be listed in MCP servers, not launched in a dedicated step")
 	}
 
-	// Check that config file is created
-	if !strings.Contains(yamlStr, `cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"`) {
-		t.Error("Expected config file to be created")
+	// Check that config file creation mapping is configured
+	if !strings.Contains(yamlStr, `\"path\":\"safeoutputs/config.json\"`) {
+		t.Error("Expected config file mapping to be created")
 	}
 
 	t.Log("Safe outputs MCP server integration test passed")
@@ -138,8 +144,8 @@ Test workflow without safe outputs.
 	}
 
 	// The safeoutputs MCP server and config file are written because auto-inject enabled create-issue.
-	if !strings.Contains(yamlStr, `cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"`) {
-		t.Error("Expected safe-outputs configuration to be written due to auto-injected create-issue")
+	if !strings.Contains(yamlStr, "Generate Safe Outputs Config") {
+		t.Error("Expected safe-outputs configuration generation due to auto-injected create-issue")
 	}
 	if !strings.Contains(yamlStr, `"safeoutputs": {`) {
 		t.Error("Expected safeoutputs to be in MCP server configuration due to auto-injected create-issue")
@@ -199,9 +205,9 @@ Test safe outputs workflow with Codex engine.
 	// Note: mcp-server.cjs is now copied by actions/setup from safe-outputs-mcp-server.cjs
 	// So we don't check for cat command anymore
 
-	// Check that safe-outputs configuration file is written
-	if !strings.Contains(yamlStr, `cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json"`) {
-		t.Error("Expected safe-outputs configuration to be written to config.json file")
+	// Check that safe-outputs configuration file generation step is present
+	if !strings.Contains(yamlStr, "Generate Safe Outputs Config") {
+		t.Error("Expected safe-outputs config generation step")
 	}
 
 	// Check that safeoutputs is included in TOML configuration for Codex

@@ -1113,7 +1113,28 @@
                   "description": "Types of issue events",
                   "items": {
                     "type": "string",
-                    "enum": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned", "typed", "untyped"]
+                    "enum": [
+                      "opened",
+                      "edited",
+                      "deleted",
+                      "transferred",
+                      "pinned",
+                      "unpinned",
+                      "closed",
+                      "reopened",
+                      "assigned",
+                      "unassigned",
+                      "labeled",
+                      "unlabeled",
+                      "locked",
+                      "unlocked",
+                      "milestoned",
+                      "demilestoned",
+                      "typed",
+                      "untyped",
+                      "field_added",
+                      "field_removed"
+                    ]
                   }
                 },
                 "names": {
@@ -7378,6 +7399,11 @@
                       "description": "GitHub Actions expression resolving to a comma-separated list of base branch patterns (e.g. '${{ inputs[\\'allowed-base-branches\\'] }}')"
                     }
                   ]
+                },
+                "stacked": {
+                  "type": "boolean",
+                  "description": "Controls whether stacked pull requests (pull requests whose base branch is another pull request branch created by the same run) are allowed. Defaults to true. Set to false on GitHub Enterprise Server or other instances without stacked pull request support: create_pull_request outputs requesting a non-default base branch are then rejected with an explanatory error.",
+                  "default": true
                 },
                 "max-patch-size": {
                   "type": "integer",
