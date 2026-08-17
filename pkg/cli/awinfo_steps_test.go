@@ -11,6 +11,7 @@ import (
 )
 
 func TestAwInfoStepsFieldParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		jsonContent   string
@@ -81,6 +82,7 @@ func TestAwInfoStepsFieldParsing(t *testing.T) {
 }
 
 func TestAwInfoStepsMarshaling(t *testing.T) {
+	t.Parallel()
 	original := AwInfo{
 		EngineID:     "copilot",
 		EngineName:   "Copilot",
@@ -105,6 +107,7 @@ func TestAwInfoStepsMarshaling(t *testing.T) {
 }
 
 func TestGetFirewallVersion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		info     AwInfo

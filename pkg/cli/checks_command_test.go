@@ -25,6 +25,7 @@ var captureOutputMu sync.Mutex
 // ---------------------------------------------------------------------------
 
 func TestClassifyCheckState(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		runs     []PRCheckRun
@@ -154,6 +155,7 @@ func TestClassifyCheckState(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestIsPolicyCheck(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		checkName string
@@ -209,6 +211,7 @@ func TestIsPolicyCheck(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestChecksCommand(t *testing.T) {
+	t.Parallel()
 	cmd := NewChecksCommand()
 	require.NotNil(t, cmd, "checks command should not be nil")
 	assert.Equal(t, "checks", cmd.Name(), "command name should be 'checks'")
@@ -228,18 +231,21 @@ func TestChecksCommand(t *testing.T) {
 }
 
 func TestChecksCommand_RequiresArg(t *testing.T) {
+	t.Parallel()
 	cmd := NewChecksCommand()
 	err := cmd.Args(cmd, []string{})
 	assert.Error(t, err, "checks command should require exactly one argument")
 }
 
 func TestChecksCommand_AcceptsOneArg(t *testing.T) {
+	t.Parallel()
 	cmd := NewChecksCommand()
 	err := cmd.Args(cmd, []string{"42"})
 	require.NoError(t, err, "checks command should accept exactly one argument")
 }
 
 func TestChecksCommand_RejectsMultipleArgs(t *testing.T) {
+	t.Parallel()
 	cmd := NewChecksCommand()
 	err := cmd.Args(cmd, []string{"42", "43"})
 	assert.Error(t, err, "checks command should reject more than one argument")
@@ -250,6 +256,7 @@ func TestChecksCommand_RejectsMultipleArgs(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestChecksResultJSONShape(t *testing.T) {
+	t.Parallel()
 	result := &ChecksResult{
 		State:         CheckStateFailed,
 		RequiredState: CheckStateSuccess,
@@ -300,6 +307,7 @@ func TestChecksResultJSONShape(t *testing.T) {
 // an API call. This tests the struct wiring; the actual API-skip behaviour is
 // tested at the unit level via fetchChecksResultInternal.
 func TestChecksConfig_HeadSHAField(t *testing.T) {
+	t.Parallel()
 	cfg := ChecksConfig{
 		Repo:       "owner/repo",
 		PRNumber:   "42",
@@ -313,6 +321,7 @@ func TestChecksConfig_HeadSHAField(t *testing.T) {
 // stores the caller-supplied SHA in the returned result without requiring an
 // outbound API call to resolve it.
 func TestFetchChecksResultInternal_UsesSHA(t *testing.T) {
+	t.Parallel()
 	// We cannot fully exercise the live API path in unit tests, but we can
 	// confirm that the internal helper populates HeadSHA from the provided
 	// value in the ChecksResult. Because the actual REST calls would fail in
@@ -335,6 +344,7 @@ func TestFetchChecksResultInternal_UsesSHA(t *testing.T) {
 // required_state field. Check runs are posted by GitHub Actions; optional
 // deployment commit statuses are posted by third-party integrations.
 func TestRequiredStateFiltering(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		runs          []PRCheckRun
@@ -415,6 +425,7 @@ func TestRequiredStateFiltering(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPolicyStatuses_FiltersNonPolicy(t *testing.T) {
+	t.Parallel()
 	statuses := []PRCommitStatus{
 		{Context: "vercel", State: "failure"},
 		{Context: "netlify/deploy", State: "failure"},
@@ -426,11 +437,13 @@ func TestPolicyStatuses_FiltersNonPolicy(t *testing.T) {
 }
 
 func TestPolicyStatuses_EmptyInput(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, filterCommitStatusesToPolicyChecks(nil), "nil input should return nil")
 	assert.Nil(t, filterCommitStatusesToPolicyChecks([]PRCommitStatus{}), "empty input should return nil")
 }
 
 func TestClassifyGHAPIError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		exitCode    int
