@@ -175,7 +175,7 @@ tools:
     min-integrity: approved
 ```
 
-When enabled, the compiler automatically enables the CLI proxy (required to identify reaction authors) and injects default reaction configuration. When an account at or above `endorser-min-integrity` adds an endorsement reaction to an issue or comment, the item's integrity is promoted to `approved`. A disapproval reaction from such an account sets the item's integrity to `disapproval-integrity`.
+When enabled, the compiler resolves GitHub access to `tools.github.mode: cli` so the host policy proxy can identify reaction authors, and injects default reaction configuration. Explicit `mcp-local` and `mcp-remote` modes are invalid, and the feature is incompatible with `sandbox.agent.runtime: cloud-hypervisor`. See [Security Profile Selection](/gh-aw/reference/security-profiles/#github-access-profiles).
 
 The defaults are `endorsement-reactions: [THUMBS_UP, HEART]`, `disapproval-reactions: [THUMBS_DOWN, CONFUSED]`, `endorser-min-integrity: approved`, and `disapproval-integrity: none`. To override them, set the reaction fields explicitly under `tools.github`:
 

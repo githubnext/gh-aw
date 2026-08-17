@@ -69,6 +69,8 @@ sandbox:
 
 Omitting `runtime` is equivalent to `runtime: docker`, which keeps the secure default.
 
+Use the [security profile matrix](/gh-aw/reference/security-profiles/) to check runtime prerequisites and compatibility with GitHub access, services, host ports, and MCP exposure.
+
 ```yaml wrap
 sandbox:
   agent:

@@ -52,6 +52,7 @@ Cache steps are auto-added to the workflow job; cache config is removed from the
 ## Tool Configuration
 
 The `tools:` field configures which tools the coding agent may use.
+Use [security-profiles.md](security-profiles.md) to select GitHub access and MCP exposure without conflating them.
 
 ### GitHub Tools (`tools.github`)
 
@@ -65,10 +66,12 @@ The `tools:` field configures which tools the coding agent may use.
         - list_labels
         - pull_request_read
   ```
-- `mode:` - GitHub access mode. **Prefer `"gh-proxy"`** — it is faster (no MCP server startup) and lets the agent use `gh` shell commands directly for all GitHub reads (issues, PRs, discussions, commits, etc.):
-  - `"gh-proxy"` (**preferred**) — pre-authenticated `gh` CLI available in bash; no GitHub MCP server is registered. Use `gh` commands for all GitHub reads.
-  - `"local"` (default) — Docker-based GitHub MCP Server; use GitHub MCP tools for reads, `gh` is not authenticated.
-  - **do NOT use `"remote"`** — it does not work with the GitHub Actions token; use `"gh-proxy"` instead.
+- `mode:` - GitHub access mode. **Prefer `"cli"` for new workflows** - it avoids MCP server startup, keeps the token outside the agent container, and lets the agent use `gh` shell commands directly:
+  - `"cli"` (**preferred for new workflows**) - pre-authenticated `gh` CLI available in bash; no GitHub MCP server is registered. Protected by the host policy proxy.
+  - `"mcp-local"` — Docker-based GitHub MCP Server; use GitHub MCP tools for reads.
+  - `"mcp-remote"` — hosted GitHub MCP service; requires additional authentication. **Do NOT use** with the GitHub Actions token — use `"cli"` instead.
+  - When omitted on an MCP-capable engine, the effective mode remains `"mcp-local"` for backward compatibility. Non-MCP engines derive `"cli"`.
+  - Legacy values `"gh-proxy"` (= `"cli"`), `"local"` (= `"mcp-local"`), and `"remote"` (= `"mcp-remote"`) are accepted for backward compatibility; use `gh aw fix` to migrate.
 - `version:` - MCP server version (local mode only)
 - `args:` - Additional command-line arguments (local mode only)
 - `read-only:` - The GitHub MCP server always operates in read-only mode; this field is accepted but has no effect
@@ -92,6 +95,7 @@ The `tools:` field configures which tools the coding agent may use.
   - **Individual toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
   - Examples: `toolsets: [default]`, `toolsets: [default, discussions]`, `toolsets: [repos, issues]`
   - **Recommended**: Prefer `toolsets:` over `allowed:` for better organization and reduced configuration verbosity
+  - **MCP only**: `toolsets` and `allowed` apply to both MCP modes; `version` and `args` apply only to `mcp-local`. All are ignored with explicit `mode: cli`
 
 ### Other Built-in Tools
 
@@ -129,7 +133,7 @@ The `tools:` field configures which tools the coding agent may use.
   ```
 - `timeout:` - Per-operation timeout in seconds for all tool and MCP calls (integer or expression, default: 60 s for all engines).
 - `startup-timeout:` - Timeout in seconds for MCP server initialization (integer or expression, default: 120).
-- `cli-proxy:` - Mount each user-facing MCP server as a standalone CLI tool on `PATH` (boolean, default: `false`). When enabled, the agent can call MCP servers via shell (e.g. `github issue_read --method get ...`).
+- `mcp-mode:` - MCP exposure mode (string, default: `"default"`). Set to `"cli"` to mount each user-facing non-GitHub MCP server as a standalone CLI tool on `PATH`. With the Copilot engine, this also mounts a selected GitHub MCP server; other MCP-capable engines keep GitHub native. This is distinct from `tools.github.mode`, does not select GitHub access, and does not provide the authenticated `gh` CLI. The legacy `cli-proxy: true` is accepted for backward compatibility and migrated by `gh aw fix`.
 
 ### Custom MCP Tools
 

@@ -24,6 +24,8 @@ These similarly named fields control different layers:
 > [!IMPORTANT]
 > Do not set `sandbox.agent.runtime: sbx`. The agent runtime value is `docker-sbx`. The shorter `sbx` value is used only by `tools.github.bounded-queries.runtime` and internally by AWF.
 
+See [Security Profile Selection](/gh-aw/reference/security-profiles/) for the compact compatibility matrix across agent runtimes, GitHub access modes, and MCP exposure.
+
 ## Choose a runtime
 
 | Choice | Isolation boundary | Runner requirements | Main tradeoff |
@@ -237,7 +239,7 @@ sandbox:
 ---
 ```
 
-This skips the generated KVM check, secret check, package installation, daemon setup, template pull, and pre-flight smoke test. The runner must already satisfy those checks; gh-aw does not verify them when installation is disabled. The credential-refresh step still runs immediately before agent execution, so `DOCKER_USERNAME` and `DOCKER_PAT` remain required. If any imported workflow sets `runtime-install: false`, false wins during import merging.
+This skips the generated KVM preflight, package installation, daemon setup, template pull, and smoke test. The runner must already satisfy those runtime prerequisites. Credential validation and refresh still run before agent execution, so `DOCKER_USERNAME` and `DOCKER_PAT` remain required. If any imported workflow sets `runtime-install: false`, false wins during import merging.
 
 Docker sbx cannot be combined with `runner.topology: arc-dind`. ARC DinD normally does not expose nested KVM, and the sbx daemon must run on the runner host rather than inside the DinD sidecar.
 
@@ -289,13 +291,13 @@ Preview scope is intentionally narrow:
 - Ubuntu Linux x86_64 only (`RUNNER_OS=Linux`, `RUNNER_ARCH=X64`, `ImageOS=ubuntu*`).
 - `/dev/kvm` must be present.
 - `runner.topology: arc-dind` is not supported.
-- `tools.github.mode: gh-proxy` and the `integrity-reactions` feature are not supported: the CLI proxy sidecar is not attached to the isolated topology.
+- `tools.github.mode: cli` and the `integrity-reactions` feature are not supported: the host policy proxy sidecar is not attached to the isolated topology.
 - `sandbox.agent.allow-host-ports` and GitHub Actions `services:` with published ports are not supported: host access requires `sandbox.agent.runtime: docker-sudo-iptables`.
 - `enclaves` configuration is not supported.
 
 The compiler grants only the runner user read/write access to `/dev/kvm`, then emits host preflight and release-asset provisioning steps before AWF runs. Provisioning downloads the Cloud Hypervisor bundle, `SHA256SUMS`, and `manifest.json` from the pinned `gh-aw-firewall` release, verifies checksums, and feeds AWF digest-pinned flags for the Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor.
 
-AWF launches with host privileges required to create the VM, but the runtime remains in strict network-isolation mode. The guest defaults to 2 vCPUs and 4096 MiB of memory. Its trusted topology attachment is limited to the MCP gateway on TCP 8080; the CLI proxy is not attached.
+AWF launches with host privileges required to create the VM, but the runtime remains in strict network-isolation mode. The guest defaults to 2 vCPUs and 4096 MiB of memory. Its trusted topology attachment is limited to the MCP gateway on TCP 8080; the host policy proxy is not attached.
 
 > [!IMPORTANT]
 > This runtime is preview-only. Keep expectations aligned with AWF preview support and prefer Docker sbx or gVisor when Cloud Hypervisor host constraints are not guaranteed.

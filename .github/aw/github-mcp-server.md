@@ -9,7 +9,7 @@
 The GitHub MCP server provides tools to interact with GitHub APIs through the Model Context Protocol (MCP). It operates in two modes:
 
 - **Remote mode**: Connects to GitHub's hosted MCP endpoint (`https://api.githubcopilot.com/mcp/`)
-- **Local mode**: Runs `gh mcp` (GitHub CLI) as a local subprocess
+- **Local mode**: Runs the GitHub MCP server in Docker
 
 ### Authentication
 
@@ -32,6 +32,7 @@ X-MCP-Readonly: true
 ```yaml
 tools:
   github:
+    mode: mcp-local
     toolsets: [default]     # or specific toolsets
     # Optional: GitHub App authentication
     github-app:
@@ -39,7 +40,7 @@ tools:
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ```
 
-> ⚠️ **Do NOT use `mode: remote`** in GitHub Actions workflows. Remote mode does not work with the GitHub Actions token (`GITHUB_TOKEN`) — it requires a special PAT or GitHub App token with MCP access. The default `mode: local` (Docker-based) works with `GITHUB_TOKEN` and should always be used.
+> ⚠️ **Do NOT use `mode: mcp-remote`** with the GitHub Actions token (`GITHUB_TOKEN`). It requires a suitable PAT or GitHub App token with hosted MCP access. Prefer explicit `mode: cli` for new shell-based workflows. Use `mode: mcp-local` when MCP-specific fields are needed. See [security-profiles.md](security-profiles.md).
 
 ### Toolset Options
 

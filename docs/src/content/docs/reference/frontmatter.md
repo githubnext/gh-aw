@@ -7,6 +7,8 @@ sidebar:
 
 The [frontmatter](/gh-aw/reference/glossary/#frontmatter) (YAML configuration section between `---` markers) of GitHub Agentic Workflows includes the triggers, permissions, AI [engines](/gh-aw/reference/glossary/#engine) (which AI model/provider to use), and workflow settings. For example:
 
+Use [Security Profile Selection](/gh-aw/reference/security-profiles/) when combining `sandbox.agent.runtime`, `tools.github.mode`, and `tools.mcp-mode`.
+
 ```yaml wrap
 ---
 on:

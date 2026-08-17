@@ -15,6 +15,7 @@ Design and create new workflow files under `.github/workflows/` using the instal
 - [workflow-constraints.md](workflow-constraints.md)
 - [workflow-patterns.md](workflow-patterns.md)
 - [safe-outputs.md](safe-outputs.md)
+- [security-profiles.md](security-profiles.md)
 - [syntax.md](syntax.md)
 - [mcp-clis.md](mcp-clis.md)
 
@@ -117,9 +118,9 @@ Expected comparison output: return one combined table with one row per scenario 
 
 | Scenario | Trigger | Scope | Read tools | Safe outputs | Permissions | Noop condition |
 |---|---|---|---|---|---|---|
-| Information Worker — weekly digest | `schedule` + `workflow_dispatch` | 7-day window, grouped by assignee | `github` (`gh-proxy`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | window has no assigned issues/PRs |
-| Product Manager — backlog triage | `schedule` + `workflow_dispatch` | recurring window, grouped by staleness bucket | `github` (`gh-proxy`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | no items cross the staleness threshold |
-| Backend Engineer — API contract review | `pull_request` with `paths:` scoped to API/schema files | per-PR, no window | `github` (`gh-proxy`, default toolset) | `add-comment` on the PR | `contents: read`, `pull-requests: write` | no API contract files changed in the PR |
+| Information Worker — weekly digest | `schedule` + `workflow_dispatch` | 7-day window, grouped by assignee | `github` (`cli`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | window has no assigned issues/PRs |
+| Product Manager — backlog triage | `schedule` + `workflow_dispatch` | recurring window, grouped by staleness bucket | `github` (`cli`, default toolset) | `create-issue` with `close-older-issues: true` | `contents: read`, `issues: write` | no items cross the staleness threshold |
+| Backend Engineer — API contract review | `pull_request` with `paths:` scoped to API/schema files | per-PR, no window | `github` (`cli`, default toolset) | `add-comment` on the PR | `contents: read`, `pull-requests: write` | no API contract files changed in the PR |
 
 This is the same invocation surface as [Single-Scenario Evaluation Example](#single-scenario-evaluation-example) above — reached only by addressing the `agentic-workflows` custom agent directly in conversation, never via a CLI/MCP tool parameter. After the comparison table, call out any scenario that shares a trigger or write path with another (for example two digests that could share a schedule) before offering to generate files.
 
@@ -168,19 +169,19 @@ See [workflow-constraints.md](workflow-constraints.md) for the read-only securit
 ### 4. Select tools
 
 - `bash` and `edit` are enabled by default in sandboxed workflows; do not add them unless you are restricting them.
-- For GitHub reads, prefer `tools.github.mode: gh-proxy` and instruct the agent to use `gh` commands.
-- For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and instruct the agent to use the mounted `mcp-clis` commands.
+- For GitHub reads, prefer `tools.github.mode: cli` and instruct the agent to use `gh` commands.
+- For non-GitHub MCP servers, prefer `tools.mcp-mode: cli` and instruct the agent to use the mounted `mcp-clis` commands.
+- Follow [security-profiles.md](security-profiles.md); never combine `mode: cli` with MCP-only `toolsets`, `allowed`, `version`, or `args`.
 - Combined configuration example for GitHub reads plus non-GitHub MCP CLI access:
 
   ```yaml
   tools:
     github:
-      mode: gh-proxy
-      toolsets: [default]
-    cli-proxy: true
+      mode: cli
+    mcp-mode: cli
   ```
 
-  Omit `cli-proxy: true` when the workflow only needs GitHub reads.
+  Omit `mcp-mode: cli` when the workflow only needs GitHub reads.
 
 - Suggest `playwright` for browser automation.
 - Suggest dedicated topic files rather than embedding long tutorials in the prompt.
@@ -289,9 +290,8 @@ permissions:
   issues: read
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default]
-  cli-proxy: true
+    mode: cli
+  mcp-mode: cli
 safe-outputs:
   add-comment:
 ---
@@ -323,7 +323,7 @@ Before finalizing any newly generated workflow, verify:
 
 - [ ] **Trigger fit**: trigger matches user intent and event granularity (for example `pull_request`, `workflow_run`, `deployment_status`, `schedule`, `slash_command`)
 - [ ] **Maintenance baseline**: recurring maintenance strategies are derived from a bounded repository survey, with observed signals separated from recommendations
-- [ ] **Tool fit**: enabled tools are the minimal set needed for reads/analysis (prefer `gh-proxy`; add `playwright`/`cache-memory` only when required)
+- [ ] **Tool fit**: enabled tools are the minimal set needed for reads/analysis (prefer `cli` mode; add `playwright`/`cache-memory` only when required)
 - [ ] **Safe outputs**: all visible writes route through `safe-outputs:` and include `noop` for explicit no-op outcomes
 - [ ] **Permissions**: agent job remains read-only; no direct write scopes granted
 - [ ] **Network**: access is inferred from repository ecosystem and avoids `network: defaults` alone for install/build/test workflows

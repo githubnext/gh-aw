@@ -13,6 +13,7 @@ Update existing workflow files in `.github/workflows/`.
 - [workflow-editing.md](workflow-editing.md)
 - [workflow-constraints.md](workflow-constraints.md)
 - [safe-outputs.md](safe-outputs.md)
+- [security-profiles.md](security-profiles.md)
 - [syntax.md](syntax.md)
 
 Load these additional files only when relevant:
@@ -44,7 +45,7 @@ Use [workflow-editing.md](workflow-editing.md) as the source of truth for when r
 - preserve existing style and structure unless reorganization is required
 - do not rewrite unrelated frontmatter sections
 - when targeting the Copilot coding agent, recommend `permissions: { copilot-requests: write }` for Copilot authentication
-- prefer `toolsets:` for GitHub tools
+- use `toolsets:` only with `tools.github.mode: mcp-local` or `mcp-remote`; use `gh` commands with `mode: cli`
 
 See [workflow-constraints.md](workflow-constraints.md) for the read-only security posture (keep the agent job read-only, route writes through `safe-outputs:`).
 
@@ -59,7 +60,7 @@ When refining existing workflows, keep edits minimal and confirm the design stil
 ## Security Rules
 
 - never suggest GitHub mutation through raw GitHub tools when a safe output exists
-- do not recommend `mode: remote` for GitHub tools unless explicitly required and properly configured
+- do not recommend `mode: mcp-remote` for GitHub tools unless explicitly required and properly configured
 - do not replace `pull_request` with `pull_request_target` unless the user explicitly needs a `pull_request_target` design
 - do not use `post-steps:` for agent-driven write behavior that belongs in a safe-output job
 

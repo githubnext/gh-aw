@@ -86,9 +86,9 @@ For less common ecosystems (Swift, PHP, Dart, Haskell, Perl, fonts, Deno, Elixir
 
 | User says... | Maps to |
 |---|---|
-| "read GitHub issues/PRs/workflows" | `tools.github` with `mode: gh-proxy` and minimal `toolsets` |
-| "use full MCP server/tool definitions" | `tools.github` with `mode: local` |
-| "use other MCP servers but keep token cost down" | `tools.cli-proxy: true` (hybrid CLI-proxy mode) |
+| "read GitHub issues/PRs/workflows with `gh`" | `tools.github` with `mode: cli`; do not add MCP-only fields |
+| "use GitHub MCP tools/toolsets" | `tools.github` with `mode: mcp-local` and only required `toolsets` |
+| "use other MCP servers but keep token cost down" | `tools.mcp-mode: cli` (CLI MCP mounting) |
 | "edit files" | `edit` tool (default unless restricted) |
 | "run commands/tests" | `bash` tool (default unless restricted) |
 | "browse web pages/docs" | `web-fetch` and/or `web-search` |
@@ -151,4 +151,3 @@ Never suggest committing plaintext tokens.
 | "just respond to a comment" | no pre-fetch needed (event payload is enough) |
 | "process each item individually" | suggest sub-agent pattern with `model: small` |
 | "weekly digest", "compliance report", "license review", "policy audit" | pre-fetch with `gh` + `jq` into `/tmp/gh-aw/data/`; point prompt to those files |
-

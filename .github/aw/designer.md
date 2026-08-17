@@ -133,7 +133,7 @@ Load `.github/aw/designer-mappings.md` for the full trigger, safe-output, networ
 Apply these defaults unless the user explicitly asks otherwise:
 
 1. Use DataOps by default for GitHub reads: pre-fetch/aggregate with `gh` + `jq` in `steps:`, store compact JSON in `/tmp/gh-aw/data/`, and point the prompt to those files (see `.github/aw/token-optimization.md` for details).
-2. Keep tool surface minimal: default to `tools.github.mode: gh-proxy`, include only required toolsets, and prefer `bash` + `gh` for simple reads.
+2. Keep tool surface minimal: default to `tools.github.mode: cli` and prefer `bash` + `gh` for simple reads. Add `toolsets` only when selecting an MCP GitHub mode. Follow [security-profiles.md](security-profiles.md).
 3. For batch workloads, split items into compact data and suggest sub-agent processing with `model: small`.
 4. Keep prompts compact: concise imperative instructions, explicit file paths, single-line `noop` guidance, and stable instructions before dynamic content.
 
@@ -180,8 +180,7 @@ permissions:
   pull-requests: read
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default]
+    mode: cli
 steps:
   - name: <optional data prefetch>
     run: |
@@ -229,8 +228,8 @@ Before final output, run this internal self-check:
 - [ ] Prompt instructs agent to call `noop` when no action is needed
 - [ ] Unnecessary defaults are omitted (for example `engine: copilot`)
 - [ ] If reading GitHub data, `steps:` pre-fetches compact JSON (DataOps)
-- [ ] `tools.github.mode` is `gh-proxy` unless broader MCP toolsets are explicitly needed
-- [ ] Only required toolsets are listed (avoid blanket toolset lists)
+- [ ] `tools.github.mode` is `cli` unless GitHub MCP tools are explicitly needed
+- [ ] `toolsets` appears only with `mcp-local` or `mcp-remote`, and only required toolsets are listed
 - [ ] Prompt references specific pre-computed file paths
 - [ ] For batch processing (>5 items), sub-agent pattern is suggested
 - [ ] Network entries use valid ecosystem identifiers (no `npm`/`pypi`/`docker`-style invalid shorthands)

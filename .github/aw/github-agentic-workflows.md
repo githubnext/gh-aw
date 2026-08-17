@@ -9,18 +9,18 @@ applyTo: ".github/workflows/*.md,.github/workflows/**/*.md"
 
 | Persona | Preferred trigger and scope | Typical read tools | Typical write path | Explicit `noop` rule |
 |---|---|---|---|---|
-| Backend Engineer | `pull_request` with `paths:` scoped to migrations, schema, and API contracts | `github` (`gh-proxy`) | `add-comment` for PR-local findings; `create-issue` only for cross-cutting incidents | `noop` when no backend contract files changed |
-| Frontend Developer | `pull_request` with `paths:` scoped to UI, design-token, and asset files | `github` (`gh-proxy`), optional `playwright`, optional `cache-memory` for baselines | `add-comment` | `noop` when no UI/token files changed or no actionable visual/token issues were found |
-| DevOps Engineer | `workflow_run` for GitHub Actions failures, `deployment_status` for external deployment failures | `github` (`gh-proxy`) with `actions: read` or `deployments: read` | `create-issue` with stable dedup key | `noop` when status is non-terminal, self-recovered, or an open incident already exists for the same dedup key |
-| Program Manager | `schedule` (+ `workflow_dispatch` for previews and backfills) | `github` (`gh-proxy`) | `create-issue` with `close-older-issues: true` for recurring digests | `noop` when the reporting window contains no qualifying updates |
-| Designer | `pull_request` with `paths:` scoped to UI, design-token, copy, and asset files | `github` (`gh-proxy`); optional `playwright` for visual checks | `add-comment` on the PR | `noop` when scoped paths are unchanged or no actionable design/token issue is found |
-| Legal / Compliance | `pull_request` with `paths:` scoped to dependency manifests or policy docs for PR reviews; `schedule` for recurring audits | `github` (`gh-proxy`) | `add-comment` for findings; `create-issue` only for violations requiring team-wide follow-up | `noop` when no in-scope files changed or all findings are in the allowed tier; always search for an existing open issue before escalating |
+| Backend Engineer | `pull_request` with `paths:` scoped to migrations, schema, and API contracts | `github` (`cli`) | `add-comment` for PR-local findings; `create-issue` only for cross-cutting incidents | `noop` when no backend contract files changed |
+| Frontend Developer | `pull_request` with `paths:` scoped to UI, design-token, and asset files | `github` (`cli`), optional `playwright`, optional `cache-memory` for baselines | `add-comment` | `noop` when no UI/token files changed or no actionable visual/token issues were found |
+| DevOps Engineer | `workflow_run` for GitHub Actions failures, `deployment_status` for external deployment failures | `github` (`cli`) with `actions: read` or `deployments: read` | `create-issue` with stable dedup key | `noop` when status is non-terminal, self-recovered, or an open incident already exists for the same dedup key |
+| Program Manager | `schedule` (+ `workflow_dispatch` for previews and backfills) | `github` (`cli`) | `create-issue` with `close-older-issues: true` for recurring digests | `noop` when the reporting window contains no qualifying updates |
+| Designer | `pull_request` with `paths:` scoped to UI, design-token, copy, and asset files | `github` (`cli`); optional `playwright` for visual checks | `add-comment` on the PR | `noop` when scoped paths are unchanged or no actionable design/token issue is found |
+| Legal / Compliance | `pull_request` with `paths:` scoped to dependency manifests or policy docs for PR reviews; `schedule` for recurring audits | `github` (`cli`) | `add-comment` for findings; `create-issue` only for violations requiring team-wide follow-up | `noop` when no in-scope files changed or all findings are in the allowed tier; always search for an existing open issue before escalating |
 
 ## Persona-to-Toolset Matrix
 
 | Persona | Default toolset is enough when... | Name optional tools when... |
 |---|---|---|
-| Program Manager | Digest/report uses GitHub data only (`tools.github.toolsets: [default]`) | Add `cache-memory` only when trend baselines/deltas must persist across runs |
+| Program Manager | Digest/report uses GitHub data through `tools.github.mode: cli` | Add `cache-memory` only when trend baselines/deltas must persist across runs |
 | Designer | PR review is metadata/content-aware via GitHub reads only | Add `playwright` for screenshot/visual checks; add `cache-memory` when baselines or snapshot history are required |
 | Legal / Compliance | Policy/dependency review is repo-state and metadata driven | Add `cache-memory` when recurring audits need prior-run evidence/comparison state |
 
@@ -44,8 +44,7 @@ network:
   allowed: [defaults, github]
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default]
+    mode: cli
 safe-outputs:
   add-comment:
 ---
@@ -65,7 +64,8 @@ See [workflow-editing.md](workflow-editing.md) for when `gh aw compile` is requi
 - Limit `bash` access to what the workflow actually needs.
 - For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
-See [workflow-constraints.md](workflow-constraints.md) for the security posture (read-only job, safe-outputs routing, gh-proxy/cli-proxy, network constraints, sanitized text), safer-alternatives pattern, and common risk areas.
+See [workflow-constraints.md](workflow-constraints.md) for the security posture (read-only job, safe-outputs routing, cli/mcp-mode, network constraints, sanitized text), safer-alternatives pattern, and common risk areas.
+Use [security-profiles.md](security-profiles.md) as the canonical runtime, GitHub access, and MCP exposure decision reference.
 
 ## Repository-Specific Instructions
 
@@ -108,8 +108,7 @@ permissions:
   issues: write
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default]
+    mode: cli
 safe-outputs:
   create-issue:
     close-older-issues: true
