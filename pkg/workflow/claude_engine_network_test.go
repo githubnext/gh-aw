@@ -110,6 +110,14 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			t.Error("--tty flag should be present for Claude with AWF")
 		}
 
+		if !strings.Contains(stepYAML, "--debug-file /tmp/gh-aw/agent/claude-debug.log") {
+			t.Error("Claude debug output should use a file separate from the stream-json transcript")
+		}
+
+		if !strings.Contains(stepYAML, "(umask 177 && touch /tmp/gh-aw/agent/claude-debug.log)") {
+			t.Error("Claude debug log should be created with restrictive permissions before AWF starts")
+		}
+
 		// Verify domains are in the AWF config JSON (not as --allow-domains CLI flag)
 		if !strings.Contains(stepYAML, "allowDomains") {
 			t.Error("allowDomains should be present in AWF config JSON")
