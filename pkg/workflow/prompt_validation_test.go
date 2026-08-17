@@ -160,7 +160,7 @@ func TestComposedPromptSafeOutputsGuidanceStaysTransportNeutral(t *testing.T) {
 		"final composed prompt should preserve direct safe-output tool guidance")
 	assert.NotContains(t, finalPrompt, "For `safeoutputs` and `mcpscripts`, always use the CLI commands above.",
 		"final composed prompt should not require safeoutputs CLI usage unconditionally")
-	assert.Contains(t, finalPrompt, "If `safeoutputs` is also listed in `<safe-output-tools>`, call those tool names directly",
+	assert.Contains(t, finalPrompt, "For `safeoutputs`, call the tool names listed in `<safe-output-tools>` directly; the `safeoutputs` CLI commands above are an optional equivalent transport.",
 		"final composed prompt should keep safeoutputs CLI guidance optional when safe-output tools are available")
 }
 
