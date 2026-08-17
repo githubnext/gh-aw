@@ -370,6 +370,26 @@ func TestValidatePipPackageName(t *testing.T) {
 			expectError: true,
 			errContains: "PyPI names must start and end with a letter or digit, with hyphens, underscores, or dots allowed inside (e.g. \"requests\" or \"my-package\")",
 		},
+		{
+			name:        "shell separator is rejected",
+			pkg:         "pkg;whoami",
+			expectError: true,
+		},
+		{
+			name:        "command substitution is rejected",
+			pkg:         "pkg$(whoami)",
+			expectError: true,
+		},
+		{
+			name:        "newline option injection is rejected",
+			pkg:         "pkg\n--index-url",
+			expectError: true,
+		},
+		{
+			name:        "empty name is rejected",
+			pkg:         "",
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {
