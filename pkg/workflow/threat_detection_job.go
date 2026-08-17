@@ -45,7 +45,12 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, detectionTraceID, detectionParentSpanID)...)
 	}
 
-	// Download agent output artifact to access output files (prompt.txt, agent_output.json, patches).
+	// Download the activation artifact first because it is the durable source of the
+	// generated prompt files. The larger agent artifact also contains prompt files,
+	// but that upload is best-effort and may be unavailable when detection runs.
+	steps = append(steps, buildDetectionActivationArtifactDownloadSteps(data, c.getActionPin)...)
+
+	// Download agent output artifact to access output files (agent_output.json, patches).
 	// Use agent-downstream prefix since this job depends on the agent job.
 	agentArtifactPrefix := artifactPrefixExprForAgentDownstreamJob(data)
 	steps = append(steps, buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin)...)
@@ -204,4 +209,12 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 
 	threatLog.Printf("Built detection job with %d steps, depends on: %v", len(steps), needs)
 	return job, nil
+}
+
+func buildDetectionActivationArtifactDownloadSteps(data *WorkflowData, pinAction func(string) string) []string {
+	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: artifactPrefixExprForDownstreamJob(data) + constants.ActivationArtifactName,
+		DownloadPath: constants.TmpGhAwDir,
+		StepName:     "Download activation artifact",
+	}, pinAction)
 }
