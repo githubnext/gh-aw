@@ -181,39 +181,125 @@ type RunData struct {
 	Experiments                *ExperimentData        `json:"experiments,omitempty" console:"-"`                                                    // A/B experiment assignments for this run
 }
 
-// buildLogsData creates structured logs data from processed runs
-func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
-	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
-
-	// Build summary
-	var totalDuration time.Duration
-	var totalAIC float64
-	var totalTokens int
-	var totalActionMinutes float64
-	var totalTurns int
-	var totalSteeringEvents int
-	var totalErrors int
-	var totalWarnings int
-	var totalMissingTools int
-	var totalMissingData int
-	var totalSafeItems int
-	var totalDriverExitFailures int
-	var totalAgentLogicFailures int
-	var runsWithTemporaryIDChains int
-	var runsWithDelegatedTempTargets int
-	var runsWithMissingTemporaryIDMap int
-	var runsWithInvalidTemporaryIDMap int
-	var totalTemporaryIDMappings int
-	var totalChainedTargets int
-	var totalChainedFollowupActions int
-	var totalClosedTempTargets int
-	var totalGitHubAPICalls int
+// logsRunTotals accumulates the cross-run rollup counters used to build LogsSummary.
+type logsRunTotals struct {
+	duration                      time.Duration
+	aic                           float64
+	tokens                        int
+	actionMinutes                 float64
+	turns                         int
+	steeringEvents                int
+	errors                        int
+	warnings                      int
+	missingTools                  int
+	missingData                   int
+	safeItems                     int
+	driverExitFailures            int
+	agentLogicFailures            int
+	runsWithTemporaryIDChains     int
+	runsWithDelegatedTempTargets  int
+	runsWithMissingTemporaryIDMap int
+	runsWithInvalidTemporaryIDMap int
+	temporaryIDMappings           int
+	chainedTargets                int
+	chainedFollowupActions        int
+	closedTempTargets             int
+	gitHubAPICalls                int
 	// engineCounts tracks the number of runs per engine_id, sourced from aw_info.json.
 	// This is the authoritative engine classification — do not infer engine type from
 	// lock file contents, which contain "copilot" in allowed-domains and source paths
 	// regardless of which engine the workflow uses.
-	engineCounts := make(map[string]int)
-	var intentionalFailureRuns int
+	engineCounts           map[string]int
+	intentionalFailureRuns int
+}
+
+// accumulate folds a single run's metrics into the rollup totals.
+func (t *logsRunTotals) accumulate(pr ProcessedRun, chainMetrics SafeOutputChainMetrics, failureKind string, gitHubAPICalls int) {
+	run := pr.Run
+	if run.Duration > 0 {
+		t.duration += run.Duration
+	}
+	if pr.TokenUsage != nil {
+		t.aic += pr.TokenUsage.TotalAIC
+		t.steeringEvents += pr.TokenUsage.TotalSteeringEvents
+	}
+	t.tokens += run.TokenUsage
+	t.actionMinutes += run.ActionMinutes
+	t.turns += run.Turns
+	t.errors += run.ErrorCount
+	t.warnings += run.WarningCount
+	t.missingTools += run.MissingToolCount
+	t.missingData += run.MissingDataCount
+	t.safeItems += run.SafeItemsCount
+
+	switch failureKind {
+	case "agent_logic":
+		t.agentLogicFailures++
+	case "driver_exit":
+		t.driverExitFailures++
+	}
+
+	t.gitHubAPICalls += gitHubAPICalls
+
+	t.temporaryIDMappings += chainMetrics.TemporaryIDMappings
+	t.chainedTargets += chainMetrics.ChainedTargetCount
+	t.chainedFollowupActions += chainMetrics.ChainedFollowupActionCount
+	t.closedTempTargets += chainMetrics.ClosedTempTargetCount
+	if chainMetrics.ChainedTargetCount > 0 {
+		t.runsWithTemporaryIDChains++
+	}
+	if chainMetrics.DelegatedTempTargetCount > 0 {
+		t.runsWithDelegatedTempTargets++
+	}
+	switch chainMetrics.TemporaryIDMapStatus {
+	case temporaryIDMapStatusMissing:
+		t.runsWithMissingTemporaryIDMap++
+	case temporaryIDMapStatusInvalid:
+		t.runsWithInvalidTemporaryIDMap++
+	}
+}
+
+// toSummary renders the accumulated totals as a LogsSummary.
+func (t *logsRunTotals) toSummary(totalRuns int) LogsSummary {
+	summary := LogsSummary{
+		TotalRuns:                     totalRuns,
+		TotalDuration:                 timeutil.FormatDuration(t.duration),
+		TotalAIC:                      t.aic,
+		TotalTokens:                   t.tokens,
+		TotalActionMinutes:            t.actionMinutes,
+		TotalTurns:                    t.turns,
+		TotalSteeringEvents:           t.steeringEvents,
+		TotalErrors:                   t.errors,
+		TotalWarnings:                 t.warnings,
+		TotalMissingTools:             t.missingTools,
+		TotalMissingData:              t.missingData,
+		TotalSafeItems:                t.safeItems,
+		TotalDriverExitFailures:       t.driverExitFailures,
+		TotalAgentLogicFailures:       t.agentLogicFailures,
+		RunsWithTemporaryIDChains:     t.runsWithTemporaryIDChains,
+		RunsWithDelegatedTempTargets:  t.runsWithDelegatedTempTargets,
+		RunsWithMissingTemporaryIDMap: t.runsWithMissingTemporaryIDMap,
+		RunsWithInvalidTemporaryIDMap: t.runsWithInvalidTemporaryIDMap,
+		TotalTemporaryIDMappings:      t.temporaryIDMappings,
+		TotalChainedTargets:           t.chainedTargets,
+		TotalChainedFollowupActions:   t.chainedFollowupActions,
+		TotalClosedTempTargets:        t.closedTempTargets,
+		TotalGitHubAPICalls:           t.gitHubAPICalls,
+	}
+	if len(t.engineCounts) > 0 {
+		summary.EngineCounts = t.engineCounts
+	}
+	if t.intentionalFailureRuns > 0 {
+		summary.IntentionalFailureRuns = t.intentionalFailureRuns
+	}
+	return summary
+}
+
+// buildLogsData creates structured logs data from processed runs
+func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
+	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
+
+	totals := &logsRunTotals{engineCounts: make(map[string]int)}
 
 	// Get the local repository slug once to guard against cross-repo misclassification.
 	// IsIntentionalFailure reads from the local filesystem; when a run belongs to a
@@ -227,224 +313,10 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
 	runs := make([]RunData, 0, len(processedRuns))
 	for _, pr := range processedRuns {
-		run := pr.Run
-
-		if run.Duration > 0 {
-			totalDuration += run.Duration
-		}
-		if pr.TokenUsage != nil {
-			totalAIC += pr.TokenUsage.TotalAIC
-		}
-		totalTokens += run.TokenUsage
-		totalActionMinutes += run.ActionMinutes
-		totalTurns += run.Turns
-		if pr.TokenUsage != nil {
-			totalSteeringEvents += pr.TokenUsage.TotalSteeringEvents
-		}
-		totalErrors += run.ErrorCount
-		totalWarnings += run.WarningCount
-		totalMissingTools += run.MissingToolCount
-		totalMissingData += run.MissingDataCount
-		totalSafeItems += run.SafeItemsCount
-
-		// Classify the failure kind for this run and accumulate rollup counts.
-		// isDriverExitFailure requires TurnsAvailable so that runs without artifact data
-		// (ErrNoArtifacts) are not wrongly labelled driver_exit.
-		// Agent-logic requires a failed run and either:
-		//   1) reliable turn data (TurnsAvailable) / confirmed non-zero turns, or
-		//   2) job metadata showing agent=success followed by a failed safe_outputs job.
-		failureKind := ""
-		if isFailureConclusion(run.Conclusion) && isSafeOutputsFailureAfterSuccessfulAgent(pr.JobDetails) {
-			failureKind = "agent_logic"
-			totalAgentLogicFailures++
-		} else if isDriverExitFailure(run) {
-			failureKind = "driver_exit"
-			totalDriverExitFailures++
-		} else if isFailureConclusion(run.Conclusion) && (run.TurnsAvailable || run.Turns > 0) {
-			failureKind = "agent_logic"
-			totalAgentLogicFailures++
-		}
-
-		// Accumulate GitHub API call counts
-		var gitHubAPICalls int
-		if pr.GitHubRateLimitUsage != nil {
-			gitHubAPICalls = pr.GitHubRateLimitUsage.TotalRequestsMade
-		}
-		totalGitHubAPICalls += gitHubAPICalls
-
-		chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
-		totalTemporaryIDMappings += chainMetrics.TemporaryIDMappings
-		totalChainedTargets += chainMetrics.ChainedTargetCount
-		totalChainedFollowupActions += chainMetrics.ChainedFollowupActionCount
-		totalClosedTempTargets += chainMetrics.ClosedTempTargetCount
-		if chainMetrics.ChainedTargetCount > 0 {
-			runsWithTemporaryIDChains++
-		}
-		if chainMetrics.DelegatedTempTargetCount > 0 {
-			runsWithDelegatedTempTargets++
-		}
-		switch chainMetrics.TemporaryIDMapStatus {
-		case temporaryIDMapStatusMissing:
-			runsWithMissingTemporaryIDMap++
-		case temporaryIDMapStatusInvalid:
-			runsWithInvalidTemporaryIDMap++
-		}
-
-		// Extract engine ID and aw_context from aw_info.json.
-		engineID := ""
-		engineName := ""
-		var awContext *AwContext
-		var awInfo *AwInfo
-		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
-		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
-			awInfo = info
-			engineID = info.EngineID
-			engineName = info.EngineName
-			awContext = info.Context
-		}
-		if engineName == "" {
-			engineName = engineID
-		}
-		if awContext == nil {
-			awContext = pr.AwContext
-		}
-		// Accumulate engine counts from aw_info.json data (authoritative source).
-		if engineID != "" {
-			engineCounts[engineID]++
-		}
-
-		comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
-
-		var ambientContext *AmbientContextMetrics
-		if pr.TokenUsage != nil {
-			ambientContext = pr.TokenUsage.AmbientContext
-		}
-
-		runData := RunData{
-			RunID:                      run.DatabaseID,
-			Number:                     run.Number,
-			WorkflowName:               run.WorkflowName,
-			WorkflowPath:               run.WorkflowPath,
-			Agent:                      engineID,
-			Engine:                     engineName,
-			EngineID:                   engineID,
-			Status:                     run.Status,
-			Conclusion:                 run.Conclusion,
-			Classification:             deriveRunClassification(comparison),
-			FailureKind:                failureKind,
-			TokenUsage:                 run.TokenUsage,
-			AIC:                        0,
-			AmbientContext:             ambientContext,
-			ActionMinutes:              run.ActionMinutes,
-			Turns:                      run.Turns,
-			ErrorCount:                 run.ErrorCount,
-			WarningCount:               run.WarningCount,
-			MissingToolCount:           run.MissingToolCount,
-			MissingDataCount:           run.MissingDataCount,
-			SafeItemsCount:             run.SafeItemsCount,
-			ManifestEntryCount:         chainMetrics.ManifestEntryCount,
-			TemporaryIDMapStatus:       chainMetrics.TemporaryIDMapStatus,
-			TemporaryIDMappings:        chainMetrics.TemporaryIDMappings,
-			ChainedTargetCount:         chainMetrics.ChainedTargetCount,
-			ChainedFollowupActionCount: chainMetrics.ChainedFollowupActionCount,
-			DelegatedTempTargetCount:   chainMetrics.DelegatedTempTargetCount,
-			ClosedTempTargetCount:      chainMetrics.ClosedTempTargetCount,
-			CreatedAt:                  run.CreatedAt,
-			StartedAt:                  run.StartedAt,
-			UpdatedAt:                  run.UpdatedAt,
-			URL:                        run.URL,
-			LogsPath:                   run.LogsPath,
-			Event:                      run.Event,
-			Branch:                     run.HeadBranch,
-			HeadSHA:                    run.HeadSha,
-			DisplayTitle:               run.DisplayTitle,
-			Comparison:                 comparison,
-			TaskDomain:                 pr.TaskDomain,
-			BehaviorFingerprint:        pr.BehaviorFingerprint,
-			AgenticAssessments:         pr.AgenticAssessments,
-			AwContext:                  awContext,
-			TokenUsageSummary:          pr.TokenUsage,
-			GitHubAPICalls:             gitHubAPICalls,
-			Experiments:                extractExperimentData(run.LogsPath),
-		}
-		if awInfo != nil {
-			runData.Repository = awInfo.Repository
-			if awInfo.Repository != "" {
-				if parts := strings.SplitN(awInfo.Repository, "/", 2); len(parts) == 2 {
-					runData.Organization = parts[0]
-				}
-			}
-			runData.Ref = awInfo.Ref
-			runData.SHA = awInfo.SHA
-			runData.Actor = awInfo.Actor
-			runData.RunAttempt = awInfo.RunAttempt
-			runData.TargetRepo = awInfo.TargetRepo
-			runData.EventName = awInfo.EventName
-			// Fall back to inferring the workflow path from the display name when the
-			// GitHub API returned an empty path (e.g. for scheduled agentic runs).
-			// This handles both fresh runs and old cached RunSummary entries whose
-			// run.WorkflowPath was persisted as empty before the fix in
-			// logs_run_processor.go was applied.
-			if runData.WorkflowPath == "" && awInfo.WorkflowName != "" {
-				runData.WorkflowPath = inferWorkflowPathFromDisplayName(awInfo.WorkflowName)
-			}
-		}
-		// Mark runs from workflows tagged intentional-failure: true so that
-		// agents and dashboards can exclude them from fleet-health success-rate rollups.
-		// Only classify when the run comes from the same repository as the local checkout
-		// (or when either side is unknown), to avoid cross-repo misclassification.
-		if localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository) {
-			runData.IntentionalFailure = workflow.IsIntentionalFailure(runData.WorkflowPath)
-		}
-		if runData.IntentionalFailure {
-			intentionalFailureRuns++
-		}
-		if run.Duration > 0 {
-			runData.Duration = timeutil.FormatDuration(run.Duration)
-		}
-		if pr.TokenUsage != nil && pr.TokenUsage.TotalAIC > 0 {
-			runData.AIC = pr.TokenUsage.TotalAIC
-		}
-		// Compute average TBT from metrics when available; fall back to wall-time / (turns - 1).
-		if run.AvgTimeBetweenTurns > 0 {
-			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.AvgTimeBetweenTurns)
-		} else if run.Turns > 1 && run.Duration > 0 {
-			runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.Duration/time.Duration(run.Turns-1)) + " (estimated)"
-		}
-		runs = append(runs, runData)
+		runs = append(runs, buildRunDataForRun(pr, processedRuns, localRepo, totals))
 	}
 
-	summary := LogsSummary{
-		TotalRuns:                     len(processedRuns),
-		TotalDuration:                 timeutil.FormatDuration(totalDuration),
-		TotalAIC:                      totalAIC,
-		TotalTokens:                   totalTokens,
-		TotalActionMinutes:            totalActionMinutes,
-		TotalTurns:                    totalTurns,
-		TotalSteeringEvents:           totalSteeringEvents,
-		TotalErrors:                   totalErrors,
-		TotalWarnings:                 totalWarnings,
-		TotalMissingTools:             totalMissingTools,
-		TotalMissingData:              totalMissingData,
-		TotalSafeItems:                totalSafeItems,
-		TotalDriverExitFailures:       totalDriverExitFailures,
-		TotalAgentLogicFailures:       totalAgentLogicFailures,
-		RunsWithTemporaryIDChains:     runsWithTemporaryIDChains,
-		RunsWithDelegatedTempTargets:  runsWithDelegatedTempTargets,
-		RunsWithMissingTemporaryIDMap: runsWithMissingTemporaryIDMap,
-		RunsWithInvalidTemporaryIDMap: runsWithInvalidTemporaryIDMap,
-		TotalTemporaryIDMappings:      totalTemporaryIDMappings,
-		TotalChainedTargets:           totalChainedTargets,
-		TotalChainedFollowupActions:   totalChainedFollowupActions,
-		TotalClosedTempTargets:        totalClosedTempTargets,
-		TotalGitHubAPICalls:           totalGitHubAPICalls,
-	}
-	if len(engineCounts) > 0 {
-		summary.EngineCounts = engineCounts
-	}
-	if intentionalFailureRuns > 0 {
-		summary.IntentionalFailureRuns = intentionalFailureRuns
-	}
+	summary := totals.toSummary(len(processedRuns))
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)
 	for _, episode := range episodes {
@@ -454,32 +326,186 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		}
 	}
 
+	return buildLogsDataSections(processedRuns, summary, runs, episodes, edges, outputDir, continuation)
+}
+
+// buildRunDataForRun builds the per-run report entry and folds its metrics into totals.
+func buildRunDataForRun(pr ProcessedRun, processedRuns []ProcessedRun, localRepo string, totals *logsRunTotals) RunData {
+	run := pr.Run
+
+	failureKind := classifyRunFailureKind(pr)
+
+	// Accumulate GitHub API call counts
+	var gitHubAPICalls int
+	if pr.GitHubRateLimitUsage != nil {
+		gitHubAPICalls = pr.GitHubRateLimitUsage.TotalRequestsMade
+	}
+
+	chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
+	totals.accumulate(pr, chainMetrics, failureKind, gitHubAPICalls)
+
+	engineID, engineName, awContext, awInfo := resolveRunEngineInfo(pr)
+	// Accumulate engine counts from aw_info.json data (authoritative source).
+	if engineID != "" {
+		totals.engineCounts[engineID]++
+	}
+
+	comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
+
+	runData := newRunData(pr, engineID, engineName, awContext, chainMetrics, failureKind, gitHubAPICalls, comparison)
+	applyAwInfoToRunData(&runData, awInfo)
+
+	// Mark runs from workflows tagged intentional-failure: true so that
+	// agents and dashboards can exclude them from fleet-health success-rate rollups.
+	// Only classify when the run comes from the same repository as the local checkout
+	// (or when either side is unknown), to avoid cross-repo misclassification.
+	if localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository) {
+		runData.IntentionalFailure = workflow.IsIntentionalFailure(runData.WorkflowPath)
+	}
+	if runData.IntentionalFailure {
+		totals.intentionalFailureRuns++
+	}
+	if run.Duration > 0 {
+		runData.Duration = timeutil.FormatDuration(run.Duration)
+	}
+	if pr.TokenUsage != nil && pr.TokenUsage.TotalAIC > 0 {
+		runData.AIC = pr.TokenUsage.TotalAIC
+	}
+	// Compute average TBT from metrics when available; fall back to wall-time / (turns - 1).
+	if run.AvgTimeBetweenTurns > 0 {
+		runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.AvgTimeBetweenTurns)
+	} else if run.Turns > 1 && run.Duration > 0 {
+		runData.AvgTimeBetweenTurns = timeutil.FormatDuration(run.Duration/time.Duration(run.Turns-1)) + " (estimated)"
+	}
+	return runData
+}
+
+// classifyRunFailureKind classifies the failure kind for a run.
+// isDriverExitFailure requires TurnsAvailable so that runs without artifact data
+// (ErrNoArtifacts) are not wrongly labelled driver_exit.
+// Agent-logic requires a failed run and either:
+//  1. reliable turn data (TurnsAvailable) / confirmed non-zero turns, or
+//  2. job metadata showing agent=success followed by a failed safe_outputs job.
+func classifyRunFailureKind(pr ProcessedRun) string {
+	run := pr.Run
+	if isFailureConclusion(run.Conclusion) && isSafeOutputsFailureAfterSuccessfulAgent(pr.JobDetails) {
+		return "agent_logic"
+	}
+	if isDriverExitFailure(run) {
+		return "driver_exit"
+	}
+	if isFailureConclusion(run.Conclusion) && (run.TurnsAvailable || run.Turns > 0) {
+		return "agent_logic"
+	}
+	return ""
+}
+
+// resolveRunEngineInfo extracts engine ID, engine name, and aw_context from aw_info.json.
+func resolveRunEngineInfo(pr ProcessedRun) (engineID, engineName string, awContext *AwContext, awInfo *AwInfo) {
+	awInfoPath := filepath.Join(pr.Run.LogsPath, "aw_info.json")
+	if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
+		awInfo = info
+		engineID = info.EngineID
+		engineName = info.EngineName
+		awContext = info.Context
+	}
+	if engineName == "" {
+		engineName = engineID
+	}
+	if awContext == nil {
+		awContext = pr.AwContext
+	}
+	return engineID, engineName, awContext, awInfo
+}
+
+// newRunData assembles the report entry for a single processed run.
+func newRunData(pr ProcessedRun, engineID, engineName string, awContext *AwContext, chainMetrics SafeOutputChainMetrics, failureKind string, gitHubAPICalls int, comparison *AuditComparisonData) RunData {
+	run := pr.Run
+	var ambientContext *AmbientContextMetrics
+	if pr.TokenUsage != nil {
+		ambientContext = pr.TokenUsage.AmbientContext
+	}
+	return RunData{
+		RunID:                      run.DatabaseID,
+		Number:                     run.Number,
+		WorkflowName:               run.WorkflowName,
+		WorkflowPath:               run.WorkflowPath,
+		Agent:                      engineID,
+		Engine:                     engineName,
+		EngineID:                   engineID,
+		Status:                     run.Status,
+		Conclusion:                 run.Conclusion,
+		Classification:             deriveRunClassification(comparison),
+		FailureKind:                failureKind,
+		TokenUsage:                 run.TokenUsage,
+		AIC:                        0,
+		AmbientContext:             ambientContext,
+		ActionMinutes:              run.ActionMinutes,
+		Turns:                      run.Turns,
+		ErrorCount:                 run.ErrorCount,
+		WarningCount:               run.WarningCount,
+		MissingToolCount:           run.MissingToolCount,
+		MissingDataCount:           run.MissingDataCount,
+		SafeItemsCount:             run.SafeItemsCount,
+		ManifestEntryCount:         chainMetrics.ManifestEntryCount,
+		TemporaryIDMapStatus:       chainMetrics.TemporaryIDMapStatus,
+		TemporaryIDMappings:        chainMetrics.TemporaryIDMappings,
+		ChainedTargetCount:         chainMetrics.ChainedTargetCount,
+		ChainedFollowupActionCount: chainMetrics.ChainedFollowupActionCount,
+		DelegatedTempTargetCount:   chainMetrics.DelegatedTempTargetCount,
+		ClosedTempTargetCount:      chainMetrics.ClosedTempTargetCount,
+		CreatedAt:                  run.CreatedAt,
+		StartedAt:                  run.StartedAt,
+		UpdatedAt:                  run.UpdatedAt,
+		URL:                        run.URL,
+		LogsPath:                   run.LogsPath,
+		Event:                      run.Event,
+		Branch:                     run.HeadBranch,
+		HeadSHA:                    run.HeadSha,
+		DisplayTitle:               run.DisplayTitle,
+		Comparison:                 comparison,
+		TaskDomain:                 pr.TaskDomain,
+		BehaviorFingerprint:        pr.BehaviorFingerprint,
+		AgenticAssessments:         pr.AgenticAssessments,
+		AwContext:                  awContext,
+		TokenUsageSummary:          pr.TokenUsage,
+		GitHubAPICalls:             gitHubAPICalls,
+		Experiments:                extractExperimentData(run.LogsPath),
+	}
+}
+
+// applyAwInfoToRunData copies repository and trigger metadata from aw_info.json onto
+// the run entry.
+func applyAwInfoToRunData(runData *RunData, awInfo *AwInfo) {
+	if awInfo == nil {
+		return
+	}
+	runData.Repository = awInfo.Repository
+	if awInfo.Repository != "" {
+		if parts := strings.SplitN(awInfo.Repository, "/", 2); len(parts) == 2 {
+			runData.Organization = parts[0]
+		}
+	}
+	runData.Ref = awInfo.Ref
+	runData.SHA = awInfo.SHA
+	runData.Actor = awInfo.Actor
+	runData.RunAttempt = awInfo.RunAttempt
+	runData.TargetRepo = awInfo.TargetRepo
+	runData.EventName = awInfo.EventName
+	// Fall back to inferring the workflow path from the display name when the
+	// GitHub API returned an empty path (e.g. for scheduled agentic runs).
+	// This handles both fresh runs and old cached RunSummary entries whose
+	// run.WorkflowPath was persisted as empty before the fix in
+	// logs_run_processor.go was applied.
+	if runData.WorkflowPath == "" && awInfo.WorkflowName != "" {
+		runData.WorkflowPath = inferWorkflowPathFromDisplayName(awInfo.WorkflowName)
+	}
+}
+
+// buildLogsDataSections builds the aggregate report sections and assembles LogsData.
+func buildLogsDataSections(processedRuns []ProcessedRun, summary LogsSummary, runs []RunData, episodes []EpisodeData, edges []EpisodeEdge, outputDir string, continuation *ContinuationData) LogsData {
 	// Build tool usage summary
 	toolUsage := buildToolUsageSummary(processedRuns)
-
-	// Build combined error and warning summary
-	errorsAndWarnings := buildCombinedErrorsSummary(processedRuns)
-
-	// Build missing tools summary
-	missingTools := buildMissingToolsSummary(processedRuns)
-
-	// Build missing data summary
-	missingData := buildMissingDataSummary(processedRuns)
-
-	// Build MCP failures summary
-	mcpFailures := buildMCPFailuresSummary(processedRuns)
-
-	// Build MCP tool usage summary
-	mcpToolUsage := buildMCPToolUsageSummary(processedRuns)
-
-	// Build access log summary
-	accessLog := buildAccessLogSummary(processedRuns)
-
-	// Build firewall log summary
-	firewallLog := buildFirewallLogSummary(processedRuns)
-
-	// Build redacted domains summary
-	redactedDomains := buildRedactedDomainsSummary(processedRuns)
 
 	observability := buildLogsObservabilityInsights(processedRuns, toolUsage)
 	observability = append(observability, buildDrain3InsightsMultiRun(processedRuns)...)
@@ -487,20 +513,21 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	absOutputDir, _ := filepath.Abs(outputDir)
 
 	return LogsData{
-		Summary:           summary,
-		Runs:              runs,
-		Episodes:          episodes,
-		Edges:             edges,
-		ToolUsage:         toolUsage,
-		MCPToolUsage:      mcpToolUsage,
-		Observability:     observability,
-		ErrorsAndWarnings: errorsAndWarnings,
-		MissingTools:      missingTools,
-		MissingData:       missingData,
-		MCPFailures:       mcpFailures,
-		AccessLog:         accessLog,
-		FirewallLog:       firewallLog,
-		RedactedDomains:   redactedDomains,
+		Summary:       summary,
+		Runs:          runs,
+		Episodes:      episodes,
+		Edges:         edges,
+		ToolUsage:     toolUsage,
+		MCPToolUsage:  buildMCPToolUsageSummary(processedRuns),
+		Observability: observability,
+		// Build combined error and warning summary
+		ErrorsAndWarnings: buildCombinedErrorsSummary(processedRuns),
+		MissingTools:      buildMissingToolsSummary(processedRuns),
+		MissingData:       buildMissingDataSummary(processedRuns),
+		MCPFailures:       buildMCPFailuresSummary(processedRuns),
+		AccessLog:         buildAccessLogSummary(processedRuns),
+		FirewallLog:       buildFirewallLogSummary(processedRuns),
+		RedactedDomains:   buildRedactedDomainsSummary(processedRuns),
 		Continuation:      continuation,
 		LogsLocation:      absOutputDir,
 	}
