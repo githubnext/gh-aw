@@ -1,7 +1,8 @@
 // Package packagelevelmutableslicemap implements a Go analysis linter that
 // flags package-level (file/package-scope) var declarations of slices or maps
 // that are mutated from inside a function body via append re-assignment,
-// index assignment, or delete().
+// index assignment, delete(), or wholesale re-assignment (e.g. assigning nil,
+// a fresh literal, or a re-sliced expression back to the variable).
 //
 // Package-level mutable slices/maps are shared across every goroutine and
 // every call into the package for the lifetime of the process. Mutating one
@@ -29,7 +30,7 @@ import (
 )
 
 // Analyzer is the package-level-mutable-slice-map analysis pass.
-var Analyzer = analyzerutil.New("packagelevelmutableslicemap", "reports mutation of package-level slice/map variables from inside function bodies, which risks data races and cross-call state leaks", run)
+var Analyzer = analyzerutil.New("packagelevelmutableslicemap", "reports mutation (including wholesale re-assignment) of package-level slice/map variables from inside function bodies, which risks data races and cross-call state leaks", run)
 
 func run(pass *analysis.Pass) (any, error) {
 	insp, err := astutil.Inspector(pass)
@@ -131,6 +132,10 @@ func analyzeAssignStmt(pass *analysis.Pass, stmt *ast.AssignStmt, targets map[ty
 	}
 	if name, ok := matchIndexAssign(pass, stmt, targets); ok {
 		report(pass, stmt.Pos(), name, "index assignment", generatedFiles, noLintIndex)
+		return
+	}
+	if name, ok := matchWholesaleReassign(pass, stmt, targets); ok {
+		report(pass, stmt.Pos(), name, "wholesale re-assignment", generatedFiles, noLintIndex)
 	}
 }
 
@@ -189,6 +194,28 @@ func matchIndexAssign(pass *analysis.Pass, stmt *ast.AssignStmt, targets map[typ
 			continue
 		}
 		if name, ok := targetBaseName(pass, idxExpr, targets); ok {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// matchWholesaleReassign reports whether stmt assigns any value directly to a
+// tracked package-level target identifier, e.g. `globalSlice = nil`,
+// `globalSlice = []int{}`, or `globalSlice = globalSlice[:0]`. This is
+// checked after matchAppendReassign and matchIndexAssign so that the more
+// specific "append() re-assignment" and "index assignment" messages take
+// precedence and this path never double-reports the same statement.
+func matchWholesaleReassign(pass *analysis.Pass, stmt *ast.AssignStmt, targets map[types.Object]string) (string, bool) {
+	if stmt.Tok != token.ASSIGN {
+		return "", false
+	}
+	for _, lhs := range stmt.Lhs {
+		lhsIdent, ok := lhs.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		if name, tracked := targets[pass.TypesInfo.Uses[lhsIdent]]; tracked {
 			return name, true
 		}
 	}

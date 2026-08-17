@@ -4,11 +4,13 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +18,57 @@ import (
 	"github.com/creack/pty"
 	"github.com/github/gh-aw/pkg/fileutil"
 )
+
+// extractHandlerConfig parses the GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG value from a compiled
+// lock file. The compiler emits the handler config as a double-quoted YAML scalar, so the
+// embedded JSON quotes are backslash-escaped in the lock file and must be unquoted before
+// the JSON can be parsed.
+func extractHandlerConfig(t *testing.T, lockContent string) map[string]any {
+	t.Helper()
+
+	const key = "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG:"
+	var quoted string
+	for _, line := range strings.Split(lockContent, "\n") {
+		if idx := strings.Index(line, key); idx >= 0 {
+			quoted = strings.TrimSpace(line[idx+len(key):])
+			break
+		}
+	}
+	if quoted == "" {
+		t.Fatalf("Lock file should contain %s\nLock file content:\n%s", key, lockContent)
+	}
+
+	configJSON, err := strconv.Unquote(quoted)
+	if err != nil {
+		t.Fatalf("Failed to unquote handler config value %s: %v", quoted, err)
+	}
+
+	var config map[string]any
+	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+		t.Fatalf("Failed to parse handler config JSON: %v\nJSON: %s", err, configJSON)
+	}
+	return config
+}
+
+// dispatchRepositoryToolConfig returns the per-tool configuration stored under the
+// dispatch_repository entry of the safe outputs handler config.
+func dispatchRepositoryToolConfig(t *testing.T, config map[string]any, toolName string) map[string]any {
+	t.Helper()
+
+	dispatch, ok := config["dispatch_repository"].(map[string]any)
+	if !ok {
+		t.Fatalf("Handler config should contain a dispatch_repository object, got: %#v", config["dispatch_repository"])
+	}
+	tools, ok := dispatch["tools"].(map[string]any)
+	if !ok {
+		t.Fatalf("dispatch_repository config should contain a tools object, got: %#v", dispatch["tools"])
+	}
+	tool, ok := tools[toolName].(map[string]any)
+	if !ok {
+		t.Fatalf("dispatch_repository tools should contain %q, got: %#v", toolName, tools)
+	}
+	return tool
+}
 
 // Global binary path shared across all integration tests
 var (
@@ -1646,19 +1699,18 @@ Call trigger_ci to trigger CI in the target repository.
 	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
 		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG\nLock file content:\n%s", lockContentStr)
 	}
-	if !strings.Contains(lockContentStr, `"dispatch_repository"`) {
-		t.Errorf("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG should contain 'dispatch_repository'\nLock file content:\n%s", lockContentStr)
-	}
+	handlerConfig := extractHandlerConfig(t, lockContentStr)
+	triggerCI := dispatchRepositoryToolConfig(t, handlerConfig, "trigger_ci")
 
 	// Verify required fields are in the handler config
-	if !strings.Contains(lockContentStr, `"workflow":"ci.yml"`) {
-		t.Errorf("Handler config should contain 'workflow':'ci.yml'\nLock file content:\n%s", lockContentStr)
+	if triggerCI["workflow"] != "ci.yml" {
+		t.Errorf("Handler config should contain workflow 'ci.yml', got: %#v", triggerCI["workflow"])
 	}
-	if !strings.Contains(lockContentStr, `"event_type":"ci_trigger"`) {
-		t.Errorf("Handler config should contain 'event_type':'ci_trigger'\nLock file content:\n%s", lockContentStr)
+	if triggerCI["event_type"] != "ci_trigger" {
+		t.Errorf("Handler config should contain event_type 'ci_trigger', got: %#v", triggerCI["event_type"])
 	}
-	if !strings.Contains(lockContentStr, `"repository":"org/target-repo"`) {
-		t.Errorf("Handler config should contain 'repository':'org/target-repo'\nLock file content:\n%s", lockContentStr)
+	if triggerCI["repository"] != "org/target-repo" {
+		t.Errorf("Handler config should contain repository 'org/target-repo', got: %#v", triggerCI["repository"])
 	}
 }
 
@@ -1744,11 +1796,14 @@ Dispatch trigger_ci and notify_service as appropriate.
 	}
 
 	// Handler config must include both tools with their settings
-	if !strings.Contains(lockContentStr, `"workflow":"ci.yml"`) {
-		t.Errorf("Handler config should contain trigger_ci workflow\nLock file content:\n%s", lockContentStr)
+	handlerConfig := extractHandlerConfig(t, lockContentStr)
+	triggerCI := dispatchRepositoryToolConfig(t, handlerConfig, "trigger_ci")
+	notifyService := dispatchRepositoryToolConfig(t, handlerConfig, "notify_service")
+	if triggerCI["workflow"] != "ci.yml" {
+		t.Errorf("Handler config should contain trigger_ci workflow 'ci.yml', got: %#v", triggerCI["workflow"])
 	}
-	if !strings.Contains(lockContentStr, `"workflow":"notify.yml"`) {
-		t.Errorf("Handler config should contain notify_service workflow\nLock file content:\n%s", lockContentStr)
+	if notifyService["workflow"] != "notify.yml" {
+		t.Errorf("Handler config should contain notify_service workflow 'notify.yml', got: %#v", notifyService["workflow"])
 	}
 
 	// allowed_repositories must be serialized in the handler config
@@ -1860,8 +1915,9 @@ func TestCompileDispatchRepositoryWorkflowFile(t *testing.T) {
 	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
 		t.Errorf("Lock file should contain GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG\nLock file content:\n%s", lockContentStr)
 	}
-	if !strings.Contains(lockContentStr, `"dispatch_repository"`) {
-		t.Errorf("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG should contain dispatch_repository config\nLock file content:\n%s", lockContentStr)
+	handlerConfig := extractHandlerConfig(t, lockContentStr)
+	if _, ok := handlerConfig["dispatch_repository"]; !ok {
+		t.Errorf("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG should contain dispatch_repository config, got keys: %v", handlerConfig)
 	}
 
 	t.Logf("Canonical dispatch_repository workflow compiled successfully to %s", lockFilePath)
