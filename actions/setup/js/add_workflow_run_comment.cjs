@@ -340,10 +340,11 @@ function buildCommentBody(eventName, runUrl, workflowNameOverride) {
   // Whitespace-only overrides are treated as absent and fall back to env defaults.
   const normalizedWorkflowNameOverride = workflowNameOverride?.trim();
   const workflowName = normalizedWorkflowNameOverride || process.env.GH_AW_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "Workflow";
+  const workflowEmoji = process.env.GH_AW_WORKFLOW_EMOJI;
   const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
 
   // Sanitize before adding markers (defense in depth for custom message templates)
-  let body = sanitizeContent(getRunStartedMessage({ workflowName, runUrl, eventType: eventTypeDescription }));
+  let body = sanitizeContent(getRunStartedMessage({ workflowName, runUrl, eventType: eventTypeDescription, emoji: workflowEmoji }));
 
   // Add lock notice if lock-for-agent is enabled for issues or issue_comment
   if (process.env.GH_AW_LOCK_FOR_AGENT === "true" && (eventName === "issues" || eventName === "issue_comment")) {
