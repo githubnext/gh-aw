@@ -232,13 +232,15 @@ async function main() {
   }
   /** @type {Array<{name: string, description: string, inputSchema?: {properties?: Record<string, unknown>}}>} */
   let allTools;
+  /** @type {string} */
+  let allToolsRaw;
   try {
-    allTools = fs.readFileSync(toolsSourcePath, "utf8");
+    allToolsRaw = fs.readFileSync(toolsSourcePath, "utf8");
   } catch (err) {
     throw new Error(`${ERR_SYSTEM}: Failed to read tools source file ${toolsSourcePath}: ${getErrorMessage(err)}`, { cause: err });
   }
   try {
-    allTools = JSON.parse(allTools);
+    allTools = JSON.parse(allToolsRaw);
   } catch (err) {
     throw new Error(`${ERR_PARSE}: ` + "Failed to parse tools source file " + toolsSourcePath + ": " + getErrorMessage(err), { cause: err });
   }
@@ -251,13 +253,15 @@ async function main() {
   }
   /** @type {Record<string, unknown>} */
   let config;
+  /** @type {string} */
+  let configRaw;
   try {
-    config = fs.readFileSync(configPath, "utf8");
+    configRaw = fs.readFileSync(configPath, "utf8");
   } catch (err) {
     throw new Error(`${ERR_SYSTEM}: Failed to read config file ${configPath}: ${getErrorMessage(err)}`, { cause: err });
   }
   try {
-    config = JSON.parse(config);
+    config = JSON.parse(configRaw);
   } catch (err) {
     throw new Error(`${ERR_PARSE}: ` + "Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
   }
@@ -266,13 +270,15 @@ async function main() {
   /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>, required_field_additions?: Record<string, string[]>, property_injections?: Record<string, Record<string, unknown>>}} */
   let toolsMeta = { description_suffixes: {}, repo_params: {}, dynamic_tools: [] };
   if (fs.existsSync(toolsMetaPath)) {
+    /** @type {string} */
+    let toolsMetaRaw;
     try {
-      toolsMeta = fs.readFileSync(toolsMetaPath, "utf8");
+      toolsMetaRaw = fs.readFileSync(toolsMetaPath, "utf8");
     } catch (err) {
       throw new Error(`${ERR_SYSTEM}: Failed to read tools meta file ${toolsMetaPath}: ${getErrorMessage(err)}`, { cause: err });
     }
     try {
-      toolsMeta = JSON.parse(toolsMeta);
+      toolsMeta = JSON.parse(toolsMetaRaw);
     } catch (err) {
       throw new Error(`${ERR_PARSE}: ` + "Failed to parse tools meta file " + toolsMetaPath + ": " + getErrorMessage(err), { cause: err });
     }
