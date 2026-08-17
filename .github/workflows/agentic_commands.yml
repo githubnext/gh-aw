@@ -105,7 +105,7 @@ on:
     types: [edited, labeled, opened, reopened]
   issue_comment:
     types: [created, edited]
-  pull_request:
+  pull_request_target:
     types: [edited, labeled, opened, reopened]
   pull_request_review_comment:
     types: [created, edited]

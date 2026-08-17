@@ -2,7 +2,7 @@ name: Label Closed PRs
 
 # Trigger when a pull request is closed (either merged or without merging)
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
 
 permissions:

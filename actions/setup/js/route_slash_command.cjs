@@ -43,6 +43,9 @@ async function appendRoutingSummary(existingCommands, selectedCommand) {
 }
 
 function eventIdentifier() {
+  if (context.eventName === "pull_request_target") {
+    return "pull_request";
+  }
   if (context.eventName !== "issue_comment") {
     return context.eventName;
   }
@@ -53,6 +56,7 @@ function resolveBodyText() {
   const bodyByEvent = {
     issues: context.payload?.issue?.body ?? "",
     pull_request: context.payload?.pull_request?.body ?? "",
+    pull_request_target: context.payload?.pull_request?.body ?? "",
     issue_comment: context.payload?.comment?.body ?? "",
     pull_request_review_comment: context.payload?.comment?.body ?? "",
     pull_request_review: context.payload?.review?.body ?? "",
@@ -215,7 +219,8 @@ async function addImmediateReaction(reaction) {
         });
         return;
       }
-      case "pull_request": {
+      case "pull_request":
+      case "pull_request_target": {
         const prNumber = context.payload?.pull_request?.number;
         if (!prNumber) {
           core.warning("Skipping immediate reaction: pull request number was not found in payload.");

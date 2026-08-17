@@ -3,9 +3,13 @@ private: true
 name: PR Description Updater
 description: Rewrites a merged PR description with a structured, considered summary optimised for downstream agentic analysis. Processes the full diff in chunks using sub-agents. Ignores lock files and auto-generated code.
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
 if: github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/') && !startsWith(github.event.pull_request.head.ref, 'copilot/')
+checkout:
+  repository: ${{ github.repository }}
+  ref: ${{ github.event.pull_request.base.sha }}
+  fetch-depth: 0
 permissions:
   contents: read
   pull-requests: read

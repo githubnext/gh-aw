@@ -533,6 +533,19 @@ describe("route_slash_command", () => {
     expect(reactionCalls[0][0]).toBe("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions");
   });
 
+  it("treats pull_request_target events as pull_request routes", async () => {
+    globals.context.eventName = "pull_request_target";
+    globals.context.payload = { pull_request: { number: 7, body: "/archie please" } };
+    process.env.GH_AW_SLASH_ROUTING = JSON.stringify({
+      archie: [{ workflow: "archie", events: ["pull_request"], ai_reaction: "eyes" }],
+    });
+    await main();
+    expect(dispatchCalls).toHaveLength(1);
+    expect(reactionCalls).toHaveLength(1);
+    const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
+    expect(awContext.command_name).toBe("archie");
+  });
+
   it("adds immediate reaction for pull_request_review_comment events using comment id", async () => {
     globals.context.eventName = "pull_request_review_comment";
     globals.context.payload = { comment: { id: 99, body: "/archie please" } };

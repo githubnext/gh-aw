@@ -734,7 +734,11 @@ func writeCentralSlashEventsYAML(b *strings.Builder, mergedEvents map[string]map
 			continue
 		}
 		types := sliceutil.SortedKeys(typeSet)
-		b.WriteString("  " + eventName + ":\n")
+		yamlEventName := eventName
+		if eventName == "pull_request" {
+			yamlEventName = "pull_request_target"
+		}
+		b.WriteString("  " + yamlEventName + ":\n")
 		b.WriteString("    types: [" + strings.Join(types, ", ") + "]\n")
 	}
 }
