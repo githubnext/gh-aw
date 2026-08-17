@@ -1,7 +1,7 @@
 # ADR-53256: Normalize rpc-messages.jsonl Schema Across Versions via EffectiveType
 
 **Date**: 2026-08-17
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -41,4 +41,4 @@ Overwrite `entry.type` with the normalized value on every parsed entry regardles
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent].*
