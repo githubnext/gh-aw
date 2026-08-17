@@ -124,7 +124,9 @@ Create test issues with grouping.
 	compiledContent, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
 
-	compiledStr := string(compiledContent)
+	// The safe-outputs config is embedded as JSON inside YAML string values, so quotes
+	// are escaped; unescape before asserting on raw JSON fragments.
+	compiledStr := unescapeLockJSON(string(compiledContent))
 
 	// Verify GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG contains the group flag
 	require.Contains(t, compiledStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", "Expected handler config in compiled workflow")
@@ -164,7 +166,9 @@ Test grouping without explicit issues permission.
 	compiledContent, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
 
-	compiledStr := string(compiledContent)
+	// The safe-outputs config is embedded as JSON inside YAML string values, so quotes
+	// are escaped; unescape before asserting on raw JSON fragments.
+	compiledStr := unescapeLockJSON(string(compiledContent))
 
 	// Verify the workflow compiled and contains the group flag
 	require.Contains(t, compiledStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG")
@@ -204,7 +208,9 @@ Test grouping with title prefix.
 	compiledContent, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
 
-	compiledStr := string(compiledContent)
+	// The safe-outputs config is embedded as JSON inside YAML string values, so quotes
+	// are escaped; unescape before asserting on raw JSON fragments.
+	compiledStr := unescapeLockJSON(string(compiledContent))
 
 	// Verify both group and title_prefix are in the handler config
 	assert.Contains(t, compiledStr, `"group":true`, "Expected group:true in compiled workflow")
@@ -242,7 +248,9 @@ Test MCP config with group.
 	compiledContent, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
 
-	compiledStr := string(compiledContent)
+	// The safe-outputs config is embedded as JSON inside YAML string values, so quotes
+	// are escaped; unescape before asserting on raw JSON fragments.
+	compiledStr := unescapeLockJSON(string(compiledContent))
 
 	// The group flag should be in handler config
 	require.Contains(t, compiledStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", "Should have handler config")
