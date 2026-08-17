@@ -417,6 +417,7 @@ tools:
       permissions:
         members: read
         organization-administration: read
+        secret-scanning-alerts: read
 ---
 
 # Test Workflow
@@ -447,6 +448,7 @@ Test extra org-level permissions in GitHub App token.
 	// Verify that the extra org-level permissions from github-app.permissions are included
 	assert.Contains(t, lockContent, "permission-members: read", "Should include extra members permission from github-app.permissions")
 	assert.Contains(t, lockContent, "permission-organization-administration: read", "Should include extra organization-administration permission from github-app.permissions")
+	assert.Contains(t, lockContent, "permission-secret-scanning-alerts: read", "Should include extra secret-scanning-alerts permission from github-app.permissions")
 }
 
 // TestGitHubMCPAppTokenExtraPermissionsOverrideJobLevel tests that extra permissions
