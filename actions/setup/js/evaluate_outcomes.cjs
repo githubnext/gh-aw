@@ -29,6 +29,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -48,7 +49,7 @@ const CLOSING_COMMENT_KEYWORDS = ["not planned", "won't fix", "wontfix", "duplic
 
 const DEFAULT_ISSUE_IMMEDIATE_CLOSE_WINDOW_SEC = 60 * 60;
 const DEFAULT_LABEL_RETENTION_WINDOW_SEC = 24 * 60 * 60;
-const GH_COMMAND_TIMEOUT_MS = 300_000;
+const GH_COMMAND_TIMEOUT_MS = getSetupTimeoutMs("outcomeGh");
 
 const POSITIVE_REACTIONS = ["+1", "heart", "hooray", "rocket"];
 const NEGATIVE_REACTIONS = ["-1", "confused"];

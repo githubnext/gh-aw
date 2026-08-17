@@ -15,8 +15,9 @@
 const childProcess = require("child_process");
 const fs = require("fs");
 const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
-const SAFEOUTPUTS_CLI_TIMEOUT_MS = 120_000;
+const SAFEOUTPUTS_CLI_TIMEOUT_MS = getSetupTimeoutMs("safeoutputsCli");
 
 /**
  * @typedef {(toolName: string, args: Record<string, string>) => void} RunSafeOutputsCLILike

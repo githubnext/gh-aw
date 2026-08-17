@@ -343,6 +343,8 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
       output: [],
       signal: null,
     });
+    vi.stubEnv("GH_AW_ARTIFACT_ARCHIVE_PROBE_TIMEOUT_MS", "12345");
+    vi.stubEnv("GH_AW_ARTIFACT_ARCHIVE_TIMEOUT_MS", "67890");
     const artifactClientPath = req.resolve("./artifact_client.cjs");
     delete req.cache[artifactClientPath];
     const { DefaultArtifactClient: FreshArtifactClient } = req("./artifact_client.cjs");
@@ -372,8 +374,8 @@ describe("DefaultArtifactClient.uploadArtifact", () => {
     }
 
     expect(capturedName).toBe("archive-name");
-    expect(spawnSyncSpy).toHaveBeenNthCalledWith(1, "zip", ["-v"], expect.objectContaining({ timeout: 15_000 }));
-    expect(spawnSyncSpy).toHaveBeenNthCalledWith(2, "zip", expect.any(Array), expect.objectContaining({ timeout: 300_000 }));
+    expect(spawnSyncSpy).toHaveBeenNthCalledWith(1, "zip", ["-v"], expect.objectContaining({ timeout: 12_345 }));
+    expect(spawnSyncSpy).toHaveBeenNthCalledWith(2, "zip", expect.any(Array), expect.objectContaining({ timeout: 67_890 }));
     spawnSyncSpy.mockRestore();
     delete req.cache[artifactClientPath];
   });

@@ -27,8 +27,9 @@ require("./shim.cjs");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
-const GIT_COMMAND_TIMEOUT_MS = 300_000;
+const GIT_COMMAND_TIMEOUT_MS = getSetupTimeoutMs("importGit");
 
 /**
  * Parse the agent import specification to extract repository details

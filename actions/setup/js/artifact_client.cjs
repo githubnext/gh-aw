@@ -16,6 +16,7 @@ const { pipeline } = require("stream/promises");
 const { spawnSync } = require("child_process");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
 const DEFAULT_RETRY_ATTEMPTS = 5;
 const RETRY_DELAY_MS = 5000;
@@ -23,10 +24,10 @@ const RESULTS_SCOPE_PREFIX = "Actions.Results:";
 const TWIRP_ARTIFACT_SERVICE = "github.actions.results.api.v1.ArtifactService";
 const MAX_ARTIFACTS = 1000;
 const PAGE_SIZE = 100;
-const FETCH_TIMEOUT_MS = 120_000;
-const FETCH_TRANSFER_TIMEOUT_MS = 300_000;
-const ARCHIVE_COMMAND_TIMEOUT_MS = 300_000;
-const ARCHIVE_PROBE_TIMEOUT_MS = 15_000;
+const FETCH_TIMEOUT_MS = getSetupTimeoutMs("artifactFetch");
+const FETCH_TRANSFER_TIMEOUT_MS = getSetupTimeoutMs("artifactTransfer");
+const ARCHIVE_COMMAND_TIMEOUT_MS = getSetupTimeoutMs("artifactArchive");
+const ARCHIVE_PROBE_TIMEOUT_MS = getSetupTimeoutMs("artifactArchiveProbe");
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));

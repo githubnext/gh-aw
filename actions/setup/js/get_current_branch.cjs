@@ -3,8 +3,9 @@
 
 const { execSync } = require("child_process");
 const { ERR_CONFIG } = require("./error_codes.cjs");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
-const GIT_BRANCH_TIMEOUT_MS = 15_000;
+const GIT_BRANCH_TIMEOUT_MS = getSetupTimeoutMs("gitBranch");
 
 /**
  * Get the current git branch name

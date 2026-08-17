@@ -37,6 +37,7 @@ const path = require("path");
 const { withRetry } = require("./error_recovery.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -45,10 +46,10 @@ const customGatewayEnvNamePattern = /^[A-Z_][A-Z0-9_]*$/;
 const customGatewayEnvNamesVar = "GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES";
 const customGatewayEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_";
 const customGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_";
-const CONTAINER_STATUS_TIMEOUT_MS = 15_000;
-const CONFIG_CONVERTER_TIMEOUT_MS = 120_000;
-const DOCKER_CLEANUP_TIMEOUT_MS = 30_000;
-const MCP_SERVER_CHECK_TIMEOUT_MS = 120_000;
+const CONTAINER_STATUS_TIMEOUT_MS = getSetupTimeoutMs("mcpContainerStatus");
+const CONFIG_CONVERTER_TIMEOUT_MS = getSetupTimeoutMs("mcpConfigConverter");
+const DOCKER_CLEANUP_TIMEOUT_MS = getSetupTimeoutMs("mcpDockerCleanup");
+const MCP_SERVER_CHECK_TIMEOUT_MS = getSetupTimeoutMs("mcpServerCheck");
 
 // ---------------------------------------------------------------------------
 // Timing helpers

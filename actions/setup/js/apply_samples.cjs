@@ -38,11 +38,12 @@ const os = require("os");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION, ERR_PARSE, ERR_SYSTEM, ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
-const FETCH_TIMEOUT_MS = 120_000;
-const GIT_COMMAND_TIMEOUT_MS = 120_000;
+const FETCH_TIMEOUT_MS = getSetupTimeoutMs("applySamplesFetch");
+const GIT_COMMAND_TIMEOUT_MS = getSetupTimeoutMs("applySamplesGit");
 
 /**
  * @typedef {Object} SampleEntry
