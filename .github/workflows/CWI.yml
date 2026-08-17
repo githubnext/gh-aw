@@ -124,3 +124,63 @@ jobs:
           GH_AW_INTEGRATION_BINARY: ${{ github.workspace }}/gh-aw.exe
         run: |
           go test -v -timeout=5m -tags 'integration' -run '^TestMCPServer_WindowsSmokeCommands$' ./pkg/cli
+
+  summarize-timing:
+    name: Summarize workflow timing
+    needs:
+      - build-windows
+      - integration
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Summarize job and step durations
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3   # v9
+        with:
+          script: |
+            const fs = require('fs');
+
+            const formatDuration = (startedAt, completedAt) => {
+              if (!startedAt || !completedAt) return 'n/a';
+              const milliseconds = new Date(completedAt) - new Date(startedAt);
+              if (!Number.isFinite(milliseconds) || milliseconds < 0) return 'n/a';
+              const totalSeconds = Math.round(milliseconds / 1000);
+              const hours = Math.floor(totalSeconds / 3600);
+              const minutes = Math.floor((totalSeconds % 3600) / 60);
+              const seconds = totalSeconds % 60;
+              if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+              if (minutes > 0) return `${minutes}m ${seconds}s`;
+              return `${seconds}s`;
+            };
+
+            const cell = (value) => String(value ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+              per_page: 100,
+            });
+
+            const rows = [];
+            for (const job of jobs) {
+              if (job.name === 'Summarize workflow timing' || job.name === 'summarize-timing') continue;
+              rows.push(`| [${cell(job.name)}](${job.html_url}) | job | ${cell(job.conclusion || job.status)} | ${formatDuration(job.started_at, job.completed_at)} |`);
+              for (const step of job.steps || []) {
+                rows.push(`| ${cell(`- ${step.name}`)} | step | ${cell(step.conclusion || step.status)} | ${formatDuration(step.started_at, step.completed_at)} |`);
+              }
+            }
+
+            const summary = [
+              '## Workflow timing summary',
+              '',
+              'Step-level timing collected from the GitHub Actions API for this run.',
+              '',
+              '| Name | Type | Result | Duration |',
+              '| --- | --- | --- | --- |',
+              ...rows,
+              '',
+            ].join('\n');
+
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
