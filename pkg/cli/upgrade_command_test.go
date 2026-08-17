@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"io"
 	"os"
 	"testing"
 
@@ -163,6 +164,34 @@ func TestRelaunchWithSameArgsAllowsEmptyForwardedArgument(t *testing.T) {
 
 	err := relaunchWithSameArgs("--skip-extension-upgrade", "/bin/echo")
 	require.NoError(t, err)
+}
+
+func TestRelaunchWithSameArgsPassesShellMetacharactersLiterally(t *testing.T) {
+	origArgs := os.Args
+	origStdout := os.Stdout
+	t.Cleanup(func() {
+		os.Args = origArgs
+		os.Stdout = origStdout
+	})
+	os.Args = []string{"gh-aw", "upgrade", ";", "$(whoami)"}
+
+	readOutput, writeOutput, err := os.Pipe()
+	require.NoError(t, err)
+	writeOutputClosed := false
+	t.Cleanup(func() {
+		_ = readOutput.Close()
+		if !writeOutputClosed {
+			_ = writeOutput.Close()
+		}
+	})
+	os.Stdout = writeOutput
+
+	require.NoError(t, relaunchWithSameArgs("--skip-extension-upgrade", "/bin/echo"))
+	require.NoError(t, writeOutput.Close())
+	writeOutputClosed = true
+	output, err := io.ReadAll(readOutput)
+	require.NoError(t, err)
+	require.Equal(t, "upgrade ; $(whoami) --skip-extension-upgrade\n", string(output))
 }
 
 func TestRelaunchWithSameArgsRejectsUnknownExtraFlag(t *testing.T) {
