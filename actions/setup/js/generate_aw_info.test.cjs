@@ -51,7 +51,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_WORKFLOW_NAME = "my-workflow";
     process.env.GH_AW_INFO_EXPERIMENTAL = "false";
     process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST = "true";
-    process.env.GH_AW_INFO_CACHE_MEMORY = "false";
+    delete process.env.GH_AW_INFO_CACHE_MEMORY;
     process.env.GH_AW_INFO_STAGED = "false";
     process.env.GH_AW_INFO_ALLOWED_DOMAINS = "[]";
     process.env.GH_AW_INFO_FIREWALL_ENABLED = "false";

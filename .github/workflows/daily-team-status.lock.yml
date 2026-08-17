@@ -140,7 +140,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_AGENT_RUNTIME: ""
-          GH_AW_INFO_CACHE_MEMORY: "false"
           GH_AW_INFO_FRONTMATTER_SOURCE: "githubnext/agentics/workflows/team-status.md@main"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_COMPILED_STRICT: "true"

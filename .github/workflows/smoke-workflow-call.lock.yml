@@ -221,7 +221,6 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_AGENT_RUNTIME: ""
-          GH_AW_INFO_CACHE_MEMORY: "false"
           GH_AW_INFO_FRONTMATTER_EMOJI: "🧪"
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_TARGET_REPO: ${{ steps.resolve-host-repo.outputs.target_repo }}
