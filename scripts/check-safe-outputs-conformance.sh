@@ -1986,6 +1986,100 @@ check_fork_backed_pr_semantics() {
 }
 check_fork_backed_pr_semantics
 
+# TYPE-013: approve_workflow_run Handler Semantics (Section 7.3, v1.28.4)
+echo "Running TYPE-013: approve_workflow_run Handler Semantics..."
+check_approve_workflow_run_semantics() {
+    local handler="actions/setup/js/approve_workflow_run.cjs"
+    local manager="actions/setup/js/safe_output_handler_manager.cjs"
+    local failed=0
+
+    # Per spec Section 7.3 (approve_workflow_run, v1.28.4):
+    # 1. run_id MUST be validated as a positive safe integer.
+    # 2. Staged mode MUST preview without reading GitHub state or consuming max limit.
+    # 3. Eligibility requires event=pull_request, non-empty pull_requests, status=waiting.
+    # 4. Workflow filename MUST match an allowed-workflows pattern (yml/yaml equivalence).
+    # 5. Every associated pull request MUST be the triggering PR or explicitly allowed.
+    # 6. pull_request_target events and unapproved fork pull requests MUST be rejected.
+    # 7. Protected files on associated pull requests MUST block approval.
+    # 8. Live approvals MUST require an explicit external github-token or GitHub App token.
+    # 9. Handler MUST be classified as an Abort type for warn-mode threat-detection failures.
+
+    if [ ! -f "$handler" ]; then
+        log_high "TYPE-013: approve_workflow_run handler missing: $handler"
+        failed=1
+    else
+        if ! grep -qE "parsePositiveInt" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not validate run_id as a positive integer (Section 7.3 requirement 1)"
+            failed=1
+        fi
+
+        if ! grep -qE "isStagedMode|isStaged" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler missing staged-mode preview support (Section 7.3 requirement 2)"
+            failed=1
+        fi
+
+        if ! grep -qE "run\.event\s*!==\s*[\"']pull_request[\"']" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not verify event is pull_request (Section 7.3 requirement 3)"
+            failed=1
+        fi
+
+        if ! grep -qE "run\.status\s*!==\s*[\"']waiting[\"']" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not verify run status is waiting (Section 7.3 requirement 3)"
+            failed=1
+        fi
+
+        if ! grep -qE "isAllowedWorkflow|allowed_workflows" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not validate allowed-workflows (Section 7.3 requirement 4)"
+            failed=1
+        fi
+
+        if ! grep -qE "\.replace\(/\\\\\.yaml\\\$/i" "$handler"; then
+            log_medium "TYPE-013: approve_workflow_run handler may not normalize .yml/.yaml equivalence (Section 7.3 requirement 4)"
+            failed=1
+        fi
+
+        if ! grep -qE "allowed_pull_requests|allowedPullRequests|currentPullRequest" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not authorize pull requests against triggering/allowed set (Section 7.3 requirement 5)"
+            failed=1
+        fi
+
+        if ! grep -qE "pull_request_target" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not reject pull_request_target events (Section 7.3 requirement 6)"
+            failed=1
+        fi
+
+        if ! grep -qE "isForkPullRequest|config\.fork" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not reject fork pull requests unless fork: true (Section 7.3 requirement 6)"
+            failed=1
+        fi
+
+        if ! grep -qE "checkFileProtectionPostApply|getModifiedPullRequestFiles" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not check protected files before approval (Section 7.3 requirement 7)"
+            failed=1
+        fi
+
+        if ! grep -qE "github-token.*requires an external|requires an external github-token" "$handler"; then
+            log_high "TYPE-013: approve_workflow_run handler does not require an explicit external github-token/App token (Section 7.3 requirement 8)"
+            failed=1
+        fi
+    fi
+
+    if [ -f "$manager" ]; then
+        if ! grep -qE "THREAT_WARNING_ABORT_TYPES" "$manager" || ! sed -n '/THREAT_WARNING_ABORT_TYPES = new Set(\[/,/\]);/p' "$manager" | grep -q "approve_workflow_run"; then
+            log_high "TYPE-013: approve_workflow_run is not classified as an Abort type for warn-mode threat detection (Section 7.3 requirement 9)"
+            failed=1
+        fi
+    else
+        log_medium "TYPE-013: Safe output handler manager missing: $manager"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-013: approve_workflow_run implements run-id validation, staged preview, eligibility, workflow/PR authorization, fork rejection, protected-file checks, explicit credentials, and Abort classification (Section 7.3 v1.28.4)"
+    fi
+}
+check_approve_workflow_run_semantics
+
 # Summary
 echo ""
 echo "=================================================="
