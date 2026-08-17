@@ -326,6 +326,8 @@ type FrontmatterConfig struct {
 	ThreatDetectionSuppressions []ThreatDetectionSuppression `json:"threat-detection-suppress,omitempty"`
 	Version                     string                       `json:"version,omitempty"`
 	TimeoutMinutes              *TemplatableInt32            `json:"timeout-minutes,omitempty"`
+	MaxTurns                    *TemplatableInt32            `json:"max-turns,omitempty"`
+	MaxRuns                     *TemplatableInt32            `json:"max-runs,omitempty"` // Deprecated: top-level legacy alias for max-turns; migrate with 'gh aw fix'
 	MaxAICredits                *TemplatableInt32            `json:"max-ai-credits,omitempty"`
 	MaxTurnCacheMisses          *int32                       `json:"max-turn-cache-misses,omitempty"`
 	MaxDailyAICredits           *TemplatableInt32            `json:"max-daily-ai-credits,omitempty"`

@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetSafeInputsToMCPScriptsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeInputsToMCPScriptsCodemod()
 
 	assert.Equal(t, "safe-inputs-to-mcp-scripts", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetSafeInputsToMCPScriptsCodemod(t *testing.T) {
 }
 
 func TestSafeInputsToMCPScriptsCodemod_RenamesKey(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeInputsToMCPScriptsCodemod()
 
 	content := `---
@@ -57,6 +59,7 @@ safe-inputs:
 }
 
 func TestSafeInputsToMCPScriptsCodemod_NoSafeInputsField(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeInputsToMCPScriptsCodemod()
 
 	content := `---
@@ -79,6 +82,7 @@ engine: copilot
 }
 
 func TestSafeInputsToMCPScriptsCodemod_PreservesIndentedContent(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeInputsToMCPScriptsCodemod()
 
 	content := `---
@@ -121,6 +125,7 @@ safe-inputs:
 }
 
 func TestSafeInputsToMCPScriptsCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeInputsToMCPScriptsCodemod()
 
 	content := `---

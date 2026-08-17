@@ -379,6 +379,26 @@ max-daily-ai-credits: 10000
 max-daily-ai-credits: -1
 ```
 
+### Per-User Rate Limiting (`user-rate-limit:`)
+
+Limits how frequently a single user can trigger the workflow. When the limit is exceeded, the pre-activation job cancels the run before the agent executes. Rate limiting applies to programmatically triggered events (such as `workflow_dispatch`, `issue_comment`, and `pull_request_review`); when `events` is omitted, the applicable events are inferred from the `on:` section.
+
+```yaml wrap
+user-rate-limit:
+  max-runs-per-window: 5                      # Required: maximum runs per user per window (1-10)
+  window: 60                                  # Optional: window in minutes (default: 60, max: 180)
+  events: [workflow_dispatch, issue_comment]  # Optional: events to rate limit (inferred from `on:` when omitted)
+  ignored-roles: [admin, maintain]            # Optional: exempt roles (default: [admin, maintain, write])
+```
+
+`max-runs-per-window` also supports a GitHub Actions expression (for example `${{ inputs.max-runs-per-window }}`) that resolves to an integer at runtime.
+
+Users with any of the `ignored-roles` are not rate limited. The default exemptions are `admin`, `maintain`, and `write`; set `ignored-roles: []` to rate limit every user, including administrators.
+
+Legacy frontmatter that used a top-level `rate-limit:` section, or `max:`/`max-runs:` instead of `max-runs-per-window:`, is migrated automatically by `gh aw fix`.
+
+See [Rate Limiting and Controls](/gh-aw/reference/rate-limiting-controls/) for more details.
+
 ### Secrets (`secrets:`)
 
 Defines secret values passed to workflow execution. Secrets are typically used to provide sensitive configuration to MCP servers or workflow components. Values must be GitHub Actions expressions that reference secrets (e.g., `${{ secrets.API_KEY }}`).

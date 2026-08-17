@@ -68,7 +68,14 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 	}
 
 	actionMode := DetectActionMode(GetVersion())
-	setupActionRef := ResolveSetupActionReference(ctx, actionMode, GetVersion(), "", nil)
+	var resolver SHAResolver
+	for _, workflowData := range workflowDataList {
+		if workflowData != nil && workflowData.ActionResolver != nil {
+			resolver = workflowData.ActionResolver
+			break
+		}
+	}
+	setupActionRef := ResolveSetupActionReference(ctx, actionMode, GetVersion(), "", resolver)
 
 	helpCommands := buildHelpCommandEntries(workflowDataList)
 	helpCommandEnabled := repoConfig.IsHelpCommandEnabled()

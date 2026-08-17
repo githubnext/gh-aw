@@ -23,8 +23,23 @@ safe-outputs:
   create-issue:
     title-prefix: "[container-image-scan] "
     labels: [cookie, security]
-    max: 25
+    assignees: [pelikhan]
+    max: 1
     deduplicate-by-title: true
+  update-issue:
+    target: "52657"
+    body: true
+    max: 1
+  assign-to-user:
+    target: "52657"
+    allowed: [pelikhan]
+    max: 1
+  close-issue:
+    target: "*"
+    required-title-prefix: "[container-image-scan] Container findings for "
+    required-labels: [cookie, security]
+    state-reason: duplicate
+    max: 25
   noop:
     report-as-issue: false
 steps:
@@ -75,32 +90,31 @@ Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
 `/tmp/gh-aw/agent/image-scan/compile-output.txt`.
 
 1. Read `compile-output.txt`.
-2. For each image with vulnerabilities or license violations, create one issue.
-   Use the title `Container findings for <image-name>` so repeated findings for
-   the same image are deduplicated. If the scan step failed to produce output,
-   create a `Container scan operational failure` issue.
-3. If there are no findings and no operational errors, call `noop`.
-4. Follow the Output Format section for each image issue.
-5. In each image issue, include:
-   - the image name and pinned reference;
-   - every vulnerability with severity, CVE ID, package, installed version, and
+2. Treat [Container CVE burn-down](https://github.com/github/gh-aw/issues/52657)
+     as the single tracker. Assign it to `pelikhan` if it is unassigned.
+3. Do not create per-image finding issues. Update #52657 with the current scan's
+     summary table and collapsible per-image details, including:
+     - the image name and pinned reference;
+     - every vulnerability with severity, CVE ID, package, installed version, and
      fixed versions;
-   - every rejected or unknown license and the affected package;
-   - actionable remediation guidance.
-6. Order the findings in every issue by severity, Critical first, then High,
-   Medium, Low, and Unknown, so the Critical backlog is triaged first.
-7. When any image has Critical or High findings, also create one consolidated
-   burn-down issue titled `Container CVE burn-down` that links every per-image
-   issue you created in this run and lists, per image, the Critical and High
-   counts plus the total. Keep it to a single summary table so it stays the
-   parent tracking item instead of duplicating per-image detail.
-8. In the burn-down issue, state the remediation SLA cadence: Critical findings
-   are remediated or explicitly risk-accepted within 7 days, High within 30
-   days, and every scanned image is rebuilt on a refreshed base image at least
-   weekly (this workflow runs `gh aw compile --force-refresh-container-pins`
-   daily, so a pin refresh PR is the default remediation step).
+     - every rejected or unknown license and the affected package;
+     - actionable remediation guidance.
+4. Close every open issue titled `Container findings for ...` as a duplicate of
+     #52657. Include a short closure comment linking to #52657. Do not close
+     operational-failure issues.
+5. If the scan step failed to produce output, create one `Container scan
+     operational failure` issue assigned to `pelikhan`.
+6. If there are no findings and no operational errors, update #52657 to show
+     the clean scan, then call `noop`.
+7. Order the findings in #52657 by severity, Critical first, then High, Medium,
+     Low, and Unknown, so the Critical backlog is triaged first.
+8. In #52657, state the remediation SLA cadence: Critical findings
+     are remediated or explicitly risk-accepted within 7 days, High within 30
+     days, and every scanned image is rebuilt on a refreshed base image at least
+     weekly (this workflow runs `gh aw compile --force-refresh-container-pins`
+     daily, so a pin refresh PR is the default remediation step).
 9. Keep the report factual and compact. Never omit lower-severity
-   vulnerabilities.
+     vulnerabilities.
 
 ### Output Format
 

@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetNetworkFirewallCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	// Verify codemod metadata
@@ -21,6 +22,7 @@ func TestGetNetworkFirewallCodemod(t *testing.T) {
 }
 
 func TestNetworkFirewallCodemod_RemovesFirewallTrue(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -53,6 +55,7 @@ permissions:
 }
 
 func TestNetworkFirewallCodemod_RemovesFirewallFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -86,6 +89,7 @@ permissions:
 }
 
 func TestNetworkFirewallCodemod_NoNetworkField(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -111,6 +115,7 @@ permissions:
 }
 
 func TestNetworkFirewallCodemod_NoFirewallField(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -142,6 +147,7 @@ permissions:
 }
 
 func TestNetworkFirewallCodemod_SkipsWhenSandboxExists(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -179,6 +185,7 @@ permissions:
 }
 
 func TestNetworkFirewallCodemod_MigratesFirewallFalseIntoExistingSandbox(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -213,6 +220,7 @@ sandbox:
 }
 
 func TestNetworkFirewallCodemod_PreservesExistingSandboxDisableJustification(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -249,6 +257,7 @@ sandbox:
 }
 
 func TestNetworkFirewallCodemod_MigratesFirewallVersionIntoExistingSandbox(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -287,6 +296,7 @@ sandbox:
 }
 
 func TestNetworkFirewallCodemod_PreservesOtherNetworkFields(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -321,6 +331,7 @@ network:
 }
 
 func TestNetworkFirewallCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -356,6 +367,7 @@ key: value
 }
 
 func TestNetworkFirewallCodemod_PreservesComments(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -388,6 +400,7 @@ network:
 }
 
 func TestNetworkFirewallCodemod_FirewallWithNestedProperties(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -427,6 +440,7 @@ permissions:
 }
 
 func TestNetworkFirewallCodemod_NullFirewallAddsSandboxAgent(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -454,6 +468,7 @@ network:
 }
 
 func TestNetworkFirewallCodemod_PreservesFirewallVersionInSandboxAgent(t *testing.T) {
+	t.Parallel()
 	codemod := getNetworkFirewallCodemod()
 
 	content := `---
@@ -485,6 +500,7 @@ network:
 }
 
 func TestNormalizeFirewallVersion_Float32Uses32BitPrecision(t *testing.T) {
+	t.Parallel()
 	version, ok := normalizeFirewallVersion(float32(0.9))
 	require.True(t, ok)
 	assert.Equal(t, "0.9", version)

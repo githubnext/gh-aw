@@ -125,6 +125,46 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.NotContains(t, text, `workflow_id: route.workflow + ".lock.yml"`)
 }
 
+func TestGenerateCentralSlashCommandWorkflow_PinsSetupActionWithResolver(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "central-slash-workflow-action-pin-test")
+	t.Setenv("GH_AW_ACTION_MODE", "action")
+	originalVersion := compilerVersion
+	originalIsRelease := isReleaseBuild
+	t.Cleanup(func() {
+		compilerVersion = originalVersion
+		isReleaseBuild = originalIsRelease
+	})
+	SetVersion("v1.2.3")
+	SetIsRelease(true)
+
+	const setupSHA = "0123456789abcdef0123456789abcdef01234567"
+	cache := NewActionCache(tmpDir)
+	require.True(t, cache.Set("github/gh-aw-actions/setup", "v1.2.3", setupSHA))
+	resolver := NewActionResolver(cache)
+	data := []*WorkflowData{
+		{
+			WorkflowID:         "without-resolver",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"issue_comment"},
+			CommandCentralized: true,
+		},
+		{
+			WorkflowID:         "with-resolver",
+			Command:            []string{"triage"},
+			CommandEvents:      []string{"pull_request_comment"},
+			CommandCentralized: true,
+			ActionResolver:     resolver,
+		},
+	}
+
+	require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, tmpDir, nil))
+	content, err := os.ReadFile(filepath.Join(tmpDir, centralSlashCommandWorkflowFilename))
+	require.NoError(t, err)
+	text := string(content)
+	require.Contains(t, text, "        uses: github/gh-aw-actions/setup@"+setupSHA+" # v1.2.3")
+	require.NotContains(t, text, "        uses: github/gh-aw-actions/setup@v1.2.3")
+}
+
 func TestGenerateCentralSlashCommandWorkflow_DeletesWhenUnused(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "central-slash-workflow-delete-test")
 	generatedPath := filepath.Join(tmpDir, centralSlashCommandWorkflowFilename)
