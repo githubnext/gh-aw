@@ -311,6 +311,11 @@ on:
     inputs:
       message:
         required: true
+      legacy_required:
+        required: "true"
+      defaulted_message:
+        required: true
+        default: generated
 `), 0644))
 
 	markdownPath := filepath.Join(tmpDir, ".github", "aw", "test.md")
@@ -329,7 +334,7 @@ on:
 	require.NotNil(t, data.SafeOutputs.DispatchWorkflow.WorkflowFiles, "WorkflowFiles should be populated")
 	assert.Equal(t, ".lock.yml", data.SafeOutputs.DispatchWorkflow.WorkflowFiles["deploy"],
 		"Should prefer .lock.yml over .yml")
-	assert.Equal(t, []string{"message"}, data.SafeOutputs.DispatchWorkflow.RequiredInputs["deploy"])
+	assert.Equal(t, []string{"legacy_required", "message"}, data.SafeOutputs.DispatchWorkflow.RequiredInputs["deploy"])
 }
 
 // TestGenerateCustomJobToolDefinition tests that generateCustomJobToolDefinition produces

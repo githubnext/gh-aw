@@ -66,8 +66,7 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 
 		inputs, err := workflowDispatchInputs(fileResult)
 		if err != nil {
-			safeOutputsConfigLog.Printf("Warning: error extracting inputs for %s: %v", workflowName, err)
-			continue
+			safeOutputsConfigLog.Printf("Warning: error extracting inputs for %s — required-input preflight will be skipped: %v", workflowName, err)
 		}
 		if _, hasAwContext := inputs["aw_context"]; hasAwContext {
 			data.SafeOutputs.DispatchWorkflow.AwContextWorkflows = append(
@@ -108,8 +107,18 @@ func requiredWorkflowDispatchInputs(inputs map[string]any) []string {
 		if !ok {
 			continue
 		}
-		if isRequired, _ := definitionMap["required"].(bool); isRequired {
-			required = append(required, name)
+		if _, hasDefault := definitionMap["default"]; hasDefault {
+			continue
+		}
+		switch isRequired := definitionMap["required"].(type) {
+		case bool:
+			if isRequired {
+				required = append(required, name)
+			}
+		case string:
+			if strings.EqualFold(isRequired, "true") {
+				required = append(required, name)
+			}
 		}
 	}
 	sort.Strings(required)

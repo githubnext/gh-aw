@@ -261,7 +261,6 @@ async function main(config = {}) {
       const missingInputs = requiredInputsForWorkflow.filter(input => !Object.hasOwn(inputs, input));
       if (missingInputs.length > 0) {
         const error = `Workflow "${workflowName}" requires input${missingInputs.length === 1 ? "" : "s"}: ${missingInputs.map(input => `'${input}'`).join(", ")}. Provide ${missingInputs.length === 1 ? "it" : "them"} and retry.`;
-        core.warning(error);
         return { success: false, error };
       }
 

@@ -105,6 +105,23 @@ describe("dispatch_workflow handler factory", () => {
       success: false,
       error: `Workflow "test-workflow" requires input: 'message'. Provide it and retry.`,
     });
+    expect(core.warning).not.toHaveBeenCalled();
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("should fail with all missing input names when multiple required inputs are absent", async () => {
+    const handler = await main({
+      workflows: ["multi-workflow"],
+      workflow_files: { "multi-workflow": ".lock.yml" },
+      required_inputs: { "multi-workflow": ["env", "message"] },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "multi-workflow", inputs: {} }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/requires inputs:/);
+    expect(result.error).toContain("'env'");
+    expect(result.error).toContain("'message'");
     expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 

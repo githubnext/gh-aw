@@ -208,9 +208,16 @@ describe("Safe Output Handler Manager", () => {
       expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
     });
 
-    it("does not fail the job when a batch has successful outputs and failed items", () => {
+    it("does not fail the job when at least one item succeeded", () => {
       expect(shouldFailSafeOutputs([{ type: "update_pull_request", success: false }], { itemsSucceeded: 1 })).toBe(false);
+    });
+
+    it("fails the job when every item failed", () => {
       expect(shouldFailSafeOutputs([{ type: "update_pull_request", success: false }], { itemsSucceeded: 0 })).toBe(true);
+    });
+
+    it("does not fail the job when there are no fatal failures", () => {
+      expect(shouldFailSafeOutputs([], { itemsSucceeded: 0 })).toBe(false);
     });
 
     it("computes partial success item status from mixed successful and failed results", () => {
