@@ -32,7 +32,7 @@ func TestFilterRunnerGuardIgnoredFindings(t *testing.T) {
 	writeWorkflow(t, gitRoot, "inline-ignore.lock.yml", inlineIgnoreWorkflow)
 
 	findings := []runnerGuardFinding{
-		// Line 9 is the generated step boundary; the inline ignore is three lines later.
+		// Line 9 is the generated step boundary; the inline ignore is in the same run block.
 		{RuleID: "RGS-012", File: "inline-ignore.lock.yml", Line: 9},
 		{RuleID: "RGS-012", File: ".github/workflows/inline-ignore.lock.yml", Line: 16},
 		{RuleID: "RGS-005", File: "inline-ignore.lock.yml", Line: 9},
@@ -83,5 +83,7 @@ func TestHasRunnerGuardInlineIgnoreAllowsNearbyGeneratedLineOffsets(t *testing.T
 		"          curl -fsS https://api.example.com/models",                     // 19
 	}
 
+	// Line 3 simulates runner-guard attributing a finding to a generated setup line 15 lines
+	// before the inline suppression comment that justifies the provider request.
 	assert.True(t, hasRunnerGuardInlineIgnore(lines, 3, "RGS-012"))
 }
