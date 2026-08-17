@@ -59,6 +59,7 @@ type GoDependency struct {
 	Version string // version or pseudo-version
 }
 
+// GenerateDependabotManifests generates manifest files and dependabot.yml for detected dependencies
 func (c *Compiler) GenerateDependabotManifests(workflowDataList []*WorkflowData, workflowDir string, forceOverwrite bool) error {
 	dependabotLog.Print("Starting Dependabot manifest generation")
 
