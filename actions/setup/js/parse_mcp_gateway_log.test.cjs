@@ -12,6 +12,7 @@ const {
   generateTokenSteeringSummary,
   generateModelAliasResolutionSummary,
   parseRpcMessagesJsonl,
+  getRpcMessageType,
   getRpcRequestLabel,
   generateRpcMessagesSummary,
   printAllGatewayFiles,
@@ -1301,6 +1302,21 @@ Some content here.`;
       const events = parseGatewayJsonlForDifcFiltered(jsonlContent);
       expect(events).toHaveLength(2);
     });
+
+    test("extracts events using the schema rpc-message/v2 'event' field (no top-level type)", () => {
+      const jsonlContent = JSON.stringify({
+        timestamp: "2026-08-15T23:30:00Z",
+        event: "difc_filtered",
+        _schema: "rpc-message/v2",
+        server_id: "github",
+        tool_name: "list_issues",
+        reason: "Integrity check failed",
+      });
+
+      const events = parseGatewayJsonlForDifcFiltered(jsonlContent);
+      expect(events).toHaveLength(1);
+      expect(events[0].tool_name).toBe("list_issues");
+    });
   });
 
   describe("parseGatewayJsonlForTokenSteering", () => {
@@ -1617,6 +1633,60 @@ Some content here.`;
       const result = parseRpcMessagesJsonl(content);
       expect(result.requests).toHaveLength(1);
       expect(result.other).toHaveLength(0);
+    });
+
+    // Regression test for https://github.com/github/gh-aw/issues/53254: real-world
+    // rpc-messages.jsonl files (schema "rpc-message/v2") use a top-level "event" field
+    // ("rpc_request"/"rpc_response") instead of the legacy top-level "type" field.
+    test("categorizes entries using the schema rpc-message/v2 'event' field", () => {
+      const content = [
+        JSON.stringify({
+          timestamp: "2026-08-15T23:48:42.233Z",
+          event: "rpc_request",
+          _schema: "rpc-message/v2",
+          direction: "OUT",
+          server_id: "github",
+          method: "tools/call",
+          payload: { jsonrpc: "2.0", method: "tools/call", params: { name: "list_issues", arguments: {} } },
+        }),
+        JSON.stringify({
+          timestamp: "2026-08-15T23:48:42.400Z",
+          event: "rpc_response",
+          _schema: "rpc-message/v2",
+          direction: "IN",
+          server_id: "github",
+          payload: { jsonrpc: "2.0", id: 1, result: {} },
+        }),
+      ].join("\n");
+
+      const result = parseRpcMessagesJsonl(content);
+      expect(result.requests).toHaveLength(1);
+      expect(result.responses).toHaveLength(1);
+      expect(result.other).toHaveLength(0);
+      expect(result.requests[0].server_id).toBe("github");
+      expect(result.requests[0].type).toBe("REQUEST");
+    });
+  });
+
+  describe("getRpcMessageType", () => {
+    test("returns the legacy type field when present", () => {
+      expect(getRpcMessageType({ type: "REQUEST", event: "rpc_response" })).toBe("REQUEST");
+    });
+
+    test("maps rpc_request to REQUEST", () => {
+      expect(getRpcMessageType({ event: "rpc_request" })).toBe("REQUEST");
+    });
+
+    test("maps rpc_response to RESPONSE", () => {
+      expect(getRpcMessageType({ event: "rpc_response" })).toBe("RESPONSE");
+    });
+
+    test("maps difc_filtered to DIFC_FILTERED", () => {
+      expect(getRpcMessageType({ event: "difc_filtered" })).toBe("DIFC_FILTERED");
+    });
+
+    test("returns empty string when neither field is present", () => {
+      expect(getRpcMessageType({ server_id: "github" })).toBe("");
     });
   });
 
