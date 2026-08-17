@@ -10,6 +10,7 @@ import (
 )
 
 func TestSafeOutputMergePRConstraintsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSafeOutputMergePRConstraintsCodemod()
 
 	t.Run("renames allowed-labels to required-labels, leaves allowed-branches unchanged", func(t *testing.T) {

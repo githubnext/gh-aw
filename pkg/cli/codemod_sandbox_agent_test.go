@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetSandboxFalseToAgentFalseCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxFalseToAgentFalseCodemod()
 
 	assert.Equal(t, "sandbox-false-to-agent-false", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetSandboxFalseToAgentFalseCodemod(t *testing.T) {
 }
 
 func TestSandboxFalseToAgentFalseCodemod_ConvertsBooleanFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxFalseToAgentFalseCodemod()
 
 	content := `---
@@ -49,6 +51,7 @@ permissions:
 }
 
 func TestSandboxFalseToAgentFalseCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxFalseToAgentFalseCodemod()
 
 	content := `---
@@ -79,6 +82,7 @@ permissions:
 }
 
 func TestSandboxFalseToAgentFalseCodemod_NoSandboxField(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxFalseToAgentFalseCodemod()
 
 	content := `---
@@ -104,6 +108,7 @@ permissions:
 }
 
 func TestSandboxFalseToAgentFalseCodemod_SandboxTrue(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxFalseToAgentFalseCodemod()
 
 	content := `---
@@ -126,6 +131,7 @@ sandbox: true
 }
 
 func TestSandboxFalseToAgentFalseCodemod_SandboxObject(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxFalseToAgentFalseCodemod()
 
 	content := `---
@@ -151,6 +157,7 @@ sandbox:
 }
 
 func TestSandboxFalseToAgentFalseCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxFalseToAgentFalseCodemod()
 
 	content := `---
@@ -176,6 +183,7 @@ This workflow runs without a sandbox.`
 }
 
 func TestSandboxFalseToAgentFalseCodemod_WithStrictFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxFalseToAgentFalseCodemod()
 
 	content := `---

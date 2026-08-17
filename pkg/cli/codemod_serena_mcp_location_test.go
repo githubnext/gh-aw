@@ -10,6 +10,7 @@ import (
 )
 
 func TestSerenaMCPContainerLocationCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSerenaMCPContainerLocationCodemod()
 
 	t.Run("updates legacy Serena MCP server container and entrypoint", func(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 )
 
 func TestGetTimeoutMinutesCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
 	// Verify codemod metadata
@@ -23,6 +24,7 @@ func TestGetTimeoutMinutesCodemod(t *testing.T) {
 }
 
 func TestTimeoutMinutesCodemod_BasicMigration(t *testing.T) {
+	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
 	content := `---
@@ -51,6 +53,7 @@ permissions:
 }
 
 func TestTimeoutMinutesCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
 	content := `---
@@ -73,6 +76,7 @@ timeout_minutes: 45
 }
 
 func TestTimeoutMinutesCodemod_PreservesComments(t *testing.T) {
+	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
 	content := `---
@@ -101,6 +105,7 @@ permissions:
 }
 
 func TestTimeoutMinutesCodemod_NoFieldPresent(t *testing.T) {
+	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
 	content := `---
@@ -128,6 +133,7 @@ permissions:
 }
 
 func TestTimeoutMinutesCodemod_PreservesMarkdownBody(t *testing.T) {
+	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
 	content := `---
@@ -162,6 +168,7 @@ key: value
 }
 
 func TestTimeoutMinutesCodemod_DifferentValues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		value int
@@ -199,6 +206,7 @@ timeout_minutes: %d
 }
 
 func TestTimeoutMinutesCodemod_OnlyReplacesExactMatch(t *testing.T) {
+	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
 	content := `---
@@ -238,6 +246,7 @@ custom_timeout_minutes: 60
 }
 
 func TestTimeoutMinutesCodemod_MultipleOccurrences(t *testing.T) {
+	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
 	content := `---

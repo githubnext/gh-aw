@@ -13,6 +13,7 @@ import (
 )
 
 func TestExtractWorkflowNameFromFile(t *testing.T) {
+	t.Parallel()
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -142,6 +143,7 @@ Content here.`,
 }
 
 func TestExtractWorkflowNameFromFile_NonExistentFile(t *testing.T) {
+	t.Parallel()
 	_, err := extractWorkflowNameFromFile("/nonexistent/file.md")
 	if err == nil {
 		t.Error("Expected error for nonexistent file, got nil")
@@ -149,6 +151,7 @@ func TestExtractWorkflowNameFromFile_NonExistentFile(t *testing.T) {
 }
 
 func TestExtractWorkflowNameFromFile_LargeFrontmatterLine(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 	filePath := filepath.Join(tmpDir, "large-frontmatter.md")
 	content := "---\nblob: " + strings.Repeat("x", bufio.MaxScanTokenSize+1) + "\n---\n\n# Large Frontmatter Workflow\n"
@@ -168,6 +171,7 @@ func TestExtractWorkflowNameFromFile_LargeFrontmatterLine(t *testing.T) {
 }
 
 func TestIsGitRepo(t *testing.T) {
+	t.Parallel()
 	// Test in current directory (should be a git repo based on project setup)
 	result := isGitRepo()
 
@@ -180,6 +184,7 @@ func TestIsGitRepo(t *testing.T) {
 // TestFindGitRoot is already tested in gitroot_test.go, skipping duplicate
 
 func TestExtractWorkflowNameFromPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		path     string
@@ -228,6 +233,7 @@ func TestExtractWorkflowNameFromPath(t *testing.T) {
 }
 
 func TestFindIncludesInContent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -342,6 +348,7 @@ More content.
 }
 
 func TestFindIncludesInContent_EmptyContentReturnsNonNilSlice(t *testing.T) {
+	t.Parallel()
 	result, err := findIncludesInContent("")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -392,6 +399,7 @@ Final content.`
 }
 
 func TestIsRunnable(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		mdContent    string
@@ -694,6 +702,7 @@ jobs:
 }
 
 func TestIsRunnable_FileErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		filePath  string

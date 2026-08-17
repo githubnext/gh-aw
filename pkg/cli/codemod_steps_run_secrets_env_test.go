@@ -12,6 +12,7 @@ import (
 )
 
 func TestStepsRunSecretsToEnvCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getStepsRunSecretsToEnvCodemod()
 
 	t.Run("moves inline run secret to env binding", func(t *testing.T) {
