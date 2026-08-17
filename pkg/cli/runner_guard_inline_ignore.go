@@ -46,8 +46,9 @@ func hasRunnerGuardInlineIgnore(lines []string, lineNum int, ruleID string) bool
 		return false
 	}
 
-	start := max(lineNum-runnerGuardIgnoreLookBehind, 0)
-	end := min(lineNum+runnerGuardIgnoreLookAhead, len(lines))
+	center := lineNum - 1
+	start := max(center-runnerGuardIgnoreLookBehind, 0)
+	end := min(center+runnerGuardIgnoreLookAhead+1, len(lines))
 
 	marker := "runner-guard:ignore " + ruleID
 	for _, line := range lines[start:end] {
