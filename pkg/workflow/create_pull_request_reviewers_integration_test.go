@@ -249,7 +249,7 @@ Create a pull request with assignees for fallback issues.
 	if !strings.Contains(compiledContent, "user1") || !strings.Contains(compiledContent, "user2") {
 		t.Error("Expected assignees to be referenced in compiled workflow")
 	}
-	if !strings.Contains(compiledContent, `"assignees"`) {
+	if !strings.Contains(compiledContent, `\"assignees\"`) {
 		t.Error("Expected assignees key in compiled safe outputs config")
 	}
 }
