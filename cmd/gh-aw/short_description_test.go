@@ -62,7 +62,6 @@ func TestLongDescriptionHasSentences(t *testing.T) {
 	}
 
 	for _, cmd := range commandsWithLong {
-		cmd := cmd
 		t.Run("command "+cmd.Name()+" Long description uses sentences", func(t *testing.T) {
 			t.Parallel()
 			long := strings.TrimSpace(cmd.Long)
