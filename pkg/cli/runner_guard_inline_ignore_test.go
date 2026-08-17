@@ -62,19 +62,25 @@ func TestHasRunnerGuardInlineIgnore(t *testing.T) {
 
 func TestHasRunnerGuardInlineIgnoreAllowsNearbyGeneratedLineOffsets(t *testing.T) {
 	lines := []string{
-		"      - name: Configure host",         // 1
-		"        run: |",                       // 2
-		"          GH_HOST=github.com",         // 3
-		"      - name: Fetch provider models",  // 4
-		"        run: |",                       // 5
-		"          set -euo pipefail",          // 6
-		"          OUT=/tmp/models",            // 7
-		"          mkdir -p \"$OUT\"",          // 8
-		"          if [ -z \"$TOKEN\" ]; then", // 9
-		"            exit 0",                   // 10
-		"          fi",                         // 11
-		"          # runner-guard:ignore RGS-012 -- official provider endpoint.", // 12
-		"          curl -fsS https://api.example.com/models",                     // 13
+		"      - name: Configure host",                      // 1
+		"        run: |",                                    // 2
+		"          GH_HOST=github.com",                      // 3
+		"      - name: Fetch provider models",               // 4
+		"        run: |",                                    // 5
+		"          set -euo pipefail",                       // 6
+		"          OUT=/tmp/models",                         // 7
+		"          mkdir -p \"$OUT\"",                       // 8
+		"          provider=example",                        // 9
+		"          endpoint=https://api.example.com/models", // 10
+		"          cache=/tmp/models/cache.json",            // 11
+		"          if [ -z \"$TOKEN\" ]; then",              // 12
+		"            exit 0",                                // 13
+		"          fi",                                      // 14
+		"          echo fetching",                           // 15
+		"          : > \"$cache\"",                          // 16
+		"          test -n \"$endpoint\"",                   // 17
+		"          # runner-guard:ignore RGS-012 -- official provider endpoint.", // 18
+		"          curl -fsS https://api.example.com/models",                     // 19
 	}
 
 	assert.True(t, hasRunnerGuardInlineIgnore(lines, 3, "RGS-012"))

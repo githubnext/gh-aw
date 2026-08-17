@@ -159,9 +159,50 @@ func hasTrustedActivationCheck(condition string) bool {
 func hasWorkflowRunActorAllowlistCheck(condition string) bool {
 	normalized := strings.NewReplacer(" ", "", "\n", "", "\t", "", "\r", "").Replace(condition)
 	return strings.Contains(normalized, "github.event.workflow_run.event=='workflow_dispatch'") &&
-		strings.Contains(normalized, "contains(fromJSON(") &&
-		!strings.Contains(normalized, "!contains(fromJSON(") &&
-		strings.Contains(normalized, "github.event.workflow_run.actor.login")
+		hasPositiveActorAllowlistContains(normalized)
+}
+
+func hasPositiveActorAllowlistContains(condition string) bool {
+	const containsMarker = "contains(fromJSON("
+	const actorLogin = "github.event.workflow_run.actor.login"
+
+	searchStart := 0
+	for {
+		idx := strings.Index(condition[searchStart:], containsMarker)
+		if idx < 0 {
+			return false
+		}
+		idx += searchStart
+		searchStart = idx + len(containsMarker)
+
+		if !hasPositiveExpressionBoundary(condition, idx) {
+			continue
+		}
+
+		remainder := condition[idx:]
+		_, afterActor, foundActor := strings.Cut(remainder, actorLogin)
+		if !foundActor {
+			continue
+		}
+		if strings.HasPrefix(afterActor, ")==false") || strings.HasPrefix(afterActor, ")!=true") {
+			continue
+		}
+		return true
+	}
+}
+
+func hasPositiveExpressionBoundary(condition string, idx int) bool {
+	if idx == 0 {
+		return true
+	}
+	switch condition[idx-1] {
+	case '!', '=', '.':
+		return false
+	case '&', '|', '(', '{':
+		return true
+	default:
+		return false
+	}
 }
 
 // anyJobGated reports whether any of the named jobs is in the gated set.

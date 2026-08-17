@@ -175,6 +175,8 @@ func TestJobNeeds(t *testing.T) {
 
 func TestHasWorkflowRunActorAllowlistCheck(t *testing.T) {
 	assert.True(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
+	assert.True(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && !contains(fromJSON('[\"blocked\"]'), github.event.workflow_run.actor.login) && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
 	assert.False(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && !contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
+	assert.False(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) == false }}"))
 	assert.False(t, hasWorkflowRunActorAllowlistCheck("${{ contains(fromJSON('[\"owner\"]'), github.event.comment.user.login) }}"))
 }
