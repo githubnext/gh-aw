@@ -214,6 +214,21 @@ func TestGrantIsImageIgnored_NoPatterns(t *testing.T) {
 	require.False(t, grantIsImageIgnored([]string{""}, "ghcr.io/oraios/serena:latest", ""))
 }
 
+func TestGrantIsImageIgnored_InvalidPattern(t *testing.T) {
+	t.Parallel()
+
+	require.False(t, grantIsImageIgnored([]string{"[z-a]"}, "ghcr.io/oraios/serena:latest"))
+}
+
+func TestGrantIsImageIgnored_GlobDoesNotMatchDeeperNamespace(t *testing.T) {
+	t.Parallel()
+
+	require.False(t, grantIsImageIgnored(
+		[]string{"ghcr.io/*/serena:*"},
+		"ghcr.io/oraios/development/serena:latest",
+	))
+}
+
 func TestGrantRepositoryPolicyIgnoresSerenaImage(t *testing.T) {
 	t.Parallel()
 

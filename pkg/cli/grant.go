@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -207,7 +208,7 @@ func grantIgnoredImagePatterns(policyFile string) ([]string, error) {
 }
 
 // grantIsImageIgnored reports whether any of the image references matches one of
-// the ignore-images patterns. Patterns support shell globbing (filepath.Match)
+// the ignore-images patterns. Patterns support shell globbing (path.Match)
 // so a single entry can cover every tag of an image.
 func grantIsImageIgnored(patterns []string, imageRefs ...string) bool {
 	for _, pattern := range patterns {
@@ -218,10 +219,12 @@ func grantIsImageIgnored(patterns []string, imageRefs ...string) bool {
 			if ref == "" {
 				continue
 			}
-			if ref == pattern {
-				return true
+			matched, err := path.Match(pattern, ref)
+			if err != nil {
+				grantLog.Printf("Invalid ignore-images pattern %q: %v", pattern, err)
+				continue
 			}
-			if matched, err := filepath.Match(pattern, ref); err == nil && matched {
+			if matched {
 				return true
 			}
 		}

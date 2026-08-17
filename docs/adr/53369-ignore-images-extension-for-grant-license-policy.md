@@ -1,7 +1,7 @@
 # ADR-53369: Extend `.grant.yaml` with an `ignore-images` Glob List to Skip Entire Images from License Scanning
 
 **Date**: 2026-08-17
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -41,5 +41,3 @@ The images to scan are assembled from lock manifests before grant runs. Filterin
 - The `ignore-images` filtering logic lives in `pkg/cli/grant.go` alongside existing grant integration code and is covered by new unit and integration tests.
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
