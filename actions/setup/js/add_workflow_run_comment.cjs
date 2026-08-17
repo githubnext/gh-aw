@@ -180,7 +180,7 @@ async function updateReusableStatusComment(reusableComment, invocationContext, r
   const dispatchedRunUrl = readAwContextString(awContext, "dispatched_run_url");
   const dispatchedWorkflowName = readAwContextString(awContext, "dispatched_workflow_name");
   const runUrl = dispatchedRunUrl || buildWorkflowRunUrl(rawContext, invocationContext.workflowRepo);
-  const commentBody = buildCommentBody(invocationContext.eventName, runUrl, dispatchedWorkflowName || undefined);
+  const commentBody = buildCommentBody(invocationContext.eventName, runUrl, dispatchedWorkflowName || undefined, rawContext?.workflowEmoji);
 
   // Discussion comments use GraphQL node IDs and a dedicated update mutation.
   if (reusableComment.id.startsWith("DC_")) {
@@ -315,7 +315,7 @@ async function createOrReuseStatusComment(rawContext = context) {
   }
 
   core.info(`Creating comment on: ${typeof commentEndpoint === "object" ? commentEndpoint.route : commentEndpoint}`);
-  return addCommentWithWorkflowLink(commentEndpoint, runUrl, eventName, invocationContext);
+  return addCommentWithWorkflowLink(commentEndpoint, runUrl, eventName, { ...invocationContext, workflowEmoji: rawContext?.workflowEmoji });
 }
 
 async function main() {
@@ -334,13 +334,14 @@ async function main() {
  * @param {string} eventName - The event type
  * @param {string} runUrl - The URL of the workflow run
  * @param {string} [workflowNameOverride] - Optional dispatched workflow name override
+ * @param {string} [workflowEmojiOverride] - Optional workflow emoji override
  * @returns {string} The assembled comment body
  */
-function buildCommentBody(eventName, runUrl, workflowNameOverride) {
+function buildCommentBody(eventName, runUrl, workflowNameOverride, workflowEmojiOverride) {
   // Whitespace-only overrides are treated as absent and fall back to env defaults.
   const normalizedWorkflowNameOverride = workflowNameOverride?.trim();
   const workflowName = normalizedWorkflowNameOverride || process.env.GH_AW_WORKFLOW_NAME || process.env.GITHUB_WORKFLOW || "Workflow";
-  const workflowEmoji = process.env.GH_AW_WORKFLOW_EMOJI;
+  const workflowEmoji = workflowEmojiOverride || process.env.GH_AW_WORKFLOW_EMOJI;
   const eventTypeDescription = EVENT_TYPE_DESCRIPTIONS[eventName] ?? "event";
 
   // Sanitize before adding markers (defense in depth for custom message templates)
@@ -405,12 +406,13 @@ async function postDiscussionComment(discussionNumber, commentBody, replyToNodeI
  *   eventPayload: any;
  *   workflowRepo: { owner: string, repo: string };
  *   eventRepo: { owner: string, repo: string };
- * }|null} [invocationContext=null] - Invocation context overrides for event payload and repo
+ *   workflowEmoji?: string;
+ * }|null} [invocationContext=null] - Invocation context overrides for event payload, repo, and emoji
  */
 async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocationContext = null) {
   const eventPayload = invocationContext?.eventPayload || context.payload;
   const eventRepo = invocationContext?.eventRepo || context.repo;
-  const commentBody = buildCommentBody(eventName, runUrl);
+  const commentBody = buildCommentBody(eventName, runUrl, undefined, invocationContext?.workflowEmoji);
 
   if (eventName === "discussion") {
     if (typeof endpoint !== "string") {
