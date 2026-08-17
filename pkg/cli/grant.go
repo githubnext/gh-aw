@@ -14,6 +14,8 @@ import (
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
+	"gopkg.in/yaml.v3"
 )
 
 var grantLog = logger.New("cli:grant")
@@ -76,6 +78,34 @@ func runGrantOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	policyFile, err := grantPolicyFile()
 	if err != nil {
 		return err
+	}
+
+	ignoredImages, err := grantIgnoredImagePatterns(policyFile)
+	if err != nil {
+		return err
+	}
+
+	scannable := make([]workflow.GHAWManifestContainer, 0, len(images))
+	for _, img := range images {
+		if grantIsImageIgnored(ignoredImages, img.Image, img.PinnedImage) {
+			name := img.Image
+			if name == "" {
+				name = img.PinnedImage
+			}
+			grantLog.Printf("Skipping license scan for ignored image %s", name)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(
+					fmt.Sprintf("Skipping grant license scan for %s (ignore-images in %s)", name, grantPolicyFilename)))
+			}
+			continue
+		}
+		scannable = append(scannable, img)
+	}
+	images = scannable
+
+	if len(images) == 0 {
+		grantLog.Print("All container images are excluded by ignore-images")
+		return nil
 	}
 
 	if len(images) == 1 {
@@ -150,6 +180,53 @@ func grantPolicyFile() (string, error) {
 	}
 
 	return policyFile, nil
+}
+
+// grantPolicy captures the gh-aw specific subset of the .grant.yaml policy.
+// The ignore-images key is not part of grant's own policy schema; grant ignores
+// unknown keys, and gh-aw uses it to skip license scanning for entire images.
+type grantPolicy struct {
+	IgnoreImages []string `yaml:"ignore-images"`
+}
+
+// grantIgnoredImagePatterns reads the ignore-images glob patterns from the grant
+// policy file. Images matching one of these patterns are excluded from license
+// scanning.
+func grantIgnoredImagePatterns(policyFile string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Clean(policyFile))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read grant policy file %s: %w", policyFile, err)
+	}
+
+	var policy grantPolicy
+	if err := yaml.Unmarshal(data, &policy); err != nil {
+		return nil, fmt.Errorf("failed to parse grant policy file %s: %w", policyFile, err)
+	}
+
+	return policy.IgnoreImages, nil
+}
+
+// grantIsImageIgnored reports whether any of the image references matches one of
+// the ignore-images patterns. Patterns support shell globbing (filepath.Match)
+// so a single entry can cover every tag of an image.
+func grantIsImageIgnored(patterns []string, imageRefs ...string) bool {
+	for _, pattern := range patterns {
+		if pattern == "" {
+			continue
+		}
+		for _, ref := range imageRefs {
+			if ref == "" {
+				continue
+			}
+			if ref == pattern {
+				return true
+			}
+			if matched, err := filepath.Match(pattern, ref); err == nil && matched {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, error) {
