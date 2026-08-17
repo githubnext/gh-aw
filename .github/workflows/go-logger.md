@@ -148,7 +148,7 @@ description: Analyzes and enhances Go logging practices across the codebase for 
 emoji: 📝
 engine: claude
 name: Go Logger Enhancement
-timeout-minutes: 15
+timeout-minutes: 30
 tools:
   bash:
   - cat /tmp/gh-aw/agent/go-logger/preflight.json
