@@ -18,6 +18,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// loadOrInitDependabotConfig reads and parses an existing dependabot.yml at path, or returns a
 // freshly initialized DependabotConfig if the file does not exist or cannot be parsed.
 func loadOrInitDependabotConfig(path string) (DependabotConfig, error) {
 	var config DependabotConfig
