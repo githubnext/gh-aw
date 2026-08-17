@@ -75,6 +75,7 @@ async function main(core, ctx) {
     workflow_name: process.env.GH_AW_INFO_WORKFLOW_NAME || "",
     experimental: process.env.GH_AW_INFO_EXPERIMENTAL === "true",
     supports_tools_allowlist: process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST === "true",
+    cache_memory: process.env.GH_AW_INFO_CACHE_MEMORY === "true",
     run_id: ctx.runId,
     run_number: ctx.runNumber,
     run_attempt: process.env.GITHUB_RUN_ATTEMPT,

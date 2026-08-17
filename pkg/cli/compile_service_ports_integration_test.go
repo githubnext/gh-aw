@@ -100,9 +100,10 @@ This workflow has no services block and should not include --allow-host-service-
 	}
 }
 
-// TestCompileServicePorts_StrictModeWithServices verifies that workflows with services
-// still compile in strict mode, but do not emit --allow-host-service-ports unless they
-// opt into legacy-security: enable.
+// TestCompileServicePorts_StrictModeWithServices verifies that a workflow with services
+// publishing ports is rejected unless it opts into the privileged
+// sandbox.agent.runtime: docker-sudo-iptables profile, which is the only runtime where
+// the agent can reach service containers.
 func TestCompileServicePorts_StrictModeWithServices(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
@@ -122,8 +123,8 @@ services:
 
 # Strict Services Workflow
 
-This workflow has services but omits legacy-security: enable, so it should not include
---allow-host-service-ports.
+This workflow has services with published ports but keeps the default runtime, so it
+should fail to compile.
 `
 	testPath := filepath.Join(setup.workflowsDir, "strict-services.md")
 	if err := os.WriteFile(testPath, []byte(testWorkflow), 0644); err != nil {
@@ -132,22 +133,18 @@ This workflow has services but omits legacy-security: enable, so it should not i
 
 	cmd := exec.Command(setup.binaryPath, "compile", testPath)
 	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Compile failed: %v\nOutput: %s", err, string(output))
+	outputStr := string(output)
+	if err == nil {
+		t.Fatalf("Compile should have failed for services with published ports on the default runtime\nOutput: %s", outputStr)
+	}
+
+	if !strings.Contains(outputStr, "docker-sudo-iptables") {
+		t.Errorf("Error output should mention the docker-sudo-iptables runtime requirement\nOutput: %s", outputStr)
 	}
 
 	lockFilePath := filepath.Join(setup.workflowsDir, "strict-services.lock.yml")
-	lockContent, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
-	}
-
-	lock := string(lockContent)
-	if strings.Contains(lock, "--allow-host-service-ports") {
-		t.Errorf("Lock file should NOT contain --allow-host-service-ports in strict mode\nLock content:\n%s", lock)
-	}
-	if strings.Contains(lock, "job.services['redis'].ports['6379']") {
-		t.Errorf("Lock file should NOT contain service-port expressions in strict mode\nLock content:\n%s", lock)
+	if _, err := os.Stat(lockFilePath); err == nil {
+		t.Errorf("Lock file should not be generated when compilation fails")
 	}
 }
 
