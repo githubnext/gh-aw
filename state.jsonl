@@ -318,3 +318,4 @@
 {"run_id":"31491012230","timestamp":"2026-08-11T12:24:54.693Z","assignments":{"caveman":"no","subagent_model":"small"}}
 {"run_id":"31732548235","timestamp":"2026-08-13T18:48:21.226Z","assignments":{"caveman":"yes","subagent_model":"small"}}
 {"run_id":"31974721397","timestamp":"2026-08-16T21:52:39.814Z","assignments":{"caveman":"no","subagent_model":"large"}}
+{"run_id":"32080621476","timestamp":"2026-08-17T23:30:12.726Z","assignments":{"caveman":"yes","subagent_model":"large"}}
