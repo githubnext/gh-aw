@@ -54,7 +54,8 @@ Create a pull request in a different repository.
 	compiledContent := string(compiledBytes)
 
 	// Test 1: Verify target-repo is propagated to the safe-outputs handler config
-	assert.Contains(t, compiledContent, `"target-repo":"microsoft/vscode-docs"`,
+	// (JSON string embedded in YAML env value, so inner quotes are escaped).
+	assert.Contains(t, compiledContent, `\"target-repo\":\"microsoft/vscode-docs\"`,
 		"Expected target-repo to be included in safe-outputs handler config")
 
 	// Test 2: Verify checkout remains a default workspace checkout (no explicit cross-repo checkout)
