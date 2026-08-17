@@ -3,12 +3,27 @@
 package workflow
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFrontmatterConfigGitHubAppJSON(t *testing.T) {
+	var config FrontmatterConfig
+	err := json.Unmarshal([]byte(`{"github-app":{"client-id":"client","private-key":"key","ignore-if-missing":true}}`), &config)
+	require.NoError(t, err)
+	require.NotNil(t, config.GitHubApp)
+	assert.Equal(t, "client", config.GitHubApp.AppID)
+	assert.Equal(t, "key", config.GitHubApp.PrivateKey)
+	assert.True(t, config.GitHubApp.IgnoreIfMissing)
+
+	data, err := json.Marshal(config)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"github-app":{"client-id":"client","private-key":"key","ignore-if-missing":true}}`, string(data))
+}
 
 func TestParseFrontmatterConfig(t *testing.T) {
 	t.Run("parses minimal workflow config", func(t *testing.T) {
@@ -95,6 +110,129 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		require.Len(t, config.SkillReferences, 1)
 		require.Equal(t, "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6", config.SkillReferences[0].Skill)
 		require.Equal(t, "${{ secrets.SOME_TOKEN }}", config.SkillReferences[0].GitHubToken)
+	})
+
+	t.Run("parses top-level ambient-folders", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"ambient-folders": []any{" docs ", "src\\lib", "docs"},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"docs", "src/lib"}, config.AmbientFolders)
+		require.Equal(t, []string{"docs", "src/lib"}, config.ToMap()["ambient-folders"])
+
+		roundTripped, err := ParseFrontmatterConfig(config.ToMap())
+		require.NoError(t, err)
+		require.Equal(t, config.AmbientFolders, roundTripped.AmbientFolders)
+	})
+
+	t.Run("rejects invalid top-level ambient-folders", func(t *testing.T) {
+		config, err := ParseFrontmatterConfig(map[string]any{
+			"ambient-folders": []any{"../docs"},
+		})
+
+		require.ErrorContains(t, err, "is not a relative path within the repository")
+		assert.Nil(t, config)
+	})
+
+	t.Run("parses top-level github-app", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"github-app": map[string]any{
+				"client-id":         "${{ vars.APP_ID }}",
+				"private-key":       "${{ secrets.APP_PRIVATE_KEY }}",
+				"ignore-if-missing": true,
+				"owner":             "github",
+				"repositories":      []any{"gh-aw"},
+				"permissions": map[string]any{
+					"members": "read",
+				},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err)
+		require.NotNil(t, config.GitHubApp)
+
+		assert.Equal(t, "${{ vars.APP_ID }}", config.GitHubApp.AppID)
+		assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", config.GitHubApp.PrivateKey)
+		assert.True(t, config.GitHubApp.IgnoreIfMissing)
+		assert.Equal(t, "github", config.GitHubApp.Owner)
+		assert.Equal(t, []string{"gh-aw"}, config.GitHubApp.Repositories)
+		assert.Equal(t, map[string]string{"members": "read"}, config.GitHubApp.Permissions)
+
+		reconstructedApp, ok := config.ToMap()["github-app"].(map[string]any)
+		require.True(t, ok, "github-app should round-trip as a map")
+		assert.Equal(t, "${{ vars.APP_ID }}", reconstructedApp["client-id"])
+		assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", reconstructedApp["private-key"])
+		assert.Equal(t, true, reconstructedApp["ignore-if-missing"])
+		assert.Equal(t, "github", reconstructedApp["owner"])
+		assert.Equal(t, []any{"gh-aw"}, reconstructedApp["repositories"])
+		assert.Equal(t, map[string]any{"members": "read"}, reconstructedApp["permissions"])
+
+		roundTripped, err := ParseFrontmatterConfig(config.ToMap())
+		require.NoError(t, err)
+		require.NotNil(t, roundTripped.GitHubApp)
+		assert.Equal(t, config.GitHubApp, roundTripped.GitHubApp)
+
+		roundTripped.GitHubApp.Repositories[0] = "other"
+		roundTripped.GitHubApp.Permissions["members"] = "write"
+		assert.Equal(t, []string{"gh-aw"}, config.GitHubApp.Repositories)
+		assert.Equal(t, map[string]string{"members": "read"}, config.GitHubApp.Permissions)
+	})
+
+	t.Run("drops incomplete top-level github-app like compiler fallback", func(t *testing.T) {
+		config, err := ParseFrontmatterConfig(map[string]any{
+			"github-app": map[string]any{
+				"client-id":         "${{ vars.APP_ID }}",
+				"ignore-if-missing": true,
+			},
+		})
+
+		require.NoError(t, err)
+		assert.Nil(t, config.GitHubApp)
+		assert.NotContains(t, config.ToMap(), "github-app")
+	})
+
+	t.Run("parses string map top-level github-app", func(t *testing.T) {
+		config, err := ParseFrontmatterConfig(map[string]any{
+			"github-app": map[string]string{
+				"client-id":   "client-id",
+				"private-key": "private-key",
+			},
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, config.GitHubApp)
+		assert.Equal(t, "client-id", config.GitHubApp.AppID)
+		assert.Equal(t, "private-key", config.GitHubApp.PrivateKey)
+	})
+
+	t.Run("rejects unsupported top-level github-app type", func(t *testing.T) {
+		config, err := ParseFrontmatterConfig(map[string]any{"github-app": "invalid"})
+
+		require.ErrorContains(t, err, "github-app has an unsupported type")
+		assert.Nil(t, config)
+	})
+
+	t.Run("parses top-level github-app app-id alias", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"github-app": map[string]any{
+				"app-id":      "${{ vars.APP_ID }}",
+				"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		require.NoError(t, err)
+		require.NotNil(t, config.GitHubApp)
+		assert.Equal(t, "${{ vars.APP_ID }}", config.GitHubApp.AppID)
+
+		reconstructedApp, ok := config.ToMap()["github-app"].(map[string]any)
+		require.True(t, ok, "github-app should round-trip as a map")
+		assert.Equal(t, "${{ vars.APP_ID }}", reconstructedApp["client-id"])
+		assert.NotContains(t, reconstructedApp, "app-id")
 	})
 
 	t.Run("parses complete workflow config", func(t *testing.T) {

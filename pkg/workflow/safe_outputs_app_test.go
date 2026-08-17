@@ -139,6 +139,21 @@ func TestSafeOutputsAppIgnoreIfMissingInvalidType(t *testing.T) {
 	assert.False(t, app.shouldIgnoreMissingKey())
 }
 
+func TestParseAppConfigClonesTypedCollections(t *testing.T) {
+	repositories := []string{"gh-aw"}
+	permissions := map[string]string{"members": "read"}
+
+	app := parseAppConfig(map[string]any{
+		"repositories": repositories,
+		"permissions":  permissions,
+	})
+	app.Repositories[0] = "other"
+	app.Permissions["members"] = "write"
+
+	assert.Equal(t, []string{"gh-aw"}, repositories)
+	assert.Equal(t, map[string]string{"members": "read"}, permissions)
+}
+
 func TestBuildIgnoreIfMissingCondition(t *testing.T) {
 	tests := []struct {
 		name       string
