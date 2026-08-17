@@ -15,7 +15,13 @@ Here are some pointers to get you started in using this tool.
 
 Hey agent! If this repository hasn't been configured with agentic workflows yet, here is how to set it up.
 
-1. Install the `gh aw` CLI extension using the install script (no GitHub token required):
+1. Install the `gh aw` CLI extension (no GitHub token required beyond an authenticated `gh` CLI):
+
+   ```bash
+   gh extension install github/gh-aw
+   ```
+
+   If `gh` isn't available, use the standalone installer instead, which verifies the downloaded binary's SHA256 checksum by default:
 
    ```bash
    curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
