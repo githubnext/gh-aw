@@ -443,24 +443,40 @@ func TestCompiledLockFiles_SmokeCopilotSubAgentsEvalsArtifactHandoff(t *testing.
 	require.NoError(t, err, "should read smoke-copilot-sub-agents lock file")
 	lockContent := string(lockBytes)
 
+	extractStepBlock := func(jobSection, stepName, jobName string) string {
+		lines := strings.Split(jobSection, "\n")
+		for i, line := range lines {
+			trimmed := strings.TrimLeft(line, " ")
+			if !strings.HasPrefix(trimmed, "- name: "+stepName) {
+				continue
+			}
+
+			indent := line[:len(line)-len(trimmed)]
+			var b strings.Builder
+			for j := i; j < len(lines); j++ {
+				if j > i && strings.HasPrefix(lines[j], indent+"- ") {
+					break
+				}
+				b.WriteString(lines[j] + "\n")
+			}
+			return b.String()
+		}
+
+		require.FailNow(t, jobName+" should contain step", stepName)
+		return ""
+	}
+
 	evalsJob := extractJobSection(lockContent, "evals")
 	require.NotEmpty(t, evalsJob, "lock file should contain evals job")
-	assert.Contains(t, evalsJob, "- name: Upload evals results", "evals job should upload eval results")
-	assert.Contains(t, evalsJob, "name: evals", "evals job should upload artifact named evals")
+	uploadStep := extractStepBlock(evalsJob, "Upload evals results", "evals")
+	assert.Regexp(t, `(?m)^\s*name:\s*evals\s*$`, uploadStep, "evals job should upload artifact named evals")
 
 	for _, jobName := range []string{"conclusion", "push_evals_state"} {
 		jobSection := extractJobSection(lockContent, jobName)
 		require.NotEmpty(t, jobSection, "lock file should contain %s job", jobName)
 
-		stepStart := strings.Index(jobSection, "- name: Download evals artifact")
-		require.NotEqual(t, -1, stepStart, "%s should download evals artifact", jobName)
-
-		stepBlock := jobSection[stepStart:]
-		if nextStepOffset := strings.Index(stepBlock, "\n      - "); nextStepOffset != -1 {
-			stepBlock = stepBlock[:nextStepOffset]
-		}
-
-		assert.Contains(t, stepBlock, "name: evals", "%s should download artifact named evals", jobName)
+		stepBlock := extractStepBlock(jobSection, "Download evals artifact", jobName)
+		assert.Regexp(t, `(?m)^\s*name:\s*evals\s*$`, stepBlock, "%s should download artifact named evals", jobName)
 		assert.Contains(t, stepBlock, "continue-on-error: true", "%s evals artifact download must be non-fatal", jobName)
 	}
 }
