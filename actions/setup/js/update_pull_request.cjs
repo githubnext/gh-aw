@@ -64,10 +64,6 @@ function isNonFatalUpdateBranchError(error) {
   // GitHub update-branch API also returns 403 with this message when a PR contains workflow
   // file changes and the check times out, rather than the usual "refusing to allow" phrase.
   const hasWorkflowsScopeRequired = message.includes("`workflows` scope may be required") || message.includes("unable to determine if workflow can be created or updated");
-  if (isStackedPRUnsupportedUpdateBranchError(error)) {
-    core.info(`Treating update-branch error as non-fatal: stacked PR branch update endpoint unsupported (status=${status ?? "unknown"})`);
-    return true;
-  }
 
   if (status !== undefined) {
     if (status === 403 && (hasWorkflowsPermissionError || hasWorkflowsScopeRequired)) {
@@ -111,33 +107,18 @@ async function tryStackedPRUpdateBranch(github, context, prNumber) {
   let stackNumber;
 
   try {
-    const { data: pullRequest } = await github.rest.pulls.get({
+    const { data: stacks } = await github.request("GET /repos/{owner}/{repo}/stacks", {
       owner: context.repo.owner,
       repo: context.repo.repo,
-      pull_number: prNumber,
+      pull_request: prNumber,
+      per_page: 1,
     });
-    if (typeof pullRequest?.stack?.number === "number") {
-      stackNumber = pullRequest.stack.number;
+    if (Array.isArray(stacks) && stacks.length > 0 && typeof stacks[0]?.number === "number") {
+      stackNumber = stacks[0].number;
     }
   } catch (error) {
-    core.info(`Unable to resolve stack number from pull metadata for #${prNumber}: ${getErrorMessage(error)}; trying stack list lookup`);
-  }
-
-  if (stackNumber === undefined) {
-    try {
-      const { data: stacks } = await github.request("GET /repos/{owner}/{repo}/stacks", {
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        pull_request: prNumber,
-        per_page: 1,
-      });
-      if (Array.isArray(stacks) && stacks.length > 0 && typeof stacks[0]?.number === "number") {
-        stackNumber = stacks[0].number;
-      }
-    } catch (error) {
-      core.info(`Unable to resolve stack number from stack list for #${prNumber}: ${getErrorMessage(error)}; skipping stack sync`);
-      return false;
-    }
+    core.info(`Unable to resolve stack number from stack list for #${prNumber}: ${getErrorMessage(error)}; skipping stack sync`);
+    return false;
   }
 
   if (stackNumber === undefined) {

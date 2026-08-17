@@ -1043,6 +1043,12 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
 
     expect(result.success).toBe(true);
     expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/stacks", {
+      owner: "testowner",
+      repo: "testrepo",
+      pull_request: 100,
+      per_page: 1,
+    });
     expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
