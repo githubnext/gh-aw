@@ -23,4 +23,7 @@
 ### Processed 2026-08-17 cycle (new)
 53173, 53182, 53184, 53198, 53200, 53203, 53205, 53208, 53209, 53226, 53240, 53241, 53243 (53181 skipped: this workflow's own prior briefing, self-referential)
 
+### Processed 2026-08-17 06:26Z cycle
+None — zero discussions had `createdAt`/`updatedAt` in the ~6h window since the prior cycle (verified via jq). Nothing new to mine.
+
 Skip these on future cycles unless re-fetched with updated content.
