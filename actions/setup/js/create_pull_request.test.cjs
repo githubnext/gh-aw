@@ -4544,3 +4544,182 @@ describe("create_pull_request - E003 file-limit fallback-to-issue", () => {
     expect(global.github.rest.issues.create).not.toHaveBeenCalled();
   });
 });
+
+describe("create_pull_request - stacked pull requests", () => {
+  let tempDir;
+  let originalEnv;
+  let createdPrNumber;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-stacked-test-"));
+
+    createdPrNumber = 100;
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockImplementation(async () => {
+            const number = createdPrNumber++;
+            return { data: { number, html_url: `https://github.com/test-owner/test-repo/pull/${number}`, node_id: `PR_${number}` } };
+          }),
+          requestReviewers: vi.fn().mockResolvedValue({}),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+          getBranch: vi.fn().mockResolvedValue({ data: { name: "release/1.0" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn(),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("stacks a pull request on a branch created earlier in the same run", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, max: 2, preserve_branch_name: true });
+
+    const first = await handler({ title: "First", body: "First body", branch: "feature-1" }, {});
+    expect(first.success).toBe(true);
+
+    const second = await handler({ title: "Second", body: "Second body", branch: "feature-2", base: "feature-1", stack_position: 2, stack_root: "main" }, {});
+
+    expect(second.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenLastCalledWith(expect.objectContaining({ base: "feature-1", head: "feature-2" }));
+    const secondBody = global.github.rest.pulls.create.mock.calls[1][0].body;
+    expect(first.number).toBe(100);
+    expect(secondBody).toContain(`Depends on #${first.number}`);
+    expect(secondBody).toContain("<!-- gh-aw-stack:");
+    expect(secondBody).toContain('"position":2');
+  });
+
+  it("resolves salted branch names when stacking on an earlier pull request", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, max: 2 });
+
+    const first = await handler({ title: "First", body: "First body", branch: "feature-1" }, {});
+    expect(first.success).toBe(true);
+    const firstBranch = global.github.rest.pulls.create.mock.calls[0][0].head;
+    expect(firstBranch).not.toBe("feature-1");
+
+    const second = await handler({ title: "Second", body: "Second body", branch: "feature-2", base: "feature-1" }, {});
+
+    expect(second.success).toBe(true);
+    expect(global.github.rest.pulls.create).toHaveBeenLastCalledWith(expect.objectContaining({ base: firstBranch }));
+  });
+
+  it("rejects a stacked pull request when stacked pull requests are disabled", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, max: 2, preserve_branch_name: true, enable_stacked_prs: false });
+
+    const first = await handler({ title: "First", body: "First body", branch: "feature-1" }, {});
+    expect(first.success).toBe(true);
+
+    const second = await handler({ title: "Second", body: "Second body", branch: "feature-2", base: "feature-1" }, {});
+
+    expect(second.success).toBe(false);
+    expect(second.error).toContain("Stacked pull requests are disabled");
+    expect(second.error).toContain("main");
+    expect(global.github.rest.pulls.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("still allows the default base branch when stacked pull requests are disabled", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, enable_stacked_prs: false });
+
+    const result = await handler({ title: "Test PR", body: "Test body", base: "main", stack_position: 1 }, {});
+
+    expect(result.success).toBe(true);
+    const body = global.github.rest.pulls.create.mock.calls[0][0].body;
+    expect(body).toContain("<!-- gh-aw-stack:");
+  });
+
+  it("rejects a stacked pull request when the base branch does not exist", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const notFound = Object.assign(new Error("Branch not found"), { status: 404 });
+    global.github.rest.repos.getBranch = vi.fn().mockRejectedValue(notFound);
+
+    const handler = await main({ allow_empty: true, allowed_base_branches: ["release/*"] });
+
+    const result = await handler({ title: "Test PR", body: "Test body", base: "release/1.0" }, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("does not exist");
+    expect(result.error).toContain("dependency order");
+    expect(global.github.rest.pulls.create).not.toHaveBeenCalled();
+  });
+
+  it("creates a stacked pull request when the allowed base branch exists", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, allowed_base_branches: ["release/*"] });
+
+    const result = await handler({ title: "Test PR", body: "Test body", base: "release/1.0" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.rest.repos.getBranch).toHaveBeenCalledWith(expect.objectContaining({ branch: "release/1.0" }));
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ base: "release/1.0" }));
+  });
+
+  it("rejects a circular stacked pull request dependency", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ allow_empty: true, max: 3, preserve_branch_name: true });
+
+    expect((await handler({ title: "First", body: "First body", branch: "feature-1" }, {})).success).toBe(true);
+    expect((await handler({ title: "Second", body: "Second body", branch: "feature-2", base: "feature-1" }, {})).success).toBe(true);
+
+    // feature-1 already stacks below feature-2, so basing feature-1 on feature-2 closes the loop.
+    const third = await handler({ title: "Third", body: "Third body", branch: "feature-1", base: "feature-2" }, {});
+
+    expect(third.success).toBe(false);
+    expect(third.error).toContain("Circular stacked pull request dependency detected");
+  });
+});

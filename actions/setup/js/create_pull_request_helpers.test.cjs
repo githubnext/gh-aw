@@ -25,6 +25,9 @@ const {
   isLabelTransientError,
   parseAllowedBaseBranches,
   isBaseBranchAllowed,
+  parseStackMetadata,
+  hasCircularStackDependency,
+  buildStackMetadataLines,
   parseStringListConfig,
   mergeFallbackIssueLabels,
   sanitizeFallbackAssignees,
@@ -584,5 +587,78 @@ describe("buildPushErrorSection", () => {
     expect(result).toContain("symlink file mode requires git push fallback");
     expect(result).toContain("Remove the symlink");
     expect(result).not.toContain("git rebase");
+  });
+});
+
+describe("create_pull_request_helpers - stacked pull request metadata", () => {
+  it("parses and normalizes stack metadata fields", () => {
+    const result = parseStackMetadata({
+      stack_position: "2",
+      stack_root: "  feature/base  ",
+      dependencies: ["feature/one", "feature/one", "feature/two", 42],
+    });
+    expect(result).toEqual({ position: 2, root: "feature/base", dependencies: ["feature/one", "feature/two"] });
+  });
+
+  it("returns empty metadata when no stack fields are present", () => {
+    expect(parseStackMetadata({})).toEqual({ position: null, root: null, dependencies: [] });
+  });
+
+  it("ignores invalid stack positions", () => {
+    expect(parseStackMetadata({ stack_position: 0 }).position).toBeNull();
+    expect(parseStackMetadata({ stack_position: -3 }).position).toBeNull();
+    expect(parseStackMetadata({ stack_position: "not-a-number" }).position).toBeNull();
+  });
+
+  it("normalizes branch-like metadata so it cannot break out of the HTML comment", () => {
+    const result = parseStackMetadata({ stack_root: "evil --> <script>", dependencies: ["dep --> <img>"] });
+    expect(result.root).not.toContain("-->");
+    expect(result.dependencies[0]).not.toContain("-->");
+  });
+
+  it("detects a direct circular dependency", () => {
+    expect(hasCircularStackDependency(["feature-1"], "feature-1", new Map())).toBe(true);
+  });
+
+  it("detects a transitive circular dependency", () => {
+    const parents = new Map([
+      ["feature-2", "feature-1"],
+      ["feature-1", "feature-3"],
+    ]);
+    expect(hasCircularStackDependency(["feature-3"], "feature-2", parents)).toBe(true);
+  });
+
+  it("does not report a cycle for a valid stack", () => {
+    const parents = new Map([["feature-1", "main"]]);
+    expect(hasCircularStackDependency(["feature-2"], "feature-1", parents)).toBe(false);
+  });
+
+  it("builds stack metadata lines with dependency references", () => {
+    const lines = buildStackMetadataLines({
+      base: "feature-1",
+      position: 2,
+      root: "main",
+      dependencies: ["feature-1"],
+      dependsOnPullRequests: [42],
+    });
+    expect(lines[0]).toBe("Depends on #42");
+    expect(lines[1]).toContain("<!-- gh-aw-stack:");
+    expect(JSON.parse(lines[1].replace("<!-- gh-aw-stack: ", "").replace(" -->", ""))).toEqual({
+      base: "feature-1",
+      position: 2,
+      root: "main",
+      dependencies: ["feature-1"],
+      depends_on: [42],
+    });
+  });
+
+  it("returns no lines when there is no stack information", () => {
+    expect(buildStackMetadataLines({ base: null, position: null, root: null, dependencies: [], dependsOnPullRequests: [] })).toEqual([]);
+  });
+
+  it("records metadata even when the pull request is not stacked", () => {
+    const lines = buildStackMetadataLines({ base: null, position: 1, root: "main", dependencies: [], dependsOnPullRequests: [] });
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('"position":1');
   });
 });

@@ -1831,3 +1831,70 @@ func TestAllListEncodingForms(t *testing.T) {
 		}
 	})
 }
+
+func TestParsePullRequestsConfigStackedPullRequests(t *testing.T) {
+	compiler := &Compiler{}
+
+	tests := []struct {
+		name          string
+		config        map[string]any
+		expectEnabled bool
+	}{
+		{
+			name:          "enabled by default",
+			config:        map[string]any{},
+			expectEnabled: true,
+		},
+		{
+			name:          "disabled with enable-stacked-prs",
+			config:        map[string]any{"enable-stacked-prs": false},
+			expectEnabled: false,
+		},
+		{
+			name:          "enabled explicitly",
+			config:        map[string]any{"enable-stacked-prs": true},
+			expectEnabled: true,
+		},
+		{
+			name:          "disabled with stacked-prs-disabled alias",
+			config:        map[string]any{"stacked-prs-disabled": true},
+			expectEnabled: false,
+		},
+		{
+			name:          "stacked-prs-disabled takes precedence",
+			config:        map[string]any{"enable-stacked-prs": true, "stacked-prs-disabled": true},
+			expectEnabled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.parseCreatePullRequestsConfig(map[string]any{"create-pull-request": tt.config})
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
+			if got := isStackedPullRequestsEnabled(result); got != tt.expectEnabled {
+				t.Errorf("expected stacked pull requests enabled=%v, got %v", tt.expectEnabled, got)
+			}
+		})
+	}
+
+	if !isStackedPullRequestsEnabled(nil) {
+		t.Error("expected stacked pull requests to be enabled for a nil config")
+	}
+}
+
+func TestCreatePullRequestHandlerConfigStackedPullRequests(t *testing.T) {
+	disabled := true
+	cfgDisabled := &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{StackedPRsDisabled: &disabled}}
+	handlerConfig := handlerRegistry["create_pull_request"](cfgDisabled)
+	if got, ok := handlerConfig["enable_stacked_prs"]; !ok || got != false {
+		t.Errorf("expected enable_stacked_prs=false in handler config, got %v (present=%v)", got, ok)
+	}
+
+	cfgDefault := &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{}}
+	handlerConfig = handlerRegistry["create_pull_request"](cfgDefault)
+	if _, ok := handlerConfig["enable_stacked_prs"]; ok {
+		t.Error("expected enable_stacked_prs to be omitted when stacked pull requests are enabled")
+	}
+}

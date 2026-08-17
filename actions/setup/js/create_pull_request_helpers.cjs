@@ -9,6 +9,7 @@ const { isTransientError } = require("./error_recovery.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const { MAX_ASSIGNEES } = require("./constants.cjs");
 const { encodePathSegments, renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
 /** @type {string} Label always added to fallback issues so the triage system can find them */
 const MANAGED_FALLBACK_ISSUE_LABEL = "agentic-workflows";
@@ -107,6 +108,100 @@ function isBaseBranchAllowed(baseBranch, allowedBaseBranches) {
     }
   }
   return false;
+}
+
+/**
+ * Normalize the optional stacked pull request metadata carried by a create_pull_request message.
+ * Branch-like values are normalized with normalizeBranchName so that agent-provided content can
+ * never break out of the HTML comment used to record the metadata in the pull request body.
+ * @param {{stack_position?: unknown, stack_root?: unknown, dependencies?: unknown}} item
+ * @returns {{position: number|null, root: string|null, dependencies: string[]}}
+ */
+function parseStackMetadata(item) {
+  const rawPosition = item && item.stack_position !== undefined ? Number(item.stack_position) : NaN;
+  const position = Number.isInteger(rawPosition) && rawPosition > 0 ? rawPosition : null;
+
+  const rawRoot = item && typeof item.stack_root === "string" ? item.stack_root.trim() : "";
+  const root = rawRoot ? normalizeBranchName(rawRoot) || null : null;
+
+  /** @type {string[]} */
+  const dependencies = [];
+  if (item && Array.isArray(item.dependencies)) {
+    for (const dependency of item.dependencies) {
+      if (typeof dependency !== "string") continue;
+      const normalized = normalizeBranchName(dependency.trim());
+      if (normalized && !dependencies.includes(normalized)) {
+        dependencies.push(normalized);
+      }
+    }
+  }
+
+  return { position, root, dependencies };
+}
+
+/**
+ * Detect a circular stacked pull request dependency.
+ * Walks the chain of already-created stack branches (branch -> base branch) starting from the
+ * requested base branch and reports a cycle when one of the current pull request's branch names
+ * is reached again.
+ * @param {(string|null|undefined)[]} branchAliases - Branch names identifying the pull request being created
+ * @param {string} baseBranch - Requested base branch
+ * @param {Map<string, string>} stackParents - Map of branch name to the base branch it was created from
+ * @returns {boolean}
+ */
+function hasCircularStackDependency(branchAliases, baseBranch, stackParents) {
+  const aliases = new Set(branchAliases.filter(alias => typeof alias === "string" && alias !== ""));
+  if (aliases.size === 0 || !baseBranch) {
+    return false;
+  }
+  if (aliases.has(baseBranch)) {
+    return true;
+  }
+  const visited = new Set();
+  let current = baseBranch;
+  while (current && stackParents.has(current) && !visited.has(current)) {
+    visited.add(current);
+    current = stackParents.get(current) || "";
+    if (aliases.has(current)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Build the stacked pull request metadata lines appended to the pull request body.
+ * The visible "Depends on #N" references link the stack together, while the HTML comment keeps
+ * the machine-readable stack structure. Metadata is recorded even when stacked pull requests are
+ * disabled so the stack structure declared by the agent is not lost.
+ * @param {{base?: string|null, position?: number|null, root?: string|null, dependencies?: string[], dependsOnPullRequests?: number[]}} options
+ * @returns {string[]}
+ */
+function buildStackMetadataLines(options) {
+  const base = options.base || null;
+  const position = options.position ?? null;
+  const root = options.root || null;
+  const dependencies = Array.isArray(options.dependencies) ? options.dependencies : [];
+  const dependsOnPullRequests = Array.isArray(options.dependsOnPullRequests) ? options.dependsOnPullRequests.filter(n => Number.isInteger(n) && n > 0) : [];
+
+  if (!base && position === null && !root && dependencies.length === 0 && dependsOnPullRequests.length === 0) {
+    return [];
+  }
+
+  /** @type {string[]} */
+  const lines = [];
+  for (const number of dependsOnPullRequests) {
+    lines.push(`Depends on #${number}`);
+  }
+  /** @type {Record<string, unknown>} */
+  const metadata = {};
+  if (base) metadata.base = base;
+  if (position !== null) metadata.position = position;
+  if (root) metadata.root = root;
+  if (dependencies.length > 0) metadata.dependencies = dependencies;
+  if (dependsOnPullRequests.length > 0) metadata.depends_on = dependsOnPullRequests;
+  lines.push(`<!-- gh-aw-stack: ${JSON.stringify(metadata)} -->`);
+  return lines;
 }
 
 /**
@@ -338,6 +433,9 @@ module.exports = {
   isLabelTransientError,
   parseAllowedBaseBranches,
   isBaseBranchAllowed,
+  parseStackMetadata,
+  hasCircularStackDependency,
+  buildStackMetadataLines,
   parseStringListConfig,
   mergeFallbackIssueLabels,
   sanitizeFallbackAssignees,

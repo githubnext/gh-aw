@@ -50,6 +50,9 @@ const {
   isLabelTransientError,
   parseAllowedBaseBranches,
   isBaseBranchAllowed,
+  parseStackMetadata,
+  hasCircularStackDependency,
+  buildStackMetadataLines,
   parseStringListConfig,
   mergeFallbackIssueLabels,
   sanitizeFallbackAssignees,
@@ -770,6 +773,22 @@ async function main(config = {}) {
   const maxFiles = parsePositiveInteger(config.max_patch_files) ?? MAX_FILES;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
+  // Stacked pull requests (a pull request whose base branch is another pull request branch) are
+  // enabled by default. They can be disabled with `enable-stacked-prs: false` (or the
+  // `stacked-prs-disabled: true` alias) for GitHub Enterprise Server and other instances that do
+  // not support the feature.
+  const stackedPullRequestsEnabled = config.enable_stacked_prs !== false;
+  /**
+   * Pull requests created earlier in this run, keyed by both the agent-provided branch name and
+   * the effective (prefixed/salted) branch name so a later message can stack on top of them.
+   * @type {Map<string, {branch: string, number: number, url: string, repo: string}>}
+   */
+  const stackBranches = new Map();
+  /**
+   * Effective branch name -> base branch it was created from, used for circular dependency detection.
+   * @type {Map<string, string>}
+   */
+  const stackParents = new Map();
   const githubClient = await createAuthenticatedGitHubClient(config);
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
@@ -888,6 +907,9 @@ async function main(config = {}) {
   }
   if (allowedBaseBranches.size > 0) {
     core.info(`Allowed base branches: ${Array.from(allowedBaseBranches).join(", ")}`);
+  }
+  if (!stackedPullRequestsEnabled) {
+    core.info("Stacked pull requests are disabled (enable-stacked-prs: false)");
   }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
@@ -1023,10 +1045,18 @@ async function main(config = {}) {
     // is not available in GitHub Actions expressions and requires an API call
     // NOTE: Must be resolved before checkout so cross-repo checkout uses the correct branch
     let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
+    const defaultBaseBranch = baseBranch;
+
+    // Stacked pull request metadata declared by the agent (position/root/dependencies).
+    const stackMetadata = parseStackMetadata(pullRequestItem);
+    // Pull request created earlier in this run that this pull request stacks on top of.
+    /** @type {{branch: string, number: number, url: string, repo: string} | null} */
+    let stackBaseEntry = null;
 
     // Optional agent-provided base branch override.
     // The default base branch is always implicitly allowed even without allowed_base_branches.
-    // Overriding to a different branch requires allowed_base_branches to be configured.
+    // Overriding to a different branch requires allowed_base_branches to be configured, unless the
+    // base branch belongs to a pull request created earlier in this same run (a stacked pull request).
     if (typeof pullRequestItem.base === "string" && pullRequestItem.base.trim() !== "") {
       const requestedBaseBranchRaw = pullRequestItem.base.trim();
       const requestedBaseBranchForLog = JSON.stringify(requestedBaseBranchRaw);
@@ -1036,42 +1066,69 @@ async function main(config = {}) {
         // this is a no-op, not a true override, so no allowlist check is needed.
         core.info(`Base branch ${requestedBaseBranchForLog} matches the default base branch, no override needed`);
       } else {
-        if (allowedBaseBranches.size === 0) {
+        // A base branch that differs from the default base branch creates a stacked pull request.
+        const isStackedRequest = requestedBaseBranchRaw !== defaultBaseBranch;
+        if (isStackedRequest && !stackedPullRequestsEnabled) {
+          core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: stacked pull requests are disabled`);
+          return {
+            success: false,
+            error:
+              `Stacked pull requests are disabled for this workflow, so base branch '${requestedBaseBranchRaw}' cannot be used. ` +
+              `Target the default base branch '${defaultBaseBranch}' instead, or remove safe-outputs.create-pull-request.enable-stacked-prs: false ` +
+              `(and stacked-prs-disabled) if this GitHub instance supports stacked pull requests. GitHub Enterprise Server may not support them.`,
+          };
+        }
+
+        // Branch created by an earlier pull request in this run: the branch name may have been
+        // salted/prefixed, so resolve it to the branch that was actually pushed. No allowlist check
+        // is required because the branch was created by this same run.
+        const previousStackEntry = stackBranches.get(requestedBaseBranchRaw);
+        if (isStackedRequest && previousStackEntry && previousStackEntry.repo === itemRepo) {
+          stackBaseEntry = previousStackEntry;
+          baseBranch = previousStackEntry.branch;
+          core.info(`Stacking on pull request #${previousStackEntry.number} (base branch ${baseBranch})`);
+        } else if (allowedBaseBranches.size === 0) {
           core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: allowed-base-branches is not configured`);
           return {
             success: false,
             error: "Base branch override is not allowed. Configure safe-outputs.create-pull-request.allowed-base-branches to allow per-run base overrides.",
           };
-        }
+        } else {
+          const requestedBaseBranch = normalizeBranchName(requestedBaseBranchRaw);
+          if (!requestedBaseBranch) {
+            core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitization resulted in empty branch name`);
+            return {
+              success: false,
+              error: `Invalid base branch override: sanitization resulted in empty string (original: "${requestedBaseBranchRaw}")`,
+            };
+          }
+          if (requestedBaseBranchRaw !== requestedBaseBranch) {
+            core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitized value '${requestedBaseBranch}' does not match original`);
+            return {
+              success: false,
+              error: `Invalid base branch override: contains invalid characters (original: "${requestedBaseBranchRaw}", normalized: "${requestedBaseBranch}")`,
+            };
+          }
+          const requestedBaseBranchSafeForLog = JSON.stringify(requestedBaseBranch);
+          if (!isBaseBranchAllowed(requestedBaseBranch, allowedBaseBranches)) {
+            core.warning(`Rejecting base branch override ${requestedBaseBranchSafeForLog}: does not match allowed patterns (${Array.from(allowedBaseBranches).join(", ")})`);
+            return {
+              success: false,
+              error: `Base branch override '${requestedBaseBranch}' is not allowed. Allowed patterns: ${Array.from(allowedBaseBranches).join(", ")}`,
+            };
+          }
 
-        const requestedBaseBranch = normalizeBranchName(requestedBaseBranchRaw);
-        if (!requestedBaseBranch) {
-          core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitization resulted in empty branch name`);
-          return {
-            success: false,
-            error: `Invalid base branch override: sanitization resulted in empty string (original: "${requestedBaseBranchRaw}")`,
-          };
+          core.info(`Base branch override accepted: ${requestedBaseBranchSafeForLog}`);
+          baseBranch = requestedBaseBranch;
+          core.info(`Using agent-provided base branch override: ${baseBranch}`);
         }
-        if (requestedBaseBranchRaw !== requestedBaseBranch) {
-          core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: sanitized value '${requestedBaseBranch}' does not match original`);
-          return {
-            success: false,
-            error: `Invalid base branch override: contains invalid characters (original: "${requestedBaseBranchRaw}", normalized: "${requestedBaseBranch}")`,
-          };
-        }
-        const requestedBaseBranchSafeForLog = JSON.stringify(requestedBaseBranch);
-        if (!isBaseBranchAllowed(requestedBaseBranch, allowedBaseBranches)) {
-          core.warning(`Rejecting base branch override ${requestedBaseBranchSafeForLog}: does not match allowed patterns (${Array.from(allowedBaseBranches).join(", ")})`);
-          return {
-            success: false,
-            error: `Base branch override '${requestedBaseBranch}' is not allowed. Allowed patterns: ${Array.from(allowedBaseBranches).join(", ")}`,
-          };
-        }
-
-        core.info(`Base branch override accepted: ${requestedBaseBranchSafeForLog}`);
-        baseBranch = requestedBaseBranch;
-        core.info(`Using agent-provided base branch override: ${baseBranch}`);
       }
+    }
+
+    // A pull request is stacked when its effective base branch is not the default base branch.
+    const isStackedPullRequest = baseBranch !== defaultBaseBranch;
+    if (isStackedPullRequest) {
+      core.info(`Stacked pull request detected: base branch ${baseBranch} differs from default base branch ${defaultBaseBranch}`);
     }
 
     // Multi-repo support: Switch to the correct working directory for the target repo.
@@ -1161,6 +1218,32 @@ async function main(config = {}) {
         };
       }
       core.info(`Base branch for ${itemRepo}: ${baseBranch}`);
+
+      // Stacked pull requests target a branch that must already exist. Verify it before doing any
+      // work so the failure is reported with actionable guidance instead of an opaque API error.
+      // Branches created earlier in this run are known to exist and are not re-checked.
+      if (isStackedPullRequest && !stackBaseEntry) {
+        const getBranchApi = githubClient?.rest?.repos?.getBranch;
+        if (typeof getBranchApi === "function") {
+          try {
+            await githubClient.rest.repos.getBranch({ owner: repoParts.owner, repo: repoParts.repo, branch: baseBranch });
+            core.info(`Base branch ${baseBranch} exists in ${itemRepo}`);
+          } catch (baseBranchError) {
+            const status = /** @type {any} */ baseBranchError?.status;
+            if (status === 404) {
+              const error =
+                `Base branch '${baseBranch}' does not exist in ${itemRepo}, so the stacked pull request cannot be created. ` +
+                `Create the pull request that owns '${baseBranch}' first (stacked pull requests must be emitted in dependency order), ` +
+                `or target the default base branch '${defaultBaseBranch}'.`;
+              core.warning(error);
+              return { success: false, error };
+            }
+            core.warning(`Could not verify base branch ${baseBranch} in ${itemRepo}: ${getErrorMessage(baseBranchError)}`);
+          }
+        } else {
+          core.warning(`Skipping base branch existence check for ${baseBranch}: repos.getBranch API is not available`);
+        }
+      }
 
       // Check if patch file exists and has valid content.
       // Always require patch content for policy enforcement, even when bundle transport
@@ -1560,6 +1643,33 @@ async function main(config = {}) {
         bodyLines.push(trackerIDComment);
       }
 
+      // Stacked pull request metadata: record the stack relationship in the body so reviewers can
+      // see how the pull requests relate. Metadata declared by the agent is preserved even when
+      // stacked pull requests are disabled (the pull request then simply targets the default base).
+      const stackDependencyBranches = [...stackMetadata.dependencies];
+      if (stackBaseEntry && !stackDependencyBranches.includes(stackBaseEntry.branch)) {
+        stackDependencyBranches.unshift(stackBaseEntry.branch);
+      }
+      /** @type {number[]} */
+      const dependsOnPullRequests = [];
+      for (const dependencyBranch of stackDependencyBranches) {
+        const entry = stackBranches.get(dependencyBranch);
+        if (entry && entry.repo === itemRepo && !dependsOnPullRequests.includes(entry.number)) {
+          dependsOnPullRequests.push(entry.number);
+        }
+      }
+      const stackMetadataLines = buildStackMetadataLines({
+        base: isStackedPullRequest ? baseBranch : null,
+        position: stackMetadata.position,
+        root: stackMetadata.root,
+        dependencies: stackDependencyBranches,
+        dependsOnPullRequests,
+      });
+      if (stackMetadataLines.length > 0) {
+        bodyLines.push("", ...stackMetadataLines);
+        core.info(`Added stacked pull request metadata to body: ${stackMetadataLines.join(" ")}`);
+      }
+
       // Snapshot the body content (without footer) for use in protected-files fallback ordering.
       // The protected-files section must appear before the footer (including guard notices such as
       // the integrity-filtering note) so that the footer always comes last in the issue body.
@@ -1673,6 +1783,15 @@ async function main(config = {}) {
 
       core.info(`Generated branch name: ${branchName}`);
       core.info(`Base branch: ${baseBranch}`);
+
+      // Reject stacks that would depend on themselves: the requested base (or one of its ancestors
+      // in this run) is the branch of the pull request being created.
+      const stackBranchAliases = [branchName, originalAgentBranch];
+      if (hasCircularStackDependency(stackBranchAliases, baseBranch, stackParents) || stackMetadata.dependencies.some(dependency => stackBranchAliases.includes(dependency))) {
+        const error = `Circular stacked pull request dependency detected: branch '${branchName}' cannot depend on base branch '${baseBranch}'. Review the stack order and the dependencies field.`;
+        core.warning(error);
+        return { success: false, error };
+      }
 
       // Create a new branch using git CLI, ensuring it's based on the correct base branch
 
@@ -2447,6 +2566,15 @@ ${patchPreview}`;
         );
 
         core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+
+        // Record this pull request so later messages in the same run can stack on top of it.
+        // Both the agent-provided branch name and the effective (prefixed/salted) name are keys.
+        const stackEntry = { branch: branchName, number: pullRequest.number, url: pullRequest.html_url, repo: itemRepo };
+        stackBranches.set(branchName, stackEntry);
+        if (originalAgentBranch) {
+          stackBranches.set(originalAgentBranch, stackEntry);
+        }
+        stackParents.set(branchName, baseBranch);
 
         // Add labels if specified
         if (labels.length > 0) {

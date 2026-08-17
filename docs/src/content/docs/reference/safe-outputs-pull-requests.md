@@ -49,6 +49,7 @@ safe-outputs:
     allowed-branches:             # restrict agent-selected source branch names (glob patterns)
       - feature/*
       - release/*
+    enable-stacked-prs: true      # allow stacked pull requests (default: true)
     fallback-as-issue: false      # disable issue fallback (default: true)
     auto-close-issue: false       # don't auto-add "Fixes #N" to PR description (default: true)
     normalize-closing-keywords: true # strip backticks around recognized issue-closing keywords in PR body text
@@ -78,6 +79,57 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `targe
 `base-branch` sets the PR's target branch. Defaults to `github.base_ref` (PR event) or `github.ref_name` (push event). Use `allowed-base-branches` to let the agent pick the target branch at runtime — the agent supplies a `base` value in the tool call and it is accepted only if it matches one of the configured glob patterns.
 
 `allowed-branches` restricts which _source_ branch names the agent may use. The effective branch (agent-provided, or the checkout branch as fallback) must match a configured glob.
+
+### Stacked pull requests
+
+A _stacked_ pull request targets another pull request's branch instead of the default base branch, so a chain of dependent changes can be reviewed and merged one piece at a time:
+
+- PR&nbsp;1 (`feature-1`) targets `main`
+- PR&nbsp;2 (`feature-2`) targets `feature-1`
+- PR&nbsp;3 (`feature-3`) targets `feature-2`
+
+Set `max` above `1` and emit one `create_pull_request` output per level of the stack, in dependency order (the base of a stacked pull request must already exist when the pull request is created):
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    max: 3
+    preserve-branch-name: true    # keeps `base` values predictable across the stack
+```
+
+```json
+{"type": "create_pull_request", "title": "Step 1", "body": "...", "branch": "feature-1"}
+{"type": "create_pull_request", "title": "Step 2", "body": "...", "branch": "feature-2", "base": "feature-1", "stack_position": 2, "stack_root": "main"}
+{"type": "create_pull_request", "title": "Step 3", "body": "...", "branch": "feature-3", "base": "feature-2", "stack_position": 3, "stack_root": "main", "dependencies": ["feature-1", "feature-2"]}
+```
+
+Behavior:
+
+- A `base` that names the branch of a pull request created earlier in the same run is accepted without `allowed-base-branches`, and is resolved to the branch that was actually pushed (branch names are salted unless `preserve-branch-name: true` is set). Any other `base` override still requires `allowed-base-branches`.
+- The base branch is verified to exist before the pull request is created. If it does not exist, the output fails with guidance to emit the stack in dependency order, or to target the default base branch.
+- Circular dependencies (a pull request whose base transitively depends on its own branch, or that lists its own branch in `dependencies`) are rejected.
+- Stack relationships are recorded in the pull request body: a `Depends on #N` reference for each dependency created in the same run, plus a machine-readable `<!-- gh-aw-stack: ... -->` comment holding `base`, `stack_position`, `stack_root`, and `dependencies`.
+
+#### Disabling stacked pull requests (GitHub Enterprise Server)
+
+Stacked pull requests may not be available on GitHub Enterprise Server or other GitHub instances. Turn the feature off so misuse fails fast with an explanatory error instead of an opaque API failure:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    enable-stacked-prs: false     # or: stacked-prs-disabled: true
+```
+
+When disabled, any `create_pull_request` output whose `base` differs from the configured/default base branch is rejected with an error that suggests targeting the default base branch or re-enabling the feature where it is supported. Pull requests targeting the default base branch keep working, and `stack_position`, `stack_root`, and `dependencies` metadata is still recorded in the pull request body, so a workflow can be migrated between instances without editing the agent prompt.
+
+#### Migrating an existing workflow to a stack
+
+1. Raise `max` to the number of pull requests in the stack (default is `1`).
+2. Set `preserve-branch-name: true` so each `base` value matches the branch name the agent used previously.
+3. Instruct the agent to emit the pull requests root-first and to set `base` to the previous branch in the stack.
+4. On GitHub Enterprise Server, add `enable-stacked-prs: false` and keep the agent targeting the default base branch.
+
+Limitations and best practices: keep stacks small (three to four pull requests), always emit them in dependency order, merge from the root of the stack upward, and prefer explicit `branch`/`base` names over auto-generated ones so the stack stays readable.
 
 ### Runtime reviewers and assignees
 

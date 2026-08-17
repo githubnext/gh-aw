@@ -8977,6 +8977,19 @@ safe-outputs:
     # branch patterns (e.g. '${{ inputs[\'allowed-base-branches\'] }}')
     allowed-base-branches: "example-value"
 
+    # Controls whether stacked pull requests (pull requests whose base branch is
+    # another pull request branch created by the same run) are allowed. Defaults to
+    # true. Set to false on GitHub Enterprise Server or other instances without
+    # stacked pull request support: create_pull_request outputs requesting a
+    # non-default base branch are then rejected with an explanatory error.
+    # (optional)
+    enable-stacked-prs: true
+
+    # Alias for 'enable-stacked-prs: false'. When true, stacked pull request support
+    # is disabled entirely and takes precedence over 'enable-stacked-prs'.
+    # (optional)
+    stacked-prs-disabled: true
+
     # Maximum allowed size for git patches in kilobytes (KB) for create-pull-request
     # only. Overrides safe-outputs max-patch-size for this output type. Defaults to
     # 4096 KB (4 MB) when unset.

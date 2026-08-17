@@ -610,6 +610,11 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("close_older_pull_requests", c.CloseOlderPullRequests).
 			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
+		// Stacked pull requests are enabled by default; only emit the flag when disabled
+		// (e.g. GitHub Enterprise Server instances without stacked pull request support).
+		if !isStackedPullRequestsEnabled(c) {
+			builder.AddDefault("enable_stacked_prs", false)
+		}
 		// Use app-minted token if head-github-app is configured; fall back to head-github-token.
 		if c.HeadGitHubApp != nil {
 			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
