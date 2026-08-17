@@ -54,7 +54,9 @@ This updates `.github/skills/agentic-workflows/SKILL.md` to the latest template,
 
 Run `git diff .github/workflows/` to verify the changes. Typical migrations include `sandbox: false` → `sandbox.agent: false`, `app:` → `github-app:`, `safe-inputs:` → `mcp-scripts:`, `daily at` → `daily around`, and removal of deprecated `network.firewall` and `mcp-scripts.mode` fields.
 
-Workflows that use GitHub Actions `services:` with published ports remain reachable from the agent sandbox only when `sandbox.agent.legacy-security: enable` is set; recompiling regenerates the `--allow-host-service-ports` value used to reach those services.
+Sandbox security options are now collapsed into `sandbox.agent.runtime` profiles: the removed `sandbox.agent.sudo` and `sandbox.agent.legacy-security` fields are migrated to `runtime: docker-sudo-iptables` (privileged iptables profile) or dropped when the secure default applies. Configurations that mixed a strict runtime such as `gvisor` with privileged options report an error so you can choose one profile explicitly.
+
+Workflows that use GitHub Actions `services:` with published ports remain reachable from the agent sandbox only when `sandbox.agent.runtime: docker-sudo-iptables` is set; recompiling regenerates the `--allow-host-service-ports` value used to reach those services.
 
 ## Step 4: Commit and Push
 

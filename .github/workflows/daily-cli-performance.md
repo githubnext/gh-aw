@@ -82,7 +82,6 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
-    sudo: true
 evals:
   - id: benchmarks_run
     question: Did the agent run CLI performance benchmarks and track performance trends?

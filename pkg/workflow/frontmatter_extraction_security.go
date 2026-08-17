@@ -204,22 +204,6 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
-	// Extract sudo (AWF topology egress mode).
-	// Semantics are inverted from the frontmatter field:
-	//   sudo: false  → no sudo = network isolation mode  → NetworkIsolation=true
-	//   sudo: true   → sudo enabled = normal mode        → NetworkIsolation=false  (deprecated; error in strict mode, warning otherwise)
-	//   (omitted)    → default = network isolation mode  → NetworkIsolation=true   (same as sudo: false)
-	agentConfig.NetworkIsolation = true // Default: sudo: false (network isolation enabled)
-	if sudoVal, hasSudo := agentObj["sudo"]; hasSudo {
-		if sudoBool, ok := sudoVal.(bool); ok {
-			agentConfig.NetworkIsolation = !sudoBool
-			if sudoBool {
-				// sudo: true was explicitly set; record it so validation can warn/error.
-				agentConfig.SudoExplicitlyEnabled = true
-			}
-		}
-	}
-
 	// Extract config for SRT
 	if configVal, hasConfig := agentObj["config"]; hasConfig {
 		agentConfig.Config = c.extractSRTConfig(configVal)
@@ -287,14 +271,6 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		if runtimeInstallBool, ok := runtimeInstallVal.(bool); ok {
 			agentConfig.RuntimeInstall = &runtimeInstallBool
 			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.runtime-install: %t", runtimeInstallBool)
-		}
-	}
-
-	// Extract legacy-security (opt-in to legacy sudo/iptables mode)
-	if legacyVal, hasLegacy := agentObj["legacy-security"]; hasLegacy {
-		if legacyStr, ok := legacyVal.(string); ok && legacyStr == "enable" {
-			agentConfig.LegacySecurity = true
-			frontmatterExtractionSecurityLog.Print("Extracted sandbox.agent.legacy-security: enable")
 		}
 	}
 

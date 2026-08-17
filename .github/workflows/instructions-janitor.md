@@ -50,10 +50,8 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
-sandbox:
-  agent:
-    sudo: false
 ---
+
 # Instructions Janitor
 
 Keep instruction files in `.github/aw/` synchronized with the product, compact enough for agentic loading, and free of avoidable duplication.

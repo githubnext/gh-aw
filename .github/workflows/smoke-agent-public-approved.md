@@ -20,7 +20,6 @@ permissions:
 sandbox:
   agent:
     id: awf
-    sudo: false
 name: "Smoke Agent: public/approved"
 engine: claude
 strict: true

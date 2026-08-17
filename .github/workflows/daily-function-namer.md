@@ -37,7 +37,6 @@ safe-outputs:
 sandbox:
   agent:
     id: awf
-    sudo: false
 tools:
   cli-proxy: true
   cache-memory: true

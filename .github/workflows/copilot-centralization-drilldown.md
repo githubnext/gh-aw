@@ -159,7 +159,6 @@ steps:
 sandbox:
   agent:
     runtime: cloud-hypervisor
-    sudo: false
 evals:
   - id: candidate_expanded
     question: Did the agent expand a centralization candidate into a concrete draft workflow or reusable prompt template?

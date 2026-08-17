@@ -17,8 +17,7 @@ func enclaveWorkflowData(script, agent bool, scriptTimeout, agentTimeout int) *W
 		Tools: map[string]any{},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:               "awf",
-				NetworkIsolation: true,
+				ID: "awf",
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -73,7 +72,7 @@ func TestEnabledEnclaveToolsAndTimeout(t *testing.T) {
 
 func TestValidateEnclavesRequiresNetworkIsolation(t *testing.T) {
 	data := enclaveWorkflowData(true, false, 30, 0)
-	data.SandboxConfig.Agent.NetworkIsolation = false
+	data.SandboxConfig.Agent.Disabled = true
 	err := validateEnclavesConfig(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires AWF network isolation")
@@ -217,7 +216,6 @@ engine: copilot
 sandbox:
   agent:
     id: awf
-    sudo: false
     version: latest
 enclaves:
   - script:

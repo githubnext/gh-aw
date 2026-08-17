@@ -119,7 +119,7 @@ func validateEnclavesConfig(workflowData *WorkflowData) error {
 	enclavesLog.Printf("Validating %d enclave config(s)", len(workflowData.Enclaves))
 	if !isAWFNetworkIsolationEnabled(workflowData) {
 		enclavesLog.Print("Rejecting enclaves: AWF network isolation is not enabled")
-		return errors.New("enclaves requires AWF network isolation; set sandbox.agent.sudo: false or use sandbox.agent.runtime: docker-sbx")
+		return errors.New("enclaves requires AWF network isolation; enable the agent sandbox with a network-isolated runtime such as sandbox.agent.runtime: docker")
 	}
 	if workflowData.ParsedTools != nil &&
 		workflowData.ParsedTools.GitHub != nil &&

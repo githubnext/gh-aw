@@ -87,9 +87,6 @@ steps:
       echo "$SCOPE" > /tmp/gh-aw/agent/scan-scope.txt
 
 
-sandbox:
-  agent:
-    sudo: false
 evals:
   - id: glossary_reviewed
     question: Did the agent review the glossary and identify gaps or stale entries relative to recent codebase changes?

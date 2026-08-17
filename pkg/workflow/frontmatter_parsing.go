@@ -13,6 +13,11 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	frontmatterTypesLog.Printf("Parsing frontmatter config with %d fields", len(frontmatter))
 	var config FrontmatterConfig
 
+	githubApp, err := extractTypedTopLevelGitHubApp(frontmatter)
+	if err != nil {
+		return nil, err
+	}
+
 	// Use JSON marshaling for the entire frontmatter conversion.
 	// TemplatableInt32.UnmarshalJSON transparently handles both integer literals
 	// (e.g. timeout-minutes: 30) and GitHub Actions expressions
@@ -98,6 +103,15 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	if rawSkills, ok := frontmatter["skills"].([]any); ok {
 		config.SkillReferences = parseRawSkillReferences(rawSkills)
 	}
+	if ambientFolders, err := extractAmbientFolders(frontmatter); err != nil {
+		return nil, err
+	} else if ambientFolders != nil {
+		config.AmbientFolders, err = normalizeAmbientFolders(ambientFolders)
+		if err != nil {
+			return nil, err
+		}
+	}
+	config.GitHubApp = githubApp
 
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil

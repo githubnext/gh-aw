@@ -45,7 +45,6 @@ sandbox:
   agent:
     id: awf
     runtime: docker-sbx
-    sudo: true
 steps:
   - name: Install Credo tooling project
     run: |

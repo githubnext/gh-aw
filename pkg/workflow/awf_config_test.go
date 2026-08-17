@@ -165,8 +165,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						Type:             SandboxTypeAWF,
-						NetworkIsolation: true,
+						Type: SandboxTypeAWF,
 					},
 				},
 			},

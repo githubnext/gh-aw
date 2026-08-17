@@ -13,7 +13,6 @@ permissions:
 sandbox:
   agent:
     id: awf
-    sudo: false
 tracker-id: daily-code-debt-aider
 engine:
   id: aider

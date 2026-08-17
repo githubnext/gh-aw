@@ -151,7 +151,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 evals:
   - id: geo_audit_performed
     question: Did the agent audit the README and documentation site using the geo-optimizer skill?

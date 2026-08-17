@@ -54,9 +54,6 @@ imports:
   - shared/otlp.md
 timeout-minutes: 15
 
-sandbox:
-  agent:
-    sudo: false
 tools:
   cli-proxy: true
   github:
@@ -71,6 +68,7 @@ evals:
   - id: output_format_adherence
     question: Does the discussion summary match the writing style expected for the assigned output_format variant (e.g., short active-voice sentences with one fact per sentence when the variant is "ste")?
 ---
+
 # Copilot Agent PR Analysis
 
 You are an AI analytics agent that monitors and analyzes the performance of the copilot-swe-agent (also known as copilot agent) in this repository.

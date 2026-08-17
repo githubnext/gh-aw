@@ -191,10 +191,8 @@ func TestGVisorValidation_ArcDindIncompatible(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeGVisor,
-				NetworkIsolation:      false,
-				SudoExplicitlyEnabled: true,
+				ID:      "awf",
+				Runtime: AgentRuntimeGVisor,
 			},
 		},
 		RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
@@ -210,16 +208,15 @@ func TestGVisorValidation_ArcDindIncompatible(t *testing.T) {
 	require.ErrorContains(t, err, "gvisor", "error must mention gvisor")
 }
 
-// TestGVisorValidation_SudoFalseAllowed verifies that gVisor + sudo:false (default) is
-// a valid combination. The gVisor install step invokes sudo in shell commands directly,
-// independently of sandbox.agent.sudo.
-func TestGVisorValidation_SudoFalseAllowed(t *testing.T) {
+// TestGVisorValidation_RootlessProfileAllowed verifies that the gvisor runtime profile
+// is valid. The gVisor install step invokes sudo in shell commands directly, while AWF
+// itself keeps running rootless.
+func TestGVisorValidation_RootlessProfileAllowed(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:               "awf",
-				Runtime:          AgentRuntimeGVisor,
-				NetworkIsolation: true, // sudo: false (default or explicit)
+				ID:      "awf",
+				Runtime: AgentRuntimeGVisor,
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -229,19 +226,17 @@ func TestGVisorValidation_SudoFalseAllowed(t *testing.T) {
 	}
 
 	err := validateSandboxConfig(workflowData)
-	require.NoError(t, err, "gVisor + sudo:false must be a valid combination")
+	require.NoError(t, err, "the gvisor runtime profile must be a valid combination")
 }
 
 // TestGVisorValidation_ValidCombination verifies that a valid gVisor configuration
-// passes validation (sandbox validation does not reject gVisor; sudo: true is a separate
-// deprecation check in strict-mode validation).
+// passes validation.
 func TestGVisorValidation_ValidCombination(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:               "awf",
-				Runtime:          AgentRuntimeGVisor,
-				NetworkIsolation: true, // sudo: false (default)
+				ID:      "awf",
+				Runtime: AgentRuntimeGVisor,
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -252,27 +247,6 @@ func TestGVisorValidation_ValidCombination(t *testing.T) {
 
 	err := validateSandboxConfig(workflowData)
 	assert.NoError(t, err, "gVisor on a standard runner must pass validation")
-}
-
-// TestGVisorStrictModeSudoTrueError verifies that sandbox.agent.sudo: true combined
-// with runtime: gvisor still produces a strict-mode error. The gVisor install step
-// uses shell-level sudo directly and does not require AWF itself to run as sudo.
-func TestGVisorStrictModeSudoTrueError(t *testing.T) {
-	sandboxConfig := &SandboxConfig{
-		Agent: &AgentSandboxConfig{
-			ID:                    "awf",
-			Runtime:               AgentRuntimeGVisor,
-			NetworkIsolation:      false,
-			SudoExplicitlyEnabled: true,
-		},
-	}
-
-	compiler := NewCompiler()
-	compiler.strictMode = true
-
-	err := compiler.validateStrictSandboxCustomization(sandboxConfig)
-	require.Error(t, err, "sudo:true + runtime:gvisor must still produce a strict-mode error")
-	require.ErrorContains(t, err, "sudo", "error must mention sudo")
 }
 
 // TestGVisorFrontmatterExtraction verifies end-to-end that a workflow with

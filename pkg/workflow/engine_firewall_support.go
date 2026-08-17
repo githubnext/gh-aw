@@ -130,15 +130,11 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		firewallLogsDirEnv = constants.AWFProxyLogsDirExpr
 	}
 
-	// In network-isolation (rootless) mode, pass --rootless so the script uses
-	// non-interactive sudo (sudo -n) with a non-sudo chmod fallback. In non-network-isolation
-	// mode, legacy-security mode, and Cloud Hypervisor (where AWF ran with host
-	// privileges), the script uses plain sudo.
+	// When the runtime profile runs AWF rootless, pass --rootless so the script uses
+	// non-interactive sudo (sudo -n) with a non-sudo chmod fallback. Profiles where AWF
+	// ran with host privileges (docker-sudo-iptables, cloud-hypervisor) use plain sudo.
 	scriptArg := ""
-	agentCfg := getAgentConfig(workflowData)
-	if isAWFNetworkIsolationEnabled(workflowData) &&
-		!agentCfg.LegacySecurity &&
-		agentCfg.Runtime != AgentRuntimeCloudHypervisor {
+	if isAWFNetworkIsolationEnabled(workflowData) && getSandboxRuntimeProfile(workflowData).Rootless {
 		scriptArg = " --rootless"
 	}
 

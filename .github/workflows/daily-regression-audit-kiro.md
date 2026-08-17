@@ -15,7 +15,6 @@ permissions:
 sandbox:
   agent:
     id: awf
-    sudo: false
 tracker-id: daily-regression-audit-kiro
 engine:
   id: copilot

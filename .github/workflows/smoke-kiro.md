@@ -56,7 +56,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: Kiro Engine Validation

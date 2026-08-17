@@ -48,7 +48,6 @@ timeout-minutes: 45
 sandbox:
   agent:
     id: awf
-    sudo: false
 tools:
   bash:
   - cat pkg/workflow/js/safe_outputs_tools.json

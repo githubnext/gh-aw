@@ -22,7 +22,6 @@ sandbox:
   agent:
     id: awf
     runtime: gvisor
-    sudo: false
 tools:
   cli-proxy: true
   edit:

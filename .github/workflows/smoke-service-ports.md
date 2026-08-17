@@ -18,7 +18,7 @@ engine: copilot
 strict: true
 sandbox:
   agent:
-    legacy-security: enable
+    runtime: docker-sudo-iptables
 services:
   redis:
     image: redis:7

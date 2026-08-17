@@ -130,9 +130,8 @@ func TestCloudHypervisorAWFCommandOmitsUnsupportedMountsAndTTY(t *testing.T) {
 func TestCloudHypervisorFirewallLogsUsePrivilegedMode(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
-			ID:               "awf",
-			Runtime:          AgentRuntimeCloudHypervisor,
-			NetworkIsolation: true,
+			ID:      "awf",
+			Runtime: AgentRuntimeCloudHypervisor,
 		}},
 	}
 
@@ -218,26 +217,6 @@ func TestCloudHypervisorValidationRejectsGHProxy(t *testing.T) {
 	err := validateSandboxConfig(workflowData)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "gh-proxy")
-	require.ErrorContains(t, err, "cloud-hypervisor")
-}
-
-func TestCloudHypervisorValidationRejectsLegacySecurity(t *testing.T) {
-	workflowData := &WorkflowData{
-		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{
-			ID:             "awf",
-			Runtime:        AgentRuntimeCloudHypervisor,
-			Version:        string(constants.AWFCloudHypervisorMinVersion),
-			LegacySecurity: true,
-		}},
-		NetworkPermissions: &NetworkPermissions{
-			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFCloudHypervisorMinVersion)},
-		},
-		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
-	}
-
-	err := validateSandboxConfig(workflowData)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "legacy-security")
 	require.ErrorContains(t, err, "cloud-hypervisor")
 }
 

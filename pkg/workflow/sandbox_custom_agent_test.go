@@ -64,17 +64,16 @@ func TestCustomAWFConfiguration(t *testing.T) {
 		}
 	})
 
-	t.Run("sudo: false agent config passes --rootless to install script", func(t *testing.T) {
+	t.Run("default docker profile passes --rootless to install script", func(t *testing.T) {
 		agentConfig := &AgentSandboxConfig{
-			ID:               "awf",
-			NetworkIsolation: true,
+			ID: "awf",
 		}
 
 		step := generateAWFInstallationStep("", agentConfig)
 		stepStr := strings.Join(step, "\n")
 
 		if len(step) == 0 {
-			t.Error("Expected installation step to be generated when sudo is false (network isolation mode)")
+			t.Error("Expected installation step to be generated for the default docker profile")
 		}
 
 		if !strings.Contains(stepStr, "install_awf_binary.sh") {
@@ -82,38 +81,37 @@ func TestCustomAWFConfiguration(t *testing.T) {
 		}
 
 		if !strings.Contains(stepStr, "--rootless") {
-			t.Error("Should contain --rootless flag when sudo is false (network isolation mode)")
+			t.Error("Should contain --rootless flag for the rootless docker profile")
 		}
 	})
 
-	t.Run("non-isolation agent config does not pass --rootless", func(t *testing.T) {
+	t.Run("cloud-hypervisor profile does not pass --rootless", func(t *testing.T) {
 		agentConfig := &AgentSandboxConfig{
-			ID:               "awf",
-			NetworkIsolation: false,
+			ID:      "awf",
+			Runtime: AgentRuntimeCloudHypervisor,
 		}
 
 		step := generateAWFInstallationStep("", agentConfig)
 		stepStr := strings.Join(step, "\n")
 
 		if strings.Contains(stepStr, "--rootless") {
-			t.Error("Should not contain --rootless flag when sudo is true (normal mode)")
+			t.Error("Should not contain --rootless flag for a privileged runtime profile")
 		}
 	})
 
-	t.Run("legacy-security: enable with NetworkIsolation does not pass --rootless", func(t *testing.T) {
-		// NetworkIsolation defaults to true, but legacy-security mode uses `sudo -E awf`
-		// which requires awf to be in /usr/local/bin (non-rootless install path).
+	t.Run("docker-sudo-iptables does not pass --rootless", func(t *testing.T) {
+		// The docker-sudo-iptables profile runs `sudo -E awf`, which requires awf to be
+		// in /usr/local/bin (non-rootless install path).
 		agentConfig := &AgentSandboxConfig{
-			ID:               "awf",
-			NetworkIsolation: true,
-			LegacySecurity:   true,
+			ID:      "awf",
+			Runtime: AgentRuntimeDockerSudoIptables,
 		}
 
 		step := generateAWFInstallationStep("", agentConfig)
 		stepStr := strings.Join(step, "\n")
 
 		if len(step) == 0 {
-			t.Error("Expected installation step to be generated for legacy-security mode")
+			t.Error("Expected installation step to be generated for the docker-sudo-iptables profile")
 		}
 
 		if !strings.Contains(stepStr, "install_awf_binary.sh") {
@@ -121,7 +119,7 @@ func TestCustomAWFConfiguration(t *testing.T) {
 		}
 
 		if strings.Contains(stepStr, "--rootless") {
-			t.Error("Should not contain --rootless flag when legacy-security: enable is set (awf must be in /usr/local/bin for sudo)")
+			t.Error("Should not contain --rootless flag for docker-sudo-iptables (awf must be in /usr/local/bin for sudo)")
 		}
 	})
 }

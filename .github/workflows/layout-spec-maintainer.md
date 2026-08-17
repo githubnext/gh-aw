@@ -9,9 +9,6 @@ permissions:
   issues: read
   pull-requests: read
 
-sandbox:
-  agent:
-    sudo: false
 
 network:
   allowed:
@@ -68,6 +65,7 @@ tools:
     - default
 tracker-id: layout-spec-maintainer
 ---
+
 # Layout Specification Maintainer
 
 You are an AI agent that maintains a comprehensive specification file documenting all patterns of file paths, folder names, and artifact names used in the compiled lock.yml files in this repository.

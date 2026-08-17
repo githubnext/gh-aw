@@ -65,7 +65,6 @@ features:
 sandbox:
   agent:
     id: awf
-    sudo: false
 ---
 
 # Smoke Test: DeepSeek Harness Engine Validation

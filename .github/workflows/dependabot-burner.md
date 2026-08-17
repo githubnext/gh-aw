@@ -22,9 +22,6 @@ permissions:
   issues: read
   pull-requests: read
 
-sandbox:
-  agent:
-    sudo: false
 
 concurrency:
   group: dependabot-burner

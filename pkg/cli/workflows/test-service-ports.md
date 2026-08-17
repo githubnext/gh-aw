@@ -6,7 +6,7 @@ permissions:
 engine: copilot
 sandbox:
   agent:
-    legacy-security: enable
+    runtime: docker-sudo-iptables
 services:
   postgres:
     image: postgres:15
@@ -21,7 +21,7 @@ services:
 # Test Service Ports
 
 This workflow tests that the compiler generates `--allow-host-service-ports`
-from `services:` port mappings when `legacy-security: enable` opts AWF into
+from `services:` port mappings when `runtime: docker-sudo-iptables` opts AWF into
 host-access mode.
 
 Expected: the compiled lock file includes `--allow-host-service-ports` with expressions for

@@ -3558,10 +3558,6 @@
                       "enum": ["github.com", "ghes", "ghec", "ghec-self-hosted"],
                       "description": "AWF platform.type override. Declares the GitHub deployment type so AWF can apply deterministic Copilot auth behavior without relying on host heuristics. Omit to let AWF use its default host heuristic behavior."
                     },
-                    "sudo": {
-                      "type": "boolean",
-                      "description": "Controls whether AWF runs in root mode. When set to false, AWF runs without sudo in network-isolation topology egress mode (--network-isolation): MCP sidecars run as bridge containers and AWF attaches them to its internal awf-net network. Defaults to true (sudo enabled, normal mode)."
-                    },
                     "command": {
                       "type": "string",
                       "x-internal": true,
@@ -3611,13 +3607,14 @@
                     },
                     "runtime": {
                       "type": "string",
-                      "description": "Container runtime for the agent container. Use 'gvisor' to run the agent under gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx' to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation \u2014 when runtime-install is left enabled, it requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and a KVM-capable runner. Use 'cloud-hypervisor' to run the agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu x86_64. The compiler grants the runner user scoped /dev/kvm access, launches the Cloud Hypervisor host process with the required privileges while retaining strict network isolation, and sizes the guest at 2 vCPUs and 4096 MiB. Incompatible with runner.topology: arc-dind.",
-                      "enum": ["gvisor", "docker-sbx", "cloud-hypervisor"],
-                      "examples": ["gvisor", "docker-sbx", "cloud-hypervisor"]
+                      "description": "Sandbox runtime profile for the agent container. Each value selects one supported security and topology profile: 'docker' (default) runs the agent under Docker with a rootless AWF and network isolation; 'docker-sudo-iptables' runs Docker with a privileged AWF, legacy iptables networking, and host/service access (required for allow-host-ports and GitHub Actions services: connectivity); 'gvisor' runs the agent under gVisor's runsc runtime with strict network isolation; 'docker-sbx' runs the agent inside a Docker sbx KVM microVM (requires DOCKER_PAT and DOCKER_USERNAME secrets and a KVM-capable runner; the compiler handles the required privileged setup); 'cloud-hypervisor' runs the agent in AWF's preview Cloud Hypervisor microVM runtime on GitHub-hosted Ubuntu x86_64, sized at 2 vCPUs and 4096 MiB. Omitting runtime is equivalent to 'docker'. gvisor, docker-sbx and cloud-hypervisor are incompatible with runner.topology: arc-dind.",
+                      "enum": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor"],
+                      "default": "docker",
+                      "examples": ["docker", "docker-sudo-iptables", "gvisor", "docker-sbx", "cloud-hypervisor"]
                     },
                     "runtime-install": {
                       "type": "boolean",
-                      "description": "Controls generation of sandbox runtime installation steps for gVisor and docker-sbx. Defaults to true. Set to false when the runtime is already installed on the runner; docker-sbx credential refresh still runs.",
+                      "description": "Controls generation of sandbox runtime installation steps. Only valid with runtime: gvisor or runtime: docker-sbx. Defaults to true. Set to false when the runtime is already installed on the runner; docker-sbx credential refresh still runs.",
                       "examples": [false]
                     },
                     "config": {
@@ -3685,11 +3682,6 @@
                       },
                       "additionalProperties": false
                     },
-                    "legacy-security": {
-                      "type": "string",
-                      "enum": ["enable"],
-                      "description": "Opt into legacy security mode. When set to 'enable', AWF runs with sudo and --enable-host-access for backward compatibility. The default (omitted) uses strict security mode where AWF runs rootless without host-access flags."
-                    },
                     "allow-host-ports": {
                       "type": "array",
                       "items": {
@@ -3698,7 +3690,7 @@
                         "maximum": 65535
                       },
                       "uniqueItems": true,
-                      "description": "Additional host TCP ports the agent may connect to when legacy-security is enabled. Ports published by `services:` are reached via --allow-host-service-ports instead; use this only for host daemons not declared there."
+                      "description": "Additional host TCP ports the agent may connect to. Requires runtime: docker-sudo-iptables. Ports published by `services:` are reached via --allow-host-service-ports instead; use this only for host daemons not declared there."
                     }
                   },
                   "additionalProperties": false

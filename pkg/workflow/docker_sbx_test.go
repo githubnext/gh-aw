@@ -81,10 +81,8 @@ func TestDockerSbxInstallStepOrderInBuildNpmEngineInstallStepsWithAWF(t *testing
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeDockerSbx,
-				NetworkIsolation:      false, // will be overridden by isDockerSbxRuntime
-				SudoExplicitlyEnabled: true,
+				ID:      "awf",
+				Runtime: AgentRuntimeDockerSbx,
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -152,9 +150,8 @@ func TestDockerSbxAWFArgs(t *testing.T) {
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:                    "awf",
-					Runtime:               AgentRuntimeDockerSbx,
-					SudoExplicitlyEnabled: true,
+					ID:      "awf",
+					Runtime: AgentRuntimeDockerSbx,
 				},
 			},
 		},
@@ -184,9 +181,8 @@ func TestDockerSbxAWFArgsSuppressesTTY(t *testing.T) {
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:                    "awf",
-					Runtime:               AgentRuntimeDockerSbx,
-					SudoExplicitlyEnabled: true,
+					ID:      "awf",
+					Runtime: AgentRuntimeDockerSbx,
 				},
 			},
 		},
@@ -232,9 +228,8 @@ func TestDockerSbxAWFArgsVersionGated(t *testing.T) {
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:                    "awf",
-					Runtime:               AgentRuntimeDockerSbx,
-					SudoExplicitlyEnabled: true,
+					ID:      "awf",
+					Runtime: AgentRuntimeDockerSbx,
 				},
 			},
 		},
@@ -260,9 +255,8 @@ func TestDockerSbxAWFConfigJSON(t *testing.T) {
 			},
 			SandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID:                    "awf",
-					Runtime:               AgentRuntimeDockerSbx,
-					SudoExplicitlyEnabled: true,
+					ID:      "awf",
+					Runtime: AgentRuntimeDockerSbx,
 				},
 			},
 		},
@@ -293,7 +287,7 @@ func TestDockerSbxEngineCLIWiring(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name:          "test-workflow",
 		EngineConfig:  &EngineConfig{ID: "claude"},
-		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx, SudoExplicitlyEnabled: true}},
+		SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx}},
 		NetworkPermissions: &NetworkPermissions{
 			Firewall: &FirewallConfig{Enabled: true},
 		},
@@ -375,7 +369,7 @@ func TestDockerSbxEngineCLIWiring(t *testing.T) {
 		nonFirewallWorkflowData := &WorkflowData{
 			Name:          "test-workflow",
 			EngineConfig:  &EngineConfig{ID: "pi"},
-			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx, SudoExplicitlyEnabled: true}},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: AgentRuntimeDockerSbx}},
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: false},
 			},
@@ -399,22 +393,20 @@ func flattenSteps(steps []GitHubActionStep) []string {
 	return lines
 }
 
-// TestDockerSbxNetworkIsolationAlwaysTrue verifies that isAWFNetworkIsolationEnabled
-// returns true for docker-sbx even when sudo: true sets NetworkIsolation=false.
+// TestDockerSbxNetworkIsolationAlwaysTrue verifies that the docker-sbx runtime profile
+// always enables network isolation.
 func TestDockerSbxNetworkIsolationAlwaysTrue(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeDockerSbx,
-				NetworkIsolation:      false, // sudo: true sets this to false normally
-				SudoExplicitlyEnabled: true,
+				ID:      "awf",
+				Runtime: AgentRuntimeDockerSbx,
 			},
 		},
 	}
 
 	assert.True(t, isAWFNetworkIsolationEnabled(workflowData),
-		"docker-sbx must always use network isolation regardless of sudo setting")
+		"docker-sbx must always use network isolation")
 }
 
 // TestDockerSbxContainerRuntimeEmpty verifies that getAgentContainerRuntime returns
@@ -439,9 +431,8 @@ func TestDockerSbxValidation_ArcDindIncompatible(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeDockerSbx,
-				SudoExplicitlyEnabled: true,
+				ID:      "awf",
+				Runtime: AgentRuntimeDockerSbx,
 			},
 		},
 		RunnerConfig: &RunnerConfig{Topology: RunnerTopologyArcDind},
@@ -457,42 +448,16 @@ func TestDockerSbxValidation_ArcDindIncompatible(t *testing.T) {
 	require.ErrorContains(t, err, "docker-sbx", "error must mention docker-sbx")
 }
 
-// TestDockerSbxValidation_SudoFalseRejected verifies that docker-sbx without
-// sudo: true is a compile-time error.
-func TestDockerSbxValidation_SudoFalseRejected(t *testing.T) {
-	workflowData := &WorkflowData{
-		SandboxConfig: &SandboxConfig{
-			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeDockerSbx,
-				NetworkIsolation:      true,  // sudo: false
-				SudoExplicitlyEnabled: false, // sudo not explicitly set
-			},
-		},
-		NetworkPermissions: &NetworkPermissions{
-			Firewall: &FirewallConfig{Enabled: true},
-		},
-		Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
-	}
-
-	err := validateSandboxConfig(workflowData)
-	require.Error(t, err, "docker-sbx without sudo: true must produce a compile-time error")
-	require.ErrorContains(t, err, "sudo: true", "error must mention sudo: true")
-	require.ErrorContains(t, err, "docker-sbx", "error must mention docker-sbx")
-}
-
 // TestDockerSbxValidation_RuntimeInstallFalseAllowsPreinstalledRuntime verifies that
-// preinstalled docker-sbx runners can skip installation without requiring sudo: true.
+// preinstalled docker-sbx runners can skip installation.
 func TestDockerSbxValidation_RuntimeInstallFalseAllowsPreinstalledRuntime(t *testing.T) {
 	falseVal := false
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeDockerSbx,
-				NetworkIsolation:      true, // sudo omitted / false
-				SudoExplicitlyEnabled: false,
-				RuntimeInstall:        &falseVal,
+				ID:             "awf",
+				Runtime:        AgentRuntimeDockerSbx,
+				RuntimeInstall: &falseVal,
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -511,10 +476,8 @@ func TestDockerSbxValidation_DefaultVersionRejected(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeDockerSbx,
-				NetworkIsolation:      false, // sudo: true → NetworkIsolation=false (overridden by isDockerSbxRuntime)
-				SudoExplicitlyEnabled: true,
+				ID:      "awf",
+				Runtime: AgentRuntimeDockerSbx,
 				// Pin to a version that predates containerRuntime support.
 				Version: "v0.27.29",
 			},
@@ -536,11 +499,9 @@ func TestDockerSbxValidation_MinVersionSatisfied(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeDockerSbx,
-				NetworkIsolation:      false,
-				SudoExplicitlyEnabled: true,
-				Version:               string(constants.AWFContainerRuntimeMinVersion),
+				ID:      "awf",
+				Runtime: AgentRuntimeDockerSbx,
+				Version: string(constants.AWFContainerRuntimeMinVersion),
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -553,16 +514,14 @@ func TestDockerSbxValidation_MinVersionSatisfied(t *testing.T) {
 	assert.NoError(t, err, "docker-sbx with a supported AWF version must pass validation")
 }
 
-// TestDockerSbxStrictModeSudoSuppressed verifies that sandbox.agent.sudo: true combined
-// with runtime: docker-sbx does NOT produce a strict-mode error (sudo is required for
-// docker-sbx install and the deprecation warning is suppressed).
+// TestDockerSbxStrictModeSudoSuppressed verifies that runtime: docker-sbx does NOT
+// produce a strict-mode error: the compiler derives the required install privileges
+// from the runtime profile.
 func TestDockerSbxStrictModeSudoSuppressed(t *testing.T) {
 	sandboxConfig := &SandboxConfig{
 		Agent: &AgentSandboxConfig{
-			ID:                    "awf",
-			Runtime:               AgentRuntimeDockerSbx,
-			NetworkIsolation:      false,
-			SudoExplicitlyEnabled: true,
+			ID:      "awf",
+			Runtime: AgentRuntimeDockerSbx,
 		},
 	}
 
@@ -570,7 +529,7 @@ func TestDockerSbxStrictModeSudoSuppressed(t *testing.T) {
 	compiler.strictMode = true
 
 	err := compiler.validateStrictSandboxCustomization(sandboxConfig)
-	assert.NoError(t, err, "sudo:true + runtime:docker-sbx must NOT produce a strict-mode error")
+	assert.NoError(t, err, "runtime:docker-sbx must NOT produce a strict-mode error")
 }
 
 // TestIsDockerSbxRuntime verifies the isDockerSbxRuntime helper.
@@ -633,7 +592,6 @@ sandbox:
     id: awf
     runtime: docker-sbx
     version: v0.28.0
-    sudo: true
 ---
 
 # Test docker-sbx Runtime
@@ -893,10 +851,9 @@ func TestDockerSbxRuntimeInstallFalseOmitsInstallSteps(t *testing.T) {
 	workflowData := &WorkflowData{
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				ID:                    "awf",
-				Runtime:               AgentRuntimeDockerSbx,
-				SudoExplicitlyEnabled: true,
-				RuntimeInstall:        &falseVal,
+				ID:             "awf",
+				Runtime:        AgentRuntimeDockerSbx,
+				RuntimeInstall: &falseVal,
 			},
 		},
 		NetworkPermissions: &NetworkPermissions{
@@ -948,7 +905,7 @@ func TestDockerSbxBehaviorDefinedEngineCLIWiring(t *testing.T) {
 			sbxWorkflow := &WorkflowData{
 				Name:          "test-workflow",
 				EngineConfig:  &EngineConfig{ID: "sbxcrush"},
-				SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: runtime, SudoExplicitlyEnabled: true}},
+				SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf", Runtime: runtime}},
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
 				},

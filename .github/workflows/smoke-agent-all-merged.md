@@ -21,7 +21,6 @@ sandbox:
   agent:
     id: awf
     runtime: cloud-hypervisor
-    sudo: false
 name: "Smoke Agent: all/merged"
 engine: claude
 strict: true

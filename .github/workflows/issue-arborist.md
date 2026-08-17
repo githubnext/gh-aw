@@ -9,9 +9,6 @@ permissions:
   contents: read
   issues: read
 
-sandbox:
-  agent:
-    sudo: false
 
 engine: codex
 strict: true

@@ -124,6 +124,11 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
+	// Validate the runtime profile and the properties that depend on it.
+	if err := validateSandboxRuntimeProfile(workflowData, agentConfig); err != nil {
+		return err
+	}
+
 	// Validate gVisor runtime compatibility
 	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeGVisor {
 		// gVisor is incompatible with ARC/DinD topology: the runner has no access to the
@@ -157,19 +162,6 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			)
 		}
 
-		// docker-sbx installation requires root access, but preinstalled runtimes can
-		// opt out of the install/daemon/preflight steps via runtime-install: false.
-		if isRuntimeInstallEnabled(workflowData) && !agentConfig.SudoExplicitlyEnabled {
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeDockerSbx),
-				"docker-sbx requires sandbox.agent.sudo: true",
-				"The docker-sbx install step needs root access to install docker-sbx and fix KVM "+
-					"device permissions. Add 'sudo: true' to your sandbox.agent configuration:\n\n"+
-					"sandbox:\n  agent:\n    id: awf\n    runtime: docker-sbx\n    sudo: true",
-			)
-		}
-
 		firewallConfig := getFirewallConfig(workflowData)
 		var configuredVersion string
 		if firewallConfig != nil {
@@ -188,7 +180,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			)
 		}
 
-		sandboxValidationLog.Print("docker-sbx runtime configured -- topology, sudo, and AWF version checks passed")
+		sandboxValidationLog.Print("docker-sbx runtime configured -- topology and AWF version checks passed")
 	}
 
 	// Validate cloud-hypervisor runtime compatibility
@@ -232,28 +224,6 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 				"cloud-hypervisor does not attach the CLI proxy sidecar, and the AWF runtime rejects "+
 					"--difc-proxy-host for this runtime. Remove tools.github.mode: gh-proxy and the "+
 					"integrity-reactions feature, or change sandbox.agent.runtime.",
-			)
-		}
-
-		// cloud-hypervisor rejects --legacy-security and --enable-host-access, so
-		// legacy-security mode (and the host-port settings that depend on it) can
-		// never take effect for this runtime.
-		if agentConfig.LegacySecurity {
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeCloudHypervisor),
-				"cloud-hypervisor is incompatible with sandbox.agent.legacy-security: enable",
-				"cloud-hypervisor rejects --legacy-security and --enable-host-access. Remove "+
-					"sandbox.agent.legacy-security: enable, or change sandbox.agent.runtime.",
-			)
-		}
-		if len(agentConfig.AllowHostPorts) > 0 {
-			return NewValidationError(
-				"sandbox.agent.runtime",
-				string(AgentRuntimeCloudHypervisor),
-				"cloud-hypervisor is incompatible with sandbox.agent.allow-host-ports",
-				"sandbox.agent.allow-host-ports requires legacy-security mode, which cloud-hypervisor "+
-					"does not support. Remove sandbox.agent.allow-host-ports, or change sandbox.agent.runtime.",
 			)
 		}
 
@@ -582,9 +552,65 @@ func validateAllowHostPorts(ports []int) error {
 			return fmt.Errorf("allow-host-ports value %d is out of range. Expected a TCP port between 1 and 65535. Example: allow-host-ports: [9000]", port)
 		}
 		if service, dangerous := awfDangerousHostPorts[port]; dangerous {
-			return fmt.Errorf("allow-host-ports value %d maps to blocked service %s. Expected blocked service ports to be removed from allow-host-ports because they remain unreachable there even with legacy-security enabled; expose the service via GitHub Actions services: with sandbox.agent.legacy-security: enable instead. Example:\n# Do not list blocked service ports under allow-host-ports\nsandbox:\n  agent:\n    legacy-security: enable\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", port, service)
+			return fmt.Errorf("allow-host-ports value %d maps to blocked service %s. Expected blocked service ports to be removed from allow-host-ports because they remain unreachable there even with the %s runtime; expose the service via GitHub Actions services: with sandbox.agent.runtime: %s instead. Example:\n# Do not list blocked service ports under allow-host-ports\nsandbox:\n  agent:\n    runtime: %s\nservices:\n  db:\n    image: postgres\n    ports: [\"5432:5432\"]", port, service, AgentRuntimeDockerSudoIptables, AgentRuntimeDockerSudoIptables, AgentRuntimeDockerSudoIptables)
 		}
 	}
+	return nil
+}
+
+// validateSandboxRuntimeProfile validates sandbox.agent.runtime and the properties
+// whose behavior depends on the selected runtime profile.
+func validateSandboxRuntimeProfile(workflowData *WorkflowData, agentConfig *AgentSandboxConfig) error {
+	if agentConfig == nil || agentConfig.Disabled {
+		return nil
+	}
+
+	if !isSupportedAgentRuntime(agentConfig.Runtime) {
+		return NewValidationError(
+			"sandbox.agent.runtime",
+			string(agentConfig.Runtime),
+			"unsupported sandbox runtime: must be one of "+strings.Join(supportedAgentRuntimeNames(), ", "),
+			fmt.Sprintf("Choose one of the supported runtime profiles:\n\nsandbox:\n  agent:\n    runtime: %s\n\nSee: %s", AgentRuntimeDocker, constants.DocsSandboxURL),
+		)
+	}
+
+	profile := resolveSandboxRuntimeProfile(agentConfig)
+
+	// runtime-install controls runner provisioning and is only meaningful for the
+	// runtimes that the compiler provisions (gvisor and docker-sbx).
+	if agentConfig.RuntimeInstall != nil && !profile.SupportsRuntimeInstall {
+		return NewValidationError(
+			"sandbox.agent.runtime-install",
+			strconv.FormatBool(*agentConfig.RuntimeInstall),
+			fmt.Sprintf("sandbox.agent.runtime-install is only supported with sandbox.agent.runtime: %s or %s (current runtime: %s)", AgentRuntimeGVisor, AgentRuntimeDockerSbx, profile.Runtime),
+			fmt.Sprintf("Remove sandbox.agent.runtime-install, or select a runtime that the compiler provisions:\n\nsandbox:\n  agent:\n    runtime: %s\n    runtime-install: false\n\nSee: %s", AgentRuntimeGVisor, constants.DocsSandboxURL),
+		)
+	}
+
+	// Host access (explicit host ports and automatic GitHub Actions services:
+	// connectivity) requires the privileged iptables profile.
+	if profile.SupportsHostAccess {
+		return nil
+	}
+
+	if len(agentConfig.AllowHostPorts) > 0 {
+		return NewValidationError(
+			"sandbox.agent.allow-host-ports",
+			joinPorts(agentConfig.AllowHostPorts),
+			fmt.Sprintf("sandbox.agent.allow-host-ports requires sandbox.agent.runtime: %s (current runtime: %s)", AgentRuntimeDockerSudoIptables, profile.Runtime),
+			fmt.Sprintf("Host access is only available in the %s runtime profile:\n\nsandbox:\n  agent:\n    runtime: %s\n    allow-host-ports: [9000]\n\nSee: %s", AgentRuntimeDockerSudoIptables, AgentRuntimeDockerSudoIptables, constants.DocsSandboxURL),
+		)
+	}
+
+	if workflowData != nil && workflowData.ServicePortExpressions != "" {
+		return NewValidationError(
+			"services",
+			workflowData.ServicePortExpressions,
+			fmt.Sprintf("GitHub Actions services: with published ports require sandbox.agent.runtime: %s (current runtime: %s)", AgentRuntimeDockerSudoIptables, profile.Runtime),
+			fmt.Sprintf("The agent can only reach service containers in the %s runtime profile:\n\nsandbox:\n  agent:\n    runtime: %s\n\nOr remove the port mappings from services: if the agent does not need to reach them.\n\nSee: %s", AgentRuntimeDockerSudoIptables, AgentRuntimeDockerSudoIptables, constants.DocsSandboxURL),
+		)
+	}
+
 	return nil
 }
 

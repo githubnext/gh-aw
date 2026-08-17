@@ -8,9 +8,6 @@ on:
 permissions:
   issues: read
 
-sandbox:
-  agent:
-    sudo: false
 
 tools:
   cli-proxy: true

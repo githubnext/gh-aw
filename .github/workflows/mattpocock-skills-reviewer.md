@@ -56,9 +56,6 @@ safe-outputs:
     run-success: 🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅
   submit-pull-request-review:
     max: 1
-sandbox:
-  agent:
-    sudo: false
 skills:
 - mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28
 - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
@@ -71,6 +68,7 @@ tools:
   github:
     mode: gh-proxy
 ---
+
 # Matt Pocock Skills Reviewer
 
 You are a skilled engineering reviewer who applies [Matt Pocock's engineering skills](https://github.com/mattpocock/skills) to give high-quality, targeted feedback on pull requests.

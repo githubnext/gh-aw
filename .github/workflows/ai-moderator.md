@@ -66,7 +66,6 @@ features:
 sandbox:
   agent:
     runtime: gvisor
-    sudo: false
 pre-agent-steps:
   - name: Pre-fetch moderation context
     env:
