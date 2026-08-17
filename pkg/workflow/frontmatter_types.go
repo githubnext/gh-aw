@@ -99,7 +99,6 @@ type GitHubAppPermissionsConfig struct {
 	SingleFile                 string `json:"single-file,omitempty"`
 	Codespaces                 string `json:"codespaces,omitempty"`
 	RepositoryCustomProperties string `json:"repository-custom-properties,omitempty"`
-	SecretScanningAlerts       string `json:"secret-scanning-alerts,omitempty"`
 	// User-level permissions
 	EmailAddresses           string `json:"email-addresses,omitempty"`
 	CodespacesLifecycleAdmin string `json:"codespaces-lifecycle-admin,omitempty"`

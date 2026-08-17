@@ -328,8 +328,6 @@ func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, err
 				config.Codespaces = levelStr
 			case "repository-custom-properties":
 				config.RepositoryCustomProperties = levelStr
-			case "secret-scanning-alerts":
-				config.SecretScanningAlerts = levelStr
 			case "members":
 				config.Members = levelStr
 			case "organization-administration":

@@ -438,9 +438,6 @@ func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
 	if config.RepositoryCustomProperties != "" {
 		result["repository-custom-properties"] = config.RepositoryCustomProperties
 	}
-	if config.SecretScanningAlerts != "" {
-		result["secret-scanning-alerts"] = config.SecretScanningAlerts
-	}
 
 	// GitHub App-only permission scopes - organization-level
 	if config.Members != "" {
