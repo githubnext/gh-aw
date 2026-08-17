@@ -112,6 +112,7 @@ func TestGetActionDirectories(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			err := tt.setup(tmpDir)
 			require.NoError(t, err, "Setup should not fail")
@@ -220,6 +221,7 @@ runs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			actionPath := filepath.Join(tmpDir, "test-action")
 			err := os.MkdirAll(actionPath, 0755)
@@ -379,6 +381,7 @@ runs:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			actionPath := filepath.Join(tmpDir, "test-action")
 			err := os.MkdirAll(actionPath, 0755)

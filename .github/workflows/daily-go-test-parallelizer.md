@@ -3,7 +3,7 @@ private: true
 name: Daily Go Test Parallelizer
 description: Adds t.Parallel to safe Go tests using daily round-robin analysis
 on:
-  schedule: daily
+  schedule: every 2h
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[test-parallel]"'
 permissions:
@@ -64,7 +64,8 @@ Analyze up to twenty-five Go test files per run and add `t.Parallel()` only wher
 
 ## Analyze safety
 
-Add `t.Parallel()` at the start of eligible top-level tests. Also add it to eligible table-driven subtests when loop variables are safely captured.
+Add `t.Parallel()` at the start of eligible top-level tests. Also add it to eligible table-driven subtests.
+For Go 1.22+ semantics, do not add redundant loop-variable rebinding (`tt := tt`, `cmd := cmd`) unless a case truly needs an additional local copy for correctness.
 
 ## Inline analysis agents (small context)
 
