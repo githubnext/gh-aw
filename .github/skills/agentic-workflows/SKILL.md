@@ -63,7 +63,6 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/safe-outputs-management.md`
 - `.github/aw/safe-outputs-runtime.md`
 - `.github/aw/safe-outputs.md`
-- `.github/aw/security-profiles.md`
 - `.github/aw/serena-tool.md`
 - `.github/aw/shared-safe-jobs.md`
 - `.github/aw/skills.md`
