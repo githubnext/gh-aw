@@ -41,6 +41,11 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-config\"\n")
+	yaml.WriteString("          if [ -n \"${GITHUB_EVENT_PATH:-}\" ] && [ -r \"${GITHUB_EVENT_PATH}\" ]; then\n")
+	yaml.WriteString("            GH_AW_SAFEOUTPUTS_EVENT_PATH=\"${RUNNER_TEMP}/gh-aw/safeoutputs/github_event.json\"\n")
+	yaml.WriteString("            cp \"${GITHUB_EVENT_PATH}\" \"${GH_AW_SAFEOUTPUTS_EVENT_PATH}\"\n")
+	yaml.WriteString("            export GITHUB_EVENT_PATH=\"${GH_AW_SAFEOUTPUTS_EVENT_PATH}\"\n")
+	yaml.WriteString("          fi\n")
 	if slices.Contains(mcpTools, "playwright") {
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs/playwright\n")
 		yaml.WriteString("          chmod 777 /tmp/gh-aw/mcp-logs/playwright\n")

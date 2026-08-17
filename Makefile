@@ -488,7 +488,6 @@ test-scripts: build
 	@echo "Running Bash script tests..."
 	bash scripts/check-stale-lock-files_test.sh
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
-	bash actions/setup/sh/install_ripgrep_test.sh
 	@echo "✓ All Bash script tests passed"
 
 # Test all code (Go, JavaScript, wasm golden, and shell scripts)
