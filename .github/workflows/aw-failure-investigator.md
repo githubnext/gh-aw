@@ -405,8 +405,8 @@ First, identify currently open `agentic-workflows` issues that are now fixed, st
 
 Before closing a tool-denial-limit issue (for example, exceeded denial/guardrail failures), verify there is at least one
 linked commit after the issue was opened that touches the affected workflow `.md` or `.lock.yml` path. If no such commit
-exists, do **not** close the issue as completed; keep it open and either add/update a tracking comment with the missing
-workflow fix evidence.
+exists, do **not** close the issue as completed; keep it open and add/update a tracking comment with the missing workflow
+fix evidence.
 
 Then, if new uncovered work remains, add **sub-issues** for concrete fixes to the **most recent open parent report issue** instead of creating a new parent by default.
 
