@@ -2645,6 +2645,56 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("token is ***");
     });
 
+    it("surfaces the harness terminal error instead of infrastructure noise", () => {
+      const logLines = [
+        "[WARN] ⚠️  --pids-limit/container.pidsLimit is not supported by this microVM runtime and will be ignored.",
+        "   The Docker agent cgroup cannot be passed through, so pids.max/pids.current are unavailable.",
+        "[copilot-harness] copilot-sdk: starting headless Copilot CLI server",
+        "[copilot-harness] unexpected error: copilot-sdk headless server did not become ready on 127.0.0.1:3002 within 5000ms (connect ETIMEDOUT 127.0.0.1:3002)",
+        "[INFO] [cloud-hypervisor] Agent command exited with code 1",
+        "[WARN] Command completed with exit code: 1",
+        "Process exiting with code: 1",
+      ];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+
+      const result = buildEngineFailureContext();
+
+      expect(result).toContain("Error details:");
+      expect(result).toContain("copilot-sdk headless server did not become ready on 127.0.0.1:3002");
+      expect(result).not.toContain("Last agent output");
+      expect(result).not.toContain("pids.max/pids.current");
+    });
+
+    it("filters indented AWF infrastructure continuation lines from the fallback tail", () => {
+      const logLines = [
+        "[WARN] ⚠️  --pids-limit/container.pidsLimit is not supported by this microVM runtime and will be ignored.",
+        "   The Docker agent cgroup cannot be passed through, so pids.max/pids.current are unavailable.",
+        "agent produced this final line",
+      ];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+
+      const result = buildEngineFailureContext();
+
+      expect(result).toContain("Last agent output");
+      expect(result).toContain("agent produced this final line");
+      expect(result).not.toContain("pids.max/pids.current");
+    });
+
+    it("treats a log of infrastructure lines and their continuations as producing no output", () => {
+      const logLines = [
+        "[WARN] ⚠️  --pids-limit/container.pidsLimit is not supported by this microVM runtime and will be ignored.",
+        "   The Docker agent cgroup cannot be passed through, so pids.max/pids.current are unavailable.",
+        "[WARN] Command completed with exit code: 1",
+        "Process exiting with code: 1",
+      ];
+      fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
+
+      const result = buildEngineFailureContext();
+
+      expect(result).toContain("terminated before producing output");
+      expect(result).not.toContain("Last agent output");
+    });
+
     it("redacts masked values from engine error details", () => {
       const logLines = ["::add-mask::sup3rs3cr3t", "Error: authentication failed with token sup3rs3cr3t"];
       fs.writeFileSync(stdioLogPath, logLines.join("\n") + "\n");
