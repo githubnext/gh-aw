@@ -87,8 +87,13 @@ engine:
       const [command, ...commandArgs] = process.argv.slice(2);
 
       const fail = (result, output, action) => {
-        if (result.error || result.status !== 0 || /\blitellm\.\w*Error:/.test(output)) {
-          throw new Error(`${action} failed`);
+        if (result.error) throw result.error;
+        if (result.status !== 0) {
+          const detail = result.signal ? `signal ${result.signal}` : `exit code ${result.status ?? "unknown"}`;
+          throw new Error(`${action} failed with ${detail}`);
+        }
+        if (/\blitellm\.\w*Error:/.test(output)) {
+          throw new Error(`${action} reported a LiteLLM error`);
         }
       };
 
