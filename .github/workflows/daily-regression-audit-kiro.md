@@ -39,6 +39,7 @@ tools:
     - date
     - echo
     - printf
+    - python3
     - ls
     - pwd
 safe-outputs:
