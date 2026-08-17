@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "defaultProvider": "local",
+  "promptOnlyFallback": true,
+  "externalProviders": {
+    "hostInjectedCopilotAdapter": {
+      "enabled": false,
+      "requireApproval": true
+    }
+  },
+  "policy": {
+    "rejectForbidden": true,
+    "rejectTransientDurableWrites": true,
+    "auditContent": false,
+    "auditMaxBytes": 1048576,
+    "auditMaxArchives": 3
+  }
+}

@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetRateLimitToUserRateLimitCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getRateLimitToUserRateLimitCodemod()
 
 	assert.Equal(t, "rate-limit-to-user-rate-limit", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetRateLimitToUserRateLimitCodemod(t *testing.T) {
 }
 
 func TestRateLimitToUserRateLimitCodemod_RenamesRateLimitAndMaxRuns(t *testing.T) {
+	t.Parallel()
 	codemod := getRateLimitToUserRateLimitCodemod()
 
 	content := `---
@@ -49,6 +51,7 @@ rate-limit:
 }
 
 func TestRateLimitToUserRateLimitCodemod_RenamesLegacyMaxKey(t *testing.T) {
+	t.Parallel()
 	codemod := getRateLimitToUserRateLimitCodemod()
 
 	content := `---
@@ -75,6 +78,7 @@ rate-limit:
 }
 
 func TestRateLimitToUserRateLimitCodemod_NoRateLimitField(t *testing.T) {
+	t.Parallel()
 	codemod := getRateLimitToUserRateLimitCodemod()
 
 	content := `---
@@ -96,6 +100,7 @@ engine: copilot
 }
 
 func TestRateLimitToUserRateLimitCodemod_SkipsWhenBothKeysPresent(t *testing.T) {
+	t.Parallel()
 	codemod := getRateLimitToUserRateLimitCodemod()
 
 	content := `---
@@ -121,6 +126,7 @@ user-rate-limit:
 }
 
 func TestRateLimitToUserRateLimitCodemod_DoesNotRenameOtherMaxRuns(t *testing.T) {
+	t.Parallel()
 	codemod := getRateLimitToUserRateLimitCodemod()
 
 	content := `---
@@ -150,6 +156,7 @@ concurrency:
 }
 
 func TestRateLimitToUserRateLimitCodemod_DoesNotRenameNestedMaxRuns(t *testing.T) {
+	t.Parallel()
 	codemod := getRateLimitToUserRateLimitCodemod()
 
 	content := `---

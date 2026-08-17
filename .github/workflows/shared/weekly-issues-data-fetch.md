@@ -22,22 +22,25 @@ steps:
       mkdir -p /tmp/gh-aw/agent/weekly-issues-data
       mkdir -p /tmp/gh-aw/cache-memory
       
-      # Get today's date for cache identification
-      TODAY=$(date '+%Y-%m-%d')
+      # Use UTC six-hour buckets so scheduled reports receive fresh data each run.
+      TODAY=$(date -u '+%Y-%m-%d')
+      HOUR=$(date -u '+%H')
+      HOUR_BUCKET=$(printf '%02d' "$((10#$HOUR / 6 * 6))")
+      CACHE_BUCKET="${TODAY}-${HOUR_BUCKET}"
       CACHE_DIR="/tmp/gh-aw/cache-memory"
       
-      # Check if cached data exists from today
-      if [ -f "$CACHE_DIR/weekly-issues-${TODAY}.json" ] && [ -s "$CACHE_DIR/weekly-issues-${TODAY}.json" ]; then
-        echo "✓ Found cached weekly issues data from ${TODAY}"
-        cp "$CACHE_DIR/weekly-issues-${TODAY}.json" /tmp/gh-aw/agent/weekly-issues-data/issues.json
+      # Check if cached data exists from this six-hour bucket
+      if [ -f "$CACHE_DIR/weekly-issues-${CACHE_BUCKET}.json" ] && [ -s "$CACHE_DIR/weekly-issues-${CACHE_BUCKET}.json" ]; then
+        echo "✓ Found cached weekly issues data from ${CACHE_BUCKET}"
+        cp "$CACHE_DIR/weekly-issues-${CACHE_BUCKET}.json" /tmp/gh-aw/agent/weekly-issues-data/issues.json
         
         # Regenerate schema if missing
-        if [ ! -f "$CACHE_DIR/weekly-issues-${TODAY}-schema.json" ]; then
-          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/weekly-issues-data/issues.json > "$CACHE_DIR/weekly-issues-${TODAY}-schema.json"
+        if [ ! -f "$CACHE_DIR/weekly-issues-${CACHE_BUCKET}-schema.json" ]; then
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/weekly-issues-data/issues.json > "$CACHE_DIR/weekly-issues-${CACHE_BUCKET}-schema.json"
         fi
-        cp "$CACHE_DIR/weekly-issues-${TODAY}-schema.json" /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json
+        cp "$CACHE_DIR/weekly-issues-${CACHE_BUCKET}-schema.json" /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json
         
-        echo "Using cached data from ${TODAY}"
+        echo "Using cached data from ${CACHE_BUCKET}"
         echo "Total issues in cache: $(jq 'length' /tmp/gh-aw/agent/weekly-issues-data/issues.json)"
       else
         echo "⬇ Downloading fresh weekly issues data..."
@@ -59,11 +62,11 @@ steps:
         # Generate schema for reference
         ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/weekly-issues-data/issues.json > /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json
 
-        # Store in cache with today's date
-        cp /tmp/gh-aw/agent/weekly-issues-data/issues.json "$CACHE_DIR/weekly-issues-${TODAY}.json"
-        cp /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json "$CACHE_DIR/weekly-issues-${TODAY}-schema.json"
+        # Store in cache with the current six-hour bucket
+        cp /tmp/gh-aw/agent/weekly-issues-data/issues.json "$CACHE_DIR/weekly-issues-${CACHE_BUCKET}.json"
+        cp /tmp/gh-aw/agent/weekly-issues-data/issues-schema.json "$CACHE_DIR/weekly-issues-${CACHE_BUCKET}-schema.json"
 
-        echo "✓ Weekly issues data saved to cache: weekly-issues-${TODAY}.json"
+        echo "✓ Weekly issues data saved to cache: weekly-issues-${CACHE_BUCKET}.json"
         echo "Total issues found: $(jq 'length' /tmp/gh-aw/agent/weekly-issues-data/issues.json)"
       fi
       
@@ -80,26 +83,26 @@ This shared component fetches issues from the last 7 days, with intelligent cach
 ### What It Does
 
 1. Creates output directories at `/tmp/gh-aw/agent/weekly-issues-data/` and `/tmp/gh-aw/cache-memory/`
-2. Checks for cached issues data from today's date in cache-memory
-3. If cache exists (from earlier workflow runs today):
+2. Checks for cached issues data from the current UTC six-hour bucket in cache-memory
+3. If cache exists (from an earlier workflow run in that bucket):
    - Uses cached data instead of making API calls
    - Copies data from cache to working directory
 4. If cache doesn't exist:
    - Calculates the date 7 days ago (cross-platform compatible)
    - Fetches issues updated in the last 7 days using `gh issue list`
-   - Saves data to cache with date-based filename (e.g., `weekly-issues-2024-11-26.json`)
+   - Saves data to cache with a six-hour-bucket filename (e.g., `weekly-issues-2024-11-26-12.json`)
    - Copies data to working directory for use
 5. Generates a schema of the data structure
 
 ### Caching Strategy
 
 - **Cache Key Pattern**: Uses `weekly-issues-data-${{ github.run_id }}` for saving, with `restore-keys: weekly-issues-data-` for restoring from previous runs
-- **Cache Files**: Stored with today's date in the filename (e.g., `weekly-issues-2024-11-26.json`)
+- **Cache Files**: Stored with the UTC six-hour bucket in the filename (e.g., `weekly-issues-2024-11-26-12.json`)
 - **Cache Location**: `/tmp/gh-aw/cache-memory/`
 - **Cache Benefits**: 
-  - Multiple workflows running on the same day share the same issues data via restore-keys
+  - Workflows in the same six-hour UTC bucket share issues data via restore-keys
   - Reduces GitHub API rate limit usage
-  - Faster workflow execution after first fetch of the day
+  - Faster workflow execution after the first fetch in a six-hour bucket
 
 ### Output Files
 
