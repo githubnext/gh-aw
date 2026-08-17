@@ -1578,8 +1578,6 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install ripgrep
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_ripgrep.sh"
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:

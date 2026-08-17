@@ -179,16 +179,8 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		npmSteps = append(npmSteps, sdkInstallStep)
 	}
 	steps := BuildNpmEngineInstallStepsWithAWF(npmSteps, workflowData)
-	steps = append([]GitHubActionStep{generateRipgrepInstallStep()}, steps...)
 
 	return appendCopilotLSPInstallSteps(steps, workflowData)
-}
-
-func generateRipgrepInstallStep() GitHubActionStep {
-	return GitHubActionStep([]string{
-		"      - name: Install ripgrep",
-		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_ripgrep.sh\"",
-	})
 }
 
 func appendCopilotLSPInstallSteps(steps []GitHubActionStep, workflowData *WorkflowData) []GitHubActionStep {
