@@ -827,7 +827,7 @@ download-github-actions-schema:
 patch-github-actions-schema:
 	@echo "Patching GitHub Actions schema with custom permissions..."
 	@tmpfile=$$(mktemp) && \
-		jq '.definitions["permissions-event"].properties += {"copilot-requests": {"type": "string", "enum": ["write", "none"]}, "vulnerability-alerts": {"type": "string", "enum": ["read", "none"]}}' \
+		jq 'def append_missing($$items): reduce $$items[] as $$item (. ; if index($$item) then . else . + [$$item] end); .definitions["permissions-event"].properties += {"copilot-requests": {"type": "string", "enum": ["write", "none"]}, "vulnerability-alerts": {"type": "string", "enum": ["read", "none"]}} | (.properties.on.oneOf[] | select(.properties? and .properties.issues? and .properties.issues.properties? and .properties.issues.properties.types?).properties.issues.properties.types.items.enum) |= append_missing(["typed", "untyped", "field_added", "field_removed"]) | (.properties.on.oneOf[] | select(.properties? and .properties.issues? and .properties.issues.properties? and .properties.issues.properties.types?).properties.issues.properties.types.default) |= append_missing(["typed", "untyped", "field_added", "field_removed"])' \
 			pkg/workflow/schemas/github-workflow.json > "$$tmpfile" && \
 		mv "$$tmpfile" pkg/workflow/schemas/github-workflow.json
 	@cd actions/setup/js && npm run format:schema >/dev/null 2>&1
