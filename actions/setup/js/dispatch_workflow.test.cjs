@@ -92,6 +92,22 @@ describe("dispatch_workflow handler factory", () => {
     });
   });
 
+  it("should fail before dispatch when a required input is missing", async () => {
+    const handler = await main({
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+      required_inputs: { "test-workflow": ["message"] },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
+
+    expect(result).toEqual({
+      success: false,
+      error: `Workflow "test-workflow" requires input: 'message'. Provide it and retry.`,
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
   it("should inject aw_context with correct fields", async () => {
     process.env.GITHUB_WORKFLOW_REF = "test-owner/test-repo/.github/workflows/dispatcher.yml@refs/heads/main";
     process.env.GITHUB_RUN_ID = "99999";

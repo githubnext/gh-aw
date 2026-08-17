@@ -39,6 +39,9 @@ jobs:
 				WorkflowFiles: map[string]string{
 					"ci": ".lock.yml",
 				},
+				RequiredInputs: map[string][]string{
+					"ci": {"message"},
+				},
 			},
 		},
 	}
@@ -58,6 +61,9 @@ jobs:
 	workflowFiles, ok := dispatchConfig["workflow_files"].(map[string]any)
 	require.True(t, ok, "Expected workflow_files in dispatch_workflow config")
 	assert.Equal(t, ".lock.yml", workflowFiles["ci"], "ci should map to .lock.yml")
+	requiredInputs, ok := dispatchConfig["required_inputs"].(map[string]any)
+	require.True(t, ok, "Expected required_inputs in dispatch_workflow config")
+	assert.Equal(t, []any{"message"}, requiredInputs["ci"])
 }
 
 // TestGenerateSafeOutputsConfigActions tests that generateSafeOutputsConfig includes custom
@@ -299,7 +305,13 @@ func TestPopulateDispatchWorkflowFilesFindsLockFile(t *testing.T) {
 
 	// Create both .yml and .lock.yml files
 	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "deploy.yml"), []byte("name: deploy\n"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "deploy.lock.yml"), []byte("name: deploy\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "deploy.lock.yml"), []byte(`name: deploy
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        required: true
+`), 0644))
 
 	markdownPath := filepath.Join(tmpDir, ".github", "aw", "test.md")
 	require.NoError(t, os.MkdirAll(filepath.Dir(markdownPath), 0755))
@@ -317,6 +329,7 @@ func TestPopulateDispatchWorkflowFilesFindsLockFile(t *testing.T) {
 	require.NotNil(t, data.SafeOutputs.DispatchWorkflow.WorkflowFiles, "WorkflowFiles should be populated")
 	assert.Equal(t, ".lock.yml", data.SafeOutputs.DispatchWorkflow.WorkflowFiles["deploy"],
 		"Should prefer .lock.yml over .yml")
+	assert.Equal(t, []string{"message"}, data.SafeOutputs.DispatchWorkflow.RequiredInputs["deploy"])
 }
 
 // TestGenerateCustomJobToolDefinition tests that generateCustomJobToolDefinition produces

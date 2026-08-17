@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -40,6 +41,9 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 	if data.SafeOutputs.DispatchWorkflow.WorkflowFiles == nil {
 		data.SafeOutputs.DispatchWorkflow.WorkflowFiles = make(map[string]string)
 	}
+	if data.SafeOutputs.DispatchWorkflow.RequiredInputs == nil {
+		data.SafeOutputs.DispatchWorkflow.RequiredInputs = make(map[string][]string)
+	}
 
 	for _, workflowName := range data.SafeOutputs.DispatchWorkflow.Workflows {
 		// Find the workflow file
@@ -60,20 +64,25 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 		data.SafeOutputs.DispatchWorkflow.WorkflowFiles[workflowName] = extension
 		safeOutputsConfigLog.Printf("Mapped workflow %s to extension %s", workflowName, extension)
 
-		// Check if the target workflow declares aw_context in its workflow_dispatch.inputs.
-		// We check the lock file first (compiled YAML), falling back to the markdown frontmatter.
-		if workflowHasAwContextInput(fileResult, workflowName) {
+		inputs, err := workflowDispatchInputs(fileResult)
+		if err != nil {
+			safeOutputsConfigLog.Printf("Warning: error extracting inputs for %s: %v", workflowName, err)
+			continue
+		}
+		if _, hasAwContext := inputs["aw_context"]; hasAwContext {
 			data.SafeOutputs.DispatchWorkflow.AwContextWorkflows = append(
 				data.SafeOutputs.DispatchWorkflow.AwContextWorkflows, workflowName,
 			)
 			safeOutputsConfigLog.Printf("Workflow %s declares aw_context input", workflowName)
 		}
+		requiredInputs := requiredWorkflowDispatchInputs(inputs)
+		if len(requiredInputs) > 0 {
+			data.SafeOutputs.DispatchWorkflow.RequiredInputs[workflowName] = requiredInputs
+		}
 	}
 }
 
-// workflowHasAwContextInput reports whether the workflow identified by fileResult
-// has aw_context declared in its workflow_dispatch.inputs.
-func workflowHasAwContextInput(fileResult *findWorkflowFileResult, workflowName string) bool {
+func workflowDispatchInputs(fileResult *findWorkflowFileResult) (map[string]any, error) {
 	var inputs map[string]any
 	var err error
 
@@ -84,14 +93,27 @@ func workflowHasAwContextInput(fileResult *findWorkflowFileResult, workflowName 
 	} else if fileResult.mdExists {
 		inputs, err = extractMDWorkflowDispatchInputs(fileResult.mdPath)
 	} else {
-		return false
+		return nil, nil
 	}
 	if err != nil {
-		safeOutputsConfigLog.Printf("Warning: error extracting inputs for %s: %v", workflowName, err)
-		return false
+		return nil, err
 	}
-	_, hasAwContext := inputs["aw_context"]
-	return hasAwContext
+	return inputs, nil
+}
+
+func requiredWorkflowDispatchInputs(inputs map[string]any) []string {
+	var required []string
+	for name, definition := range inputs {
+		definitionMap, ok := definition.(map[string]any)
+		if !ok {
+			continue
+		}
+		if isRequired, _ := definitionMap["required"].(bool); isRequired {
+			required = append(required, name)
+		}
+	}
+	sort.Strings(required)
+	return required
 }
 
 // generateDispatchWorkflowTool generates an MCP tool definition for a specific workflow.

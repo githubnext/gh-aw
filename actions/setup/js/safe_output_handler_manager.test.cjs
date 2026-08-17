@@ -16,6 +16,7 @@ import {
   isFailedProcessingResult,
   isReportOnlyFailureResult,
   partitionFailureResults,
+  shouldFailSafeOutputs,
   computeSafeOutputsStatus,
   setSafeOutputsStatusOutputs,
 } from "./safe_output_handler_manager.cjs";
@@ -205,6 +206,11 @@ describe("Safe Output Handler Manager", () => {
 
       expect(reportOnlyFailures).toEqual([{ type: "upload_artifact", success: false, error: "artifact twirp CreateArtifact failed (400)" }]);
       expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+    });
+
+    it("does not fail the job when a batch has successful outputs and failed items", () => {
+      expect(shouldFailSafeOutputs([{ type: "update_pull_request", success: false }], { itemsSucceeded: 1 })).toBe(false);
+      expect(shouldFailSafeOutputs([{ type: "update_pull_request", success: false }], { itemsSucceeded: 0 })).toBe(true);
     });
 
     it("computes partial success item status from mixed successful and failed results", () => {

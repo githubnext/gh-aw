@@ -28,6 +28,7 @@ async function main(config = {}) {
   const maxCount = config.max || 1;
   const workflowFiles = config.workflow_files || {}; // Map of workflow name to file extension
   const awContextWorkflows = new Set(config.aw_context_workflows || []); // Workflows that accept aw_context input
+  const requiredInputs = config.required_inputs || {}; // Map of workflow name to required input names
   const githubClient = await createAuthenticatedGitHubClient(config);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedRefPatterns = parseAllowedRefPatterns(config.allowed_refs);
@@ -254,6 +255,14 @@ async function main(config = {}) {
       // Only workflows listed in aw_context_workflows (populated at compile time) support this.
       if (awContextWorkflows.has(workflowName)) {
         inputs["aw_context"] = JSON.stringify(buildAwContext());
+      }
+
+      const requiredInputsForWorkflow = Array.isArray(requiredInputs[workflowName]) ? requiredInputs[workflowName] : [];
+      const missingInputs = requiredInputsForWorkflow.filter(input => !Object.hasOwn(inputs, input));
+      if (missingInputs.length > 0) {
+        const error = `Workflow "${workflowName}" requires input${missingInputs.length === 1 ? "" : "s"}: ${missingInputs.map(input => `'${input}'`).join(", ")}. Provide ${missingInputs.length === 1 ? "it" : "them"} and retry.`;
+        core.warning(error);
+        return { success: false, error };
       }
 
       // Get the workflow file extension from compile-time resolution

@@ -687,6 +687,18 @@ function partitionFailureResults(results) {
 }
 
 /**
+ * A batch that applied at least one safe output is a partial success. Per-item
+ * failures are still reported in its summary but must not fail the whole job.
+ *
+ * @param {Array<any>} fatalFailures
+ * @param {{itemsSucceeded: number}} status
+ * @returns {boolean}
+ */
+function shouldFailSafeOutputs(fatalFailures, status) {
+  return fatalFailures.length > 0 && status.itemsSucceeded === 0;
+}
+
+/**
  * Export item-level safe-output status as GitHub Actions outputs.
  *
  * @param {{itemsSucceeded: number, itemsApplied?: number, itemsSkipped?: number, itemsWarnings?: number, itemsCancelled?: number, itemsDeferred?: number, itemsFailed: number, status: string}} status
@@ -1699,7 +1711,11 @@ async function main() {
       core.warning(`${failureCount} message(s) failed to process`);
       const failedItemLines = fatalFailures.map(r => `  - ${r.type}: ${r.error || "Unknown error"}`);
       const failedItems = failedItemLines.join("\n");
-      failedOutputsMessage = `${failureCount} safe output(s) failed:\n${failedItems}`;
+      if (shouldFailSafeOutputs(fatalFailures, safeOutputsStatus)) {
+        failedOutputsMessage = `${failureCount} safe output(s) failed:\n${failedItems}`;
+      } else {
+        core.warning(`${failureCount} safe output(s) failed after other outputs succeeded:\n${failedItems}`);
+      }
     }
     if (reportOnlyFailureCount > 0) {
       const reportOnlyTypes = [...new Set(reportOnlyFailures.map(r => r.type || "unknown"))];
@@ -1843,6 +1859,7 @@ module.exports = {
   logCreatedItemFromResult,
   isFailedProcessingResult,
   isReportOnlyFailureResult,
+  shouldFailSafeOutputs,
   partitionFailureResults,
   computeSafeOutputsStatus,
   setSafeOutputsStatusOutputs,

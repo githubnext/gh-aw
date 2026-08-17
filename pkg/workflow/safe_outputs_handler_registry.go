@@ -753,6 +753,9 @@ var handlerRegistry = map[string]handlerBuilder{
 		if len(c.AwContextWorkflows) > 0 {
 			builder.AddStringSlice("aw_context_workflows", c.AwContextWorkflows)
 		}
+		if len(c.RequiredInputs) > 0 {
+			builder.AddDefault("required_inputs", c.RequiredInputs)
+		}
 
 		builder.AddIfNotEmpty("target-ref", c.TargetRef)
 		builder.AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "dispatch-workflow", c.GitHubToken))
