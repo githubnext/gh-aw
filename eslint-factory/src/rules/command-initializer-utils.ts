@@ -69,6 +69,16 @@ function getStringTransformCall(node: TSESTree.Expression): { receiver: TSESTree
   return { receiver: callee.object, args: node.arguments };
 }
 
+function isDigitsOnlySanitizer(node: TSESTree.Expression): boolean {
+  const transform = getStringTransformCall(node);
+  if (!transform || transform.args.length !== 2) return false;
+  const [pattern, replacement] = transform.args;
+  if (pattern.type !== AST_NODE_TYPES.Literal || !(pattern.value instanceof RegExp) || pattern.value.source !== "[^0-9]" || pattern.value.flags !== "g" || replacement.type !== AST_NODE_TYPES.Literal || replacement.value !== "") {
+    return false;
+  }
+  return transform.receiver.type === AST_NODE_TYPES.CallExpression && transform.receiver.callee.type === AST_NODE_TYPES.Identifier && transform.receiver.callee.name === "String";
+}
+
 /**
  * Returns true when the node is a purely static expression (no runtime
  * interpolation): a literal, a no-expression template literal, a binary `+` of
@@ -180,7 +190,13 @@ export function getDynamicCommandKind(expression: TSESTree.Expression, sourceCod
   if (seen.has(candidate)) return null;
   seen.add(candidate);
 
-  if (candidate.type === AST_NODE_TYPES.TemplateLiteral && candidate.expressions.length > 0) return "interpolated template literal";
+  if (candidate.type === AST_NODE_TYPES.TemplateLiteral && candidate.expressions.length > 0) {
+    for (const interpolation of candidate.expressions) {
+      const resolved = resolveWriteOnceInitializerChain(interpolation, sourceCode);
+      if (!isStaticExpression(resolved) && !isDigitsOnlySanitizer(resolved)) return "interpolated template literal";
+    }
+    return null;
+  }
   if (isDynamicStringConcatenation(candidate)) return "dynamic string concatenation";
 
   const transform = getStringTransformCall(candidate);

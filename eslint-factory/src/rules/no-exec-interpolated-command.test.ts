@@ -55,6 +55,10 @@ describe("no-exec-interpolated-command", () => {
         { code: `exec.exec("git-checkout".replace("-", " "), [branch]);` },
         // Static replace with a fully static replacer callback — safe
         { code: `exec.exec("git-checkout".replace("-", () => " "), [branch]);` },
+        // A write-once interpolation resolving to a literal is safe
+        { code: `function run() { const branch = "main"; const ref = branch; exec.exec(\`git checkout \${ref}\`, []); }` },
+        // A digits-only sanitized interpolation is safe
+        { code: `function run(port) { const safePort = String(port).replace(/[^0-9]/g, ""); exec.exec(\`netstat | grep :\${safePort}\`, []); }` },
       ],
       invalid: [
         // Template literal with interpolation as command

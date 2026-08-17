@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetMCPScriptsModeCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPScriptsModeCodemod()
 
 	assert.Equal(t, "mcp-scripts-mode-removal", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetMCPScriptsModeCodemod(t *testing.T) {
 }
 
 func TestMCPScriptsModeCodemod_RemovesMode(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPScriptsModeCodemod()
 
 	content := `---
@@ -48,6 +50,7 @@ mcp-scripts:
 }
 
 func TestMCPScriptsModeCodemod_NoMCPScriptsField(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPScriptsModeCodemod()
 
 	content := `---
@@ -73,6 +76,7 @@ permissions:
 }
 
 func TestMCPScriptsModeCodemod_NoModeField(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPScriptsModeCodemod()
 
 	content := `---
@@ -98,6 +102,7 @@ mcp-scripts:
 }
 
 func TestMCPScriptsModeCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPScriptsModeCodemod()
 
 	content := `---
@@ -129,6 +134,7 @@ mcp-scripts:
 }
 
 func TestMCPScriptsModeCodemod_PreservesComments(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPScriptsModeCodemod()
 
 	content := `---
@@ -157,6 +163,7 @@ mcp-scripts:
 }
 
 func TestMCPScriptsModeCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPScriptsModeCodemod()
 
 	content := `---
