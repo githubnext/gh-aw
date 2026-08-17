@@ -367,9 +367,13 @@ Why: unclosed descriptors leak file handles for the lifetime of the process and 
 - `const fd = fs.openSync(path, "w")` with no matching `fs.closeSync(fd)` in the same enclosing function.
 - `let fd; fd = fs.openSync(path, "w")` with no matching `fs.closeSync(fd)` in the same enclosing function.
 
+**Accepted close forms** (in the same enclosing function):
+- `fs.closeSync(fd)`, including inside `try`/`finally`.
+- Property access and single-level aliases such as `fs.closeSync(handle.fd)` after `const handle = { fd }`, or `fs.closeSync(alias)` after `const alias = fd`.
+
 **Out of scope:**
 - Destructured bindings and inline argument forms such as `consume(fs.openSync(...))`.
-- Cross-function close pairs (open in one function, close in another).
+- Close calls placed in a nested function, including cleanup callbacks such as `const cleanup = () => fs.closeSync(fd)`, and cross-function close pairs (open in one function, close in another). Only closes in the same enclosing function count.
 - Strict control-flow proof. A `fs.closeSync(fd)` anywhere in the enclosing function body is accepted.
 
 ### `require-fs-sync-try-catch`
