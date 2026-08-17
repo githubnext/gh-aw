@@ -210,7 +210,12 @@ For each run that uses MCP servers, check in this order:
    - Do entries contain required fields:
      - `timestamp`: When the message was sent/received
      - `direction`: "IN" (from server) or "OUT" (to server)
-     - `type`: "REQUEST" or "RESPONSE"
+     - `event` or `type`: Message kind. Real-world telemetry (schema `rpc-message/v2`) uses a
+       top-level `event` field with values `rpc_request` / `rpc_response` (and `difc_filtered`
+       for blocked events); a top-level `_schema` field (e.g. `"rpc-message/v2"`) marks this
+       format. Older/synthetic files may instead use a top-level `type` field directly with
+       values `REQUEST` / `RESPONSE` / `DIFC_FILTERED`. **Do not flag a run as unhealthy solely
+       because entries lack a top-level `type` field** — check for `event` first.
      - `server_id`: MCP server identifier
      - `payload`: JSON-RPC payload with `method`, `params`, `result`, or `error`
    - Tool call count derived from outgoing `tools/call` requests

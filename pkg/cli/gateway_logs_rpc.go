@@ -76,7 +76,7 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 		}
 
 		switch {
-		case entry.Type == "DIFC_FILTERED":
+		case entry.EffectiveType() == "DIFC_FILTERED":
 			// DIFC integrity/secrecy filter event — not a REQUEST or RESPONSE
 			metrics.TotalFiltered++
 			server := getOrCreateServer(metrics, entry.ServerID)
@@ -95,7 +95,7 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 				Number:            entry.Number,
 			})
 
-		case entry.Direction == "OUT" && entry.Type == "REQUEST":
+		case entry.Direction == "OUT" && entry.EffectiveType() == "REQUEST":
 			// Outgoing request from AI engine to MCP server
 			var req rpcRequestPayload
 			if err := json.Unmarshal(entry.Payload, &req); err != nil {
@@ -132,7 +132,7 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 				}
 			}
 
-		case entry.Direction == "IN" && entry.Type == "RESPONSE":
+		case entry.Direction == "IN" && entry.EffectiveType() == "RESPONSE":
 			// Incoming response from MCP server to AI engine
 			var resp rpcResponsePayload
 			if err := json.Unmarshal(entry.Payload, &resp); err != nil {
@@ -292,7 +292,7 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 	// First pass: index outgoing tool-call requests by (serverID, id)
 	for i := range entries {
 		e := &entries[i]
-		if e.entry.Direction != "OUT" || e.entry.Type != "REQUEST" {
+		if e.entry.Direction != "OUT" || e.entry.EffectiveType() != "REQUEST" {
 			continue
 		}
 		if err := json.Unmarshal(e.entry.Payload, &e.req); err != nil || e.req.Method != "tools/call" {
@@ -330,10 +330,10 @@ func buildToolCallsFromRPCMessages(logPath string) ([]MCPToolCall, error) {
 	for i := range entries {
 		e := &entries[i]
 		switch {
-		case e.entry.Direction == "OUT" && e.entry.Type == "REQUEST":
+		case e.entry.Direction == "OUT" && e.entry.EffectiveType() == "REQUEST":
 			// Outgoing tool-call request – we'll emit the record when we see the response
 			// (or after if no response found)
-		case e.entry.Direction == "IN" && e.entry.Type == "RESPONSE":
+		case e.entry.Direction == "IN" && e.entry.EffectiveType() == "RESPONSE":
 			if err := json.Unmarshal(e.entry.Payload, &e.resp); err != nil {
 				continue
 			}

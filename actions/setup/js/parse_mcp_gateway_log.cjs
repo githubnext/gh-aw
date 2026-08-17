@@ -24,7 +24,26 @@ const TOKEN_USAGE_PATH = "/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-
 const MAX_RPC_SUMMARY_DETAILS_LENGTH = 120;
 const MAX_RPC_SUMMARY_GENERIC_LENGTH = 160;
 const MAX_RPC_MESSAGE_LABEL_LENGTH = 80;
-const TOP_LEVEL_RPC_IGNORED_KEYS = new Set(["timestamp", "direction", "type", "server_id", "payload"]);
+const TOP_LEVEL_RPC_IGNORED_KEYS = new Set(["timestamp", "direction", "type", "event", "_schema", "server_id", "payload"]);
+// Maps the "event" field values used by the schema "rpc-message/v2" format (written by
+// real Copilot CLI MCP gateway telemetry) to the legacy "type" values ("REQUEST",
+// "RESPONSE", "DIFC_FILTERED") this file was originally written against. Real-world
+// rpc-messages.jsonl files do not populate a top-level "type" field at all; they use
+// "event" instead (e.g. "rpc_request"/"rpc_response").
+const RPC_EVENT_TO_TYPE = { rpc_request: "REQUEST", rpc_response: "RESPONSE", difc_filtered: "DIFC_FILTERED" };
+
+/**
+ * Returns the normalized rpc-messages.jsonl entry type ("REQUEST", "RESPONSE", or
+ * "DIFC_FILTERED"), accepting either the legacy top-level "type" field or the
+ * "event" field used by schema "rpc-message/v2".
+ * @param {Object} entry
+ * @returns {string}
+ */
+function getRpcMessageType(entry) {
+  if (typeof entry?.type === "string" && entry.type) return entry.type;
+  if (typeof entry?.event === "string") return RPC_EVENT_TO_TYPE[entry.event] || entry.event;
+  return "";
+}
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [
   /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
   /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i,
@@ -301,10 +320,10 @@ function parseGatewayJsonlForDifcFiltered(jsonlContent) {
   const lines = jsonlContent.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || !trimmed.includes("DIFC_FILTERED")) continue;
+    if (!trimmed || !/difc_filtered/i.test(trimmed)) continue;
     try {
       const entry = JSON.parse(trimmed);
-      if (entry.type === "DIFC_FILTERED") {
+      if (getRpcMessageType(entry) === "DIFC_FILTERED") {
         filteredEvents.push(entry);
       }
     } catch {
@@ -497,13 +516,20 @@ function parseRpcMessagesJsonl(jsonlContent) {
     if (!trimmed) continue;
     try {
       const entry = JSON.parse(trimmed);
-      if (!entry || typeof entry !== "object" || !entry.type) continue;
+      if (!entry || typeof entry !== "object") continue;
+      const messageType = getRpcMessageType(entry);
+      if (!messageType) continue;
+      // Normalize entry.type so downstream consumers that read entry.type directly
+      // (e.g. grouping "other" entries by type) keep working regardless of whether
+      // the source used the legacy "type" field or the "event" field. Only set it
+      // when absent so we never overwrite an entry's own explicit "type" value.
+      if (!entry.type) entry.type = messageType;
 
-      if (entry.type === "REQUEST") {
+      if (messageType === "REQUEST") {
         requests.push(entry);
-      } else if (entry.type === "RESPONSE") {
+      } else if (messageType === "RESPONSE") {
         responses.push(entry);
-      } else if (entry.type !== "DIFC_FILTERED") {
+      } else if (messageType !== "DIFC_FILTERED") {
         other.push(entry);
       }
     } catch {
@@ -1125,6 +1151,7 @@ if (typeof module !== "undefined" && module.exports) {
     generateTokenSteeringSummary,
     generateModelAliasResolutionSummary,
     parseRpcMessagesJsonl,
+    getRpcMessageType,
     getRpcRequestLabel,
     generateRpcMessagesSummary,
     printAllGatewayFiles,
