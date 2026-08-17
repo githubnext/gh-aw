@@ -46,10 +46,13 @@ exit 97
 `), 0o755))
 
 	githubPath := filepath.Join(tempDir, "github-path")
+	installDir := filepath.Join(tempDir, "install-bin")
+	require.NoError(t, os.MkdirAll(installDir, 0o755))
 	cmd := exec.Command("bash", installScript, "1.2.3")
 	cmd.Env = append(os.Environ(),
 		"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
 		"GITHUB_PATH="+githubPath,
+		"COPILOT_INSTALL_DIR="+installDir,
 		"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
 	)
 
@@ -62,6 +65,18 @@ exit 97
 	githubPathContent, err := os.ReadFile(githubPath)
 	require.NoError(t, err, "Expected the script to append the cached bin dir to GITHUB_PATH")
 	assert.Contains(t, string(githubPathContent), toolcacheBin, "cached Copilot bin directory should be exported for later steps")
+
+	// The agent is launched with the absolute install path, so a toolcache hit must still
+	// materialize ${INSTALL_DIR}/copilot (see spawn ENOENT regression).
+	installedCopilot := filepath.Join(installDir, "copilot")
+	require.FileExists(t, installedCopilot, "toolcache hit must still create the canonical copilot path")
+	wrapper, err := os.ReadFile(installedCopilot)
+	require.NoError(t, err)
+	assert.Contains(t, string(wrapper), cachedCopilot, "wrapper should exec the cached Copilot CLI")
+
+	wrapperOutput, err := exec.Command(installedCopilot, "--version").CombinedOutput()
+	require.NoError(t, err, "wrapper should be executable: %s", wrapperOutput)
+	assert.Contains(t, string(wrapperOutput), "copilot 1.2.3")
 }
 
 func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *testing.T) {
@@ -149,11 +164,14 @@ exit 97
 `), 0o755))
 
 	githubPath := filepath.Join(tempDir, "github-path")
+	installDir := filepath.Join(tempDir, "install-bin")
+	require.NoError(t, os.MkdirAll(installDir, 0o755))
 	cmd := exec.Command("bash", installScript)
 	cmd.Env = append(os.Environ(),
 		"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
 		"GITHUB_PATH="+githubPath,
 		"GH_AW_COMPILED_VERSION=dev",
+		"COPILOT_INSTALL_DIR="+installDir,
 		"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
 	)
 
@@ -168,6 +186,14 @@ exit 97
 	assert.Contains(t, string(output), "Selected best cached version:")
 	assert.NotContains(t, string(output), "Selected best cached version: "+cachedTooNewVersion)
 	assert.Contains(t, string(output), "Using cached GitHub Copilot CLI")
+
+	// A dev-mode compat toolcache hit must still create the canonical ${INSTALL_DIR}/copilot
+	// path that the agent is spawned with.
+	installedCopilot := filepath.Join(installDir, "copilot")
+	require.FileExists(t, installedCopilot, "toolcache hit must still create the canonical copilot path")
+	wrapper, err := os.ReadFile(installedCopilot)
+	require.NoError(t, err)
+	assert.Contains(t, string(wrapper), cachedCopilot, "wrapper should exec the best cached Copilot CLI")
 
 	curlLogContent, err := os.ReadFile(curlLog)
 	require.NoError(t, err, "Expected curl to fetch compatibility matrix")
@@ -248,7 +274,8 @@ exit 99
 			require.NoError(t, err, "install_copilot_cli.sh should succeed in rootless mode with toolcache and no sudo: %s", output)
 
 			assert.Contains(t, string(output), "Using cached GitHub Copilot CLI", "script should use cached copilot CLI")
-			assert.Contains(t, string(output), "GITHUB_PATH not set — installing wrapper at "+filepath.Join(homeDir, ".local", "bin", "copilot"))
+			assert.Contains(t, string(output), "GITHUB_PATH not set — relying on "+filepath.Join(homeDir, ".local", "bin", "copilot"))
+			assert.Contains(t, string(output), "Wrapper installed at "+filepath.Join(homeDir, ".local", "bin", "copilot"))
 			assert.FileExists(t, filepath.Join(homeDir, ".local", "bin", "copilot"))
 			assert.NoFileExists(t, sudoLog, "sudo should not be called in rootless mode")
 		})
@@ -305,12 +332,15 @@ exit 97
 `), 0o755))
 
 	githubPath := filepath.Join(tempDir, "github-path")
+	installDir := filepath.Join(tempDir, "install-bin")
+	require.NoError(t, os.MkdirAll(installDir, 0o755))
 
 	// No version argument, no GH_AW_COMPILED_VERSION → script must fall back to DEFAULT_COPILOT_VERSION.
 	cmd := exec.Command("bash", installScript)
 	cmd.Env = append(os.Environ(),
 		"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
 		"GITHUB_PATH="+githubPath,
+		"COPILOT_INSTALL_DIR="+installDir,
 		"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
 		// Explicitly unset GH_AW_COMPILED_VERSION to simulate the fallback scenario.
 		"GH_AW_COMPILED_VERSION=",
