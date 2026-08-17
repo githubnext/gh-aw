@@ -288,6 +288,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "PR Sous Chef"
+          GH_AW_WORKFLOW_EMOJI: "👨\u200d🍳"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🍳 [{workflow_name}]({run_url}) is preparing PRs for maintainer investigation.\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) finished PR sous-chef nudges.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} while preparing PRs.\"}"
         with:
           script: |

@@ -290,6 +290,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Skillet"
+          GH_AW_WORKFLOW_EMOJI: "🍳"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍳 *Reviewed by [{workflow_name}]({run_url}) with `/${{ needs.pre_activation.outputs.skill_name }}`*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🍳 [{workflow_name}]({run_url}) is loading `/${{ needs.pre_activation.outputs.skill_name }}` for this {event_type}...\",\"runSuccess\":\"🍳 [{workflow_name}]({run_url}) completed the skill-guided review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during the skill-guided review.\"}"
         with:
           script: |

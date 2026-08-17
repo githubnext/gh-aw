@@ -302,6 +302,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Matt Pocock Skills Reviewer"
+          GH_AW_WORKFLOW_EMOJI: "🔍"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧠 *Reviewed using Matt Pocock's skills by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🧠 [{workflow_name}]({run_url}) is reviewing this {event_type} using Matt Pocock's engineering skills...\",\"runSuccess\":\"🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅\",\"runFailure\":\"🧠 [{workflow_name}]({run_url}) {status} during the skills-based review.\"}"
         with:
           script: |

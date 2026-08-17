@@ -285,6 +285,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Archie"
+          GH_AW_WORKFLOW_EMOJI: "🏛️"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"footerWorkflowRecompile\":\"\\u003e 🔧 *Workflow sync report by [{workflow_name}]({run_url}) for {repository}*\",\"footerWorkflowRecompileComment\":\"\\u003e 🔄 *Update from [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"📐 [{workflow_name}]({run_url}) is analyzing the architecture for this {event_type}...\",\"runSuccess\":\"🎨 [{workflow_name}]({run_url}) has completed the architecture visualization. ✅\",\"runFailure\":\"📐 [{workflow_name}]({run_url}) encountered an issue and could not complete the architecture diagram. Check the [run logs]({run_url}) for details.\"}"
         with:
           script: |
