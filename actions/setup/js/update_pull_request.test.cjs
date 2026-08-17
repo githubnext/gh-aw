@@ -1123,6 +1123,7 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("update pull request #100 branch from base failed");
     expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Treating update-branch error as fatal: status is not 422 and head-ref is not missing"));
     expect(mockCore.warning).toHaveBeenCalledWith(expect.not.stringContaining("(non-fatal)"));
   });
 

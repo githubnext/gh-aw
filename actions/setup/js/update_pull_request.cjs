@@ -65,14 +65,17 @@ function isNonFatalUpdateBranchError(error) {
   // file changes and the check times out, rather than the usual "refusing to allow" phrase.
   const hasWorkflowsScopeRequired = message.includes("`workflows` scope may be required") || message.includes("unable to determine if workflow can be created or updated");
   if (isStackedPRUnsupportedUpdateBranchError(error)) {
+    core.info(`Treating update-branch error as non-fatal: stacked PR branch update endpoint unsupported (status=${status ?? "unknown"})`);
     return true;
   }
 
   if (status !== undefined) {
     if (status === 403 && (hasWorkflowsPermissionError || hasWorkflowsScopeRequired)) {
+      core.info(`Treating update-branch error as non-fatal: workflows permission/scope restriction on 403 (status=${status})`);
       return true;
     }
     if (status !== 422 && !message.includes("head ref does not exist")) {
+      core.info(`Treating update-branch error as fatal: status is not 422 and head-ref is not missing (status=${status})`);
       return false;
     }
   }
@@ -88,11 +91,13 @@ function isNonFatalUpdateBranchError(error) {
   // errors. hasWorkflowsPermissionError / hasWorkflowsScopeRequired are only checked for errors
   // with no numeric status (status === undefined); the explicit 403 case is already handled by
   // the if-block above.
-  return (
+  const isNonFatal =
     (status !== undefined && message.includes("head ref does not exist")) ||
     (status === 422 && (message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head"))) ||
-    ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined)
-  );
+    ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined);
+  const finalReason = isNonFatal ? "matched known benign update-branch validation/scope condition" : "did not match any known benign update-branch condition";
+  core.info(`Treating update-branch error as ${isNonFatal ? "non-fatal" : "fatal"}: ${finalReason} (status=${status ?? "unknown"})`);
+  return isNonFatal;
 }
 
 /**
@@ -114,8 +119,8 @@ async function tryStackedPRUpdateBranch(github, context, prNumber) {
     if (typeof pullRequest?.stack?.number === "number") {
       stackNumber = pullRequest.stack.number;
     }
-  } catch {
-    // Ignore metadata fetch failures; we can still attempt list lookup below.
+  } catch (error) {
+    core.info(`Unable to resolve stack number from pull metadata for #${prNumber}: ${getErrorMessage(error)}; trying stack list lookup`);
   }
 
   if (stackNumber === undefined) {
@@ -129,12 +134,14 @@ async function tryStackedPRUpdateBranch(github, context, prNumber) {
       if (Array.isArray(stacks) && stacks.length > 0 && typeof stacks[0]?.number === "number") {
         stackNumber = stacks[0].number;
       }
-    } catch {
+    } catch (error) {
+      core.info(`Unable to resolve stack number from stack list for #${prNumber}: ${getErrorMessage(error)}; skipping stack sync`);
       return false;
     }
   }
 
   if (stackNumber === undefined) {
+    core.info(`Unable to sync stacked PR #${prNumber}: no stack number could be resolved`);
     return false;
   }
 
