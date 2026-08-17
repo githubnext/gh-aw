@@ -9,6 +9,18 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 // stdout as a data/protocol channel (e.g. stdio MCP servers), rewriting
 // stderr logging to stdout would corrupt the stream. The substitution is not
 // behavior-preserving and must not be auto-applied.
+//
+// The asymmetry with log / info / debug below is intentional and must not be
+// collapsed in a future refactor. The stdio-corruption risk comes from the
+// stream *change* (stderr → stdout), not from workflow commands as such:
+//   - console.log / console.info / console.debug already write to
+//     process.stdout (console.debug is an alias of console.log in Node.js).
+//   - core.info writes a plain message to process.stdout, and core.debug
+//     writes a `::debug::` workflow command to process.stdout.
+// Both sides of the mapping therefore use the same stream, so replacing them
+// cannot move output onto a stdio protocol channel that was previously clean:
+// a process that owns stdout for framing is already corrupting it by calling
+// console.log at all. No stdio-owning exclusion is needed for these methods.
 const CONSOLE_TO_CORE: Record<string, string> = {
   log: "core.info",
   info: "core.info",

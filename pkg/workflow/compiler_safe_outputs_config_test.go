@@ -1388,19 +1388,25 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 
 func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
 	tests := []struct {
-		name         string
-		updateBranch *bool
-		expected     bool
+		name               string
+		updateBranch       *bool
+		updateBranchStacks *bool
+		expectedBranch     bool
+		expectedStacks     bool
 	}{
 		{
-			name:         "defaults update_branch to false",
-			updateBranch: nil,
-			expected:     false,
+			name:               "defaults update_branch to false and update_branch_stacks to true",
+			updateBranch:       nil,
+			updateBranchStacks: nil,
+			expectedBranch:     false,
+			expectedStacks:     true,
 		},
 		{
-			name:         "sets update_branch true when configured",
-			updateBranch: testBoolPtr(true),
-			expected:     true,
+			name:               "sets update_branch true and update_branch_stacks false when configured",
+			updateBranch:       testBoolPtr(true),
+			updateBranchStacks: testBoolPtr(false),
+			expectedBranch:     true,
+			expectedStacks:     false,
 		},
 	}
 
@@ -1412,7 +1418,8 @@ func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
 					UpdatePullRequests: &UpdatePullRequestsConfig{
-						UpdateBranch: tt.updateBranch,
+						UpdateBranch:       tt.updateBranch,
+						UpdateBranchStacks: tt.updateBranchStacks,
 					},
 				},
 			}
@@ -1439,7 +1446,11 @@ func TestUpdatePullRequestUpdateBranchHandlerConfig(t *testing.T) {
 
 						updateBranchValue, ok := updatePRConfig["update_branch"]
 						require.True(t, ok, "Expected update_branch key in update_pull_request config")
-						assert.Equal(t, tt.expected, updateBranchValue)
+						assert.Equal(t, tt.expectedBranch, updateBranchValue)
+
+						updateBranchStacksValue, ok := updatePRConfig["update_branch_stacks"]
+						require.True(t, ok, "Expected update_branch_stacks key in update_pull_request config")
+						assert.Equal(t, tt.expectedStacks, updateBranchStacksValue)
 					}
 				}
 			}
