@@ -66,6 +66,27 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	// Fields are checked in the alphabetical order of their struct field names,
 	// matching the sort order of safeOutputFieldMapping keys for deterministic
 	// error reporting.
+	checks := [...]func(*SafeOutputsConfig) error{
+		checkMaxFieldsAddCommentToCallWorkflow,
+		checkMaxFieldsCloseDiscussionToCreateIssue,
+		checkMaxFieldsCreateProjectToLinkSubIssue,
+		checkMaxFieldsMarkReadyToPushBranch,
+		checkMaxFieldsRemoveLabelsToSubmitReview,
+		checkMaxFieldsUnassignToUploadAsset,
+		checkDispatchRepositoryMaxFields,
+	}
+	for _, check := range checks {
+		if err := check(config); err != nil {
+			return err
+		}
+	}
+
+	safeOutputsMaxValidationLog.Print("Safe-outputs max fields validation passed")
+	return nil
+}
+
+// checkMaxFieldsAddCommentToCallWorkflow validates max fields from add_comment through call_workflow.
+func checkMaxFieldsAddCommentToCallWorkflow(config *SafeOutputsConfig) error {
 	if config.AddComments != nil {
 		if err := checkMaxField("add_comment", config.AddComments.Max); err != nil {
 			return err
@@ -106,6 +127,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// checkMaxFieldsCloseDiscussionToCreateIssue validates max fields from close_discussion through create_issue.
+func checkMaxFieldsCloseDiscussionToCreateIssue(config *SafeOutputsConfig) error {
 	if config.CloseDiscussions != nil {
 		if err := checkMaxField("close_discussion", config.CloseDiscussions.Max); err != nil {
 			return err
@@ -146,6 +172,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// checkMaxFieldsCreateProjectToLinkSubIssue validates max fields from create_project_status_update through link_sub_issue.
+func checkMaxFieldsCreateProjectToLinkSubIssue(config *SafeOutputsConfig) error {
 	if config.CreateProjectStatusUpdates != nil {
 		if err := checkMaxField("create_project_status_update", config.CreateProjectStatusUpdates.Max); err != nil {
 			return err
@@ -186,6 +217,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// checkMaxFieldsMarkReadyToPushBranch validates max fields from mark_pull_request_as_ready_for_review through push_to_pull_request_branch.
+func checkMaxFieldsMarkReadyToPushBranch(config *SafeOutputsConfig) error {
 	if config.MarkPullRequestAsReadyForReview != nil {
 		if err := checkMaxField("mark_pull_request_as_ready_for_review", config.MarkPullRequestAsReadyForReview.Max); err != nil {
 			return err
@@ -221,6 +257,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// checkMaxFieldsRemoveLabelsToSubmitReview validates max fields from remove_labels through submit_pull_request_review.
+func checkMaxFieldsRemoveLabelsToSubmitReview(config *SafeOutputsConfig) error {
 	if config.RemoveLabels != nil {
 		if err := checkMaxField("remove_labels", config.RemoveLabels.Max); err != nil {
 			return err
@@ -256,6 +297,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// checkMaxFieldsUnassignToUploadAsset validates max fields from unassign_from_user through upload_asset.
+func checkMaxFieldsUnassignToUploadAsset(config *SafeOutputsConfig) error {
 	if config.UnassignFromUser != nil {
 		if err := checkMaxField("unassign_from_user", config.UnassignFromUser.Max); err != nil {
 			return err
@@ -296,9 +342,13 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			return err
 		}
 	}
+	return nil
+}
 
-	// Validate max on dispatch_repository tools (different structure: map of tools).
-	// Use sorted tool names for deterministic error reporting.
+// checkDispatchRepositoryMaxFields validates max on dispatch_repository tools
+// (different structure: map of tools). Tool names are sorted for deterministic
+// error reporting.
+func checkDispatchRepositoryMaxFields(config *SafeOutputsConfig) error {
 	if config.DispatchRepository != nil {
 		sortedToolNames := sliceutil.SortedKeys(config.DispatchRepository.Tools)
 
@@ -322,7 +372,5 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 			}
 		}
 	}
-
-	safeOutputsMaxValidationLog.Print("Safe-outputs max fields validation passed")
 	return nil
 }

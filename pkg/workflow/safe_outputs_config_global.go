@@ -11,6 +11,17 @@ import (
 // extractGlobalConfigFields parses safe-outputs fields that apply across handlers,
 // keeping extractSafeOutputsConfig focused on routing handler-specific configuration.
 func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
+	c.extractGlobalOutputPolicyFields(outputMap, config)
+	c.extractGlobalJobSettings(outputMap, config)
+	c.extractGlobalPatchAndDetectionFields(outputMap, config)
+	c.extractGlobalMessageFields(outputMap, config)
+	c.extractGlobalFailureReportingFields(outputMap, config)
+	c.extractGlobalRuntimeFields(outputMap, config)
+	c.extractGlobalExtensionFields(outputMap, config)
+}
+
+// extractGlobalOutputPolicyFields parses the sanitization and reference policy fields.
+func (c *Compiler) extractGlobalOutputPolicyFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 	if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 		if domainsArray, ok := allowedDomains.([]any); ok {
@@ -49,7 +60,10 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			config.AllowGitHubReferences = refStrings
 		}
 	}
+}
 
+// extractGlobalJobSettings parses fields controlling how the safe-outputs job runs.
+func (c *Compiler) extractGlobalJobSettings(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle staged flag
 	if err := preprocessBoolFieldAsString(outputMap, "staged", safeOutputsConfigLog); err != nil {
 		safeOutputsConfigLog.Printf("staged: %v", err)
@@ -83,6 +97,21 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 		}
 	}
 
+	// Handle runs-on configuration
+	if runsOn, exists := outputMap["runs-on"]; exists {
+		config.RunsOn = renderRunsOnSnippet(runsOn)
+	}
+
+	// Handle timeout-minutes configuration
+	if timeoutMinutes, ok := parseBoundedIntField(outputMap, "timeout-minutes", safeOutputsConfigLog); ok {
+		config.TimeoutMinutes = timeoutMinutes
+	}
+	// The safe-outputs job applies its 45-minute default at render time in
+	// compiler_safe_outputs_job.go, so extraction only preserves explicit overrides.
+}
+
+// extractGlobalPatchAndDetectionFields parses patch limits and threat detection.
+func (c *Compiler) extractGlobalPatchAndDetectionFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle max-patch-size configuration
 	config.MaximumPatchSize = parseBoundedIntFieldOrDefault(outputMap, "max-patch-size", 4096, safeOutputsConfigLog)
 
@@ -97,19 +126,10 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 	if threatDetectionConfig != nil {
 		config.ThreatDetection = threatDetectionConfig
 	}
+}
 
-	// Handle runs-on configuration
-	if runsOn, exists := outputMap["runs-on"]; exists {
-		config.RunsOn = renderRunsOnSnippet(runsOn)
-	}
-
-	// Handle timeout-minutes configuration
-	if timeoutMinutes, ok := parseBoundedIntField(outputMap, "timeout-minutes", safeOutputsConfigLog); ok {
-		config.TimeoutMinutes = timeoutMinutes
-	}
-	// The safe-outputs job applies its 45-minute default at render time in
-	// compiler_safe_outputs_job.go, so extraction only preserves explicit overrides.
-
+// extractGlobalMessageFields parses message, mention, and footer rendering fields.
+func (c *Compiler) extractGlobalMessageFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle messages configuration
 	if messages, exists := outputMap["messages"]; exists {
 		if messagesMap, ok := messages.(map[string]any); ok {
@@ -150,51 +170,17 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			safeOutputsConfigLog.Printf("Group reports control: %t", groupReportsBool)
 		}
 	}
+}
 
+// extractGlobalFailureReportingFields parses workflow failure reporting fields.
+func (c *Compiler) extractGlobalFailureReportingFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle report-failure-as-issue as templatable bool or array of categories.
 	if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
 		// Support []any category filters.
 		if categoriesList, ok := reportFailureAsIssue.([]any); ok {
-			// Parse as array of category strings, separating included (no prefix) and excluded (! prefix)
-			includedCategories := make([]string, 0, len(categoriesList))
-			excludedCategories := make([]string, 0, len(categoriesList))
-			for _, cat := range categoriesList {
-				if catStr, ok := cat.(string); ok {
-					if category, isExcluded := strings.CutPrefix(catStr, "!"); isExcluded {
-						// Excluded category: "!" prefix was found and removed
-						excludedCategories = append(excludedCategories, category)
-					} else {
-						// Included category: no prefix
-						includedCategories = append(includedCategories, catStr)
-					}
-				}
-			}
-			reportAsIssue := TemplatableBool("true")
-			config.ReportFailureAsIssue = &reportAsIssue
-			config.ReportFailureAsIssueCategories = includedCategories
-			config.ReportFailureAsIssueExcludedCategories = excludedCategories
-			if len(includedCategories) > 0 && len(excludedCategories) > 0 {
-				safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v, exclude filter: %v", includedCategories, excludedCategories)
-			} else if len(includedCategories) > 0 {
-				safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v", includedCategories)
-			} else if len(excludedCategories) > 0 {
-				safeOutputsConfigLog.Printf("Report failure as issue with exclude filter: %v", excludedCategories)
-			}
+			applyReportFailureAsIssueCategories(categoriesList, config)
 		} else {
-			// Support bool and templatable string values.
-			if err := preprocessBoolFieldAsString(outputMap, "report-failure-as-issue", safeOutputsConfigLog); err != nil {
-				safeOutputsConfigLog.Printf("Failed to preprocess report-failure-as-issue field: %v (ignoring invalid value and leaving field unset)", err)
-			} else {
-				if reportFailureAsIssueStr, ok := outputMap["report-failure-as-issue"].(string); ok {
-					reportAsIssue := TemplatableBool(reportFailureAsIssueStr)
-					config.ReportFailureAsIssue = &reportAsIssue
-					safeOutputsConfigLog.Printf("Report failure as issue: %s", reportAsIssue.String())
-				} else if reportFailureAsIssueBool, ok := outputMap["report-failure-as-issue"].(bool); ok {
-					reportAsIssue := TemplatableBool(strconv.FormatBool(reportFailureAsIssueBool))
-					config.ReportFailureAsIssue = &reportAsIssue
-					safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
-				}
-			}
+			applyReportFailureAsIssueValue(outputMap, config)
 		}
 	}
 
@@ -213,7 +199,57 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			safeOutputsConfigLog.Printf("Report failed jobs: %t", reportFailedJobsBool)
 		}
 	}
+}
 
+// applyReportFailureAsIssueCategories parses the list form of report-failure-as-issue,
+// separating included categories from excluded ("!" prefixed) ones.
+func applyReportFailureAsIssueCategories(categoriesList []any, config *SafeOutputsConfig) {
+	includedCategories := make([]string, 0, len(categoriesList))
+	excludedCategories := make([]string, 0, len(categoriesList))
+	for _, cat := range categoriesList {
+		if catStr, ok := cat.(string); ok {
+			if category, isExcluded := strings.CutPrefix(catStr, "!"); isExcluded {
+				// Excluded category: "!" prefix was found and removed
+				excludedCategories = append(excludedCategories, category)
+			} else {
+				// Included category: no prefix
+				includedCategories = append(includedCategories, catStr)
+			}
+		}
+	}
+	reportAsIssue := TemplatableBool("true")
+	config.ReportFailureAsIssue = &reportAsIssue
+	config.ReportFailureAsIssueCategories = includedCategories
+	config.ReportFailureAsIssueExcludedCategories = excludedCategories
+	if len(includedCategories) > 0 && len(excludedCategories) > 0 {
+		safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v, exclude filter: %v", includedCategories, excludedCategories)
+	} else if len(includedCategories) > 0 {
+		safeOutputsConfigLog.Printf("Report failure as issue with include filter: %v", includedCategories)
+	} else if len(excludedCategories) > 0 {
+		safeOutputsConfigLog.Printf("Report failure as issue with exclude filter: %v", excludedCategories)
+	}
+}
+
+// applyReportFailureAsIssueValue parses the bool or templatable string form of
+// report-failure-as-issue.
+func applyReportFailureAsIssueValue(outputMap map[string]any, config *SafeOutputsConfig) {
+	if err := preprocessBoolFieldAsString(outputMap, "report-failure-as-issue", safeOutputsConfigLog); err != nil {
+		safeOutputsConfigLog.Printf("Failed to preprocess report-failure-as-issue field: %v (ignoring invalid value and leaving field unset)", err)
+		return
+	}
+	if reportFailureAsIssueStr, ok := outputMap["report-failure-as-issue"].(string); ok {
+		reportAsIssue := TemplatableBool(reportFailureAsIssueStr)
+		config.ReportFailureAsIssue = &reportAsIssue
+		safeOutputsConfigLog.Printf("Report failure as issue: %s", reportAsIssue.String())
+	} else if reportFailureAsIssueBool, ok := outputMap["report-failure-as-issue"].(bool); ok {
+		reportAsIssue := TemplatableBool(strconv.FormatBool(reportFailureAsIssueBool))
+		config.ReportFailureAsIssue = &reportAsIssue
+		safeOutputsConfigLog.Printf("Report failure as issue: %t", reportFailureAsIssueBool)
+	}
+}
+
+// extractGlobalRuntimeFields parses runtime knobs for the safe-outputs job.
+func (c *Compiler) extractGlobalRuntimeFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle max-bot-mentions (templatable integer)
 	if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
 		safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
@@ -270,7 +306,10 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 	if config.Environment != "" {
 		safeOutputsConfigLog.Printf("Configured environment override for safe-outputs job: %s", config.Environment)
 	}
+}
 
+// extractGlobalExtensionFields parses user-defined safe output extensions.
+func (c *Compiler) extractGlobalExtensionFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle jobs (safe-jobs must be under safe-outputs)
 	if jobs, exists := outputMap["jobs"]; exists {
 		if jobsMap, ok := jobs.(map[string]any); ok {

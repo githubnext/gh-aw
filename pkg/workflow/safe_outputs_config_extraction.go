@@ -52,339 +52,16 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
 			config = &SafeOutputsConfig{}
 
-			// Handle create-issue
-			issuesConfig := c.parseCreateIssuesConfig(outputMap)
-			if issuesConfig != nil {
-				safeOutputsConfigLog.Print("Configured create-issue output handler")
-				config.CreateIssues = issuesConfig
-			}
-
-			// Handle create-agent-session
-			agentSessionConfig := c.parseAgentSessionConfig(outputMap)
-			if agentSessionConfig != nil {
-				config.CreateAgentSessions = agentSessionConfig
-			}
-
-			// Handle update-project (smart project board management)
-			updateProjectConfig := c.parseUpdateProjectConfig(outputMap)
-			if updateProjectConfig != nil {
-				config.UpdateProjects = updateProjectConfig
-			}
-
-			// Handle create-project
-			createProjectConfig := c.parseCreateProjectsConfig(outputMap)
-			if createProjectConfig != nil {
-				config.CreateProjects = createProjectConfig
-			}
-
-			// Handle create-project-status-update (project status updates)
-			createProjectStatusUpdateConfig := c.parseCreateProjectStatusUpdateConfig(outputMap)
-			if createProjectStatusUpdateConfig != nil {
-				config.CreateProjectStatusUpdates = createProjectStatusUpdateConfig
-			}
-
-			// Handle create-discussion
-			discussionsConfig := c.parseCreateDiscussionsConfig(outputMap)
-			if discussionsConfig != nil {
-				config.CreateDiscussions = discussionsConfig
-			}
-
-			// Handle close-discussion
-			closeDiscussionsConfig := c.parseCloseDiscussionsConfig(outputMap)
-			if closeDiscussionsConfig != nil {
-				config.CloseDiscussions = closeDiscussionsConfig
-			}
-
-			// Handle close-issue
-			closeIssuesConfig := c.parseCloseIssuesConfig(outputMap)
-			if closeIssuesConfig != nil {
-				config.CloseIssues = closeIssuesConfig
-			}
-
-			// Handle close-pull-request
-			closePullRequestsConfig := c.parseClosePullRequestsConfig(outputMap)
-			if closePullRequestsConfig != nil {
-				config.ClosePullRequests = closePullRequestsConfig
-			}
-
-			// Handle mark-pull-request-as-ready-for-review
-			markPRReadyConfig := c.parseMarkPullRequestAsReadyForReviewConfig(outputMap)
-			if markPRReadyConfig != nil {
-				config.MarkPullRequestAsReadyForReview = markPRReadyConfig
-			}
-
-			// Handle approve-workflow-run
-			approveWorkflowRunConfig := c.parseApproveWorkflowRunConfig(outputMap)
-			if approveWorkflowRunConfig != nil {
-				config.ApproveWorkflowRun = approveWorkflowRunConfig
-			}
-
-			// Handle dismiss-pull-request-review (and dismiss-review alias)
-			dismissPRReviewConfig := c.parseDismissPullRequestReviewConfig(outputMap)
-			if dismissPRReviewConfig != nil {
-				config.DismissPullRequestReview = dismissPRReviewConfig
-			}
-
-			// Handle add-comment
-			commentsConfig := c.parseCommentsConfig(outputMap)
-			if commentsConfig != nil {
-				config.AddComments = commentsConfig
-			}
-
-			// Handle create-pull-request
-			pullRequestsConfig := c.parseCreatePullRequestsConfig(outputMap)
-			if pullRequestsConfig != nil {
-				safeOutputsConfigLog.Print("Configured create-pull-request output handler")
-				config.CreatePullRequests = pullRequestsConfig
-			}
-
-			// Handle create-pull-request-review-comment
-			prReviewCommentsConfig := c.parsePullRequestReviewCommentsConfig(outputMap)
-			if prReviewCommentsConfig != nil {
-				config.CreatePullRequestReviewComments = prReviewCommentsConfig
-			}
-
-			// Handle submit-pull-request-review
-			submitPRReviewConfig := c.parseSubmitPullRequestReviewConfig(outputMap)
-			if submitPRReviewConfig != nil {
-				config.SubmitPullRequestReview = submitPRReviewConfig
-			}
-
-			// Handle reply-to-pull-request-review-comment
-			replyToPRReviewCommentConfig := c.parseReplyToPullRequestReviewCommentConfig(outputMap)
-			if replyToPRReviewCommentConfig != nil {
-				config.ReplyToPullRequestReviewComment = replyToPRReviewCommentConfig
-			}
-
-			// Handle resolve-pull-request-review-thread
-			resolvePRReviewThreadConfig := c.parseResolvePullRequestReviewThreadConfig(outputMap)
-			if resolvePRReviewThreadConfig != nil {
-				config.ResolvePullRequestReviewThread = resolvePRReviewThreadConfig
-			}
-
-			// Handle create-code-scanning-alert
-			securityReportsConfig := c.parseCodeScanningAlertsConfig(outputMap)
-			if securityReportsConfig != nil {
-				config.CreateCodeScanningAlerts = securityReportsConfig
-			}
-
-			// Handle autofix-code-scanning-alert
-			autofixCodeScanningAlertConfig := c.parseAutofixCodeScanningAlertConfig(outputMap)
-			if autofixCodeScanningAlertConfig != nil {
-				config.AutofixCodeScanningAlert = autofixCodeScanningAlertConfig
-			}
-
-			// Handle create-check-run
-			createCheckRunConfig := c.parseCreateCheckRunConfig(outputMap)
-			if createCheckRunConfig != nil {
-				config.CreateCheckRun = createCheckRunConfig
-			}
-
-			// Parse add-labels configuration
-			addLabelsConfig := c.parseAddLabelsConfig(outputMap)
-			if addLabelsConfig != nil {
-				config.AddLabels = addLabelsConfig
-			}
-
-			// Parse remove-labels configuration
-			removeLabelsConfig := c.parseRemoveLabelsConfig(outputMap)
-			if removeLabelsConfig != nil {
-				config.RemoveLabels = removeLabelsConfig
-			}
-
-			// Parse replace-label configuration
-			replaceLabelConfig := c.parseReplaceLabelConfig(outputMap)
-			if replaceLabelConfig != nil {
-				config.ReplaceLabel = replaceLabelConfig
-			}
-
-			// Parse add-reviewer configuration
-			addReviewerConfig := c.parseAddReviewerConfig(outputMap)
-			if addReviewerConfig != nil {
-				config.AddReviewer = addReviewerConfig
-			}
-
-			// Parse assign-milestone configuration
-			assignMilestoneConfig := c.parseAssignMilestoneConfig(outputMap)
-			if assignMilestoneConfig != nil {
-				config.AssignMilestone = assignMilestoneConfig
-			}
-
-			// Handle assign-to-agent
-			assignToAgentConfig := c.parseAssignToAgentConfig(outputMap)
-			if assignToAgentConfig != nil {
-				config.AssignToAgent = assignToAgentConfig
-			}
-
-			// Handle assign-to-user
-			assignToUserConfig := c.parseAssignToUserConfig(outputMap)
-			if assignToUserConfig != nil {
-				config.AssignToUser = assignToUserConfig
-			}
-
-			// Handle unassign-from-user
-			unassignFromUserConfig := c.parseUnassignFromUserConfig(outputMap)
-			if unassignFromUserConfig != nil {
-				config.UnassignFromUser = unassignFromUserConfig
-			}
-
-			// Handle update-issue
-			updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap)
-			if updateIssuesConfig != nil {
-				config.UpdateIssues = updateIssuesConfig
-			}
-
-			// Handle update-discussion
-			updateDiscussionsConfig := c.parseUpdateDiscussionsConfig(outputMap)
-			if updateDiscussionsConfig != nil {
-				config.UpdateDiscussions = updateDiscussionsConfig
-			}
-
-			// Handle update-pull-request
-			updatePullRequestsConfig := c.parseUpdatePullRequestsConfig(outputMap)
-			if updatePullRequestsConfig != nil {
-				config.UpdatePullRequests = updatePullRequestsConfig
-			}
-
-			// Handle merge-pull-request
-			mergePullRequestConfig := c.parseMergePullRequestConfig(outputMap)
-			if mergePullRequestConfig != nil {
-				config.MergePullRequest = mergePullRequestConfig
-			}
-
-			// Handle push-to-pull-request-branch
-			pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap)
-			if pushToBranchConfig != nil {
-				config.PushToPullRequestBranch = pushToBranchConfig
-			}
-
-			// Handle upload-asset
-			uploadAssetsConfig := c.parseUploadAssetConfig(outputMap)
-			if uploadAssetsConfig != nil {
-				config.UploadAssets = uploadAssetsConfig
-			}
-
-			// Handle upload-artifact
-			uploadArtifactConfig := c.parseUploadArtifactConfig(outputMap)
-			if uploadArtifactConfig != nil {
-				config.UploadArtifact = uploadArtifactConfig
-			}
-
-			// Handle update-release
-			updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap)
-			if updateReleaseConfig != nil {
-				config.UpdateRelease = updateReleaseConfig
-			}
-
-			// Handle link-sub-issue
-			linkSubIssueConfig := c.parseLinkSubIssueConfig(outputMap)
-			if linkSubIssueConfig != nil {
-				config.LinkSubIssue = linkSubIssueConfig
-			}
-
-			// Handle hide-comment
-			hideCommentConfig := c.parseHideCommentConfig(outputMap)
-			if hideCommentConfig != nil {
-				config.HideComment = hideCommentConfig
-			}
-
-			// Handle set-issue-type
-			setIssueTypeConfig := c.parseSetIssueTypeConfig(outputMap)
-			if setIssueTypeConfig != nil {
-				config.SetIssueType = setIssueTypeConfig
-			}
-
-			// Handle set-issue-field
-			setIssueFieldConfig := c.parseSetIssueFieldConfig(outputMap)
-			if setIssueFieldConfig != nil {
-				config.SetIssueField = setIssueFieldConfig
-			}
-
-			// Handle dispatch-workflow
-			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
-			if dispatchWorkflowConfig != nil {
-				config.DispatchWorkflow = dispatchWorkflowConfig
-			}
-
-			// Handle dispatch_repository
-			dispatchRepositoryConfig := c.parseDispatchRepositoryConfig(outputMap)
-			if dispatchRepositoryConfig != nil {
-				config.DispatchRepository = dispatchRepositoryConfig
-			}
-
-			// Handle call-workflow
-			callWorkflowConfig := c.parseCallWorkflowConfig(outputMap)
-			if callWorkflowConfig != nil {
-				config.CallWorkflow = callWorkflowConfig
-			}
-
-			// Handle missing-tool (parse configuration if present, or enable by default)
-			missingToolConfig := c.parseMissingToolConfig(outputMap)
-			if missingToolConfig != nil {
-				config.MissingTool = missingToolConfig
-			} else {
-				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
-				if _, exists := outputMap["missing-tool"]; !exists {
-					trueVal := "true"
-					config.MissingTool = &MissingToolConfig{
-						CreateIssue: &trueVal,
-						TitlePrefix: "",
-						Labels:      nil,
-					}
-				}
-			}
-
-			// Handle missing-data (parse configuration if present, or enable by default)
-			missingDataConfig := c.parseMissingDataConfig(outputMap)
-			if missingDataConfig != nil {
-				config.MissingData = missingDataConfig
-			} else {
-				// Enable missing-data by default if safe-outputs exists and it wasn't explicitly disabled
-				if _, exists := outputMap["missing-data"]; !exists {
-					trueVal := "true"
-					config.MissingData = &MissingDataConfig{
-						CreateIssue: &trueVal,
-						TitlePrefix: "",
-						Labels:      nil,
-					}
-				}
-			}
-
-			// Handle noop (parse configuration if present, or enable by default as fallback)
-			noopConfig := c.parseNoOpConfig(outputMap)
-			if noopConfig != nil {
-				config.NoOp = noopConfig
-			} else {
-				// Enable noop by default if safe-outputs exists and it wasn't explicitly disabled
-				// This ensures there's always a fallback for transparency
-				if _, exists := outputMap["noop"]; !exists {
-					config.NoOp = &NoOpConfig{}
-					config.NoOp.Max = defaultIntStr(1) // Default max
-					// Implicit noop is for transparency logging only; it must not create
-					// issues without a maintenance workflow to expire them, so report-as-issue
-					// defaults to false here (users can opt in with an explicit noop: block).
-					falseVal := "false"
-					config.NoOp.ReportAsIssue = &falseVal
-					config.NoOp.Implicit = true // Not authored by the user
-				}
-			}
-
-			// Handle report-incomplete (parse configuration if present, or enable by default)
-			reportIncompleteConfig := c.parseReportIncompleteConfig(outputMap)
-			if reportIncompleteConfig != nil {
-				config.ReportIncomplete = reportIncompleteConfig
-			} else {
-				// Enable report-incomplete by default if safe-outputs exists and it wasn't explicitly disabled.
-				// This ensures agents always have a first-class channel to signal task incompletion.
-				if _, exists := outputMap["report-incomplete"]; !exists {
-					trueVal := "true"
-					config.ReportIncomplete = &ReportIncompleteConfig{
-						CreateIssue: &trueVal,
-						TitlePrefix: "",
-						Labels:      nil,
-					}
-				}
-			}
+			c.extractIssueSafeOutputs(outputMap, config)
+			c.extractDiscussionSafeOutputs(outputMap, config)
+			c.extractProjectSafeOutputs(outputMap, config)
+			c.extractPullRequestSafeOutputs(outputMap, config)
+			c.extractPullRequestReviewSafeOutputs(outputMap, config)
+			c.extractCommentAndLabelSafeOutputs(outputMap, config)
+			c.extractAssignmentSafeOutputs(outputMap, config)
+			c.extractSecuritySafeOutputs(outputMap, config)
+			c.extractRepositorySafeOutputs(outputMap, config)
+			c.extractAgentSignalSafeOutputs(outputMap, config)
 
 			c.extractGlobalConfigFields(outputMap, config)
 		}
@@ -419,4 +96,314 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	}
 
 	return config
+}
+
+// extractIssueSafeOutputs parses issue-related safe output handlers.
+func (c *Compiler) extractIssueSafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle create-issue
+	if issuesConfig := c.parseCreateIssuesConfig(outputMap); issuesConfig != nil {
+		safeOutputsConfigLog.Print("Configured create-issue output handler")
+		config.CreateIssues = issuesConfig
+	}
+
+	// Handle close-issue
+	if closeIssuesConfig := c.parseCloseIssuesConfig(outputMap); closeIssuesConfig != nil {
+		config.CloseIssues = closeIssuesConfig
+	}
+
+	// Handle update-issue
+	if updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap); updateIssuesConfig != nil {
+		config.UpdateIssues = updateIssuesConfig
+	}
+
+	// Handle set-issue-type
+	if setIssueTypeConfig := c.parseSetIssueTypeConfig(outputMap); setIssueTypeConfig != nil {
+		config.SetIssueType = setIssueTypeConfig
+	}
+
+	// Handle set-issue-field
+	if setIssueFieldConfig := c.parseSetIssueFieldConfig(outputMap); setIssueFieldConfig != nil {
+		config.SetIssueField = setIssueFieldConfig
+	}
+
+	// Handle link-sub-issue
+	if linkSubIssueConfig := c.parseLinkSubIssueConfig(outputMap); linkSubIssueConfig != nil {
+		config.LinkSubIssue = linkSubIssueConfig
+	}
+
+	// Parse assign-milestone configuration
+	if assignMilestoneConfig := c.parseAssignMilestoneConfig(outputMap); assignMilestoneConfig != nil {
+		config.AssignMilestone = assignMilestoneConfig
+	}
+}
+
+// extractDiscussionSafeOutputs parses discussion-related safe output handlers.
+func (c *Compiler) extractDiscussionSafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle create-discussion
+	if discussionsConfig := c.parseCreateDiscussionsConfig(outputMap); discussionsConfig != nil {
+		config.CreateDiscussions = discussionsConfig
+	}
+
+	// Handle close-discussion
+	if closeDiscussionsConfig := c.parseCloseDiscussionsConfig(outputMap); closeDiscussionsConfig != nil {
+		config.CloseDiscussions = closeDiscussionsConfig
+	}
+
+	// Handle update-discussion
+	if updateDiscussionsConfig := c.parseUpdateDiscussionsConfig(outputMap); updateDiscussionsConfig != nil {
+		config.UpdateDiscussions = updateDiscussionsConfig
+	}
+}
+
+// extractProjectSafeOutputs parses project board related safe output handlers.
+func (c *Compiler) extractProjectSafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle update-project (smart project board management)
+	if updateProjectConfig := c.parseUpdateProjectConfig(outputMap); updateProjectConfig != nil {
+		config.UpdateProjects = updateProjectConfig
+	}
+
+	// Handle create-project
+	if createProjectConfig := c.parseCreateProjectsConfig(outputMap); createProjectConfig != nil {
+		config.CreateProjects = createProjectConfig
+	}
+
+	// Handle create-project-status-update (project status updates)
+	if createProjectStatusUpdateConfig := c.parseCreateProjectStatusUpdateConfig(outputMap); createProjectStatusUpdateConfig != nil {
+		config.CreateProjectStatusUpdates = createProjectStatusUpdateConfig
+	}
+}
+
+// extractPullRequestSafeOutputs parses pull request lifecycle safe output handlers.
+func (c *Compiler) extractPullRequestSafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle create-pull-request
+	if pullRequestsConfig := c.parseCreatePullRequestsConfig(outputMap); pullRequestsConfig != nil {
+		safeOutputsConfigLog.Print("Configured create-pull-request output handler")
+		config.CreatePullRequests = pullRequestsConfig
+	}
+
+	// Handle close-pull-request
+	if closePullRequestsConfig := c.parseClosePullRequestsConfig(outputMap); closePullRequestsConfig != nil {
+		config.ClosePullRequests = closePullRequestsConfig
+	}
+
+	// Handle update-pull-request
+	if updatePullRequestsConfig := c.parseUpdatePullRequestsConfig(outputMap); updatePullRequestsConfig != nil {
+		config.UpdatePullRequests = updatePullRequestsConfig
+	}
+
+	// Handle merge-pull-request
+	if mergePullRequestConfig := c.parseMergePullRequestConfig(outputMap); mergePullRequestConfig != nil {
+		config.MergePullRequest = mergePullRequestConfig
+	}
+
+	// Handle mark-pull-request-as-ready-for-review
+	if markPRReadyConfig := c.parseMarkPullRequestAsReadyForReviewConfig(outputMap); markPRReadyConfig != nil {
+		config.MarkPullRequestAsReadyForReview = markPRReadyConfig
+	}
+
+	// Handle push-to-pull-request-branch
+	if pushToBranchConfig := c.parsePushToPullRequestBranchConfig(outputMap); pushToBranchConfig != nil {
+		config.PushToPullRequestBranch = pushToBranchConfig
+	}
+}
+
+// extractPullRequestReviewSafeOutputs parses pull request review safe output handlers.
+func (c *Compiler) extractPullRequestReviewSafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle create-pull-request-review-comment
+	if prReviewCommentsConfig := c.parsePullRequestReviewCommentsConfig(outputMap); prReviewCommentsConfig != nil {
+		config.CreatePullRequestReviewComments = prReviewCommentsConfig
+	}
+
+	// Handle submit-pull-request-review
+	if submitPRReviewConfig := c.parseSubmitPullRequestReviewConfig(outputMap); submitPRReviewConfig != nil {
+		config.SubmitPullRequestReview = submitPRReviewConfig
+	}
+
+	// Handle reply-to-pull-request-review-comment
+	if replyToPRReviewCommentConfig := c.parseReplyToPullRequestReviewCommentConfig(outputMap); replyToPRReviewCommentConfig != nil {
+		config.ReplyToPullRequestReviewComment = replyToPRReviewCommentConfig
+	}
+
+	// Handle resolve-pull-request-review-thread
+	if resolvePRReviewThreadConfig := c.parseResolvePullRequestReviewThreadConfig(outputMap); resolvePRReviewThreadConfig != nil {
+		config.ResolvePullRequestReviewThread = resolvePRReviewThreadConfig
+	}
+
+	// Handle dismiss-pull-request-review (and dismiss-review alias)
+	if dismissPRReviewConfig := c.parseDismissPullRequestReviewConfig(outputMap); dismissPRReviewConfig != nil {
+		config.DismissPullRequestReview = dismissPRReviewConfig
+	}
+
+	// Parse add-reviewer configuration
+	if addReviewerConfig := c.parseAddReviewerConfig(outputMap); addReviewerConfig != nil {
+		config.AddReviewer = addReviewerConfig
+	}
+}
+
+// extractCommentAndLabelSafeOutputs parses comment and label safe output handlers.
+func (c *Compiler) extractCommentAndLabelSafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle add-comment
+	if commentsConfig := c.parseCommentsConfig(outputMap); commentsConfig != nil {
+		config.AddComments = commentsConfig
+	}
+
+	// Handle hide-comment
+	if hideCommentConfig := c.parseHideCommentConfig(outputMap); hideCommentConfig != nil {
+		config.HideComment = hideCommentConfig
+	}
+
+	// Parse add-labels configuration
+	if addLabelsConfig := c.parseAddLabelsConfig(outputMap); addLabelsConfig != nil {
+		config.AddLabels = addLabelsConfig
+	}
+
+	// Parse remove-labels configuration
+	if removeLabelsConfig := c.parseRemoveLabelsConfig(outputMap); removeLabelsConfig != nil {
+		config.RemoveLabels = removeLabelsConfig
+	}
+
+	// Parse replace-label configuration
+	if replaceLabelConfig := c.parseReplaceLabelConfig(outputMap); replaceLabelConfig != nil {
+		config.ReplaceLabel = replaceLabelConfig
+	}
+}
+
+// extractAssignmentSafeOutputs parses assignment and agent session safe output handlers.
+func (c *Compiler) extractAssignmentSafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle create-agent-session
+	if agentSessionConfig := c.parseAgentSessionConfig(outputMap); agentSessionConfig != nil {
+		config.CreateAgentSessions = agentSessionConfig
+	}
+
+	// Handle assign-to-agent
+	if assignToAgentConfig := c.parseAssignToAgentConfig(outputMap); assignToAgentConfig != nil {
+		config.AssignToAgent = assignToAgentConfig
+	}
+
+	// Handle assign-to-user
+	if assignToUserConfig := c.parseAssignToUserConfig(outputMap); assignToUserConfig != nil {
+		config.AssignToUser = assignToUserConfig
+	}
+
+	// Handle unassign-from-user
+	if unassignFromUserConfig := c.parseUnassignFromUserConfig(outputMap); unassignFromUserConfig != nil {
+		config.UnassignFromUser = unassignFromUserConfig
+	}
+}
+
+// extractSecuritySafeOutputs parses code scanning, check run, and workflow approval handlers.
+func (c *Compiler) extractSecuritySafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle create-code-scanning-alert
+	if securityReportsConfig := c.parseCodeScanningAlertsConfig(outputMap); securityReportsConfig != nil {
+		config.CreateCodeScanningAlerts = securityReportsConfig
+	}
+
+	// Handle autofix-code-scanning-alert
+	if autofixCodeScanningAlertConfig := c.parseAutofixCodeScanningAlertConfig(outputMap); autofixCodeScanningAlertConfig != nil {
+		config.AutofixCodeScanningAlert = autofixCodeScanningAlertConfig
+	}
+
+	// Handle create-check-run
+	if createCheckRunConfig := c.parseCreateCheckRunConfig(outputMap); createCheckRunConfig != nil {
+		config.CreateCheckRun = createCheckRunConfig
+	}
+
+	// Handle approve-workflow-run
+	if approveWorkflowRunConfig := c.parseApproveWorkflowRunConfig(outputMap); approveWorkflowRunConfig != nil {
+		config.ApproveWorkflowRun = approveWorkflowRunConfig
+	}
+}
+
+// extractRepositorySafeOutputs parses asset, release, and dispatch safe output handlers.
+func (c *Compiler) extractRepositorySafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle upload-asset
+	if uploadAssetsConfig := c.parseUploadAssetConfig(outputMap); uploadAssetsConfig != nil {
+		config.UploadAssets = uploadAssetsConfig
+	}
+
+	// Handle upload-artifact
+	if uploadArtifactConfig := c.parseUploadArtifactConfig(outputMap); uploadArtifactConfig != nil {
+		config.UploadArtifact = uploadArtifactConfig
+	}
+
+	// Handle update-release
+	if updateReleaseConfig := c.parseUpdateReleaseConfig(outputMap); updateReleaseConfig != nil {
+		config.UpdateRelease = updateReleaseConfig
+	}
+
+	// Handle dispatch-workflow
+	if dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap); dispatchWorkflowConfig != nil {
+		config.DispatchWorkflow = dispatchWorkflowConfig
+	}
+
+	// Handle dispatch_repository
+	if dispatchRepositoryConfig := c.parseDispatchRepositoryConfig(outputMap); dispatchRepositoryConfig != nil {
+		config.DispatchRepository = dispatchRepositoryConfig
+	}
+
+	// Handle call-workflow
+	if callWorkflowConfig := c.parseCallWorkflowConfig(outputMap); callWorkflowConfig != nil {
+		config.CallWorkflow = callWorkflowConfig
+	}
+}
+
+// extractAgentSignalSafeOutputs parses the agent signalling handlers (missing-tool,
+// missing-data, noop, report-incomplete), which are enabled by default when
+// safe-outputs is configured and the key was not explicitly provided.
+func (c *Compiler) extractAgentSignalSafeOutputs(outputMap map[string]any, config *SafeOutputsConfig) {
+	// Handle missing-tool (parse configuration if present, or enable by default)
+	if missingToolConfig := c.parseMissingToolConfig(outputMap); missingToolConfig != nil {
+		config.MissingTool = missingToolConfig
+	} else if _, exists := outputMap["missing-tool"]; !exists {
+		// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
+		trueVal := "true"
+		config.MissingTool = &MissingToolConfig{
+			CreateIssue: &trueVal,
+			TitlePrefix: "",
+			Labels:      nil,
+		}
+	}
+
+	// Handle missing-data (parse configuration if present, or enable by default)
+	if missingDataConfig := c.parseMissingDataConfig(outputMap); missingDataConfig != nil {
+		config.MissingData = missingDataConfig
+	} else if _, exists := outputMap["missing-data"]; !exists {
+		// Enable missing-data by default if safe-outputs exists and it wasn't explicitly disabled
+		trueVal := "true"
+		config.MissingData = &MissingDataConfig{
+			CreateIssue: &trueVal,
+			TitlePrefix: "",
+			Labels:      nil,
+		}
+	}
+
+	// Handle noop (parse configuration if present, or enable by default as fallback)
+	if noopConfig := c.parseNoOpConfig(outputMap); noopConfig != nil {
+		config.NoOp = noopConfig
+	} else if _, exists := outputMap["noop"]; !exists {
+		// Enable noop by default if safe-outputs exists and it wasn't explicitly disabled
+		// This ensures there's always a fallback for transparency
+		config.NoOp = &NoOpConfig{}
+		config.NoOp.Max = defaultIntStr(1) // Default max
+		// Implicit noop is for transparency logging only; it must not create
+		// issues without a maintenance workflow to expire them, so report-as-issue
+		// defaults to false here (users can opt in with an explicit noop: block).
+		falseVal := "false"
+		config.NoOp.ReportAsIssue = &falseVal
+		config.NoOp.Implicit = true // Not authored by the user
+	}
+
+	// Handle report-incomplete (parse configuration if present, or enable by default)
+	if reportIncompleteConfig := c.parseReportIncompleteConfig(outputMap); reportIncompleteConfig != nil {
+		config.ReportIncomplete = reportIncompleteConfig
+	} else if _, exists := outputMap["report-incomplete"]; !exists {
+		// Enable report-incomplete by default if safe-outputs exists and it wasn't explicitly disabled.
+		// This ensures agents always have a first-class channel to signal task incompletion.
+		trueVal := "true"
+		config.ReportIncomplete = &ReportIncompleteConfig{
+			CreateIssue: &trueVal,
+			TitlePrefix: "",
+			Labels:      nil,
+		}
+	}
 }
