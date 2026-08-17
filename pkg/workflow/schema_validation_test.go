@@ -234,7 +234,7 @@ jobs:
 name: Test
 on:
   issues:
-    types: [field_added, field_removed]
+    types: [typed, untyped, field_added, field_removed]
 jobs:
   test:
     runs-on: ubuntu-latest

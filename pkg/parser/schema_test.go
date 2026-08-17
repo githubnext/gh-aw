@@ -13,7 +13,7 @@ func TestValidateMainWorkflowFrontmatter_IssueFieldActivityTypes(t *testing.T) {
 	frontmatter := map[string]any{
 		"on": map[string]any{
 			"issues": map[string]any{
-				"types": []any{"field_added", "field_removed"},
+				"types": []any{"typed", "untyped", "field_added", "field_removed"},
 			},
 		},
 		"engine": "copilot",
