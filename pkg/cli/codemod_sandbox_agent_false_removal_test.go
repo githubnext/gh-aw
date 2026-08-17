@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetSandboxAgentFalseRemovalCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	assert.Equal(t, "sandbox-agent-false-removal", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetSandboxAgentFalseRemovalCodemod(t *testing.T) {
 }
 
 func TestSandboxAgentFalseRemoval_RemovesAgentFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---
@@ -52,6 +54,7 @@ permissions:
 }
 
 func TestSandboxAgentFalseRemoval_PreservesOtherSandboxKeys(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---
@@ -84,6 +87,7 @@ sandbox:
 }
 
 func TestSandboxAgentFalseRemoval_NoSandboxKey(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---
@@ -109,6 +113,7 @@ permissions:
 }
 
 func TestSandboxAgentFalseRemoval_AgentNotFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---
@@ -134,6 +139,7 @@ sandbox:
 }
 
 func TestSandboxAgentFalseRemoval_AgentObject(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---
@@ -162,6 +168,7 @@ sandbox:
 }
 
 func TestSandboxAgentFalseRemoval_AgentTrue(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---
@@ -187,6 +194,7 @@ sandbox:
 }
 
 func TestSandboxAgentFalseRemoval_SkipsWhenStrictFalse(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---
@@ -214,6 +222,7 @@ sandbox:
 }
 
 func TestSandboxAgentFalseRemoval_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---
@@ -242,6 +251,7 @@ This workflow was using the nosandbox escape hatch.`
 }
 
 func TestSandboxAgentFalseRemoval_NoAgentKey(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxAgentFalseRemovalCodemod()
 
 	content := `---

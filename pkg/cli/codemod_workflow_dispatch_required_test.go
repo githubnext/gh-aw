@@ -10,6 +10,7 @@ import (
 )
 
 func TestWorkflowDispatchRequiredFalseCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getWorkflowDispatchRequiredFalseCodemod()
 
 	t.Run("rewrites required: true to required: false for slash_command trigger", func(t *testing.T) {

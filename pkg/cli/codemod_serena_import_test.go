@@ -12,6 +12,7 @@ import (
 )
 
 func TestSerenaToSharedImportCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSerenaToSharedImportCodemod()
 
 	t.Run("migrates tools.serena short syntax to imports", func(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetSandboxRuntimeProfileCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxRuntimeProfileCodemod()
 
 	assert.Equal(t, "sandbox-runtime-profiles", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetSandboxRuntimeProfileCodemod(t *testing.T) {
 }
 
 func TestSandboxRuntimeProfileCodemod_Migrations(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxRuntimeProfileCodemod()
 
 	tests := []struct {
@@ -210,6 +212,7 @@ sandbox:
 // only key under sandbox.agent also removes the now-empty parent mappings, which would
 // otherwise fail schema validation as a null value.
 func TestSandboxRuntimeProfileCodemod_RemovesEmptySandboxBlock(t *testing.T) {
+	t.Parallel()
 	codemod := getSandboxRuntimeProfileCodemod()
 
 	content := `---

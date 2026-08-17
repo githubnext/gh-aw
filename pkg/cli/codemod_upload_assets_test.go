@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetUploadAssetsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getUploadAssetsCodemod()
 
 	assert.Equal(t, "upload-assets-to-upload-asset-migration", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetUploadAssetsCodemod(t *testing.T) {
 }
 
 func TestUploadAssetsCodemod_BasicMigration(t *testing.T) {
+	t.Parallel()
 	codemod := getUploadAssetsCodemod()
 
 	content := `---
@@ -49,6 +51,7 @@ safe-outputs:
 }
 
 func TestUploadAssetsCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getUploadAssetsCodemod()
 
 	content := `---
@@ -77,6 +80,7 @@ safe-outputs:
 }
 
 func TestUploadAssetsCodemod_PreservesComment(t *testing.T) {
+	t.Parallel()
 	codemod := getUploadAssetsCodemod()
 
 	content := `---
@@ -105,6 +109,7 @@ safe-outputs:
 }
 
 func TestUploadAssetsCodemod_NoSafeOutputsField(t *testing.T) {
+	t.Parallel()
 	codemod := getUploadAssetsCodemod()
 
 	content := `---
@@ -130,6 +135,7 @@ permissions:
 }
 
 func TestUploadAssetsCodemod_NoUploadAssetsField(t *testing.T) {
+	t.Parallel()
 	codemod := getUploadAssetsCodemod()
 
 	content := `---
@@ -158,6 +164,7 @@ safe-outputs:
 }
 
 func TestUploadAssetsCodemod_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
 	codemod := getUploadAssetsCodemod()
 
 	content := `---
@@ -193,6 +200,7 @@ safe-outputs:
 }
 
 func TestUploadAssetsCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getUploadAssetsCodemod()
 
 	content := `---

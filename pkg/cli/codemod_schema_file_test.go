@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetDeleteSchemaFileCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getDeleteSchemaFileCodemod()
 
 	// Verify codemod metadata
@@ -21,6 +22,7 @@ func TestGetDeleteSchemaFileCodemod(t *testing.T) {
 }
 
 func TestDeleteSchemaFileCodemod_NoChanges(t *testing.T) {
+	t.Parallel()
 	codemod := getDeleteSchemaFileCodemod()
 
 	content := `---
@@ -48,6 +50,7 @@ This workflow doesn't need any changes.`
 }
 
 func TestDeleteSchemaFileCodemod_AlwaysReturnsUnchanged(t *testing.T) {
+	t.Parallel()
 	// This codemod doesn't modify workflow files - the fix command handles the file deletion
 	// Test various content to ensure it never makes changes
 
