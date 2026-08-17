@@ -766,23 +766,28 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
   const { normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys } = buildNormalizedSchemaKeyMap(schemaProperties);
   // Trimmed stdin content used in both JSON payload mode and per-field stdin mode.
   const trimmedStdin = stdinContent !== null ? stdinContent.trim() : null;
+  const isJsonPayloadMode = trimmedStdin !== null && (args.length === 0 || (args.length === 1 && args[0] === "."));
+  const isExplicitJsonSentinel = args.length === 1 && args[0] === ".";
 
   // JSON payload mode: when args is empty or ['.'] and stdinContent is available,
   // parse stdin as a JSON object and use its properties directly as tool arguments.
-  if (trimmedStdin !== null && (args.length === 0 || (args.length === 1 && args[0] === "."))) {
+  if (isJsonPayloadMode) {
     if (trimmedStdin) {
+      let parsed;
       try {
-        const parsed = JSON.parse(trimmedStdin);
-        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-          for (const [key, value] of Object.entries(parsed)) {
-            const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
-            result[canonicalKey] = value;
-          }
-          return { args: result, json: false };
-        }
-      } catch {
-        // Not valid JSON; fall through to normal flag-based argument parsing.
+        parsed = JSON.parse(trimmedStdin);
+      } catch (err) {
+        const parseError = getErrorMessage(err);
+        throw new Error(`stdin is not valid JSON: ${parseError}. JSON payload mode was requested ${isExplicitJsonSentinel ? "with '.'" : "from piped stdin with no flags"}. Pass --key value flags instead, or correct the JSON.`);
       }
+      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        for (const [key, value] of Object.entries(parsed)) {
+          const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
+          result[canonicalKey] = value;
+        }
+        return { args: result, json: false };
+      }
+      throw new Error(`stdin JSON payload must be an object. JSON payload mode was requested ${isExplicitJsonSentinel ? "with '.'" : "from piped stdin with no flags"}. Pass --key value flags instead, or provide a JSON object.`);
     }
   }
 
@@ -1472,6 +1477,7 @@ async function main() {
 
   const toolName = userArgs[0];
   const toolUserArgs = userArgs.slice(1);
+  const shouldReadStdin = hasStdinJsonPayload(toolUserArgs);
 
   // Route: <command> --help → show command-specific help
   if (toolUserArgs.length > 0 && (toolUserArgs[0] === "--help" || toolUserArgs[0] === "-h")) {
@@ -1486,8 +1492,23 @@ async function main() {
   const schemaProperties = matchedTool && matchedTool.inputSchema && matchedTool.inputSchema.properties ? matchedTool.inputSchema.properties : {};
 
   // Pre-read stdin when JSON payload mode is triggered ('.' sentinel or no args with piped stdin).
-  const stdinContent = hasStdinJsonPayload(toolUserArgs) ? readStdinSync() : null;
-  const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
+  const stdinContent = shouldReadStdin ? readStdinSync() : null;
+  if (shouldReadStdin) {
+    const stdinBytes = stdinContent !== null ? Buffer.byteLength(stdinContent, "utf8") : 0;
+    core.info(`[${serverName}] Stdin captured: ${stdinBytes} bytes`);
+  }
+  /** @type {{args: Record<string, unknown>, json: boolean}} */
+  let parsedArgs;
+  try {
+    parsedArgs = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
+  } catch (err) {
+    const message = getErrorMessage(err);
+    auditLog(serverName, { event: "parse_args_error", tool: toolName, error: message });
+    process.stderr.write(`Error: ${message}\n`);
+    core.setFailed(`[${serverName}] Argument parsing failed: ${message}`);
+    return;
+  }
+  const { args: toolArgs, json: jsonOutput } = parsedArgs;
 
   if (shouldShowToolHelpForEmptyArgs(serverName, toolArgs, matchedTool)) {
     core.warning(`[${serverName}] No arguments provided for '${toolName}'; showing command help instead of calling the tool`);
