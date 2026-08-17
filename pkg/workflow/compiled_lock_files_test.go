@@ -434,6 +434,37 @@ func TestCompiledLockFiles_SmokeWorkflowCallHasExpectedOutputs(t *testing.T) {
 	})
 }
 
+// TestCompiledLockFiles_SmokeCopilotSubAgentsEvalsArtifactHandoff verifies that
+// Smoke Copilot Sub Agents keeps the evals artifact producer/consumer wiring in sync
+// and treats missing evals artifacts as non-fatal in downstream jobs.
+func TestCompiledLockFiles_SmokeCopilotSubAgentsEvalsArtifactHandoff(t *testing.T) {
+	lockPath := filepath.Join(workflowsDir, "smoke-copilot-sub-agents.lock.yml")
+	lockBytes, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "should read smoke-copilot-sub-agents lock file")
+	lockContent := string(lockBytes)
+
+	evalsJob := extractJobSection(lockContent, "evals")
+	require.NotEmpty(t, evalsJob, "lock file should contain evals job")
+	assert.Contains(t, evalsJob, "- name: Upload evals results", "evals job should upload eval results")
+	assert.Contains(t, evalsJob, "name: evals", "evals job should upload artifact named evals")
+
+	for _, jobName := range []string{"conclusion", "push_evals_state"} {
+		jobSection := extractJobSection(lockContent, jobName)
+		require.NotEmpty(t, jobSection, "lock file should contain %s job", jobName)
+
+		stepStart := strings.Index(jobSection, "- name: Download evals artifact")
+		require.NotEqual(t, -1, stepStart, "%s should download evals artifact", jobName)
+
+		stepBlock := jobSection[stepStart:]
+		if nextStepOffset := strings.Index(stepBlock, "\n      - "); nextStepOffset != -1 {
+			stepBlock = stepBlock[:nextStepOffset]
+		}
+
+		assert.Contains(t, stepBlock, "name: evals", "%s should download artifact named evals", jobName)
+		assert.Contains(t, stepBlock, "continue-on-error: true", "%s evals artifact download must be non-fatal", jobName)
+	}
+}
+
 func TestCompiledLockFiles_SmokeCallWorkflowForwardsPayload(t *testing.T) {
 	lockPath := filepath.Join(workflowsDir, "smoke-call-workflow.lock.yml")
 
