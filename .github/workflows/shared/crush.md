@@ -36,7 +36,7 @@ engine:
     installation:
       package-manager: npm
       package-name: "@charmland/crush"
-      step-name: Install Crush
+      step-name: Install Crush CLI
       binary-name: crush
       include-node-setup: true
       post-install-scripts: true

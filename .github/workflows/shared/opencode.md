@@ -38,7 +38,7 @@ engine:
     installation:
       package-manager: npm
       package-name: opencode-ai
-      step-name: Install OpenCode
+      step-name: Install OpenCode CLI
       binary-name: opencode
       include-node-setup: true
       cooldown: true

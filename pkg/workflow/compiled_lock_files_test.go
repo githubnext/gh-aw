@@ -171,6 +171,66 @@ func TestCompiledLockFiles_SmokePiKeepsCLIProxySafeoutputsWiring(t *testing.T) {
 		"smoke-pi lock file should add mounted MCP CLI wrappers to PATH before executing Pi")
 }
 
+func TestCompiledLockFiles_CLIEngineInstallStepNamesIncludeCLISuffix(t *testing.T) {
+	tests := []struct {
+		lockFile    string
+		wantNames   []string
+		absentNames []string
+	}{
+		{
+			lockFile: "smoke-crush.lock.yml",
+			wantNames: []string{
+				"Install Crush CLI",
+			},
+			absentNames: []string{
+				"Install Crush",
+			},
+		},
+		{
+			lockFile: "daily-code-metrics.lock.yml",
+			wantNames: []string{
+				"Install Crush CLI in docker-sbx path",
+			},
+			absentNames: []string{
+				"Install Crush in docker-sbx path",
+			},
+		},
+		{
+			lockFile: "smoke-opencode.lock.yml",
+			wantNames: []string{
+				"Install OpenCode CLI",
+			},
+			absentNames: []string{
+				"Install OpenCode",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.lockFile, func(t *testing.T) {
+			lockPath := filepath.Join(workflowsDir, tt.lockFile)
+			lockBytes, err := os.ReadFile(lockPath)
+			require.NoError(t, err, "should read %s", tt.lockFile)
+
+			stepNames := map[string]bool{}
+			for line := range strings.SplitSeq(string(lockBytes), "\n") {
+				line = strings.TrimSpace(line)
+				name, ok := strings.CutPrefix(line, "- name: ")
+				if ok {
+					stepNames[name] = true
+				}
+			}
+
+			for _, wantName := range tt.wantNames {
+				assert.Contains(t, stepNames, wantName)
+			}
+			for _, absentName := range tt.absentNames {
+				assert.NotContains(t, stepNames, absentName)
+			}
+		})
+	}
+}
+
 // TestCompiledLockFiles_WorkflowCallOutputs validates that compiled lock files for workflows
 // using workflow_call + safe-outputs automatically include on.workflow_call.outputs declarations.
 func TestCompiledLockFiles_WorkflowCallOutputs(t *testing.T) {
