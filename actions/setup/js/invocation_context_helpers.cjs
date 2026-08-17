@@ -215,7 +215,7 @@ function resolveInvocationContext(rawContext) {
 
   /** @type {"native" | "workflow_dispatch" | "repository_dispatch"} */
   let source = "native";
-  let eventName = rawContext?.eventName || "";
+  let eventName = rawContext?.eventName || process.env.GITHUB_EVENT_NAME || "";
   let eventPayload = rawContext?.payload || {};
   let eventRepo = normalizeRepo(rawContext?.eventRepo);
 
