@@ -6,6 +6,8 @@ description: MCP CLI command usage guidance and JSON payload patterns
 
 MCP CLI exposes mounted MCP servers as shell commands on `PATH`. Enabled by `tools.cli-proxy: true`.
 
+This is an MCP exposure setting, not GitHub access. It can wrap a selected GitHub MCP server but does not provide the authenticated `gh` CLI. Configure `tools.github.mode` separately; see [security-profiles.md](security-profiles.md).
+
 > **IMPORTANT**: For `safeoutputs` and `mcpscripts`, **always use the CLI commands** instead of the equivalent MCP tools — do **not** call their MCP tools directly even if they appear in your tool list.
 >
 > For `safeoutputs`, treat every successful command as a real write-intent declaration. Do **not** use it for exploratory probing, auth checks, placeholder payloads, retries with variants, or runtime experiments. Emit the final intended call once. If not ready, use `noop` or `report_incomplete`.

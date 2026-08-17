@@ -58,6 +58,8 @@ Sandbox security options are now collapsed into `sandbox.agent.runtime` profiles
 
 Workflows that use GitHub Actions `services:` with published ports remain reachable from the agent sandbox only when `sandbox.agent.runtime: docker-sudo-iptables` is set; recompiling regenerates the `--allow-host-service-ports` value used to reach those services.
 
+GitHub access values are also normalized: `gh-proxy` becomes `cli`, and `local` or `remote` become `mcp-local` or `mcp-remote`. The removed `features.cli-proxy` flag migrates to `tools.github.mode: cli`, while `tools.cli-proxy` migrates to the distinct `tools.mcp-mode: cli` MCP exposure setting. Review the [security profile matrix](/gh-aw/reference/security-profiles/) before combining migrated fields.
+
 ## Step 4: Commit and Push
 
 Stage and commit your changes:

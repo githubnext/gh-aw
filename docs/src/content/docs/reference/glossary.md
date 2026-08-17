@@ -89,7 +89,11 @@ Capabilities that an AI agent can use during workflow execution. Tools are confi
 
 ### GitHub Access Mode (`tools.github.mode`)
 
-A `tools.github` field that controls how the agent accesses GitHub APIs. Three values are supported: `gh-proxy` (recommended — provides pre-authenticated `gh` CLI prompt guidance without mounting a GitHub MCP server, replacing the deprecated `features.cli-proxy: true`), `local` (Docker-based GitHub MCP server, the legacy default), and `remote` (hosted GitHub MCP server at `api.githubcopilot.com`). Use `gh-proxy` for better performance; use `local` or `remote` when MCP-based GitHub toolsets are required. See [GitHub Tools Reference](/gh-aw/reference/github-tools/).
+A `tools.github` field that selects GitHub API access through the pre-authenticated `gh` CLI (`cli`), a local Docker GitHub MCP server (`mcp-local`), or the hosted GitHub MCP service (`mcp-remote`). This selector is independent from the sandbox runtime and `tools.mcp-mode`. Legacy values are accepted only for migration. See [Security Profile Selection](/gh-aw/reference/security-profiles/) and [GitHub Tools Reference](/gh-aw/reference/github-tools/).
+
+### MCP Exposure Mode (`tools.mcp-mode`)
+
+A `tools` field that controls whether user-facing MCP servers are exposed as native MCP tools (`default`, or omitted) or CLI wrappers on `PATH` (`cli`). It does not select GitHub access. The legacy `tools.cli-proxy` field migrates to this setting.
 
 ### Allowed Repos (`tools.github.allowed-repos`)
 
@@ -1448,7 +1452,7 @@ A `sandbox.agent` field that selects the sandbox security and topology profile. 
 - `docker-sbx` — KVM microVM; the compiler handles the required privileged setup.
 - `cloud-hypervisor` — Preview KVM runtime with its required privileged launcher.
 
-Omitting `runtime` is equivalent to `runtime: docker`. The removed `sandbox.agent.sudo` and `sandbox.agent.legacy-security` fields are migrated by `gh aw fix --write`. See [Sandbox Configuration](/gh-aw/reference/sandbox/) and [Agent Runtimes](/gh-aw/reference/agent-runtimes/).
+Omitting `runtime` is equivalent to the valid explicit value `runtime: docker`. The removed `sandbox.agent.sudo` and `sandbox.agent.legacy-security` fields are migrated by `gh aw fix --write`. See [Security Profile Selection](/gh-aw/reference/security-profiles/), [Sandbox Configuration](/gh-aw/reference/sandbox/), and [Agent Runtimes](/gh-aw/reference/agent-runtimes/).
 
 ```aw wrap
 sandbox:

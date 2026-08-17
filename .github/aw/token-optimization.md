@@ -83,8 +83,7 @@ The single biggest optimization. Replace agentic data fetching with deterministi
 engine: copilot
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default, pull_requests]
+    mode: cli
 ---
 
 Fetch all open PRs in ${{ github.repository }}, compute the merge rate, identify authors with the most contributions, and create a weekly summary discussion.
@@ -144,11 +143,11 @@ Create a concise weekly PR summary discussion.
 ```yaml
 tools:
   github:
-    mode: gh-proxy      # ✅ preferred — pre-authenticated gh CLI, no MCP server startup
-    toolsets: [default]
+    mode: cli      # ✅ preferred — pre-authenticated gh CLI, no MCP server startup
 ```
 
-Agent reads GitHub via `gh issue list`, `gh pr view`, etc. and pipes through `jq` before data enters context. `mode: local` starts a Docker-based MCP server with startup latency and verbose tool results.
+Agent reads GitHub via `gh issue list`, `gh pr view`, etc. and pipes through `jq` before data enters context. `mode: mcp-local` starts a Docker-based MCP server with startup latency and verbose tool results.
+Do not add `toolsets`, `allowed`, `version`, or `args` in `cli` mode; those fields configure the GitHub MCP server.
 
 ### `cli-proxy: true` (other MCP servers as CLIs)
 

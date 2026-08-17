@@ -15,6 +15,7 @@ Design and create new workflow files under `.github/workflows/` using the instal
 - [workflow-constraints.md](workflow-constraints.md)
 - [workflow-patterns.md](workflow-patterns.md)
 - [safe-outputs.md](safe-outputs.md)
+- [security-profiles.md](security-profiles.md)
 - [syntax.md](syntax.md)
 - [mcp-clis.md](mcp-clis.md)
 
@@ -168,16 +169,16 @@ See [workflow-constraints.md](workflow-constraints.md) for the read-only securit
 ### 4. Select tools
 
 - `bash` and `edit` are enabled by default in sandboxed workflows; do not add them unless you are restricting them.
-- For GitHub reads, prefer `tools.github.mode: gh-proxy` and instruct the agent to use `gh` commands.
-- For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and instruct the agent to use the mounted `mcp-clis` commands.
+- For GitHub reads, prefer `tools.github.mode: cli` and instruct the agent to use `gh` commands.
+- For non-GitHub MCP servers, prefer `tools.mcp-mode: cli` and instruct the agent to use the mounted `mcp-clis` commands.
+- Follow [security-profiles.md](security-profiles.md); never combine `mode: cli` with MCP-only `toolsets`, `allowed`, `version`, or `args`.
 - Combined configuration example for GitHub reads plus non-GitHub MCP CLI access:
 
   ```yaml
   tools:
     github:
-      mode: gh-proxy
-      toolsets: [default]
-    cli-proxy: true
+      mode: cli
+    mcp-mode: cli
   ```
 
   Omit `cli-proxy: true` when the workflow only needs GitHub reads.
@@ -289,9 +290,8 @@ permissions:
   issues: read
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default]
-  cli-proxy: true
+    mode: cli
+  mcp-mode: cli
 safe-outputs:
   add-comment:
 ---

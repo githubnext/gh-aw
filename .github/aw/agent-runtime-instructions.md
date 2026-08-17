@@ -7,13 +7,14 @@ disable-model-invocation: true
 
 Use these instructions when creating or updating workflows that mention Docker, gVisor, Docker sbx, Cloud Hypervisor, ARC DinD, self-hosted runners, or `sandbox.agent.runtime-install`.
 
+Use [security-profiles.md](security-profiles.md) as the canonical selection and compatibility matrix. This file adds provisioning and troubleshooting detail.
+
 ## Runtime fields
 
-- Omit `sandbox.agent.runtime` for the default Docker agent runtime.
+- Omit `sandbox.agent.runtime`, or set it explicitly to `docker`, for the default Docker agent runtime.
 - Set `sandbox.agent.runtime: gvisor` only when the runner has a local Docker daemon and can install or already has `runsc`.
 - Set `sandbox.agent.runtime: docker-sbx` only when the runner supports KVM-backed microVMs.
 - Set `sandbox.agent.runtime: cloud-hypervisor` only for the preview microVM runtime on a GitHub-hosted Ubuntu x86_64 runner with `/dev/kvm`; prefer `docker-sbx` or `gvisor` when those host constraints are not guaranteed.
-- Do not set `sandbox.agent.runtime: docker`; Docker is selected by omitting the field.
 - Do not set `sandbox.agent.runtime: sbx`; `sbx` is only a bounded-query runtime name.
 - Set `runner.topology: arc-dind` for ARC or equivalent Kubernetes runners that use a Docker-in-Docker sidecar. This is a runner topology, not an agent runtime.
 
@@ -29,7 +30,7 @@ Use these instructions when creating or updating workflows that mention Docker, 
 - `sandbox.agent.runtime-install` defaults to `true` for gVisor and Docker sbx provisioning.
 - Set `runtime-install: false` only when the runner image or pod is pre-provisioned with the runtime and required daemon or policy.
 - When any imported workflow sets `runtime-install: false`, false wins during import merging.
-- With `runtime-install: false`, gh-aw skips generated runtime checks and setup, so the runner must already satisfy those prerequisites.
+- With `runtime-install: false`, gh-aw skips generated runtime provisioning and preflight checks, so the runner must already satisfy those prerequisites. Docker sbx credential validation and refresh still run.
 
 ## gVisor guidance
 
@@ -49,8 +50,8 @@ Use these instructions when creating or updating workflows that mention Docker, 
 
 - Preview scope is narrow: GitHub-hosted runners only, Ubuntu Linux x86_64 only, and `/dev/kvm` must be present.
 - The compiler emits host preflight and release-asset provisioning steps that download and checksum-verify the pinned Cloud Hypervisor binary, `virtiofsd`, kernel, rootfs, and supervisor from the `gh-aw-firewall` release before AWF starts, and grants only the runner user scoped read/write access to `/dev/kvm`.
-- AWF launches with the host privileges required to create the VM but keeps strict network isolation; the guest defaults to 2 vCPUs and 4096 MiB, and its trusted topology attachment is limited to the MCP gateway on TCP 8080 (no CLI proxy).
-- Not supported under Cloud Hypervisor: `tools.github.mode: gh-proxy`, the `integrity-reactions` feature, `sandbox.agent.allow-host-ports`, GitHub Actions `services:` with published ports, and `enclaves:` configuration.
+- AWF launches with the host privileges required to create the VM but keeps strict network isolation; the guest defaults to 2 vCPUs and 4096 MiB, and its trusted topology attachment is limited to the MCP gateway on TCP 8080 (no host policy proxy).
+- Not supported under Cloud Hypervisor: `tools.github.mode: cli`, the `integrity-reactions` feature, `sandbox.agent.allow-host-ports`, GitHub Actions `services:` with published ports, and `enclaves:` configuration.
 - Do not recommend this runtime for self-hosted, non-Ubuntu, or non-x86_64 runners; use `docker-sbx` or `gvisor` instead.
 
 ## ARC DinD guidance
@@ -59,3 +60,9 @@ Use these instructions when creating or updating workflows that mention Docker, 
 - Ensure the runner container and DinD sidecar share `/home/runner/_work`.
 - Use a daemon-visible tool cache path such as `/tmp/gh-aw/tool-cache`, not `/opt/hostedtoolcache`.
 - If the Docker socket is bind-mounted at a nonstandard path, set `GH_AW_DOCKER_SOCK_PATH`. Set `GH_AW_DOCKER_SOCK_GID` only when group detection with `stat` fails.
+
+## Migration
+
+- `sandbox.agent.sudo: true` or enabled legacy security migrates to `sandbox.agent.runtime: docker-sudo-iptables`.
+- Removed secure-default fields are dropped when the Docker profile already provides the intended behavior.
+- Run `gh aw fix --write`, then compile and review the generated workflow.

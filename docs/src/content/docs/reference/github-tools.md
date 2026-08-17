@@ -16,8 +16,11 @@ You can enable specific API groups to increase the available tools or narrow the
 ```yaml wrap
 tools:
   github:
+    mode: mcp-local
     toolsets: [repos, issues, pull_requests, actions]
 ```
+
+`toolsets` and `allowed` configure the GitHub MCP server. Do not set them with `tools.github.mode: cli`; use `gh` commands instead.
 
 **Available**: `context`, `repos`, `issues`, `pull_requests`, `users`, `actions`, `code_security`, `discussions`, `labels`, `notifications`, `orgs`, `projects`, `gists`, `search`, `dependabot`, `experiments`, `secret_protection`, `security_advisories`, `stargazers`
 
@@ -98,8 +101,6 @@ tools:
 
 By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. You can also configure the GitHub Tools to be restricted in which repositories can be accessed via the GitHub tools during AI engine execution by using the `tools.github.allowed-repos` setting. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
 
-By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.
-
 ## GitHub Tools Access Modes
 
 The `tools.github.mode` field controls how the agent accesses GitHub. Three values are supported:
@@ -110,7 +111,31 @@ The `tools.github.mode` field controls how the agent accesses GitHub. Three valu
 | `remote` | Hosted GitHub MCP Server managed by GitHub | Requires [additional authentication](#additional-authentication-for-github-tools) |
 | `gh-proxy` | Pre-authenticated `gh` CLI directly (no MCP server) | Preferred for performance; required for [integrity reactions](/gh-aw/reference/integrity/) |
 
-**`remote` mode** — uses a hosted MCP server managed by GitHub. Requires a GitHub token with appropriate permissions:
+See [Security Profile Selection](/gh-aw/reference/security-profiles/) for the compact compatibility matrix across GitHub access, sandbox runtimes, and MCP exposure.
+
+:::note
+The legacy values `gh-proxy` (= `cli`), `local` (= `mcp-local`), and `remote` (= `mcp-remote`) are still accepted for backward compatibility and are automatically migrated by `gh aw fix`. New workflows should use the canonical values above.
+:::
+
+### Default mode resolution
+
+`cli` is the recommended mode and is used by new-workflow scaffolds. For backward compatibility, when `tools.github.mode` is omitted the compiler preserves the existing GitHub MCP behavior rather than silently switching an existing workflow to `cli`. The effective mode is resolved using the first matching rule:
+
+1. Engines without MCP support (e.g. Pi) automatically use `cli` (the compiler writes it during tool normalization).
+2. `features.integrity-reactions: true` → `cli`
+3. Legacy `features.cli-proxy: true` present → `cli`
+4. Otherwise (mode omitted) → `mcp-local` — the historical default, so omitting the mode never changes an existing workflow's behavior.
+
+To opt into CLI access, set `tools.github.mode: cli` explicitly.
+
+### Validation rules
+
+- `toolsets` and `allowed` apply to both MCP modes; `version` and `args` apply only to `mcp-local`. With explicit `tools.github.mode: cli`, all four are ignored and the compiler emits a warning.
+- `features.integrity-reactions` requires CLI access and rejects an explicit MCP mode.
+- `sandbox.agent.runtime: cloud-hypervisor` rejects an explicit `cli` mode; when mode is omitted it resolves to the compatible `mcp-local`.
+- `tools.cli-proxy` and `tools.mcp-mode` cannot both be set — use `tools.mcp-mode: cli`.
+
+**`cli` mode** uses the pre-authenticated `gh` CLI through the host policy proxy. No GitHub MCP server is started, and the token is not exposed to the agent container.
 
 ```yaml wrap
 tools:

@@ -135,6 +135,12 @@ tools:
   cli-proxy: true
 ```
 
+:::note
+The legacy `tools.cli-proxy: true` is still accepted for backward compatibility and is automatically migrated to `tools.mcp-mode: cli` by `gh aw fix`. New workflows should use `tools.mcp-mode: cli`.
+:::
+
+This setting is an MCP exposure mode, not a GitHub access mode. It does not select `tools.github.mode: cli`; configure GitHub access separately. See [Security Profile Selection](/gh-aw/reference/security-profiles/).
+
 With CLI mounting enabled, MCP servers accessible to the workflow (such as `safeoutputs` and `mcpscripts`) are wrapped as executable commands. For example:
 
 ```bash

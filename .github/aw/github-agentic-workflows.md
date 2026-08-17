@@ -20,7 +20,7 @@ applyTo: ".github/workflows/*.md,.github/workflows/**/*.md"
 
 | Persona | Default toolset is enough when... | Name optional tools when... |
 |---|---|---|
-| Program Manager | Digest/report uses GitHub data only (`tools.github.toolsets: [default]`) | Add `cache-memory` only when trend baselines/deltas must persist across runs |
+| Program Manager | Digest/report uses GitHub data through `tools.github.mode: cli` | Add `cache-memory` only when trend baselines/deltas must persist across runs |
 | Designer | PR review is metadata/content-aware via GitHub reads only | Add `playwright` for screenshot/visual checks; add `cache-memory` when baselines or snapshot history are required |
 | Legal / Compliance | Policy/dependency review is repo-state and metadata driven | Add `cache-memory` when recurring audits need prior-run evidence/comparison state |
 
@@ -44,8 +44,7 @@ network:
   allowed: [defaults, github]
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default]
+    mode: cli
 safe-outputs:
   add-comment:
 ---
@@ -65,7 +64,8 @@ See [workflow-editing.md](workflow-editing.md) for when `gh aw compile` is requi
 - Limit `bash` access to what the workflow actually needs.
 - For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
-See [workflow-constraints.md](workflow-constraints.md) for the security posture (read-only job, safe-outputs routing, gh-proxy/cli-proxy, network constraints, sanitized text), safer-alternatives pattern, and common risk areas.
+See [workflow-constraints.md](workflow-constraints.md) for the security posture (read-only job, safe-outputs routing, cli/mcp-mode, network constraints, sanitized text), safer-alternatives pattern, and common risk areas.
+Use [security-profiles.md](security-profiles.md) as the canonical runtime, GitHub access, and MCP exposure decision reference.
 
 ## Repository-Specific Instructions
 
@@ -108,8 +108,7 @@ permissions:
   issues: write
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default]
+    mode: cli
 safe-outputs:
   create-issue:
     close-older-issues: true

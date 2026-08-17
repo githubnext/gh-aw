@@ -157,9 +157,10 @@ If compilation fails, work through errors systematically:
      github:
        mode: remote
    
-   # New format (do NOT include mode: remote - it does not work with GitHub Actions token)
+   # New format for GitHub MCP tools
    tools:
      github:
+       mode: mcp-local
        toolsets: [default]
    ```
 

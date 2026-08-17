@@ -13,6 +13,7 @@ Update existing workflow files in `.github/workflows/`.
 - [workflow-editing.md](workflow-editing.md)
 - [workflow-constraints.md](workflow-constraints.md)
 - [safe-outputs.md](safe-outputs.md)
+- [security-profiles.md](security-profiles.md)
 - [syntax.md](syntax.md)
 
 Load these additional files only when relevant:
@@ -44,7 +45,7 @@ Use [workflow-editing.md](workflow-editing.md) as the source of truth for when r
 - preserve existing style and structure unless reorganization is required
 - do not rewrite unrelated frontmatter sections
 - when targeting the Copilot coding agent, recommend `permissions: { copilot-requests: write }` for Copilot authentication
-- prefer `toolsets:` for GitHub tools
+- use `toolsets:` only with `tools.github.mode: mcp-local` or `mcp-remote`; use `gh` commands with `mode: cli`
 
 See [workflow-constraints.md](workflow-constraints.md) for the read-only security posture (keep the agent job read-only, route writes through `safe-outputs:`).
 

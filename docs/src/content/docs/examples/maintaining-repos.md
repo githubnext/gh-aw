@@ -72,7 +72,7 @@ tools:
     min-integrity: approved
 ```
 
-The compiler handles the rest. With `integrity-reactions: true`, it enables the CLI proxy required for reaction-based integrity decisions, sets `THUMBS_UP` and `HEART` as the default endorsement reactions, sets `THUMBS_DOWN` and `CONFUSED` as the default disapproval reactions, uses `endorser-min-integrity: approved`, and uses `disapproval-integrity: none`.
+The compiler handles the rest. With `integrity-reactions: true`, it selects CLI GitHub access through the host policy proxy, sets `THUMBS_UP` and `HEART` as the default endorsement reactions, sets `THUMBS_DOWN` and `CONFUSED` as the default disapproval reactions, uses `endorser-min-integrity: approved`, and uses `disapproval-integrity: none`.
 
 In practice, a 👍 or ❤️ from a trusted member promotes the item's integrity to `approved`, making it visible to agents that require that level. A 👎 or 😕 from a trusted member demotes the item to `none`.
 

@@ -440,6 +440,7 @@ export default defineConfig({
 								{ label: 'Safe Outputs (Staged Mode)', link: '/reference/staged-mode/' },
 						{ label: 'Safe Outputs (Ephemerals)', link: '/reference/ephemerals/' },
 						{ label: 'Safe Outputs (Footers)', link: '/reference/footers/' },
+						{ label: 'Security Profiles', link: '/reference/security-profiles/' },
 						{ label: 'Sandbox', link: '/reference/sandbox/' },
 						{ label: 'Sandbox (Agent Runtimes)', link: '/reference/agent-runtimes/' },
 						{ label: 'Self-Hosted Runners', link: '/reference/self-hosted-runners/' },
