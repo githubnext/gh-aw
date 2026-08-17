@@ -16,6 +16,7 @@ import (
 )
 
 func TestParseDurationString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -69,6 +70,7 @@ func TestParseDurationString(t *testing.T) {
 }
 
 func TestTruncateString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -137,6 +139,7 @@ func TestTruncateString(t *testing.T) {
 
 // TestDownloadedFilesInAuditData verifies that downloaded files are properly included in audit data
 func TestDownloadedFilesInAuditData(t *testing.T) {
+	t.Parallel()
 	// Create temporary directory with test files
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -226,6 +229,7 @@ func TestDownloadedFilesInAuditData(t *testing.T) {
 
 // TestConsoleOutputIncludesFileInfo verifies console output displays file information
 func TestConsoleOutputIncludesFileInfo(t *testing.T) {
+	t.Parallel()
 	// Create temporary directory
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -280,6 +284,7 @@ func TestConsoleOutputIncludesFileInfo(t *testing.T) {
 
 // TestAuditReportFileListingIntegration demonstrates the complete file listing flow
 func TestAuditReportFileListingIntegration(t *testing.T) {
+	t.Parallel()
 	// Create a realistic audit directory structure
 	tmpDir := testutil.TempDir(t, "audit-integration-*")
 

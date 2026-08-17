@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetAgentTaskToAgentSessionCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	assert.Equal(t, "agent-task-to-agent-session-migration", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetAgentTaskToAgentSessionCodemod(t *testing.T) {
 }
 
 func TestAgentSessionCodemod_BasicMigration(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	content := `---
@@ -49,6 +51,7 @@ safe-outputs:
 }
 
 func TestAgentSessionCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	content := `---
@@ -77,6 +80,7 @@ safe-outputs:
 }
 
 func TestAgentSessionCodemod_PreservesComment(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	content := `---
@@ -105,6 +109,7 @@ safe-outputs:
 }
 
 func TestAgentSessionCodemod_NoSafeOutputsField(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	content := `---
@@ -130,6 +135,7 @@ permissions:
 }
 
 func TestAgentSessionCodemod_NoAgentTaskField(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	content := `---
@@ -158,6 +164,7 @@ safe-outputs:
 }
 
 func TestAgentSessionCodemod_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	content := `---
@@ -193,6 +200,7 @@ safe-outputs:
 }
 
 func TestAgentSessionCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	content := `---
@@ -224,6 +232,7 @@ Creates an agent session.`
 }
 
 func TestAgentSessionCodemod_SkipsWhenSessionAlreadyExists(t *testing.T) {
+	t.Parallel()
 	codemod := getAgentTaskToAgentSessionCodemod()
 
 	content := `---
