@@ -550,6 +550,70 @@ describe("awf_reflect.cjs", () => {
       expect(logs.some(l => l.includes("models fetch returned 503"))).toBe(true);
     });
 
+    it("retries on 429 and eventually succeeds", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce({ ok: false, status: 429, headers: { get: () => null } })
+          .mockResolvedValueOnce({ ok: false, status: 429, headers: { get: () => null } })
+          .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [{ id: "gpt-4o" }] }) })
+      );
+
+      const logs = [];
+      const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
+      expect(result).toEqual(["gpt-4o"]);
+      expect(logs.filter(l => l.includes("retrying (attempt")).length).toBe(2);
+      expect(logs.some(l => l.includes("models fetch returned 429"))).toBe(true);
+      expect(logs.some(l => l.includes("fetched 1 model(s)"))).toBe(true);
+    });
+
+    it("stops retrying after max attempts on repeated 429 responses", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 429, headers: { get: () => null } }));
+
+      const logs = [];
+      const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
+      expect(result).toBeNull();
+      expect(logs.filter(l => l.includes("retrying (attempt")).length).toBe(AWF_MODELS_URL_MAX_ATTEMPTS - 1);
+      expect(logs.some(l => l.includes("models fetch returned 429"))).toBe(true);
+    });
+
+    it("honors a valid Retry-After header when retrying a 429", async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 429, headers: { get: name => (name === "retry-after" ? "3" : null) } })
+        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [{ id: "gpt-4o" }] }) });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const logs = [];
+      const run = fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
+
+      // Let the first attempt settle before advancing timers.
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      // Retry-After: 3 requests a 3000ms wait, but it is capped to AWF_MODELS_URL_RETRY_MAX_MS (2000ms).
+      await vi.advanceTimersByTimeAsync(AWF_MODELS_URL_RETRY_MAX_MS - 1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      const result = await run;
+
+      expect(result).toEqual(["gpt-4o"]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([400, 401, 403])("does not retry a permanent %d response", async status => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status }));
+
+      const logs = [];
+      const result = await fetchModelsFromUrl("http://api-proxy:10000/v1/models", 1000, msg => logs.push(msg));
+      expect(result).toBeNull();
+      expect(logs.some(l => l.includes("retrying (attempt"))).toBe(false);
+      expect(logs.some(l => l.includes(`models fetch returned ${status}`))).toBe(true);
+    });
+
     it("delays initial probe for github-oidc auth when probing api-proxy", async () => {
       vi.useFakeTimers();
       process.env.AWF_AUTH_TYPE = "github-oidc";
