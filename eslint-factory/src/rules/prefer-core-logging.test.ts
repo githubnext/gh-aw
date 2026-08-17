@@ -126,6 +126,41 @@ describe("prefer-core-logging", () => {
     });
   });
 
+  it("invalid: console.log is still flagged in stdio-protocol-owning files — both sides write to stdout", () => {
+    ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
+      valid: [],
+      invalid: [
+        // The stderr → stdout exclusion applied to console.error / console.warn does not
+        // extend to log / info / debug: console.log, console.info and console.debug already
+        // write to stdout, as do core.info and core.debug. The substitution cannot corrupt a
+        // stdio protocol channel that was previously clean, so stdio-owning files such as
+        // mcp_server_core.cjs are still reported.
+        {
+          filename: "actions/setup/js/mcp_server_core.cjs",
+          code: `console.log("server starting");`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: `"server starting"` }, output: `core.info("server starting");` }],
+            },
+          ],
+        },
+        {
+          filename: "actions/setup/js/mcp_cli_bridge.cjs",
+          code: `console.debug("bridge ready");`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "debug", replacement: "core.debug" },
+              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.debug", args: `"bridge ready"` }, output: `core.debug("bridge ready");` }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("invalid: console.debug when core is in scope", () => {
     ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
       valid: [],
