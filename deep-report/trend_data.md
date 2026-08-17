@@ -1,17 +1,17 @@
-## Trend Data (2026-08-16)
+## Trend Data (2026-08-17)
 
-Baseline was 2026-08-14; this cycle's deltas:
+Baseline was 2026-08-16 (18:20Z); this cycle covers only the 14 discussions from the following ~6 hours (a "focus on new data" cycle, not a full re-sweep):
 
-- **Fleet reliability**: 96.93% raw / 97.26% excl. intentional-failures (293 runs) — sharp jump from 79.5-82.1%. Caveat: audit-workflows itself resumed after a 40-day gap, so partly reflects catch-up sampling, not a single fix. Corroborated by agent-job-health (0/15 failures) and #52518 closure.
-- **#52518 (PR-review infra flakiness)**: CLOSED, as predicted last cycle. Retire from watchlist.
-- **Design Decision Gate**: invocation-cap root cause fixed (#52836 merged); SECOND distinct root cause (pr_number/workflow_dispatch hard-fail) found still broken despite #52987 closed-without-fix. Re-filed.
-- **Firewall hostname fix**: not re-checked this cycle (was slated for retirement after 3 clean cycles last time) — resume spot-check if it regresses.
-- **`agenticworkflows logs` timeout**: not re-tested (used only `--count 15`, succeeded). Re-verify ~40-run ceiling next cycle.
-- **Sentrux god_files_ceiling**: now confirmed enforcing (gap from 08-13 resolved). New regression found instead: `api.sentrux.dev` missing from network.allowed (3rd fix attempt after #43655/#40546 closed).
-- **Monitoring-staleness meta-theme (3 agents, flagged 08-14)**: resolved via catch-up runs this cycle, not recurring. Closed as a watch item.
-- **Cross-engine 0-turn crash**: signature spread from Copilot-only to Aider (first) and Crush (2 first) this window — small sample, filed as investigation.
-- **Issue creation**: 7/7 filed, all dedup-checked via `gh api search/issues`. 2 were near-misses caught by direct source verification (1 false-positive not filed, 1 chronic-duplicate not re-filed).
+- **Fleet reliability (new data point)**: 94.76% raw / 94.98% excl.-intentional-failures (420 runs, 24h), prod-main 91.4% — per audit-workflows #53209. This is the audit's first data point after resuming from its 41-day gap; the report itself draws an honest shaded gap rather than a connecting trend line through it, so treat this single point as indicative only, not yet a confirmed new baseline vs. the 2026-08-16 cycle's 96.93%/97.26%.
+- **Cache Strategy Analyzer**: NEW finding — its cache-memory detection jq filter checks a field (`.tools.cache_memory`) that `aw_info.json` has never contained. Verified via source (`generate_aw_info.cjs`, `pkg/cli/logs_models.go`). Explains its "0 of 13" report despite 101/285 (35%) of lockfiles declaring cache-memory. Filed.
+- **Avenger — Bun segfault (#51984)**: 3rd distinct crash address logged (`0x0` this time, after `0x12`/`0x21`) via new recurrence #53238. Commented as duplicate onto #51984.
+- **Avenger — chronic driver_exit**: NEW filing this cycle (19 recurrences, 4 prior closures didn't hold) — this specific symptom (distinct from the Bun segfault) had not been re-filed in the 2026-08-13→08-16 cycles reviewed in prior memory; audit report explicitly recommends considering a schedule-disable stopgap.
+- **`copilot-sdk-driver-failures` (#53180)**: recurrence #25 — 5 rotated workflow names this window (Container Image Security Scan, Firewall Logs Collector, Regression Audit, Code Scanning Fixer, Linter Miner). No new Aider/Crush instances this cycle (stayed at last cycle's 1 Aider + 2 Crush). Commented with new evidence, no new issue.
+- **Audit-workflows cadence**: NEW finding — the audit's own schedule silently didn't fire for 41 days (07-06→08-16), with zero alerting anywhere in the fleet during that gap. Filed as a meta-monitoring gap, distinct from the "3 agents' repo-memory went stale" theme resolved 2026-08-16.
+- **Copilot PR prompt-quality**: confirmed as a stable 6-week trend (2026-07-01 → 2026-08-16), not new this cycle but not previously acted on. Filed a docs task.
+- **MCP `rpc-messages.jsonl` type field**: NEW, unconfirmed finding — 0/202 sampled entries expose the field the report's rubric and our own parser (`gateway_logs_rpc.go`) both expect. Filed explicitly as "needs direct verification," the least-confident of this cycle's 5 filings.
+- **Issue creation**: 5/5 filed, all dedup-checked via `gh api search/issues`. 2 comments added (not counted against issue quota) cross-linking new recurrences onto existing open trackers (#51984, #53180) instead of filing duplicates.
 
-See `last_analysis_timestamp.md` for full narrative detail on each item above.
+See `last_analysis_timestamp.md` for full narrative detail on each item above, `flagged_items.md` for next-cycle watch items.
 
-Next cycle checks: (a) did the 2 new Design Decision Gate issues get real fixes this time, (b) does sentrux firewall regress a 4th time, (c) does Aider/Crush crash signature grow or stay noise, (d) re-confirm firewall-hostname and logs-timeout items which went unchecked this cycle.
+Next cycle checks: (a) did the Cache Strategy Analyzer fix land and start finding real issues, (b) did the Avenger chronic driver_exit get a 5th (hopefully durable) fix attempt, (c) any progress on the audit-workflows 41-day-gap root cause or a heartbeat check, (d) did the prompt-writing guidance doc land, (e) resolve the MCP type-field question one way or the other by pulling a real raw sample, (f) re-check Design Decision Gate pr_number bug and Sentrux `api.sentrux.dev` regression (both unchecked this cycle since neither report appeared in the 14-discussion window), (g) actually re-test the `agenticworkflows logs` timeout ceiling at high `--count` — 2 cycles overdue now.

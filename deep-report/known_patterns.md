@@ -1,30 +1,27 @@
-## DeepReport Memory (2026-08-16T18:20:00Z)
+## DeepReport Memory (2026-08-17T00:26:00Z)
 
-### Standing practice (reconfirmed, load-bearing again this cycle)
-"Closed status on a code-quality issue is not evidence the fix landed — spot-check source directly before assuming 'already fixed'." Caught 2 more stale closures this cycle: Design Decision Gate's `pr_number`/workflow_dispatch hard-fail (#52987 closed, bug still live in source), Sentrux firewall `api.sentrux.dev` block (2 prior closed fixes, still missing from network.allowed). Also applied in reverse this cycle: verified a *reported* gap (Anthropic WIF "undocumented") was actually a false positive by reading source directly — same discipline, both directions.
+### Standing practice (reconfirmed again this cycle)
+"Closed status / a passing report is not evidence a detection or fix actually works — spot-check source directly." This cycle it caught a much more concrete bug than usual: the Daily Cache Strategy Analyzer's core jq detection filter checks `.tools.cache_memory`, a field that `actions/setup/js/generate_aw_info.cjs` (verified directly) never writes into `aw_info.json` at all. That means the analyzer has been structurally incapable of finding any cache-memory-enabled workflow via that snippet — explaining its "0 workflows" report despite 101/285 lockfiles (35% of fleet) using the feature. Filed with a concrete two-option fix. Same discipline applied (more cautiously) to the observability report's MCP `type`-field claim — cross-referenced against the real parser code, but filed as an explicit "needs verification" investigation rather than a confident bug, since it could equally be the report's detection that's wrong.
 
-### Design Decision Gate: two distinct root causes, don't conflate
-(1) LLM invocation-cap — genuinely fixed by merged #52836. (2) `pr_number` codegen hard-fail on bare workflow_dispatch — separate bug, still broken despite #52987's closure. Re-filed cleanly scoped to (2) only, with an explicit note distinguishing it from the already-fixed (1). Lesson: a workflow having "a fix merged" doesn't mean all its failure modes are resolved.
+### Avenger has (at least) two independent chronic failure modes — track separately
+(1) Bun runtime segfault, `#51984` (P0, open) — crash with varying memory address, new recurrence via #53238 (2026-08-16) commented as duplicate. (2) `err-config-no-structured-logs` driver_exit, `Turns=0`/`ErrorCount=0`, no crash — 19 recurrences since ~06-08, 4 prior closures (#44303, #40145, #41885, #39141) that didn't hold, filed fresh this cycle. Do not conflate a fix to one with progress on the other in future cycles.
 
-### Fleet reliability jumped sharply (96.93%/97.26% vs 79.5-82.1%)
-Partly explained by audit-workflows resuming after a 40-day gap (catch-up sampling), but corroborated by multiple independent signals. Treat as probably-real but keep sampling next cycle before fully trusting the new baseline.
+### New meta-category: monitoring-the-monitors
+`audit-workflows` (the fleet's own reliability monitor) silently missed its own schedule for 41 days (2026-07-06 → 2026-08-16), and nothing else caught it. This is a distinct failure class from "an agent's repo-memory went stale" (resolved last cycle) — it's about a *schedule/trigger* silently not firing at all, with zero alerting. Filed fresh, with the audit report's own recommendation (a lightweight heartbeat check across schedule-triggered "daily"/monitor workflows) as the suggested fix shape. Watch whether this actually gets built, or recurs a 2nd time, next cycle.
 
-### Resolved watch-items this cycle (retire from active tracking)
-- #52518 shared PR-review infra flakiness — closed as predicted.
-- Monitoring-staleness meta-theme (3 agents flagged 08-14) — resolved via catch-up runs, did not recur a 4th time.
-- Sentrux `no_god_files` enforcement gap (flagged 08-13) — now actively firing (3 god files found).
+### Prompt-writing guidance: multi-week trend, not a one-off signal
+Copilot PR prompt-analysis has shown the same "concise + concrete prompts merge more" pattern consistently from 2026-07-01 through 2026-08-16 (6+ weeks). Filed this cycle as a quick docs task. Worth checking next cycle whether it landed and whether the declining merge-rate trend (81.2% → 76.7% over that window) responds at all.
 
-### New cross-engine signal: 0-turn Execute CLI crash spreading
-Previously Copilot-only signature (`copilot-sdk-driver-failures`, improving trend). This cycle: first-ever instances on Aider and Crush. Small sample, filed as an investigation task rather than assumed-confirmed.
+### Lesson reinforced: verify report claims against source in BOTH directions
+This cycle: (a) cache-strategy claim ("0 cache-memory workflows") verified TRUE and root-caused via source (a real bug); (b) MCP `type`-field claim verified as *plausible but unconfirmed* — didn't have a raw sample to check, so filed hedged rather than either dismissing or overclaiming. Neither extreme (blind trust, blind dismissal) served correctly here — the middle path (cite what was checked, flag what wasn't) is the right pattern when full verification isn't feasible in one cycle.
 
-### Chronic pattern, deliberately not re-filed (16th would-be duplicate)
-Docs "jargon before first use" complaint (frontmatter/WIF/lock.yml terms used before definition) — filed and closed 15+ times since February across recurring Documentation Noob Test discussions, never durably fixed. Same treatment as the `agenticworkflows logs` timeout bug: flag in report body, don't spend an issue slot on a 16th duplicate. Consider recommending a different escalation path (direct maintainer ping) if this persists past another cycle or two.
+### Resolved / no update needed this cycle (from 2026-08-16 cycle, still holding)
+- #52518 shared PR-review infra flakiness — remains closed, not re-checked this cycle (no new signal).
+- Sentrux god_files_ceiling — not covered in this cycle's 14-discussion window (no sentrux report appeared); nothing new to report.
+- Design Decision Gate pr_number bug (filed 2026-08-16) — not re-verified this cycle (no Design Decision Gate report appeared in the window); re-check next cycle whether it got a real fix.
 
-### `agenticworkflows logs` timeout bug: not re-tested this cycle
-Only used `--count 15` (succeeded, 33.6s) — did not attempt to reconfirm the ~40-run ceiling this cycle. Re-verify next cycle.
-
-### Dedup process that keeps working
-`gh api "search/issues?q=repo:github/gh-aw+is:issue+<keywords>"` (never `gh search issues`/`gh issue list -S`, both documented broken in this env). For any CLOSED match, read/grep current source before skipping — don't trust the closed label alone.
+### Chronic pattern, still deliberately not re-filed
+Docs "jargon before first use" complaint — did not resurface in this cycle's 14-discussion window at all, so nothing new either way. Standing note carried forward: if it recurs, consider recommending a different escalation path (direct maintainer ping) rather than a 17th agent-filed duplicate.
 
 ### Full findings-file cross-reference
-See `extracted-tasks.md` for the 7 issues filed + not-filed rationale this cycle; `flagged_items.md` for next-cycle watch items; `trend_data.md` for the quantitative deltas; `last_analysis_timestamp.md` for full narrative detail per finding.
+See `extracted-tasks.md` for the 5 issues + 2 comments filed this cycle and not-filed rationale; `flagged_items.md` for next-cycle watch items; `trend_data.md` for quantitative deltas; this file's narrative above for full detail per finding.
