@@ -86,7 +86,7 @@ const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
-const { resolveConfiguredCopilotModel } = require("./resolve_model_alias.cjs");
+const { resolveConfiguredCopilotModel, ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 
 const AWF_CONFIG_PATH = process.env.GH_AW_AWF_CONFIG_PATH || "/tmp/gh-aw/awf-config.json";
@@ -341,13 +341,23 @@ function loadAwfConfigData() {
 
 /**
  * Resolve gh-aw model aliases (e.g. "small") to concrete Copilot CLI model ids.
+ *
+ * When the configured model is a known alias but the awf-reflect model catalog is
+ * unavailable (e.g. a transient models-endpoint 429/503), a single bounded catalog
+ * refresh is attempted via `refetchReflectData` before giving up. If the refresh still
+ * cannot produce a catalog, this stops the process before Copilot is spawned rather than
+ * forwarding the unresolved alias — the API proxy would otherwise reject it with a
+ * misleading "no AI credits pricing" error instead of the actual root cause
+ * (see https://github.com/github/gh-aw/issues/52782).
+ *
  * @param {{
  *   awfReflectData: object|null,
  *   logger?: (msg: string) => void,
+ *   refetchReflectData?: () => Promise<object|null>,
  * }} options
- * @returns {string}
+ * @returns {Promise<string>}
  */
-function applyCopilotModelAliasResolution(options) {
+async function applyCopilotModelAliasResolution(options) {
   const logger = options.logger || log;
   const configuredModel = typeof process.env.COPILOT_MODEL === "string" ? process.env.COPILOT_MODEL.trim() : "";
   if (!configuredModel) {
@@ -356,12 +366,36 @@ function applyCopilotModelAliasResolution(options) {
 
   const awfConfig = loadAwfConfigData();
   const aliasMap = awfConfig?.apiProxy?.models;
-  const resolvedModel = resolveConfiguredCopilotModel({
-    configuredModel,
-    aliasMap,
-    reflectData: options.awfReflectData,
-    logger,
-  });
+
+  const tryResolve = (/** @type {object|null} */ reflectData) =>
+    resolveConfiguredCopilotModel({
+      configuredModel,
+      aliasMap,
+      reflectData,
+      logger,
+    });
+
+  let resolvedModel;
+  try {
+    resolvedModel = tryResolve(options.awfReflectData);
+  } catch (err) {
+    if (!(err instanceof ModelAliasResolutionError)) {
+      throw err;
+    }
+    logger(`copilot model alias resolution: retrying awf-reflect model-catalog fetch once before failing for '${configuredModel}'`);
+    const refreshedReflectData = options.refetchReflectData ? await options.refetchReflectData() : null;
+    try {
+      resolvedModel = tryResolve(refreshedReflectData);
+    } catch (retryErr) {
+      if (!(retryErr instanceof ModelAliasResolutionError)) {
+        throw retryErr;
+      }
+      logger(`copilot model alias resolution failed: model-catalog retrieval prevented alias resolution for '${configuredModel}' after a bounded refresh — refusing to start Copilot with an unresolved alias`);
+      process.exit(1);
+      return configuredModel; // unreachable, keeps TypeScript control-flow analysis happy
+    }
+  }
+
   if (resolvedModel && resolvedModel !== configuredModel) {
     process.env.COPILOT_MODEL = resolvedModel;
   }
@@ -1019,7 +1053,17 @@ async function main() {
   }
 
   applyModelFallback(process.env, "COPILOT_MODEL", log);
-  applyCopilotModelAliasResolution({ awfReflectData, logger: log });
+  await applyCopilotModelAliasResolution({
+    awfReflectData,
+    logger: log,
+    refetchReflectData: async () => {
+      if (process.env.AWF_REFLECT_ENABLED !== "1") {
+        return null;
+      }
+      const refreshed = await fetchAWFReflect({ logger: log });
+      return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
+    },
+  });
   applyCopilotWireAPI({ modelsJson: loadModelsJson(), logger: log });
 
   // Pre-flight: skip the agent entirely when a noop has already been written by a prior step.

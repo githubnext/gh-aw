@@ -6,6 +6,26 @@
  */
 
 /**
+ * Dedicated error thrown when a configured model is a known gh-aw alias but the
+ * model catalog needed to resolve it could not be built (e.g. an AWF /reflect
+ * model-catalog fetch failed or returned no models — see
+ * https://github.com/github/gh-aw/issues/52782). Callers must not forward the
+ * unresolved alias to Copilot when this is thrown, because the API proxy will
+ * reject it with a misleading "no AI credits pricing" error rather than the
+ * actual root cause (catalog retrieval failure).
+ */
+class ModelAliasResolutionError extends Error {
+  /**
+   * @param {string} configuredModel
+   */
+  constructor(configuredModel) {
+    super(`model-catalog retrieval prevented alias resolution for '${configuredModel}'`);
+    this.name = "ModelAliasResolutionError";
+    this.configuredModel = configuredModel;
+  }
+}
+
+/**
  * @param {string} model
  * @returns {{ base: string, params: URLSearchParams }}
  */
@@ -273,6 +293,10 @@ function normalizeForCopilotCLI(resolved) {
  *   logger?: (msg: string) => void,
  * }} options
  * @returns {string}
+ * @throws {ModelAliasResolutionError} When `configuredModel` is a known alias key in
+ *   `aliasMap` but alias resolution cannot produce a concrete model from the catalog
+ *   built from `reflectData` (including empty or incomplete catalogs). Callers must not
+ *   forward the unresolved alias to Copilot in this case.
  */
 function resolveConfiguredCopilotModel(options) {
   const configuredModel = String(options.configuredModel || "").trim();
@@ -292,14 +316,18 @@ function resolveConfiguredCopilotModel(options) {
 
   const catalog = buildCatalogFromReflect(options.reflectData);
   if (catalog.length === 0) {
-    logger(`copilot model alias resolution skipped (empty catalog from awf-reflect)`);
-    return configuredModel;
+    // Do not silently forward a known alias unchanged: the API proxy rejects unresolved
+    // aliases with a misleading "no AI credits pricing" error instead of surfacing the
+    // real cause (catalog retrieval failure). Callers should retry/refresh the catalog
+    // and, if it still cannot be built, stop before invoking Copilot.
+    logger(`copilot model alias resolution: catalog unavailable from awf-reflect for known alias '${configuredModel}'`);
+    throw new ModelAliasResolutionError(configuredModel);
   }
 
   const resolved = resolveModelAlias(configuredModel, aliasMap, catalog, { logger });
   if (!resolved) {
-    logger(`copilot model alias resolution: '${configuredModel}' did not resolve against catalog`);
-    return configuredModel;
+    logger(`copilot model alias resolution: known alias '${configuredModel}' did not resolve against catalog`);
+    throw new ModelAliasResolutionError(configuredModel);
   }
 
   const normalized = normalizeForCopilotCLI(resolved);
@@ -313,6 +341,7 @@ module.exports = {
   buildCatalogFromReflect,
   globMatch,
   mergeParams,
+  ModelAliasResolutionError,
   normalizeForCopilotCLI,
   resolveConfiguredCopilotModel,
   resolveModelAlias,
