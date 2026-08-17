@@ -46,13 +46,11 @@ This is a test workflow.`
 
 	result := string(lockContent)
 
-	// Log capture is now done using Claude's --debug-file flag
-	// This provides cleaner, more reliable log capture than shell redirection
 	expected := []string{
-		"--debug-file /tmp/gh-aw/agent-stdio.log",
-		// The log file must be pre-created with restrictive permissions before the
-		// agent starts, so that tee/--debug-file cannot produce a world-readable file.
+		"--debug-file /tmp/gh-aw/agent/claude-debug.log",
 		"(umask 177 && touch /tmp/gh-aw/agent-stdio.log)",
+		"(umask 177 && touch /tmp/gh-aw/agent/claude-debug.log)",
+		"tee -a /tmp/gh-aw/agent-stdio.log",
 	}
 
 	for _, expected := range expected {
@@ -64,6 +62,7 @@ This is a test workflow.`
 	// Verify that the old standalone log-file touch step (pre-permissions-fix) is NOT present
 	// as a bare command (without the umask wrapper).
 	notExpected := []string{
+		"--debug-file /tmp/gh-aw/agent-stdio.log",
 		"cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY",
 		"cat /tmp/gh-aw/agent-stdio.log >> \"$GITHUB_STEP_SUMMARY\"",
 	}

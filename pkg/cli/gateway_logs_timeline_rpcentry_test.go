@@ -148,4 +148,35 @@ func TestRpcEntryToTimelineEvent(t *testing.T) {
 		assert.False(t, ok)
 		assert.Equal(t, UnifiedTimelineEvent{}, evt)
 	})
+
+	t.Run("schema rpc-message/v2 REQUEST OUT with event field (no top-level type) converts", func(t *testing.T) {
+		payload := json.RawMessage(`{"method":"tools/call","params":{"name":"list_issues"}}`)
+
+		entry := RPCMessageEntry{
+			Timestamp: "2024-01-01T12:00:00Z",
+			Event:     "rpc_request",
+			Direction: "OUT",
+			ServerID:  "server-1",
+			Payload:   payload,
+		}
+		evt, ok := rpcEntryToTimelineEvent(entry)
+		require.True(t, ok)
+		assert.Equal(t, TimelineKindToolCall, evt.Kind)
+		assert.Equal(t, "list_issues", evt.ToolName)
+		assert.Equal(t, "server-1", evt.ServerName)
+	})
+
+	t.Run("schema rpc-message/v2 DIFC_FILTERED entry with event field converts", func(t *testing.T) {
+		entry := RPCMessageEntry{
+			Timestamp: "2024-01-01T12:00:00Z",
+			Event:     "difc_filtered",
+			ServerID:  "server-1",
+			ToolName:  "create_issue",
+			Reason:    "secrecy violation",
+		}
+		evt, ok := rpcEntryToTimelineEvent(entry)
+		require.True(t, ok)
+		assert.Equal(t, TimelineKindDIFCFiltered, evt.Kind)
+		assert.Equal(t, "create_issue", evt.ToolName)
+	})
 }

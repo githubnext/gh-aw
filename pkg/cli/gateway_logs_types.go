@@ -126,8 +126,10 @@ type GatewayMetrics struct {
 // exchanged between the AI engine and MCP servers, as well as DIFC_FILTERED events.
 type RPCMessageEntry struct {
 	Timestamp string          `json:"timestamp"`
-	Direction string          `json:"direction"` // "IN" = received from server, "OUT" = sent to server; empty for DIFC_FILTERED
-	Type      string          `json:"type"`      // "REQUEST", "RESPONSE", or "DIFC_FILTERED"
+	Direction string          `json:"direction"`         // "IN" = received from server, "OUT" = sent to server; empty for DIFC_FILTERED
+	Type      string          `json:"type"`              // legacy field: "REQUEST", "RESPONSE", or "DIFC_FILTERED"
+	Event     string          `json:"event,omitempty"`   // schema "rpc-message/v2" field: "rpc_request", "rpc_response", or "difc_filtered"
+	Schema    string          `json:"_schema,omitempty"` // e.g. "rpc-message/v2"
 	ServerID  string          `json:"server_id"`
 	Payload   json.RawMessage `json:"payload"`
 	// Fields populated only for DIFC_FILTERED entries
@@ -140,6 +142,35 @@ type RPCMessageEntry struct {
 	AuthorLogin       string   `json:"author_login,omitempty"`
 	HTMLURL           string   `json:"html_url,omitempty"`
 	Number            string   `json:"number,omitempty"`
+}
+
+// rpcEventToType maps the "event" field values used by the schema "rpc-message/v2"
+// format (written by real Copilot CLI MCP gateway telemetry) to the legacy "type"
+// values ("REQUEST", "RESPONSE", "DIFC_FILTERED") used throughout this codebase.
+// Real-world rpc-messages.jsonl files do not populate a top-level "type" field at
+// all; they use "event" instead (e.g. "rpc_request"/"rpc_response").
+var rpcEventToType = map[string]string{
+	"rpc_request":   "REQUEST",
+	"rpc_response":  "RESPONSE",
+	"difc_filtered": "DIFC_FILTERED",
+}
+
+// EffectiveType returns the logical message type for this entry ("REQUEST",
+// "RESPONSE", or "DIFC_FILTERED"), normalizing across rpc-messages.jsonl schema
+// versions. Older/synthetic files populate the top-level "type" field directly;
+// real production files (schema "rpc-message/v2") use "event" instead. The legacy
+// "type" field takes precedence when both are present, since no known schema
+// version populates both fields with conflicting values; this keeps the contract
+// simple while remaining forward-compatible if a future schema starts setting
+// "type" explicitly again.
+func (e RPCMessageEntry) EffectiveType() string {
+	if e.Type != "" {
+		return e.Type
+	}
+	if mapped, ok := rpcEventToType[e.Event]; ok {
+		return mapped
+	}
+	return e.Event
 }
 
 // rpcRequestPayload represents the JSON-RPC request payload fields we care about.

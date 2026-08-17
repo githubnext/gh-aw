@@ -14,6 +14,8 @@ import (
 
 var claudeLog = logger.New("workflow:claude_engine")
 
+const claudeDebugLogFile = constants.TmpGhAwAgentDir + "claude-debug.log"
+
 // ClaudeEngine represents the Claude Code agentic engine
 type ClaudeEngine struct {
 	BaseEngine
@@ -242,8 +244,8 @@ func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithM
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
 
-	// --debug-file implicitly enables debug mode and captures logs more reliably than 2>&1 | tee.
-	claudeArgs = append(claudeArgs, "--debug-file", logFile, "--verbose")
+	// Keep debug output separate from the stream-json transcript captured by tee.
+	claudeArgs = append(claudeArgs, "--debug-file", claudeDebugLogFile, "--verbose")
 
 	permissionMode := resolveClaudePermissionMode(workflowData)
 	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
@@ -394,7 +396,7 @@ func (e *ClaudeEngine) buildClaudeFullCommand(workflowData *WorkflowData, claude
 			WorkflowData:   workflowData,
 			UsesTTY:        true, // Claude Code CLI requires TTY
 			AllowedDomains: allowedDomains,
-			PathSetup:      "touch " + AgentStepSummaryPath, // Runs BEFORE AWF on the host
+			PathSetup:      "mkdir -p " + constants.TmpGhAwAgentDir + " && (umask 177 && touch " + claudeDebugLogFile + ") && touch " + AgentStepSummaryPath, // Runs BEFORE AWF on the host
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, llmProviderSecretNames(e.ResolveLLMProvider(workflowData))),
@@ -402,16 +404,18 @@ func (e *ClaudeEngine) buildClaudeFullCommand(workflowData *WorkflowData, claude
 	}
 
 	// Run Claude command without AWF wrapper.
-	// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout.
+	// Note: Claude Code CLI writes debug logs to a separate --debug-file and JSON output to stdout.
 	// Use tee to capture stdout (stream-json output) to the log file while also displaying on console.
-	// The combined output (debug logs + JSON) will be in the log file for parsing.
+	// Leave stderr on the workflow log so non-JSON diagnostics cannot corrupt the parser input.
 	// PATH is already set correctly by actions/setup-* steps which prepend to PATH.
 	return fmt.Sprintf(`set -o pipefail
           printf '%%s' "$(date +%%s%%3N)" > %s
           touch %s
           (umask 177 && touch %s)
+          mkdir -p %s
+          (umask 177 && touch %s)
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, claudeCommand, logFile)
+          %s | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, constants.TmpGhAwAgentDir, claudeDebugLogFile, claudeCommand, logFile)
 }
 
 // buildClaudeCommandEnv builds the environment variable map for the Claude execution step.

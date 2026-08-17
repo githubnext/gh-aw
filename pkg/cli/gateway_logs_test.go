@@ -402,6 +402,57 @@ func TestParseRPCMessagesDifcFiltered(t *testing.T) {
 	assert.Equal(t, 2, githubServer.FilteredCount)
 }
 
+// TestParseRPCMessagesSchemaV2Format verifies that parseRPCMessages correctly parses
+// real-world rpc-messages.jsonl entries that use the schema "rpc-message/v2" format:
+// a top-level "event" field ("rpc_request"/"rpc_response") and "_schema" marker instead
+// of the legacy top-level "type" field ("REQUEST"/"RESPONSE"). Regression test for
+// https://github.com/github/gh-aw/issues/53254.
+func TestParseRPCMessagesSchemaV2Format(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `{"timestamp":"2026-08-15T23:48:42.233Z","event":"rpc_request","_schema":"rpc-message/v2","direction":"OUT","server_id":"github","method":"tools/call","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
+{"timestamp":"2026-08-15T23:48:42.259Z","event":"rpc_response","_schema":"rpc-message/v2","direction":"IN","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"result":{}}}
+`
+	logPath := filepath.Join(tmpDir, "rpc-messages.jsonl")
+	require.NoError(t, os.WriteFile(logPath, []byte(content), 0644))
+
+	metrics, err := parseRPCMessages(logPath, false)
+	require.NoError(t, err)
+	require.NotNil(t, metrics)
+
+	assert.Equal(t, 1, metrics.TotalRequests, "should count the REQUEST despite missing top-level 'type'")
+	assert.Equal(t, 1, metrics.TotalToolCalls, "should count the tools/call request as a tool call")
+	require.Len(t, metrics.Servers, 1)
+
+	server := metrics.Servers["github"]
+	require.NotNil(t, server)
+	assert.Equal(t, 1, server.RequestCount)
+	assert.Equal(t, 1, server.ToolCallCount)
+}
+
+// TestRPCMessageEntryEffectiveType verifies the normalization helper used to bridge
+// the legacy top-level "type" field and the "event" field used by schema "rpc-message/v2".
+func TestRPCMessageEntryEffectiveType(t *testing.T) {
+	tests := []struct {
+		name  string
+		entry RPCMessageEntry
+		want  string
+	}{
+		{"legacy type takes precedence", RPCMessageEntry{Type: "REQUEST", Event: "rpc_response"}, "REQUEST"},
+		{"rpc_request maps to REQUEST", RPCMessageEntry{Event: "rpc_request"}, "REQUEST"},
+		{"rpc_response maps to RESPONSE", RPCMessageEntry{Event: "rpc_response"}, "RESPONSE"},
+		{"difc_filtered maps to DIFC_FILTERED", RPCMessageEntry{Event: "difc_filtered"}, "DIFC_FILTERED"},
+		{"unknown event passes through", RPCMessageEntry{Event: "something_else"}, "something_else"},
+		{"empty entry returns empty string", RPCMessageEntry{}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.entry.EffectiveType())
+		})
+	}
+}
+
 func TestGetSortedServerNames(t *testing.T) {
 	metrics := &GatewayMetrics{
 		Servers: map[string]*GatewayServerMetrics{
@@ -794,6 +845,27 @@ func TestBuildToolCallsFromRPCMessagesNullID(t *testing.T) {
 	}
 	assert.True(t, toolNames["list_issues"], "should include list_issues")
 	assert.True(t, toolNames["issue_read"], "should include issue_read")
+}
+
+// TestBuildToolCallsFromRPCMessagesSchemaV2Format verifies that buildToolCallsFromRPCMessages
+// handles the real-world schema "rpc-message/v2" format ("event" field instead of "type").
+func TestBuildToolCallsFromRPCMessagesSchemaV2Format(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	rpcContent := `{"timestamp":"2026-08-15T23:48:42.233Z","event":"rpc_request","_schema":"rpc-message/v2","direction":"OUT","server_id":"github","method":"tools/call","payload":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_issues","arguments":{}}}}
+{"timestamp":"2026-08-15T23:48:42.400Z","event":"rpc_response","_schema":"rpc-message/v2","direction":"IN","server_id":"github","payload":{"jsonrpc":"2.0","id":1,"result":{}}}
+`
+	logPath := filepath.Join(tmpDir, "rpc-messages.jsonl")
+	require.NoError(t, os.WriteFile(logPath, []byte(rpcContent), 0644))
+
+	calls, err := buildToolCallsFromRPCMessages(logPath)
+	require.NoError(t, err, "should build tool calls without error")
+	require.Len(t, calls, 1, "should have 1 tool call")
+
+	assert.Equal(t, "list_issues", calls[0].ToolName)
+	assert.Equal(t, "github", calls[0].ServerName)
+	assert.Equal(t, "success", calls[0].Status)
+	assert.NotEmpty(t, calls[0].Duration, "duration should be set for paired request/response")
 }
 
 func TestParseRPCMessagesGuardPolicyErrors(t *testing.T) {

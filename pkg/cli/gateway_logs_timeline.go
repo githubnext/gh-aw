@@ -214,7 +214,7 @@ func rpcEntryToTimelineEvent(entry RPCMessageEntry) (UnifiedTimelineEvent, bool)
 		ServerName: entry.ServerID,
 	}
 
-	switch entry.Type {
+	switch entry.EffectiveType() {
 	case "DIFC_FILTERED":
 		evt.Kind = TimelineKindDIFCFiltered
 		evt.ToolName = entry.ToolName
