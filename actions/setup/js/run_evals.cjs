@@ -33,7 +33,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { resolveModelWithFallback } = require("./model_fallback.cjs");
@@ -75,7 +75,7 @@ async function setupMain() {
   try {
     fs.mkdirSync(EVALS_DIR, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${EVALS_DIR}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to create directory ${EVALS_DIR}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // Load agent output for evaluation context
@@ -86,12 +86,12 @@ async function setupMain() {
     try {
       stats = fs.statSync(agentOutputPath);
     } catch (err) {
-      throw new Error(`Failed to inspect file ${agentOutputPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to inspect file ${agentOutputPath}: ${getErrorMessage(err)}`, { cause: err });
     }
     try {
       agentOutputContent = fs.readFileSync(agentOutputPath, "utf-8");
     } catch (err) {
-      throw new Error(`Failed to read file ${agentOutputPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to read file ${agentOutputPath}: ${getErrorMessage(err)}`, { cause: err });
     }
     core.info(`Agent output loaded: ${agentOutputPath} (${stats.size} bytes)`);
   } else {
@@ -104,7 +104,7 @@ async function setupMain() {
     fs.mkdirSync("/tmp/gh-aw/aw-prompts", { recursive: true });
     fs.writeFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", prompt);
   } catch (err) {
-    throw new Error(`Failed to prepare eval prompt file: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to prepare eval prompt file: ${getErrorMessage(err)}`, { cause: err });
   }
   core.exportVariable("GH_AW_PROMPT", "/tmp/gh-aw/aw-prompts/prompt.txt");
 
@@ -143,7 +143,7 @@ async function parseMain() {
     try {
       fs.writeFileSync(EVALS_OUTPUT_PATH, "");
     } catch (err) {
-      throw new Error(`Failed to write file ${EVALS_OUTPUT_PATH}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to write file ${EVALS_OUTPUT_PATH}: ${getErrorMessage(err)}`, { cause: err });
     }
     return;
   }
@@ -152,7 +152,7 @@ async function parseMain() {
   try {
     logContent = fs.readFileSync(EVALS_LOG_PATH, "utf-8");
   } catch (err) {
-    throw new Error(`Failed to read file ${EVALS_LOG_PATH}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to read file ${EVALS_LOG_PATH}: ${getErrorMessage(err)}`, { cause: err });
   }
   core.info(`Parsing evals log: ${EVALS_LOG_PATH} (${logContent.length} bytes)`);
 
@@ -195,7 +195,7 @@ async function parseMain() {
   try {
     fs.writeFileSync(EVALS_OUTPUT_PATH, jsonlLines.join("\n") + (jsonlLines.length > 0 ? "\n" : ""));
   } catch (err) {
-    throw new Error(`Failed to write file ${EVALS_OUTPUT_PATH}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${EVALS_OUTPUT_PATH}: ${getErrorMessage(err)}`, { cause: err });
   }
   core.info(`BinEval results written to ${EVALS_OUTPUT_PATH} (${results.length} record(s))`);
   // Step summary rendering is handled by the dedicated render_evals_summary.cjs step

@@ -318,7 +318,7 @@ function resolveExecutionOwnerRepo() {
   if (targetRepoSlug) {
     const parsed = parseRepoSlug(targetRepoSlug);
     if (!parsed) {
-      throw new Error(`Invalid GH_AW_TARGET_REPO_SLUG: "${targetRepoSlug}". Expected exact "owner/repo" format (one slash, non-empty on both sides).`);
+      throw new Error(`${ERR_VALIDATION}: Invalid GH_AW_TARGET_REPO_SLUG: "${targetRepoSlug}". Expected exact "owner/repo" format (one slash, non-empty on both sides).`);
     }
     return parsed;
   }

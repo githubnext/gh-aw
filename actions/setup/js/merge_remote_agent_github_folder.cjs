@@ -98,7 +98,7 @@ function getAllFiles(dir, baseDir = dir) {
   try {
     items = fs.readdirSync(dir);
   } catch (err) {
-    throw new Error(`Failed to read directory ${dir}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to read directory ${dir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   for (const item of items) {
@@ -109,7 +109,7 @@ function getAllFiles(dir, baseDir = dir) {
     try {
       stat = fs.statSync(fullPath);
     } catch (err) {
-      throw new Error(`Failed to inspect path ${fullPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to inspect path ${fullPath}: ${getErrorMessage(err)}`, { cause: err });
     }
 
     if (stat.isDirectory()) {
@@ -262,7 +262,7 @@ function mergeGithubFolder(sourcePath, destPath) {
         sourceContent = fs.readFileSync(sourceFile);
         destContent = fs.readFileSync(destFile);
       } catch (err) {
-        throw new Error(`Failed to read file for merge conflict detection: ${getErrorMessage(err)}`, { cause: err });
+        throw new Error(`${ERR_SYSTEM}: Failed to read file for merge conflict detection: ${getErrorMessage(err)}`, { cause: err });
       }
 
       if (!sourceContent.equals(destContent)) {
@@ -278,7 +278,7 @@ function mergeGithubFolder(sourcePath, destPath) {
         try {
           fs.mkdirSync(destDir, { recursive: true });
         } catch (err) {
-          throw new Error(`Failed to create directory ${destDir}: ${getErrorMessage(err)}`, { cause: err });
+          throw new Error(`${ERR_SYSTEM}: Failed to create directory ${destDir}: ${getErrorMessage(err)}`, { cause: err });
         }
         core.info(`Created directory: ${path.relative(destPath, destDir)}`);
       }
@@ -286,7 +286,7 @@ function mergeGithubFolder(sourcePath, destPath) {
       try {
         fs.copyFileSync(sourceFile, destFile);
       } catch (err) {
-        throw new Error(`Failed to copy file ${sourceFile} to ${destFile}: ${getErrorMessage(err)}`, { cause: err });
+        throw new Error(`${ERR_SYSTEM}: Failed to copy file ${sourceFile} to ${destFile}: ${getErrorMessage(err)}`, { cause: err });
       }
       mergedCount++;
       core.info(`Merged file: ${relativePath}`);
@@ -335,7 +335,7 @@ async function mergeRepositoryGithubFolder(owner, repo, ref, workspace) {
     try {
       fs.mkdirSync(destGithubFolder, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${destGithubFolder}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${destGithubFolder}: ${getErrorMessage(err)}`, { cause: err });
     }
     core.info("Created .github folder in workspace");
   }

@@ -212,7 +212,7 @@ async function main() {
     try {
       fs.writeFileSync(toolsMetaPath, process.env.GH_AW_TOOLS_META_JSON);
     } catch (err) {
-      throw new Error(`Failed to write file ${toolsMetaPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_CONFIG}: Failed to write file ${toolsMetaPath}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
   if (process.env.GH_AW_VALIDATION_JSON) {
@@ -220,7 +220,7 @@ async function main() {
     try {
       fs.writeFileSync(validationPath, process.env.GH_AW_VALIDATION_JSON);
     } catch (err) {
-      throw new Error(`Failed to write file ${validationPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_CONFIG}: Failed to write file ${validationPath}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 
@@ -235,7 +235,7 @@ async function main() {
   try {
     allTools = JSON.parse(fs.readFileSync(toolsSourcePath, "utf8"));
   } catch (err) {
-    throw new Error("Failed to parse tools source file " + toolsSourcePath + ": " + getErrorMessage(err), { cause: err });
+    throw new Error(`${ERR_CONFIG}: ` + "Failed to parse tools source file " + toolsSourcePath + ": " + getErrorMessage(err), { cause: err });
   }
 
   // Load config to determine which tools are enabled
@@ -249,7 +249,7 @@ async function main() {
   try {
     config = JSON.parse(fs.readFileSync(configPath, "utf8"));
   } catch (err) {
-    throw new Error("Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
+    throw new Error(`${ERR_CONFIG}: ` + "Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
   }
 
   // Load tools meta (description suffixes, repo params, dynamic tools)
@@ -259,7 +259,7 @@ async function main() {
     try {
       toolsMeta = JSON.parse(fs.readFileSync(toolsMetaPath, "utf8"));
     } catch (err) {
-      throw new Error("Failed to parse tools meta file " + toolsMetaPath + ": " + getErrorMessage(err), { cause: err });
+      throw new Error(`${ERR_CONFIG}: ` + "Failed to parse tools meta file " + toolsMetaPath + ": " + getErrorMessage(err), { cause: err });
     }
   }
 
@@ -279,7 +279,7 @@ async function main() {
       try {
         enhancedTool = JSON.parse(JSON.stringify(tool));
       } catch (err) {
-        throw new Error("Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
+        throw new Error(`${ERR_CONFIG}: ` + "Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
       }
 
       // Apply description suffix if available (e.g., " CONSTRAINTS: Maximum 5 issues.")
@@ -396,7 +396,7 @@ async function main() {
   try {
     fs.writeFileSync(outputPath, JSON.stringify(allFilteredTools, null, 2));
   } catch (err) {
-    throw new Error(`Failed to write file ${outputPath}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_CONFIG}: Failed to write file ${outputPath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   const debugEnabled = process.env.DEBUG === "*" || (process.env.DEBUG || "").includes("safe_outputs");
