@@ -735,6 +735,7 @@ async function main() {
       const routeReaction = normalizeReaction(route?.ai_reaction);
       const awContext = {
         ...buildAwContext(),
+        event_type: identifier,
         command_name: "",
         ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
       };
@@ -802,6 +803,7 @@ async function main() {
     const routeReaction = normalizeReaction(route?.ai_reaction);
     const awContext = {
       ...buildAwContext(),
+      event_type: identifier,
       command_name: commandName,
       ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
       ...(maintainsStatusComment(route) && statusCommentContext ? statusCommentContext : {}),

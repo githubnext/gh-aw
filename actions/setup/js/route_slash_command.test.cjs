@@ -544,6 +544,7 @@ describe("route_slash_command", () => {
     expect(reactionCalls).toHaveLength(1);
     const awContext = JSON.parse(dispatchCalls[0].inputs.aw_context);
     expect(awContext.command_name).toBe("archie");
+    expect(awContext.event_type).toBe("pull_request");
   });
 
   it("adds immediate reaction for pull_request_review_comment events using comment id", async () => {

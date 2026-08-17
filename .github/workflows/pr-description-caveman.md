@@ -39,9 +39,17 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent/chunks
+
+      # The checkout above only fetches history reachable from the base
+      # repository's refs. A merged fork PR's head.sha (especially after a
+      # squash/rebase merge) may not be present there, so fetch the pull
+      # request ref explicitly — without checking it out — to make the head
+      # commit available for the diffs below.
+      git fetch --no-tags --quiet origin "refs/pull/${PR_NUMBER}/head:refs/gh-aw/pr-${PR_NUMBER}/head" || true
 
       EXCLUSIONS=(
         ':!*.lock.yml' ':!*.lock' ':!*-lock.json' ':!yarn.lock'
