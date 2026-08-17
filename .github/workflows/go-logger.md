@@ -226,6 +226,13 @@ Use `/tmp/gh-aw/agent/go-logger/manifest.json` as the source of truth for:
 - `missing_logger_import`
 - `candidate_call_sites`
 
+### 1.5. Keep Selection Deterministic and Bounded
+
+- Do **not** launch sub-agents for file discovery or complexity scoring.
+- Do **not** scan `pkg/` broadly once `manifest.json` is available.
+- Select files only from `files_needing_logger` in `manifest.json`.
+- If more than 5 files are listed, take the first 5 entries and continue directly to edits.
+
 ### 2. Select Files for Enhancement
 
 From the list of Go files:
