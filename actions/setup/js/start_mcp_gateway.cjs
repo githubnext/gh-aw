@@ -30,7 +30,7 @@ require("./shim.cjs");
  * - GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES: JSON array of custom gateway environment variable names
  */
 
-const { spawn, execSync } = require("child_process");
+const { spawn, execFileSync, execSync } = require("child_process");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
@@ -923,7 +923,7 @@ async function main() {
   if (converterFile) {
     core.info(`Using ${engineType} converter...`);
     const converterPath = path.join(runnerTemp || "", "gh-aw/actions", converterFile);
-    execSync(`node "${converterPath}"`, { stdio: "inherit", env: process.env });
+    execFileSync("node", [converterPath], { stdio: "inherit", env: process.env });
   } else {
     let copilotConfigDir, copilotConfigFile;
     try {
@@ -995,7 +995,7 @@ async function main() {
     // as a shell argument to avoid shell metacharacter injection risks.
     const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
     try {
-      execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${safePort}" "$MCP_GATEWAY_API_KEY"`, {
+      execFileSync("bash", [checkScript, outputPath, `http://localhost:${safePort}`, process.env.MCP_GATEWAY_API_KEY || ""], {
         stdio: "inherit",
         env: { ...process.env, GH_AW_MCP_OPTIONAL_SERVERS: optionalServerNames.join(",") },
       });
