@@ -50,9 +50,6 @@ const {
   isLabelTransientError,
   parseAllowedBaseBranches,
   isBaseBranchAllowed,
-  parseStackMetadata,
-  hasCircularStackDependency,
-  buildStackMetadataLines,
   parseStringListConfig,
   mergeFallbackIssueLabels,
   sanitizeFallbackAssignees,
@@ -62,6 +59,7 @@ const {
   renderManifestProtectionFallbackBody,
   buildPushErrorSection,
 } = require("./create_pull_request_helpers.cjs");
+const { isStackedEnabled, parseStackMetadata, hasCircularStackDependency, buildStackMetadataLines, stackedDisabledError, circularStackError, verifyStackBaseBranchExists, createStackTracker } = require("./stacked_pull_requests.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -774,21 +772,11 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const allowedBaseBranches = parseAllowedBaseBranches(config.allowed_base_branches);
   // Stacked pull requests (a pull request whose base branch is another pull request branch) are
-  // enabled by default. They can be disabled with `enable-stacked-prs: false` (or the
-  // `stacked-prs-disabled: true` alias) for GitHub Enterprise Server and other instances that do
-  // not support the feature.
-  const stackedPullRequestsEnabled = config.enable_stacked_prs !== false;
-  /**
-   * Pull requests created earlier in this run, keyed by both the agent-provided branch name and
-   * the effective (prefixed/salted) branch name so a later message can stack on top of them.
-   * @type {Map<string, {branch: string, number: number, url: string, repo: string}>}
-   */
-  const stackBranches = new Map();
-  /**
-   * Effective branch name -> base branch it was created from, used for circular dependency detection.
-   * @type {Map<string, string>}
-   */
-  const stackParents = new Map();
+  // enabled by default. They can be disabled with `stacked: false` for GitHub Enterprise Server
+  // and other instances that do not support the feature.
+  const stackedPullRequestsEnabled = isStackedEnabled(config);
+  // Tracks the pull requests created so far in this run so later messages can stack on top of them.
+  const stackTracker = createStackTracker();
   const githubClient = await createAuthenticatedGitHubClient(config);
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
@@ -909,7 +897,7 @@ async function main(config = {}) {
     core.info(`Allowed base branches: ${Array.from(allowedBaseBranches).join(", ")}`);
   }
   if (!stackedPullRequestsEnabled) {
-    core.info("Stacked pull requests are disabled (enable-stacked-prs: false)");
+    core.info("Stacked pull requests are disabled (stacked: false)");
   }
   if (envLabels.length > 0) {
     core.info(`Default labels: ${envLabels.join(", ")}`);
@@ -1050,7 +1038,7 @@ async function main(config = {}) {
     // Stacked pull request metadata declared by the agent (position/root/dependencies).
     const stackMetadata = parseStackMetadata(pullRequestItem);
     // Pull request created earlier in this run that this pull request stacks on top of.
-    /** @type {{branch: string, number: number, url: string, repo: string} | null} */
+    /** @type {import("./stacked_pull_requests.cjs").StackEntry | null} */
     let stackBaseEntry = null;
 
     // Optional agent-provided base branch override.
@@ -1070,20 +1058,14 @@ async function main(config = {}) {
         const isStackedRequest = requestedBaseBranchRaw !== defaultBaseBranch;
         if (isStackedRequest && !stackedPullRequestsEnabled) {
           core.warning(`Rejecting base branch override ${requestedBaseBranchForLog}: stacked pull requests are disabled`);
-          return {
-            success: false,
-            error:
-              `Stacked pull requests are disabled for this workflow, so base branch '${requestedBaseBranchRaw}' cannot be used. ` +
-              `Target the default base branch '${defaultBaseBranch}' instead, or remove safe-outputs.create-pull-request.enable-stacked-prs: false ` +
-              `(and stacked-prs-disabled) if this GitHub instance supports stacked pull requests. GitHub Enterprise Server may not support them.`,
-          };
+          return { success: false, error: stackedDisabledError(requestedBaseBranchRaw, defaultBaseBranch) };
         }
 
         // Branch created by an earlier pull request in this run: the branch name may have been
         // salted/prefixed, so resolve it to the branch that was actually pushed. No allowlist check
         // is required because the branch was created by this same run.
-        const previousStackEntry = stackBranches.get(requestedBaseBranchRaw);
-        if (isStackedRequest && previousStackEntry && previousStackEntry.repo === itemRepo) {
+        const previousStackEntry = stackTracker.get(requestedBaseBranchRaw, itemRepo);
+        if (isStackedRequest && previousStackEntry) {
           stackBaseEntry = previousStackEntry;
           baseBranch = previousStackEntry.branch;
           core.info(`Stacking on pull request #${previousStackEntry.number} (base branch ${baseBranch})`);
@@ -1223,25 +1205,9 @@ async function main(config = {}) {
       // work so the failure is reported with actionable guidance instead of an opaque API error.
       // Branches created earlier in this run are known to exist and are not re-checked.
       if (isStackedPullRequest && !stackBaseEntry) {
-        const getBranchApi = githubClient?.rest?.repos?.getBranch;
-        if (typeof getBranchApi === "function") {
-          try {
-            await githubClient.rest.repos.getBranch({ owner: repoParts.owner, repo: repoParts.repo, branch: baseBranch });
-            core.info(`Base branch ${baseBranch} exists in ${itemRepo}`);
-          } catch (baseBranchError) {
-            const status = /** @type {{ status?: number }} */ (baseBranchError || {}).status;
-            if (status === 404) {
-              const error =
-                `Base branch '${baseBranch}' does not exist in ${itemRepo}, so the stacked pull request cannot be created. ` +
-                `Create the pull request that owns '${baseBranch}' first (stacked pull requests must be emitted in dependency order), ` +
-                `or target the default base branch '${defaultBaseBranch}'.`;
-              core.warning(error);
-              return { success: false, error };
-            }
-            core.warning(`Could not verify base branch ${baseBranch} in ${itemRepo}: ${getErrorMessage(baseBranchError)}`);
-          }
-        } else {
-          core.warning(`Skipping base branch existence check for ${baseBranch}: repos.getBranch API is not available`);
+        const baseBranchCheck = await verifyStackBaseBranchExists(githubClient, repoParts, baseBranch, itemRepo, defaultBaseBranch);
+        if (!baseBranchCheck.success) {
+          return baseBranchCheck;
         }
       }
 
@@ -1650,14 +1616,7 @@ async function main(config = {}) {
       if (stackBaseEntry && !stackDependencyBranches.includes(stackBaseEntry.branch)) {
         stackDependencyBranches.unshift(stackBaseEntry.branch);
       }
-      /** @type {number[]} */
-      const dependsOnPullRequests = [];
-      for (const dependencyBranch of stackDependencyBranches) {
-        const entry = stackBranches.get(dependencyBranch);
-        if (entry && entry.repo === itemRepo && !dependsOnPullRequests.includes(entry.number)) {
-          dependsOnPullRequests.push(entry.number);
-        }
-      }
+      const dependsOnPullRequests = stackTracker.resolveDependencies(stackDependencyBranches, itemRepo);
       const stackMetadataLines = buildStackMetadataLines({
         base: isStackedPullRequest ? baseBranch : null,
         position: stackMetadata.position,
@@ -1787,8 +1746,8 @@ async function main(config = {}) {
       // Reject stacks that would depend on themselves: the requested base (or one of its ancestors
       // in this run) is the branch of the pull request being created.
       const stackBranchAliases = [branchName, originalAgentBranch];
-      if (hasCircularStackDependency(stackBranchAliases, baseBranch, stackParents) || stackMetadata.dependencies.some(dependency => stackBranchAliases.includes(dependency))) {
-        const error = `Circular stacked pull request dependency detected: branch '${branchName}' cannot depend on base branch '${baseBranch}'. Review the stack order and the dependencies field.`;
+      if (hasCircularStackDependency(stackBranchAliases, baseBranch, stackTracker.parents) || stackMetadata.dependencies.some(dependency => stackBranchAliases.includes(dependency))) {
+        const error = circularStackError(branchName, baseBranch);
         core.warning(error);
         return { success: false, error };
       }
@@ -2569,12 +2528,7 @@ ${patchPreview}`;
 
         // Record this pull request so later messages in the same run can stack on top of it.
         // Both the agent-provided branch name and the effective (prefixed/salted) name are keys.
-        const stackEntry = { branch: branchName, number: pullRequest.number, url: pullRequest.html_url, repo: itemRepo };
-        stackBranches.set(branchName, stackEntry);
-        if (originalAgentBranch) {
-          stackBranches.set(originalAgentBranch, stackEntry);
-        }
-        stackParents.set(branchName, baseBranch);
+        stackTracker.record({ branch: branchName, number: pullRequest.number, url: pullRequest.html_url, repo: itemRepo }, { agentBranch: originalAgentBranch, baseBranch });
 
         // Add labels if specified
         if (labels.length > 0) {

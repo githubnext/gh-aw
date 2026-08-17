@@ -4659,7 +4659,7 @@ describe("create_pull_request - stacked pull requests", () => {
 
   it("rejects a stacked pull request when stacked pull requests are disabled", async () => {
     const { main } = require("./create_pull_request.cjs");
-    const handler = await main({ allow_empty: true, max: 2, preserve_branch_name: true, enable_stacked_prs: false });
+    const handler = await main({ allow_empty: true, max: 2, preserve_branch_name: true, stacked: false });
 
     const first = await handler({ title: "First", body: "First body", branch: "feature-1" }, {});
     expect(first.success).toBe(true);
@@ -4674,7 +4674,7 @@ describe("create_pull_request - stacked pull requests", () => {
 
   it("still allows the default base branch when stacked pull requests are disabled", async () => {
     const { main } = require("./create_pull_request.cjs");
-    const handler = await main({ allow_empty: true, enable_stacked_prs: false });
+    const handler = await main({ allow_empty: true, stacked: false });
 
     const result = await handler({ title: "Test PR", body: "Test body", base: "main", stack_position: 1 }, {});
 

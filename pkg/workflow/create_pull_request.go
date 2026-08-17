@@ -29,21 +29,14 @@ func isCloseOlderPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
 	return v != "" && v != "false" && v != "0"
 }
 
-// isStackedPullRequestsEnabled returns the effective enable-stacked-prs setting (defaults to true).
-// `stacked-prs-disabled: true` is an alias for `enable-stacked-prs: false` and takes precedence,
-// so instances without stacked pull request support (e.g. GitHub Enterprise Server) can turn the
-// feature off with a single flag.
+// isStackedPullRequestsEnabled returns the effective `stacked` setting (defaults to true).
+// Instances without stacked pull request support (e.g. GitHub Enterprise Server) turn the feature
+// off with `stacked: false`.
 func isStackedPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
-	if config == nil {
+	if config == nil || config.Stacked == nil {
 		return true
 	}
-	if config.StackedPRsDisabled != nil && *config.StackedPRsDisabled {
-		return false
-	}
-	if config.EnableStackedPRs != nil {
-		return *config.EnableStackedPRs
-	}
-	return true
+	return *config.Stacked
 }
 
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
@@ -68,8 +61,7 @@ type CreatePullRequestsConfig struct {
 	AllowedRepos                   []string         `yaml:"allowed-repos,omitempty"`                       // List of additional repositories that pull requests can be created in (additionally to the target-repo)
 	AllowedBaseBranches            []string         `yaml:"allowed-base-branches,omitempty"`               // List of allowed base branch globs (e.g. "release/*"). Enables agent-provided `base` override when configured.
 	AllowedBranches                []string         `yaml:"allowed-branches,omitempty"`                    // List of allowed source branch globs (e.g. "feature/*"). Branch in create_pull_request payload must match when configured.
-	EnableStackedPRs               *bool            `yaml:"enable-stacked-prs,omitempty"`                  // When false, rejects any pull request whose base branch is not the default base branch. Defaults to true on github.com; set to false on GitHub Enterprise Server instances without stacked pull request support.
-	StackedPRsDisabled             *bool            `yaml:"stacked-prs-disabled,omitempty"`                // Alias for `enable-stacked-prs: false`. When true, stacked pull request support is disabled entirely.
+	Stacked                        *bool            `yaml:"stacked,omitempty"`                             // When false, rejects any pull request whose base branch is not the default base branch. Defaults to true; set to false on GitHub Enterprise Server instances without stacked pull request support.
 	MaxPatchSize                   int              `yaml:"max-patch-size,omitempty"`                      // Maximum allowed patch size in KB for create-pull-request only. Overrides safe-outputs.max-patch-size when set.
 	MaxPatchFiles                  int              `yaml:"max-patch-files,omitempty"`                     // Maximum allowed unique files in create-pull-request patch only. Overrides safe-outputs.max-patch-files when set.
 	Expires                        int              `yaml:"expires,omitempty"`                             // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)

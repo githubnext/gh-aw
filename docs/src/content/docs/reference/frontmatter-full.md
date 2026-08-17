@@ -2075,15 +2075,19 @@ sandbox:
   # (optional)
   # Accepted formats:
 
-  # Format 1: Set to false to disable the agent sandbox (firewall). Warning: This
+  # Format 1: Null (an empty 'agent:' key) leaves the agent sandbox at its default
+  # of 'awf'
+  agent: null
+
+  # Format 2: Set to false to disable the agent sandbox (firewall). Warning: This
   # removes firewall protection but keeps the MCP gateway enabled. Not allowed in
   # strict mode.
   agent: true
 
-  # Format 2: Sandbox type: 'awf' for Agent Workflow Firewall
+  # Format 3: Sandbox type: 'awf' for Agent Workflow Firewall
   agent: "awf"
 
-  # Format 3: Custom sandbox runtime configuration
+  # Format 4: Custom sandbox runtime configuration
   agent:
     # Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow
     # Firewall
@@ -8983,12 +8987,7 @@ safe-outputs:
     # stacked pull request support: create_pull_request outputs requesting a
     # non-default base branch are then rejected with an explanatory error.
     # (optional)
-    enable-stacked-prs: true
-
-    # Alias for 'enable-stacked-prs: false'. When true, stacked pull request support
-    # is disabled entirely and takes precedence over 'enable-stacked-prs'.
-    # (optional)
-    stacked-prs-disabled: true
+    stacked: true
 
     # Maximum allowed size for git patches in kilobytes (KB) for create-pull-request
     # only. Overrides safe-outputs max-patch-size for this output type. Defaults to
@@ -14604,6 +14603,11 @@ safe-outputs:
     # before applying other updates. Defaults to false.
     # (optional)
     update-branch: true
+
+    # When true, allow stacked-PR stack-sync fallback when update-branch is
+    # unsupported. Defaults to true. Set to false to disable stacked-PR sync fallback.
+    # (optional)
+    update-branch.stacks: true
 
     # Default operation for body updates: 'append' (add to end), 'prepend' (add to
     # start), or 'replace' (overwrite completely). Defaults to 'replace' if not

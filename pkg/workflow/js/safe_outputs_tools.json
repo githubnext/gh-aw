@@ -377,7 +377,7 @@
         },
         "base": {
           "type": "string",
-          "description": "Target base branch for the pull request. This override is only allowed when workflow configuration sets safe-outputs.create-pull-request.allowed-base-branches and the value matches one of those patterns, or when it names the branch of a pull request created earlier in the same run (a stacked pull request). Stacked pull requests are rejected when safe-outputs.create-pull-request.enable-stacked-prs is false."
+          "description": "Target base branch for the pull request. This override is only allowed when workflow configuration sets safe-outputs.create-pull-request.allowed-base-branches and the value matches one of those patterns, or when it names the branch of a pull request created earlier in the same run (a stacked pull request). Stacked pull requests are rejected when safe-outputs.create-pull-request.stacked is false."
         },
         "stack_position": {
           "type": ["number", "string"],

@@ -1846,24 +1846,14 @@ func TestParsePullRequestsConfigStackedPullRequests(t *testing.T) {
 			expectEnabled: true,
 		},
 		{
-			name:          "disabled with enable-stacked-prs",
-			config:        map[string]any{"enable-stacked-prs": false},
+			name:          "disabled with stacked: false",
+			config:        map[string]any{"stacked": false},
 			expectEnabled: false,
 		},
 		{
 			name:          "enabled explicitly",
-			config:        map[string]any{"enable-stacked-prs": true},
+			config:        map[string]any{"stacked": true},
 			expectEnabled: true,
-		},
-		{
-			name:          "disabled with stacked-prs-disabled alias",
-			config:        map[string]any{"stacked-prs-disabled": true},
-			expectEnabled: false,
-		},
-		{
-			name:          "stacked-prs-disabled takes precedence",
-			config:        map[string]any{"enable-stacked-prs": true, "stacked-prs-disabled": true},
-			expectEnabled: false,
 		},
 	}
 
@@ -1885,16 +1875,16 @@ func TestParsePullRequestsConfigStackedPullRequests(t *testing.T) {
 }
 
 func TestCreatePullRequestHandlerConfigStackedPullRequests(t *testing.T) {
-	disabled := true
-	cfgDisabled := &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{StackedPRsDisabled: &disabled}}
+	disabled := false
+	cfgDisabled := &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{Stacked: &disabled}}
 	handlerConfig := handlerRegistry["create_pull_request"](cfgDisabled)
-	if got, ok := handlerConfig["enable_stacked_prs"]; !ok || got != false {
-		t.Errorf("expected enable_stacked_prs=false in handler config, got %v (present=%v)", got, ok)
+	if got, ok := handlerConfig["stacked"]; !ok || got != false {
+		t.Errorf("expected stacked=false in handler config, got %v (present=%v)", got, ok)
 	}
 
 	cfgDefault := &SafeOutputsConfig{CreatePullRequests: &CreatePullRequestsConfig{}}
 	handlerConfig = handlerRegistry["create_pull_request"](cfgDefault)
-	if _, ok := handlerConfig["enable_stacked_prs"]; ok {
-		t.Error("expected enable_stacked_prs to be omitted when stacked pull requests are enabled")
+	if _, ok := handlerConfig["stacked"]; ok {
+		t.Error("expected stacked to be omitted when stacked pull requests are enabled")
 	}
 }

@@ -49,7 +49,7 @@ safe-outputs:
     allowed-branches:             # restrict agent-selected source branch names (glob patterns)
       - feature/*
       - release/*
-    enable-stacked-prs: true      # allow stacked pull requests (default: true)
+    stacked: true                 # allow stacked pull requests (default: true)
     fallback-as-issue: false      # disable issue fallback (default: true)
     auto-close-issue: false       # don't auto-add "Fixes #N" to PR description (default: true)
     normalize-closing-keywords: true # strip backticks around recognized issue-closing keywords in PR body text
@@ -117,7 +117,7 @@ Stacked pull requests may not be available on GitHub Enterprise Server or other 
 ```yaml wrap
 safe-outputs:
   create-pull-request:
-    enable-stacked-prs: false     # or: stacked-prs-disabled: true
+    stacked: false
 ```
 
 When disabled, any `create_pull_request` output whose `base` differs from the configured/default base branch is rejected with an error that suggests targeting the default base branch or re-enabling the feature where it is supported. Pull requests targeting the default base branch keep working, and `stack_position`, `stack_root`, and `dependencies` metadata is still recorded in the pull request body, so a workflow can be migrated between instances without editing the agent prompt.
@@ -127,7 +127,7 @@ When disabled, any `create_pull_request` output whose `base` differs from the co
 1. Raise `max` to the number of pull requests in the stack (default is `1`).
 2. Set `preserve-branch-name: true` so each `base` value matches the branch name the agent used previously.
 3. Instruct the agent to emit the pull requests root-first and to set `base` to the previous branch in the stack.
-4. On GitHub Enterprise Server, add `enable-stacked-prs: false` and keep the agent targeting the default base branch.
+4. On GitHub Enterprise Server, add `stacked: false` and keep the agent targeting the default base branch.
 
 Limitations and best practices: keep stacks small (three to four pull requests), always emit them in dependency order, merge from the root of the stack upward, and prefer explicit `branch`/`base` names over auto-generated ones so the stack stays readable.
 

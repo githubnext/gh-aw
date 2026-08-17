@@ -613,7 +613,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		// Stacked pull requests are enabled by default; only emit the flag when disabled
 		// (e.g. GitHub Enterprise Server instances without stacked pull request support).
 		if !isStackedPullRequestsEnabled(c) {
-			builder.AddDefault("enable_stacked_prs", false)
+			builder.AddDefault("stacked", false)
 		}
 		// Use app-minted token if head-github-app is configured; fall back to head-github-token.
 		if c.HeadGitHubApp != nil {
