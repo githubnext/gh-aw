@@ -228,6 +228,21 @@ jobs:
 `,
 			expectError: false,
 		},
+		{
+			name: "issue field activity types pass",
+			yamlContent: `
+name: Test
+on:
+  issues:
+    types: [typed, untyped, field_added, field_removed]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`,
+			expectError: false,
+		},
 		// Note: We can't easily test invalid YAML here because the schema validation
 		// happens after YAML parsing, and most errors would be caught by the parser first.
 		// The enhancement is verified through the unit tests above.
