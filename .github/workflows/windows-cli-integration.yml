@@ -645,15 +645,16 @@ jobs:
       - name: Create failure issue
         if: steps.evaluate.outputs.failed == 'true'
         env:
+          FAILED_JOBS: ${{ steps.evaluate.outputs.failed_jobs }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           gh issue create \
             --repo "${{ github.repository }}" \
-            --title "❌ Windows integration failure: ${{ steps.evaluate.outputs.failed_jobs }}" \
+            --title "❌ Windows integration failure: ${FAILED_JOBS}" \
             --body "## Windows CLI Integration Failure
 
-          **Failed jobs:** ${{ steps.evaluate.outputs.failed_jobs }}
+          **Failed jobs:** ${FAILED_JOBS}
 
           **Run:** ${RUN_URL}
 
