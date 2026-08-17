@@ -22,3 +22,5 @@
 {"id":"forecast_report_created","question":"Did the agent create a report with spending projections and supporting evidence?","answer":"YES","model":"evals","timestamp":"2026-08-15T10:01:50.888Z","runid":"31877723209"}
 {"id":"spending_forecast_analyzed","question":"Did the agent analyze the agentic workflow spending forecast and its data quality?","answer":"YES","model":"evals","timestamp":"2026-08-16T10:00:16.012Z","runid":"31939814112"}
 {"id":"forecast_report_created","question":"Did the agent create a report with spending projections and supporting evidence?","answer":"YES","model":"evals","timestamp":"2026-08-16T10:00:16.012Z","runid":"31939814112"}
+{"id":"spending_forecast_analyzed","question":"Did the agent analyze the agentic workflow spending forecast and its data quality?","answer":"YES","model":"evals","timestamp":"2026-08-17T10:08:52.476Z","runid":"32017317804"}
+{"id":"forecast_report_created","question":"Did the agent create a report with spending projections and supporting evidence?","answer":"YES","model":"evals","timestamp":"2026-08-17T10:08:52.476Z","runid":"32017317804"}
