@@ -46,6 +46,215 @@ func checkMaxField(toolName string, maxPtr *string) error {
 	return nil
 }
 
+type maxFieldCheck struct {
+	toolName string
+	maxPtr   *string
+}
+
+func validateStandardMaxFields(config *SafeOutputsConfig) error {
+	checks := buildStandardMaxChecks(config)
+
+	for _, check := range checks {
+		if err := checkMaxField(check.toolName, check.maxPtr); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func buildStandardMaxChecks(config *SafeOutputsConfig) []maxFieldCheck {
+	checks := []maxFieldCheck{}
+	appendChecksGroup1(config, &checks)
+	appendChecksGroup2(config, &checks)
+	appendChecksGroup3(config, &checks)
+	appendChecksGroup4(config, &checks)
+	appendChecksGroup5(config, &checks)
+	return checks
+}
+
+func appendChecksGroup1(config *SafeOutputsConfig, checks *[]maxFieldCheck) {
+	if config.AddComments != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "add_comment", maxPtr: config.AddComments.Max})
+	}
+	if config.AddLabels != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "add_labels", maxPtr: config.AddLabels.Max})
+	}
+	if config.AddReviewer != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "add_reviewer", maxPtr: config.AddReviewer.Max})
+	}
+	if config.AssignMilestone != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "assign_milestone", maxPtr: config.AssignMilestone.Max})
+	}
+	if config.AssignToAgent != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "assign_to_agent", maxPtr: config.AssignToAgent.Max})
+	}
+	if config.AssignToUser != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "assign_to_user", maxPtr: config.AssignToUser.Max})
+	}
+	if config.AutofixCodeScanningAlert != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "autofix_code_scanning_alert", maxPtr: config.AutofixCodeScanningAlert.Max})
+	}
+	if config.CallWorkflow != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "call_workflow", maxPtr: config.CallWorkflow.Max})
+	}
+	if config.CloseDiscussions != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "close_discussion", maxPtr: config.CloseDiscussions.Max})
+	}
+}
+
+func appendChecksGroup2(config *SafeOutputsConfig, checks *[]maxFieldCheck) {
+	if config.CloseIssues != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "close_issue", maxPtr: config.CloseIssues.Max})
+	}
+	if config.ClosePullRequests != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "close_pull_request", maxPtr: config.ClosePullRequests.Max})
+	}
+	if config.CreateAgentSessions != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_agent_session", maxPtr: config.CreateAgentSessions.Max})
+	}
+	if config.CreateCheckRun != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_check_run", maxPtr: config.CreateCheckRun.Max})
+	}
+	if config.CreateCodeScanningAlerts != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_code_scanning_alert", maxPtr: config.CreateCodeScanningAlerts.Max})
+	}
+	if config.CreateDiscussions != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_discussion", maxPtr: config.CreateDiscussions.Max})
+	}
+	if config.CreateIssues != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_issue", maxPtr: config.CreateIssues.Max})
+	}
+	if config.CreateProjectStatusUpdates != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_project_status_update", maxPtr: config.CreateProjectStatusUpdates.Max})
+	}
+	if config.CreateProjects != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_project", maxPtr: config.CreateProjects.Max})
+	}
+}
+
+func appendChecksGroup3(config *SafeOutputsConfig, checks *[]maxFieldCheck) {
+	if config.CreatePullRequestReviewComments != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_pull_request_review_comment", maxPtr: config.CreatePullRequestReviewComments.Max})
+	}
+	if config.CreatePullRequests != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "create_pull_request", maxPtr: config.CreatePullRequests.Max})
+	}
+	if config.DispatchWorkflow != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "dispatch_workflow", maxPtr: config.DispatchWorkflow.Max})
+	}
+	if config.DismissPullRequestReview != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "dismiss_pull_request_review", maxPtr: config.DismissPullRequestReview.Max})
+	}
+	if config.HideComment != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "hide_comment", maxPtr: config.HideComment.Max})
+	}
+	if config.LinkSubIssue != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "link_sub_issue", maxPtr: config.LinkSubIssue.Max})
+	}
+	if config.MarkPullRequestAsReadyForReview != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "mark_pull_request_as_ready_for_review", maxPtr: config.MarkPullRequestAsReadyForReview.Max})
+	}
+	if config.ApproveWorkflowRun != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "approve_workflow_run", maxPtr: config.ApproveWorkflowRun.Max})
+	}
+	if config.MergePullRequest != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "merge_pull_request", maxPtr: config.MergePullRequest.Max})
+	}
+}
+
+func appendChecksGroup4(config *SafeOutputsConfig, checks *[]maxFieldCheck) {
+	if config.MissingData != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "missing_data", maxPtr: config.MissingData.Max})
+	}
+	if config.MissingTool != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "missing_tool", maxPtr: config.MissingTool.Max})
+	}
+	if config.NoOp != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "noop", maxPtr: config.NoOp.Max})
+	}
+	if config.PushToPullRequestBranch != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "push_to_pull_request_branch", maxPtr: config.PushToPullRequestBranch.Max})
+	}
+	if config.RemoveLabels != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "remove_labels", maxPtr: config.RemoveLabels.Max})
+	}
+	if config.ReplaceLabel != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "replace_label", maxPtr: config.ReplaceLabel.Max})
+	}
+	if config.ReplyToPullRequestReviewComment != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "reply_to_pull_request_review_comment", maxPtr: config.ReplyToPullRequestReviewComment.Max})
+	}
+	if config.ResolvePullRequestReviewThread != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "resolve_pull_request_review_thread", maxPtr: config.ResolvePullRequestReviewThread.Max})
+	}
+	if config.SetIssueType != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "set_issue_type", maxPtr: config.SetIssueType.Max})
+	}
+}
+
+func appendChecksGroup5(config *SafeOutputsConfig, checks *[]maxFieldCheck) {
+	if config.SetIssueField != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "set_issue_field", maxPtr: config.SetIssueField.Max})
+	}
+	if config.SubmitPullRequestReview != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "submit_pull_request_review", maxPtr: config.SubmitPullRequestReview.Max})
+	}
+	if config.UnassignFromUser != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "unassign_from_user", maxPtr: config.UnassignFromUser.Max})
+	}
+	if config.UpdateDiscussions != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "update_discussion", maxPtr: config.UpdateDiscussions.Max})
+	}
+	if config.UpdateIssues != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "update_issue", maxPtr: config.UpdateIssues.Max})
+	}
+	if config.UpdateProjects != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "update_project", maxPtr: config.UpdateProjects.Max})
+	}
+	if config.UpdatePullRequests != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "update_pull_request", maxPtr: config.UpdatePullRequests.Max})
+	}
+	if config.UpdateRelease != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "update_release", maxPtr: config.UpdateRelease.Max})
+	}
+	if config.UploadArtifact != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "upload_artifact", maxPtr: config.UploadArtifact.Max})
+	}
+	if config.UploadAssets != nil {
+		*checks = append(*checks, maxFieldCheck{toolName: "upload_asset", maxPtr: config.UploadAssets.Max})
+	}
+}
+
+func validateDispatchRepositoryMax(config *SafeOutputsConfig) error {
+	if config.DispatchRepository == nil {
+		return nil
+	}
+
+	sortedToolNames := sliceutil.SortedKeys(config.DispatchRepository.Tools)
+	for _, toolName := range sortedToolNames {
+		tool := config.DispatchRepository.Tools[toolName]
+		if tool == nil || tool.Max == nil || isExpression(*tool.Max) {
+			continue
+		}
+
+		n, err := strconv.Atoi(*tool.Max)
+		if err != nil {
+			continue
+		}
+
+		if isInvalidMaxValue(n) {
+			safeOutputsMaxValidationLog.Printf("Invalid max value %d for dispatch_repository tool %s", n, toolName)
+			return fmt.Errorf(
+				"safe-outputs.dispatch_repository.%s: max must be a positive integer or -1 (unlimited), got %d%s",
+				toolName, n, maxInvalidErrSuffix,
+			)
+		}
+	}
+
+	return nil
+}
+
 // validateSafeOutputsMax validates that all max fields in safe-outputs configs hold valid values.
 // Valid values are positive integers (n > 0) or -1 (unlimited per spec).
 // 0 and other negative values are rejected.
@@ -61,266 +270,11 @@ func validateSafeOutputsMax(config *SafeOutputsConfig) error {
 	}
 
 	safeOutputsMaxValidationLog.Print("Validating safe-outputs max fields")
-
-	// Direct field access — no reflection, no heap allocation.
-	// Fields are checked in the alphabetical order of their struct field names,
-	// matching the sort order of safeOutputFieldMapping keys for deterministic
-	// error reporting.
-	if config.AddComments != nil {
-		if err := checkMaxField("add_comment", config.AddComments.Max); err != nil {
-			return err
-		}
+	if err := validateStandardMaxFields(config); err != nil {
+		return err
 	}
-	if config.AddLabels != nil {
-		if err := checkMaxField("add_labels", config.AddLabels.Max); err != nil {
-			return err
-		}
-	}
-	if config.AddReviewer != nil {
-		if err := checkMaxField("add_reviewer", config.AddReviewer.Max); err != nil {
-			return err
-		}
-	}
-	if config.AssignMilestone != nil {
-		if err := checkMaxField("assign_milestone", config.AssignMilestone.Max); err != nil {
-			return err
-		}
-	}
-	if config.AssignToAgent != nil {
-		if err := checkMaxField("assign_to_agent", config.AssignToAgent.Max); err != nil {
-			return err
-		}
-	}
-	if config.AssignToUser != nil {
-		if err := checkMaxField("assign_to_user", config.AssignToUser.Max); err != nil {
-			return err
-		}
-	}
-	if config.AutofixCodeScanningAlert != nil {
-		if err := checkMaxField("autofix_code_scanning_alert", config.AutofixCodeScanningAlert.Max); err != nil {
-			return err
-		}
-	}
-	if config.CallWorkflow != nil {
-		if err := checkMaxField("call_workflow", config.CallWorkflow.Max); err != nil {
-			return err
-		}
-	}
-	if config.CloseDiscussions != nil {
-		if err := checkMaxField("close_discussion", config.CloseDiscussions.Max); err != nil {
-			return err
-		}
-	}
-	if config.CloseIssues != nil {
-		if err := checkMaxField("close_issue", config.CloseIssues.Max); err != nil {
-			return err
-		}
-	}
-	if config.ClosePullRequests != nil {
-		if err := checkMaxField("close_pull_request", config.ClosePullRequests.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreateAgentSessions != nil {
-		if err := checkMaxField("create_agent_session", config.CreateAgentSessions.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreateCheckRun != nil {
-		if err := checkMaxField("create_check_run", config.CreateCheckRun.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreateCodeScanningAlerts != nil {
-		if err := checkMaxField("create_code_scanning_alert", config.CreateCodeScanningAlerts.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreateDiscussions != nil {
-		if err := checkMaxField("create_discussion", config.CreateDiscussions.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreateIssues != nil {
-		if err := checkMaxField("create_issue", config.CreateIssues.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreateProjectStatusUpdates != nil {
-		if err := checkMaxField("create_project_status_update", config.CreateProjectStatusUpdates.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreateProjects != nil {
-		if err := checkMaxField("create_project", config.CreateProjects.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreatePullRequestReviewComments != nil {
-		if err := checkMaxField("create_pull_request_review_comment", config.CreatePullRequestReviewComments.Max); err != nil {
-			return err
-		}
-	}
-	if config.CreatePullRequests != nil {
-		if err := checkMaxField("create_pull_request", config.CreatePullRequests.Max); err != nil {
-			return err
-		}
-	}
-	if config.DispatchWorkflow != nil {
-		if err := checkMaxField("dispatch_workflow", config.DispatchWorkflow.Max); err != nil {
-			return err
-		}
-	}
-	if config.DismissPullRequestReview != nil {
-		if err := checkMaxField("dismiss_pull_request_review", config.DismissPullRequestReview.Max); err != nil {
-			return err
-		}
-	}
-	if config.HideComment != nil {
-		if err := checkMaxField("hide_comment", config.HideComment.Max); err != nil {
-			return err
-		}
-	}
-	if config.LinkSubIssue != nil {
-		if err := checkMaxField("link_sub_issue", config.LinkSubIssue.Max); err != nil {
-			return err
-		}
-	}
-	if config.MarkPullRequestAsReadyForReview != nil {
-		if err := checkMaxField("mark_pull_request_as_ready_for_review", config.MarkPullRequestAsReadyForReview.Max); err != nil {
-			return err
-		}
-	}
-	if config.ApproveWorkflowRun != nil {
-		if err := checkMaxField("approve_workflow_run", config.ApproveWorkflowRun.Max); err != nil {
-			return err
-		}
-	}
-	if config.MergePullRequest != nil {
-		if err := checkMaxField("merge_pull_request", config.MergePullRequest.Max); err != nil {
-			return err
-		}
-	}
-	if config.MissingData != nil {
-		if err := checkMaxField("missing_data", config.MissingData.Max); err != nil {
-			return err
-		}
-	}
-	if config.MissingTool != nil {
-		if err := checkMaxField("missing_tool", config.MissingTool.Max); err != nil {
-			return err
-		}
-	}
-	if config.NoOp != nil {
-		if err := checkMaxField("noop", config.NoOp.Max); err != nil {
-			return err
-		}
-	}
-	if config.PushToPullRequestBranch != nil {
-		if err := checkMaxField("push_to_pull_request_branch", config.PushToPullRequestBranch.Max); err != nil {
-			return err
-		}
-	}
-	if config.RemoveLabels != nil {
-		if err := checkMaxField("remove_labels", config.RemoveLabels.Max); err != nil {
-			return err
-		}
-	}
-	if config.ReplaceLabel != nil {
-		if err := checkMaxField("replace_label", config.ReplaceLabel.Max); err != nil {
-			return err
-		}
-	}
-	if config.ReplyToPullRequestReviewComment != nil {
-		if err := checkMaxField("reply_to_pull_request_review_comment", config.ReplyToPullRequestReviewComment.Max); err != nil {
-			return err
-		}
-	}
-	if config.ResolvePullRequestReviewThread != nil {
-		if err := checkMaxField("resolve_pull_request_review_thread", config.ResolvePullRequestReviewThread.Max); err != nil {
-			return err
-		}
-	}
-	if config.SetIssueType != nil {
-		if err := checkMaxField("set_issue_type", config.SetIssueType.Max); err != nil {
-			return err
-		}
-	}
-	if config.SetIssueField != nil {
-		if err := checkMaxField("set_issue_field", config.SetIssueField.Max); err != nil {
-			return err
-		}
-	}
-	if config.SubmitPullRequestReview != nil {
-		if err := checkMaxField("submit_pull_request_review", config.SubmitPullRequestReview.Max); err != nil {
-			return err
-		}
-	}
-	if config.UnassignFromUser != nil {
-		if err := checkMaxField("unassign_from_user", config.UnassignFromUser.Max); err != nil {
-			return err
-		}
-	}
-	if config.UpdateDiscussions != nil {
-		if err := checkMaxField("update_discussion", config.UpdateDiscussions.Max); err != nil {
-			return err
-		}
-	}
-	if config.UpdateIssues != nil {
-		if err := checkMaxField("update_issue", config.UpdateIssues.Max); err != nil {
-			return err
-		}
-	}
-	if config.UpdateProjects != nil {
-		if err := checkMaxField("update_project", config.UpdateProjects.Max); err != nil {
-			return err
-		}
-	}
-	if config.UpdatePullRequests != nil {
-		if err := checkMaxField("update_pull_request", config.UpdatePullRequests.Max); err != nil {
-			return err
-		}
-	}
-	if config.UpdateRelease != nil {
-		if err := checkMaxField("update_release", config.UpdateRelease.Max); err != nil {
-			return err
-		}
-	}
-	if config.UploadArtifact != nil {
-		if err := checkMaxField("upload_artifact", config.UploadArtifact.Max); err != nil {
-			return err
-		}
-	}
-	if config.UploadAssets != nil {
-		if err := checkMaxField("upload_asset", config.UploadAssets.Max); err != nil {
-			return err
-		}
-	}
-
-	// Validate max on dispatch_repository tools (different structure: map of tools).
-	// Use sorted tool names for deterministic error reporting.
-	if config.DispatchRepository != nil {
-		sortedToolNames := sliceutil.SortedKeys(config.DispatchRepository.Tools)
-
-		for _, toolName := range sortedToolNames {
-			tool := config.DispatchRepository.Tools[toolName]
-			if tool == nil || tool.Max == nil || isExpression(*tool.Max) {
-				continue
-			}
-
-			n, err := strconv.Atoi(*tool.Max)
-			if err != nil {
-				continue
-			}
-
-			if isInvalidMaxValue(n) {
-				safeOutputsMaxValidationLog.Printf("Invalid max value %d for dispatch_repository tool %s", n, toolName)
-				return fmt.Errorf(
-					"safe-outputs.dispatch_repository.%s: max must be a positive integer or -1 (unlimited), got %d%s",
-					toolName, n, maxInvalidErrSuffix,
-				)
-			}
-		}
+	if err := validateDispatchRepositoryMax(config); err != nil {
+		return err
 	}
 
 	safeOutputsMaxValidationLog.Print("Safe-outputs max fields validation passed")

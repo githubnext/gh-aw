@@ -4,195 +4,83 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var safeOutputsToolsComputationLog = logger.New("workflow:safe_outputs_tools_computation")
 
+type toolEnabledCheck struct {
+	name    string
+	enabled bool
+}
+
+func addEnabledTools(enabledTools map[string]struct{}, checks ...toolEnabledCheck) {
+	for _, check := range checks {
+		if check.enabled {
+			enabledTools[check.name] = struct{}{}
+		}
+	}
+}
+
+func predefinedToolChecks(safeOutputs *SafeOutputsConfig) []toolEnabledCheck {
+	return []toolEnabledCheck{
+		{name: "create_issue", enabled: safeOutputs.CreateIssues != nil},
+		{name: "create_agent_session", enabled: safeOutputs.CreateAgentSessions != nil},
+		{name: "create_discussion", enabled: safeOutputs.CreateDiscussions != nil},
+		{name: "update_discussion", enabled: safeOutputs.UpdateDiscussions != nil},
+		{name: "close_discussion", enabled: safeOutputs.CloseDiscussions != nil},
+		{name: "close_issue", enabled: safeOutputs.CloseIssues != nil},
+		{name: "close_pull_request", enabled: safeOutputs.ClosePullRequests != nil},
+		{name: "mark_pull_request_as_ready_for_review", enabled: safeOutputs.MarkPullRequestAsReadyForReview != nil},
+		{name: "approve_workflow_run", enabled: safeOutputs.ApproveWorkflowRun != nil},
+		{name: "dismiss_pull_request_review", enabled: safeOutputs.DismissPullRequestReview != nil},
+		{name: "add_comment", enabled: safeOutputs.AddComments != nil},
+		{name: "create_pull_request", enabled: safeOutputs.CreatePullRequests != nil},
+		{name: "create_pull_request_review_comment", enabled: safeOutputs.CreatePullRequestReviewComments != nil},
+		{name: "submit_pull_request_review", enabled: safeOutputs.SubmitPullRequestReview != nil},
+		{name: "reply_to_pull_request_review_comment", enabled: safeOutputs.ReplyToPullRequestReviewComment != nil},
+		{name: "resolve_pull_request_review_thread", enabled: safeOutputs.ResolvePullRequestReviewThread != nil},
+		{name: "create_code_scanning_alert", enabled: safeOutputs.CreateCodeScanningAlerts != nil},
+		{name: "autofix_code_scanning_alert", enabled: safeOutputs.AutofixCodeScanningAlert != nil},
+		{name: "create_check_run", enabled: safeOutputs.CreateCheckRun != nil},
+		{name: "add_labels", enabled: safeOutputs.AddLabels != nil},
+		{name: "remove_labels", enabled: safeOutputs.RemoveLabels != nil},
+		{name: "replace_label", enabled: safeOutputs.ReplaceLabel != nil},
+		{name: "add_reviewer", enabled: safeOutputs.AddReviewer != nil},
+		{name: "assign_milestone", enabled: safeOutputs.AssignMilestone != nil},
+		{name: "assign_to_agent", enabled: safeOutputs.AssignToAgent != nil},
+		{name: "assign_to_user", enabled: safeOutputs.AssignToUser != nil},
+		{name: "unassign_from_user", enabled: safeOutputs.UnassignFromUser != nil},
+		{name: "update_issue", enabled: safeOutputs.UpdateIssues != nil},
+		{name: "update_pull_request", enabled: safeOutputs.UpdatePullRequests != nil},
+		{name: "push_to_pull_request_branch", enabled: safeOutputs.PushToPullRequestBranch != nil},
+		{name: "upload_asset", enabled: safeOutputs.UploadAssets != nil},
+		{name: "upload_artifact", enabled: safeOutputs.UploadArtifact != nil},
+		{name: "missing_tool", enabled: safeOutputs.MissingTool != nil},
+		{name: "missing_data", enabled: safeOutputs.MissingData != nil},
+		{name: "update_release", enabled: safeOutputs.UpdateRelease != nil},
+		{name: "noop", enabled: safeOutputs.NoOp != nil},
+		{name: "link_sub_issue", enabled: safeOutputs.LinkSubIssue != nil},
+		{name: "hide_comment", enabled: safeOutputs.HideComment != nil},
+		{name: "set_issue_type", enabled: safeOutputs.SetIssueType != nil},
+		{name: "set_issue_field", enabled: safeOutputs.SetIssueField != nil},
+		{name: "update_project", enabled: safeOutputs.UpdateProjects != nil},
+		{name: "create_project_status_update", enabled: safeOutputs.CreateProjectStatusUpdates != nil},
+		{name: "create_project", enabled: safeOutputs.CreateProjects != nil},
+	}
+}
+
 // computeEnabledToolNames returns the set of predefined tool names that are enabled
 // by the workflow's SafeOutputsConfig. Dynamic tools (dispatch-workflow, custom jobs,
 // call-workflow) are excluded because they are generated separately.
 func computeEnabledToolNames(data *WorkflowData) map[string]struct {
 } {
-	enabledTools := make(map[string]struct {
-	})
+	enabledTools := make(map[string]struct{})
 	if data.SafeOutputs == nil {
 		safeOutputsToolsComputationLog.Print("No safe outputs configuration, returning empty tool set")
 		return enabledTools
 	}
 
-	if data.SafeOutputs.CreateIssues != nil {
-		enabledTools["create_issue"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CreateAgentSessions != nil {
-		enabledTools["create_agent_session"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CreateDiscussions != nil {
-		enabledTools["create_discussion"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.UpdateDiscussions != nil {
-		enabledTools["update_discussion"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CloseDiscussions != nil {
-		enabledTools["close_discussion"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CloseIssues != nil {
-		enabledTools["close_issue"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.ClosePullRequests != nil {
-		enabledTools["close_pull_request"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
-		enabledTools["mark_pull_request_as_ready_for_review"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.ApproveWorkflowRun != nil {
-		enabledTools["approve_workflow_run"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.DismissPullRequestReview != nil {
-		enabledTools["dismiss_pull_request_review"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.AddComments != nil {
-		enabledTools["add_comment"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CreatePullRequests != nil {
-		enabledTools["create_pull_request"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-		enabledTools["create_pull_request_review_comment"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.SubmitPullRequestReview != nil {
-		enabledTools["submit_pull_request_review"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.ReplyToPullRequestReviewComment != nil {
-		enabledTools["reply_to_pull_request_review_comment"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.ResolvePullRequestReviewThread != nil {
-		enabledTools["resolve_pull_request_review_thread"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		enabledTools["create_code_scanning_alert"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.AutofixCodeScanningAlert != nil {
-		enabledTools["autofix_code_scanning_alert"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CreateCheckRun != nil {
-		enabledTools["create_check_run"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.AddLabels != nil {
-		enabledTools["add_labels"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.RemoveLabels != nil {
-		enabledTools["remove_labels"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.ReplaceLabel != nil {
-		enabledTools["replace_label"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.AddReviewer != nil {
-		enabledTools["add_reviewer"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.AssignMilestone != nil {
-		enabledTools["assign_milestone"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.AssignToAgent != nil {
-		enabledTools["assign_to_agent"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.AssignToUser != nil {
-		enabledTools["assign_to_user"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.UnassignFromUser != nil {
-		enabledTools["unassign_from_user"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.UpdateIssues != nil {
-		enabledTools["update_issue"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.UpdatePullRequests != nil {
-		enabledTools["update_pull_request"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		enabledTools["push_to_pull_request_branch"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.UploadAssets != nil {
-		enabledTools["upload_asset"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.UploadArtifact != nil {
-		enabledTools["upload_artifact"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.MissingTool != nil {
-		enabledTools["missing_tool"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.MissingData != nil {
-		enabledTools["missing_data"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.UpdateRelease != nil {
-		enabledTools["update_release"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.NoOp != nil {
-		enabledTools["noop"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.LinkSubIssue != nil {
-		enabledTools["link_sub_issue"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.HideComment != nil {
-		enabledTools["hide_comment"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.SetIssueType != nil {
-		enabledTools["set_issue_type"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.SetIssueField != nil {
-		enabledTools["set_issue_field"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.UpdateProjects != nil {
-		enabledTools["update_project"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
-		enabledTools["create_project_status_update"] = struct {
-		}{}
-	}
-	if data.SafeOutputs.CreateProjects != nil {
-		enabledTools["create_project"] = struct {
-		}{}
-	}
+	addEnabledTools(enabledTools, predefinedToolChecks(data.SafeOutputs)...)
 
 	// Add push_repo_memory tool if repo-memory is configured
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
-		enabledTools["push_repo_memory"] = struct {
-		}{}
+		enabledTools["push_repo_memory"] = struct{}{}
 	}
 
 	safeOutputsToolsComputationLog.Printf("Computed %d enabled safe output tool names", len(enabledTools))
