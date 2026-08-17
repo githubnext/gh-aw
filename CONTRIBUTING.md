@@ -196,6 +196,19 @@ When filing issues with agentic plans:
 
 **Quality of the agentic plan directly impacts implementation success.** Provide comprehensive, step-by-step instructions with specific details.
 
+#### ✍️ Writing Prompts for Copilot-Assigned Issues
+
+When an issue will be assigned to Copilot coding agent (or another SWE agent), how you write the task description measurably affects whether the resulting PR merges. Recurring "Copilot PR Prompt Pattern Analysis" reports (see [discussion #53203](https://github.com/github/gh-aw/discussions/53203)) show a consistent trend: merged PRs average **~151 words** per task prompt and name concrete files or subsystems (e.g. `pkg`, `engine`, a specific package), while closed/unsuccessful PRs average **~229 words** — roughly 50% longer — and skew toward open-ended, exploratory language without a concrete acceptance criterion.
+
+To improve merge rate for agent-assigned work:
+
+- **Be concise.** Aim for a short, focused prompt rather than a long, exploratory one. Prompts longer than ~200 words without a concrete acceptance criterion correlate with lower merge rates.
+- **Name concrete files or subsystems.** Reference specific packages, files, or functions (e.g. `pkg/workflow`, `cmd/gh-aw`) instead of describing the problem in the abstract.
+- **State an explicit acceptance criterion.** Describe what "done" looks like (e.g. "the CLI flag `--foo` is parsed and validated" or "add a test in `pkg/parser/parser_test.go` covering X") instead of open-ended language like "investigate and fix as appropriate."
+- **Avoid pure exploration prompts.** Prompts that only ask the agent to "look into" or "figure out" a problem without a concrete target tend to result in longer, less-scoped PRs that are more likely to be closed.
+
+Note: automated CVE/dependency-tracker PRs are excluded from this signal, since their close rate reflects triage policy rather than prompt quality.
+
 ### Code Quality Standards
 
 Core team members and the agents they use follow these standards:
