@@ -27,22 +27,25 @@ steps:
       mkdir -p /tmp/gh-aw/agent/discussions-data
       mkdir -p /tmp/gh-aw/cache-memory
       
-      # Get today's date for cache identification
-      TODAY=$(date '+%Y-%m-%d')
+      # Use UTC six-hour buckets so scheduled reports receive fresh data each run.
+      TODAY=$(date -u '+%Y-%m-%d')
+      HOUR=$(date -u '+%H')
+      HOUR_BUCKET=$(printf '%02d' "$((10#$HOUR / 6 * 6))")
+      CACHE_BUCKET="${TODAY}-${HOUR_BUCKET}"
       CACHE_DIR="/tmp/gh-aw/cache-memory"
       
-      # Check if cached data exists from today
-      if [ -f "$CACHE_DIR/discussions-${TODAY}.json" ] && [ -s "$CACHE_DIR/discussions-${TODAY}.json" ]; then
-        echo "✓ Found cached discussions data from ${TODAY}"
-        cp "$CACHE_DIR/discussions-${TODAY}.json" /tmp/gh-aw/agent/discussions-data/discussions.json
+      # Check if cached data exists from this six-hour bucket
+      if [ -f "$CACHE_DIR/discussions-${CACHE_BUCKET}.json" ] && [ -s "$CACHE_DIR/discussions-${CACHE_BUCKET}.json" ]; then
+        echo "✓ Found cached discussions data from ${CACHE_BUCKET}"
+        cp "$CACHE_DIR/discussions-${CACHE_BUCKET}.json" /tmp/gh-aw/agent/discussions-data/discussions.json
         
         # Regenerate schema if missing
-        if [ ! -f "$CACHE_DIR/discussions-${TODAY}-schema.json" ]; then
-          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/discussions-data/discussions.json > "$CACHE_DIR/discussions-${TODAY}-schema.json"
+        if [ ! -f "$CACHE_DIR/discussions-${CACHE_BUCKET}-schema.json" ]; then
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/discussions-data/discussions.json > "$CACHE_DIR/discussions-${CACHE_BUCKET}-schema.json"
         fi
-        cp "$CACHE_DIR/discussions-${TODAY}-schema.json" /tmp/gh-aw/agent/discussions-data/discussions-schema.json
+        cp "$CACHE_DIR/discussions-${CACHE_BUCKET}-schema.json" /tmp/gh-aw/agent/discussions-data/discussions-schema.json
         
-        echo "Using cached data from ${TODAY}"
+        echo "Using cached data from ${CACHE_BUCKET}"
         echo "Total discussions in cache: $(jq 'length' /tmp/gh-aw/agent/discussions-data/discussions.json)"
       else
         echo "⬇ Downloading fresh discussions data..."
@@ -144,11 +147,11 @@ steps:
         # Generate schema for reference
         ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/discussions-data/discussions.json > /tmp/gh-aw/agent/discussions-data/discussions-schema.json
 
-        # Store in cache with today's date
-        cp /tmp/gh-aw/agent/discussions-data/discussions.json "$CACHE_DIR/discussions-${TODAY}.json"
-        cp /tmp/gh-aw/agent/discussions-data/discussions-schema.json "$CACHE_DIR/discussions-${TODAY}-schema.json"
+        # Store in cache with the current six-hour bucket
+        cp /tmp/gh-aw/agent/discussions-data/discussions.json "$CACHE_DIR/discussions-${CACHE_BUCKET}.json"
+        cp /tmp/gh-aw/agent/discussions-data/discussions-schema.json "$CACHE_DIR/discussions-${CACHE_BUCKET}-schema.json"
 
-        echo "✓ Discussions data saved to cache: discussions-${TODAY}.json"
+        echo "✓ Discussions data saved to cache: discussions-${CACHE_BUCKET}.json"
         echo "Total discussions found: $(jq 'length' /tmp/gh-aw/agent/discussions-data/discussions.json)"
       fi
       
@@ -165,25 +168,25 @@ This shared component fetches open discussions from the repository, with intelli
 ### What It Does
 
 1. Creates output directories at `/tmp/gh-aw/agent/discussions-data/` and `/tmp/gh-aw/cache-memory/`
-2. Checks for cached discussions data from today's date in cache-memory
-3. If cache exists (from earlier workflow runs today):
+2. Checks for cached discussions data from the current UTC six-hour bucket in cache-memory
+3. If cache exists (from an earlier workflow run in that bucket):
    - Uses cached data instead of making API calls
    - Copies data from cache to working directory
 4. If cache doesn't exist:
    - Fetches open discussions using GitHub GraphQL API with pagination
-   - Saves data to cache with date-based filename (e.g., `discussions-2024-11-18.json`)
+   - Saves data to cache with a six-hour-bucket filename (e.g., `discussions-2024-11-18-12.json`)
    - Copies data to working directory for use
 5. Generates a schema of the data structure
 
 ### Caching Strategy
 
 - **Cache Key**: `discussions-data` for workflow-level sharing
-- **Cache Files**: Stored with today's date in the filename (e.g., `discussions-2024-11-18.json`)
+- **Cache Files**: Stored with the UTC six-hour bucket in the filename (e.g., `discussions-2024-11-18-12.json`)
 - **Cache Location**: `/tmp/gh-aw/cache-memory/`
 - **Cache Benefits**:
-  - Multiple workflows running on the same day share the same discussions data
+  - Workflows in the same six-hour UTC bucket share discussions data
   - Reduces GitHub API rate limit usage
-  - Faster workflow execution after first fetch of the day
+  - Faster workflow execution after the first fetch in a six-hour bucket
 
 ### Output Files
 

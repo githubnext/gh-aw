@@ -1,0 +1,23 @@
+{
+  "universe_usage_history": [
+    {
+      "universe": "The Usual Suspects",
+      "assigned_at": "2026-08-17T21:00:00.000Z",
+      "agent_count": 6
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "cast-The Usual Suspects-2026-08-17T21:00:00.000Z": {
+      "created_at": "2026-08-17T21:00:00.000Z",
+      "agents": [
+        "keaton",
+        "fenster",
+        "mcmanus",
+        "hockney",
+        "verbal",
+        "kujan"
+      ],
+      "universe": "The Usual Suspects"
+    }
+  }
+}
