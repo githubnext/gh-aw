@@ -812,6 +812,20 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(result.data.update_branch).toBe(true);
   });
 
+  it("should default stacked PR stack-sync fallback to enabled when update_branch is set", () => {
+    const result = updatePRModule.buildPRUpdateData({ update_branch: true }, {});
+
+    expect(result.success).toBe(true);
+    expect(result.data._update_branch_stacks).toBe(true);
+  });
+
+  it("should disable stacked PR stack-sync fallback when update_branch_stacks is false", () => {
+    const result = updatePRModule.buildPRUpdateData({ update_branch: true }, { update_branch_stacks: false });
+
+    expect(result.success).toBe(true);
+    expect(result.data._update_branch_stacks).toBe(false);
+  });
+
   it("should call updateBranch when update_branch is enabled and no other fields are updated", async () => {
     const handler = await updatePRModule.main({ update_branch: true });
 
@@ -1106,6 +1120,30 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
       pull_number: 100,
       title: "Updated PR",
     });
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
+  it("should keep stacked-PR unsupported non-fatal without stack sync when update_branch_stacks is false", async () => {
+    const stackedPRError = new Error("Updating a stacked PR's branch via this endpoint is not supported.");
+    stackedPRError.status = 422;
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(stackedPRError);
+
+    const handler = await updatePRModule.main({ update_branch: true, update_branch_stacks: false });
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockGithub.request).not.toHaveBeenCalled();
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping stacked PR stack-sync fallback"));
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
 

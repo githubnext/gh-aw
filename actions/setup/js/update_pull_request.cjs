@@ -174,10 +174,12 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   const includeFooter = updateData._includeFooter !== false; // Default to true
 
   // Remove internal fields (including update_branch which is handled separately below)
-  const { _operation, _rawBody, _includeFooter, _workflowRepo, update_branch, ...apiData } = updateData;
+  const { _operation, _rawBody, _includeFooter, _workflowRepo, _update_branch_stacks, update_branch, ...apiData } = updateData;
   const updateBranch = update_branch === true;
+  const updateBranchStacksEnabled = _update_branch_stacks !== false;
 
   if (updateBranch) {
+    core.info(`update_branch stacked PR sync fallback is ${updateBranchStacksEnabled ? "enabled" : "disabled"} for pull request #${prNumber}`);
     core.info(`Updating pull request #${prNumber} branch with base branch changes`);
     try {
       await withRetry(
@@ -198,10 +200,16 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       if (isStackedPRUnsupportedUpdateBranchError(error)) {
-        const didSyncStack = await tryStackedPRUpdateBranch(github, context, prNumber);
-        if (didSyncStack) {
-          core.info(`Updated stacked PR #${prNumber} branch via stack sync`);
+        if (updateBranchStacksEnabled) {
+          core.info(`Attempting stacked PR stack-sync fallback for pull request #${prNumber} after update_branch 422 unsupported response`);
+          const didSyncStack = await tryStackedPRUpdateBranch(github, context, prNumber);
+          if (didSyncStack) {
+            core.info(`Updated stacked PR #${prNumber} branch via stack sync`);
+          } else {
+            core.warning(`Failed to update pull request #${prNumber} branch from base (non-fatal): ${errorMessage}`);
+          }
         } else {
+          core.info(`Skipping stacked PR stack-sync fallback for pull request #${prNumber}: update_branch_stacks=false`);
           core.warning(`Failed to update pull request #${prNumber} branch from base (non-fatal): ${errorMessage}`);
         }
       } else if (isNonFatalUpdateBranchError(error)) {
@@ -300,6 +308,8 @@ function buildPRUpdateData(item, config) {
   }
 
   const updateBranch = item.update_branch !== undefined ? item.update_branch === true : config.update_branch === true;
+  const updateBranchStacksEnabled = config.update_branch_stacks !== false;
+  updateData._update_branch_stacks = updateBranchStacksEnabled;
   if (updateBranch) {
     updateData.update_branch = true;
     hasUpdates = true;
@@ -347,6 +357,7 @@ const main = createUpdateHandlerFactory({
     allow_title: true,
     allow_body: true,
     update_branch: false,
+    update_branch_stacks: true,
   },
   itemFilter: async (githubClient, repoParts, prNumber, config) => {
     const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
