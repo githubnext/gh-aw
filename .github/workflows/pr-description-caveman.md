@@ -67,7 +67,6 @@ safe-outputs:
     body: true
     title: false
     operation: replace
-    target: '*'
     max: 1
   noop:
 timeout-minutes: 15

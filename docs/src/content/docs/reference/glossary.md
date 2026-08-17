@@ -418,6 +418,10 @@ See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/#text-sanitization-al
 
 A workflow-scoped identifier (format: `aw_` followed by 3–8 alphanumeric characters, e.g. `aw_abc1`) that lets an AI agent reference a resource before it is created. Safe output tools that support temporary IDs — including `create_issue`, `create_discussion`, and `add_comment` — accept a `temporary_id` field. References like `#aw_abc1` in subsequent operations are automatically resolved to actual resource numbers during execution. Useful for creating interlinked resources in a single workflow run. See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/).
 
+### Approve Workflow Run (`approve-workflow-run:`)
+
+An experimental safe output capability that approves a GitHub Actions workflow run in the "action required" state, such as runs for fork pull requests or pull requests created by Copilot. The agent supplies a positive integer `run_id`; the handler verifies the run is a pull request run tied to an authorized pull request and has status `waiting` before calling GitHub's approval API. Requires `actions: write`, `pull-requests: read`, and an explicit external `github-token` or `github-app`, since the default `github.token` cannot approve workflow runs. `allowed-workflows` is required and restricts approval to matching workflow filenames; `allowed-pull-requests` extends authorization beyond the triggering pull request. Fork pull requests are refused unless `fork: true` is set, and the safe output always refuses to run from `pull_request_target`. Compiling a workflow with `approve-workflow-run` emits an experimental feature warning. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#approve-workflow-run-approve-workflow-run).
+
 ### Merge Pull Request (`merge-pull-request:`)
 
 An experimental safe output capability for merging pull requests after policy-driven gate checks pass. Validates status checks, required approvals, resolved review threads, label and branch constraints, and GitHub mergeability before applying the merge. Merges to the repository default branch are always refused. Supports `merge`, `squash`, and `rebase` methods, cross-repository targets, and `staged: true` for dry-run gate evaluation without calling the GitHub merge API. Compiling a workflow with `merge-pull-request` emits an experimental feature warning. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/#merge-pull-request-merge-pull-request) and the [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/#type-merge_pull_request).
@@ -626,6 +630,10 @@ engine:
 Sample CLI engine definitions bundled as reference patterns rather than officially supported engines. The repository ships **OpenCode**, **Aider**, **Crush**, **Cursor**, and **Kiro** as sample [engine behaviors](#engine-behaviors-enginebehaviors) definitions under `.github/workflows/shared/<id>.md`. These have no compatibility or maintenance commitment from `gh-aw`; copy or adapt them only under the support terms of their respective owners. See [AI Engines Reference](/gh-aw/reference/engines/#unsupported-engine-samples).
 
 See [AI Engines Reference](/gh-aw/reference/engines/#pinning-a-specific-engine-version).
+
+### Stall Watchdog (`GH_AW_HARNESS_STALL_WARNING_MS`)
+
+A driver-level watchdog shared by all built-in harnesses that logs a warning when the agent CLI produces no stdout or stderr output for a configured interval, without terminating the process. Distinct from the [Post-Result Watchdog](#post-result-watchdog-engineharnesswatchdog-timeout), which only arms after a terminal safe output and can terminate a quiet process. Configure with the `GH_AW_HARNESS_STALL_WARNING_MS` environment variable (milliseconds, default `300000` — 5 minutes, min `1000`, max `3600000`); unset or non-numeric values use the default, and zero or negative values disable the warnings. See [Environment Variables Reference](/gh-aw/reference/environment-variables/).
 
 ### Post-Result Watchdog (`engine.harness.watchdog-timeout`)
 
