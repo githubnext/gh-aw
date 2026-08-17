@@ -1,9 +1,10 @@
 <mcp-clis>
-The following servers are available as CLI executables on `PATH`. Invoke them from bash - they are **not** MCP tools; do not call them via an MCP tool interface.
+The following servers are available as CLI executables on `PATH`. Invoke them from bash when you need CLI transport. Unless a server is explicitly listed in another prompt section as an MCP tool (for example `<safe-output-tools>`), do not call these via an MCP tool interface.
 
 __GH_AW_MCP_CLI_SERVERS_LIST__
 
-For `safeoutputs` and `mcpscripts`, always use the CLI commands above.
+For `mcpscripts`, always use the CLI commands above.
+If `safeoutputs` is also listed in `<safe-output-tools>`, call those tool names directly; the `safeoutputs` CLI commands above are an optional equivalent transport.
 
 For `safeoutputs`, every successful call is a real write-intent declaration - do not use it for probing, auth checks, or placeholder payloads. Use `noop` or `report_incomplete` if not ready to emit the final action.
 

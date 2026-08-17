@@ -120,6 +120,50 @@ func TestSafeOutputsPromptDoesNotRequireCLI(t *testing.T) {
 		"safe-output prompt should describe CLI usage as optional because CLI mounting is optional")
 }
 
+// TestComposedPromptSafeOutputsGuidanceStaysTransportNeutral verifies that
+// later prompt fragments (like mcp_cli_tools_prompt.md) do not override direct
+// safe-output tool guidance in the final composed prompt.
+func TestComposedPromptSafeOutputsGuidanceStaysTransportNeutral(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			NoOp: &NoOpConfig{},
+		},
+	}
+
+	sections := compiler.collectPromptSections(data)
+	require.NotEmpty(t, sections, "should collect prompt sections")
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	promptDir := filepath.Clean(filepath.Join(wd, "..", "..", "actions", "setup", "md"))
+
+	var composed strings.Builder
+	for _, section := range sections {
+		content := section.Content
+		if section.IsFile {
+			fileBytes, readErr := os.ReadFile(filepath.Clean(filepath.Join(promptDir, section.Content)))
+			require.NoError(t, readErr, "should read prompt fragment %s", section.Content)
+			content = string(fileBytes)
+		}
+
+		for key, value := range section.EnvVars {
+			content = strings.ReplaceAll(content, "__"+key+"__", value)
+		}
+
+		composed.WriteString(content)
+		composed.WriteString("\n")
+	}
+
+	finalPrompt := composed.String()
+	assert.Contains(t, finalPrompt, "Call the tool names listed in `<safe-output-tools>` directly",
+		"final composed prompt should preserve direct safe-output tool guidance")
+	assert.NotContains(t, finalPrompt, "For `safeoutputs` and `mcpscripts`, always use the CLI commands above.",
+		"final composed prompt should not require safeoutputs CLI usage unconditionally")
+	assert.Contains(t, finalPrompt, "If `safeoutputs` is also listed in `<safe-output-tools>`, call those tool names directly",
+		"final composed prompt should keep safeoutputs CLI guidance optional when safe-output tools are available")
+}
+
 // TestGitHubMCPToolsPromptIncludedForCodeSecurityToolset verifies that when a
 // workflow uses the code_security GitHub toolset the generated lock file references
 // one of the github_mcp_tools prompt files (which carry the list_code_scanning_alerts
