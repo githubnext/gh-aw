@@ -47,7 +47,7 @@ function isNonFatalUpdateBranchError(error) {
   const hasWorkflowsScopeRequired = message.includes("`workflows` scope may be required") || message.includes("unable to determine if workflow can be created or updated");
   const hasStackedPRUnsupportedError = message.includes("updating a stacked pr's branch via this endpoint is not supported");
 
-  if (hasStackedPRUnsupportedError) {
+  if (status === 422 && hasStackedPRUnsupportedError) {
     return true;
   }
 
