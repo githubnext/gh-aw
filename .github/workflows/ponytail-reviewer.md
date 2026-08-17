@@ -66,3 +66,9 @@ Review the pull request exclusively for unnecessary complexity and over-engineer
 6. For each high-signal finding, add one inline `create-pull-request-review-comment` using Ponytail's one-line format. Limit the review to the 10 most impactful opportunities.
 7. If findings exist, submit one `COMMENT` review whose body ends with the skill's required net-lines metric.
 8. If nothing should be cut, call `noop` with `Lean already. Ship.` and stop.
+
+## Review report format
+
+- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (#) or h2 (##) headers.
+- Wrap long or verbose sections in `<details><summary>Section Name</summary>` tags; keep critical information (summary, outcome, key findings) always visible.
+- Start with a short visible summary or verdict, followed by collapsible sections for details, examples, and next steps.

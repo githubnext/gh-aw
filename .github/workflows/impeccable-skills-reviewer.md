@@ -130,3 +130,9 @@ A successful review:
 - Keep visible text concise; put long reasoning in `<details>` blocks.
 - End each actionable inline comment with `@copilot please address this.`
 - If no visible action is needed, call `noop` with a brief explanation.
+
+## Review report format
+
+- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (#) or h2 (##) headers.
+- Wrap long or verbose sections in `<details><summary>Section Name</summary>` tags; keep critical information (summary, outcome, key findings) always visible.
+- Start with a short visible summary or verdict, followed by collapsible sections for details, examples, and next steps.

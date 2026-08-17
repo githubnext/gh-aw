@@ -99,6 +99,12 @@ Always create `/tmp/gh-aw/cache-memory/go-test-parallelizer/` and write the last
 
 If validation succeeds with a change, create one draft pull request describing the safety analysis and test results. Otherwise use `noop` with the selected path and a short reason.
 
+### Pull request report format
+
+- Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Never use h1 (#) or h2 (##) headers.
+- Wrap long or verbose sections in `<details><summary>Section Name</summary>` tags; keep critical information (summary, outcome, key findings) always visible.
+- Start with a short visible summary or verdict, followed by collapsible sections for details, examples, and next steps.
+
 ## agent: `parallel-safety-checker`
 ---
 description: Review one Go test file for safe t.Parallel additions with minimal context
