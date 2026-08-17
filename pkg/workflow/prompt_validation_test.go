@@ -103,6 +103,23 @@ func TestGitHubMCPToolsPromptHasPartialFileReadGuidance(t *testing.T) {
 	}
 }
 
+// TestSafeOutputsPromptDoesNotRequireCLI verifies that the base safe-output
+// guidance remains transport-neutral. Some workflows expose safeoutputs as MCP
+// tools rather than CLI commands, so CLI-only guidance can cause agents to
+// finish without emitting any safe-output items.
+func TestSafeOutputsPromptDoesNotRequireCLI(t *testing.T) {
+	promptPath := filepath.Join("..", "..", "actions", "setup", "md", "safe_outputs_prompt.md")
+	data, err := os.ReadFile(promptPath)
+	require.NoError(t, err, "should be able to read safe_outputs_prompt.md")
+
+	content := string(data)
+
+	assert.Contains(t, content, "Call the tool names listed in `<safe-output-tools>` directly",
+		"safe-output prompt should instruct agents to call configured safe-output tools")
+	assert.NotContains(t, content, "CLI commands required",
+		"safe-output prompt must not require CLI commands because CLI mounting is optional")
+}
+
 // TestGitHubMCPToolsPromptIncludedForCodeSecurityToolset verifies that when a
 // workflow uses the code_security GitHub toolset the generated lock file references
 // one of the github_mcp_tools prompt files (which carry the list_code_scanning_alerts
