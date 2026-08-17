@@ -15,7 +15,7 @@ import (
 
 // TestUpdateProjectTargetRepoInCompiledConfig verifies that when a workflow is compiled with
 // update-project.target-repo and update-project.allowed-repos, those values are present in
-// both the config.json written to disk and in the GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG env var.
+// both the safe-outputs config and the handler config embedded in the compiled workflow.
 func TestUpdateProjectTargetRepoInCompiledConfig(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -45,12 +45,8 @@ safe-outputs:
 Test workflow for cross-repo project item resolution.
 `,
 			expectedInYAML: []string{
-				// config.json written in safe_outputs job
 				`"target-repo":"myorg/backend"`,
 				`"allowed_repos":["myorg/docs","myorg/frontend"]`,
-				// handler config env var (JSON-encoded, quotes escaped)
-				`\"target-repo\":\"myorg/backend\"`,
-				`\"allowed_repos\":[\"myorg/docs\",\"myorg/frontend\"]`,
 			},
 			notExpectedInYAML: nil,
 		},
@@ -79,8 +75,6 @@ Test workflow without cross-repo configuration.
 			notExpectedInYAML: []string{
 				`"target-repo"`,
 				`"allowed_repos"`,
-				`\"target-repo\"`,
-				`\"allowed_repos\"`,
 			},
 		},
 		{
@@ -103,11 +97,9 @@ Test workflow with only target-repo (no allowed-repos list).
 `,
 			expectedInYAML: []string{
 				`"target-repo":"myorg/backend"`,
-				`\"target-repo\":\"myorg/backend\"`,
 			},
 			notExpectedInYAML: []string{
 				`"allowed_repos"`,
-				`\"allowed_repos\"`,
 			},
 		},
 	}
@@ -128,7 +120,8 @@ Test workflow with only target-repo (no allowed-repos list).
 			compiledBytes, err := os.ReadFile(lockFile)
 			require.NoError(t, err, "Failed to read compiled lock file")
 
-			compiledStr := string(compiledBytes)
+			// Safe-outputs config is embedded as escaped JSON inside YAML string values.
+			compiledStr := unescapeLockJSON(string(compiledBytes))
 
 			for _, expected := range tt.expectedInYAML {
 				assert.True(t,
@@ -170,15 +163,13 @@ func TestUpdateProjectTargetRepoWorkflowFile(t *testing.T) {
 	compiledBytes, err := os.ReadFile(lockFile)
 	require.NoError(t, err, "Failed to read compiled lock file")
 
-	compiledStr := string(compiledBytes)
+	compiledStr := unescapeLockJSON(string(compiledBytes))
 
 	// The workflow declares target-repo: myorg/backend and allowed-repos: [myorg/docs, myorg/frontend]
 	assert.Contains(t, compiledStr, `"target-repo":"myorg/backend"`,
-		"config.json should contain target-repo")
+		"safe-outputs config should contain target-repo")
 	assert.Contains(t, compiledStr, `"allowed_repos":["myorg/docs","myorg/frontend"]`,
-		"config.json should contain allowed_repos list")
-	assert.Contains(t, compiledStr, `\"target-repo\":\"myorg/backend\"`,
-		"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG should contain target-repo")
+		"safe-outputs config should contain allowed_repos list")
 	assert.Contains(t, compiledStr, `update_project`,
 		"Compiled workflow should reference update_project handler")
 }
