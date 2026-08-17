@@ -6,7 +6,11 @@ const { spawn } = require("child_process");
 const net = require("net");
 const { sleep, isCopilotSDKEnabled } = require("./process_runner.cjs");
 
-const COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS = 5000;
+// The Copilot CLI extracts its packaged bundle before it starts listening; that extraction
+// alone has been observed to take ~7s on GitHub-hosted runners, so a short readiness budget
+// aborts runs whose server was about to come up. The startup race also rejects immediately
+// when the process errors or exits, so a generous timeout only delays genuinely hung servers.
+const COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS = 60000;
 const COPILOT_SDK_SERVER_STOP_TIMEOUT_MS = 2000;
 
 /**
@@ -218,6 +222,7 @@ async function stopCopilotSDKServer(child, options) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    COPILOT_SDK_SERVER_STARTUP_TIMEOUT_MS,
     buildCopilotSDKServerArgs,
     getCopilotSDKServerPort,
     startCopilotSDKServer,
