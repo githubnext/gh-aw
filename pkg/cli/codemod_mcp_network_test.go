@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetMCPNetworkMigrationCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	// Verify codemod metadata
@@ -21,6 +22,7 @@ func TestGetMCPNetworkMigrationCodemod(t *testing.T) {
 }
 
 func TestMCPNetworkCodemod_NoMCPServers(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -46,6 +48,7 @@ permissions:
 }
 
 func TestMCPNetworkCodemod_MCPServerWithoutNetwork(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -74,6 +77,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_SingleServerWithNetwork(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -114,6 +118,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_MultipleServersWithSameNetwork(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -169,6 +174,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_MultipleServersWithDifferentNetworks(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -216,6 +222,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_MergeWithExistingTopLevelNetwork(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -258,6 +265,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_PreservesOtherMCPFields(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -311,6 +319,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_MixedServersWithAndWithoutNetwork(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -364,6 +373,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -408,6 +418,7 @@ key: value
 }
 
 func TestMCPNetworkCodemod_PreservesComments(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -446,6 +457,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_EmptyNetworkAllowed(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -479,6 +491,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_NetworkWithoutAllowed(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---
@@ -512,6 +525,7 @@ mcp-servers:
 }
 
 func TestMCPNetworkCodemod_DeduplicatesAcrossServersAndTopLevel(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPNetworkMigrationCodemod()
 
 	content := `---

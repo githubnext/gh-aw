@@ -14,7 +14,9 @@ import (
 // sibling, an empty domain list, a nested network block, and a network
 // block containing a comment line.
 func TestAddAllowedToNetwork(t *testing.T) {
+	t.Parallel()
 	t.Run("network block followed by top-level sibling", func(t *testing.T) {
+		t.Parallel()
 		lines := []string{
 			"network:",
 			"  mode: defaults",
@@ -31,6 +33,7 @@ func TestAddAllowedToNetwork(t *testing.T) {
 	})
 
 	t.Run("network block with no following top-level sibling appends at end", func(t *testing.T) {
+		t.Parallel()
 		lines := []string{
 			"tools:",
 			"  bash: true",
@@ -50,6 +53,7 @@ func TestAddAllowedToNetwork(t *testing.T) {
 	})
 
 	t.Run("empty domain list still adds allowed key", func(t *testing.T) {
+		t.Parallel()
 		lines := []string{
 			"network:",
 			"  mode: defaults",
@@ -62,6 +66,7 @@ func TestAddAllowedToNetwork(t *testing.T) {
 	})
 
 	t.Run("no network block present appends allowed with empty indent", func(t *testing.T) {
+		t.Parallel()
 		lines := []string{
 			"tools:",
 			"  bash: true",
@@ -77,6 +82,7 @@ func TestAddAllowedToNetwork(t *testing.T) {
 	})
 
 	t.Run("nested network block under a parent key", func(t *testing.T) {
+		t.Parallel()
 		lines := []string{
 			"mcp-servers:",
 			"  server1:",
@@ -115,6 +121,7 @@ func TestAddAllowedToNetwork(t *testing.T) {
 	})
 
 	t.Run("multiple domains preserve order", func(t *testing.T) {
+		t.Parallel()
 		lines := []string{
 			"network:",
 			"  mode: defaults",
