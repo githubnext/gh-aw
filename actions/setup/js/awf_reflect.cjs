@@ -43,6 +43,11 @@ const AWF_PROVIDER_LISTENER_READY_RETRY_MS = 250;
 const AWF_PROVIDER_LISTENER_READY_PROBE_TIMEOUT_MS = 2000;
 // Maximum attempts for models_url fallback fetches when the proxy is not yet ready.
 const AWF_MODELS_URL_MAX_ATTEMPTS = 5;
+// HTTP statuses treated as transient and worth retrying for models_url fallback fetches.
+// 503 covers the api-proxy not yet being ready; 429 covers transient model-catalog throttling
+// (see https://github.com/github/gh-aw/issues/52782 — an unresolved 429 previously caused
+// alias resolution to be skipped and an unresolved alias to reach the API proxy).
+const AWF_MODELS_URL_RETRYABLE_STATUSES = new Set([503, 429]);
 // Base delay between models_url fallback retries. Uses exponential backoff.
 const AWF_MODELS_URL_RETRY_BASE_MS = 250;
 // Cap for exponential backoff delay between retries.
@@ -176,6 +181,24 @@ function extractModelIds(json) {
 }
 
 /**
+ * Extract a `retry-after` header (if present) from a fetch Response so it can be attached
+ * to a retryable error for `withRetry`'s Retry-After handling (see `getRetryAfterMs` in
+ * error_recovery.cjs). Only the `retry-after` header is needed: `withRetry` only consults
+ * it for HTTP 429 responses, which is the only retryable status here that carries one.
+ *
+ * @param {{ headers?: { get?: (name: string) => string|null } }} res - fetch Response-like object
+ * @returns {Record<string, string>|undefined}
+ */
+function extractRetryAfterHeader(res) {
+  try {
+    const retryAfter = res?.headers?.get?.("retry-after");
+    return retryAfter != null ? { "retry-after": retryAfter } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Fetch model IDs from a single models_url endpoint via HTTP GET.
  * Used as a fallback when the api-proxy's startup model-fetch returned null.
  * The api-proxy injects the correct auth headers when forwarding the request.
@@ -215,9 +238,9 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
     shouldRetry: error => {
       const original = error?.originalError || error;
       const status = original?.status ?? original?.response?.status ?? null;
-      const shouldRetry = status === 503;
+      const shouldRetry = AWF_MODELS_URL_RETRYABLE_STATUSES.has(status);
       if (shouldRetry && attemptCounter < AWF_MODELS_URL_MAX_ATTEMPTS) {
-        logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}; retrying (attempt ${attemptCounter + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
+        logger(`awf-reflect: models fetch returned ${status} for ${modelsUrl}; retrying (attempt ${attemptCounter + 1}/${AWF_MODELS_URL_MAX_ATTEMPTS})`);
       }
       return shouldRetry;
     },
@@ -235,10 +258,15 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
         try {
           const res = await fetch(requestUrl, { signal: ac.signal });
           if (!res.ok) {
-            if (res.status === 503) {
-              const err = Object.assign(new Error(`models fetch returned 503 for ${modelsUrl}`), { status: 503 });
+            if (AWF_MODELS_URL_RETRYABLE_STATUSES.has(res.status)) {
+              const err = Object.assign(new Error(`models fetch returned ${res.status} for ${modelsUrl}`), {
+                status: res.status,
+                headers: extractRetryAfterHeader(res),
+              });
               throw err;
             }
+            // Permanent 4xx/5xx responses (e.g. 400, 401, 403) are not retried — the
+            // caller falls back to treating this endpoint as having no models.
             logger(`awf-reflect: models fetch returned ${res.status} for ${modelsUrl}`);
             return null;
           }
@@ -255,7 +283,7 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
           /** @type {any} */
           const e = err;
           const status = e?.status ?? e?.response?.status ?? null;
-          if (status === 503) {
+          if (AWF_MODELS_URL_RETRYABLE_STATUSES.has(status)) {
             throw e;
           }
           logger(`awf-reflect: models fetch error for ${modelsUrl}: ${getErrorMessage(err)}`);
@@ -272,8 +300,8 @@ async function fetchModelsFromUrl(modelsUrl, timeoutMs, logger) {
     const e = err;
     const original = e?.originalError || e;
     const status = original?.status ?? original?.response?.status ?? null;
-    if (status === 503) {
-      logger(`awf-reflect: models fetch returned 503 for ${modelsUrl}`);
+    if (AWF_MODELS_URL_RETRYABLE_STATUSES.has(status)) {
+      logger(`awf-reflect: models fetch returned ${status} for ${modelsUrl}`);
       return null;
     }
     logger(`awf-reflect: models fetch error for ${modelsUrl}: ${getErrorMessage(err)}`);
@@ -974,6 +1002,7 @@ if (typeof module !== "undefined" && module.exports) {
     AWF_REFLECT_TIMEOUT_MS,
     AWF_MODELS_URL_TIMEOUT_MS,
     AWF_MODELS_URL_MAX_ATTEMPTS,
+    AWF_MODELS_URL_RETRYABLE_STATUSES,
     AWF_MODELS_URL_RETRY_BASE_MS,
     AWF_MODELS_URL_RETRY_MAX_MS,
     AWF_PROVIDER_LISTENER_READY_TIMEOUT_MS,

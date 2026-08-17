@@ -61,6 +61,7 @@ const {
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
   applyCopilotWireAPI,
+  applyCopilotModelAliasResolution,
   resolveLongRunTokenThreshold,
   computeStartupRetryEligible,
 } = require("./copilot_harness.cjs");
@@ -3084,6 +3085,89 @@ process.exit(1);`,
       process.env.COPILOT_MODEL = "gpt-5-mini";
       applyCopilotWireAPI({ modelsJson: null, logger: () => {} });
       expect(process.env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+  });
+
+  describe("applyCopilotModelAliasResolution", () => {
+    const awfConfigPath = "/tmp/gh-aw/awf-config.json";
+    const originalAwfConfig = fs.existsSync(awfConfigPath) ? fs.readFileSync(awfConfigPath, "utf8") : null;
+
+    function writeAwfConfig(aliasMap) {
+      fs.mkdirSync(path.dirname(awfConfigPath), { recursive: true });
+      fs.writeFileSync(awfConfigPath, JSON.stringify({ apiProxy: { models: aliasMap } }));
+    }
+
+    afterEach(() => {
+      delete process.env.COPILOT_MODEL;
+      if (originalAwfConfig !== null) {
+        fs.writeFileSync(awfConfigPath, originalAwfConfig);
+      } else if (fs.existsSync(awfConfigPath)) {
+        fs.rmSync(awfConfigPath);
+      }
+      vi.restoreAllMocks();
+    });
+
+    it("resolves a known alias against an available catalog without refetching", async () => {
+      process.env.COPILOT_MODEL = "sol";
+      writeAwfConfig({ sol: ["copilot/gpt-5.6-sol"] });
+      const reflectData = { endpoints: [{ configured: true, provider: "copilot", models: ["gpt-5.6-sol"] }] };
+      const refetch = vi.fn();
+
+      const resolved = await applyCopilotModelAliasResolution({ awfReflectData: reflectData, logger: () => {}, refetchReflectData: refetch });
+
+      expect(resolved).toBe("gpt-5.6-sol");
+      expect(process.env.COPILOT_MODEL).toBe("gpt-5.6-sol");
+      expect(refetch).not.toHaveBeenCalled();
+    });
+
+    it("leaves a concrete configured model unchanged and does not refetch, even without a catalog", async () => {
+      process.env.COPILOT_MODEL = "copilot/gpt-5.6-sol";
+      writeAwfConfig({ sol: ["copilot/gpt-5.6-sol"] });
+      const refetch = vi.fn();
+
+      const resolved = await applyCopilotModelAliasResolution({ awfReflectData: null, logger: () => {}, refetchReflectData: refetch });
+
+      expect(resolved).toBe("gpt-5.6-sol");
+      expect(refetch).not.toHaveBeenCalled();
+    });
+
+    it("resolves a known alias after a transient catalog failure followed by a successful refresh", async () => {
+      process.env.COPILOT_MODEL = "sol";
+      writeAwfConfig({ sol: ["copilot/gpt-5.6-sol"] });
+      const logs = [];
+      const refreshedReflectData = { endpoints: [{ configured: true, provider: "copilot", models: ["gpt-5.6-sol"] }] };
+      const refetch = vi.fn().mockResolvedValue(refreshedReflectData);
+
+      const resolved = await applyCopilotModelAliasResolution({
+        awfReflectData: null, // empty catalog on first attempt (e.g. transient 429)
+        logger: msg => logs.push(msg),
+        refetchReflectData: refetch,
+      });
+
+      expect(resolved).toBe("gpt-5.6-sol");
+      expect(process.env.COPILOT_MODEL).toBe("gpt-5.6-sol");
+      expect(refetch).toHaveBeenCalledTimes(1);
+      expect(logs.some(l => l.includes("retrying awf-reflect model-catalog fetch once"))).toBe(true);
+    });
+
+    it("stops before spawning Copilot when catalog retries are exhausted for a known alias", async () => {
+      process.env.COPILOT_MODEL = "sol";
+      writeAwfConfig({ sol: ["copilot/gpt-5.6-sol"] });
+      const logs = [];
+      const refetch = vi.fn().mockResolvedValue(null); // refresh still cannot produce a catalog
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined);
+
+      await applyCopilotModelAliasResolution({
+        awfReflectData: null,
+        logger: msg => logs.push(msg),
+        refetchReflectData: refetch,
+      });
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(logs.some(l => l.includes("model-catalog retrieval prevented alias resolution") && l.includes("sol"))).toBe(true);
+      expect(logs.some(l => l.includes("no AI credits pricing"))).toBe(false);
+      // The unresolved alias must never be forwarded to Copilot via COPILOT_MODEL.
+      expect(process.env.COPILOT_MODEL).toBe("sol");
     });
   });
 });
