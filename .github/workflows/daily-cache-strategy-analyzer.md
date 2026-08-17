@@ -158,7 +158,7 @@ for run_dir in /tmp/gh-aw/aw-mcp/logs/run-*/; do
   info="$run_dir/aw_info.json"
   [ -f "$info" ] || continue
   workflow=$(jq -r '.workflow_name // .workflow // "unknown"' "$info")
-  uses_cache=$(jq -r 'if .tools.cache_memory or (.tools | to_entries[] | select(.key | test("cache.memory"; "i"))) then "yes" else "no" end' "$info" 2>/dev/null || echo "no")
+  uses_cache=$(jq -r 'if .cache_memory then "yes" else "no" end' "$info" 2>/dev/null || echo "no")
   [ "$uses_cache" = "yes" ] || continue
   # Scan for cache miss signals
   grep -ri --include="*.log" --include="*.txt" \
