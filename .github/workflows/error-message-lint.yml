@@ -53,7 +53,9 @@ jobs:
 
       - name: Run errormessage linter on changed files
         if: steps.changed.outputs.files != ''
-        run: /tmp/gh-aw-linters -errormessage.changed-files="${{ steps.changed.outputs.files }}" ./...
+        env:
+          CHANGED_GO_FILES: ${{ steps.changed.outputs.files }}
+        run: /tmp/gh-aw-linters -errormessage.changed-files="$CHANGED_GO_FILES" ./...
 
       - name: Check for bare fmt.Println/Printf in pkg/cli
         run: |

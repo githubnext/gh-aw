@@ -1200,6 +1200,52 @@ func TestExtractCustomJobContinueOnError(t *testing.T) {
 }
 
 // ========================================
+// extractCustomJobEnvironment Tests
+// ========================================
+
+func TestExtractCustomJobEnvironment(t *testing.T) {
+	tests := []struct {
+		name        string
+		configMap   map[string]any
+		expectedEnv string
+	}{
+		{
+			name:        "no environment field",
+			configMap:   map[string]any{},
+			expectedEnv: "",
+		},
+		{
+			name:        "string environment",
+			configMap:   map[string]any{"environment": "production"},
+			expectedEnv: "environment: production",
+		},
+		{
+			name: "object environment",
+			configMap: map[string]any{
+				"environment": map[string]any{
+					"name": "production",
+					"url":  "https://example.com",
+				},
+			},
+			expectedEnv: "environment:\n      name: production\n      url: https://example.com",
+		},
+		{
+			name:        "invalid environment is ignored",
+			configMap:   map[string]any{"environment": []any{"production"}},
+			expectedEnv: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			job := &Job{Name: "test"}
+			require.NoError(t, extractCustomJobEnvironment(job, "test", tt.configMap))
+			assert.Equal(t, tt.expectedEnv, job.Environment)
+		})
+	}
+}
+
+// ========================================
 // extractCustomJobOutputs Tests
 // ========================================
 

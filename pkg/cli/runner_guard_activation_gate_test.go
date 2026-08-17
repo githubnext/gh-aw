@@ -63,6 +63,27 @@ jobs:
       - run: echo agent
 `
 
+const workflowRunActorAllowlistWorkflow = `
+name: Dev Hawk
+on:
+  workflow_run:
+    workflows: [Dev]
+    types: [completed]
+jobs:
+  activation:
+    if: >
+      github.event.workflow_run.event == 'workflow_dispatch' &&
+      contains(fromJSON('["trusted-user","trusted-bot"]'), github.event.workflow_run.actor.login)
+    runs-on: ubuntu-slim
+    steps:
+      - run: echo activation
+  agent:
+    needs: activation
+    runs-on: ubuntu-slim
+    steps:
+      - run: echo agent
+`
+
 func writeWorkflow(t *testing.T, gitRoot string, name string, content string) {
 	t.Helper()
 	dir := filepath.Join(gitRoot, ".github", "workflows")
@@ -70,12 +91,12 @@ func writeWorkflow(t *testing.T, gitRoot string, name string, content string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
 }
 
-func TestAuthorAssociationGatedJobs(t *testing.T) {
+func TestTrustedActivationGatedJobs(t *testing.T) {
 	t.Run("gates propagate through the needs graph", func(t *testing.T) {
 		gitRoot := t.TempDir()
 		writeWorkflow(t, gitRoot, "gated.lock.yml", gatedWorkflow)
 
-		gated := authorAssociationGatedJobs(filepath.Join(gitRoot, ".github", "workflows", "gated.lock.yml"))
+		gated := trustedActivationGatedJobs(filepath.Join(gitRoot, ".github", "workflows", "gated.lock.yml"))
 
 		assert.Contains(t, gated, "pre_activation")
 		assert.Contains(t, gated, "activation")
@@ -87,17 +108,27 @@ func TestAuthorAssociationGatedJobs(t *testing.T) {
 		gitRoot := t.TempDir()
 		writeWorkflow(t, gitRoot, "ungated.lock.yml", ungatedWorkflow)
 
-		gated := authorAssociationGatedJobs(filepath.Join(gitRoot, ".github", "workflows", "ungated.lock.yml"))
+		gated := trustedActivationGatedJobs(filepath.Join(gitRoot, ".github", "workflows", "ungated.lock.yml"))
 
 		assert.Empty(t, gated)
 	})
 
+	t.Run("workflow_run actor allowlist propagates through the needs graph", func(t *testing.T) {
+		gitRoot := t.TempDir()
+		writeWorkflow(t, gitRoot, "workflow-run-allowlist.lock.yml", workflowRunActorAllowlistWorkflow)
+
+		gated := trustedActivationGatedJobs(filepath.Join(gitRoot, ".github", "workflows", "workflow-run-allowlist.lock.yml"))
+
+		assert.Contains(t, gated, "activation")
+		assert.Contains(t, gated, "agent")
+	})
+
 	t.Run("missing file yields no gated jobs", func(t *testing.T) {
-		assert.Empty(t, authorAssociationGatedJobs(filepath.Join(t.TempDir(), "missing.lock.yml")))
+		assert.Empty(t, trustedActivationGatedJobs(filepath.Join(t.TempDir(), "missing.lock.yml")))
 	})
 
 	t.Run("empty path yields no gated jobs", func(t *testing.T) {
-		assert.Empty(t, authorAssociationGatedJobs(""))
+		assert.Empty(t, trustedActivationGatedJobs(""))
 	})
 }
 
@@ -140,4 +171,12 @@ func TestJobNeeds(t *testing.T) {
 	assert.Equal(t, []string{"a", "b"}, jobNeeds([]any{"a", "b", 42}))
 	assert.Equal(t, []string{"a"}, jobNeeds([]string{"a"}))
 	assert.Nil(t, jobNeeds(nil))
+}
+
+func TestHasWorkflowRunActorAllowlistCheck(t *testing.T) {
+	assert.True(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
+	assert.True(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && !contains(fromJSON('[\"blocked\"]'), github.event.workflow_run.actor.login) && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
+	assert.False(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && !contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) }}"))
+	assert.False(t, hasWorkflowRunActorAllowlistCheck("${{ github.event.workflow_run.event == 'workflow_dispatch' && contains(fromJSON('[\"owner\"]'), github.event.workflow_run.actor.login) == false }}"))
+	assert.False(t, hasWorkflowRunActorAllowlistCheck("${{ contains(fromJSON('[\"owner\"]'), github.event.comment.user.login) }}"))
 }
