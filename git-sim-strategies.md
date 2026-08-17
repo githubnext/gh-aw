@@ -1,5 +1,21 @@
 # Git Simulator Strategy Notes
 
+## HALTED 2026-08-17 (2nd consecutive run) — independently reconfirmed, escalation recommended
+
+Ran a fresh policy analysis this run (2026-08-17) before touching any tooling
+and reached the identical conclusion as 2026-08-16 without reading it first
+in detail — this is now two independent confirmations that the workflow's
+core method conflicts with the outer safe-outputs policy. No real
+create_pull_request / push_to_pull_request_branch / create_issue calls were
+attempted. next_index left at 216; state.json `halted` field updated with
+today's date. Recommend this stops being an autonomous daily re-litigation:
+either (a) a human maintainer redesigns the workflow to target a disposable
+sandbox repo instead of github/gh-aw, or (b) explicitly re-authorizes real
+safe-output probing here with revised guardrails, or (c) the workflow is
+disabled/archived. Absent one of those, future runs should keep halting
+immediately (skip to Phase 6 noop) rather than re-deriving this analysis
+each day.
+
 ## HALTED 2026-08-16 — policy conflict, read this first
 
 This workflow's method (create real PRs/issues on github/gh-aw filled with
