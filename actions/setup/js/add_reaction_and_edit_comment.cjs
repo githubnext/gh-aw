@@ -242,6 +242,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName, invocatio
       workflowName,
       runUrl,
       eventType: eventTypeDescription,
+      emoji: process.env.GH_AW_WORKFLOW_EMOJI,
     });
 
     const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
