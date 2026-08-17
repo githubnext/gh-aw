@@ -1,6 +1,10 @@
 {
   "engines": [
     {
+      "id": "adal",
+      "import": "github/gh-aw/.github/workflows/shared/adal.md"
+    },
+    {
       "id": "aider",
       "import": "github/gh-aw/.github/workflows/shared/aider.md"
     },
