@@ -25,6 +25,20 @@ func TestFrontmatterConfigGitHubAppJSON(t *testing.T) {
 	assert.JSONEq(t, `{"github-app":{"client-id":"client","private-key":"key","ignore-if-missing":true}}`, string(data))
 }
 
+func TestParseFrontmatterConfigMaxTurnsAndMaxRuns(t *testing.T) {
+	config, err := ParseFrontmatterConfig(map[string]any{
+		"name":      "test-workflow",
+		"max-turns": 15,
+		"max-runs":  "${{ inputs.max-runs }}",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, config.MaxTurns)
+	assert.Equal(t, 15, config.MaxTurns.IntValue())
+	require.NotNil(t, config.MaxRuns)
+	assert.True(t, config.MaxRuns.IsExpression())
+	assert.Equal(t, "${{ inputs.max-runs }}", config.MaxRuns.String())
+}
+
 func TestParseFrontmatterConfig(t *testing.T) {
 	t.Run("parses minimal workflow config", func(t *testing.T) {
 		frontmatter := map[string]any{
