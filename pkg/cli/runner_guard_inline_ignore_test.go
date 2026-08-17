@@ -32,6 +32,7 @@ func TestFilterRunnerGuardIgnoredFindings(t *testing.T) {
 	writeWorkflow(t, gitRoot, "inline-ignore.lock.yml", inlineIgnoreWorkflow)
 
 	findings := []runnerGuardFinding{
+		// Line 9 is the generated step boundary; the inline ignore is three lines later.
 		{RuleID: "RGS-012", File: "inline-ignore.lock.yml", Line: 9},
 		{RuleID: "RGS-012", File: ".github/workflows/inline-ignore.lock.yml", Line: 16},
 		{RuleID: "RGS-005", File: "inline-ignore.lock.yml", Line: 9},

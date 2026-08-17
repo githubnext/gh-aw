@@ -2,6 +2,16 @@ package cli
 
 import "strings"
 
+const (
+	// runnerGuardIgnoreLookBehind catches findings reported on a command immediately after an
+	// inline suppression comment in block-style run scripts.
+	runnerGuardIgnoreLookBehind = 3
+	// runnerGuardIgnoreLookAhead catches findings reported on nearby generated setup or step
+	// boundary lines before the suppressed command. Provider inventory steps currently have the
+	// largest observed offset at 15 lines, so 20 leaves a small buffer without scanning the file.
+	runnerGuardIgnoreLookAhead = 20
+)
+
 // filterRunnerGuardIgnoredFindings drops findings that have a local inline suppression comment
 // in the compiled workflow. runner-guard sometimes reports shell findings on a nearby generated
 // setup line rather than the command line, so a forward-looking window is used to catch comments
@@ -36,8 +46,8 @@ func hasRunnerGuardInlineIgnore(lines []string, lineNum int, ruleID string) bool
 		return false
 	}
 
-	start := max(lineNum-3, 0)
-	end := min(lineNum+20, len(lines))
+	start := max(lineNum-runnerGuardIgnoreLookBehind, 0)
+	end := min(lineNum+runnerGuardIgnoreLookAhead, len(lines))
 
 	marker := "runner-guard:ignore " + ruleID
 	for _, line := range lines[start:end] {
