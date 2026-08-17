@@ -18,6 +18,7 @@ import (
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
+// generateNpmManifests generates package.json and package-lock.json for npm dependencies
 // detected in the workflows. It returns true if npm dependencies were found.
 func (c *Compiler) generateNpmManifests(workflowDataList []*WorkflowData, workflowDir string, forceOverwrite bool) (bool, error) {
 	npmDeps := c.collectNpmDependencies(workflowDataList)

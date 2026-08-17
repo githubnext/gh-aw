@@ -365,7 +365,6 @@ func parseCacheMemoryEntries(cacheArray []any) ([]CacheMemoryEntry, error) {
 }
 
 // extractCacheMemoryConfigFromMap is a backward compatibility wrapper for extractCacheMemoryConfig
-// extractCacheMemoryConfigFromMap is a backward compatibility wrapper for extractCacheMemoryConfig
 // that accepts map[string]any instead of *ToolsConfig. This allows gradual migration of calling code.
 func (c *Compiler) extractCacheMemoryConfigFromMap(tools map[string]any) (*CacheMemoryConfig, error) {
 	toolsConfig, err := ParseToolsConfig(tools)

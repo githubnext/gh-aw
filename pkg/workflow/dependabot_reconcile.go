@@ -262,8 +262,8 @@ func dependabotToAnySlice(value any) ([]any, bool) {
 		value,
 	)
 
-	out := make([]any, rv.Len())
 	length := rv.Len()
+	out := make([]any, length)
 	for i := range length {
 		out[i] = rv.Index(i).Interface()
 	}
