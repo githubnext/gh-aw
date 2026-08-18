@@ -91,6 +91,3 @@ func formatAssignments(assignments map[string]string) string {
 	}
 	return strings.Join(parts, ", ")
 }
-
-// parsePagedJSONArray parses multiple JSON arrays (one per page from --paginate)
-// concatenated in the output and returns a merged slice.

@@ -248,5 +248,3 @@ func gitRefExists(ref string) bool {
 	cmd := exec.Command("git", "rev-parse", "--verify", ref)
 	return cmd.Run() == nil
 }
-
-// printExperimentDetails renders experiment details to stderr in human-readable form.

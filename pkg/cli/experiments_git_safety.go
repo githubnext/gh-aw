@@ -92,6 +92,3 @@ func isSafeGitTreePath(fileName string) bool {
 	}
 	return clean == fileName
 }
-
-// readRemoteExperimentState fetches experiment state from an experiments/* branch via the GitHub API.
-// Returns an empty state on any error (branch missing, file absent, parse failure).
