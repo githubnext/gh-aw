@@ -21,11 +21,7 @@ import (
 var Analyzer = analyzerutil.New("stringsindexhasprefix", "reports strings.Index(s, sub) comparisons with 0 (== 0 and != 0) and their yoda-order variants that should use strings.HasPrefix(s, sub) or !strings.HasPrefix(s, sub)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +88,7 @@ func analyzeIndexHasPrefix(pass *analysis.Pass, n ast.Node, generatedFiles filec
 // It returns the strings.Index call, whether the result is negated (i.e., !HasPrefix),
 // and whether the pattern matched.
 func matchIndexComparison(pass *analysis.Pass, expr *ast.BinaryExpr) (call *ast.CallExpr, negated bool, matched bool) {
-	left, right, flipped := normalizeOperands(pass, expr)
+	left, right, flipped := astutil.NormalizeComparisonOperands(pass, expr, "Index")
 
 	indexCall, ok := astutil.AsStringsMethodCall(pass, left, "Index")
 	if !ok {
@@ -117,16 +113,4 @@ func matchIndexComparison(pass *analysis.Pass, expr *ast.BinaryExpr) (call *ast.
 	default:
 		return nil, false, false
 	}
-}
-
-// normalizeOperands returns (left, right) such that if the strings.Index call
-// is on the right side, the operands are swapped and flipped=true.
-// Both operands are unwrapped of any redundant parentheses before the check.
-func normalizeOperands(pass *analysis.Pass, expr *ast.BinaryExpr) (left, right ast.Expr, flipped bool) {
-	x := astutil.UnwrapParenExpr(expr.X)
-	y := astutil.UnwrapParenExpr(expr.Y)
-	if _, ok := astutil.AsStringsMethodCall(pass, x, "Index"); ok {
-		return x, y, false
-	}
-	return y, x, true
 }
