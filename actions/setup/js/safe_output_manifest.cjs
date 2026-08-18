@@ -51,6 +51,7 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * @property {Object} [before_state] - Execution-time state snapshot captured before mutation
  * @property {Object} [after_state] - Execution-time state snapshot captured after mutation
  * @property {string[]} [labelsAdded] - Labels added by add_labels handler
+ * @property {string[]} [labelsSuggested] - Labels suggested but not applied by add_labels handler
  * @property {string} timestamp - ISO 8601 timestamp of creation
  */
 
@@ -61,7 +62,7 @@ const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "repor
  * It is designed to be easily testable by accepting the file path as a parameter.
  *
  * @param {string} [manifestFile] - Path to the manifest file (defaults to MANIFEST_FILE_PATH)
- * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsBefore?: string[]}) => void} Logger function
+ * @returns {(item: {type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsSuggested?: string[], labelsBefore?: string[]}) => void} Logger function
  */
 function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   // Touch the file immediately so it exists for artifact upload
@@ -71,7 +72,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
   /**
    * Log an executed safe output item to the manifest file.
    *
-   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsBefore?: string[]}} item - Executed item details
+   * @param {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsSuggested?: string[], labelsBefore?: string[]}} item - Executed item details
    */
   return function logCreatedItem(item) {
     if (!item) return;
@@ -87,6 +88,7 @@ function createManifestLogger(manifestFile = MANIFEST_FILE_PATH) {
       ...(item.before_state ? { before_state: item.before_state } : {}),
       ...(item.after_state ? { after_state: item.after_state } : {}),
       ...(Array.isArray(item.labelsAdded) ? { labelsAdded: item.labelsAdded } : {}),
+      ...(Array.isArray(item.labelsSuggested) ? { labelsSuggested: item.labelsSuggested } : {}),
       ...(Array.isArray(item.labelsBefore) ? { labelsBefore: item.labelsBefore } : {}),
       timestamp: new Date().toISOString(),
     };
@@ -129,7 +131,7 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
  *
  * @param {string} type - The handler type (e.g., "create_issue")
  * @param {any} result - The handler result object
- * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsBefore?: string[]}|null}
+ * @returns {{type: string, url?: string, number?: number, repo?: string, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsSuggested?: string[], labelsBefore?: string[]}|null}
  */
 function extractCreatedItemFromResult(type, result) {
   if (!result || NOT_LOGGED_TYPES.has(type)) return null;
@@ -157,6 +159,7 @@ function extractCreatedItemFromResult(type, result) {
     ...(result.before_state ? { before_state: result.before_state } : {}),
     ...(result.after_state ? { after_state: result.after_state } : {}),
     ...(Array.isArray(result.labelsAdded) ? { labelsAdded: result.labelsAdded } : {}),
+    ...(Array.isArray(result.labelsSuggested) ? { labelsSuggested: result.labelsSuggested } : {}),
     ...(Array.isArray(result.labelsBefore) ? { labelsBefore: result.labelsBefore } : {}),
   };
 }

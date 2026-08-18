@@ -72,17 +72,14 @@ function isPullRequestItem(issueData, nodeId) {
  *   issueNodeId: string,
  *   labelSpecs: Array<{ name: string }>,
  * }} params
- * @returns {Promise<string[]>} The label names on the issue after the mutation
+ * @returns {Promise<string[]>} The label names on the issue after the mutation and any recovery
  */
 async function applyIssueIntentLabels({ githubClient, core, repoParts, itemNumber, itemRepo, contextType, issueData, issueNodeId, labelSpecs }) {
   const repoLabels = await fetchAllRepoLabels(githubClient, repoParts.owner, repoParts.repo);
   const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
 
-  // Merge existing labels (metadata-free) with the requested specs, de-duplicating by
-  // lowercased name and favouring the requested specs so their intent metadata wins.
-  const requestedNamesLower = new Set(labelSpecs.map(spec => spec.name.toLowerCase()));
   const existingLabelNames = normalizeLabelNames(issueData.labels || []);
-  const mergedSpecs = [...labelSpecs, ...existingLabelNames.filter(name => !requestedNamesLower.has(name.toLowerCase())).map(name => ({ name }))];
+  const mergedSpecs = [...labelSpecs, ...existingLabelNames.map(name => ({ name }))];
 
   const labelIntentUpdates = buildIssueIntentLabelUpdates(mergedSpecs, labelIdByName);
 
@@ -111,7 +108,29 @@ async function applyIssueIntentLabels({ githubClient, core, repoParts, itemNumbe
     `add_labels to ${contextType} #${itemNumber} in ${itemRepo}`
   );
 
-  return normalizeLabelNames(result?.updateIssue?.issue?.labels?.nodes || []);
+  let afterLabels = normalizeLabelNames(result?.updateIssue?.issue?.labels?.nodes || []);
+  const afterNamesLower = new Set(afterLabels.map(name => name.toLowerCase()));
+  const missingExistingLabels = existingLabelNames.filter(name => !afterNamesLower.has(name.toLowerCase()));
+
+  if (missingExistingLabels.length > 0) {
+    core.warning(
+      `The GraphQL intent mutation removed ${missingExistingLabels.length} pre-existing label(s) from ${contextType} #${itemNumber} in ${itemRepo}; restoring them via the REST add-labels endpoint: ${JSON.stringify(missingExistingLabels)}`
+    );
+    const { data: restoredLabels } = await withRetry(
+      () =>
+        githubClient.rest.issues.addLabels({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          issue_number: itemNumber,
+          labels: missingExistingLabels,
+        }),
+      RATE_LIMIT_RETRY_CONFIG,
+      `restore labels on ${contextType} #${itemNumber} in ${itemRepo}`
+    );
+    afterLabels = normalizeLabelNames(restoredLabels);
+  }
+
+  return afterLabels;
 }
 
 /**
@@ -345,10 +364,7 @@ const main = createCountGatedHandler({
         const beforeState = await fetchIssueState(githubClient, repoParts, itemNumber);
 
         if (useIssueIntentPath) {
-          // Intent metadata is only supported via the GraphQL updateIssue mutation. That
-          // mutation replaces the issue's label set, so merge the newly requested labels with
-          // the issue's existing labels to preserve add-only semantics. Existing labels are
-          // sent without intent metadata; newly requested labels carry their metadata.
+          // Intent metadata is only supported via the GraphQL updateIssue mutation.
           const { data: issueData } = await withRetry(
             () =>
               githubClient.rest.issues.get({
@@ -372,25 +388,41 @@ const main = createCountGatedHandler({
           if (isPullRequestItem(issueData, issueNodeId)) {
             core.info(`Issue-intent label metadata is not supported for pull requests; falling back to the REST add-labels endpoint for ${contextType} #${itemNumber} in ${itemRepo}`);
           } else {
-            const afterLabels = await applyIssueIntentLabels({
-              githubClient,
-              core,
-              repoParts,
-              itemNumber,
-              itemRepo,
-              contextType,
-              issueData,
-              issueNodeId,
-              labelSpecs: uniqueLabelSpecs,
-            });
+            const existingLabels = normalizeLabelNames(issueData.labels || []);
+            const existingNamesLower = new Set(existingLabels.map(name => name.toLowerCase()));
+            const newLabelSpecs = uniqueLabelSpecs.filter(spec => !existingNamesLower.has(spec.name.toLowerCase()));
+            const afterLabels =
+              newLabelSpecs.length > 0
+                ? await applyIssueIntentLabels({
+                    githubClient,
+                    core,
+                    repoParts,
+                    itemNumber,
+                    itemRepo,
+                    contextType,
+                    issueData,
+                    issueNodeId,
+                    labelSpecs: newLabelSpecs,
+                  })
+                : existingLabels;
+            const afterNamesLower = new Set(afterLabels.map(name => name.toLowerCase()));
+            const labelsAdded = newLabelSpecs.filter(spec => afterNamesLower.has(spec.name.toLowerCase())).map(spec => spec.name);
+            const labelsSuggested = newLabelSpecs.filter(spec => hasLabelIntentMetadata(spec) && !afterNamesLower.has(spec.name.toLowerCase())).map(spec => spec.name);
 
-            core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
+            if (newLabelSpecs.length === 0) {
+              core.info(`No new labels to add to ${contextType} #${itemNumber} in ${itemRepo}`);
+            }
+            core.info(`Successfully added ${labelsAdded.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
+            if (labelsSuggested.length > 0) {
+              core.info(`Suggested ${labelsSuggested.length} labels for ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(labelsSuggested)}`);
+            }
             return attachExecutionState(
               {
                 success: true,
                 number: itemNumber,
                 repo: itemRepo,
-                labelsAdded: uniqueLabels,
+                labelsAdded,
+                labelsSuggested,
                 contextType,
               },
               beforeState,
