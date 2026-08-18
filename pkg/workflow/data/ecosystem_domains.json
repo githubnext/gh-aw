@@ -264,6 +264,7 @@
     "api.individual.githubcopilot.com",
     "github.com",
     "host.docker.internal",
+    "release-assets.githubusercontent.com",
     "registry.npmjs.org",
     "telemetry.enterprise.githubcopilot.com"
   ],

@@ -738,9 +738,10 @@ func GetAllowedDomainsForEngine(engine constants.EngineName, network *NetworkPer
 // detection run. It loads the "threat-detection" ecosystem from ecosystem_domains.json, which
 // includes the Copilot API endpoints needed for read-only threat analysis plus registry.npmjs.org
 // for read-only npm package validation (e.g. verifying lockfile integrity hashes). It intentionally
-// excludes raw.githubusercontent.com (not needed when MCP servers are disabled and the CLI binary
-// is pre-installed). npm registry access is read-only metadata lookup only — installs are not
-// permitted during detection runs.
+// excludes raw.githubusercontent.com (not needed when MCP servers are disabled and the Copilot CLI binary
+// is pre-installed), but includes release-assets.githubusercontent.com for Goose detection runs that
+// download the Goose release binary from GitHub releases at runtime. npm registry access is read-only
+// metadata lookup only — installs are not permitted during detection runs.
 // Any additional user-specified network.allowed entries are merged in (typically empty for detection).
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag.
 func GetThreatDetectionAllowedDomains(network *NetworkPermissions) string {

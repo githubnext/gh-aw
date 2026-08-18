@@ -387,6 +387,7 @@ func TestThreatDetectionDomains(t *testing.T) {
 		"api.individual.githubcopilot.com",
 		"github.com",
 		"host.docker.internal",
+		"release-assets.githubusercontent.com",
 		"registry.npmjs.org",
 		"telemetry.enterprise.githubcopilot.com",
 	}
@@ -421,6 +422,9 @@ func TestGetThreatDetectionAllowedDomains(t *testing.T) {
 
 	// Must include npm registry for read-only package validation
 	assert.Contains(t, result, "registry.npmjs.org", "Detection domains must include npm registry for read-only package validation")
+
+	// Must include GitHub release assets for Goose binary download in detection runs
+	assert.Contains(t, result, "release-assets.githubusercontent.com", "Detection domains must include release-assets.githubusercontent.com for Goose engine binary download")
 
 	// Must NOT include raw GitHub downloads
 	assert.NotContains(t, result, "raw.githubusercontent.com", "Detection domains must not include raw.githubusercontent.com")
