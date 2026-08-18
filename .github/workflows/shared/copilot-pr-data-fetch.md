@@ -64,12 +64,37 @@ steps:
         # Search for PRs from copilot/* branches in the last 30 days using gh CLI
         # Using branch prefix search (head:copilot/) instead of author for reliability
         echo "Fetching Copilot PRs from the last 30 days..."
+        FETCH_TMP="${RUNNER_TEMP:-/tmp}/copilot-prs-fetch.json"
+        rm -f "$FETCH_TMP"
+        FETCH_OK=true
         gh pr list --repo "$GITHUB_REPOSITORY" \
           --search "head:copilot/ created:>=${DATE_30_DAYS_AGO}" \
           --state all \
           --json number,title,author,headRefName,createdAt,state,url,body,labels,updatedAt,closedAt,mergedAt \
           --limit 1000 \
-          > /tmp/gh-aw/agent/pr-data/copilot-prs.json
+          > "$FETCH_TMP" || FETCH_OK=false
+
+        if [ "$FETCH_OK" != "true" ] || ! jq -e 'type == "array"' "$FETCH_TMP" >/dev/null 2>&1; then
+          # Transient GitHub API failures (e.g. 503) must not fail the whole run when
+          # stale cached data is still available; fall back to it instead.
+          if [ -s "$CACHE_FILE" ]; then
+            echo "::warning::Failed to fetch Copilot PR data; falling back to stale cached data"
+            cp "$CACHE_FILE" /tmp/gh-aw/agent/pr-data/copilot-prs.json
+            if [ ! -s "$CACHE_SCHEMA_FILE" ]; then
+              ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/pr-data/copilot-prs.json > "$CACHE_SCHEMA_FILE"
+            fi
+            cp "$CACHE_SCHEMA_FILE" /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json
+            echo "Total PRs in stale cache: $(jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)"
+            echo "PR data available at: /tmp/gh-aw/agent/pr-data/copilot-prs.json"
+            echo "Schema available at: /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json"
+            exit 0
+          fi
+          echo "::error::Failed to fetch Copilot PR data and no cached data is available"
+          exit 1
+        fi
+
+        cp "$FETCH_TMP" /tmp/gh-aw/agent/pr-data/copilot-prs.json
+        rm -f "$FETCH_TMP"
 
         # Generate schema for reference
         ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/pr-data/copilot-prs.json > /tmp/gh-aw/agent/pr-data/copilot-prs-schema.json
@@ -108,6 +133,7 @@ This shared component fetches pull request data for GitHub Copilot coding agent-
    - Fetches all PRs from branches starting with `copilot/` using `gh pr list`
    - Saves data to cache under the stable filename `copilot-prs-latest.json`
    - Copies data to working directory for use
+   - If the fetch fails (for example a transient GitHub `503`), falls back to the stale cached data with a warning instead of failing the step; the step only fails when no cached data exists at all
 5. Generates a schema of the data structure
 
 ### Caching Strategy
