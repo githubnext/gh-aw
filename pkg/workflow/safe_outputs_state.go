@@ -39,8 +39,7 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return true
 	}
 
-	// Direct nil checks — no reflection, no heap allocation (43 fields matching safeOutputFieldMapping
-	// plus CommentMemory which is attached via tools.comment-memory and not in safeOutputFieldMapping).
+	// Direct nil checks — no reflection, no heap allocation.
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
@@ -52,7 +51,6 @@ func hasAnySafeOutputEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.ApproveWorkflowRun != nil ||
 		safeOutputs.DismissPullRequestReview != nil ||
 		safeOutputs.AddComments != nil ||
-		safeOutputs.CommentMemory != nil ||
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.SubmitPullRequestReview != nil ||
@@ -106,9 +104,7 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return true
 	}
 
-	// Direct nil checks for non-builtin pointer fields (40 fields = 43 total minus 3 builtins:
-	// NoOp, MissingData, MissingTool). Includes CommentMemory which is attached via
-	// tools.comment-memory and is not in safeOutputFieldMapping.
+	// Direct nil checks for non-builtin pointer fields.
 	return safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentSessions != nil ||
 		safeOutputs.CreateDiscussions != nil ||
@@ -120,7 +116,6 @@ func hasNonBuiltinSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.ApproveWorkflowRun != nil ||
 		safeOutputs.DismissPullRequestReview != nil ||
 		safeOutputs.AddComments != nil ||
-		safeOutputs.CommentMemory != nil ||
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.SubmitPullRequestReview != nil ||
@@ -174,7 +169,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 // instruction for the agent. This aligns create-issue with the other builtin safe outputs
 // (noop, missing-tool, missing-data) that are always available.
 func applyDefaultCreateIssue(workflowData *WorkflowData) {
-	if hasNonBuiltinSafeOutputsEnabled(workflowData.SafeOutputs) {
+	if workflowData.CommentMemoryConfig != nil || hasNonBuiltinSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return
 	}
 	if workflowData.SafeOutputs == nil {

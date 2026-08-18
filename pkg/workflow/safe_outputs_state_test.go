@@ -47,17 +47,3 @@ func TestSafeOutputStateFieldCoverage(t *testing.T) {
 		})
 	}
 }
-
-// TestSafeOutputStateCommentMemoryCoverage explicitly tests CommentMemory, which is
-// attached to SafeOutputs via tools.comment-memory (not listed in safeOutputFieldMapping)
-// and must be checked by both state inspection functions.
-func TestSafeOutputStateCommentMemoryCoverage(t *testing.T) {
-	cfg := &SafeOutputsConfig{
-		CommentMemory: &CommentMemoryConfig{},
-	}
-
-	assert.True(t, hasAnySafeOutputEnabled(cfg),
-		"hasAnySafeOutputEnabled should return true when CommentMemory is set")
-	assert.True(t, hasNonBuiltinSafeOutputsEnabled(cfg),
-		"hasNonBuiltinSafeOutputsEnabled should return true when CommentMemory is set")
-}

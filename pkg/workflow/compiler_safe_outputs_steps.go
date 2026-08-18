@@ -164,6 +164,17 @@ func (c *Compiler) addAppTokenMintingSteps(data *WorkflowData) []string {
 			stepID,
 		)...)
 	}
+	if commentMemory := data.CommentMemoryConfig; commentMemory != nil && commentMemory.GitHubApp != nil &&
+		!isHandlerStaged(templatableBoolIsTrue(data.SafeOutputs.Staged), commentMemory.Staged) {
+		steps = append(steps, c.buildGitHubAppTokenMintStepWithMeta(
+			commentMemory.GitHubApp,
+			NewPermissionsIssuesWrite(),
+			"",
+			"",
+			"Generate GitHub App token (comment-memory)",
+			"comment-memory-app-token",
+		)...)
+	}
 
 	// Dispatch-repository tool tokens: each non-staged tool with a github-app gets a token step.
 	if data.SafeOutputs.DispatchRepository != nil && len(data.SafeOutputs.DispatchRepository.Tools) > 0 {

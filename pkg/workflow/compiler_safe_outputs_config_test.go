@@ -21,6 +21,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 	tests := []struct {
 		name          string
 		safeOutputs   *SafeOutputsConfig
+		commentMemory *CommentMemoryConfig
 		checkContains []string
 		checkJSON     bool
 		expectedKeys  []string
@@ -855,14 +856,13 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"create_check_run"},
 		},
 		{
-			name: "comment_memory config",
-			safeOutputs: &SafeOutputsConfig{
-				CommentMemory: &CommentMemoryConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{
-						Max: strPtr("1"),
-					},
-					MemoryID: "test-memory",
+			name:        "comment_memory config",
+			safeOutputs: &SafeOutputsConfig{},
+			commentMemory: &CommentMemoryConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
 				},
+				MemoryID: "test-memory",
 			},
 			checkContains: []string{
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
@@ -925,8 +925,9 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
-				Name:        "Test Workflow",
-				SafeOutputs: tt.safeOutputs,
+				Name:                "Test Workflow",
+				SafeOutputs:         tt.safeOutputs,
+				CommentMemoryConfig: tt.commentMemory,
 			}
 
 			var steps []string

@@ -158,17 +158,6 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		},
 	},
 	{
-		Key:         "comment-memory",
-		StructField: "CommentMemory",
-		NewConfig:   func() any { return &CommentMemoryConfig{} },
-		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
-			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CommentMemory") {
-				return nil
-			}
-			return NewPermissionsIssuesWrite()
-		},
-	},
-	{
 		Key:         "create-pull-request",
 		StructField: "CreatePullRequests",
 		ToolName:    "create_pull_request",
