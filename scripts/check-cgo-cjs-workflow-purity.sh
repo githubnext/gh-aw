@@ -33,6 +33,9 @@ for workflow in "$@"; do
       in_permissions = 0
       perm_indent = -1
     }
+    /^[[:space:]]*permissions:[[:space:]]*(write|write-all)([[:space:]]*(#.*)?)?$/ {
+      print FILENAME ":" FNR ":" $0
+    }
     /^[[:space:]]*permissions:[[:space:]]*$/ {
       perm_indent = match($0, /[^[:space:]]/) - 1
       in_permissions = 1
