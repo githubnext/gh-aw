@@ -11,10 +11,12 @@ import (
 )
 
 func TestCheckoutPersistCredentialsFalseCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getCheckoutPersistCredentialsFalseCodemod()
 	assert.Equal(t, "1.0.44", codemod.IntroducedIn)
 
 	t.Run("adds with block when checkout step has none", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -39,6 +41,7 @@ steps:
 	})
 
 	t.Run("adds persist-credentials under existing with block", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -68,6 +71,7 @@ steps:
 	})
 
 	t.Run("does not mutate explicit persist-credentials true", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: push
 steps:
@@ -97,6 +101,7 @@ steps:
 	})
 
 	t.Run("supports pre-steps and post-steps sections", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: pull_request
 pre-steps:
@@ -127,6 +132,7 @@ post-steps:
 	})
 
 	t.Run("applies to jobs.agent but not custom jobs", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 jobs:
@@ -163,6 +169,7 @@ jobs:
 	})
 
 	t.Run("applies to jobs.agent with wider indentation", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 jobs:
@@ -189,6 +196,7 @@ jobs:
 	})
 
 	t.Run("does not apply to checkout in non-agent custom job only", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 jobs:

@@ -10,6 +10,7 @@ import (
 )
 
 func TestEngineMaxTurnsToTopLevelCodemod_Metadata(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxTurnsToTopLevelCodemod()
 
 	assert.Equal(t, "engine-max-turns-to-top-level", codemod.ID)
@@ -20,6 +21,7 @@ func TestEngineMaxTurnsToTopLevelCodemod_Metadata(t *testing.T) {
 }
 
 func TestEngineMaxTurnsToTopLevelCodemod_NoOp(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxTurnsToTopLevelCodemod()
 
 	content := `---
@@ -42,6 +44,7 @@ engine:
 }
 
 func TestEngineMaxTurnsToTopLevelCodemod_IdempotentWhenAlreadyMigrated(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxTurnsToTopLevelCodemod()
 
 	content := `---
@@ -64,6 +67,7 @@ engine:
 }
 
 func TestEngineMaxTurnsToTopLevelCodemod_MigratesField(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxTurnsToTopLevelCodemod()
 
 	content := `---
@@ -98,6 +102,7 @@ engine:
 }
 
 func TestEngineMaxTurnsToTopLevelCodemod_PreservesExpressionCommentsAndBody(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxTurnsToTopLevelCodemod()
 
 	content := `---
@@ -134,6 +139,7 @@ Keep this content.`
 }
 
 func TestEngineMaxTurnsToTopLevelCodemod_RespectsExistingTopLevel(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxTurnsToTopLevelCodemod()
 
 	content := `---
@@ -160,6 +166,7 @@ engine:
 }
 
 func TestEngineMaxTurnsToTopLevelCodemod_InlineEngineMapNoOp(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxTurnsToTopLevelCodemod()
 
 	content := `---

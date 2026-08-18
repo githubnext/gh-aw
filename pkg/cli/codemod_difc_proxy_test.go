@@ -10,9 +10,11 @@ import (
 )
 
 func TestDIFCProxyToIntegrityProxyCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getDIFCProxyToIntegrityProxyCodemod()
 
 	t.Run("removes features.difc-proxy: true (no-op since proxy is now default)", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 features:
@@ -45,6 +47,7 @@ tools:
 	})
 
 	t.Run("removes features.difc-proxy: false and adds tools.github.integrity-proxy: false", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 features:
@@ -77,6 +80,7 @@ tools:
 	})
 
 	t.Run("removes features.difc-proxy: false but does NOT add integrity-proxy when tools.github is absent", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 features:
@@ -100,6 +104,7 @@ features:
 	})
 
 	t.Run("removes features.difc-proxy: false but does NOT add integrity-proxy when tools.github is boolean true", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 features:
@@ -128,6 +133,7 @@ tools:
 	})
 
 	t.Run("does not modify workflows without features.difc-proxy", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -153,6 +159,7 @@ tools:
 	})
 
 	t.Run("does not modify workflows without features section", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 ---
@@ -170,6 +177,7 @@ engine: copilot
 	})
 
 	t.Run("preserves other features when removing difc-proxy", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 features:
@@ -203,6 +211,7 @@ tools:
 	})
 
 	t.Run("integrity-proxy: false is added inside tools.github block", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 features:
@@ -244,6 +253,7 @@ tools:
 	})
 
 	t.Run("string 'false' value treated as false (adds integrity-proxy: false)", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 features:
