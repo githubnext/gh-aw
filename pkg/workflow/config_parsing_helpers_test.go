@@ -410,7 +410,8 @@ func TestParsePRReviewCommentsConfigWithHelpers(t *testing.T) {
 	compiler := &Compiler{}
 	outputMap := map[string]any{
 		"create-pull-request-review-comment": map[string]any{
-			"target-repo": "company/codebase",
+			"target-repo":   "company/codebase",
+			"allowed-repos": []any{"company/codebase", "company/other"},
 		},
 	}
 
@@ -421,6 +422,9 @@ func TestParsePRReviewCommentsConfigWithHelpers(t *testing.T) {
 
 	if result.TargetRepoSlug != "company/codebase" {
 		t.Errorf("expected target-repo 'company/codebase', got %q", result.TargetRepoSlug)
+	}
+	if len(result.AllowedRepos) != 2 || result.AllowedRepos[0] != "company/codebase" || result.AllowedRepos[1] != "company/other" {
+		t.Errorf("expected parsed allowed-repos, got %v", result.AllowedRepos)
 	}
 }
 
@@ -563,6 +567,84 @@ func TestParseTargetRepoWithValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseSafeOutputTargetConfigOptions(t *testing.T) {
+	t.Run("parses target repo and allowed repos without target", func(t *testing.T) {
+		config, isInvalid := parseSafeOutputTargetConfig(map[string]any{
+			"target":        "17",
+			"target-repo":   "owner/repo",
+			"allowed-repos": []any{"owner/repo", "owner/other"},
+		}, nil, safeOutputTargetConfigOptions{
+			parseAllowedRepos: true,
+		})
+
+		if isInvalid {
+			t.Fatal("expected config to be valid")
+		}
+		if config.Target != "" {
+			t.Fatalf("expected target to be ignored, got %q", config.Target)
+		}
+		if config.TargetRepoSlug != "owner/repo" {
+			t.Fatalf("expected target-repo owner/repo, got %q", config.TargetRepoSlug)
+		}
+		if len(config.AllowedRepos) != 2 || config.AllowedRepos[0] != "owner/repo" || config.AllowedRepos[1] != "owner/other" {
+			t.Fatalf("expected parsed allowed-repos, got %v", config.AllowedRepos)
+		}
+	})
+
+	t.Run("rejects wildcard target repo by default", func(t *testing.T) {
+		_, isInvalid := parseSafeOutputTargetConfig(map[string]any{
+			"target-repo": "*",
+		}, nil, safeOutputTargetConfigOptions{})
+
+		if !isInvalid {
+			t.Fatal("expected wildcard target-repo to be invalid")
+		}
+	})
+
+	t.Run("allows wildcard target repo when configured", func(t *testing.T) {
+		config, isInvalid := parseSafeOutputTargetConfig(map[string]any{
+			"target-repo": "*",
+		}, nil, safeOutputTargetConfigOptions{
+			allowTargetRepoWildcard: true,
+		})
+
+		if isInvalid {
+			t.Fatal("expected wildcard target-repo to be valid")
+		}
+		if config.TargetRepoSlug != "*" {
+			t.Fatalf("expected wildcard target-repo, got %q", config.TargetRepoSlug)
+		}
+	})
+
+	t.Run("parses expression allowed repos only when configured", func(t *testing.T) {
+		expr := "${{ inputs['allowed-repos'] }}"
+		baseConfig := map[string]any{
+			"allowed-repos": expr,
+		}
+
+		config, isInvalid := parseSafeOutputTargetConfig(baseConfig, nil, safeOutputTargetConfigOptions{
+			parseAllowedRepos: true,
+		})
+		if isInvalid {
+			t.Fatal("expected config to be valid")
+		}
+		if config.AllowedRepos != nil {
+			t.Fatalf("expected expression allowed-repos to be ignored without expression support, got %v", config.AllowedRepos)
+		}
+
+		config, isInvalid = parseSafeOutputTargetConfig(baseConfig, nil, safeOutputTargetConfigOptions{
+			parseAllowedRepos:           true,
+			allowAllowedReposExpression: true,
+		})
+		if isInvalid {
+			t.Fatal("expected config to be valid")
+		}
+		if len(config.AllowedRepos) != 1 || config.AllowedRepos[0] != expr {
+			t.Fatalf("expected expression allowed-repos, got %v", config.AllowedRepos)
+		}
+	})
 }
 
 func TestParseBoolFromConfig(t *testing.T) {

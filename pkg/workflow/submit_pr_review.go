@@ -40,19 +40,14 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 		c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
 
 		// Parse target config (target, target-repo, allowed-repos)
-		// Uses parseTargetRepoWithValidation to disallow wildcard "*" for target-repo
-		if target, exists := configMap["target"]; exists {
-			if targetStr, ok := target.(string); ok {
-				config.Target = targetStr
-			}
-		}
-
-		targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+		targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, submitPRReviewLog, safeOutputTargetConfigOptions{
+			parseTarget:       true,
+			parseAllowedRepos: true,
+		})
 		if isInvalid {
 			return nil // Invalid configuration, return nil to cause validation error
 		}
-		config.TargetRepoSlug = targetRepoSlug
-		config.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", submitPRReviewLog)
+		config.SafeOutputTargetConfig = targetConfig
 
 		// Parse footer configuration (string: "always"/"none"/"if-body", or bool for backward compat)
 		if footer, exists := configMap["footer"]; exists {

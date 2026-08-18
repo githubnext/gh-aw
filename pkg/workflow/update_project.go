@@ -51,14 +51,14 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 			}
 
 			// Parse target-repo for cross-repo content resolution (no wildcard allowed)
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, updateProjectLog, safeOutputTargetConfigOptions{
+				parseAllowedRepos: true,
+			})
 			if isInvalid {
 				return nil
 			}
-			updateProjectConfig.TargetRepoSlug = targetRepoSlug
-
-			// Parse allowed-repos for cross-repo content resolution
-			updateProjectConfig.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", updateProjectLog)
+			updateProjectConfig.TargetRepoSlug = targetConfig.TargetRepoSlug
+			updateProjectConfig.AllowedRepos = targetConfig.AllowedRepos
 
 			// Parse views if specified
 			updateProjectConfig.Views = parseProjectViews(configMap, updateProjectLog)

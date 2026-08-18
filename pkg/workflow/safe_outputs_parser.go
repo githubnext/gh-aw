@@ -12,6 +12,13 @@ type SafeOutputTargetConfig struct {
 	AllowedRepos   []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that operations can target (additionally to the target-repo)
 }
 
+type safeOutputTargetConfigOptions struct {
+	parseTarget                 bool
+	allowTargetRepoWildcard     bool
+	parseAllowedRepos           bool
+	allowAllowedReposExpression bool
+}
+
 // SafeOutputAllowedLabelsConfig contains the shared allowed-labels field for safe output configurations.
 // Embed this in safe output config structs that restrict which labels may be used.
 type SafeOutputAllowedLabelsConfig struct {
@@ -56,22 +63,42 @@ type ListJobConfig struct {
 // Returns the parsed SafeOutputTargetConfig and a boolean indicating if there was a validation error.
 // target-repo accepts "*" (wildcard) to indicate that any repository can be targeted.
 func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) {
-	safeOutputParserLog.Print("Parsing target config from map")
+	return parseSafeOutputTargetConfig(configMap, safeOutputParserLog, safeOutputTargetConfigOptions{
+		parseTarget:             true,
+		allowTargetRepoWildcard: true,
+		parseAllowedRepos:       true,
+	})
+}
+
+func parseSafeOutputTargetConfig(configMap map[string]any, debugLog *logger.Logger, opts safeOutputTargetConfigOptions) (SafeOutputTargetConfig, bool) {
+	if debugLog != nil {
+		debugLog.Print("Parsing target config from map")
+	}
+
 	config := SafeOutputTargetConfig{}
 
-	// Parse target
-	if target, exists := configMap["target"]; exists {
-		if targetStr, ok := target.(string); ok {
-			config.Target = targetStr
-			safeOutputParserLog.Printf("Target set to: %s", targetStr)
+	if opts.parseTarget {
+		config.Target = extractStringFromMap(configMap, "target", debugLog)
+		if config.Target != "" && debugLog != nil {
+			debugLog.Printf("Target set to: %s", config.Target)
 		}
 	}
 
-	// Parse target-repo; wildcard "*" is allowed and means "any repository"
-	config.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", safeOutputParserLog)
+	config.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", debugLog)
+	if config.TargetRepoSlug == "*" && !opts.allowTargetRepoWildcard {
+		if debugLog != nil {
+			debugLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+		}
+		return SafeOutputTargetConfig{}, true
+	}
 
-	// Parse allowed-repos
-	config.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", safeOutputParserLog)
+	if opts.parseAllowedRepos {
+		if opts.allowAllowedReposExpression {
+			config.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", debugLog)
+		} else {
+			config.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", debugLog)
+		}
+	}
 
 	return config, false
 }

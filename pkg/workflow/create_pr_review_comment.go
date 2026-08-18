@@ -39,19 +39,17 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 			}
 		}
 
-		// Parse target
-		if target, exists := configMap["target"]; exists {
-			if targetStr, ok := target.(string); ok {
-				prReviewCommentsConfig.Target = targetStr
-			}
-		}
-
-		// Parse target-repo using shared helper with validation
-		targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+		// Parse target config (target, target-repo, allowed-repos)
+		targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, createPRReviewCommentLog, safeOutputTargetConfigOptions{
+			parseTarget:       true,
+			parseAllowedRepos: true,
+		})
 		if isInvalid {
 			return nil // Invalid configuration, return nil to cause validation error
 		}
-		prReviewCommentsConfig.TargetRepoSlug = targetRepoSlug
+		prReviewCommentsConfig.Target = targetConfig.Target
+		prReviewCommentsConfig.TargetRepoSlug = targetConfig.TargetRepoSlug
+		prReviewCommentsConfig.AllowedRepos = targetConfig.AllowedRepos
 
 		if commitId, exists := configMap["commit-id"]; exists {
 			if commitIdStr, ok := commitId.(string); ok {

@@ -27,30 +27,15 @@ func (c *Compiler) parseReplyToPullRequestReviewCommentConfig(outputMap map[stri
 			// Parse common base fields with default max of 10
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 10)
 
-			// Parse target
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					config.Target = targetStr
-				}
-			}
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
+			// Parse target config (target, target-repo, allowed-repos)
+			targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, replyToPRReviewCommentLog, safeOutputTargetConfigOptions{
+				parseTarget:       true,
+				parseAllowedRepos: true,
+			})
 			if isInvalid {
 				return nil // Invalid configuration, return nil to cause validation error
 			}
-			config.TargetRepoSlug = targetRepoSlug
-
-			// Parse allowed-repos
-			if allowedRepos, exists := configMap["allowed-repos"]; exists {
-				if repos, ok := allowedRepos.([]any); ok {
-					for _, repo := range repos {
-						if repoStr, ok := repo.(string); ok {
-							config.AllowedRepos = append(config.AllowedRepos, repoStr)
-						}
-					}
-				}
-			}
+			config.SafeOutputTargetConfig = targetConfig
 
 			// Parse footer as templatable bool
 			if err := preprocessBoolFieldAsString(configMap, "footer", replyToPRReviewCommentLog); err != nil {

@@ -100,13 +100,6 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target (optional, similar to add-comment)
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					pushToBranchConfig.Target = targetStr
-				}
-			}
-
 			// Parse if-no-changes (optional, defaults to "warn")
 			if ifNoChanges, exists := configMap["if-no-changes"]; exists {
 				if ifNoChangesStr, ok := ifNoChanges.(string); ok {
@@ -159,7 +152,14 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			}
 
 			// Parse target-repo for cross-repository push
-			pushToBranchConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", pushToPullRequestBranchLog)
+			targetConfig, _ := parseSafeOutputTargetConfig(configMap, pushToPullRequestBranchLog, safeOutputTargetConfigOptions{
+				parseTarget:                 true,
+				allowTargetRepoWildcard:     true,
+				parseAllowedRepos:           true,
+				allowAllowedReposExpression: true,
+			})
+			pushToBranchConfig.Target = targetConfig.Target
+			pushToBranchConfig.TargetRepoSlug = targetConfig.TargetRepoSlug
 			pushToBranchConfig.HeadRepoSlug = extractStringFromMap(configMap, "head-repo", pushToPullRequestBranchLog)
 			pushToBranchConfig.HeadGitHubToken = extractStringFromMap(configMap, "head-github-token", pushToPullRequestBranchLog)
 
@@ -179,7 +179,7 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			pushToBranchConfig.BaseBranch = extractStringFromMap(configMap, "base-branch", pushToPullRequestBranchLog)
 
 			// Parse allowed-repos for cross-repository push (expression-aware)
-			pushToBranchConfig.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", pushToPullRequestBranchLog)
+			pushToBranchConfig.AllowedRepos = targetConfig.AllowedRepos
 
 			// Parse protected-files: supports string enum OR object form {policy, exclude}.
 			exclude := preprocessProtectedFilesField(configMap, pushToPullRequestBranchLog)

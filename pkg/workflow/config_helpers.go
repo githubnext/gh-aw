@@ -128,13 +128,11 @@ func extractStringFromMap(m map[string]any, key string, debugLog *logger.Logger)
 // Returns an error (indicated by the second return value being true) if the value is "*" (wildcard),
 // which is not allowed for safe output target repositories.
 func parseTargetRepoWithValidation(configMap map[string]any) (string, bool) {
-	targetRepoSlug := extractStringFromMap(configMap, "target-repo", configHelpersLog)
-	// Validate that target-repo is not "*" - only definite strings are allowed
-	if targetRepoSlug == "*" {
-		configHelpersLog.Print("Invalid target-repo: wildcard '*' is not allowed")
-		return "", true // Return true to indicate validation error
+	targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, configHelpersLog, safeOutputTargetConfigOptions{})
+	if isInvalid {
+		return "", true
 	}
-	return targetRepoSlug, false
+	return targetConfig.TargetRepoSlug, false
 }
 
 // NOTE: parseExpiresFromConfig and parseRelativeTimeSpec have been moved to time_delta.go

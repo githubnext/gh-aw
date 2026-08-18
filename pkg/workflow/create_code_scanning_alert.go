@@ -38,14 +38,15 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 			}
 		}
 
-		// Parse target-repo
-		securityReportsConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", createCodeScanningAlertLog)
+		targetConfig, _ := parseSafeOutputTargetConfig(configMap, createCodeScanningAlertLog, safeOutputTargetConfigOptions{
+			allowTargetRepoWildcard: true,
+			parseAllowedRepos:       true,
+		})
+		securityReportsConfig.TargetRepoSlug = targetConfig.TargetRepoSlug
 		if securityReportsConfig.TargetRepoSlug != "" {
 			createCodeScanningAlertLog.Printf("Target repo for code scanning alerts: %s", securityReportsConfig.TargetRepoSlug)
 		}
-
-		// Parse allowed-repos
-		securityReportsConfig.AllowedRepos = ParseStringArrayFromConfig(configMap, "allowed-repos", createCodeScanningAlertLog)
+		securityReportsConfig.AllowedRepos = targetConfig.AllowedRepos
 		if len(securityReportsConfig.AllowedRepos) > 0 {
 			createCodeScanningAlertLog.Printf("Allowed repos for cross-repo alerts: %d configured", len(securityReportsConfig.AllowedRepos))
 		}
