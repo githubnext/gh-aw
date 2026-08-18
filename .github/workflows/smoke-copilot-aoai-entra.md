@@ -154,6 +154,9 @@ safe-outputs:
       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 15
+# Per-run cost guardrail: healthy runs cost ~27 AI credits, so 60 leaves
+# headroom while capping the token burn of a runaway or failing run.
+max-ai-credits: 60
 experiments:
   caveman: [yes, no]
   subagent_model: [small, large]
@@ -210,7 +213,7 @@ Run each check NOW and mark as ✅/❌. Do NOT create files to automate this —
 9. Build: run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build`.
 10. Artifact upload (only if build passes): stage `./gh-aw` at `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw` and call `upload_artifact` with `path: "gh-aw"`.
 11. Discussion create: call `create_discussion` in `announcements` with label `ai-generated`, title `copilot was here`, temp ID `aw_smoke_discussion`.
-12. Workflow dispatch: call `dispatch_workflow` for `haiku-printer` with an original testing/automation haiku.
+12. Workflow dispatch: call `dispatch_workflow` for `haiku-printer`, set top-level `ref` to `${{ github.event.repository.default_branch }}`, and include `inputs.message` with an original testing/automation haiku (non-empty string).
 13. PR review tools: add 1-2 inline `create_pull_request_review_comment` comments, submit review with event `COMMENT`, then reply to most recent existing review comment ID when available.
 14. Comment memory: append an original 3-line haiku to `/tmp/gh-aw/comment-memory/*.md`.
 15. Sub-agent: use `file-summarizer` on `README.md`.
