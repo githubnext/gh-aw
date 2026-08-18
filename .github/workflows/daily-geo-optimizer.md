@@ -149,7 +149,7 @@ jobs:
             --arg base_url "$DOCS_BASE_URL/" \
             '{
               base_url: $base_url,
-              checks: ((map({(.key): del(.key)}) | add) // {}),
+              checks: ((map(. as $check | {($check.key): ($check | del(.key))}) | add) // {}),
               summary: {
                 llms_txt_found: (map(select(.key == "llms_txt"))[0].found // false),
                 ai_discovery_found_count: (map(select(.key | startswith("ai_"))) | map(select(.found)) | length),
