@@ -781,8 +781,10 @@ func NormalizeComparisonOperands(pass *analysis.Pass, expr *ast.BinaryExpr, meth
 
 // SwapPkgImportEdits returns the TextEdits that add addPkg to file and, when
 // removeOrphaned is true, remove the now-unused removePkg import. The second
-// return value reports whether any import change was required; it is false
-// when addPkg is already imported and removeOrphaned is false.
+// return value reports whether an import change was required; it is false only
+// when addPkg is already imported and removeOrphaned is false. A required
+// change may still yield no edits when the import section cannot be rewritten,
+// so callers must not assume a non-empty slice when it is true.
 func SwapPkgImportEdits(pass *analysis.Pass, file *ast.File, addPkg, removePkg string, removeOrphaned bool) ([]analysis.TextEdit, bool) {
 	_, addImported := ImportedAs(file, pass.TypesInfo, addPkg)
 	needAdd := !addImported
