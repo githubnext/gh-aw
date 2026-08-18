@@ -25,8 +25,12 @@ Run from the repository root:
 if gh aw --help >/dev/null 2>&1; then
   echo "gh aw is installed"
 else
-  echo "gh aw is missing. Run install script steps from github/gh-aw:"
-  echo "  bash ./install-gh-aw.sh"
+  if [ -f ./install-gh-aw.sh ]; then
+    echo "gh aw is missing. Run install script steps from github/gh-aw:"
+    echo "  bash ./install-gh-aw.sh"
+  else
+    echo "gh aw is missing and ./install-gh-aw.sh is not present in this checkout."
+  fi
   return 1 2>/dev/null || exit 1
 fi
 ```
