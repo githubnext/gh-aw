@@ -17,12 +17,19 @@ Reference workflow authoring skill guidance at: https://raw.githubusercontent.co
 
 ## Self-contained setup (do not assume environment is ready)
 
-### Step 0) Verify repository and install CLI when missing
+### Step 0) Verify CLI availability
 
 Run from the repository root:
 
 ```bash
-bash .github/skills/review-agentic-workflows/setup.sh
+if gh aw --help >/dev/null 2>&1; then
+  echo "gh aw is installed"
+else
+  echo "gh aw is missing. Run install script steps from github/gh-aw:"
+  echo "  bash ./install-gh-aw.sh"
+  echo "  # or"
+  echo "  curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash"
+fi
 ```
 
 ## Review workflow
