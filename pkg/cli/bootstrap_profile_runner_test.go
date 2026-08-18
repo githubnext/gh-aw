@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -130,5 +131,48 @@ func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
 		if positions[i-1] >= positions[i] {
 			t.Errorf("action at position %d appears after action at position %d (ordering regression)", i-1, i)
 		}
+	}
+}
+
+// TestExecuteBootstrapProfile_DisableGitHubAppPermissionInferenceSkipsResolution verifies
+// that setting DisableGitHubAppPermissionInference on the run config skips inferring
+// GitHub App requirements from the package's resolved workflows entirely. The inference
+// function is stubbed to fail so any invocation surfaces as an error.
+func TestExecuteBootstrapProfile_DisableGitHubAppPermissionInferenceSkipsResolution(t *testing.T) {
+	originalRunGH := runBootstrapGHContext
+	originalInfer := bootstrapInferGitHubAppRequires
+	t.Cleanup(func() {
+		runBootstrapGHContext = originalRunGH
+		bootstrapInferGitHubAppRequires = originalInfer
+	})
+	runBootstrapGHContext = func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+		return []byte("APP_ID\nAPP_PRIVATE_KEY\n"), nil
+	}
+	inferCalled := false
+	bootstrapInferGitHubAppRequires = func(_ context.Context, _ []string) (map[string]string, []string, error) {
+		inferCalled = true
+		return nil, nil, errors.New("inference must not run when disabled")
+	}
+
+	profile := &resolvedBootstrapProfile{
+		PackageID: "owner/repo",
+		Profile: &repositoryPackageBootstrap{
+			Config: []repositoryPackageBootstrapAction{
+				{Type: "github-app", AppIDVariable: "APP_ID", PrivateKeySecret: "APP_PRIVATE_KEY"},
+			},
+		},
+	}
+
+	err := executeBootstrapProfile(context.Background(), bootstrapProfileRunConfig{
+		Repo:                                "octo/platform-ops",
+		Sources:                             nil,
+		Profile:                             profile,
+		DisableGitHubAppPermissionInference: true,
+	})
+	if err != nil {
+		t.Fatalf("executeBootstrapProfile returned error with inference disabled: %v", err)
+	}
+	if inferCalled {
+		t.Fatal("expected inference function not to be called when DisableGitHubAppPermissionInference is true")
 	}
 }

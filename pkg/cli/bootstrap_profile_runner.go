@@ -33,9 +33,10 @@ var (
 	bootstrapSetSecret = func(_ context.Context, repo, name, value string) error {
 		return setBootstrapRepoSecret(repo, name, value)
 	}
-	bootstrapCreateGitHubApp       = createBootstrapGitHubApp
-	bootstrapCheckOwnerType        = checkSetupRepositoryOwnerType
-	bootstrapExchangeGitHubAppCode = bootstrapExchangeGitHubAppCodeImpl
+	bootstrapCreateGitHubApp        = createBootstrapGitHubApp
+	bootstrapCheckOwnerType         = checkSetupRepositoryOwnerType
+	bootstrapExchangeGitHubAppCode  = bootstrapExchangeGitHubAppCodeImpl
+	bootstrapInferGitHubAppRequires = inferBootstrapGitHubAppRequirements
 )
 
 type bootstrapProfileRunConfig struct {
@@ -51,6 +52,10 @@ type bootstrapProfileRunConfig struct {
 	// instead of a PAT. When true, copilot-auth config actions are skipped because
 	// the workflow already has permissions.copilot-requests: write injected.
 	UseCopilotRequests bool
+	// DisableGitHubAppPermissionInference disables inferring GitHub App
+	// permissions/events from the package's resolved workflows. When true, only
+	// permissions/events explicitly declared in aw.yml are applied to the App.
+	DisableGitHubAppPermissionInference bool
 }
 
 type bootstrapProfileExistingState struct {
@@ -121,8 +126,8 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 
 	var inferredPermissions map[string]string
 	var inferredEvents []string
-	if hasBootstrapGitHubAppAction(config.Profile.Profile.Config) {
-		inferredPermissions, inferredEvents, err = inferBootstrapGitHubAppRequirements(ctx, config.Sources)
+	if !config.DisableGitHubAppPermissionInference && hasBootstrapGitHubAppAction(config.Profile.Profile.Config) {
+		inferredPermissions, inferredEvents, err = bootstrapInferGitHubAppRequires(ctx, config.Sources)
 		if err != nil {
 			return err
 		}
