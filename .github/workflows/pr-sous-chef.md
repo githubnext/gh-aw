@@ -229,7 +229,7 @@ steps:
         > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json
       eligible_count="$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
       fetched_count="$(jq '.fetched' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
-      eligible_pull_request_numbers="$(jq -c '[.prs[].number | tostring]' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo '[]')"
+      eligible_pull_request_numbers="$(jq -c '[.prs[]?.number | tostring]' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo '[]')"
       echo "eligible_count=$eligible_count" >> "$GITHUB_OUTPUT"
       echo "eligible_pull_request_numbers=$eligible_pull_request_numbers" >> "$GITHUB_OUTPUT"
 
@@ -261,7 +261,34 @@ steps:
   - name: Install formatter dependencies
     if: steps.fetch-prs.outputs.eligible_count != '0'
     run: npm ci --prefix actions/setup/js
+jobs:
+  approval_allowlist:
+    needs: agent
+    if: always() && needs.agent.result != 'skipped'
+    runs-on: ubuntu-slim
+    permissions:
+      actions: read
+    outputs:
+      eligible_pull_request_numbers: ${{ steps.extract.outputs.eligible_pull_request_numbers }}
+    steps:
+      - name: Download agent artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: agent
+          path: ${{ runner.temp }}/gh-aw
+      - name: Extract eligible PR allowlist
+        id: extract
+        run: |
+          candidate_file="$(find "${RUNNER_TEMP}/gh-aw" -path '*/pr-sous-chef-candidates-compact.json' -print -quit)"
+          if [ -n "$candidate_file" ] && [ -f "$candidate_file" ]; then
+            eligible_pull_request_numbers="$(jq -c '[.prs[]?.number | tostring]' "$candidate_file" || echo '[]')"
+          else
+            eligible_pull_request_numbers='[]'
+          fi
+          echo "eligible_pull_request_numbers=$eligible_pull_request_numbers" >> "$GITHUB_OUTPUT"
 safe-outputs:
+  needs: [approval_allowlist]
   add-comment:
     max: 4
     target: "*"
@@ -269,7 +296,7 @@ safe-outputs:
   approve-workflow-run:
     max: 8
     allowed-workflows: [cjs.yml, cgo.yml]
-    allowed-pull-requests: ${{ steps.fetch-prs.outputs.eligible_pull_request_numbers }}
+    allowed-pull-requests: ${{ needs.approval_allowlist.outputs.eligible_pull_request_numbers }}
     fork: false
     github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   resolve-pull-request-review-thread:
@@ -364,6 +391,7 @@ For each PR that is not skipped:
 
 0. **Approve allowed action-required workflow runs**
    - If the compact JSON `failed_checks` list contains `ACTION_REQUIRED`, inspect the PR's waiting workflow runs and call `safeoutputs approve_workflow_run --run_id <RUN_ID>` only for matching CJS/CGO runs.
+   - To find run IDs, query `gh run list --repo "$EXPR_GITHUB_REPOSITORY" --branch <headRefName> --json databaseId,path,status,event,headBranch,headSha --jq '[.[] | select((.status == "waiting" or .status == "action_required") and (.path == ".github/workflows/cjs.yml" or .path == ".github/workflows/cgo.yml"))]'`; then keep only runs whose `headBranch` matches the PR head branch and whose `headSha` matches the PR `headRefOid` when present.
    - Only approve workflow runs whose workflow file is exactly `cjs.yml` or `cgo.yml`; never approve any other action-required workflow.
    - Only approve workflow runs associated with the current eligible PR. The safe output is additionally scoped to the eligible PR numbers from the prefilter.
    - Increment `approved_workflow_runs` for each successful approval.
@@ -381,8 +409,9 @@ For each PR that is not skipped:
    - If `mergeStateStatus` is `CONFLICTING`, **skip this step entirely**.
    - Otherwise, attempt `update_pull_request` with `update_branch: true` and a minimal append body marker including `pr-sous-chef` and the run URL.
 
-3. **Post exactly one combined nudge comment** (at most ONE `add_comment` per PR per run)
-   - Always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
+3. **Post one combined nudge comment when forward-progress nudge is still needed** (at most ONE `add_comment` per PR per run)
+   - Skip this step when the approval step already approved all action-required `CJS`/`CGO` runs for the PR and there is no other forward-progress nudge to post.
+   - When posting, always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
    - **If `CONFLICTING`**: instruct `@copilot` to run `make merge-main` to resolve conflicts; increment `merge_main_scheduled`.
    - **Otherwise**: combine into one comment — unresolved reviews (reviewer + direct link per thread, newest first), `failed_checks` from compact JSON (name + URL), branch refresh, and instruction to run the `pr-finisher` skill.
    - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
