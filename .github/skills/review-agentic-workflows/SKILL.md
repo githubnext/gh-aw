@@ -16,7 +16,7 @@ Use this skill when asked to review `.github/workflows/*.md` agentic workflows o
 
 ## Self-contained setup (do not assume environment is ready)
 
-Run these checks before reviewing:
+### Step 0) Verify repository and install CLI when missing
 
 ```bash
 set -euo pipefail
@@ -30,7 +30,12 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 if ! gh aw --help >/dev/null 2>&1; then
-  if [ -x ./gh-aw ]; then
+  if [ -x ./install-gh-aw.sh ]; then
+    bash ./install-gh-aw.sh
+  fi
+  if gh aw --help >/dev/null 2>&1; then
+    echo "Using installed gh aw CLI extension"
+  elif [ -x ./gh-aw ]; then
     echo "Using local ./gh-aw binary"
   else
     echo "gh-aw CLI extension or local ./gh-aw binary is required" >&2
@@ -43,7 +48,7 @@ fi
 
 ### 1) Scope the review
 
-Identify changed workflow sources and generated outputs:
+Run this scope check in the review step:
 
 ```bash
 BASE_REF="${BASE_REF:-origin/main}"
@@ -61,13 +66,13 @@ If source `.md` files changed, treat generated `.lock.yml` drift as part of the 
 For changed workflows, run strict compilation with validators:
 
 ```bash
-gh aw compile --strict --actionlint --zizmor --poutine --runner-guard --yamllint
+gh aw compile --strict --actionlint --zizmor --poutine --runner-guard --yamllint --shellcheck
 ```
 
 If `gh aw` extension is unavailable but local binary exists:
 
 ```bash
-./gh-aw compile --strict --actionlint --zizmor --poutine --runner-guard --yamllint
+./gh-aw compile --strict --actionlint --zizmor --poutine --runner-guard --yamllint --shellcheck
 ```
 
 Fail review on compilation errors or High/Critical security findings unless explicitly justified.
