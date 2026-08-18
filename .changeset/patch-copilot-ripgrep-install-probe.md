@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Skip the generated Copilot ripgrep apt install when `rg` is already available on the runner.
+Stop installing system ripgrep for Copilot jobs because Copilot CLI bundles its own search binary.
