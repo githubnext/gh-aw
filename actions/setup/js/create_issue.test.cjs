@@ -1229,6 +1229,36 @@ describe("create_issue", () => {
       expect(result).toMatchObject({ success: false, deferred: true });
       expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
     });
+
+    it("should keep the issue successful when the dependency API fails", async () => {
+      mockGithub.rest.issues.get = vi.fn().mockResolvedValue({ data: { id: 9001 } });
+      mockGithub.request = vi.fn().mockRejectedValue(new Error("dependency api unavailable"));
+      const handler = await main({});
+
+      const result = await handler({
+        title: "Blocked issue",
+        body: "Waits for other work.",
+        blocked_by: 42,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.number).toBe(123);
+      expect(result.blocked_by_errors).toEqual([expect.stringContaining("dependency api unavailable")]);
+    });
+
+    it("should preview unresolved temporary IDs in staged mode instead of deferring", async () => {
+      const handler = await main({ staged: true });
+
+      const result = await handler({
+        title: "Blocked issue",
+        body: "Waits for a prerequisite created in the same run.",
+        blocked_by: ["aw_prereq", 42],
+      });
+
+      expect(result).toMatchObject({ success: true, staged: true });
+      expect(result.previewInfo.blockedBy).toEqual(["test-owner/test-repo#42", "aw_prereq"]);
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("body sanitization", () => {

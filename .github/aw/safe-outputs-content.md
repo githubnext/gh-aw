@@ -55,7 +55,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
   {"type": "create_issue", "parent": "aw_abc123", "title": "Sub-task", "body": "References #aw_abc123"}
   ```
 
-  **Blocked-By Dependencies:** Set `blocked_by` in `create_issue` output to an issue number, temporary ID, `owner/repo#number` reference, GitHub issue URL, or a list of references. Temporary IDs are resolved before the issue is created, allowing dependent output to be emitted in any order.
+  **Blocked-By Dependencies:** Set `blocked_by` in `create_issue` output to an issue number, temporary ID, `owner/repo#number` reference, GitHub issue URL, or a list of references. Temporary IDs are resolved before the issue is created, allowing dependent output to be emitted in any order. Attaching a dependency is best-effort: if the dependency API call fails the issue is still reported as created and the failure is logged as a warning.
 
   **Setting Issue Fields on Creation**: Agents can include a `fields` array in the `create_issue` output to set custom field values immediately after creation. Each item is `{"name": <field-display-name>, "value": <string-or-number>}`. Use a number for numeric fields; string for single-select, iteration title, date `YYYY-MM-DD`, or text. Restrict allowed names with `allowed-fields:`.
 

@@ -725,13 +725,14 @@ function buildSkippedResult(type, messageIndex, result) {
 }
 
 /**
- * Sort messages so temporary-ID producers run before consumers while preserving
- * the original order for independent messages and dependency cycles.
+ * Compute the processing order (original message indices) so that temporary-ID
+ * producers run before consumers while preserving the original order for
+ * independent messages and dependency cycles.
  *
  * @param {Array<Record<string, any>>} messages
- * @returns {Array<Record<string, any>>}
+ * @returns {Array<number>} original message indices in processing order
  */
-function sortMessagesByTemporaryIdDependencies(messages) {
+function sortMessageIndicesByTemporaryIdDependencies(messages) {
   const producers = new Map();
   messages.forEach((message, index) => {
     const temporaryId = getCreatedTemporaryId(message);
@@ -754,18 +755,29 @@ function sortMessagesByTemporaryIdDependencies(messages) {
     }
   });
 
+  /** @type {Array<number>} */
   const ready = [];
+  /** @param {number} index */
+  const pushReady = index => {
+    // Keep the ready queue ordered by original message index so independent
+    // messages keep their original relative order (stable topological sort).
+    let position = ready.length;
+    while (position > 0 && ready[position - 1] > index) position--;
+    ready.splice(position, 0, index);
+  };
   inDegree.forEach((degree, index) => {
-    if (degree === 0) ready.push(index);
+    if (degree === 0) pushReady(index);
   });
+  /** @type {Array<number>} */
   const sorted = [];
   while (ready.length > 0) {
     const index = ready.shift();
+    if (index === undefined) break;
     sorted.push(index);
     for (const dependentIndex of dependents[index]) {
       inDegree[dependentIndex]--;
       if (inDegree[dependentIndex] === 0) {
-        ready.push(dependentIndex);
+        pushReady(dependentIndex);
       }
     }
   }
@@ -777,7 +789,18 @@ function sortMessagesByTemporaryIdDependencies(messages) {
       if (!sortedIndices.has(index)) sorted.push(index);
     }
   }
-  return sorted.map(index => messages[index]);
+  return sorted;
+}
+
+/**
+ * Sort messages so temporary-ID producers run before consumers while preserving
+ * the original order for independent messages and dependency cycles.
+ *
+ * @param {Array<Record<string, any>>} messages
+ * @returns {Array<Record<string, any>>}
+ */
+function sortMessagesByTemporaryIdDependencies(messages) {
+  return sortMessageIndicesByTemporaryIdDependencies(messages).map(index => messages[index]);
 }
 
 /**
@@ -791,7 +814,7 @@ function sortMessagesByTemporaryIdDependencies(messages) {
  * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, artifactUrlMap: Map<string, string>, outputsWithUnresolvedIds: Array<any>, missings: Object, codePushFailures: Array<{type: string, error: string}>}>}
  */
 async function processMessages(messageHandlers, messages, onItemCreated = null) {
-  messages = sortMessagesByTemporaryIdDependencies(messages);
+  const processingOrder = sortMessageIndicesByTemporaryIdDependencies(messages);
   const results = [];
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
 
@@ -840,8 +863,9 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
   core.info(`Processing ${messages.length} message(s) in order of appearance...`);
 
-  // Process messages in order of appearance
-  for (let i = 0; i < messages.length; i++) {
+  // Process messages in dependency order while reporting original message indices
+  for (let position = 0; position < processingOrder.length; position++) {
+    const i = processingOrder[position];
     const message = messages[i];
     const messageType = message.type;
 
@@ -1893,6 +1917,7 @@ module.exports = {
   loadHandlers,
   processMessages,
   sortMessagesByTemporaryIdDependencies,
+  sortMessageIndicesByTemporaryIdDependencies,
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
   rollbackReviewResultsForPR,

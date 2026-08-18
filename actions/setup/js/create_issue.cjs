@@ -383,13 +383,17 @@ function buildIssueFieldMutationInput(requestedFields, availableFields) {
  * @param {string|number} value
  * @param {Map<string, {repo: string, number: number}>} temporaryIdMap
  * @param {string} defaultRepo
- * @returns {{target: {repo: string, number: number}|null, deferred?: boolean, error?: string}}
+ * @param {boolean} [allowUnresolvedTemporaryIds] - When true (staged mode), unresolved temporary IDs are reported instead of deferring
+ * @returns {{target: {repo: string, number: number}|null, deferred?: boolean, unresolvedTemporaryId?: string, error?: string}}
  */
-function resolveBlockedByReference(value, temporaryIdMap, defaultRepo) {
+function resolveBlockedByReference(value, temporaryIdMap, defaultRepo, allowUnresolvedTemporaryIds = false) {
   const raw = String(value).trim();
   if (isTemporaryId(raw)) {
     const resolved = temporaryIdMap.get(normalizeTemporaryId(raw));
     if (!resolved) {
+      if (allowUnresolvedTemporaryIds) {
+        return { target: null, unresolvedTemporaryId: raw };
+      }
       return { target: null, deferred: true, error: `Unresolved temporary ID: ${raw}` };
     }
     return { target: { repo: resolved.repo, number: resolved.number } };
@@ -418,26 +422,35 @@ function resolveBlockedByReference(value, temporaryIdMap, defaultRepo) {
  * @param {unknown} blockedBy
  * @param {Map<string, {repo: string, number: number}>} temporaryIdMap
  * @param {string} defaultRepo
- * @returns {{targets: Array<{repo: string, number: number}>, deferred?: boolean, error?: string}}
+ * @param {boolean} [allowUnresolvedTemporaryIds] - When true (staged mode), unresolved temporary IDs are collected instead of deferring
+ * @returns {{targets: Array<{repo: string, number: number}>, unresolvedTemporaryIds: Array<string>, deferred?: boolean, error?: string}}
  */
-function resolveBlockedByReferences(blockedBy, temporaryIdMap, defaultRepo) {
+function resolveBlockedByReferences(blockedBy, temporaryIdMap, defaultRepo, allowUnresolvedTemporaryIds = false) {
   if (blockedBy === undefined || blockedBy === null) {
-    return { targets: [] };
+    return { targets: [], unresolvedTemporaryIds: [] };
   }
   const values = Array.isArray(blockedBy) ? blockedBy : [blockedBy];
   const targets = [];
+  const unresolvedTemporaryIds = [];
   const seen = new Set();
 
   for (const value of values) {
     if (typeof value !== "string" && typeof value !== "number") {
-      return { targets: [], error: "create_issue 'blocked_by' must be an issue reference or an array of issue references" };
+      return { targets: [], unresolvedTemporaryIds: [], error: "create_issue 'blocked_by' must be an issue reference or an array of issue references" };
     }
-    const resolved = resolveBlockedByReference(value, temporaryIdMap, defaultRepo);
+    const resolved = resolveBlockedByReference(value, temporaryIdMap, defaultRepo, allowUnresolvedTemporaryIds);
     if (resolved.deferred) {
-      return { targets: [], deferred: true, error: resolved.error };
+      return { targets: [], unresolvedTemporaryIds: [], deferred: true, error: resolved.error };
+    }
+    if (resolved.unresolvedTemporaryId) {
+      if (!seen.has(resolved.unresolvedTemporaryId)) {
+        seen.add(resolved.unresolvedTemporaryId);
+        unresolvedTemporaryIds.push(resolved.unresolvedTemporaryId);
+      }
+      continue;
     }
     if (!resolved.target) {
-      return { targets: [], error: resolved.error };
+      return { targets: [], unresolvedTemporaryIds: [], error: resolved.error };
     }
     const key = `${resolved.target.repo.toLowerCase()}#${resolved.target.number}`;
     if (!seen.has(key)) {
@@ -445,7 +458,7 @@ function resolveBlockedByReferences(blockedBy, temporaryIdMap, defaultRepo) {
       targets.push(resolved.target);
     }
   }
-  return { targets };
+  return { targets, unresolvedTemporaryIds };
 }
 
 /**
@@ -741,7 +754,9 @@ async function main(config = {}) {
     }
     const { repo: qualifiedItemRepo, repoParts } = repoResult;
 
-    const blockedBy = resolveBlockedByReferences(message.blocked_by, temporaryIdMap, qualifiedItemRepo);
+    // In staged mode no issues are created, so temporary IDs never resolve; validate the
+    // references without deferring so dependent issues still get a staged preview.
+    const blockedBy = resolveBlockedByReferences(message.blocked_by, temporaryIdMap, qualifiedItemRepo, isStaged);
     if (blockedBy.deferred) {
       core.info(`Deferring create_issue: ${blockedBy.error}`);
       return { success: false, deferred: true, error: blockedBy.error };
@@ -1094,6 +1109,10 @@ async function main(config = {}) {
     // If in staged mode, preview the issue without creating it
     if (isStaged) {
       logStagedPreviewInfo(`Would create issue in ${qualifiedItemRepo} with title: ${title}`);
+      const stagedBlockedBy = [...blockedBy.targets.map(target => `${target.repo}#${target.number}`), ...blockedBy.unresolvedTemporaryIds];
+      if (stagedBlockedBy.length > 0) {
+        logStagedPreviewInfo(`Would mark issue as blocked by: ${stagedBlockedBy.join(", ")}`);
+      }
       if (deduplicateByTitle.enabled) {
         recordSeenTitle(qualifiedItemRepo, title, normalizedTitle);
       }
@@ -1109,6 +1128,7 @@ async function main(config = {}) {
           fields: issueFields,
           bodyLength: body.length,
           temporaryId,
+          ...(stagedBlockedBy.length > 0 ? { blockedBy: stagedBlockedBy } : {}),
         },
       };
     }
@@ -1154,6 +1174,10 @@ async function main(config = {}) {
         }
       }
 
+      // Dependency attachment is best-effort: the issue already exists at this point,
+      // so a dependency API failure must not report the whole create_issue as failed.
+      /** @type {Array<string>} */
+      const blockedByFailures = [];
       for (const blockedIssue of blockedBy.targets) {
         const [blockedOwner, blockedRepo] = blockedIssue.repo.split("/");
         try {
@@ -1174,11 +1198,8 @@ async function main(config = {}) {
           core.info(`Added blocked-by dependency: ${qualifiedItemRepo}#${issue.number} <- ${blockedIssue.repo}#${blockedIssue.number}`);
         } catch (error) {
           const dependencyError = getErrorMessage(error);
-          core.error(`Failed to add blocked-by dependency ${blockedIssue.repo}#${blockedIssue.number} to ${qualifiedItemRepo}#${issue.number}: ${dependencyError}`);
-          return {
-            success: false,
-            error: `Issue ${qualifiedItemRepo}#${issue.number} was created, but blocked-by dependency ${blockedIssue.repo}#${blockedIssue.number} could not be added: ${dependencyError}`,
-          };
+          blockedByFailures.push(`${blockedIssue.repo}#${blockedIssue.number}: ${dependencyError}`);
+          core.warning(`Issue ${qualifiedItemRepo}#${issue.number} was created, but blocked-by dependency ${blockedIssue.repo}#${blockedIssue.number} could not be added: ${dependencyError}`);
         }
       }
 
@@ -1324,6 +1345,7 @@ async function main(config = {}) {
         number: issue.number,
         url: issue.html_url,
         temporaryId: temporaryId,
+        ...(blockedByFailures.length > 0 ? { blocked_by_errors: blockedByFailures } : {}),
         _repo: qualifiedItemRepo, // For tracking in the closure
       };
     } catch (error) {

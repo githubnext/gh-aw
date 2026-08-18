@@ -8,6 +8,7 @@ import {
   loadHandlers,
   processMessages,
   sortMessagesByTemporaryIdDependencies,
+  sortMessageIndicesByTemporaryIdDependencies,
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
   rollbackReviewResultsForPR,
@@ -69,6 +70,22 @@ describe("Safe Output Handler Manager", () => {
         const blocked = { type: "create_issue", temporary_id: "aw_blocked", blocked_by: "aw_prereq", title: "Blocked" };
 
         expect(sortMessagesByTemporaryIdDependencies([blocked, prerequisite])).toEqual([prerequisite, blocked]);
+      });
+
+      it("keeps independent messages in their original relative order", () => {
+        const dependent = { type: "create_issue", temporary_id: "aw_blocked", blocked_by: "aw_prereq", title: "Blocked" };
+        const producer = { type: "create_issue", temporary_id: "aw_prereq", title: "Prerequisite" };
+        const unrelated = { type: "create_issue", temporary_id: "aw_other", title: "Unrelated" };
+
+        expect(sortMessagesByTemporaryIdDependencies([dependent, producer, unrelated])).toEqual([producer, dependent, unrelated]);
+      });
+
+      it("returns original message indices in processing order", () => {
+        const dependent = { type: "create_issue", temporary_id: "aw_blocked", blocked_by: "aw_prereq", title: "Blocked" };
+        const producer = { type: "create_issue", temporary_id: "aw_prereq", title: "Prerequisite" };
+        const unrelated = { type: "create_issue", temporary_id: "aw_other", title: "Unrelated" };
+
+        expect(sortMessageIndicesByTemporaryIdDependencies([dependent, producer, unrelated])).toEqual([1, 0, 2]);
       });
     });
 
