@@ -1,6 +1,9 @@
 package workflow
 
 import (
+	"errors"
+	"strconv"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -39,11 +42,40 @@ func isStackedPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
 	return *config.Stacked
 }
 
+func validatePreCreatePullRequest(data *WorkflowData) error {
+	if !isPreCreatePullRequestEnabled(data) {
+		return nil
+	}
+
+	config := data.SafeOutputs.CreatePullRequests
+	if data.CheckoutDisabled {
+		return errors.New("safe-outputs.create-pull-request.pre-create requires the default checkout")
+	}
+	if config.Max != nil {
+		max, err := strconv.Atoi(*config.Max)
+		if err != nil || max != 1 {
+			return errors.New("safe-outputs.create-pull-request.pre-create requires max: 1")
+		}
+	}
+	if config.TargetRepoSlug != "" || config.HeadRepoSlug != "" || len(config.AllowedRepos) > 0 {
+		return errors.New("safe-outputs.create-pull-request.pre-create only supports pull requests in the workflow repository")
+	}
+	if config.BranchPrefix != "" || len(config.AllowedBranches) > 0 {
+		return errors.New("safe-outputs.create-pull-request.pre-create cannot be combined with branch-prefix or allowed-branches")
+	}
+	checkoutManager := NewCheckoutManager(data.CheckoutConfigs)
+	if checkout := checkoutManager.GetDefaultCheckoutOverride(); checkout != nil && (checkout.key.repository != "" || checkout.key.wiki) {
+		return errors.New("safe-outputs.create-pull-request.pre-create requires the default checkout to use the workflow repository")
+	}
+	return nil
+}
+
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
 type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
 	SafeOutputAllowedLabelsConfig  `yaml:",inline"`
 	BranchPrefix                   string           `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
+	PreCreate                      bool             `yaml:"pre-create,omitempty"`    // Pre-create a draft pull request in the activation job and reuse it for the agent output.
 	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`
 	RequireTemporaryID             bool             `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
 	Labels                         []string         `yaml:"labels,omitempty"`

@@ -134,6 +134,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 	compilerActivationJobLog.Printf("Adding activation repository/output steps: stale_check_disabled=%t, needs_text_output=%t, lock_for_agent=%t",
 		data.StaleCheckDisabled, data.NeedsTextOutput, data.LockForAgent)
 	c.addActivationCheckoutAndBaseRestoreStep(ctx)
+	c.addActivationPreCreatePullRequestStep(ctx)
 	c.addActivationLockFileStep(ctx)
 	c.addActivationVersionCheckStep(ctx)
 	if err := c.addActivationTextOutputStep(ctx); err != nil {
@@ -149,7 +150,16 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 
 func (c *Compiler) addActivationCheckoutAndBaseRestoreStep(ctx *activationJobBuildContext) {
 	data := ctx.data
-	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
+	var checkoutSteps []string
+	if isPreCreatePullRequestEnabled(data) {
+		checkoutManager := NewCheckoutManager(data.CheckoutConfigs)
+		if checkoutManager.HasAppAuth() {
+			ctx.steps = append(ctx.steps, checkoutManager.GenerateCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data))...)
+		}
+		checkoutSteps = checkoutManager.GenerateDefaultCheckoutStep(c.trialMode, c.trialLogicalRepoSlug, c.getActionPin)
+	} else {
+		checkoutSteps = c.generateCheckoutGitHubFolderForActivation(data)
+	}
 	ctx.steps = append(ctx.steps, checkoutSteps...)
 	if len(checkoutSteps) > 0 {
 		compilerActivationJobLog.Print("Adding step to save agent config folders for base branch restoration")
