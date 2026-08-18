@@ -99,6 +99,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		return err
 	}
 	if !createPR {
+		printBootstrapConfigTODO(os.Stderr, remainingBootstrapProfile)
 		config.showFinalInstructions()
 		return nil
 	}
