@@ -1,21 +1,32 @@
-2026-08-17T18:23:00Z
+2026-08-18T00:31:00Z
 
-## Major finding this cycle: the last 3 cycles were analyzing stale data
+## Confirmation cycle: the stale-cache fix (PR #53486) is working, and all 4 substantive issues from the 18:23Z cycle were fixed same-day
 
-Confirmed the discussions-data-fetch and weekly-issues-data-fetch steps cache their results keyed only by calendar day (`discussions-${TODAY}.json`, `weekly-issues-${TODAY}.json`), while deep-report runs every 6 hours. Result: only the first run of each UTC day fetches live data; the next 3 runs that day silently reuse that stale snapshot. This is exactly why the 2026-08-17T06:26Z and 2026-08-17T12:22Z cycles both reported "zero new discussions/issues" — it wasn't a quiet repo, it was a frozen cache. Verified by diffing the pre-fetched file timestamps (newest discussion #53243 @ 23:55Z prior day, newest issue update 00:06Z) against live `gh api graphql` / `gh api search/issues` queries, which showed activity up to 18:25Z / issue #53451. Filed as a new issue this cycle (see extracted-tasks.md).
+Verified live via `gh api` that every substantive issue filed last cycle was fixed within hours:
+- #53460 (stale day-keyed cache) → fixed by PR #53486, merged 21:13Z
+- #53461 (CI regression, safe-outputs config migration) → fixed by PR #53468, merged 19:42Z
+- #53462 (schema/docs drift) → fixed by PR #53469, merged 20:13Z
+- #53463 (cache.go/dependabot.go decomposition) → fixed by PR #53479, merged 23:01Z
+- #53464 (recurring MCP toolset unavailability) → still open, correctly left as a non-expiring tracking issue
 
-**Practical implication for future cycles**: until that fix lands, do NOT trust the pre-fetched `/tmp/gh-aw/agent/discussions-data/discussions.json` and `/tmp/gh-aw/agent/weekly-issues-data/issues.json` files at face value on cycles after the day's first run — cross-check their newest `updatedAt` against a live `gh api graphql`/`gh api search/issues` spot-check before concluding "no new activity." If the pre-fetched file's newest timestamp is stale relative to a live spot-check, re-fetch manually (workaround commands in known_patterns.md).
+This cycle's pre-fetched discussions.json (100 entries) and weekly-issues.json (500 entries) both had fresh `updatedAt` timestamps within ~2 minutes of the live clock — the cache-refresh fix from PR #53486 appears to be working as intended. No need to bypass the cache with a live re-fetch this cycle (contrast with the 18:23Z cycle, which had to work around a genuinely stale cache).
 
-### This cycle's real findings (fetched live, bypassing the stale cache)
+### This cycle's real findings
 
-1. **CI failing on main right now** — `TestCreatePullRequestCrossRepoCheckout` / `TestCreatePullRequestWorkflowCompilationWithAssignees` / `TestSafeOutputsMCPServer*` failing due to a safe-outputs config env-var → config.json migration that tests weren't updated for. Confirmed live via `gh api .../runs/32054350453/jobs` + raw logs. Filed.
-2. **Schema/docs drift** (discussion #53313): `github-app` implemented+documented but missing from JSON schema; `max-runs`/`max-turns` untyped; `user-rate-limit` aliases undocumented. Filed as one bundled task.
-3. **Large file decomposition** (discussion #53391): `cache.go` (1118 lines) and `dependabot.go` (1072 lines) in `pkg/workflow` have clean functional seams ready to split. Filed.
-4. **Recurring GitHub Remote MCP toolset unavailability** — 3rd+ occurrence (#51703, #52245, today's #53314/#53058), each auto-expiring without a durable fix since the failure-notification issues carry an expiry tag. Filed as a non-expiring tracking issue.
-5. **Safe Output Health Monitor** (discussion #53295, its first run): 3 confirmed `safe_outputs`-job hard-failures in 24h, already tracked by open issue #53263 — added a corroborating comment with 2 new run IDs and the `failure_kind` misclassification insight instead of filing a duplicate.
+1. **The exact same day-keyed-cache bug recurs elsewhere**: `Copilot Opt` and `Copilot Agent PR Analysis` (flagged by discussion #53466, Daily Cache Strategy Analyzer) gate `cache-memory` reuse on `${TODAY}`-exact filenames, so cross-run reuse never actually happens on their normal (weekly/daily) cadence. Filed, citing the just-merged #53486 as the fix template.
+2. **3 workflows still lack `gh-aw-detection`** (discussion #53522): Daily Team Evolution Insights and MCP Inspector Agent both failed their only in-window run while unmonitored; Smoke Copilot Sub Agents also lacks it. Filed as one bundled task (precedent: #50135, a prior batch of 4).
+3. **Two near-identical Auto-Triage workflows** ("Auto-Triage Issues Report" #53372 vs "Auto-Triage Report" #53247) each ran and processed exactly 1 issue within a day of each other — filed as a de-dup/rename investigation (discussion #53496).
+4. **Agent Job Health Monitor's headline metric is unreliable**: self-reported ~37-minute log-cache tail vs. a claimed 24h window; its 6.25% failure rate should not be compared to the Audit Workflows report's 94.76%/5.24% (discussion #53240, re-surfaced in #53496). Filed as an investigation.
+5. **Same-scope metric divergence, narrowly scoped**: Daily Status vs. Daily Team Evolution Insights both claim 24h scope but disagree 50 vs. 22 merged PRs (128% relative). Filed a narrowly-scoped fix (add explicit window_start/window_end timestamps to just these two workflows) rather than the broader "standardize all daily reports" recommendation, which remains too unscoped for a 1-3 day task.
 
-### Issues-analyst snapshot
-Not run as a full sub-agent pass this cycle — superseded by the live spot-check above, since diagnosing the stale-cache meta-bug consumed the analysis budget. Next cycle should re-run the full issues-analyst pass once the cache fix lands and the pre-fetched data is trustworthy again.
+### Issues-analyst snapshot (full pass, 500-issue/7-day window)
+146 open / 354 closed. Top labels: agentic-workflows (225), automation (172), cookie (136), testing (42), code-quality (42). Unlabeled backlog **shrank from 6 to 3** (#53532, #53489, #53136) without any dedicated "label issues" task being filed — reinforces the known_patterns.md decision to keep declining that task type. 0 issues open >7 days.
+
+### Live workflow-log spot-check
+25 most-recent fleet runs via `agenticworkflows logs`: 25/25 success (0 failures, 0 intentional-failure tests in sample) — consistent with the CI regression from last cycle being fully resolved and no new fleet-wide issue emerging.
+
+### Known gap: ~55-discussion backlog from the 18:23Z cycle was lost, not mined
+The pre-fetched `discussions.json` caps at 100 entries sorted by recency. The ~55 discussions flagged as "not yet individually mined" in the 18:23Z cycle's memory have since rolled off that window (superseded by newer reports) and are no longer in the current dataset. Re-fetching each by number individually would cost more than the marginal value of mining months-old daily-report discussions at this point — treating this as an accepted, documented gap rather than attempting recovery. **Going forward: mine each cycle's new discussions in the same cycle they appear, since the 100-entry window means anything deferred is likely to be permanently lost within ~1-2 days at current discussion-creation volume (~13-63/6h window).**
 
 ### This cycle's tally
-5 new issues filed (stale-cache meta-bug, CI regression, schema drift, large-file decomposition, recurring MCP toolset gap). 1 comment added (#53263, corroborating evidence). Declined to force 2 more issues to hit the 7-issue quota — the effort this cycle went into diagnosing and fixing the meta-bug that was corrupting 3 prior cycles' analysis, which is higher-value than manufacturing marginal tasks from a discussion set that would otherwise have been mined at full depth. Next cycle, once the cache fix lands, resume full-depth discussion mining across the ~63 discussions this cycle only sampled.
+5 new issues filed (cache TODAY-key recurrence, detection-flag gaps, Auto-Triage dedup, Agent Job Health log-cache gap, window-anchor timestamps). 0 comments (no existing issue was an exact-root-cause match this cycle — all 5 candidates were genuinely new). All 13 new/updated discussions since the last cycle were read in full (no sampling shortfall this cycle).
