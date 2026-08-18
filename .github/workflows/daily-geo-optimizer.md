@@ -149,12 +149,15 @@ jobs:
             --arg base_url "$DOCS_BASE_URL/" \
             '{
               base_url: $base_url,
-              checks: (map({(.key): del(.key)}) | add),
+              checks: ((map({(.key): del(.key)}) | add) // {}),
               summary: {
                 llms_txt_found: (map(select(.key == "llms_txt"))[0].found // false),
                 ai_discovery_found_count: (map(select(.key | startswith("ai_"))) | map(select(.found)) | length),
                 ai_discovery_total: (map(select(.key | startswith("ai_"))) | length),
-                ai_discovery_all_found: (map(select(.key | startswith("ai_"))) | all(.found))
+                ai_discovery_all_found: (
+                  map(select(.key | startswith("ai_"))) as $ai_checks |
+                  (($ai_checks | length) > 0 and ($ai_checks | all(.found)))
+                )
               }
             }' "$CHECKS_JSONL" \
             > /tmp/gh-aw/agent/geo-optimizer/docs-ai-discovery-verification.json
