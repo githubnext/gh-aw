@@ -280,6 +280,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Pydantic AI"
+          GH_AW_WORKFLOW_EMOJI: "🐍"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🐍 *[{workflow_name}]({run_url}) — Powered by Pydantic AI*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🐍 Pydantic AI initializing... [{workflow_name}]({run_url}) begins on this {event_type}...\",\"runSuccess\":\"🐍 [{workflow_name}]({run_url}) Pydantic AI delivered.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Pydantic AI encountered unexpected challenges...\"}"
         with:
           script: |
