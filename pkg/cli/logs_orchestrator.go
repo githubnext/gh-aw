@@ -53,6 +53,24 @@ func applyMetricsTurnsToRun(run *WorkflowRun, metrics LogMetrics) {
 // entirely because it bounds the query server-side, so no warning is needed there.
 const staleLogsWarningThreshold = 48 * time.Hour
 
+// humanizeDuration formats a duration as a coarse, human-readable age such as
+// "11 days" or "5 hours", rather than a raw Go duration string like "264h0m0s".
+func humanizeDuration(d time.Duration) string {
+	if days := int(d.Hours()) / 24; days >= 1 {
+		if days == 1 {
+			return "1 day"
+		}
+		return fmt.Sprintf("%d days", days)
+	}
+	if hours := int(d.Hours()); hours >= 1 {
+		if hours == 1 {
+			return "1 hour"
+		}
+		return fmt.Sprintf("%d hours", hours)
+	}
+	return "less than 1 hour"
+}
+
 // staleLogsWarning returns a warning message when a date-unbounded logs query
 // (no start_date/end_date requested) returns a result set whose most recent run
 // is unexpectedly old. Returns "" when no warning is warranted, i.e. when an
@@ -82,7 +100,7 @@ func staleLogsWarning(processedRuns []ProcessedRun, startDate, endDate string) s
 	return fmt.Sprintf(
 		"No start_date/end_date was specified, and the most recent run in this result is %s old (created %s). "+
 			"Retry with an explicit start_date (e.g. \"-1d\") to confirm you are seeing the latest workflow runs.",
-		age.Round(time.Hour), newest.Format(time.RFC3339))
+		humanizeDuration(age), newest.Format(time.RFC3339))
 }
 
 // noRunsMessage returns a human-readable explanation for why zero workflow runs
@@ -229,5 +247,6 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		artifactFilter: runtime.artifactFilter,
 		startDate:      opts.StartDate,
 		endDate:        opts.EndDate,
+		checkStaleness: true,
 	})
 }

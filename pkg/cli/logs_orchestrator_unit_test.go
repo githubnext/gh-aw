@@ -397,14 +397,15 @@ func TestStaleLogsWarning(t *testing.T) {
 	})
 
 	t.Run("warns when no dates given and newest run is old", func(t *testing.T) {
-		oldest := time.Now().Add(-11 * 24 * time.Hour)
+		newest := time.Now().Add(-11 * 24 * time.Hour)
 		runs := []ProcessedRun{
-			{Run: WorkflowRun{CreatedAt: oldest}},
-			{Run: WorkflowRun{CreatedAt: oldest.Add(-time.Hour)}},
+			{Run: WorkflowRun{CreatedAt: newest}},
+			{Run: WorkflowRun{CreatedAt: newest.Add(-time.Hour)}},
 		}
 		warning := staleLogsWarning(runs, "", "")
 		require.NotEmpty(t, warning)
 		assert.Contains(t, warning, "No start_date/end_date was specified")
 		assert.Contains(t, warning, "start_date")
+		assert.Contains(t, warning, "11 day")
 	})
 }
