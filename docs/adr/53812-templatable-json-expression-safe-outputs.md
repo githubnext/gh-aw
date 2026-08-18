@@ -12,7 +12,9 @@ Safe-output configuration fields such as `allowed_pull_requests` accept GitHub A
 
 ### Decision
 
-We will introduce a `templatableJSONExpression` marker type and a two-pass serialization helper (`marshalSafeOutputsConfig`). The first pass uses standard `json.Marshal`, which serializes each expression as a quoted JSON string containing a sentinel prefix. The second pass uses `bytes.ReplaceAll` to strip the surrounding quotes and sentinel prefix, leaving the raw expression token embedded directly in the JSON output (unquoted, so it is treated as a JSON value—not a string—when expressions are substituted at runtime). Builder callers use the new `AddTemplatableJSONSlice` method to opt into this behavior for fields whose expression value evaluates to a JSON array.
+We will introduce a `templatableJSONExpression` marker type and a two-pass serialization helper (`marshalSafeOutputsConfig`). The first pass uses standard `json.Marshal`, which serializes each expression as a quoted JSON string containing a per-instance placeholder (a sentinel prefix plus a unique numeric id assigned when the expression is created). The second pass uses `bytes.ReplaceAll` to strip the surrounding quotes and placeholder, leaving the raw expression token embedded directly in the JSON output (unquoted, so it is treated as a JSON value—not a string—when expressions are substituted at runtime). The unique id makes each placeholder collision-proof against user-controlled expression text, independent of map traversal order. Builder callers use the new `AddTemplatableJSONSlice` method to opt into this behavior for fields whose expression value evaluates to a JSON array.
+
+Before splicing, the expression itself is rewritten to `${{ toJSON(<expr>) }}` (unless already wrapped in `toJSON(...)`). This guarantees the runtime substitution is always valid JSON: `toJSON` on an array yields the array's JSON text, `toJSON` on a JSON-text string yields a quoted string (still parsed by `parseAllowedPullRequests`), and `toJSON` on an empty string yields `""` rather than an empty, unparseable token.
 
 ### Alternatives Considered
 

@@ -199,23 +199,57 @@ func TestApproveWorkflowRunAllowedPullRequests(t *testing.T) {
 	assert.Equal(t, []string{"${{ inputs.allowed-pull-requests }}"}, config.AllowedPullRequests)
 
 	handlerConfig := handlerRegistry["approve_workflow_run"](&SafeOutputsConfig{ApproveWorkflowRun: config})
-	assert.Equal(t, templatableJSONExpression("${{ inputs.allowed-pull-requests }}"), handlerConfig["allowed_pull_requests"])
+	expression, ok := handlerConfig["allowed_pull_requests"].(templatableJSONExpression)
+	require.True(t, ok)
+	assert.Equal(t, "${{ toJSON(inputs.allowed-pull-requests) }}", expression.expr)
 }
 
 func TestApproveWorkflowRunAllowedPullRequestsExpressionEmitsJSONArray(t *testing.T) {
-	expression := "${{ needs.approval_allowlist.outputs.eligible_pull_request_numbers }}"
+	inputExpression := "${{ needs.approval_allowlist.outputs.eligible_pull_request_numbers }}"
+	wrappedExpression := "${{ toJSON(needs.approval_allowlist.outputs.eligible_pull_request_numbers) }}"
 	handlerConfig := handlerRegistry["approve_workflow_run"](&SafeOutputsConfig{
-		ApproveWorkflowRun: &ApproveWorkflowRunConfig{AllowedPullRequests: []string{expression}},
+		ApproveWorkflowRun: &ApproveWorkflowRunConfig{AllowedPullRequests: []string{inputExpression}},
 	})
 
 	configJSON, err := marshalSafeOutputsConfig(map[string]any{"approve_workflow_run": handlerConfig})
 	require.NoError(t, err)
-	assert.Contains(t, string(configJSON), `"allowed_pull_requests":${{ needs.approval_allowlist.outputs.eligible_pull_request_numbers }}`)
+	assert.Contains(t, string(configJSON), `"allowed_pull_requests":`+wrappedExpression)
 
-	runtimeConfig := strings.ReplaceAll(string(configJSON), expression, `["123","456"]`)
-	var config map[string]map[string]any
-	require.NoError(t, json.Unmarshal([]byte(runtimeConfig), &config))
-	assert.Equal(t, []any{"123", "456"}, config["approve_workflow_run"]["allowed_pull_requests"])
+	t.Run("multi-element array", func(t *testing.T) {
+		runtimeConfig := strings.ReplaceAll(string(configJSON), wrappedExpression, `["123","456"]`)
+		var config map[string]map[string]any
+		require.NoError(t, json.Unmarshal([]byte(runtimeConfig), &config))
+		assert.Equal(t, []any{"123", "456"}, config["approve_workflow_run"]["allowed_pull_requests"])
+	})
+
+	t.Run("numeric array", func(t *testing.T) {
+		runtimeConfig := strings.ReplaceAll(string(configJSON), wrappedExpression, `[123,456]`)
+		var config map[string]map[string]any
+		require.NoError(t, json.Unmarshal([]byte(runtimeConfig), &config))
+		assert.Equal(t, []any{float64(123), float64(456)}, config["approve_workflow_run"]["allowed_pull_requests"])
+	})
+
+	t.Run("empty string result stays valid JSON", func(t *testing.T) {
+		// toJSON("") evaluates to `""` at runtime, which must remain valid JSON even
+		// though it is spliced in unquoted (see wrapExpressionWithToJSON).
+		runtimeConfig := strings.ReplaceAll(string(configJSON), wrappedExpression, `""`)
+		var config map[string]map[string]any
+		require.NoError(t, json.Unmarshal([]byte(runtimeConfig), &config))
+		assert.Equal(t, "", config["approve_workflow_run"]["allowed_pull_requests"])
+	})
+}
+
+func TestApproveWorkflowRunAllowedPullRequestsMixedLiteralsAndExpression(t *testing.T) {
+	// A slice with more than one element (even if one element looks like an expression)
+	// is not treated as a templatable JSON expression: it falls back to a plain JSON
+	// array of strings, matching AddStringSlice behaviour.
+	config := &ApproveWorkflowRunConfig{AllowedPullRequests: []string{"123", "456"}}
+	handlerConfig := handlerRegistry["approve_workflow_run"](&SafeOutputsConfig{ApproveWorkflowRun: config})
+	assert.Equal(t, []string{"123", "456"}, handlerConfig["allowed_pull_requests"])
+
+	configJSON, err := marshalSafeOutputsConfig(map[string]any{"approve_workflow_run": handlerConfig})
+	require.NoError(t, err)
+	assert.Contains(t, string(configJSON), `"allowed_pull_requests":["123","456"]`)
 }
 
 func TestValidateSafeOutputsApproveWorkflowRunAllowedWorkflows(t *testing.T) {

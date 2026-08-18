@@ -89,8 +89,15 @@ Approve pending workflow runs for pull requests resolved from the workflow input
 `)
 
 		expressionConfig := extractRawApproveWorkflowRunHandlerConfig(t, expressionCompiled)
-		assert.Contains(t, expressionConfig, `"allowed_pull_requests":${{ inputs.allowed-pull-requests }}`)
-		expressionConfig = strings.ReplaceAll(expressionConfig, "${{ inputs.allowed-pull-requests }}", `["123","456"]`)
+		wrappedExpression := "${{ toJSON(inputs.allowed-pull-requests) }}"
+		assert.Contains(t, expressionConfig, `"allowed_pull_requests":`+wrappedExpression)
+
+		numericConfig := strings.ReplaceAll(expressionConfig, wrappedExpression, `[123,456]`)
+		var numericRuntimeConfig map[string]map[string]any
+		require.NoError(t, json.Unmarshal([]byte(numericConfig), &numericRuntimeConfig))
+		assert.Equal(t, []any{float64(123), float64(456)}, numericRuntimeConfig["approve_workflow_run"]["allowed_pull_requests"])
+
+		expressionConfig = strings.ReplaceAll(expressionConfig, wrappedExpression, `["123","456"]`)
 		var runtimeConfig map[string]map[string]any
 		require.NoError(t, json.Unmarshal([]byte(expressionConfig), &runtimeConfig))
 		assert.Equal(t, []any{"123", "456"}, runtimeConfig["approve_workflow_run"]["allowed_pull_requests"])
