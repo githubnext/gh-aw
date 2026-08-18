@@ -1746,6 +1746,55 @@ jobs:
 `,
 			wantErr: "has no steps",
 		},
+		{
+			name: "empty runs-on",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on:
+    steps:
+      - run: echo install
+`,
+			wantErr: "empty 'runs-on'",
+		},
+		{
+			name: "null step",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      -
+`,
+			wantErr: "step 1 is not a map",
+		},
+		{
+			name: "step without run or uses",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: no action
+`,
+			wantErr: "step 1 must define 'run' or 'uses'",
+		},
+		{
+			name: "yaml 1.1 boolean on key",
+			content: `name: "Copilot Setup Steps"
+true:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo install
+`,
+			wantErr: "missing 'on' section",
+		},
 	}
 
 	for _, tt := range tests {

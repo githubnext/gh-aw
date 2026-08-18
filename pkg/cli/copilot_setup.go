@@ -254,24 +254,61 @@ func validateCopilotSetupStepsContent(content []byte) error {
 	if _, ok := job["uses"]; ok {
 		return fmt.Errorf("'%s' job must define inline steps, reusable workflow calls ('uses') are not supported", copilotSetupStepsJobName)
 	}
-	if _, ok := job["runs-on"]; !ok {
-		return fmt.Errorf("'%s' job is missing 'runs-on'", copilotSetupStepsJobName)
+	if err := validateCopilotSetupStepsRunsOn(job); err != nil {
+		return err
 	}
 	steps, ok := job["steps"].([]any)
 	if !ok || len(steps) == 0 {
 		return fmt.Errorf("'%s' job has no steps", copilotSetupStepsJobName)
 	}
+	for i, stepValue := range steps {
+		step, ok := stepValue.(map[string]any)
+		if !ok {
+			return fmt.Errorf("'%s' job step %d is not a map", copilotSetupStepsJobName, i+1)
+		}
+		if !hasNonEmptyStringField(step, "run") && !hasNonEmptyStringField(step, "uses") {
+			return fmt.Errorf("'%s' job step %d must define 'run' or 'uses'", copilotSetupStepsJobName, i+1)
+		}
+	}
 	return nil
 }
 
+// validateCopilotSetupStepsRunsOn verifies the job declares a runner. A null or empty
+// 'runs-on' parses as YAML but does not define an executable Actions job.
+func validateCopilotSetupStepsRunsOn(job map[string]any) error {
+	runsOnValue, ok := job["runs-on"]
+	if !ok {
+		return fmt.Errorf("'%s' job is missing 'runs-on'", copilotSetupStepsJobName)
+	}
+	switch typed := runsOnValue.(type) {
+	case string:
+		if strings.TrimSpace(typed) != "" {
+			return nil
+		}
+	case []any:
+		for _, item := range typed {
+			if label, ok := item.(string); ok && strings.TrimSpace(label) != "" {
+				return nil
+			}
+		}
+	case map[string]any:
+		if len(typed) > 0 {
+			return nil
+		}
+	}
+	return fmt.Errorf("'%s' job has an empty 'runs-on'", copilotSetupStepsJobName)
+}
+
+// hasNonEmptyStringField reports whether the map contains key with a non-blank string value.
+func hasNonEmptyStringField(m map[string]any, key string) bool {
+	value, ok := m[key].(string)
+	return ok && strings.TrimSpace(value) != ""
+}
+
 // validateCopilotSetupStepsTriggers verifies the workflow declares at least one trigger
-// supported by Copilot. The 'on' key is also looked up as "true" to tolerate files written
-// by a YAML 1.1 emitter, which serializes the unquoted 'on' key as the boolean true.
+// supported by Copilot.
 func validateCopilotSetupStepsTriggers(doc map[string]any) error {
 	onValue, ok := doc["on"]
-	if !ok {
-		onValue, ok = doc["true"]
-	}
 	if !ok {
 		return errors.New("missing 'on' section")
 	}
@@ -366,6 +403,9 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 			return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
 		}
 
+		// Warn about an unusable existing file before any early return below
+		warnIfCopilotSetupStepsInvalid(setupStepsPath, content)
+
 		// Check if the extension install step is already present (check for both modes)
 		contentStr := string(content)
 		hasLegacyInstall := strings.Contains(contentStr, "install-gh-aw.sh") ||
@@ -408,7 +448,6 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 		// File exists - render instructions instead of editing
 		if hasLegacyInstall || hasActionInstall {
 			copilotSetupLog.Print("Extension install step already exists, file is up to date")
-			warnIfCopilotSetupStepsInvalid(setupStepsPath, content)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Skipping %s (already has gh-aw extension install step)", setupStepsPath)))
 			}
@@ -417,7 +456,6 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 
 		// File exists but needs update - render instructions
 		copilotSetupLog.Print("File exists without install step, rendering update instructions instead of editing")
-		warnIfCopilotSetupStepsInvalid(setupStepsPath, content)
 		renderCopilotSetupUpdateInstructions(ctx, setupStepsPath, actionMode, version, resolver)
 		return nil
 	}
@@ -444,7 +482,7 @@ func warnIfCopilotSetupStepsInvalid(filePath string, content []byte) {
 		return
 	}
 	copilotSetupLog.Printf("Existing %s is not a valid Copilot setup steps workflow: %v", filePath, err)
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf(
 		"%s is not usable by GitHub Copilot coding agent: %v", filePath, err)))
 }
 
