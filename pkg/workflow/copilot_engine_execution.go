@@ -39,6 +39,11 @@ var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
 const agentExecutionExitCodePath = "/tmp/gh-aw/agent_execution_exit_code.txt"
 
+// copilotExecutionStepName is the display name of the generated Copilot CLI execution
+// step. It is also used in the failure annotation emitted by the EXIT trap so the log
+// message can be correlated with the failing step.
+const copilotExecutionStepName = "Execute GitHub Copilot CLI"
+
 // copilotSettingsPath is the shell expression that resolves to the Copilot CLI settings
 // file at runtime. The Copilot CLI resolves its config directory as ~/.copilot, which is
 // /home/runner/.copilot on standard GitHub-hosted runners (HOME=/home/runner) but may
@@ -86,16 +91,22 @@ func buildCopilotSettingsSetup(settingsContent string, fixOwnershipForCustomComm
 }
 
 // buildCopilotSettingsCleanupAndExitCodeTrap returns an EXIT trap that:
-//  1. persists the execution step exit code for setup/post OTLP conclusion spans, and
-//  2. removes the temporary Copilot settings file.
+//  1. persists the execution step exit code for setup/post OTLP conclusion spans,
+//  2. emits an explicit error annotation when the step terminates non-zero, and
+//  3. removes the temporary Copilot settings file.
+//
+// Step (2) exists because a non-zero exit from the Copilot CLI can otherwise be
+// indistinguishable from success in the job log: the agent stream and its
+// post-processing output end normally and nothing reports why the step failed.
 //
 // The body is single-quoted so $HOME in copilotSettingsPath is expanded at trap-fire
 // time (matching buildCopilotSettingsCleanupTrap behavior).
 func buildCopilotSettingsCleanupAndExitCodeTrap() string {
 	return fmt.Sprintf(
-		"trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf \"%%s\" \"$gh_aw_exit_code\" > %s || true; rm -f \"%s\"' EXIT\n",
+		"trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf \"%%s\" \"$gh_aw_exit_code\" > %s || true; rm -f \"%s\"; if [ \"$gh_aw_exit_code\" -ne 0 ]; then echo \"::error::%s exited with code $gh_aw_exit_code\"; fi' EXIT\n",
 		agentExecutionExitCodePath,
 		copilotSettingsPath,
+		copilotExecutionStepName,
 	)
 }
 
@@ -690,7 +701,7 @@ func (e *CopilotEngine) addCopilotSDKStepEnv(env map[string]string, workflowData
 
 func (e *CopilotEngine) buildCopilotExecutionStep(workflowData *WorkflowData, command string, env map[string]string, timeoutValue string) GitHubActionStep {
 	// Generate the step for Copilot CLI execution
-	stepLines := []string{"      - name: Execute GitHub Copilot CLI", "        id: agentic_execution"}
+	stepLines := []string{"      - name: " + copilotExecutionStepName, "        id: agentic_execution"}
 	// Add tool arguments comment before the run section
 	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData, "        ")
 	if toolArgsComment != "" {
