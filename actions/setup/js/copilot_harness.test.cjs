@@ -170,6 +170,33 @@ describe("copilot_harness.cjs", () => {
         expect(isCAPIQuotaExceededError("Authentication failed")).toBe(false);
         expect(isCAPIQuotaExceededError("")).toBe(false);
       });
+
+      it("matches the Copilot CLI's own retry-exhaustion message without a CAPIError: prefix (429)", () => {
+        const output =
+          "Failed to get response from the AI model; retried 5 times (total retry wait time: 380.35 seconds) " +
+          "(Request-ID AC21:F5CEC:33A719:40DD88:6A83AA27) Last error: 429 Too Many Requests\nChanges    +0 -0";
+        expect(isCAPIQuotaExceededError(output)).toBe(true);
+      });
+
+      it("matches the Copilot CLI's own retry-exhaustion message for 5xx statuses (503)", () => {
+        const output = "Failed to get response from the AI model; retried 5 times (total retry wait time: 300 seconds) Last error: 503 Service Unavailable";
+        expect(isCAPIQuotaExceededError(output)).toBe(true);
+      });
+
+      it("does not retry a zero-progress attempt that exhausted the CLI's own 429 retries", () => {
+        const output =
+          "Failed to get response from the AI model; retried 5 times (total retry wait time: 380.35 seconds) " +
+          "(Request-ID AC21:F5CEC:33A719:40DD88:6A83AA27) Last error: 429 Too Many Requests";
+        expect(
+          shouldRetryFailedExecution({
+            exitCode: 1,
+            hasOutput: true,
+            output,
+            attempt: 0,
+            maxRetries: 3,
+          })
+        ).toBe(false);
+      });
     });
 
     it("matches CAPIError: 400 with various spacing", () => {

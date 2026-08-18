@@ -11,6 +11,7 @@ import (
 )
 
 func TestGetBashSingleQuotedArgsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getBashSingleQuotedArgsCodemod()
 
 	assert.Equal(t, "bash-single-quoted-args-rewrite", codemod.ID)
@@ -21,6 +22,7 @@ func TestGetBashSingleQuotedArgsCodemod(t *testing.T) {
 }
 
 func TestBashSingleQuotedArgsCodemod_RewritesSimpleSingleQuotedArg(t *testing.T) {
+	t.Parallel()
 	codemod := getBashSingleQuotedArgsCodemod()
 	content := `---
 name: test
@@ -50,6 +52,7 @@ Test workflow body`
 }
 
 func TestBashSingleQuotedArgsCodemod_RewritesGlobPatterns(t *testing.T) {
+	t.Parallel()
 	codemod := getBashSingleQuotedArgsCodemod()
 	content := `---
 name: test
@@ -78,6 +81,7 @@ body`
 }
 
 func TestBashSingleQuotedArgsCodemod_NoOpForAlreadySafeEntry(t *testing.T) {
+	t.Parallel()
 	codemod := getBashSingleQuotedArgsCodemod()
 	content := `---
 name: test
@@ -101,6 +105,7 @@ body`
 }
 
 func TestBashSingleQuotedArgsCodemod_UnmatchedQuoteLeftUnchanged(t *testing.T) {
+	t.Parallel()
 	codemod := getBashSingleQuotedArgsCodemod()
 	content := `---
 name: test
@@ -124,6 +129,7 @@ body`
 }
 
 func TestRewriteSingleQuotedBashArgs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		input     string
@@ -184,6 +190,7 @@ func TestRewriteSingleQuotedBashArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, safe, changed := rewriteSingleQuotedBashArgs(tt.input)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.wantSafe, safe)

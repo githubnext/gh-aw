@@ -10,9 +10,11 @@ import (
 )
 
 func TestEngineEnvSecretsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineEnvSecretsCodemod()
 
 	t.Run("removes unsafe secret-bearing engine env keys and keeps allowed override", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 engine:
@@ -41,6 +43,7 @@ engine:
 	})
 
 	t.Run("removes empty env block after deleting unsafe entries", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 engine:
@@ -67,6 +70,7 @@ engine:
 	})
 
 	t.Run("no-op when only allowed engine secret override is used", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 engine:
@@ -92,6 +96,7 @@ engine:
 	})
 
 	t.Run("no-op when COPILOT_PROVIDER_API_KEY is used (BYOK)", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 engine:
@@ -121,6 +126,7 @@ engine:
 	})
 
 	t.Run("no-op when COPILOT_PROVIDER_BEARER_TOKEN is used (BYOK)", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 engine:
@@ -148,6 +154,7 @@ engine:
 	})
 
 	t.Run("supports inline engine runtime.id for allowlist", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on: workflow_dispatch
 engine:

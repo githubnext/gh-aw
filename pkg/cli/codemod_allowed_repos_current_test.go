@@ -10,9 +10,11 @@ import (
 )
 
 func TestAllowedReposCurrentToGitHubRepositoryCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getAllowedReposCurrentToGitHubRepositoryCodemod()
 
 	t.Run("metadata is populated", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, "allowed-repos-current-to-github-repository", codemod.ID)
 		assert.NotEmpty(t, codemod.Name)
 		assert.NotEmpty(t, codemod.Description)
@@ -21,6 +23,7 @@ func TestAllowedReposCurrentToGitHubRepositoryCodemod(t *testing.T) {
 	})
 
 	t.Run("rewrites unquoted current value", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -49,6 +52,7 @@ tools:
 	})
 
 	t.Run("rewrites quoted current value", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -74,6 +78,7 @@ tools:
 	})
 
 	t.Run("rewrites single-quoted current value", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -99,6 +104,7 @@ tools:
 	})
 
 	t.Run("no-op when allowed-repos is already an expression", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -124,6 +130,7 @@ tools:
 	})
 
 	t.Run("no-op when allowed-repos is an array", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -150,6 +157,7 @@ tools:
 	})
 
 	t.Run("no-op when allowed-repos is set to all", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -175,6 +183,7 @@ tools:
 	})
 
 	t.Run("preserves trailing comments", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -200,6 +209,7 @@ tools:
 	})
 
 	t.Run("only treats whitespace-preceded hash as a comment marker", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -225,6 +235,7 @@ tools:
 	})
 
 	t.Run("does not rewrite nested non-top-level tools github allowed-repos", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 wrapper:
@@ -262,6 +273,7 @@ tools:
 	})
 
 	t.Run("does not rewrite nested custom github allowed-repos", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:

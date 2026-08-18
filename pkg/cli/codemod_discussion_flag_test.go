@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetDiscussionFlagRemovalCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	assert.Equal(t, "add-comment-discussion-removal", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetDiscussionFlagRemovalCodemod(t *testing.T) {
 }
 
 func TestDiscussionFlagCodemod_RemovesDiscussionFlag(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	content := `---
@@ -60,6 +62,7 @@ safe-outputs:
 }
 
 func TestDiscussionFlagCodemod_NoSafeOutputsField(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	content := `---
@@ -85,6 +88,7 @@ permissions:
 }
 
 func TestDiscussionFlagCodemod_NoAddCommentField(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	content := `---
@@ -113,6 +117,7 @@ safe-outputs:
 }
 
 func TestDiscussionFlagCodemod_NoDiscussionField(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	content := `---
@@ -143,6 +148,7 @@ safe-outputs:
 }
 
 func TestDiscussionFlagCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	content := `---
@@ -183,6 +189,7 @@ safe-outputs:
 }
 
 func TestDiscussionFlagCodemod_PreservesComments(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	content := `---
@@ -217,6 +224,7 @@ safe-outputs:
 }
 
 func TestDiscussionFlagCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	content := `---
@@ -248,6 +256,7 @@ This workflow uses add-comment with discussion support.`
 }
 
 func TestDiscussionFlagCodemod_MultipleFields(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionFlagRemovalCodemod()
 
 	content := `---

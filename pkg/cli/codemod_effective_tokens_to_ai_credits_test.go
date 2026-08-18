@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetEffectiveTokensToAICreditsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	assert.Equal(t, "effective-tokens-to-ai-credits", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetEffectiveTokensToAICreditsCodemod(t *testing.T) {
 }
 
 func TestEffectiveTokensToAICreditsCodemod_MigratesNumericValues(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -47,6 +49,7 @@ on: workflow_dispatch
 }
 
 func TestEffectiveTokensToAICreditsCodemod_NoOpWhenLegacyFieldsAbsent(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -66,6 +69,7 @@ max-daily-ai-credits: 5000
 }
 
 func TestEffectiveTokensToAICreditsCodemod_IdempotentAfterMigration(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -85,6 +89,7 @@ max-daily-ai-credits: 1
 }
 
 func TestEffectiveTokensToAICreditsCodemod_SkipsExpressionValues(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -106,6 +111,7 @@ max-daily-effective-tokens: 4M
 }
 
 func TestEffectiveTokensToAICreditsCodemod_SkipsWhenTargetFieldExists(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -125,6 +131,7 @@ max-ai-credits: 2500
 }
 
 func TestEffectiveTokensToAICreditsCodemod_MigratesDailyNegativeOne(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -143,6 +150,7 @@ max-daily-effective-tokens: -1 # disabled
 }
 
 func TestEffectiveTokensToAICreditsCodemod_MigratesRunNegativeOne(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -161,6 +169,7 @@ max-effective-tokens: -1 # disabled
 }
 
 func TestEffectiveTokensToAICreditsCodemod_SkipsValuesBelowOneCredit(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -180,6 +189,7 @@ max-daily-effective-tokens: 5000
 }
 
 func TestEffectiveTokensToAICreditsCodemod_PartialMigrationWhenOnlyOneValueConverts(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -201,6 +211,7 @@ max-daily-effective-tokens: 10k
 }
 
 func TestEffectiveTokensToAICreditsCodemod_PartialMigrationWhenOnlyRunValueConverts(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
@@ -222,6 +233,7 @@ max-daily-effective-tokens: 5000
 }
 
 func TestEffectiveTokensToAICreditsCodemod_MigratesThresholdValue(t *testing.T) {
+	t.Parallel()
 	codemod := getEffectiveTokensToAICreditsCodemod()
 
 	content := `---
