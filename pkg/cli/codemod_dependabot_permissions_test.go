@@ -10,9 +10,11 @@ import (
 )
 
 func TestDependabotPermissionsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getDependabotPermissionsCodemod()
 
 	t.Run("adds missing vulnerability-alerts permission", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on:
   workflow_dispatch:
@@ -44,6 +46,7 @@ permissions:
 	})
 
 	t.Run("adds missing issues permission for issues toolset", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 on:
   workflow_dispatch:
@@ -75,6 +78,7 @@ permissions:
 	})
 
 	t.Run("does not modify when permission already present", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 tools:
   github:

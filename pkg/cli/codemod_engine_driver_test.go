@@ -10,9 +10,11 @@ import (
 )
 
 func TestEngineCopilotSDKDriverToDriverCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineCopilotSDKDriverToDriverCodemod()
 
 	t.Run("renames copilot-sdk-driver to driver in engine block", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   id: copilot
@@ -36,6 +38,7 @@ engine:
 	})
 
 	t.Run("does not apply when engine has no copilot-sdk-driver field", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   id: copilot
@@ -56,6 +59,7 @@ engine:
 	})
 
 	t.Run("does not apply when driver field already present", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   id: copilot
@@ -80,6 +84,7 @@ engine:
 	})
 
 	t.Run("does not apply when no engine block", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 name: My Workflow
 ---
@@ -97,6 +102,7 @@ name: My Workflow
 	})
 
 	t.Run("does not apply when engine is a scalar", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 ---
@@ -114,6 +120,7 @@ engine: copilot
 	})
 
 	t.Run("preserves indentation when renaming", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   id: copilot

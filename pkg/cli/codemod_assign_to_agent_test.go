@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetAssignToAgentDefaultAgentCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	assert.Equal(t, "assign-to-agent-default-agent-to-name", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetAssignToAgentDefaultAgentCodemod(t *testing.T) {
 }
 
 func TestAssignToAgentCodemod_BasicMigration(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	content := `---
@@ -51,6 +53,7 @@ safe-outputs:
 }
 
 func TestAssignToAgentCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	content := `---
@@ -82,6 +85,7 @@ safe-outputs:
 }
 
 func TestAssignToAgentCodemod_PreservesComment(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	content := `---
@@ -109,6 +113,7 @@ safe-outputs:
 }
 
 func TestAssignToAgentCodemod_NoSafeOutputs(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	content := `---
@@ -131,6 +136,7 @@ engine: copilot
 }
 
 func TestAssignToAgentCodemod_NoAssignToAgent(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	content := `---
@@ -158,6 +164,7 @@ safe-outputs:
 }
 
 func TestAssignToAgentCodemod_NoDefaultAgent(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	content := `---
@@ -185,6 +192,7 @@ safe-outputs:
 }
 
 func TestAssignToAgentCodemod_SkipsWhenNameAlreadyExists(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	content := `---
@@ -214,6 +222,7 @@ safe-outputs:
 }
 
 func TestAssignToAgentCodemod_PreservesOtherSafeOutputs(t *testing.T) {
+	t.Parallel()
 	codemod := getAssignToAgentDefaultAgentCodemod()
 
 	content := `---
@@ -248,6 +257,7 @@ safe-outputs:
 }
 
 func TestAssignToAgentCodemod_RegisteredInAllCodemods(t *testing.T) {
+	t.Parallel()
 	codemods := GetAllCodemods()
 	var found bool
 	for _, c := range codemods {

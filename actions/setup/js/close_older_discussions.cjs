@@ -2,10 +2,10 @@
 /// <reference types="@actions/github-script" />
 
 const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
+const { MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 const { searchOlderEntitiesByMarker } = require("./close_older_search_helpers.cjs");
+const { createCloseOlderSearchAdapter, closeOlderWithDescriptor } = require("./close_older_handler_factory.cjs");
 
 /**
  * Maximum number of older discussions to close
@@ -152,42 +152,34 @@ async function closeDiscussionAsOutdated(github, owner, repo, discussionId) {
  * @returns {Promise<Array<{number: number, url: string}>>} List of closed discussions
  */
 async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId, newDiscussion, workflowName, runUrl, callerWorkflowId, closeOlderKey) {
-  const result = await closeOlderEntities(
+  return closeOlderWithDescriptor({
     github,
     owner,
     repo,
     workflowId,
-    newDiscussion,
+    newEntity: newDiscussion,
     workflowName,
     runUrl,
-    {
-      entityType: "discussion",
-      entityTypePlural: "discussions",
-      // Use a closure so callerWorkflowId and closeOlderKey are forwarded to
-      // searchOlderDiscussions without going through the closeOlderEntities extraArgs
-      // mechanism (which appends excludeNumber last)
-      searchOlderEntities: (gh, o, r, wid, categoryId, excludeNumber) => searchOlderDiscussions(gh, o, r, wid, categoryId, excludeNumber, callerWorkflowId, closeOlderKey),
-      getCloseMessage: params =>
-        getCloseOlderDiscussionMessage({
-          newDiscussionUrl: params.newEntityUrl,
-          newDiscussionNumber: params.newEntityNumber,
-          workflowName: params.workflowName,
-          runUrl: params.runUrl,
-        }),
-      addComment: addDiscussionComment,
-      closeEntity: closeDiscussionAsOutdated,
-      delayMs: GRAPHQL_DELAY_MS,
-      getEntityId: entity => entity.id,
-      getEntityUrl: entity => entity.url,
-    },
-    categoryId // Pass categoryId as extra arg
-  );
-
-  // Map to discussion-specific return type
-  return result.map(item => ({
-    number: item.number,
-    url: item.url || "",
-  }));
+    entityType: "discussion",
+    entityTypePlural: "discussions",
+    searchOlderEntities: createCloseOlderSearchAdapter(searchOlderDiscussions, [categoryId], [callerWorkflowId, closeOlderKey]),
+    getCloseMessage: params =>
+      getCloseOlderDiscussionMessage({
+        newDiscussionUrl: params.newEntityUrl,
+        newDiscussionNumber: params.newEntityNumber,
+        workflowName: params.workflowName,
+        runUrl: params.runUrl,
+      }),
+    addComment: addDiscussionComment,
+    closeEntity: closeDiscussionAsOutdated,
+    delayMs: GRAPHQL_DELAY_MS,
+    getEntityId: entity => entity.id,
+    getEntityUrl: entity => entity.url,
+    mapClosedEntity: item => ({
+      number: item.number,
+      url: item.url || "",
+    }),
+  });
 }
 
 module.exports = {

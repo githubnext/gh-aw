@@ -32,6 +32,8 @@ tools:
     toolsets: [repos, issues, pull_requests, discussions]
 timeout-minutes: 90
 max-ai-credits: 1500
+features:
+  gh-aw-detection: true
 imports:
   - shared/goose.md
   - uses: shared/daily-audit-base.md

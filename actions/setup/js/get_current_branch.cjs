@@ -3,6 +3,9 @@
 
 const { execSync } = require("child_process");
 const { ERR_CONFIG } = require("./error_codes.cjs");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
+
+const GIT_BRANCH_TIMEOUT_MS = getSetupTimeoutMs("gitBranch");
 
 /**
  * Get the current git branch name
@@ -19,6 +22,7 @@ function getCurrentBranch(customCwd) {
       encoding: "utf8",
       cwd: cwd,
       stdio: ["pipe", "pipe", "pipe"],
+      timeout: GIT_BRANCH_TIMEOUT_MS,
     }).trim();
     // "HEAD" means the repo is in a detached-HEAD state (common with the
     // default actions/checkout behaviour).  It is not a valid branch name;

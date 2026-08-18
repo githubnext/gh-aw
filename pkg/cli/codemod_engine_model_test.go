@@ -10,6 +10,7 @@ import (
 )
 
 func TestEngineModelToTopLevelCodemod_Metadata(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineModelToTopLevelCodemod()
 
 	assert.Equal(t, "engine-model-to-top-level", codemod.ID)
@@ -20,6 +21,7 @@ func TestEngineModelToTopLevelCodemod_Metadata(t *testing.T) {
 }
 
 func TestEngineModelToTopLevelCodemod_NoOp(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineModelToTopLevelCodemod()
 
 	content := `---
@@ -42,6 +44,7 @@ engine:
 }
 
 func TestEngineModelToTopLevelCodemod_IdempotentWhenAlreadyMigrated(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineModelToTopLevelCodemod()
 
 	content := `---
@@ -64,6 +67,7 @@ engine:
 }
 
 func TestEngineModelToTopLevelCodemod_MigratesField(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineModelToTopLevelCodemod()
 
 	content := `---
@@ -98,6 +102,7 @@ engine:
 }
 
 func TestEngineModelToTopLevelCodemod_PreservesCommentsAndBody(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineModelToTopLevelCodemod()
 
 	content := `---
@@ -134,6 +139,7 @@ Keep this content.`
 }
 
 func TestEngineModelToTopLevelCodemod_RespectsExistingTopLevel(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineModelToTopLevelCodemod()
 
 	content := `---
@@ -160,6 +166,7 @@ engine:
 }
 
 func TestEngineModelToTopLevelCodemod_InlineEngineMapNoOp(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineModelToTopLevelCodemod()
 
 	content := `---

@@ -12,6 +12,7 @@ import (
 )
 
 func TestGetBotsToOnBotsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getBotsToOnBotsCodemod()
 
 	assert.Equal(t, "bots-to-on-bots", codemod.ID)
@@ -22,6 +23,7 @@ func TestGetBotsToOnBotsCodemod(t *testing.T) {
 }
 
 func TestBotsToOnBotsCodemod_SingleLineArray(t *testing.T) {
+	t.Parallel()
 	codemod := getBotsToOnBotsCodemod()
 
 	content := `---
@@ -68,6 +70,7 @@ bots: [dependabot, renovate]
 }
 
 func TestBotsToOnBotsCodemod_MultiLineArray(t *testing.T) {
+	t.Parallel()
 	codemod := getBotsToOnBotsCodemod()
 
 	content := `---
@@ -103,6 +106,7 @@ bots:
 }
 
 func TestBotsToOnBotsCodemod_NoOnBlock(t *testing.T) {
+	t.Parallel()
 	codemod := getBotsToOnBotsCodemod()
 
 	content := `---
@@ -130,6 +134,7 @@ engine: copilot
 }
 
 func TestBotsToOnBotsCodemod_NoChange_NoBots(t *testing.T) {
+	t.Parallel()
 	codemod := getBotsToOnBotsCodemod()
 
 	content := `---
@@ -158,6 +163,7 @@ engine: copilot
 }
 
 func TestBotsToOnBotsCodemod_NoChange_OnBotsExists(t *testing.T) {
+	t.Parallel()
 	codemod := getBotsToOnBotsCodemod()
 
 	content := `---
