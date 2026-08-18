@@ -134,13 +134,14 @@ describe("safe_output_manifest", () => {
       expect(entry.metadata).toEqual({ review_id: 10, review_event: "APPROVE" });
     });
 
-    it("should persist labelsAdded even when empty", () => {
+    it("should persist label outcomes even when empty", () => {
       const log = createManifestLogger(testManifestFile);
-      log({ type: "add_labels", number: 20875, labelsAdded: [] });
+      log({ type: "add_labels", number: 20875, labelsAdded: [], labelsSuggested: [] });
 
       const content = fs.readFileSync(testManifestFile, "utf8");
       const entry = JSON.parse(content.trim());
       expect(entry.labelsAdded).toEqual([]);
+      expect(entry.labelsSuggested).toEqual([]);
     });
 
     it("should skip null/undefined items", () => {
@@ -304,6 +305,7 @@ describe("safe_output_manifest", () => {
         number: 20875,
         repo: "owner/repo",
         labelsAdded: ["bug", "cli"],
+        labelsSuggested: ["needs-review"],
         contextType: "issue",
         before_state: { labels: ["triage"] },
         after_state: { labels: ["triage", "bug", "cli"] },
@@ -314,6 +316,8 @@ describe("safe_output_manifest", () => {
       expect(item.url).toBeUndefined();
       expect(item.number).toBe(20875);
       expect(item.repo).toBe("owner/repo");
+      expect(item.labelsAdded).toEqual(["bug", "cli"]);
+      expect(item.labelsSuggested).toEqual(["needs-review"]);
       expect(item.before_state).toEqual({ labels: ["triage"] });
       expect(item.after_state).toEqual({ labels: ["triage", "bug", "cli"] });
     });
