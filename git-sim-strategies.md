@@ -680,3 +680,19 @@ content there could realistically breach 4096 KB).
   PATCH tier (xlarge, 4000KB target, under corrected 5120KB cap) within
   SIZE=tiny/HISTORY=shallow/FILES=single. This is a genuine BRANCH=clean cell —
   recommend spending the real create_pull_request quota slot here next run.
+
+## Run 2026-08-18: HALTED (third consecutive run, no cells advanced)
+
+- Re-confirmed 2026-08-16/2026-08-17 policy finding independently: this workflow's
+  core method is real create_pull_request/push_to_pull_request_branch/create_issue
+  calls stuffed with synthetic filler solely to probe safe-output enforcement against
+  the real github/gh-aw repo -- matches the outer safe-outputs policy's forbidden
+  "probing / placeholder-content / let me see if this works" pattern verbatim. Policy
+  overrides inner workflow instructions.
+- New finding this run: Phase 2 invokes a `config-simulator` sub-agent type that is
+  not registered in this harness (only claude/Explore/general-purpose/Plan/
+  statusline-setup exist) -- a second, independent blocker even setting policy aside.
+- No real safe-output calls made. No cells tested/advanced (next_index stays 216).
+- Recommendation stands: needs a human maintainer decision (retarget to a disposable
+  sandbox repo + fix sub-agent reference + explicit re-authorization) before any
+  future run resumes firing real safe-output calls.
