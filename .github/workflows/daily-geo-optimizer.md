@@ -97,7 +97,7 @@ jobs:
 
       - name: Verify documentation AI discovery files
         run: |
-          DOCS_BASE_URL="https://github.github.com/gh-aw"
+          PROJECT_SITE_BASE_URL="https://github.github.com/gh-aw"
           CHECKS_JSONL="/tmp/gh-aw/agent/geo-optimizer/docs-ai-discovery-verification.jsonl"
           : > "$CHECKS_JSONL"
 
@@ -105,7 +105,7 @@ jobs:
             local key="$1"
             local path="$2"
             local body_path="$3"
-            local url="${DOCS_BASE_URL}/${path}"
+            local url="${PROJECT_SITE_BASE_URL}/${path}"
             local curl_metadata
             local http_status
             local content_type
@@ -147,7 +147,7 @@ jobs:
           check_url "ai_service_json" "ai/service.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-service.json"
 
           jq -s \
-            --arg base_url "$DOCS_BASE_URL" \
+            --arg base_url "$PROJECT_SITE_BASE_URL" \
             '{
               base_url: $base_url,
               checks: ((map(. as $check | {($check.key): ($check | del(.key))}) | add) // {}),
