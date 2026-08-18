@@ -368,3 +368,44 @@ func TestCollectProcessedWorkflowRunsAccumulatesBatches(t *testing.T) {
 	assert.Equal(t, int64(1), runs[0].Run.DatabaseID)
 	assert.Equal(t, int64(3), runs[2].Run.DatabaseID)
 }
+
+// TestStaleLogsWarning verifies that a warning is only emitted when no explicit
+// start_date/end_date was requested and the newest run in the result set is older
+// than the staleness threshold. This guards against the "logs" tool silently
+// serving stale data without any indication when called with only a count.
+func TestStaleLogsWarning(t *testing.T) {
+	t.Run("no warning when start date explicitly provided", func(t *testing.T) {
+		runs := []ProcessedRun{{Run: WorkflowRun{CreatedAt: time.Now().Add(-30 * 24 * time.Hour)}}}
+		assert.Empty(t, staleLogsWarning(runs, "-1d", ""))
+	})
+
+	t.Run("no warning when end date explicitly provided", func(t *testing.T) {
+		runs := []ProcessedRun{{Run: WorkflowRun{CreatedAt: time.Now().Add(-30 * 24 * time.Hour)}}}
+		assert.Empty(t, staleLogsWarning(runs, "", "2024-01-01"))
+	})
+
+	t.Run("no warning when no runs", func(t *testing.T) {
+		assert.Empty(t, staleLogsWarning(nil, "", ""))
+	})
+
+	t.Run("no warning when newest run is recent", func(t *testing.T) {
+		runs := []ProcessedRun{
+			{Run: WorkflowRun{CreatedAt: time.Now().Add(-1 * time.Hour)}},
+			{Run: WorkflowRun{CreatedAt: time.Now().Add(-40 * 24 * time.Hour)}},
+		}
+		assert.Empty(t, staleLogsWarning(runs, "", ""))
+	})
+
+	t.Run("warns when no dates given and newest run is old", func(t *testing.T) {
+		newest := time.Now().Add(-11 * 24 * time.Hour)
+		runs := []ProcessedRun{
+			{Run: WorkflowRun{CreatedAt: newest}},
+			{Run: WorkflowRun{CreatedAt: newest.Add(-time.Hour)}},
+		}
+		warning := staleLogsWarning(runs, "", "")
+		require.NotEmpty(t, warning)
+		assert.Contains(t, warning, "No start_date/end_date was specified")
+		assert.Contains(t, warning, "start_date")
+		assert.Contains(t, warning, "11 day")
+	})
+}

@@ -207,3 +207,45 @@ func TestBuildLogsFileResponse_CompleteResultsNotPartial(t *testing.T) {
 	// Cleanup
 	_ = os.Remove(response.FilePath)
 }
+
+func TestBuildLogsFileResponse_SurfacesStaleDataWarning(t *testing.T) {
+	output := `{"summary":{"total_runs":1},"runs":[],"stale_warning":"No start_date/end_date was specified, and the most recent run in this result is 11 days old."}`
+
+	result := buildLogsFileResponse(output)
+
+	var response MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatalf("Response should be valid JSON: %v", err)
+	}
+
+	if !strings.Contains(response.Message, "WARNING:") {
+		t.Errorf("Message should surface the embedded warning, got %q", response.Message)
+	}
+	if !strings.Contains(response.Message, "No start_date/end_date was specified") {
+		t.Errorf("Message should include the stale-data warning text, got %q", response.Message)
+	}
+
+	// Cleanup
+	_ = os.Remove(response.FilePath)
+}
+
+func TestBuildLogsFileResponse_DoesNotWarnOnOrdinaryMessage(t *testing.T) {
+	// A non-stale "message" field (e.g. the usage-only artifact hint) must not
+	// be relabeled as a WARNING; only the dedicated "stale_warning" field should
+	// trigger the WARNING prefix.
+	output := `{"summary":{"total_runs":1},"runs":[],"message":"Only the usage artifact was downloaded."}`
+
+	result := buildLogsFileResponse(output)
+
+	var response MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		t.Fatalf("Response should be valid JSON: %v", err)
+	}
+
+	if strings.Contains(response.Message, "WARNING:") {
+		t.Errorf("Message should not contain WARNING for a non-stale message, got %q", response.Message)
+	}
+
+	// Cleanup
+	_ = os.Remove(response.FilePath)
+}
