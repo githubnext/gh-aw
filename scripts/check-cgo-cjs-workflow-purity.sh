@@ -14,6 +14,8 @@ for workflow in "$@"; do
     continue
   fi
 
+  # These workflows should stay pure test workflows: allow only the built-in
+  # GITHUB_TOKEN and the repository's SCIENCE telemetry secret.
   disallowed_secrets="$(perl -ne '
     while (/\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\b/g) {
       print "$ARGV:$.: secrets.$1\n" unless $1 eq "GITHUB_TOKEN" || $1 eq "SCIENCE";
@@ -37,7 +39,7 @@ for workflow in "$@"; do
       next
     }
     in_permissions {
-      if ($0 ~ /^[[:space:]]*($|#)/) next
+      if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*#/) next
       indent = match($0, /[^[:space:]]/) - 1
       if (indent <= perm_indent) in_permissions = 0
     }
