@@ -29,6 +29,7 @@ else
   echo "  bash ./install-gh-aw.sh"
   echo "  # or"
   echo "  curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash"
+  exit 1
 fi
 ```
 
