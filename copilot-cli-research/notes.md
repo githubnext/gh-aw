@@ -135,3 +135,13 @@
 - max-tool-denials: 64, max-continuations: 11, network config: 158, sandbox: 157 — all flat/consistent with recent runs.
 - No new Copilot CLI Go features detected in codebase since last run (same module set: copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, copilot_installer.go, copilot_engine_installation.go, copilot_inline_driver.go, copilot_logs.go, pkg/cli/copilot_*.go).
 - DECISION: Filed noop per established policy (run 31354820498+) — only file new issue when (a) new Copilot CLI feature appears, (b) orphaned agent status changes, or (c) --share/engine.args adoption changes from 0/1. None of these conditions met this run.
+
+## Run 32097146063 (2026-08-18)
+- Total workflows 286 (flat/+2 noise vs 284 last run). Narrow `engine: copilot` count flat at 38.
+- --share flag: real usage still 0 — 16th+ consecutive run confirming persistent non-issue.
+- engine.args: reconfirmed still 0 real usages.
+- Orphaned custom agents unchanged (16th+ consecutive run): create-safe-output-type, custom-engine-implementation, grumpy-reviewer, w3c-specification-writer (0 references each); interactive-agent-designer remains resolved (1 ref).
+- disable-builtin-mcps: flat at 2 real usages (auto-triage-issues.md + this research workflow's own doc example).
+- copilot-sdk: true adoption: 69 (flat/-1 noise vs last run's 70).
+- No new Copilot CLI Go features detected in codebase since last run (same module set unchanged; only recent commit fdbecfe removes an unrelated agentic workflow, no copilot code changes).
+- DECISION: Filed noop per established policy (run 31354820498+) — only file new issue when (a) new Copilot CLI feature appears, (b) orphaned agent status changes, or (c) --share/engine.args adoption changes from 0/1. None of these conditions met this run.

@@ -1,17 +1,13 @@
 {
-  "timestamp": "2026-08-17T03:59:00Z",
-  "run_id": "31992795476",
-  "total_workflows": 284,
+  "timestamp": "2026-08-18T03:56:50Z",
+  "run_id": "32097146063",
+  "total_workflows": 286,
   "copilot_workflows_narrow": 38,
   "share_flag_real_usage": 0,
   "engine_args_real_usage": 0,
   "disable_builtin_mcps_usage": 2,
-  "copilot_sdk_true_usage": 70,
-  "max_tool_denials_usage": 64,
-  "max_continuations_usage": 11,
-  "network_config_usage": 158,
-  "sandbox_usage": 157,
+  "copilot_sdk_true_usage": 69,
   "orphaned_agents": ["create-safe-output-type", "custom-engine-implementation", "grumpy-reviewer", "w3c-specification-writer"],
   "opportunities_found": 0,
-  "notable_change": "No material change vs run 31925380594 (2026-08-16). Total workflows 284 (was 285, one removed/renamed, not significant). Narrow engine:copilot count flat at 38. --share real usage still 0 (only appears in this research workflow's own doc example). engine.args real usage still 0 (args: hits are LSP server config, e.g. eslint-miner.md lsp.typescript.args, not engine.args). Orphaned agents unchanged (4, 15th+ consecutive run). disable-builtin-mcps flat at 2. copilot-sdk:true adoption 70 (flat/-1, noise). Same Copilot CLI Go module set as prior runs (copilot_engine.go, copilot_engine_execution.go, copilot_engine_tools.go, copilot_mcp.go, copilot_installer.go, copilot_engine_installation.go, copilot_inline_driver.go, copilot_logs.go, plus pkg/cli/copilot_*.go). No new features detected. Per established policy (since run 31354820498), skipped new issue since no tracked metric changed materially."
+  "notable_change": "No material change vs run 32097146063 predecessor (31992795476, 2026-08-17). Total workflows 286 (was 284, +2 noise). Narrow engine:copilot count flat at 38. --share and engine.args real usage still 0. Orphaned agents unchanged (4, 16th+ consecutive run). disable-builtin-mcps flat at 2. copilot-sdk:true 69 (flat/-1 noise). No new Copilot CLI Go features detected (same module set). Filed noop per established policy - no tracked metric changed materially."
 }
