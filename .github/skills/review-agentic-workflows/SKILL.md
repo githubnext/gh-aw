@@ -26,8 +26,10 @@ if gh aw --help >/dev/null 2>&1; then
   echo "gh aw is installed"
 else
   if [ -f ./install-gh-aw.sh ]; then
-    echo "gh aw is missing. Run install script steps from github/gh-aw:"
+    echo "gh aw is missing. Run the install step before continuing:"
     echo "  bash ./install-gh-aw.sh"
+    echo "Then verify:"
+    echo "  gh aw --help"
   else
     echo "gh aw is missing and ./install-gh-aw.sh is not present in this checkout."
   fi
