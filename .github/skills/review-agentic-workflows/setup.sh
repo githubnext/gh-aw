@@ -21,7 +21,8 @@ if ! gh aw --help >/dev/null 2>&1; then
   if [ -f ./install-gh-aw.sh ]; then
     bash ./install-gh-aw.sh
   else
-    echo "install-gh-aw.sh not found; skipping local install attempt" >&2
+    echo "install-gh-aw.sh not found at repository root" >&2
+    exit 1
   fi
 
   if gh aw --help >/dev/null 2>&1; then
