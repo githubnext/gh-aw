@@ -28,7 +28,7 @@ else
   echo "gh aw is missing. Run install script steps from github/gh-aw:"
   echo "  bash ./install-gh-aw.sh"
   echo "  # or"
-  echo "  curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash"
+  echo "  curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh -o /tmp/install-gh-aw.sh && bash /tmp/install-gh-aw.sh"
   exit 1
 fi
 ```
