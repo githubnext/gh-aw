@@ -103,7 +103,7 @@ func buildCopilotSettingsSetup(settingsContent string, fixOwnershipForCustomComm
 // time (matching buildCopilotSettingsCleanupTrap behavior).
 func buildCopilotSettingsCleanupAndExitCodeTrap() string {
 	return fmt.Sprintf(
-		"trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf \"%%s\" \"$gh_aw_exit_code\" > %s || true; rm -f \"%s\"; if [ \"$gh_aw_exit_code\" -ne 0 ]; then echo \"::error::%s exited with code $gh_aw_exit_code\"; fi' EXIT\n",
+		"trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf \"%%s\" \"$gh_aw_exit_code\" > %s || true; rm -f \"%s\"; if [ \"$gh_aw_exit_code\" -ne 0 ]; then echo \"::error title=%s::exited with code $gh_aw_exit_code\"; fi' EXIT\n",
 		agentExecutionExitCodePath,
 		copilotSettingsPath,
 		copilotExecutionStepName,

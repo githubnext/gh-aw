@@ -23,7 +23,7 @@ func TestCopilotExitCodeTrap_EmitsErrorAnnotation(t *testing.T) {
 
 	assert.Contains(t, got, `if [ "$gh_aw_exit_code" -ne 0 ]; then`,
 		"trap must guard the annotation on a non-zero exit code:\n%s", got)
-	assert.Contains(t, got, `echo "::error::Execute GitHub Copilot CLI exited with code $gh_aw_exit_code"`,
+	assert.Contains(t, got, `echo "::error title=Execute GitHub Copilot CLI::exited with code $gh_aw_exit_code"`,
 		"trap must emit an error annotation naming the step and exit code:\n%s", got)
 	assert.Contains(t, got, `> `+agentExecutionExitCodePath,
 		"trap must still persist the exit code for the OTLP conclusion span:\n%s", got)
@@ -56,7 +56,7 @@ func TestBashIntegration_CopilotExitCodeTrap(t *testing.T) {
 
 			stdout, stderr, _ := runBashWithHome(t, home, script)
 
-			errorLine := "::error::Execute GitHub Copilot CLI exited with code " + tt.wantExitCode
+			errorLine := "::error title=Execute GitHub Copilot CLI::exited with code " + tt.wantExitCode
 			if tt.wantErrorLine {
 				assert.Contains(t, stdout, errorLine,
 					"failing run must surface the exit code:\nstdout=%s\nstderr=%s", stdout, stderr)
@@ -101,7 +101,7 @@ func TestCopilotExecutionStep_ContainsExitCodeAnnotation(t *testing.T) {
 			steps := engine.GetExecutionSteps(tt.wd, "/tmp/gh-aw/test.log")
 			stepContent := requireCopilotExecutionStep(t, steps)
 
-			assert.Contains(t, stepContent, "::error::Execute GitHub Copilot CLI exited with code",
+			assert.Contains(t, stepContent, "::error title=Execute GitHub Copilot CLI::exited with code",
 				"execution step must surface a non-zero exit code in the log:\n%s", stepContent)
 		})
 	}

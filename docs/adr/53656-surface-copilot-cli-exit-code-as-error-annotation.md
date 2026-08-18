@@ -1,7 +1,7 @@
 # ADR-53656: Surface Copilot CLI Exit Code as a GitHub Actions Error Annotation
 
 **Date**: 2026-08-18
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, app/copilot-swe-agent
 
 ---
@@ -12,7 +12,7 @@ The generated `Execute GitHub Copilot CLI` step embeds a shell `EXIT` trap that 
 
 ### Decision
 
-We will extend `buildCopilotSettingsCleanupAndExitCodeTrap` to emit a `::error::` GitHub Actions workflow command inside the EXIT trap whenever `$gh_aw_exit_code` is non-zero. A shared `copilotExecutionStepName` constant provides the step label used in both the generated `name:` field and the annotation text, preventing drift. Successful runs (exit 0) remain silent. The annotation fires on the shared invocation path and therefore covers all Copilot workflows automatically without per-workflow changes.
+We will extend `buildCopilotSettingsCleanupAndExitCodeTrap` to emit a `::error title=Execute GitHub Copilot CLI::` GitHub Actions workflow command inside the EXIT trap whenever `$gh_aw_exit_code` is non-zero. A shared `copilotExecutionStepName` constant provides the step label used in both the generated `name:` field and the annotation title, preventing drift. Successful runs (exit 0) remain silent. The annotation fires on the shared invocation path and therefore covers all Copilot workflows automatically without per-workflow changes.
 
 ### Alternatives Considered
 
@@ -41,7 +41,3 @@ Not chosen because the step's post-processing (settings cleanup, exit-code file 
 #### Neutral
 - Regenerated `.lock.yml` workflow files and wasm golden fixtures are the bulk of the diff; the functional change is confined to `pkg/workflow/copilot_engine_execution.go` and its tests.
 - The `copilotExecutionStepName` constant was introduced alongside this change, tightening the coupling between step naming and annotation text as a side effect.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
