@@ -80,6 +80,8 @@ evals:
     question: Did the agent apply at least one label to an unlabeled issue, or correctly call noop when no unlabeled issues were found?
   - id: report-created
     question: Was a summary discussion created listing the issues processed and the labels applied?
+  - id: report-title-stable
+    question: If a report discussion was created, was its title exactly "Auto-Triage Issues Report" (ignoring the automatic "[Auto-Triage] " prefix)?
   - id: human-bug-labeled
     question: Did the agent label a non-report issue describing unexpected behavior, expected versus actual results, or a reproducible failure with `bug` and the relevant component label (or `needs-triage` if no component is clear)?
 ---
@@ -258,6 +260,14 @@ For the triggering issue (on issue events), you can omit `item_number`:
 }
 ```
 
+### Discussion Title (all report runs)
+
+Every report discussion created by this workflow — scheduled or manual — MUST use this exact title:
+
+`Auto-Triage Issues Report`
+
+Do not invent variations such as "Auto-Triage Report", "Auto-Triage Summary", or a title that includes a date or issue count. The `[Auto-Triage] ` prefix is added automatically, and a stable title keeps older report discussions matchable so they are closed as outdated instead of accumulating as near-duplicate threads.
+
 ### Scheduled Run Report
 
 When running on schedule, create a discussion report following these formatting guidelines:
@@ -265,7 +275,7 @@ When running on schedule, create a discussion report following these formatting 
 **Report Formatting**: Use h3 (###) or lower for all headers in the report. Wrap long sections (>10 items) in `<details><summary>Section Name</summary>` tags to improve readability.
 
 ```markdown
-### 🏷️ Auto-Triage Report Summary
+### 🏷️ Auto-Triage Issues Report Summary
 
 **Report Period**: [Date/Time Range]
 **Issues Processed**: X
