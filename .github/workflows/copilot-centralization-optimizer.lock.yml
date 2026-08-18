@@ -69,6 +69,7 @@ permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
+  queue: max
 
 run-name: "Copilot Centralization Optimizer"
 

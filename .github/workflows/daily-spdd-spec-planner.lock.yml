@@ -77,6 +77,7 @@ permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
+  queue: max
 
 run-name: "Daily SPDD Spec Planner"
 
