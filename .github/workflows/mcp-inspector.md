@@ -26,6 +26,8 @@ sandbox:
     id: awf
 timeout-minutes: 20
 strict: false
+features:
+  gh-aw-detection: true
 imports:
   - uses: shared/daily-audit-base.md
     with:
