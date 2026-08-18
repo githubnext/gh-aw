@@ -307,7 +307,7 @@ func TestAddInteractiveConfig_prepareAndConfirmAddInteractive_localWriteSkipsSec
 	// write path.
 	ghLog := filepath.Join(tmpDir, "gh-invocations.log")
 	fakeGH := filepath.Join(tmpDir, "gh")
-	script := "#!/bin/sh\necho \"$@\" >> " + ghLog + "\nexit 1\n"
+	script := "#!/bin/sh\necho \"$@\" >> " + ghLog + "\nexit 0\n"
 	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
 	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
