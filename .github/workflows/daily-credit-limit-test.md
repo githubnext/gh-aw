@@ -17,7 +17,7 @@ strict: true
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 timeout-minutes: 5
 network: {}
 safe-outputs:

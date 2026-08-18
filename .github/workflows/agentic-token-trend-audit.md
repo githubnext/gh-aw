@@ -30,7 +30,7 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 tools:
   agentic-workflows:
   bash:

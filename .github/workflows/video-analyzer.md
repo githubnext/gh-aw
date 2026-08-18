@@ -34,7 +34,9 @@ safe-outputs:
 
 timeout-minutes: 15
 strict: true
-
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Video Analysis Agent

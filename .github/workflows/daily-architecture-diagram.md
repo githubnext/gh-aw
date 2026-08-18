@@ -38,7 +38,7 @@ experiments:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   edit:
