@@ -114,7 +114,7 @@ func TestInstallCopilotCLIScriptPreservesCachedBinaryAtInstallPath(t *testing.T)
 	assert.Contains(t, string(cachedOutput), "copilot 1.2.3 preserved")
 }
 
-func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *testing.T) {
+func TestInstallCopilotCLIScriptDevModeUsesToolcache(t *testing.T) {
 	const compatVersion = "1.0.56"
 	const cachedCompatibleVersion = "1.0.40"
 	const cachedBoundaryMinVersion = "1.0.21"
@@ -229,6 +229,9 @@ exit 97
 	wrapper, err := os.ReadFile(installedCopilot)
 	require.NoError(t, err)
 	assert.Contains(t, string(wrapper), cachedCopilot, "wrapper should exec the best cached Copilot CLI")
+	wrapperOutput, err := exec.Command(installedCopilot, "--version").CombinedOutput()
+	require.NoError(t, err, "dev-mode toolcache wrapper should be executable: %s", wrapperOutput)
+	assert.Contains(t, string(wrapperOutput), "copilot "+cachedCompatibleVersion)
 
 	curlLogContent, err := os.ReadFile(curlLog)
 	require.NoError(t, err, "Expected curl to fetch compatibility matrix")
