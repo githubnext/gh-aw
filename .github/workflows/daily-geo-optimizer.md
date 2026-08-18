@@ -105,7 +105,7 @@ jobs:
             local key="$1"
             local path="$2"
             local body_path="$3"
-            local url="${DOCS_BASE_URL}${path}"
+            local url="${DOCS_BASE_URL}/${path}"
             local curl_metadata
             local http_status
             local content_type
@@ -139,12 +139,12 @@ jobs:
               }' >> "$CHECKS_JSONL"
           }
 
-          check_url "llms_txt" "/llms.txt" "/tmp/gh-aw/agent/geo-optimizer/docs-llms.txt"
+          check_url "llms_txt" "llms.txt" "/tmp/gh-aw/agent/geo-optimizer/docs-llms.txt"
           # Verify the project-scoped AI discovery signal that the docs site serves below /gh-aw.
-          check_url "ai_txt" "/.well-known/ai.txt" "/tmp/gh-aw/agent/geo-optimizer/docs-ai.txt"
-          check_url "ai_summary_json" "/ai/summary.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-summary.json"
-          check_url "ai_faq_json" "/ai/faq.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-faq.json"
-          check_url "ai_service_json" "/ai/service.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-service.json"
+          check_url "ai_txt" ".well-known/ai.txt" "/tmp/gh-aw/agent/geo-optimizer/docs-ai.txt"
+          check_url "ai_summary_json" "ai/summary.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-summary.json"
+          check_url "ai_faq_json" "ai/faq.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-faq.json"
+          check_url "ai_service_json" "ai/service.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-service.json"
 
           jq -s \
             --arg base_url "$DOCS_BASE_URL" \
