@@ -37,8 +37,12 @@ func validateRelPathForGit(relPath string) error {
 	if strings.HasPrefix(relPath, "-") {
 		return fmt.Errorf("path %q must not start with '-'", relPath)
 	}
-	cleaned := filepath.ToSlash(filepath.Clean(relPath))
-	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || filepath.IsAbs(cleaned) {
+	clean := filepath.Clean(relPath)
+	if filepath.IsAbs(clean) {
+		return fmt.Errorf("path %q must not escape the repository root", relPath)
+	}
+	cleanedSlash := filepath.ToSlash(clean)
+	if cleanedSlash == ".." || strings.HasPrefix(cleanedSlash, "../") {
 		return fmt.Errorf("path %q must not escape the repository root", relPath)
 	}
 	return nil
