@@ -1,3 +1,11 @@
+## DeepReport Memory (2026-08-18T18:23:34Z)
+
+### New pattern: an auditor's own report can partially diagnose a scanner bug and still miss the rest of it — always generalize a root cause across all affected checks
+Today's GEO Audit (#53758) correctly explained *why* its `robots_txt` check false-negatived (scanner probes domain root, not the `/gh-aw/` project path) but didn't apply that same reasoning to its `llms_txt`/`ai_discovery` checks, which are false negatives for the identical reason (or a closely related one) — verified live via `curl`, both `https://github.github.com/gh-aw/llms.txt` and `/.well-known/ai.txt`/`/ai/*.json` return 200 with real content despite the report claiming 0 scores. **Lesson: when a report explains away one false-positive/false-negative as a "scanner limitation," check whether sibling checks in the same tool share the same root cause before accepting their findings at face value — tool authors fix the symptom they noticed, not necessarily the whole bug class.** This directly caused 4+ open near-duplicate `[geo-optimizer]` issues asking to create files that already exist; a prior dedup-check fix (#48695) didn't prevent this because the root issue is the scanner producing wrong data, not a missing dedup step.
+
+### Confirmed again: "closed completed" with a merged PR is still not proof of a working fix at the tool level
+Continuing the #51113 pattern from last cycle — this cycle's GEO case (#48045/46/209, closed completed) shows the same shape: real merged PRs, files genuinely deployed and working, yet the *auditing tool* still reports them as missing. Verifying the tool's actual check (not just the target artifact) is the piece that's easy to skip.
+
 ## DeepReport Memory (2026-08-18T12:26:00Z)
 
 ### New pattern: "completed" fix issues can still be lying — verify against a fresh occurrence of the exact symptom, not just merge status

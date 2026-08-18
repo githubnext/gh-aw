@@ -1,3 +1,19 @@
+## Flagged Items (2026-08-18, 18:23Z cycle)
+
+- **[new, filed, top finding]** GEO Optimizer scanner false-negatives llms_txt/ai_discovery checks (0 scores) despite files being live and 200 OK — curl-verified this cycle. Watch: does the fix also close out the 4 stale duplicate geo-optimizer issues it caused (#53759, #53435, #52534, #52763).
+- **[new, filed]** Split oversized test files, starting with `compiler_jobs_test.go` (4,511 lines).
+- **[new, filed]** Consolidate 4 chronic duplicate "Smoke Copilot - AOAI (apikey)" failure issues (#53235, #53263, #53129, #48838) + runtime/token cap (2.98M tokens burned on 0% success today).
+- **[new, filed]** Document non-Copilot `gh aw init`/example parity gaps (Claude/Codex/custom engine).
+- **[new, filed]** Actionable next-step for pr-triage-agent.md run-failure message.
+- **[new, filed]** Investigate hidden-text/cloaking flag on docs site + README.
+- **[new, filed]** Add verify-the-change step to ai-credits migration blog post.
+- **[verified fixed]** #53612 (compiler_safe_outputs_job.go, 3rd attempt) → now has open PR #53720, assigned to Copilot — watch if it actually lands this time. BoundedQueriesConfig.Timeout drift → merged PR #53694. Container/CVE pre-filter → merged PR #53709. Frontmatter schema gap (#53613) → merged PR #53678. PR Sous Chef consolidation (#53615) → merged PR #53676.
+- **[declined, already tracked]** UK AI Resilience Tier-C findings (#53737 open, #53738 already fixed via PR #53764) — no duplicate needed.
+- **[declined, healthy]** Daily Secrets Analysis (100% redaction/permission coverage), Daily Security Observability (0.42% firewall block rate, no DIFC events) — no action.
+- **[declined, too fresh]** Design Decision Gate P1 hang (#53619) — filed same day, no PR yet, let normal triage proceed before escalating.
+- **[declined, not actionable / scanner limitation likely]** README lacking Schema JSON-LD per GEO report — GitHub sanitizes `<script>` tags in rendered READMEs, so this is likely infeasible the way it works on the docs site homepage, not a real gap.
+- **[declined, explicitly do-not-re-file]** Avenger chronic `driver_exit` (#53251) — systemic gap, watch only per standing guidance.
+
 ## Flagged Items (2026-08-18, 12:26Z cycle)
 
 - **[new, filed]** `agenticworkflows logs` serves ~11-day-stale data by default (no date-range params) — reproduced live this cycle. Watch: does this get root-caused quickly given it affects every workflow's fleet-health checks.
