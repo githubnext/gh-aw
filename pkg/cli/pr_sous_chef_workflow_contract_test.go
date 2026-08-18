@@ -47,6 +47,8 @@ func TestPRSousChefWorkflowAddCommentTargetContract(t *testing.T) {
 	assert.Contains(t, text, "all review threads on the PR are resolved", "Workflow must dismiss reviews only when all PR review threads are resolved")
 	assert.Contains(t, text, "slash-command runs are acknowledgment nudges and must not perform automated review cleanup", "Workflow must require slash-command runs to skip dismissal")
 	assert.Contains(t, text, "dismissed_reviews", "Noop summary must include dismissed_reviews counter")
+	assert.Contains(t, text, "sync-stack: true", "Workflow must keep the stacked-PR branch-update fallback enabled")
+	assert.Contains(t, text, "Query only `github/gh-aw`", "Sub-agent must keep review queries scoped to this repository")
 	assert.Contains(t, text, "Slash-command acknowledgement requirement (mandatory)", "Workflow must define slash-command acknowledgement handling")
 	assert.Contains(t, text, "you must always post a comment on the same PR as that triggering comment", "Workflow must require comment acknowledgement on slash-command PR comments")
 	assert.Contains(t, text, "Do not skip this acknowledgement due to cooldown, pending checks, or duplicate-comment safeguards", "Workflow must make slash-command acknowledgement unconditional")

@@ -14607,7 +14607,7 @@ safe-outputs:
     # When true, allow stacked-PR stack-sync fallback when update-branch is
     # unsupported. Defaults to true. Set to false to disable stacked-PR sync fallback.
     # (optional)
-    update-branch.stacks: true
+    sync-stack: true
 
     # Default operation for body updates: 'append' (add to end), 'prepend' (add to
     # start), or 'replace' (overwrite completely). Defaults to 'replace' if not
