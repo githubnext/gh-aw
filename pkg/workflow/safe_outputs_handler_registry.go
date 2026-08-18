@@ -4,10 +4,6 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var handlerRegistryLog = logger.New("workflow:safe_outputs_handler_registry")
 
-// commentMemoryHandlerKey is the registry key for the comment_memory safe output handler.
-// Using a constant here prevents silent regressions if the key is ever renamed.
-const commentMemoryHandlerKey = "comment_memory"
-
 // resolveHandlerGitHubToken returns the effective GitHub token expression for a handler.
 // When app is non-nil (a per-handler github-app is configured), the compiler has already
 // minted a dedicated token step whose ID is "{handlerKey}-app-token"; this function returns
@@ -105,22 +101,6 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
 			AddStringSlice("required_labels", c.RequiredLabels).
 			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
-			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
-			Build()
-	},
-	commentMemoryHandlerKey: func(cfg *SafeOutputsConfig) map[string]any {
-		if cfg.CommentMemory == nil {
-			return nil
-		}
-		c := cfg.CommentMemory
-		return newHandlerConfigBuilder().
-			AddTemplatableInt("max", c.Max).
-			AddIfNotEmpty("target", c.Target).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
-			AddStringSlice("allowed_repos", c.AllowedRepos).
-			AddIfNotEmpty("memory_id", c.MemoryID).
-			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
-			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "comment-memory", c.GitHubToken)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},

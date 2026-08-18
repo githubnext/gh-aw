@@ -60,6 +60,24 @@ jobs:
 	assert.Equal(t, ".lock.yml", workflowFiles["ci"], "ci should map to .lock.yml")
 }
 
+func TestGenerateSafeOutputsConfigCommentMemoryToolsOnly(t *testing.T) {
+	data := &WorkflowData{
+		CommentMemoryConfig: &CommentMemoryConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			MemoryID:             "default",
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+	require.NotNil(t, data.SafeOutputs)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Contains(t, parsed, commentMemoryHandlerKey)
+}
+
 // TestGenerateSafeOutputsConfigActions tests that generateSafeOutputsConfig includes custom
 // action tool names as enabled keys so both MCP server implementations register them.
 func TestGenerateSafeOutputsConfigActions(t *testing.T) {

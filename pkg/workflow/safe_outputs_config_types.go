@@ -47,7 +47,6 @@ type SafeOutputsConfig struct {
 	ApproveWorkflowRun                     *ApproveWorkflowRunConfig              `yaml:"approve-workflow-run,omitempty"`        // Approve a pending workflow run awaiting required approval
 	DismissPullRequestReview               *DismissPullRequestReviewConfig        `yaml:"dismiss-pull-request-review,omitempty"` // Dismiss a pull request review authored by the workflow actor
 	AddComments                            *AddCommentsConfig                     `yaml:"add-comment,omitempty"`
-	CommentMemory                          *CommentMemoryConfig                   `yaml:"comment-memory,omitempty"` // Persist and update managed memory comments on issues/PRs
 	CreatePullRequests                     *CreatePullRequestsConfig              `yaml:"create-pull-request,omitempty"`
 	CreatePullRequestReviewComments        *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comment,omitempty"`
 	SubmitPullRequestReview                *SubmitPullRequestReviewConfig         `yaml:"submit-pull-request-review,omitempty"`           // Submit a PR review with status (APPROVE, REQUEST_CHANGES, COMMENT)

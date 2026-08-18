@@ -141,6 +141,7 @@ type WorkflowData struct {
 	Bots                           []string                        // allow list of bot identifiers that can trigger workflow
 	RateLimit                      *RateLimitConfig                // rate limiting configuration for workflow triggers
 	CacheMemoryConfig              *CacheMemoryConfig              // parsed cache-memory configuration
+	CommentMemoryConfig            *CommentMemoryConfig            // parsed tools.comment-memory configuration
 	RepoMemoryConfig               *RepoMemoryConfig               // parsed repo-memory configuration
 	Runtimes                       map[string]any                  // runtime version overrides from frontmatter
 	ToolsTimeout                   string                          // timeout for tool/MCP operations: numeric string (seconds) or GitHub Actions expression (empty = use engine default)
