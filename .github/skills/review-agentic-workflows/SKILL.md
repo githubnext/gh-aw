@@ -32,6 +32,8 @@ fi
 if ! gh aw --help >/dev/null 2>&1; then
   if [ -x ./install-gh-aw.sh ]; then
     bash ./install-gh-aw.sh
+  else
+    echo "install-gh-aw.sh not found; skipping local install attempt" >&2
   fi
   if gh aw --help >/dev/null 2>&1; then
     echo "Using installed gh aw CLI extension"
