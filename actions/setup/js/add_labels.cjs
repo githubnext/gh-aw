@@ -57,6 +57,23 @@ function isPullRequestItem(issueData, nodeId) {
 }
 
 /**
+ * @param  {...Array<string|{ name?: string }>} labelGroups
+ * @returns {string[]}
+ */
+function mergeLabelNames(...labelGroups) {
+  const merged = [];
+  const seenLower = new Set();
+  for (const label of labelGroups.flatMap(group => normalizeLabelNames(group))) {
+    const key = label.toLowerCase();
+    if (!seenLower.has(key)) {
+      seenLower.add(key);
+      merged.push(label);
+    }
+  }
+  return merged;
+}
+
+/**
  * Apply labels with issue-intent metadata through the GraphQL updateIssue mutation.
  * That mutation replaces the issue's label set, so the requested specs are merged with the
  * issue's existing labels to preserve add-only semantics. Existing labels are sent without
@@ -128,7 +145,7 @@ async function applyIssueIntentLabels({ githubClient, core, repoParts, itemNumbe
       RATE_LIMIT_RETRY_CONFIG,
       `restore labels on ${contextType} #${itemNumber} in ${itemRepo}`
     );
-    afterLabels = normalizeLabelNames(restoredLabels);
+    afterLabels = mergeLabelNames(existingLabelNames, afterLabels, normalizeLabelNames(restoredLabels));
   }
 
   return afterLabels;
@@ -422,7 +439,7 @@ const main = createCountGatedHandler({
                 RATE_LIMIT_RETRY_CONFIG,
                 `add metadata-free labels to ${contextType} #${itemNumber} in ${itemRepo}`
               );
-              afterLabels = normalizeLabelNames(labels);
+              afterLabels = mergeLabelNames(afterLabels, normalizeLabelNames(labels));
               afterNamesLower = new Set(afterLabels.map(name => name.toLowerCase()));
             }
 
