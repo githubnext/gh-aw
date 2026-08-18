@@ -795,3 +795,21 @@ func TestMCPServerHealthDetailJSONSchema(t *testing.T) {
 	assert.Equal(t, "120ms", decoded["avg_latency"], "avg_latency key should be preserved")
 	assert.Equal(t, "healthy", decoded["status"], "status key should be preserved")
 }
+
+func TestMCPServerHealthDetailJSONKeepsZeroErrorCount(t *testing.T) {
+	t.Parallel()
+	detail := MCPServerHealthDetail{
+		MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 40},
+		RequestCount:       50,
+		Status:             "healthy",
+	}
+
+	data, err := json.Marshal(detail)
+	require.NoError(t, err, "Marshalling health detail should succeed")
+
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(data, &decoded), "Result should be valid JSON")
+
+	require.Contains(t, decoded, "error_count", "error_count should be emitted even when zero")
+	assert.InDelta(t, 0, decoded["error_count"], 0.001, "error_count should be zero")
+}
