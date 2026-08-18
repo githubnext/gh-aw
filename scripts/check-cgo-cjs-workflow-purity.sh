@@ -14,8 +14,12 @@ for workflow in "$@"; do
     continue
   fi
 
-  disallowed_secrets="$(grep -Eno '\$\{\{[[:space:]]*secrets\.[A-Za-z_][A-Za-z0-9_]*' "$workflow" || true)"
-  disallowed_secrets="$(printf '%s\n' "$disallowed_secrets" | grep -Ev 'secrets\.(GITHUB_TOKEN|SCIENCE)$' || true)"
+  disallowed_secrets="$(perl -ne '
+    while (/\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\b/g) {
+      print "$ARGV:$.: secrets.$1\n" unless $1 eq "GITHUB_TOKEN" || $1 eq "SCIENCE";
+    }
+    close ARGV if eof;
+  ' "$workflow")"
   if [ -n "$disallowed_secrets" ]; then
     echo "Disallowed secrets expressions found in $workflow:"
     echo "$disallowed_secrets"
