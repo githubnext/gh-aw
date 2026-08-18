@@ -753,7 +753,7 @@ Mirror-write failure MUST produce a structured diagnostic but SHOULD NOT fail th
 
 The mirror writer MUST create parent directories with restrictive permissions, MUST use append-safe writes, SHOULD tolerate concurrent writers, MUST NOT write exporter credentials, MUST apply the same content-capture and redaction policy as remote export, and SHOULD rotate or bound file size.
 
-When telemetry artifacts are uploaded, the artifact SHOULD contain `otel.jsonl`, runtime-specific companion files such as `copilot-otel.jsonl` when present, and no secret headers or credentials. A manifest containing schema version, signal counts, byte sizes, and redaction mode MAY be added as an optional companion file.
+When telemetry artifacts are uploaded, the artifact SHOULD contain `otel.jsonl` and no secret headers or credentials. As of the removal in PR #32280, gh-aw does not produce a runtime-specific companion mirror file for Copilot CLI spans; Copilot CLI is expected to export its spans directly to the configured OTLP backend using the injected `OTEL_EXPORTER_OTLP_ENDPOINT`/`OTEL_EXPORTER_OTLP_HEADERS`/`OTEL_RESOURCE_ATTRIBUTES` environment variables (see ADR-34450). A manifest containing schema version, signal counts, byte sizes, and redaction mode MAY be added as an optional companion file.
 
 ---
 
@@ -952,6 +952,8 @@ context is added to outcome spans or links.
 ## 19. Change Log
 
 ### Version 0.4.0 (Working Draft, June 18, 2026)
+
+- **Removed** (documentation correction, August 2026): References to a `copilot-otel.jsonl` local mirror/companion artifact. PR #32280 removed the file-export pipeline that produced it (`COPILOT_OTEL_FILE_EXPORTER_PATH` injection, artifact inclusion, and forwarding script); Copilot CLI spans are now expected to be exported directly to the configured OTLP backend and queried there.
 
 - **Changed**: Reframed 0.4.0 as a non-breaking compatibility revision rather than a replacement telemetry standard.
 - **Preserved**: `observability.otlp`, direct OTLP export, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `GITHUB_AW_OTEL_TRACE_ID`, `GITHUB_AW_OTEL_PARENT_SPAN_ID`, `TRACEPARENT` compatibility, built-in setup/conclusion spans, `gen_ai.system`, `gen_ai.usage.total_tokens`, and raw OTLP JSONL mirror behavior.
