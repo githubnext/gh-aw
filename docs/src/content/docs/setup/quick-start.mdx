@@ -47,7 +47,7 @@ head:
 import Video from '../../../components/Video.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents through GitHub Actions. By the end of this guide, you will have a recurring agentic workflow running in your repository with GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi. The stable-engine path takes about 10 minutes and requires only the GitHub CLI.
+GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation in Markdown with YAML frontmatter (the configuration block between the `---` markers at the top of the file) and run AI agents through GitHub Actions. By the end of this guide, you will have a recurring agentic workflow running in your repository with GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi. The stable-engine path takes about 10 minutes and requires only the GitHub CLI.
 
 ## Adding an Automated Daily Status Workflow to Your Repo
 
@@ -113,13 +113,13 @@ gh aw add-wizard githubnext/agentics/daily-repo-status --engine claude
 > [!IMPORTANT]
 > Passing `--engine claude` pre-selects Claude and skips the interactive engine-selection step (Step 2 below).
 > If you omit the flag, the wizard will ask you to choose.
-> Note: if `engine:` is later removed manually from the workflow frontmatter (the settings block at the top of the file, between the `---` lines), the runtime defaults to Copilot.
+> Note: if `engine:` is later removed manually from the workflow frontmatter, the runtime defaults to Copilot.
 
 This will take you through an interactive process to:
 
 1. **Check prerequisites** - Verify repository permissions.
 2. **Select an AI engine** - Choose GitHub Copilot, Claude Code, OpenAI Codex, Google Gemini, or Pi.
-3. **Configure AI engine authentication** - Use the recommended [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) permission or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) for Copilot, [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) for Claude, `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) for Codex, and [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) or [Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif) for Gemini. Pi uses the authentication required by its selected provider. See [Authentication](/gh-aw/reference/auth/) for setup instructions.
+3. **Configure AI engine authentication** - Use the recommended [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) permission or [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) for Copilot, [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic Workload Identity Federation (WIF)](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) for Claude, `CODEX_API_KEY` or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) for Codex, and [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) or [Google Workload Identity Federation (WIF)](/gh-aw/reference/auth/#google-workload-identity-federation-wif) for Gemini. Pi uses the authentication required by its selected provider. See [Authentication](/gh-aw/reference/auth/) for setup instructions.
 4. **Add the workflow** - Adds the workflow file (`.md`) and its generated GitHub Actions lock file (`.lock.yml`, the compiled workflow that GitHub Actions actually runs) to `.github/workflows/`.
 5. **Optionally trigger an initial run** - Starts the workflow immediately.
 
