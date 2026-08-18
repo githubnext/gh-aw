@@ -117,10 +117,11 @@ steps:
 
         # Determine pending-check state from the statusCheckRollup data already
         # fetched in the gh pr list call above — no per-PR REST calls needed.
-        # CheckRun statuses and conclusions are UPPERCASE in the GraphQL response.
-        # ACTION_REQUIRED CJS/CGO workflow runs are not treated as pending here
-        # because the agent can approve those runs through the approve_workflow_run
-        # safe output. Other pending checks still gate nudges.
+        # CheckRun statuses are UPPERCASE in the GraphQL response.
+        # WAITING check runs are left eligible here so the agent can inspect the
+        # associated workflow run and approve it through the approve_workflow_run
+        # safe output when it belongs to the allowed CJS/CGO workflows. Other
+        # short-running pending checks still gate nudges.
         # Checks that have been running for more than 1 hour are ignored so that
         # long-running agentic checks (Q, coding agents) do not permanently block
         # nudges.  Short CI checks (< 1 hour) still gate nudges correctly.
@@ -134,8 +135,7 @@ steps:
             (now - 3600) as $cutoff |
             if ($checks | any(
               if .__typename == "CheckRun" then
-                ((.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED", "PENDING")) and
-                (((.conclusion // "") == "ACTION_REQUIRED") | not) and
+                ((.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "REQUESTED", "PENDING")) and
                 ((.startedAt // .createdAt) as $ts |
                   $ts == null or (($ts | fromdateiso8601) > $cutoff))
               elif .__typename == "StatusContext" then
@@ -214,13 +214,14 @@ steps:
           mergeStateStatus,
           failed_checks: ((.statusCheckRollup // []) | if type == "array" then . else [] end | map(select(
             if .__typename == "CheckRun" then
-              ((.conclusion // "") | IN("FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE"))
+              ((.conclusion // "") | IN("FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE")) or
+              ((.status // "") == "WAITING")
             elif .__typename == "StatusContext" then
               ((.state // "") | IN("FAILURE", "ERROR"))
             else false end
           )) | map({
             name: (if .__typename == "StatusContext" then (.context // "unknown") else (.name // "unknown") end),
-            conclusion: (.conclusion // .state // "unknown"),
+            conclusion: (if .__typename == "CheckRun" and (.status // "") == "WAITING" then "ACTION_REQUIRED" else (.conclusion // .state // "unknown") end),
             url: (.detailsUrl // .targetUrl // null)
           }))
         })
