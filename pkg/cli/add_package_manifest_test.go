@@ -80,7 +80,7 @@ files:
 		assert.Equal(t, "🤖", pkg.Emoji)
 		assert.Equal(t, "MIT", pkg.License)
 		assert.Equal(t, "README.md", pkg.DocsPath)
-		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 		require.NotEmpty(t, pkg.Warnings)
 		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Ignoring files entry")
 	})
@@ -127,7 +127,7 @@ files:
 
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "github.com")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("uses latest release for github/gh-aw when version is omitted", func(t *testing.T) {
@@ -172,7 +172,7 @@ files:
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
 		require.NoError(t, err)
 		assert.Equal(t, "v1.2.3", pkg.ResolvedRef)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("falls back to default branch for github/gh-aw when latest release lookup fails", func(t *testing.T) {
@@ -218,7 +218,7 @@ files:
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "github/gh-aw"}, "github.com")
 		require.NoError(t, err)
 		assert.Equal(t, "main", pkg.ResolvedRef)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("uses slash branch ref from manifest route", func(t *testing.T) {
@@ -252,7 +252,7 @@ files:
 			Version:     "feature/github-agentic-workflow",
 		}, "github.com")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"agentic-workflows/workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"agentic-workflows/workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("falls back to scanning supported workflow directories", func(t *testing.T) {
@@ -281,7 +281,7 @@ files:
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "README.md", pkg.DocsPath)
-		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md", ".github/workflows/nightly-review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("passes explicit host to scanning fallback", func(t *testing.T) {
@@ -311,7 +311,7 @@ files:
 
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "github.com")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("rejects manifest without name field", func(t *testing.T) {
@@ -374,7 +374,7 @@ files:
 
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("accepts git describe compiler version for matching min-version", func(t *testing.T) {
@@ -405,7 +405,7 @@ files:
 
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("accepts manifest without manifest-version", func(t *testing.T) {
@@ -429,7 +429,7 @@ files:
 
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("rejects unsupported manifest-version", func(t *testing.T) {
@@ -699,7 +699,7 @@ files:
 		require.NoError(t, err)
 		assert.Equal(t, "packages/repo-assist/aw.yml", pkg.ManifestPath)
 		assert.Equal(t, "packages/repo-assist/README.md", pkg.DocsPath)
-		assert.Equal(t, []string{"packages/repo-assist/workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"packages/repo-assist/workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 
 	t.Run("nested bundle github workflows paths are repo-root-relative", func(t *testing.T) {
@@ -731,7 +731,7 @@ files:
 		assert.Equal(t, []string{
 			"dependabot/workflows/review.md",
 			".github/workflows/dependabot-orchestrator.md",
-		}, pkg.InstallationSource)
+		}, packageInstallableSourcePaths(pkg.InstallationSource))
 	})
 }
 
@@ -1204,20 +1204,21 @@ func TestIsSupportedPackageInstallablePath(t *testing.T) {
 
 func TestExtractManifestIncludes(t *testing.T) {
 	t.Parallel()
-	includes, warnings := extractManifestIncludes([]any{
+	includes, warnings, err := extractManifestIncludes([]any{
 		"workflows/review.md",
 		"agentic-workflows/review.md",
 		"skills/code-review",
 		"agents/reviewer.md",
 		".github/workflows/ci.yml",
 	}, "aw.yml")
+	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"workflows/review.md",
 		"agentic-workflows/review.md",
 		"skills/code-review",
 		"agents/reviewer.md",
 		".github/workflows/ci.yml",
-	}, includes)
+	}, manifestIncludeSources(includes))
 	assert.Empty(t, warnings)
 }
 
@@ -1281,7 +1282,7 @@ files:
 
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"workflows/triage.md", ".github/workflows/ci.yml"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/triage.md", ".github/workflows/ci.yml"}, packageInstallableSourcePaths(pkg.InstallationSource))
 		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Field 'files'")
 	})
 
@@ -1308,7 +1309,7 @@ files:
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
 		// Only the .md file should be accepted; the yml under workflows/ is rejected
-		assert.Equal(t, []string{"workflows/triage.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/triage.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 		require.NotEmpty(t, pkg.Warnings)
 		assert.Contains(t, strings.Join(pkg.Warnings, "\n"), "Ignoring files entry")
 	})
@@ -1600,7 +1601,7 @@ files:
 
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 		require.Len(t, pkg.SkillFiles, 2)
 		assert.Equal(t, "skills/code-review/SKILL.md", pkg.SkillFiles[0].SourcePath)
 		assert.Equal(t, "code-review", pkg.SkillFiles[0].SkillName)
@@ -1645,7 +1646,7 @@ includes:
 
 		pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"workflows/review.md"}, pkg.InstallationSource)
+		assert.Equal(t, []string{"workflows/review.md"}, packageInstallableSourcePaths(pkg.InstallationSource))
 		require.Len(t, pkg.SkillFiles, 2)
 		assert.Equal(t, []string{".github/agents/triage.md"}, pkg.AgentFiles)
 	})
@@ -2238,4 +2239,13 @@ func TestPrintBootstrapConfigTODO(t *testing.T) {
 		assert.Contains(t, out, "Run the bootstrap wizard.")
 		assert.NotContains(t, out, "gh aw bootstrap")
 	})
+}
+
+// manifestIncludeSources returns the source path of each manifest include entry.
+func manifestIncludeSources(includes []repositoryPackageInclude) []string {
+	sources := make([]string, 0, len(includes))
+	for _, include := range includes {
+		sources = append(sources, include.Source)
+	}
+	return sources
 }

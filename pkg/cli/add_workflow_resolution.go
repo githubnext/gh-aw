@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -463,15 +464,22 @@ func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, e
 	}
 
 	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(manifest.Includes)
-	includeInstallablePaths = append(includeInstallablePaths, manifest.Files...)
-	installationSources := normalizeLocalPackageInstallablePaths(includeInstallablePaths, packageDir)
+	includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(manifest.Files)...)
+	installationSources, err := normalizeLocalPackageInstallablePaths(includeInstallablePaths, packageDir)
+	if err != nil {
+		return nil, err
+	}
 	if len(installationSources) == 0 {
-		installationSources, err = scanLocalRepositoryPackageInstallablePaths(packageDir)
+		scanned, err := scanLocalRepositoryPackageInstallablePaths(packageDir)
 		if err != nil {
 			return nil, err
 		}
+		installationSources = packageInstallablesFromSourcePaths(scanned)
 	}
 	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
+		return nil, err
+	}
+	if err := validateUniqueManifestInstallDestinations(installationSources, manifestPath); err != nil {
 		return nil, err
 	}
 
@@ -532,34 +540,75 @@ func localRepositoryPackageManifest(source string) (string, string, error) {
 	return resolvedPath, filepath.Dir(resolvedPath), nil
 }
 
-func normalizeLocalPackageInstallablePaths(paths []string, packageDir string) []string {
-	normalized := make([]string, 0, len(paths))
+func normalizeLocalPackageInstallablePaths(includes []repositoryPackageInclude, packageDir string) ([]resolvedPackageInstallable, error) {
+	normalized := make([]resolvedPackageInstallable, 0, len(includes))
 	seen := make(map[string]struct{})
-	for _, sourcePath := range paths {
-		if !isSupportedPackageInstallablePath(sourcePath) {
+	for _, include := range includes {
+		if !include.isMapping() && !isSupportedPackageInstallablePath(include.Source) {
 			continue
 		}
-		absolutePath := filepath.Join(packageDir, filepath.FromSlash(sourcePath))
-		absolutePath = filepath.Clean(absolutePath)
+		absolutePath := filepath.Clean(filepath.Join(packageDir, filepath.FromSlash(include.Source)))
+		if include.isMapping() {
+			if err := validateLocalPackageMappingSource(absolutePath, packageDir, include.Source); err != nil {
+				return nil, err
+			}
+		}
 		if _, exists := seen[absolutePath]; exists {
 			continue
 		}
 		seen[absolutePath] = struct{}{}
-		normalized = append(normalized, absolutePath)
+		destination := include.Destination
+		if destination == "" {
+			destination = defaultPackageInstallDestination(absolutePath)
+		}
+		normalized = append(normalized, resolvedPackageInstallable{
+			SourcePath:      absolutePath,
+			DestinationPath: destination,
+		})
 	}
-	return normalized
+	return normalized, nil
+}
+
+// validateLocalPackageMappingSource rejects mapping sources that resolve outside the
+// package directory or that are symlinks.
+func validateLocalPackageMappingSource(absolutePath, packageDir, source string) error {
+	cleanedPackageDir := filepath.Clean(packageDir)
+	if absolutePath != cleanedPackageDir && !strings.HasPrefix(absolutePath, cleanedPackageDir+string(os.PathSeparator)) {
+		return fmt.Errorf("invalid Agentic Workflow manifest in %q: includes source %q resolves outside the package directory", packageDir, source)
+	}
+	info, err := os.Lstat(absolutePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("invalid Agentic Workflow manifest in %q: includes source %q does not exist", packageDir, source)
+		}
+		return fmt.Errorf("failed to inspect includes source %q: %w", source, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("invalid Agentic Workflow manifest in %q: includes source %q is a symbolic link, which is not allowed", packageDir, source)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("invalid Agentic Workflow manifest in %q: includes source %q is a directory, but a file is required", packageDir, source)
+	}
+	return nil
+}
+
+// packageInstallableWorkflowName returns the workflow name used when installing a package
+// entry. The name is derived from the install destination so that source-to-destination
+// mappings install under their declared destination file name.
+func packageInstallableWorkflowName(installable resolvedPackageInstallable) string {
+	base := path.Base(filepath.ToSlash(installable.DestinationPath))
+	return strings.TrimSuffix(base, path.Ext(base))
 }
 
 func appendLocalRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, pkg *resolvedRepositoryPackage) []*WorkflowSpec {
 	if pkg == nil {
 		return parsedSpecs
 	}
-	for _, installationSource := range pkg.InstallationSource {
-		base := filepath.Base(installationSource)
-		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
+	for _, installable := range pkg.InstallationSource {
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
-			WorkflowPath:           installationSource,
-			WorkflowName:           workflowName,
+			WorkflowPath:           installable.SourcePath,
+			WorkflowName:           packageInstallableWorkflowName(installable),
+			DestinationPath:        installable.DestinationPath,
 			FromRepositoryManifest: true,
 		})
 	}
@@ -711,21 +760,20 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 	}
 	host := explicitHostForRepo(repoSpec.RepoSlug)
 	effectiveVersion := repositoryPackageEffectiveRef(repoSpec, pkg)
-	for _, installationSource := range pkg.InstallationSource {
-		// installationSource is guaranteed by isSupportedPackageInstallablePath to be
-		// either a .md agentic workflow or a .yml action workflow file; no other
-		// extensions can reach this point.
-		base := filepath.Base(installationSource)
-		// Use filepath.Ext for case-insensitive extension removal (e.g. ".YML" or ".MD").
-		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
+	for _, installable := range pkg.InstallationSource {
+		// Each installable is guaranteed to be either a .md agentic workflow or a .yml
+		// action workflow file; no other extensions can reach this point. The workflow
+		// name is derived from the install destination so that source-to-destination
+		// mappings install under their declared destination name.
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
 			RepoSpec: RepoSpec{
 				RepoSlug:    repoSpec.RepoSlug,
 				Version:     effectiveVersion,
 				PackagePath: repoSpec.PackagePath,
 			},
-			WorkflowPath:           installationSource,
-			WorkflowName:           workflowName,
+			WorkflowPath:           installable.SourcePath,
+			WorkflowName:           packageInstallableWorkflowName(installable),
+			DestinationPath:        installable.DestinationPath,
 			Host:                   host,
 			FromRepositoryManifest: true,
 		})

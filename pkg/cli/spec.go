@@ -50,6 +50,10 @@ type WorkflowSpec struct {
 	// IsPackageAgentFile is true when this spec refers to an agent .md file from an aw.yml
 	// package manifest. The file is installed as-is to the agentic engine agents folder.
 	IsPackageAgentFile bool
+	// DestinationPath is the repository-root-relative install path declared by a package
+	// manifest source-to-destination mapping (e.g. ".github/workflows/reviewer.md").
+	// Empty when the install path is derived from the source file name.
+	DestinationPath string
 	// SkillName is the name of the skill directory for package skill files.
 	// Only meaningful when IsPackageSkillFile is true.
 	SkillName string

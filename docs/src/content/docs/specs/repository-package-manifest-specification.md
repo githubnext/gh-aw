@@ -47,7 +47,8 @@ The manifest document MUST be a YAML mapping. Unknown top-level fields MUST be r
 | `emoji` | string | No | Optional package emoji for display in package metadata. |
 | `description` | string | No | Human-readable package description. |
 | `license` | string | No | SPDX license identifier or license name for the package. |
-| `files` | array of strings | No | Explicit installable workflow file list. |
+| `files` | array of strings | No | Deprecated. Explicit installable workflow file list. Use `includes` instead. |
+| `includes` | array of strings or mappings | No | Explicit installable package entries. String entries use path conventions; mapping entries declare an explicit source-to-destination install path. |
 
 ### 4.2 `manifest-version`
 
@@ -94,6 +95,37 @@ Duplicate entries SHOULD be ignored after normalization.
 
 **Path-traversal safety**: Each entry in `files` MUST NOT contain a path-traversal sequence. Specifically, any entry that contains `../` (or `..\` on Windows-style paths), begins with `../`, or resolves to a path outside the package root after normalization MUST be rejected with a validation error. Implementations MUST NOT follow symlinks that would escape the package root during file resolution. This rule applies regardless of the number of traversal components in the path (e.g., `../../etc/passwd` and `workflows/../../hidden` are both prohibited).
 
+### 4.9 `includes`
+
+If present, `includes` MUST be an array whose entries are either strings or mappings.
+
+**String entries** follow the same rules as `files` (§4.8), with one special case that MUST be preserved for backward compatibility: a string entry beginning with `.github/` is resolved relative to the **consuming repository root**, not relative to the package root, even for nested packages. All other string entries (for example `workflows/review.md`) are resolved relative to the package root.
+
+**Mapping entries** declare an explicit source-to-destination install mapping and MUST contain:
+
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `source` | string | Yes | Path of the file to install, always resolved relative to the package root, including for nested packages. The `.github/` special case of string entries MUST NOT apply. |
+| `destination` | string | Yes | Install path, resolved relative to the consuming repository root. |
+| `kind` | string | No | Either `agentic-workflow` or `action-workflow`. When present, it MUST match the file extension of `source`. |
+
+Mapping entries let a distribution repository keep executable workflow assets inert outside its own `.github/workflows/` directory and still install them into the consuming repository's `.github/workflows/`.
+
+Implementations MUST reject a mapping entry when any of the following holds:
+
+- `source` or `destination` is empty, absolute, or contains a path-traversal sequence that escapes its root;
+- `source` resolves to a symbolic link or to a path outside the package root;
+- `source` or `destination` does not end in `.md` or `.yml`, or ends in `.lock.yml`;
+- `destination` is not a direct child of `.github/workflows/`;
+- the file extension of `destination` differs from the file extension of `source`;
+- `kind` is present and does not match the kind implied by the `source` extension.
+
+Implementations MUST detect two entries that resolve to the same `destination` and MUST fail before writing any file.
+
+Mapping entries follow the same install semantics as string entries: `.md` sources are compiled under their destination file name, and `.yml` sources are copied verbatim. Package-provided post-install shell code MUST NOT be executed.
+
+`gh aw add`, `gh aw add-wizard`, and `gh aw update` MUST use identical mapping semantics, and `gh aw update` MUST continue to track the manifest source of installed files.
+
 ## 5. Installable file resolution
 
 Supported installable paths are:
@@ -101,6 +133,8 @@ Supported installable paths are:
 - `workflows/<name>.md`
 - `.github/workflows/<name>.md`
 - `.github/workflows/<name>.yml` (raw GitHub Actions YAML; direct children only, `.lock.yml` excluded)
+
+Mapping entries in `includes` (§4.9) may declare any package-relative `source`; their `destination` MUST be a direct child of `.github/workflows/`.
 
 Nested descendants under the markdown directories are also valid when referenced explicitly in `files`. Raw `.yml` action workflows MUST be direct children of `.github/workflows/`; nested `.yml` files are rejected.
 
