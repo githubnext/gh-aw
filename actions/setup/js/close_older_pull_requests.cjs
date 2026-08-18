@@ -2,8 +2,9 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
+const { MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 const { searchOlderEntitiesByMarker } = require("./close_older_search_helpers.cjs");
+const { createCloseOlderSearchAdapter, closeOlderWithDescriptor } = require("./close_older_handler_factory.cjs");
 
 /**
  * Maximum number of older pull requests to close
@@ -154,13 +155,17 @@ function getCloseOlderPullRequestMessage({ newPullRequestUrl, newPullRequestNumb
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed pull requests
  */
 async function closeOlderPullRequests(github, owner, repo, workflowId, newPullRequest, workflowName, runUrl, callerWorkflowId, closeOlderKey) {
-  const result = await closeOlderEntities(github, owner, repo, workflowId, newPullRequest, workflowName, runUrl, {
+  return closeOlderWithDescriptor({
+    github,
+    owner,
+    repo,
+    workflowId,
+    newEntity: newPullRequest,
+    workflowName,
+    runUrl,
     entityType: "pull request",
     entityTypePlural: "pull requests",
-    // Use a closure so callerWorkflowId and closeOlderKey are forwarded to searchOlderPullRequests
-    // without going through the closeOlderEntities extraArgs mechanism (which appends
-    // excludeNumber last)
-    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderPullRequests(gh, o, r, wid, excludeNumber, callerWorkflowId, closeOlderKey),
+    searchOlderEntities: createCloseOlderSearchAdapter(searchOlderPullRequests, [], [callerWorkflowId, closeOlderKey]),
     getCloseMessage: params =>
       getCloseOlderPullRequestMessage({
         newPullRequestUrl: params.newEntityUrl,
@@ -173,13 +178,11 @@ async function closeOlderPullRequests(github, owner, repo, workflowId, newPullRe
     delayMs: API_DELAY_MS,
     getEntityId: entity => entity.number,
     getEntityUrl: entity => entity.html_url,
+    mapClosedEntity: item => ({
+      number: item.number,
+      html_url: item.html_url || "",
+    }),
   });
-
-  // Map to pull-request-specific return type
-  return result.map(item => ({
-    number: item.number,
-    html_url: item.html_url || "",
-  }));
 }
 
 module.exports = {

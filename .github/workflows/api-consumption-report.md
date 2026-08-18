@@ -18,7 +18,7 @@ engine:
     tool-timeout: 10m
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 tools:
   cache-memory: true
   cli-proxy: true

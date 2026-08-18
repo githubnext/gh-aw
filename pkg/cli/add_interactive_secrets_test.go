@@ -103,6 +103,7 @@ func TestAddInteractiveConfig_resolveEngineApiKeyCredential(t *testing.T) {
 }
 
 func TestAddInteractiveConfig_configureEngineAPISecret_noWriteAccess(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		engine string
@@ -123,6 +124,7 @@ func TestAddInteractiveConfig_configureEngineAPISecret_noWriteAccess(t *testing.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			config := &AddInteractiveConfig{
 				EngineOverride:  tt.engine,
 				RepoOverride:    "owner/repo",
@@ -139,6 +141,7 @@ func TestAddInteractiveConfig_configureEngineAPISecret_noWriteAccess(t *testing.
 }
 
 func TestAddInteractiveConfig_configureEngineAPISecret_skipSecret(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		engine string
@@ -159,6 +162,7 @@ func TestAddInteractiveConfig_configureEngineAPISecret_skipSecret(t *testing.T) 
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			config := &AddInteractiveConfig{
 				EngineOverride:  tt.engine,
 				RepoOverride:    "owner/repo",
@@ -207,6 +211,7 @@ func TestAddInteractiveConfig_selectAIEngineAndKey_engineOverrideFormatsInfoMess
 }
 
 func TestParseSecretNames(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    []byte
@@ -251,6 +256,7 @@ func TestParseSecretNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := parseSecretNames(tt.input)
 			assert.Equal(t, tt.expected, result, "parseSecretNames output should match expected")
 		})

@@ -41,6 +41,9 @@ evals:
     question: Did the agent run exploratory tests on the audit, logs, and compile CLI tools?
   - id: test_results_reported
     question: Were the test results reported with any issues or anomalies identified?
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 ### Daily CLI Tools Exploratory Tester

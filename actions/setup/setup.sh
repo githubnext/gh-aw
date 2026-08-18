@@ -328,6 +328,7 @@ SAFE_OUTPUTS_FILES=(
   "commit_sha_helpers.cjs"
   "get_base_branch.cjs"
   "get_current_branch.cjs"
+  "child_process_timeouts.cjs"
   "normalize_branch_name.cjs"
   "write_large_content_to_file.cjs"
   "generate_compact_schema.cjs"

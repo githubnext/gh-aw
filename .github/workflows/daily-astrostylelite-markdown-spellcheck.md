@@ -277,7 +277,7 @@ features:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 evals:
   - id: spellcheck_completed
     question: Did the agent run American English spellcheck on AstroStyleLite docs content?
