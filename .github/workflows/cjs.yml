@@ -8,6 +8,7 @@ on:
       - 'actions/setup/md/**'
       - 'pkg/cli/data/models.json'
       - 'scripts/**/*.js'
+      - 'scripts/check-cgo-cjs-workflow-purity.sh'
       - 'Makefile'
       - '.github/workflows/ci.yml'
       - '.github/workflows/cjs.yml'
@@ -18,6 +19,7 @@ on:
       - 'actions/setup/md/**'
       - 'pkg/cli/data/models.json'
       - 'scripts/**/*.js'
+      - 'scripts/check-cgo-cjs-workflow-purity.sh'
       - 'Makefile'
       - '.github/workflows/ci.yml'
       - '.github/workflows/cjs.yml'
@@ -35,6 +37,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Verify CGO/CJS workflow purity
+        run: bash scripts/check-cgo-cjs-workflow-purity.sh
       - name: Cache repository checkout
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -202,7 +206,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      actions: write
+      actions: read
     concurrency:
       group: ci-${{ github.ref }}-artifact-integration
       cancel-in-progress: true
