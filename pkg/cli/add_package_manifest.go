@@ -49,11 +49,51 @@ type resolvedRepositoryPackage struct {
 	Description        string
 	License            string
 	DocsPath           string
-	InstallationSource []string
+	InstallationSource []resolvedPackageInstallable
 	Bootstrap          *repositoryPackageBootstrap
 	SkillFiles         []resolvedPackageSkillFile
 	AgentFiles         []string
 	Warnings           []string
+}
+
+// resolvedPackageInstallable pairs the location a workflow file is read from with the
+// path it is installed to in the consuming repository.
+type resolvedPackageInstallable struct {
+	// SourcePath is where the file is fetched from. For remote packages it is a
+	// repository-relative path (e.g. "factory/payload/workflows/reviewer.md"); for local
+	// packages it is an absolute filesystem path.
+	SourcePath string
+	// DestinationPath is the repository-root-relative install path in the consuming
+	// repository (e.g. ".github/workflows/reviewer.md").
+	DestinationPath string
+}
+
+// packageInstallableSourcePaths returns the source paths of the given installables.
+func packageInstallableSourcePaths(installables []resolvedPackageInstallable) []string {
+	paths := make([]string, 0, len(installables))
+	for _, installable := range installables {
+		paths = append(paths, installable.SourcePath)
+	}
+	return paths
+}
+
+// defaultPackageInstallDestination returns the repository-root-relative install path used
+// for entries that do not declare an explicit destination.
+func defaultPackageInstallDestination(sourcePath string) string {
+	return constants.WorkflowsDirSlash + path.Base(filepath.ToSlash(sourcePath))
+}
+
+// packageInstallablesFromSourcePaths converts plain source paths into installables using
+// the default destination for each entry.
+func packageInstallablesFromSourcePaths(sourcePaths []string) []resolvedPackageInstallable {
+	installables := make([]resolvedPackageInstallable, 0, len(sourcePaths))
+	for _, sourcePath := range sourcePaths {
+		installables = append(installables, resolvedPackageInstallable{
+			SourcePath:      sourcePath,
+			DestinationPath: defaultPackageInstallDestination(sourcePath),
+		})
+	}
+	return installables
 }
 
 // resolvedPackageSkillFile represents a single file within a skill directory that
@@ -157,19 +197,22 @@ func resolveRepositoryPackageRef(ctx context.Context, repoSpec *RepoSpec, host s
 	return ref
 }
 
-func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, manifestPath string) ([]string, []string, []string, error) {
+func resolveRepositoryPackageInstallablePaths(ctx context.Context, owner, repo, packagePath, ref, host string, manifest *repositoryPackageManifest, manifestPath string) ([]resolvedPackageInstallable, []string, []string, error) {
 	includeInstallablePaths, includeSkillDirs, includeAgentFiles := splitManifestIncludePaths(manifest.Includes)
-	includeInstallablePaths = append(includeInstallablePaths, manifest.Files...)
+	includeInstallablePaths = append(includeInstallablePaths, manifestIncludesFromPaths(manifest.Files)...)
 
 	installationSources := normalizePackageInstallablePaths(includeInstallablePaths, packagePath)
 	if len(installationSources) == 0 {
-		var err error
-		installationSources, err = scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
+		scanned, err := scanRepositoryPackageInstallablePaths(ctx, owner, repo, packagePath, ref, host)
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		installationSources = packageInstallablesFromSourcePaths(scanned)
 	}
 	if err := validateUniqueManifestWorkflowFilenames(installationSources, manifestPath); err != nil {
+		return nil, nil, nil, err
+	}
+	if err := validateUniqueManifestInstallDestinations(installationSources, manifestPath); err != nil {
 		return nil, nil, nil, err
 	}
 	return installationSources, includeSkillDirs, includeAgentFiles, nil
@@ -217,7 +260,7 @@ func resolveRepositoryPackageExtensionFiles(ctx context.Context, options reposit
 	}, nil
 }
 
-func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *repositoryPackageManifest, installationSources []string, extensionFiles *repositoryPackageExtensionFiles, warnings []string) *resolvedRepositoryPackage {
+func newResolvedRepositoryPackage(manifestPath, ref, docsPath string, manifest *repositoryPackageManifest, installationSources []resolvedPackageInstallable, extensionFiles *repositoryPackageExtensionFiles, warnings []string) *resolvedRepositoryPackage {
 	return &resolvedRepositoryPackage{
 		ManifestPath:       manifestPath,
 		ResolvedRef:        ref,
@@ -259,7 +302,7 @@ type repositoryPackageManifest struct {
 	Emoji           string
 	Description     string
 	License         string
-	Includes        []string
+	Includes        []repositoryPackageInclude
 	Files           []string
 	Bootstrap       *repositoryPackageBootstrap
 	Skills          []string // skill directory paths (e.g. "skills/my-skill")
@@ -362,7 +405,10 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 	}
 
 	if includesValue, ok := root["includes"]; ok {
-		includes, includeWarnings := extractManifestIncludes(includesValue, manifestPath)
+		includes, includeWarnings, err := extractManifestIncludes(includesValue, manifestPath)
+		if err != nil {
+			return nil, err
+		}
 		manifest.Includes = includes
 		warnings = append(warnings, includeWarnings...)
 	}
@@ -401,27 +447,78 @@ func populateRepositoryPackageManifestMetadata(manifest *repositoryPackageManife
 	return warnings, nil
 }
 
-func extractManifestIncludes(value any, manifestPath string) ([]string, []string) {
-	var rawIncludes []string
+// repositoryPackageInclude is a single entry of the manifest 'includes' array. Legacy
+// string entries only set Source; object entries additionally set Destination (and
+// optionally Kind).
+type repositoryPackageInclude struct {
+	// Source is the entry path. For string entries it follows the historical rules
+	// (see isSupportedManifestIncludePath); for object entries it is always resolved
+	// relative to the package root.
+	Source string
+	// Destination is the repository-root-relative install path. Empty for string entries.
+	Destination string
+	// Kind is the optional declared entry kind ("agentic-workflow" or "action-workflow").
+	Kind string
+}
+
+// isMapping reports whether the entry uses the object form with an explicit destination.
+func (include repositoryPackageInclude) isMapping() bool {
+	return include.Destination != ""
+}
+
+const (
+	manifestIncludeKindAgenticWorkflow = "agentic-workflow"
+	manifestIncludeKindActionWorkflow  = "action-workflow"
+)
+
+// manifestIncludesFromPaths converts plain path strings into legacy string-form entries.
+func manifestIncludesFromPaths(paths []string) []repositoryPackageInclude {
+	includes := make([]repositoryPackageInclude, 0, len(paths))
+	for _, p := range paths {
+		includes = append(includes, repositoryPackageInclude{Source: p})
+	}
+	return includes
+}
+
+func extractManifestIncludes(value any, manifestPath string) ([]repositoryPackageInclude, []string, error) {
+	var rawIncludes []repositoryPackageInclude
+	var warnings []string
+	appendRawEntry := func(item any) error {
+		if include, ok := stringValue(item); ok {
+			rawIncludes = append(rawIncludes, repositoryPackageInclude{Source: include})
+			return nil
+		}
+		mapping, ok := item.(map[string]any)
+		if !ok {
+			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry in %s because it is neither a string nor a source/destination mapping", manifestPath))
+			return nil
+		}
+		include, err := parseManifestIncludeMapping(mapping, manifestPath)
+		if err != nil {
+			return err
+		}
+		rawIncludes = append(rawIncludes, include)
+		return nil
+	}
+
 	switch includes := value.(type) {
 	case []any:
 		for _, item := range includes {
-			if include, ok := stringValue(item); ok {
-				rawIncludes = append(rawIncludes, include)
+			if err := appendRawEntry(item); err != nil {
+				return nil, nil, err
 			}
 		}
 	case []string:
-		rawIncludes = append(rawIncludes, includes...)
+		rawIncludes = append(rawIncludes, manifestIncludesFromPaths(includes)...)
 	default:
-		return nil, []string{fmt.Sprintf("Ignoring includes entry in %s because it is not a list of strings", manifestPath)}
+		return nil, []string{fmt.Sprintf("Ignoring includes entry in %s because it is not a list", manifestPath)}, nil
 	}
 
-	var warnings []string
-	normalized := make([]string, 0, len(rawIncludes))
-	seen := make(map[string]struct{})
+	normalized := make([]repositoryPackageInclude, 0, len(rawIncludes))
+	seen := make(map[repositoryPackageInclude]struct{})
 	for _, include := range rawIncludes {
-		if !isSupportedManifestIncludePath(include) {
-			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, agentic-workflows/, .github/workflows/), skill directories (skills/, .github/skills/), or agent markdown files (agents/, .github/agents/)", include, manifestPath))
+		if !include.isMapping() && !isSupportedManifestIncludePath(include.Source) {
+			warnings = append(warnings, fmt.Sprintf("Ignoring includes entry %q in %s: use workflow files (workflows/, agentic-workflows/, .github/workflows/), skill directories (skills/, .github/skills/), agent markdown files (agents/, .github/agents/), or a source/destination mapping", include.Source, manifestPath))
 			continue
 		}
 		if _, exists := seen[include]; exists {
@@ -430,7 +527,108 @@ func extractManifestIncludes(value any, manifestPath string) ([]string, []string
 		seen[include] = struct{}{}
 		normalized = append(normalized, include)
 	}
-	return normalized, warnings
+	return normalized, warnings, nil
+}
+
+// parseManifestIncludeMapping validates an object-form includes entry and returns the
+// normalized source, destination, and kind.
+func parseManifestIncludeMapping(mapping map[string]any, manifestPath string) (repositoryPackageInclude, error) {
+	source, _ := stringValue(mapping["source"])
+	destination, _ := stringValue(mapping["destination"])
+	kind, _ := stringValue(mapping["kind"])
+	source = strings.TrimSpace(source)
+	destination = strings.TrimSpace(destination)
+	kind = strings.TrimSpace(kind)
+
+	if source == "" || destination == "" {
+		return repositoryPackageInclude{}, fmt.Errorf("invalid Agentic Workflow manifest %q: includes mapping entries require non-empty 'source' and 'destination'. Example:\nincludes:\n  - source: payload/workflows/reviewer.md\n    destination: %sreviewer.md", manifestPath, constants.WorkflowsDirSlash)
+	}
+
+	cleanedSource, err := cleanManifestRelativePath(source)
+	if err != nil {
+		return repositoryPackageInclude{}, fmt.Errorf("invalid Agentic Workflow manifest %q: includes source %q is invalid: %w. Sources must be package-relative paths without '..' segments. Example:\nincludes:\n  - source: payload/workflows/reviewer.md\n    destination: %sreviewer.md", manifestPath, source, err, constants.WorkflowsDirSlash)
+	}
+	sourceKind, err := manifestIncludeKindForPath(cleanedSource)
+	if err != nil {
+		return repositoryPackageInclude{}, fmt.Errorf("invalid Agentic Workflow manifest %q: includes source %q is invalid: %w", manifestPath, source, err)
+	}
+
+	cleanedDestination, err := cleanManifestRelativePath(destination)
+	if err != nil {
+		return repositoryPackageInclude{}, fmt.Errorf("invalid Agentic Workflow manifest %q: includes destination %q is invalid: %w. Destinations must be repository-root-relative paths without '..' segments. Example:\nincludes:\n  - source: payload/workflows/reviewer.md\n    destination: %sreviewer.md", manifestPath, destination, err, constants.WorkflowsDirSlash)
+	}
+	if err := validateManifestIncludeDestination(cleanedDestination, sourceKind); err != nil {
+		return repositoryPackageInclude{}, fmt.Errorf("invalid Agentic Workflow manifest %q: includes destination %q is invalid: %w", manifestPath, destination, err)
+	}
+
+	if kind != "" && kind != sourceKind {
+		return repositoryPackageInclude{}, fmt.Errorf("invalid Agentic Workflow manifest %q: includes entry declares kind %q but source %q is a %s. Use kind: %s or change the source file extension", manifestPath, kind, source, sourceKind, sourceKind)
+	}
+
+	return repositoryPackageInclude{
+		Source:      cleanedSource,
+		Destination: cleanedDestination,
+		Kind:        sourceKind,
+	}, nil
+}
+
+// cleanManifestRelativePath normalizes a manifest path and rejects absolute paths and
+// paths that escape their root.
+func cleanManifestRelativePath(p string) (string, error) {
+	slashed := filepath.ToSlash(p)
+	if strings.HasPrefix(slashed, "/") || strings.HasPrefix(slashed, "\\") || filepath.IsAbs(p) || isWindowsDriveRelativePath(slashed) {
+		return "", errors.New("absolute paths are not allowed")
+	}
+	cleaned := path.Clean(slashed)
+	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return "", errors.New("path traversal outside the root is not allowed")
+	}
+	return cleaned, nil
+}
+
+// isWindowsDriveRelativePath reports whether p starts with a Windows drive letter prefix
+// (e.g. "C:/payload"). filepath.IsAbs does not detect these on non-Windows hosts.
+func isWindowsDriveRelativePath(p string) bool {
+	if len(p) < 2 || p[1] != ':' {
+		return false
+	}
+	c := p[0]
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+// manifestIncludeKindForPath returns the entry kind implied by the file extension.
+func manifestIncludeKindForPath(p string) (string, error) {
+	lower := strings.ToLower(p)
+	switch {
+	case strings.HasSuffix(lower, ".lock.yml"):
+		return "", errors.New("compiled lock files (.lock.yml) cannot be installed")
+	case strings.HasSuffix(lower, ".md"):
+		return manifestIncludeKindAgenticWorkflow, nil
+	case strings.HasSuffix(lower, ".yml"):
+		return manifestIncludeKindActionWorkflow, nil
+	default:
+		return "", errors.New("only agentic workflows (.md) and action workflows (.yml) are supported")
+	}
+}
+
+// validateManifestIncludeDestination validates that a mapping destination installs into an
+// approved repository namespace with an extension matching its source.
+func validateManifestIncludeDestination(destination, sourceKind string) error {
+	if !strings.HasPrefix(destination, constants.WorkflowsDirSlash) {
+		return fmt.Errorf("destinations must be under %s", constants.WorkflowsDirSlash)
+	}
+	remaining := strings.TrimPrefix(destination, constants.WorkflowsDirSlash)
+	if remaining == "" || strings.Contains(remaining, "/") {
+		return fmt.Errorf("destinations must be a direct child of %s", constants.WorkflowsDirSlash)
+	}
+	destinationKind, err := manifestIncludeKindForPath(destination)
+	if err != nil {
+		return err
+	}
+	if destinationKind != sourceKind {
+		return fmt.Errorf("destination file extension must match the source (%s)", sourceKind)
+	}
+	return nil
 }
 
 func extractManifestFiles(value any, manifestPath string) ([]string, []string) {
@@ -485,14 +683,18 @@ func formatIncludesCodemodSuggestion(paths []string) string {
 	return strings.Join(lines, "\n")
 }
 
-func splitManifestIncludePaths(includes []string) (installable, skillDirs, agentFiles []string) {
+func splitManifestIncludePaths(includes []repositoryPackageInclude) (installable []repositoryPackageInclude, skillDirs, agentFiles []string) {
 	for _, include := range includes {
+		if include.isMapping() {
+			installable = append(installable, include)
+			continue
+		}
 		switch {
-		case isSupportedSkillDirPath(include):
-			skillDirs = append(skillDirs, include)
-		case isSupportedAgentFilePath(include):
-			agentFiles = append(agentFiles, include)
-		case isSupportedPackageInstallablePath(include):
+		case isSupportedSkillDirPath(include.Source):
+			skillDirs = append(skillDirs, include.Source)
+		case isSupportedAgentFilePath(include.Source):
+			agentFiles = append(agentFiles, include.Source)
+		case isSupportedPackageInstallablePath(include.Source):
 			installable = append(installable, include)
 		}
 	}
@@ -842,34 +1044,62 @@ func repositoryPackageIdentifier(repoSlug, packagePath string) string {
 	return repoSlug + "/" + packagePath
 }
 
-func normalizePackageInstallablePaths(paths []string, packagePath string) []string {
-	normalized := make([]string, 0, len(paths))
+func normalizePackageInstallablePaths(includes []repositoryPackageInclude, packagePath string) []resolvedPackageInstallable {
+	normalized := make([]resolvedPackageInstallable, 0, len(includes))
 	seen := make(map[string]struct{})
-	for _, path := range paths {
-		if !isSupportedPackageInstallablePath(path) {
-			continue
-		}
-		// Paths under .github/ are treated as repo-root-relative even in nested
-		// bundles (e.g. a bundle at "dependabot/" with ".github/workflows/foo.md"
-		// refers to the repository-root ".github/workflows/foo.md", not to
-		// "dependabot/.github/workflows/foo.md"). All other paths (e.g. workflows/,
-		// agentic-workflows/) remain relative to the package root.
-		if packagePath != "" && strings.HasPrefix(path, constants.GithubDir) {
-			path = filepath.ToSlash(path)
+	for _, include := range includes {
+		sourcePath := include.Source
+		if include.isMapping() {
+			// Mapping sources are always package-relative, including for nested packages.
+			sourcePath = joinRepositoryPackagePath(packagePath, sourcePath)
 		} else {
-			path = joinRepositoryPackagePath(packagePath, path)
+			if !isSupportedPackageInstallablePath(sourcePath) {
+				continue
+			}
+			// Paths under .github/ are treated as repo-root-relative even in nested
+			// bundles (e.g. a bundle at "dependabot/" with ".github/workflows/foo.md"
+			// refers to the repository-root ".github/workflows/foo.md", not to
+			// "dependabot/.github/workflows/foo.md"). All other paths (e.g. workflows/,
+			// agentic-workflows/) remain relative to the package root.
+			if packagePath != "" && strings.HasPrefix(sourcePath, constants.GithubDir) {
+				sourcePath = filepath.ToSlash(sourcePath)
+			} else {
+				sourcePath = joinRepositoryPackagePath(packagePath, sourcePath)
+			}
 		}
-		if _, exists := seen[path]; exists {
+		if _, exists := seen[sourcePath]; exists {
 			continue
 		}
-		seen[path] = struct{}{}
-		normalized = append(normalized, path)
+		seen[sourcePath] = struct{}{}
+		destination := include.Destination
+		if destination == "" {
+			destination = defaultPackageInstallDestination(sourcePath)
+		}
+		normalized = append(normalized, resolvedPackageInstallable{
+			SourcePath:      sourcePath,
+			DestinationPath: destination,
+		})
 	}
 	return normalized
 }
 
-func validateManifestInstallableWorkflowPrivacy(manifestPath string, installationSources []string, readWorkflow func(string) ([]byte, error)) error {
-	for _, installationSource := range installationSources {
+// validateUniqueManifestInstallDestinations rejects manifests where two entries would be
+// installed to the same repository path, before any file is written.
+func validateUniqueManifestInstallDestinations(installables []resolvedPackageInstallable, manifestPath string) error {
+	seen := make(map[string]string, len(installables))
+	for _, installable := range installables {
+		key := strings.ToLower(installable.DestinationPath)
+		if previous, exists := seen[key]; exists {
+			return fmt.Errorf("invalid Agentic Workflow manifest %q: includes entries %q and %q both install to %q. Each entry must have a unique destination; rename one of the destinations", manifestPath, previous, installable.SourcePath, installable.DestinationPath)
+		}
+		seen[key] = installable.SourcePath
+	}
+	return nil
+}
+
+func validateManifestInstallableWorkflowPrivacy(manifestPath string, installationSources []resolvedPackageInstallable, readWorkflow func(string) ([]byte, error)) error {
+	for _, installable := range installationSources {
+		installationSource := installable.SourcePath
 		if isActionWorkflowPath(installationSource) {
 			continue
 		}
@@ -981,9 +1211,10 @@ func isSupportedManifestMinVersion(version string) bool {
 	return semverutil.IsActionVersionTag(version) && strings.Count(strings.TrimPrefix(version, "v"), ".") == expectedManifestMinVersionDotCount
 }
 
-func validateUniqueManifestWorkflowFilenames(paths []string, manifestPath string) error {
-	seen := make(map[string]string, len(paths))
-	for _, installPath := range paths {
+func validateUniqueManifestWorkflowFilenames(installables []resolvedPackageInstallable, manifestPath string) error {
+	seen := make(map[string]string, len(installables))
+	for _, installable := range installables {
+		installPath := installable.DestinationPath
 		if !strings.HasSuffix(strings.ToLower(installPath), ".md") {
 			continue
 		}
