@@ -893,6 +893,7 @@ func TestValidateStrictBashDisabledRequiresExplicitCLIProxy(t *testing.T) {
 		name        string
 		frontmatter map[string]any
 		expectError bool
+		errorField  string
 	}{
 		{
 			name: "bash false without cli-proxy - rejected",
@@ -934,6 +935,31 @@ func TestValidateStrictBashDisabledRequiresExplicitCLIProxy(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "bash false with cli-proxy false and github gh-proxy - rejected",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"bash":      false,
+					"cli-proxy": false,
+					"github":    map[string]any{"mode": "gh-proxy"},
+				},
+			},
+			expectError: true,
+			errorField:  "tools.github.mode",
+		},
+		{
+			name: "bash false with cli-proxy false and github local - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"bash":      false,
+					"cli-proxy": false,
+					"github":    map[string]any{"mode": "local"},
+				},
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -947,8 +973,12 @@ func TestValidateStrictBashDisabledRequiresExplicitCLIProxy(t *testing.T) {
 				if err == nil {
 					t.Fatal("Expected validation to fail but it succeeded")
 				}
-				if !strings.Contains(err.Error(), "tools.cli-proxy") {
-					t.Errorf("Expected error mentioning tools.cli-proxy, got '%s'", err.Error())
+				errorField := tt.errorField
+				if errorField == "" {
+					errorField = "tools.cli-proxy"
+				}
+				if !strings.Contains(err.Error(), errorField) {
+					t.Errorf("Expected error mentioning %s, got '%s'", errorField, err.Error())
 				}
 				return
 			}

@@ -43,7 +43,7 @@ tools:
     retention-days: 1
     allowed-extensions: [".json"]
   github:
-    mode: gh-proxy
+    mode: local
     read-only: true
     toolsets: [default]
     min-integrity: none

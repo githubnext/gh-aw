@@ -3,6 +3,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -79,6 +81,70 @@ tools:
 		assert.Contains(t, result, "cli-proxy: false")
 	})
 
+	t.Run("rewrites github gh-proxy when bash is disabled", func(t *testing.T) {
+		content := `---
+tools:
+  bash: false
+  cli-proxy: false
+  github:
+    mode: gh-proxy
+    read-only: true
+---
+
+# Test
+`
+		frontmatter := map[string]any{
+			"tools": map[string]any{
+				"bash":      false,
+				"cli-proxy": false,
+				"github":    map[string]any{"mode": "gh-proxy", "read-only": true},
+			},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "    mode: local")
+		assert.NotContains(t, result, "mode: gh-proxy")
+		assert.Contains(t, result, "    read-only: true")
+	})
+
+	t.Run("matches tools block with trailing comment", func(t *testing.T) {
+		content := `---
+tools: # security settings
+  bash: false
+---
+
+# Test
+`
+		frontmatter := map[string]any{
+			"tools": map[string]any{"bash": false},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "tools: # security settings")
+		assert.Contains(t, result, "  cli-proxy: false")
+	})
+
+	t.Run("does not treat flow tools value as block header", func(t *testing.T) {
+		content := `---
+tools: {bash: false}
+---
+
+# Test
+`
+		frontmatter := map[string]any{
+			"tools": map[string]any{"bash": false},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.False(t, applied)
+		assert.Equal(t, content, result)
+	})
+
 	t.Run("does not apply when bash is enabled", func(t *testing.T) {
 		content := `---
 tools:
@@ -146,5 +212,46 @@ tools:
 		require.NoError(t, err)
 		assert.False(t, applied)
 		assert.Equal(t, result, second)
+	})
+
+	t.Run("apply with context detects imported bash restriction", func(t *testing.T) {
+		dir := t.TempDir()
+		importContent := `---
+tools:
+  bash: false
+---
+`
+		importPath := filepath.Join(dir, "restricted-tools.md")
+		require.NoError(t, os.WriteFile(importPath, []byte(importContent), 0o644))
+
+		content := `---
+imports:
+  - restricted-tools.md
+tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
+---
+
+# Test
+`
+		workflowPath := filepath.Join(dir, "workflow.md")
+		require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o644))
+
+		frontmatter := map[string]any{
+			"imports": []any{"restricted-tools.md"},
+			"tools": map[string]any{
+				"cli-proxy": true,
+				"github":    map[string]any{"mode": "gh-proxy"},
+			},
+		}
+
+		result, applied, err := codemod.ApplyWithContext(content, frontmatter, workflowPath)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "  cli-proxy: false")
+		assert.Contains(t, result, "    mode: local")
+		assert.NotContains(t, result, "cli-proxy: true")
+		assert.NotContains(t, result, "mode: gh-proxy")
 	})
 }

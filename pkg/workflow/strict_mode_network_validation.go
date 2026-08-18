@@ -173,6 +173,15 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 				"Add an explicit cli-proxy setting to the tools section:\n\ntools:\n  bash: false\n  cli-proxy: false\n\nRun 'gh aw fix' to apply this change automatically.",
 			)
 		}
+		if mode, enabled := githubCLIProxyMode(toolsMap); enabled {
+			strictModeValidationLog.Print("bash disabled with tools.github.mode: gh-proxy rejected in strict mode")
+			return NewValidationError(
+				"tools.github.mode",
+				mode,
+				"strict mode: when 'tools.bash' is disabled, 'tools.github.mode: gh-proxy' is not allowed because GitHub gh-proxy reads can only be invoked from a shell",
+				"Use an MCP-backed GitHub mode instead:\n\ntools:\n  bash: false\n  cli-proxy: false\n  github:\n    mode: local\n\nRun 'gh aw fix' to apply this change automatically.",
+			)
+		}
 	}
 
 	// Check if cache-memory is configured with scope: repo

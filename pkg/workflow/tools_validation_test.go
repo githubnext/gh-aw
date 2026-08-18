@@ -1199,6 +1199,7 @@ func TestValidateCLIProxyBashCompatibility(t *testing.T) {
 		name        string
 		toolsMap    map[string]any
 		shouldError bool
+		errorField  string
 	}{
 		{
 			name:        "cli-proxy enabled without bash setting is valid",
@@ -1225,6 +1226,23 @@ func TestValidateCLIProxyBashCompatibility(t *testing.T) {
 			toolsMap:    map[string]any{"bash": []any{}, "cli-proxy": true},
 			shouldError: true,
 		},
+		{
+			name:        "github gh-proxy with bash false is rejected",
+			toolsMap:    map[string]any{"bash": false, "cli-proxy": false, "github": map[string]any{"mode": "gh-proxy"}},
+			shouldError: true,
+			errorField:  "tools.github.mode",
+		},
+		{
+			name:        "github cli alias with bash false is rejected",
+			toolsMap:    map[string]any{"bash": false, "cli-proxy": false, "github": map[string]any{"mode": "cli"}},
+			shouldError: true,
+			errorField:  "tools.github.mode",
+		},
+		{
+			name:        "github local with bash false is valid",
+			toolsMap:    map[string]any{"bash": false, "cli-proxy": false, "github": map[string]any{"mode": "local"}},
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1232,7 +1250,11 @@ func TestValidateCLIProxyBashCompatibility(t *testing.T) {
 			err := validateCLIProxyBashCompatibility(tt.toolsMap, "test-workflow")
 			if tt.shouldError {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), "tools.cli-proxy")
+				errorField := tt.errorField
+				if errorField == "" {
+					errorField = "tools.cli-proxy"
+				}
+				assert.Contains(t, err.Error(), errorField)
 				return
 			}
 			assert.NoError(t, err)
