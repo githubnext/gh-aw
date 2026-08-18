@@ -13,6 +13,7 @@ import (
 )
 
 func TestExpandCompileArg_RegularFile(t *testing.T) {
+	t.Parallel()
 	// A plain workflow name should be returned as-is
 	result, err := expandCompileArg("my-workflow", false)
 	require.NoError(t, err, "plain workflow name should not error")
@@ -20,6 +21,7 @@ func TestExpandCompileArg_RegularFile(t *testing.T) {
 }
 
 func TestExpandCompileArg_FilePath(t *testing.T) {
+	t.Parallel()
 	// A non-existent file path should be returned as-is
 	result, err := expandCompileArg(".github/workflows/my-workflow.md", false)
 	require.NoError(t, err, "non-existent file path should not error")
@@ -27,6 +29,7 @@ func TestExpandCompileArg_FilePath(t *testing.T) {
 }
 
 func TestExpandCompileArg_LocalDirectory(t *testing.T) {
+	t.Parallel()
 	// Create a temp directory with workflow files
 	tmpDir := t.TempDir()
 	writeWorkflowFile(t, tmpDir, "workflow-a.md")
@@ -38,6 +41,7 @@ func TestExpandCompileArg_LocalDirectory(t *testing.T) {
 }
 
 func TestExpandCompileArg_LocalDirectory_Empty(t *testing.T) {
+	t.Parallel()
 	// Directory with no .md files should error
 	tmpDir := t.TempDir()
 	_, err := expandCompileArg(tmpDir, false)
@@ -46,6 +50,7 @@ func TestExpandCompileArg_LocalDirectory_Empty(t *testing.T) {
 }
 
 func TestExpandCompileArg_URLPassthrough(t *testing.T) {
+	t.Parallel()
 	// URLs should be returned as-is (not processed)
 	url := "https://github.com/org/repo/tree/main/.github/workflows"
 	result, err := expandCompileArg(url, false)
@@ -54,12 +59,14 @@ func TestExpandCompileArg_URLPassthrough(t *testing.T) {
 }
 
 func TestResolveCompileArgs_Empty(t *testing.T) {
+	t.Parallel()
 	result, err := resolveCompileArgs(nil, false)
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
 
 func TestResolveCompileArgs_Mixed(t *testing.T) {
+	t.Parallel()
 	// Create a temp directory with a workflow file
 	tmpDir := t.TempDir()
 	writeWorkflowFile(t, tmpDir, "workflow-a.md")

@@ -556,6 +556,7 @@ jobs:
         # - mcp__github__search_users
         timeout-minutes: 10
         run: |
+          trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf "%s" "$gh_aw_exit_code" > /tmp/gh-aw/agent_execution_exit_code.txt || true; if [ "$gh_aw_exit_code" -ne 0 ]; then echo "::error::Agent execution exited with code $gh_aw_exit_code"; fi' EXIT
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           mkdir -p /tmp/gh-aw/agent/ && (umask 177 && touch /tmp/gh-aw/agent/claude-debug.log) && touch /tmp/gh-aw/agent-step-summary.md

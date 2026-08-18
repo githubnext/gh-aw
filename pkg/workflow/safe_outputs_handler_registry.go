@@ -590,6 +590,12 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("close_older_pull_requests", c.CloseOlderPullRequests).
 			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
+		if c.PreCreate {
+			builder.
+				AddDefault("pre_created_pull_request_number", "${{ needs.activation.outputs.pre_created_pull_request_number }}").
+				AddDefault("pre_created_pull_request_url", "${{ needs.activation.outputs.pre_created_pull_request_url }}").
+				AddDefault("pre_created_branch", "${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+		}
 		// Stacked pull requests are enabled by default; only emit the flag when disabled
 		// (e.g. GitHub Enterprise Server instances without stacked pull request support).
 		if !isStackedPullRequestsEnabled(c) {

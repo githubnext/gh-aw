@@ -61,8 +61,10 @@ func TestCompilerAcceptsExplicitBashSyntax(t *testing.T) {
 			bashConfig: "bash: true",
 		},
 		{
+			// cli-proxy must be explicitly disabled alongside bash: false in strict mode,
+			// since CLI-mounted MCP servers can only be invoked from a shell.
 			name:       "bash: false",
-			bashConfig: "bash: false",
+			bashConfig: "bash: false\n  cli-proxy: false",
 		},
 		{
 			name:       "bash with array",

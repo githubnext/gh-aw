@@ -201,7 +201,8 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 		require.NotNil(t, got)
 		assert.True(t, got.Enabled)
 		assert.Equal(t, BoundedQueryRuntimeDocker, got.Runtime)
-		assert.Equal(t, 30, got.Timeout)
+		require.NotNil(t, got.Timeout)
+		assert.Equal(t, 30, *got.Timeout)
 		assert.Equal(t, "512m", got.MemoryLimit)
 		assert.Equal(t, "python3", got.Interpreter)
 		assert.Equal(t, 32, got.MaxInvocations)
@@ -228,8 +229,8 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 
 		got := extractBoundedQueriesConfig(data)
 		require.NotNil(t, got)
-		assert.Equal(t, 0, got.Timeout, "timeout must be zero (omitted) when not set")
 		assert.Equal(t, 0, got.MaxInvocations, "max-invocations must be zero (omitted) when not set")
+		assert.Nil(t, got.Timeout, "timeout must be nil (omitted) when not set")
 	})
 }
 
@@ -606,7 +607,7 @@ func TestAWFBoundedQueriesJSONRoundtrip(t *testing.T) {
 			{Repo: "my-org/sealed-service", Sensitivity: "sealed"},
 		},
 		Runtime:        BoundedQueryRuntimeSbx,
-		Timeout:        30,
+		Timeout:        new(30),
 		MemoryLimit:    "512m",
 		Interpreter:    "python3",
 		MaxInvocations: 32,

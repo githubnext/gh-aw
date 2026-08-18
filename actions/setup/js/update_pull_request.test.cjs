@@ -1153,7 +1153,7 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
 
-  it("should keep stacked-PR unsupported fatal when updateBranch status is not 422", async () => {
+  it("should keep stacked-PR unsupported non-fatal when updateBranch returns 403", async () => {
     const stackedPRError = new Error("Updating a stacked PR's branch via this endpoint is not supported.");
     stackedPRError.status = 403;
     mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(stackedPRError);
@@ -1164,11 +1164,9 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
       title: "Updated PR",
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("update pull request #100 branch from base failed");
-    expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Treating update-branch error as fatal: status is not 422 and head-ref is not missing"));
-    expect(mockCore.warning).toHaveBeenCalledWith(expect.not.stringContaining("(non-fatal)"));
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
 
   it("should continue title/body updates when updateBranch gets workflows-scope-required 403 (scope phrase variant)", async () => {

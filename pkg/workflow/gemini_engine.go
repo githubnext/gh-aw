@@ -412,7 +412,7 @@ touch %s
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
 
 	// Format step with command and env
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
+	stepLines = FormatStepWithCommandAndEnv(stepLines, wrapAgentExecutionCommand(command), filteredEnv)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 	return steps

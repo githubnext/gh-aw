@@ -376,7 +376,7 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 	}
 	allowedSecrets := e.GetUniversalRequiredSecretNames(workflowData)
 	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
+	stepLines = FormatStepWithCommandAndEnv(stepLines, wrapAgentExecutionCommand(command), filteredEnv)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 	return steps

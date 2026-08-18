@@ -7213,6 +7213,11 @@
                   "type": "boolean",
                   "description": "Require create_pull_request tool calls to include a temporary_id."
                 },
+                "pre-create": {
+                  "type": "boolean",
+                  "description": "\u26a0\ufe0f Experimental. Pre-create a draft pull request during activation, check out its branch in the agent job, and reuse it when processing create_pull_request output. This value is compile-time only and cannot be templated. Using this field emits a compile-time warning.",
+                  "default": false
+                },
                 "title-prefix": {
                   "type": "string",
                   "description": "Optional prefix for the pull request title"
@@ -9349,7 +9354,7 @@
                   "type": "boolean",
                   "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false."
                 },
-                "update-branch.stacks": {
+                "sync-stack": {
                   "type": "boolean",
                   "description": "When true, allow stacked-PR stack-sync fallback when update-branch is unsupported. Defaults to true. Set to false to disable stacked-PR sync fallback."
                 },

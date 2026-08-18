@@ -341,7 +341,17 @@ func GetMCPCLIPathSetup(data *WorkflowData) string {
 //
 // The server list is computed at compile time from the workflow configuration.
 // Each entry uses the `--help` convention so agents can discover tool signatures at runtime.
+//
+// The section is omitted when shell execution is fully disabled (tools.bash: false or
+// tools.bash: []): the agent has no way to invoke the CLI wrappers, so advertising them
+// would steer the model towards an unusable tool path (for example telling it to call the
+// safeoutputs CLI from bash when only the safeoutputs MCP tools are reachable).
 func buildMCPCLIPromptSection(data *WorkflowData) *PromptSection {
+	if data != nil && data.BashDisabled {
+		mcpCLIMountLog.Print("Skipping MCP CLI tools prompt section: bash is fully disabled")
+		return nil
+	}
+
 	servers := getMCPCLIServerNames(data)
 	if len(servers) == 0 {
 		return nil

@@ -39,6 +39,13 @@ type IntentRecord struct {
 
 	Labels []string `json:"labels,omitempty"`
 
+	// Domains, Priority, and Risk are optional classification dimensions used by
+	// ResolveRisk to derive a risk level when Risk is not explicitly set. They are
+	// distinct from Labels, which PolicyCondition matches against directly.
+	Domains  []string `json:"domains,omitempty"`
+	Priority string   `json:"priority,omitempty"`
+	Risk     string   `json:"risk,omitempty"`
+
 	Rule            string `json:"rule,omitempty"`
 	ResolverVersion string `json:"resolver_version,omitempty"`
 }
