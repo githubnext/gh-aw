@@ -5,7 +5,10 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var consolidatedSafeOutputsEnvvarsLog = logger.New("workflow:compiler_safe_outputs_envvars")
 
 // buildJobLevelSafeOutputEnvVars builds environment variables that should be set at the job level
 // for the consolidated safe_outputs job. These are variables that are common to all safe output steps.
@@ -115,7 +118,7 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
 		if err != nil {
-			consolidatedSafeOutputsJobLog.Printf("Warning: failed to serialize messages config: %v", err)
+			consolidatedSafeOutputsEnvvarsLog.Printf("Warning: failed to serialize messages config: %v", err)
 		} else if messagesJSON != "" {
 			envVars["GH_AW_SAFE_OUTPUT_MESSAGES"] = fmt.Sprintf("%q", messagesJSON)
 		}
