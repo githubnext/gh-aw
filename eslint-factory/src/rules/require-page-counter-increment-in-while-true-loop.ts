@@ -36,10 +36,15 @@ export const requirePageCounterIncrementInWhileTrueLoopRule = createRule({
       if (parent?.type !== "BlockStatement" && parent?.type !== "Program") return [];
 
       const index = parent.body.indexOf(loop);
-      const previous = parent.body[index - 1];
-      if (previous?.type !== "VariableDeclaration" || previous.kind !== "let") return [];
-
-      return previous.declarations.filter(declaration => declaration.id.type === "Identifier" && declaration.init?.type === "Literal" && typeof declaration.init.value === "number");
+      const counters: TSESTree.VariableDeclarator[] = [];
+      for (let i = index - 1; i >= 0; i--) {
+        const statement = parent.body[i];
+        if (statement?.type !== "VariableDeclaration") break;
+        if (statement.kind === "let") {
+          counters.unshift(...statement.declarations.filter(declaration => declaration.id.type === "Identifier" && declaration.init?.type === "Literal" && typeof declaration.init.value === "number"));
+        }
+      }
+      return counters;
     }
 
     function isCounterIdentifier(identifier: TSESTree.Identifier, counter: TSESTree.VariableDeclarator): boolean {
