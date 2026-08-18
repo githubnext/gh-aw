@@ -102,6 +102,24 @@ The tables below summarize the built-in safe output handlers. `noop`, `missing-t
 
 Create custom post-processing jobs registered as Model Context Protocol (MCP) tools. Support standard GitHub Actions properties and auto-access agent output via `$GH_AW_AGENT_OUTPUT`. See [Custom Safe Output Jobs](/gh-aw/reference/custom-safe-outputs/).
 
+Custom safe-jobs support the same `runs-on` formats as other jobs, including runner-group objects (and the `runner` alias):
+
+```aw
+---
+safe-outputs:
+  jobs:
+    notify:
+      runs-on:
+        group: sj-group
+        labels: [linux]
+      inputs:
+        msg:
+          description: Message text
+      steps:
+        - run: echo "${{ inputs.msg }}"
+---
+```
+
 ### GitHub Action Wrappers (`actions:`)
 
 Mount any public GitHub Action as a once-callable MCP tool. The compiler pins the action reference to a SHA at compile time and derives the tool's input schema from the action's `action.yml`. See [GitHub Action Wrappers](/gh-aw/reference/custom-safe-outputs/#github-action-wrappers-safe-outputsactions).

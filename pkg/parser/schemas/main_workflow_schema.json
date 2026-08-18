@@ -10994,16 +10994,14 @@
                   "description": "Description of the safe-job (used in MCP tool registration)"
                 },
                 "runs-on": {
-                  "description": "Runner specification for this job",
-                  "oneOf": [
+                  "$ref": "#/$defs/github_actions_runs_on",
+                  "description": "Runner specification for this job. Supports string, array, or runner-group object forms. Defaults to 'ubuntu-latest'.",
+                  "examples": [
+                    "ubuntu-latest",
+                    ["self-hosted", "linux", "x64"],
                     {
-                      "type": "string"
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                      "group": "larger-runners",
+                      "labels": ["ubuntu-latest-8-cores"]
                     }
                   ]
                 },
@@ -11110,16 +11108,14 @@
                   }
                 },
                 "runner": {
-                  "description": "Runner specification for this job (alias for runs-on)",
-                  "oneOf": [
+                  "$ref": "#/$defs/github_actions_runs_on",
+                  "description": "Runner specification for this job (alias for runs-on). Supports string, array, or runner-group object forms. Defaults to 'ubuntu-latest'.",
+                  "examples": [
+                    "ubuntu-latest",
+                    ["self-hosted", "linux", "x64"],
                     {
-                      "type": "string"
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                      "group": "larger-runners",
+                      "labels": ["ubuntu-latest-8-cores"]
                     }
                   ]
                 },

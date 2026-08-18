@@ -31,6 +31,7 @@ type SafeJobConfig struct {
 	GitHubToken string                      `yaml:"github-token,omitempty"`
 	Output      string                      `yaml:"output,omitempty"`
 	Max         int                         `yaml:"max,omitempty"` // Maximum number of times this output type may be emitted per run (default: 1)
+	rawRunsOn   any                         `yaml:"-"`
 	runsOnArray bool                        `yaml:"-"`
 }
 
@@ -69,9 +70,11 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 
 		// Parse runs-on (also accept "runner" as alias)
 		if runsOn, exists := jobConfig["runs-on"]; exists {
+			safeJob.rawRunsOn = runsOn
 			safeJob.RunsOn = toRunsOnValue(runsOn)
 			safeJob.runsOnArray = isRunsOnArrayValue(runsOn)
 		} else if runner, exists := jobConfig["runner"]; exists {
+			safeJob.rawRunsOn = runner
 			safeJob.RunsOn = toRunsOnValue(runner)
 			safeJob.runsOnArray = isRunsOnArrayValue(runner)
 		}
@@ -236,10 +239,9 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		const defaultRunsOn = "ubuntu-latest"
 
-		// Set runs-on. Preserve list-shaped input from safe-outputs.jobs as a
-		// YAML array; formatSafeJobRunsOn centralizes the array-vs-scalar
-		// rendering decision shared with other runs-on parsers.
-		job.RunsOn = c.indentYAMLLines(formatSafeJobRunsOn(jobConfig.RunsOn, jobConfig.runsOnArray, defaultRunsOn), "    ")
+		// Set runs-on. Preserve the original configured shape when available so
+		// object-form runner-group values render correctly for safe-jobs.
+		job.RunsOn = c.indentYAMLLines(resolveSafeJobRunsOn(jobConfig, defaultRunsOn), "    ")
 
 		// Set if condition - combine safe output type check with user-provided condition
 		// Custom safe jobs should only run if the agent output contains the job name (tool call)

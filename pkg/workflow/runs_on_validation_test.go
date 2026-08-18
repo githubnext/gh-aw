@@ -191,6 +191,39 @@ func TestValidateRunsOn(t *testing.T) {
 			wantErr:     false,
 			description: "threat-detection runs-on with a Linux runner should be accepted",
 		},
+		{
+			name: "macos in safe-outputs.jobs.runs-on array",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runs-on": []any{"self-hosted", "macos-latest"},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.jobs.notify.runs-on",
+			description: "safe-job runs-on array containing macos runner should be rejected",
+		},
+		{
+			name: "macos in safe-outputs.jobs.runner object labels",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runner": map[string]any{
+								"group":  "runner-group",
+								"labels": []any{"linux", "macos-14"},
+							},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.jobs.notify.runner",
+			description: "safe-job runner alias labels containing macos runner should be rejected",
+		},
 	}
 
 	for _, tt := range tests {
