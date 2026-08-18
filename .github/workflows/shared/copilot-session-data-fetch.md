@@ -46,9 +46,24 @@ steps:
       mkdir -p /tmp/gh-aw/agent/session-data/logs
       mkdir -p /tmp/gh-aw/cache-memory
       
-      # Get today's date for cache identification
-      TODAY=$(date '+%Y-%m-%d')
+      # Cache entries use stable names so caches restored from previous runs are reusable
+      # regardless of the date they were written on. Freshness is decided by file age.
       CACHE_DIR="/tmp/gh-aw/cache-memory"
+      CACHE_FILE="$CACHE_DIR/copilot-sessions-latest.json"
+      CACHE_SCHEMA_FILE="$CACHE_DIR/copilot-sessions-latest-schema.json"
+      CACHE_LOGS_DIR="$CACHE_DIR/session-logs-latest"
+      CACHE_MAX_AGE_SECONDS="${CACHE_MAX_AGE_SECONDS:-21600}"
+      RUN_TAG="${GITHUB_RUN_ID:-local}"
+
+      # Returns success when the file exists, is non-empty and younger than the max age.
+      cache_is_fresh() {
+        cache_path="$1"
+        [ -s "$cache_path" ] || return 1
+        cache_mtime=$(date -r "$cache_path" '+%s' 2>/dev/null) || return 1
+        [ -n "$cache_mtime" ] || return 1
+        now=$(date '+%s')
+        [ "$((now - cache_mtime))" -lt "$CACHE_MAX_AGE_SECONDS" ]
+      }
 
       count_agent_logs() {
         sessions_file="$1"
@@ -71,10 +86,10 @@ steps:
 
       USE_CACHE=false
 
-      # Check if cached data exists from today
-      if [ -f "$CACHE_DIR/copilot-sessions-${TODAY}.json" ] && [ -s "$CACHE_DIR/copilot-sessions-${TODAY}.json" ]; then
-        CACHED_AGENT_COUNT=$(jq '[.[] | select(.status == "completed" and .conclusion != "action_required")] | length' "$CACHE_DIR/copilot-sessions-${TODAY}.json")
-        CACHED_LOG_RUN_COUNT=$(count_agent_logs "$CACHE_DIR/copilot-sessions-${TODAY}.json" "$CACHE_DIR/session-logs-${TODAY}")
+      # Check if restored cache data is still fresh enough to reuse
+      if cache_is_fresh "$CACHE_FILE"; then
+        CACHED_AGENT_COUNT=$(jq '[.[] | select(.status == "completed" and .conclusion != "action_required")] | length' "$CACHE_FILE")
+        CACHED_LOG_RUN_COUNT=$(count_agent_logs "$CACHE_FILE" "$CACHE_LOGS_DIR")
         if [ "$CACHED_AGENT_COUNT" -eq 0 ] || [ "$CACHED_LOG_RUN_COUNT" -ge "$CACHED_AGENT_COUNT" ]; then
           USE_CACHE=true
         else
@@ -83,23 +98,24 @@ steps:
       fi
 
       if [ "$USE_CACHE" = "true" ]; then
-        echo "✓ Found cached session data from ${TODAY}"
-        cp "$CACHE_DIR/copilot-sessions-${TODAY}.json" /tmp/gh-aw/agent/session-data/sessions-list.json
+        CACHE_AGE_MINUTES=$(( ( $(date '+%s') - $(date -r "$CACHE_FILE" '+%s') ) / 60 ))
+        echo "✓ Found cached session data (${CACHE_AGE_MINUTES} minutes old)"
+        cp "$CACHE_FILE" /tmp/gh-aw/agent/session-data/sessions-list.json
         
         # Regenerate schema if missing
-        if [ ! -f "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json" ]; then
-          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json"
+        if [ ! -s "$CACHE_SCHEMA_FILE" ]; then
+          ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/session-data/sessions-list.json > "$CACHE_SCHEMA_FILE"
         fi
-        cp "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json" /tmp/gh-aw/agent/session-data/sessions-schema.json
+        cp "$CACHE_SCHEMA_FILE" /tmp/gh-aw/agent/session-data/sessions-schema.json
         
         # Restore cached log files if they exist
-        if [ -d "$CACHE_DIR/session-logs-${TODAY}" ]; then
-          echo "✓ Found cached session logs from ${TODAY}"
-          cp -r "$CACHE_DIR/session-logs-${TODAY}"/* /tmp/gh-aw/agent/session-data/logs/ 2>/dev/null || true
+        if [ -d "$CACHE_LOGS_DIR" ]; then
+          echo "✓ Found cached session logs"
+          cp -r "$CACHE_LOGS_DIR"/* /tmp/gh-aw/agent/session-data/logs/ 2>/dev/null || true
           echo "Restored $(find /tmp/gh-aw/agent/session-data/logs -type f | wc -l) session log files from cache"
         fi
         
-        echo "Using cached data from ${TODAY}"
+        echo "Using cached data written ${CACHE_AGE_MINUTES} minutes ago"
         echo "Total sessions in cache: $(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)"
       else
         echo "⬇ Downloading fresh session data..."
@@ -131,10 +147,10 @@ steps:
         AGENT_COUNT=$(jq '[.[] | select(.status == "completed" and .conclusion != "action_required")] | length' /tmp/gh-aw/agent/session-data/sessions-list.json)
         echo "Downloading per-session logs for $AGENT_COUNT agent runs (skipping $((SESSION_COUNT - AGENT_COUNT)) CI gate runs)..."
 
-        RUNS_TO_FETCH="${RUNNER_TEMP:-/tmp}/copilot-session-runs-${TODAY}.txt"
+        RUNS_TO_FETCH="${RUNNER_TEMP:-/tmp}/copilot-session-runs-${RUN_TAG}.txt"
         jq -r '.[] | select(.status == "completed" and .conclusion != "action_required") | "\(.id) \(.head_branch)"' /tmp/gh-aw/agent/session-data/sessions-list.json > "$RUNS_TO_FETCH"
 
-        FETCH_STATUS_LOG="${RUNNER_TEMP:-/tmp}/copilot-session-fetch-status-${TODAY}.log"
+        FETCH_STATUS_LOG="${RUNNER_TEMP:-/tmp}/copilot-session-fetch-status-${RUN_TAG}.log"
         rm -f "$FETCH_STATUS_LOG"
         API_ERROR_COUNT=0
         NO_JOBS_COUNT=0
@@ -257,15 +273,21 @@ steps:
           echo "::warning::$((AGENT_COUNT - LOG_RUN_COUNT)) of $AGENT_COUNT agent runs have no retrievable session log; proceeding with $LOG_RUN_COUNT available logs"
         fi
 
-        # Store in cache with today's date
-        cp /tmp/gh-aw/agent/session-data/sessions-list.json "$CACHE_DIR/copilot-sessions-${TODAY}.json"
-        cp /tmp/gh-aw/agent/session-data/sessions-schema.json "$CACHE_DIR/copilot-sessions-${TODAY}-schema.json"
-        
-        # Cache the log files
-        mkdir -p "$CACHE_DIR/session-logs-${TODAY}"
-        cp -r /tmp/gh-aw/agent/session-data/logs/* "$CACHE_DIR/session-logs-${TODAY}/" 2>/dev/null || true
+        # Refresh the log cache first so metadata and logs stay consistent with each other
+        rm -rf "$CACHE_LOGS_DIR"
+        mkdir -p "$CACHE_LOGS_DIR"
+        cp -r /tmp/gh-aw/agent/session-data/logs/* "$CACHE_LOGS_DIR/" 2>/dev/null || true
 
-        echo "✓ Session data saved to cache: copilot-sessions-${TODAY}.json"
+        # Store in cache under stable names so future runs can reuse it on any date
+        cp /tmp/gh-aw/agent/session-data/sessions-list.json "$CACHE_FILE"
+        cp /tmp/gh-aw/agent/session-data/sessions-schema.json "$CACHE_SCHEMA_FILE"
+
+        # Drop legacy date-keyed cache entries so the cache does not grow unbounded
+        rm -rf "$CACHE_DIR"/session-logs-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] 2>/dev/null || true
+        rm -f "$CACHE_DIR"/copilot-sessions-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].json \
+              "$CACHE_DIR"/copilot-sessions-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-schema.json 2>/dev/null || true
+
+        echo "✓ Session data saved to cache: $(basename "$CACHE_FILE")"
         echo "Total sessions found: $(jq 'length' /tmp/gh-aw/agent/session-data/sessions-list.json)"
       fi
       
@@ -286,16 +308,16 @@ This shared component fetches GitHub Copilot coding agent session data by analyz
 ### What It Does
 
 1. Creates output directories at `/tmp/gh-aw/agent/session-data/` and `/tmp/gh-aw/cache-memory/`
-2. Checks for cached session data from today's date in cache-memory
-3. If cache exists (from earlier workflow runs today):
+2. Checks the restored cache for `copilot-sessions-latest.json` and reuses it when it is younger than `CACHE_MAX_AGE_SECONDS` (default 6 hours) and its cached logs cover every agent run
+3. If a fresh and complete cache exists (written by any earlier run, on any date):
    - Uses cached data instead of making API calls
    - Copies data from cache to working directory
    - Restores cached log files if available
-4. If cache doesn't exist:
+4. If the cache is missing, stale, or incomplete:
    - Calculates the date 30 days ago (cross-platform compatible)
    - Fetches all workflow runs from branches starting with `copilot/` using GitHub API
    - **Downloads per-session logs** for actual agent runs (skips CI gate runs): structured `events.jsonl` from run artifacts first, then conversation transcripts from GitHub Actions job logs as a fallback
-   - Saves data to cache with date-based filename (e.g., `copilot-sessions-2024-11-22.json`)
+   - Saves data to cache under the stable filename `copilot-sessions-latest.json` (logs under `session-logs-latest/`)
    - Copies data to working directory for use
 5. Generates a schema of the data structure
 
@@ -312,13 +334,15 @@ The `gh agent-task view --log` approach that was previously used **requires an O
 ### Caching Strategy
 
 - **Cache Key**: `copilot-session-data` for workflow-level sharing
-- **Cache Files**: Stored with today's date in the filename (e.g., `copilot-sessions-2024-11-22.json`)
+- **Cache Files**: Stored under stable, date-independent names (`copilot-sessions-latest.json`, `session-logs-latest/`)
+- **Cache Freshness**: File modification time is compared against `CACHE_MAX_AGE_SECONDS` (default `21600`, i.e. 6 hours); stale data is refetched
 - **Cache Location**: `/tmp/gh-aw/cache-memory/`
 - **Cache Benefits**: 
-  - Multiple workflows running on the same day share the same session data
+  - Cache restored from a previous run is reusable regardless of the date it was written on, so scheduled workflows running daily or weekly actually hit the cache instead of always refetching
   - Reduces GitHub API rate limit usage
-  - Faster workflow execution after first fetch of the day
+  - Faster workflow execution after the first fetch within the freshness window
   - Includes structured event and transcript fallback cache
+- **Cache Consistency**: On refresh, the log cache directory is rebuilt before the session metadata file is written, so metadata never points at a partially refreshed log set
 
 ### Output Files
 
@@ -327,9 +351,9 @@ The `gh agent-task view --log` approach that was previously used **requires an O
 - **`/tmp/gh-aw/agent/session-data/logs/`**: Directory containing session logs
   - **`{run_id}-events.jsonl`**: Structured Copilot session events extracted from run artifacts (preferred; only present for actual agent runs with events artifacts)
   - **`{run_id}-conversation.txt`**: Agent conversation transcript fallback — `[cca-engine] turn=` lines from the job log containing turn-by-turn model/token/tool data (only present when `events.jsonl` is unavailable)
-- **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD.json`**: Cached session data with date
-- **`/tmp/gh-aw/cache-memory/copilot-sessions-YYYY-MM-DD-schema.json`**: Cached schema with date
-- **`/tmp/gh-aw/cache-memory/session-logs-YYYY-MM-DD/`**: Cached log files with date
+- **`/tmp/gh-aw/cache-memory/copilot-sessions-latest.json`**: Cached session data (stable filename)
+- **`/tmp/gh-aw/cache-memory/copilot-sessions-latest-schema.json`**: Cached schema (stable filename)
+- **`/tmp/gh-aw/cache-memory/session-logs-latest/`**: Cached log files (stable directory name)
 
 ### Usage
 
