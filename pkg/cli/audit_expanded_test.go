@@ -794,6 +794,10 @@ func TestMCPServerHealthDetailJSONSchema(t *testing.T) {
 	assert.Equal(t, "4.0%", decoded["error_rate_str"], "error_rate_str key should be preserved")
 	assert.Equal(t, "120ms", decoded["avg_latency"], "avg_latency key should be preserved")
 	assert.Equal(t, "healthy", decoded["status"], "status key should be preserved")
+
+	var roundTripped MCPServerHealthDetail
+	require.NoError(t, json.Unmarshal(data, &roundTripped), "Unmarshalling should succeed")
+	assert.Equal(t, detail, roundTripped, "Round-tripped value should equal the original")
 }
 
 func TestMCPServerHealthDetailJSONKeepsZeroErrorCount(t *testing.T) {

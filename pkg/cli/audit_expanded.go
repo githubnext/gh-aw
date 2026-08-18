@@ -120,6 +120,35 @@ func (d MCPServerHealthDetail) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// UnmarshalJSON is the counterpart to MarshalJSON, mapping the legacy
+// "tool_calls" wire key back into the embedded MCPServerStatsBase.
+func (d *MCPServerHealthDetail) UnmarshalJSON(data []byte) error {
+	var aux struct {
+		ServerName   string  `json:"server_name"`
+		RequestCount int     `json:"request_count"`
+		ToolCalls    int     `json:"tool_calls"`
+		ErrorCount   int     `json:"error_count"`
+		ErrorRate    float64 `json:"error_rate"`
+		ErrorRateStr string  `json:"error_rate_str"`
+		AvgLatency   string  `json:"avg_latency"`
+		Status       string  `json:"status"`
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	d.MCPServerStatsBase = MCPServerStatsBase{
+		ServerName:    aux.ServerName,
+		ToolCallCount: aux.ToolCalls,
+		ErrorCount:    aux.ErrorCount,
+	}
+	d.RequestCount = aux.RequestCount
+	d.ErrorRate = aux.ErrorRate
+	d.ErrorRateStr = aux.ErrorRateStr
+	d.AvgLatency = aux.AvgLatency
+	d.Status = aux.Status
+	return nil
+}
+
 // MCPSlowestToolCall represents a slow tool call for surfacing in the audit
 type MCPSlowestToolCall struct {
 	ServerName string `json:"server_name" console:"header:Server"`

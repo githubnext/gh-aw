@@ -904,4 +904,8 @@ func TestMCPServerCrossRunHealthJSONSchema(t *testing.T) {
 	assert.InDelta(t, 3, decoded["total_runs"], 0.001, "total_runs key should be preserved")
 	assert.InDelta(t, 0.5, decoded["error_rate"], 0.001, "error_rate key should be preserved")
 	assert.Equal(t, true, decoded["unreliable"], "unreliable key should be preserved")
+
+	var roundTripped MCPServerCrossRunHealth
+	require.NoError(t, json.Unmarshal(data, &roundTripped), "Unmarshalling should succeed")
+	assert.Equal(t, health, roundTripped, "Round-tripped value should equal the original")
 }

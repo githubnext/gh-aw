@@ -109,6 +109,33 @@ func (h MCPServerCrossRunHealth) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// UnmarshalJSON is the counterpart to MarshalJSON, mapping the legacy
+// "total_calls"/"total_errors" wire keys back into the embedded MCPServerStatsBase.
+func (h *MCPServerCrossRunHealth) UnmarshalJSON(data []byte) error {
+	var aux struct {
+		ServerName    string  `json:"server_name"`
+		RunsConnected int     `json:"runs_connected"`
+		TotalRuns     int     `json:"total_runs"`
+		TotalCalls    int     `json:"total_calls"`
+		TotalErrors   int     `json:"total_errors"`
+		ErrorRate     float64 `json:"error_rate"`
+		Unreliable    bool    `json:"unreliable"`
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	h.MCPServerStatsBase = MCPServerStatsBase{
+		ServerName:    aux.ServerName,
+		ToolCallCount: aux.TotalCalls,
+		ErrorCount:    aux.TotalErrors,
+	}
+	h.RunsConnected = aux.RunsConnected
+	h.TotalRuns = aux.TotalRuns
+	h.ErrorRate = aux.ErrorRate
+	h.Unreliable = aux.Unreliable
+	return nil
+}
+
 // ErrorTrendData summarizes error and warning patterns across runs.
 type ErrorTrendData struct {
 	RunsWithErrors   int     `json:"runs_with_errors"`
