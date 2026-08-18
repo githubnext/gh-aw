@@ -234,6 +234,21 @@ func TestAddRepoParameterIfNeededClosePullRequestWithAllowedRepos(t *testing.T) 
 	assert.Contains(t, repoProp["description"].(string), "org/default-repo", "description should include default repo")
 }
 
+func TestRepoTargetAccessorsCoverRepoTargetTools(t *testing.T) {
+	for _, toolName := range []string{
+		"create_issue", "create_discussion", "add_comment", "create_pull_request",
+		"create_pull_request_review_comment", "reply_to_pull_request_review_comment",
+		"dismiss_pull_request_review", "create_agent_session", "close_issue", "update_issue",
+		"close_discussion", "update_discussion", "close_pull_request", "update_pull_request",
+		"merge_pull_request", "add_labels", "remove_labels", "replace_label", "hide_comment",
+		"link_sub_issue", "mark_pull_request_as_ready_for_review", "add_reviewer",
+		"assign_milestone", "assign_to_agent", "assign_to_user", "unassign_from_user",
+		"set_issue_type", "set_issue_field",
+	} {
+		assert.Contains(t, repoTargetAccessors, toolName)
+	}
+}
+
 func TestParseUpdateIssuesConfigWithWildcardTargetRepo(t *testing.T) {
 	compiler := &Compiler{}
 	outputMap := map[string]any{
