@@ -99,6 +99,9 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		return err
 	}
 	if !createPR {
+		// Local writes stop before remote-only follow-up: repository secret updates,
+		// bootstrap mutations, workflow status polling, and optional dispatch all require
+		// the workflow changes to be present on GitHub.
 		printBootstrapConfigTODO(os.Stderr, remainingBootstrapProfile)
 		config.showFinalInstructions()
 		return nil
