@@ -421,6 +421,7 @@ jobs:
 
       - name: Route slash command
         uses: ` + getActionPin("actions/github-script") + `
+        # runner-guard:ignore RGS-016 -- routing JSON below embeds ordinary emoji reactions (e.g. VARIATION SELECTOR-16, ZERO WIDTH JOINER sequences like keycap/ZWJ emoji); no hidden or invisible-only steganographic content is present.
         env:
           GH_AW_SLASH_ROUTING: '` + escapeYAMLSingleQuoted(string(slashRoutesJSON)) + `'
           GH_AW_LABEL_ROUTING: '` + escapeYAMLSingleQuoted(string(labelRoutesJSON)) + `'
