@@ -94,14 +94,32 @@ func TestIndexes(t *testing.T) {
 }
 
 func TestIndexesError(t *testing.T) {
-	pass := &analysis.Pass{
-		ResultOf: map[*analysis.Analyzer]any{
-			nolint.Analyzer:    "not an index",
-			filecheck.Analyzer: filecheck.GeneratedIndex{},
+	tests := []struct {
+		name     string
+		resultOf map[*analysis.Analyzer]any
+	}{
+		{
+			name: "malformed nolint result",
+			resultOf: map[*analysis.Analyzer]any{
+				nolint.Analyzer:    "not an index",
+				filecheck.Analyzer: filecheck.GeneratedIndex{},
+			},
+		},
+		{
+			name: "malformed filecheck result",
+			resultOf: map[*analysis.Analyzer]any{
+				nolint.Analyzer:    nolint.DirectiveIndex{},
+				filecheck.Analyzer: "not an index",
+			},
 		},
 	}
 
-	if _, _, err := Indexes(pass); err == nil {
-		t.Error("Indexes() error = nil, want error for malformed nolint result")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pass := &analysis.Pass{ResultOf: tt.resultOf}
+			if _, _, err := Indexes(pass); err == nil {
+				t.Error("Indexes() error = nil, want error")
+			}
+		})
 	}
 }

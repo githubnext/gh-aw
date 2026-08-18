@@ -757,6 +757,9 @@ func HasConstantStringArg(pass *analysis.Pass, call *ast.CallExpr, argIdx int) b
 		return true
 	}
 
+	if pass.TypesInfo == nil {
+		return false
+	}
 	tv, ok := pass.TypesInfo.Types[arg]
 	if !ok || tv.Value == nil || tv.Type == nil {
 		return false
@@ -769,14 +772,18 @@ func HasConstantStringArg(pass *analysis.Pass, call *ast.CallExpr, argIdx int) b
 // NormalizeComparisonOperands returns (left, right) such that left is the
 // operand holding the strings.<methodName> call. When the call is on the right
 // side of expr the operands are swapped and flipped is true. Both operands are
-// unwrapped of any redundant parentheses before the check.
+// unwrapped of any redundant parentheses before the check. If neither operand
+// is the target strings call, the original left/right order is preserved.
 func NormalizeComparisonOperands(pass *analysis.Pass, expr *ast.BinaryExpr, methodName string) (left, right ast.Expr, flipped bool) {
 	x := UnwrapParenExpr(expr.X)
 	y := UnwrapParenExpr(expr.Y)
 	if _, ok := AsStringsMethodCall(pass, x, methodName); ok {
 		return x, y, false
 	}
-	return y, x, true
+	if _, ok := AsStringsMethodCall(pass, y, methodName); ok {
+		return y, x, true
+	}
+	return x, y, false
 }
 
 // SwapPkgImportEdits returns the TextEdits that add addPkg to file and, when

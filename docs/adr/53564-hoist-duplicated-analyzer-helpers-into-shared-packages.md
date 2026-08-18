@@ -1,7 +1,7 @@
 # ADR-53564: Hoist Duplicated Analyzer Helpers into Shared Packages
 
 **Date**: 2026-08-18
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan (PR author), copilot-swe-agent
 
 ---
@@ -38,7 +38,3 @@ Extract helpers into a new top-level `pkg/linters/internal/linterutil` package r
 #### Neutral
 - `analyzerutil.Indexes` is semantically guaranteed by the `Requires` list already declared in `New`/`NewAtPath`; the refactor consolidates retrieval boilerplate without changing the data availability contract.
 - All existing `pkg/linters` testdata suites pass unchanged; the behavioral changes to `regexpcompileinfunction` and `NormalizeComparisonOperands` are tested with new testdata added in this PR.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

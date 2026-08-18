@@ -98,7 +98,7 @@ func fmtFormatCallInfo(pass *analysis.Pass, call *ast.CallExpr) (formatArgIdx, v
 	switch sel.Sel.Name {
 	case "Sprintf", "Errorf", "Printf":
 		return 0, 1, true
-	case "Fprintf", "Fscanf":
+	case "Fprintf":
 		return 1, 2, true
 	default:
 		return 0, 0, false

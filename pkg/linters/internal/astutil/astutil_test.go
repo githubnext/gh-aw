@@ -1091,6 +1091,9 @@ func f(pattern string) {
 	if IsRegexpCompileCall(pass, calls[2], "Contains") {
 		t.Error("IsRegexpCompileCall(strings.Contains, Contains) = true, want false")
 	}
+	if IsRegexpCompileCall(&analysis.Pass{}, calls[0], names...) {
+		t.Error("IsRegexpCompileCall() with nil TypesInfo = true, want false")
+	}
 }
 
 func TestHasConstantStringArg(t *testing.T) {
@@ -1099,12 +1102,15 @@ func TestHasConstantStringArg(t *testing.T) {
 	src := `package p
 
 const constPattern = "^a$"
+const constPrefix = "^"
+const constSuffix = "$"
 
 func sink(string) {}
 
 func f(dynamic string) {
 	sink("literal")
 	sink(constPattern)
+	sink(constPrefix + constSuffix)
 	sink(dynamic)
 }
 `
@@ -1117,8 +1123,8 @@ func f(dynamic string) {
 		}
 		return true
 	})
-	if len(calls) != 3 {
-		t.Fatalf("found %d calls, want 3", len(calls))
+	if len(calls) != 4 {
+		t.Fatalf("found %d calls, want 4", len(calls))
 	}
 
 	if !HasConstantStringArg(pass, calls[0], 0) {
@@ -1127,8 +1133,14 @@ func f(dynamic string) {
 	if !HasConstantStringArg(pass, calls[1], 0) {
 		t.Error("HasConstantStringArg(const ident) = false, want true")
 	}
-	if HasConstantStringArg(pass, calls[2], 0) {
+	if !HasConstantStringArg(pass, calls[2], 0) {
+		t.Error("HasConstantStringArg(const concat) = false, want true")
+	}
+	if HasConstantStringArg(pass, calls[3], 0) {
 		t.Error("HasConstantStringArg(variable) = true, want false")
+	}
+	if HasConstantStringArg(&analysis.Pass{}, calls[3], 0) {
+		t.Error("HasConstantStringArg() with nil TypesInfo = true, want false")
 	}
 	// Out-of-range indexes must not panic.
 	if HasConstantStringArg(pass, calls[0], 1) || HasConstantStringArg(pass, calls[0], -1) {
@@ -1179,8 +1191,8 @@ func f(s, sub string) {
 	}
 
 	left, _, flipped = NormalizeComparisonOperands(pass, binaries[2], "Index")
-	if !flipped {
-		t.Error("NormalizeComparisonOperands(no call) flipped = false, want true")
+	if flipped {
+		t.Error("NormalizeComparisonOperands(no call) flipped = true, want false")
 	}
 	if _, ok := AsStringsMethodCall(pass, left, "Index"); ok {
 		t.Error("NormalizeComparisonOperands(no call) unexpectedly matched strings.Index")
@@ -1194,6 +1206,9 @@ func TestIsInInitFunction(t *testing.T) {
 
 func init() {
 	println("in init")
+	go func() {
+		println("in func lit inside init")
+	}()
 }
 
 func regular() {
@@ -1225,7 +1240,7 @@ func initWithLit() {
 		got = append(got, IsInInitFunction(cur))
 	}
 
-	want := []bool{true, false, false}
+	want := []bool{true, false, false, false}
 	if !slices.Equal(got, want) {
 		t.Fatalf("IsInInitFunction() = %v, want %v", got, want)
 	}
