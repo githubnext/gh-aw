@@ -14,15 +14,14 @@ describe("pre_create_pull_request", () => {
     };
     originalEnv = { ...process.env };
 
-    global.core = { setOutput: vi.fn() };
-    global.exec = {
-      getExecOutput: vi.fn().mockResolvedValue({ stdout: "checkout-head-sha\n" }),
-    };
+    global.core = { setOutput: vi.fn(), info: vi.fn(), warning: vi.fn(), debug: vi.fn() };
     global.context = {
       serverUrl: "https://github.com",
       workflow: "Fallback workflow",
       runId: 123,
       sha: "base-sha",
+      eventName: "workflow_dispatch",
+      payload: { repository: { default_branch: "main" } },
       repo: { owner: "owner", repo: "repo" },
     };
     global.github = {
@@ -49,6 +48,8 @@ describe("pre_create_pull_request", () => {
     };
     process.env.GH_AW_WORKFLOW_NAME = "Test workflow";
     process.env.GITHUB_RUN_ATTEMPT = "2";
+    delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    delete process.env.GITHUB_BASE_REF;
   });
 
   afterEach(() => {
@@ -56,6 +57,7 @@ describe("pre_create_pull_request", () => {
     global.github = originalGlobals.github;
     global.context = originalGlobals.context;
     global.exec = originalGlobals.exec;
+    vi.resetModules();
     process.env = originalEnv;
   });
 
@@ -92,5 +94,30 @@ describe("pre_create_pull_request", () => {
     );
     expect(global.core.setOutput).toHaveBeenCalledWith("pull_request_number", 42);
     expect(global.core.setOutput).toHaveBeenCalledWith("branch", "gh-aw/pre-created/123-2");
+  });
+
+  it("forks the pre-created branch from the configured base branch", async () => {
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "release/v1";
+    const { main } = await import("./pre_create_pull_request.cjs");
+    await main();
+
+    expect(global.github.rest.repos.getCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: "heads/release/v1",
+      })
+    );
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        base: "release/v1",
+      })
+    );
+  });
+
+  it("rejects base branch names that require normalization", async () => {
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "bad branch;name";
+    const { main } = await import("./pre_create_pull_request.cjs");
+
+    await expect(main()).rejects.toThrow(/Invalid base branch/);
+    expect(global.github.rest.git.createRef).not.toHaveBeenCalled();
   });
 });

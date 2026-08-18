@@ -43,11 +43,20 @@ func isStackedPullRequestsEnabled(config *CreatePullRequestsConfig) bool {
 }
 
 func validatePreCreatePullRequest(data *WorkflowData) error {
-	if !isPreCreatePullRequestEnabled(data) {
+	if data == nil || data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil || !data.SafeOutputs.CreatePullRequests.PreCreate {
 		return nil
 	}
 
 	config := data.SafeOutputs.CreatePullRequests
+	// Staged mode is preview-only: pre-creation is compiled out entirely (see
+	// isPreCreatePullRequestEnabled). A templatable staged value cannot be resolved at
+	// compile time, so the combination is rejected instead of silently picking a mode.
+	if isTemplatableStagedExpression(data.SafeOutputs.Staged) || isTemplatableStagedExpression(config.Staged) {
+		return errors.New("safe-outputs.create-pull-request.pre-create cannot be combined with an expression-valued staged option")
+	}
+	if isPreCreatePullRequestStaged(data) {
+		return nil
+	}
 	if data.CheckoutDisabled {
 		return errors.New("safe-outputs.create-pull-request.pre-create requires the default checkout")
 	}
@@ -63,11 +72,20 @@ func validatePreCreatePullRequest(data *WorkflowData) error {
 	if config.BranchPrefix != "" || len(config.AllowedBranches) > 0 {
 		return errors.New("safe-outputs.create-pull-request.pre-create cannot be combined with branch-prefix or allowed-branches")
 	}
+	if len(config.AllowedBaseBranches) > 0 {
+		return errors.New("safe-outputs.create-pull-request.pre-create cannot be combined with allowed-base-branches because the base branch must be known when the pull request is allocated")
+	}
 	checkoutManager := NewCheckoutManager(data.CheckoutConfigs)
 	if checkout := checkoutManager.GetDefaultCheckoutOverride(); checkout != nil && (checkout.key.repository != "" || checkout.key.wiki) {
 		return errors.New("safe-outputs.create-pull-request.pre-create requires the default checkout to use the workflow repository")
 	}
 	return nil
+}
+
+// isTemplatableStagedExpression reports whether a staged value is a GitHub Actions
+// expression that can only be resolved at runtime.
+func isTemplatableStagedExpression(value *TemplatableBool) bool {
+	return value != nil && isExpression(value.String())
 }
 
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output

@@ -1,6 +1,54 @@
 // @ts-check
 
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
+
+/** @type {string} GraphQL mutation to mark a pull request as ready for review */
+const MARK_PR_READY_MUTATION = /* GraphQL */ `
+  mutation ($pullRequestId: ID!) {
+    markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) {
+      pullRequest {
+        isDraft
+      }
+    }
+  }
+`;
+
+/** @type {string} GraphQL mutation to convert a pull request back to a draft */
+const CONVERT_PR_TO_DRAFT_MUTATION = /* GraphQL */ `
+  mutation ($pullRequestId: ID!) {
+    convertPullRequestToDraft(input: { pullRequestId: $pullRequestId }) {
+      pullRequest {
+        isDraft
+      }
+    }
+  }
+`;
+
+/**
+ * Align the draft state of a pre-created pull request with the configured policy.
+ * The REST `pulls.update` endpoint ignores the `draft` field, so the GraphQL
+ * mutations must be used to transition between draft and ready-for-review.
+ * @param {any} githubClient - Authenticated Octokit client
+ * @param {string} pullRequestNodeId - The PR's GraphQL node ID
+ * @param {boolean} isDraft - Current draft state of the pull request
+ * @param {boolean} draft - Desired draft state
+ * @param {number} pullRequestNumber - Pull request number (for logging)
+ * @returns {Promise<void>}
+ */
+async function alignPullRequestDraftState(githubClient, pullRequestNodeId, isDraft, draft, pullRequestNumber) {
+  const wantsDraft = draft !== false;
+  if (wantsDraft === isDraft || !pullRequestNodeId) {
+    return;
+  }
+  const mutation = wantsDraft ? CONVERT_PR_TO_DRAFT_MUTATION : MARK_PR_READY_MUTATION;
+  try {
+    await githubClient.graphql(mutation, { pullRequestId: pullRequestNodeId });
+    core.info(`${wantsDraft ? "Converted" : "Marked"} pull request #${pullRequestNumber} ${wantsDraft ? "back to draft" : "as ready for review"}`);
+  } catch (error) {
+    core.warning(`Failed to update draft state of pull request #${pullRequestNumber}: ${getErrorMessage(error)}`);
+  }
+}
 
 async function createOrUpdatePullRequest(options) {
   const { githubClient, repoParts, title, body, branchName, baseBranch, draft, preCreatedPullRequestNumber, preCreatedBranch } = options;
@@ -21,7 +69,7 @@ async function createOrUpdatePullRequest(options) {
     );
   }
 
-  return withRetry(
+  const result = await withRetry(
     async () => {
       const { data: existingPullRequest } = await githubClient.rest.pulls.get({
         owner: repoParts.owner,
@@ -31,7 +79,7 @@ async function createOrUpdatePullRequest(options) {
       if (existingPullRequest.state !== "open" || existingPullRequest.head.ref !== preCreatedBranch) {
         throw new Error(`Pre-created pull request #${preCreatedPullRequestNumber} is not open on branch ${preCreatedBranch}`);
       }
-      return githubClient.rest.pulls.update({
+      const updated = await githubClient.rest.pulls.update({
         owner: repoParts.owner,
         repo: repoParts.repo,
         pull_number: preCreatedPullRequestNumber,
@@ -39,10 +87,17 @@ async function createOrUpdatePullRequest(options) {
         body,
         base: baseBranch,
       });
+      return { updated, nodeId: existingPullRequest.node_id, isDraft: existingPullRequest.draft === true };
     },
     RATE_LIMIT_RETRY_CONFIG,
     `update pre-created pull request #${preCreatedPullRequestNumber}`
   );
+
+  // Pre-created pull requests always start as drafts, so the configured draft policy is
+  // applied after the content update.
+  await alignPullRequestDraftState(githubClient, result.nodeId, result.isDraft, draft, preCreatedPullRequestNumber);
+
+  return result.updated;
 }
 
 module.exports = { createOrUpdatePullRequest };

@@ -14,7 +14,7 @@ describe("create_pull_request pre-created PR reuse", () => {
   it("updates the allocated PR instead of creating a second PR", async () => {
     const pulls = {
       get: vi.fn().mockResolvedValue({
-        data: { state: "open", head: { ref: "gh-aw/pre-created/123-1" } },
+        data: { state: "open", draft: true, node_id: "PR_node", head: { ref: "gh-aw/pre-created/123-1" } },
       }),
       update: vi.fn().mockResolvedValue({
         data: { number: 42, html_url: "https://github.com/owner/repo/pull/42" },
@@ -44,6 +44,60 @@ describe("create_pull_request pre-created PR reuse", () => {
     );
     expect(pulls.create).not.toHaveBeenCalled();
     expect(result.data.number).toBe(42);
+  });
+
+  it("marks the allocated PR ready for review when draft is disabled", async () => {
+    const pulls = {
+      get: vi.fn().mockResolvedValue({
+        data: { state: "open", draft: true, node_id: "PR_node", head: { ref: "gh-aw/pre-created/123-1" } },
+      }),
+      update: vi.fn().mockResolvedValue({
+        data: { number: 42, html_url: "https://github.com/owner/repo/pull/42" },
+      }),
+      create: vi.fn(),
+    };
+    const graphql = vi.fn().mockResolvedValue({ markPullRequestReadyForReview: { pullRequest: { isDraft: false } } });
+
+    await createOrUpdatePullRequest({
+      githubClient: { rest: { pulls }, graphql },
+      repoParts: { owner: "owner", repo: "repo" },
+      title: "Final title",
+      body: "Final body",
+      branchName: "gh-aw/pre-created/123-1",
+      baseBranch: "main",
+      draft: false,
+      preCreatedPullRequestNumber: 42,
+      preCreatedBranch: "gh-aw/pre-created/123-1",
+    });
+
+    expect(graphql).toHaveBeenCalledWith(expect.stringContaining("markPullRequestReadyForReview"), { pullRequestId: "PR_node" });
+  });
+
+  it("converts the allocated PR back to draft when draft is required", async () => {
+    const pulls = {
+      get: vi.fn().mockResolvedValue({
+        data: { state: "open", draft: false, node_id: "PR_node", head: { ref: "gh-aw/pre-created/123-1" } },
+      }),
+      update: vi.fn().mockResolvedValue({
+        data: { number: 42, html_url: "https://github.com/owner/repo/pull/42" },
+      }),
+      create: vi.fn(),
+    };
+    const graphql = vi.fn().mockResolvedValue({ convertPullRequestToDraft: { pullRequest: { isDraft: true } } });
+
+    await createOrUpdatePullRequest({
+      githubClient: { rest: { pulls }, graphql },
+      repoParts: { owner: "owner", repo: "repo" },
+      title: "Final title",
+      body: "Final body",
+      branchName: "gh-aw/pre-created/123-1",
+      baseBranch: "main",
+      draft: true,
+      preCreatedPullRequestNumber: 42,
+      preCreatedBranch: "gh-aw/pre-created/123-1",
+    });
+
+    expect(graphql).toHaveBeenCalledWith(expect.stringContaining("convertPullRequestToDraft"), { pullRequestId: "PR_node" });
   });
 
   it("creates a PR when the allocated PR number is not positive", async () => {

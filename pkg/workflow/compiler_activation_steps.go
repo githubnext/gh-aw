@@ -150,16 +150,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 
 func (c *Compiler) addActivationCheckoutAndBaseRestoreStep(ctx *activationJobBuildContext) {
 	data := ctx.data
-	var checkoutSteps []string
-	if isPreCreatePullRequestEnabled(data) {
-		checkoutManager := NewCheckoutManager(data.CheckoutConfigs)
-		if checkoutManager.HasAppAuth() {
-			ctx.steps = append(ctx.steps, checkoutManager.GenerateCheckoutAppTokenSteps(c, resolveCheckoutPermissions(data))...)
-		}
-		checkoutSteps = checkoutManager.GenerateDefaultCheckoutStep(c.trialMode, c.trialLogicalRepoSlug, c.getActionPin)
-	} else {
-		checkoutSteps = c.generateCheckoutGitHubFolderForActivation(data)
-	}
+	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
 	ctx.steps = append(ctx.steps, checkoutSteps...)
 	if len(checkoutSteps) > 0 {
 		compilerActivationJobLog.Print("Adding step to save agent config folders for base branch restoration")

@@ -1757,6 +1757,8 @@ async function main(config = {}) {
       }
 
       core.info(`Generated branch name: ${branchName}`);
+      // The pre-created branch already exists on the remote and must be reused rather than renamed.
+      const allowExistingBranch = branchName === preCreatedBranch;
       core.info(`Base branch: ${baseBranch}`);
 
       // Reject stacks that would depend on themselves: the requested base (or one of its ancestors
@@ -1809,7 +1811,7 @@ async function main(config = {}) {
               remoteTarget: pushRemoteUrl || "origin",
               remoteToken: headGitHubToken,
               cwd: forkCwd,
-              allowExistingBranch: branchName === preCreatedBranch,
+              allowExistingBranch,
             });
 
             await pushSignedCommits({
@@ -2204,7 +2206,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 remoteTarget: pushRemoteUrl || "origin",
                 remoteToken: headGitHubToken,
                 cwd: forkCwd,
-                allowExistingBranch: branchName === preCreatedBranch,
+                allowExistingBranch,
               });
 
               await pushSignedCommits({
@@ -2381,7 +2383,7 @@ ${patchPreview}`;
                   remoteTarget: pushRemoteUrl || "origin",
                   remoteToken: headGitHubToken,
                   cwd: forkCwd,
-                  allowExistingBranch: branchName === preCreatedBranch,
+                  allowExistingBranch,
                 });
 
                 await pushSignedCommits({

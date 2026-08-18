@@ -2,25 +2,28 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getBaseBranch } = require("./get_base_branch.cjs");
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
 async function main() {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || context.workflow || "Agentic workflow";
   const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
   const branch = `gh-aw/pre-created/${context.runId}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
-  const { stdout: checkoutHead } = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
-  const headSha = checkoutHead.trim();
 
-  const [{ data: repository }, { data: baseCommit }] = await Promise.all([
-    github.rest.repos.get({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-    }),
-    github.rest.repos.getCommit({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      ref: headSha,
-    }),
-  ]);
+  // Resolve the base branch the eventual pull request will target (configured base-branch,
+  // otherwise the event-derived branch) so the pre-created branch is forked from the same
+  // commit the safe-outputs job will later rebase onto.
+  const resolvedBaseBranch = await getBaseBranch();
+  const baseBranch = normalizeBranchName(resolvedBaseBranch);
+  if (!baseBranch || baseBranch !== resolvedBaseBranch) {
+    throw new Error(`Invalid base branch for pre-created pull request: "${resolvedBaseBranch}"`);
+  }
+
+  const { data: baseCommit } = await github.rest.repos.getCommit({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    ref: `heads/${baseBranch}`,
+  });
 
   const { data: commit } = await github.rest.git.createCommit({
     owner: context.repo.owner,
@@ -47,7 +50,7 @@ async function main() {
     title: `[${workflowName}] Work in progress`,
     body: `This draft pull request was pre-created for [the workflow run](${runUrl}).`,
     head: branch,
-    base: repository.default_branch,
+    base: baseBranch,
     draft: true,
   });
 

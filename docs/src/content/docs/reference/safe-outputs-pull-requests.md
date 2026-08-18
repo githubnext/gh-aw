@@ -36,7 +36,6 @@ safe-outputs:
     team-reviewers: [platform-reviewers] # team slugs to request as reviewers
     assignees: [user1]            # assignees for the created PR and any fallback issue
     draft: true                   # create as draft — enforced as policy (default: true)
-    pre-create: true              # allocate a draft PR before the agent starts (default: false)
     max: 3                        # max PRs per run (default: 1)
     expires: 14                   # auto-close after N days (same-repo only; also accepts 2h, 7d, 2w, 1m, 1y)
     if-no-changes: "warn"         # "warn" (default), "error", or "ignore"
@@ -77,9 +76,15 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `targe
 
 ### Pre-created pull requests
 
-Set `pre-create: true` to allocate a draft pull request during the activation job, before the agent starts. The compiler creates a run-specific branch from the triggering checkout head, opens a draft PR whose title names the workflow and whose body links to the workflow run, and attaches a check linking back to that run. The agent and `safe_outputs` jobs check out the allocated branch, the eventual `create_pull_request` output updates the existing PR instead of opening another one, and the conclusion job completes the check.
+Set `pre-create: true` to allocate a draft pull request during the activation job, before the agent starts. The activation job creates a run-specific branch from the resolved base branch, opens a draft PR whose title names the workflow and whose body links to the workflow run, and attaches a check linking back to that run. The agent and `safe_outputs` jobs check out the allocated branch, the eventual `create_pull_request` output updates the existing PR instead of opening another one, and the conclusion job completes the check.
 
-Pre-creation requires a safe-output token with `contents: write`, `pull-requests: write`, and `checks: write`. It supports one same-repository PR per run and cannot be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, or `checkout: false`.
+```yaml
+safe-outputs:
+  create-pull-request:
+    pre-create: true
+```
+
+Pre-creation requires a safe-output token with `contents: write`, `pull-requests: write`, and `checks: write`. It supports one same-repository PR per run and cannot be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, `allowed-base-branches`, or `checkout: false`. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode) no pull request is allocated, because staged runs must not perform API side effects. When `draft: false` is configured, the pull request is marked ready for review once the agent's changes are applied.
 
 ### Branch targeting
 
