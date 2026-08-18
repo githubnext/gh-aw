@@ -128,7 +128,9 @@ func extractStringFromMap(m map[string]any, key string, debugLog *logger.Logger)
 // Returns an error (indicated by the second return value being true) if the value is "*" (wildcard),
 // which is not allowed for safe output target repositories.
 func parseTargetRepoWithValidation(configMap map[string]any) (string, bool) {
-	targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, configHelpersLog, safeOutputTargetConfigOptions{})
+	targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, configHelpersLog, safeOutputTargetConfigOptions{
+		parseTargetRepo: true,
+	})
 	if isInvalid {
 		return "", true
 	}

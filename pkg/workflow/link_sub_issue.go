@@ -28,6 +28,7 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 			// Parse target config (target-repo) with validation
 			targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, linkSubIssueLog, safeOutputTargetConfigOptions{
 				parseTarget:                 true,
+				parseTargetRepo:             true,
 				allowTargetRepoWildcard:     true,
 				parseAllowedRepos:           true,
 				allowAllowedReposExpression: true,

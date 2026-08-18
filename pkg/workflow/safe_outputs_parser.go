@@ -14,6 +14,7 @@ type SafeOutputTargetConfig struct {
 
 type safeOutputTargetConfigOptions struct {
 	parseTarget                 bool
+	parseTargetRepo             bool
 	allowTargetRepoWildcard     bool
 	parseAllowedRepos           bool
 	allowAllowedReposExpression bool
@@ -65,6 +66,7 @@ type ListJobConfig struct {
 func ParseTargetConfig(configMap map[string]any) (SafeOutputTargetConfig, bool) {
 	return parseSafeOutputTargetConfig(configMap, safeOutputParserLog, safeOutputTargetConfigOptions{
 		parseTarget:             true,
+		parseTargetRepo:         true,
 		allowTargetRepoWildcard: true,
 		parseAllowedRepos:       true,
 	})
@@ -84,12 +86,14 @@ func parseSafeOutputTargetConfig(configMap map[string]any, debugLog *logger.Logg
 		}
 	}
 
-	config.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", debugLog)
-	if config.TargetRepoSlug == "*" && !opts.allowTargetRepoWildcard {
-		if debugLog != nil {
-			debugLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+	if opts.parseTargetRepo {
+		config.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", debugLog)
+		if config.TargetRepoSlug == "*" && !opts.allowTargetRepoWildcard {
+			if debugLog != nil {
+				debugLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+			}
+			return SafeOutputTargetConfig{}, true
 		}
-		return SafeOutputTargetConfig{}, true
 	}
 
 	if opts.parseAllowedRepos {

@@ -42,6 +42,7 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 		// Parse target config (target, target-repo, allowed-repos)
 		targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, submitPRReviewLog, safeOutputTargetConfigOptions{
 			parseTarget:       true,
+			parseTargetRepo:   true,
 			parseAllowedRepos: true,
 		})
 		if isInvalid {

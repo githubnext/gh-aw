@@ -64,11 +64,15 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 			}
 
 			// Parse target-repo (optional cross-repo dispatch target)
-			targetConfig, _ := parseSafeOutputTargetConfig(configMap, dispatchWorkflowLog, safeOutputTargetConfigOptions{
+			targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, dispatchWorkflowLog, safeOutputTargetConfigOptions{
+				parseTargetRepo:             true,
 				allowTargetRepoWildcard:     true,
 				parseAllowedRepos:           true,
 				allowAllowedReposExpression: true,
 			})
+			if isInvalid {
+				return nil
+			}
 			dispatchWorkflowConfig.TargetRepoSlug = targetConfig.TargetRepoSlug
 			dispatchWorkflowConfig.AllowedRepos = targetConfig.AllowedRepos
 			dispatchWorkflowConfig.AllowedRefs = ParseStringArrayOrExprFromConfig(configMap, "allowed-refs", dispatchWorkflowLog)

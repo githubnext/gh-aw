@@ -30,6 +30,7 @@ func (c *Compiler) parseReplyToPullRequestReviewCommentConfig(outputMap map[stri
 			// Parse target config (target, target-repo, allowed-repos)
 			targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, replyToPRReviewCommentLog, safeOutputTargetConfigOptions{
 				parseTarget:       true,
+				parseTargetRepo:   true,
 				parseAllowedRepos: true,
 			})
 			if isInvalid {

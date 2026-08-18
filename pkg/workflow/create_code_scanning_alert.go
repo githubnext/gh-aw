@@ -38,10 +38,14 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 			}
 		}
 
-		targetConfig, _ := parseSafeOutputTargetConfig(configMap, createCodeScanningAlertLog, safeOutputTargetConfigOptions{
+		targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, createCodeScanningAlertLog, safeOutputTargetConfigOptions{
+			parseTargetRepo:         true,
 			allowTargetRepoWildcard: true,
 			parseAllowedRepos:       true,
 		})
+		if isInvalid {
+			return nil
+		}
 		securityReportsConfig.TargetRepoSlug = targetConfig.TargetRepoSlug
 		if securityReportsConfig.TargetRepoSlug != "" {
 			createCodeScanningAlertLog.Printf("Target repo for code scanning alerts: %s", securityReportsConfig.TargetRepoSlug)

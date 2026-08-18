@@ -150,6 +150,17 @@ func TestCreateCodeScanningAlertConfigTargetRepo(t *testing.T) {
 			expectedDriver: "My Scanner",
 		},
 		{
+			name: "wildcard target-repo remains allowed",
+			configMap: map[string]any{
+				"create-code-scanning-alert": map[string]any{
+					"target-repo": "*",
+				},
+			},
+			expectedRepo:  "*",
+			expectedRepos: nil,
+			expectedToken: "",
+		},
+		{
 			name: "no cross-repo config",
 			configMap: map[string]any{
 				"create-code-scanning-alert": map[string]any{

@@ -570,12 +570,26 @@ func TestParseTargetRepoWithValidation(t *testing.T) {
 }
 
 func TestParseSafeOutputTargetConfigOptions(t *testing.T) {
+	t.Run("ignores target repo without option", func(t *testing.T) {
+		config, isInvalid := parseSafeOutputTargetConfig(map[string]any{
+			"target-repo": "owner/repo",
+		}, nil, safeOutputTargetConfigOptions{})
+
+		if isInvalid {
+			t.Fatal("expected config to be valid")
+		}
+		if config.TargetRepoSlug != "" {
+			t.Fatalf("expected target-repo to be ignored, got %q", config.TargetRepoSlug)
+		}
+	})
+
 	t.Run("parses target repo and allowed repos without target", func(t *testing.T) {
 		config, isInvalid := parseSafeOutputTargetConfig(map[string]any{
 			"target":        "17",
 			"target-repo":   "owner/repo",
 			"allowed-repos": []any{"owner/repo", "owner/other"},
 		}, nil, safeOutputTargetConfigOptions{
+			parseTargetRepo:   true,
 			parseAllowedRepos: true,
 		})
 
@@ -596,7 +610,9 @@ func TestParseSafeOutputTargetConfigOptions(t *testing.T) {
 	t.Run("rejects wildcard target repo by default", func(t *testing.T) {
 		_, isInvalid := parseSafeOutputTargetConfig(map[string]any{
 			"target-repo": "*",
-		}, nil, safeOutputTargetConfigOptions{})
+		}, nil, safeOutputTargetConfigOptions{
+			parseTargetRepo: true,
+		})
 
 		if !isInvalid {
 			t.Fatal("expected wildcard target-repo to be invalid")
@@ -607,6 +623,7 @@ func TestParseSafeOutputTargetConfigOptions(t *testing.T) {
 		config, isInvalid := parseSafeOutputTargetConfig(map[string]any{
 			"target-repo": "*",
 		}, nil, safeOutputTargetConfigOptions{
+			parseTargetRepo:         true,
 			allowTargetRepoWildcard: true,
 		})
 

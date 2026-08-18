@@ -152,12 +152,16 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			}
 
 			// Parse target-repo for cross-repository push
-			targetConfig, _ := parseSafeOutputTargetConfig(configMap, pushToPullRequestBranchLog, safeOutputTargetConfigOptions{
+			targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, pushToPullRequestBranchLog, safeOutputTargetConfigOptions{
 				parseTarget:                 true,
+				parseTargetRepo:             true,
 				allowTargetRepoWildcard:     true,
 				parseAllowedRepos:           true,
 				allowAllowedReposExpression: true,
 			})
+			if isInvalid {
+				return nil
+			}
 			pushToBranchConfig.Target = targetConfig.Target
 			pushToBranchConfig.TargetRepoSlug = targetConfig.TargetRepoSlug
 			pushToBranchConfig.HeadRepoSlug = extractStringFromMap(configMap, "head-repo", pushToPullRequestBranchLog)

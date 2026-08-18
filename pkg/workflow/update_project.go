@@ -52,6 +52,7 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 
 			// Parse target-repo for cross-repo content resolution (no wildcard allowed)
 			targetConfig, isInvalid := parseSafeOutputTargetConfig(configMap, updateProjectLog, safeOutputTargetConfigOptions{
+				parseTargetRepo:   true,
 				parseAllowedRepos: true,
 			})
 			if isInvalid {
