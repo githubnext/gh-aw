@@ -151,7 +151,10 @@ jobs:
               base_url: $base_url,
               checks: ((map(. as $check | {($check.key): ($check | del(.key))}) | add) // {}),
               summary: {
-                llms_txt_found: (map(select(.key == "llms_txt"))[0].found // false),
+                llms_txt_found: (
+                  map(select(.key == "llms_txt")) |
+                  if length > 0 then .[0].found else false end
+                ),
                 ai_discovery_found_count: (map(select(.key | startswith("ai_"))) | map(select(.found)) | length),
                 ai_discovery_total: (map(select(.key | startswith("ai_"))) | length),
                 ai_discovery_all_found: (
