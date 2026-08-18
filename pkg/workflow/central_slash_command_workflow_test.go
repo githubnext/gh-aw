@@ -35,6 +35,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 			CommandEvents:      []string{"issue_comment", "issues"},
 			CommandCentralized: true,
 			AIReaction:         "eyes",
+			FrontmatterEmoji:   "🤖",
 			StatusComment:      &statusComment,
 		},
 		{
@@ -59,6 +60,7 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 			LabelCommandEvents:        []string{"pull_request"},
 			LabelCommandDecentralized: true,
 			AIReaction:                "eyes",
+			FrontmatterEmoji:          "🏷️",
 			StatusComment:             &statusComment,
 		},
 		{
@@ -107,9 +109,9 @@ func TestGenerateCentralSlashCommandWorkflow_GeneratesWorkflow(t *testing.T) {
 	require.Contains(t, text, "issue_comment:")
 	require.Contains(t, text, "pull_request:")
 	require.Contains(t, text, "discussion_comment:")
-	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"],"ai_reaction":"eyes","status_comment":true},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"],"ai_reaction":"rocket","status_comment":true}]`)
+	require.Contains(t, text, `"triage":[{"workflow":"triage-issue","events":["issue_comment","issues"],"ai_reaction":"eyes","emoji":"🤖","status_comment":true},{"workflow":"triage-pr","events":["pull_request","pull_request_comment"],"ai_reaction":"rocket","status_comment":true}]`)
 	require.Contains(t, text, `"cloclo":[{"workflow":"cloclo","events":["discussion_comment"],"ai_reaction":"heart","status_comment":true}]`)
-	require.Contains(t, text, `"ci-doctor":[{"workflow":"ci-doctor","events":["pull_request"],"ai_reaction":"eyes"}]`)
+	require.Contains(t, text, `"ci-doctor":[{"workflow":"ci-doctor","events":["pull_request"],"ai_reaction":"eyes","emoji":"🏷️","status_comment":true}]`)
 	require.Contains(t, text, `GH_AW_HELP_COMMANDS`)
 	require.Contains(t, text, `"command":"summary","description":"Summarize recent updates","centralized":false,"decentralized":true`)
 	require.Contains(t, text, `"command":"triage","centralized":true,"decentralized":false`)

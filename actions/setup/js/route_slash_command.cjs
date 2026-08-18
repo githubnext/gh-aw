@@ -161,6 +161,10 @@ function maintainsStatusComment(route) {
   return route?.status_comment === true;
 }
 
+function routeEmoji(route) {
+  return typeof route?.emoji === "string" ? route.emoji : "";
+}
+
 /**
  * Returns the first valid non-"none" ai_reaction configured on matching routes.
  * @param {Array<{ai_reaction?: unknown}>} routes
@@ -302,11 +306,12 @@ async function addImmediateReaction(reaction) {
   }
 }
 
-async function addImmediateStatusComment() {
+async function addImmediateStatusComment(workflowEmoji) {
   try {
     const comment = await createOrReuseStatusComment({
       ...context,
       nonFatalStatusCommentErrors: true,
+      workflowEmoji,
     });
     if (!comment?.id) {
       return null;
@@ -408,8 +413,9 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
  * @param {string} eventName
  * @param {string} workflowId
  * @param {string|undefined} runUrl
+ * @param {string|undefined} workflowEmoji
  */
-async function updateStatusCommentWithDispatch(statusCommentContext, eventName, workflowId, runUrl) {
+async function updateStatusCommentWithDispatch(statusCommentContext, eventName, workflowId, runUrl, workflowEmoji) {
   if (!statusCommentContext?.status_comment_id) {
     return;
   }
@@ -432,6 +438,7 @@ async function updateStatusCommentWithDispatch(statusCommentContext, eventName, 
         },
       },
       nonFatalStatusCommentErrors: true,
+      workflowEmoji,
     });
   } catch (error) {
     core.warning(`Failed to update immediate status comment with dispatched run details: ${getErrorMessage(error)}`);
@@ -632,14 +639,14 @@ function isDisabledWorkflowDispatchError(error) {
 }
 
 /**
- * @param {Record<string, Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>>} slashRouteMap
+ * @param {Record<string, Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, emoji?: unknown, status_comment?: unknown}>>} slashRouteMap
  * @param {string} actualCommand
- * @returns {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>}
+ * @returns {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, emoji?: unknown, status_comment?: unknown}>}
  */
 function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
-  /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>} */
+  /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, emoji?: unknown, status_comment?: unknown}>} */
   const specificRoutes = [];
-  /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, status_comment?: unknown}>} */
+  /** @type {Array<{workflow?: unknown, events?: unknown, ai_reaction?: unknown, emoji?: unknown, status_comment?: unknown}>} */
   const catchAllRoutes = [];
   const seen = new Set();
 
@@ -656,7 +663,7 @@ function resolveMatchingSlashRoutes(slashRouteMap, actualCommand) {
     for (const route of configuredRoutes) {
       // Keep the de-duplication key explicit so routes that differ only by
       // status-comment behavior remain distinct dispatch targets.
-      const key = JSON.stringify([route?.workflow ?? "", route?.ai_reaction ?? "", route?.status_comment === true, Array.isArray(route?.events) ? route.events : []]);
+      const key = JSON.stringify([route?.workflow ?? "", route?.ai_reaction ?? "", route?.emoji ?? "", route?.status_comment === true, Array.isArray(route?.events) ? route.events : []]);
       if (seen.has(key)) {
         continue;
       }
@@ -721,6 +728,12 @@ async function main() {
       core.info(`Adding immediate '${immediateReaction}' reaction for label '${labelName}'.`);
       await addImmediateReaction(immediateReaction);
     }
+    /** @type {any} */
+    let statusCommentContext = null;
+    if (routes.some(maintainsStatusComment)) {
+      core.info(`Adding immediate status comment for label '${labelName}'.`);
+      statusCommentContext = await addImmediateStatusComment(firstNonEmptyString(routes.filter(maintainsStatusComment).map(routeEmoji)));
+    }
     for (const route of routes) {
       const workflowID = toWorkflowDispatchID(route);
       if (!workflowID) {
@@ -732,6 +745,7 @@ async function main() {
         ...buildAwContext(),
         command_name: "",
         ...(routeReaction ? { desired_ai_reaction: routeReaction } : {}),
+        ...(maintainsStatusComment(route) && statusCommentContext ? statusCommentContext : {}),
       };
       core.info(`Dispatching workflow '${workflowID}' for label '${labelName}'.`);
       const dispatched = await dispatchWorkflow(workflowID, ref, {
@@ -739,6 +753,9 @@ async function main() {
       });
       if (dispatched.dispatched) {
         core.info(`Dispatched '${workflowID}' for label '${labelName}'`);
+        if (maintainsStatusComment(route) && statusCommentContext) {
+          await updateStatusCommentWithDispatch(statusCommentContext, identifier, workflowID, dispatched.run_url, routeEmoji(route));
+        }
       }
     }
     core.info(`Completed decentralized label routing for '${labelName}'.`);
@@ -784,7 +801,7 @@ async function main() {
   let statusCommentContext = null;
   if (routes.some(maintainsStatusComment)) {
     core.info(`Adding immediate status comment for '/${commandName}'.`);
-    statusCommentContext = await addImmediateStatusComment();
+    statusCommentContext = await addImmediateStatusComment(firstNonEmptyString(routes.filter(maintainsStatusComment).map(routeEmoji)));
   }
 
   core.info(`Dispatch ref resolved to '${ref}'.`);
@@ -808,7 +825,7 @@ async function main() {
     if (dispatched.dispatched) {
       core.info(`Dispatched '${workflowID}' for '/${commandName}'`);
       if (maintainsStatusComment(route) && statusCommentContext) {
-        await updateStatusCommentWithDispatch(statusCommentContext, identifier, workflowID, dispatched.run_url);
+        await updateStatusCommentWithDispatch(statusCommentContext, identifier, workflowID, dispatched.run_url, routeEmoji(route));
       }
     }
   }
