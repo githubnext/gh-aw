@@ -426,7 +426,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		} else if override.key.repository != "" {
 			fmt.Fprintf(&sb, "          repository: %s\n", override.key.repository)
 		}
-		if override.ref != "" {
+		if override.ref != "" && cm.defaultRefOverride == "" {
 			fmt.Fprintf(&sb, "          ref: %s\n", override.ref)
 		}
 		// Prevent actions/checkout from adding --filter=blob:none when sparse-checkout
@@ -439,6 +439,7 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		if len(override.sparsePatterns) > 0 {
 			sb.WriteString("          filter: 'blob:limit=1073741824'\n")
 		}
+
 		// Determine effective token: github-app-minted token takes precedence
 		effectiveOverrideToken := override.token
 		if override.githubApp != nil {
@@ -473,6 +474,9 @@ func (cm *CheckoutManager) GenerateDefaultCheckoutStep(
 		if override.lfs {
 			sb.WriteString("          lfs: true\n")
 		}
+	}
+	if cm.defaultRefOverride != "" {
+		fmt.Fprintf(&sb, "          ref: %s\n", cm.defaultRefOverride)
 	}
 
 	// safe_outputs job: when no explicit token was written above, persist the resolved

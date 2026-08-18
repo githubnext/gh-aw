@@ -237,6 +237,17 @@ func NewPermissionsChecksWrite() *Permissions {
 	})
 }
 
+// NewPermissionsChecksWriteContentsWritePRWrite creates permissions with checks: write,
+// contents: write, and pull-requests: write. Used by the conclusion step that completes the
+// pre-created pull request check and discards the pull request when the run produced no changes.
+func NewPermissionsChecksWriteContentsWritePRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionChecks:       PermissionWrite,
+		PermissionContents:     PermissionWrite,
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
 // NewPermissionsChecksWritePRRead creates permissions with checks: write and pull-requests: read.
 // Used when create-check-run has a target configured and must resolve the PR head SHA via the REST API.
 func NewPermissionsChecksWritePRRead() *Permissions {

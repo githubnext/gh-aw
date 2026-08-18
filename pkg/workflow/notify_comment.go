@@ -59,6 +59,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			CustomToken:   token,
 		})...)
 	}
+	steps = append(steps, c.buildConclusionPreCreatedCheckRunStep(data)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}

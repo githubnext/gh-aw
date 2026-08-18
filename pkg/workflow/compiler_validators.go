@@ -175,6 +175,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating sandbox configuration", validateFn: func() error { return validateSandboxConfig(workflowData) }},
 		{logMessage: "Validating safe-outputs target fields", validateFn: func() error { return validateSafeOutputsTarget(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs max fields", validateFn: func() error { return validateSafeOutputsMax(workflowData.SafeOutputs) }},
+		{logMessage: "Validating pre-created pull request configuration", validateFn: func() error { return validatePreCreatePullRequest(workflowData) }},
 		{logMessage: "Validating safe-outputs data schema", validateFn: func() error { return validateSafeOutputsDataSchema(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs samples entries against MCP tool schemas", validateFn: func() error { return validateSafeOutputsSamples(workflowData.SafeOutputs) }},
 		{logMessage: "Validating safe-outputs urls policy", validateFn: func() error { return validateSafeOutputsURLs(workflowData.SafeOutputs) }},
@@ -361,6 +362,7 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ReplaceLabel != nil, message: "Using experimental feature: replace-label"},
 		{enabled: isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData), message: "Using experimental feature: gh-aw-detection"},
 		{enabled: len(workflowData.LSP) > 0, message: "Using experimental feature: lsp"},
+		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreatePullRequests != nil && workflowData.SafeOutputs.CreatePullRequests.PreCreate, message: "Using experimental feature: create-pull-request pre-create"},
 	}
 	for _, warning := range warnings {
 		if warning.enabled {

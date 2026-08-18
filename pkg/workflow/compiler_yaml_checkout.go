@@ -38,6 +38,9 @@ func (c *Compiler) generateInitialAndCheckoutSteps(yaml *strings.Builder, data *
 
 	// Build a CheckoutManager with any user-configured checkouts
 	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+	if isPreCreatePullRequestEnabled(data) {
+		checkoutMgr.SetDefaultRefOverride("${{ needs.activation.outputs.pre_created_pull_request_branch }}")
+	}
 
 	// Propagate the platform (host) repo resolved by the activation job so that
 	// checkout steps in this job and in safe_outputs can use the correct repository
