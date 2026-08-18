@@ -422,43 +422,45 @@ function resolveBlockedByReference(value, temporaryIdMap, defaultRepo, allowUnre
  * @param {unknown} blockedBy
  * @param {Map<string, {repo: string, number: number}>} temporaryIdMap
  * @param {string} defaultRepo
- * @param {boolean} [allowUnresolvedTemporaryIds] - When true (staged mode), unresolved temporary IDs are collected instead of deferring
- * @returns {{targets: Array<{repo: string, number: number}>, unresolvedTemporaryIds: Array<string>, deferred?: boolean, error?: string}}
+ * @param {boolean} [allowUnresolvedTemporaryIds] - When true (staged mode), unresolved temporary IDs are kept as display-only references instead of deferring
+ * @returns {{targets: Array<{repo: string, number: number}>, references: Array<string>, deferred?: boolean, error?: string}}
  */
 function resolveBlockedByReferences(blockedBy, temporaryIdMap, defaultRepo, allowUnresolvedTemporaryIds = false) {
   if (blockedBy === undefined || blockedBy === null) {
-    return { targets: [], unresolvedTemporaryIds: [] };
+    return { targets: [], references: [] };
   }
   const values = Array.isArray(blockedBy) ? blockedBy : [blockedBy];
   const targets = [];
-  const unresolvedTemporaryIds = [];
+  // Display references in declared order, including temporary IDs left unresolved in staged mode
+  const references = [];
   const seen = new Set();
 
   for (const value of values) {
     if (typeof value !== "string" && typeof value !== "number") {
-      return { targets: [], unresolvedTemporaryIds: [], error: "create_issue 'blocked_by' must be an issue reference or an array of issue references" };
+      return { targets: [], references: [], error: "create_issue 'blocked_by' must be an issue reference or an array of issue references" };
     }
     const resolved = resolveBlockedByReference(value, temporaryIdMap, defaultRepo, allowUnresolvedTemporaryIds);
     if (resolved.deferred) {
-      return { targets: [], unresolvedTemporaryIds: [], deferred: true, error: resolved.error };
+      return { targets: [], references: [], deferred: true, error: resolved.error };
     }
     if (resolved.unresolvedTemporaryId) {
       if (!seen.has(resolved.unresolvedTemporaryId)) {
         seen.add(resolved.unresolvedTemporaryId);
-        unresolvedTemporaryIds.push(resolved.unresolvedTemporaryId);
+        references.push(resolved.unresolvedTemporaryId);
       }
       continue;
     }
     if (!resolved.target) {
-      return { targets: [], unresolvedTemporaryIds: [], error: resolved.error };
+      return { targets: [], references: [], error: resolved.error };
     }
     const key = `${resolved.target.repo.toLowerCase()}#${resolved.target.number}`;
     if (!seen.has(key)) {
       seen.add(key);
       targets.push(resolved.target);
+      references.push(`${resolved.target.repo}#${resolved.target.number}`);
     }
   }
-  return { targets, unresolvedTemporaryIds };
+  return { targets, references };
 }
 
 /**
@@ -1109,7 +1111,7 @@ async function main(config = {}) {
     // If in staged mode, preview the issue without creating it
     if (isStaged) {
       logStagedPreviewInfo(`Would create issue in ${qualifiedItemRepo} with title: ${title}`);
-      const stagedBlockedBy = [...blockedBy.targets.map(target => `${target.repo}#${target.number}`), ...blockedBy.unresolvedTemporaryIds];
+      const stagedBlockedBy = blockedBy.references;
       if (stagedBlockedBy.length > 0) {
         logStagedPreviewInfo(`Would mark issue as blocked by: ${stagedBlockedBy.join(", ")}`);
       }

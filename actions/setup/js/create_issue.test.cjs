@@ -1256,7 +1256,7 @@ describe("create_issue", () => {
       });
 
       expect(result).toMatchObject({ success: true, staged: true });
-      expect(result.previewInfo.blockedBy).toEqual(["test-owner/test-repo#42", "aw_prereq"]);
+      expect(result.previewInfo.blockedBy).toEqual(["aw_prereq", "test-owner/test-repo#42"]);
       expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
     });
   });
