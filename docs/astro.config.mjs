@@ -1,29 +1,24 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
-import starlight from '@astrojs/starlight';
-import sitemap from '@astrojs/sitemap';
-import starlightLinksValidator from 'starlight-links-validator';
-import starlightGitHubAlerts from 'starlight-github-alerts';
-import starlightBlog from 'starlight-blog';
-import mermaid from 'astro-mermaid';
-import { fileURLToPath } from 'node:url';
-import { unified } from '@astrojs/markdown-remark';
-import remarkStripEmojis from './src/lib/remark/stripEmojis.js';
-import remarkTableDataLabels from './src/lib/remark/tableDataLabels.js';
-import remarkInlineMarkdownInHtml from './src/lib/remark/inlineMarkdownInHtml.js';
-import rehypeTableWrapper from './src/lib/rehype/tableWrapper.js';
+import { defineConfig } from "astro/config";
+import starlight from "@astrojs/starlight";
+import sitemap from "@astrojs/sitemap";
+import starlightLinksValidator from "starlight-links-validator";
+import starlightGitHubAlerts from "starlight-github-alerts";
+import starlightBlog from "starlight-blog";
+import mermaid from "astro-mermaid";
+import { fileURLToPath } from "node:url";
+import { unified } from "@astrojs/markdown-remark";
+import remarkStripEmojis from "./src/lib/remark/stripEmojis.js";
+import remarkTableDataLabels from "./src/lib/remark/tableDataLabels.js";
+import remarkInlineMarkdownInHtml from "./src/lib/remark/inlineMarkdownInHtml.js";
+import rehypeTableWrapper from "./src/lib/rehype/tableWrapper.js";
 
 /**
  * Creates blog authors config with GitHub profile pictures
  * @param {Record<string, {name: string, url: string, picture?: string}>} authors
  */
 function createAuthors(authors) {
-	return Object.fromEntries(
-		Object.entries(authors).map(([key, author]) => [
-			key,
-			{ ...author, picture: author.picture ?? `https://github.com/${key}.png?size=200` }
-		])
-	);
+  return Object.fromEntries(Object.entries(authors).map(([key, author]) => [key, { ...author, picture: author.picture ?? `https://github.com/${key}.png?size=200` }]));
 }
 
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
@@ -35,457 +30,447 @@ function createAuthors(authors) {
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://github.github.com',
-	base: '/gh-aw/',
-	trailingSlash: 'always',
-	markdown: {
-		processor: unified({
-			remarkPlugins: [remarkStripEmojis, remarkTableDataLabels, remarkInlineMarkdownInHtml],
-			rehypePlugins: [rehypeTableWrapper],
-		}),
-	},
-	vite: {
-		server: {
-			fs: {
-				allow: [
-					fileURLToPath(new URL('../', import.meta.url)),
-				],
-			},
-		},
-	},
-	devToolbar: {
-		enabled: false
-	},
-	experimental: {
-		clientPrerender: false
-	},
-	redirects: {
-		// Status → Labs → Agent Factory → Agent Factory Status chain
-		'/status/': '/gh-aw/agent-factory-status/',
-		'/labs/': '/gh-aw/agent-factory-status/',
-		'/agent-factory/': '/gh-aw/agent-factory-status/',
+  site: "https://github.github.com",
+  base: "/gh-aw/",
+  trailingSlash: "always",
+  markdown: {
+    processor: unified({
+      remarkPlugins: [remarkStripEmojis, remarkTableDataLabels, remarkInlineMarkdownInHtml],
+      rehypePlugins: [rehypeTableWrapper],
+    }),
+  },
+  vite: {
+    server: {
+      fs: {
+        allow: [fileURLToPath(new URL("../", import.meta.url))],
+      },
+    },
+  },
+  devToolbar: {
+    enabled: false,
+  },
+  experimental: {
+    clientPrerender: false,
+  },
+  redirects: {
+    // Hosted wizard
+    "/wizard/": "https://githubnext.github.io/gh-aw-wizard/",
 
-		// Blog post date correction
-		'/blog/2026-01-12-meet-the-workflows/': '/gh-aw/blog/2026-01-13-meet-the-workflows/',
+    // Status → Labs → Agent Factory → Agent Factory Status chain
+    "/status/": "/gh-aw/agent-factory-status/",
+    "/labs/": "/gh-aw/agent-factory-status/",
+    "/agent-factory/": "/gh-aw/agent-factory-status/",
 
-		// Start-here → Get-started → current paths
-		'/start-here/concepts/': '/gh-aw/introduction/how-they-work/',
-		'/start-here/quick-start/': '/gh-aw/setup/quick-start/',
+    // Blog post date correction
+    "/blog/2026-01-12-meet-the-workflows/": "/gh-aw/blog/2026-01-13-meet-the-workflows/",
 
-		// Get-started → current paths
-		'/get-started/concepts/': '/gh-aw/introduction/how-they-work/',
-		'/get-started/quick-start/': '/gh-aw/setup/quick-start/',
+    // Start-here → Get-started → current paths
+    "/start-here/concepts/": "/gh-aw/introduction/how-they-work/",
+    "/start-here/quick-start/": "/gh-aw/setup/quick-start/",
 
-		// Introduction how-it-works → how-they-work
-		'/introduction/how-it-works/': '/gh-aw/introduction/how-they-work/',
-		'/introduction/slides/': '/gh-aw/',
-		'/slides/': '/gh-aw/',
+    // Get-started → current paths
+    "/get-started/concepts/": "/gh-aw/introduction/how-they-work/",
+    "/get-started/quick-start/": "/gh-aw/setup/quick-start/",
 
-		// Tools → Setup renames
-		'/tools/cli/': '/gh-aw/setup/cli/',
-		'/tools/mcp-server/': '/gh-aw/reference/gh-aw-as-mcp-server/',
-		'/tools/agentic-authoring/': '/gh-aw/setup/creating-workflows/',
+    // Introduction how-it-works → how-they-work
+    "/introduction/how-it-works/": "/gh-aw/introduction/how-they-work/",
+    "/introduction/slides/": "/gh-aw/",
+    "/slides/": "/gh-aw/",
 
-		// Samples → Patterns renames
-		'/samples/coding-development/': '/gh-aw/patterns/daily-ops/',
-		'/samples/quality-testing/': '/gh-aw/patterns/daily-ops/',
-		'/samples/triage-analysis/': '/gh-aw/patterns/issue-ops/',
-		'/samples/research-planning/': '/gh-aw/patterns/daily-ops/',
+    // Tools → Setup renames
+    "/tools/cli/": "/gh-aw/setup/cli/",
+    "/tools/mcp-server/": "/gh-aw/reference/gh-aw-as-mcp-server/",
+    "/tools/agentic-authoring/": "/gh-aw/setup/creating-workflows/",
 
-		// Setup renames
-		'/setup/agentic-authoring/': '/gh-aw/setup/creating-workflows/',
-		'/setup/mcp-server/': '/gh-aw/reference/gh-aw-as-mcp-server/',
+    // Samples → Patterns renames
+    "/samples/coding-development/": "/gh-aw/patterns/daily-ops/",
+    "/samples/quality-testing/": "/gh-aw/patterns/daily-ops/",
+    "/samples/triage-analysis/": "/gh-aw/patterns/issue-ops/",
+    "/samples/research-planning/": "/gh-aw/patterns/daily-ops/",
 
-		// Reference renames
-		'/reference/custom-agents/': '/gh-aw/reference/copilot-custom-agents/',
-		'/reference/custom-agent/': '/gh-aw/reference/custom-agent-for-aw/',
-		'/reference/assign-to-copilot/': '/gh-aw/reference/copilot-cloud-agent/',
+    // Setup renames
+    "/setup/agentic-authoring/": "/gh-aw/setup/creating-workflows/",
+    "/setup/mcp-server/": "/gh-aw/reference/gh-aw-as-mcp-server/",
 
-		// Organization Practices moved under Guides
-		'/organization-practices/': '/gh-aw/practices/organization-practices/',
-		'/organization-practices/safe-rollout/': '/gh-aw/practices/safe-rollout/',
-		'/organization-practices/sharing-workflows/': '/gh-aw/practices/sharing-workflows/',
+    // Reference renames
+    "/reference/custom-agents/": "/gh-aw/reference/copilot-custom-agents/",
+    "/reference/custom-agent/": "/gh-aw/reference/custom-agent-for-aw/",
+    "/reference/assign-to-copilot/": "/gh-aw/reference/copilot-cloud-agent/",
 
-		// Guides → Patterns renames
-		'/guides/chatops/': '/gh-aw/patterns/chat-ops/',
-		'/guides/issueops/': '/gh-aw/patterns/issue-ops/',
-		'/guides/labelops/': '/gh-aw/patterns/label-ops/',
-		'/guides/dailyops/': '/gh-aw/patterns/daily-ops/',
-		'/guides/dispatchops/': '/gh-aw/patterns/dispatch-ops/',
-		'/guides/monitoring/': '/gh-aw/experimental/monitoring-with-projects/',
-		'/guides/multirepoops/': '/gh-aw/patterns/multi-repo-ops/',
-		'/guides/orchestration/': '/gh-aw/patterns/orchestrator-ops/',
-		'/patterns/orchestration/': '/gh-aw/patterns/orchestrator-ops/',
-		'/guides/siderepoops/': '/gh-aw/patterns/multi-repo-ops/',
-		'/patterns/side-repo-ops/': '/gh-aw/patterns/multi-repo-ops/',
-		'/guides/specops/': '/gh-aw/patterns/spec-ops/',
-		'/guides/researchplanassign/': '/gh-aw/patterns/research-plan-assign-ops/',
-		'/guides/trialops/': '/gh-aw/experimental/trial-ops/',
+    // Organization Practices moved under Guides
+    "/organization-practices/": "/gh-aw/practices/organization-practices/",
+    "/organization-practices/safe-rollout/": "/gh-aw/practices/safe-rollout/",
+    "/organization-practices/sharing-workflows/": "/gh-aw/practices/sharing-workflows/",
 
-		// Examples → Patterns renames
-		'/examples/comment-triggered/chatops/': '/gh-aw/patterns/chat-ops/',
-		'/examples/scheduled/dailyops/': '/gh-aw/patterns/daily-ops/',
-		'/examples/issue-pr-events/issueops/': '/gh-aw/patterns/issue-ops/',
-		'/examples/issue-pr-events/labelops/': '/gh-aw/patterns/label-ops/',
-		'/examples/issue-pr-events/projectops/': '/gh-aw/patterns/project-ops/',
+    // Guides → Patterns renames
+    "/guides/chatops/": "/gh-aw/patterns/chat-ops/",
+    "/guides/issueops/": "/gh-aw/patterns/issue-ops/",
+    "/guides/labelops/": "/gh-aw/patterns/label-ops/",
+    "/guides/dailyops/": "/gh-aw/patterns/daily-ops/",
+    "/guides/dispatchops/": "/gh-aw/patterns/dispatch-ops/",
+    "/guides/monitoring/": "/gh-aw/experimental/monitoring-with-projects/",
+    "/guides/multirepoops/": "/gh-aw/patterns/multi-repo-ops/",
+    "/guides/orchestration/": "/gh-aw/patterns/orchestrator-ops/",
+    "/patterns/orchestration/": "/gh-aw/patterns/orchestrator-ops/",
+    "/guides/siderepoops/": "/gh-aw/patterns/multi-repo-ops/",
+    "/patterns/side-repo-ops/": "/gh-aw/patterns/multi-repo-ops/",
+    "/guides/specops/": "/gh-aw/patterns/spec-ops/",
+    "/guides/researchplanassign/": "/gh-aw/patterns/research-plan-assign-ops/",
+    "/guides/trialops/": "/gh-aw/experimental/trial-ops/",
 
-		// Patterns unhyphenated → hyphenated slugs
-		'/patterns/centralrepoops/': '/gh-aw/patterns/central-repo-ops/',
-		'/patterns/chatops/': '/gh-aw/patterns/chat-ops/',
-		'/patterns/dailyops/': '/gh-aw/patterns/daily-ops/',
-		'/patterns/dataops/': '/gh-aw/patterns/deterministic-ops/',
-		'/patterns/dispatchops/': '/gh-aw/patterns/dispatch-ops/',
-		'/patterns/issueops/': '/gh-aw/patterns/issue-ops/',
-		'/patterns/labelops/': '/gh-aw/patterns/label-ops/',
-		'/patterns/multirepoops/': '/gh-aw/patterns/multi-repo-ops/',
-		'/patterns/projectops/': '/gh-aw/patterns/project-ops/',
-		'/patterns/siderepoops/': '/gh-aw/patterns/multi-repo-ops/',
-		'/patterns/specops/': '/gh-aw/patterns/spec-ops/',
-		'/patterns/researchplanassignops/': '/gh-aw/patterns/research-plan-assign-ops/',
-		'/patterns/batchops/': '/gh-aw/patterns/batch-ops/',
-		'/patterns/taskops/': '/gh-aw/patterns/research-plan-assign-ops/',
-		'/patterns/trialops/': '/gh-aw/experimental/trial-ops/',
-		'/patterns/workqueueops/': '/gh-aw/patterns/workqueue-ops/',
+    // Examples → Patterns renames
+    "/examples/comment-triggered/chatops/": "/gh-aw/patterns/chat-ops/",
+    "/examples/scheduled/dailyops/": "/gh-aw/patterns/daily-ops/",
+    "/examples/issue-pr-events/issueops/": "/gh-aw/patterns/issue-ops/",
+    "/examples/issue-pr-events/labelops/": "/gh-aw/patterns/label-ops/",
+    "/examples/issue-pr-events/projectops/": "/gh-aw/patterns/project-ops/",
 
-		// Guides → new locations
-		'/guides/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-ops/',
-		'/patterns/deterministic-agentic-patterns/': '/gh-aw/patterns/deterministic-ops/',
-		'/guides/organization-practices/safe-rollout/': '/gh-aw/practices/safe-rollout/',
-		'/guides/organization-practices/sharing-workflows/': '/gh-aw/practices/sharing-workflows/',
-		'/guides/organization-practices/': '/gh-aw/guides/using-at-scale/',
-		'/guides/maintaining-repos/': '/gh-aw/examples/maintaining-repos/',
-		'/practices/maintaining-repos/': '/gh-aw/examples/maintaining-repos/',
-		'/guides/self-hosted-runners/': '/gh-aw/reference/self-hosted-runners/',
-		'/guides/packaging-imports/': '/gh-aw/guides/reusing-workflows/',
-		'/guides/web-search/': '/gh-aw/reference/web-search/',
-		'/guides/custom-otlp-attributes/': '/gh-aw/guides/open-telemetry/',
-		'/guides/telemetry/': '/gh-aw/guides/open-telemetry/',
-		'/guides/opentelemetry/': '/gh-aw/guides/open-telemetry/',
-		'/experimental/opentelemetry/': '/gh-aw/guides/open-telemetry/',
-		'/patterns/opentelemetry/': '/gh-aw/guides/open-telemetry/',
-		'/guides/getting-started-mcp/': '/gh-aw/guides/mcps/',
-		'/patterns/data-ops/': '/gh-aw/patterns/deterministic-ops/',
-		'/patterns/expert-ops/': '/gh-aw/patterns/monitor-ops/',
-		'/patterns/agentic-ops/': '/gh-aw/patterns/monitor-ops/',
-		'/patterns/task-ops/': '/gh-aw/patterns/research-plan-assign-ops/',
-		'/examples/comment-triggered/': '/gh-aw/patterns/chat-ops/',
-		'/examples/issue-pr-events/': '/gh-aw/patterns/issue-ops/',
-		'/examples/issue-pr-events/triage-analysis/': '/gh-aw/patterns/issue-ops/',
-		'/examples/issue-pr-events/coding-development/': '/gh-aw/patterns/daily-ops/',
-		'/examples/issue-pr-events/quality-testing/': '/gh-aw/patterns/daily-ops/',
-		'/examples/scheduled/': '/gh-aw/patterns/daily-ops/',
-		'/examples/scheduled/research-planning/': '/gh-aw/patterns/daily-ops/',
-		'/examples/manual/': '/gh-aw/patterns/dispatch-ops/',
-		'/examples/project-tracking/': '/gh-aw/patterns/project-ops/',
-		'/guides/audit-with-agents/': '/gh-aw/reference/audit/',
-		'/guides/ephemerals/': '/gh-aw/reference/ephemerals/',
-		'/guides/memoryops/': '/gh-aw/patterns/memory-ops/',
-		'/guides/memory-ops/': '/gh-aw/patterns/memory-ops/',
-		'/guides/serena/': '/gh-aw/reference/serena/',
-		'/guides/experiments/': '/gh-aw/experimental/experiments/',
-		'/practices/experiments/': '/gh-aw/experimental/experiments/',
-		'/practices/experiments-specification/': '/gh-aw/experimental/experiments-specification/',
-		'/reference/experiments-specification/': '/gh-aw/experimental/experiments-specification/',
-		'/reference/ai-credits-specification/': '/gh-aw/specs/ai-credits-specification/',
-		'/reference/copilot-sdk-driver-specification/': '/gh-aw/specs/copilot-sdk-driver-specification/',
-		'/reference/effective-tokens-specification/': '/gh-aw/specs/effective-tokens-specification/',
-		'/reference/forecast-specification/': '/gh-aw/specs/forecast-specification/',
-		'/reference/frontmatter-hash-specification/': '/gh-aw/specs/frontmatter-hash-specification/',
-		'/reference/fuzzy-schedule-specification/': '/gh-aw/specs/fuzzy-schedule-specification/',
-		'/reference/mcp-scripts-specification/': '/gh-aw/specs/mcp-scripts-specification/',
-		'/reference/model-alias-specification/': '/gh-aw/specs/model-alias-specification/',
-		'/reference/repository-package-manifest-specification/': '/gh-aw/specs/repository-package-manifest-specification/',
-		'/reference/safe-outputs-specification/': '/gh-aw/specs/safe-outputs-specification/',
-		'/practices/organization-practices/': '/gh-aw/guides/using-at-scale/',
+    // Patterns unhyphenated → hyphenated slugs
+    "/patterns/centralrepoops/": "/gh-aw/patterns/central-repo-ops/",
+    "/patterns/chatops/": "/gh-aw/patterns/chat-ops/",
+    "/patterns/dailyops/": "/gh-aw/patterns/daily-ops/",
+    "/patterns/dataops/": "/gh-aw/patterns/deterministic-ops/",
+    "/patterns/dispatchops/": "/gh-aw/patterns/dispatch-ops/",
+    "/patterns/issueops/": "/gh-aw/patterns/issue-ops/",
+    "/patterns/labelops/": "/gh-aw/patterns/label-ops/",
+    "/patterns/multirepoops/": "/gh-aw/patterns/multi-repo-ops/",
+    "/patterns/projectops/": "/gh-aw/patterns/project-ops/",
+    "/patterns/siderepoops/": "/gh-aw/patterns/multi-repo-ops/",
+    "/patterns/specops/": "/gh-aw/patterns/spec-ops/",
+    "/patterns/researchplanassignops/": "/gh-aw/patterns/research-plan-assign-ops/",
+    "/patterns/batchops/": "/gh-aw/patterns/batch-ops/",
+    "/patterns/taskops/": "/gh-aw/patterns/research-plan-assign-ops/",
+    "/patterns/trialops/": "/gh-aw/experimental/trial-ops/",
+    "/patterns/workqueueops/": "/gh-aw/patterns/workqueue-ops/",
 
-		'/reference/awf-reflect/': '/gh-aw/experimental/awf-reflect/',
+    // Guides → new locations
+    "/guides/deterministic-agentic-patterns/": "/gh-aw/patterns/deterministic-ops/",
+    "/patterns/deterministic-agentic-patterns/": "/gh-aw/patterns/deterministic-ops/",
+    "/guides/organization-practices/safe-rollout/": "/gh-aw/practices/safe-rollout/",
+    "/guides/organization-practices/sharing-workflows/": "/gh-aw/practices/sharing-workflows/",
+    "/guides/organization-practices/": "/gh-aw/guides/using-at-scale/",
+    "/guides/maintaining-repos/": "/gh-aw/examples/maintaining-repos/",
+    "/practices/maintaining-repos/": "/gh-aw/examples/maintaining-repos/",
+    "/guides/self-hosted-runners/": "/gh-aw/reference/self-hosted-runners/",
+    "/guides/packaging-imports/": "/gh-aw/guides/reusing-workflows/",
+    "/guides/web-search/": "/gh-aw/reference/web-search/",
+    "/guides/custom-otlp-attributes/": "/gh-aw/guides/open-telemetry/",
+    "/guides/telemetry/": "/gh-aw/guides/open-telemetry/",
+    "/guides/opentelemetry/": "/gh-aw/guides/open-telemetry/",
+    "/experimental/opentelemetry/": "/gh-aw/guides/open-telemetry/",
+    "/patterns/opentelemetry/": "/gh-aw/guides/open-telemetry/",
+    "/guides/getting-started-mcp/": "/gh-aw/guides/mcps/",
+    "/patterns/data-ops/": "/gh-aw/patterns/deterministic-ops/",
+    "/patterns/expert-ops/": "/gh-aw/patterns/monitor-ops/",
+    "/patterns/agentic-ops/": "/gh-aw/patterns/monitor-ops/",
+    "/patterns/task-ops/": "/gh-aw/patterns/research-plan-assign-ops/",
+    "/examples/comment-triggered/": "/gh-aw/patterns/chat-ops/",
+    "/examples/issue-pr-events/": "/gh-aw/patterns/issue-ops/",
+    "/examples/issue-pr-events/triage-analysis/": "/gh-aw/patterns/issue-ops/",
+    "/examples/issue-pr-events/coding-development/": "/gh-aw/patterns/daily-ops/",
+    "/examples/issue-pr-events/quality-testing/": "/gh-aw/patterns/daily-ops/",
+    "/examples/scheduled/": "/gh-aw/patterns/daily-ops/",
+    "/examples/scheduled/research-planning/": "/gh-aw/patterns/daily-ops/",
+    "/examples/manual/": "/gh-aw/patterns/dispatch-ops/",
+    "/examples/project-tracking/": "/gh-aw/patterns/project-ops/",
+    "/guides/audit-with-agents/": "/gh-aw/reference/audit/",
+    "/guides/ephemerals/": "/gh-aw/reference/ephemerals/",
+    "/guides/memoryops/": "/gh-aw/patterns/memory-ops/",
+    "/guides/memory-ops/": "/gh-aw/patterns/memory-ops/",
+    "/guides/serena/": "/gh-aw/reference/serena/",
+    "/guides/experiments/": "/gh-aw/experimental/experiments/",
+    "/practices/experiments/": "/gh-aw/experimental/experiments/",
+    "/practices/experiments-specification/": "/gh-aw/experimental/experiments-specification/",
+    "/reference/experiments-specification/": "/gh-aw/experimental/experiments-specification/",
+    "/reference/ai-credits-specification/": "/gh-aw/specs/ai-credits-specification/",
+    "/reference/copilot-sdk-driver-specification/": "/gh-aw/specs/copilot-sdk-driver-specification/",
+    "/reference/effective-tokens-specification/": "/gh-aw/specs/effective-tokens-specification/",
+    "/reference/forecast-specification/": "/gh-aw/specs/forecast-specification/",
+    "/reference/frontmatter-hash-specification/": "/gh-aw/specs/frontmatter-hash-specification/",
+    "/reference/fuzzy-schedule-specification/": "/gh-aw/specs/fuzzy-schedule-specification/",
+    "/reference/mcp-scripts-specification/": "/gh-aw/specs/mcp-scripts-specification/",
+    "/reference/model-alias-specification/": "/gh-aw/specs/model-alias-specification/",
+    "/reference/repository-package-manifest-specification/": "/gh-aw/specs/repository-package-manifest-specification/",
+    "/reference/safe-outputs-specification/": "/gh-aw/specs/safe-outputs-specification/",
+    "/practices/organization-practices/": "/gh-aw/guides/using-at-scale/",
 
-		// Patterns → Experimental
-		'/patterns/correction-ops/': '/gh-aw/experimental/correction-ops/',
-		'/patterns/trial-ops/': '/gh-aw/experimental/trial-ops/',
-		'/patterns/monitoring/': '/gh-aw/experimental/monitoring-with-projects/',
+    "/reference/awf-reflect/": "/gh-aw/experimental/awf-reflect/",
 
-		// Use Cases → Guides (moved)
-		'/use-cases/ai-issue-triage/': '/gh-aw/guides/ai-issue-triage/',
-		'/use-cases/automated-pr-review/': '/gh-aw/guides/automated-pr-review/',
-		'/use-cases/ai-release-notes/': '/gh-aw/guides/ai-release-notes/',
-		'/use-cases/docs-automation/': '/gh-aw/guides/docs-automation/',
-	},
-	integrations: [
-		sitemap(),
-		mermaid(),
-		starlight({
-			title: 'GitHub Agentic Workflows',
-			description: 'Write agentic workflows in natural language using markdown files and run them as GitHub Actions workflows.',
-			favicon: '/favicon.svg',
-			logo: {
-				src: './src/assets/agentic-workflow.svg',
-				replacesTitle: false,
-			},
-			components: {
-				Banner: './src/components/RecruitmentBanner.astro',
-				Head: './src/components/CustomHead.astro',
-				SkipLink: './src/components/SkipLink.astro',
-				SocialIcons: './src/components/CustomHeader.astro',
-				ThemeSelect: './src/components/ThemeToggle.astro',
-				Footer: './src/components/CustomFooter.astro',
-				SiteTitle: './src/components/CustomLogo.astro',
-			},
-			customCss: [
-				'./src/styles/custom.css',
-			],
-			social: [
-				{ icon: 'github', label: 'GitHub', href: 'https://github.com/github/gh-aw' },
-			],
-			tableOfContents: {
-				minHeadingLevel: 2,
-				maxHeadingLevel: 4
-			},
-			pagination: true,
-			expressiveCode: {
-				frames: {
-					showCopyToClipboardButton: true,
-				},
-				shiki: {
-					langs: /** @type {any[]} */ ([
-						"markdown",
-						"yaml"
-					]),
-					langAlias: { aw: "markdown" }
-				},
-			},
-			plugins: [
-				starlightBlog({
-					recentPostCount: 12,
-					authors: createAuthors({
-						'githubnext': {
-							name: 'GitHub Next',
-							url: 'https://githubnext.com/',
-						},
-						'dsyme': {
-							name: 'Don Syme',
-							url: 'https://dsyme.net/',
-						},
-						'pelikhan': {
-							name: 'Peli de Halleux',
-							url: 'https://www.microsoft.com/research/people/jhalleux/',
-						},
-						'mnkiefer': {
-							name: 'Mara Kiefer',
-							url: 'https://github.com/mnkiefer',
-						},
-						'claude': {
-							name: 'Claude',
-							url: 'https://claude.ai',
-							picture: '/gh-aw/claude.png',
-						},
-						'codex': {
-							name: 'Codex',
-							url: 'https://openai.com/index/openai-codex/',
-							picture: '/gh-aw/codex.png',
-						},
-						'gemini': {
-							name: 'Gemini',
-							url: 'https://gemini.google.com',
-							picture: '/gh-aw/gemini.png',
-						},
-						'copilot': {
-							name: 'Copilot',
-							url: 'https://github.com/features/copilot',
-							picture: 'https://avatars.githubusercontent.com/in/1143301?s=64&amp;v=4',
-						},
-					}),
-				}),
-				starlightGitHubAlerts(),
-				starlightLinksValidator({
-					errorOnRelativeLinks: true,
-					errorOnLocalLinks: true,
-					exclude: ({ file, link }) =>
-						file.includes('/src/generated/workshop-markdown/')
-						&& link.includes('?__gh_aw_workshop_local__=')
-						&& link.startsWith('/gh-aw/workshop/?__gh_aw_workshop_local__='),
-				})
-			],
-			sidebar: [
-				{
-					label: 'Introduction',
-					items: [{ autogenerate: { directory: 'introduction' } }],
-				},
-				{
-					label: 'Setup',
-					items: [
-						{ label: 'Quick Start', link: '/setup/quick-start/' },
-						{ label: 'AW Wizard', link: '/wizard/' },
-						{ label: 'Creating Workflows', link: '/setup/creating-workflows/' },
-						{ label: 'CLI Commands', link: '/setup/cli/' },
-					],
-				},
-				{
-					label: 'AI Engines',
-					items: [
-						{ label: 'GitHub Copilot', link: '/engines/copilot/' },
-						{ label: 'Claude Code', link: '/engines/claude/' },
-						{ label: 'OpenAI Codex', link: '/engines/codex/' },
-						{ label: 'Google Gemini', link: '/engines/gemini/' },
-					],
-				},
-				{
-					label: 'Guides',
-					items: [
-						{ label: 'AI Issue Triage', link: '/guides/ai-issue-triage/' },
-						{ label: 'Automated PR Review', link: '/guides/automated-pr-review/' },
-						{ label: 'AI Release Notes', link: '/guides/ai-release-notes/' },
-						{ label: 'Docs Automation', link: '/guides/docs-automation/' },
-						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
-						{ label: 'Editing Workflows', link: '/guides/editing-workflows/' },
-						{ label: 'Governance', link: '/guides/governance/' },
-						{ label: 'Reusing Workflows', link: '/guides/reusing-workflows/' },
-						{ label: 'Upgrading Workflows', link: '/guides/upgrading/' },
-						{ label: 'Using MCPs', link: '/guides/mcps/' },
-						{ label: 'Network Configuration', link: '/guides/network-configuration/' },
-						{ label: 'Azure OpenAI BYOK', link: '/guides/azure-openai-byok/' },
-						{ label: 'Third-Party Agent', link: '/guides/third-party-agent/' },
-						{ label: 'ARC DinD for Copilot Coding Agent', link: '/guides/arc-dind-copilot-agent/' },
-						{ label: 'OpenTelemetry', link: '/guides/open-telemetry/' },
-						{ label: 'GitHub Actions Primer', link: '/guides/github-actions-primer/' },
-						{ label: 'Using at Scale in Organizations', link: '/guides/using-at-scale/' },
-					],
-				},
-				{
-					label: 'Design Patterns',
-					items: [
-						{ label: 'BatchOps', link: '/patterns/batch-ops/' },
-						{ label: 'CentralRepoOps', link: '/patterns/central-repo-ops/' },
-						{ label: 'ChatOps', link: '/patterns/chat-ops/' },
-						{ label: 'DeterministicOps', link: '/patterns/deterministic-ops/' },
-						{ label: 'DispatchOps', link: '/patterns/dispatch-ops/' },
-						{ label: 'IssueOps', link: '/patterns/issue-ops/' },
-						{ label: 'LabelOps', link: '/patterns/label-ops/' },
-						{ label: 'MemoryOps', link: '/patterns/memory-ops/' },
-						{ label: 'MonitorOps', link: '/patterns/monitor-ops/' },
-						{ label: 'MultiRepoOps', link: '/patterns/multi-repo-ops/' },
-						{ label: 'OrchestratorOps', link: '/patterns/orchestrator-ops/' },
-						{ label: 'ProjectOps', link: '/patterns/project-ops/' },
-						{ label: 'ResearchPlanAssignOps', link: '/patterns/research-plan-assign-ops/' },
-	
-						{ label: 'SpecOps', link: '/patterns/spec-ops/' },
-						{ label: 'WorkQueueOps', link: '/patterns/workqueue-ops/' },
-					],
-				},
-				{
-					label: 'Practices',
-					items: [
-						{ label: 'Safe Rollout in Organizations', link: '/practices/safe-rollout/' },
-						{ label: 'Sharing Workflows in Organizations', link: '/practices/sharing-workflows/' },
-					],
-				},
-				{
-					label: 'Examples',
-					items: [
-						{ label: 'Automated Repository Maintenance', link: '/examples/maintaining-repos/' },
-						{ label: 'Triage from Side Repo', link: '/examples/multi-repo/triage-from-side-repo/' },
-						{ label: 'Code Quality Monitoring', link: '/examples/multi-repo/code-quality-monitoring/' },
-						{ label: 'Dependabot Rollout', link: '/examples/multi-repo/dependabot-rollout/' },
-						{ label: 'Feature Synchronization', link: '/examples/multi-repo/feature-sync/' },
-						{ label: 'Cross-Repo Issue Tracking', link: '/examples/multi-repo/issue-tracking/' },
-					],
-				},
-				{
-					label: 'Reference',
-					items: [
-						{ label: 'AI Engines', link: '/reference/engines/' },
-						{ label: 'Artifacts', link: '/reference/artifacts/' },
-						{ label: 'Auditing Workflows', link: '/reference/audit/' },
-						{ label: 'Authentication', link: '/reference/auth/' },
-						{ label: 'Authentication (Projects)', link: '/reference/auth-projects/' },
-						{ label: 'Compilation Process', link: '/reference/compilation-process/' },
-						{ label: 'Measuring Impact', link: '/reference/measuring-impact/' },
-						{ label: 'Billing', link: '/reference/billing/' },
-						{ label: 'Cost Management', link: '/reference/cost-management/' },
-						{ label: 'Cost Management (Rate Limiting)', link: '/reference/rate-limiting-controls/' },
-						{ label: 'Cost Management (Model Tables)', link: '/reference/model-tables/' },
-						{ label: 'Enterprise Configuration', link: '/reference/enterprise-configuration/' },
-						{ label: 'Environment Variables', link: '/reference/environment-variables/' },
-						{ label: 'FAQ', link: '/reference/faq/' },
-						{ label: 'Frontmatter', link: '/reference/frontmatter/' },
-						{ label: 'Frontmatter (Concurrency)', link: '/reference/concurrency/' },
-						{ label: 'Frontmatter (Schedule Syntax)', link: '/reference/schedule-syntax/' },
-						{ label: 'Frontmatter (Triggers)', link: '/reference/triggers/' },
-						{ label: 'Frontmatter (Command Triggers)', link: '/reference/command-triggers/' },
-						{ label: 'Frontmatter (Full)', link: '/reference/frontmatter-full/' },
-						{ label: 'GH-AW Agent', link: '/reference/custom-agent-for-aw/' },
-						{ label: 'GH-AW as MCP Server', link: '/reference/gh-aw-as-mcp-server/' },
-						{ label: 'GitHub (Checkout)', link: '/reference/checkout/' },
-						{ label: 'GitHub (Read Tools)', link: '/reference/github-tools/' },
-						{ label: 'GitHub (Read Permissions)', link: '/reference/permissions/' },
-						{ label: 'GitHub (Integrity Filtering)', link: '/reference/integrity/' },
-						{ label: 'GitHub (Cross-Repository)', link: '/reference/cross-repository/' },
-						{ label: 'GitHub (Fork Support)', link: '/reference/fork-support/' },
-						{ label: 'Glossary', link: '/reference/glossary/' },
-						{ label: 'Imports', link: '/reference/imports/' },
-						{ label: 'Imports (APM)', link: '/reference/dependencies/' },
-						{ label: 'Imports (Copilot Agent Files)', link: '/reference/copilot-custom-agents/' },
-						{ label: 'Imports (Copilot Inline Sub-Agents)', link: '/reference/inline-sub-agents/' },
-						{ label: 'Imports (Dependabot)', link: '/reference/dependabot/' },
-						{ label: 'Indexing (QMD)', link: '/reference/qmd/' },
-						{ label: 'Markdown', link: '/reference/markdown/' },
-								{ label: 'Outcomes', link: '/reference/outcomes/' },
-						{ label: 'OpenTelemetry Attributes', link: '/reference/open-telemetry/' },
-						{ label: 'Package Manifest', link: '/reference/aw-yml-package-manifest/' },
-								{ label: 'Releases and Versioning', link: '/reference/releases/' },
-						{ label: 'MCP Scripts', link: '/reference/mcp-scripts/' },
-								{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
-						{ label: 'Safe Outputs (Copilot Cloud Agent)', link: '/reference/copilot-cloud-agent/' },
-						{ label: 'Safe Outputs (Custom)', link: '/reference/custom-safe-outputs/' },
-						{ label: 'Safe Outputs (Pull Requests)', link: '/reference/safe-outputs-pull-requests/' },
-								{ label: 'Safe Outputs (Staged Mode)', link: '/reference/staged-mode/' },
-						{ label: 'Safe Outputs (Ephemerals)', link: '/reference/ephemerals/' },
-						{ label: 'Safe Outputs (Footers)', link: '/reference/footers/' },
-						{ label: 'Sandbox', link: '/reference/sandbox/' },
-						{ label: 'Sandbox (Agent Runtimes)', link: '/reference/agent-runtimes/' },
-						{ label: 'Self-Hosted Runners', link: '/reference/self-hosted-runners/' },
-						{ label: 'Sandbox (MCP Gateway)', link: '/reference/mcp-gateway/' },
-						{ label: 'Sandbox (Network Access)', link: '/reference/network/' },
-						{ label: 'Templating', link: '/reference/templating/' },
-						{ label: 'Threat Detection', link: '/reference/threat-detection/' },
-						{ label: 'Tools', link: '/reference/tools/' },
-						{ label: 'Tools (Cache Memory)', link: '/reference/cache-memory/' },
-						{ label: 'Tools (Repo Memory)', link: '/reference/repo-memory/' },
-						{ label: 'Tools (Playwright)', link: '/reference/playwright/' },
-						{ label: 'Tools (Serena)', link: '/reference/serena/' },
-						{ label: 'Tools (Web Search)', link: '/reference/web-search/' },
-						{ label: 'Triggering CI', link: '/reference/triggering-ci/' },
-						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
-					],
-				},
-				{
-					label: 'Specs',
-					collapsed: true,
-					items: [{ autogenerate: { directory: 'specs' } }],
-				},
-				{
-					label: 'Troubleshooting',
-					items: [{ autogenerate: { directory: 'troubleshooting' } }],
-				},
-				{
-					label: 'Experimental',
-					collapsed: true,
-					items: [
-						{ label: 'A/B Experiments', link: '/experimental/experiments/' },
-						{ label: 'A/B Experiments (Spec)', link: '/experimental/experiments-specification/' },
-						{ label: 'AWF Reflect Route', link: '/experimental/awf-reflect/' },
-						{ label: 'CorrectionOps', link: '/experimental/correction-ops/' },
-						{ label: 'Monitoring with Projects', link: '/experimental/monitoring-with-projects/' },
-						{ label: 'Safe-Outputs Samples', link: '/experimental/safe-outputs-samples/' },
-						{ label: 'TrialOps', link: '/experimental/trial-ops/' },
-						{ label: 'WASM Compilation', link: '/reference/wasm-compilation/' },
+    // Patterns → Experimental
+    "/patterns/correction-ops/": "/gh-aw/experimental/correction-ops/",
+    "/patterns/trial-ops/": "/gh-aw/experimental/trial-ops/",
+    "/patterns/monitoring/": "/gh-aw/experimental/monitoring-with-projects/",
 
-					],
-				},
-				{ label: 'Agent Factory', link: '/agent-factory-status/' },
-				{ label: 'Editors', link: '/reference/editors/' },
-				{ label: 'About', link: '/about/' },
-			],
-		}),
-	],
+    // Use Cases → Guides (moved)
+    "/use-cases/ai-issue-triage/": "/gh-aw/guides/ai-issue-triage/",
+    "/use-cases/automated-pr-review/": "/gh-aw/guides/automated-pr-review/",
+    "/use-cases/ai-release-notes/": "/gh-aw/guides/ai-release-notes/",
+    "/use-cases/docs-automation/": "/gh-aw/guides/docs-automation/",
+  },
+  integrations: [
+    sitemap(),
+    mermaid(),
+    starlight({
+      title: "GitHub Agentic Workflows",
+      description: "Write agentic workflows in natural language using markdown files and run them as GitHub Actions workflows.",
+      favicon: "/favicon.svg",
+      logo: {
+        src: "./src/assets/agentic-workflow.svg",
+        replacesTitle: false,
+      },
+      components: {
+        Banner: "./src/components/RecruitmentBanner.astro",
+        Head: "./src/components/CustomHead.astro",
+        SkipLink: "./src/components/SkipLink.astro",
+        SocialIcons: "./src/components/CustomHeader.astro",
+        ThemeSelect: "./src/components/ThemeToggle.astro",
+        Footer: "./src/components/CustomFooter.astro",
+        SiteTitle: "./src/components/CustomLogo.astro",
+      },
+      customCss: ["./src/styles/custom.css"],
+      social: [{ icon: "github", label: "GitHub", href: "https://github.com/github/gh-aw" }],
+      tableOfContents: {
+        minHeadingLevel: 2,
+        maxHeadingLevel: 4,
+      },
+      pagination: true,
+      expressiveCode: {
+        frames: {
+          showCopyToClipboardButton: true,
+        },
+        shiki: {
+          langs: /** @type {any[]} */ ["markdown", "yaml"],
+          langAlias: { aw: "markdown" },
+        },
+      },
+      plugins: [
+        starlightBlog({
+          recentPostCount: 12,
+          authors: createAuthors({
+            githubnext: {
+              name: "GitHub Next",
+              url: "https://githubnext.com/",
+            },
+            dsyme: {
+              name: "Don Syme",
+              url: "https://dsyme.net/",
+            },
+            pelikhan: {
+              name: "Peli de Halleux",
+              url: "https://www.microsoft.com/research/people/jhalleux/",
+            },
+            mnkiefer: {
+              name: "Mara Kiefer",
+              url: "https://github.com/mnkiefer",
+            },
+            claude: {
+              name: "Claude",
+              url: "https://claude.ai",
+              picture: "/gh-aw/claude.png",
+            },
+            codex: {
+              name: "Codex",
+              url: "https://openai.com/index/openai-codex/",
+              picture: "/gh-aw/codex.png",
+            },
+            gemini: {
+              name: "Gemini",
+              url: "https://gemini.google.com",
+              picture: "/gh-aw/gemini.png",
+            },
+            copilot: {
+              name: "Copilot",
+              url: "https://github.com/features/copilot",
+              picture: "https://avatars.githubusercontent.com/in/1143301?s=64&amp;v=4",
+            },
+          }),
+        }),
+        starlightGitHubAlerts(),
+        starlightLinksValidator({
+          errorOnRelativeLinks: true,
+          errorOnLocalLinks: true,
+          exclude: ({ file, link }) => file.includes("/src/generated/workshop-markdown/") && link.includes("?__gh_aw_workshop_local__=") && link.startsWith("/gh-aw/workshop/?__gh_aw_workshop_local__="),
+        }),
+      ],
+      sidebar: [
+        {
+          label: "Introduction",
+          items: [{ autogenerate: { directory: "introduction" } }],
+        },
+        {
+          label: "Setup",
+          items: [
+            { label: "Quick Start", link: "/setup/quick-start/" },
+            { label: "AW Wizard", link: "/wizard/" },
+            { label: "Creating Workflows", link: "/setup/creating-workflows/" },
+            { label: "CLI Commands", link: "/setup/cli/" },
+          ],
+        },
+        {
+          label: "AI Engines",
+          items: [
+            { label: "GitHub Copilot", link: "/engines/copilot/" },
+            { label: "Claude Code", link: "/engines/claude/" },
+            { label: "OpenAI Codex", link: "/engines/codex/" },
+            { label: "Google Gemini", link: "/engines/gemini/" },
+          ],
+        },
+        {
+          label: "Guides",
+          items: [
+            { label: "AI Issue Triage", link: "/guides/ai-issue-triage/" },
+            { label: "Automated PR Review", link: "/guides/automated-pr-review/" },
+            { label: "AI Release Notes", link: "/guides/ai-release-notes/" },
+            { label: "Docs Automation", link: "/guides/docs-automation/" },
+            { label: "Agentic Authoring", link: "/guides/agentic-authoring/" },
+            { label: "Editing Workflows", link: "/guides/editing-workflows/" },
+            { label: "Governance", link: "/guides/governance/" },
+            { label: "Reusing Workflows", link: "/guides/reusing-workflows/" },
+            { label: "Upgrading Workflows", link: "/guides/upgrading/" },
+            { label: "Using MCPs", link: "/guides/mcps/" },
+            { label: "Network Configuration", link: "/guides/network-configuration/" },
+            { label: "Azure OpenAI BYOK", link: "/guides/azure-openai-byok/" },
+            { label: "Third-Party Agent", link: "/guides/third-party-agent/" },
+            { label: "ARC DinD for Copilot Coding Agent", link: "/guides/arc-dind-copilot-agent/" },
+            { label: "OpenTelemetry", link: "/guides/open-telemetry/" },
+            { label: "GitHub Actions Primer", link: "/guides/github-actions-primer/" },
+            { label: "Using at Scale in Organizations", link: "/guides/using-at-scale/" },
+          ],
+        },
+        {
+          label: "Design Patterns",
+          items: [
+            { label: "BatchOps", link: "/patterns/batch-ops/" },
+            { label: "CentralRepoOps", link: "/patterns/central-repo-ops/" },
+            { label: "ChatOps", link: "/patterns/chat-ops/" },
+            { label: "DeterministicOps", link: "/patterns/deterministic-ops/" },
+            { label: "DispatchOps", link: "/patterns/dispatch-ops/" },
+            { label: "IssueOps", link: "/patterns/issue-ops/" },
+            { label: "LabelOps", link: "/patterns/label-ops/" },
+            { label: "MemoryOps", link: "/patterns/memory-ops/" },
+            { label: "MonitorOps", link: "/patterns/monitor-ops/" },
+            { label: "MultiRepoOps", link: "/patterns/multi-repo-ops/" },
+            { label: "OrchestratorOps", link: "/patterns/orchestrator-ops/" },
+            { label: "ProjectOps", link: "/patterns/project-ops/" },
+            { label: "ResearchPlanAssignOps", link: "/patterns/research-plan-assign-ops/" },
+
+            { label: "SpecOps", link: "/patterns/spec-ops/" },
+            { label: "WorkQueueOps", link: "/patterns/workqueue-ops/" },
+          ],
+        },
+        {
+          label: "Practices",
+          items: [
+            { label: "Safe Rollout in Organizations", link: "/practices/safe-rollout/" },
+            { label: "Sharing Workflows in Organizations", link: "/practices/sharing-workflows/" },
+          ],
+        },
+        {
+          label: "Examples",
+          items: [
+            { label: "Automated Repository Maintenance", link: "/examples/maintaining-repos/" },
+            { label: "Triage from Side Repo", link: "/examples/multi-repo/triage-from-side-repo/" },
+            { label: "Code Quality Monitoring", link: "/examples/multi-repo/code-quality-monitoring/" },
+            { label: "Dependabot Rollout", link: "/examples/multi-repo/dependabot-rollout/" },
+            { label: "Feature Synchronization", link: "/examples/multi-repo/feature-sync/" },
+            { label: "Cross-Repo Issue Tracking", link: "/examples/multi-repo/issue-tracking/" },
+          ],
+        },
+        {
+          label: "Reference",
+          items: [
+            { label: "AI Engines", link: "/reference/engines/" },
+            { label: "Artifacts", link: "/reference/artifacts/" },
+            { label: "Auditing Workflows", link: "/reference/audit/" },
+            { label: "Authentication", link: "/reference/auth/" },
+            { label: "Authentication (Projects)", link: "/reference/auth-projects/" },
+            { label: "Compilation Process", link: "/reference/compilation-process/" },
+            { label: "Measuring Impact", link: "/reference/measuring-impact/" },
+            { label: "Billing", link: "/reference/billing/" },
+            { label: "Cost Management", link: "/reference/cost-management/" },
+            { label: "Cost Management (Rate Limiting)", link: "/reference/rate-limiting-controls/" },
+            { label: "Cost Management (Model Tables)", link: "/reference/model-tables/" },
+            { label: "Enterprise Configuration", link: "/reference/enterprise-configuration/" },
+            { label: "Environment Variables", link: "/reference/environment-variables/" },
+            { label: "FAQ", link: "/reference/faq/" },
+            { label: "Frontmatter", link: "/reference/frontmatter/" },
+            { label: "Frontmatter (Concurrency)", link: "/reference/concurrency/" },
+            { label: "Frontmatter (Schedule Syntax)", link: "/reference/schedule-syntax/" },
+            { label: "Frontmatter (Triggers)", link: "/reference/triggers/" },
+            { label: "Frontmatter (Command Triggers)", link: "/reference/command-triggers/" },
+            { label: "Frontmatter (Full)", link: "/reference/frontmatter-full/" },
+            { label: "GH-AW Agent", link: "/reference/custom-agent-for-aw/" },
+            { label: "GH-AW as MCP Server", link: "/reference/gh-aw-as-mcp-server/" },
+            { label: "GitHub (Checkout)", link: "/reference/checkout/" },
+            { label: "GitHub (Read Tools)", link: "/reference/github-tools/" },
+            { label: "GitHub (Read Permissions)", link: "/reference/permissions/" },
+            { label: "GitHub (Integrity Filtering)", link: "/reference/integrity/" },
+            { label: "GitHub (Cross-Repository)", link: "/reference/cross-repository/" },
+            { label: "GitHub (Fork Support)", link: "/reference/fork-support/" },
+            { label: "Glossary", link: "/reference/glossary/" },
+            { label: "Imports", link: "/reference/imports/" },
+            { label: "Imports (APM)", link: "/reference/dependencies/" },
+            { label: "Imports (Copilot Agent Files)", link: "/reference/copilot-custom-agents/" },
+            { label: "Imports (Copilot Inline Sub-Agents)", link: "/reference/inline-sub-agents/" },
+            { label: "Imports (Dependabot)", link: "/reference/dependabot/" },
+            { label: "Indexing (QMD)", link: "/reference/qmd/" },
+            { label: "Markdown", link: "/reference/markdown/" },
+            { label: "Outcomes", link: "/reference/outcomes/" },
+            { label: "OpenTelemetry Attributes", link: "/reference/open-telemetry/" },
+            { label: "Package Manifest", link: "/reference/aw-yml-package-manifest/" },
+            { label: "Releases and Versioning", link: "/reference/releases/" },
+            { label: "MCP Scripts", link: "/reference/mcp-scripts/" },
+            { label: "Safe Outputs", link: "/reference/safe-outputs/" },
+            { label: "Safe Outputs (Copilot Cloud Agent)", link: "/reference/copilot-cloud-agent/" },
+            { label: "Safe Outputs (Custom)", link: "/reference/custom-safe-outputs/" },
+            { label: "Safe Outputs (Pull Requests)", link: "/reference/safe-outputs-pull-requests/" },
+            { label: "Safe Outputs (Staged Mode)", link: "/reference/staged-mode/" },
+            { label: "Safe Outputs (Ephemerals)", link: "/reference/ephemerals/" },
+            { label: "Safe Outputs (Footers)", link: "/reference/footers/" },
+            { label: "Sandbox", link: "/reference/sandbox/" },
+            { label: "Sandbox (Agent Runtimes)", link: "/reference/agent-runtimes/" },
+            { label: "Self-Hosted Runners", link: "/reference/self-hosted-runners/" },
+            { label: "Sandbox (MCP Gateway)", link: "/reference/mcp-gateway/" },
+            { label: "Sandbox (Network Access)", link: "/reference/network/" },
+            { label: "Templating", link: "/reference/templating/" },
+            { label: "Threat Detection", link: "/reference/threat-detection/" },
+            { label: "Tools", link: "/reference/tools/" },
+            { label: "Tools (Cache Memory)", link: "/reference/cache-memory/" },
+            { label: "Tools (Repo Memory)", link: "/reference/repo-memory/" },
+            { label: "Tools (Playwright)", link: "/reference/playwright/" },
+            { label: "Tools (Serena)", link: "/reference/serena/" },
+            { label: "Tools (Web Search)", link: "/reference/web-search/" },
+            { label: "Triggering CI", link: "/reference/triggering-ci/" },
+            { label: "Workflow Structure", link: "/reference/workflow-structure/" },
+          ],
+        },
+        {
+          label: "Specs",
+          collapsed: true,
+          items: [{ autogenerate: { directory: "specs" } }],
+        },
+        {
+          label: "Troubleshooting",
+          items: [{ autogenerate: { directory: "troubleshooting" } }],
+        },
+        {
+          label: "Experimental",
+          collapsed: true,
+          items: [
+            { label: "A/B Experiments", link: "/experimental/experiments/" },
+            { label: "A/B Experiments (Spec)", link: "/experimental/experiments-specification/" },
+            { label: "AWF Reflect Route", link: "/experimental/awf-reflect/" },
+            { label: "CorrectionOps", link: "/experimental/correction-ops/" },
+            { label: "Monitoring with Projects", link: "/experimental/monitoring-with-projects/" },
+            { label: "Safe-Outputs Samples", link: "/experimental/safe-outputs-samples/" },
+            { label: "TrialOps", link: "/experimental/trial-ops/" },
+            { label: "WASM Compilation", link: "/reference/wasm-compilation/" },
+          ],
+        },
+        { label: "Agent Factory", link: "/agent-factory-status/" },
+        { label: "Editors", link: "/reference/editors/" },
+        { label: "About", link: "/about/" },
+      ],
+    }),
+  ],
 });
