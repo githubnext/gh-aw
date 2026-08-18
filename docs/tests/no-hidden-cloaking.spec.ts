@@ -15,7 +15,7 @@ test.describe("Hidden text cloaking guard", () => {
   });
 
   test("responsive header does not ship hidden dropdown link text while closed", async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.setViewportSize({ width: 900, height: 768 });
     await page.goto("/gh-aw/");
     await page.waitForLoadState("networkidle");
 
