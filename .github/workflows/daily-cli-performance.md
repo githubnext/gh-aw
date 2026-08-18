@@ -423,15 +423,17 @@ def main():
         elif result['status'] == 'stable':
             analysis['summary']['stable'] += 1
     
-    # Detect likely environment noise: many unrelated benchmarks regressing in the
-    # same run points at a noisy runner rather than a real code regression
+    # Detect likely environment noise: many unrelated benchmarks slowing down in the
+    # same run points at a noisy runner rather than a real code regression.
+    # Warnings count as degraded too, since noise spreads unevenly across benchmarks.
     summary_counts = analysis['summary']
     regressions = summary_counts['regressions']
+    degraded = regressions + summary_counts['warnings']
     total = summary_counts['total']
     likely_noise = (
         regressions >= NOISE_MIN_REGRESSIONS
         and total > 0
-        and regressions / total >= NOISE_REGRESSION_RATIO
+        and degraded / total >= NOISE_REGRESSION_RATIO
     )
     analysis['summary']['likely_environment_noise'] = likely_noise
 
