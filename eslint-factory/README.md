@@ -175,7 +175,7 @@ Disallow spreading an array of unknown size into `Math.min(...)` / `Math.max(...
 - Calls where `Math` is shadowed by a local declaration.
 
 **Safe alternative:**
-- `values.reduce((a, b) => Math.max(a, b))` — folds the array without expanding it into arguments.
+- `values.reduce((a, b) => Math.max(a, b), -Infinity)` / `values.reduce((a, b) => Math.min(a, b), Infinity)` — folds the array without expanding it into arguments, using the same identity value `Math.max()` / `Math.min()` return on an empty array so the empty-input result matches the spread form instead of throwing.
 
 ### `prefer-number-isnan`
 

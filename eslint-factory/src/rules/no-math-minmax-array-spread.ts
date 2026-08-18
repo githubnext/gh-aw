@@ -4,6 +4,12 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 
 const MATH_MIN_MAX_METHODS = new Set(["min", "max"]);
 
+// The identity value for each method: the value returned by `Math.min()` / `Math.max()`
+// when called with no arguments (and thus what an empty spread, e.g. `Math.max(...[])`,
+// evaluates to). Using it as the `reduce()` initializer keeps empty-input behavior
+// identical to the spread form instead of throwing on an empty array.
+const IDENTITY_VALUE: Record<string, string> = { min: "Infinity", max: "-Infinity" };
+
 export const noMathMinMaxArraySpreadRule = createRule({
   name: "no-math-minmax-array-spread",
   meta: {
@@ -14,7 +20,8 @@ export const noMathMinMaxArraySpreadRule = createRule({
     },
     schema: [],
     messages: {
-      noMathMinMaxArraySpread: "Avoid Math.{{method}}(...{{arg}}) — spreading an array of unknown size can throw `RangeError: Maximum call stack size exceeded`. Use `{{arg}}.reduce((a, b) => Math.{{method}}(a, b))` instead.",
+      noMathMinMaxArraySpread:
+        "Avoid Math.{{method}}(...{{arg}}) — spreading an array of unknown size can throw `RangeError: Maximum call stack size exceeded`. Use `{{arg}}.reduce((a, b) => Math.{{method}}(a, b), {{identity}})` instead — the `{{identity}}` initializer preserves the same result as `Math.{{method}}(...{{arg}})` on an empty array.",
     },
   },
   defaultOptions: [],
@@ -79,7 +86,7 @@ export const noMathMinMaxArraySpreadRule = createRule({
         context.report({
           node,
           messageId: "noMathMinMaxArraySpread",
-          data: { method, arg: sourceCode.getText(argument.argument) },
+          data: { method, arg: sourceCode.getText(argument.argument), identity: IDENTITY_VALUE[method] },
         });
       },
     };

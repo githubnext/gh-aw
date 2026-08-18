@@ -47,7 +47,7 @@ const largest = Math.max(...values);`,
 
   it("valid: reduce-based alternatives and unrelated spread calls are accepted", () => {
     cjsRuleTester.run("no-math-minmax-array-spread", noMathMinMaxArraySpreadRule, {
-      valid: [`const largest = values.reduce((a, b) => Math.max(a, b));`, `const joined = fn(...values);`, `const rounded = Math.round(...values);`],
+      valid: [`const largest = values.reduce((a, b) => Math.max(a, b), -Infinity);`, `const joined = fn(...values);`, `const rounded = Math.round(...values);`],
       invalid: [],
     });
   });
@@ -92,7 +92,8 @@ const largest = Math.max(...values);`,
           code: `const largest = Math["max"](...values);`,
           errors: [
             {
-              message: "Avoid Math.max(...values) — spreading an array of unknown size can throw `RangeError: Maximum call stack size exceeded`. Use `values.reduce((a, b) => Math.max(a, b))` instead.",
+              message:
+                "Avoid Math.max(...values) — spreading an array of unknown size can throw `RangeError: Maximum call stack size exceeded`. Use `values.reduce((a, b) => Math.max(a, b), -Infinity)` instead — the `-Infinity` initializer preserves the same result as `Math.max(...values)` on an empty array.",
             },
           ],
         },
