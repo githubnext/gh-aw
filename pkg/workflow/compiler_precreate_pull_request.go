@@ -111,7 +111,7 @@ func (c *Compiler) buildConclusionPreCreatedCheckRunStep(data *WorkflowData) []s
 		stepID = preCreatePullRequestAppTokenStepID
 		stepName = "Generate GitHub App token (complete pre-created check)"
 	}
-	steps, token := c.buildPreCreatePullRequestTokenSteps(data, app, NewPermissionsChecksWrite(), stepName, stepID)
+	steps, token := c.buildPreCreatePullRequestTokenSteps(data, app, NewPermissionsChecksWriteContentsWritePRWrite(), stepName, stepID)
 
 	steps = append(steps,
 		"      - name: Complete pre-created pull request check\n",
@@ -119,6 +119,8 @@ func (c *Compiler) buildConclusionPreCreatedCheckRunStep(data *WorkflowData) []s
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		"          GH_AW_PRE_CREATED_CHECK_RUN_ID: ${{ needs.activation.outputs.pre_created_pull_request_check_run_id }}\n",
+		"          GH_AW_PRE_CREATED_PULL_REQUEST_NUMBER: ${{ needs.activation.outputs.pre_created_pull_request_number }}\n",
+		"          GH_AW_PRE_CREATED_PULL_REQUEST_BRANCH: ${{ needs.activation.outputs.pre_created_pull_request_branch }}\n",
 		"          GH_AW_NEEDS: ${{ toJSON(needs) }}\n",
 		"        with:\n",
 		fmt.Sprintf("          github-token: %s\n", token),
