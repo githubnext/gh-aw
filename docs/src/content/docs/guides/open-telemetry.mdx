@@ -125,7 +125,7 @@ When observability is enabled, trace data is also mirrored to local JSONL files 
 
 - `otel.jsonl` for spans emitted by gh-aw JavaScript helpers
 
-Copilot CLI inherits the standard OpenTelemetry environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`) and exports its own spans directly to the configured OTLP backend. Query them there, filtered by the `github.run_id` resource attribute (see [ADR-34450](https://github.com/github/gh-aw/blob/main/docs/adr/32280-pass-otel-headers-as-container-env-var.md)).
+Copilot CLI inherits the standard OpenTelemetry environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`) and exports its own spans directly to the configured OTLP backend. Query them there, filtered by the `github.run_id` resource attribute (see [ADR-34450](https://github.com/github/gh-aw/blob/main/docs/adr/34450-inject-otel-resource-attributes-for-child-otel-sdk-correlation.md)).
 
 See [Artifacts](/gh-aw/reference/artifacts/) for artifact download details.
 
