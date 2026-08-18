@@ -99,7 +99,7 @@ jobs:
         run: |
           DOCS_BASE_URL="https://github.github.com/gh-aw"
           CHECKS_JSONL="/tmp/gh-aw/agent/geo-optimizer/docs-ai-discovery-verification.jsonl"
-          rm -f "$CHECKS_JSONL"
+          : > "$CHECKS_JSONL"
 
           check_url() {
             local key="$1"
@@ -146,7 +146,7 @@ jobs:
           check_url "ai_service_json" "/ai/service.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-service.json"
 
           jq -s \
-            --arg base_url "$DOCS_BASE_URL/" \
+            --arg base_url "$DOCS_BASE_URL" \
             '{
               base_url: $base_url,
               checks: ((map(. as $check | {($check.key): ($check | del(.key))}) | add) // {}),
