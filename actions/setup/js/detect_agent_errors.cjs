@@ -25,9 +25,12 @@
  *     response (for example "Response status code does not indicate success: 400 (Bad Request)").
  *   - capi_quota_exceeded_error: The Copilot CAPI quota has been exhausted
  *     or rate-limited (e.g., "CAPIError: 429 429 quota exceeded",
- *     "CAPIError: Too Many Requests"). All matched forms are treated as
- *     non-retryable because the Copilot SDK has already retried internally
- *     before surfacing the error.
+ *     "CAPIError: Too Many Requests", or the Copilot CLI's own
+ *     retry-exhaustion message "Failed to get response from the AI model;
+ *     retried N times ... Last error: 429/5xx" which carries no "CAPIError:"
+ *     prefix). All matched forms are treated as non-retryable because the
+ *     Copilot CLI/SDK has already retried internally before surfacing the
+ *     error.
  *   - invocation_cap_exceeded: The per-run pooled LLM invocation cap is
  *     fully exhausted (e.g., "CAPIError: 429 Maximum LLM invocations exceeded (N/N)"
  *     or `"type":"max_runs_exceeded"`). This is more specific than generic
@@ -165,9 +168,13 @@ const MISSING_MODEL_PRICING_PATTERN = /Model\s+"([^"]+)"\s+has no AI credits pri
 //   "CAPIError: 429 429 quota exceeded"  (original observed form)
 //   "CAPIError: 429 Too Many Requests"   (HTTP 429 form)
 //   "CAPIError: Too Many Requests"       (no status code in message)
-// All forms are treated as non-retryable; the Copilot SDK has already retried
-// internally before surfacing this error (evidenced by "retried 5 times" context).
-const CAPI_QUOTA_EXCEEDED_PATTERN = /CAPIError:\s*(?:429\s+)?(?:429\s+quota exceeded|Too Many Requests)/i;
+//   "Failed to get response from the AI model; retried 5 times ... Last error: 429 Too Many Requests"
+//     (Copilot CLI's own retry-exhaustion message, no "CAPIError:" prefix — seen with both
+//     429 and 5xx terminal statuses, e.g. "Last error: 503 Service Unavailable")
+// All forms are treated as non-retryable; the Copilot CLI/SDK has already retried
+// internally before surfacing this error (evidenced by "retried N times" context).
+const CAPI_QUOTA_EXCEEDED_PATTERN =
+  /CAPIError:\s*(?:429\s+)?(?:429\s+quota exceeded|Too Many Requests)|Failed to get response from the AI model;\s*retried\s+\d+\s+times[^\n]{0,300}?Last error:\s*(?:429|5\d{2})\b/i;
 
 /**
  * Build a case-insensitive merged RegExp from literal/regex patterns.

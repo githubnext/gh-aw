@@ -15,6 +15,7 @@ import (
 )
 
 func TestExtractEngineConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		awInfoContent  string
@@ -54,6 +55,7 @@ func TestExtractEngineConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.expectNil && tt.awInfoContent == "" {
 				result := extractEngineConfigWithInferredEngine("", "")
 				assert.Nil(t, result, "Should return nil for empty logs path")
@@ -86,6 +88,7 @@ func TestExtractEngineConfig(t *testing.T) {
 }
 
 func TestExtractEngineConfigWithDetails(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "engine-config-details-*")
 	awInfoContent := `{
 		"engine_id": "copilot",
@@ -113,6 +116,7 @@ func TestExtractEngineConfigWithDetails(t *testing.T) {
 }
 
 func TestExtractEngineConfigInferredWithoutAwInfo(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "engine-infer-*")
 	logContent := `{"type":"result","subtype":"success","num_turns":3,"usage":{"input_tokens":100,"output_tokens":200}}`
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "agent-stdio.log"), []byte(logContent), 0o644))
@@ -124,6 +128,7 @@ func TestExtractEngineConfigInferredWithoutAwInfo(t *testing.T) {
 }
 
 func TestInferFallbackLogMetricsFindsNestedAgentStdioLog(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "engine-infer-nested-*")
 	nestedDir := filepath.Join(tmpDir, "agent", "logs")
 	require.NoError(t, os.MkdirAll(nestedDir, 0o755))
@@ -136,6 +141,7 @@ func TestInferFallbackLogMetricsFindsNestedAgentStdioLog(t *testing.T) {
 }
 
 func TestExtractPromptAnalysis(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		promptContent   string
@@ -184,6 +190,7 @@ func TestExtractPromptAnalysis(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.name == "empty logs path" {
 				result := extractPromptAnalysis("")
 				assert.Nil(t, result, "Should return nil for empty logs path")
@@ -217,6 +224,7 @@ func TestExtractPromptAnalysis(t *testing.T) {
 }
 
 func TestBuildSessionAnalysis(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		run             WorkflowRun
@@ -287,6 +295,7 @@ func TestBuildSessionAnalysis(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			processedRun := ProcessedRun{
 				Run:        tt.run,
 				JobDetails: tt.jobDetails,
@@ -314,6 +323,7 @@ func TestBuildSessionAnalysis(t *testing.T) {
 }
 
 func TestBuildSafeOutputSummary(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		items         []CreatedItemReport
@@ -382,6 +392,7 @@ func TestBuildSafeOutputSummary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := buildSafeOutputSummary(tt.items, tt.chainMetrics)
 			if tt.expectNil {
 				assert.Nil(t, result, "Should return nil for empty items")
@@ -405,6 +416,7 @@ func TestBuildSafeOutputSummary(t *testing.T) {
 }
 
 func TestBuildSafeOutputSummaryString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		details  []SafeOutputTypeDetail
@@ -434,6 +446,7 @@ func TestBuildSafeOutputSummaryString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := buildSafeOutputSummaryString(tt.details)
 			assert.Equal(t, tt.expected, result, "Summary string should match")
 		})
@@ -441,6 +454,7 @@ func TestBuildSafeOutputSummaryString(t *testing.T) {
 }
 
 func TestPrettifySafeOutputType(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "PR(s)", prettifySafeOutputType("create_pull_request"), "Should prettify PR type")
 	assert.Equal(t, "issue(s)", prettifySafeOutputType("create_issue"), "Should prettify issue type")
 	assert.Equal(t, "comment(s)", prettifySafeOutputType("add_comment"), "Should prettify comment type")
@@ -448,6 +462,7 @@ func TestPrettifySafeOutputType(t *testing.T) {
 }
 
 func TestBuildMCPServerHealth(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		mcpUsage    *MCPToolUsageData
@@ -488,6 +503,7 @@ func TestBuildMCPServerHealth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := buildMCPServerHealth(tt.mcpUsage, tt.mcpFailures)
 			if tt.expectNil {
 				assert.Nil(t, result, "Should return nil when both inputs are nil/empty")
@@ -506,6 +522,7 @@ func TestBuildMCPServerHealth(t *testing.T) {
 }
 
 func TestBuildMCPServerHealthErrorRate(t *testing.T) {
+	t.Parallel()
 	mcpUsage := &MCPToolUsageData{
 		Servers: []MCPServerStats{
 			{ServerName: "github", RequestCount: 100, ToolCallCount: 80, ErrorCount: 15, AvgDuration: "200ms"},
@@ -525,6 +542,7 @@ func TestBuildMCPServerHealthErrorRate(t *testing.T) {
 }
 
 func TestBuildSlowestToolCalls(t *testing.T) {
+	t.Parallel()
 	calls := []MCPToolCall{
 		{ServerName: "github", ToolName: "search_code", Duration: "100ms"},
 		{ServerName: "github", ToolName: "get_file", Duration: "500ms"},
@@ -542,6 +560,7 @@ func TestBuildSlowestToolCalls(t *testing.T) {
 }
 
 func TestBuildSlowestToolCallsEmpty(t *testing.T) {
+	t.Parallel()
 	result := buildSlowestToolCalls(nil, 5)
 	assert.Nil(t, result, "Should return nil for empty calls")
 
@@ -550,6 +569,7 @@ func TestBuildSlowestToolCallsEmpty(t *testing.T) {
 }
 
 func TestBuildAuditDataWithExpandedSections(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "audit-expanded-*")
 
 	// Create test aw_info.json in activation/ subdir (unflattened artifact structure)
@@ -651,6 +671,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 }
 
 func TestBuildAuditDataExpandedWithNoData(t *testing.T) {
+	t.Parallel()
 	// Test that expanded sections are nil when no data is available
 	processedRun := ProcessedRun{
 		Run: WorkflowRun{
@@ -672,6 +693,7 @@ func TestBuildAuditDataExpandedWithNoData(t *testing.T) {
 }
 
 func TestAwInfoHasMCPServers(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		awInfoContent  string
@@ -706,6 +728,7 @@ func TestAwInfoHasMCPServers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := testutil.TempDir(t, "mcp-servers-*")
 			targetDir := tmpDir
 			if tt.awInfoSubdir != "" {

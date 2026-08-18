@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.23
+**Version**: 1.0.24
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.24` | `v0.87.1` (or newer) | No new CTR rules; extends existing rule mappings (CTR-005, CTR-006/CTR-009, CTR-007, CTR-012) to cover recently-hardened implementation sites reviewed in this cycle (safe-output field allowlisting, agent-import-path shell escaping, URL-authority userinfo bypass in the markdown/content sanitizer, and generalized wildcard-target validation). No `.lock.yml` schema changes. |
 | `1.0.23` | `v0.87.1` (or newer) | Adds normative coverage for framework self-prompt misattribution handling (CTR-025) in threat-detection setup by stripping only the leading framework-generated `<system>...</system>` block before analysis; no `.lock.yml` schema changes (runtime-only detection setup behavior). |
 | `1.0.22` | `v0.87.0` (or newer) | Adds validated `threat-detection-suppress` handling and the `threat_detection_suppressions` manifest field, plus optimizer suppression and failure-safeguard conformance coverage. |
 | `1.0.21` | `v0.83.6` (or newer) | Editorial correction: the Deprecation Policy subsection is numbered 5.4 to match its parent section; no lock-file compatibility changes. |
@@ -283,14 +284,14 @@ Implementations MUST maintain a clear mapping from each active `CTR-*` rule to c
 | CTR-002 Unpinned Action Integrity | `pkg/workflow/*action*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*action*_test.go`, `pkg/workflow/*strict_mode*_test.go` |
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/tools_validation*.go`, `pkg/workflow/strict_mode_validation*.go` | `pkg/workflow/*tools*_test.go` |
 | CTR-004 Sandbox Bypass Configuration | `pkg/workflow/sandbox_validation*.go`, `pkg/workflow/strict_mode_sandbox_validation*.go`, `pkg/workflow/strict_mode_permissions_validation.go` | `pkg/workflow/*sandbox*_test.go` |
-| CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go` | `pkg/workflow/*safe_outputs*_test.go` |
+| CTR-005 Unsafe Output Route | `pkg/workflow/compiler_safe_outputs*.go`, `pkg/workflow/safe_outputs*.go`; runtime harness field allowlisting in `actions/setup/js/safe_output_type_validator.cjs` (declared-field enforcement) and patch/manifest differential-parsing hardening in `actions/setup/js/patch_path_helpers.cjs`, `actions/setup/js/manifest_file_helpers.cjs` (patch-parser vs. `git am` protected-file bypass defense) | `pkg/workflow/*safe_outputs*_test.go`, `actions/setup/js/safe_output_type_validator.test.cjs`, `actions/setup/js/patch_path_helpers.test.cjs`, `actions/setup/js/manifest_file_helpers.test.cjs` |
 | CTR-006 Template Injection | `pkg/workflow/template_injection_validation.go`, `pkg/workflow/heredoc_validation.go` | `pkg/workflow/template_injection_validation_test.go`, `pkg/workflow/template_injection_validation_fuzz_test.go` |
-| CTR-007 Markdown Content Security | `pkg/workflow/markdown_security_scanner.go` | `pkg/workflow/markdown_security_scanner_test.go`, `pkg/workflow/secure_markdown_rendering_test.go` |
+| CTR-007 Markdown Content Security | `pkg/workflow/markdown_security_scanner.go`; URL-authority allowlist parity between the stripping and filtering passes (userinfo-prefix bypass, backslash-separator normalization, embedded-whitespace discard) in `actions/setup/js/sanitize_content_core.cjs` | `pkg/workflow/markdown_security_scanner_test.go`, `pkg/workflow/secure_markdown_rendering_test.go`, `actions/setup/js/sanitize_content.test.cjs` |
 | CTR-008 Pull Request Target Safety | `pkg/workflow/pull_request_target_validation.go` | `pkg/workflow/pull_request_target_validation_test.go` |
-| CTR-009 Shell Expansion in Safe-Outputs | `pkg/workflow/safe_outputs_steps_shell_expansion_validation.go` | `pkg/workflow/safe_outputs_steps_shell_expansion_validation_test.go` |
+| CTR-009 Shell Expansion in Safe-Outputs | `pkg/workflow/safe_outputs_steps_shell_expansion_validation.go`; agent-import-path allowlist regex and consistent argument escaping in engine command generation (`pkg/workflow/agent_validation.go` path-character allowlist, `pkg/workflow/shell.go` `shellEscapeArg`/`shellJoinArgs`, `pkg/workflow/engine_helpers.go`) | `pkg/workflow/safe_outputs_steps_shell_expansion_validation_test.go`, `pkg/workflow/engine_agent_import_test.go`, `pkg/workflow/inline_imports_test.go` |
 | CTR-010 Expression Safety Allowlist | `pkg/workflow/expression_safety_validation.go`, `pkg/workflow/expression_syntax_validation.go`, `pkg/workflow/runtime_import_validation.go` (`validateRuntimeImportFiles`) | `pkg/workflow/expression_extraction_test.go` |
 | CTR-011 Network Firewall Configuration | `pkg/workflow/network_firewall_validation.go`, `pkg/workflow/firewall_validation.go`, `pkg/workflow/strict_mode_network_validation.go` | `pkg/workflow/network_firewall_validation_test.go` |
-| CTR-012 Safe-Outputs Wildcard Push Scope | `pkg/workflow/push_to_pull_request_branch_validation.go` | `pkg/workflow/push_to_pull_request_branch_test.go`, `pkg/workflow/push_to_pull_request_branch_warning_test.go` |
+| CTR-012 Safe-Outputs Wildcard Push Scope | `pkg/workflow/push_to_pull_request_branch_validation.go`; generalized wildcard-target validation across other safe-output tools so a missing target identifier fails immediately with a tool-specific compiler error rather than deferring to apply time (`pkg/workflow/safe_outputs_tools_generation.go`, `pkg/workflow/safe_outputs_tools_repo_params.go`) | `pkg/workflow/push_to_pull_request_branch_test.go`, `pkg/workflow/push_to_pull_request_branch_warning_test.go` |
 | CTR-013 Argument Injection via Package/Image Names | `pkg/workflow/name_validation.go` (shared helper `rejectHyphenPrefixPackages`), `pkg/workflow/npm_validation.go`, `pkg/workflow/pip_validation.go`, `pkg/workflow/docker_validation.go` | `pkg/workflow/argument_injection_test.go` |
 | CTR-014 Supply Chain Attack via Install Scripts | `pkg/workflow/run_install_scripts_validation.go` (`validateRunInstallScripts`, `resolveRunInstallScripts`) | `pkg/workflow/run_install_scripts_validation_test.go` |
 | CTR-015 Allowed Label Glob Scope | `pkg/workflow/safe_outputs_allowed_labels_validation.go` (`validateSafeOutputsAllowedLabelsGlobScope`) | `pkg/workflow/safe_outputs_allowed_labels_validation_test.go` |
@@ -414,6 +415,14 @@ These optimizer-protocol IDs cover Section 6 norms; they do not add or replace t
 ---
 
 ## 10. Change Log
+
+### 1.0.24 (2026-08-18)
+
+- Daily optimizer review cycle. Reviewed recent security-relevant changesets: URL-authority userinfo-prefix allowlist bypass in the content sanitizer (`fix-protocol-relative-url-userinfo-bypass`, strengthens CTR-007's `sanitize_content_core.cjs` mapping — camo-proxy exfiltration via `https://allowlisted.com@evil.com/` differential between the stripping and filtering regex passes); patch-parser vs. `git am` protected-file check bypass (`patch-fix-patch-parser-file-protection-bypass`, strengthens CTR-005's file-protection enforcement mapping with `patch_path_helpers.cjs`/`manifest_file_helpers.cjs` diff-header parsing hardening); shell-escaping bypass in engine command generation for crafted agent import paths (`patch-fix-shell-escape-agent-path-injection`, strengthens CTR-009 mapping with `agent_validation.go` path allowlist regex and `shell.go` consistent escaping); generalized wildcard-target safe-outputs validation so missing target identifiers fail at compile time instead of apply time (`patch-generalize-wildcard-target-validation`, strengthens CTR-012 mapping); and hardened safe-output field validation restricting handlers to declared fields plus trusted allowlisted comment-reuse IDs (`patch-harden-safe-output-field-validation`, strengthens CTR-005 mapping). All five items extend existing rule coverage; none introduce a new threat class requiring a new `CTR-*` rule.
+- Evaluated additional non-security or already-covered items from the same review window: MCP actor validation runtime flag (not a compiler detection rule), cross-repo allowlist validation hardening (already covered by CTR-005/CTR-012), MCP config schema validation wiring (CTR-003/CTR-011 covered), detection-job/OTLP-OIDC/discussions permission fixes (CTR-001 scope, operational correctness rather than new detectable threat class), git-identity env var injection and DIFC proxy wiring for pre-agent steps (defense-in-depth hardening, no new compiler-detectable pattern), and dependency/documentation-only changes.
+- Extended Section 7.1 baseline rule mapping table for CTR-005, CTR-006/CTR-007 (no change to CTR-006 row), CTR-009, and CTR-012 with the concrete implementation and test references identified above.
+- Updated Section 2 spec-to-implementation sync table with version 1.0.24 entry.
+- No `SLA_BREACH` suppression findings and no `threat-detection-suppress` annotations were present in the reviewed diffs during this cycle.
 
 ### 1.0.23 (2026-08-16)
 

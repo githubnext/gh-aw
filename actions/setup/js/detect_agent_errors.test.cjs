@@ -221,6 +221,22 @@ describe("detect_agent_errors.cjs", () => {
       // it should NOT match the CAPI quota pattern.
       expect(isCAPIQuotaExceededError("CAPIError: 429 Maximum LLM invocations exceeded (25/25)")).toBe(false);
     });
+
+    it("matches the Copilot CLI's own retry-exhaustion message with no CAPIError: prefix (429)", () => {
+      const message =
+        "Failed to get response from the AI model; retried 5 times (total retry wait time: 380.35 seconds) " +
+        "(Request-ID AC21:F5CEC:33A719:40DD88:6A83AA27) Last error: 429 Too Many Requests";
+      expect(isCAPIQuotaExceededError(message)).toBe(true);
+    });
+
+    it("matches the Copilot CLI's own retry-exhaustion message for 5xx statuses (503)", () => {
+      const message = "Failed to get response from the AI model; retried 5 times (total retry wait time: 300 seconds) Last error: 503 Service Unavailable";
+      expect(isCAPIQuotaExceededError(message)).toBe(true);
+    });
+
+    it("does not match a 'Failed to get response' message without retry-exhaustion context", () => {
+      expect(isCAPIQuotaExceededError("Failed to get response from the AI model due to a network error")).toBe(false);
+    });
   });
 
   describe("INVOCATION_CAP_EXCEEDED_PATTERN / isInvocationCapExceededError", () => {
