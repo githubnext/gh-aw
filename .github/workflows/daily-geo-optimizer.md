@@ -140,6 +140,7 @@ jobs:
           }
 
           check_url "llms_txt" "/llms.txt" "/tmp/gh-aw/agent/geo-optimizer/docs-llms.txt"
+          # This is a GitHub Pages project site, so .well-known is served below the /gh-aw base path.
           check_url "ai_txt" "/.well-known/ai.txt" "/tmp/gh-aw/agent/geo-optimizer/docs-ai.txt"
           check_url "ai_summary_json" "/ai/summary.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-summary.json"
           check_url "ai_faq_json" "/ai/faq.json" "/tmp/gh-aw/agent/geo-optimizer/docs-ai-faq.json"
