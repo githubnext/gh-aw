@@ -51,7 +51,7 @@ func validateCLIProxyBashCompatibility(tools map[string]any, workflowName string
 			"Set 'tools.cli-proxy: false' (MCP servers stay reachable as MCP tools), or enable bash:\n\ntools:\n  bash: [\"cat\", \"ls\", \"grep\"]\n  cli-proxy: true\n\nRun 'gh aw fix' to apply this change automatically.",
 		)
 	}
-	if mode, enabled := githubCLIProxyMode(tools); enabled {
+	if mode, enabled := IsGitHubCLIProxyMode(tools); enabled {
 		toolsValidationLog.Printf("github gh-proxy mode enabled with bash disabled in workflow: %s", workflowName)
 		return NewValidationError(
 			"tools.github.mode",
@@ -79,8 +79,8 @@ func isBashExplicitlyRefused(tools map[string]any) bool {
 	return false
 }
 
-// githubCLIProxyMode reports whether tools.github.mode is a shell-backed GitHub CLI proxy mode.
-func githubCLIProxyMode(tools map[string]any) (string, bool) {
+// IsGitHubCLIProxyMode reports whether tools.github.mode is a shell-backed GitHub CLI proxy mode.
+func IsGitHubCLIProxyMode(tools map[string]any) (string, bool) {
 	githubValue, hasGitHub := tools["github"]
 	if !hasGitHub {
 		return "", false

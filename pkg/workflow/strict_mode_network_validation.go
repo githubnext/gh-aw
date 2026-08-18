@@ -173,7 +173,7 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 				"Add an explicit cli-proxy setting to the tools section:\n\ntools:\n  bash: false\n  cli-proxy: false\n\nRun 'gh aw fix' to apply this change automatically.",
 			)
 		}
-		if mode, enabled := githubCLIProxyMode(toolsMap); enabled {
+		if mode, enabled := IsGitHubCLIProxyMode(toolsMap); enabled {
 			strictModeValidationLog.Print("bash disabled with tools.github.mode: gh-proxy rejected in strict mode")
 			return NewValidationError(
 				"tools.github.mode",

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var cliProxyBashCodemodLog = logger.New("cli:codemod_cli_proxy_bash")
@@ -39,7 +40,7 @@ func applyCLIProxyBashDisabledCodemod(content string, frontmatter map[string]any
 	}
 
 	needsCLIProxyFalse := !frontmatterHasCLIProxyDisabled(frontmatter)
-	_, needsGitHubLocal := githubCLIProxyMode(effectiveTools)
+	_, needsGitHubLocal := workflow.IsGitHubCLIProxyMode(effectiveTools)
 	if !needsCLIProxyFalse && !needsGitHubLocal {
 		return content, false, nil
 	}
@@ -241,25 +242,4 @@ func isBlockKey(line, key string) bool {
 	}
 	rest := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
 	return rest == "" || strings.HasPrefix(rest, "#")
-}
-
-func githubCLIProxyMode(tools map[string]any) (string, bool) {
-	githubValue, hasGitHub := tools["github"]
-	if !hasGitHub {
-		return "", false
-	}
-	githubMap, ok := githubValue.(map[string]any)
-	if !ok {
-		return "", false
-	}
-	modeValue, hasMode := githubMap["mode"]
-	if !hasMode {
-		return "", false
-	}
-	mode, ok := modeValue.(string)
-	if !ok {
-		return "", false
-	}
-	normalized := strings.ToLower(strings.TrimSpace(mode))
-	return mode, normalized == "gh-proxy" || normalized == "cli"
 }
