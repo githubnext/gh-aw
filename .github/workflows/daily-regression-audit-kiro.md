@@ -40,6 +40,7 @@ tools:
     - echo
     - printf
     - jq
+    - python3
     - ls
     - pwd
 safe-outputs:
