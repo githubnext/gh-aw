@@ -93,7 +93,7 @@ type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig           `yaml:",inline"`
 	SafeOutputAllowedLabelsConfig  `yaml:",inline"`
 	BranchPrefix                   string           `yaml:"branch-prefix,omitempty"` // Optional prefix for the pull request branch name (e.g. "signed/"). Applied before the agent-specified or auto-generated branch name.
-	PreCreate                      bool             `yaml:"pre-create,omitempty"`    // Pre-create a draft pull request in the activation job and reuse it for the agent output.
+	PreCreate                      bool             `yaml:"pre-create,omitempty"`    // Experimental. Pre-create a draft pull request in the activation job and reuse it for the agent output.
 	TitlePrefix                    string           `yaml:"title-prefix,omitempty"`
 	RequireTemporaryID             bool             `yaml:"require-temporary-id,omitempty"` // When true, create_pull_request tool calls must include temporary_id.
 	Labels                         []string         `yaml:"labels,omitempty"`

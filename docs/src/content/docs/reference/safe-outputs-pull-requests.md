@@ -76,6 +76,10 @@ See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `targe
 
 ### Pre-created pull requests
 
+:::caution[Experimental]
+`pre-create` is an experimental option. `gh aw compile` emits an experimental feature warning when a workflow uses it.
+:::
+
 Set `pre-create: true` to allocate a draft pull request during the activation job, before the agent starts. The activation job creates a run-specific branch from the resolved base branch, opens a draft PR whose title names the workflow and whose body links to the workflow run, and attaches a check linking back to that run. The agent and `safe_outputs` jobs check out the allocated branch, the eventual `create_pull_request` output updates the existing PR instead of opening another one, and the conclusion job completes the check. When the run ends without any changes (for example with `if-no-changes: ignore`, a `noop` output, or a failure before the safe output runs), the conclusion job closes the pre-created pull request and deletes its branch, so empty placeholders are not left behind.
 
 ```yaml

@@ -7193,7 +7193,7 @@
                 },
                 "pre-create": {
                   "type": "boolean",
-                  "description": "Pre-create a draft pull request during activation, check out its branch in the agent job, and reuse it when processing create_pull_request output. This value is compile-time only and cannot be templated.",
+                  "description": "\u26a0\ufe0f Experimental. Pre-create a draft pull request during activation, check out its branch in the agent job, and reuse it when processing create_pull_request output. This value is compile-time only and cannot be templated. Using this field emits a compile-time warning.",
                   "default": false
                 },
                 "title-prefix": {
