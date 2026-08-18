@@ -33,7 +33,7 @@ for workflow in "$@"; do
       in_permissions = 0
       perm_indent = -1
     }
-    /^[[:space:]]*permissions:[[:space:]]*(write|write-all)([[:space:]]*(#.*)?)?$/ {
+    /^[[:space:]]*permissions:[[:space:]]*write-all([[:space:]]*(#.*)?)?$/ {
       print FILENAME ":" FNR ":" $0
     }
     /^[[:space:]]*permissions:[[:space:]]*$/ {
@@ -44,7 +44,10 @@ for workflow in "$@"; do
     in_permissions {
       if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*#/) next
       indent = match($0, /[^[:space:]]/) - 1
-      if (indent <= perm_indent) in_permissions = 0
+      if (indent <= perm_indent) {
+        in_permissions = 0
+        next
+      }
     }
     in_permissions && $0 ~ /^[[:space:]]*[A-Za-z0-9_-]+:[[:space:]]*write([[:space:]]*(#.*)?)?$/ {
       print FILENAME ":" FNR ":" $0
