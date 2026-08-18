@@ -120,7 +120,7 @@ Use the `history-appender` agent to append today's entry to the trending history
 ## Step 4 — Generate Snazzy Python Charts
 
 Use the `chart-script-writer` agent to write `/tmp/gh-aw/python/api_consumption_charts.py`,
-then run it: `python3 /tmp/gh-aw/python/api_consumption_charts.py`.
+then run it with the prepared charting environment: `/tmp/gh-aw/python/venv/bin/python3 /tmp/gh-aw/python/api_consumption_charts.py`.
 
 ---
 
@@ -414,7 +414,7 @@ Write a complete Python script to `/tmp/gh-aw/python/api_consumption_charts.py`.
 The main workflow will then execute:
 
 ```bash
-python3 /tmp/gh-aw/python/api_consumption_charts.py
+/tmp/gh-aw/python/venv/bin/python3 /tmp/gh-aw/python/api_consumption_charts.py
 ```
 
 The script must create exactly 5 charts, all saved to `/tmp/gh-aw/python/charts/` at 300 DPI
