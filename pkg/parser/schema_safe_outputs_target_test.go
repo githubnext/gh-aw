@@ -20,13 +20,6 @@ func TestMainWorkflowSchema_SafeOutputConfigCoverage(t *testing.T) {
 			"assign-milestone": map[string]any{
 				"auto_create": true,
 			},
-			"comment-memory": map[string]any{
-				"target":        "triggering",
-				"target-repo":   "github/gh-aw",
-				"allowed-repos": []any{"github/docs"},
-				"memory-id":     "default",
-				"footer":        true,
-			},
 			"create-issue": map[string]any{
 				"require-temporary-id": true,
 			},
@@ -46,6 +39,24 @@ func TestMainWorkflowSchema_SafeOutputConfigCoverage(t *testing.T) {
 
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/safe-output-config-coverage-test.md"); err != nil {
 		t.Fatalf("expected safe-output configuration fields to pass schema validation, got: %v", err)
+	}
+}
+
+func TestMainWorkflowSchema_SafeOutputsRejectsCommentMemory(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"safe-outputs": map[string]any{
+			"comment-memory": map[string]any{
+				"footer": true,
+			},
+		},
+	}
+
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/safe-output-comment-memory-test.md"); err == nil {
+		t.Fatal("expected safe-outputs.comment-memory to fail schema validation")
 	}
 }
 

@@ -7183,43 +7183,6 @@
           ],
           "description": "Enable AI agents to add comments to GitHub issues, pull requests, or discussions. Supports templating, cross-repository commenting, and automatic mentions."
         },
-        "comment-memory": {
-          "description": "Comment memory configuration for managed comment persistence.",
-          "anyOf": [
-            {
-              "$ref": "#/properties/tools/properties/comment-memory"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "target": {
-                  "type": "string",
-                  "description": "Target for comment memory: 'triggering' (default), '*' or an explicit issue or pull request number."
-                },
-                "target-repo": {
-                  "type": "string",
-                  "description": "Target repository in owner/repo format."
-                },
-                "allowed-repos": {
-                  "type": "array",
-                  "description": "Additional repositories allowed for comment-memory operations.",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "memory-id": {
-                  "type": "string",
-                  "description": "Default memory identifier when an item does not provide memory_id."
-                },
-                "footer": {
-                  "type": "boolean",
-                  "description": "Controls whether the AI-generated footer is added to the managed comment."
-                }
-              },
-              "additionalProperties": false
-            }
-          ]
-        },
         "create-pull-request": {
           "oneOf": [
             {

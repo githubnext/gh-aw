@@ -460,6 +460,8 @@ compiler_populated_fields = {
     "safe-outputs.dispatch-workflow.aw_context_workflows",
 }
 
+tool_configured_outputs = {"comment-memory"}
+
 
 def yaml_fields(struct_name):
     for line in structs.get(struct_name, "").splitlines():
@@ -495,6 +497,8 @@ for line in structs["SafeOutputsConfig"].splitlines():
     if struct_field not in handler_fields:
         continue
     output_name = output_name.split(",", 1)[0]
+    if output_name in tool_configured_outputs:
+        continue
     output_schema = safe_outputs.get(output_name)
     if output_schema is None:
         missing.append(f"safe-outputs.{output_name}")

@@ -8,11 +8,11 @@
 
 ### Context
 
-The workflow JSON schema at `pkg/parser/schemas/main_workflow_schema.json` defines `safe-outputs.*` sub-schemas that control what configuration fields workflow authors may set. The Go implementation in `pkg/workflow/` had already grown 13 YAML-tagged config fields across six safe-output types (`add-comment`, `assign-milestone`, `comment-memory`, `create-issue`, `create-pull-request`, `push-to-pull-request-branch`, `threat-detection`) that were absent from the schema. The daily conformance checker (IMP-004 / `check_safe_output_config_schema_coverage`) surfaces this as a spec violation: because the schema does not set `additionalProperties: false` for these sections, there is no hard validation failure at parse time, but editor autocomplete, type checking, and docs-generation tooling are blind to the missing fields. Three of the 13 flagged fields (`call-workflow.workflow_files`, `dispatch-workflow.workflow_files`, `dispatch-workflow.aw_context_workflows`) are compiler-populated internals and must be excluded from the user-facing schema rather than documented in it.
+The workflow JSON schema at `pkg/parser/schemas/main_workflow_schema.json` defines `safe-outputs.*` sub-schemas that control what configuration fields workflow authors may set. The Go implementation in `pkg/workflow/` had already grown YAML-tagged config fields across six safe-output types (`add-comment`, `assign-milestone`, `create-issue`, `create-pull-request`, `push-to-pull-request-branch`, `threat-detection`) that were absent from the schema. The daily conformance checker (IMP-004 / `check_safe_output_config_schema_coverage`) surfaces this as a spec violation: because the schema does not set `additionalProperties: false` for these sections, there is no hard validation failure at parse time, but editor autocomplete, type checking, and docs-generation tooling are blind to the missing fields. Three flagged fields (`call-workflow.workflow_files`, `dispatch-workflow.workflow_files`, `dispatch-workflow.aw_context_workflows`) are compiler-populated internals and must be excluded from the user-facing schema rather than documented in it. `comment-memory` is configured under `tools`, not `safe-outputs`, and is excluded from the conformance check.
 
 ### Decision
 
-We will add all 10 user-facing safe-output configuration fields to `main_workflow_schema.json` under their respective `safe-outputs.*` sub-schemas, matching the Go types and semantics. We will also add the `comment-memory` top-level key (previously absent entirely from `safe-outputs.properties`). For the 3 compiler-populated fields, we will add an explicit `compiler_populated_fields` allowlist to `scripts/check-safe-outputs-conformance.sh` so IMP-004 skips them rather than reporting them as missing. The primary driver is IMP-004 conformance and closing the DX gap for workflow authors.
+We will add all user-facing safe-output configuration fields to `main_workflow_schema.json` under their respective `safe-outputs.*` sub-schemas, matching the Go types and semantics. `comment-memory` remains available only under `tools`, where it is parsed by the compiler. For the 3 compiler-populated fields, we will add an explicit `compiler_populated_fields` allowlist to `scripts/check-safe-outputs-conformance.sh`; a separate `tool_configured_outputs` set excludes `comment-memory`. The primary driver is IMP-004 conformance and closing the DX gap for workflow authors.
 
 ### Alternatives Considered
 
@@ -27,7 +27,7 @@ Add a `schema:"-"` tag (or equivalent) to the three compiler-populated Go struct
 ### Consequences
 
 #### Positive
-- Workflow authors gain full editor autocomplete, type checking, and schema-based documentation for all 10 previously undocumented user-facing safe-output config fields.
+- Workflow authors gain full editor autocomplete, type checking, and schema-based documentation for the previously undocumented user-facing safe-output config fields.
 - IMP-004 conformance check now passes cleanly; the explicit `compiler_populated_fields` allowlist distinguishes internal-only fields from user-authored ones, preventing false positives on future runs.
 
 #### Negative
