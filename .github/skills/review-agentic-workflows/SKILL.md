@@ -18,32 +18,10 @@ Use this skill when asked to review `.github/workflows/*.md` agentic workflows o
 
 ### Step 0) Verify repository and install CLI when missing
 
+Run from the repository root:
+
 ```bash
-set -euo pipefail
-
-test -f AGENTS.md
-test -f Makefile
-
-if ! command -v gh >/dev/null 2>&1; then
-  echo "gh CLI is required" >&2
-  exit 1
-fi
-
-if ! gh aw --help >/dev/null 2>&1; then
-  if [ -x ./install-gh-aw.sh ]; then
-    bash ./install-gh-aw.sh
-  else
-    echo "install-gh-aw.sh not found; skipping local install attempt" >&2
-  fi
-  if gh aw --help >/dev/null 2>&1; then
-    echo "Using installed gh aw CLI extension"
-  elif [ -x ./gh-aw ]; then
-    echo "Using local ./gh-aw binary"
-  else
-    echo "gh-aw CLI extension or local ./gh-aw binary is required" >&2
-    exit 1
-  fi
-fi
+bash .github/skills/review-agentic-workflows/setup.sh
 ```
 
 ## Review workflow
