@@ -3200,7 +3200,7 @@
           "type": "string",
           "enum": ["cache", "repo"],
           "default": "repo",
-          "description": "Storage backend for experiment state. 'repo' (default) persists state to a git branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour). Repo storage is recommended because experiment data is valuable and more durable than cache."
+          "description": "Storage backend for experiment state. 'repo' (default) persists state to a git branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior). Repo storage is recommended because experiment data is valuable and more durable than cache."
         }
       }
     },
@@ -7465,7 +7465,7 @@
                     {
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', 'fallback-to-issue', or 'request_review' at runtime. Use in reusable workflow_call workflows to parameterise the policy per caller."
+                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', 'fallback-to-issue', or 'request_review' at runtime. Use in reusable workflow_call workflows to parameterize the policy per caller."
                     },
                     {
                       "type": "object",
@@ -7498,7 +7498,7 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: request_review (default), blocked, allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: request_review (default), blocked, allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customize the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -7535,7 +7535,7 @@
                     {
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterise the transport format per caller."
+                      "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterize the transport format per caller."
                     }
                   ],
                   "description": "Transport format for packaging changes. \"bundle\" (default) uses git bundle. \"am\" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable workflows."
@@ -9699,7 +9699,7 @@
                     {
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to parameterise the policy per caller."
+                      "description": "GitHub Actions expression that resolves to 'blocked', 'allowed', or 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to parameterize the policy per caller."
                     },
                     {
                       "type": "object",
@@ -9732,7 +9732,7 @@
                       "description": "Object form for granular control over the protected-file set. Use the exclude list to remove specific files from the default protection while keeping the rest."
                     }
                   ],
-                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customise the protected-file set."
+                  "description": "Controls protected-file protection. String form: blocked (default), allowed, or fallback-to-issue \u2014 or a GitHub Actions expression for reusable workflows. Object form: { policy, exclude } to customize the protected-file set."
                 },
                 "allowed-files": {
                   "type": "array",
@@ -9759,7 +9759,7 @@
                     {
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
-                      "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterise the transport format per caller."
+                      "description": "GitHub Actions expression that resolves to 'am' or 'bundle' at runtime. Use in reusable workflow_call workflows to parameterize the transport format per caller."
                     }
                   ],
                   "description": "Transport format for packaging changes. \"bundle\" (default) uses git bundle. \"am\" uses git format-patch/git am. Accepts a GitHub Actions expression for reusable workflows."
@@ -10770,7 +10770,7 @@
                   "properties": {
                     "if-no-files": {
                       "type": "string",
-                      "description": "Behaviour when no files match: 'error' (default) or 'ignore'",
+                      "description": "Behavior when no files match: 'error' (default) or 'ignore'",
                       "enum": ["error", "ignore"],
                       "default": "error"
                     }
