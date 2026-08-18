@@ -407,6 +407,19 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
   queue: max`,
 			description: "workflow_call mixed with workflow_dispatch should still use compile-time ID and run_id",
 		},
+		{
+			name: "top-level concurrency can disable queue max feature",
+			workflowData: &WorkflowData{
+				On: "on:\n  schedule:\n    - cron: '0 0 * * *'",
+				Features: map[string]any{
+					"group-concurrency-queue": false,
+				},
+			},
+			isAliasTrigger: false,
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}"`,
+			description: "feature flag can disable queue:max emission for the top-level workflow concurrency group",
+		},
 	}
 
 	for _, tt := range tests {
