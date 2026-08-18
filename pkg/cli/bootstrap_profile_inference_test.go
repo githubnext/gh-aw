@@ -144,3 +144,155 @@ func TestInferBootstrapGitHubAppRequirements_NoSources(t *testing.T) {
 		t.Fatalf("expected nil permissions/events for no sources, got %v / %v", permissions, events)
 	}
 }
+
+// TestInferBootstrapGitHubAppRequirements_SingleWorkflow covers the simplest case of a
+// single workflow with a string "on" trigger and a small permissions block.
+func TestInferBootstrapGitHubAppRequirements_SingleWorkflow(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "solo.md")
+	content := "---\non: issues\npermissions:\n  issues: write\n---\n\n# Solo\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write workflow: %v", err)
+	}
+
+	permissions, events, err := inferBootstrapGitHubAppRequirements(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("inferBootstrapGitHubAppRequirements returned error: %v", err)
+	}
+
+	wantPermissions := map[string]string{"issues": "write"}
+	if !reflect.DeepEqual(permissions, wantPermissions) {
+		t.Fatalf("permissions = %v, want %v", permissions, wantPermissions)
+	}
+	wantEvents := []string{"issues"}
+	if !reflect.DeepEqual(events, wantEvents) {
+		t.Fatalf("events = %v, want %v", events, wantEvents)
+	}
+}
+
+// TestInferBootstrapGitHubAppRequirements_NoPermissionsOrEvents covers a workflow that
+// declares neither a "permissions" block nor an "on" trigger recognized as a webhook
+// event; both inferred maps/slices must come back nil rather than empty.
+func TestInferBootstrapGitHubAppRequirements_NoPermissionsOrEvents(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bare.md")
+	content := "---\non:\n  schedule:\n    - cron: \"0 0 * * *\"\n  workflow_dispatch:\n---\n\n# Bare\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write workflow: %v", err)
+	}
+
+	permissions, events, err := inferBootstrapGitHubAppRequirements(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("inferBootstrapGitHubAppRequirements returned error: %v", err)
+	}
+	if permissions != nil {
+		t.Fatalf("permissions = %v, want nil", permissions)
+	}
+	if len(events) != 0 {
+		t.Fatalf("events = %v, want empty", events)
+	}
+}
+
+// TestInferBootstrapGitHubAppRequirements_ThreeWorkflowsHighestScopeWins exercises
+// merging across three workflows where the same resource is requested at different
+// scopes (none/read/write) and events accumulate as a de-duplicated, sorted union.
+func TestInferBootstrapGitHubAppRequirements_ThreeWorkflowsHighestScopeWins(t *testing.T) {
+	dir := t.TempDir()
+	paths := []string{
+		filepath.Join(dir, "a.md"),
+		filepath.Join(dir, "b.md"),
+		filepath.Join(dir, "c.md"),
+	}
+	contents := []string{
+		"---\non: issues\npermissions:\n  contents: read\n  issues: read\n---\n\n# A\n",
+		"---\non: pull_request\npermissions:\n  contents: write\n  issues: none\n---\n\n# B\n",
+		"---\non:\n  - issues\n  - pull_request\npermissions:\n  contents: read\n  issues: write\n---\n\n# C\n",
+	}
+	for i, path := range paths {
+		if err := os.WriteFile(path, []byte(contents[i]), 0o644); err != nil {
+			t.Fatalf("failed to write workflow %s: %v", path, err)
+		}
+	}
+
+	permissions, events, err := inferBootstrapGitHubAppRequirements(context.Background(), paths)
+	if err != nil {
+		t.Fatalf("inferBootstrapGitHubAppRequirements returned error: %v", err)
+	}
+
+	wantPermissions := map[string]string{"contents": "write", "issues": "write"}
+	if !reflect.DeepEqual(permissions, wantPermissions) {
+		t.Fatalf("permissions = %v, want %v", permissions, wantPermissions)
+	}
+	wantEvents := []string{"issues", "pull_request"}
+	if !reflect.DeepEqual(events, wantEvents) {
+		t.Fatalf("events = %v, want %v", events, wantEvents)
+	}
+}
+
+// TestInferBootstrapGitHubAppRequirements_MapOnAllExcludedYieldsNoEvents verifies that
+// when every trigger in a mapping-style "on" block is excluded from App inference
+// (schedule/workflow_dispatch/repository_dispatch), no events are inferred at all.
+func TestInferBootstrapGitHubAppRequirements_MapOnAllExcludedYieldsNoEvents(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "excluded.md")
+	content := "---\non:\n  schedule:\n    - cron: \"*/5 * * * *\"\n  workflow_dispatch:\n  repository_dispatch:\n    types: [custom]\npermissions:\n  contents: read\n---\n\n# Excluded\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write workflow: %v", err)
+	}
+
+	permissions, events, err := inferBootstrapGitHubAppRequirements(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("inferBootstrapGitHubAppRequirements returned error: %v", err)
+	}
+	wantPermissions := map[string]string{"contents": "read"}
+	if !reflect.DeepEqual(permissions, wantPermissions) {
+		t.Fatalf("permissions = %v, want %v", permissions, wantPermissions)
+	}
+	if len(events) != 0 {
+		t.Fatalf("events = %v, want empty", events)
+	}
+}
+
+// TestInferBootstrapGitHubAppRequirements_InvalidFrontmatterSkipped verifies that a
+// workflow file with unparsable frontmatter does not fail the whole inference pass;
+// its contribution is simply skipped while valid sibling workflows still contribute.
+func TestInferBootstrapGitHubAppRequirements_InvalidFrontmatterSkipped(t *testing.T) {
+	dir := t.TempDir()
+	badPath := filepath.Join(dir, "bad.md")
+	goodPath := filepath.Join(dir, "good.md")
+
+	badContent := "---\non: [issues\npermissions:\n  contents: read\n---\n\n# Bad\n"
+	goodContent := "---\non: pull_request\npermissions:\n  contents: write\n---\n\n# Good\n"
+	if err := os.WriteFile(badPath, []byte(badContent), 0o644); err != nil {
+		t.Fatalf("failed to write bad workflow: %v", err)
+	}
+	if err := os.WriteFile(goodPath, []byte(goodContent), 0o644); err != nil {
+		t.Fatalf("failed to write good workflow: %v", err)
+	}
+
+	permissions, events, err := inferBootstrapGitHubAppRequirements(context.Background(), []string{badPath, goodPath})
+	if err != nil {
+		t.Fatalf("inferBootstrapGitHubAppRequirements returned error: %v", err)
+	}
+	wantPermissions := map[string]string{"contents": "write"}
+	if !reflect.DeepEqual(permissions, wantPermissions) {
+		t.Fatalf("permissions = %v, want %v", permissions, wantPermissions)
+	}
+	wantEvents := []string{"pull_request"}
+	if !reflect.DeepEqual(events, wantEvents) {
+		t.Fatalf("events = %v, want %v", events, wantEvents)
+	}
+}
+
+// TestInferBootstrapGitHubAppRequirements_ResolutionErrorPropagates verifies that
+// errors from resolving the underlying workflow sources (e.g. a nonexistent local
+// file) are surfaced to the caller instead of being silently swallowed.
+func TestInferBootstrapGitHubAppRequirements_ResolutionErrorPropagates(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "does-not-exist.md")
+
+	_, _, err := inferBootstrapGitHubAppRequirements(context.Background(), []string{missing})
+	if err == nil {
+		t.Fatal("expected an error for an unresolvable source, got nil")
+	}
+}
