@@ -196,6 +196,11 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles,
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
+	if createPR {
+		if err := c.checkCleanWorkingDirectoryForPR(initFiles); err != nil {
+			return nil, nil, "", "", false, err
+		}
+	}
 	if createPR && c.hasWriteAccess && !c.SkipSecret && !c.UseCopilotRequests {
 		secretName, secretValue, err = c.resolveEngineApiKeyCredential()
 		if err != nil {

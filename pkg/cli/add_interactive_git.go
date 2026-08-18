@@ -303,6 +303,28 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 	return nil
 }
 
+// checkCleanWorkingDirectoryForPR verifies the working directory has no user changes
+// before the wizard creates a pull request. Repository init files created by the
+// wizard itself are ignored because they are part of the pending PR.
+func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR(initFiles []string) error {
+	addInteractiveLog.Print("Checking working directory is clean before PR creation")
+
+	if err := checkCleanWorkingDirectoryIgnoring(c.Verbose, initFiles); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Working directory is not clean."))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Creating a pull request requires a clean working directory.")
+		fmt.Fprintln(os.Stderr, "Please commit or stash your changes first, or choose the local write option:")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git stash        # Temporarily stash changes"))
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'wip'  # Commit changes"))
+		fmt.Fprintln(os.Stderr, "")
+		return errors.New("working directory is not clean")
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Working directory is clean"))
+	return nil
+}
+
 // squashMergeNotAllowedErr is the lowercase substring of the GitHub GraphQL API error
 // returned when a repository does not permit squash merges. It is used to detect when
 // a squash merge should be retried with a merge-commit strategy.
