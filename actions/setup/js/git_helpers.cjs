@@ -811,7 +811,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
       }
       if (isShallow) {
         throw new Error(
-          `Refusing to linearize an implausible commit range: ${rangeCommitCount} commits in ${baseRef}..HEAD in a shallow checkout. ` +
+          `${ERR_SYSTEM}: Refusing to linearize an implausible commit range: ${rangeCommitCount} commits in ${baseRef}..HEAD in a shallow checkout. ` +
             `This likely means ${baseRef} is not reachable from the shallow grafts. ` +
             `Increase fetch-depth in your workflow checkout step (e.g. fetch-depth: 0) to resolve this.`
         );
@@ -822,7 +822,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
   const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);
   const originalHead = originalHeadOut.trim();
   if (!originalHead) {
-    throw new Error("Could not resolve current HEAD before linearizing range");
+    throw new Error(`${ERR_SYSTEM}: ` + "Could not resolve current HEAD before linearizing range");
   }
 
   // Track whether a `git rebase` call was started so the catch block can distinguish
@@ -853,7 +853,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
     }
     const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], ...execArgs);
     if (!stagedFilesOut.trim()) {
-      throw new Error(`No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);
+      throw new Error(`${ERR_SYSTEM}: No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);
     }
     await execApi.exec("git", ["commit", ...commitFlags, "-m", commitMessage], ...execArgs);
     if (typeof rebaseOnto === "string" && rebaseOnto.trim() && rebaseOnto.trim() !== baseRef.trim()) {
@@ -864,7 +864,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
       // the agent's changes are lost. Detect and fail loudly rather than pushing an empty diff.
       const { stdout: diffOut } = await execApi.getExecOutput("git", ["diff", "--name-only", rebaseOnto.trim(), "HEAD"], ...execArgs);
       if (!diffOut.trim()) {
-        throw new Error(`Rebase onto ${rebaseOnto} produced no changes; the synthesized commit was dropped as empty`);
+        throw new Error(`${ERR_SYSTEM}: Rebase onto ${rebaseOnto} produced no changes; the synthesized commit was dropped as empty`);
       }
     }
     const { stdout: newHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);
@@ -886,7 +886,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
     } catch (restoreError) {
       core.warning(`linearizeRangeAsCommit: rollback also failed: ${getErrorMessage(restoreError)}`);
     }
-    throw new Error(`Failed to linearize ${baseRef}..HEAD as a single commit: ${getErrorMessage(rewriteError)}`, { cause: rewriteError });
+    throw new Error(`${ERR_SYSTEM}: Failed to linearize ${baseRef}..HEAD as a single commit: ${getErrorMessage(rewriteError)}`, { cause: rewriteError });
   }
 }
 

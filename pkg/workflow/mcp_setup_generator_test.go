@@ -569,6 +569,45 @@ tools:
 		"Docker command should add supplementary group before mounting the Docker socket")
 }
 
+func TestMCPGatewaySetupCopiesGitHubEventPayloadForSafeOutputs(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+---
+
+# Test event payload forwarding
+`
+
+	compiler := NewCompiler()
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	require.Contains(t, yamlStr, `if [ -n "${GITHUB_EVENT_PATH:-}" ] && [ -r "${GITHUB_EVENT_PATH}" ]; then`,
+		"Start MCP Gateway should conditionally copy the GitHub event payload when available")
+	require.Contains(t, yamlStr, `GH_AW_SAFEOUTPUTS_EVENT_PATH="${RUNNER_TEMP}/gh-aw/safeoutputs/github_event.json"`,
+		"Start MCP Gateway should write the copied payload under the safeoutputs mount")
+	require.Contains(t, yamlStr, `cp "${GITHUB_EVENT_PATH}" "${GH_AW_SAFEOUTPUTS_EVENT_PATH}"`,
+		"Start MCP Gateway should copy the GitHub event payload into the safeoutputs directory")
+	require.Contains(t, yamlStr, `export GITHUB_EVENT_PATH="${GH_AW_SAFEOUTPUTS_EVENT_PATH}"`,
+		"Start MCP Gateway should repoint GITHUB_EVENT_PATH to the mounted payload copy")
+}
+
 func TestMCPGatewayDockerCommandUsesBridgeInNetworkIsolationMode(t *testing.T) {
 	frontmatter := `---
 on: workflow_dispatch

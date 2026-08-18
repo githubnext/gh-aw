@@ -5,7 +5,7 @@
 require("./shim.cjs");
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
  * Substitutes `__KEY__` placeholders in a file with values from the substitutions map.
@@ -17,10 +17,10 @@ const { ERR_SYSTEM } = require("./error_codes.cjs");
 const substitutePlaceholders = async ({ file, substitutions }) => {
   // Validate parameters
   if (!file) {
-    throw new Error("file parameter is required");
+    throw new Error(`${ERR_VALIDATION}: ` + "file parameter is required");
   }
   if (!substitutions || typeof substitutions !== "object") {
-    throw new Error("substitutions parameter must be an object");
+    throw new Error(`${ERR_VALIDATION}: ` + "substitutions parameter must be an object");
   }
 
   core.info(`[substitutePlaceholders] ${file} (${Object.keys(substitutions).length} substitution(s))`);

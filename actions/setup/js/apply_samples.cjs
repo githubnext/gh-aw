@@ -426,7 +426,7 @@ async function preStagePatch(entry, index, workspace) {
     branch = await derivePrHeadRef(entry);
     if (!branch) {
       throw new Error(
-        `apply_samples: cannot derive pull-request head branch for sample[${index}] (tool=${entry.tool}). ` +
+        `${ERR_VALIDATION}: apply_samples: cannot derive pull-request head branch for sample[${index}] (tool=${entry.tool}). ` +
           `Trigger the workflow from a pull_request event, or set arguments.pull_request_number on the sample entry, ` +
           `or provide GITHUB_TOKEN so the PR can be fetched.`
       );
@@ -461,7 +461,7 @@ async function preStagePatch(entry, index, workspace) {
   try {
     fs.writeFileSync(tmpPatch, patch.endsWith("\n") ? patch : patch + "\n");
   } catch (err) {
-    throw new Error(`Failed to write file ${tmpPatch}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${tmpPatch}: ${getErrorMessage(err)}`, { cause: err });
   }
   try {
     runGit(["apply", "--whitespace=nowarn", tmpPatch], repoCwd);

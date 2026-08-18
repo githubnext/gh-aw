@@ -3,7 +3,7 @@
 
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_API } = require("./error_codes.cjs");
+const { ERR_API, ERR_SYSTEM } = require("./error_codes.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
@@ -49,7 +49,7 @@ async function ensureDetectionRunsIssue() {
   try {
     parentBodyContent = fs.readFileSync(templatePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   const parentBody = generateFooterWithExpiration({

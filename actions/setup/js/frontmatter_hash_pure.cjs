@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
+const { ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const MAX_FRONTMATTER_HASH_INPUT_BYTES = 1 << 20; // 1 MiB
@@ -26,7 +26,7 @@ async function defaultFileReader(filePath) {
   try {
     return fs.readFileSync(filePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
   }
 }
 
@@ -320,7 +320,7 @@ function validateNormalizedFrontmatterHashInputSize(normalizedFrontmatterText, n
   }
 
   if (totalBytes > MAX_FRONTMATTER_HASH_INPUT_BYTES) {
-    throw new Error(`frontmatter hash input exceeds ${MAX_FRONTMATTER_HASH_INPUT_BYTES} bytes after normalization`);
+    throw new Error(`${ERR_VALIDATION}: frontmatter hash input exceeds ${MAX_FRONTMATTER_HASH_INPUT_BYTES} bytes after normalization`);
   }
 }
 

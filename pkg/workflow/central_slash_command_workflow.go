@@ -27,6 +27,7 @@ type slashCommandRoute struct {
 	Workflow      string   `json:"workflow"`
 	Events        []string `json:"events"`
 	AIReaction    string   `json:"ai_reaction,omitempty"`
+	Emoji         string   `json:"emoji,omitempty"`
 	StatusComment bool     `json:"status_comment,omitempty"`
 }
 
@@ -194,6 +195,10 @@ func collectCentralSlashCommandRoutes(workflowDataList []*WorkflowData) (map[str
 				return -1
 			case left.AIReaction > right.AIReaction:
 				return 1
+			case left.Emoji < right.Emoji:
+				return -1
+			case left.Emoji > right.Emoji:
+				return 1
 			case !left.StatusComment && right.StatusComment:
 				return -1
 			case left.StatusComment && !right.StatusComment:
@@ -236,7 +241,7 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 		}
 
 		for _, labelName := range wd.LabelCommand {
-			routesByLabel[labelName] = append(routesByLabel[labelName], buildCentralizedRoutes(wd, routeEvents, false)...)
+			routesByLabel[labelName] = append(routesByLabel[labelName], buildCentralizedRoutes(wd, routeEvents, true)...)
 		}
 	}
 
@@ -261,6 +266,10 @@ func collectCentralLabelCommandRoutes(workflowDataList []*WorkflowData, mergedEv
 				return -1
 			case left.AIReaction > right.AIReaction:
 				return 1
+			case left.Emoji < right.Emoji:
+				return -1
+			case left.Emoji > right.Emoji:
+				return 1
 			case !left.StatusComment && right.StatusComment:
 				return -1
 			case left.StatusComment && !right.StatusComment:
@@ -278,14 +287,21 @@ func buildCentralizedRoutes(wd *WorkflowData, routeEvents []string, includeStatu
 	if wd == nil {
 		return nil
 	}
-	eventGroups := map[string][]string{}
-	groupOrder := make([]string, 0, len(routeEvents))
+	type routeGroup struct {
+		reaction      string
+		emoji         string
+		statusComment bool
+	}
+	eventGroups := map[routeGroup][]string{}
+	groupOrder := make([]routeGroup, 0, len(routeEvents))
 	for _, eventName := range routeEvents {
 		reaction := resolveCentralizedEventReaction(wd, eventName)
 		statusComment := includeStatusComment && resolveCentralizedEventStatusComment(wd, eventName)
-		// Reactions are limited to GitHub's fixed enum values, so "|" is a safe
-		// separator for grouping the per-event route metadata deterministically.
-		groupKey := reaction + "|" + strconv.FormatBool(statusComment)
+		groupKey := routeGroup{
+			reaction:      reaction,
+			emoji:         wd.FrontmatterEmoji,
+			statusComment: statusComment,
+		}
 		if _, exists := eventGroups[groupKey]; !exists {
 			groupOrder = append(groupOrder, groupKey)
 		}
@@ -293,14 +309,12 @@ func buildCentralizedRoutes(wd *WorkflowData, routeEvents []string, includeStatu
 	}
 	routes := make([]slashCommandRoute, 0, len(groupOrder))
 	for _, groupKey := range groupOrder {
-		parts := strings.SplitN(groupKey, "|", 2)
-		reaction := parts[0]
-		statusComment := len(parts) == 2 && parts[1] == "true"
 		routes = append(routes, slashCommandRoute{
 			Workflow:      wd.WorkflowID,
 			Events:        slices.Clone(eventGroups[groupKey]),
-			AIReaction:    reaction,
-			StatusComment: statusComment,
+			AIReaction:    groupKey.reaction,
+			Emoji:         groupKey.emoji,
+			StatusComment: groupKey.statusComment,
 		})
 	}
 	return routes
