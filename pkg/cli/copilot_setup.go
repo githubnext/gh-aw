@@ -292,8 +292,21 @@ func validateCopilotSetupStepsRunsOn(job map[string]any) error {
 			}
 		}
 	case map[string]any:
-		if len(typed) > 0 {
+		// runs-on group/labels object syntax
+		if hasNonEmptyStringField(typed, "group") {
 			return nil
+		}
+		if labels, ok := typed["labels"]; ok {
+			if label, ok := labels.(string); ok && strings.TrimSpace(label) != "" {
+				return nil
+			}
+			if list, ok := labels.([]any); ok {
+				for _, item := range list {
+					if label, ok := item.(string); ok && strings.TrimSpace(label) != "" {
+						return nil
+					}
+				}
+			}
 		}
 	}
 	return fmt.Errorf("'%s' job has an empty 'runs-on'", copilotSetupStepsJobName)

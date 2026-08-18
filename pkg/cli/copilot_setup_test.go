@@ -1759,6 +1759,44 @@ jobs:
 			wantErr: "empty 'runs-on'",
 		},
 		{
+			name: "empty runs-on list",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on: []
+    steps:
+      - run: echo install
+`,
+			wantErr: "empty 'runs-on'",
+		},
+		{
+			name: "runs-on group object",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on:
+      group: my-group
+    steps:
+      - run: echo install
+`,
+			wantNoError: true,
+		},
+		{
+			name: "runs-on object without runner",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on:
+      group: ""
+    steps:
+      - run: echo install
+`,
+			wantErr: "empty 'runs-on'",
+		},
+		{
 			name: "null step",
 			content: `on:
   workflow_dispatch:
