@@ -2421,11 +2421,11 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 			}
 
 			steps := engine.GetInstallationSteps(workflowData)
-			if len(steps) != 3 {
-				t.Fatalf("Expected 3 installation steps (ripgrep + Copilot CLI + SDK), got %d", len(steps))
+			if len(steps) != 2 {
+				t.Fatalf("Expected 2 installation steps (Copilot CLI + SDK), got %d", len(steps))
 			}
 
-			sdkStepContent := strings.Join(steps[2], "\n")
+			sdkStepContent := strings.Join(steps[1], "\n")
 			if !strings.Contains(sdkStepContent, tt.expectedName) {
 				t.Fatalf("Expected SDK install step name %q, got:\n%s", tt.expectedName, sdkStepContent)
 			}
