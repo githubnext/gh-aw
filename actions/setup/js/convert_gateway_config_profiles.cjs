@@ -88,14 +88,14 @@ const gatewayConversionProfiles = {
   codex: {
     format: "Codex TOML",
     engine: "Codex",
-    outputPath: path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/config.toml"),
+    preRunOutputPath: () => path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/config.toml"),
     getUrlPrefix: ({ domain, port }) => {
       if (domain === "host.docker.internal") {
-        core.info("Resolving host.docker.internal to gateway IP: 172.30.0.1");
         return `http://172.30.0.1:${port}`;
       }
       return `http://${domain}:${port}`;
     },
+    getUrlPrefixLog: ({ domain }) => (domain === "host.docker.internal" ? "Resolving host.docker.internal to gateway IP: 172.30.0.1" : undefined),
     transformServer: (_name, entry) => entry,
     serialize: (servers, _context, urlPrefix) => {
       let toml = '[history]\npersistence = "none"\n\n';
@@ -108,7 +108,7 @@ const gatewayConversionProfiles = {
   claude: {
     format: "Claude",
     engine: "Claude",
-    outputPath: path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json"),
+    preRunOutputPath: () => path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json"),
     transformEntry: transformClaudeEntry,
     serialize: servers => JSON.stringify({ mcpServers: servers }, null, 2),
   },

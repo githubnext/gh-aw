@@ -41,6 +41,31 @@ describe("convert_gateway_config_factory", () => {
     expect(options.outputPath).toBe("/tmp/resolved.json");
   });
 
+  it("logs profile URL-prefix resolution from the shared runner", () => {
+    const originalCore = global.core;
+    const info = vi.fn();
+    // @ts-ignore
+    global.core = { info };
+
+    try {
+      const options = buildGatewayConversionOptions({
+        format: "Test",
+        engine: "Test",
+        outputPath: "/tmp/test-output.json",
+        getUrlPrefix: ({ port }) => `http://127.0.0.1:${port}`,
+        getUrlPrefixLog: ({ domain }) => (domain === "host.docker.internal" ? "Resolving gateway host" : undefined),
+        transformEntry: entry => entry,
+        serialize: servers => JSON.stringify({ mcpServers: servers }),
+      });
+
+      expect(options.getUrlPrefix({ domain: "host.docker.internal", port: "80", urlPrefix: "http://host.docker.internal:80" })).toBe("http://127.0.0.1:80");
+      expect(info).toHaveBeenCalledWith("Resolving gateway host");
+    } finally {
+      // @ts-ignore
+      global.core = originalCore;
+    }
+  });
+
   it("reports profile failures through core.setFailed when requested", () => {
     const originalCore = global.core;
     const setFailed = vi.fn();

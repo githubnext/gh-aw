@@ -22,6 +22,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  *   contextOptions?: { extraRequiredEnv?: string[] };
  *   getTargetDomain?: (context: GatewayContext) => string;
  *   getUrlPrefix?: (context: GatewayContext) => string;
+ *   getUrlPrefixLog?: (context: GatewayContext) => string | undefined;
  *   transformEntry?: (entry: Record<string, unknown>, urlPrefix: string, context: GatewayContext, name: string) => Record<string, unknown>;
  *   transformServer?: (name: string, entry: Record<string, unknown>, urlPrefix: string, context: GatewayContext) => Record<string, unknown>;
  *   serialize: (servers: Record<string, Record<string, unknown>>, context: GatewayContext, urlPrefix: string) => string;
@@ -45,6 +46,8 @@ function buildGatewayConversionOptions(profile) {
       }
       return profile.transformEntry(entry, urlPrefix, context, name);
     });
+  const getUrlPrefix = profile.getUrlPrefix;
+  const getUrlPrefixLog = profile.getUrlPrefixLog;
 
   return {
     format: profile.format,
@@ -52,7 +55,16 @@ function buildGatewayConversionOptions(profile) {
     outputPath,
     contextOptions: profile.contextOptions,
     getTargetDomain: profile.getTargetDomain,
-    getUrlPrefix: profile.getUrlPrefix,
+    getUrlPrefix:
+      getUrlPrefixLog || !getUrlPrefix
+        ? context => {
+            const message = getUrlPrefixLog?.(context);
+            if (message) {
+              core.info(message);
+            }
+            return getUrlPrefix ? getUrlPrefix(context) : context.urlPrefix;
+          }
+        : getUrlPrefix,
     transformServer,
     serialize: profile.serialize,
   };
