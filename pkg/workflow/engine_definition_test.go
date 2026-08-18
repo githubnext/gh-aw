@@ -160,6 +160,7 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 			{"id": "aider", "import": "github/gh-aw/.github/workflows/shared/aider.md"},
 			{"id": "goose", "import": "github/gh-aw/.github/workflows/shared/goose.md"},
 			{"id": "kiro", "import": "github/gh-aw/.github/workflows/shared/kiro.md"},
+			{"id": "pydantic-ai", "import": "github/gh-aw/.github/workflows/shared/pydantic.md"},
 			{"id": "custom", "import": "github/gh-aw/.github/workflows/shared/genaiscript.md"}
 		]
 	}`), nil)
@@ -213,6 +214,11 @@ func TestEngineCatalog_Resolve_KnownImportTip(t *testing.T) {
 			name:           "kiro tip",
 			engineID:       "kiro",
 			wantImportPath: "github/gh-aw/.github/workflows/shared/kiro.md@" + knownEngineImportTestRef,
+		},
+		{
+			name:           "pydantic-ai tip",
+			engineID:       "pydantic-ai",
+			wantImportPath: "github/gh-aw/.github/workflows/shared/pydantic.md@" + knownEngineImportTestRef,
 		},
 		{
 			name:           "custom tip",
