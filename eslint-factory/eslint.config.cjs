@@ -63,6 +63,7 @@ module.exports = [
       "gh-aw-custom/no-empty-catch-block": "warn",
       "gh-aw-custom/require-lastindex-reset-before-global-exec-loop": "warn",
       "gh-aw-custom/require-page-counter-increment-in-while-true-loop": "warn",
+      "gh-aw-custom/no-math-minmax-array-spread": "warn",
     },
   },
   {

@@ -118,6 +118,10 @@ steps:
         # Determine pending-check state from the statusCheckRollup data already
         # fetched in the gh pr list call above — no per-PR REST calls needed.
         # CheckRun statuses are UPPERCASE in the GraphQL response.
+        # WAITING check runs are left eligible here so the agent can inspect the
+        # associated workflow run and approve it through the approve_workflow_run
+        # safe output when it belongs to the allowed CJS/CGO workflows. Other
+        # short-running pending checks still gate nudges.
         # Checks that have been running for more than 1 hour are ignored so that
         # long-running agentic checks (Q, coding agents) do not permanently block
         # nudges.  Short CI checks (< 1 hour) still gate nudges correctly.
@@ -131,7 +135,7 @@ steps:
             (now - 3600) as $cutoff |
             if ($checks | any(
               if .__typename == "CheckRun" then
-                ((.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED", "PENDING")) and
+                ((.status // "COMPLETED") | IN("QUEUED", "IN_PROGRESS", "REQUESTED", "PENDING")) and
                 ((.startedAt // .createdAt) as $ts |
                   $ts == null or (($ts | fromdateiso8601) > $cutoff))
               elif .__typename == "StatusContext" then
@@ -210,13 +214,14 @@ steps:
           mergeStateStatus,
           failed_checks: ((.statusCheckRollup // []) | if type == "array" then . else [] end | map(select(
             if .__typename == "CheckRun" then
-              ((.conclusion // "") | IN("FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE"))
+              ((.conclusion // "") | IN("FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE")) or
+              ((.status // "") == "WAITING")
             elif .__typename == "StatusContext" then
               ((.state // "") | IN("FAILURE", "ERROR"))
             else false end
           )) | map({
             name: (if .__typename == "StatusContext" then (.context // "unknown") else (.name // "unknown") end),
-            conclusion: (.conclusion // .state // "unknown"),
+            conclusion: (if .__typename == "CheckRun" and (.status // "") == "WAITING" then "ACTION_REQUIRED" else (.conclusion // .state // "unknown") end),
             url: (.detailsUrl // .targetUrl // null)
           }))
         })
@@ -224,7 +229,9 @@ steps:
         > /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json
       eligible_count="$(jq '.prs | length' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
       fetched_count="$(jq '.fetched' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo 0)"
+      eligible_pull_request_numbers="$(jq -c '[.prs[]?.number | tostring]' /tmp/gh-aw/agent/pr-sous-chef-candidates-compact.json || echo '[]')"
       echo "eligible_count=$eligible_count" >> "$GITHUB_OUTPUT"
+      echo "eligible_pull_request_numbers=$eligible_pull_request_numbers" >> "$GITHUB_OUTPUT"
 
       # Write prefilter summary to the step summary for visibility
       {
@@ -254,10 +261,43 @@ steps:
   - name: Install formatter dependencies
     if: steps.fetch-prs.outputs.eligible_count != '0'
     run: npm ci --prefix actions/setup/js
+jobs:
+  approval_allowlist:
+    needs: agent
+    if: always() && needs.agent.result != 'skipped'
+    runs-on: ubuntu-slim
+    permissions:
+      actions: read
+    outputs:
+      eligible_pull_request_numbers: ${{ steps.extract.outputs.eligible_pull_request_numbers }}
+    steps:
+      - name: Download agent artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: agent
+          path: ${{ runner.temp }}/gh-aw
+      - name: Extract eligible PR allowlist
+        id: extract
+        run: |
+          candidate_file="$(find "${RUNNER_TEMP}/gh-aw" -path '*/pr-sous-chef-candidates-compact.json' -print -quit)"
+          if [ -n "$candidate_file" ] && [ -f "$candidate_file" ]; then
+            eligible_pull_request_numbers="$(jq -c '[.prs[]?.number | tostring]' "$candidate_file" || echo '[]')"
+          else
+            eligible_pull_request_numbers='[]'
+          fi
+          echo "eligible_pull_request_numbers=$eligible_pull_request_numbers" >> "$GITHUB_OUTPUT"
 safe-outputs:
+  needs: [approval_allowlist]
   add-comment:
     max: 4
     target: "*"
+    github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+  approve-workflow-run:
+    max: 8
+    allowed-workflows: [cjs.yml, cgo.yml]
+    allowed-pull-requests: ${{ needs.approval_allowlist.outputs.eligible_pull_request_numbers }}
+    fork: false
     github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   resolve-pull-request-review-thread:
     max: 40
@@ -350,19 +390,29 @@ Skip when **any** of these hold (candidate prefilter eliminates most; these are 
 
 For each PR that is not skipped:
 
-0. **Run formatters and push if needed**
+0. **Approve allowed action-required workflow runs**
+   - If the compact JSON `failed_checks` list contains `ACTION_REQUIRED`, inspect the PR's waiting workflow runs and call `safeoutputs approve_workflow_run --run_id <RUN_ID>` only for matching CJS/CGO runs.
+   - To find run IDs, query `gh run list --repo "$EXPR_GITHUB_REPOSITORY" --branch <headRefName> --json databaseId,path,status,event,headBranch,headSha --jq '[.[] | select((.status == "waiting" or .status == "action_required") and (.path == ".github/workflows/cjs.yml" or .path == ".github/workflows/cgo.yml"))]'`; then keep only runs whose `headBranch` matches the PR head branch and whose `headSha` matches the PR `headRefOid` when present.
+   - Only approve workflow runs whose workflow file is exactly `cjs.yml` or `cgo.yml`; never approve any other action-required workflow.
+   - Only approve workflow runs associated with the current eligible PR. The safe output is additionally scoped to the eligible PR numbers from the prefilter.
+   - Increment `approved_workflow_runs` for each successful approval.
+   - If approval succeeds for all action-required `CJS`/`CGO` runs on the PR and there is no other forward-progress nudge to post, do not add a `@copilot` nudge comment for that PR.
+   - If approval fails, record `{pr_number: <N>, skip_reason: "approve_workflow_run_failed"}` in the `skipped` array and continue with the remaining PR workflow.
+
+1. **Run formatters and push if needed**
    - Checkout the PR branch: `git checkout <headRefName>`
    - Run `make fmt` to format all code (Go, JavaScript, JSON)
    - If dirty (`git diff --quiet` exits non-zero), call `push_to_pull_request_branch` with the PR number
    - Return to the original branch: `git checkout -`
    - Skip this step silently if `make fmt` exits non-zero (tools unavailable)
 
-1. **Update branch if possible (skip for CONFLICTING branches)**
+2. **Update branch if possible (skip for CONFLICTING branches)**
    - If `mergeStateStatus` is `CONFLICTING`, **skip this step entirely**.
    - Otherwise, attempt `update_pull_request` with `update_branch: true` and a minimal append body marker including `pr-sous-chef` and the run URL.
 
-2. **Post exactly one combined nudge comment** (at most ONE `add_comment` per PR per run)
-   - Always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
+3. **Post one combined nudge comment when forward-progress nudge is still needed** (at most ONE `add_comment` per PR per run)
+   - Skip this step when the approval step already approved all action-required `CJS`/`CGO` runs for the PR and there is no other forward-progress nudge to post.
+   - When posting, always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
    - **If `CONFLICTING`**: instruct `@copilot` to run `make merge-main` to resolve conflicts; increment `merge_main_scheduled`.
    - **Otherwise**: combine into one comment — unresolved reviews (reviewer + direct link per thread, newest first), `failed_checks` from compact JSON (name + URL), branch refresh, and instruction to run the `pr-finisher` skill.
    - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
@@ -370,7 +420,7 @@ For each PR that is not skipped:
    - Always set `pr_number` to the current PR's numeric number. Use `safeoutputs add_comment --pr_number <N> --body $'...'` syntax only. Never use `gh pr comment` or `gh api` for writes.
    - Example: `safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot ...'`
 
-3. **Resolve review threads that already have a response using a safe output**
+4. **Resolve review threads that already have a response using a safe output**
    - For `schedule` and `workflow_dispatch` runs, use the `resolve_review_threads` list returned by the `pr-processor` sub-agent.
    - Include a thread only when all of the following are true: the thread is currently unresolved; contains reviewer feedback; and has a later reply from the PR author or `@copilot`.
    - For each thread ID, call `safeoutputs resolve_pull_request_review_thread --thread_id <ID>`.
@@ -378,7 +428,7 @@ For each PR that is not skipped:
    - Copy each `<ID>` verbatim, character-for-character, from the `reviewThreads` data returned for the current PR. Never guess, truncate, extend, or otherwise fabricate a thread ID.
    - If resolving one thread fails, record `{thread_id: <ID>, skip_reason: "resolve_review_thread_failed"}` in the `skipped` array and continue.
 
-4. **Dismiss stale `github-actions[bot]` blocking reviews when all PR review threads are resolved**
+5. **Dismiss stale `github-actions[bot]` blocking reviews when all PR review threads are resolved**
    - **Slash-command guard**: slash-command runs are acknowledgment nudges and must not perform automated review cleanup — skip this step entirely on `/souschef` slash-command runs.
    - For `schedule` and `workflow_dispatch` runs, use the `dismiss_reviews` list returned by the `pr-processor` sub-agent (populated only when ALL review threads are resolved).
    - For each review ID, call `safeoutputs dismiss_pull_request_review --pull_request_number <N> --review_id <ID> --justification "Dismissing stale github-actions review because all PR review threads are resolved."`.
@@ -406,13 +456,14 @@ Then include the run counts as a compact table:
 | nudged | N |
 | branch_update_attempts | N |
 | formatter_pushes | N |
+| approved_workflow_runs | N |
 | merge_main_scheduled | N |
 | resolved_review_threads | N |
 | dismissed_reviews | N |
 
 If any PRs were nudged, include a collapsible list of their numbers and titles.
 
-If `create_issue` is unavailable, fall back to `noop` with a condensed message, e.g. `"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; merge_main_scheduled=1; resolved_review_threads=3; dismissed_reviews=1"`.
+If `create_issue` is unavailable, fall back to `noop` with a condensed message, e.g. `"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; approved_workflow_runs=1; merge_main_scheduled=1; resolved_review_threads=3; dismissed_reviews=1"`.
 
 ## Formatting Requirements
 
