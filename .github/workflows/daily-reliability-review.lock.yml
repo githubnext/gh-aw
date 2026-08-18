@@ -542,6 +542,7 @@ jobs:
               "create_issue": {
                 "defaultMax": 1,
                 "fields": {
+                  "blocked_by": {},
                   "body": {
                     "required": true,
                     "type": "string",

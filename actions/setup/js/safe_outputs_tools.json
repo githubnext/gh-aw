@@ -53,6 +53,14 @@
           "type": ["number", "string"],
           "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id from a previously created issue in the same workflow run \u2014 use the '#aw_abc123' form (e.g., '#aw_Test123'); the bare 'aw_abc123' form is also accepted and normalised to '#aw_abc123'."
         },
+        "blocked_by": {
+          "type": ["number", "string", "array"],
+          "items": {
+            "type": ["number", "string"]
+          },
+          "description": "Issue dependencies that block this issue. Provide one issue number, temporary_id, owner/repo#number reference, GitHub issue URL, or an array of these references. Temporary IDs are resolved before the dependency is created.",
+          "x-synonyms": ["blockedBy", "blocked-by"]
+        },
         "temporary_id": {
           "type": "string",
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
