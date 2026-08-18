@@ -12,6 +12,7 @@ import (
 )
 
 func TestRunBootstrapCommitAndPushAction_CommitsAndPushesChanges(t *testing.T) {
+	t.Parallel()
 	repoDir := initBootstrapGitRepo(t)
 	remoteDir := t.TempDir()
 
@@ -74,6 +75,7 @@ func TestRunBootstrapCommitAndPushAction_CommitsAndPushesChanges(t *testing.T) {
 }
 
 func TestRunBootstrapCommitAndPushAction_RequiresRepoDir(t *testing.T) {
+	t.Parallel()
 	if err := runBootstrapCommitAndPushAction(context.Background(), "", repositoryPackageBootstrapAction{
 		Type:    "commit-and-push",
 		Message: "Bootstrap repository changes",
@@ -83,6 +85,7 @@ func TestRunBootstrapCommitAndPushAction_RequiresRepoDir(t *testing.T) {
 }
 
 func TestRunBootstrapCommitAndPushAction_SkipsCleanCheckout(t *testing.T) {
+	t.Parallel()
 	repoDir := initBootstrapGitRepo(t)
 	runRepoGit := func(args ...string) {
 		t.Helper()
