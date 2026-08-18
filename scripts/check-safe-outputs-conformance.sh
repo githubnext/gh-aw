@@ -454,6 +454,12 @@ for line in handlers.splitlines():
     if field_match and handler_key:
         handler_fields[field_match.group(1)] = handler_key
 
+compiler_populated_fields = {
+    "safe-outputs.call-workflow.workflow_files",
+    "safe-outputs.dispatch-workflow.workflow_files",
+    "safe-outputs.dispatch-workflow.aw_context_workflows",
+}
+
 
 def yaml_fields(struct_name):
     for line in structs.get(struct_name, "").splitlines():
@@ -496,8 +502,9 @@ for line in structs["SafeOutputsConfig"].splitlines():
 
     output_properties = properties(output_schema)
     for tag, inline in yaml_fields(config_type):
-        if not inline and tag not in output_properties:
-            missing.append(f"safe-outputs.{output_name}.{tag}")
+        property_path = f"safe-outputs.{output_name}.{tag}"
+        if not inline and property_path not in compiler_populated_fields and tag not in output_properties:
+            missing.append(property_path)
 
 print("\n".join(sorted(set(missing))))
 PY

@@ -5474,6 +5474,10 @@
                   "type": "string",
                   "description": "Optional prefix to add to the beginning of the issue title (e.g., '[ai] ' or '[analysis] ')"
                 },
+                "require-temporary-id": {
+                  "type": "boolean",
+                  "description": "Require create_issue tool calls to include a temporary_id."
+                },
                 "labels": {
                   "type": "array",
                   "description": "Optional list of labels to automatically attach to created issues (e.g., ['automation', 'ai-generated'])",
@@ -7074,6 +7078,20 @@
                     }
                   ]
                 },
+                "allows-comment-ids": {
+                  "type": "array",
+                  "description": "Trusted allowlist of issue or pull request comment IDs the agent may update when target is '*'.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "hide-older-comments-match": {
+                  "type": "array",
+                  "description": "Exact workflow IDs whose older comments are eligible to be hidden.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "allowed-reasons": {
                   "type": "array",
                   "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved, low_quality).",
@@ -7165,6 +7183,43 @@
           ],
           "description": "Enable AI agents to add comments to GitHub issues, pull requests, or discussions. Supports templating, cross-repository commenting, and automatic mentions."
         },
+        "comment-memory": {
+          "description": "Comment memory configuration for managed comment persistence.",
+          "anyOf": [
+            {
+              "$ref": "#/properties/tools/properties/comment-memory"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "description": "Target for comment memory: 'triggering' (default), '*' or an explicit issue or pull request number."
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in owner/repo format."
+                },
+                "allowed-repos": {
+                  "type": "array",
+                  "description": "Additional repositories allowed for comment-memory operations.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "memory-id": {
+                  "type": "string",
+                  "description": "Default memory identifier when an item does not provide memory_id."
+                },
+                "footer": {
+                  "type": "boolean",
+                  "description": "Controls whether the AI-generated footer is added to the managed comment."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "create-pull-request": {
           "oneOf": [
             {
@@ -7190,6 +7245,10 @@
                 "branch-prefix": {
                   "type": "string",
                   "description": "Optional prefix to prepend to the pull request branch name (e.g. \"signed/\"). Applied before the agent-specified or auto-generated branch name."
+                },
+                "require-temporary-id": {
+                  "type": "boolean",
+                  "description": "Require create_pull_request tool calls to include a temporary_id."
                 },
                 "title-prefix": {
                   "type": "string",
@@ -8679,6 +8738,10 @@
                   "minItems": 1,
                   "maxItems": 50
                 },
+                "auto_create": {
+                  "type": "boolean",
+                  "description": "Automatically create missing milestones from the allowed list."
+                },
                 "max": {
                   "description": "Optional maximum number of milestone assignments (default: 1) Supports integer or GitHub Actions expression (e.g. '${{ inputs.max }}').",
                   "oneOf": [
@@ -9545,6 +9608,10 @@
                 "branch": {
                   "type": "string",
                   "description": "The branch to push changes to (defaults to 'triggering')"
+                },
+                "base-branch": {
+                  "type": "string",
+                  "description": "Base branch of the target repository for incremental patch computation. Defaults to the local checkout branch or the repository default branch."
                 },
                 "target": {
                   "type": "string",
@@ -10937,6 +11004,14 @@
                     }
                   ]
                 },
+                "engine-config": {
+                  "$ref": "#/$defs/engine_config",
+                  "description": "Extended engine configuration for threat detection."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "Model override for threat detection engine execution."
+                },
                 "steps": {
                   "type": "array",
                   "description": "Array of extra job steps to run before engine execution",
@@ -10966,6 +11041,10 @@
                       "labels": ["ubuntu-latest-8-cores"]
                     }
                   ]
+                },
+                "environment": {
+                  "type": "string",
+                  "description": "GitHub Actions environment override for the detection job."
                 },
                 "continue-on-error": {
                   "$ref": "#/$defs/templatable_boolean",

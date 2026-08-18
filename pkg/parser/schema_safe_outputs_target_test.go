@@ -6,6 +6,49 @@ import (
 	"testing"
 )
 
+func TestMainWorkflowSchema_SafeOutputConfigCoverage(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"safe-outputs": map[string]any{
+			"add-comment": map[string]any{
+				"allows-comment-ids":        []any{"IC_kwDOABCD123456"},
+				"hide-older-comments-match": []any{"workflow-id"},
+			},
+			"assign-milestone": map[string]any{
+				"auto_create": true,
+			},
+			"comment-memory": map[string]any{
+				"target":        "triggering",
+				"target-repo":   "github/gh-aw",
+				"allowed-repos": []any{"github/docs"},
+				"memory-id":     "default",
+				"footer":        true,
+			},
+			"create-issue": map[string]any{
+				"require-temporary-id": true,
+			},
+			"create-pull-request": map[string]any{
+				"require-temporary-id": true,
+			},
+			"push-to-pull-request-branch": map[string]any{
+				"base-branch": "main",
+			},
+			"threat-detection": map[string]any{
+				"engine-config": "copilot",
+				"environment":   "production",
+				"model":         "gpt-5",
+			},
+		},
+	}
+
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/safe-output-config-coverage-test.md"); err != nil {
+		t.Fatalf("expected safe-output configuration fields to pass schema validation, got: %v", err)
+	}
+}
+
 // TestMainWorkflowSchema_SafeOutputsTargetProperties validates that safe output
 // types which support target/target-repo/allowed-repos in the Go code also accept
 // those properties in the JSON schema. This is a regression test for cases where
