@@ -54,6 +54,8 @@ func applyCLIProxyBashDisabledCodemod(content string, frontmatter map[string]any
 }
 
 func toolsRefuseBash(toolsMap map[string]any) bool {
+	// Keep these semantics aligned with workflow.isBashExplicitlyRefused: bash is fully refused
+	// only by bash: false or an empty bash allowlist.
 	bashValue, hasBash := toolsMap["bash"]
 	if !hasBash {
 		return false
@@ -130,6 +132,9 @@ func setShellBackedModesDisabledInTools(lines []string, setCLIProxyFalse, setGit
 			foundFirstField = true
 		}
 		// Only rewrite a direct child of the tools block.
+		if strings.HasPrefix(trimmed, "bash:") && lineIndent == fieldIndent {
+			insertAt = i + 1
+		}
 		if strings.HasPrefix(trimmed, "cli-proxy:") && lineIndent == fieldIndent {
 			cliProxyLine = i
 		}

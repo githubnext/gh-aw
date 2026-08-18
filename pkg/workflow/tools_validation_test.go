@@ -1217,6 +1217,11 @@ func TestValidateCLIProxyBashCompatibility(t *testing.T) {
 			shouldError: false,
 		},
 		{
+			name:        "bash false without cli-proxy key is valid outside strict mode",
+			toolsMap:    map[string]any{"bash": false},
+			shouldError: false,
+		},
+		{
 			name:        "cli-proxy enabled with bash: false is rejected",
 			toolsMap:    map[string]any{"bash": false, "cli-proxy": true},
 			shouldError: true,

@@ -36,6 +36,7 @@ tools:
 		assert.True(t, applied)
 		assert.Contains(t, result, "  cli-proxy: false")
 		assert.Contains(t, result, "  bash: false")
+		assert.Contains(t, result, "  bash: false\n  cli-proxy: false")
 	})
 
 	t.Run("disables existing cli-proxy true", func(t *testing.T) {
