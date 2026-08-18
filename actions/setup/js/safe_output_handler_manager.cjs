@@ -772,8 +772,9 @@ function sortMessagesByTemporaryIdDependencies(messages) {
 
   if (sorted.length !== messages.length) {
     core.warning("Temporary ID dependency cycle detected; preserving original order for cyclic safe outputs");
+    const sortedIndices = new Set(sorted);
     for (let index = 0; index < messages.length; index++) {
-      if (!sorted.includes(index)) sorted.push(index);
+      if (!sortedIndices.has(index)) sorted.push(index);
     }
   }
   return sorted.map(index => messages[index]);
