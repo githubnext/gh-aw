@@ -24,8 +24,9 @@ imports:
   - shared/otlp.md
   - shared/reporting.md
 strict: true
-
-
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 ### Issue Summary to Notion

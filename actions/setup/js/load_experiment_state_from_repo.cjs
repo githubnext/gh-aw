@@ -33,7 +33,9 @@ function isExperimentStateContentValid(content) {
   try {
     const parsed = JSON.parse(content);
     return !!parsed && typeof parsed.counts === "object";
-  } catch {}
+  } catch {
+    // Fall through to JSONL state validation.
+  }
 
   try {
     for (const line of content.split(/\r?\n/)) {

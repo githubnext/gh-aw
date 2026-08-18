@@ -160,7 +160,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     try {
       fs.mkdirSync(patchDir, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${patchDir}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${patchDir}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 
@@ -311,7 +311,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
           } else {
             // No remote refs available - fall through to Strategy 2
             debugLog(`Strategy 1 (full): No remote refs available, falling through to Strategy 2`);
-            throw new Error(`No remote refs available for merge-base calculation`);
+            throw new Error(`${ERR_SYSTEM}: No remote refs available for merge-base calculation`);
           }
         }
 
@@ -576,7 +576,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     try {
       patchContent = fs.readFileSync(patchPath, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${patchPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to read file ${patchPath}: ${getErrorMessage(err)}`, { cause: err });
     }
     const patchSize = Buffer.byteLength(patchContent, "utf8");
     const patchLines = patchContent.split("\n").length;

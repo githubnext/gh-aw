@@ -33,7 +33,7 @@ network:
 sandbox:
   agent:
     id: awf
-    runtime: docker-sbx
+    runtime: cloud-hypervisor
 tools:
   agentic-workflows: true
   bash: true
