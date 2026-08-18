@@ -228,7 +228,7 @@ async function writeStepSummaryWithTokenUsage(coreObj) {
     try {
       content = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${TOKEN_USAGE_PATH}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to read file ${TOKEN_USAGE_PATH}: ${getErrorMessage(err)}`, { cause: err });
     }
     if (content?.trim()) {
       coreObj.info(`Found token-usage.jsonl (${content.length} bytes)`);

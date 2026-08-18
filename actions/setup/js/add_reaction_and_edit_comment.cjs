@@ -5,7 +5,7 @@ const { getRunStartedMessage } = require("./messages_run_status.cjs");
 const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION, ERR_PARSE } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl, EVENT_TYPE_DESCRIPTIONS } = require("./workflow_metadata_helpers.cjs");
 const { createDiscussionComment, isRestEndpoint, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
@@ -149,7 +149,7 @@ async function main() {
     try {
       command = JSON.parse(commandsJSON)[0] ?? null;
     } catch (err) {
-      throw new Error("Failed to parse GH_AW_COMMANDS: " + getErrorMessage(err), { cause: err });
+      throw new Error(`${ERR_PARSE}: ` + "Failed to parse GH_AW_COMMANDS: " + getErrorMessage(err), { cause: err });
     }
   }
   const invocationContext = resolveInvocationContext(context);

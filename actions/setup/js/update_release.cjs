@@ -146,8 +146,11 @@ async function main(config = {}) {
         throw new Error(`${ERR_VALIDATION}: Release with tag '${tagInfo}' not found. Please ensure the tag exists.`);
       }
 
-      if (errorMessage.startsWith(`${ERR_CONFIG}:`) || errorMessage.startsWith(`${ERR_VALIDATION}:`)) {
-        throw new Error(errorMessage);
+      if (errorMessage.startsWith(`${ERR_CONFIG}:`)) {
+        throw new Error(`${ERR_CONFIG}: ${errorMessage.slice(ERR_CONFIG.length + 2)}`);
+      }
+      if (errorMessage.startsWith(`${ERR_VALIDATION}:`)) {
+        throw new Error(`${ERR_VALIDATION}: ${errorMessage.slice(ERR_VALIDATION.length + 2)}`);
       }
 
       throw new Error(`${ERR_API}: Failed to update release with tag ${tagInfo}: ${errorMessage}`);

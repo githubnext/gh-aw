@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { validateTargetRepo, parseAllowedRepos, getDefaultTargetRepo } = require("./repo_helpers.cjs");
-const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_VALIDATION, ERR_NOT_FOUND } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { checkoutHasPersistedExtraheader, gitExecSilent } = require("./git_auth_helpers.cjs");
 const { maskSecret } = require("./actions_secret_masking.cjs");
@@ -129,7 +129,7 @@ async function checkoutRepo(repoSlug, token, options = {}) {
     try {
       await exec.exec("git", ["checkout", "-B", baseBranch, `origin/${baseBranch}`]);
     } catch {
-      throw new Error(`Base branch ${baseBranch} not found in ${repoSlug}`);
+      throw new Error(`${ERR_NOT_FOUND}: Base branch ${baseBranch} not found in ${repoSlug}`);
     }
 
     // Clean up any local changes

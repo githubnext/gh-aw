@@ -17,7 +17,7 @@ const { generateGitBundle } = require("./generate_git_bundle.cjs");
 const { hasMergeCommitsInRange, execGitSync, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
 const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
@@ -59,7 +59,7 @@ function readJSONFile(filePath) {
   try {
     parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch (err) {
-    throw new Error("Failed to parse JSON file " + filePath + ": " + getErrorMessage(err), { cause: err });
+    throw new Error(`${ERR_PARSE}: ` + "Failed to parse JSON file " + filePath + ": " + getErrorMessage(err), { cause: err });
   }
   return parsed;
 }
@@ -546,7 +546,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     try {
       stats = fs.statSync(filePath);
     } catch (err) {
-      throw new Error(`Failed to inspect file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to inspect file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
     }
     const sizeBytes = stats.size;
     const sizeKB = Math.ceil(sizeBytes / 1024);
@@ -583,7 +583,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       try {
         fs.mkdirSync(assetsDir, { recursive: true });
       } catch (err) {
-        throw new Error(`Failed to create directory ${assetsDir}: ${getErrorMessage(err)}`, { cause: err });
+        throw new Error(`${ERR_SYSTEM}: Failed to create directory ${assetsDir}: ${getErrorMessage(err)}`, { cause: err });
       }
     }
 
@@ -592,7 +592,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     try {
       fileContent = fs.readFileSync(filePath);
     } catch (err) {
-      throw new Error(`Failed to read file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
     }
     const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
 
@@ -607,7 +607,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     try {
       fs.copyFileSync(filePath, targetPath);
     } catch (err) {
-      throw new Error(`Failed to copy file ${filePath} to ${targetPath}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to copy file ${filePath} to ${targetPath}: ${getErrorMessage(err)}`, { cause: err });
     }
 
     // Generate target filename as sha + extension (lowercased)
@@ -1719,7 +1719,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       try {
         entries = fs.readdirSync(dirPath, { withFileTypes: true });
       } catch (err) {
-        throw new Error(`Failed to read directory ${dirPath}: ${getErrorMessage(err)}`, { cause: err });
+        throw new Error(`${ERR_SYSTEM}: Failed to read directory ${dirPath}: ${getErrorMessage(err)}`, { cause: err });
       }
       for (const entry of entries) {
         // Skip .git directory to avoid counting git metadata as memory content.
@@ -1737,7 +1737,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           try {
             stats = fs.statSync(fullPath);
           } catch (err) {
-            throw new Error(`Failed to inspect file ${fullPath}: ${getErrorMessage(err)}`, { cause: err });
+            throw new Error(`${ERR_SYSTEM}: Failed to inspect file ${fullPath}: ${getErrorMessage(err)}`, { cause: err });
           }
           files.push({ relativePath: relPath.replace(/\\/g, "/"), size: stats.size });
         }
@@ -2331,14 +2331,14 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       try {
         fs.mkdirSync(destDir, { recursive: true });
       } catch (err) {
-        throw new Error(`Failed to create directory ${destDir}: ${getErrorMessage(err)}`, { cause: err });
+        throw new Error(`${ERR_SYSTEM}: Failed to create directory ${destDir}: ${getErrorMessage(err)}`, { cause: err });
       }
     }
     let entries;
     try {
       entries = fs.readdirSync(srcDir, { withFileTypes: true });
     } catch (err) {
-      throw new Error(`Failed to read directory ${srcDir}: ${getErrorMessage(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to read directory ${srcDir}: ${getErrorMessage(err)}`, { cause: err });
     }
     for (const ent of entries) {
       const srcPath = path.join(srcDir, ent.name);
@@ -2349,7 +2349,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         try {
           canonicalSrcPath = fs.realpathSync(srcPath);
         } catch (err) {
-          throw new Error(`Failed to resolve canonical path for ${srcPath}: ${getErrorMessage(err)}`, { cause: err });
+          throw new Error(`${ERR_SYSTEM}: Failed to resolve canonical path for ${srcPath}: ${getErrorMessage(err)}`, { cause: err });
         }
         const sensitiveErr = validateUploadSourcePath(canonicalSrcPath);
         if (sensitiveErr) {
@@ -2365,7 +2365,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         try {
           canonicalSrcPath = fs.realpathSync(srcPath);
         } catch (err) {
-          throw new Error(`Failed to resolve canonical path for ${srcPath}: ${getErrorMessage(err)}`, { cause: err });
+          throw new Error(`${ERR_SYSTEM}: Failed to resolve canonical path for ${srcPath}: ${getErrorMessage(err)}`, { cause: err });
         }
         const sensitiveErr = validateUploadSourcePath(canonicalSrcPath);
         if (sensitiveErr) {
@@ -2378,7 +2378,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           fs.copyFileSync(srcPath, destPath);
           fs.chmodSync(destPath, 0o600);
         } catch (err) {
-          throw new Error(`Failed to copy file ${srcPath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
+          throw new Error(`${ERR_SYSTEM}: Failed to copy file ${srcPath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
         }
       }
       // Skip symlinks, sockets, pipes, block/char devices — non-regular file types.
@@ -2467,7 +2467,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         try {
           fs.mkdirSync(stagingDir, { recursive: true });
         } catch (err) {
-          throw new Error(`Failed to create directory ${stagingDir}: ${getErrorMessage(err)}`, { cause: err });
+          throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stagingDir}: ${getErrorMessage(err)}`, { cause: err });
         }
       }
 
@@ -2482,7 +2482,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             fs.copyFileSync(filePath, destPath);
             fs.chmodSync(destPath, 0o600);
           } catch (err) {
-            throw new Error(`Failed to copy file ${filePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
+            throw new Error(`${ERR_SYSTEM}: Failed to copy file ${filePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
           }
         }
       }
