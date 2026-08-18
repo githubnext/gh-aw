@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-08-16T04:57:00Z",
-  "run_id": "31927633894",
+  "last_updated": "2026-08-18T04:56:00Z",
+  "run_id": "32100753740",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -1473,6 +1473,83 @@
       "description": "iptables -L -n from inside container",
       "result": "failure",
       "date": "2026-08-16"
+    },
+    {
+      "name": "Expect:100-continue smuggling on CONNECT to forbidden domain",
+      "category": "Application-level smuggling",
+      "description": "Sent CONNECT example.com:443 with Expect:100-continue header hoping for early tunnel establishment before ACL check",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "api-proxy chat/completions URL query param SSRF",
+      "category": "Internal service abuse / SSRF",
+      "description": "Probed api-proxy:10002 chat/completions endpoint with url= query param to see if it would fetch arbitrary URLs server-side",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "TRACE method through Squid for forbidden domain",
+      "category": "HTTP method variation",
+      "description": "Sent raw TRACE http://example.com/ request directly to squid to probe for method-based ACL bypass or cache poisoning reflection",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "Squid sibling/ICP/HTCP port scan (3130,4827,3401,8080,8443)",
+      "category": "Reconnaissance",
+      "description": "Scanned for alternate squid cache_peer ports that might not enforce the same dstdomain ACL",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "Unix domain socket enumeration for squid/docker sockets",
+      "category": "Container reconnaissance",
+      "description": "find / -xdev -type s to look for exploitable local sockets bypassing network ACL",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "NO_PROXY/no_proxy env var forced-empty override for curl",
+      "category": "Environment manipulation",
+      "description": "Cleared NO_PROXY/no_proxy env vars at call time hoping curl would route example.com direct instead of via proxy",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "Raw UDP NTP request to external IP (129.6.15.28:123)",
+      "category": "Protocol-level bypass",
+      "description": "Attempted raw UDP datagram to external NTP server bypassing TCP-only proxy enforcement",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "Direct openssl s_client TLS connection to example.com resolved IP:443",
+      "category": "TLS direct connection",
+      "description": "Bypassed curl/proxy entirely using openssl s_client raw socket to public IP",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "HTTP/2 curl --http2 request to forbidden domain",
+      "category": "Protocol-level bypass",
+      "description": "Tried HTTP/2 negotiation hoping ALPN/h2 handling differs from HTTP/1.1 ACL enforcement",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "getent hosts/ahosts NSS resolution for forbidden domain",
+      "category": "DNS-based",
+      "description": "Used getent instead of curl-internal or nslookup resolver paths to see if NSS caching/alternate resolver differs",
+      "result": "failure",
+      "date": "2026-08-18"
+    },
+    {
+      "name": "ICMP ping to example.com resolved IP",
+      "category": "Protocol-level bypass",
+      "description": "Attempted raw ICMP ping to public IP, blocked by lack of CAP_NET_RAW (Operation not permitted) before even reaching network layer",
+      "result": "failure",
+      "date": "2026-08-18"
     }
   ]
 }

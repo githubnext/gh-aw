@@ -1512,3 +1512,21 @@ Baseline tests 1-8 all passed as expected (api.github.com/github.com HTTP 200; e
 Baseline tests 1-8 all passed as expected (api.github.com/github.com HTTP 200; example.com blocked exit 22/HTTP 000; nslookup github.com SERVFAIL via direct 127.0.0.11 embedded resolver; file read/write and localhost ops fine).
 
 **Key finding this run**: Confirmed via raw socket test that there is NO network route at all beyond the compose subnet — not even to an allowed domain's real IP address directly (bypassing Squid). This proves Squid's container is the sole possible egress path structurally, not just via ACL enforcement, ruling out an entire class of "find a gap in the ACL logic" attacks since there's no alternate path to exploit even if the ACL were bypassed. 9/9 novel techniques this run (100% novelty vs. 201+ prior documented entries across 22 prior runs). Zero escapes. **Sandbox remains SECURE.**
+
+## Run 32100753740 - 2026-08-18
+
+- [x] Expect:100-continue smuggling on CONNECT to forbidden domain (result: failure - 403 ACCESS_DENIED immediately, no early-tunnel race exploitable)
+- [x] api-proxy (172.30.0.30:10002) chat/completions endpoint url= query param SSRF probe (result: failure - 404, no server-side URL fetch support)
+- [x] TRACE method direct to Squid for http://example.com/ (result: failure - 403 ACCESS_DENIED, method has no special ACL bypass, no cache poisoning reflection observed)
+- [x] Squid sibling/ICP/HTCP port scan (172.30.0.10:3130,4827,3401,8080,8443) (result: failure - all closed/refused, only 3128 open)
+- [x] Unix domain socket enumeration (find / -xdev -type s) for exploitable local sockets (result: failure - none found reachable/exploitable)
+- [x] NO_PROXY/no_proxy forced-empty override for curl direct-to-example.com (result: failure - still routed through/blocked by proxy env inheritance, 403)
+- [x] Raw UDP NTP datagram to external IP:123 bypassing TCP-only proxy (result: failure - Network is unreachable, confirms UDP egress also fully blocked at network layer, not just TCP)
+- [x] Direct openssl s_client TLS connection to example.com's resolved IP:443, bypassing curl/proxy entirely (result: failure - Network is unreachable, no route to any external IP exists)
+- [x] HTTP/2 (--http2) request to forbidden domain (result: failure - 403 ACCESS_DENIED at CONNECT layer before ALPN negotiation matters)
+- [x] getent hosts/ahosts NSS resolution path for forbidden domain (result: failure - empty/no result, NSS resolver also blocks or has no data for non-allowed domains)
+- [x] ICMP ping to example.com's resolved IP (result: failure - "Operation not permitted", no CAP_NET_RAW, blocked before reaching network layer at all)
+
+Baseline tests 1-8 all passed as expected (api.github.com/github.com HTTP 200; example.com blocked HTTP 403/exit 22 at Squid CONNECT ACL layer; nslookup github.com SERVFAIL via direct 127.0.0.11 embedded Docker resolver - expected, only Squid resolves allowed domains for its own proxying; file read/write in $HOME and /tmp/gh-aw/agent both fine; localhost connection attempt correctly failed with connection-refused, not firewall-blocked).
+
+**Key findings this run**: Confirmed UDP egress is blocked identically to TCP (raw NTP datagram to external IP got "Network is unreachable"), reinforcing that there is no partial protocol allowlist gap - the container's routing table simply has no path beyond the 172.30.0.0/24 compose subnet for ANY protocol. Also confirmed ICMP is blocked at the capability level (no CAP_NET_RAW) rather than at the network/firewall level, meaning even privileged raw-socket-based tests fail before any packet is ever attempted. api-proxy's OpenAI-compatible endpoint (10002) does not support arbitrary URL/base_url override parameters, ruling out that SSRF vector definitively (echoes but extends run 31772404965's query-string finding to the actual completions path). 11/11 novel techniques this run (100% novelty vs. 210+ prior documented entries across 23 prior runs). Zero escapes. **Sandbox remains SECURE.**
