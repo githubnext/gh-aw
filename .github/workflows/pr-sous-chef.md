@@ -270,7 +270,7 @@ safe-outputs:
     max: 8
     allowed-workflows: [cjs.yml, cgo.yml]
     allowed-pull-requests: ${{ steps.fetch-prs.outputs.eligible_pull_request_numbers }}
-    fork: true
+    fork: false
     github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   resolve-pull-request-review-thread:
     max: 40
