@@ -647,6 +647,7 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
  * @param {string} [options.remoteTarget] - Remote name or URL used for remote branch existence checks.
  * @param {string} [options.remoteToken] - Optional token used for authenticated remote branch checks.
  * @param {string} [options.cwd] - Optional working directory for git operations; scopes git config overrides to the correct checkout.
+ * @param {boolean} [options.allowExistingBranch] - Whether the existing pre-created branch may be reused.
  * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
  */
 async function handleRemoteBranchCollision(branchName, preserveBranchName, options = {}) {

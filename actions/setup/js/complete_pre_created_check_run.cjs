@@ -3,12 +3,18 @@
 
 async function main() {
   const checkRunId = Number.parseInt(process.env.GH_AW_PRE_CREATED_CHECK_RUN_ID || "", 10);
-  if (!Number.isInteger(checkRunId)) {
+  if (!Number.isFinite(checkRunId) || checkRunId <= 0) {
     core.info("No pre-created pull request check run to complete");
     return;
   }
 
-  const needs = JSON.parse(process.env.GH_AW_NEEDS || "{}");
+  let needs;
+  try {
+    needs = JSON.parse(process.env.GH_AW_NEEDS || "{}");
+  } catch (error) {
+    core.warning(`Unable to parse downstream job results: ${error instanceof Error ? error.message : String(error)}`);
+    needs = {};
+  }
   const results = Object.values(needs)
     .map(value => value?.result)
     .filter(Boolean);

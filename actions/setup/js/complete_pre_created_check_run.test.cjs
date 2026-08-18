@@ -12,7 +12,7 @@ describe("complete_pre_created_check_run", () => {
       context: global.context,
     };
     originalEnv = { ...process.env };
-    global.core = { info: vi.fn() };
+    global.core = { info: vi.fn(), warning: vi.fn() };
     global.context = {
       serverUrl: "https://github.com",
       workflow: "Test workflow",
@@ -51,5 +51,14 @@ describe("complete_pre_created_check_run", () => {
         conclusion: "failure",
       })
     );
+  });
+
+  it("completes the check when downstream job results are malformed", async () => {
+    process.env.GH_AW_NEEDS = "{";
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.core.warning).toHaveBeenCalledOnce();
+    expect(global.github.rest.checks.update).toHaveBeenCalledWith(expect.objectContaining({ check_run_id: 99, conclusion: "success" }));
   });
 });
