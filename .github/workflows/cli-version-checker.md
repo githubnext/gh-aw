@@ -57,7 +57,7 @@ Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Co
 **EFFICIENCY FIRST**: Before starting:
 1. Check cache-memory at `/tmp/gh-aw/cache-memory/` for previous version checks and help outputs
 2. If cached versions exist and are recent (< 24h), verify if updates are needed before proceeding
-3. If no CLI version, Docker image version, or Docker image digest changes are detected, exit early with success
+3. If no CLI version, Docker image version, or Docker image digest changes are detected, call `noop` as the terminal safe output and exit successfully
 
 **CRITICAL**: If ANY version or digest changes are detected, you MUST create an issue using safe-outputs.create-issue. Do not skip issue creation even for minor updates.
 
@@ -180,7 +180,7 @@ For each updated CLI, include: version old → new, release timeline, changes ca
 - **USE NPM COMMANDS**: Use `npm view` instead of web-fetch for package metadata queries
 - **CHECK CACHE FIRST**: Before re-analyzing versions, check cache-memory for recent results
 - **PARALLEL FETCHING**: Fetch all versions in parallel using multiple npm/WebFetch calls in one turn
-- **EARLY EXIT**: If no version changes detected, save check timestamp to cache and exit successfully
+- **EARLY EXIT**: If no version changes are detected, save the check timestamp to cache, call `noop` as the terminal safe output, and exit successfully
 - **FETCH GITHUB RELEASE NOTES**: For tools with public GitHub repositories, fetch release notes to get detailed changelog information
   - Codex: Always fetch from https://github.com/openai/codex/releases
   - GitHub MCP Server: Always fetch from https://github.com/github/github-mcp-server/releases
