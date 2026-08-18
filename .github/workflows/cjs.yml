@@ -42,14 +42,35 @@ jobs:
           failed=0
           for workflow in .github/workflows/cgo.yml .github/workflows/cjs.yml; do
             echo "Checking $workflow"
-            disallowed_secrets="$(grep -Eno '\$\{\{[[:space:]]*secrets\.[A-Za-z_][A-Za-z0-9_]*' "$workflow" | grep -Ev 'secrets\.(GITHUB_TOKEN|SCIENCE)$' || true)"
+            if [ ! -f "$workflow" ]; then
+              echo "Missing workflow file: $workflow"
+              failed=1
+              continue
+            fi
+
+            disallowed_secrets="$(grep -Eno '\$\{\{[[:space:]]*secrets\.[A-Za-z_][A-Za-z0-9_]*' "$workflow" || true)"
+            disallowed_secrets="$(printf '%s\n' "$disallowed_secrets" | grep -Ev 'secrets\.(GITHUB_TOKEN|SCIENCE)$' || true)"
             if [ -n "$disallowed_secrets" ]; then
               echo "Disallowed secrets expressions found in $workflow:"
               echo "$disallowed_secrets"
               failed=1
             fi
 
-            write_permissions="$(grep -En '^[[:space:]]*[A-Za-z0-9_-]+:[[:space:]]*write([[:space:]]*(#.*)?)?$' "$workflow" || true)"
+            write_permissions="$(awk '
+              /^[[:space:]]*permissions:[[:space:]]*$/ {
+                perm_indent = match($0, /[^[:space:]]/) - 1
+                in_permissions = 1
+                next
+              }
+              in_permissions {
+                if ($0 ~ /^[[:space:]]*($|#)/) next
+                indent = match($0, /[^[:space:]]/) - 1
+                if (indent <= perm_indent) in_permissions = 0
+              }
+              in_permissions && $0 ~ /^[[:space:]]*[A-Za-z0-9_-]+:[[:space:]]*write([[:space:]]*(#.*)?)?$/ {
+                print FILENAME ":" FNR ":" $0
+              }
+            ' "$workflow")"
             if [ -n "$write_permissions" ]; then
               echo "Write permissions found in $workflow:"
               echo "$write_permissions"
