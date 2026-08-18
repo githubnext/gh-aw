@@ -13,7 +13,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION } = require("./error_codes.cjs");
 const { classifySafeOutputResult, computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
-const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId, extractTemporaryIdReferences, getCreatedTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
@@ -725,6 +725,61 @@ function buildSkippedResult(type, messageIndex, result) {
 }
 
 /**
+ * Sort messages so temporary-ID producers run before consumers while preserving
+ * the original order for independent messages and dependency cycles.
+ *
+ * @param {Array<Record<string, any>>} messages
+ * @returns {Array<Record<string, any>>}
+ */
+function sortMessagesByTemporaryIdDependencies(messages) {
+  const producers = new Map();
+  messages.forEach((message, index) => {
+    const temporaryId = getCreatedTemporaryId(message);
+    if (temporaryId && !producers.has(temporaryId)) {
+      producers.set(temporaryId, index);
+    }
+  });
+
+  /** @type {Array<Array<number>>} */
+  const dependents = messages.map(() => []);
+  const inDegree = messages.map(() => 0);
+  messages.forEach((message, index) => {
+    const dependencies = message.type === "create_issue" ? extractTemporaryIdReferences({ blocked_by: message.blocked_by }) : new Set();
+    for (const temporaryId of dependencies) {
+      const producerIndex = producers.get(temporaryId);
+      if (producerIndex !== undefined && producerIndex !== index) {
+        dependents[producerIndex].push(index);
+        inDegree[index]++;
+      }
+    }
+  });
+
+  const ready = [];
+  inDegree.forEach((degree, index) => {
+    if (degree === 0) ready.push(index);
+  });
+  const sorted = [];
+  while (ready.length > 0) {
+    const index = ready.shift();
+    sorted.push(index);
+    for (const dependentIndex of dependents[index]) {
+      inDegree[dependentIndex]--;
+      if (inDegree[dependentIndex] === 0) {
+        ready.push(dependentIndex);
+      }
+    }
+  }
+
+  if (sorted.length !== messages.length) {
+    core.warning("Temporary ID dependency cycle detected; preserving original order for cyclic safe outputs");
+    for (let index = 0; index < messages.length; index++) {
+      if (!sorted.includes(index)) sorted.push(index);
+    }
+  }
+  return sorted.map(index => messages[index]);
+}
+
+/**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
@@ -735,6 +790,7 @@ function buildSkippedResult(type, messageIndex, result) {
  * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, artifactUrlMap: Map<string, string>, outputsWithUnresolvedIds: Array<any>, missings: Object, codePushFailures: Array<{type: string, error: string}>}>}
  */
 async function processMessages(messageHandlers, messages, onItemCreated = null) {
+  messages = sortMessagesByTemporaryIdDependencies(messages);
   const results = [];
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
 
@@ -1835,6 +1891,7 @@ module.exports = {
   loadConfig,
   loadHandlers,
   processMessages,
+  sortMessagesByTemporaryIdDependencies,
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
   rollbackReviewResultsForPR,

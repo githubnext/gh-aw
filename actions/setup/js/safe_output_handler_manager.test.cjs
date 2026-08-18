@@ -7,6 +7,7 @@ import {
   loadConfig,
   loadHandlers,
   processMessages,
+  sortMessagesByTemporaryIdDependencies,
   buildCommentMemoryMessagesFromFiles,
   rollbackReviewResults,
   rollbackReviewResultsForPR,
@@ -60,6 +61,15 @@ describe("Safe Output Handler Manager", () => {
       expect(result).toHaveProperty("add_comment");
       expect(result.create_issue).toEqual({ max: 5 });
       expect(result.add_comment).toEqual({ max: 1 });
+    });
+
+    describe("temporary ID dependency ordering", () => {
+      it("orders a blocked_by temporary-ID producer before its dependent issue", () => {
+        const prerequisite = { type: "create_issue", temporary_id: "aw_prereq", title: "Prerequisite" };
+        const blocked = { type: "create_issue", temporary_id: "aw_blocked", blocked_by: "aw_prereq", title: "Blocked" };
+
+        expect(sortMessagesByTemporaryIdDependencies([blocked, prerequisite])).toEqual([prerequisite, blocked]);
+      });
     });
 
     describe("logCreatedItemFromResult", () => {

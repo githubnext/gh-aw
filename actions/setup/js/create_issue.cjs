@@ -377,6 +377,78 @@ function buildIssueFieldMutationInput(requestedFields, availableFields) {
 }
 
 /**
+ * Parse and resolve an issue reference used by create_issue.blocked_by.
+ * Supports issue numbers, cross-repository references, URLs, and temporary IDs.
+ *
+ * @param {string|number} value
+ * @param {Map<string, {repo: string, number: number}>} temporaryIdMap
+ * @param {string} defaultRepo
+ * @returns {{target: {repo: string, number: number}|null, deferred?: boolean, error?: string}}
+ */
+function resolveBlockedByReference(value, temporaryIdMap, defaultRepo) {
+  const raw = String(value).trim();
+  if (isTemporaryId(raw)) {
+    const resolved = temporaryIdMap.get(normalizeTemporaryId(raw));
+    if (!resolved) {
+      return { target: null, deferred: true, error: `Unresolved temporary ID: ${raw}` };
+    }
+    return { target: { repo: resolved.repo, number: resolved.number } };
+  }
+
+  const numericMatch = raw.match(/^#?([1-9]\d*)$/);
+  const crossRepoMatch = raw.match(/^([\w.-]+\/[\w.-]+)#([1-9]\d*)$/);
+  const urlMatch = raw.match(/^https?:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/([1-9]\d*)(?:[?#/].*)?$/);
+  const match = crossRepoMatch || urlMatch;
+  const repo = match ? match[1] : defaultRepo;
+  const numberString = match ? match[2] : numericMatch?.[1];
+  const number = Number(numberString);
+
+  if (!repo || !Number.isSafeInteger(number) || number < 1) {
+    return {
+      target: null,
+      error: `Invalid blocked_by reference '${raw}'. Expected an issue number, owner/repo#number, GitHub issue URL, or temporary ID.`,
+    };
+  }
+  return { target: { repo, number } };
+}
+
+/**
+ * Normalize blocked_by to a list of resolved issue references.
+ *
+ * @param {unknown} blockedBy
+ * @param {Map<string, {repo: string, number: number}>} temporaryIdMap
+ * @param {string} defaultRepo
+ * @returns {{targets: Array<{repo: string, number: number}>, deferred?: boolean, error?: string}}
+ */
+function resolveBlockedByReferences(blockedBy, temporaryIdMap, defaultRepo) {
+  if (blockedBy === undefined || blockedBy === null) {
+    return { targets: [] };
+  }
+  const values = Array.isArray(blockedBy) ? blockedBy : [blockedBy];
+  const targets = [];
+  const seen = new Set();
+
+  for (const value of values) {
+    if (typeof value !== "string" && typeof value !== "number") {
+      return { targets: [], error: "create_issue 'blocked_by' must be an issue reference or an array of issue references" };
+    }
+    const resolved = resolveBlockedByReference(value, temporaryIdMap, defaultRepo);
+    if (resolved.deferred) {
+      return { targets: [], deferred: true, error: resolved.error };
+    }
+    if (!resolved.target) {
+      return { targets: [], error: resolved.error };
+    }
+    const key = `${resolved.target.repo.toLowerCase()}#${resolved.target.number}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      targets.push(resolved.target);
+    }
+  }
+  return { targets };
+}
+
+/**
  * Apply issue field values to a newly-created issue.
  * Resolves metadata and sends the setIssueFieldValue GraphQL mutation.
  * @param {{githubClient: Object, owner: string, repo: string, issueNumber: number, fields: Array<{name: string, value: string|number}>}} params
@@ -668,6 +740,15 @@ async function main(config = {}) {
       };
     }
     const { repo: qualifiedItemRepo, repoParts } = repoResult;
+
+    const blockedBy = resolveBlockedByReferences(message.blocked_by, temporaryIdMap, qualifiedItemRepo);
+    if (blockedBy.deferred) {
+      core.info(`Deferring create_issue: ${blockedBy.error}`);
+      return { success: false, deferred: true, error: blockedBy.error };
+    }
+    if (blockedBy.error) {
+      return { success: false, error: blockedBy.error };
+    }
 
     // Get or generate the temporary ID for this issue
     const tempIdResult = getOrGenerateTemporaryId(message, "issue");
@@ -1069,6 +1150,34 @@ async function main(config = {}) {
           return {
             success: false,
             error: `Issue ${qualifiedItemRepo}#${issue.number} was created, but issue fields could not be applied: ${fieldError}`,
+          };
+        }
+      }
+
+      for (const blockedIssue of blockedBy.targets) {
+        const [blockedOwner, blockedRepo] = blockedIssue.repo.split("/");
+        try {
+          const { data: blocker } = await githubClient.rest.issues.get({
+            owner: blockedOwner,
+            repo: blockedRepo,
+            issue_number: blockedIssue.number,
+          });
+          if (!Number.isSafeInteger(blocker?.id) || blocker.id < 1) {
+            throw new Error(`${ERR_VALIDATION}: Issue ${blockedIssue.repo}#${blockedIssue.number} did not return a valid issue ID`);
+          }
+          await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by", {
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issue_number: issue.number,
+            issue_id: blocker.id,
+          });
+          core.info(`Added blocked-by dependency: ${qualifiedItemRepo}#${issue.number} <- ${blockedIssue.repo}#${blockedIssue.number}`);
+        } catch (error) {
+          const dependencyError = getErrorMessage(error);
+          core.error(`Failed to add blocked-by dependency ${blockedIssue.repo}#${blockedIssue.number} to ${qualifiedItemRepo}#${issue.number}: ${dependencyError}`);
+          return {
+            success: false,
+            error: `Issue ${qualifiedItemRepo}#${issue.number} was created, but blocked-by dependency ${blockedIssue.repo}#${blockedIssue.number} could not be added: ${dependencyError}`,
           };
         }
       }

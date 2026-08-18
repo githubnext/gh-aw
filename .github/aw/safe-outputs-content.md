@@ -22,6 +22,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       close-older-key: "my-key"       # Optional: explicit deduplication key for close-older matching (uses gh-aw-close-key marker)
       deduplicate-by-title: true      # Optional: skip creating an issue when one with the same title exists; integer N allows fuzzy matches up to edit distance N (default: off)
       normalize-closing-keywords: true # Optional: strip backticks around recognized issue-closing keywords in body text
+      # create_issue output may set blocked_by to an issue reference or list of references
       footer: false                   # Optional: omit AI-generated footer while preserving XML markers (default: true)
       target-repo: "owner/repo"       # Optional: cross-repository
       allowed-repos: [owner/other]    # Optional: additional repos agent can target (agent uses `repo` field in output)
@@ -53,6 +54,8 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
   {"type": "create_issue", "temporary_id": "aw_abc123", "title": "Parent", "body": "Parent issue"}
   {"type": "create_issue", "parent": "aw_abc123", "title": "Sub-task", "body": "References #aw_abc123"}
   ```
+
+  **Blocked-By Dependencies:** Set `blocked_by` in `create_issue` output to an issue number, temporary ID, `owner/repo#number` reference, GitHub issue URL, or a list of references. Temporary IDs are resolved before the issue is created, allowing dependent output to be emitted in any order.
 
   **Setting Issue Fields on Creation**: Agents can include a `fields` array in the `create_issue` output to set custom field values immediately after creation. Each item is `{"name": <field-display-name>, "value": <string-or-number>}`. Use a number for numeric fields; string for single-select, iteration title, date `YYYY-MM-DD`, or text. Restrict allowed names with `allowed-fields:`.
 
