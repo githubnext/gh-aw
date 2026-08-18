@@ -265,8 +265,8 @@ func validateCopilotSetupStepsContent(content []byte) error {
 }
 
 // validateCopilotSetupStepsTriggers verifies the workflow declares at least one trigger
-// supported by Copilot. The 'on' key is looked up under both "on" and "true" because
-// YAML 1.1 parsers interpret an unquoted 'on' key as a boolean.
+// supported by Copilot. The 'on' key is also looked up as "true" to tolerate files written
+// by a YAML 1.1 emitter, which serializes the unquoted 'on' key as the boolean true.
 func validateCopilotSetupStepsTriggers(doc map[string]any) error {
 	onValue, ok := doc["on"]
 	if !ok {
