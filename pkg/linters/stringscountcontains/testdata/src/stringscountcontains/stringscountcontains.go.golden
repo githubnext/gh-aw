@@ -54,3 +54,11 @@ func goodCountActualCount(s, sub string) bool {
 func goodContainsAlready(s, sub string) bool {
 	return strings.Contains(s, sub)
 }
+
+func badParenCountGTR(s, sub string) bool {
+	return strings.Contains(s, sub) // want `use strings\.Contains\(s, sub\) instead of strings\.Count comparison`
+}
+
+func badParenYodaCountEQL(s, sub string) bool {
+	return !strings.Contains(s, sub) // want `use !strings\.Contains\(s, sub\) instead of strings\.Count comparison`
+}

@@ -10,8 +10,6 @@ package trimleftright
 
 import (
 	"go/ast"
-	"go/token"
-	"strconv"
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
@@ -30,11 +28,7 @@ var Analyzer = analyzerutil.New("trimleftright", "reports likely mistaken string
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +71,7 @@ func analyzeTrimLeftRight(pass *analysis.Pass, n ast.Node, generatedFiles filech
 		return
 	}
 
-	cutset, isCutset := stringLitValue(call.Args[1])
+	cutset, isCutset := astutil.StringLitValue(call.Args[1])
 	if !isCutset || !looksSuspiciousCutset(cutset) {
 		return
 	}
@@ -97,19 +91,6 @@ func analyzeTrimLeftRight(pass *analysis.Pass, n ast.Node, generatedFiles filech
 		Message: "strings." + funcName + " with a multi-character cutset treats each character independently; " +
 			"use strings." + suggested + " if you intend to remove the exact string",
 	})
-}
-
-// stringLitValue returns the unquoted string value of a string-literal AST node.
-func stringLitValue(expr ast.Expr) (string, bool) {
-	lit, ok := expr.(*ast.BasicLit)
-	if !ok || lit.Kind != token.STRING {
-		return "", false
-	}
-	s, err := strconv.Unquote(lit.Value)
-	if err != nil {
-		return "", false
-	}
-	return s, true
 }
 
 // looksSuspiciousCutset reports likely TrimPrefix/TrimSuffix confusion.

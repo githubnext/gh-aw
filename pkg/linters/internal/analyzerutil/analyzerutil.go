@@ -31,6 +31,21 @@ func NewAtPath(name, doc, packagePath string, run func(*analysis.Pass) (any, err
 	}
 }
 
+// Indexes returns the nolint directive index and the generated-file index for
+// pass. Both indexes are guaranteed to be available for analyzers created with
+// New or NewAtPath, which declare the producing analyzers in Requires.
+func Indexes(pass *analysis.Pass) (nolint.DirectiveIndex, filecheck.GeneratedIndex, error) {
+	noLintIndex, err := nolint.Index(pass)
+	if err != nil {
+		return nil, nil, err
+	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, nil, err
+	}
+	return noLintIndex, generatedFiles, nil
+}
+
 // Preorder runs fn for each node matching nodeFilter.
 func Preorder(pass *analysis.Pass, nodeFilter []ast.Node, fn func(ast.Node)) (any, error) {
 	insp, err := astutil.Inspector(pass)

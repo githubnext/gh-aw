@@ -23,6 +23,8 @@ describe("require-page-counter-increment-in-while-true-loop", () => {
         `let page = 1; while (true) { api({ page }); }`,
         `let page = 1; while (true) { api({ currentPage: 1 }); break; }`,
         `let page = 1; while (true) { const page = 1; api({ page: 1 }); break; }`,
+        `let page = 1; const perPage = 100; while (true) { api({ page, perPage }); if (done) break; page++; }`,
+        `const perPage = 100; let page = 1; while (true) { api({ page, perPage }); if (done) break; page++; }`,
       ],
       invalid: [
         {
@@ -55,6 +57,10 @@ describe("require-page-counter-increment-in-while-true-loop", () => {
         },
         {
           code: `let page = 1; while (true) { api({ page }); if (done) break; page = page - 1; }`,
+          errors: [{ messageId: "requirePageCounterIncrement", data: { name: "page" } }],
+        },
+        {
+          code: `let page = 1; const perPage = 100; while (true) { api({ page, perPage }); if (done) break; }`,
           errors: [{ messageId: "requirePageCounterIncrement", data: { name: "page" } }],
         },
       ],

@@ -8,7 +8,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -35,11 +34,7 @@ func init() {
 
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -299,19 +294,6 @@ func caseConvFuncName(pass *analysis.Pass, n ast.Node) (string, bool) {
 	return name, ok
 }
 
-// stringLitValue returns the unquoted string value of a string-literal AST node.
-func stringLitValue(expr ast.Expr) (string, bool) {
-	lit, ok := expr.(*ast.BasicLit)
-	if !ok || lit.Kind != token.STRING {
-		return "", false
-	}
-	s, err := strconv.Unquote(lit.Value)
-	if err != nil {
-		return "", false
-	}
-	return s, true
-}
-
 // literalCaseMatchesConv reports whether lit is already in the correct case for
 // funcName and uses ASCII-only characters. This conservative guard avoids Unicode
 // simple-fold mismatches where ToLower/ToUpper equality and EqualFold differ.
@@ -358,7 +340,7 @@ func caseConvIsCompatible(pass *analysis.Pass, convSide ast.Node, otherSide ast.
 		return false
 	}
 	// String-literal operand: the literal must already be in the correct case.
-	if lit, ok := stringLitValue(otherSide); ok {
+	if lit, ok := astutil.StringLitValue(otherSide); ok {
 		return literalCaseMatchesConv(funcName, lit)
 	}
 	return false
@@ -379,7 +361,7 @@ func caseConvAliasIsCompatible(pass *analysis.Pass, aliasExpr ast.Expr, litExpr 
 	if !ok {
 		return false
 	}
-	lit, ok := stringLitValue(litExpr)
+	lit, ok := astutil.StringLitValue(litExpr)
 	if !ok {
 		return false
 	}

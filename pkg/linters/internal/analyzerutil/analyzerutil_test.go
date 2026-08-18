@@ -69,3 +69,57 @@ func example() {
 		t.Errorf("Preorder() visited %v, want %v", names, want)
 	}
 }
+
+func TestIndexes(t *testing.T) {
+	noLintIndex := nolint.DirectiveIndex{"example.go": {1: {"example": {}}}}
+	generatedFiles := filecheck.GeneratedIndex{"generated.go": {}}
+
+	pass := &analysis.Pass{
+		ResultOf: map[*analysis.Analyzer]any{
+			nolint.Analyzer:    noLintIndex,
+			filecheck.Analyzer: generatedFiles,
+		},
+	}
+
+	gotNoLint, gotGenerated, err := Indexes(pass)
+	if err != nil {
+		t.Fatalf("Indexes() error = %v", err)
+	}
+	if !reflect.DeepEqual(gotNoLint, noLintIndex) {
+		t.Errorf("Indexes() nolint index = %v, want %v", gotNoLint, noLintIndex)
+	}
+	if !reflect.DeepEqual(gotGenerated, generatedFiles) {
+		t.Errorf("Indexes() generated index = %v, want %v", gotGenerated, generatedFiles)
+	}
+}
+
+func TestIndexesError(t *testing.T) {
+	tests := []struct {
+		name     string
+		resultOf map[*analysis.Analyzer]any
+	}{
+		{
+			name: "malformed nolint result",
+			resultOf: map[*analysis.Analyzer]any{
+				nolint.Analyzer:    "not an index",
+				filecheck.Analyzer: filecheck.GeneratedIndex{},
+			},
+		},
+		{
+			name: "malformed filecheck result",
+			resultOf: map[*analysis.Analyzer]any{
+				nolint.Analyzer:    nolint.DirectiveIndex{},
+				filecheck.Analyzer: "not an index",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pass := &analysis.Pass{ResultOf: tt.resultOf}
+			if _, _, err := Indexes(pass); err == nil {
+				t.Error("Indexes() error = nil, want error")
+			}
+		})
+	}
+}

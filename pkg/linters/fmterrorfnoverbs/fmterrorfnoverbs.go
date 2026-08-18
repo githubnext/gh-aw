@@ -19,11 +19,7 @@ import (
 var Analyzer = analyzerutil.New("fmterrorfnoverbs", "reports fmt.Errorf calls whose format string contains no verbs, preferring errors.New", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	nolintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	nolintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
