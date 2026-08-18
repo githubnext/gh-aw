@@ -4,7 +4,7 @@ const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 
 async function createOrUpdatePullRequest(options) {
   const { githubClient, repoParts, title, body, branchName, baseBranch, draft, preCreatedPullRequestNumber, preCreatedBranch } = options;
-  if (!Number.isInteger(preCreatedPullRequestNumber)) {
+  if (!(preCreatedPullRequestNumber > 0)) {
     return withRetry(
       () =>
         githubClient.rest.pulls.create({

@@ -2539,7 +2539,7 @@ ${patchPreview}`;
           preCreatedBranch,
         });
 
-        core.info(`${Number.isInteger(preCreatedPullRequestNumber) ? "Updated pre-created" : "Created"} pull request #${pullRequest.number}: ${pullRequest.html_url || preCreatedPullRequestUrl}`);
+        core.info(`${preCreatedPullRequestNumber > 0 ? "Updated pre-created" : "Created"} pull request #${pullRequest.number}: ${pullRequest.html_url || preCreatedPullRequestUrl}`);
 
         // Record this pull request so later messages in the same run can stack on top of it.
         // Both the agent-provided branch name and the effective (prefixed/salted) name are keys.

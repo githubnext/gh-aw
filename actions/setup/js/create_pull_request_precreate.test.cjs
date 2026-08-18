@@ -45,4 +45,31 @@ describe("create_pull_request pre-created PR reuse", () => {
     expect(pulls.create).not.toHaveBeenCalled();
     expect(result.data.number).toBe(42);
   });
+
+  it("creates a PR when the allocated PR number is not positive", async () => {
+    const pulls = {
+      get: vi.fn(),
+      update: vi.fn(),
+      create: vi.fn().mockResolvedValue({
+        data: { number: 43, html_url: "https://github.com/owner/repo/pull/43" },
+      }),
+    };
+
+    const result = await createOrUpdatePullRequest({
+      githubClient: { rest: { pulls } },
+      repoParts: { owner: "owner", repo: "repo" },
+      title: "Final title",
+      body: "Final body",
+      branchName: "gh-aw/pre-created/123-1",
+      baseBranch: "main",
+      draft: true,
+      preCreatedPullRequestNumber: 0,
+      preCreatedBranch: "gh-aw/pre-created/123-1",
+    });
+
+    expect(pulls.create).toHaveBeenCalledOnce();
+    expect(pulls.get).not.toHaveBeenCalled();
+    expect(pulls.update).not.toHaveBeenCalled();
+    expect(result.data.number).toBe(43);
+  });
 });
