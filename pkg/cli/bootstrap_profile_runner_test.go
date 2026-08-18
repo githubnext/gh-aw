@@ -228,6 +228,8 @@ func TestExecuteBootstrapProfile_InfersRequirementsFromRealWorkflows(t *testing.
 	if !reflect.DeepEqual(capturedAction.Permissions, wantPermissions) {
 		t.Fatalf("merged permissions = %v, want %v", capturedAction.Permissions, wantPermissions)
 	}
+	// mergeBootstrapGitHubAppRequirements always returns events sorted alphabetically,
+	// so this exact-order comparison is deterministic.
 	wantEvents := []string{"issues", "pull_request"}
 	if !reflect.DeepEqual(capturedAction.Events, wantEvents) {
 		t.Fatalf("merged events = %v, want %v (schedule must be excluded)", capturedAction.Events, wantEvents)
@@ -284,6 +286,8 @@ func TestExecuteBootstrapProfile_InferredRequirementsMergeWithDeclaredManifestVa
 	if !reflect.DeepEqual(capturedAction.Permissions, wantPermissions) {
 		t.Fatalf("merged permissions = %v, want %v", capturedAction.Permissions, wantPermissions)
 	}
+	// mergeBootstrapGitHubAppRequirements always returns events sorted alphabetically,
+	// so this exact-order comparison is deterministic.
 	wantEvents := []string{"issues", "push"}
 	if !reflect.DeepEqual(capturedAction.Events, wantEvents) {
 		t.Fatalf("merged events = %v, want %v", capturedAction.Events, wantEvents)
@@ -310,6 +314,11 @@ func stubBootstrapGitHubAppCreationForInferenceTest(t *testing.T) func() {
 	}
 	bootstrapUpsertVariable = func(_ context.Context, _, _, _ string) error { return nil }
 	bootstrapSetSecret = func(_ context.Context, _, _, _ string) error { return nil }
+	// Safe default: callers are expected to override this immediately with a capturing
+	// stub, but default to a no-op (no network access) in case they don't.
+	bootstrapCreateGitHubApp = func(_ context.Context, _, _, _, _ string, _ repositoryPackageBootstrapAction, _ bootstrapGitHubAppOverrides) (*bootstrapCreatedGitHubApp, error) {
+		return &bootstrapCreatedGitHubApp{ClientID: "client-id", PEM: "pem"}, nil
+	}
 
 	return func() {
 		runBootstrapGHContext = originalRunGH
