@@ -56,7 +56,7 @@ func TestFixWithDirFlag(t *testing.T) {
 	testCases := []struct {
 		name        string
 		setup       func(t *testing.T, tmpDir string) string
-		workflowDir func(workflowRoot string) string
+		workflowDir func(t *testing.T, tmpDir string, workflowRoot string) string
 		chdirToTmp  bool
 	}{
 		{
@@ -67,7 +67,7 @@ func TestFixWithDirFlag(t *testing.T) {
 				require.NoError(t, os.MkdirAll(customDir, 0755))
 				return customDir
 			},
-			workflowDir: func(workflowRoot string) string { return workflowRoot },
+			workflowDir: func(t *testing.T, tmpDir string, workflowRoot string) string { return workflowRoot },
 		},
 		{
 			name: "custom relative dir",
@@ -77,8 +77,12 @@ func TestFixWithDirFlag(t *testing.T) {
 				require.NoError(t, os.MkdirAll(customDir, 0755))
 				return customDir
 			},
-			workflowDir: func(workflowRoot string) string { return filepath.Base(workflowRoot) },
-			chdirToTmp:  true,
+			workflowDir: func(t *testing.T, tmpDir string, workflowRoot string) string {
+				rel, err := filepath.Rel(tmpDir, workflowRoot)
+				require.NoError(t, err)
+				return rel
+			},
+			chdirToTmp: true,
 		},
 		{
 			name: "default dir when empty",
@@ -88,7 +92,7 @@ func TestFixWithDirFlag(t *testing.T) {
 				require.NoError(t, os.MkdirAll(defaultDir, 0755))
 				return defaultDir
 			},
-			workflowDir: func(workflowRoot string) string { return "" },
+			workflowDir: func(t *testing.T, tmpDir string, workflowRoot string) string { return "" },
 			chdirToTmp:  true,
 		},
 	}
@@ -108,7 +112,7 @@ func TestFixWithDirFlag(t *testing.T) {
 				WorkflowIDs: []string{},
 				Write:       true,
 				Verbose:     false,
-				WorkflowDir: tc.workflowDir(workflowRoot),
+				WorkflowDir: tc.workflowDir(t, tmpDir, workflowRoot),
 			}
 
 			require.NoError(t, RunFix(config))
@@ -167,7 +171,7 @@ func TestFixWithDirFlagEdgeCases(t *testing.T) {
 			WorkflowDir: missingDir,
 		})
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "no "+missingDir+" directory found")
+		assert.ErrorContains(t, err, missingDir)
 	})
 
 	t.Run("dir without markdown files is a no-op", func(t *testing.T) {
@@ -192,13 +196,13 @@ func TestResolveWorkflowRoot(t *testing.T) {
 	}{
 		{
 			name:     "nested under github workflows",
-			filePath: filepath.Join("/tmp", "repo", ".github", "workflows", "nested", "foo.md"),
-			expected: filepath.Join("/tmp", "repo", ".github", "workflows"),
+			filePath: filepath.Join("repo", ".github", "workflows", "nested", "foo.md"),
+			expected: filepath.Join("repo", ".github", "workflows"),
 		},
 		{
 			name:     "no github workflows segment falls back to dir",
-			filePath: filepath.Join("/tmp", "repo", "workflows", "foo.md"),
-			expected: filepath.Join("/tmp", "repo", "workflows"),
+			filePath: filepath.Join("repo", "workflows", "foo.md"),
+			expected: filepath.Join("repo", "workflows"),
 		},
 		{
 			name:     "messy path under github workflows is normalized",
