@@ -51,7 +51,7 @@ describe("add_labels", () => {
           };
         }
         // updateIssue intent mutation: echo back the requested label names.
-        const labels = (variables?.labels || []).map(l => ({ name: l.name || l.labelId }));
+        const labels = (variables?.labels || []).map(l => ({ name: l.name || l.labelId?.replace(/^LABEL_/, "") }));
         return { updateIssue: { issue: { id: variables?.issueId, labels: { nodes: labels } } } };
       },
       rest: {
@@ -244,6 +244,193 @@ describe("add_labels", () => {
       expect(graphqlMutationCalls).toHaveLength(1);
       // Existing labels are merged (metadata-free) so add-only semantics are preserved
       expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_bug", rationale: "Crash on upload", confidence: "HIGH" }, { labelId: "LABEL_enhancement" }]);
+    });
+
+    it("should skip an already-applied label instead of re-proposing its intent metadata", async () => {
+      const handler = await main({ max: 10 });
+      const graphqlMutationCalls = [];
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "ISSUE_NODE_ID",
+          title: "Test issue title",
+          labels: [{ name: "feature-openapi" }, { name: "area-minimal" }],
+        },
+      });
+      const originalGraphql = mockGithub.graphql;
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("updateIssue")) {
+          graphqlMutationCalls.push(variables);
+        }
+        return originalGraphql(query, variables);
+      };
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return {};
+      };
+
+      const result = await handler(
+        {
+          item_number: 68619,
+          labels: [{ name: "area-minimal", rationale: "Minimal APIs area", confidence: "MEDIUM" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual([]);
+      expect(result.labelsSuggested).toEqual([]);
+      expect(result.after_state.labels).toEqual(["feature-openapi", "area-minimal"]);
+      expect(graphqlMutationCalls).toHaveLength(0);
+      expect(addLabelsCalls).toHaveLength(0);
+    });
+
+    it("should report a confidence-gated intent label as suggested rather than added", async () => {
+      const handler = await main({ max: 10 });
+
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "ISSUE_NODE_ID",
+          title: "Test issue title",
+          labels: [{ name: "feature-openapi" }],
+        },
+      });
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("repository(owner")) {
+          return {
+            repository: {
+              labels: {
+                nodes: [
+                  { id: "LABEL_feature-openapi", name: "feature-openapi" },
+                  { id: "LABEL_area-minimal", name: "area-minimal" },
+                ],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          };
+        }
+        return { updateIssue: { issue: { labels: { nodes: [{ name: "feature-openapi" }] } } } };
+      };
+
+      const result = await handler(
+        {
+          item_number: 68619,
+          labels: [{ name: "area-minimal", rationale: "Minimal APIs area", confidence: "MEDIUM" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual([]);
+      expect(result.labelsSuggested).toEqual(["area-minimal"]);
+      expect(result.after_state.labels).toEqual(["feature-openapi"]);
+      expect(mockCore.infos).toContain("Successfully added 0 labels to issue #68619 in test-owner/test-repo");
+    });
+
+    it("should add metadata-free labels through REST when the intent mutation does not apply them", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+      const graphqlMutationCalls = [];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "ISSUE_NODE_ID",
+          title: "Test issue title",
+          labels: [{ name: "feature-openapi" }],
+        },
+      });
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("repository(owner")) {
+          return {
+            repository: {
+              labels: {
+                nodes: [
+                  { id: "LABEL_feature-openapi", name: "feature-openapi" },
+                  { id: "LABEL_area-minimal", name: "area-minimal" },
+                  { id: "LABEL_bug", name: "bug" },
+                ],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          };
+        }
+        graphqlMutationCalls.push(variables);
+        return { updateIssue: { issue: { labels: { nodes: [{ name: "feature-openapi" }] } } } };
+      };
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return { data: [{ name: "bug" }] };
+      };
+
+      const result = await handler(
+        {
+          item_number: 68619,
+          labels: [{ name: "area-minimal", rationale: "Minimal APIs area", confidence: "MEDIUM" }, { name: "bug" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["bug"]);
+      expect(result.labelsSuggested).toEqual(["area-minimal"]);
+      expect(result.after_state.labels).toEqual(["feature-openapi", "bug"]);
+      expect(result.after_state.labels).not.toContain("area-minimal");
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_area-minimal", rationale: "Minimal APIs area", confidence: "MEDIUM" }, { labelId: "LABEL_bug" }, { labelId: "LABEL_feature-openapi" }]);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual(["bug"]);
+    });
+
+    it("should restore pre-existing labels omitted by the intent mutation", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+      const restoredLabels = [{ name: "area-minimal" }];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "ISSUE_NODE_ID",
+          title: "Test issue title",
+          labels: [{ name: "feature-openapi" }, { name: "area-minimal" }],
+        },
+      });
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("repository(owner")) {
+          return {
+            repository: {
+              labels: {
+                nodes: [
+                  { id: "LABEL_feature-openapi", name: "feature-openapi" },
+                  { id: "LABEL_area-minimal", name: "area-minimal" },
+                  { id: "LABEL_bug", name: "bug" },
+                ],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          };
+        }
+        return { updateIssue: { issue: { labels: { nodes: [{ name: "feature-openapi" }, { name: "bug" }] } } } };
+      };
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return { data: restoredLabels };
+      };
+
+      const result = await handler(
+        {
+          item_number: 68619,
+          labels: [{ name: "bug", rationale: "Confirmed defect", confidence: "HIGH" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["bug"]);
+      expect(result.labelsSuggested).toEqual([]);
+      expect(result.after_state.labels).toEqual(["feature-openapi", "area-minimal", "bug"]);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual(["area-minimal"]);
+      expect(mockCore.warnings[0]).toContain("restoring them via the REST add-labels endpoint");
     });
 
     it("should return a standardized error code when issue node_id is missing on issue-intent path", async () => {
@@ -894,7 +1081,7 @@ describe("add_labels", () => {
       const result = await handler(
         {
           item_number: 456,
-          labels: [{ name: "bug", rationale: "Crash", confidence: "HIGH" }],
+          labels: [{ name: "enhancement", rationale: "Improves the issue", confidence: "HIGH" }],
         },
         {}
       );

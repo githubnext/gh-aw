@@ -24,6 +24,7 @@ name: "Smoke Agent: all/none"
 engine: claude
 strict: true
 tools:
+  cli-proxy: false
   bash: false
   github:
     mode: local

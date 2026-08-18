@@ -37,13 +37,13 @@ imports:
   - shared/reporting.md
 tools:
   bash: false
-  cli-proxy: true
+  cli-proxy: false
   cache-memory:
     key: spam-tracking-${{ github.repository_owner }}
     retention-days: 1
     allowed-extensions: [".json"]
   github:
-    mode: gh-proxy
+    mode: local
     read-only: true
     toolsets: [default]
     min-integrity: none

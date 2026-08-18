@@ -379,6 +379,33 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 	return stepLines
 }
 
+const agentExecutionExitCodePath = "/tmp/gh-aw/agent_execution_exit_code.txt"
+
+// buildAgentExecutionExitCodeTrap returns an EXIT trap that persists an agent
+// execution result for OTLP reporting and annotates non-zero exits in the log.
+func buildAgentExecutionExitCodeTrap() string {
+	return buildAgentExecutionExitCodeTrapWithCleanup("")
+}
+
+func buildAgentExecutionExitCodeTrapWithCleanup(cleanup string) string {
+	if cleanup != "" {
+		cleanup += "; "
+	}
+	return fmt.Sprintf(
+		"trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf \"%%s\" \"$gh_aw_exit_code\" > %s || true; %sif [ \"$gh_aw_exit_code\" -ne 0 ]; then echo \"::error::Agent execution exited with code $gh_aw_exit_code\"; fi' EXIT\n",
+		agentExecutionExitCodePath,
+		cleanup,
+	)
+}
+
+func wrapAgentExecutionCommand(command string) string {
+	const pipefailSetup = "set -o pipefail\n"
+	if commandWithoutPipefail, ok := strings.CutPrefix(command, pipefailSetup); ok {
+		return pipefailSetup + buildAgentExecutionExitCodeTrap() + commandWithoutPipefail
+	}
+	return buildAgentExecutionExitCodeTrap() + command
+}
+
 // appendEnvVarLine appends a YAML env var entry to lines.
 // If the value contains embedded newlines (e.g. from a multi-line YAML block scalar
 // like >- with extra-indented continuation lines), it is emitted as a YAML literal

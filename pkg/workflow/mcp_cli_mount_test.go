@@ -332,3 +332,15 @@ func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *test
 		assert.Equal(t, []string{constants.SafeOutputsMCPServerID.String()}, servers)
 	})
 }
+
+func TestBuildMCPCLIPromptSection_OmittedWhenBashDisabled(t *testing.T) {
+	data := &WorkflowData{
+		BashDisabled: true,
+		SafeOutputs: &SafeOutputsConfig{
+			AddLabels: &AddLabelsConfig{},
+		},
+	}
+
+	require.NotEmpty(t, getMCPCLIServerNames(data), "safeoutputs is still CLI-mounted")
+	assert.Nil(t, buildMCPCLIPromptSection(data), "CLI-only instructions must be omitted when the agent has no shell")
+}

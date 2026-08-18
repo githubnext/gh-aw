@@ -80,6 +80,8 @@ evals:
     question: Did the agent report actionable image findings, or use noop when no findings required action?
   - id: critical_burn_down_tracked
     question: When Critical or High findings existed, did the agent create a consolidated burn-down issue linking the per-image issues and stating the remediation SLA?
+  - id: upstream_vendored_triaged
+    question: Did the agent classify each finding as vendored (fixable in this repo) or upstream (owned by another repository), and avoid requesting a local code-fix PR for upstream-owned findings?
 features:
   gh-aw-detection: true
 sandbox:
@@ -95,28 +97,47 @@ Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
 1. Read `compile-output.txt`.
 2. Treat [Container CVE burn-down](https://github.com/github/gh-aw/issues/52657)
      as the single tracker. Assign it to `pelikhan` if it is unassigned.
-3. Do not create per-image finding issues. Update #52657 with the current scan's
+3. Classify every scanned image as **vendored** or **upstream** before
+     writing any remediation guidance:
+     - **Vendored**: the image's Dockerfile/build config lives in this
+       repository (`github/gh-aw`), so a fix (code change, dependency bump,
+       or config change) can land here directly.
+     - **Upstream**: the image is built and owned by a different repository
+       or a third party, e.g. `ghcr.io/github/gh-aw-firewall/*` (owned by
+       `github/gh-aw-firewall`), `ghcr.io/github/gh-aw-mcpg` (owned by
+       `github/gh-aw-mcpg`), or third-party images such as
+       `github-mcp-server`, `grafana/mcp-grafana`, or `serena-mcp-server`.
+       For these, the code-level fix cannot land in this repo; only a
+       pin/digest refresh to a newer upstream release is possible here.
+4. Do not create per-image finding issues. Update #52657 with the current scan's
      summary table and collapsible per-image details, including:
-     - the image name and pinned reference;
+     - the image name, pinned reference, and its vendored/upstream classification;
      - every vulnerability with severity, CVE ID, package, installed version, and
      fixed versions;
      - every rejected or unknown license and the affected package;
-     - actionable remediation guidance.
-4. Close every open issue titled `Container findings for ...` as a duplicate of
+     - actionable remediation guidance, scoped to what is actually fixable here
+     (see step 9).
+5. Close every open issue titled `Container findings for ...` as a duplicate of
      #52657. Include a short closure comment linking to #52657. Do not close
      operational-failure issues.
-5. If the scan step failed to produce output, create one `Container scan
+6. If the scan step failed to produce output, create one `Container scan
      operational failure` issue assigned to `pelikhan`.
-6. If there are no findings and no operational errors, update #52657 to show
+7. If there are no findings and no operational errors, update #52657 to show
      the clean scan, then call `noop`.
-7. Order the findings in #52657 by severity, Critical first, then High, Medium,
+8. Order the findings in #52657 by severity, Critical first, then High, Medium,
      Low, and Unknown, so the Critical backlog is triaged first.
-8. In #52657, state the remediation SLA cadence: Critical findings
+9. In #52657, state the remediation SLA cadence: Critical findings
      are remediated or explicitly risk-accepted within 7 days, High within 30
      days, and every scanned image is rebuilt on a refreshed base image at least
      weekly (this workflow runs `gh aw compile --force-refresh-container-pins`
-     daily, so a pin refresh PR is the default remediation step).
-9. Keep the report factual and compact. Never omit lower-severity
+     daily, so a pin refresh PR is the default remediation step). For findings
+     on **upstream** images, do not request a local code-fix PR or task an
+     agent to patch the vendored image directly — the daily pin-refresh
+     already picks up upstream fixes automatically once released. Instead,
+     label the finding "Upstream — tracked only" and, when available, link to
+     the corresponding issue/advisory in the owning repository so the fix is
+     pursued there, not here.
+10. Keep the report factual and compact. Never omit lower-severity
      vulnerabilities.
 
 ### Output Format

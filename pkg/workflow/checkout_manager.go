@@ -191,6 +191,15 @@ type CheckoutManager struct {
 	// http.extraheader injection is required. Empty means "fall back to the
 	// actions/checkout default token".
 	pushToken string
+	// defaultRefOverride forces the workspace-root checkout to a compiler-generated
+	// ref, such as the branch allocated by create-pull-request.pre-create.
+	defaultRefOverride string
+}
+
+// SetDefaultRefOverride forces the default workspace checkout to use ref.
+func (cm *CheckoutManager) SetDefaultRefOverride(ref string) {
+	checkoutManagerLog.Printf("Setting default checkout ref override: %q", ref)
+	cm.defaultRefOverride = ref
 }
 
 // NewCheckoutManager creates a new CheckoutManager pre-loaded with user-supplied

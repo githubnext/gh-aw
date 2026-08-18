@@ -86,6 +86,7 @@ func TestForceRefreshActionPins_NoFileExists(t *testing.T) {
 }
 
 func TestForceRefreshActionPins_EnablesValidation(t *testing.T) {
+	t.Parallel()
 	// Test that force refresh automatically enables validation
 	config := CompileConfig{
 		ForceRefreshActionPins: true,

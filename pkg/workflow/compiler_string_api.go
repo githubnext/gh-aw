@@ -153,6 +153,11 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)
 	}
 
+	// Validate that cli-proxy is not enabled while shell execution is refused
+	if err := validateCLIProxyBashCompatibility(workflowData.Tools, workflowData.Name); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Validate optional engine.mcp.session-timeout configuration.
 	if err := c.validateEngineMCPSessionTimeout(workflowData); err != nil {
 		return nil, fmt.Errorf("%s: %w", cleanPath, err)

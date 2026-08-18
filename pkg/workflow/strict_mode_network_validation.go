@@ -153,6 +153,37 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 		}
 	}
 
+	// Require cli-proxy to be explicitly disabled when bash is refused.
+	// cli-proxy mounts MCP servers as CLI executables that can only be invoked from a shell,
+	// so it is incompatible with 'tools.bash: false'. Requiring an explicit
+	// 'tools.cli-proxy: false' makes that incompatibility visible in the workflow source.
+	if isBashExplicitlyRefused(toolsMap) {
+		cliProxyValue, hasCLIProxy := toolsMap["cli-proxy"]
+		enabled, isBool := cliProxyValue.(bool)
+		if !hasCLIProxy || !isBool || enabled {
+			strictModeValidationLog.Print("bash disabled without explicit cli-proxy: false rejected in strict mode")
+			value := "not specified"
+			if hasCLIProxy {
+				value = fmt.Sprintf("%v", cliProxyValue)
+			}
+			return NewValidationError(
+				"tools.cli-proxy",
+				value,
+				"strict mode: when 'tools.bash' is disabled, 'tools.cli-proxy: false' must be set explicitly because CLI-mounted MCP servers can only be invoked from a shell",
+				"Add an explicit cli-proxy setting to the tools section:\n\ntools:\n  bash: false\n  cli-proxy: false\n\nRun 'gh aw fix' to apply this change automatically.",
+			)
+		}
+		if mode, enabled := IsGitHubCLIProxyMode(toolsMap); enabled {
+			strictModeValidationLog.Print("bash disabled with tools.github.mode: gh-proxy rejected in strict mode")
+			return NewValidationError(
+				"tools.github.mode",
+				mode,
+				"strict mode: when 'tools.bash' is disabled, 'tools.github.mode: gh-proxy' is not allowed because GitHub gh-proxy reads can only be invoked from a shell",
+				"Use an MCP-backed GitHub mode instead:\n\ntools:\n  bash: false\n  cli-proxy: false\n  github:\n    mode: local\n\nRun 'gh aw fix' to apply this change automatically.",
+			)
+		}
+	}
+
 	// Check if cache-memory is configured with scope: repo
 	cacheMemoryValue, hasCacheMemory := toolsMap["cache-memory"]
 	if hasCacheMemory {
