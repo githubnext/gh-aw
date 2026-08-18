@@ -7,7 +7,7 @@
 
 const { resolveTargetRepoConfig, resolveAndValidateRepo, validateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
-const { ERR_NOT_FOUND } = require("./error_codes.cjs");
+const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { createCloseEntityHandler, buildCommentBody, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -74,7 +74,7 @@ function parseDuplicateOf(value, defaultOwner, defaultRepo) {
  */
 async function markIssueAsDuplicate(github, duplicateNodeId, canonicalOwner, canonicalRepo, canonicalNumber) {
   if (!duplicateNodeId) {
-    throw new Error(`node_id missing for duplicate issue`);
+    throw new Error(`${ERR_NOT_FOUND}: node_id missing for duplicate issue`);
   }
 
   const { data: canonicalData } = await github.rest.issues.get({
@@ -85,11 +85,11 @@ async function markIssueAsDuplicate(github, duplicateNodeId, canonicalOwner, can
 
   const canonicalNodeId = canonicalData.node_id;
   if (!canonicalNodeId) {
-    throw new Error(`node_id missing for canonical issue ${canonicalOwner}/${canonicalRepo}#${canonicalNumber}`);
+    throw new Error(`${ERR_NOT_FOUND}: node_id missing for canonical issue ${canonicalOwner}/${canonicalRepo}#${canonicalNumber}`);
   }
 
   if (duplicateNodeId === canonicalNodeId) {
-    throw new Error(`Cannot mark issue as a duplicate of itself`);
+    throw new Error(`${ERR_VALIDATION}: Cannot mark issue as a duplicate of itself`);
   }
 
   await github.graphql(
@@ -322,7 +322,7 @@ async function main(config = {}) {
             const upperProvided = provided.toUpperCase();
             const upperAllowed = configStateReasons.map(r => r.toUpperCase());
             if (!upperAllowed.includes(upperProvided)) {
-              throw new Error(`state_reason "${provided}" is not permitted. Allowed values: ${configStateReasons.join(", ")}`);
+              throw new Error(`${ERR_VALIDATION}: state_reason "${provided}" is not permitted. Allowed values: ${configStateReasons.join(", ")}`);
             }
             stateReason = provided.toLowerCase();
           } else {
@@ -330,7 +330,7 @@ async function main(config = {}) {
             const upperProvided = provided.toUpperCase();
             const supportedUpper = ["COMPLETED", "NOT_PLANNED", "DUPLICATE"];
             if (!supportedUpper.includes(upperProvided)) {
-              throw new Error(`state_reason "${provided}" is not a supported value. Supported values: completed, not_planned, duplicate`);
+              throw new Error(`${ERR_VALIDATION}: state_reason "${provided}" is not a supported value. Supported values: completed, not_planned, duplicate`);
             }
             stateReason = provided.toLowerCase();
           }

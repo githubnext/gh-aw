@@ -48,6 +48,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     delete process.env.GH_AW_REACTION;
     delete process.env.GH_AW_COMMANDS;
     delete process.env.GH_AW_WORKFLOW_NAME;
+    delete process.env.GH_AW_WORKFLOW_EMOJI;
     delete process.env.GH_AW_LOCK_FOR_AGENT;
     delete process.env.GITHUB_WORKFLOW;
     delete process.env.GH_AW_TRACKER_ID;
@@ -133,6 +134,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     it("should add reaction to pull request and create comment", async () => {
       process.env.GH_AW_REACTION = "heart";
       process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_WORKFLOW_EMOJI = "🤖";
       global.context.eventName = "pull_request";
       global.context.payload = {
         pull_request: { number: 456 },
@@ -144,6 +146,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       await main();
 
       expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", expect.objectContaining({ content: "heart", owner: "testowner", repo: "testrepo", issue_number: 456 }));
+      expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", expect.objectContaining({ body: expect.stringContaining("🤖 [Test Workflow]") }));
       expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", expect.objectContaining({ body: expect.stringContaining("has started processing this pull request") }));
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "789");
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "999");

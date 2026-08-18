@@ -304,6 +304,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Smoke Gemini"
+          GH_AW_WORKFLOW_EMOJI: "🧪"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ✨ *[{workflow_name}]({run_url}) — Powered by Gemini*{ai_credits_suffix}{history_link}\",\"runStarted\":\"✨ Gemini awakens... [{workflow_name}]({run_url}) begins its journey on this {event_type}...\",\"runSuccess\":\"🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges...\"}"
         with:
           script: |

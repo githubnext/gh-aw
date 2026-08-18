@@ -300,6 +300,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "PR Code Quality Reviewer"
+          GH_AW_WORKFLOW_EMOJI: "🔍"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔎 *Code quality review by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🔎 [{workflow_name}]({run_url}) is reviewing code quality for this {event_type}...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed the code quality review.\",\"runFailure\":\"⚠️ [{workflow_name}]({run_url}) {status} during code quality review.\"}"
         with:
           script: |

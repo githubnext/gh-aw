@@ -91,13 +91,13 @@ function createMCPServer(configPath, options = {}) {
       // Validate required fields using helper
       const missing = validateRequiredFields(args, tool.inputSchema);
       if (missing.length) {
-        throw new Error(generateEnhancedErrorMessage(missing, tool.name, tool.inputSchema));
+        throw new Error(`${ERR_VALIDATION}: ${generateEnhancedErrorMessage(missing, tool.name, tool.inputSchema)}`);
       }
 
       // SM-IS-01: Validate per-string input length limits (default 10 KB, or explicit schema maxLength when set).
       const oversized = validateStringInputLengths(args, tool.inputSchema);
       if (oversized.length) {
-        throw new Error(buildStringLengthValidationError(tool.name, oversized));
+        throw new Error(`${ERR_VALIDATION}: ${buildStringLengthValidationError(tool.name, oversized)}`);
       }
 
       // Call the handler

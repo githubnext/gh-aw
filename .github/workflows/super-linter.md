@@ -104,7 +104,9 @@ tools:
   edit:
   bash:
     - "*"
-
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Super Linter Analysis Report

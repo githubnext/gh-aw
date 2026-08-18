@@ -36,6 +36,12 @@ source: githubnext/agentics/workflows/team-status.md@main
 
 Create an upbeat daily status report for the team as a GitHub issue.
 
+## Report Window
+
+- **Report window**: last 24 full hours ending at workflow start (UTC)
+- Compute the window boundaries before gathering activity and report them explicitly as ISO-8601 UTC timestamps (`YYYY-MM-DDTHH:MM:SSZ`), not just a date.
+- Only count activity (issues, PRs, discussions, releases, commits) whose relevant timestamp falls inside this window, and state the window next to every count so other reports can be reconciled against it.
+
 ## What to include
 
 - Recent repository activity (issues, PRs, discussions, releases, code changes)
@@ -56,9 +62,11 @@ Create an upbeat daily status report for the team as a GitHub issue.
 Structure the report with this hierarchy:
 
 - `### 🌟 Team Snapshot`
+  - Start with a `- **Window**: window_start=<ISO-8601 UTC> → window_end=<ISO-8601 UTC>` line
   - 1-2 paragraph overview of today's team momentum and notable signals
 - `### 🛠️ Activity Highlights`
   - Keep concise highlights visible
+  - State counts (including merged PRs) as counts within `window_start`/`window_end`
   - Put detailed activity lists in `<details>` blocks
 - `### 💡 Recommendations`
   - Put long recommendation lists in `<details>` blocks

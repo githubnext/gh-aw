@@ -33,6 +33,9 @@ imports:
 
 
   - shared/otlp.md
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Repository Tree Map Generator

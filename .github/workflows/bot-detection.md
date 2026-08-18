@@ -18,7 +18,7 @@ imports:
   - shared/reporting.md
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   github:

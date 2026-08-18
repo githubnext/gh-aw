@@ -402,10 +402,11 @@ func TestActivationStepsAddStatusCommentStep(t *testing.T) {
 	t.Run("adds status comment step", func(t *testing.T) {
 		statusComment := true
 		ctx := newActivationStepsTestContext(&WorkflowData{
-			Name:          "test-workflow",
-			StatusComment: &statusComment,
-			TrackerID:     "tracker-1234",
-			LockForAgent:  true,
+			Name:             "test-workflow",
+			StatusComment:    &statusComment,
+			FrontmatterEmoji: "🤖",
+			TrackerID:        "tracker-1234",
+			LockForAgent:     true,
 			SafeOutputs: &SafeOutputsConfig{
 				Messages: &SafeOutputMessagesConfig{
 					RunStarted: "started",
@@ -421,6 +422,7 @@ func TestActivationStepsAddStatusCommentStep(t *testing.T) {
 		assert.Contains(t, steps, "Add comment with workflow run link")
 		assert.Contains(t, steps, "id: add-comment")
 		assert.Contains(t, steps, "GH_AW_WORKFLOW_NAME: \"test-workflow\"")
+		assert.Contains(t, steps, "GH_AW_WORKFLOW_EMOJI: \"🤖\"")
 		assert.Contains(t, steps, "GH_AW_TRACKER_ID: \"tracker-1234\"")
 		assert.Contains(t, steps, "GH_AW_LOCK_FOR_AGENT: \"true\"")
 		assert.Contains(t, steps, "GH_AW_SAFE_OUTPUT_MESSAGES:")
