@@ -421,6 +421,7 @@ jobs:
 
       - name: Route slash command
         uses: ` + getActionPin("actions/github-script") + `
+        # runner-guard:ignore RGS-016 -- routing tables below contain emoji variation selectors (U+FE0F) and zero-width joiners (U+200D) used to render standard emoji sequences, not steganographic payloads.
         env:
           GH_AW_SLASH_ROUTING: '` + escapeYAMLSingleQuoted(string(slashRoutesJSON)) + `'
           GH_AW_LABEL_ROUTING: '` + escapeYAMLSingleQuoted(string(labelRoutesJSON)) + `'
