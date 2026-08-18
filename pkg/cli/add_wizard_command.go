@@ -54,7 +54,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-secret        # Skip secret prompt
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --append "custom footer"            # Append custom content
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-security-scanner             # Skip security scan
-  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-github-app-permission-inference # Skip GitHub App permission inference
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-config # Skip GitHub App permission inference
 `,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -75,7 +75,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			skipSecret := noSecret || skipSecretLegacy
 			appendText, _ := cmd.Flags().GetString("append")
 			disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
-			noGitHubAppInference, _ := cmd.Flags().GetBool("no-github-app-permission-inference")
+			noGitHubAppInference, _ := cmd.Flags().GetBool("no-config")
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
@@ -134,9 +134,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// for consistency with add and other install entry points)
 	addSecurityScannerFlag(cmd)
 
-	// Add no-github-app-permission-inference flag to allow disabling automatic
-	// inference of GitHub App permissions/events from resolved package workflows.
-	cmd.Flags().Bool("no-github-app-permission-inference", false, "Disable inferring GitHub App permissions/events from the package's workflows; use only permissions/events declared in aw.yml")
+	// Add no-config flag to allow disabling automatic inference of GitHub App
+	// permissions/events from resolved package workflows.
+	cmd.Flags().Bool("no-config", false, "Disable inferring GitHub App permissions/events from the package's workflows; use only permissions/events declared in aw.yml")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

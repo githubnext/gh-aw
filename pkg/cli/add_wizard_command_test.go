@@ -49,15 +49,15 @@ func TestAddWizardCommand_ExamplesMentionNewFlags(t *testing.T) {
 
 	assert.Contains(t, cmd.Example, "--append \"custom footer\"", "add-wizard examples should show append usage")
 	assert.Contains(t, cmd.Example, "--no-security-scanner", "add-wizard examples should show no-security-scanner usage")
-	assert.Contains(t, cmd.Example, "--no-github-app-permission-inference", "add-wizard examples should show no-github-app-permission-inference usage")
+	assert.Contains(t, cmd.Example, "--no-config", "add-wizard examples should show no-config usage")
 }
 
-func TestAddWizardCommand_HasNoGitHubAppPermissionInferenceFlag(t *testing.T) {
+func TestAddWizardCommand_HasNoConfigFlag(t *testing.T) {
 	t.Parallel()
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)
 
-	flag := cmd.Flags().Lookup("no-github-app-permission-inference")
-	require.NotNil(t, flag, "add-wizard should define no-github-app-permission-inference")
-	assert.Equal(t, "false", flag.DefValue, "no-github-app-permission-inference should default to false")
+	flag := cmd.Flags().Lookup("no-config")
+	require.NotNil(t, flag, "add-wizard should define no-config")
+	assert.Equal(t, "false", flag.DefValue, "no-config should default to false")
 }
