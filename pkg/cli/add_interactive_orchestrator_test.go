@@ -246,7 +246,9 @@ func TestAddInteractiveConfig_createWorkflowChangesLocallyDoesNotRequireCleanTre
 	require.NoError(t, gitInit.Run())
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "existing-change.txt"), []byte("dirty tree"), 0o644))
 
-	t.Setenv("PATH", tmpDir)
+	fakeGH := filepath.Join(tmpDir, "gh")
+	require.NoError(t, os.WriteFile(fakeGH, []byte("#!/bin/sh\necho unexpected gh invocation >&2\nexit 42\n"), 0o755))
+	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	config := &AddInteractiveConfig{
 		WorkflowSpecs: []string{"owner/repo/test-workflow"},
