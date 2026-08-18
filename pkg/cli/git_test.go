@@ -45,6 +45,35 @@ func TestIsSafeGitRevisionArg(t *testing.T) {
 	}
 }
 
+func TestValidateRelPathForGit(t *testing.T) {
+	tests := []struct {
+		name    string
+		relPath string
+		wantErr bool
+	}{
+		{"empty", "", true},
+		{"leading dash", "-oops", true},
+		{"leading double dash flag", "--upload-pack=evil", true},
+		{"parent traversal", "..", true},
+		{"parent traversal with subpath", "../secret.txt", true},
+		{"nested parent traversal", "sub/../../secret.txt", true},
+		{"absolute path", "/etc/passwd", true},
+		{"plain relative path", "workflow.md", false},
+		{"nested relative path", ".github/workflows/workflow.md", false},
+		{"dot prefixed but within repo", "./workflow.md", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateRelPathForGit(tt.relPath)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestGetCurrentBranch(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 

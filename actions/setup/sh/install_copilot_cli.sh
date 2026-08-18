@@ -16,6 +16,9 @@ set +o histexpand
 #                $GITHUB_PATH so subsequent steps find the binary.  Use this on
 #                ARC/DinD runners that enforce allowPrivilegeEscalation: false.
 #
+# Environment overrides (testing):
+#   COPILOT_INSTALL_DIR - Override the install directory (default: /usr/local/bin).
+#
 # Security features:
 #   - Downloads binary directly from GitHub releases (no installer script execution)
 #   - Verifies SHA256 checksum against official SHA256SUMS.txt
@@ -26,7 +29,7 @@ set -euo pipefail
 # Configuration
 SECONDS_PER_DAY=86400
 COPILOT_REPO="github/copilot-cli"
-INSTALL_DIR="/usr/local/bin"
+INSTALL_DIR="${COPILOT_INSTALL_DIR:-/usr/local/bin}"
 COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
 # DEFAULT_COPILOT_VERSION is the baked-in fallback used when neither an explicit version
@@ -493,12 +496,19 @@ activate_cached_copilot_bin() {
   if [ -n "${GITHUB_PATH:-}" ]; then
     echo "  Exporting ${cached_copilot_dir} to GITHUB_PATH (${GITHUB_PATH})"
     echo "$cached_copilot_dir" >> "${GITHUB_PATH}"
+  else
+    echo "  GITHUB_PATH not set — relying on ${INSTALL_DIR}/copilot"
+  fi
+
+  # The agent is launched with the hardcoded absolute path ${INSTALL_DIR}/copilot, which
+  # PATH additions cannot satisfy, so always materialize that path. A small wrapper is used
+  # instead of symlinking or copying the cached script to avoid broken relative paths.
+  if [ "$cached_copilot_bin" = "${INSTALL_DIR}/copilot" ]; then
+    echo "  Cached binary already lives at ${INSTALL_DIR}/copilot — no wrapper needed"
     return 0
   fi
 
-  # Outside GitHub Actions there is no GITHUB_PATH file, so install a small wrapper
-  # instead of symlinking or copying the cached script and risking broken relative paths.
-  echo "  GITHUB_PATH not set — installing wrapper at ${INSTALL_DIR}/copilot"
+  echo "  Installing wrapper at ${INSTALL_DIR}/copilot"
   wrapper_path="${TEMP_DIR}/copilot"
   cat > "$wrapper_path" <<EOF
 #!/usr/bin/env bash
@@ -539,9 +549,17 @@ if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_
   activate_cached_copilot_bin "$CACHED_COPILOT_BIN"
 
   echo "Verifying cached Copilot CLI installation..."
+  # The agent is spawned with the absolute path ${INSTALL_DIR}/copilot, so that path must
+  # exist even when the CLI itself came from the toolcache.
+  if [ ! -x "${INSTALL_DIR}/copilot" ]; then
+    echo "ERROR: Cached Copilot CLI activation failed - ${INSTALL_DIR}/copilot is missing or not executable"
+    exit 1
+  fi
+
   RESOLVED_COPILOT="$(command -v copilot 2>/dev/null || true)"
   if [ -n "$RESOLVED_COPILOT" ]; then
     echo "  Resolved copilot binary: ${RESOLVED_COPILOT}"
+    echo "  Canonical install path: ${INSTALL_DIR}/copilot"
     "$RESOLVED_COPILOT" --version
     echo "✓ Copilot CLI installation complete (cached)"
     exit 0

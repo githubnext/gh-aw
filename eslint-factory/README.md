@@ -26,6 +26,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-github-request-interpolated-route`](#no-github-request-interpolated-route) | Disallow interpolated route arguments in Octokit `.request()` calls |
 | [`no-json-stringify-error`](#no-json-stringify-error) | Disallow `JSON.stringify()` on caught error variables |
 | [`no-json-stringify-set-or-map`](#no-json-stringify-set-or-map) | Disallow `JSON.stringify()` directly on `Set` or `Map` instances |
+| [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
 | [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
 | [`no-unsafe-promise-catch-error-property`](#no-unsafe-promise-catch-error-property) | Disallow unsafe property access in promise rejection handlers |
@@ -157,6 +158,24 @@ Flagged forms:
 Safe alternatives:
 - `getErrorMessage(err)` from `error_helpers.cjs` (auto-suggested fix).
 - `JSON.stringify({ message: err.message, stack: err.stack })` — explicitly serializing safe string properties.
+
+### `no-math-minmax-array-spread`
+
+Disallow spreading an array of unknown size into `Math.min(...)` / `Math.max(...)`. Spreading an array into call arguments pushes every element onto the call stack, so a large array throws `RangeError: Maximum call stack size exceeded` (the limit is engine and version dependent, commonly in the tens of thousands of elements). Arrays built from workflow runs, API responses, or file scans have no static size bound, so the crash only appears on large inputs.
+
+**Detected forms:**
+- `Math.max(...values)` / `Math.min(...values)` — identifier spread.
+- `Math.max(...stats.durations)` — member expression spread.
+- `Math.min(...runs.map(run => run.duration))` — call expression spread.
+- `Math["max"](...values)` — computed access to the same methods.
+
+**Out of scope:**
+- `Math.max(0, ...values)` and `Math.min(a, b, ...values)` — fixed arguments alongside the spread suggest an intentional, likely bounded call shape.
+- `Math.max(...[1, 2, 3])` — inline array literals are statically bounded by the source.
+- Calls where `Math` is shadowed by a local declaration.
+
+**Safe alternative:**
+- `values.reduce((a, b) => Math.max(a, b), -Infinity)` / `values.reduce((a, b) => Math.min(a, b), Infinity)` — folds the array without expanding it into arguments, using the same identity value `Math.max()` / `Math.min()` return on an empty array so the empty-input result matches the spread form instead of throwing.
 
 ### `prefer-number-isnan`
 

@@ -43,13 +43,7 @@ const LOOP_NODE_TYPES = new Set<string>([AST_NODE_TYPES.ForStatement, AST_NODE_T
  */
 function hasEnclosingLoop(node: TSESTree.Node): boolean {
   let current: TSESTree.Node | undefined = node.parent;
-  while (
-    current &&
-    current.type !== AST_NODE_TYPES.FunctionDeclaration &&
-    current.type !== AST_NODE_TYPES.FunctionExpression &&
-    current.type !== AST_NODE_TYPES.ArrowFunctionExpression &&
-    current.type !== AST_NODE_TYPES.Program
-  ) {
+  while (current && current.type !== AST_NODE_TYPES.FunctionDeclaration && current.type !== AST_NODE_TYPES.FunctionExpression && current.type !== AST_NODE_TYPES.ArrowFunctionExpression && current.type !== AST_NODE_TYPES.Program) {
     if (LOOP_NODE_TYPES.has(current.type)) return true;
     current = current.parent;
   }

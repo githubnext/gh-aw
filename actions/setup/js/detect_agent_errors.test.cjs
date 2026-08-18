@@ -223,9 +223,7 @@ describe("detect_agent_errors.cjs", () => {
     });
 
     it("matches the Copilot CLI's own retry-exhaustion message with no CAPIError: prefix (429)", () => {
-      const message =
-        "Failed to get response from the AI model; retried 5 times (total retry wait time: 380.35 seconds) " +
-        "(Request-ID AC21:F5CEC:33A719:40DD88:6A83AA27) Last error: 429 Too Many Requests";
+      const message = "Failed to get response from the AI model; retried 5 times (total retry wait time: 380.35 seconds) " + "(Request-ID AC21:F5CEC:33A719:40DD88:6A83AA27) Last error: 429 Too Many Requests";
       expect(isCAPIQuotaExceededError(message)).toBe(true);
     });
 

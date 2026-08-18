@@ -24,6 +24,27 @@ func TestValidateMainWorkflowFrontmatter_IssueFieldActivityTypes(t *testing.T) {
 	}
 }
 
+func TestValidateMainWorkflowFrontmatter_RejectsUnsupportedTopLevelFields(t *testing.T) {
+	t.Parallel()
+
+	for _, field := range []string{"version", "include"} {
+		t.Run(field, func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on":  "workflow_dispatch",
+				field: "unsupported",
+			}, "workflow.md")
+			if err == nil {
+				t.Fatalf("expected unsupported top-level %q field to be rejected", field)
+			}
+			if !strings.Contains(err.Error(), field) {
+				t.Fatalf("expected error to mention %q, got: %v", field, err)
+			}
+		})
+	}
+}
+
 func TestValidateMainWorkflowFrontmatterEnclaves(t *testing.T) {
 	valid := map[string]any{
 		"on":     "workflow_dispatch",
