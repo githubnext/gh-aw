@@ -20,12 +20,47 @@ for workflow in "$@"; do
   # These workflows should stay pure test workflows: allow only the built-in
   # GITHUB_TOKEN and the repository's SCIENCE telemetry secret.
   disallowed_secrets_file="$tmp_dir/disallowed-secrets.txt"
-  if ! perl -ne '
-    while (/\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\b/g) {
-      print "$ARGV:$.: secrets.$1\n" unless $1 eq "GITHUB_TOKEN" || $1 eq "SCIENCE";
-    }
-    close ARGV if eof;
-  ' "$workflow" >"$disallowed_secrets_file"; then
+  if ! python3 - "$workflow" >"$disallowed_secrets_file" <<'PY'; then
+import re
+import sys
+
+workflow = sys.argv[1]
+allowed = {"GITHUB_TOKEN", "SCIENCE"}
+
+with open(workflow, encoding="utf-8") as f:
+    content = f.read()
+
+expression_re = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
+secret_re = re.compile(
+    r"\bsecrets\b\s*(?:"
+    r"\.\s*([A-Za-z_][A-Za-z0-9_]*)"
+    r"|\[\s*(['\"])(.*?)\2\s*\]"
+    r"|\[([^\]]*)\]"
+    r")",
+    re.DOTALL,
+)
+
+for expression in expression_re.finditer(content):
+    expression_text = expression.group(1)
+    expression_line = content.count("\n", 0, expression.start()) + 1
+    for secret in secret_re.finditer(expression_text):
+        property_name = secret.group(1)
+        literal_name = secret.group(3)
+        computed_key = secret.group(4)
+        if property_name is not None:
+            name = property_name
+            display = f"secrets.{name}"
+        elif literal_name is not None:
+            name = literal_name
+            display = f"secrets[{secret.group(2)}{name}{secret.group(2)}]"
+        else:
+            key = (computed_key or "").strip()
+            print(f"{workflow}:{expression_line}: computed secrets key secrets[{key}]")
+            continue
+
+        if name not in allowed:
+            print(f"{workflow}:{expression_line}: {display}")
+PY
     echo "Failed to scan secrets expressions in $workflow"
     failed=1
     continue
@@ -37,31 +72,118 @@ for workflow in "$@"; do
   fi
 
   write_permissions_file="$tmp_dir/write-permissions.txt"
-  if ! awk '
-    FNR == 1 {
-      in_permissions = 0
-      perm_indent = -1
-    }
-    /^[[:space:]]*permissions:[[:space:]]*write-all([[:space:]]*(#.*)?)?$/ {
-      print FILENAME ":" FNR ":" $0
-    }
-    /^[[:space:]]*permissions:[[:space:]]*$/ {
-      perm_indent = match($0, /[^[:space:]]/) - 1
-      in_permissions = 1
-      next
-    }
-    in_permissions {
-      if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*#/) next
-      indent = match($0, /[^[:space:]]/) - 1
-      if (indent <= perm_indent) {
-        in_permissions = 0
-        next
-      }
-    }
-    in_permissions && $0 ~ /^[[:space:]]*[A-Za-z0-9_-]+:[[:space:]]*write([[:space:]]*(#.*)?)?$/ {
-      print FILENAME ":" FNR ":" $0
-    }
-  ' "$workflow" >"$write_permissions_file"; then
+  if ! python3 - "$workflow" >"$write_permissions_file" <<'PY'; then
+import re
+import sys
+
+workflow = sys.argv[1]
+
+
+def strip_comment(line):
+    quote = None
+    escaped = False
+    for index, char in enumerate(line):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\" and quote == '"':
+            escaped = True
+            continue
+        if quote:
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char == "#":
+            return line[:index]
+    return line
+
+
+def normalize(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1]
+    return value.strip()
+
+
+def flow_pairs(value):
+    value = value.strip()
+    if not (value.startswith("{") and value.endswith("}")):
+        return []
+    body = value[1:-1]
+    parts = []
+    start = 0
+    quote = None
+    escaped = False
+    for index, char in enumerate(body):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\" and quote == '"':
+            escaped = True
+            continue
+        if quote:
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char == ",":
+            parts.append(body[start:index])
+            start = index + 1
+    parts.append(body[start:])
+    pairs = []
+    for part in parts:
+        if ":" not in part:
+            continue
+        key, pair_value = part.split(":", 1)
+        pairs.append((key.strip(), normalize(pair_value)))
+    return pairs
+
+
+with open(workflow, encoding="utf-8") as f:
+    lines = f.readlines()
+
+in_permissions = False
+permissions_indent = -1
+
+for line_number, line in enumerate(lines, start=1):
+    without_comment = strip_comment(line).rstrip()
+    stripped = without_comment.strip()
+    if in_permissions:
+        if not stripped:
+            continue
+        indent = len(without_comment) - len(without_comment.lstrip(" "))
+        if indent <= permissions_indent:
+            in_permissions = False
+        else:
+            match = re.match(r"[A-Za-z0-9_-]+\s*:\s*(.+)$", stripped)
+            if match and normalize(match.group(1)) == "write":
+                print(f"{workflow}:{line_number}: {line.rstrip()}")
+            continue
+
+    match = re.match(r"^(\s*)permissions\s*:\s*(.*)$", without_comment)
+    if not match:
+        continue
+
+    permissions_indent = len(match.group(1))
+    value = match.group(2).strip()
+    if not value:
+        in_permissions = True
+        continue
+
+    normalized = normalize(value)
+    if normalized == "write-all":
+        print(f"{workflow}:{line_number}: {line.rstrip()}")
+        continue
+    for _, pair_value in flow_pairs(value):
+        if pair_value == "write":
+            print(f"{workflow}:{line_number}: {line.rstrip()}")
+            break
+PY
     echo "Failed to scan permissions in $workflow"
     failed=1
     continue
