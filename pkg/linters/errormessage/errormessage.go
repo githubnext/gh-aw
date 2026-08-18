@@ -60,11 +60,7 @@ func run(pass *analysis.Pass) (any, error) {
 // runOnFiles analyzes the package. When changed is nil every file is checked
 // (full-repo audit mode); otherwise only files present in changed are checked.
 func runOnFiles(pass *analysis.Pass, changed map[string]struct{}) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
