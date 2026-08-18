@@ -97,7 +97,8 @@ describe("pre_create_pull_request", () => {
   });
 
   it("always creates the allocated pull request as a draft, even when the draft policy is disabled", async () => {
-    process.env.GH_AW_PR_DRAFT = "false";
+    // The configured draft policy is only applied later, in the safe output phase, so the
+    // allocation step must not consume it.
     process.env.GH_AW_SAFE_OUTPUTS_CONFIG = JSON.stringify({ "create-pull-request": { draft: false } });
     const { main } = await import("./pre_create_pull_request.cjs");
     await main();

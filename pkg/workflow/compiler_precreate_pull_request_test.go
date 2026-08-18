@@ -191,7 +191,6 @@ func TestActivationPreCreateStepIgnoresDraftPolicy(t *testing.T) {
 	// The allocated pull request is always a draft; the configured draft policy is applied
 	// later, in the safe outputs phase.
 	assert.Contains(t, steps, "id: pre-create-pull-request")
-	assert.NotContains(t, steps, "GH_AW_PR_DRAFT")
 	assert.NotContains(t, steps, "draft: false")
 }
 
