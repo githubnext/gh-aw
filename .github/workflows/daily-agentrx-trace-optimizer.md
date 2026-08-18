@@ -115,7 +115,7 @@ Focus on:
      ```
    - Use `audit` for selected failing or high-latency runs, and as the primary fallback whenever `logs` is unavailable or returns empty.
 2. Use only pre-downloaded or MCP-downloaded run data and logs as the telemetry source, prioritizing `runs[]` session fields over OTEL spans.
-3. Use Python in `/tmp/gh-aw/agent/agentrx` to avoid polluting the repository.
+3. Use `/tmp/gh-aw/agent/agentrx` as the working and output directory for AgentRx data to avoid polluting the repository (the interpreter itself lives elsewhere, see below).
 4. AgentRx is already installed by a setup step; do not install it yourself.
    - Interpreter: `/tmp/gh-aw/python/agentrx/.venv/bin/python`
    - AgentRx checkout (contains `run.py`): `/tmp/gh-aw/python/agentrx/src`
