@@ -32,18 +32,18 @@ echo
 TMP_ROOT=$(mktemp -d)
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-echo "Test 1: allowed secrets pass in property and bracket syntax..."
+echo "Test 1: allowed GITHUB_TOKEN passes in property and bracket syntax..."
 T1="$TMP_ROOT/t1"
 T1_CGO="$T1/.github/workflows/cgo.yml"
 T1_CJS="$T1/.github/workflows/cjs.yml"
 write_workflow "$T1_CGO" "    permissions:
       contents: read
     steps:
-      - run: echo \"\${{ secrets.GITHUB_TOKEN }} \${{ condition && secrets['SCIENCE'] }}\""
+      - run: echo \"\${{ secrets.GITHUB_TOKEN }} \${{ condition && secrets['GITHUB_TOKEN'] }}\""
 write_workflow "$T1_CJS" $'    permissions: { contents: read, actions: read }\n    steps:\n      - run: echo "${{ secrets["GITHUB_TOKEN"] }}"'
 T1_OUT="$TMP_ROOT/t1-output.txt"
 if (cd "$T1" && bash "$PURITY_SCRIPT" >"$T1_OUT" 2>&1); then
-  pass "allowed secrets pass in property and bracket syntax"
+  pass "allowed GITHUB_TOKEN passes in property and bracket syntax"
 else
   fail "allowed secrets should pass" "$(cat "$T1_OUT")"
 fi
@@ -55,12 +55,12 @@ T2_CJS="$T2/cjs.yml"
 write_workflow "$T2_CGO" "    permissions:
       contents: read
     steps:
-      - run: echo \"\${{ condition && secrets.DEPLOY_KEY }}\""
+      - run: echo \"\${{ condition && secrets.DEPLOY_KEY }} \${{ condition && secrets.SCIENCE }}\""
 write_workflow "$T2_CJS" $'    permissions:\n      contents: read\n    steps:\n      - run: echo "${{ secrets[\'PROD_TOKEN\'] }} ${{ secrets["PROD_TOKEN_2"] }}"'
 T2_OUT="$TMP_ROOT/t2-output.txt"
 if (cd "$T2" && bash "$PURITY_SCRIPT" cgo.yml cjs.yml >"$T2_OUT" 2>&1); then
   fail "forbidden secrets should exit 1" "$(cat "$T2_OUT")"
-elif grep -q "secrets.DEPLOY_KEY" "$T2_OUT" && grep -q "PROD_TOKEN" "$T2_OUT" && grep -q "PROD_TOKEN_2" "$T2_OUT"; then
+elif grep -q "secrets.DEPLOY_KEY" "$T2_OUT" && grep -q "secrets.SCIENCE" "$T2_OUT" && grep -q "PROD_TOKEN" "$T2_OUT" && grep -q "PROD_TOKEN_2" "$T2_OUT"; then
   pass "forbidden nested and bracket secrets fail"
 else
   fail "forbidden secret output was incorrect" "$(cat "$T2_OUT")"

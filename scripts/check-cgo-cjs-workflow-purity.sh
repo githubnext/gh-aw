@@ -18,14 +18,14 @@ for workflow in "$@"; do
   fi
 
   # These workflows should stay pure test workflows: allow only the built-in
-  # GITHUB_TOKEN and the repository's SCIENCE telemetry secret.
+  # GITHUB_TOKEN.
   disallowed_secrets_file="$tmp_dir/disallowed-secrets.txt"
   if ! python3 - "$workflow" >"$disallowed_secrets_file" <<'PY'; then
 import re
 import sys
 
 workflow = sys.argv[1]
-allowed = {"GITHUB_TOKEN", "SCIENCE"}
+allowed = {"GITHUB_TOKEN"}
 
 with open(workflow, encoding="utf-8") as f:
     content = f.read()
