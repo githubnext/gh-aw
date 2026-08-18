@@ -67,11 +67,11 @@ func frontmatterHasCLIProxyDisabled(frontmatter map[string]any) bool {
 // or inserts 'cli-proxy: false' as the first entry of the tools block when absent.
 func setCLIProxyFalseInTools(lines []string) ([]string, bool) {
 	toolsLine := -1
-	toolsIndent := ""
+	// Only a top-level tools block is rewritten, so the block indentation is always empty.
+	const toolsIndent = ""
 	for i, line := range lines {
-		if strings.TrimSpace(line) == "tools:" && getIndentation(line) == "" {
+		if strings.TrimSpace(line) == "tools:" && getIndentation(line) == toolsIndent {
 			toolsLine = i
-			toolsIndent = getIndentation(line)
 			break
 		}
 	}
