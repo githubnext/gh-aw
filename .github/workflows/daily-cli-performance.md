@@ -301,6 +301,7 @@ Analyze benchmark trends and detect performance regressions
 """
 import json
 import os
+import statistics
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -315,6 +316,11 @@ MAX_HISTORY_ENTRIES = 14
 # Regression thresholds
 REGRESSION_THRESHOLD = 1.10  # 10% slower is a regression
 WARNING_THRESHOLD = 1.05     # 5% slower is a warning
+
+# Environment-noise detection: when most unrelated benchmarks regress at once, the
+# runner was almost certainly noisy (shared/overloaded CI host), not the code.
+NOISE_MIN_REGRESSIONS = 3    # need at least this many regressions to suspect noise
+NOISE_REGRESSION_RATIO = 0.5 # ...covering at least this fraction of all benchmarks
 
 def load_history():
     """Load historical benchmark data — capped at last MAX_HISTORY_ENTRIES entries to bound context size"""
@@ -353,9 +359,10 @@ def analyze_benchmark(name, current_ns, history_data):
             'change_percent': 0
         }
     
-    # Calculate average of recent history (last 7 data points)
+    # Use the median of recent history (last 7 data points) as the baseline —
+    # the median is far less sensitive to one-off noisy runs than the mean
     recent_history = historical_values[-7:] if len(historical_values) >= 7 else historical_values
-    avg_historical = sum(recent_history) / len(recent_history)
+    avg_historical = statistics.median(recent_history)
     
     # Calculate change percentage
     change_percent = ((current_ns - avg_historical) / avg_historical) * 100
@@ -416,12 +423,26 @@ def main():
         elif result['status'] == 'stable':
             analysis['summary']['stable'] += 1
     
+    # Detect likely environment noise: many unrelated benchmarks slowing down in the
+    # same run points at a noisy runner rather than a real code regression.
+    # Warnings count as degraded too, since noise spreads unevenly across benchmarks.
+    summary_counts = analysis['summary']
+    regressions = summary_counts['regressions']
+    degraded = regressions + summary_counts['warnings']
+    total = summary_counts['total']
+    likely_noise = (
+        regressions >= NOISE_MIN_REGRESSIONS
+        and total > 0
+        and degraded / total >= NOISE_REGRESSION_RATIO
+    )
+    analysis['summary']['likely_environment_noise'] = likely_noise
+
     # Save analysis
     with open(OUTPUT_FILE, 'w') as f:
         json.dump(analysis, f, indent=2)
     
     summary = analysis['summary']
-    print(f"Analysis complete! total={summary['total']} regressions={summary['regressions']} warnings={summary['warnings']} improvements={summary['improvements']}")
+    print(f"Analysis complete! total={summary['total']} regressions={summary['regressions']} warnings={summary['warnings']} improvements={summary['improvements']} likely_environment_noise={summary['likely_environment_noise']}")
 
 if __name__ == '__main__':
     main()
@@ -448,10 +469,11 @@ cat /tmp/gh-aw/agent/benchmarks/analysis.json | python3 -m json.tool
 If regressions are detected, open issues with detailed information.
 
 **Rules for opening issues:**
-1. Open one issue per regression detected (max 3 as per safe-outputs config)
-2. Include benchmark name, current performance, historical average, and change percentage
-3. Add "performance" and "automation" labels
-4. Use title format: `[performance] Regression in [BenchmarkName]: X% slower`
+1. Do **not** open regression issues when the analysis reports `"likely_environment_noise": true` (many unrelated benchmarks regressing at once indicates a noisy runner, not a code regression) — mention it in the report instead and recommend a re-run
+2. Otherwise, open one issue per regression detected (max 3 as per safe-outputs config)
+3. Include benchmark name, current performance, historical median, and change percentage
+4. Add "performance" and "automation" labels
+5. Use title format: `[performance] Regression in [BenchmarkName]: X% slower`
 
 **Issue template:**
 
@@ -535,6 +557,13 @@ def main():
         print("✅ No performance regressions detected!")
         return
     
+    if analysis['summary'].get('likely_environment_noise'):
+        print(f"⏭️ {len(regressions)} regression(s) detected across unrelated benchmarks — "
+              "classified as likely environment noise, no regression issues will be opened.")
+        with open('/tmp/gh-aw/agent/benchmarks/regressions.json', 'w') as f:
+            json.dump([], f, indent=2)
+        return
+
     print(f"⚠️ Found {len(regressions)} regression(s):")
     for reg in regressions:
         print(f"  - {reg['name']}: {reg['change_percent']:+.1f}%")
@@ -551,7 +580,7 @@ chmod +x /tmp/gh-aw/agent/benchmarks/create_issues.py
 python3 /tmp/gh-aw/agent/benchmarks/create_issues.py
 ```
 
-Now, for each regression found, use the `create issue` tool to open an issue with the details.
+Now, for each regression found in `regressions.json` (empty when the run was classified as likely environment noise), use the `create issue` tool to open an issue with the details.
 
 ## Phase 5: Generate Performance Report
 
