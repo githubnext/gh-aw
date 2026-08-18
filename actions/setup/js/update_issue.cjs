@@ -14,7 +14,7 @@ const { buildUpdatedBody } = require("./update_pr_description_helpers.cjs");
 const { buildCommonEntityUpdateData } = require("./update_entity_helpers.cjs");
 const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
 const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
-const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_VALIDATION, ERR_API } = require("./error_codes.cjs");
 const { fetchIssueState, mergeIssueState } = require("./safe_output_execution_metadata.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { fetchAllRepoLabels } = require("./github_api_helpers.cjs");
@@ -121,7 +121,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   if (useIssueIntentLabels && labelIntentUpdates) {
     const issueNodeId = issue?.node_id || currentIssue?.node_id;
     if (!issueNodeId) {
-      throw new Error(`Failed to resolve GraphQL node ID for issue #${issueNumber}`);
+      throw new Error(`${ERR_API}: Failed to resolve GraphQL node ID for issue #${issueNumber}`);
     }
 
     core.info("Using GraphQL intent path for label update with GraphQL-Features header");

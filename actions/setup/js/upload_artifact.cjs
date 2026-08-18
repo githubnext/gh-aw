@@ -40,7 +40,7 @@ const path = require("path");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
-const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 
@@ -247,13 +247,13 @@ function copySingleFileToStaging(sourcePath, destRelPath) {
   try {
     fs.mkdirSync(path.dirname(destPath), { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${path.dirname(destPath)}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to create directory ${path.dirname(destPath)}: ${getErrorMessage(err)}`, { cause: err });
   }
   try {
     fs.copyFileSync(sourcePath, destPath);
     fs.chmodSync(destPath, 0o600);
   } catch (err) {
-    throw new Error(`Failed to copy file ${sourcePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to copy file ${sourcePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
   }
   return { error: null };
 }

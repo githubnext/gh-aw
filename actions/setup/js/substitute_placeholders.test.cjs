@@ -65,16 +65,16 @@ describe("substitutePlaceholders", () => {
 
   it("should throw error if file parameter is missing", async () => {
     // @ts-expect-error - testing missing file param
-    await expect(substitutePlaceholders({ substitutions: { NAME: "test" } })).rejects.toThrow("file parameter is required");
+    await expect(substitutePlaceholders({ substitutions: { NAME: "test" } })).rejects.toThrow("ERR_VALIDATION: file parameter is required");
   });
 
   it("should throw error if substitutions parameter is missing", async () => {
     // @ts-expect-error - testing missing substitutions param
-    await expect(substitutePlaceholders({ file: testFile })).rejects.toThrow("substitutions parameter must be an object");
+    await expect(substitutePlaceholders({ file: testFile })).rejects.toThrow("ERR_VALIDATION: substitutions parameter must be an object");
   });
 
   it("should throw error if file does not exist", async () => {
-    await expect(substitutePlaceholders({ file: "/nonexistent/file.txt", substitutions: { NAME: "test" } })).rejects.toThrow("Failed to read file");
+    await expect(substitutePlaceholders({ file: "/nonexistent/file.txt", substitutions: { NAME: "test" } })).rejects.toThrow("ERR_SYSTEM: Failed to read file");
   });
 
   it("should handle undefined values as empty strings", async () => {

@@ -82,6 +82,9 @@ evals:
     question: When Critical or High findings existed, did the agent create a consolidated burn-down issue linking the per-image issues and stating the remediation SLA?
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Daily Container Image Security Scan

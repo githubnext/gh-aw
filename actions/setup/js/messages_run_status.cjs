@@ -28,6 +28,7 @@ function renderConfiguredMessage(messageKey, defaultTemplate, ctx) {
  * @property {string} workflowName - Name of the workflow
  * @property {string} runUrl - URL of the workflow run
  * @property {string} eventType - Event type description (e.g., "issue", "pull request", "discussion")
+ * @property {string} [emoji] - Optional workflow emoji override
  */
 
 /**
@@ -36,7 +37,8 @@ function renderConfiguredMessage(messageKey, defaultTemplate, ctx) {
  * @returns {string} Run-started message
  */
 function getRunStartedMessage(ctx) {
-  return renderConfiguredMessage("runStarted", "🚀 [{workflow_name}]({run_url}) has started processing this {event_type}", ctx);
+  const normalizedEmoji = typeof ctx?.emoji === "string" && ctx.emoji.trim() ? ctx.emoji.trim() : "🚀";
+  return renderConfiguredMessage("runStarted", "{emoji} [{workflow_name}]({run_url}) has started processing this {event_type}", { ...ctx, emoji: normalizedEmoji });
 }
 
 /**

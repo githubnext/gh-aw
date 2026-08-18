@@ -330,6 +330,9 @@ func (c *Compiler) addActivationStatusCommentStep(ctx *activationJobBuildContext
 	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
 	ctx.steps = append(ctx.steps, "        env:\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", ctx.data.Name))
+	if ctx.data.FrontmatterEmoji != "" {
+		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_WORKFLOW_EMOJI: %q\n", ctx.data.FrontmatterEmoji))
+	}
 	if ctx.data.TrackerID != "" {
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_TRACKER_ID: %q\n", ctx.data.TrackerID))
 	}

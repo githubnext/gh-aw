@@ -46,7 +46,9 @@ evals:
     question: Did the agent analyze the codebase for duplicate code patterns and produce findings?
   - id: issue-created-or-noop
     question: Was a code duplication issue created when significant duplication was found, or was noop correctly called when none was detected?
-
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 # Duplicate Code Detection

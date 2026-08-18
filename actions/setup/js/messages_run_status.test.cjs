@@ -33,10 +33,21 @@ describe("messages_run_status", () => {
       expect(getRunStartedMessage({ workflowName: WORKFLOW, runUrl: RUN_URL, eventType: "discussion" })).toContain("discussion");
     });
 
+    it("uses workflow emoji when provided", () => {
+      const msg = getRunStartedMessage({ workflowName: WORKFLOW, runUrl: RUN_URL, eventType: "issue", emoji: "🤖" });
+      expect(msg).toBe(`🤖 [${WORKFLOW}](${RUN_URL}) has started processing this issue`);
+    });
+
     it("uses custom template from config", () => {
       process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ runStarted: "Custom: {workflow_name} started" });
       const msg = getRunStartedMessage({ workflowName: WORKFLOW, runUrl: RUN_URL, eventType: "issue" });
       expect(msg).toBe(`Custom: ${WORKFLOW} started`);
+    });
+
+    it("supports emoji placeholder in custom template", () => {
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ runStarted: "{emoji} {workflow_name} started" });
+      const msg = getRunStartedMessage({ workflowName: WORKFLOW, runUrl: RUN_URL, eventType: "issue", emoji: "🤖" });
+      expect(msg).toBe(`🤖 ${WORKFLOW} started`);
     });
 
     it("substitutes camelCase keys as well as snake_case", () => {

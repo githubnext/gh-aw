@@ -97,7 +97,9 @@ async function testTemplateSubstitution(template, substitutions, variables) {
     try {
       if (fs.existsSync(testFile)) fs.unlinkSync(testFile);
       if (fs.existsSync(tempDir)) fs.rmdirSync(tempDir);
-    } catch {}
+    } catch {
+      // Best-effort cleanup after the original error.
+    }
 
     return {
       result: "",
