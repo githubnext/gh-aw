@@ -79,7 +79,8 @@ async function applyIssueIntentLabels({ githubClient, core, repoParts, itemNumbe
   const labelIdByName = new Map(repoLabels.map(label => [label.name.toLowerCase(), label.id]));
 
   const existingLabelNames = normalizeLabelNames(issueData.labels || []);
-  const mergedSpecs = [...labelSpecs, ...existingLabelNames.map(name => ({ name }))];
+  const labelSpecNamesLower = new Set(labelSpecs.map(spec => spec.name.toLowerCase()));
+  const mergedSpecs = [...labelSpecs, ...existingLabelNames.filter(name => !labelSpecNamesLower.has(name.toLowerCase())).map(name => ({ name }))];
 
   const labelIntentUpdates = buildIssueIntentLabelUpdates(mergedSpecs, labelIdByName);
 
@@ -391,7 +392,7 @@ const main = createCountGatedHandler({
             const existingLabels = normalizeLabelNames(issueData.labels || []);
             const existingNamesLower = new Set(existingLabels.map(name => name.toLowerCase()));
             const newLabelSpecs = uniqueLabelSpecs.filter(spec => !existingNamesLower.has(spec.name.toLowerCase()));
-            const afterLabels =
+            let afterLabels =
               newLabelSpecs.length > 0
                 ? await applyIssueIntentLabels({
                     githubClient,
@@ -405,7 +406,26 @@ const main = createCountGatedHandler({
                     labelSpecs: newLabelSpecs,
                   })
                 : existingLabels;
-            const afterNamesLower = new Set(afterLabels.map(name => name.toLowerCase()));
+            let afterNamesLower = new Set(afterLabels.map(name => name.toLowerCase()));
+            const plainLabelsNotApplied = newLabelSpecs.filter(spec => !hasLabelIntentMetadata(spec) && !afterNamesLower.has(spec.name.toLowerCase())).map(spec => spec.name);
+
+            if (plainLabelsNotApplied.length > 0) {
+              core.info(`Adding ${plainLabelsNotApplied.length} metadata-free label(s) not applied by the intent mutation via the REST add-labels endpoint: ${JSON.stringify(plainLabelsNotApplied)}`);
+              const { data: labels } = await withRetry(
+                () =>
+                  githubClient.rest.issues.addLabels({
+                    owner: repoParts.owner,
+                    repo: repoParts.repo,
+                    issue_number: itemNumber,
+                    labels: plainLabelsNotApplied,
+                  }),
+                RATE_LIMIT_RETRY_CONFIG,
+                `add metadata-free labels to ${contextType} #${itemNumber} in ${itemRepo}`
+              );
+              afterLabels = normalizeLabelNames(labels);
+              afterNamesLower = new Set(afterLabels.map(name => name.toLowerCase()));
+            }
+
             const labelsAdded = newLabelSpecs.filter(spec => afterNamesLower.has(spec.name.toLowerCase())).map(spec => spec.name);
             const labelsSuggested = newLabelSpecs.filter(spec => hasLabelIntentMetadata(spec) && !afterNamesLower.has(spec.name.toLowerCase())).map(spec => spec.name);
 

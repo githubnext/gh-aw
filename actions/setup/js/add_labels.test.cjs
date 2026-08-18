@@ -328,9 +328,59 @@ describe("add_labels", () => {
       expect(mockCore.infos).toContain("Successfully added 0 labels to issue #68619 in test-owner/test-repo");
     });
 
+    it("should add metadata-free labels through REST when the intent mutation does not apply them", async () => {
+      const handler = await main({ max: 10 });
+      const addLabelsCalls = [];
+
+      mockGithub.rest.issues.get = async () => ({
+        data: {
+          node_id: "ISSUE_NODE_ID",
+          title: "Test issue title",
+          labels: [{ name: "feature-openapi" }],
+        },
+      });
+      mockGithub.graphql = async (query, variables) => {
+        if (typeof query === "string" && query.includes("repository(owner")) {
+          return {
+            repository: {
+              labels: {
+                nodes: [
+                  { id: "LABEL_feature-openapi", name: "feature-openapi" },
+                  { id: "LABEL_area-minimal", name: "area-minimal" },
+                  { id: "LABEL_bug", name: "bug" },
+                ],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          };
+        }
+        return { updateIssue: { issue: { labels: { nodes: [{ name: "feature-openapi" }] } } } };
+      };
+      mockGithub.rest.issues.addLabels = async params => {
+        addLabelsCalls.push(params);
+        return { data: [{ name: "feature-openapi" }, { name: "bug" }] };
+      };
+
+      const result = await handler(
+        {
+          item_number: 68619,
+          labels: [{ name: "area-minimal", rationale: "Minimal APIs area", confidence: "MEDIUM" }, { name: "bug" }],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.labelsAdded).toEqual(["bug"]);
+      expect(result.labelsSuggested).toEqual(["area-minimal"]);
+      expect(result.after_state.labels).toEqual(["feature-openapi", "bug"]);
+      expect(addLabelsCalls).toHaveLength(1);
+      expect(addLabelsCalls[0].labels).toEqual(["bug"]);
+    });
+
     it("should restore pre-existing labels omitted by the intent mutation", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
+      const restoredLabels = [{ name: "feature-openapi" }, { name: "area-minimal" }, { name: "bug" }];
 
       mockGithub.rest.issues.get = async () => ({
         data: {
@@ -358,7 +408,7 @@ describe("add_labels", () => {
       };
       mockGithub.rest.issues.addLabels = async params => {
         addLabelsCalls.push(params);
-        return { data: [{ name: "feature-openapi" }, { name: "area-minimal" }, { name: "bug" }] };
+        return { data: restoredLabels };
       };
 
       const result = await handler(
@@ -372,7 +422,7 @@ describe("add_labels", () => {
       expect(result.success).toBe(true);
       expect(result.labelsAdded).toEqual(["bug"]);
       expect(result.labelsSuggested).toEqual([]);
-      expect(result.after_state.labels).toEqual(["feature-openapi", "area-minimal", "bug"]);
+      expect(result.after_state.labels).toEqual(restoredLabels.map(label => label.name));
       expect(addLabelsCalls).toHaveLength(1);
       expect(addLabelsCalls[0].labels).toEqual(["area-minimal"]);
       expect(mockCore.warnings[0]).toContain("restoring them via the REST add-labels endpoint");
