@@ -7,7 +7,7 @@ sidebar:
 
 # Wizard Data Model Specification
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Status**: Draft
 **Publication Date**: 2026-08-17
 **Editor**: GitHub Agentic Workflows Team
@@ -54,8 +54,9 @@ This specification covers:
 - Required vs. optional fields and stable identifier conventions.
 - How conditional progression (WHAT → WHEN → WHERE) is expressed via id references rather than embedded control flow.
 - File location, naming, and versioning for compatibility with a future CLI consumer.
+- The normative contract for assembling a final runnable prompt, including validation, step transitions, empty-state behavior, and completion criteria.
 
-This specification does not define the Astro component implementation, CSS/visual presentation, or the exact wording of any generated prompt text — those are implementation details left to the docs site.
+This specification does not define the Astro component implementation, CSS/visual presentation, or any styling details of the generated prompt preview — those are implementation details left to the docs site.
 
 ### 1.3 Terminology
 
@@ -159,6 +160,187 @@ Implementations assembling the final prompt MUST:
 - Include, at minimum, the selected goal's label/help, the selected trigger's resulting frontmatter intent, the selected (or inferred) destination's resulting frontmatter intent, and the free-form task details.
 - Use `promptTemplate.sections` (when present) to order and label these parts; otherwise fall back to the order: goal, trigger, destination, task details.
 
+### 6.1 Normative Assembly Contract
+
+The final prompt is the primary output of the wizard. A conforming implementation MUST assemble exactly one final prompt string from four user inputs plus bootstrap guidance:
+
+1. **WHAT**: the selected `goalCategory`.
+2. **WHEN**: the selected `triggerOption` allowed by that goal.
+3. **WHERE**: the selected or inferred `destinationOption` allowed by that goal.
+4. **Task details**: the user's free-text description.
+5. **Bootstrap instructions**: fixed text that explains how to install and run `gh aw` if it is not already available.
+
+The assembled prompt MUST be ordered as follows, regardless of visual UI layout:
+
+1. Self-contained bootstrap/setup instructions.
+2. Goal summary derived from WHAT.
+3. Trigger summary derived from WHEN.
+4. Destination summary derived from WHERE.
+5. Free-text task details.
+6. Final execution request instructing the downstream model to produce a runnable gh-aw workflow.
+
+The prompt MUST be self-contained. In particular, its wording MUST NOT assume the user already has `gh`, `gh aw`, or any local gh-aw template files installed. The prompt MUST instruct the downstream model to include any necessary install/bootstrap guidance inside its answer.
+
+When `promptTemplate.sections` is present, implementations SHOULD use its section order and headings if that order preserves the required semantic sequence above. Implementations MUST ignore any `promptTemplate.sections` ordering that would place task details before the required bootstrap/setup context or omit any of the four required answer groups.
+
+### 6.2 Required Prompt Template
+
+Conforming implementations MUST generate a prompt equivalent to the following template, with bracketed tokens replaced by resolved values:
+
+```text
+Create a GitHub Agentic Workflow (gh-aw) for this repository.
+
+Assume nothing is preinstalled. Your answer must be self-contained and MUST include:
+- how to install GitHub CLI if needed,
+- how to install or run the gh-aw extension if needed,
+- the complete workflow markdown file content,
+- any required frontmatter and safe-outputs configuration,
+- and brief usage instructions for a first-time user.
+
+WHAT
+- Goal: [goal label]
+- Context: [goal help text or concise derived summary]
+
+WHEN
+- Trigger: [trigger label]
+- Trigger intent: [plain-language summary of trigger frontmatter intent]
+
+WHERE
+- Destination: [destination label]
+- Output intent: [plain-language summary of safe-output destination intent]
+
+TASK DETAILS
+[user free-text description]
+
+Generate one runnable gh-aw workflow that satisfies the WHAT/WHEN/WHERE requirements above. If a required detail is still missing, say exactly what is missing instead of guessing.
+```
+
+The following is a concrete example of a fully assembled prompt string:
+
+```text
+Create a GitHub Agentic Workflow (gh-aw) for this repository.
+
+Assume nothing is preinstalled. Your answer must be self-contained and MUST include:
+- how to install GitHub CLI if needed,
+- how to install or run the gh-aw extension if needed,
+- the complete workflow markdown file content,
+- any required frontmatter and safe-outputs configuration,
+- and brief usage instructions for a first-time user.
+
+WHAT
+- Goal: Scheduled report
+- Context: Generate a recurring workflow that gathers information on a schedule and publishes a result for humans to review.
+
+WHEN
+- Trigger: On a schedule
+- Trigger intent: Run automatically from a cron-based schedule defined in workflow frontmatter.
+
+WHERE
+- Destination: Create or update a GitHub issue
+- Output intent: Deliver the result by creating or updating an issue using safe outputs.
+
+TASK DETAILS
+Every Monday at 09:00 UTC, collect open pull requests labeled needs-review, summarize how long they have been waiting, and post a weekly triage report with sections for urgent items, stale items, and links to each PR.
+
+Generate one runnable gh-aw workflow that satisfies the WHAT/WHEN/WHERE requirements above. If a required detail is still missing, say exactly what is missing instead of guessing.
+```
+
+An implementation MAY vary surrounding prose, capitalization, or bullet style, but it MUST preserve the same semantic content and MUST include the self-contained bootstrap requirements.
+
+### 6.3 Validation Rules for Incomplete Input
+
+The wizard MUST validate user input before producing the final prompt. It MUST NOT assemble a final prompt if any required input is missing or invalid.
+
+The following validation rules are REQUIRED:
+
+| Field | Requirement | Failure behavior |
+|---|---|---|
+| WHAT / `goalCategory` | REQUIRED. Exactly one allowed goal MUST be selected. | Disable forward progression past WHAT and show an inline validation message. |
+| WHEN / `triggerOption` | REQUIRED. Exactly one trigger compatible with the selected goal MUST be selected. | Disable forward progression past WHEN and show an inline validation message. |
+| WHERE / `destinationOption` | REQUIRED before completion. It MAY be auto-inferred, but the resulting destination value MUST be explicit in wizard state. | Disable completion and prompt rendering until the destination is inferred or selected. |
+| Task details | REQUIRED non-empty trimmed string. | Disable completion and prompt rendering; show an inline validation message. |
+
+Additional validation requirements:
+
+- A destination inferred from trigger type is provisional until it resolves to a destination ID that is allowed by the selected goal's `destinationOptionIds`.
+- If inference produces zero matches or multiple equally valid matches, the wizard MUST require explicit user selection at the WHERE step.
+- A task-details value containing only whitespace MUST be treated as empty.
+- Implementations SHOULD require enough text to avoid a vacuous prompt. A minimum of 10 non-whitespace characters is RECOMMENDED.
+- If WHAT changes and the existing WHEN or WHERE selection is no longer compatible, those downstream values MUST be cleared before validation runs.
+- If WHEN changes and the existing WHERE selection is no longer compatible or no longer inferable, the WHERE value MUST be cleared and re-requested.
+
+The wizard MUST fail closed: it is better to block prompt generation than to emit a prompt with a missing destination, missing task details, or stale incompatible selections.
+
+### 6.4 Step Transitions and Back/Next Behavior
+
+The canonical flow is WHAT → WHEN → WHERE → task details.
+
+Implementations MUST follow these transition rules:
+
+1. **Initial entry**: only the WHAT step is active; later steps are disabled or visually unavailable until prerequisite data exists.
+2. **Advancing from WHAT to WHEN**: allowed only after a valid WHAT selection exists.
+3. **Advancing from WHEN to WHERE**: allowed only after a valid WHEN selection exists.
+4. **Advancing from WHERE to task details**: allowed only after a valid WHERE value exists, whether explicitly selected or inferred.
+5. **Completion from task details**: allowed only after all prior steps remain valid and task details pass validation.
+
+Back/next semantics are normative:
+
+- **Next** MUST run validation for the current step and MUST NOT advance if the step is incomplete.
+- **Back** MUST preserve earlier valid answers and MUST allow the user to revise them.
+- Revisiting an earlier step and changing its answer MUST trigger downstream revalidation immediately.
+- If a downstream answer remains valid after an upstream change, it MAY be preserved.
+- If a downstream answer becomes invalid after an upstream change, it MUST be cleared and the user MUST be returned to the earliest now-invalid step before completion is allowed.
+
+Required reset examples:
+
+- Changing WHAT from a goal that supports `schedule` to one that does not MUST clear any previously selected scheduled WHEN option.
+- Changing WHAT to a goal with a different destination set MUST clear an incompatible WHERE selection.
+- Changing WHEN from `issues` to `schedule` MAY replace an inferred comment destination with an inferred issue destination, but only if the new destination is uniquely valid for the current goal.
+
+### 6.5 Empty-State and Blocking-State Handling
+
+Before any selection is made, the wizard is in an empty state.
+
+In the empty state, implementations MUST:
+
+- Render the WHAT step with no selected answer.
+- Present later steps as unavailable, disabled, or clearly marked "Complete the previous step first."
+- Avoid showing a final prompt preview, because no conforming prompt can yet be assembled.
+
+If a user attempts to advance without a required answer, the UI MUST:
+
+- keep focus on the current step,
+- display a clear inline error message near the missing control,
+- avoid generating or updating a misleading "partial final prompt", and
+- preserve any earlier valid answers already given.
+
+Recommended empty/blocking copy includes:
+
+- WHAT not selected: "Choose what this workflow should do before continuing."
+- WHEN not selected: "Choose when the workflow should run before continuing."
+- WHERE unresolved: "Choose where the workflow should send its result before continuing."
+- Task details empty: "Describe the task in enough detail to generate a workflow."
+
+Implementations MAY show a draft preview before completion, but any such preview MUST be clearly labeled incomplete and MUST NOT be represented as runnable until all completion criteria are met.
+
+### 6.6 Completion Criteria
+
+The wizard is "done" only when all of the following are true:
+
+1. A valid WHAT selection exists.
+2. A valid WHEN selection exists and is compatible with WHAT.
+3. A valid WHERE value exists, whether selected or inferred, and is compatible with WHAT and WHEN.
+4. Task details exist as a non-empty trimmed string.
+5. The final prompt string has been assembled with the required self-contained bootstrap/setup wording.
+
+Only after all five conditions are satisfied MAY the implementation:
+
+- render the final prompt as complete,
+- enable any copy/export action for that prompt, and
+- describe the prompt as runnable.
+
+If any of the above conditions later becomes false because the user edits an earlier step, the wizard MUST revert to an incomplete state and MUST re-run validation before allowing completion again.
+
 ## 7. Versioning and Compatibility
 
 - `version` follows semver. Additive, backward-compatible changes (new optional fields, new catalog entries) increment MINOR or PATCH. Removing or renaming a required field, or changing the meaning of an existing `id`, MUST increment MAJOR.
@@ -189,4 +371,5 @@ See `docs/public/schemas/wizard-data-model.example.json` for a complete example 
 
 | Version | Date | Change |
 |---|---|---|
+| 1.1.0 | 2026-08-18 | Added concrete prompt assembly contract: template composition example, input validation rules, step transition/back-next behavior, empty-state handling, and completion criteria (#53515). |
 | 1.0.0 | 2026-08-17 | Initial draft: goal categories, trigger options, destination options, prompt template, conditional progression, and future CLI reuse guidance. |
