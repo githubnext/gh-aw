@@ -203,7 +203,9 @@ type AWFBoundedQueriesConfig struct {
 
 	// Timeout is the maximum execution time in seconds for a single invocation.
 	// Optional; when omitted AWF uses its default.
-	Timeout int `json:"timeout,omitempty"`
+	// A pointer mirrors BoundedQueriesConfig.Timeout so nil-vs-zero semantics stay in sync
+	// between the frontmatter and AWF-config-file shapes.
+	Timeout *int `json:"timeout,omitempty"`
 
 	// MemoryLimit is the memory limit for bounded-query container execution (e.g. "512m").
 	// Optional; when omitted AWF uses its default.
@@ -985,9 +987,7 @@ func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesC
 		MemoryLimit: bq.MemoryLimit,
 		Interpreter: bq.Interpreter,
 	}
-	if bq.Timeout != nil {
-		awfBQ.Timeout = *bq.Timeout
-	}
+	awfBQ.Timeout = bq.Timeout
 	if bq.MaxInvocations != nil {
 		awfBQ.MaxInvocations = *bq.MaxInvocations
 	}
