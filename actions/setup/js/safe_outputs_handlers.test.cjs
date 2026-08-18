@@ -3353,6 +3353,31 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it("should write entry for a pull_request closed event when context eventName falls back to GITHUB_EVENT_NAME", () => {
+      const savedContext = global.context;
+      const savedEventName = process.env.GITHUB_EVENT_NAME;
+      process.env.GITHUB_EVENT_NAME = "pull_request";
+      global.context = {
+        ...global.context,
+        eventName: "",
+        payload: { action: "closed", pull_request: { number: 7, merged: true } },
+      };
+      try {
+        const result = handlers.updatePullRequestHandler({ body: "Merged PR summary" });
+        expect(result.isError).toBeUndefined();
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", body: "Merged PR summary" }));
+      } finally {
+        global.context = savedContext;
+        if (savedEventName === undefined) {
+          delete process.env.GITHUB_EVENT_NAME;
+        } else {
+          process.env.GITHUB_EVENT_NAME = savedEventName;
+        }
+      }
+    });
+
     it("error message should mention all required fields", () => {
       try {
         handlers.updatePullRequestHandler({});
