@@ -65,17 +65,19 @@ func analyzeBinaryExpr(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 	if nolint.HasDirectiveForLinter(pos, noLintIndex, "bytescomparestring") {
 		return
 	}
-	lhsArg, ok := extractByteSliceStringConv(pass, bin.X)
+	lhsArg, lhsType, ok := extractByteSliceStringConv(pass, bin.X)
 	if !ok {
 		return
 	}
-	rhsArg, ok := extractByteSliceStringConv(pass, bin.Y)
+	rhsArg, rhsType, ok := extractByteSliceStringConv(pass, bin.Y)
 	if !ok {
 		return
 	}
 	lText := astutil.NodeText(pass.Fset, lhsArg)
 	rText := astutil.NodeText(pass.Fset, rhsArg)
-	if lText == "" || rText == "" {
+	lTypeText := astutil.NodeText(pass.Fset, lhsType)
+	rTypeText := astutil.NodeText(pass.Fset, rhsType)
+	if lText == "" || rText == "" || lTypeText == "" || rTypeText == "" {
 		return
 	}
 	if !coverage.ShouldApply(pass, bin.Pos(), *hotThreshold) {
@@ -90,7 +92,7 @@ func analyzeBinaryExpr(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 		pass.Report(analysis.Diagnostic{
 			Pos:            bin.Pos(),
 			End:            bin.End(),
-			Message:        fmt.Sprintf("string(%s) == string(%s) is a []byte comparison written the long way; use bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
+			Message:        fmt.Sprintf("%s(%s) == %s(%s) is a []byte comparison written the long way; use bytes.Equal(%s, %s) for clearer intent", lTypeText, lText, rTypeText, rText, lText, rText),
 			SuggestedFixes: fixes,
 		})
 	} else {
@@ -101,7 +103,7 @@ func analyzeBinaryExpr(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 		pass.Report(analysis.Diagnostic{
 			Pos:            bin.Pos(),
 			End:            bin.End(),
-			Message:        fmt.Sprintf("string(%s) != string(%s) is a []byte comparison written the long way; use !bytes.Equal(%s, %s) for clearer intent", lText, rText, lText, rText),
+			Message:        fmt.Sprintf("%s(%s) != %s(%s) is a []byte comparison written the long way; use !bytes.Equal(%s, %s) for clearer intent", lTypeText, lText, rTypeText, rText, lText, rText),
 			SuggestedFixes: fixes,
 		})
 	}
@@ -216,35 +218,35 @@ func buildBytesImportTextEdit(pass *analysis.Pass, file *ast.File, seenImportFil
 	}, true
 }
 
-// extractByteSliceStringConv checks whether expr is a string(x) conversion
-// where x has underlying type []byte. If so, it returns x and true.
-func extractByteSliceStringConv(pass *analysis.Pass, expr ast.Expr) (ast.Expr, bool) {
+// extractByteSliceStringConv checks whether expr is a string-like type conversion
+// where x has underlying type []byte. If so, it returns x, the conversion type, and true.
+func extractByteSliceStringConv(pass *analysis.Pass, expr ast.Expr) (ast.Expr, ast.Expr, bool) {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok || len(call.Args) != 1 {
-		return nil, false
+		return nil, nil, false
 	}
 
 	// Must be a type conversion, not a function call.
 	funInfo, ok := pass.TypesInfo.Types[call.Fun]
 	if !ok || !funInfo.IsType() {
-		return nil, false
+		return nil, nil, false
 	}
 
 	// The outer conversion must produce a string.
 	resultInfo, ok := pass.TypesInfo.Types[call]
 	if !ok {
-		return nil, false
+		return nil, nil, false
 	}
 	basic, ok := resultInfo.Type.Underlying().(*types.Basic)
 	if !ok || basic.Kind() != types.String {
-		return nil, false
+		return nil, nil, false
 	}
 
 	// The argument must be []byte (or []uint8).
 	arg := call.Args[0]
 	if !astutil.IsByteSlice(pass, arg) {
-		return nil, false
+		return nil, nil, false
 	}
 
-	return arg, true
+	return arg, call.Fun, true
 }
