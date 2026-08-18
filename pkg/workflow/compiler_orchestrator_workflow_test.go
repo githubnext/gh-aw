@@ -1635,6 +1635,7 @@ on: push
 engine: copilot
 tools:
   bash: []
+  cli-proxy: false
 ---
 
 # Test Workflow

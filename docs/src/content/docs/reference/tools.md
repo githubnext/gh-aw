@@ -150,6 +150,16 @@ This reduces token consumption from large MCP tool schemas and can simplify work
 
 Defaults to `false`.
 
+CLI mounting requires shell access: the wrappers are ordinary executables invoked from bash. When `tools.bash` is disabled (`bash: false` or `bash: []`), `cli-proxy: true` is rejected at compile time, and strict mode requires `cli-proxy: false` to be stated explicitly:
+
+```yaml wrap
+tools:
+  bash: false
+  cli-proxy: false
+```
+
+With `cli-proxy: false`, MCP servers (including `safeoutputs`) remain available through the MCP protocol, and the CLI-only instructions are omitted from the generated prompt. Run `gh aw fix` to add the explicit setting to existing workflows.
+
 ## Tool Timeout Configuration
 
 ### Tool Operation Timeout (`tools.timeout`)

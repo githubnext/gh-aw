@@ -33,6 +33,7 @@ permissions:
 engine: copilot
 tools:
   bash: false
+  cli-proxy: false
   github:
     min-integrity: none
 ---
