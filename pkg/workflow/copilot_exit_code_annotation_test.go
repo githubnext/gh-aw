@@ -1,10 +1,6 @@
 //go:build !integration
 
-// Tests guarding the failure instrumentation of the "Execute GitHub Copilot CLI"
-// step. A non-zero exit from the Copilot CLI used to be indistinguishable from a
-// successful run in the job log: the agent stream and its post-processing output
-// ended normally and nothing reported why the step failed. The EXIT trap therefore
-// emits an explicit ::error:: annotation carrying the exit code.
+// Tests guarding failure instrumentation shared by every agent execution step.
 package workflow
 
 import (
@@ -12,29 +8,30 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestCopilotExitCodeTrap_EmitsErrorAnnotation pins the generated trap so the
+// TestAgentExecutionExitCodeTrap_EmitsErrorAnnotation pins the generated trap so the
 // failure annotation cannot be silently dropped.
-func TestCopilotExitCodeTrap_EmitsErrorAnnotation(t *testing.T) {
+func TestAgentExecutionExitCodeTrap_EmitsErrorAnnotation(t *testing.T) {
 	got := buildCopilotSettingsCleanupAndExitCodeTrap()
 
 	assert.Contains(t, got, `if [ "$gh_aw_exit_code" -ne 0 ]; then`,
 		"trap must guard the annotation on a non-zero exit code:\n%s", got)
-	assert.Contains(t, got, `echo "::error title=Execute GitHub Copilot CLI::exited with code $gh_aw_exit_code"`,
-		"trap must emit an error annotation naming the step and exit code:\n%s", got)
+	assert.Contains(t, got, `echo "::error::Agent execution exited with code $gh_aw_exit_code"`,
+		"trap must emit an error annotation with the exit code:\n%s", got)
 	assert.Contains(t, got, `> `+agentExecutionExitCodePath,
 		"trap must still persist the exit code for the OTLP conclusion span:\n%s", got)
 	assert.Contains(t, got, `rm -f "`+copilotSettingsPath+`"`,
 		"trap must still clean up the Copilot settings file:\n%s", got)
 }
 
-// TestBashIntegration_CopilotExitCodeTrap runs the generated trap through bash to
+// TestBashIntegration_AgentExecutionExitCodeTrap runs the generated trap through bash to
 // confirm the annotation is printed with the real exit code on failure, that the
 // exit code file is still written, and that successful runs stay silent.
-func TestBashIntegration_CopilotExitCodeTrap(t *testing.T) {
+func TestBashIntegration_AgentExecutionExitCodeTrap(t *testing.T) {
 	trap := buildCopilotSettingsCleanupAndExitCodeTrap()
 
 	tests := []struct {
@@ -56,7 +53,7 @@ func TestBashIntegration_CopilotExitCodeTrap(t *testing.T) {
 
 			stdout, stderr, _ := runBashWithHome(t, home, script)
 
-			errorLine := "::error title=Execute GitHub Copilot CLI::exited with code " + tt.wantExitCode
+			errorLine := "::error::Agent execution exited with code " + tt.wantExitCode
 			if tt.wantErrorLine {
 				assert.Contains(t, stdout, errorLine,
 					"failing run must surface the exit code:\nstdout=%s\nstderr=%s", stdout, stderr)
@@ -73,7 +70,7 @@ func TestBashIntegration_CopilotExitCodeTrap(t *testing.T) {
 	}
 }
 
-// TestCopilotExecutionStep_ContainsExitCodeAnnotation verifies the annotation is
+// TestCopilotExecutionStep_ContainsExitCodeAnnotation verifies the shared annotation is
 // present in the generated step for both the direct and firewall command paths.
 func TestCopilotExecutionStep_ContainsExitCodeAnnotation(t *testing.T) {
 	tests := []struct {
@@ -101,8 +98,59 @@ func TestCopilotExecutionStep_ContainsExitCodeAnnotation(t *testing.T) {
 			steps := engine.GetExecutionSteps(tt.wd, "/tmp/gh-aw/test.log")
 			stepContent := requireCopilotExecutionStep(t, steps)
 
-			assert.Contains(t, stepContent, "::error title=Execute GitHub Copilot CLI::exited with code",
+			assert.Contains(t, stepContent, "::error::Agent execution exited with code",
 				"execution step must surface a non-zero exit code in the log:\n%s", stepContent)
 		})
 	}
+}
+
+func TestAllAgentExecutionSteps_ContainExitCodeAnnotation(t *testing.T) {
+	workflowData := &WorkflowData{Name: "agent"}
+	tests := []struct {
+		name  string
+		steps []GitHubActionStep
+	}{
+		{name: "Claude", steps: NewClaudeEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")},
+		{name: "Codex", steps: NewCodexEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")},
+		{name: "Gemini", steps: NewGeminiEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")},
+		{name: "Pi", steps: NewPiEngine().GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")},
+		{
+			name: "universal CLI",
+			steps: (&UniversalLLMConsumerEngine{}).BuildCLIEngineExecutionSteps(
+				workflowData,
+				"/tmp/gh-aw/test.log",
+				UniversalCLIEngineExecutionConfig{
+					DefaultCommandName: "test-cli",
+					EngineConstant:     constants.CopilotEngine,
+					StepName:           "Execute test CLI",
+				},
+			),
+		},
+	}
+
+	behaviorEngine, err := NewBehaviorDefinedEngine(newHarnessEngineDefinition())
+	require.NoError(t, err)
+	tests = append(tests, struct {
+		name  string
+		steps []GitHubActionStep
+	}{
+		name:  "behavior-defined",
+		steps: behaviorEngine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log"),
+	})
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NotEmpty(t, tt.steps)
+			assert.Contains(t, strings.Join(tt.steps[len(tt.steps)-1], "\n"),
+				"::error::Agent execution exited with code",
+				"execution step must surface a non-zero exit code in the log")
+		})
+	}
+}
+
+func TestWrapAgentExecutionCommand_PlacesTrapAfterPipefail(t *testing.T) {
+	command := wrapAgentExecutionCommand("set -o pipefail\nfalse | cat")
+
+	assert.True(t, strings.HasPrefix(command, "set -o pipefail\ntrap "),
+		"the trap must follow pipefail setup:\n%s", command)
 }

@@ -488,7 +488,7 @@ func (e *PiEngine) buildPiExecutionStep(workflowData *WorkflowData, command stri
 	}
 	filteredEnv := FilterEnvForSecrets(env, e.GetRequiredSecretNames(workflowData))
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
-	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, command, filteredEnv))
+	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, wrapAgentExecutionCommand(command), filteredEnv))
 }
 
 // PiStreamingLogFile is the path where Pi CLI writes its streaming JSONL event log.

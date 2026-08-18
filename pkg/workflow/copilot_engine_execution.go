@@ -37,11 +37,8 @@ import (
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
-const agentExecutionExitCodePath = "/tmp/gh-aw/agent_execution_exit_code.txt"
 
-// copilotExecutionStepName is the display name of the generated Copilot CLI execution
-// step. It is also used in the failure annotation emitted by the EXIT trap so the log
-// message can be correlated with the failing step.
+// copilotExecutionStepName is the display name of the generated Copilot CLI execution step.
 const copilotExecutionStepName = "Execute GitHub Copilot CLI"
 
 // copilotSettingsPath is the shell expression that resolves to the Copilot CLI settings
@@ -90,24 +87,13 @@ func buildCopilotSettingsSetup(settingsContent string, fixOwnershipForCustomComm
 		shellEscapeArg(settingsContent), copilotSettingsPath)
 }
 
-// buildCopilotSettingsCleanupAndExitCodeTrap returns an EXIT trap that:
-//  1. persists the execution step exit code for setup/post OTLP conclusion spans,
-//  2. emits an explicit error annotation when the step terminates non-zero, and
-//  3. removes the temporary Copilot settings file.
-//
-// Step (2) exists because a non-zero exit from the Copilot CLI can otherwise be
-// indistinguishable from success in the job log: the agent stream and its
-// post-processing output end normally and nothing reports why the step failed.
+// buildCopilotSettingsCleanupAndExitCodeTrap adds Copilot settings cleanup to the
+// shared agent execution exit-code trap.
 //
 // The body is single-quoted so $HOME in copilotSettingsPath is expanded at trap-fire
 // time (matching buildCopilotSettingsCleanupTrap behavior).
 func buildCopilotSettingsCleanupAndExitCodeTrap() string {
-	return fmt.Sprintf(
-		"trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf \"%%s\" \"$gh_aw_exit_code\" > %s || true; rm -f \"%s\"; if [ \"$gh_aw_exit_code\" -ne 0 ]; then echo \"::error title=%s::exited with code $gh_aw_exit_code\"; fi' EXIT\n",
-		agentExecutionExitCodePath,
-		copilotSettingsPath,
-		copilotExecutionStepName,
-	)
+	return buildAgentExecutionExitCodeTrapWithCleanup(fmt.Sprintf(`rm -f "%s"`, copilotSettingsPath))
 }
 
 // buildCopilotMCPConfigExport returns shell commands that export Copilot-CLI-specific
