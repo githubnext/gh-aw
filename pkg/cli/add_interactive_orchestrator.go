@@ -90,13 +90,17 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 
 	remainingBootstrapProfile := config.getRemainingBootstrapProfile()
 
-	filesToAdd, initFiles, secretName, secretValue, err := config.prepareAndConfirmAddInteractive()
+	filesToAdd, initFiles, secretName, secretValue, createPR, err := config.prepareAndConfirmAddInteractive()
 	if err != nil {
 		return err
 	}
 
-	if err := config.createWorkflowPRAndConfigureSecret(ctx, filesToAdd, initFiles, secretName, secretValue); err != nil {
+	if err := config.createWorkflowChangesAndConfigureSecret(ctx, filesToAdd, initFiles, secretName, secretValue, createPR); err != nil {
 		return err
+	}
+	if !createPR {
+		config.showFinalInstructions()
+		return nil
 	}
 
 	if err := config.applyBootstrapConfigIfNeeded(ctx, remainingBootstrapProfile); err != nil {
@@ -159,46 +163,44 @@ func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
 	if err := c.checkGitRepository(); err != nil {
 		return err
 	}
-	if err := c.checkCleanWorkingDirectory(); err != nil {
-		return err
-	}
 	if err := c.checkActionsEnabled(); err != nil {
 		return err
 	}
 	return c.checkUserPermissions()
 }
 
-func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles, initFiles []string, secretName, secretValue string, err error) {
+func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles, initFiles []string, secretName, secretValue string, createPR bool, err error) {
 	if err := c.selectAIEngineAndKey(); err != nil {
-		return nil, nil, "", "", err
+		return nil, nil, "", "", false, err
 	}
 
 	initFiles, err = ensureAddRepositoryInitializedWithDetails(c.EngineOverride, c.Verbose, c.NoGitattributes)
 	if err != nil {
-		return nil, nil, "", "", err
+		return nil, nil, "", "", false, err
 	}
 
 	workflowFiles, _, err = c.determineFilesToAdd()
 	if err != nil {
-		return nil, nil, "", "", err
+		return nil, nil, "", "", false, err
 	}
 
 	if err := c.selectScheduleFrequency(); err != nil {
-		return nil, nil, "", "", err
+		return nil, nil, "", "", false, err
 	}
 
 	if c.hasWriteAccess && !c.SkipSecret && !c.UseCopilotRequests {
 		secretName, secretValue, err = c.resolveEngineApiKeyCredential()
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, "", "", false, err
 		}
 	}
 
-	if err := c.confirmChanges(workflowFiles, initFiles, secretName, secretValue); err != nil {
-		return nil, nil, "", "", err
+	createPR, err = c.confirmChanges(workflowFiles, initFiles, secretName, secretValue)
+	if err != nil {
+		return nil, nil, "", "", false, err
 	}
 
-	return workflowFiles, initFiles, secretName, secretValue, nil
+	return workflowFiles, initFiles, secretName, secretValue, createPR, nil
 }
 
 // resolveWorkflows resolves workflow specifications by installing repositories,
@@ -325,7 +327,7 @@ func (c *AddInteractiveConfig) primaryWorkflowName() string {
 
 // confirmChanges asks the user to confirm the changes
 // secretValue is empty if the secret already exists in the repository
-func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string, secretName string, secretValue string) error {
+func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string, secretName string, secretValue string) (bool, error) {
 	addInteractiveLog.Print("Confirming changes with user")
 
 	fmt.Fprintln(os.Stderr, "")
@@ -337,26 +339,21 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string,
 		fmt.Fprintln(os.Stderr, "")
 	}
 
-	confirmed := true // Default to yes
+	createPR := true // Default to yes
 	form := console.NewConfirmForm(
 		huh.NewConfirm().
-			Title("Do you want to proceed with these changes?").
-			Description("A pull request will be created with the workflow files").
+			Title("Do you want to create a pull request with these changes?").
+			Description("Choose No to write the workflow files locally without creating a pull request").
 			Affirmative("Yes, create pull request").
-			Negative("No, cancel").
-			Value(&confirmed),
+			Negative("No, write files locally").
+			Value(&createPR),
 	)
 
 	if err := form.RunWithContext(c.Ctx); err != nil {
-		return fmt.Errorf("confirmation failed: %w", err)
+		return false, fmt.Errorf("confirmation failed: %w", err)
 	}
 
-	if !confirmed {
-		fmt.Fprintln(os.Stderr, "Operation cancelled.")
-		return errors.New("user cancelled the operation")
-	}
-
-	return nil
+	return createPR, nil
 }
 
 // showFinalInstructions shows final instructions to the user

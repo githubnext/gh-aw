@@ -203,7 +203,7 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	}
 
 	// Update existingSecrets to reflect that the secret was uploaded
-	// This prevents duplicate secret uploads in createWorkflowPRAndConfigureSecret later
+	// This prevents duplicate secret uploads in createWorkflowChangesAndConfigureSecret later
 	opt := constants.GetEngineOption(engine)
 	if opt != nil {
 		c.existingSecrets[opt.SecretName] = struct{}{}
