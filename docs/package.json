@@ -27,14 +27,14 @@
     "@astrojs/sitemap": "^3.7.3",
     "@astrojs/starlight": "^0.41.7",
     "@primer/octicons": "^19.33.0",
-    "astro": "^7.2.0",
+    "astro": "^7.2.2",
     "astro-mermaid": "^2.1.0",
     "mermaid": "^11.16.1",
     "pdfjs-dist": "^6.2.108",
     "sharp": "^0.35.3",
     "starlight-blog": "^0.28.0",
     "starlight-changelogs": "^0.5.1",
-    "starlight-links-validator": "^0.25.2",
+    "starlight-links-validator": "^0.25.3",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

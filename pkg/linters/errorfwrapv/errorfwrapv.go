@@ -19,23 +19,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
-var errorIface = universeErrorInterface()
-
-// universeErrorInterface returns the built-in error interface type, or nil if
-// it cannot be resolved from types.Universe.
-func universeErrorInterface() *types.Interface {
-	errorObj := types.Universe.Lookup("error")
-	if errorObj == nil {
-		return nil
-	}
-
-	iface, ok := errorObj.Type().Underlying().(*types.Interface)
-	if !ok {
-		return nil
-	}
-
-	return iface
-}
+var errorIface = astutil.UniverseErrorInterface()
 
 type formatVerb struct {
 	argIdx int
@@ -54,11 +38,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, errors.New("failed to resolve built-in error interface from types.Universe")
 	}
 
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

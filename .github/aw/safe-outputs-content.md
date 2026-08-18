@@ -206,6 +206,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
         - "main"
       max-patch-size: 2048            # Optional: per-output cap on git patch size in KB (overrides global; default: 4096 KB, max: 10240)
       max-patch-files: 50             # Optional: per-output cap on unique files in the patch (overrides global; default: 100)
+      stacked: true                   # Optional: allow PRs based on another PR branch from the same run (default: true; set false on GHES without stacked-PR support)
   ```
 
   **Dynamic Base Branch**: When `allowed-base-branches` is set, the agent can provide a `base` field in its output to override the default base branch for a single run — but only if the value matches one of the configured glob patterns. Without `allowed-base-branches`, only the static `base-branch:` is used. Accepts a literal array or a GitHub Actions expression resolving to a comma-separated list (e.g. `${{ inputs.allowed-base-branches }}`).

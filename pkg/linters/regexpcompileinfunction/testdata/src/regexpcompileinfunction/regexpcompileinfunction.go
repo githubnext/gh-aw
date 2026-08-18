@@ -7,6 +7,11 @@ import (
 // Package-level regexp compilation is allowed and recommended.
 var packageLevelRegexp = regexp.MustCompile(`^[a-z]+$`)
 
+// Package-level POSIX compilation is also allowed.
+var packageLevelPOSIXRegexp = regexp.MustCompilePOSIX(`^[a-z]+$`)
+
+var _ = packageLevelPOSIXRegexp
+
 // This is also valid at package level (though MustCompile is more common).
 var (
 	anotherPackageLevelRegexp, _ = regexp.Compile(`\d+`)
@@ -51,6 +56,21 @@ func GetValidator() func(string) bool {
 		re := regexp.MustCompile(`^valid`) // want `regexp compilation inside function should be moved to package-level variable`
 		return re.MatchString(s)
 	}
+}
+
+// flagged: regexp.MustCompilePOSIX inside function body
+func ProcessStringPOSIX(s string) bool {
+	re := regexp.MustCompilePOSIX(`^[a-z]+$`) // want `regexp compilation inside function should be moved to package-level variable`
+	return re.MatchString(s)
+}
+
+// flagged: regexp.CompilePOSIX inside function body
+func ValidateInputPOSIX(input string) (bool, error) {
+	re, err := regexp.CompilePOSIX(`\d+`) // want `regexp compilation inside function should be moved to package-level variable`
+	if err != nil {
+		return false, err
+	}
+	return re.MatchString(input), nil
 }
 
 // not flagged: using package-level regexp

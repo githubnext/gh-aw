@@ -25,11 +25,7 @@ var checkedFuncs = map[string]map[string]struct{}{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	nolintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	nolintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

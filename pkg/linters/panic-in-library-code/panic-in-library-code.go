@@ -39,11 +39,7 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	pkgLog.Printf("analyzing package %s", pkgPath)
 
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +85,7 @@ func run(pass *analysis.Pass) (any, error) {
 func shouldSkipPanic(pass *analysis.Pass, call *ast.CallExpr, cur inspector.Cursor) bool {
 	return isInSyncOnceFuncLit(pass, cur) ||
 		panicMessageStartsWithBUG(pass, call) ||
-		isInInitFunction(cur) ||
+		astutil.IsInInitFunction(cur) ||
 		hasDocumentedPanicContract(cur)
 }
 
@@ -216,26 +212,6 @@ func isFmtSprintf(pass *analysis.Pass, call *ast.CallExpr) bool {
 	}
 	if obj := pass.TypesInfo.Uses[sel.Sel]; obj != nil {
 		return obj.Pkg() != nil && obj.Pkg().Path() == "fmt"
-	}
-	return false
-}
-
-// isInInitFunction reports whether the panic is inside a top-level init()
-// function. Only top-level (no receiver) init functions are recognized;
-// methods named init are ordinary methods and are not exempt.
-func isInInitFunction(cur inspector.Cursor) bool {
-	for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-		if _, isFuncLit := encl.Node().(*ast.FuncLit); isFuncLit {
-			return false
-		}
-		decl, ok := encl.Node().(*ast.FuncDecl)
-		if !ok {
-			break
-		}
-		if decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init" {
-			return true
-		}
-		break // only check the immediate enclosing FuncDecl
 	}
 	return false
 }

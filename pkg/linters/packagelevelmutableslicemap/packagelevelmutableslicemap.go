@@ -21,7 +21,6 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
@@ -37,11 +36,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -52,28 +47,12 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	for cur := range insp.Root().Preorder((*ast.AssignStmt)(nil), (*ast.ExprStmt)(nil)) {
-		if isInInitFunction(cur) {
+		if astutil.IsInInitFunction(cur) {
 			continue
 		}
 		analyzeNode(pass, cur.Node(), targets, generatedFiles, noLintIndex)
 	}
 	return nil, nil
-}
-
-// isInInitFunction reports whether cur is inside a top-level init() function.
-// Only top-level (no receiver) init functions are recognized; methods named
-// init are ordinary methods and are not exempt.
-func isInInitFunction(cur inspector.Cursor) bool {
-	for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-		decl, ok := encl.Node().(*ast.FuncDecl)
-		if !ok {
-			// Innermost enclosing function is a literal (e.g. a goroutine
-			// started from init), which is not exempt.
-			return false
-		}
-		return decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init"
-	}
-	return false
 }
 
 // collectPackageLevelSliceMapVars scans the top-level declarations of every
