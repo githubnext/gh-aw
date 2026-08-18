@@ -67,6 +67,8 @@ To confirm the migration took effect:
    ```diff
    -max-effective-tokens: 1000000
    +max-ai-credits: 100
+   -max-daily-effective-tokens: 5000000
+   +max-daily-ai-credits: 500
    ```
 
 3. Recompile so the lock files pick up the new limits:
