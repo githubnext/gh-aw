@@ -29,7 +29,7 @@ safe-outputs:
     required-title-prefix: "[ci] "
     required-labels: [automation, bot]
     body: true
-    update-branch.stacks: false
+    sync-stack: false
 ---
 
 # Test Update Pull Request Required Filters
@@ -73,10 +73,10 @@ This workflow tests the update-pull-request required-labels and required-title-p
 	}
 
 	if workflowData.SafeOutputs.UpdatePullRequests.UpdateBranchStacks == nil {
-		t.Fatal("Expected update-branch.stacks to be parsed")
+		t.Fatal("Expected sync-stack to be parsed")
 	}
 
 	if *workflowData.SafeOutputs.UpdatePullRequests.UpdateBranchStacks {
-		t.Fatal("Expected update-branch.stacks to be false")
+		t.Fatal("Expected sync-stack to be false")
 	}
 }

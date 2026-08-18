@@ -269,7 +269,7 @@ safe-outputs:
     body: true
     operation: append
     update-branch: true
-    update-branch.stacks: true
+    sync-stack: true
     max: 10
     target: "*"
   push-to-pull-request-branch:
