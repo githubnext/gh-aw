@@ -38,9 +38,9 @@ Engine owners should publish and maintain their own Markdown integration definit
 
 ## Which engine should I choose?
 
-Choose the engine that matches the required capabilities, identity mechanism, and existing provider access. Copilot supports the broadest engine-specific feature set, including native agent selection, custom harnesses, and continuation mode. Claude Code and Codex provide native web search when enabled. Gemini supports Google WIF and per-command bash restrictions. Pi supports multiple providers but requires proxy-specific tool configuration.
+Choose the engine that fits your required capabilities, identity mechanism, and provider access. Copilot has the broadest gh-aw integration, including native agent selection, custom harnesses, and continuation mode. Claude Code and Codex provide native web search when enabled. Gemini supports Google WIF and per-command bash restrictions. Pi supports multiple providers but needs proxy-specific tool configuration.
 
-Changing engines requires updating `engine:` and may also require different authentication, tools, model names, or network access. Review the setup guide and comparison before switching.
+Switching engines usually means updating `engine:` plus any engine-specific authentication, tools, model names, or network access.
 
 ## Engine Feature Comparison
 
@@ -298,28 +298,18 @@ See [How to use Azure OpenAI with Copilot BYOK](/gh-aw/guides/azure-openai-byok/
 for deployment-name mapping, `responses` API guidance for GPT-5 and o-series
 models, and Azure-specific troubleshooting.
 
-### Engine Command-Line Arguments
+### Engine command and arguments
 
-All engines support custom command-line arguments through the `args` field, injected before the prompt:
+Use `args` to pass custom CLI flags before the prompt, and `command` to replace the default executable. Overriding `command` skips the normal installation step, which is useful for pre-release versions, custom builds, or non-standard installations.
 
 ```yaml wrap
 engine:
   id: copilot
+  command: /usr/local/bin/copilot-dev
   args: ["--add-dir", "/workspace", "--verbose"]
 ```
 
-Arguments are added in order and placed before the `--prompt` flag. Consult the specific engine's CLI documentation for available flags.
-
-### Custom Engine Command
-
-Override the default engine executable using the `command` field. Useful for testing pre-release versions, custom builds, or non-standard installations. Installation steps are automatically skipped.
-
-```yaml wrap
-engine:
-  id: copilot
-  command: /usr/local/bin/copilot-dev  # absolute path
-  args: ["--verbose"]
-```
+Arguments are added in order before `--prompt`. Refer to the engine's CLI documentation for supported flags.
 
 ### Custom Harness Script (`harness`)
 
@@ -501,28 +491,28 @@ Each listed extension produces one additional install step in the compiled workf
 
 ## Timeout Configuration
 
-Repositories with long build or test cycles require careful timeout tuning at multiple levels. This section documents the timeout knobs available for each engine.
+Long build or test cycles usually need tuning at more than one level.
 
 ### Job-Level Timeout (`timeout-minutes`)
 
-`timeout-minutes` sets the maximum wall-clock time for the entire agent job. This is the primary knob for repositories with long build times. The default is 20 minutes.
+`timeout-minutes` sets the wall-clock limit for the entire agent job and is the main knob for long-running repositories. The default is 20 minutes.
 
 ```yaml wrap
-timeout-minutes: 60   # allow up to 60 minutes for the agent job
+timeout-minutes: 60
 ```
 
-See [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) in the Sandbox reference for recommended values and concrete examples, including a 30-minute C++ workflow.
+See [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) for recommended values and examples.
 
 ### Per-Tool-Call Timeout (`tools.timeout`)
 
-`tools.timeout` limits how long any single tool invocation may run, in seconds. Useful when individual `bash` commands (builds, test suites) take longer than an engine's default:
+`tools.timeout` limits any single tool invocation in seconds.
 
 ```yaml wrap
 tools:
-  timeout: 300   # 5 minutes per tool call
+  timeout: 300
 ```
 
-Defaults: Claude `60s`, Codex `120s`. Other engines (Copilot, Gemini) are engine-managed and not enforced by gh-aw. See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration) for full documentation including `tools.startup-timeout`.
+Defaults: Claude `60s`, Codex `120s`. Other engines (Copilot, Gemini) are engine-managed rather than enforced by gh-aw. See [Tool Timeout Configuration](/gh-aw/reference/tools/#tool-timeout-configuration) for `tools.startup-timeout` and related details.
 
 ### Per-Engine Timeout Controls
 
@@ -535,7 +525,7 @@ Defaults: Claude `60s`, Codex `120s`. Other engines (Copilot, Gemini) are engine
 | `engine.max-turns` (deprecated) | ❌ | ✅ | ❌ | Claude-only nested iteration budget |
 | `max-continuations` | ✅ | ❌ | ❌ | Autopilot run budget |
 
-The top-level `max-turns` field applies to every engine because the proxy enforces the AWF invocation cap. In addition, Copilot uses `max-continuations` for autopilot runs, and Claude supports the deprecated nested `engine.max-turns` to cap its own iterations. Beyond `max-turns`, Codex and Gemini rely solely on `timeout-minutes` and `tools.timeout`.
+The top-level `max-turns` field applies to every engine because the proxy enforces the AWF invocation cap. Copilot also uses `max-continuations` for autopilot runs, and Claude still supports the deprecated nested `engine.max-turns` to cap its own iterations. Codex and Gemini otherwise rely on `timeout-minutes` and `tools.timeout`.
 
 ```yaml wrap
 # Claude — combine iteration cap with per-tool timeout
@@ -586,11 +576,4 @@ mcp-servers:
 
 ## Related Documentation
 
-- [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference
-- [Authentication](/gh-aw/reference/auth/) - Engine credentials and identity mechanisms
-- [Tools](/gh-aw/reference/tools/) - Available tools and MCP servers
-- [Security Guide](/gh-aw/introduction/architecture/) - Security considerations for AI engines
-- [Examples by Task](/gh-aw/examples/) - Agentic workflow examples and when to use them
-- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
-- [Long Build Times](/gh-aw/reference/sandbox/#long-build-times) - Timeout tuning for large repositories
-- [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) - Fast hardware for long-running workflows
+See also [Frontmatter](/gh-aw/reference/frontmatter/), [Authentication](/gh-aw/reference/auth/), [Tools](/gh-aw/reference/tools/), the [Security Guide](/gh-aw/introduction/architecture/), [Examples by Task](/gh-aw/examples/), [MCPs](/gh-aw/guides/mcps/), [Long Build Times](/gh-aw/reference/sandbox/#long-build-times), and [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/).
