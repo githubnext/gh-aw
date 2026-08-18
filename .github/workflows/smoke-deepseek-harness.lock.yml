@@ -296,6 +296,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Smoke DeepSeek Harness"
+          GH_AW_WORKFLOW_EMOJI: "🧪"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *[{workflow_name}]({run_url}) — Powered by DeepSeek Harness*{ai_credits_suffix}{history_link}\",\"runStarted\":\"DeepSeek Harness initializing... [{workflow_name}]({run_url}) begins on this {event_type}...\",\"runSuccess\":\"[{workflow_name}]({run_url}) DeepSeek Harness delivered.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. DeepSeek Harness encountered an unexpected failure.\"}"
         with:
           script: |

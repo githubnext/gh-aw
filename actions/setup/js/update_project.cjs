@@ -862,7 +862,8 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
     // rather than attempting project resolution and falling back.
     if (viewerLogin === "github-actions[bot]") {
       throw new Error(
-        "GitHub Projects v2 operations require a PAT or GitHub App token with Projects access, but this run is authenticated as github-actions[bot] (default GITHUB_TOKEN). " +
+        `${ERR_CONFIG}: ` +
+          "GitHub Projects v2 operations require a PAT or GitHub App token with Projects access, but this run is authenticated as github-actions[bot] (default GITHUB_TOKEN). " +
           "Fix: set secrets.GH_AW_PROJECT_GITHUB_TOKEN (or configure safe-outputs.update-project.github-token) so the safe-outputs step uses that token for github-script."
       );
     }

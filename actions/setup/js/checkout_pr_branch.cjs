@@ -33,7 +33,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
-const { ERR_API } = require("./error_codes.cjs");
+const { ERR_API, ERR_PERMISSION } = require("./error_codes.cjs");
 const TRUSTED_CHECKOUT_PERMISSIONS = ["write", "maintain", "admin"];
 
 /**
@@ -167,14 +167,14 @@ function logCheckoutStrategy(eventName, strategy, reason) {
 async function assertTrustedCheckoutRuntime() {
   const repository = context.payload.repository;
   if (repository?.fork === true) {
-    throw new Error("Refusing PR checkout in forked repository runtime context");
+    throw new Error(`${ERR_PERMISSION}: ` + "Refusing PR checkout in forked repository runtime context");
   }
 
   // context.actor is preferred when available; sender.login and GITHUB_ACTOR
   // are retained as event/runtime-compatible fallbacks.
   const actor = context.actor || context.payload.sender?.login || process.env.GITHUB_ACTOR;
   if (!actor) {
-    throw new Error("Refusing PR checkout: unable to determine triggering actor");
+    throw new Error(`${ERR_PERMISSION}: ` + "Refusing PR checkout: unable to determine triggering actor");
   }
 
   // Bot and app actors (e.g. Copilot, dependabot[bot]) are not regular GitHub
@@ -197,7 +197,7 @@ async function assertTrustedCheckoutRuntime() {
     const permission = permissionData?.permission || "none";
     const hasWriteOrHigher = TRUSTED_CHECKOUT_PERMISSIONS.includes(permission);
     if (!hasWriteOrHigher) {
-      throw new Error(`Refusing PR checkout: actor '${actor}' has '${permission}' permission (requires write or higher)`);
+      throw new Error(`${ERR_PERMISSION}: Refusing PR checkout: actor '${actor}' has '${permission}' permission (requires write or higher)`);
     }
 
     core.info(`Runtime safety check passed for actor '${actor}' with '${permission}' permission`);
@@ -209,7 +209,7 @@ async function assertTrustedCheckoutRuntime() {
     if (errAny.status === 404) {
       try {
         await github.rest.users.getByUsername({ username: actor });
-        throw new Error(`Refusing PR checkout: actor '${actor}' is not a collaborator (requires write or higher)`);
+        throw new Error(`${ERR_PERMISSION}: Refusing PR checkout: actor '${actor}' is not a collaborator (requires write or higher)`);
       } catch (userErr) {
         const userErrAny = /** @type {any} */ userErr;
         if (userErrAny.status === 404) {
