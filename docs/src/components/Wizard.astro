@@ -10,7 +10,7 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
       <p class="aw-wizard__eyebrow">AW wizard preview</p>
       <h2 class="aw-wizard__title">Build an agentic workflow prompt step by step</h2>
       <p class="aw-wizard__intro">
-        This shell loads the shared wizard data model, keeps state in memory, and demonstrates the WHAT → WHEN → WHERE flow with generic step rendering.
+        This shell loads the shared wizard data model, keeps state in memory, and demonstrates the WHAT → WHEN → WHERE flow with generic step rendering, plus a free-text task description and a final self-contained prompt you can copy.
       </p>
     </div>
     <div class="aw-wizard__status" aria-live="polite" data-wizard-step-status></div>
@@ -58,6 +58,8 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
       goalId: model.goalCategories[0]?.id ?? '',
       triggerId: '',
       destinationId: '',
+      destinationOverridden: false,
+      taskDescription: '',
     };
 
     const stepDefinitions = [
@@ -106,6 +108,7 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
         },
         setValue(value) {
           state.triggerId = value;
+          state.destinationOverridden = false;
           syncDestinationSelection();
         },
         canContinue() {
@@ -116,30 +119,164 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
         id: 'destination',
         label: 'Where',
         title: 'Review the inferred output destination',
-        description: 'The shell preselects a destination from the model based on the selected goal and trigger type, while still allowing review.',
+        description: getDestinationStepDescription(),
         getOptions() {
           const goal = getSelectedGoal();
           if (!goal) return [];
+          const inferredId = getInferredDestinationId();
           return goal.destinationOptionIds
             .map((id) => model.destinationOptions.find((destination) => destination.id === id))
             .filter((destination) => destination)
             .map((destination) => ({
               id: destination.id,
               label: destination.text.label,
-              help: destination.text.help ?? `Safe output: ${destination.safeOutputType}`,
+              help: buildDestinationOptionHelp(destination, inferredId),
             }));
         },
         getValue() {
           return state.destinationId;
         },
         setValue(value) {
+          const inferredId = getInferredDestinationId();
           state.destinationId = value;
+          state.destinationOverridden = value !== inferredId;
         },
         canContinue() {
           return Boolean(state.destinationId);
         },
       },
+      {
+        id: 'task-details',
+        label: 'Task',
+        title: 'Describe the task in your own words',
+        description: 'Add any free-text detail the AI coding assistant will need — this is appended to the generated prompt alongside your structured answers.',
+        getOptions() {
+          return [];
+        },
+        getValue() {
+          return state.taskDescription;
+        },
+        setValue(value) {
+          state.taskDescription = value;
+        },
+        canContinue() {
+          return true;
+        },
+        renderContent() {
+          return renderTaskDescriptionField();
+        },
+      },
+      {
+        id: 'prompt',
+        label: 'Prompt',
+        title: 'Copy your generated prompt',
+        description: 'This self-contained prompt combines every structured answer with your task description. Copy it into an AI coding assistant to generate the workflow.',
+        getOptions() {
+          return [];
+        },
+        getValue() {
+          return 'generated';
+        },
+        setValue() {},
+        canContinue() {
+          return true;
+        },
+        renderContent() {
+          return renderFinalPromptView();
+        },
+      },
     ];
+
+    function getInferredDestinationId() {
+      const goal = getSelectedGoal();
+      const trigger = getSelectedTrigger();
+      if (!goal) return null;
+      const allowedDestinations = goal.destinationOptionIds
+        .map((id) => model.destinationOptions.find((destination) => destination.id === id))
+        .filter((destination) => destination);
+      const inferred = trigger
+        ? allowedDestinations.find((destination) => destination.inferFromTriggerTypes?.includes(trigger.type))
+        : null;
+      return inferred?.id ?? goal.defaultDestinationOptionId ?? goal.destinationOptionIds[0] ?? null;
+    }
+
+    function getDestinationStepDescription() {
+      const trigger = getSelectedTrigger();
+      const inferredId = getInferredDestinationId();
+      const inferred = inferredId ? model.destinationOptions.find((destination) => destination.id === inferredId) : null;
+      if (!inferred) {
+        return 'The shell preselects a destination from the model based on the selected goal and trigger type, while still allowing review.';
+      }
+      const reason = trigger
+        ? `because the "${trigger.text.label}" trigger commonly pairs with this output`
+        : 'based on the selected goal';
+      const overrideNote = state.destinationOverridden
+        ? ' You have overridden this inference below — pick another option to change it again, or reselect the inferred option to restore it.'
+        : ' You can override this choice below if it does not fit your workflow.';
+      return `Inferred destination: "${inferred.text.label}" ${reason}.${overrideNote}`;
+    }
+
+    function buildDestinationOptionHelp(destination, inferredId) {
+      const base = destination.text.help ?? `Safe output: ${destination.safeOutputType}`;
+      return destination.id === inferredId ? `${base} (inferred default)` : base;
+    }
+
+    function renderTaskDescriptionField() {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'aw-wizard__field';
+
+      const label = document.createElement('label');
+      label.className = 'aw-wizard__field-label';
+      label.setAttribute('for', 'wizard-task-description');
+      label.textContent = 'Task description';
+      wrapper.append(label);
+
+      const textarea = document.createElement('textarea');
+      textarea.id = 'wizard-task-description';
+      textarea.className = 'aw-wizard__textarea';
+      textarea.rows = 6;
+      textarea.placeholder = 'Describe what the workflow should do in your own words, e.g. specific tone, constraints, or edge cases to handle...';
+      textarea.value = state.taskDescription;
+      textarea.addEventListener('input', () => {
+        state.taskDescription = textarea.value;
+        updatePreview();
+        updateSummary();
+      });
+      wrapper.append(textarea);
+
+      return wrapper;
+    }
+
+    function renderFinalPromptView() {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'aw-wizard__final-prompt';
+
+      const promptText = buildPromptText();
+
+      const pre = document.createElement('pre');
+      pre.className = 'aw-wizard__final-prompt-text';
+      pre.textContent = promptText;
+      wrapper.append(pre);
+
+      const copyButton = document.createElement('button');
+      copyButton.type = 'button';
+      copyButton.className = 'aw-wizard__button aw-wizard__button--secondary';
+      copyButton.textContent = 'Copy prompt';
+      copyButton.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(promptText);
+          copyButton.textContent = 'Copied!';
+        } catch {
+          copyButton.textContent = 'Copy failed — select the text manually';
+        }
+        setTimeout(() => {
+          copyButton.textContent = 'Copy prompt';
+        }, 2000);
+      });
+      wrapper.append(copyButton);
+
+      return wrapper;
+    }
 
     const progress = root.querySelector('[data-wizard-progress]');
     const stepStatus = root.querySelector('[data-wizard-step-status]');
@@ -176,27 +313,23 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
         state.triggerId = goal.defaultTriggerOptionId && allowedTriggers.has(goal.defaultTriggerOptionId)
           ? goal.defaultTriggerOptionId
           : goal.triggerOptionIds[0] ?? '';
+        state.destinationOverridden = false;
       }
       syncDestinationSelection();
     }
 
     function syncDestinationSelection() {
       const goal = getSelectedGoal();
-      const trigger = getSelectedTrigger();
       if (!goal) return;
-      const allowedDestinations = goal.destinationOptionIds
-        .map((id) => model.destinationOptions.find((destination) => destination.id === id))
-        .filter((destination) => destination);
-
-      const inferred = trigger
-        ? allowedDestinations.find((destination) => destination.inferFromTriggerTypes?.includes(trigger.type))
-        : null;
-
       const allowedIds = new Set(goal.destinationOptionIds);
+      const inferredId = getInferredDestinationId();
+
       if (!allowedIds.has(state.destinationId)) {
-        state.destinationId = inferred?.id ?? goal.defaultDestinationOptionId ?? goal.destinationOptionIds[0] ?? '';
-      } else if (inferred?.id) {
-        state.destinationId = inferred.id;
+        // Selection no longer valid for this goal (e.g. goal just changed) — reset to the inferred value.
+        state.destinationId = inferredId ?? goal.defaultDestinationOptionId ?? goal.destinationOptionIds[0] ?? '';
+        state.destinationOverridden = false;
+      } else if (!state.destinationOverridden && inferredId) {
+        state.destinationId = inferredId;
       }
     }
 
@@ -293,6 +426,7 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
         ['Goal', getSelectedGoal()?.text.label ?? 'Not selected'],
         ['Trigger', getSelectedTrigger()?.text.label ?? 'Not selected'],
         ['Destination', getSelectedDestination()?.text.label ?? 'Not selected'],
+        ['Task description', state.taskDescription.trim() ? `${state.taskDescription.trim().slice(0, 80)}${state.taskDescription.trim().length > 80 ? '…' : ''}` : 'Not provided'],
         ['Model version', model.version],
       ];
       const summaryNodes = [];
@@ -306,12 +440,13 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
       summary.replaceChildren(...summaryNodes);
     }
 
-    function updatePreview() {
+    function buildPromptText() {
       const goal = getSelectedGoal();
       const trigger = getSelectedTrigger();
       const destination = getSelectedDestination();
       const intro = model.promptTemplate?.introText ?? 'Create a GitHub Agentic Workflow (gh-aw) for this repository.';
-      preview.textContent = [
+      const taskDetails = state.taskDescription.trim();
+      const lines = [
         intro,
         '',
         'WHAT',
@@ -325,7 +460,16 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
         'WHERE',
         `- Destination: ${destination?.text.label ?? '—'}`,
         `- Output intent: ${destination?.text.help ?? destination?.safeOutputType ?? '—'}`,
-      ].join('\n');
+        state.destinationOverridden ? '- Note: this destination was manually overridden from the inferred default.' : '- Note: this destination was inferred automatically from the goal and trigger.',
+        '',
+        'TASK DETAILS',
+        taskDetails ? taskDetails : '(No additional task details provided.)',
+      ];
+      return lines.join('\n');
+    }
+
+    function updatePreview() {
+      preview.textContent = buildPromptText();
     }
 
     function render() {
@@ -335,8 +479,8 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
       stepStatus.textContent = `Step ${state.currentStepIndex + 1} of ${stepDefinitions.length}`;
       stepKicker.textContent = step.label;
       stepTitle.textContent = step.title;
-      stepDescription.textContent = step.description;
-      stepContent.replaceChildren(renderOptions(step));
+      stepDescription.textContent = typeof step.description === 'function' ? step.description() : step.description;
+      stepContent.replaceChildren(step.renderContent ? step.renderContent() : renderOptions(step));
       updateSummary();
       updatePreview();
       backButton.disabled = state.currentStepIndex === 0;
@@ -570,6 +714,43 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
 
   .aw-wizard__prompt-preview {
     margin-top: 1.25rem;
+  }
+
+  .aw-wizard__field {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .aw-wizard__field-label {
+    font-weight: 600;
+  }
+
+  .aw-wizard__textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.65rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    font: inherit;
+    resize: vertical;
+  }
+
+  .aw-wizard__final-prompt {
+    display: grid;
+    gap: 0.875rem;
+  }
+
+  .aw-wizard__final-prompt-text {
+    margin: 0;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--sl-color-hairline);
+    overflow-x: auto;
+    background: color-mix(in srgb, var(--sl-color-black) 18%, transparent);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
   }
 
   .aw-wizard__prompt-preview pre {
