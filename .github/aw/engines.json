@@ -30,7 +30,7 @@
     },
     {
       "id": "pydantic-ai",
-      "import": "dsfaccini/gh-aw/.github/workflows/shared/pydantic.md@pydantic-ai-coder-engine"
+      "import": "github/gh-aw/.github/workflows/shared/pydantic.md"
     },
     {
       "id": "opencode",
