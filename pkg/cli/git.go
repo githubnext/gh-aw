@@ -26,6 +26,28 @@ func isSafeGitRevisionArg(ref string) bool {
 	return ref != "" && !strings.HasPrefix(ref, "-")
 }
 
+// validateRelPathForGit rejects relative paths that could be misinterpreted as
+// a git CLI flag (a leading "-") or that escape the repository root via path
+// traversal (a leading ".." path segment after cleaning), before the path is
+// passed as an exec.Command argument to git.
+func validateRelPathForGit(relPath string) error {
+	if relPath == "" {
+		return errors.New("path cannot be empty")
+	}
+	if strings.HasPrefix(relPath, "-") {
+		return fmt.Errorf("path %q must not start with '-'", relPath)
+	}
+	clean := filepath.Clean(relPath)
+	if filepath.IsAbs(clean) {
+		return fmt.Errorf("path %q must not escape the repository root", relPath)
+	}
+	cleanedSlash := filepath.ToSlash(clean)
+	if cleanedSlash == ".." || strings.HasPrefix(cleanedSlash, "../") {
+		return fmt.Errorf("path %q must not escape the repository root", relPath)
+	}
+	return nil
+}
+
 func isGitRepo() bool {
 	_, err := gitutil.FindGitRoot()
 	return err == nil
@@ -649,9 +671,18 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 		relPath = workflowPath
 	}
 
+	// Reject paths that escape the repository root (path traversal) or that
+	// could be misinterpreted as a git CLI flag (option/argument injection).
+	if err := validateRelPathForGit(relPath); err != nil {
+		gitLog.Printf("Rejecting unsafe relative path %q: %v", relPath, err)
+		return status, fmt.Errorf("invalid workflow path %q: %w", workflowPath, err)
+	}
+
 	gitLog.Printf("Checking git status for: %s", relPath)
 
 	// Check for modified or staged changes using git status --porcelain
+	// #nosec G204 -- relPath is validated above by validateRelPathForGit to reject
+	// leading '-' (option injection) and '..' path traversal outside gitRoot.
 	cmd := exec.Command("git", "-C", gitRoot, "status", "--porcelain", relPath)
 	output, err := cmd.Output()
 	if err != nil {
@@ -702,6 +733,8 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 	}
 
 	// Check if there are commits in the current branch that affect this file and aren't in upstream
+	// #nosec G204 -- upstream is validated above by isSafeGitRevisionArg and relPath was
+	// validated by validateRelPathForGit; "--" separates revision args from the path.
 	cmd = exec.Command("git", "-C", gitRoot, "log", upstream+"..HEAD", "--oneline", "--", relPath)
 	output, err = cmd.Output()
 	if err != nil {
