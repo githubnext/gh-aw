@@ -9,10 +9,12 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"slices"
 	"sort"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 func typecheckSnippet(t *testing.T, src string) (*analysis.Pass, *ast.File) {
@@ -984,6 +986,348 @@ func f() {}
 			got := applyTextEdits(t, fset, []byte(tt.src), edits)
 			if got != tt.want {
 				t.Fatalf("SwapImportEdits() result:\ngot:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUniverseErrorInterface(t *testing.T) {
+	t.Parallel()
+
+	iface := UniverseErrorInterface()
+	if iface == nil {
+		t.Fatal("UniverseErrorInterface() = nil, want the built-in error interface")
+	}
+	if iface.NumMethods() != 1 || iface.Method(0).Name() != "Error" {
+		t.Fatalf("UniverseErrorInterface() = %v, want interface with single Error method", iface)
+	}
+}
+
+func TestStringLitValue(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		expr   ast.Expr
+		want   string
+		wantOK bool
+	}{
+		{
+			name:   "interpreted string literal",
+			expr:   &ast.BasicLit{Kind: token.STRING, Value: `"a\tb"`},
+			want:   "a\tb",
+			wantOK: true,
+		},
+		{
+			name:   "raw string literal",
+			expr:   &ast.BasicLit{Kind: token.STRING, Value: "`abc`"},
+			want:   "abc",
+			wantOK: true,
+		},
+		{
+			name: "non-string literal",
+			expr: &ast.BasicLit{Kind: token.INT, Value: "1"},
+		},
+		{
+			name: "unquotable literal",
+			expr: &ast.BasicLit{Kind: token.STRING, Value: `"unterminated`},
+		},
+		{
+			name: "not a literal",
+			expr: ast.NewIdent("x"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := StringLitValue(tt.expr)
+			if ok != tt.wantOK || got != tt.want {
+				t.Fatalf("StringLitValue() = (%q, %v), want (%q, %v)", got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestIsRegexpCompileCall(t *testing.T) {
+	t.Parallel()
+
+	src := `package p
+
+import (
+	regexp "regexp"
+	other "strings"
+)
+
+func f(pattern string) {
+	_ = regexp.MustCompile(pattern)
+	_ = regexp.MustCompilePOSIX(pattern)
+	_ = other.Contains(pattern, pattern)
+}
+`
+	pass, file := typecheckSnippet(t, src)
+
+	var calls []*ast.CallExpr
+	ast.Inspect(file, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok {
+			calls = append(calls, call)
+		}
+		return true
+	})
+	if len(calls) != 3 {
+		t.Fatalf("found %d calls, want 3", len(calls))
+	}
+
+	names := []string{"MustCompile", "Compile"}
+	if !IsRegexpCompileCall(pass, calls[0], names...) {
+		t.Error("IsRegexpCompileCall(regexp.MustCompile, MustCompile/Compile) = false, want true")
+	}
+	if IsRegexpCompileCall(pass, calls[1], names...) {
+		t.Error("IsRegexpCompileCall(regexp.MustCompilePOSIX, MustCompile/Compile) = true, want false")
+	}
+	if !IsRegexpCompileCall(pass, calls[1], "MustCompilePOSIX") {
+		t.Error("IsRegexpCompileCall(regexp.MustCompilePOSIX, MustCompilePOSIX) = false, want true")
+	}
+	if IsRegexpCompileCall(pass, calls[2], "Contains") {
+		t.Error("IsRegexpCompileCall(strings.Contains, Contains) = true, want false")
+	}
+}
+
+func TestHasConstantStringArg(t *testing.T) {
+	t.Parallel()
+
+	src := `package p
+
+const constPattern = "^a$"
+
+func sink(string) {}
+
+func f(dynamic string) {
+	sink("literal")
+	sink(constPattern)
+	sink(dynamic)
+}
+`
+	pass, file := typecheckSnippet(t, src)
+
+	var calls []*ast.CallExpr
+	ast.Inspect(file, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok {
+			calls = append(calls, call)
+		}
+		return true
+	})
+	if len(calls) != 3 {
+		t.Fatalf("found %d calls, want 3", len(calls))
+	}
+
+	if !HasConstantStringArg(pass, calls[0], 0) {
+		t.Error("HasConstantStringArg(literal) = false, want true")
+	}
+	if !HasConstantStringArg(pass, calls[1], 0) {
+		t.Error("HasConstantStringArg(const ident) = false, want true")
+	}
+	if HasConstantStringArg(pass, calls[2], 0) {
+		t.Error("HasConstantStringArg(variable) = true, want false")
+	}
+	// Out-of-range indexes must not panic.
+	if HasConstantStringArg(pass, calls[0], 1) || HasConstantStringArg(pass, calls[0], -1) {
+		t.Error("HasConstantStringArg() with out-of-range index = true, want false")
+	}
+}
+
+func TestNormalizeComparisonOperands(t *testing.T) {
+	t.Parallel()
+
+	src := `package p
+
+import "strings"
+
+func f(s, sub string) {
+	_ = strings.Index(s, sub) == 0
+	_ = 0 == (strings.Index(s, sub))
+	_ = len(s) == 0
+}
+`
+	pass, file := typecheckSnippet(t, src)
+
+	var binaries []*ast.BinaryExpr
+	ast.Inspect(file, func(n ast.Node) bool {
+		if bin, ok := n.(*ast.BinaryExpr); ok {
+			binaries = append(binaries, bin)
+		}
+		return true
+	})
+	if len(binaries) != 3 {
+		t.Fatalf("found %d binary expressions, want 3", len(binaries))
+	}
+
+	left, _, flipped := NormalizeComparisonOperands(pass, binaries[0], "Index")
+	if flipped {
+		t.Error("NormalizeComparisonOperands(call on left) flipped = true, want false")
+	}
+	if _, ok := AsStringsMethodCall(pass, left, "Index"); !ok {
+		t.Error("NormalizeComparisonOperands(call on left) left is not the strings.Index call")
+	}
+
+	left, _, flipped = NormalizeComparisonOperands(pass, binaries[1], "Index")
+	if !flipped {
+		t.Error("NormalizeComparisonOperands(parenthesized call on right) flipped = false, want true")
+	}
+	if _, ok := AsStringsMethodCall(pass, left, "Index"); !ok {
+		t.Error("NormalizeComparisonOperands(parenthesized call on right) did not unwrap parentheses")
+	}
+
+	left, _, flipped = NormalizeComparisonOperands(pass, binaries[2], "Index")
+	if !flipped {
+		t.Error("NormalizeComparisonOperands(no call) flipped = false, want true")
+	}
+	if _, ok := AsStringsMethodCall(pass, left, "Index"); ok {
+		t.Error("NormalizeComparisonOperands(no call) unexpectedly matched strings.Index")
+	}
+}
+
+func TestIsInInitFunction(t *testing.T) {
+	t.Parallel()
+
+	src := `package p
+
+func init() {
+	println("in init")
+}
+
+func regular() {
+	println("in regular")
+}
+
+func initWithLit() {
+	go func() {
+		println("in func lit")
+	}()
+}
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "snippet.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	insp := inspector.New([]*ast.File{file})
+
+	var got []bool
+	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
+		call, ok := cur.Node().(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		if ident, ok := call.Fun.(*ast.Ident); !ok || ident.Name != "println" {
+			continue
+		}
+		got = append(got, IsInInitFunction(cur))
+	}
+
+	want := []bool{true, false, false}
+	if !slices.Equal(got, want) {
+		t.Fatalf("IsInInitFunction() = %v, want %v", got, want)
+	}
+}
+
+func TestSwapPkgImportEdits(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		src            string
+		removeOrphaned bool
+		wantNeeded     bool
+		want           string
+	}{
+		{
+			name: "add only",
+			src: `package p
+
+import "fmt"
+
+func f() { fmt.Println() }
+`,
+			wantNeeded: true,
+			want: `package p
+
+import (
+	"fmt"
+	"strconv"
+)
+
+func f() { fmt.Println() }
+`,
+		},
+		{
+			name: "add and remove orphaned",
+			src: `package p
+
+import "fmt"
+
+func f() {}
+`,
+			removeOrphaned: true,
+			wantNeeded:     true,
+			want: `package p
+
+import "strconv"
+
+func f() {}
+`,
+		},
+		{
+			name: "remove orphaned only",
+			src: `package p
+
+import (
+	"fmt"
+	"strconv"
+)
+
+func f() {}
+`,
+			removeOrphaned: true,
+			wantNeeded:     true,
+			want: `package p
+
+import (
+	"strconv"
+)
+
+func f() {}
+`,
+		},
+		{
+			name: "nothing needed",
+			src: `package p
+
+import "strconv"
+
+func f() {}
+`,
+			wantNeeded: false,
+			want: `package p
+
+import "strconv"
+
+func f() {}
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			fset, file, pass := parseSnippet(t, tt.src)
+			edits, needed := SwapPkgImportEdits(pass, file, "strconv", "fmt", tt.removeOrphaned)
+			if needed != tt.wantNeeded {
+				t.Fatalf("SwapPkgImportEdits() needed = %v, want %v", needed, tt.wantNeeded)
+			}
+			got := applyTextEdits(t, fset, []byte(tt.src), edits)
+			if got != tt.want {
+				t.Fatalf("SwapPkgImportEdits() result:\ngot:\n%s\nwant:\n%s", got, tt.want)
 			}
 		})
 	}

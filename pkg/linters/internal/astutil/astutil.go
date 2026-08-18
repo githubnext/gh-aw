@@ -674,3 +674,134 @@ func BuildContainsFix(expr *ast.BinaryExpr, pkgText, sText, subText string, nega
 		}},
 	}}
 }
+
+// UniverseErrorInterface returns the built-in error interface type, or nil if
+// it cannot be resolved from types.Universe.
+func UniverseErrorInterface() *types.Interface {
+	errorObj := types.Universe.Lookup("error")
+	if errorObj == nil {
+		return nil
+	}
+	iface, ok := errorObj.Type().Underlying().(*types.Interface)
+	if !ok {
+		return nil
+	}
+	return iface
+}
+
+// StringLitValue returns the unquoted string value of a string-literal AST node.
+func StringLitValue(expr ast.Expr) (string, bool) {
+	lit, ok := expr.(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return "", false
+	}
+	s, err := strconv.Unquote(lit.Value)
+	if err != nil {
+		return "", false
+	}
+	return s, true
+}
+
+// IsInInitFunction reports whether cur is inside a top-level init() function.
+// Only top-level (no receiver) init functions are recognized; methods named
+// init are ordinary methods and are not exempt. A node whose innermost
+// enclosing function is a literal (e.g. a goroutine started from init) is not
+// considered to be in init.
+func IsInInitFunction(cur inspector.Cursor) bool {
+	for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+		decl, ok := encl.Node().(*ast.FuncDecl)
+		if !ok {
+			return false
+		}
+		return decl.Recv == nil && decl.Name != nil && decl.Name.Name == "init"
+	}
+	return false
+}
+
+// IsRegexpCompileCall reports whether call is a call to one of the named
+// functions on the standard "regexp" package. The package identity is resolved
+// via the type checker so aliased imports are handled and local identifiers
+// named "regexp" do not produce false positives.
+func IsRegexpCompileCall(pass *analysis.Pass, call *ast.CallExpr, names ...string) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || !slices.Contains(names, sel.Sel.Name) {
+		return false
+	}
+	ident, ok := sel.X.(*ast.Ident)
+	if !ok || pass.TypesInfo == nil {
+		return false
+	}
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return false
+	}
+	pkgName, ok := obj.(*types.PkgName)
+	if !ok || pkgName.Imported() == nil {
+		return false
+	}
+	return pkgName.Imported().Path() == "regexp"
+}
+
+// HasConstantStringArg reports whether the argument at argIdx of call is a
+// compile-time constant string, such as a string literal, a const identifier,
+// or an expression built entirely from constants (e.g. concatenation of string
+// literals/consts). Non-constant expressions such as fmt.Sprintf results,
+// concatenation involving variables, or function parameters return false.
+func HasConstantStringArg(pass *analysis.Pass, call *ast.CallExpr, argIdx int) bool {
+	if argIdx < 0 || argIdx >= len(call.Args) {
+		return false
+	}
+
+	arg := call.Args[argIdx]
+	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+		return true
+	}
+
+	tv, ok := pass.TypesInfo.Types[arg]
+	if !ok || tv.Value == nil || tv.Type == nil {
+		return false
+	}
+
+	basic, ok := tv.Type.Underlying().(*types.Basic)
+	return ok && basic.Kind() == types.String
+}
+
+// NormalizeComparisonOperands returns (left, right) such that left is the
+// operand holding the strings.<methodName> call. When the call is on the right
+// side of expr the operands are swapped and flipped is true. Both operands are
+// unwrapped of any redundant parentheses before the check.
+func NormalizeComparisonOperands(pass *analysis.Pass, expr *ast.BinaryExpr, methodName string) (left, right ast.Expr, flipped bool) {
+	x := UnwrapParenExpr(expr.X)
+	y := UnwrapParenExpr(expr.Y)
+	if _, ok := AsStringsMethodCall(pass, x, methodName); ok {
+		return x, y, false
+	}
+	return y, x, true
+}
+
+// SwapPkgImportEdits returns the TextEdits that add addPkg to file and, when
+// removeOrphaned is true, remove the now-unused removePkg import. The second
+// return value reports whether any import change was required; it is false
+// when addPkg is already imported and removeOrphaned is false.
+func SwapPkgImportEdits(pass *analysis.Pass, file *ast.File, addPkg, removePkg string, removeOrphaned bool) ([]analysis.TextEdit, bool) {
+	_, addImported := ImportedAs(file, pass.TypesInfo, addPkg)
+	needAdd := !addImported
+
+	if !needAdd && !removeOrphaned {
+		return nil, false
+	}
+
+	switch {
+	case needAdd && removeOrphaned:
+		return SwapImportEdits(pass.Fset, file, addPkg, removePkg), true
+	case needAdd:
+		if edit, ok := AddImportEdit(pass, file, addPkg); ok {
+			return []analysis.TextEdit{edit}, true
+		}
+	default:
+		if edit, ok := RemoveImportEdit(pass.Fset, file, removePkg); ok {
+			return []analysis.TextEdit{edit}, true
+		}
+	}
+	return nil, true
+}

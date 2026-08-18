@@ -45,7 +45,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `packagelevelmutableslicemap` — reports package-level (file/package-scope) `var` slice/map declarations mutated from inside a function body via `append()` re-assignment, index assignment, or `delete()`. Mutations inside a top-level `init()` are exempt.
 - `panic-in-library-code` — reports `panic()` calls in library packages (`pkg/*`) where errors should be returned instead.
 - `rawloginlib` — reports direct usage of the standard `log` package in library packages, where `pkg/logger` should be used.
-- `regexpcompileinfunction` — reports `regexp.MustCompile` / `regexp.Compile` calls inside functions that should be package-level.
+- `regexpcompileinfunction` — reports `regexp.Compile` / `regexp.MustCompile` and their POSIX variants called inside functions that should be package-level.
 - `regexpdynamicpattern` — reports regexp compile calls whose pattern is not a compile-time constant string.
 - `seenmapbool` — reports `map[string]bool` used as a set (values always `true`) that should use `map[string]struct{}` instead.
 - `sortslice` — reports `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc`.

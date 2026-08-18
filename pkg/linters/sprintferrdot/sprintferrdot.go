@@ -19,30 +19,13 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
 
-var errorIface = universeErrorInterface()
-
-// universeErrorInterface returns the built-in error interface type, or nil.
-func universeErrorInterface() *types.Interface {
-	errorObj := types.Universe.Lookup("error")
-	if errorObj == nil {
-		return nil
-	}
-	iface, ok := errorObj.Type().Underlying().(*types.Interface)
-	if !ok {
-		return nil
-	}
-	return iface
-}
+var errorIface = astutil.UniverseErrorInterface()
 
 // Analyzer is the sprintf-err-dot analysis pass.
 var Analyzer = analyzerutil.New("sprintferrdot", "reports redundant .Error() calls on error arguments passed to fmt format functions", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

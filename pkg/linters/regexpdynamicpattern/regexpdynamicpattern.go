@@ -8,8 +8,6 @@ package regexpdynamicpattern
 
 import (
 	"go/ast"
-	"go/token"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 
@@ -25,6 +23,10 @@ var pkgLog = logger.New("linters:regexpdynamicpattern")
 // Analyzer is the regexp-dynamic-pattern analysis pass.
 var Analyzer = analyzerutil.New("regexpdynamicpattern", "reports regexp compile calls whose pattern is not a compile-time constant string", run)
 
+// compileFuncNames are the regexp compile functions whose pattern argument
+// must be a compile-time constant.
+var compileFuncNames = []string{"MustCompile", "Compile", "MustCompilePOSIX", "CompilePOSIX"}
+
 const diagnosticMessage = "regexp pattern is not a compile-time constant; malformed dynamic patterns can panic in MustCompile variants, return errors in Compile variants, or let untrusted input control pattern complexity/size"
 
 func run(pass *analysis.Pass) (any, error) {
@@ -34,21 +36,17 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
 		call, ok := cur.Node().(*ast.CallExpr)
-		if !ok || !isRegexpCompileCall(pass, call) {
+		if !ok || !astutil.IsRegexpCompileCall(pass, call, compileFuncNames...) {
 			continue
 		}
-		if hasConstantStringPattern(pass, call) {
+		if astutil.HasConstantStringArg(pass, call, 0) {
 			continue
 		}
 
@@ -68,56 +66,4 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	return nil, nil
-}
-
-// isRegexpCompileCall checks if the call is to a regexp compile function,
-// resolving the package identity via the type checker to handle aliased imports
-// and avoid false positives from local identifiers named "regexp".
-func isRegexpCompileCall(pass *analysis.Pass, call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	switch sel.Sel.Name {
-	case "MustCompile", "Compile", "MustCompilePOSIX", "CompilePOSIX":
-		// Recognized regexp compile function; continue with package identity checks.
-	default:
-		return false
-	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok || pass.TypesInfo == nil {
-		return false
-	}
-	obj := pass.TypesInfo.ObjectOf(ident)
-	if obj == nil {
-		return false
-	}
-	pkgName, ok := obj.(*types.PkgName)
-	if !ok || pkgName.Imported() == nil {
-		return false
-	}
-	return pkgName.Imported().Path() == "regexp"
-}
-
-// hasConstantStringPattern checks whether the regexp pattern is a compile-time constant string,
-// such as a string literal, const identifier, or an expression built entirely from constants
-// (e.g. concatenation of string literals/consts). Non-constant expressions such as
-// fmt.Sprintf results, concatenation involving variables, or function parameters return false.
-func hasConstantStringPattern(pass *analysis.Pass, call *ast.CallExpr) bool {
-	if len(call.Args) == 0 {
-		return false
-	}
-
-	patternArg := call.Args[0]
-	if lit, ok := patternArg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		return true
-	}
-
-	tv, ok := pass.TypesInfo.Types[patternArg]
-	if !ok || tv.Value == nil || tv.Type == nil {
-		return false
-	}
-
-	basic, ok := tv.Type.Underlying().(*types.Basic)
-	return ok && basic.Kind() == types.String
 }
