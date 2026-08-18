@@ -1,5 +1,18 @@
 # GitHub Agentic Workflows
 
+<details>
+<summary>Agent quick links</summary>
+
+Hello fellow agent! Welcome to GitHub Agentic Workflows = Actions + Agent + Safety.
+Here are some pointers to get you started in using this tool.
+
+- Create a new workflow: https://raw.githubusercontent.com/github/gh-aw/main/create.md
+- Install: https://raw.githubusercontent.com/github/gh-aw/main/install.md
+- Package a workflow repository: https://raw.githubusercontent.com/github/gh-aw/main/package.md
+- Reference: https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md
+
+</details>
+
 GitHub Agentic Workflows (`gh-aw`) lets developers define AI-powered repository automation in Markdown with YAML frontmatter and run AI agents securely through GitHub Actions. The `gh-aw` GitHub CLI extension compiles each agentic workflow into a standard GitHub Actions workflow.
 
 Use conventional GitHub Actions for deterministic builds, tests, linting, deployments, and reproducible scripts. Add an agentic workflow when a task needs reasoning or interpretation, such as issue triage, pull-request review, CI failure investigation, documentation maintenance, dependency analysis, or repository reporting. GitHub Agentic Workflows complements existing CI/CD; it does not replace it.
