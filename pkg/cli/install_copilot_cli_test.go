@@ -79,6 +79,41 @@ exit 97
 	assert.Contains(t, string(wrapperOutput), "copilot 1.2.3")
 }
 
+func TestInstallCopilotCLIScriptPreservesCachedBinaryAtInstallPath(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err, "Failed to get working directory")
+
+	projectRoot := filepath.Join(wd, "..", "..")
+	installScript := filepath.Join(projectRoot, "actions", "setup", "sh", "install_copilot_cli.sh")
+
+	tempDir := t.TempDir()
+	toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", "1.2.3", "x64", "bin")
+	require.NoError(t, os.MkdirAll(toolcacheBin, 0o755))
+
+	cachedCopilot := filepath.Join(toolcacheBin, "copilot")
+	cachedContents := []byte("#!/usr/bin/env bash\necho 'copilot 1.2.3 preserved'\n")
+	require.NoError(t, os.WriteFile(cachedCopilot, cachedContents, 0o755))
+
+	cmd := exec.Command("bash", installScript, "1.2.3")
+	cmd.Env = append(os.Environ(),
+		"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
+		"GITHUB_PATH="+filepath.Join(tempDir, "github-path"),
+		"COPILOT_INSTALL_DIR="+toolcacheBin,
+	)
+
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "install_copilot_cli.sh should preserve a cached binary already at the install path: %s", output)
+	assert.Contains(t, string(output), "Cached binary already lives at "+cachedCopilot+" — no wrapper needed")
+
+	actualContents, err := os.ReadFile(cachedCopilot)
+	require.NoError(t, err)
+	assert.Equal(t, cachedContents, actualContents, "cached binary should not be replaced with a wrapper")
+
+	cachedOutput, err := exec.Command(cachedCopilot, "--version").CombinedOutput()
+	require.NoError(t, err, "cached binary should remain executable: %s", cachedOutput)
+	assert.Contains(t, string(cachedOutput), "copilot 1.2.3 preserved")
+}
+
 func TestInstallCopilotCLIScriptResolvesCompatVersionBeforeToolcacheLookup(t *testing.T) {
 	const compatVersion = "1.0.56"
 	const cachedCompatibleVersion = "1.0.40"
