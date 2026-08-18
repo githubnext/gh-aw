@@ -27,6 +27,9 @@ require("./shim.cjs");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
+const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
+
+const GIT_COMMAND_TIMEOUT_MS = getSetupTimeoutMs("importGit");
 
 /**
  * Parse the agent import specification to extract repository details
@@ -188,11 +191,11 @@ function sparseCheckoutGithubFolder(owner, repo, ref, tempDir) {
 
   try {
     // Initialize git repository
-    execFileSync("git", ["init"], { cwd: tempDir, stdio: "pipe" });
+    execFileSync("git", ["init"], { cwd: tempDir, stdio: "pipe", timeout: GIT_COMMAND_TIMEOUT_MS });
     core.info("Initialized temporary git repository");
 
     // Configure sparse checkout
-    execFileSync("git", ["config", "core.sparseCheckout", "true"], { cwd: tempDir, stdio: "pipe" });
+    execFileSync("git", ["config", "core.sparseCheckout", "true"], { cwd: tempDir, stdio: "pipe", timeout: GIT_COMMAND_TIMEOUT_MS });
     core.info("Enabled sparse checkout");
 
     // Set sparse checkout pattern to only include .github folder
@@ -201,15 +204,15 @@ function sparseCheckoutGithubFolder(owner, repo, ref, tempDir) {
     core.info("Configured sparse checkout pattern: .github/");
 
     // Add remote - using execFileSync prevents shell injection
-    execFileSync("git", ["remote", "add", "origin", repoUrl], { cwd: tempDir, stdio: "pipe" });
+    execFileSync("git", ["remote", "add", "origin", repoUrl], { cwd: tempDir, stdio: "pipe", timeout: GIT_COMMAND_TIMEOUT_MS });
     core.info(`Added remote: ${repoUrl}`);
 
     // Fetch and checkout - using execFileSync with validated ref
     core.info(`Fetching ref: ${ref}`);
-    execFileSync("git", ["fetch", "--depth", "1", "origin", ref], { cwd: tempDir, stdio: "pipe" });
+    execFileSync("git", ["fetch", "--depth", "1", "origin", ref], { cwd: tempDir, stdio: "pipe", timeout: GIT_COMMAND_TIMEOUT_MS });
 
     core.info("Checking out .github folder");
-    execFileSync("git", ["checkout", "FETCH_HEAD"], { cwd: tempDir, stdio: "pipe" });
+    execFileSync("git", ["checkout", "FETCH_HEAD"], { cwd: tempDir, stdio: "pipe", timeout: GIT_COMMAND_TIMEOUT_MS });
 
     core.info("Sparse checkout completed successfully");
   } catch (error) {
