@@ -270,6 +270,7 @@ func TestRunWorkflowsOnGitHub(t *testing.T) {
 }
 
 func TestNormalizeWorkflowID(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -329,6 +330,7 @@ func TestNormalizeWorkflowID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := normalizeWorkflowID(tt.input)
 			if result != tt.expected {
 				t.Errorf("normalizeWorkflowID(%q) = %q, expected %q", tt.input, result, tt.expected)
@@ -907,6 +909,7 @@ This workflow uses an include.
 
 // TestCalculateTimeRemaining tests the calculateTimeRemaining function
 func TestCalculateTimeRemaining(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		stopTimeStr string
@@ -926,6 +929,7 @@ func TestCalculateTimeRemaining(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := calculateTimeRemaining(tt.stopTimeStr)
 			if result != tt.expected {
 				t.Errorf("calculateTimeRemaining(%q) = %q, want %q", tt.stopTimeStr, result, tt.expected)
@@ -935,6 +939,7 @@ func TestCalculateTimeRemaining(t *testing.T) {
 
 	// Test with future time - this will test the logic but the exact result depends on current time
 	t.Run("future time formatting", func(t *testing.T) {
+		t.Parallel()
 		// Create a time 2 hours and 30 minutes in the future
 		// Add a small buffer to account for execution time
 		futureTime := time.Now().Add(2*time.Hour + 30*time.Minute + 1*time.Second)
@@ -955,6 +960,7 @@ func TestCalculateTimeRemaining(t *testing.T) {
 
 	// Test with past time
 	t.Run("past time - expired", func(t *testing.T) {
+		t.Parallel()
 		// Create a time 1 hour in the past
 		pastTime := time.Now().Add(-1 * time.Hour)
 		stopTimeStr := pastTime.Format("2006-01-02 15:04:05")

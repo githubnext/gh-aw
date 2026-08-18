@@ -143,7 +143,9 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 // TestCompileAllWorkflowFiles tests the compileAllWorkflowFiles function
 // This covers pkg/cli/commands.go:790
 func TestCompileAllWorkflowFiles(t *testing.T) {
+	t.Parallel()
 	t.Run("compile all with no markdown files", func(t *testing.T) {
+		t.Parallel()
 		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
@@ -315,7 +317,9 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 // TestHandleFileDeleted tests the handleFileDeleted function
 // This covers pkg/cli/commands.go:888
 func TestHandleFileDeleted(t *testing.T) {
+	t.Parallel()
 	t.Run("handle deleted markdown file", func(t *testing.T) {
+		t.Parallel()
 		tempDir := testutil.TempDir(t, "test-*")
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
