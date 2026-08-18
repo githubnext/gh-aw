@@ -305,12 +305,21 @@ func TestAddWorkflowsWithTracking_InstallsMappedDestinations(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-add-mapped-destination-*")
 	workflowsDir := setupMinimalGitRepo(t, tempDir)
 
+	markdownEntry := resolvedPackageInstallable{
+		SourcePath:      "factory/payload/workflows/reviewer.md",
+		DestinationPath: ".github/workflows/code-reviewer.md",
+	}
+	actionEntry := resolvedPackageInstallable{
+		SourcePath:      "factory/payload/workflows/controller.yml",
+		DestinationPath: ".github/workflows/deterministic-controller.yml",
+	}
+
 	workflows := []*ResolvedWorkflow{
 		{
 			Spec: &WorkflowSpec{
-				WorkflowPath:           "factory/payload/workflows/reviewer.md",
-				WorkflowName:           "reviewer",
-				DestinationPath:        ".github/workflows/code-reviewer.md",
+				WorkflowPath:           markdownEntry.SourcePath,
+				WorkflowName:           packageInstallableWorkflowName(markdownEntry),
+				DestinationPath:        markdownEntry.DestinationPath,
 				FromRepositoryManifest: true,
 			},
 			Content:    []byte("---\non: workflow_dispatch\nengine: claude\npermissions: read-all\n---\n\n# Reviewer\n"),
@@ -318,9 +327,9 @@ func TestAddWorkflowsWithTracking_InstallsMappedDestinations(t *testing.T) {
 		},
 		{
 			Spec: &WorkflowSpec{
-				WorkflowPath:           "factory/payload/workflows/controller.yml",
-				WorkflowName:           "controller",
-				DestinationPath:        ".github/workflows/deterministic-controller.yml",
+				WorkflowPath:           actionEntry.SourcePath,
+				WorkflowName:           packageInstallableWorkflowName(actionEntry),
+				DestinationPath:        actionEntry.DestinationPath,
 				FromRepositoryManifest: true,
 			},
 			Content:          []byte("name: Controller\non: workflow_dispatch\njobs: {}\n"),

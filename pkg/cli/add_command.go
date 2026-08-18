@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -388,14 +387,11 @@ func addWorkflowWithTracking(ctx context.Context, resolved *ResolvedWorkflow, tr
 		return err
 	}
 
+	// For package manifest entries WorkflowName is derived from the entry's install
+	// destination, so mapped entries install under their declared destination name.
 	workflowName := workflowSpec.WorkflowName
 	if opts.Name != "" {
 		workflowName = opts.Name
-	} else if workflowSpec.DestinationPath != "" {
-		// Package manifests may map a package-relative source to an explicit
-		// repository-root-relative destination under .github/workflows/.
-		base := path.Base(workflowSpec.DestinationPath)
-		workflowName = strings.TrimSuffix(base, path.Ext(base))
 	}
 	// Action workflow files (.yml) are copied as-is to .github/workflows/ without any
 	// frontmatter processing, dependency fetching, or compilation.
