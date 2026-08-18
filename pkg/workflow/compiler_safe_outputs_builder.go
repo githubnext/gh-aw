@@ -55,6 +55,9 @@ func (e templatableJSONExpression) MarshalJSON() ([]byte, error) {
 // output valid JSON even when the expression evaluates to an empty string at runtime
 // (toJSON("") => `""`, still valid JSON), while arrays and JSON-text strings continue to
 // be handled the same way they already are by the runtime handler.
+//
+// Callers must only pass expressions that satisfy isExpression (i.e. the whole string is
+// wrapped in a well-formed "${{ ... }}"); AddTemplatableJSONSlice enforces this.
 func wrapExpressionWithToJSON(expr string) string {
 	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(expr), "${{"), "}}"))
 	if strings.HasPrefix(inner, "toJSON(") {
