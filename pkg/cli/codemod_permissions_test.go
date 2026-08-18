@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetPermissionsReadCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getExpandPermissionsShorthandCodemod()
 
 	assert.Equal(t, "permissions-read-to-read-all", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetPermissionsReadCodemod(t *testing.T) {
 }
 
 func TestPermissionsReadCodemod_Read(t *testing.T) {
+	t.Parallel()
 	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
@@ -43,6 +45,7 @@ permissions: read
 }
 
 func TestPermissionsReadCodemod_Write(t *testing.T) {
+	t.Parallel()
 	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
@@ -66,6 +69,7 @@ permissions: write
 }
 
 func TestPermissionsReadCodemod_NoChange_ReadAll(t *testing.T) {
+	t.Parallel()
 	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
@@ -88,6 +92,7 @@ permissions: read-all
 }
 
 func TestPermissionsReadCodemod_NoChange_WriteAll(t *testing.T) {
+	t.Parallel()
 	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
@@ -110,6 +115,7 @@ permissions: write-all
 }
 
 func TestPermissionsReadCodemod_NoChange_MapFormat(t *testing.T) {
+	t.Parallel()
 	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
@@ -137,6 +143,7 @@ permissions:
 }
 
 func TestPermissionsReadCodemod_NoPermissions(t *testing.T) {
+	t.Parallel()
 	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
@@ -159,6 +166,7 @@ timeout-minutes: 30
 }
 
 func TestPermissionsReadCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getExpandPermissionsShorthandCodemod()
 
 	content := `---
@@ -184,6 +192,7 @@ This workflow needs permissions.`
 }
 
 func TestGetWritePermissionsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	assert.Equal(t, "write-permissions-to-read-migration", codemod.ID)
@@ -194,6 +203,7 @@ func TestGetWritePermissionsCodemod(t *testing.T) {
 }
 
 func TestWritePermissionsCodemod_ShorthandWriteAll(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -217,6 +227,7 @@ permissions: write-all
 }
 
 func TestWritePermissionsCodemod_ShorthandWrite(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -240,6 +251,7 @@ permissions: write
 }
 
 func TestWritePermissionsCodemod_MapFormat(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -269,6 +281,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_MultipleWritePermissions(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -300,6 +313,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_NoPermissionsField(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -322,6 +336,7 @@ timeout-minutes: 30
 }
 
 func TestWritePermissionsCodemod_OnlyReadPermissions(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -349,6 +364,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_PreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -377,6 +393,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_PreservesComments(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -405,6 +422,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -430,6 +448,7 @@ This workflow needs permissions.`
 }
 
 func TestWritePermissionsCodemod_SkipsIdToken(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -459,6 +478,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_SkipsCopilotRequests(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -488,6 +508,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_MixedWithIdToken(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---
@@ -521,6 +542,7 @@ permissions:
 }
 
 func TestWritePermissionsCodemod_MixedWithCopilotRequests(t *testing.T) {
+	t.Parallel()
 	codemod := getMigrateWritePermissionsToReadCodemod()
 
 	content := `---

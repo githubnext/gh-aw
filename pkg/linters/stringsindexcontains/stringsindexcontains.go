@@ -20,11 +20,7 @@ import (
 var Analyzer = analyzerutil.New("stringsindexcontains", "reports strings.Index(s, substr) comparisons with -1 or 0 (e.g. != -1, >= 0, > -1, == -1, < 0, <= -1) and their yoda-order variants that should use strings.Contains(s, substr) or !strings.Contains(s, substr)", run)
 
 func run(pass *analysis.Pass) (any, error) {
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +90,7 @@ func analyzeIndexContains(pass *analysis.Pass, n ast.Node, generatedFiles filech
 //   - 0 > strings.Index(s, sub)
 func matchIndexComparison(pass *analysis.Pass, expr *ast.BinaryExpr) (call *ast.CallExpr, negated bool, matched bool) {
 	// Normalize so that the strings.Index call is on the left side.
-	left, right, flipped := normalizeOperands(pass, expr)
+	left, right, flipped := astutil.NormalizeComparisonOperands(pass, expr, "Index")
 
 	indexCall, ok := astutil.AsStringsMethodCall(pass, left, "Index")
 	if !ok {
@@ -146,13 +142,4 @@ func matchIndexComparison(pass *analysis.Pass, expr *ast.BinaryExpr) (call *ast.
 	}
 
 	return nil, false, false
-}
-
-// normalizeOperands returns (left, right) such that if the strings.Index call
-// is on the right side, the operands are swapped and flipped=true.
-func normalizeOperands(pass *analysis.Pass, expr *ast.BinaryExpr) (left, right ast.Expr, flipped bool) {
-	if _, ok := astutil.AsStringsMethodCall(pass, expr.X, "Index"); ok {
-		return expr.X, expr.Y, false
-	}
-	return expr.Y, expr.X, true
 }

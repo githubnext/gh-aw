@@ -141,6 +141,7 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   safe-outputs:
     create-check-run:
       name: "Security Analysis"       # Optional: check run name (defaults to workflow name)
+      target: "triggering"            # Optional: "triggering" (default), "*" (any PR), or explicit PR number
       max: 1                          # Optional: max check runs per workflow run (default: 1)
       output:                         # Optional: static fallback values used when the agent omits the field
         title: "Pending analysis"     # Fallback title (max 256 chars)
