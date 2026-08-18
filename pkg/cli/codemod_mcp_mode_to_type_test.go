@@ -10,9 +10,11 @@ import (
 )
 
 func TestMCPModeToTypeCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getMCPModeToTypeCodemod()
 
 	t.Run("renames mode to type in custom MCP servers", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -49,6 +51,7 @@ mcp-servers:
 	})
 
 	t.Run("does not modify workflows without mcp-servers", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -75,6 +78,7 @@ tools:
 	})
 
 	t.Run("does not modify GitHub tool mode field", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 tools:
@@ -113,6 +117,7 @@ mcp-servers:
 	})
 
 	t.Run("handles multiple MCP servers with mode", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 mcp-servers:
@@ -151,6 +156,7 @@ mcp-servers:
 	})
 
 	t.Run("does not modify when no mode field exists", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 mcp-servers:
@@ -179,6 +185,7 @@ mcp-servers:
 	})
 
 	t.Run("preserves comments and formatting", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine: copilot
 mcp-servers:
