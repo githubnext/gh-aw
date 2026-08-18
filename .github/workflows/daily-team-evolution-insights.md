@@ -60,8 +60,10 @@ Analyze the last 24 hours of repository activity to extract meaningful insights 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Analysis Period**: Last 24 hours
+- **Analysis Period**: last 24 full hours ending at workflow start (UTC)
 - **Run ID**: ${{ github.run_id }}
+
+Compute the window boundaries before gathering activity and report them explicitly as ISO-8601 UTC timestamps (`YYYY-MM-DDTHH:MM:SSZ`), not just a date. Only count activity whose relevant timestamp falls inside this window.
 
 ## Analysis Process
 
@@ -122,6 +124,8 @@ Always create a GitHub Discussion with your findings using this structure:
 
 > Daily analysis of how our team is evolving based on the last 24 hours of activity
 
+- **Window**: window_start=[ISO-8601 UTC] → window_end=[ISO-8601 UTC]
+
 [2-3 paragraph executive summary of the most interesting patterns and insights. Start with the "so what" rather than the "what" - lead with insights about what the activity means for the team's evolution.]
 
 ### 🎯 Key Observations
@@ -141,6 +145,8 @@ Always create a GitHub Discussion with your findings using this structure:
 - **Commit Patterns**: [Time of day, frequency, message quality]
 
 ### Pull Request Activity
+
+All counts below cover window_start=[ISO-8601 UTC] → window_end=[ISO-8601 UTC].
 
 - **PRs Opened**: [NUMBER] new PRs
 - **PRs Merged**: [NUMBER] PRs merged ([AVG TIME] average time to merge)
