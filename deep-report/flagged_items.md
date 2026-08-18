@@ -1,25 +1,24 @@
-## Flagged Items (2026-08-18, 06:23Z cycle)
+## Flagged Items (2026-08-18, 12:26Z cycle)
 
-- **[new, filed]** compiler_safe_outputs_job.go decomposition re-filed — prior issue #50515 auto-expired unfixed 2026-08-06, exact same 144-line function rediscovered by today's compiler-quality report (#53563). Watch: does the re-filing land a real fix this time, or expire again.
-- **[new, filed]** Top-level `version`/`include` frontmatter fields undocumented/unschemaed (Schema Consistency Check #53595) — clean filing, no prior issue found.
-- **[new, filed]** 3 docs quick-wins from Documentation Noob Test Report #53578 (WIF expansion, frontmatter-definition timing, "Get Started" label) — bundled into one issue.
-- **[new, filed]** PR Sous Chef chronic `safe_outputs` job failure — 16 open duplicate `[aw] Failed jobs: PR Sous Chef` issues, none consolidated/root-caused; Issue Arborist independently flagged the same cluster this cycle without acting on it.
-- **[new, commented]** #53464 (recurring MCP toolset unavailability) — logged 4th+ occurrence (#53596) as a comment, correctly not filed as a new duplicate issue.
-- **[verified, no dupe filed]** Sergo's own finding (aw_sg61a1) and ESLint Refiner's 2 findings (#53592, #53593) were already self-filed by those workflows — confirmed via search, no action needed.
-- **[declined, self-resolving]** lint-monster updated its own authoritative issue #53268 in place — no new issue needed.
-- **[declined, fully compliant]** Firewall report (0% block rate) and Firewall Escape test (SECURE, 11/11 new techniques failed) — no action.
+- **[new, filed]** `agenticworkflows logs` serves ~11-day-stale data by default (no date-range params) — reproduced live this cycle. Watch: does this get root-caused quickly given it affects every workflow's fleet-health checks.
+- **[new, filed]** copilot-session-data-fetch conversation-transcript bug still broken 11 days after PR #51195's claimed fix (issue #51113 closed `completed` 2026-08-07). Watch: this is a "fix that didn't fix it" — track whether the re-investigation actually identifies why the merged change had no effect.
+- **[new, filed]** `BoundedQueriesConfig.Timeout *int` vs `AWFBoundedQueriesConfig.Timeout int` drift (Typist #53651, Cluster 2) — real bug risk, quick fix.
+- **[new, filed]** `GitHubRateLimitDiff` duplicate-field-vs-embed (Typist #53651, Cluster 6) — quick fix.
+- **[new, filed]** Container/Image Security Pinning cluster merges at 53.4% (23pts below fleet average) — pre-filter upstream-blocked CVE findings + stale-WIP reaper (Prompt Clustering #53637).
+- **[new, filed]** PR comment/review fetch consistently empty in Copilot PR Conversation NLP Analysis, 284/284 PRs this week (#53641) — recurring across at least 2 tracked runs.
+- **[new, filed]** MCP server health/stats 4-way struct duplication — apply existing `AggregatedSummaryBase` pattern (Typist #53651, Cluster 7).
+- **[watch, not yet re-filed]** #53612 (compiler_safe_outputs_job.go re-decomposition, filed 06:23Z cycle) still has no assignee/PR ~6h later. If it stalls again next cycle, that's a 2nd consecutive failure to land this exact fix — worth escalating differently (e.g. direct assignment or a smaller-scoped sub-task) rather than re-filing verbatim a 3rd time.
+- **[verified in-progress]** #53613 (frontmatter version/include schema) → PR #53678 (WIP) open. #53615 (PR Sous Chef consolidation) → PR #53676 (WIP) open. Both assigned, neither merged yet.
+- **[verified fixed]** #53614 (3 docs quick-wins) → merged via PR #53655, closed within ~5h48m.
+- **[declined, environmental]** MCP Structural Analysis (#53673): `get_teams` blocked by sandbox permission gate — this is a sandbox/environment constraint, not a code bug to fix.
+- **[declined, expected]** "copilot was here" smoke test (#53667) blocked 6 Google auth domains via firewall — expected smoke-test noise, not a real security concern.
+- **[declined, already auto-filed]** API Consumption Report chart-rendering gap (#53645, Python/glibc/matplotlib incompatibility) — already auto-filed as #53646 (missing_tool), no duplicate needed.
+- **[declined, already auto-filed]** Copilot Session Insights missing_data for today's run — already auto-filed as #53622; the *root cause* (83-day streak, "fix" that didn't fix it) is the new issue filed this cycle, not a duplicate of the daily auto-filer.
+- **[chronic, fluctuating, not re-filed]** Unlabeled open issues: 5 this cycle (#53670, #53652, #53631, #53489, #53136), up from 3 two cycles ago but still resolving via normal triage — continuing to decline a dedicated labeling task.
 
-## Flagged Items (2026-08-18, 00:31Z cycle)
+## Flagged Items (2026-08-18, 06:23Z cycle) — condensed
 
-- **[new, filed]** `Copilot Opt` and `Copilot Agent PR Analysis` have the same day-keyed cache-reuse bug that was just fixed for deep-report itself (PR #53486) — filed citing that PR as the fix template. Watch: does this get fixed quickly like the last 4 filings, or does it linger since it's not deep-report's own pipeline this time.
-- **[new, filed]** 3 workflows (Daily Team Evolution Insights, MCP Inspector Agent, Smoke Copilot Sub Agents) still lack `gh-aw-detection` per discussion #53522; two of them failed their only in-window run while unmonitored. Filed as one bundled task.
-- **[new, filed]** Two near-identical Auto-Triage workflows ("Auto-Triage Issues Report" vs "Auto-Triage Report") — filed as a de-dup/rename investigation, not assumed to be a bug (could be intentional).
-- **[new, filed]** Agent Job Health Monitor's log-cache retention appears truncated to ~37 minutes vs. its claimed 24h window, making its headline failure-rate figure unreliable. Filed as an investigation.
-- **[new, filed]** Daily Status vs. Daily Team Evolution Insights report 50 vs. 22 merged PRs for a nominally same 24h scope — filed a narrow fix (explicit window timestamps for just these two) rather than the broader "standardize all daily reports" recommendation.
-- **[verified fixed, closed]** All 4 substantive issues from the 18:23Z cycle (#53460, #53461, #53462, #53463) — confirmed via `gh api` merged PRs (#53486, #53468, #53469, #53479), all merged within 1-5 hours of filing.
-- **[verified, correctly left open]** #53464 (recurring MCP toolset unavailability, non-expiring tracking issue) — still open as intended, no new occurrence this cycle to add.
-- **[verified resolved, not a new bug]** Audit-workflows' 41-day schedule gap — the schedule-heartbeat fix (PR #53259, merged into `agent-job-health.md`) already landed 2026-08-17T01:13Z; today's report showing the historical gap in its trend chart is expected (pre-fix history), not evidence the fix didn't work.
-- **[chronic, shrinking, not re-filed]** Unlabeled open issues down to 3 (#53532, #53489, #53136) from 6 as of two cycles ago — still declining to file a dedicated labeling task per standing guidance; backlog is shrinking organically.
-- **[declined again, weak evidence]** Firewall blocked-path visibility (1/20 runs showing both allowed+blocked traffic, discussion #53529) — same weak signal as prior cycles, declined again.
-- **[lost, documented]** The ~55-discussion "not yet mined" backlog flagged in the 18:23Z cycle has rolled off the 100-entry discussions.json window and is no longer recoverable without an expensive per-number re-fetch. Accepted as a gap; see known_patterns.md for the process fix (mine every cycle's new discussions immediately, don't defer).
-- **[process note]** This cycle mined all 13 new/updated discussions in full — no sampling shortfall, unlike two cycles ago.
+- Re-filed compiler_safe_outputs_job.go decomposition (#53612) after its predecessor (#50515) auto-expired unfixed.
+- Filed frontmatter version/include schema gap (#53613), docs quick-wins bundle (#53614, now fixed), PR Sous Chef consolidation (#53615, now in-progress).
+- Commented (not filed) on #53464 for a 4th+ MCP-toolset-unavailability occurrence.
+- Declined: Sergo/ESLint Refiner (self-filed already), lint-monster (updates own tracker), Firewall report/escape test (fully compliant).

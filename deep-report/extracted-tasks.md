@@ -1,3 +1,18 @@
+## Extracted code-quality tasks (2026-08-18 12:26Z cycle)
+
+7 filed, 0 comments, all newly-mined (short ~6h cycle, 11 new discussions):
+1. `agenticworkflows logs` default (no date-range) path serves ~11-day-stale cached data — reproduced live this cycle; distinct root cause from previously-closed #38528. Filed.
+2. copilot-session-data-fetch conversation-transcript bug still broken 11 days after "completed" fix (#51113/PR #51195) — 83-day symptom streak persisted straight through the claimed fix date (discussion #53621). Filed.
+3. `BoundedQueriesConfig.Timeout *int` vs `AWFBoundedQueriesConfig.Timeout int` type drift (discussion #53651, Typist Cluster 2). Filed.
+4. `GitHubRateLimitDiff` duplicates 4 fields instead of embedding `GitHubRateLimitUsage` twice (discussion #53651, Typist Cluster 6). Filed.
+5. Pre-filter upstream-blocked container/image CVE findings + reap stale WIP PRs — Container/Image Security Pinning cluster merges at 53.4%, 23.4pts below fleet average (discussion #53637). Filed.
+6. Investigate consistently-empty PR comment/review fetch in Copilot PR Conversation NLP Analysis — 284/284 PRs this week (discussion #53641). Filed.
+7. Apply existing `AggregatedSummaryBase` pattern to 4-way duplicated MCP server health/stats structs (discussion #53651, Typist Cluster 7). Filed.
+
+Verified via `gh api` on last cycle's (06:23Z) 4 filings: #53614 fixed/merged (PR #53655, ~5h48m); #53613 and #53615 in-progress (WIP PRs #53678/#53676); #53612 still unassigned ~6h later (2nd attempt at this exact fix — watch for a 2nd stall).
+
+Not filed: MCP Structural Analysis's `get_teams` gap (sandbox permission constraint, not a code bug); "copilot was here" smoke-test firewall noise (expected); API Consumption chart-rendering gap (already auto-filed #53646); Copilot Session Insights missing_data (already auto-filed #53622, root cause covered by item 2 above); unlabeled backlog (5, still resolving organically, standing decline).
+
 ## Extracted code-quality tasks (2026-08-18 06:23Z cycle)
 
 4 filed, 1 comment, all newly-mined (short 5h52m cycle, 10 new discussions):

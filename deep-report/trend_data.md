@@ -1,21 +1,16 @@
-## Trend Data (2026-08-18, 06:23Z cycle)
+## Trend Data (2026-08-18, 12:26Z cycle)
 
-Baseline was 2026-08-18T00:31Z (~5h52m gap, short cycle, narrowed scope to 10 new discussions since baseline).
+Baseline was 2026-08-18T06:23Z (~6h gap, narrowed scope to 11 new discussions since baseline).
 
-- **Issue/comment activity this cycle**: 4 new issues filed (compiler_safe_outputs_job.go re-decomposition, frontmatter version/include schema gap, 3-item docs quick-win bundle, PR Sous Chef safe_outputs consolidation) + 1 comment (MCP toolset recurrence #53464). 16 open duplicate `[aw] Failed jobs: PR Sous Chef` issues discovered as a side effect of investigating the 4th filing — flagged for future consolidation once the root-cause issue lands.
-- **Live workflow-log sample**: 20 most-recent runs, 2 errors (1 driver_exit_failure, 1 agent_logic_failure) out of 20 — both PR Sous Chef's most recent 2 runs in-sample were "success", consistent with the main job being healthy while the separate `safe_outputs` step fails intermittently.
-- **Turnaround check deferred**: too soon (only 5h52m) to check whether last cycle's 5 filed issues (00:31Z) have merged fixes yet — check next cycle.
+- **Issue/comment activity this cycle**: 7 new issues filed (logs-tool stale-data bug, conversation-transcript "fix that didn't fix it", 2 Typist quick fixes, container/CVE pre-filter, NLP data-gap investigation, MCP health-struct dedup). 0 comments this cycle (no exact-match existing issue found for any candidate — all 7 were genuinely new).
+- **Live workflow-log sample**: `agenticworkflows logs --count 30` (no date filter) returned a **stale 2026-08-07 snapshot** (29/30 success, 1 failure from 12 days ago) — this is itself a live demonstration of the bug filed this cycle. Re-queried with explicit `start_date: -1d`: 15/15 success (100%) in the corrected current-data sample, engine mix copilot/pi/claude/codex/goose. Do **not** trust a bare `logs --count N` call without date params for fleet-health conclusions until the staleness bug is fixed — always pass an explicit `start_date` going forward.
+- **API Consumption Report snapshot** (discussion #53645, live data): 262 runs in 24h, 253 success / 9 failure = 96.6% success rate — consistent with the corrected 100% mini-sample above (different window sizes, no contradiction). 216,698 REST API calls/day. PR Sous Chef dominates consumption (~18%, 39,813 calls/43 runs).
+- **Prompt clustering fleet snapshot** (discussion #53637, 18-day/988-task window): 76.8% overall Copilot-agent PR merge rate; Container/Image Security Pinning cluster is a confirmed outlier at 53.4%.
+- **Issue backlog** (issues-analyst full pass, 500-issue/7-day window): 133 open / 367 closed. Top labels: agentic-workflows (226), automation (174), cookie (141), code-quality (50), bug (42). Unlabeled backlog: 5 (up from 3 two cycles ago, still resolving organically). 0 issues open > 7 days.
+- **Turnaround-time check** (from 06:23Z cycle's 4 filings): 1 of 4 fully merged within ~5h48m (#53614), 2 of 4 in-progress with open WIP PRs (#53613, #53615), 1 of 4 still unassigned after ~6h (#53612 — 2nd attempt at the same fix, first attempt auto-expired unfixed).
 
-Next cycle checks: (a) did the 4 issues filed this cycle (esp. the re-filed compiler decomposition and PR Sous Chef consolidation) get picked up and fixed, (b) did the 16 duplicate PR Sous Chef issues get consolidated/closed, (c) verify last cycle's (00:31Z) 5 filed issues' merge status now that enough time has passed, (d) continue mining every cycle's new discussions immediately per the 100-entry-window risk.
+Next cycle checks: (a) is the `logs`-tool stale-data bug root-caused, (b) does the conversation-transcript "fix that didn't fix it" issue get a real diagnosis this time, (c) do the 2 in-progress WIP PRs (#53678, #53676) land, (d) does #53612 finally get picked up or stall a 2nd time, (e) do the 2 quick Typist fixes and container/CVE pre-filter land on the usual fast turnaround.
 
-## Trend Data (2026-08-18, 00:31Z cycle)
+## Trend Data (2026-08-18, 06:23Z cycle) — condensed
 
-Baseline was 2026-08-17T18:23Z. Cache-refresh fix (PR #53486) confirmed working: pre-fetched data was fresh (~2 min old) this cycle, no live re-fetch workaround needed.
-
-- **Live workflow-log sample**: 25 runs (most recent), 25/25 success = 100% in this narrow sample, 0 intentional-failure tests included. Small-N, not directly comparable to fleet-wide 84.3%/84.5%-excl-intentional figures from today's Audit Workflows report (#53499, 364-run/24h window).
-- **Audit Workflows fleet snapshot** (from discussion #53499, 24h window, 364 runs): 84.3% raw success / 84.5% excl. intentional-failure tests. Engine mix: copilot 176, pi 101, claude 65, codex 8, aider 2, crush 2, goose 2, 8 unclassified (all 8 failed, likely driver-startup crashes).
-- **Issue backlog** (issues-analyst full pass, 500-issue/7-day window): 146 open / 354 closed. Top labels: agentic-workflows (225), automation (172), cookie (136), testing (42), code-quality (42). Unlabeled backlog: 3 (down from 6 two cycles ago). 0 issues open >7 days.
-- **Issue/comment activity this cycle**: 5 new issues filed (cache TODAY-key recurrence, detection-flag gaps ×3 workflows, Auto-Triage dedup, Agent Job Health log-cache gap, window-anchor timestamps). 0 comments (no exact-match existing issue found for any candidate).
-- **Turnaround-time signal** (new this cycle): last cycle's 4 substantive filed issues were all fixed and merged within 1-5 hours — median turnaround well under a day. Worth tracking as an ongoing health metric: if this turnaround degrades in future cycles, that's a signal worth flagging.
-
-Next cycle checks: (a) does the Copilot Opt / Copilot Agent PR Analysis cache fix land as quickly as the last batch, (b) do the 3 detection-flag workflows get fixed and does their failure rate improve once monitored, (c) is the Auto-Triage duplication intentional or accidental once investigated, (d) does Agent Job Health Monitor's log-cache gap get root-caused, (e) continue mining every cycle's new discussions immediately — do not defer, per the newly-identified 100-entry-window data-loss risk.
+Baseline 2026-08-18T00:31Z. 4 new issues filed + 1 comment. 20-run live sample: 2 errors (1 driver_exit_failure, 1 agent_logic_failure) out of 20 — both PR Sous Chef's own most-recent runs were "success", consistent with a separate `safe_outputs`-step-only failure mode. 16 open duplicate PR Sous Chef issues discovered as a side effect of investigation.

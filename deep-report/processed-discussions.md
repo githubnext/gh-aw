@@ -1,6 +1,9 @@
-## Discussions mined for code-quality tasks (processed through 2026-08-18 06:23Z)
+## Discussions mined for code-quality tasks (processed through 2026-08-18 12:26Z)
 
 (Note: stored as .md per repo-memory constraint limiting this project to *.md files.)
+
+### Processed 2026-08-18 12:26Z cycle (full — all 11 new/updated discussions read)
+53621, 53627, 53629, 53630, 53637, 53641, 53645, 53648, 53651, 53667, 53673 — all read in full, no sampling shortfall this cycle.
 
 ### Processed 2026-08-18 06:23Z cycle (full — all 10 new/updated discussions read)
 53558, 53561, 53563, 53578, 53580, 53583, 53589, 53594, 53595, 53596 — all read in full, no sampling shortfall this cycle.
@@ -9,7 +12,7 @@
 53465, 53466, 53467, 53482, 53484, 53487, 53488, 53496, 53499, 53509, 53522, 53523, 53529 — all read in full, no sampling shortfall this cycle.
 
 ### Lost, unrecoverable: the ~55-discussion backlog from the 18:23Z cycle
-Confirmed this cycle that the ~55 discussions flagged "not yet mined" in the 18:23Z cycle (observability, firewall, lint-monster, compiler-quality, docs-noob-tester, sergo, issue-arborist, eslint-refiner, artifacts-usage, copilot-session-insights, experiments, org-health, archivx, arxiv-research, daily-status, prompt-clustering, nlp-analysis, api-consumption, POTD puzzles, claude-code-docs-review, agent-performance, repository-chronicle, geo-optimizer, daily-secrets, copilot-agent-analysis, and others) have rolled off the 100-entry discussions.json window and are no longer present in the dataset (spot-checked 7 numbers, only 1 still present). **Do not carry this backlog forward as "pending" anymore — it's gone.** See known_patterns.md for the process fix: mine every cycle's new discussions immediately, never defer.
+Confirmed this cycle that the ~55 discussions flagged "not yet mined" in the 18:23Z cycle (observability, firewall, lint-monster, compiler-quality, docs-noob-tester, sergo, issue-arborist, eslint-refiner, artifacts-usage, copilot-session-insights, experiments, org-health, archivx, arxiv-research, daily-status, prompt-clustering, nlp-analysis, api-consumption, POTD puzzles, claude-code-docs-review, agent-performance, repository-chronicle, geo-optimizer, daily-secrets, copilot-agent-analysis, and others) have rolled off the 100-entry discussions.json window and are no longer present in the dataset. **Do not carry this backlog forward as "pending" anymore — it's gone.** See known_patterns.md for the process fix: mine every cycle's new discussions immediately, never defer.
 
 ### Processed 2026-08-17 18:23Z cycle (partial — sampled only 7 of ~63)
 53295, 53314, 53058, 53346, 53313, 53391, 53367, 53090 — mined. Remainder lost (see above).
