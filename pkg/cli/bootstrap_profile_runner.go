@@ -119,7 +119,19 @@ func executeBootstrapProfile(ctx context.Context, config bootstrapProfileRunConf
 		return err
 	}
 
+	var inferredPermissions map[string]string
+	var inferredEvents []string
+	if hasBootstrapGitHubAppAction(config.Profile.Profile.Config) {
+		inferredPermissions, inferredEvents, err = inferBootstrapGitHubAppRequirements(ctx, config.Sources)
+		if err != nil {
+			return err
+		}
+	}
+
 	for _, action := range config.Profile.Profile.Config {
+		if action.Type == "github-app" {
+			action.Permissions, action.Events = mergeBootstrapGitHubAppRequirements(action.Permissions, action.Events, inferredPermissions, inferredEvents)
+		}
 		pending, err := bootstrapActionNeedsMutation(ctx, config.Repo, action, state, usesActionsToken)
 		if err != nil {
 			return err
@@ -189,6 +201,15 @@ func applyBootstrapAction(ctx context.Context, config bootstrapProfileRunConfig,
 		return fmt.Errorf("unsupported bootstrap action type %q. Example: use one of %s", action.Type, bootstrapActionTypeExample)
 	}
 	return nil
+}
+
+func hasBootstrapGitHubAppAction(actions []repositoryPackageBootstrapAction) bool {
+	for _, action := range actions {
+		if action.Type == "github-app" {
+			return true
+		}
+	}
+	return false
 }
 
 func bootstrapProfileState(ctx context.Context, repo string) (*bootstrapProfileExistingState, error) {
