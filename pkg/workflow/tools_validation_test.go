@@ -1193,3 +1193,76 @@ func TestGetDIFCProxyPolicyJSONWithReactions(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCLIProxyBashCompatibility(t *testing.T) {
+	tests := []struct {
+		name        string
+		toolsMap    map[string]any
+		shouldError bool
+		errorField  string
+	}{
+		{
+			name:        "cli-proxy enabled without bash setting is valid",
+			toolsMap:    map[string]any{"cli-proxy": true},
+			shouldError: false,
+		},
+		{
+			name:        "cli-proxy enabled with bash allowlist is valid",
+			toolsMap:    map[string]any{"bash": []any{"cat"}, "cli-proxy": true},
+			shouldError: false,
+		},
+		{
+			name:        "cli-proxy disabled with bash: false is valid",
+			toolsMap:    map[string]any{"bash": false, "cli-proxy": false},
+			shouldError: false,
+		},
+		{
+			name:        "bash false without cli-proxy key is valid outside strict mode",
+			toolsMap:    map[string]any{"bash": false},
+			shouldError: false,
+		},
+		{
+			name:        "cli-proxy enabled with bash: false is rejected",
+			toolsMap:    map[string]any{"bash": false, "cli-proxy": true},
+			shouldError: true,
+		},
+		{
+			name:        "cli-proxy enabled with empty bash allowlist is rejected",
+			toolsMap:    map[string]any{"bash": []any{}, "cli-proxy": true},
+			shouldError: true,
+		},
+		{
+			name:        "github gh-proxy with bash false is rejected",
+			toolsMap:    map[string]any{"bash": false, "cli-proxy": false, "github": map[string]any{"mode": "gh-proxy"}},
+			shouldError: true,
+			errorField:  "tools.github.mode",
+		},
+		{
+			name:        "github cli alias with bash false is rejected",
+			toolsMap:    map[string]any{"bash": false, "cli-proxy": false, "github": map[string]any{"mode": "cli"}},
+			shouldError: true,
+			errorField:  "tools.github.mode",
+		},
+		{
+			name:        "github local with bash false is valid",
+			toolsMap:    map[string]any{"bash": false, "cli-proxy": false, "github": map[string]any{"mode": "local"}},
+			shouldError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCLIProxyBashCompatibility(tt.toolsMap, "test-workflow")
+			if tt.shouldError {
+				require.Error(t, err)
+				errorField := tt.errorField
+				if errorField == "" {
+					errorField = "tools.cli-proxy"
+				}
+				assert.Contains(t, err.Error(), errorField)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}

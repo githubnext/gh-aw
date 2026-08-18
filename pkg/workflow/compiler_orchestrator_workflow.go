@@ -175,6 +175,9 @@ func (c *Compiler) validateWorkflowToolConfigurations(ctx *workflowBuildContext)
 	if err := validateBashToolConfig(ctx.workflowData.ParsedTools, ctx.workflowData.Name); err != nil {
 		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
 	}
+	if err := validateCLIProxyBashCompatibility(ctx.workflowData.Tools, ctx.workflowData.Name); err != nil {
+		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
+	}
 	if err := validateGitHubToolConfig(ctx.workflowData.ParsedTools, ctx.workflowData.Name); err != nil {
 		return fmt.Errorf("%s: %w", ctx.cleanPath, err)
 	}

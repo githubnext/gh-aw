@@ -105,6 +105,18 @@ func resolveEffectiveBashTools(content string, frontmatter map[string]any, fileP
 		return topTools, nil
 	}
 
+	return resolveEffectiveTools(content, frontmatter, filePath)
+}
+
+// resolveEffectiveTools returns the effective tools map for the workflow, merging in tools from
+// imports and markdown includes when a file path is available.
+func resolveEffectiveTools(content string, frontmatter map[string]any, filePath string) (map[string]any, error) {
+	topTools, _ := frontmatter["tools"].(map[string]any)
+
+	if filePath == "" {
+		return topTools, nil
+	}
+
 	baseDir := filepath.Dir(filePath)
 	importCache := parser.NewImportCache("")
 

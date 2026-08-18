@@ -718,11 +718,12 @@ func TestValidateStrictMinIntegrityNoneBash(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "min-integrity none with bash: false - allowed",
+			name: "min-integrity none with bash: false and explicit cli-proxy: false - allowed",
 			frontmatter: map[string]any{
 				"on": "push",
 				"tools": map[string]any{
-					"bash": false,
+					"bash":      false,
+					"cli-proxy": false,
 					"github": map[string]any{
 						"min-integrity": "none",
 					},
@@ -879,6 +880,110 @@ func TestValidateStrictDisableXPIA(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errorMsg) {
 					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
 				}
+			}
+		})
+	}
+}
+
+// TestValidateStrictBashDisabledRequiresExplicitCLIProxy verifies that strict mode requires
+// tools.cli-proxy to be explicitly disabled when shell execution is refused, since CLI-mounted
+// MCP servers can only be invoked from a shell.
+func TestValidateStrictBashDisabledRequiresExplicitCLIProxy(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expectError bool
+		errorField  string
+	}{
+		{
+			name: "bash false without cli-proxy - rejected",
+			frontmatter: map[string]any{
+				"on":    "push",
+				"tools": map[string]any{"bash": false},
+			},
+			expectError: true,
+		},
+		{
+			name: "bash false with cli-proxy true - rejected",
+			frontmatter: map[string]any{
+				"on":    "push",
+				"tools": map[string]any{"bash": false, "cli-proxy": true},
+			},
+			expectError: true,
+		},
+		{
+			name: "empty bash allowlist without cli-proxy - rejected",
+			frontmatter: map[string]any{
+				"on":    "push",
+				"tools": map[string]any{"bash": []any{}},
+			},
+			expectError: true,
+		},
+		{
+			name: "bash false with cli-proxy false - allowed",
+			frontmatter: map[string]any{
+				"on":    "push",
+				"tools": map[string]any{"bash": false, "cli-proxy": false},
+			},
+			expectError: false,
+		},
+		{
+			name: "bash allowlist without cli-proxy - allowed",
+			frontmatter: map[string]any{
+				"on":    "push",
+				"tools": map[string]any{"bash": []any{"cat"}},
+			},
+			expectError: false,
+		},
+		{
+			name: "bash false with cli-proxy false and github gh-proxy - rejected",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"bash":      false,
+					"cli-proxy": false,
+					"github":    map[string]any{"mode": "gh-proxy"},
+				},
+			},
+			expectError: true,
+			errorField:  "tools.github.mode",
+		},
+		{
+			name: "bash false with cli-proxy false and github local - allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"bash":      false,
+					"cli-proxy": false,
+					"github":    map[string]any{"mode": "local"},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.strictMode = true
+
+			err := compiler.validateStrictTools(tt.frontmatter)
+
+			if tt.expectError {
+				if err == nil {
+					t.Fatal("Expected validation to fail but it succeeded")
+				}
+				errorField := tt.errorField
+				if errorField == "" {
+					errorField = "tools.cli-proxy"
+				}
+				if !strings.Contains(err.Error(), errorField) {
+					t.Errorf("Expected error mentioning %s, got '%s'", errorField, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("Expected validation to succeed but it failed: %v", err)
 			}
 		})
 	}

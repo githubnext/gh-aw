@@ -110,6 +110,7 @@ func GetAllCodemods() []Codemod {
 		getCliProxyFeatureToGitHubModeCodemod(),                    // Migrate features.cli-proxy: true to tools.github.mode: gh-proxy
 		getDIFCProxyToIntegrityProxyCodemod(),                      // Migrate deprecated features.difc-proxy to tools.github.integrity-proxy
 		getMountAsCLIsToCLIProxyCodemod(),                          // Rename tools.mount-as-clis to tools.cli-proxy and remove features.mcp-cli
+		getCLIProxyBashDisabledCodemod(),                           // Set tools.cli-proxy: false when tools.bash is disabled
 		getSandboxMCPContainerRemovalCodemod(),                     // Remove deprecated sandbox.mcp.container (now managed internally)
 		getSandboxMCPVersionRemovalCodemod(),                       // Remove deprecated sandbox.mcp.version (now managed internally)
 		getSandboxAgentFalseRemovalCodemod(),                       // Remove deprecated sandbox.agent: false (rejected in strict mode)
