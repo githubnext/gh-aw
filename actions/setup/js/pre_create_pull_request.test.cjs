@@ -96,6 +96,15 @@ describe("pre_create_pull_request", () => {
     expect(global.core.setOutput).toHaveBeenCalledWith("branch", "gh-aw/pre-created/123-2");
   });
 
+  it("always creates the allocated pull request as a draft, even when the draft policy is disabled", async () => {
+    process.env.GH_AW_PR_DRAFT = "false";
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = JSON.stringify({ "create-pull-request": { draft: false } });
+    const { main } = await import("./pre_create_pull_request.cjs");
+    await main();
+
+    expect(global.github.rest.pulls.create).toHaveBeenCalledWith(expect.objectContaining({ draft: true }));
+  });
+
   it("forks the pre-created branch from the configured base branch", async () => {
     process.env.GH_AW_CUSTOM_BASE_BRANCH = "release/v1";
     const { main } = await import("./pre_create_pull_request.cjs");

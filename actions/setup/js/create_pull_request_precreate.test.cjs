@@ -73,6 +73,63 @@ describe("create_pull_request pre-created PR reuse", () => {
     expect(graphql).toHaveBeenCalledWith(expect.stringContaining("markPullRequestReadyForReview"), { pullRequestId: "PR_node" });
   });
 
+  it("leaves the allocated PR as a draft when the draft policy is enabled", async () => {
+    const pulls = {
+      get: vi.fn().mockResolvedValue({
+        data: { state: "open", draft: true, node_id: "PR_node", head: { ref: "gh-aw/pre-created/123-1" } },
+      }),
+      update: vi.fn().mockResolvedValue({
+        data: { number: 42, html_url: "https://github.com/owner/repo/pull/42" },
+      }),
+      create: vi.fn(),
+    };
+    const graphql = vi.fn();
+
+    for (const draft of [true, undefined]) {
+      await createOrUpdatePullRequest({
+        githubClient: { rest: { pulls }, graphql },
+        repoParts: { owner: "owner", repo: "repo" },
+        title: "Final title",
+        body: "Final body",
+        branchName: "gh-aw/pre-created/123-1",
+        baseBranch: "main",
+        draft,
+        preCreatedPullRequestNumber: 42,
+        preCreatedBranch: "gh-aw/pre-created/123-1",
+      });
+    }
+
+    expect(graphql).not.toHaveBeenCalled();
+  });
+
+  it("warns without failing when the allocated PR cannot be marked ready for review", async () => {
+    const pulls = {
+      get: vi.fn().mockResolvedValue({
+        data: { state: "open", draft: true, node_id: "PR_node", head: { ref: "gh-aw/pre-created/123-1" } },
+      }),
+      update: vi.fn().mockResolvedValue({
+        data: { number: 42, html_url: "https://github.com/owner/repo/pull/42" },
+      }),
+      create: vi.fn(),
+    };
+    const graphql = vi.fn().mockRejectedValue(new Error("graphql boom"));
+
+    const result = await createOrUpdatePullRequest({
+      githubClient: { rest: { pulls }, graphql },
+      repoParts: { owner: "owner", repo: "repo" },
+      title: "Final title",
+      body: "Final body",
+      branchName: "gh-aw/pre-created/123-1",
+      baseBranch: "main",
+      draft: false,
+      preCreatedPullRequestNumber: 42,
+      preCreatedBranch: "gh-aw/pre-created/123-1",
+    });
+
+    expect(result.data.number).toBe(42);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("graphql boom"));
+  });
+
   it("converts the allocated PR back to draft when draft is required", async () => {
     const pulls = {
       get: vi.fn().mockResolvedValue({

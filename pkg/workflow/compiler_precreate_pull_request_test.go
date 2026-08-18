@@ -173,6 +173,28 @@ func TestConclusionJobRunsWhenPreCreatedCheckExists(t *testing.T) {
 	assert.Contains(t, job.If, "needs.activation.outputs.pre_created_pull_request_check_run_id")
 }
 
+func TestActivationPreCreateStepIgnoresDraftPolicy(t *testing.T) {
+	compiler := NewCompiler()
+	draft := "false"
+	data := &WorkflowData{
+		Name:            "Pre-create test",
+		MarkdownContent: "# Test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, Draft: &draft},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	require.NoError(t, err)
+
+	steps := strings.Join(job.Steps, "")
+	// The allocated pull request is always a draft; the configured draft policy is applied
+	// later, in the safe outputs phase.
+	assert.Contains(t, steps, "id: pre-create-pull-request")
+	assert.NotContains(t, steps, "GH_AW_PR_DRAFT")
+	assert.NotContains(t, steps, "draft: false")
+}
+
 func TestActivationPreCreateStepUsesConfiguredBaseBranch(t *testing.T) {
 	compiler := NewCompiler()
 	data := &WorkflowData{
