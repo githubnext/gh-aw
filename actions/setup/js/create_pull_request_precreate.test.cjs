@@ -100,6 +100,34 @@ describe("create_pull_request pre-created PR reuse", () => {
     expect(graphql).toHaveBeenCalledWith(expect.stringContaining("convertPullRequestToDraft"), { pullRequestId: "PR_node" });
   });
 
+  it("fails immediately without retrying when the allocated PR is no longer usable", async () => {
+    const pulls = {
+      get: vi.fn().mockResolvedValue({
+        data: { state: "closed", draft: true, node_id: "PR_node", head: { ref: "gh-aw/pre-created/123-1" } },
+      }),
+      update: vi.fn(),
+      create: vi.fn(),
+    };
+
+    await expect(
+      createOrUpdatePullRequest({
+        githubClient: { rest: { pulls } },
+        repoParts: { owner: "owner", repo: "repo" },
+        title: "Final title",
+        body: "Final body",
+        branchName: "gh-aw/pre-created/123-1",
+        baseBranch: "main",
+        draft: true,
+        preCreatedPullRequestNumber: 42,
+        preCreatedBranch: "gh-aw/pre-created/123-1",
+      })
+    ).rejects.toThrow(/is not open on branch/);
+
+    expect(pulls.get).toHaveBeenCalledOnce();
+    expect(pulls.update).not.toHaveBeenCalled();
+    expect(pulls.create).not.toHaveBeenCalled();
+  });
+
   it("creates a PR when the allocated PR number is not positive", async () => {
     const pulls = {
       get: vi.fn(),

@@ -5,6 +5,24 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
+/**
+ * Best-effort deletion of a pre-allocated branch so a failed allocation does not
+ * leave an orphaned branch behind.
+ * @param {string} branch - Branch name to delete
+ * @returns {Promise<void>}
+ */
+async function deleteBranch(branch) {
+  try {
+    await github.rest.git.deleteRef({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      ref: `heads/${branch}`,
+    });
+  } catch (error) {
+    core.warning(`Failed to delete pre-allocated branch ${branch}: ${getErrorMessage(error)}`);
+  }
+}
+
 async function main() {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || context.workflow || "Agentic workflow";
   const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
@@ -44,28 +62,36 @@ async function main() {
     throw new Error(`Failed to create pre-allocated pull request branch: ${getErrorMessage(error)}`, { cause: error });
   }
 
-  const { data: pullRequest } = await github.rest.pulls.create({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    title: `[${workflowName}] Work in progress`,
-    body: `This draft pull request was pre-created for [the workflow run](${runUrl}).`,
-    head: branch,
-    base: baseBranch,
-    draft: true,
-  });
+  let pullRequest;
+  let checkRun;
+  try {
+    ({ data: pullRequest } = await github.rest.pulls.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      title: `[${workflowName}] Work in progress`,
+      body: `This draft pull request was pre-created for [the workflow run](${runUrl}).`,
+      head: branch,
+      base: baseBranch,
+      draft: true,
+    }));
 
-  const { data: checkRun } = await github.rest.checks.create({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    name: workflowName,
-    head_sha: commit.sha,
-    details_url: runUrl,
-    status: "in_progress",
-    output: {
-      title: workflowName,
-      summary: `Follow the [workflow run](${runUrl}) for progress.`,
-    },
-  });
+    ({ data: checkRun } = await github.rest.checks.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      name: workflowName,
+      head_sha: commit.sha,
+      details_url: runUrl,
+      status: "in_progress",
+      output: {
+        title: workflowName,
+        summary: `Follow the [workflow run](${runUrl}) for progress.`,
+      },
+    }));
+  } catch (error) {
+    // Avoid leaving an orphaned branch behind when the pull request or check cannot be created.
+    await deleteBranch(branch);
+    throw error;
+  }
 
   core.setOutput("pull_request_number", pullRequest.number);
   core.setOutput("pull_request_url", pullRequest.html_url);

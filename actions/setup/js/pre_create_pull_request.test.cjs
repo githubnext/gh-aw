@@ -120,4 +120,18 @@ describe("pre_create_pull_request", () => {
     await expect(main()).rejects.toThrow(/Invalid base branch/);
     expect(global.github.rest.git.createRef).not.toHaveBeenCalled();
   });
+
+  it("deletes the allocated branch when the pull request cannot be created", async () => {
+    global.github.rest.git.deleteRef = vi.fn().mockResolvedValue({ data: {} });
+    global.github.rest.pulls.create = vi.fn().mockRejectedValue(new Error("boom"));
+    const { main } = await import("./pre_create_pull_request.cjs");
+
+    await expect(main()).rejects.toThrow(/boom/);
+    expect(global.github.rest.git.deleteRef).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: "heads/gh-aw/pre-created/123-2",
+      })
+    );
+    expect(global.core.setOutput).not.toHaveBeenCalled();
+  });
 });

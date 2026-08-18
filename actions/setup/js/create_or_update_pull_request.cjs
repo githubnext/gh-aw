@@ -69,35 +69,42 @@ async function createOrUpdatePullRequest(options) {
     );
   }
 
-  const result = await withRetry(
-    async () => {
-      const { data: existingPullRequest } = await githubClient.rest.pulls.get({
+  // The state check is intentionally performed outside the retry wrapper: a closed or
+  // relocated pull request is not a transient failure, so it must fail immediately
+  // instead of consuming the retry budget.
+  const { data: existingPullRequest } = await withRetry(
+    () =>
+      githubClient.rest.pulls.get({
         owner: repoParts.owner,
         repo: repoParts.repo,
         pull_number: preCreatedPullRequestNumber,
-      });
-      if (existingPullRequest.state !== "open" || existingPullRequest.head.ref !== preCreatedBranch) {
-        throw new Error(`Pre-created pull request #${preCreatedPullRequestNumber} is not open on branch ${preCreatedBranch}`);
-      }
-      const updated = await githubClient.rest.pulls.update({
+      }),
+    RATE_LIMIT_RETRY_CONFIG,
+    `read pre-created pull request #${preCreatedPullRequestNumber}`
+  );
+  if (existingPullRequest.state !== "open" || existingPullRequest.head.ref !== preCreatedBranch) {
+    throw new Error(`Pre-created pull request #${preCreatedPullRequestNumber} is not open on branch ${preCreatedBranch}`);
+  }
+
+  const updated = await withRetry(
+    () =>
+      githubClient.rest.pulls.update({
         owner: repoParts.owner,
         repo: repoParts.repo,
         pull_number: preCreatedPullRequestNumber,
         title,
         body,
         base: baseBranch,
-      });
-      return { updated, nodeId: existingPullRequest.node_id, isDraft: existingPullRequest.draft === true };
-    },
+      }),
     RATE_LIMIT_RETRY_CONFIG,
     `update pre-created pull request #${preCreatedPullRequestNumber}`
   );
 
   // Pre-created pull requests always start as drafts, so the configured draft policy is
   // applied after the content update.
-  await alignPullRequestDraftState(githubClient, result.nodeId, result.isDraft, draft, preCreatedPullRequestNumber);
+  await alignPullRequestDraftState(githubClient, existingPullRequest.node_id, existingPullRequest.draft === true, draft, preCreatedPullRequestNumber);
 
-  return result.updated;
+  return updated;
 }
 
 module.exports = { createOrUpdatePullRequest };

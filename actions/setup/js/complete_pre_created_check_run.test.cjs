@@ -61,4 +61,24 @@ describe("complete_pre_created_check_run", () => {
     expect(global.core.warning).toHaveBeenCalledOnce();
     expect(global.github.rest.checks.update).toHaveBeenCalledWith(expect.objectContaining({ check_run_id: 99, conclusion: "success" }));
   });
+
+  it("completes the check with 'cancelled' when a job was cancelled", async () => {
+    process.env.GH_AW_NEEDS = JSON.stringify({
+      agent: { result: "cancelled" },
+      safe_outputs: { result: "success" },
+    });
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.checks.update).toHaveBeenCalledWith(expect.objectContaining({ check_run_id: 99, conclusion: "cancelled" }));
+  });
+
+  it("does nothing when no check run was pre-created", async () => {
+    delete process.env.GH_AW_PRE_CREATED_CHECK_RUN_ID;
+    const { main } = await import("./complete_pre_created_check_run.cjs");
+    await main();
+
+    expect(global.github.rest.checks.update).not.toHaveBeenCalled();
+    expect(global.core.info).toHaveBeenCalledWith("No pre-created pull request check run to complete");
+  });
 });
