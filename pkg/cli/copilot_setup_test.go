@@ -1624,3 +1624,184 @@ func TestGetActionRef(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCopilotSetupStepsContent(t *testing.T) {
+	t.Parallel()
+
+	validWorkflow := `name: "Copilot Setup Steps"
+on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install gh-aw extension
+        run: echo install
+`
+
+	tests := []struct {
+		name        string
+		content     string
+		wantErr     string
+		wantNoError bool
+	}{
+		{name: "valid workflow", content: validWorkflow, wantNoError: true},
+		{
+			name: "quoted on key",
+			content: `name: "Copilot Setup Steps"
+"on":
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo install
+`,
+			wantNoError: true,
+		},
+		{
+			name: "string trigger",
+			content: `on: push
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo install
+`,
+			wantNoError: true,
+		},
+		{name: "invalid yaml", content: "name: [unterminated\n", wantErr: "invalid YAML"},
+		{name: "empty workflow", content: "\n", wantErr: "workflow is empty"},
+		{
+			name: "unsupported trigger only",
+			content: `on: workflow_call
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo install
+`,
+			wantErr: "'on' section must include one of",
+		},
+		{
+			name: "missing on section",
+			content: `jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo install
+`,
+			wantErr: "missing 'on' section",
+		},
+		{
+			name: "missing jobs section",
+			content: `on:
+  workflow_dispatch:
+`,
+			wantErr: "missing 'jobs' section",
+		},
+		{
+			name: "wrong job name",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo install
+`,
+			wantErr: "missing 'copilot-setup-steps' job",
+		},
+		{
+			name: "reusable workflow call",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    uses: ./.github/workflows/shared-setup.yml
+`,
+			wantErr: "reusable workflow calls",
+		},
+		{
+			name: "missing runs-on",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    steps:
+      - run: echo install
+`,
+			wantErr: "missing 'runs-on'",
+		},
+		{
+			name: "no steps",
+			content: `on:
+  workflow_dispatch:
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps: []
+`,
+			wantErr: "has no steps",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateCopilotSetupStepsContent([]byte(tt.content))
+			if tt.wantNoError {
+				if err != nil {
+					t.Fatalf("Expected content to be valid, got error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("Expected error containing %q, got nil", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("Expected error containing %q, got %q", tt.wantErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestGeneratedCopilotSetupStepsIsValid(t *testing.T) {
+	t.Parallel()
+
+	modes := []workflow.ActionMode{
+		workflow.ActionModeRelease,
+		workflow.ActionModeAction,
+		workflow.ActionModeScript,
+		workflow.ActionModeDev,
+	}
+
+	for _, mode := range modes {
+		t.Run(string(mode), func(t *testing.T) {
+			t.Parallel()
+			content := generateCopilotSetupStepsYAML(context.Background(), mode, "v1.2.3", &mockSHAResolver{sha: "abc123"})
+			if err := validateCopilotSetupStepsContent([]byte(content)); err != nil {
+				t.Errorf("Generated copilot-setup-steps.yml for mode %s is not valid: %v\n%s", mode, err, content)
+			}
+		})
+	}
+}
+
+func TestEnsureCopilotSetupStepsWritesValidWorkflow(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "copilot-setup-valid-*")
+	t.Setenv("GH_AW_WORKFLOWS_DIR", filepath.Join(tmpDir, ".github", "workflows"))
+
+	if err := ensureCopilotSetupSteps(context.Background(), false, workflow.ActionModeRelease, "v1.2.3"); err != nil {
+		t.Fatalf("ensureCopilotSetupSteps failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, ".github", "workflows", "copilot-setup-steps.yml"))
+	if err != nil {
+		t.Fatalf("Failed to read generated file: %v", err)
+	}
+	if err := validateCopilotSetupStepsContent(content); err != nil {
+		t.Errorf("Generated copilot-setup-steps.yml is not valid: %v\n%s", err, content)
+	}
+}
