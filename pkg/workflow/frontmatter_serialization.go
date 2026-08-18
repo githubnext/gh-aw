@@ -83,9 +83,6 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.TrackerID != "" {
 		result["tracker-id"] = fc.TrackerID
 	}
-	if fc.Version != "" {
-		result["version"] = fc.Version
-	}
 	if fc.TimeoutMinutes != nil {
 		result["timeout-minutes"] = fc.TimeoutMinutes.ToValue()
 	}
@@ -225,9 +222,6 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	// Import and inclusion
 	if fc.Imports != nil {
 		result["imports"] = fc.Imports
-	}
-	if fc.Include != nil {
-		result["include"] = fc.Include
 	}
 
 	// Metadata
