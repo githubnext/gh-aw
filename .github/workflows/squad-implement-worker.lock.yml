@@ -638,6 +638,11 @@ jobs:
                       "ref": {
                         "description": "The git ref (branch, tag, or SHA) to dispatch the workflow on. Must match one of the configured allowed ref patterns: refs/heads/${{ github.event.repository.default_branch }}. If omitted, the dispatching workflow's ref is used.",
                         "type": "string"
+                      },
+                      "temporary_id": {
+                        "description": "Optional temporary ID to associate with the dispatched workflow run. Use this ID as the run_id in a later approve_workflow_run call.",
+                        "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+                        "type": "string"
                       }
                     },
                     "type": "object"
@@ -760,6 +765,10 @@ jobs:
                     "minLength": 1,
                     "pattern": "^[^\\x00-\\x20\\x7f~^:?*\\[\\\\]+$",
                     "patternError": "must be a valid git ref"
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   },
                   "workflow_name": {
                     "required": true,
