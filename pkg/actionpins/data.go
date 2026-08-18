@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var actionPinsLog = logger.New("actionpins:actionpins")
@@ -96,15 +97,15 @@ func countPinKeyMismatches(entries map[string]ActionPin) int {
 	return count
 }
 
-// collectEntriesWithEmptySHA returns the keys of entries whose SHA field is empty,
+// collectEntriesWithEmptySHA returns the sorted keys of entries whose SHA field is empty,
 // logging each offending entry for diagnostics.
 func collectEntriesWithEmptySHA(entries map[string]ActionPin) []string {
-	var keys []string
-	for key, pin := range entries {
-		if pin.SHA == "" {
-			keys = append(keys, key)
-			actionPinsLog.Printf("ERROR: Empty SHA in action_pins.json: key=%s repo=%s version=%s", key, pin.Repo, pin.Version)
-		}
+	keys := sliceutil.FilterMapKeys(entries, func(_ string, pin ActionPin) bool {
+		return pin.SHA == ""
+	})
+	for _, key := range keys {
+		pin := entries[key]
+		actionPinsLog.Printf("ERROR: Empty SHA in action_pins.json: key=%s repo=%s version=%s", key, pin.Repo, pin.Version)
 	}
 	slices.Sort(keys)
 	return keys
