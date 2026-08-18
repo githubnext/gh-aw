@@ -1,0 +1,600 @@
+---
+import { wizardDataModel } from '../lib/wizard/model';
+
+const wizardModelJson = JSON.stringify(wizardDataModel);
+---
+
+<section class="aw-wizard" data-aw-wizard>
+  <div class="aw-wizard__header">
+    <div>
+      <p class="aw-wizard__eyebrow">AW wizard preview</p>
+      <h2 class="aw-wizard__title">Build an agentic workflow prompt step by step</h2>
+      <p class="aw-wizard__intro">
+        This shell loads the shared wizard data model, keeps state in memory, and demonstrates the WHAT → WHEN → WHERE flow with generic step rendering.
+      </p>
+    </div>
+    <div class="aw-wizard__status" aria-live="polite" data-wizard-step-status></div>
+  </div>
+
+  <ol class="aw-wizard__progress" aria-label="Wizard progress" data-wizard-progress></ol>
+
+  <div class="aw-wizard__layout">
+    <section class="aw-wizard__panel" aria-labelledby="wizard-step-title">
+      <div class="aw-wizard__step-header">
+        <p class="aw-wizard__step-kicker" data-wizard-step-kicker></p>
+        <h3 id="wizard-step-title" tabindex="-1" data-wizard-step-title></h3>
+        <p class="aw-wizard__step-description" data-wizard-step-description></p>
+      </div>
+
+      <div class="aw-wizard__content" data-wizard-step-content></div>
+
+      <div class="aw-wizard__nav">
+        <button type="button" class="aw-wizard__button aw-wizard__button--secondary" data-wizard-back>
+          Back
+        </button>
+        <button type="button" class="aw-wizard__button aw-wizard__button--primary" data-wizard-next>
+          Next
+        </button>
+      </div>
+    </section>
+
+    <aside class="aw-wizard__summary" aria-labelledby="wizard-summary-title">
+      <h3 id="wizard-summary-title">Current selections</h3>
+      <dl class="aw-wizard__summary-list" data-wizard-summary></dl>
+      <div class="aw-wizard__prompt-preview">
+        <h4>Prompt scaffold preview</h4>
+        <pre data-wizard-preview></pre>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" define:vars={{ wizardModelJson }}>
+    const model = JSON.parse(wizardModelJson);
+    const root = document.querySelector('[data-aw-wizard]');
+    if (!root) throw new Error('Wizard root not found');
+
+    const state = {
+      currentStepIndex: 0,
+      goalId: model.goalCategories[0]?.id ?? '',
+      triggerId: '',
+      destinationId: '',
+    };
+
+    const stepDefinitions = [
+      {
+        id: 'goal',
+        label: 'Goal',
+        title: 'Choose a workflow goal',
+        description: 'Select a reusable category from the shared data model. Future issues can replace this generic renderer with richer content without changing the shell.',
+        getOptions() {
+          return model.goalCategories.map((goal) => ({
+            id: goal.id,
+            label: goal.text.label,
+            help: goal.text.help,
+          }));
+        },
+        getValue() {
+          return state.goalId;
+        },
+        setValue(value) {
+          state.goalId = value;
+          syncDerivedSelections();
+        },
+        canContinue() {
+          return Boolean(state.goalId);
+        },
+      },
+      {
+        id: 'trigger',
+        label: 'When',
+        title: 'Choose a trigger',
+        description: 'The trigger list is filtered by the selected goal category using goalCategory.triggerOptionIds.',
+        getOptions() {
+          const goal = getSelectedGoal();
+          if (!goal) return [];
+          return goal.triggerOptionIds
+            .map((id) => model.triggerOptions.find((trigger) => trigger.id === id))
+            .filter((trigger) => trigger)
+            .map((trigger) => ({
+              id: trigger.id,
+              label: trigger.text.label,
+              help: trigger.text.help ?? `Trigger type: ${trigger.type}`,
+            }));
+        },
+        getValue() {
+          return state.triggerId;
+        },
+        setValue(value) {
+          state.triggerId = value;
+          syncDestinationSelection();
+        },
+        canContinue() {
+          return Boolean(state.triggerId);
+        },
+      },
+      {
+        id: 'destination',
+        label: 'Where',
+        title: 'Review the inferred output destination',
+        description: 'The shell preselects a destination from the model based on the selected goal and trigger type, while still allowing review.',
+        getOptions() {
+          const goal = getSelectedGoal();
+          if (!goal) return [];
+          return goal.destinationOptionIds
+            .map((id) => model.destinationOptions.find((destination) => destination.id === id))
+            .filter((destination) => destination)
+            .map((destination) => ({
+              id: destination.id,
+              label: destination.text.label,
+              help: destination.text.help ?? `Safe output: ${destination.safeOutputType}`,
+            }));
+        },
+        getValue() {
+          return state.destinationId;
+        },
+        setValue(value) {
+          state.destinationId = value;
+        },
+        canContinue() {
+          return Boolean(state.destinationId);
+        },
+      },
+    ];
+
+    const progress = root.querySelector('[data-wizard-progress]');
+    const stepStatus = root.querySelector('[data-wizard-step-status]');
+    const stepKicker = root.querySelector('[data-wizard-step-kicker]');
+    const stepTitle = root.querySelector('[data-wizard-step-title]');
+    const stepDescription = root.querySelector('[data-wizard-step-description]');
+    const stepContent = root.querySelector('[data-wizard-step-content]');
+    const summary = root.querySelector('[data-wizard-summary]');
+    const preview = root.querySelector('[data-wizard-preview]');
+    const backButton = root.querySelector('[data-wizard-back]');
+    const nextButton = root.querySelector('[data-wizard-next]');
+
+    if (!(progress instanceof HTMLElement) || !(stepStatus instanceof HTMLElement) || !(stepKicker instanceof HTMLElement) || !(stepTitle instanceof HTMLElement) || !(stepDescription instanceof HTMLElement) || !(stepContent instanceof HTMLElement) || !(summary instanceof HTMLElement) || !(preview instanceof HTMLElement) || !(backButton instanceof HTMLButtonElement) || !(nextButton instanceof HTMLButtonElement)) {
+      throw new Error('Wizard UI elements are missing');
+    }
+
+    function getSelectedGoal() {
+      return model.goalCategories.find((goal) => goal.id === state.goalId) ?? null;
+    }
+
+    function getSelectedTrigger() {
+      return model.triggerOptions.find((trigger) => trigger.id === state.triggerId) ?? null;
+    }
+
+    function getSelectedDestination() {
+      return model.destinationOptions.find((destination) => destination.id === state.destinationId) ?? null;
+    }
+
+    function syncDerivedSelections() {
+      const goal = getSelectedGoal();
+      if (!goal) return;
+      const allowedTriggers = new Set(goal.triggerOptionIds);
+      if (!allowedTriggers.has(state.triggerId)) {
+        state.triggerId = goal.defaultTriggerOptionId && allowedTriggers.has(goal.defaultTriggerOptionId)
+          ? goal.defaultTriggerOptionId
+          : goal.triggerOptionIds[0] ?? '';
+      }
+      syncDestinationSelection();
+    }
+
+    function syncDestinationSelection() {
+      const goal = getSelectedGoal();
+      const trigger = getSelectedTrigger();
+      if (!goal) return;
+      const allowedDestinations = goal.destinationOptionIds
+        .map((id) => model.destinationOptions.find((destination) => destination.id === id))
+        .filter((destination) => destination);
+
+      const inferred = trigger
+        ? allowedDestinations.find((destination) => destination.inferFromTriggerTypes?.includes(trigger.type))
+        : null;
+
+      const allowedIds = new Set(goal.destinationOptionIds);
+      if (!allowedIds.has(state.destinationId)) {
+        state.destinationId = inferred?.id ?? goal.defaultDestinationOptionId ?? goal.destinationOptionIds[0] ?? '';
+      } else if (inferred?.id) {
+        state.destinationId = inferred.id;
+      }
+    }
+
+    function renderProgress() {
+      progress.replaceChildren(...stepDefinitions.map((step, index) => {
+        const item = document.createElement('li');
+        item.className = 'aw-wizard__progress-item';
+        if (index === state.currentStepIndex) item.dataset.current = 'true';
+        if (index < state.currentStepIndex) item.dataset.complete = 'true';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'aw-wizard__progress-button';
+        button.textContent = `${index + 1}. ${step.label}`;
+        button.setAttribute('aria-current', index === state.currentStepIndex ? 'step' : 'false');
+        button.addEventListener('click', () => {
+          state.currentStepIndex = index;
+          render();
+        });
+        item.append(button);
+        return item;
+      }));
+    }
+
+    function renderOptions(step) {
+      const options = step.getOptions();
+      const value = step.getValue();
+      const fieldset = document.createElement('fieldset');
+      fieldset.className = 'aw-wizard__fieldset';
+      fieldset.setAttribute('aria-describedby', 'wizard-step-title');
+      const legend = document.createElement('legend');
+      legend.className = 'sr-only';
+      legend.textContent = step.title;
+      fieldset.append(legend);
+
+      const list = document.createElement('div');
+      list.className = 'aw-wizard__option-list';
+      list.setAttribute('role', 'radiogroup');
+      list.setAttribute('aria-label', step.title);
+
+      options.forEach((option, optionIndex) => {
+        const label = document.createElement('label');
+        label.className = 'aw-wizard__option';
+        if (option.id === value) label.dataset.selected = 'true';
+
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = `wizard-${step.id}`;
+        input.value = option.id;
+        input.checked = option.id === value;
+        input.className = 'aw-wizard__option-input';
+        input.addEventListener('change', () => {
+          step.setValue(option.id);
+          render();
+        });
+        input.addEventListener('keydown', (event) => {
+          if (!(event instanceof KeyboardEvent)) return;
+          if (event.key !== 'ArrowDown' && event.key !== 'ArrowRight' && event.key !== 'ArrowUp' && event.key !== 'ArrowLeft') return;
+          event.preventDefault();
+          const direction = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
+          const nextIndex = (optionIndex + direction + options.length) % options.length;
+          const nextOption = options[nextIndex];
+          if (!nextOption) return;
+          step.setValue(nextOption.id);
+          render();
+          requestAnimationFrame(() => {
+            stepContent.querySelector(`input[name="wizard-${step.id}"][value="${CSS.escape(nextOption.id)}"]`)?.focus();
+          });
+        });
+
+        const copy = document.createElement('div');
+        copy.className = 'aw-wizard__option-copy';
+        const heading = document.createElement('span');
+        heading.className = 'aw-wizard__option-label';
+        heading.textContent = option.label;
+        copy.append(heading);
+        if (option.help) {
+          const help = document.createElement('span');
+          help.className = 'aw-wizard__option-help';
+          help.textContent = option.help;
+          copy.append(help);
+        }
+
+        label.append(input, copy);
+        list.append(label);
+      });
+
+      fieldset.append(list);
+      return fieldset;
+    }
+
+    function updateSummary() {
+      const rows = [
+        ['Goal', getSelectedGoal()?.text.label ?? 'Not selected'],
+        ['Trigger', getSelectedTrigger()?.text.label ?? 'Not selected'],
+        ['Destination', getSelectedDestination()?.text.label ?? 'Not selected'],
+        ['Model version', model.version],
+      ];
+      const summaryNodes = [];
+      rows.forEach(([term, description]) => {
+        const dt = document.createElement('dt');
+        dt.textContent = term;
+        const dd = document.createElement('dd');
+        dd.textContent = description;
+        summaryNodes.push(dt, dd);
+      });
+      summary.replaceChildren(...summaryNodes);
+    }
+
+    function updatePreview() {
+      const goal = getSelectedGoal();
+      const trigger = getSelectedTrigger();
+      const destination = getSelectedDestination();
+      const intro = model.promptTemplate?.introText ?? 'Create a GitHub Agentic Workflow (gh-aw) for this repository.';
+      preview.textContent = [
+        intro,
+        '',
+        'WHAT',
+        `- Goal: ${goal?.text.label ?? '—'}`,
+        `- Context: ${goal?.text.help ?? '—'}`,
+        '',
+        'WHEN',
+        `- Trigger: ${trigger?.text.label ?? '—'}`,
+        `- Trigger intent: ${trigger?.text.help ?? '—'}`,
+        '',
+        'WHERE',
+        `- Destination: ${destination?.text.label ?? '—'}`,
+        `- Output intent: ${destination?.text.help ?? destination?.safeOutputType ?? '—'}`,
+      ].join('\n');
+    }
+
+    function render() {
+      syncDerivedSelections();
+      const step = stepDefinitions[state.currentStepIndex];
+      renderProgress();
+      stepStatus.textContent = `Step ${state.currentStepIndex + 1} of ${stepDefinitions.length}`;
+      stepKicker.textContent = step.label;
+      stepTitle.textContent = step.title;
+      stepDescription.textContent = step.description;
+      stepContent.replaceChildren(renderOptions(step));
+      updateSummary();
+      updatePreview();
+      backButton.disabled = state.currentStepIndex === 0;
+      nextButton.disabled = !step.canContinue();
+      nextButton.textContent = state.currentStepIndex === stepDefinitions.length - 1 ? 'Review selections' : 'Next';
+      stepTitle.focus();
+    }
+
+    backButton.addEventListener('click', () => {
+      if (state.currentStepIndex === 0) return;
+      state.currentStepIndex -= 1;
+      render();
+    });
+
+    nextButton.addEventListener('click', () => {
+      if (state.currentStepIndex >= stepDefinitions.length - 1) {
+        summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      state.currentStepIndex += 1;
+      render();
+    });
+
+    syncDerivedSelections();
+    render();
+  </script>
+</section>
+
+<style>
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .aw-wizard {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--sl-color-black) 18%, transparent);
+  }
+
+  .aw-wizard__header,
+  .aw-wizard__layout {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .aw-wizard__header {
+    align-items: start;
+    margin-bottom: 1.25rem;
+  }
+
+  .aw-wizard__eyebrow,
+  .aw-wizard__step-kicker {
+    margin: 0 0 0.5rem 0;
+    color: var(--sl-color-accent);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .aw-wizard__title,
+  .aw-wizard__summary h3,
+  .aw-wizard__prompt-preview h4,
+  .aw-wizard__step-header h3 {
+    margin: 0;
+  }
+
+  .aw-wizard__intro,
+  .aw-wizard__step-description {
+    margin: 0.75rem 0 0 0;
+    color: var(--sl-color-gray-3);
+  }
+
+  .aw-wizard__status {
+    justify-self: start;
+    padding: 0.4rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--sl-color-hairline);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .aw-wizard__progress {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.75rem;
+    padding: 0;
+    margin: 0 0 1.25rem 0;
+    list-style: none;
+  }
+
+  .aw-wizard__progress-item {
+    margin: 0;
+  }
+
+  .aw-wizard__progress-button,
+  .aw-wizard__button,
+  .aw-wizard__option {
+    font: inherit;
+  }
+
+  .aw-wizard__progress-button {
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+  }
+
+  .aw-wizard__progress-item[data-current='true'] .aw-wizard__progress-button,
+  .aw-wizard__progress-item[data-complete='true'] .aw-wizard__progress-button {
+    border-color: var(--sl-color-accent-high);
+  }
+
+  .aw-wizard__panel,
+  .aw-wizard__summary {
+    padding: 1.25rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--sl-color-bg) 88%, transparent);
+  }
+
+  .aw-wizard__content {
+    margin-top: 1rem;
+  }
+
+  .aw-wizard__fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .aw-wizard__option-list {
+    display: grid;
+    gap: 0.875rem;
+  }
+
+  .aw-wizard__option {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.875rem;
+    align-items: start;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.75rem;
+    background: var(--sl-color-bg);
+    cursor: pointer;
+  }
+
+  .aw-wizard__option[data-selected='true'] {
+    border-color: var(--sl-color-accent-high);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sl-color-accent-high) 35%, transparent);
+  }
+
+  .aw-wizard__option-input {
+    margin-top: 0.2rem;
+  }
+
+  .aw-wizard__option-copy {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .aw-wizard__option-label {
+    font-weight: 600;
+  }
+
+  .aw-wizard__option-help {
+    color: var(--sl-color-gray-3);
+    font-size: 0.95rem;
+  }
+
+  .aw-wizard__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: space-between;
+    margin-top: 1.25rem;
+  }
+
+  .aw-wizard__button {
+    min-width: 7rem;
+    min-height: 2.75rem;
+    padding: 0.65rem 1rem;
+    border-radius: 0.65rem;
+    border: 1px solid var(--sl-color-hairline);
+  }
+
+  .aw-wizard__button--primary {
+    background: var(--sl-color-accent);
+    color: white;
+    border-color: var(--sl-color-accent);
+  }
+
+  .aw-wizard__button--secondary,
+  .aw-wizard__progress-button {
+    background: var(--sl-color-bg);
+  }
+
+  .aw-wizard__button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .aw-wizard__summary-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.4rem 0.9rem;
+    margin: 1rem 0 0 0;
+  }
+
+  .aw-wizard__summary-list dt {
+    font-weight: 600;
+  }
+
+  .aw-wizard__summary-list dd {
+    margin: 0;
+  }
+
+  .aw-wizard__prompt-preview {
+    margin-top: 1.25rem;
+  }
+
+  .aw-wizard__prompt-preview pre {
+    margin: 0.75rem 0 0 0;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--sl-color-hairline);
+    overflow-x: auto;
+    background: color-mix(in srgb, var(--sl-color-black) 18%, transparent);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  @media (min-width: 960px) {
+    .aw-wizard__header {
+      grid-template-columns: 1fr auto;
+    }
+
+    .aw-wizard__layout {
+      grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr);
+      align-items: start;
+    }
+
+    .aw-wizard__status {
+      justify-self: end;
+    }
+  }
+</style>
