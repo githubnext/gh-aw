@@ -151,6 +151,8 @@ pkg/cli/.github/aw/actions-lock.json
 test-runs/
 
 # Security scan reports
+# Local tool binaries are installed via `go install` (see Makefile `tools` target)
+# and must never be committed as opaque build artifacts.
 /actionlint
 /gosec
 gosec-report.json

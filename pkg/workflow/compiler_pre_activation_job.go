@@ -266,14 +266,14 @@ func (c *Compiler) buildPreActivationMemoryRestoreSteps(data *WorkflowData, step
 		steps = append(steps, repoMemorySteps.String())
 	}
 
-	if data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil {
+	if data.CommentMemoryConfig != nil {
 		if configLines, ok := c.generateCommentMemoryEarlyConfigLines(data); ok {
 			steps = append(steps, strings.Join(configLines, ""))
 			var commentMemorySteps strings.Builder
 			commentMemorySteps.WriteString("      - name: Prepare comment memory files\n")
 			fmt.Fprintf(&commentMemorySteps, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 			commentMemorySteps.WriteString("        with:\n")
-			fmt.Fprintf(&commentMemorySteps, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
+			fmt.Fprintf(&commentMemorySteps, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.CommentMemoryConfig.GitHubToken))
 			commentMemorySteps.WriteString("          script: |\n")
 			commentMemorySteps.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
 			commentMemorySteps.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")

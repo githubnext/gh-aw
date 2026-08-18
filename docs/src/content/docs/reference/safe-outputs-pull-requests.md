@@ -74,6 +74,22 @@ safe-outputs:
 
 See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for `target-repo`, `allowed-repos`, and authentication configuration.
 
+### Pre-created pull requests
+
+:::caution[Experimental]
+`pre-create` is an experimental option. `gh aw compile` emits an experimental feature warning when a workflow uses it.
+:::
+
+Set `pre-create: true` to allocate a draft pull request during the activation job, before the agent starts. The activation job creates a run-specific branch from the resolved base branch, opens a draft PR whose title names the workflow and whose body links to the workflow run, and attaches a check linking back to that run. The agent and `safe_outputs` jobs check out the allocated branch, the eventual `create_pull_request` output updates the existing PR instead of opening another one, and the conclusion job completes the check. When the run ends without any changes (for example with `if-no-changes: ignore`, a `noop` output, or a failure before the safe output runs), the conclusion job closes the pre-created pull request and deletes its branch, so empty placeholders are not left behind.
+
+```yaml
+safe-outputs:
+  create-pull-request:
+    pre-create: true
+```
+
+Pre-creation requires a safe-output token with `contents: write`, `pull-requests: write`, and `checks: write`. It supports one same-repository PR per run and cannot be combined with `target-repo`, `head-repo`, `allowed-repos`, `branch-prefix`, `allowed-branches`, `allowed-base-branches`, or `checkout: false`. In [staged mode](/gh-aw/reference/safe-outputs/#staged-mode) no pull request is allocated, because staged runs must not perform API side effects. The allocated pull request is always opened as a draft, regardless of the `draft` setting; when `draft: false` is configured, it is marked ready for review in the safe output phase, once the agent's changes are applied.
+
 ### Branch targeting
 
 `base-branch` sets the PR's target branch. Defaults to `github.base_ref` (PR event) or `github.ref_name` (push event). Use `allowed-base-branches` to let the agent pick the target branch at runtime — the agent supplies a `base` value in the tool call and it is accepted only if it matches one of the configured glob patterns.

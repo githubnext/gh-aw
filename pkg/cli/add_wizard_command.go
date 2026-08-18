@@ -21,7 +21,7 @@ func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
 This command walks you through:
   - Selecting an AI engine (Copilot, Claude, Codex, Gemini, or Pi)
   - Configuring API keys and secrets
-  - Creating a pull request with the workflow
+  - Writing the workflow locally or creating a pull request with it
   - Optionally running the workflow immediately
 
 Use 'add' for non-interactive workflow addition.

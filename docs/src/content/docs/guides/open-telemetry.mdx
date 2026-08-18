@@ -124,7 +124,8 @@ You usually do not need to configure or memorize these built-in attributes. They
 When observability is enabled, trace data is also mirrored to local JSONL files and uploaded in the `agent` artifact:
 
 - `otel.jsonl` for spans emitted by gh-aw JavaScript helpers
-- `copilot-otel.jsonl` for spans emitted by Copilot CLI
+
+Copilot CLI inherits the standard OpenTelemetry environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`) and exports its own spans directly to the configured OTLP backend. Query them there, filtered by the `github.run_id` resource attribute (see [ADR-34450](https://github.com/github/gh-aw/blob/main/docs/adr/34450-inject-otel-resource-attributes-for-child-otel-sdk-correlation.md)).
 
 See [Artifacts](/gh-aw/reference/artifacts/) for artifact download details.
 
@@ -228,7 +229,7 @@ await otlp.logSpan('my-scanner', {
 
 Attribute values are sanitized automatically before the payload is exported or mirrored. Matching secret-like keys are redacted, and very long string values are truncated. The same sanitization is applied to both OTLP export and the local JSONL mirror.
 
-For debugging, every span emitted by `logSpan` is appended as a sanitized JSON line to `/tmp/gh-aw/otel.jsonl`, even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. When OTLP is configured, Copilot CLI spans are written to `/tmp/gh-aw/copilot-otel.jsonl` and forwarded to configured endpoints at the end of the run. Both files are included in the `agent` artifact when OTLP is enabled.
+For debugging, every span emitted by `logSpan` is appended as a sanitized JSON line to `/tmp/gh-aw/otel.jsonl`, even when `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. This file is included in the `agent` artifact when OTLP is enabled. Copilot CLI spans are not mirrored to a local file; they are exported directly to the configured OTLP backend and should be queried there.
 
 ```bash
 # Download agent artifacts for a run
@@ -236,9 +237,6 @@ gh aw logs <run-id> --artifacts agent
 
 # Inspect spans emitted by your tool
 cat otel.jsonl | jq 'select(.resourceSpans[].scopeSpans[].spans[].name | startswith("my-tool"))'
-
-# Inspect Copilot CLI spans
-cat copilot-otel.jsonl | jq '.resourceSpans'
 ```
 
 <details>

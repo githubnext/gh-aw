@@ -134,6 +134,7 @@ func (c *Compiler) addActivationRepositoryAndOutputSteps(ctx *activationJobBuild
 	compilerActivationJobLog.Printf("Adding activation repository/output steps: stale_check_disabled=%t, needs_text_output=%t, lock_for_agent=%t",
 		data.StaleCheckDisabled, data.NeedsTextOutput, data.LockForAgent)
 	c.addActivationCheckoutAndBaseRestoreStep(ctx)
+	c.addActivationPreCreatePullRequestStep(ctx)
 	c.addActivationLockFileStep(ctx)
 	c.addActivationVersionCheckStep(ctx)
 	if err := c.addActivationTextOutputStep(ctx); err != nil {

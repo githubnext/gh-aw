@@ -29,8 +29,11 @@ import (
 // they stay in sync with GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG.
 func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	if data.SafeOutputs == nil {
-		safeOutputsConfigLog.Print("No safe outputs configuration found, returning empty config")
-		return "", nil
+		if data.CommentMemoryConfig == nil {
+			safeOutputsConfigLog.Print("No safe outputs configuration found, returning empty config")
+			return "", nil
+		}
+		data.SafeOutputs = &SafeOutputsConfig{}
 	}
 	safeOutputsConfigLog.Print("Generating safe outputs configuration for workflow")
 
@@ -72,6 +75,9 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 			}
 			safeOutputsConfig[handlerName] = handlerCfg
 		}
+	}
+	if handlerConfig := buildCommentMemoryHandlerConfig(data.CommentMemoryConfig, data.SafeOutputs.Footer); handlerConfig != nil {
+		safeOutputsConfig[commentMemoryHandlerKey] = handlerConfig
 	}
 
 	// Safe-jobs configuration: custom output types that run as separate GitHub Actions jobs.

@@ -122,7 +122,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	}
 
 	// 8. Safe outputs instructions (if enabled)
-	if HasSafeOutputsEnabled(data.SafeOutputs) {
+	if HasSafeOutputsEnabled(data.SafeOutputs) || data.CommentMemoryConfig != nil {
 		unifiedPromptLog.Print("Adding safe outputs section")
 		// Static intro from file (gh CLI warning, temporary ID rules, noop note)
 		sections = append(sections, PromptSection{
@@ -130,7 +130,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 			IsFile:  true,
 		})
 		// Per-tool sections: opening tag + tools list (inline), tool instruction files, closing tag
-		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs)...)
+		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs, data.CommentMemoryConfig)...)
 	}
 
 	// 8a. MCP CLI tools instructions (if any MCP servers are mounted as CLIs)
@@ -462,9 +462,9 @@ func toolWithMaxBudget(name string, max *string) string {
 //
 // The static intro (gh CLI warning, temporary ID rules, noop note) lives in
 // actions/setup/md/safe_outputs_prompt.md and is included by the caller before these sections.
-func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
+func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *CommentMemoryConfig) []PromptSection {
 	if safeOutputs == nil {
-		return nil
+		safeOutputs = &SafeOutputsConfig{}
 	}
 
 	safeOutputsPromptLog.Print("Building safe outputs sections")
@@ -634,7 +634,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 		}
 	}
 
-	if len(tools) == 0 {
+	if len(tools) == 0 && commentMemory == nil {
 		return nil
 	}
 
@@ -645,7 +645,10 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	// run: heredoc (which is subject to GitHub Actions' 21KB expression-size limit).
 	// Expressions are replaced with __GH_AW_...__  placeholders and added to EnvVars
 	// so the placeholder substitution step can resolve them at runtime.
-	toolsContent := "<safe-output-tools>\nTools: " + strings.Join(tools, ", ")
+	toolsContent := "<safe-output-tools>\n"
+	if len(tools) > 0 {
+		toolsContent += "Tools: " + strings.Join(tools, ", ")
+	}
 	envVars := make(map[string]string)
 	extractor := NewExpressionExtractor()
 	exprMappings, err := extractor.ExtractExpressions(toolsContent)
@@ -671,7 +674,7 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig) []PromptSection {
 	if safeOutputs.PushToPullRequestBranch != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsPushToBranchFile, IsFile: true})
 	}
-	if safeOutputs.CommentMemory != nil {
+	if commentMemory != nil {
 		sections = append(sections, PromptSection{Content: safeOutputsCommentMemoryFile, IsFile: true})
 	}
 	if safeOutputs.UploadAssets != nil {

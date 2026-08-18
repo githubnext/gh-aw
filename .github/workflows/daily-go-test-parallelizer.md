@@ -27,6 +27,7 @@ tools:
     - "*"
 safe-outputs:
   create-pull-request:
+    pre-create: true
     title-prefix: "[test-parallel] "
     labels: [automation, testing]
     draft: true

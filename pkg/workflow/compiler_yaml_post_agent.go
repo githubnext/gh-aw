@@ -67,7 +67,7 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 		paths = append(paths, constants.TmpGhAwDirSlash+constants.SafeOutputsFilename)
 		// Processed agent output JSON produced by collect_ndjson_output.cjs
 		paths = append(paths, constants.TmpGhAwDirSlash+constants.AgentOutputFilename)
-		if data.SafeOutputs.CommentMemory != nil {
+		if data.CommentMemoryConfig != nil {
 			paths = append(paths, constants.TmpCommentMemoryDir)
 		}
 	}

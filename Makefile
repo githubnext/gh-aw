@@ -482,12 +482,13 @@ bundle-js:
 	@echo "✓ bundle-js tool built"
 	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
 
-# Run Bash script tests (check-stale-lock-files, check-workflow-drift)
+# Run Bash script tests (check-stale-lock-files, check-workflow-drift, check-cgo-cjs-workflow-purity)
 .PHONY: test-scripts
 test-scripts: build
 	@echo "Running Bash script tests..."
 	bash scripts/check-stale-lock-files_test.sh
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
+	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	@echo "✓ All Bash script tests passed"
 
 # Test all code (Go, JavaScript, wasm golden, and shell scripts)
@@ -1196,6 +1197,12 @@ test-docs-remark:
 	@echo "Running docs remark plugin unit tests..."
 	@node docs/src/lib/remark/inlineMarkdownInHtml.test.js
 	@echo "✓ Docs remark plugin unit tests passed"
+
+.PHONY: test-docs-wizard-model
+test-docs-wizard-model:
+	@echo "Running AW wizard data model unit tests..."
+	@node docs/src/lib/wizard/model.test.js
+	@echo "✓ AW wizard data model unit tests passed"
 
 # Sync templates from .github to pkg/cli/templates
 # Sync action pins from .github/aw to pkg/actionpins/data and pkg/workflow/data

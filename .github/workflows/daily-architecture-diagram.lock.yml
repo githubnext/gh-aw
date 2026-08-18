@@ -76,6 +76,7 @@ permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
+  queue: max
 
 run-name: "1. List all Go packages with their doc comments"
 

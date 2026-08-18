@@ -158,17 +158,6 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		},
 	},
 	{
-		Key:         "comment-memory",
-		StructField: "CommentMemory",
-		NewConfig:   func() any { return &CommentMemoryConfig{} },
-		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
-			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CommentMemory") {
-				return nil
-			}
-			return NewPermissionsIssuesWrite()
-		},
-	},
-	{
 		Key:         "create-pull-request",
 		StructField: "CreatePullRequests",
 		ToolName:    "create_pull_request",
@@ -179,12 +168,18 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			}
 			if getFallbackAsIssue(safeOutputs.CreatePullRequests) {
 				permissions := NewPermissionsContentsWriteIssuesWritePRWrite()
+				if safeOutputs.CreatePullRequests.PreCreate {
+					permissions.Set(PermissionChecks, PermissionWrite)
+				}
 				if safeOutputs.CreatePullRequests.AllowWorkflows {
 					permissions.Set(PermissionWorkflows, PermissionWrite)
 				}
 				return permissions
 			}
 			permissions := NewPermissionsContentsWritePRWrite()
+			if safeOutputs.CreatePullRequests.PreCreate {
+				permissions.Set(PermissionChecks, PermissionWrite)
+			}
 			if safeOutputs.CreatePullRequests.AllowWorkflows {
 				permissions.Set(PermissionWorkflows, PermissionWrite)
 			}
