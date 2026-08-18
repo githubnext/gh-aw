@@ -34,7 +34,18 @@ function parsePositiveInt(value) {
  * @returns {Set<number>}
  */
 function parseAllowedPullRequests(value) {
-  const parsed = (Array.isArray(value) ? value : [value]).map(parsePositiveInt).filter(candidate => candidate !== undefined);
+  let normalized = value;
+  if (typeof normalized === "string") {
+    const trimmed = normalized.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        normalized = JSON.parse(trimmed);
+      } catch {
+        normalized = value;
+      }
+    }
+  }
+  const parsed = (Array.isArray(normalized) ? normalized : [normalized]).map(parsePositiveInt).filter(candidate => candidate !== undefined);
   return new Set(parsed);
 }
 

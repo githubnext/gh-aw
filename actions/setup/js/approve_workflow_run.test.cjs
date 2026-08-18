@@ -303,6 +303,20 @@ describe("approve_workflow_run", () => {
     expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
   });
 
+  it("approves a run for a pull request allowed by a JSON-string list", async () => {
+    global.context.payload = {};
+    mockGetWorkflowRun.mockResolvedValue({
+      data: { ...pendingPullRequestRun, pull_requests: [{ number: 43 }] },
+    });
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main({ ...externalTokenConfig, allowed_pull_requests: '["43"]' });
+
+    const result = await handler({ run_id: 123 }, {});
+
+    expect(result.success).toBe(true);
+    expect(mockApproveWorkflowRun).toHaveBeenCalledTimes(1);
+  });
+
   it("approves a run when every associated pull request is triggering or explicitly allowed", async () => {
     mockGetWorkflowRun.mockResolvedValue({
       data: { ...pendingPullRequestRun, pull_requests: [{ number: 42 }, { number: 43 }] },
