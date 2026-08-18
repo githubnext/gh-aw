@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -477,8 +478,16 @@ func TestBuildMCPServerHealth(t *testing.T) {
 			name: "with server stats only",
 			mcpUsage: &MCPToolUsageData{
 				Servers: []MCPServerStats{
-					{ServerName: "github", RequestCount: 50, ToolCallCount: 40, ErrorCount: 2, AvgDuration: "120ms"},
-					{ServerName: "filesystem", RequestCount: 20, ToolCallCount: 15, ErrorCount: 0, AvgDuration: "5ms"},
+					{
+						MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 40, ErrorCount: 2},
+						RequestCount:       50,
+						AvgDuration:        "120ms",
+					},
+					{
+						MCPServerStatsBase: MCPServerStatsBase{ServerName: "filesystem", ToolCallCount: 15, ErrorCount: 0},
+						RequestCount:       20,
+						AvgDuration:        "5ms",
+					},
 				},
 			},
 		},
@@ -492,7 +501,11 @@ func TestBuildMCPServerHealth(t *testing.T) {
 			name: "with stats and failures",
 			mcpUsage: &MCPToolUsageData{
 				Servers: []MCPServerStats{
-					{ServerName: "github", RequestCount: 50, ToolCallCount: 40, ErrorCount: 5, AvgDuration: "200ms"},
+					{
+						MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 40, ErrorCount: 5},
+						RequestCount:       50,
+						AvgDuration:        "200ms",
+					},
 				},
 			},
 			mcpFailures: []MCPFailureReport{
@@ -525,7 +538,11 @@ func TestBuildMCPServerHealthErrorRate(t *testing.T) {
 	t.Parallel()
 	mcpUsage := &MCPToolUsageData{
 		Servers: []MCPServerStats{
-			{ServerName: "github", RequestCount: 100, ToolCallCount: 80, ErrorCount: 15, AvgDuration: "200ms"},
+			{
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 80, ErrorCount: 15},
+				RequestCount:       100,
+				AvgDuration:        "200ms",
+			},
 		},
 	}
 
@@ -615,7 +632,11 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 
 	mcpToolUsage := &MCPToolUsageData{
 		Servers: []MCPServerStats{
-			{ServerName: "github", RequestCount: 30, ToolCallCount: 25, ErrorCount: 1, AvgDuration: "150ms"},
+			{
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 25, ErrorCount: 1},
+				RequestCount:       30,
+				AvgDuration:        "150ms",
+			},
 		},
 		Summary: []MCPToolSummary{
 			{ServerName: "github", ToolName: "search_code", CallCount: 10},
@@ -746,4 +767,31 @@ func TestAwInfoHasMCPServers(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMCPServerHealthDetailJSONSchema(t *testing.T) {
+	t.Parallel()
+	detail := MCPServerHealthDetail{
+		MCPServerStatsBase: MCPServerStatsBase{ServerName: "github", ToolCallCount: 40, ErrorCount: 2},
+		RequestCount:       50,
+		ErrorRate:          4,
+		ErrorRateStr:       "4.0%",
+		AvgLatency:         "120ms",
+		Status:             "healthy",
+	}
+
+	data, err := json.Marshal(detail)
+	require.NoError(t, err, "Marshalling health detail should succeed")
+
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(data, &decoded), "Result should be valid JSON")
+
+	assert.Equal(t, "github", decoded["server_name"], "server_name key should be preserved")
+	assert.InDelta(t, 50, decoded["request_count"], 0.001, "request_count key should be preserved")
+	assert.InDelta(t, 40, decoded["tool_calls"], 0.001, "tool_calls key should be preserved")
+	assert.InDelta(t, 2, decoded["error_count"], 0.001, "error_count key should be preserved")
+	assert.InDelta(t, 4.0, decoded["error_rate"], 0.001, "error_rate key should be preserved")
+	assert.Equal(t, "4.0%", decoded["error_rate_str"], "error_rate_str key should be preserved")
+	assert.Equal(t, "120ms", decoded["avg_latency"], "avg_latency key should be preserved")
+	assert.Equal(t, "healthy", decoded["status"], "status key should be preserved")
 }

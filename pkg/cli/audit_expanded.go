@@ -88,14 +88,36 @@ type MCPServerHealth struct {
 
 // MCPServerHealthDetail represents health details for a single MCP server
 type MCPServerHealthDetail struct {
-	ServerName   string  `json:"server_name" console:"header:Server"`
+	MCPServerStatsBase
 	RequestCount int     `json:"request_count" console:"header:Requests"`
-	ToolCalls    int     `json:"tool_calls" console:"header:Tool Calls"`
-	ErrorCount   int     `json:"error_count" console:"header:Errors"`
-	ErrorRate    float64 `json:"error_rate"`
+	ErrorRate    float64 `json:"error_rate"` // Percentage (0–100)
 	ErrorRateStr string  `json:"error_rate_str" console:"header:Error Rate"`
 	AvgLatency   string  `json:"avg_latency" console:"header:Avg Latency"`
 	Status       string  `json:"status" console:"header:Status"`
+}
+
+// MarshalJSON preserves the MCP server health detail JSON schema while sharing the
+// per-server stat fields with the other MCP server report types.
+func (d MCPServerHealthDetail) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		ServerName   string  `json:"server_name"`
+		RequestCount int     `json:"request_count"`
+		ToolCalls    int     `json:"tool_calls"`
+		ErrorCount   int     `json:"error_count"`
+		ErrorRate    float64 `json:"error_rate"`
+		ErrorRateStr string  `json:"error_rate_str"`
+		AvgLatency   string  `json:"avg_latency"`
+		Status       string  `json:"status"`
+	}{
+		ServerName:   d.ServerName,
+		RequestCount: d.RequestCount,
+		ToolCalls:    d.ToolCallCount,
+		ErrorCount:   d.ErrorCount,
+		ErrorRate:    d.ErrorRate,
+		ErrorRateStr: d.ErrorRateStr,
+		AvgLatency:   d.AvgLatency,
+		Status:       d.Status,
+	})
 }
 
 // MCPSlowestToolCall represents a slow tool call for surfacing in the audit
@@ -517,10 +539,12 @@ func appendMCPServerDetails(health *MCPServerHealth, mcpToolUsage *MCPToolUsageD
 		}
 
 		health.Servers = append(health.Servers, MCPServerHealthDetail{
-			ServerName:   server.ServerName,
+			MCPServerStatsBase: MCPServerStatsBase{
+				ServerName:    server.ServerName,
+				ToolCallCount: server.ToolCallCount,
+				ErrorCount:    server.ErrorCount,
+			},
 			RequestCount: server.RequestCount,
-			ToolCalls:    server.ToolCallCount,
-			ErrorCount:   server.ErrorCount,
 			ErrorRate:    errorRate,
 			ErrorRateStr: fmt.Sprintf("%.1f%%", errorRate),
 			AvgLatency:   server.AvgDuration,
@@ -541,8 +565,8 @@ func appendMissingFailedServers(health *MCPServerHealth, failedServers map[strin
 		}
 		if !found {
 			health.Servers = append(health.Servers, MCPServerHealthDetail{
-				ServerName: serverName,
-				Status:     "❌ failed",
+				MCPServerStatsBase: MCPServerStatsBase{ServerName: serverName},
+				Status:             "❌ failed",
 			})
 		}
 	}

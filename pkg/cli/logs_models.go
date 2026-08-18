@@ -178,6 +178,21 @@ type AggregatedSummaryBase struct {
 	RunIDs             []int64  `json:"run_ids" console:"-"`                       // List of run IDs
 }
 
+// MCPServerStatsBase holds the per-server identity and volume fields shared by the MCP
+// server health/stats report types (MCPServerStats, MCPServerHealthDetail and
+// MCPServerCrossRunHealth). Those types previously spelled the same concepts four
+// different ways (TotalCalls/ToolCalls/ToolCallCount and TotalErrors/ErrorCount);
+// embedding this struct standardizes the Go field names and removes copy-paste drift
+// risk, following the same approach as AggregatedSummaryBase. Types whose serialized
+// schema differs from these tags keep it via a MarshalJSON override.
+type MCPServerStatsBase struct {
+	ServerName    string `json:"server_name" console:"header:Server"`
+	ToolCallCount int    `json:"tool_call_count" console:"header:Tool Calls"`
+	// ErrorCount keeps the omitempty tags of MCPServerStats, the only embedder that
+	// serializes/renders these tags directly; the other embedders override MarshalJSON.
+	ErrorCount int `json:"error_count,omitempty" console:"header:Errors,omitempty"`
+}
+
 // MissingToolSummary aggregates missing tool reports across runs
 type MissingToolSummary struct {
 	Tool string `json:"tool" console:"header:Tool"`

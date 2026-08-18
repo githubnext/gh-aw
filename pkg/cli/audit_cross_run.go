@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -79,13 +80,33 @@ type MetricsTrendData struct {
 
 // MCPServerCrossRunHealth describes the health of a single MCP server across runs.
 type MCPServerCrossRunHealth struct {
-	ServerName    string  `json:"server_name"`
+	MCPServerStatsBase
 	RunsConnected int     `json:"runs_connected"` // Runs where server was used (appeared in tool usage)
 	TotalRuns     int     `json:"total_runs"`
-	TotalCalls    int     `json:"total_calls"`
-	TotalErrors   int     `json:"total_errors"`
 	ErrorRate     float64 `json:"error_rate"` // 0.0–1.0
 	Unreliable    bool    `json:"unreliable"` // True if error_rate > 0.10 or connected < 75% of runs
+}
+
+// MarshalJSON preserves the cross-run MCP health JSON schema while sharing the
+// per-server stat fields with the other MCP server report types.
+func (h MCPServerCrossRunHealth) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		ServerName    string  `json:"server_name"`
+		RunsConnected int     `json:"runs_connected"`
+		TotalRuns     int     `json:"total_runs"`
+		TotalCalls    int     `json:"total_calls"`
+		TotalErrors   int     `json:"total_errors"`
+		ErrorRate     float64 `json:"error_rate"`
+		Unreliable    bool    `json:"unreliable"`
+	}{
+		ServerName:    h.ServerName,
+		RunsConnected: h.RunsConnected,
+		TotalRuns:     h.TotalRuns,
+		TotalCalls:    h.ToolCallCount,
+		TotalErrors:   h.ErrorCount,
+		ErrorRate:     h.ErrorRate,
+		Unreliable:    h.Unreliable,
+	})
 }
 
 // ErrorTrendData summarizes error and warning patterns across runs.
@@ -342,11 +363,13 @@ func buildCrossRunMCPHealth(mcpServerMap map[string]*crossRunMCPServerAgg, total
 			unreliable = true
 		}
 		health = append(health, MCPServerCrossRunHealth{
-			ServerName:    name,
+			MCPServerStatsBase: MCPServerStatsBase{
+				ServerName:    name,
+				ToolCallCount: agg.totalCalls,
+				ErrorCount:    agg.totalErrors,
+			},
 			RunsConnected: connected,
 			TotalRuns:     totalRuns,
-			TotalCalls:    agg.totalCalls,
-			TotalErrors:   agg.totalErrors,
 			ErrorRate:     errorRate,
 			Unreliable:    unreliable,
 		})
