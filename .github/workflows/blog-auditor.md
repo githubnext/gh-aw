@@ -61,7 +61,7 @@ features:
   gh-aw-detection: true
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 evals:
   - id: audit-completed
     question: Did the workflow complete the blog availability audit, including page access and content validation checks?
