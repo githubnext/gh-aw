@@ -303,13 +303,18 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 	return nil
 }
 
-// checkCleanWorkingDirectoryForPR verifies the working directory has no user changes
-// before the wizard creates a pull request. Repository init files created by the
-// wizard itself are ignored because they are part of the pending PR.
-func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR(initFiles []string) error {
+// checkCleanWorkingDirectoryForPR verifies the working directory had no user changes
+// before the wizard began repository initialization. It relies on the cleanliness
+// snapshot captured in workingDirDirtyBeforeInit (taken before
+// ensureAddRepositoryInitializedWithDetails ran) rather than re-checking git status and
+// excluding the wizard's init files. Excluding whole init file paths post-hoc would
+// wrongly ignore pre-existing, non-conforming files (e.g. a dirty .gitattributes
+// missing a required entry) that ensureAddRepositoryInitializedWithDetails rewrites in
+// place, letting the PR path silently overwrite or commit pre-existing user edits.
+func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR() error {
 	addInteractiveLog.Print("Checking working directory is clean before PR creation")
 
-	if err := checkCleanWorkingDirectoryIgnoring(c.Verbose, initFiles); err != nil {
+	if c.workingDirDirtyBeforeInit {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Working directory is not clean."))
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "Creating a pull request requires a clean working directory.")

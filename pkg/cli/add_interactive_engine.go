@@ -30,7 +30,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	// If engine is already overridden, skip selection
 	if c.EngineOverride != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using coding agent: "+c.EngineOverride))
-		return c.configureEngineAPISecret(c.EngineOverride)
+		return c.selectEngineAuthMethod(c.EngineOverride)
 	}
 
 	// Inform user if workflow specifies an engine
@@ -62,7 +62,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	c.EngineOverride = selectedEngine
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected engine: "+selectedEngine))
 
-	return c.configureEngineAPISecret(selectedEngine)
+	return c.selectEngineAuthMethod(selectedEngine)
 }
 
 func (c *AddInteractiveConfig) getWorkflowSpecifiedEngine() string {
@@ -145,7 +145,31 @@ func prioritizeEngineOption(engineOptions []huh.Option[string], defaultEngine st
 	}
 }
 
+// selectEngineAuthMethod prompts for engine-specific authentication method choices
+// (for example, Copilot org billing vs. a personal access token) that only affect
+// generated workflow content and have no remote repository side effects. This runs
+// during engine selection, before the user has chosen between the PR and local-write
+// paths. Collecting and uploading the actual secret value is deferred to
+// configureEngineAPISecret, which must only run after the user commits to the PR
+// path and the working directory has been confirmed clean.
+func (c *AddInteractiveConfig) selectEngineAuthMethod(engine string) error {
+	// If --no-secret flag is set, skip auth-method selection entirely.
+	if c.SkipSecret {
+		return nil
+	}
+
+	// For Copilot, ask the user whether to use copilot-requests (org billing) or a PAT.
+	// Only prompt when an interactive context is available (wizard path); default to PAT otherwise.
+	if engine == string(constants.CopilotEngine) && c.Ctx != nil {
+		return c.selectCopilotAuthMethod()
+	}
+
+	return nil
+}
+
 // configureEngineAPISecret collects the API key for the selected engine using the unified engine secrets functions
+// and uploads it to the repository. This has remote side effects and must only be called after the user has
+// chosen to create a PR and the working directory has been confirmed clean.
 func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
@@ -162,15 +186,11 @@ func (c *AddInteractiveConfig) configureEngineAPISecret(engine string) error {
 		return nil
 	}
 
-	// For Copilot, ask the user whether to use copilot-requests (org billing) or a PAT.
-	// Only prompt when an interactive context is available (wizard path); default to PAT otherwise.
-	if engine == string(constants.CopilotEngine) && c.Ctx != nil {
-		if err := c.selectCopilotAuthMethod(); err != nil {
-			return err
-		}
-		if c.UseCopilotRequests {
-			return nil
-		}
+	// The Copilot auth-method choice (org billing vs. PAT) was already made in
+	// selectEngineAuthMethod during engine selection. If the user chose org billing,
+	// no secret needs to be collected or uploaded.
+	if engine == string(constants.CopilotEngine) && c.UseCopilotRequests {
+		return nil
 	}
 
 	// If user doesn't have write access, skip secrets configuration.

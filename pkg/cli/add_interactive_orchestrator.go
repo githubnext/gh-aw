@@ -62,6 +62,13 @@ type AddInteractiveConfig struct {
 	// resolvedWorkflows holds the pre-resolved workflow data including descriptions
 	// This is populated early in the flow by resolveWorkflows()
 	resolvedWorkflows *ResolvedWorkflows
+
+	// workingDirDirtyBeforeInit records whether the working directory already had
+	// uncommitted changes before any wizard-driven repository initialization ran.
+	// It is captured once, early in RunAddInteractive, and used by
+	// checkCleanWorkingDirectoryForPR so that wizard-modified init markers (which may
+	// rewrite pre-existing, non-conforming files) are never mistaken for a clean tree.
+	workingDirDirtyBeforeInit bool
 }
 
 // RunAddInteractive runs the interactive add workflow
@@ -88,6 +95,16 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		return err
 	}
 
+	// Snapshot working directory cleanliness before any wizard-driven repository
+	// initialization runs. This is used later, only for the PR path, to detect
+	// pre-existing user changes without mistaking wizard-modified init markers for
+	// pre-existing dirty state.
+	pendingChanges, err := hasPendingChanges()
+	if err != nil {
+		return err
+	}
+	config.workingDirDirtyBeforeInit = pendingChanges
+
 	remainingBootstrapProfile := config.getRemainingBootstrapProfile()
 
 	filesToAdd, initFiles, secretName, secretValue, createPR, err := config.prepareAndConfirmAddInteractive()
@@ -103,7 +120,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		// bootstrap mutations, workflow status polling, and optional dispatch all require
 		// the workflow changes to be present on GitHub.
 		printBootstrapConfigTODO(os.Stderr, remainingBootstrapProfile)
-		config.showFinalInstructions()
+		config.showLocalWriteInstructions()
 		return nil
 	}
 
@@ -174,6 +191,10 @@ func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
 }
 
 func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles, initFiles []string, secretName, secretValue string, createPR bool, err error) {
+	// selectAIEngineAndKey only selects the engine and, for Copilot, the auth method
+	// (org billing vs. PAT). It does not prompt for or upload any secret value, since
+	// that has remote repository side effects and must wait until the user has
+	// chosen the PR path and the working directory has been confirmed clean.
 	if err := c.selectAIEngineAndKey(); err != nil {
 		return nil, nil, "", "", false, err
 	}
@@ -196,12 +217,21 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles,
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
-	if createPR {
-		if err := c.checkCleanWorkingDirectoryForPR(initFiles); err != nil {
-			return nil, nil, "", "", false, err
-		}
+	if !createPR {
+		return workflowFiles, initFiles, "", "", false, nil
 	}
-	if createPR && c.hasWriteAccess && !c.SkipSecret && !c.UseCopilotRequests {
+
+	if err := c.checkCleanWorkingDirectoryForPR(); err != nil {
+		return nil, nil, "", "", false, err
+	}
+
+	// Secret collection and upload only happen once the user has committed to the
+	// PR path and the clean-tree check has succeeded.
+	if err := c.configureEngineAPISecret(c.EngineOverride); err != nil {
+		return nil, nil, "", "", false, err
+	}
+
+	if c.hasWriteAccess && !c.SkipSecret && !c.UseCopilotRequests {
 		secretName, secretValue, err = c.resolveEngineApiKeyCredential()
 		if err != nil {
 			return nil, nil, "", "", false, err
@@ -363,7 +393,8 @@ func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string)
 	return createPR, nil
 }
 
-// showFinalInstructions shows final instructions to the user
+// showFinalInstructions shows final instructions to the user after a PR was created
+// and the workflow files are live on GitHub.
 func (c *AddInteractiveConfig) showFinalInstructions() {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -379,6 +410,37 @@ func (c *AddInteractiveConfig) showFinalInstructions() {
 	}
 
 	fmt.Fprintln(os.Stderr, "Useful commands:")
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s status          # Check workflow status", string(constants.CLIExtensionPrefix))))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s run <workflow>  # Trigger a workflow", string(constants.CLIExtensionPrefix))))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s logs            # View workflow logs", string(constants.CLIExtensionPrefix))))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Learn more at: https://github.github.com/gh-aw/")
+	fmt.Fprintln(os.Stderr, "")
+}
+
+// showLocalWriteInstructions shows final instructions to the user when workflow files
+// were written locally without creating a PR. Unlike showFinalInstructions, this does
+// not claim the workflow is already running or recommend remote status/run commands,
+// since the files only exist in the local checkout and have not been pushed.
+func (c *AddInteractiveConfig) showLocalWriteInstructions() {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("🎉 Files written locally!"))
+	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Fprintln(os.Stderr, "")
+
+	// Show summary with workflow name(s)
+	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
+		wf := c.resolvedWorkflows.Workflows[0]
+		fmt.Fprintf(os.Stderr, "The workflow '%s' has been written to your local checkout. No pull request was created.\n", wf.Spec.WorkflowName)
+		c.showWorkflowDescriptions()
+	}
+
+	fmt.Fprintln(os.Stderr, "Commit and push the new files before the workflow can run on GitHub:")
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'Add agentic workflow'"))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git push"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Once pushed, these commands will work against the remote repository:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s status          # Check workflow status", string(constants.CLIExtensionPrefix))))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s run <workflow>  # Trigger a workflow", string(constants.CLIExtensionPrefix))))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s logs            # View workflow logs", string(constants.CLIExtensionPrefix))))
