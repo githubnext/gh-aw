@@ -309,7 +309,6 @@ safe-outputs:
     body: true
     operation: append
     update-branch: true
-    sync-stack: true
     max: 10
     target: "*"
   push-to-pull-request-branch:
@@ -483,7 +482,7 @@ If `create_issue` is unavailable, fall back to `noop` with a condensed message, 
 description: Processes one PR with minimal API calls and returns skip/nudge decisions
 model: sonnet
 ---
-Given one PR number and compact metadata for `github/gh-aw`. Query only `github/gh-aw`; never use review thread or review IDs from another repository.
+Given one PR number and compact metadata:
 
 1. Check skip conditions in this order:
    - checks/actions running — note: the candidate prefilter already excluded PRs with short-running pending checks (running < 1 hour) via `statusCheckRollup`; only re-verify if you have reason to believe state changed since the prefilter ran; Long-running checks (running > 1 hour) are intentionally ignored

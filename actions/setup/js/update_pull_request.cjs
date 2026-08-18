@@ -46,7 +46,7 @@ function getErrorStatus(error) {
 function isStackedPRUnsupportedUpdateBranchError(error) {
   const status = getErrorStatus(error);
   const message = getErrorMessage(error).toLowerCase();
-  return (status === 403 || status === 422) && message.includes("updating a stacked pr's branch via this endpoint is not supported");
+  return status === 422 && message.includes("updating a stacked pr's branch via this endpoint is not supported");
 }
 
 /**

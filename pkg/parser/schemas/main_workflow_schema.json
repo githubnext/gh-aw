@@ -9323,7 +9323,7 @@
                   "type": "boolean",
                   "description": "When true, update the pull request branch with the latest base branch changes before applying other updates. Defaults to false."
                 },
-                "sync-stack": {
+                "update-branch.stacks": {
                   "type": "boolean",
                   "description": "When true, allow stacked-PR stack-sync fallback when update-branch is unsupported. Defaults to true. Set to false to disable stacked-PR sync fallback."
                 },

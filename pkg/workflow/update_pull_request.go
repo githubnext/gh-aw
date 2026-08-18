@@ -13,12 +13,12 @@ var updatePullRequestLog = logger.New("workflow:update_pull_request")
 type UpdatePullRequestsConfig struct {
 	UpdateEntityConfig     `yaml:",inline"`
 	SafeOutputFilterConfig `yaml:",inline"`
-	Title                  *bool   `yaml:"title,omitempty"`         // Allow updating PR title - defaults to true, set to false to disable
-	Body                   *bool   `yaml:"body,omitempty"`          // Allow updating PR body - defaults to true, set to false to disable
-	UpdateBranch           *bool   `yaml:"update-branch,omitempty"` // When true, update PR branch with latest base branch changes before applying other updates. Defaults to false.
-	UpdateBranchStacks     *bool   `yaml:"sync-stack,omitempty"`    // When true, allow stacked-PR stack-sync fallback if update-branch endpoint is unsupported. Defaults to true.
-	Operation              *string `yaml:"operation,omitempty"`     // Default operation for body updates: "append", "prepend", or "replace" (defaults to "replace")
-	Footer                 *string `yaml:"footer,omitempty"`        // Controls whether AI-generated footer is added. When false, visible footer is omitted.
+	Title                  *bool   `yaml:"title,omitempty"`                // Allow updating PR title - defaults to true, set to false to disable
+	Body                   *bool   `yaml:"body,omitempty"`                 // Allow updating PR body - defaults to true, set to false to disable
+	UpdateBranch           *bool   `yaml:"update-branch,omitempty"`        // When true, update PR branch with latest base branch changes before applying other updates. Defaults to false.
+	UpdateBranchStacks     *bool   `yaml:"update-branch.stacks,omitempty"` // When true, allow stacked-PR stack-sync fallback if update-branch endpoint is unsupported. Defaults to true.
+	Operation              *string `yaml:"operation,omitempty"`            // Default operation for body updates: "append", "prepend", or "replace" (defaults to "replace")
+	Footer                 *string `yaml:"footer,omitempty"`               // Controls whether AI-generated footer is added. When false, visible footer is omitted.
 }
 
 // parseUpdatePullRequestsConfig handles update-pull-request configuration
@@ -32,7 +32,7 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 				{Name: "title", Mode: FieldParsingBoolValue, Dest: &cfg.Title},
 				{Name: "body", Mode: FieldParsingBoolValue, Dest: &cfg.Body},
 				{Name: "update-branch", Mode: FieldParsingBoolValue, Dest: &cfg.UpdateBranch},
-				{Name: "sync-stack", Mode: FieldParsingBoolValue, Dest: &cfg.UpdateBranchStacks},
+				{Name: "update-branch.stacks", Mode: FieldParsingBoolValue, Dest: &cfg.UpdateBranchStacks},
 				updateEntityFooterField(&cfg.Footer),
 			}
 		}, func(configMap map[string]any, cfg *UpdatePullRequestsConfig) {
