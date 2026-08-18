@@ -122,13 +122,6 @@ func formatSafeJobRunsOn(runsOn RunsOnValue, runsOnArray bool, defaultRunsOn str
 	return "runs-on: " + FormatRunsOn(runsOn, defaultRunsOn)
 }
 
-func resolveSafeJobRunsOn(jobConfig *SafeJobConfig, defaultRunsOn string) string {
-	if snippet := renderRunsOnSnippet(jobConfig.rawRunsOn); snippet != "" {
-		return snippet
-	}
-	return formatSafeJobRunsOn(jobConfig.RunsOn, jobConfig.runsOnArray, defaultRunsOn)
-}
-
 func runsOnMarshalOptions() []yaml.EncodeOption {
 	opts := append([]yaml.EncodeOption{}, DefaultMarshalOptions...)
 	return append(opts, yaml.IndentSequence(true))
