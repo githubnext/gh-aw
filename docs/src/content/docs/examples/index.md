@@ -21,6 +21,10 @@ GitHub Agentic Workflows (`gh-aw`) examples show how Markdown workflows can run 
 | Scheduled maintenance | Review a backlog regularly, select bounded maintenance tasks, and propose controlled changes. | [Automated repository maintenance](/gh-aw/examples/maintaining-repos/) |
 | Security review | Combine deterministic security tools with AI interpretation to report suspicious changes or compliance work. | [Security-related workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/) |
 
+## Examples and AI engines
+
+Most examples specify the default Copilot engine or omit `engine:` entirely, so the published example set is not evenly distributed across engines. Examples are engine-portable: to run one on Claude, Codex, Gemini, or Pi, change `engine:` in the workflow frontmatter and configure that engine's authentication secret. Engine-specific options such as `engine.agent` or `engine.harness` are not portable — see the [engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison) before switching.
+
 ## Use an example safely
 
 Before enabling an example, review its trigger, AI engine authentication, tools, network access, permissions, and safe outputs. Compile the Markdown source with `gh aw compile`, inspect both the `.md` and generated `.lock.yml` files, and begin with the narrowest permissions and outputs that satisfy the task.

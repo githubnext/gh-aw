@@ -148,7 +148,7 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 #### `init`
 
-Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. With the Copilot engine (`--engine copilot`), it also creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration by default (use `--no-mcp`/`--no-agent` to skip these Copilot-specific artifacts). Use `--no-skill` to skip dispatcher skill creation. Non-Copilot engines skip Copilot-specific artifacts.
+Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. With the Copilot engine (`--engine copilot`), it also creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration by default (use `--no-mcp`/`--no-agent` to skip these Copilot-specific artifacts). Use `--no-skill` to skip dispatcher skill creation. Non-Copilot engines skip Copilot-specific artifacts; see [Initializing for non-Copilot engines](#initializing-for-non-copilot-engines).
 
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)
@@ -163,6 +163,21 @@ gh aw init --create-pull-request        # Initialize and open a pull request
 ```
 
 **Options:** `--engine/-e`, `--no-mcp`, `--no-skill`, `--no-agent`, `--codespaces`, `--completions`, `--create-pull-request`
+
+##### Initializing for non-Copilot engines
+
+With `--engine claude`, `--engine codex`, `--engine gemini`, or `--engine pi`, `init` still performs the engine-independent setup and only skips the Copilot-specific artifacts:
+
+| Artifact | Copilot engine | Other engines | Replacement for other engines |
+|---|:---:|:---:|---|
+| `.gitattributes` entries for compiled `.lock.yml` files | ✅ | ✅ | Not needed — created for every engine |
+| Dispatcher skill `.github/skills/agentic-workflows/SKILL.md` | ✅ | ✅ | Not needed — created for every engine; the instructions are plain Markdown that any agent can be pointed at |
+| Custom agent `.github/agents/agentic-workflows.md` | ✅ | ❌ | Use the dispatcher skill, or author an agent file in your own agent's format (Claude Code subagents, Codex prompts) from the same instructions |
+| MCP wiring: `.github/mcp.json` and `.github/workflows/copilot-setup-steps.yml` | ✅ | ❌ | Register `gh aw mcp-server` in your own MCP host configuration — see [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) |
+
+After `init`, the remaining steps are the same for every engine: pick the engine in workflow frontmatter (`engine: claude`, `engine: codex`, `engine: gemini`, `engine: pi`) and configure that engine's authentication secret. See [AI Engines](/gh-aw/reference/engines/) and [Authentication](/gh-aw/reference/auth/).
+
+The engine chosen at `init` time does not restrict workflows: every workflow selects its own engine in frontmatter, and example workflows written for one engine can be adapted to another by changing `engine:` and its authentication secret.
 
 #### `add-wizard`
 
