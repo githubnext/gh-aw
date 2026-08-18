@@ -64,11 +64,7 @@ type state struct {
 func (c Config[K]) run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("%s: analyzing package %s", c.Name, pass.Pkg.Path())
 
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
