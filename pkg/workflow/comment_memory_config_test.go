@@ -91,13 +91,11 @@ permissions:
 			compiler := NewCompiler(WithVersion("1.0.0"))
 			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			require.NoError(t, err, "Failed to parse workflow")
-			require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should be present")
-
 			if tt.expectedCommentMemory != nil {
-				require.NotNil(t, workflowData.SafeOutputs.CommentMemory, "CommentMemory should be enabled")
-				assert.Equal(t, tt.expectedCommentMemory, workflowData.SafeOutputs.CommentMemory)
+				require.NotNil(t, workflowData.CommentMemoryConfig, "CommentMemory should be enabled")
+				assert.Equal(t, tt.expectedCommentMemory, workflowData.CommentMemoryConfig)
 			} else {
-				assert.Nil(t, workflowData.SafeOutputs.CommentMemory, "CommentMemory should be disabled")
+				assert.Nil(t, workflowData.CommentMemoryConfig, "CommentMemory should be disabled")
 			}
 		})
 	}

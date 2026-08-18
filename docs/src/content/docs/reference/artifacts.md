@@ -148,7 +148,6 @@ The unified `agent` artifact contains agent job outputs:
 - GitHub API rate limit logs (`github_rate_limits.jsonl`)
 - Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `firewall-audit-logs`
 - `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters when `observability.otlp` is configured
-- `copilot-otel.jsonl` — OTLP spans emitted by Copilot CLI when `observability.otlp` is configured
 
 For OTLP configuration, runtime environment variables, and span semantics, see the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/).
 

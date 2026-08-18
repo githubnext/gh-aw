@@ -40,7 +40,7 @@ func extractRestoreMemoryConfig(configMap map[string]any, jobName string, data *
 	cfg := &restoreMemoryConfig{
 		CacheMemory:   data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0,
 		RepoMemory:    data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0,
-		CommentMemory: data.SafeOutputs != nil && data.SafeOutputs.CommentMemory != nil,
+		CommentMemory: data.CommentMemoryConfig != nil,
 	}
 
 	if !cfg.CacheMemory && !cfg.RepoMemory && !cfg.CommentMemory {
@@ -175,7 +175,7 @@ func generateRepoMemoryRestoreLines(data *WorkflowData) []string {
 // for a custom job. The step fetches the comment-memory content from GitHub and
 // materialises it as local files — the same operation performed in the agent job.
 func generateCommentMemoryRestoreLines(data *WorkflowData) []string {
-	if data.SafeOutputs == nil || data.SafeOutputs.CommentMemory == nil {
+	if data.CommentMemoryConfig == nil {
 		return nil
 	}
 
@@ -184,7 +184,7 @@ func generateCommentMemoryRestoreLines(data *WorkflowData) []string {
 	lines = append(lines, "      - name: Prepare comment memory files\n")
 	lines = append(lines, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	lines = append(lines, "        with:\n")
-	lines = append(lines, fmt.Sprintf("          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken)))
+	lines = append(lines, fmt.Sprintf("          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.CommentMemoryConfig.GitHubToken)))
 	lines = append(lines, "          script: |\n")
 	lines = append(lines, "            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
 	lines = append(lines, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")

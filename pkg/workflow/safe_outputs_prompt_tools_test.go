@@ -128,7 +128,7 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sections := buildSafeOutputsSections(tt.safeOutputs)
+			sections := buildSafeOutputsSections(tt.safeOutputs, nil)
 
 			if tt.expectNil {
 				assert.Nil(t, sections, "Expected nil sections for empty/nil config")
@@ -163,7 +163,7 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 		},
 	}
 
-	sections := buildSafeOutputsSections(config)
+	sections := buildSafeOutputsSections(config, nil)
 	require.NotNil(t, sections, "Expected non-nil sections")
 
 	actualToolNames := extractToolNamesFromSections(t, sections)
@@ -208,7 +208,7 @@ func TestBuildSafeOutputsSectionsMaxExpressionExtraction(t *testing.T) {
 			},
 		},
 		NoOp: &NoOpConfig{},
-	})
+	}, nil)
 
 	require.NotNil(t, sections, "Expected non-nil sections")
 
@@ -245,10 +245,7 @@ func TestBuildSafeOutputsSectionsMaxExpressionExtraction(t *testing.T) {
 }
 
 func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) {
-	sections := buildSafeOutputsSections(&SafeOutputsConfig{
-		CommentMemory: &CommentMemoryConfig{},
-		NoOp:          &NoOpConfig{},
-	})
+	sections := buildSafeOutputsSections(nil, &CommentMemoryConfig{})
 
 	require.NotNil(t, sections, "Expected non-nil sections")
 
@@ -262,8 +259,11 @@ func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) 
 
 	assert.True(t, found, "Expected comment-memory guidance file to be included when comment_memory is enabled")
 
-	actualToolNames := extractToolNamesFromSections(t, sections)
-	assert.NotContains(t, actualToolNames, "comment_memory", "comment_memory should not be exposed as an agent tool when file-based sync is enabled")
+	for _, section := range sections {
+		if !section.IsFile {
+			assert.NotContains(t, section.Content, "comment_memory", "comment_memory should not be exposed as an agent tool when file-based sync is enabled")
+		}
+	}
 }
 
 // the list of tool names in the order they appear, stripping any max-budget annotations
@@ -287,7 +287,6 @@ func extractToolNamesFromSections(t *testing.T, sections []PromptSection) []stri
 	toolsListLine := lines[1]
 	require.True(t, strings.HasPrefix(toolsListLine, "Tools: "),
 		"Second line should start with 'Tools: ', got: %q", toolsListLine)
-
 	toolsList := strings.TrimPrefix(toolsListLine, "Tools: ")
 	toolEntries := strings.Split(toolsList, ", ")
 

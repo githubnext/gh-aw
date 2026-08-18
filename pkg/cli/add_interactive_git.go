@@ -32,13 +32,13 @@ const (
 	mergeActionExit      mergeAction = "exit"
 )
 
-// createWorkflowPRAndConfigureSecret creates the PR, merges it, and adds the secret
-func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Context, workflowFiles, initFiles []string, secretName, secretValue string) error {
+// createWorkflowChangesAndConfigureSecret writes the workflows, optionally creates and merges a PR, and adds the secret.
+func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx context.Context, workflowFiles, initFiles []string, secretName, secretValue string, createPR bool) error {
 	addInteractiveLog.Print("Applying changes")
 
 	fmt.Fprintln(os.Stderr, "")
 
-	// Add the workflow using existing implementation with --create-pull-request
+	// Add the workflow using the existing implementation.
 	// Pass the resolved workflows to avoid re-fetching them
 	// Pass Quiet=true to suppress detailed output (already shown earlier in interactive mode)
 	// This returns the result including PR number and HasWorkflowDispatch
@@ -49,7 +49,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 		Name:                         "",
 		Force:                        false,
 		AppendText:                   c.AppendText,
-		CreatePR:                     true,
+		CreatePR:                     createPR,
 		NoGitattributes:              c.NoGitattributes,
 		WorkflowDir:                  c.WorkflowDir,
 		NoStopAfter:                  c.NoStopAfter,
@@ -63,6 +63,11 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 		return fmt.Errorf("failed to add workflow: %w", err)
 	}
 	c.addResult = result
+
+	if !createPR {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow files written locally. No pull request was created."))
+		return nil
+	}
 
 	if err := c.ensurePullRequestMerged(result.PRNumber, result.PRURL); err != nil {
 		return err
@@ -298,16 +303,22 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 	return nil
 }
 
-// checkCleanWorkingDirectory verifies the working directory has no uncommitted changes.
-// This is checked early in the interactive flow to avoid failing later during PR creation.
-func (c *AddInteractiveConfig) checkCleanWorkingDirectory() error {
-	addInteractiveLog.Print("Checking working directory is clean")
+// checkCleanWorkingDirectoryForPR verifies the working directory had no user changes
+// before the wizard began repository initialization. It relies on the cleanliness
+// snapshot captured in workingDirDirtyBeforeInit (taken before
+// ensureAddRepositoryInitializedWithDetails ran) rather than re-checking git status and
+// excluding the wizard's init files. Excluding whole init file paths post-hoc would
+// wrongly ignore pre-existing, non-conforming files (e.g. a dirty .gitattributes
+// missing a required entry) that ensureAddRepositoryInitializedWithDetails rewrites in
+// place, letting the PR path silently overwrite or commit pre-existing user edits.
+func (c *AddInteractiveConfig) checkCleanWorkingDirectoryForPR() error {
+	addInteractiveLog.Print("Checking working directory is clean before PR creation")
 
-	if err := checkCleanWorkingDirectory(c.Verbose); err != nil {
+	if c.workingDirDirtyBeforeInit {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Working directory is not clean."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "The add wizard creates a pull request which requires a clean working directory.")
-		fmt.Fprintln(os.Stderr, "Please commit or stash your changes first:")
+		fmt.Fprintln(os.Stderr, "Creating a pull request requires a clean working directory.")
+		fmt.Fprintln(os.Stderr, "Please commit or stash your changes first, or choose the local write option:")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git stash        # Temporarily stash changes"))
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git add -A && git commit -m 'wip'  # Commit changes"))

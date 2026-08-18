@@ -114,6 +114,7 @@ permissions: {}
 
 concurrency:
   group: "gh-aw-smoke-workflow-call-${{ github.run_id }}"
+  queue: max
 
 run-name: "Smoke Workflow Call"
 

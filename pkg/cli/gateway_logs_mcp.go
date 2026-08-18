@@ -178,12 +178,14 @@ func buildMCPSummaryStats(gatewayMetrics *GatewayMetrics, mcpData *MCPToolUsageD
 	for serverName, serverMetrics := range gatewayMetrics.Servers {
 		// Server-level stats
 		serverStats := MCPServerStats{
-			ServerName:      serverName,
+			MCPServerStatsBase: MCPServerStatsBase{
+				ServerName:    serverName,
+				ToolCallCount: serverMetrics.ToolCallCount,
+				ErrorCount:    serverMetrics.ErrorCount,
+			},
 			RequestCount:    serverMetrics.RequestCount,
-			ToolCallCount:   serverMetrics.ToolCallCount,
 			TotalInputSize:  0,
 			TotalOutputSize: 0,
-			ErrorCount:      serverMetrics.ErrorCount,
 		}
 
 		if serverMetrics.RequestCount > 0 {

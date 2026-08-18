@@ -241,11 +241,11 @@ func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 	generateRestoreAmbientFoldersStep(yaml, data)
 
-	// Materialize comment-memory safe outputs as editable markdown files BEFORE user steps.
+	// Materialize tools.comment-memory state as editable markdown files BEFORE user steps.
 	// This prepares /tmp/gh-aw/comment-memory/*.md from prior comment history and injects
 	// prompt guidance so the agent can update files directly and persist them via the
 	// comment_memory safe output.
-	if data.SafeOutputs == nil || data.SafeOutputs.CommentMemory == nil {
+	if data.CommentMemoryConfig == nil {
 		return
 	}
 
@@ -259,7 +259,7 @@ func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings
 	yaml.WriteString("      - name: Prepare comment memory files\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.SafeOutputs.CommentMemory.GitHubToken))
+	fmt.Fprintf(yaml, "          github-token: %s\n", getEffectiveSafeOutputGitHubToken(data.CommentMemoryConfig.GitHubToken))
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
@@ -289,12 +289,11 @@ func (c *Compiler) generateCommentMemoryEarlyConfigStep(yaml *strings.Builder, d
 // jobs, and pre-activation memory restore so all deterministic paths can prepare
 // comment-memory files before the full safe-outputs config exists.
 func (c *Compiler) generateCommentMemoryEarlyConfigLines(data *WorkflowData) ([]string, bool) {
-	builder := handlerRegistry[commentMemoryHandlerKey]
-	if builder == nil {
-		compilerYamlLog.Printf("Warning: %s handler not found in registry; skipping early config write", commentMemoryHandlerKey)
-		return nil, false
+	var globalFooter *bool
+	if data.SafeOutputs != nil {
+		globalFooter = data.SafeOutputs.Footer
 	}
-	cfg := builder(data.SafeOutputs)
+	cfg := buildCommentMemoryHandlerConfig(data.CommentMemoryConfig, globalFooter)
 	if cfg == nil {
 		return nil, false
 	}

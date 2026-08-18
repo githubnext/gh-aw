@@ -35,6 +35,7 @@ const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./const
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
+const { createOrUpdatePullRequest } = require("./create_or_update_pull_request.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, getBundlePrerequisites, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
@@ -197,6 +198,7 @@ function parseAutoMergeConfig(value) {
   if (!normalized || normalized === "false") {
     return { enabled: false };
   }
+
   switch (normalized) {
     case "squash":
     case "true":
@@ -645,6 +647,7 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
  * @param {string} [options.remoteTarget] - Remote name or URL used for remote branch existence checks.
  * @param {string} [options.remoteToken] - Optional token used for authenticated remote branch checks.
  * @param {string} [options.cwd] - Optional working directory for git operations; scopes git config overrides to the correct checkout.
+ * @param {boolean} [options.allowExistingBranch] - Whether the existing pre-created branch may be reused.
  * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
  */
 async function handleRemoteBranchCollision(branchName, preserveBranchName, options = {}) {
@@ -668,6 +671,11 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
   }
 
   if (!remoteBranchExists) {
+    return branchName;
+  }
+
+  if (options.allowExistingBranch === true) {
+    core.info(`Remote branch ${branchName} is the pre-created pull request branch - reusing it`);
     return branchName;
   }
 
@@ -764,6 +772,9 @@ async function main(config = {}) {
   const { enabled: autoMerge, mergeMethod: autoMergeMethod } = parseAutoMergeConfig(config.auto_merge);
   const preserveBranchName = config.preserve_branch_name === true;
   const recreateRef = config.recreate_ref === true;
+  const preCreatedPullRequestNumber = Number.parseInt(String(config.pre_created_pull_request_number || ""), 10);
+  const preCreatedPullRequestUrl = config.pre_created_pull_request_url || "";
+  const preCreatedBranch = config.pre_created_branch || "";
   const signedCommits = config.signed_commits !== false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
@@ -1523,11 +1534,16 @@ async function main(config = {}) {
       const originalAgentBranch = branchName;
       const randomHex = crypto.randomBytes(8).toString("hex");
 
+      if (preCreatedBranch) {
+        branchName = preCreatedBranch;
+        core.info(`Using pre-created pull request branch: ${branchName}`);
+      }
+
       // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
       // Branch names from user input must be normalized before use in git commands.
       // When preserve-branch-name is disabled (default), a random salt suffix is
       // appended to avoid collisions.
-      if (branchName) {
+      if (branchName && !preCreatedBranch) {
         const originalBranchName = branchName;
         branchName = normalizeBranchName(branchName, preserveBranchName ? null : randomHex);
 
@@ -1735,12 +1751,14 @@ async function main(config = {}) {
       }
 
       // Apply the configured branch prefix (e.g. "signed/") if it hasn't already been applied.
-      if (branchPrefix && !branchName.startsWith(branchPrefix)) {
+      if (!preCreatedBranch && branchPrefix && !branchName.startsWith(branchPrefix)) {
         branchName = `${branchPrefix}${branchName}`;
         core.info(`Applied branch prefix: ${branchName}`);
       }
 
       core.info(`Generated branch name: ${branchName}`);
+      // The pre-created branch already exists on the remote and must be reused rather than renamed.
+      const allowExistingBranch = branchName === preCreatedBranch;
       core.info(`Base branch: ${baseBranch}`);
 
       // Reject stacks that would depend on themselves: the requested base (or one of its ancestors
@@ -1793,6 +1811,7 @@ async function main(config = {}) {
               remoteTarget: pushRemoteUrl || "origin",
               remoteToken: headGitHubToken,
               cwd: forkCwd,
+              allowExistingBranch,
             });
 
             await pushSignedCommits({
@@ -2187,6 +2206,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 remoteTarget: pushRemoteUrl || "origin",
                 remoteToken: headGitHubToken,
                 cwd: forkCwd,
+                allowExistingBranch,
               });
 
               await pushSignedCommits({
@@ -2363,6 +2383,7 @@ ${patchPreview}`;
                   remoteTarget: pushRemoteUrl || "origin",
                   remoteToken: headGitHubToken,
                   cwd: forkCwd,
+                  allowExistingBranch,
                 });
 
                 await pushSignedCommits({
@@ -2509,22 +2530,19 @@ ${patchPreview}`;
 
       // Try to create the pull request, with fallback to issue creation
       try {
-        const { data: pullRequest } = await withRetry(
-          () =>
-            githubClient.rest.pulls.create({
-              owner: repoParts.owner,
-              repo: repoParts.repo,
-              title: title,
-              body: body,
-              head: getPullRequestHeadRef(branchName),
-              base: baseBranch,
-              draft: draft,
-            }),
-          RATE_LIMIT_RETRY_CONFIG,
-          `create pull request in ${repoParts.owner}/${repoParts.repo}`
-        );
+        const { data: pullRequest } = await createOrUpdatePullRequest({
+          githubClient,
+          repoParts,
+          title,
+          body,
+          branchName: getPullRequestHeadRef(branchName),
+          baseBranch,
+          draft,
+          preCreatedPullRequestNumber,
+          preCreatedBranch,
+        });
 
-        core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+        core.info(`${preCreatedPullRequestNumber > 0 ? "Updated pre-created" : "Created"} pull request #${pullRequest.number}: ${pullRequest.html_url || preCreatedPullRequestUrl}`);
 
         // Record this pull request so later messages in the same run can stack on top of it.
         // Both the agent-provided branch name and the effective (prefixed/salted) name are keys.
@@ -2903,4 +2921,12 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader, applyBundleToBranch, rewriteBundleBranchAsSingleCommit, parseAutoMergeConfig };
+module.exports = {
+  main,
+  enforcePullRequestLimits,
+  countUniquePatchFiles,
+  parseDiffGitHeader,
+  applyBundleToBranch,
+  rewriteBundleBranchAsSingleCommit,
+  parseAutoMergeConfig,
+};

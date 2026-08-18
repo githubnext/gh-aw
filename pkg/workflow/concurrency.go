@@ -29,9 +29,16 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
 
 	// Add cancel-in-progress if appropriate
-	if shouldEnableCancelInProgress(workflowData, isCommandTrigger) {
+	cancelInProgress := shouldEnableCancelInProgress(workflowData, isCommandTrigger)
+	if cancelInProgress {
 		concurrencyLog.Print("Enabling cancel-in-progress for concurrency group")
 		concurrencyConfig += "\n  cancel-in-progress: true"
+	} else if isGroupConcurrencyQueueEnabled(workflowData) {
+		// queue: max cannot be combined with cancel-in-progress: true, so only add it
+		// when cancellation is not enabled. This ensures back-to-back triggers (e.g.
+		// push events) are queued sequentially instead of displacing pending runs.
+		concurrencyLog.Print("Enabling queue: max for top-level concurrency group")
+		concurrencyConfig += "\n  queue: max"
 	}
 
 	return concurrencyConfig

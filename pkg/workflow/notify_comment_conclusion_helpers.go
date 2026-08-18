@@ -500,7 +500,15 @@ func (c *Compiler) buildConclusionJobCondition(data *WorkflowData, mainJobName s
 		dailyAICExceeded := BuildEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.daily_ai_credits_exceeded", constants.ActivationJobName)), BuildStringLiteral("true"))
 		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, dailyAICExceeded)
 	}
+	if isPreCreatePullRequestEnabled(data) {
+		// The pre-created check run must always be completed, including when the run is
+		// cancelled after activation allocated the pull request but before the agent started
+		// (which leaves the agent job skipped).
+		preCreatedCheckExists := BuildNotEquals(BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.pre_created_pull_request_check_run_id", constants.ActivationJobName)), BuildStringLiteral(""))
+		activationGuardrailsFailed = BuildOr(activationGuardrailsFailed, preCreatedCheckExists)
+	}
 	condition := BuildAnd(alwaysFunc, BuildOr(agentNotSkipped, activationGuardrailsFailed))
+
 	if slices.Contains(safeOutputJobNames, "add_comment") {
 		return BuildAnd(condition, &NotNode{Child: BuildPropertyAccess("needs.add_comment.outputs.comment_id")})
 	}
