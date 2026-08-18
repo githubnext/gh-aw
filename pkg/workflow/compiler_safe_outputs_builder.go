@@ -1,6 +1,9 @@
 package workflow
 
 import (
+	"bytes"
+	"encoding/json"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -9,6 +12,14 @@ var safeOutputsBuilderLog = logger.New("workflow:safe_outputs_builder")
 // handlerConfigBuilder provides a fluent API for building handler configurations
 type handlerConfigBuilder struct {
 	config map[string]any
+}
+
+const templatableJSONExpressionPrefix = "__GH_AW_TEMPLATABLE_JSON_EXPRESSION__:"
+
+type templatableJSONExpression string
+
+func (e templatableJSONExpression) MarshalJSON() ([]byte, error) {
+	return json.Marshal(templatableJSONExpressionPrefix + string(e))
 }
 
 // newHandlerConfigBuilder creates a new handler config builder
@@ -72,6 +83,56 @@ func (b *handlerConfigBuilder) AddTemplatableStringSlice(key string, value []str
 	}
 	b.config[key] = value
 	return b
+}
+
+// AddTemplatableJSONSlice adds a string slice field whose single expression is expected
+// to evaluate to a JSON array at runtime.
+func (b *handlerConfigBuilder) AddTemplatableJSONSlice(key string, value []string) *handlerConfigBuilder {
+	if len(value) == 0 {
+		return b
+	}
+	if len(value) == 1 && isExpression(value[0]) {
+		b.config[key] = templatableJSONExpression(value[0])
+		return b
+	}
+	b.config[key] = value
+	return b
+}
+
+func marshalSafeOutputsConfig(config map[string]any) ([]byte, error) {
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return nil, err
+	}
+	for _, expression := range templatableJSONExpressions(config) {
+		placeholder, err := json.Marshal(templatableJSONExpressionPrefix + string(expression))
+		if err != nil {
+			return nil, err
+		}
+		configJSON = bytes.ReplaceAll(configJSON, placeholder, []byte(expression))
+	}
+	return configJSON, nil
+}
+
+func templatableJSONExpressions(value any) []templatableJSONExpression {
+	var expressions []templatableJSONExpression
+	var visit func(any)
+	visit = func(value any) {
+		switch value := value.(type) {
+		case templatableJSONExpression:
+			expressions = append(expressions, value)
+		case map[string]any:
+			for _, value := range value {
+				visit(value)
+			}
+		case []any:
+			for _, value := range value {
+				visit(value)
+			}
+		}
+	}
+	visit(value)
+	return expressions
 }
 
 // AddBoolPtr adds a boolean pointer field only if the pointer is not nil

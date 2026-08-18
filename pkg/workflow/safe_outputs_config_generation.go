@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -224,7 +223,7 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 	if len(safeOutputsConfig) == 0 {
 		return "", nil
 	}
-	configJSON, err := json.Marshal(safeOutputsConfig)
+	configJSON, err := marshalSafeOutputsConfig(safeOutputsConfig)
 	if err != nil {
 		return "", fmt.Errorf("marshaling safe-outputs config: %w", err)
 	}

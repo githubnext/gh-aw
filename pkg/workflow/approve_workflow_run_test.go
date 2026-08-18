@@ -3,8 +3,10 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -197,7 +199,23 @@ func TestApproveWorkflowRunAllowedPullRequests(t *testing.T) {
 	assert.Equal(t, []string{"${{ inputs.allowed-pull-requests }}"}, config.AllowedPullRequests)
 
 	handlerConfig := handlerRegistry["approve_workflow_run"](&SafeOutputsConfig{ApproveWorkflowRun: config})
-	assert.Equal(t, "${{ inputs.allowed-pull-requests }}", handlerConfig["allowed_pull_requests"])
+	assert.Equal(t, templatableJSONExpression("${{ inputs.allowed-pull-requests }}"), handlerConfig["allowed_pull_requests"])
+}
+
+func TestApproveWorkflowRunAllowedPullRequestsExpressionEmitsJSONArray(t *testing.T) {
+	expression := "${{ needs.approval_allowlist.outputs.eligible_pull_request_numbers }}"
+	handlerConfig := handlerRegistry["approve_workflow_run"](&SafeOutputsConfig{
+		ApproveWorkflowRun: &ApproveWorkflowRunConfig{AllowedPullRequests: []string{expression}},
+	})
+
+	configJSON, err := marshalSafeOutputsConfig(map[string]any{"approve_workflow_run": handlerConfig})
+	require.NoError(t, err)
+	assert.Contains(t, string(configJSON), `"allowed_pull_requests":${{ needs.approval_allowlist.outputs.eligible_pull_request_numbers }}`)
+
+	runtimeConfig := strings.ReplaceAll(string(configJSON), expression, `["123","456"]`)
+	var config map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(runtimeConfig), &config))
+	assert.Equal(t, []any{"123", "456"}, config["approve_workflow_run"]["allowed_pull_requests"])
 }
 
 func TestValidateSafeOutputsApproveWorkflowRunAllowedWorkflows(t *testing.T) {
