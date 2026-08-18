@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,12 @@ permissions:
 
 # Test Workflow
 `
+
+// joinUnclean joins path elements without normalizing "." or ".." segments,
+// unlike filepath.Join, so tests can exercise path cleaning behavior.
+func joinUnclean(elems ...string) string {
+	return strings.Join(elems, string(filepath.Separator))
+}
 
 func writeFixWorkflow(t *testing.T, dir string, fileName string, content string) string {
 	t.Helper()
@@ -206,13 +213,13 @@ func TestResolveWorkflowRoot(t *testing.T) {
 		},
 		{
 			name:     "messy path under github workflows is normalized",
-			filePath: filepath.Join(".", "a", "..", "b", ".github", "workflows", "nested", "foo.md"),
+			filePath: joinUnclean(".", "a", "..", "b", ".github", "workflows", "nested", "foo.md"),
 			expected: filepath.Join("b", ".github", "workflows"),
 		},
 		{
 			name:     "messy path without github workflows uses cleaned dir",
-			filePath: filepath.Join(".", "a", "..", "b", "foo.md"),
-			expected: filepath.Join("b"),
+			filePath: joinUnclean(".", "a", "..", "b", "foo.md"),
+			expected: "b",
 		},
 	}
 
