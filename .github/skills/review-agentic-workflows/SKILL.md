@@ -6,6 +6,7 @@ description: Review agentic workflow changes for correctness, security posture, 
 # Review Agentic Workflows
 
 Use this skill when asked to review `.github/workflows/*.md` agentic workflows or their generated `.lock.yml` outputs.
+Reference workflow authoring skill guidance at: https://raw.githubusercontent.com/github/gh-aw/main/.github/skills/agentic-workflows/SKILL.md
 
 ## Goals
 
