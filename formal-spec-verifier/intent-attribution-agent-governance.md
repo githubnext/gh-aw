@@ -1,43 +1,42 @@
 # Formal Notes: intent-attribution-agent-governance.md
 
-**Last formalized**: 2026-07-30-16-13-07
-**Notation**: TLA+ / Z3 / F*
-**Issue**: (created via safe-output; number resolved post-run)
+**Last formalized**: 2026-08-18-15-43-32
+**Notation**: Z3-style guard conjunction / propositional logic
+**Issue**: (see repository issue tracker for this run's created issue)
 
 ## Predicates
 
 | ID | Predicate | Description |
 |---|---|---|
-| P1 | `ExplicitIntentPrecedence` | Explicit workflow intent always resolves first, overriding otherwise-ambiguous candidates |
-| P2 | `SingleClosingIssueMapped` | Exactly one closing issue -> mapped/closing_issue |
-| P3 | `AmbiguousOnMultipleRoots` | 2+ closing issues -> ambiguous, order-independent, never arbitrary pick |
-| P4 | `ArtifactLabelFallback` | Zero closing issues + labels present -> artifact_labels fallback |
-| P5 | `UnlinkedWhenNoSource` | Zero closing issues + no labels -> unlinked |
-| P6 | `AmbiguousNotMapped` | Ambiguous status MUST NOT be treated as mapped for reporting/authorization |
-| P7 | `FailClosedPolicy` | unlinked/ambiguous/suggested/unmapped -> safest policy (propose_only, write_scope=none, human_approval_required, no auto-merge, max_attempts=1) |
-| P8 | `PolicyDeterminism` | Identical attribution inputs -> identical policy output |
-| P9 | `RiskClassificationOrder` | Explicit risk wins; else derived by domain/priority rules (security+critical=high, production=high, infrastructure=medium, documentation=low, else unknown) |
-| P10 | `PrecedenceOrdering` | organization > repository > intent > workflow > agent_request |
-| P11 | `NoElevatedAuthorityOnAbsentAttribution` | Unresolved attribution never grants elevated autonomy/auto-merge/max_attempts |
+| P1 | `RiskResolutionDeterminism` | `ResolveRisk(intent)` is a pure function of (Risk, Domains, Priority) |
+| P2 | `RiskExplicitOverride` | Explicit `intent.Risk` always wins over derived rules |
+| P3 | `RiskSecurityCriticalHigh` | `domains ∋ security ∧ priority = critical ⇒ high` |
+| P4 | `RiskProductionHigh` | `domains ∋ production ⇒ high` |
+| P5 | `RiskInfrastructureMedium` | `domains ∋ infrastructure ⇒ medium` |
+| P6 | `RiskDocumentationLow` | `domains ∋ documentation ⇒ low` |
+| P7 | `RiskUnknownDefault` | No matching rule ⇒ `unknown` |
+| P8 | `RiskPrecedenceOrder` | Security+critical rule evaluated before production/infrastructure/documentation |
+| P9 | `AuthorizeToolDeniedWins` | Deny list takes precedence over allow list |
+| P10 | `AuthorizeToolAllowlistGate` | Non-nil AllowedTools rejects tools not listed |
+| P11 | `AuthorizeToolUnrestricted` | `nil` AllowedTools means unrestricted |
+| P12 | `AuthorizeToolEmptyDenyAll` | Non-nil empty AllowedTools means deny-all |
+| P13 | `SafestDefaultFailClosed` | `unlinked`/`ambiguous` status forces safest policy (already implemented and verified against `pkg/intent/policy.go`) |
 
 ## Key Invariants
 
-- Resolution order is strictly deterministic: explicit intent > closing issues > labels > unlinked.
-- Ambiguity (2+ closing issues) must never be resolved by arbitrary selection (first/last/random).
-- Fail-closed behavior is the safety backstop: any indeterminate status collapses to the safest policy regardless of what an elevated/requested policy would have been.
-- Policy precedence is strictly layered; lower layers cannot weaken higher layers.
+- Unknown or ambiguous intent must never grant elevated authority (fail-closed default).
+- Policy merging must preserve stricter, higher-precedence constraints when multiple rules match.
+- `ResolveRisk` and `Authorizer.AuthorizeTool` are specified but **not yet implemented** in `pkg/intent` — the spec's own "Authorizer.AuthorizeTool Implementation Audit" section documents this gap; all `ExecutionPolicy` enforcement fields except none are currently wired to runtime.
+- `pkg/intent/policy.go` already implements `PolicyCompiler.Compile` fail-closed behavior for `Unlinked`/`Ambiguous` — this predicate (P13) was verified directly against real code, not a stub.
 
 ## Edge Cases Identified
 
-- Zero closing issues AND zero labels → unlinked (fully indeterminate).
-- Exactly one closing issue → deterministic mapped (no ambiguity).
-- 2+ closing issues in different orderings must all resolve identically to ambiguous (order independence tested with 3 permutations).
-- Explicit risk field present should short-circuit all derived-risk domain rules.
-- Unknown/unrecognized domain (e.g. "marketing") must resolve to "unknown" risk, not error.
+- Fully empty intent record (no Risk, Domains, Priority) must resolve to `unknown`, not panic or empty string.
+- `AuthorizeTool` must not panic when both `AllowedTools` and `DeniedTools` are nil (fully unrestricted policy).
+- Multiple matching policy rules must merge with stricter-wins semantics; a later lenient rule must not silently override an earlier strict one.
 
 ## Notes for Future Runs
 
-- The spec is still "Partially Implemented" (Phase 1 of 7 per the Implementation Phases section). No concrete Go resolver package exists yet in `pkg/` — the test file uses a full stub reproduction of `Resolver.Resolve`, `ResolveRisk`, and `ExecutionPolicy` derivation logic taken directly from the spec's embedded Go code blocks.
-- Future runs formalizing this spec further could add: OpenTelemetry span/metric predicates (spec §"OpenTelemetry"/"Metrics"), CLI "Explain policy before execution" predicate, and Evidence record / provenance predicates (§"Decision provenance", §"Evidence record").
-- Cross-spec dependency: `.github/intent-policy.json` schema (§"Intent configuration") could be jointly formalized with `specs/replace-label-spec.md`'s gate-check mechanisms (required-labels/required-title-prefix) since both implement a "skip, don't fail" gating pattern.
-- `specs/replace-label-spec.md` remains unprocessed and is a good next candidate (large, well-structured RL-0xx numbered requirements, Go-style processing pipeline).
+- `pkg/intent` already has `policy.go`, `resolver.go`, `slices.go` plus existing formal test files (`intent_formal_test.go`, `compliance_fixtures_formal_test.go`, `spec_test.go`, `resolver_test.go`) — future formalizations of this spec should check those files first to avoid duplicating predicate coverage (e.g. resolution-order predicates for `Resolver.Resolve`/`ResolvePullRequest` are likely already covered there).
+- Not yet formalized in this run: OpenTelemetry/metrics section, CLI section (`explain policy`, `report outcomes`), Evidence/Outcome record schemas, and the multi-root/fractional-attribution future-policy section. Good candidates for a follow-up pass.
+- `ResolveRisk` and `Authorizer.AuthorizeTool` remain unimplemented in the codebase as of this run — once implemented, replace the stubs in the generated test file with real calls.

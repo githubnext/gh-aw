@@ -118,6 +118,13 @@
       "notation": "TLA+ / Z3-style guard conjunction / F*",
       "predicate_count": 9,
       "issue_number": null
+    },
+    "specs/intent-attribution-agent-governance.md": {
+      "slug": "intent-attribution-agent-governance",
+      "last_formalized": "2026-08-18-15-43-32",
+      "notation": "Z3-style guard conjunction",
+      "predicate_count": 13,
+      "issue_number": null
     }
   }
 }
