@@ -484,6 +484,39 @@ func TestParseAndBuildSafeJobsRunsOnVariants(t *testing.T) {
 			expected: "runs-on:\n      group: runner-group\n      labels:\n        - linux",
 		},
 		{
+			name: "string runner alias",
+			job: map[string]any{
+				"runner": "ubuntu-latest",
+				"steps":  []any{map[string]any{"run": "echo hi"}},
+			},
+			expected: "runs-on: ubuntu-latest",
+		},
+		{
+			name: "array runner alias",
+			job: map[string]any{
+				"runner": []any{"self-hosted", "linux"},
+				"steps":  []any{map[string]any{"run": "echo hi"}},
+			},
+			expected: "runs-on:\n      - self-hosted\n      - linux",
+		},
+		{
+			name: "object runner alias group only",
+			job: map[string]any{
+				"runner": map[string]any{"group": "runner-group"},
+				"steps":  []any{map[string]any{"run": "echo hi"}},
+			},
+			expected: "runs-on:\n      group: runner-group",
+		},
+		{
+			name: "runs-on takes precedence over runner alias",
+			job: map[string]any{
+				"runs-on": []any{"self-hosted", "linux"},
+				"runner":  map[string]any{"group": "runner-group", "labels": []any{"windows"}},
+				"steps":   []any{map[string]any{"run": "echo hi"}},
+			},
+			expected: "runs-on:\n      - self-hosted\n      - linux",
+		},
+		{
 			name: "unset runs-on defaults",
 			job: map[string]any{
 				"steps": []any{map[string]any{"run": "echo hi"}},
@@ -551,6 +584,41 @@ Do nothing.
 
 	require.Contains(t, string(compiled), "notify:")
 	require.Contains(t, string(compiled), "runs-on:\n      group: sj-group\n      labels:\n        - linux")
+}
+
+func TestCompileWorkflowSafeJobRunnerAliasObject(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "safe-jobs-runner-object")
+	testContent := `---
+on: workflow_dispatch
+safe-outputs:
+  jobs:
+    notify:
+      runner:
+        group: runner-group
+        labels: [linux]
+      inputs:
+        msg:
+          description: message
+      steps:
+        - run: echo hi
+---
+
+# Test
+Do nothing.
+`
+
+	testFile := filepath.Join(tmpDir, "test-safe-jobs-runner-object.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0o644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "test-safe-jobs-runner-object.lock.yml")
+	compiled, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+
+	require.Contains(t, string(compiled), "notify:")
+	require.Contains(t, string(compiled), "runs-on:\n      group: runner-group\n      labels:\n        - linux")
 }
 
 func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {

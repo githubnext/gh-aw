@@ -224,6 +224,103 @@ func TestValidateRunsOn(t *testing.T) {
 			errorInMsg:  "safe-outputs.jobs.notify.runner",
 			description: "safe-job runner alias labels containing macos runner should be rejected",
 		},
+		{
+			name: "linux string in safe-outputs.jobs.runs-on",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runs-on": "ubuntu-latest",
+						},
+					},
+				},
+			},
+			wantErr:     false,
+			description: "safe-job runs-on string linux runner should be accepted",
+		},
+		{
+			name: "group only object in safe-outputs.jobs.runs-on",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runs-on": map[string]any{
+								"group": "runner-group",
+							},
+						},
+					},
+				},
+			},
+			wantErr:     false,
+			description: "safe-job runs-on object with group only should be accepted",
+		},
+		{
+			name: "group and linux labels object in safe-outputs.jobs.runs-on",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runs-on": map[string]any{
+								"group":  "runner-group",
+								"labels": []any{"self-hosted", "linux"},
+							},
+						},
+					},
+				},
+			},
+			wantErr:     false,
+			description: "safe-job runs-on object with linux labels should be accepted",
+		},
+		{
+			name: "linux string in safe-outputs.jobs.runner alias",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runner": "ubuntu-latest",
+						},
+					},
+				},
+			},
+			wantErr:     false,
+			description: "safe-job runner alias string linux runner should be accepted",
+		},
+		{
+			name: "macos string in safe-outputs.jobs.runner alias",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runner": "macos-latest",
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.jobs.notify.runner",
+			description: "safe-job runner alias string macos runner should be rejected",
+		},
+		{
+			name: "multiple safe-jobs with one invalid runner",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"jobs": map[string]any{
+						"notify": map[string]any{
+							"runs-on": []any{"self-hosted", "linux"},
+						},
+						"deploy": map[string]any{
+							"runner": map[string]any{
+								"group":  "runner-group",
+								"labels": []any{"linux", "macos-14"},
+							},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errorInMsg:  "safe-outputs.jobs.deploy.runner",
+			description: "safe-job validation should identify invalid macos label across multiple jobs",
+		},
 	}
 
 	for _, tt := range tests {
@@ -319,10 +416,53 @@ func TestValidateRunsOnValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "object with group only is valid",
+			value: map[string]any{
+				"group": "my-group",
+			},
+			wantErr: false,
+		},
+		{
+			name: "object with labels only is valid",
+			value: map[string]any{
+				"labels": []any{"self-hosted", "linux"},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "nil is valid",
+			value:   nil,
+			wantErr: false,
+		},
+		{
 			name:       "array with non-string entry is invalid",
 			value:      []any{"linux", 42},
 			wantErr:    true,
 			errContain: "array entry has type int",
+		},
+		{
+			name: "object with non-string group is invalid",
+			value: map[string]any{
+				"group": 42,
+			},
+			wantErr:    true,
+			errContain: "runs-on.group has type int",
+		},
+		{
+			name: "object with non-array labels is invalid",
+			value: map[string]any{
+				"labels": "linux",
+			},
+			wantErr:    true,
+			errContain: "runs-on.labels has type string",
+		},
+		{
+			name: "object with labels non-string entry is invalid",
+			value: map[string]any{
+				"labels": []any{"linux", 1},
+			},
+			wantErr:    true,
+			errContain: "runs-on.labels entry has type int",
 		},
 		{
 			name: "object with invalid key is invalid",
