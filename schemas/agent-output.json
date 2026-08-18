@@ -606,7 +606,7 @@
         },
         "run_id": {
           "oneOf": [{ "type": "number" }, { "type": "string" }],
-          "description": "Positive integer workflow run ID to approve"
+          "description": "Positive integer workflow run ID to approve, or a temporary ID returned by dispatch_workflow"
         }
       },
       "required": ["type", "run_id"],
@@ -868,6 +868,11 @@
           "type": "string",
           "description": "Optional git ref or branch name to dispatch against (highest priority when provided). Requires safe-outputs.dispatch-workflow.allowed-refs configuration.",
           "minLength": 1
+        },
+        "temporary_id": {
+          "type": "string",
+          "description": "Optional temporary ID used to reference the dispatched workflow run in later safe output calls",
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
         }
       },
       "required": ["type", "workflow_name"],

@@ -839,6 +839,26 @@ describe("dispatch_workflow handler factory", () => {
     expect(core.info).toHaveBeenCalledWith(expect.stringContaining("run ID: 987654"));
   });
 
+  it("should return temporary ID mapping for a dispatched workflow run", async () => {
+    github.rest.actions.createWorkflowDispatch.mockResolvedValueOnce({
+      data: { workflow_run_id: 987654 },
+    });
+    const handler = await main({
+      workflows: ["test-workflow"],
+      workflow_files: { "test-workflow": ".lock.yml" },
+    });
+
+    const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", temporary_id: "aw_run123", inputs: {} }, {});
+
+    expect(result).toMatchObject({
+      success: true,
+      run_id: 987654,
+      temporaryId: "aw_run123",
+      repo: "test-owner/test-repo",
+      number: 987654,
+    });
+  });
+
   it("should succeed without run_id when API returns no workflow_run_id", async () => {
     github.rest.actions.createWorkflowDispatch.mockResolvedValueOnce({ data: {} });
 

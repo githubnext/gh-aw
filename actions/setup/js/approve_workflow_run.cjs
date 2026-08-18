@@ -12,6 +12,7 @@ const path = require("node:path");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
+const { loadTemporaryIdMapFromResolved, resolveIssueNumber } = require("./temporary_id.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "approve_workflow_run";
@@ -129,10 +130,17 @@ async function main(config = {}) {
 
   const githubClient = isStaged ? null : await createAuthenticatedGitHubClient(config);
 
-  return async function handleApproveWorkflowRun(message) {
-    const runId = parsePositiveInt(message.run_id);
+  return async function handleApproveWorkflowRun(message, resolvedTemporaryIds = {}) {
+    const resolvedRunId = resolveIssueNumber(message.run_id, loadTemporaryIdMapFromResolved(resolvedTemporaryIds));
+    const runId = resolvedRunId.wasTemporaryId ? (resolvedRunId.resolved?.number ?? undefined) : parsePositiveInt(message.run_id);
     if (!runId) {
-      const error = "run_id must be a positive integer";
+      const error = (resolvedRunId.wasTemporaryId ? resolvedRunId.errorMessage : null) || "run_id must be a positive integer or resolved temporary ID";
+      core.warning(error);
+      return { success: false, error };
+    }
+    const resolvedRepo = resolvedRunId.resolved?.repo;
+    if (resolvedRunId.wasTemporaryId && resolvedRepo !== `${context.repo.owner}/${context.repo.repo}`) {
+      const error = `Temporary workflow run ID '${message.run_id}' belongs to ${resolvedRepo}, not ${context.repo.owner}/${context.repo.repo}`;
       core.warning(error);
       return { success: false, error };
     }

@@ -251,6 +251,21 @@ describe("safe_outputs_tools_loader", () => {
       });
     });
 
+    it("should pass temporary_id separately from dispatch workflow inputs", () => {
+      const tools = [{ name: "ci_workflow", description: "CI workflow", _workflow_name: "ci" }];
+      const mockHandlerFunction = vi.fn();
+      const handlers = { defaultHandler: vi.fn(() => mockHandlerFunction) };
+
+      const result = attachHandlers(tools, handlers);
+      result[0].handler({ environment: "staging", temporary_id: "aw_run123" });
+
+      expect(mockHandlerFunction).toHaveBeenCalledWith({
+        workflow_name: "ci",
+        temporary_id: "aw_run123",
+        inputs: { environment: "staging" },
+      });
+    });
+
     it("should pass ref as top-level field for dispatch_workflow handler", () => {
       const tools = [{ name: "ci_workflow", description: "CI workflow", _workflow_name: "ci" }];
       const mockHandlerFunction = vi.fn();

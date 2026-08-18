@@ -84,6 +84,27 @@ describe("approve_workflow_run", () => {
     expect(mockGetWorkflowRun).toHaveBeenCalledWith(expect.objectContaining({ run_id: 123 }));
   });
 
+  it("resolves a temporary workflow run ID", async () => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: "aw_run123" }, { aw_run123: { repo: "test-owner/test-repo", number: 123 } });
+
+    expect(result.success).toBe(true);
+    expect(mockGetWorkflowRun).toHaveBeenCalledWith(expect.objectContaining({ run_id: 123 }));
+  });
+
+  it("rejects a temporary workflow run ID from another repository", async () => {
+    const { main } = require("./approve_workflow_run.cjs");
+    const handler = await main(externalTokenConfig);
+
+    const result = await handler({ run_id: "aw_run123" }, { aw_run123: { repo: "other-owner/other-repo", number: 123 } });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("other-owner/other-repo");
+    expect(mockGetWorkflowRun).not.toHaveBeenCalled();
+  });
+
   it.each([undefined, "", 0, -1, 1.5, "abc", "12abc"])("rejects invalid run ID %j", async runId => {
     const { main } = require("./approve_workflow_run.cjs");
     const handler = await main(externalTokenConfig);

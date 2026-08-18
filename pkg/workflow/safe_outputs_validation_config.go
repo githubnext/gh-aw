@@ -81,7 +81,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"approve_workflow_run": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"run_id": {Required: true, PositiveInteger: true},
+			"run_id": {Required: true, IssueNumberOrTemporaryID: true},
 		},
 	},
 	"add_comment": {
@@ -332,6 +332,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"workflow_name": {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 256, Pattern: ".*\\S.*", PatternError: "must not be empty"},
 			"inputs":        {Type: "object"},
 			"ref":           {Type: "string", MinLength: 1, MaxLength: 256, Pattern: "^[^\\x00-\\x20\\x7f~^:?*\\[\\\\]+$", PatternError: "must be a valid git ref"},
+			"temporary_id":  {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
 		},
 	},
 	"missing_tool": {

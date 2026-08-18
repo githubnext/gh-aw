@@ -325,6 +325,9 @@ async function main(config = {}) {
         core.info(`✓ Successfully dispatched workflow: ${workflowFile} (run ID: ${runId})`);
       } else {
         core.info(`✓ Successfully dispatched workflow: ${workflowFile}`);
+        if (typeof message.temporary_id === "string") {
+          core.warning(`Unable to register temporary ID '${message.temporary_id}' because the GitHub API did not return a workflow run ID.`);
+        }
       }
 
       // Record the time of this dispatch for rate limiting
@@ -335,6 +338,7 @@ async function main(config = {}) {
         workflow_name: workflowName,
         inputs: inputs,
         run_id: runId,
+        ...(typeof message.temporary_id === "string" && runId ? { temporaryId: message.temporary_id, repo: resolvedRepoSlug, number: runId } : {}),
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);

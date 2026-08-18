@@ -131,6 +131,11 @@ func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string
 
 	inputSchema, _ := tool["inputSchema"].(map[string]any)
 	properties, _ := inputSchema["properties"].(map[string]any)
+	properties["temporary_id"] = map[string]any{
+		"type":        "string",
+		"description": "Optional temporary ID to associate with the dispatched workflow run. Use this ID as the run_id in a later approve_workflow_run call.",
+		"pattern":     "^#?aw_[A-Za-z0-9_]{3,12}$",
+	}
 	requiredCount := 0
 	if required, ok := inputSchema["required"].([]string); ok {
 		requiredCount = len(required)

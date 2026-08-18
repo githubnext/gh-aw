@@ -1916,14 +1916,14 @@
   },
   {
     "name": "approve_workflow_run",
-    "description": "Approve a GitHub Actions workflow run awaiting required approval. Supply the positive run ID from the workflow run URL only when the run belongs to the triggering pull request or an explicitly allowed pull request. The handler approves only pull request runs with status waiting; it rejects other runs.",
+    "description": "Approve a GitHub Actions workflow run awaiting required approval. Supply the positive run ID from the workflow run URL or a temporary ID returned by dispatch_workflow, only when the run belongs to the triggering pull request or an explicitly allowed pull request. The handler approves only pull request runs with status waiting; it rejects other runs.",
     "inputSchema": {
       "type": "object",
       "required": ["run_id"],
       "properties": {
         "run_id": {
           "type": ["number", "string"],
-          "description": "Positive integer workflow run ID to approve (for example, 123456789 from /actions/runs/123456789).",
+          "description": "Positive integer workflow run ID to approve, or the temporary ID returned by a dispatch_workflow call (for example, 123456789 from /actions/runs/123456789 or aw_workflow_run).",
           "x-synonyms": ["runId", "workflow_run_id"]
         },
         "secrecy": {

@@ -80,8 +80,8 @@ func TestApproveWorkflowRunValidationConfig(t *testing.T) {
 	if config.DefaultMax != 1 {
 		t.Errorf("approve_workflow_run DefaultMax = %d, want 1", config.DefaultMax)
 	}
-	if runID := config.Fields["run_id"]; !runID.Required || !runID.PositiveInteger {
-		t.Errorf("approve_workflow_run run_id = %+v, want required positive integer", runID)
+	if runID := config.Fields["run_id"]; !runID.Required || !runID.IssueNumberOrTemporaryID {
+		t.Errorf("approve_workflow_run run_id = %+v, want required positive integer or temporary ID", runID)
 	}
 
 	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"approve_workflow_run"}, nil, false, nil)
@@ -96,8 +96,8 @@ func TestApproveWorkflowRunValidationConfig(t *testing.T) {
 	if len(parsed) != 1 || !ok || parsedConfig.DefaultMax != 1 {
 		t.Errorf("approve_workflow_run validation config = %#v, want defaultMax 1", parsedConfig)
 	}
-	if runID := parsedConfig.Fields["run_id"]; !runID.Required || !runID.PositiveInteger {
-		t.Errorf("approve_workflow_run generated run_id = %+v, want required positive integer", runID)
+	if runID := parsedConfig.Fields["run_id"]; !runID.Required || !runID.IssueNumberOrTemporaryID {
+		t.Errorf("approve_workflow_run generated run_id = %+v, want required positive integer or temporary ID", runID)
 	}
 }
 

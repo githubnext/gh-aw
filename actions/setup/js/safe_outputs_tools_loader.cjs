@@ -167,10 +167,11 @@ function attachHandlers(tools, handlers, logger) {
       // Create a custom handler that wraps args in inputs and adds workflow_name
       const workflowName = tool._workflow_name.trim();
       tool.handler = args => {
-        const { ref, ...inputs } = args ?? {};
+        const { ref, temporary_id, ...inputs } = args ?? {};
         // Wrap workflow inputs in inputs and pass dispatch ref as top-level field
         return handlers.defaultHandler("dispatch_workflow")({
           ...(ref && { ref }),
+          ...(temporary_id && { temporary_id }),
           ...(args !== undefined && { inputs }),
           workflow_name: workflowName,
         });

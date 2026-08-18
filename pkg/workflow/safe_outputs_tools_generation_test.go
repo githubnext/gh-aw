@@ -274,6 +274,11 @@ func TestGenerateDispatchWorkflowToolBasic(t *testing.T) {
 	require.True(t, ok, "environment property should exist")
 	assert.Equal(t, "string", envProp["type"], "choice maps to string")
 	assert.Equal(t, []any{"staging", "production"}, envProp["enum"], "enum values should match")
+
+	temporaryIDProp, ok := properties["temporary_id"].(map[string]any)
+	require.True(t, ok, "temporary_id property should exist")
+	assert.Equal(t, "string", temporaryIDProp["type"])
+	assert.Equal(t, "^#?aw_[A-Za-z0-9_]{3,12}$", temporaryIDProp["pattern"])
 }
 
 // TestGenerateDispatchWorkflowToolEmptyInputs tests dispatch workflow tool with no inputs.
@@ -284,7 +289,8 @@ func TestGenerateDispatchWorkflowToolEmptyInputs(t *testing.T) {
 
 	inputSchema := tool["inputSchema"].(map[string]any)
 	properties := inputSchema["properties"].(map[string]any)
-	assert.Empty(t, properties, "Properties should be empty for workflow with no inputs")
+	assert.Len(t, properties, 1, "Only the temporary_id property should exist for workflow with no inputs")
+	assert.Contains(t, properties, "temporary_id")
 
 	_, hasRequired := inputSchema["required"]
 	assert.False(t, hasRequired, "required field should not be present when no required inputs")
