@@ -41,6 +41,50 @@ func applyMetricsTurnsToRun(run *WorkflowRun, metrics LogMetrics) {
 	}
 }
 
+// staleLogsWarningThreshold is how old the most recent run in a result set may be,
+// when no explicit start_date/end_date was requested, before we warn the caller
+// that the data may not reflect the truly latest workflow runs.
+//
+// When no date range is supplied, pagination walks backwards through time (paging
+// on run creation date) until it has collected the requested count of runs. In a
+// repository with heavy non-agentic or still-in-progress run volume, this walk can
+// silently settle on an old window without any indication to the caller that more
+// recent runs exist. Passing an explicit start_date/end_date bypasses this ambiguity
+// entirely because it bounds the query server-side, so no warning is needed there.
+const staleLogsWarningThreshold = 48 * time.Hour
+
+// staleLogsWarning returns a warning message when a date-unbounded logs query
+// (no start_date/end_date requested) returns a result set whose most recent run
+// is unexpectedly old. Returns "" when no warning is warranted, i.e. when an
+// explicit date range was requested, there are no runs, or the newest run is
+// recent enough.
+func staleLogsWarning(processedRuns []ProcessedRun, startDate, endDate string) string {
+	if startDate != "" || endDate != "" {
+		// Caller supplied an explicit bound; the result is exactly what was asked for.
+		return ""
+	}
+	if len(processedRuns) == 0 {
+		return ""
+	}
+	var newest time.Time
+	for _, pr := range processedRuns {
+		if pr.Run.CreatedAt.After(newest) {
+			newest = pr.Run.CreatedAt
+		}
+	}
+	if newest.IsZero() {
+		return ""
+	}
+	age := time.Since(newest)
+	if age < staleLogsWarningThreshold {
+		return ""
+	}
+	return fmt.Sprintf(
+		"No start_date/end_date was specified, and the most recent run in this result is %s old (created %s). "+
+			"Retry with an explicit start_date (e.g. \"-1d\") to confirm you are seeing the latest workflow runs.",
+		age.Round(time.Hour), newest.Format(time.RFC3339))
+}
+
 // noRunsMessage returns a human-readable explanation for why zero workflow runs
 // were returned.  It inspects the startDate filter and the timeoutReached flag
 // so callers receive actionable guidance instead of a silent empty result.
@@ -183,5 +227,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) error {
 		continuation:   continuation,
 		verbose:        opts.Verbose,
 		artifactFilter: runtime.artifactFilter,
+		startDate:      opts.StartDate,
+		endDate:        opts.EndDate,
 	})
 }

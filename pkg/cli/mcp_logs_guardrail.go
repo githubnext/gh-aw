@@ -51,6 +51,18 @@ func extractLogsContinuation(outputStr string) *ContinuationData {
 	return parsed.Continuation
 }
 
+// extractLogsMessage returns the top-level "message" field embedded in the logs
+// JSON output (e.g. a stale-data warning), or "" when absent or unparseable.
+func extractLogsMessage(outputStr string) string {
+	var parsed struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(outputStr), &parsed); err != nil {
+		return ""
+	}
+	return parsed.Message
+}
+
 // buildLogsFileResponse writes the logs JSON output to a content-addressed cache
 // file and returns a JSON response containing the file path.
 // The file is named by the SHA256 hash of its content so that identical results
@@ -141,6 +153,12 @@ func buildLogsFileResponse(outputStr string) string {
 		response.Partial = true
 		response.Continuation = continuation
 		response.Message = fmt.Sprintf("PARTIAL RESULTS: the download stopped before all matching runs were collected. %s Partial logs data has been written to '%s'. Use the file_path to read the collected data and the continuation parameters to fetch the remaining logs.", continuation.Message, filePath)
+	}
+	// Surface any top-level warning (e.g. stale-data warning when no date range was
+	// requested) directly in the tool response so callers see it without having to
+	// open the file.
+	if warning := extractLogsMessage(outputStr); warning != "" {
+		response.Message = fmt.Sprintf("%s WARNING: %s", response.Message, warning)
 	}
 
 	responseJSON, err := json.MarshalIndent(response, "", "  ")

@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
@@ -29,10 +30,21 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)
 	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation)
 
+	// When no explicit start_date/end_date was requested and the newest run in the
+	// result is unexpectedly old, warn the caller so stale data is never served
+	// silently (see issue: logs MCP tool returns stale data without date params).
+	var hints []string
+	if warning := staleLogsWarning(processedRuns, opts.startDate, opts.endDate); warning != "" {
+		hints = append(hints, warning)
+	}
+
 	// When only the usage artifact was downloaded, add a hint so consumers know how
 	// to fetch additional artifact sets (agent logs, firewall data, etc.).
 	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
-		logsData.Message = usageOnlyArtifactHintMessage()
+		hints = append(hints, usageOnlyArtifactHintMessage())
+	}
+	if len(hints) > 0 {
+		logsData.Message = strings.Join(hints, " ")
 	}
 
 	// Write summary file if requested (default behavior unless disabled with empty string)

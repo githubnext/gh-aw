@@ -89,4 +89,6 @@ type renderLogsOutputOptions struct {
 	continuation   *ContinuationData
 	verbose        bool
 	artifactFilter []string
+	startDate      string
+	endDate        string
 }
