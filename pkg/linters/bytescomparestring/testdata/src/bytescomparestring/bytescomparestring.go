@@ -16,6 +16,12 @@ func badNamedType(a, b myBytes) bool {
 	return string(a) == string(b) // want `string\(a\) == string\(b\) is a \[\]byte comparison written the long way; use bytes\.Equal\(a, b\) for clearer intent`
 }
 
+type Password string
+
+func badNamedStringType(a, b []byte) bool {
+	return Password(a) == Password(b) // want `Password\(a\) == Password\(b\) is a \[\]byte comparison written the long way; use bytes\.Equal\(a, b\) for clearer intent`
+}
+
 func goodBytesEqual(a, b []byte) bool {
 	// Correct usage — no diagnostic expected.
 	return bytes.Equal(a, b)

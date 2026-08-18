@@ -10,9 +10,11 @@ import (
 )
 
 func TestCopilotRequestsFeatureToPermissionsCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getCopilotRequestsFeatureToPermissionsCodemod()
 
 	t.Run("migrates enabled feature to permissions", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   copilot-requests: true
@@ -39,6 +41,7 @@ permissions:
 	})
 
 	t.Run("adds permissions block when missing", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   copilot-requests: true
@@ -65,6 +68,7 @@ on:
 	})
 
 	t.Run("removes disabled feature without adding permission", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   copilot-requests: false
@@ -86,6 +90,7 @@ features:
 	})
 
 	t.Run("skips migration when permissions shorthand is not safely updatable", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   copilot-requests: true
@@ -108,6 +113,7 @@ permissions: read-all
 	})
 
 	t.Run("handles empty permissions object with inline comment", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   copilot-requests: true

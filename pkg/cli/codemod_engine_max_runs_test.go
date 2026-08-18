@@ -10,6 +10,7 @@ import (
 )
 
 func TestEngineMaxRunsToTopLevelCodemod_Metadata(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxRunsToTopLevelCodemod()
 
 	assert.Equal(t, "engine-max-runs-to-top-level", codemod.ID)
@@ -20,6 +21,7 @@ func TestEngineMaxRunsToTopLevelCodemod_Metadata(t *testing.T) {
 }
 
 func TestEngineMaxRunsToTopLevelCodemod_NoOp(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxRunsToTopLevelCodemod()
 
 	content := `---
@@ -42,6 +44,7 @@ engine:
 }
 
 func TestEngineMaxRunsToTopLevelCodemod_MigratesField(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxRunsToTopLevelCodemod()
 
 	content := `---
@@ -68,6 +71,7 @@ engine:
 }
 
 func TestEngineMaxRunsToTopLevelCodemod_RespectsExistingTopLevel(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxRunsToTopLevelCodemod()
 
 	content := `---
@@ -94,6 +98,7 @@ engine:
 }
 
 func TestEngineMaxRunsToTopLevelCodemod_InlineEngineMapNoOp(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineMaxRunsToTopLevelCodemod()
 
 	content := `---

@@ -10,9 +10,11 @@ import (
 )
 
 func TestCliProxyFeatureToGitHubModeCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getCliProxyFeatureToGitHubModeCodemod()
 
 	t.Run("migrates features.cli-proxy true and adds tools.github.mode gh-proxy", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   cli-proxy: true
@@ -36,6 +38,7 @@ features:
 	})
 
 	t.Run("does not apply when cli-proxy is false", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   cli-proxy: false
@@ -56,6 +59,7 @@ features:
 	})
 
 	t.Run("removes legacy flag but preserves existing github mode", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   cli-proxy: true
@@ -86,6 +90,7 @@ tools:
 	})
 
 	t.Run("adds github block under existing tools block", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 features:
   cli-proxy: true

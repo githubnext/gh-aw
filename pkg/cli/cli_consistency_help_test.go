@@ -15,6 +15,7 @@ import (
 )
 
 func TestAuditCommandDescriptionsAreConsistent(t *testing.T) {
+	t.Parallel()
 	cmd := NewAuditCommand()
 
 	assert.Contains(t, cmd.Short, "workflow runs", "audit short description should describe multiple run inputs")
@@ -23,6 +24,7 @@ func TestAuditCommandDescriptionsAreConsistent(t *testing.T) {
 }
 
 func TestTrialCommandUsesStandardExamplesHeading(t *testing.T) {
+	t.Parallel()
 	cmd := NewTrialCommand(func(string) error { return nil })
 
 	assert.NotEmpty(t, cmd.Example, "trial command should use cobra's Example field for examples")
@@ -36,6 +38,7 @@ func TestTrialCommandUsesStandardExamplesHeading(t *testing.T) {
 }
 
 func TestUpdateDocsIncludeCoolDownOption(t *testing.T) {
+	t.Parallel()
 	_, currentFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "should resolve current test file path")
 
@@ -52,6 +55,7 @@ func TestUpdateDocsIncludeCoolDownOption(t *testing.T) {
 }
 
 func TestCompileDocsReflectCurrentOptions(t *testing.T) {
+	t.Parallel()
 	_, currentFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "should resolve current test file path")
 
@@ -69,6 +73,7 @@ func TestCompileDocsReflectCurrentOptions(t *testing.T) {
 }
 
 func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
+	t.Parallel()
 	_, currentFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "should resolve current test file path")
 
@@ -96,6 +101,7 @@ func TestCLIDocsReflectStatusAuditAndExperimentsCommands(t *testing.T) {
 }
 
 func TestSubcommandListingsUseHyphenBullets(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		longDoc string
@@ -115,6 +121,7 @@ func TestSubcommandListingsUseHyphenBullets(t *testing.T) {
 }
 
 func TestSubcommandListingsMatchCobraShortDescriptions(t *testing.T) {
+	t.Parallel()
 	t.Run("secrets bootstrap", func(t *testing.T) {
 		cmd := NewSecretsCommand()
 		bootstrapCmd, _, err := cmd.Find([]string{"bootstrap"})
@@ -135,6 +142,7 @@ func TestSubcommandListingsMatchCobraShortDescriptions(t *testing.T) {
 }
 
 func TestHelpTextUsesStandardEgPunctuation(t *testing.T) {
+	t.Parallel()
 	assert.Contains(t, coolDownFlagUsage, "(e.g., 7d", "--cool-down help should use e.g., punctuation")
 	assert.Contains(t, NewEnvCommand().Long, "(e.g., default_max_turns)", "env help should use e.g., punctuation")
 	assert.Contains(t, NewDomainsCommand().Long, "(e.g., \"node\", \"python\", \"github\")", "domains help should use e.g., punctuation")
@@ -144,6 +152,7 @@ func TestHelpTextUsesStandardEgPunctuation(t *testing.T) {
 }
 
 func TestLegacyNestedGHHelpIsRejected(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		newCmd  func() *cobra.Command
@@ -160,6 +169,7 @@ func TestLegacyNestedGHHelpIsRejected(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cmd := tt.newCmd()
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
