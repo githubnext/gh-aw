@@ -7,10 +7,10 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
 <section class="aw-wizard" data-aw-wizard>
   <div class="aw-wizard__header">
     <div>
-      <p class="aw-wizard__eyebrow">AW wizard preview</p>
-      <h2 class="aw-wizard__title">Build an agentic workflow prompt step by step</h2>
+      <p class="aw-wizard__eyebrow">Workflow prompt wizard</p>
+      <h2 class="aw-wizard__title">Build an agentic workflow</h2>
       <p class="aw-wizard__intro">
-        This shell loads the shared wizard data model, keeps state in memory, and demonstrates the WHAT → WHEN → WHERE flow with generic step rendering, plus a free-text task description and a final self-contained prompt you can copy.
+        Choose what your workflow does, when it runs, and where it reports. We’ll combine your answers with any task details into a prompt you can copy.
       </p>
     </div>
     <div class="aw-wizard__status" aria-live="polite" data-wizard-step-status></div>
@@ -67,7 +67,7 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
         id: 'goal',
         label: 'Goal',
         title: 'Choose a workflow goal',
-        description: 'Select a reusable category from the shared data model. Future issues can replace this generic renderer with richer content without changing the shell.',
+        description: 'Start with the outcome you want the workflow to achieve.',
         getOptions() {
           return model.goalCategories.map((goal) => ({
             id: goal.id,
@@ -90,7 +90,7 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
         id: 'trigger',
         label: 'When',
         title: 'Choose a trigger',
-        description: 'The trigger list is filtered by the selected goal category using goalCategory.triggerOptionIds.',
+        description: 'Choose the event or schedule that should start the workflow.',
         getOptions() {
           const goal = getSelectedGoal();
           if (!goal) return [];
@@ -149,7 +149,7 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
         id: 'task-details',
         label: 'Task',
         title: 'Describe the task in your own words',
-        description: 'Add any free-text detail the AI coding assistant will need — this is appended to the generated prompt alongside your structured answers.',
+        description: 'Add context, constraints, or edge cases the workflow should account for.',
         getOptions() {
           return [];
         },
@@ -509,8 +509,8 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
   </script>
 </section>
 
-<style>
-  .sr-only {
+<style is:global>
+  .aw-wizard .sr-only {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -523,11 +523,12 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
   }
 
   .aw-wizard {
-    margin: 2rem 0;
-    padding: 1.5rem;
-    border: 1px solid var(--sl-color-hairline);
-    border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--sl-color-black) 18%, transparent);
+    max-width: 100%;
+    margin: 1.5rem 0;
+    padding: clamp(0.75rem, 2vw, 1.25rem);
+    border: 1px solid var(--aw-border, var(--sl-color-hairline));
+    border-radius: 6px;
+    background: var(--aw-bg-subtle, var(--sl-color-bg));
   }
 
   .aw-wizard__header,
@@ -538,16 +539,16 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
 
   .aw-wizard__header {
     align-items: start;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
   }
 
   .aw-wizard__eyebrow,
   .aw-wizard__step-kicker {
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.35rem;
     color: var(--sl-color-accent);
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
@@ -558,28 +559,41 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
     margin: 0;
   }
 
+  .aw-wizard__title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    line-height: 1.25;
+  }
+
   .aw-wizard__intro,
   .aw-wizard__step-description {
-    margin: 0.75rem 0 0 0;
-    color: var(--sl-color-gray-3);
+    max-width: 68ch;
+    margin: 0.5rem 0 0;
+    color: var(--aw-text-muted, var(--sl-color-gray-3));
+    font-size: 0.95rem;
+    line-height: 1.5;
   }
 
   .aw-wizard__status {
     justify-self: start;
-    padding: 0.4rem 0.7rem;
+    padding: 0.25rem 0.65rem;
+    border: 1px solid var(--aw-border, var(--sl-color-hairline));
     border-radius: 999px;
-    border: 1px solid var(--sl-color-hairline);
-    font-size: 0.875rem;
+    background: var(--aw-bg-page, var(--sl-color-bg));
+    font-size: 0.8125rem;
     font-weight: 600;
+    white-space: nowrap;
   }
 
   .aw-wizard__progress {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(5, minmax(6.5rem, 1fr));
+    gap: 0;
+    overflow-x: auto;
     padding: 0;
-    margin: 0 0 1.25rem 0;
+    margin: 0 0 1rem;
+    border-bottom: 1px solid var(--aw-border, var(--sl-color-hairline));
     list-style: none;
+    scrollbar-width: thin;
   }
 
   .aw-wizard__progress-item {
@@ -594,29 +608,48 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
 
   .aw-wizard__progress-button {
     width: 100%;
-    text-align: left;
-    padding: 0.75rem 0.9rem;
-    border: 1px solid var(--sl-color-hairline);
-    border-radius: 0.75rem;
-    background: var(--sl-color-bg);
+    min-height: 2.75rem;
+    padding: 0.55rem 0.75rem;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--aw-text-muted, var(--sl-color-gray-3));
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .aw-wizard__progress-item[data-current='true'] .aw-wizard__progress-button {
+    border-bottom-color: var(--sl-color-accent);
     color: var(--sl-color-text);
   }
 
-  .aw-wizard__progress-item[data-current='true'] .aw-wizard__progress-button,
   .aw-wizard__progress-item[data-complete='true'] .aw-wizard__progress-button {
-    border-color: var(--sl-color-accent-high);
+    color: var(--sl-color-text);
   }
 
   .aw-wizard__panel,
   .aw-wizard__summary {
-    padding: 1.25rem;
-    border: 1px solid var(--sl-color-hairline);
-    border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--sl-color-bg) 88%, transparent);
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--aw-border, var(--sl-color-hairline));
+    border-radius: 6px;
+    background: var(--aw-bg-page, var(--sl-color-bg));
+  }
+
+  .aw-wizard__step-header h3 {
+    font-size: 1.25rem;
+    line-height: 1.3;
+  }
+
+  .aw-wizard__summary h3 {
+    font-size: 1.125rem;
   }
 
   .aw-wizard__content {
-    margin-top: 1rem;
+    margin-top: 0.875rem;
   }
 
   .aw-wizard__fieldset {
@@ -627,81 +660,121 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
 
   .aw-wizard__option-list {
     display: grid;
-    gap: 0.875rem;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--aw-border, var(--sl-color-hairline));
+    border-radius: 6px;
   }
 
   .aw-wizard__option {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.875rem;
+    gap: 0.75rem;
     align-items: start;
-    padding: 0.9rem 1rem;
-    border: 1px solid var(--sl-color-hairline);
-    border-radius: 0.75rem;
-    background: var(--sl-color-bg);
+    min-width: 0;
+    margin: 0;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--aw-border, var(--sl-color-hairline));
+    background: transparent;
     cursor: pointer;
   }
 
+  .aw-wizard__option:last-child {
+    border-bottom: 0;
+  }
+
+  .aw-wizard__option:hover {
+    background: color-mix(in srgb, var(--sl-color-accent) 6%, transparent);
+  }
+
   .aw-wizard__option[data-selected='true'] {
-    border-color: var(--sl-color-accent-high);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sl-color-accent-high) 35%, transparent);
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+    box-shadow: inset 3px 0 var(--sl-color-accent);
   }
 
   .aw-wizard__option-input {
-    margin-top: 0.2rem;
+    width: 1rem;
+    height: 1rem;
+    margin: 0.15rem 0 0;
+    accent-color: var(--sl-color-accent);
   }
 
   .aw-wizard__option-copy {
     display: grid;
-    gap: 0.25rem;
+    min-width: 0;
+    gap: 0.15rem;
   }
 
   .aw-wizard__option-label {
+    font-size: 0.9375rem;
     font-weight: 600;
+    line-height: 1.35;
   }
 
   .aw-wizard__option-help {
-    color: var(--sl-color-gray-3);
-    font-size: 0.95rem;
+    color: var(--aw-text-muted, var(--sl-color-gray-3));
+    font-size: 0.875rem;
+    line-height: 1.45;
   }
 
   .aw-wizard__nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.5rem;
     justify-content: space-between;
-    margin-top: 1.25rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--aw-border, var(--sl-color-hairline));
   }
 
   .aw-wizard__button {
-    min-width: 7rem;
+    min-width: 6rem;
     min-height: 2.75rem;
-    padding: 0.65rem 1rem;
-    border-radius: 0.65rem;
-    border: 1px solid var(--sl-color-hairline);
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--aw-border-strong, var(--sl-color-hairline));
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   .aw-wizard__button--primary {
     background: var(--sl-color-accent);
-    color: white;
+    color: var(--sl-color-text-invert);
     border-color: var(--sl-color-accent);
   }
 
   .aw-wizard__button--secondary,
-  .aw-wizard__progress-button {
-    background: var(--sl-color-bg);
+  .aw-wizard__button--secondary {
+    background: var(--aw-bg-subtle, var(--sl-color-bg));
+    color: var(--sl-color-text);
+  }
+
+  .aw-wizard__progress-button:hover,
+  .aw-wizard__button:hover:not(:disabled) {
+    filter: brightness(0.94);
+  }
+
+  .aw-wizard__progress-button:focus-visible,
+  .aw-wizard__button:focus-visible,
+  .aw-wizard__option:has(input:focus-visible),
+  .aw-wizard__textarea:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
   }
 
   .aw-wizard__button:disabled {
-    opacity: 0.6;
+    opacity: 0.55;
     cursor: not-allowed;
   }
 
   .aw-wizard__summary-list {
     display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.4rem 0.9rem;
-    margin: 1rem 0 0 0;
+    grid-template-columns: minmax(6.5rem, 0.8fr) minmax(0, 1.2fr);
+    gap: 0.5rem 0.75rem;
+    margin: 0.75rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
   }
 
   .aw-wizard__summary-list dt {
@@ -710,10 +783,17 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
 
   .aw-wizard__summary-list dd {
     margin: 0;
+    overflow-wrap: anywhere;
   }
 
   .aw-wizard__prompt-preview {
-    margin-top: 1.25rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--aw-border, var(--sl-color-hairline));
+  }
+
+  .aw-wizard__prompt-preview h4 {
+    font-size: 1rem;
   }
 
   .aw-wizard__field {
@@ -722,17 +802,20 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
   }
 
   .aw-wizard__field-label {
+    font-size: 0.875rem;
     font-weight: 600;
   }
 
   .aw-wizard__textarea {
+    box-sizing: border-box;
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid var(--sl-color-hairline);
-    border-radius: 0.65rem;
-    background: var(--sl-color-bg);
+    border: 1px solid var(--aw-border-strong, var(--sl-color-hairline));
+    border-radius: 6px;
+    background: var(--aw-bg-page, var(--sl-color-bg));
     color: var(--sl-color-text);
     font: inherit;
+    line-height: 1.5;
     resize: vertical;
   }
 
@@ -743,39 +826,51 @@ const wizardModelJson = JSON.stringify(wizardDataModel);
 
   .aw-wizard__final-prompt-text {
     margin: 0;
-    padding: 1rem;
-    border-radius: 0.75rem;
-    border: 1px solid var(--sl-color-hairline);
-    overflow-x: auto;
-    background: color-mix(in srgb, var(--sl-color-black) 18%, transparent);
+    max-height: 28rem;
+    padding: 0.875rem;
+    border: 1px solid var(--aw-border, var(--sl-color-hairline));
+    border-radius: 6px;
+    overflow: auto;
+    background: var(--aw-bg-subtle, var(--sl-color-bg));
     font-size: 0.875rem;
     line-height: 1.5;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .aw-wizard__prompt-preview pre {
-    margin: 0.75rem 0 0 0;
-    padding: 1rem;
-    border-radius: 0.75rem;
-    border: 1px solid var(--sl-color-hairline);
-    overflow-x: auto;
-    background: color-mix(in srgb, var(--sl-color-black) 18%, transparent);
-    font-size: 0.875rem;
+    margin: 0.5rem 0 0;
+    max-height: 18rem;
+    padding: 0.75rem;
+    border: 1px solid var(--aw-border, var(--sl-color-hairline));
+    border-radius: 6px;
+    overflow: auto;
+    background: var(--aw-bg-subtle, var(--sl-color-bg));
+    font-size: 0.75rem;
     line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
-  @media (min-width: 960px) {
+  @media (min-width: 640px) {
     .aw-wizard__header {
       grid-template-columns: 1fr auto;
     }
 
+    .aw-wizard__status {
+      justify-self: end;
+    }
+  }
+
+  @media (min-width: 960px) {
     .aw-wizard__layout {
-      grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr);
+      grid-template-columns: minmax(0, 1.65fr) minmax(18rem, 0.85fr);
       align-items: start;
     }
 
-    .aw-wizard__status {
-      justify-self: end;
+    .aw-wizard__summary {
+      position: sticky;
+      top: 1rem;
     }
   }
 </style>
