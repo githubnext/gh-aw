@@ -324,7 +324,6 @@ type FrontmatterConfig struct {
 	Redirect                    string                       `json:"redirect,omitempty"`
 	TrackerID                   string                       `json:"tracker-id,omitempty"`
 	ThreatDetectionSuppressions []ThreatDetectionSuppression `json:"threat-detection-suppress,omitempty"`
-	Version                     string                       `json:"version,omitempty"`
 	TimeoutMinutes              *TemplatableInt32            `json:"timeout-minutes,omitempty"`
 	MaxTurns                    *TemplatableInt32            `json:"max-turns,omitempty"`
 	MaxRuns                     *TemplatableInt32            `json:"max-runs,omitempty"` // Deprecated: top-level legacy alias for max-turns; migrate with 'gh aw fix'
@@ -385,7 +384,6 @@ type FrontmatterConfig struct {
 	// Import and inclusion
 	Imports        any            `json:"imports,omitempty"`         // Can be string or array
 	ImportSchema   map[string]any `json:"import-schema,omitempty"`   // Schema for validating 'with' values when this workflow is imported
-	Include        any            `json:"include,omitempty"`         // Can be string or array
 	InlinedImports bool           `json:"inlined-imports,omitempty"` // If true, inline all imports at compile time instead of using runtime-import macros
 	Resources      []string       `json:"resources,omitempty"`       // Additional workflow .md or action .yml files to fetch alongside this workflow
 

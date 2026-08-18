@@ -42,11 +42,7 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	noLintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	noLintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +177,10 @@ func buildFormatBoolFix(
 	}}
 }
 
+// buildImportEdits returns TextEdits that add "strconv" to file and, when the
+// file's "fmt" import becomes unused after the fix, also remove it.
+// seenImportFiles prevents duplicate overlapping edits in files with multiple
+// violations.
 func buildImportEdits(
 	pass *analysis.Pass,
 	file *ast.File,
@@ -191,31 +191,15 @@ func buildImportEdits(
 		return nil
 	}
 
-	_, strconvImported := astutil.ImportedAs(file, pass.TypesInfo, strconvPkg)
 	_, fmtImported := astutil.ImportedAs(file, pass.TypesInfo, fmtPkg)
-
 	orphanFmt := fmtImported && orphanFmtByFile[file.Pos()]
-	needStrconv := !strconvImported
-	needRemoveFmt := orphanFmt
 
-	if !needStrconv && !needRemoveFmt {
+	edits, needed := astutil.SwapPkgImportEdits(pass, file, strconvPkg, fmtPkg, orphanFmt)
+	if !needed {
 		return nil
 	}
 	seenImportFiles[file.Pos()] = true
-
-	switch {
-	case needStrconv && needRemoveFmt:
-		return astutil.SwapImportEdits(pass.Fset, file, strconvPkg, fmtPkg)
-	case needStrconv:
-		if edit, ok := astutil.AddImportEdit(pass, file, strconvPkg); ok {
-			return []analysis.TextEdit{edit}
-		}
-	case needRemoveFmt:
-		if edit, ok := astutil.RemoveImportEdit(pass.Fset, file, fmtPkg); ok {
-			return []analysis.TextEdit{edit}
-		}
-	}
-	return nil
+	return edits
 }
 
 func replacementForCall(pass *analysis.Pass, call *ast.CallExpr, arg ast.Expr, file *ast.File) replacement {

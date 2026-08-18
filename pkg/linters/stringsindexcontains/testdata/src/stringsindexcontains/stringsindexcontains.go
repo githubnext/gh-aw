@@ -64,3 +64,11 @@ func goodIndexEqualZero(s, sub string) bool {
 	// == 0 is a prefix check (not a containment check) and is intentionally not flagged.
 	return strings.Index(s, sub) == 0
 }
+
+func badParenContains(s, sub string) bool {
+	return (strings.Index(s, sub)) != -1 // want `use strings\.Contains\(s, sub\) instead of strings\.Index comparison`
+}
+
+func badParenYodaNotContains(s, sub string) bool {
+	return -1 == (strings.Index(s, sub)) // want `use !strings\.Contains\(s, sub\) instead of strings\.Index comparison`
+}

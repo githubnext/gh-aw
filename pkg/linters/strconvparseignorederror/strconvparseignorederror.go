@@ -27,11 +27,7 @@ var strconvParseFuncs = map[string]bool{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	nolintIndex, err := nolint.Index(pass)
-	if err != nil {
-		return nil, err
-	}
-	generatedFiles, err := filecheck.Index(pass)
+	nolintIndex, generatedFiles, err := analyzerutil.Indexes(pass)
 	if err != nil {
 		return nil, err
 	}

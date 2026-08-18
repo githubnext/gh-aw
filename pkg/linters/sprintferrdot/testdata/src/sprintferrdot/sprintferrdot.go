@@ -61,6 +61,11 @@ func goodNilErr() string {
 	return fmt.Sprintf("sentinel: %s", sentinel)
 }
 
+// goodFscanf consumes input rather than formatting output — no diagnostic expected.
+func goodFscanf(r io.Reader, err error) {
+	fmt.Fscanf(r, "%s", err.Error())
+}
+
 // suppressedSprintfS intentionally keeps err.Error() with suppression.
 func suppressedSprintfS(err error) string {
 	return fmt.Sprintf("operation failed: %s", err.Error()) //nolint:sprintferrdot

@@ -4,9 +4,11 @@
 
 ## Overview
 
-The `agentdrain` package implements an online log-template miner inspired by the Drain algorithm and adapts it to `AgentEvent` records emitted by agentic workflow stages. It converts structured events into deterministic token streams, normalizes variable values with regex-based masking, groups similar events into clusters, and returns a `MatchResult` that captures the matched template, extracted parameters, and similarity score.
+The `agentdrain` package implements an online log-template miner inspired by the Drain algorithm and adapts it to `AgentEvent` records emitted by agentic workflow stages. It converts structured events into deterministic token streams, normalizes variable values with regex-based masking, groups similar events into clusters, and returns `MatchResult` values describing the matched template, extracted parameters, and similarity score.
 
-The package is designed for two related tasks: training on known-good runs and anomaly analysis of new runs. `Miner` handles a single stream of events, while `Coordinator` manages one `Miner` per stage so templates from `plan`, `tool_call`, `finish`, and other stages do not interfere with each other. Persisted snapshots and embedded default weights allow models to be reused across runs instead of starting from an empty state every time.
+The package supports two related workflows: training on known-good events and analyzing new events for anomalies. `Miner` manages a single stream of events, while `Coordinator` manages one `Miner` per stage so templates from `plan`, `tool_call`, `finish`, and other stages do not interfere with each other. Miner state can be serialized with `Snapshot`/`SnapshotCluster`, and coordinators can bootstrap from embedded default weights via `LoadDefaultWeights`.
+
+The public API is intentionally small: event flattening and tokenization helpers, configurable masking, a concurrent miner, stage-aware coordination, and anomaly scoring. Internally, the package uses a parse tree and cluster store, but those remain unexported implementation details.
 
 ## Public API
 
@@ -14,58 +16,60 @@ The package is designed for two related tasks: training on known-good runs and a
 
 | Type | Kind | Description |
 |------|------|-------------|
-| `AgentEvent` | struct | Structured event with a stage name and key/value fields to flatten, mask, and mine. |
-| `AnomalyDetector` | struct | Scores `MatchResult` values against similarity and rarity thresholds. |
-| `AnomalyReport` | struct | Summarizes anomaly flags, normalized score, and human-readable reason text. |
-| `Cluster` | struct | Template cluster with ID, tokenized template, observation count, and optional stage. |
-| `Config` | struct | Tuning parameters for masking, parse-tree depth, similarity threshold, and excluded fields. |
-| `Coordinator` | struct | Routes events to one `Miner` per stage and persists combined weights. |
+| `AgentEvent` | struct | Structured event with a `Stage` and key/value `Fields` used as miner input. |
+| `AnomalyDetector` | struct | Evaluates `MatchResult` values and produces `AnomalyReport` values using similarity and rarity thresholds. |
+| `AnomalyReport` | struct | Describes anomaly flags, normalized score, and human-readable reason text. |
+| `Cluster` | struct | Represents a mined template cluster with ID, tokenized template, size, and optional stage. |
+| `Config` | struct | Configures parse-tree depth, similarity threshold, wildcard token, masking rules, rarity threshold, and excluded fields. |
+| `Coordinator` | struct | Owns one `Miner` per stage and provides stage-aware training, analysis, and persistence. |
 | `MaskRule` | struct | Regex substitution rule applied before tokenization. |
-| `Masker` | struct | Compiled sequence of `MaskRule` values applied in order. |
-| `MatchResult` | struct | Result of matching or creating a cluster, including template, params, and similarity. |
-| `Miner` | struct | Concurrent single-stream Drain-style miner with training and analysis methods. |
-| `Snapshot` | struct | Serializable miner state used by `SaveJSON` and `LoadJSON`. |
-| `SnapshotCluster` | struct | Serializable form of a single `Cluster` within a `Snapshot`. |
+| `Masker` | struct | Compiled ordered set of `MaskRule` values that normalizes log lines. |
+| `MatchResult` | struct | Reports the cluster ID, rendered template, extracted params, similarity, and stage for a processed event. |
+| `Miner` | struct | Concurrent Drain-style miner for one event stream. |
+| `Snapshot` | struct | Serializable representation of a miner's config, clusters, and next cluster ID. |
+| `SnapshotCluster` | struct | Serializable representation of one cluster inside a `Snapshot`. |
 
 ### Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `(*Coordinator).AllClusters` | `func (c *Coordinator) AllClusters() map[string][]Cluster` | Returns a stage-to-cluster snapshot for every managed miner. |
-| `(*Coordinator).AnalyzeEvent` | `func (c *Coordinator) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error)` | Routes an event to its stage's miner, analyzes it, then trains on it, returning both the match and the anomaly report. |
-| `(*Coordinator).LoadDefaultWeights` | `func (c *Coordinator) LoadDefaultWeights() error` | Loads the embedded default trained weights into all stage miners. |
-| `(*Coordinator).LoadSnapshots` | `func (c *Coordinator) LoadSnapshots(data map[string][]byte) error` | Restores stage miners from per-stage JSON snapshots, creating new miners for stages not in the original constructor input. |
-| `(*Coordinator).LoadWeightsJSON` | `func (c *Coordinator) LoadWeightsJSON(data []byte) error` | Restores all stage miners from a combined JSON blob produced by `SaveWeightsJSON`. |
-| `(*Coordinator).SaveSnapshots` | `func (c *Coordinator) SaveSnapshots() (map[string][]byte, error)` | Serializes each stage miner to per-stage JSON snapshots. |
-| `(*Coordinator).SaveWeightsJSON` | `func (c *Coordinator) SaveWeightsJSON() ([]byte, error)` | Serializes all stage snapshots into one combined JSON document. |
-| `(*Coordinator).TrainEvent` | `func (c *Coordinator) TrainEvent(evt AgentEvent) (*MatchResult, error)` | Routes an event to its stage's miner and trains on it, creating the stage miner on demand if needed. |
-| `(*AnomalyDetector).Analyze` | `func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Cluster) *AnomalyReport` | Produces an anomaly report for a match result and cluster context. |
-| `(*Masker).Mask` | `func (m *Masker) Mask(line string) string` | Applies all configured mask rules and returns the normalized line. |
-| `(*Miner).AnalyzeEvent` | `func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error)` | Flattens and analyzes an event without training, returning the would-be match and an anomaly report. |
-| `(*Miner).Clusters` | `func (m *Miner) Clusters() []Cluster` | Returns a safe snapshot of all known clusters in the miner. |
-| `(*Miner).LoadJSON` | `func (m *Miner) LoadJSON(data []byte) error` | Restores miner state (clusters and parse tree) from a JSON snapshot produced by `SaveJSON`. |
-| `(*Miner).SaveJSON` | `func (m *Miner) SaveJSON() ([]byte, error)` | Serializes the miner's clusters into a JSON `Snapshot`. |
-| `(*Miner).Train` | `func (m *Miner) Train(line string) (*MatchResult, error)` | Trains the miner on a raw line and returns the resulting match. |
-| `(*Miner).TrainEvent` | `func (m *Miner) TrainEvent(evt AgentEvent) (*MatchResult, error)` | Flattens an `AgentEvent` and trains the miner on the resulting line. |
-| `DefaultConfig` | `func DefaultConfig() Config` | Returns the production default miner configuration and default masking rules. |
-| `FlattenEvent` | `func FlattenEvent(evt AgentEvent, excludeFields []string) string` | Converts an event into deterministic `key=value` tokens with stage first and excluded fields omitted. |
+| `(*AnomalyDetector).Analyze` | `func (d *AnomalyDetector) Analyze(result *MatchResult, isNew bool, cluster *Cluster) *AnomalyReport` | Scores a match result and cluster context, producing anomaly flags, a normalized score, and reason text. |
+| `(*Coordinator).AllClusters` | `func (c *Coordinator) AllClusters() map[string][]Cluster` | Returns a snapshot of clusters for every registered stage. |
+| `(*Coordinator).AnalyzeEvent` | `func (c *Coordinator) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error)` | Routes an event to its stage miner and returns both the match result and anomaly report. |
+| `(*Coordinator).LoadDefaultWeights` | `func (c *Coordinator) LoadDefaultWeights() error` | Loads embedded default weights from `data/default_weights.json` unless the embedded file is empty or `{}`. |
+| `(*Coordinator).LoadSnapshots` | `func (c *Coordinator) LoadSnapshots(snapshots map[string][]byte) error` | Restores per-stage miner snapshots, creating new stage miners when snapshots reference previously unknown stages. |
+| `(*Coordinator).LoadWeightsJSON` | `func (c *Coordinator) LoadWeightsJSON(data []byte) error` | Restores all stage miners from a combined JSON document produced by `SaveWeightsJSON`. |
+| `(*Coordinator).SaveSnapshots` | `func (c *Coordinator) SaveSnapshots() (map[string][]byte, error)` | Serializes each stage miner independently as JSON. |
+| `(*Coordinator).SaveWeightsJSON` | `func (c *Coordinator) SaveWeightsJSON() ([]byte, error)` | Serializes all stage snapshots into one combined JSON blob suitable for embedding as default weights. |
+| `(*Coordinator).TrainEvent` | `func (c *Coordinator) TrainEvent(evt AgentEvent) (*MatchResult, error)` | Routes an event to the miner for `evt.Stage` and updates that miner. |
+| `(*Masker).Mask` | `func (m *Masker) Mask(line string) string` | Applies all configured masking rules in order. |
+| `(*Miner).AnalyzeEvent` | `func (m *Miner) AnalyzeEvent(evt AgentEvent) (*MatchResult, *AnomalyReport, error)` | Performs inference, trains on the event, and returns both the resulting match and anomaly report. |
+| `(*Miner).Clusters` | `func (m *Miner) Clusters() []Cluster` | Returns a snapshot of all known clusters. |
+| `(*Miner).LoadJSON` | `func (m *Miner) LoadJSON(data []byte) error` | Replaces miner state from a JSON snapshot and rebuilds the parse tree. |
+| `(*Miner).SaveJSON` | `func (m *Miner) SaveJSON() ([]byte, error)` | Serializes miner state to JSON. |
+| `(*Miner).Train` | `func (m *Miner) Train(line string) (*MatchResult, error)` | Trains the miner on a raw line after masking and tokenization. |
+| `(*Miner).TrainEvent` | `func (m *Miner) TrainEvent(evt AgentEvent) (*MatchResult, error)` | Flattens an `AgentEvent`, trains on it, and propagates the event stage onto the result and cluster. |
+| `DefaultConfig` | `func DefaultConfig() Config` | Returns the built-in production defaults, including masking rules and excluded fields. |
+| `FlattenEvent` | `func FlattenEvent(evt AgentEvent, excludeFields []string) string` | Converts an event into a deterministic space-separated `key=value` token string with `stage=` first when present. |
 | `NewAnomalyDetector` | `func NewAnomalyDetector(simThreshold float64, rareClusterThreshold int) (*AnomalyDetector, error)` | Validates thresholds and constructs an anomaly detector. |
-| `NewCoordinator` | `func NewCoordinator(cfg Config, stages []string) (*Coordinator, error)` | Creates one stage-scoped miner for each supplied stage. |
-| `NewMasker` | `func NewMasker(rules []MaskRule) (*Masker, error)` | Compiles masking regexes into a reusable masker. |
-| `NewMiner` | `func NewMiner(cfg Config) (*Miner, error)` | Creates a miner with compiled mask rules, empty clusters, and a fresh parse tree. |
-| `StageSequence` | `func StageSequence(events []AgentEvent) string` | Returns a space-separated sequence of event stages. |
-| `Tokenize` | `func Tokenize(line string) []string` | Splits a masked line on whitespace boundaries. |
+| `NewCoordinator` | `func NewCoordinator(cfg Config, stages []string) (*Coordinator, error)` | Creates a stage-aware coordinator with one miner per supplied stage. |
+| `NewMasker` | `func NewMasker(rules []MaskRule) (*Masker, error)` | Compiles regex mask rules into a reusable masker. |
+| `NewMiner` | `func NewMiner(cfg Config) (*Miner, error)` | Constructs a miner with compiled mask rules, a fresh parse tree, and an empty cluster store. |
+| `StageSequence` | `func StageSequence(events []AgentEvent) string` | Returns the stages from a slice of events as a single space-separated string. |
+| `Tokenize` | `func Tokenize(line string) []string` | Splits a line on whitespace. |
 
 ### Constants
 
 | Constant | Type | Value | Description |
 |----------|------|-------|-------------|
-| `AnomalyMaxScore` | untyped `float64` | `2.0` | Maximum raw anomaly score before normalization to `[0,1]`. |
-| `AnomalyWeightLow` | untyped `float64` | `0.7` | Weight applied when a known template matches below the configured similarity threshold. |
-| `AnomalyWeightNew` | untyped `float64` | `1.0` | Weight applied when analysis creates a brand-new cluster. |
-| `AnomalyWeightRare` | untyped `float64` | `0.3` | Weight applied when the matched cluster size is at or below the rare-cluster threshold. |
+| `AnomalyMaxScore` | untyped numeric constant | `2.0` | Maximum raw anomaly weight before normalization into the `[0,1]` score range. |
+| `AnomalyWeightLow` | untyped numeric constant | `0.7` | Weight added when a known cluster matches below the similarity threshold. |
+| `AnomalyWeightNew` | untyped numeric constant | `1.0` | Weight added when analysis creates a brand-new template cluster. |
+| `AnomalyWeightRare` | untyped numeric constant | `0.3` | Weight added when the matched cluster size is at or below the rare-cluster threshold. |
 
 ## Usage Examples
+
+Examples below are taken from the package's spec tests and reflect the current public API.
 
 ```go
 cfg := agentdrain.DefaultConfig()
@@ -87,24 +91,20 @@ fmt.Println(result.ClusterID)
 
 ```go
 cfg := agentdrain.DefaultConfig()
-stages := []string{"plan", "tool_call", "finish"}
-coord, err := agentdrain.NewCoordinator(cfg, stages)
+coord, err := agentdrain.NewCoordinator(cfg, []string{"plan", "tool_call", "finish"})
 if err != nil {
-	panic(err)
-}
-if err := coord.LoadDefaultWeights(); err != nil {
 	panic(err)
 }
 
 evt := agentdrain.AgentEvent{
-	Stage:  "tool_call",
-	Fields: map[string]string{"tool": "bash", "status": "ok"},
+	Stage:  "plan",
+	Fields: map[string]string{"action": "evaluate", "step": "1"},
 }
 result, report, err := coord.AnalyzeEvent(evt)
 if err != nil {
 	panic(err)
 }
-fmt.Println(result.Template, report.AnomalyScore)
+fmt.Println(result.Stage, report.AnomalyScore)
 ```
 
 ```go
@@ -112,34 +112,47 @@ flat := agentdrain.FlattenEvent(
 	agentdrain.AgentEvent{
 		Stage: "tool_call",
 		Fields: map[string]string{
-			"tool":       "search",
-			"query":      "foo",
-			"session_id": "abc123",
-			"latency_ms": "42",
+			"session_id": "abc-123",
+			"action":     "start",
 		},
 	},
 	[]string{"session_id"},
 )
-// flat == "stage=tool_call latency_ms=42 query=foo tool=search"
+fmt.Println(flat)
+// Output: stage=tool_call action=start
+```
+
+```go
+masker, err := agentdrain.NewMasker([]agentdrain.MaskRule{{
+	Name:        "number_test",
+	Pattern:     `\d+`,
+	Replacement: "<NUM>",
+}})
+if err != nil {
+	panic(err)
+}
+fmt.Println(masker.Mask("step 42 completed"))
 ```
 
 ## Design Decisions
 
-`FlattenEvent` MUST emit deterministic output: the `stage=` token is first when present, remaining keys are sorted alphabetically, and excluded fields are omitted. This keeps clustering stable across map iteration order and allows persisted weights to be reused reliably.
+`FlattenEvent` is deterministic by design: it emits `stage=` first when present, sorts remaining field keys alphabetically, and omits explicitly excluded fields. This makes clustering stable across Go map iteration order and allows saved weights to remain reusable.
 
-`AnalyzeEvent` performs inference before updating training state, then trains on the same event and scores the result against the matched or created cluster. New-template anomalies and low-similarity anomalies are intentionally mutually exclusive: a brand-new cluster is already anomalous without also being labeled low similarity.
+`Miner.AnalyzeEvent` performs inference before training, then trains on the same event and scores the resulting cluster with `AnomalyDetector`. The anomaly flags intentionally treat “new template” and “low similarity” as mutually exclusive so a brand-new cluster is not double-counted as both conditions.
 
-`Coordinator` SHOULD be used when events belong to semantically different stages. Each stage receives its own miner so templates from unrelated phases do not merge into the same cluster space. `LoadSnapshots` MAY create new stage miners when snapshots contain stages that were not part of the original constructor input.
-
-The package embeds default trained weights in `data/default_weights.json`. Callers MAY use `LoadDefaultWeights` to start from a pre-trained baseline instead of training from scratch.
+`Coordinator` isolates miners by stage. This prevents templates from unrelated workflow phases from merging into the same cluster space and supports persistence as either per-stage snapshots or one combined weights document. The embedded default-weights mechanism provides an opt-in pre-trained baseline without exposing embedding details through additional API surface.
 
 ## Dependencies
 
-Internal dependencies include `pkg/logger` for debug logging, `pkg/setutil` for exclusion-set membership, and `pkg/sliceutil` for slice and map helpers. External dependencies are limited to the Go standard library.
+Internal package dependencies include `pkg/logger` for debug logging, `pkg/setutil` for exclusion-set membership checks, and `pkg/sliceutil` for collection helpers used while flattening events. The package also embeds `data/default_weights.json` for coordinator bootstrapping.
+
+External dependencies for production code are limited to the Go standard library, including `encoding/json`, `regexp`, `sort`, `strings`, `sync`, and `embed` support.
 
 ## Thread Safety
 
-`Miner` and `Coordinator` are safe for concurrent use. `Miner` protects mutable state with an internal `sync.RWMutex`; training, analysis, and load paths acquire write locks, while cluster snapshots and persistence reads acquire read locks. `Coordinator` protects its stage-to-miner map with its own `sync.RWMutex` and delegates per-stage concurrency to each `Miner`.
+`Miner` is safe for concurrent use. It protects mutable state with an internal `sync.RWMutex`; training and load operations take the write lock, while cluster snapshots and JSON save operations take the read lock.
+
+`Coordinator` is also safe for concurrent use. It protects its stage-to-miner map with its own `sync.RWMutex` and relies on each contained `Miner` for per-stage concurrency control.
 
 ---
 
