@@ -27,7 +27,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       body: true                      # Optional: enable body updates (default: true)
       operation: "replace"            # Optional: "replace" (default), "append", "prepend"
       update-branch: false            # Optional: update PR branch with latest base before updates (default: false)
-      update-branch.stacks: true      # Optional: allow stacked-PR stack-sync fallback when update-branch is unsupported (default: true)
+      sync-stack: true                # Optional: allow stacked-PR stack-sync fallback when update-branch is unsupported (default: true)
       max: 1                          # Optional: max updates (default: 1)
       target: "*"                     # Optional: "triggering" (default), "*", or number
       target-repo: "owner/repo"       # Optional: cross-repository
