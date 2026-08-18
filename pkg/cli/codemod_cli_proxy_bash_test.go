@@ -146,6 +146,23 @@ tools: {bash: false}
 		assert.Equal(t, content, result)
 	})
 
+	t.Run("adds tools block inside frontmatter when absent", func(t *testing.T) {
+		content := `---
+name: Test
+---
+
+# Test
+`
+		frontmatter := map[string]any{
+			"tools": map[string]any{"bash": false},
+		}
+
+		result, applied, err := codemod.Apply(content, frontmatter)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "---\nname: Test\ntools:\n  cli-proxy: false\n---")
+	})
+
 	t.Run("does not apply when bash is enabled", func(t *testing.T) {
 		content := `---
 tools:
@@ -254,5 +271,40 @@ tools:
 		assert.Contains(t, result, "    mode: local")
 		assert.NotContains(t, result, "cli-proxy: true")
 		assert.NotContains(t, result, "mode: gh-proxy")
+	})
+
+	t.Run("apply with context inserts local github override for imported gh-proxy", func(t *testing.T) {
+		dir := t.TempDir()
+		importContent := `---
+tools:
+  bash: false
+  github:
+    mode: gh-proxy
+---
+`
+		importPath := filepath.Join(dir, "restricted-tools.md")
+		require.NoError(t, os.WriteFile(importPath, []byte(importContent), 0o644))
+
+		content := `---
+imports:
+  - restricted-tools.md
+tools:
+  cli-proxy: false
+---
+
+# Test
+`
+		workflowPath := filepath.Join(dir, "workflow.md")
+		require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o644))
+
+		frontmatter := map[string]any{
+			"imports": []any{"restricted-tools.md"},
+			"tools":   map[string]any{"cli-proxy": false},
+		}
+
+		result, applied, err := codemod.ApplyWithContext(content, frontmatter, workflowPath)
+		require.NoError(t, err)
+		assert.True(t, applied)
+		assert.Contains(t, result, "  cli-proxy: false\n  github:\n    mode: local")
 	})
 }

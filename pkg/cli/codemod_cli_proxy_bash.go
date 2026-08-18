@@ -40,6 +40,8 @@ func applyCLIProxyBashDisabledCodemod(content string, frontmatter map[string]any
 	}
 
 	needsCLIProxyFalse := !frontmatterHasCLIProxyDisabled(frontmatter)
+	// Use the effective tools map here on purpose: if an import contributes gh-proxy while
+	// bash is disabled, adding a local tools.github.mode override is the codemod's fix.
 	_, needsGitHubLocal := workflow.IsGitHubCLIProxyMode(effectiveTools)
 	if !needsCLIProxyFalse && !needsGitHubLocal {
 		return content, false, nil
@@ -97,6 +99,8 @@ func setShellBackedModesDisabledInTools(lines []string, setCLIProxyFalse, setGit
 			cliProxyBashCodemodLog.Print("Top-level tools key is not block syntax, skipping")
 			return lines, false
 		}
+		// lines contains only YAML frontmatter (applyFrontmatterLineTransform reconstructs the
+		// closing delimiter), so appending here still inserts the block inside frontmatter.
 		result := append([]string{}, lines...)
 		result = append(result, "tools:")
 		if setCLIProxyFalse {
@@ -197,7 +201,9 @@ func setShellBackedModesDisabledInTools(lines []string, setCLIProxyFalse, setGit
 			applied = true
 		} else {
 			insertGithubAt := insertAt
-			if setCLIProxyFalse {
+			if cliProxyLine >= 0 {
+				insertGithubAt = cliProxyLine + 1
+			} else if setCLIProxyFalse {
 				insertGithubAt++
 			}
 			result = insertLine(result, insertGithubAt, fieldIndent+"github:")
