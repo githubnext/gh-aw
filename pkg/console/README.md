@@ -1,1009 +1,185 @@
-# console Package
+# Console Package
 
-> Terminal UI formatting utilities for the `gh-aw` CLI — message formatting, table and struct rendering, interactive prompts, progress bars, and spinners.
+> Terminal UI formatting, rendering, and interactive console helpers for `gh-aw`.
 
 ## Overview
 
-The `console` package provides utilities for formatting and rendering terminal output in GitHub Agentic Workflows. It covers message formatting, table and section rendering, interactive prompts, progress bars, spinners, struct rendering, and accessibility support.
+The `console` package defines the terminal-facing presentation layer used by `gh-aw`. It formats diagnostic messages, compiler-style errors, banners, tables, sections, and reflected struct output, and it provides convenience print helpers that route human-readable output to stderr. The package distinguishes between `Format*` functions, which produce formatted strings, and `Render*` functions, which build structured output such as tables, boxes, or composed sections.
 
-## Design Philosophy
-
-This package follows Charmbracelet best practices for terminal UI:
-
-- **Adaptive Colors**: All styling uses `lipgloss.AdaptiveColor` for light/dark theme support
-- **Rounded Borders**: Tables and boxes use rounded corners (╭╮╰╯) for a polished appearance
-- **Consistent Padding**: All rendered elements include proper spacing (horizontal and vertical)
-- **TTY Detection**: Automatically adapts output for terminals vs pipes/redirects
-- **Visual Hierarchy**: Clear separation between sections using borders and spacing
-- **Zebra Striping**: Tables use alternating row colors for improved readability
-
-### Border Usage Guidelines
-
-- **RoundedBorder** (primary): Use for tables, boxes, and panels
-  - Creates a polished, modern appearance
-  - Consistent with Charmbracelet design language
-- **NormalBorder** (subtle): Use for left-side emphasis on info sections
-  - Provides gentle visual guidance without overwhelming
-- **ThickBorder** (reserved): Available for special cases requiring extra emphasis
-  - Use sparingly - rounded borders with bold text usually suffice
-
-### Padding Guidelines
-
-- **Table cells**: 1 character horizontal padding (left/right)
-- **Boxes**: 2 character horizontal padding, 0-1 vertical padding
-- **Info sections**: 2 character left padding for consistent indentation
+The package is designed to adapt to the execution environment. Native builds detect TTY availability, honor accessibility-oriented environment variables, and degrade ANSI output through the color-profile writer so output respects terminal capabilities and settings such as `NO_COLOR`. For interactive workflows it also provides spinners, progress bars, confirmation dialogs, secret prompts, and themed `huh` form constructors, while WASM builds expose simpler fallback implementations or explicit “not available” errors where interactivity is unsupported.
 
 ## Public API
 
-The following components and functions are exported by the `console` package:
-
-| Export | Kind | Description |
-|--------|------|-------------|
-| `NewSpinner` | func | Creates a new animated spinner |
-| `NewProgressBar` | func | Creates a determinate progress bar |
-| `NewIndeterminateProgressBar` | func | Creates an indeterminate progress bar |
-| `RenderStruct` | func | Renders a Go struct to a styled terminal string |
-| `RenderTable` | func | Renders a formatted table string |
-| `RenderTree` | func | Renders a tree-node hierarchy |
-| `RenderTitleBox` / `RenderErrorBox` / `RenderInfoSection` / `PrintSectionHeader` | funcs | Section rendering and section-header helpers |
-| `RenderComposedSections` | func | Composes and prints multiple sections |
-| `FormatSuccessMessage` / `FormatInfoMessage` / `FormatWarningMessage` / `FormatErrorMessage` | funcs | Styled status message formatting |
-| `FormatSuccessMessageStderr` / `FormatInfoMessageStderr` / `FormatListItemStderr` / `FormatSectionHeaderStderr` / `FormatTableHeaderStderr` / `FormatErrorTextStderr` / `FormatCommandMessageStderr` / `FormatProgressMessageStderr` / `FormatWarningMessageStderr` / `FormatErrorStderr` | funcs | Stderr-TTY-aware variants of matching format functions |
-| `FormatCommandMessage` / `FormatProgressMessage` / `FormatVerboseMessage` | funcs | Additional message styles |
-| `FormatError` | func | Renders a structured `CompilerError` with context |
-| `FormatErrorChain` | func | Renders a wrapped-error chain |
-| `FormatErrorWithSuggestions` | func | Error message with actionable suggestions |
-| `ConfirmAction` | func | Interactive yes/no confirmation |
-| `ShowInteractiveList` | func | Interactive single-selection list |
-| `PromptInput` / `PromptSecretInput` | funcs | Text and secret input prompts |
-| `NewForm` / `NewInputForm` / `NewSelectForm` / `NewConfirmForm` | funcs | Themed huh form constructors (non-WASM) |
-| `IsCancelled` | func | Reports whether an error is a user cancellation (`huh.ErrUserAborted`) |
-| `LogVerbose` | func | Conditional verbose logging |
-| `FormatFileSize` / `FormatNumber` / `FormatTokens` | funcs | Human-readable byte, integer, and token count formatting |
-| `IsAccessibleMode` | func | Detects accessibility mode |
-| `SetTimeLocation` / `ResetTimeLocation` | funcs | Configure `time.Time` rendering timezone |
-| `SpinnerWrapper` | type | Spinner controller with `Start`, `Stop`, `StopWithMessage`, and `UpdateMessage` |
-| `Init` / `View` | methods | Bubble Tea model methods on the spinner model implementation |
-| `CompilerError` / `ErrorPosition` / `TableConfig` / `TreeNode` | types | Supporting data types |
-| `FormatBanner` / `PrintBanner` | funcs | Render/print the `gh-aw` ASCII banner |
-| `ShowWelcomeBanner` | func | Prints the banner followed by a description line |
-| `ClearScreen` / `ClearLine` | funcs | ANSI terminal clear escape sequence helpers |
-| `PrintSuccessMessage` / `PrintInfoMessage` / `PrintWarningMessage` / `PrintErrorMessage` / `PrintCommandMessage` / `PrintSectionHeader` | funcs | Format-and-print convenience wrappers (write formatted messages directly to stdout) |
-| `FormatPromptMessage` | func | Styled prompt message formatting |
-| `ToRelativePath` | func | Converts an absolute path to a path relative to the current working directory for display |
-| `NewListItem` | func | Constructs a `ListItem` value |
-| `ListItem` / `SelectOption` / `FormField` | types | Supporting data types for interactive list, select, and form components |
-| `ProgressBar` | type | Progress bar controller returned by `NewProgressBar`/`NewIndeterminateProgressBar` |
-| `PromptSelect` / `PromptMultiSelect` | funcs | WASM-only single/multi select prompts (native builds use `ShowInteractiveList`) |
-
-## Spinner Component
-
-The `Spinner` component provides animated visual feedback during long-running operations with automatic TTY detection and accessibility support.
-
-### Features
-
-- **MiniDot animation**: Minimal dot spinner (⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷)
-- **TTY detection**: Automatically disabled in pipes/redirects
-- **Accessibility support**: Respects `ACCESSIBLE` environment variable
-- **Color adaptation**: Uses adaptive colors for light/dark themes
-- **Idiomatic Bubble Tea**: Uses `tea.NewProgram()` with proper message passing
-- **Thread-safe**: Safe for concurrent use via Bubble Tea's message handling
-
-### Usage
-
-```go
-import "github.com/github/gh-aw/pkg/console"
-
-// Create and use a spinner
-spinner := console.NewSpinner("Loading...")
-spinner.Start()
-// Long-running operation
-spinner.Stop()
-
-// Stop with a message
-spinner := console.NewSpinner("Processing...")
-spinner.Start()
-// Long-running operation
-spinner.StopWithMessage("✓ Done!")
-
-// Update message while running
-spinner := console.NewSpinner("Starting...")
-spinner.Start()
-spinner.UpdateMessage("Still working...")
-// Long-running operation
-spinner.Stop()
-```
-
-### Accessibility
-
-The spinner respects the `ACCESSIBLE` environment variable. When set to any value, spinner animations are disabled to support screen readers and accessibility tools:
-
-```bash
-export ACCESSIBLE=1
-gh aw compile workflow.md  # Spinners will be disabled
-```
-
-### TTY Detection
-
-Spinners only animate in terminal environments. When output is piped or redirected, the spinner is automatically disabled:
-
-```bash
-gh aw compile workflow.md           # Spinner animates
-gh aw compile workflow.md > log.txt # Spinner disabled
-```
-
-## ProgressBar Component
-
-The `ProgressBar` component provides a reusable progress bar with TTY detection and graceful fallback for non-TTY environments.
-
-### Public API
-
-| Function / Method | Signature | Description |
-|------------------|-----------|-------------|
-| `NewProgressBar` | `func(total int64) *ProgressBar` | Creates a determinate progress bar for a known total byte count |
-| `NewIndeterminateProgressBar` | `func() *ProgressBar` | Creates an indeterminate progress bar for operations of unknown size (WASM build only) |
-| `(*ProgressBar).Update` | `func(current int64) string` | Updates progress and returns a formatted display string; in TTY mode renders a gradient bar, in non-TTY mode returns a text percentage |
-
-### Features
-
-- **Scaled gradient effect**: Smooth color transition from purple to cyan as progress advances
-- **TTY detection**: Automatically adapts to terminal environment
-- **Byte formatting**: Converts byte counts to human-readable sizes (KB, MB, GB)
-- **Thread-safe updates**: Safe for concurrent use with atomic operations
-
-### Visual Styling
-
-The progress bar uses bubbles v0.21.0+ gradient capabilities for enhanced visual appeal:
-- **Start (0%)**: #BD93F9 (purple) - vibrant, attention-grabbing
-- **End (100%)**: #8BE9FD (cyan) - cool, completion feeling
-- **Empty portion**: #6272A4 (muted purple-gray)
-- **Gradient scaling**: WithScaledGradient ensures gradient scales with filled portion
-
-### Usage
-
-#### Determinate Mode (known total)
-Use when the total size or count is known:
-
-```go
-import "github.com/github/gh-aw/pkg/console"
-
-// Create a progress bar for 1GB total
-totalBytes := int64(1024 * 1024 * 1024)
-bar := console.NewProgressBar(totalBytes)
-
-// Update progress (returns formatted string)
-output := bar.Update(currentBytes)
-fmt.Fprintf(os.Stderr, "\r%s", output)
-```
-
-#### Indeterminate Mode (unknown total)
-Use when the total size or count is unknown:
-
-```go
-import "github.com/github/gh-aw/pkg/console"
-
-// Create an indeterminate progress bar
-bar := console.NewIndeterminateProgressBar()
-
-// Update with current progress (shows activity without percentage)
-output := bar.Update(currentBytes)
-fmt.Fprintf(os.Stderr, "\r%s", output)
-```
-
-### Output Examples
-
-**Determinate Mode - TTY**:
-```
-████████████████████░░░░░░░░░░░░░░░░░  50%
-```
-*(Displays with gradient from purple to cyan)*
-
-**Determinate Mode - Non-TTY**:
-```
-50% (512.0MB/1.00GB)
-```
-
-**Indeterminate Mode - TTY**:
-```
-████████████████░░░░░░░░░░░░░░░░░░░░  (pulsing animation)
-```
-*(Shows pulsing progress indicator)*
-
-**Indeterminate Mode - Non-TTY**:
-```
-Processing... (512.0MB)
-```
-
-
-## RenderStruct Function
-
-The `RenderStruct` function uses reflection to automatically render Go structs based on struct tags.
-
-### Struct Tags
-
-Use the `console` struct tag to control rendering behavior:
-
-#### Available Tags
-
-- **`header:"Column Name"`** - Sets the display name for the field (used in both structs and tables)
-- **`title:"Section Title"`** - Sets the title for nested structs, slices, or maps
-- **`omitempty`** - Skips the field if it has a zero value
-- **`"-"`** - Always skips the field
-
-#### Tag Examples
-
-```go
-type Overview struct {
-    RunID      int64  `console:"header:Run ID"`
-    Workflow   string `console:"header:Workflow"`
-    Status     string `console:"header:Status"`
-    Duration   string `console:"header:Duration,omitempty"`
-    Internal   string `console:"-"` // Never displayed
-}
-```
-
-### Rendering Behavior
-
-#### Structs
-Structs are rendered as key-value pairs with proper alignment:
-
-```
-  Run ID    : 12345
-  Workflow  : my-workflow
-  Status    : completed
-  Duration  : 5m30s
-```
-
-#### Slices
-Slices of structs are automatically rendered as tables using the console table renderer:
-
-```go
-type Job struct {
-    Name       string `console:"header:Name"`
-    Status     string `console:"header:Status"`
-    Conclusion string `console:"header:Conclusion,omitempty"`
-}
-
-jobs := []Job{
-    {Name: "build", Status: "completed", Conclusion: "success"},
-    {Name: "test", Status: "in_progress", Conclusion: ""},
-}
-
-fmt.Print(console.RenderStruct(jobs))
-```
-
-Renders as:
-
-```
-Name  | Status      | Conclusion
------ | ----------- | ----------
-build | completed   | success
-test  | in_progress | -
-```
-
-#### Maps
-Maps are rendered as markdown-style headers with key-value pairs:
-
-```go
-data := map[string]string{
-    "Repository": "github/gh-aw",
-    "Author":     "test-user",
-}
-
-fmt.Print(console.RenderStruct(data))
-```
-
-Renders as:
-
-```
-  Repository: github/gh-aw
-  Author    : test-user
-```
-
-### Special Type Handling
-
-#### time.Time
-`time.Time` fields are automatically formatted as `"2006-01-02 15:04:05"`. Zero time values are considered empty when used with `omitempty`.
-
-#### Unexported Fields
-The rendering system safely handles unexported struct fields by checking `CanInterface()` before attempting to access field values.
-
-### Usage in Audit Command
-
-The audit command uses the new rendering system for structured output:
-
-```go
-// Render overview section
-renderOverview(data.Overview)
-
-// Render metrics with custom formatting
-renderMetrics(data.Metrics)
-
-// Render jobs as a table
-renderJobsTable(data.Jobs)
-```
-
-This provides:
-- Consistent formatting across all audit sections
-- Automatic table generation for slice data
-- Proper handling of optional/empty fields
-- Type-safe reflection-based rendering
-
-### Migration Guide
-
-To migrate existing rendering code to use the new system:
-
-1. **Add struct tags** to your data types:
-   ```go
-   type MyData struct {
-       Field1 string `console:"header:Field 1"`
-       Field2 int    `console:"header:Field 2,omitempty"`
-   }
-   ```
-
-2. **Use RenderStruct** for simple structs:
-   ```go
-   fmt.Print(console.RenderStruct(myData))
-   ```
-
-3. **Use custom rendering** for special formatting needs:
-   ```go
-   func renderMyData(data MyData) {
-       fmt.Printf("  %-15s %s\n", "Field 1:", formatCustom(data.Field1))
-       // ... custom formatting logic
-   }
-   ```
-
-4. **Use console.RenderTable** for tables with custom formatting:
-   ```go
-   config := console.TableConfig{
-       Headers: []string{"Name", "Value"},
-       Rows: [][]string{
-           {truncateString(item.Name, 40), formatNumber(item.Value)},
-       },
-   }
-   fmt.Print(console.RenderTable(config))
-   ```
-
-## Message Formatting Functions
-
-All `Format*` functions return a styled string ready to be printed to `os.Stderr`. Colors adapt automatically to the terminal background.
-
-| Function | Style | Typical use |
-|----------|-------|-------------|
-| `FormatSuccessMessage(message string) string` | Green, bold | Operation completed successfully |
-| `FormatSuccessMessageStderr(message string) string` | Green, bold (stderr TTY) | Success message using stderr TTY detection |
-| `FormatInfoMessage(message string) string` | Cyan, bold | General informational output |
-| `FormatInfoMessageStderr(message string) string` | Cyan, bold (stderr TTY) | Info message using stderr TTY detection |
-| `FormatWarningMessage(message string) string` | Orange, bold | Non-fatal warnings |
-| `FormatErrorMessage(message string) string` | Red, bold | Recoverable error messages |
-| `FormatCommandMessage(command string) string` | Purple | CLI commands and code snippets |
-| `FormatProgressMessage(message string) string` | Yellow | In-progress status updates |
-| `FormatPromptMessage(message string) string` | Cyan | Interactive prompt labels |
-| `FormatVerboseMessage(message string) string` | Muted/comment | Verbose/debug detail |
-| `FormatListItem(item string) string` | Foreground | Individual list entries |
-| `FormatListItemStderr(item string) string` | Foreground (stderr TTY) | List entry using stderr TTY detection |
-| `FormatListHeader(header string) string` | Plain (WASM only) | Section headers inside lists |
-| `FormatSectionHeader(header string) string` | Bold, bordered | Section titles in output |
-| `FormatSectionHeaderStderr(header string) string` | Bold, bordered (stderr TTY) | Section title using stderr TTY detection |
-| `FormatTableHeaderStderr(text string) string` | Bold (stderr TTY) | Table column header using stderr TTY detection |
-| `FormatErrorTextStderr(text string) string` | Red (stderr TTY) | Inline error text using stderr TTY detection |
-| `FormatLocationMessage(message string) string` | Foreground (WASM only) | File and location paths |
-| `FormatCountMessage(message string) string` | Foreground (WASM only) | Counts and metrics |
-
-### Stderr TTY Variants
-
-The `*Stderr` variants (`FormatSuccessMessageStderr`, `FormatInfoMessageStderr`, `FormatListItemStderr`, `FormatSectionHeaderStderr`, `FormatTableHeaderStderr`, `FormatErrorTextStderr`) check whether **`os.Stderr`** is a terminal rather than `os.Stdout`. Use these when writing to `os.Stderr` directly, so that color stripping is applied correctly in non-interactive contexts (e.g., piped stderr).
-
-```go
-// Use Stderr variants when writing directly to os.Stderr
-fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Already configured"))
-fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Updated "+filePath))
-fmt.Fprintln(os.Stderr, console.FormatSectionHeaderStderr("Section Title"))
-fmt.Fprintln(w, console.FormatListItemStderr("Detail item"))
-```
-
-### Usage Pattern
-
-```go
-import (
-    "github.com/github/gh-aw/pkg/console"
-)
-
-// Prefer direct stderr print helpers
-console.PrintSuccessMessage("Workflow compiled successfully")
-console.PrintInfoMessage("Processing 3 files...")
-console.PrintWarningMessage("Network access is unrestricted")
-console.PrintErrorMessage("File not found: workflow.md")
-console.PrintCommandMessage("gh aw compile workflow.md")
-console.PrintProgressMessage("Downloading release...")
-```
-
-## Error Formatting
-
-### `FormatError(err CompilerError) string`
-
-Formats a structured `CompilerError` with position information, source context lines, and an optional fix hint. Used by the compiler to display actionable error messages.
-
-```go
-err := console.CompilerError{
-    Position: console.ErrorPosition{File: "workflow.md", Line: 12, Column: 5},
-    Type:     "error",
-    Message:  "unknown engine: 'myengine'",
-    Context:  []string{"engine: myengine"},
-    Hint:     "Valid engines are: copilot, claude, codex, gemini",
-}
-fmt.Fprint(os.Stderr, console.FormatError(err))
-```
-
-### `FormatErrorChain(err error) string`
-
-Formats an error together with its entire `%w`-wrapped cause chain. Each level of the chain is shown on a new indented line for easy debugging.
-
-```go
-fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
-```
-
-## Section Rendering Functions
-
-These functions return `[]string` slices (lines of output) that can be composed using `RenderComposedSections`.
-
-### `RenderTitleBox(title string, width int) []string`
-
-Returns a rounded-border box containing `title`, padded to at least `width` characters.
-
-### `RenderErrorBox(title string) []string`
-
-Returns a red-bordered error box displaying `title`.
-
-### `RenderInfoSection(content string) []string`
-
-Returns `content` wrapped in a left-bordered info section with muted styling.
-
-### `RenderComposedSections(sections []string)`
-
-Prints multiple rendered sections to `os.Stderr`, separated by blank lines.
-
-```go
-lines := append(
-    console.RenderTitleBox("Audit Report", 60),
-    console.RenderInfoSection("3 jobs completed")...,
-)
-console.RenderComposedSections(lines)
-```
-
-### `RenderTable(config TableConfig) string`
-
-Renders a formatted table with optional title and total row. See the `TableConfig` type for configuration options.
-
-```go
-table := console.RenderTable(console.TableConfig{
-    Headers: []string{"Name", "Status", "Duration"},
-    Rows: [][]string{
-        {"build", "success", "1m30s"},
-        {"test",  "failure", "45s"},
-    },
-    Title: "Job Results",
-})
-fmt.Print(table)
-```
-
-### `RenderTree(root TreeNode) string`
-
-Renders a `TreeNode` hierarchy as an indented tree string.
-
-```go
-tree := console.RenderTree(console.TreeNode{
-    Value: "root",
-    Children: []console.TreeNode{
-        {Value: "child1"},
-        {Value: "child2", Children: []console.TreeNode{{Value: "grandchild"}}},
-    },
-})
-fmt.Print(tree)
-```
-
-## Types
-
-### `CompilerError`
-
-Structured error with source position, type, message, context lines, and a fix hint.
-
-```go
-type CompilerError struct {
-    Position ErrorPosition // Source file position
-    Type     string        // "error", "warning", "info"
-    Message  string
-    Context  []string      // Source lines shown around the error
-    Hint     string        // Optional actionable fix suggestion
-}
-```
-
-### `ErrorPosition`
-
-```go
-type ErrorPosition struct {
-    File   string
-    Line   int
-    Column int
-}
-```
-
-### `TableConfig`
-
-```go
-type TableConfig struct {
-    Headers   []string
-    Rows      [][]string
-    Title     string   // Optional table title
-    ShowTotal bool     // Display a total row
-    TotalRow  []string // Content for the total row
-}
-```
-
-### `TreeNode`
-
-Represents a node in a hierarchical tree for tree-style rendering.
-
-```go
-type TreeNode struct {
-    Value    string
-    Children []TreeNode
-}
-```
-
-### `SelectOption`
-
-A labeled option for interactive select fields.
-
-```go
-type SelectOption struct {
-    Label string
-    Value string
-}
-```
-
-### `FormField`
-
-Configuration for a single field in an interactive form.
-
-```go
-type FormField struct {
-    Type        string             // "input", "password", "confirm", "select"
-    Title       string
-    Description string
-    Placeholder string
-    Value       any                // Pointer to the field's result value
-    Options     []SelectOption     // For "select" type
-    Validate    func(string) error // For "input" and "password" types
-}
-```
-
-### `ListItem`
-
-An item in an interactive list with title, description, and an internal value. Create with `NewListItem(title, description, value string)`.
-
-## Interactive Prompts
-
-### `ConfirmAction(title, affirmative, negative string) (bool, error)`
-
-Displays an interactive yes/no confirmation dialog using the `huh` library. Returns `true` when the user selects `affirmative`.
-
-```go
-confirmed, err := console.ConfirmAction(
-    "Delete all compiled workflows?",
-    "Yes, delete",
-    "Cancel",
-)
-if err != nil || !confirmed {
-    return
-}
-```
-
-> **Note**: `ConfirmAction` is only available in non-WASM builds. In WASM environments the function is unavailable.
-
-### `ShowInteractiveList(title string, items []ListItem) (string, error)`
-
-Displays an interactive single-selection list using arrow key navigation. Returns the value of the selected `ListItem`. Returns an error if the list is empty or the prompt is cancelled. Falls back to a numbered text list in non-TTY environments.
-
-```go
-items := []console.ListItem{
-    console.NewListItem("Option A", "First choice", "a"),
-    console.NewListItem("Option B", "Second choice", "b"),
-}
-selected, err := console.ShowInteractiveList("Pick one", items)
-```
-
-### `PromptInput(title, description, placeholder string) (string, error)`
-
-Displays a single-line text input prompt. Returns the entered string or an error.
-
-```go
-value, err := console.PromptInput("Repository name", "Enter the full owner/repo", "owner/repo")
-```
-
-> **Note**: `PromptInput` is only available in WASM builds. Use `huh` forms directly in non-WASM builds.
-
-### `PromptSecretInput(title, description string) (string, error)`
-
-Displays a masked password/secret input prompt. The entered value is hidden as the user types. Returns the entered secret or an error.
-
-```go
-token, err := console.PromptSecretInput("GitHub Token", "Enter your personal access token")
-```
-
-> **Note**: In non-WASM builds this requires a TTY on stderr; in WASM builds it always returns an error.
-
-### `PromptInputWithValidation(title, description, placeholder string, validate func(string) error) (string, error)`
-
-Like `PromptInput` but accepts a validation function that is called on the entered value before the form is submitted.
-
-```go
-value, err := console.PromptInputWithValidation(
-    "Workflow name", "Must be kebab-case", "my-workflow",
-    func(s string) error {
-        if s == "" {
-            return errors.New("name cannot be empty")
-        }
-        return nil
-    },
-)
-```
-
-> **Note**: `PromptInputWithValidation` is only available in WASM builds.
-
-### `PromptSelect(title, description string, options []SelectOption) (string, error)`
-
-Displays a single-select dropdown prompt. Returns the `Value` of the chosen `SelectOption` or an error.
-
-```go
-opt, err := console.PromptSelect(
-    "Engine", "Choose an AI engine",
-    []console.SelectOption{
-        {Label: "Copilot", Value: "copilot"},
-        {Label: "Claude",  Value: "claude"},
-    },
-)
-```
-
-> **Note**: `PromptSelect` is only available in WASM builds.
-
-### `PromptMultiSelect(title, description string, options []SelectOption, limit int) ([]string, error)`
-
-Displays a multi-select prompt. Returns a slice of selected `Value` strings or an error. Pass `limit ≤ 0` for no selection limit.
-
-```go
-selected, err := console.PromptMultiSelect(
-    "Toolsets", "Choose toolsets to enable",
-    []console.SelectOption{
-        {Label: "Default", Value: "default"},
-        {Label: "Issues",  Value: "issues"},
-        {Label: "PRs",     Value: "pull_requests"},
-    },
-    0,
-)
-```
-
-> **Note**: `PromptMultiSelect` is only available in WASM builds.
-
-### `RunForm(fields []FormField) error`
-
-Runs a multi-field interactive form defined by a slice of `FormField` values. Populates the `Value` pointer of each field and returns an error if the form is cancelled or fails.
-
-```go
-var name, token string
-err := console.RunForm([]console.FormField{
-    {Type: "input",    Title: "Name",  Value: &name},
-    {Type: "password", Title: "Token", Value: &token},
-})
-```
-
-> **Note**: `RunForm` is only available in WASM builds. Use `huh` forms directly in non-WASM builds.
-
-### `NewForm(groups ...*huh.Group) *huh.Form`
-
-Creates a `huh.Form` pre-configured with gh-aw's default theme and accessibility mode. Available in non-WASM builds only.
-
-```go
-form := console.NewForm(huh.NewGroup(input))
-if err := form.Run(); err != nil {
-    return err
-}
-```
-
-### `NewInputForm(input *huh.Input) *huh.Form`
-
-Creates a themed, accessibility-aware single-input form wrapping the given `*huh.Input`. Equivalent to `NewForm(huh.NewGroup(input))`.
-
-### `NewSelectForm[T comparable](selectField *huh.Select[T]) *huh.Form`
-
-Creates a themed, accessibility-aware single-select form wrapping the given `*huh.Select[T]`.
-
-### `NewConfirmForm(confirm *huh.Confirm) *huh.Form`
-
-Creates a themed, accessibility-aware single-confirm form wrapping the given `*huh.Confirm`.
-
-### `IsCancelled(err error) bool`
-
-Reports whether `err` represents a deliberate user cancellation (Ctrl-C or Esc before form submission, i.e. `huh.ErrUserAborted`). Use this to distinguish graceful cancellation from genuine failures.
-
-```go
-if err := form.Run(); console.IsCancelled(err) {
-    fmt.Fprintln(os.Stderr, "cancelled")
-    return nil
-} else if err != nil {
-    return err
-}
-```
-
-
-
-These functions compose styled sections for terminal output. They are available only in WASM builds; non-WASM code should use the `RenderTitleBox`, `RenderInfoSection`, and `RenderComposedSections` functions instead.
-
-### `LayoutTitleBox(title string, width int) string`
-
-Returns a title box string of at least `width` characters containing `title`.
-
-```go
-header := console.LayoutTitleBox("Audit Report", 60)
-fmt.Fprintln(os.Stderr, header)
-```
-
-### `LayoutInfoSection(label, value string) string`
-
-Returns a formatted `label: value` line with consistent indentation.
-
-```go
-line := console.LayoutInfoSection("Repository", "github/gh-aw")
-fmt.Fprintln(os.Stderr, line)
-```
-
-### `LayoutEmphasisBox(content string, color any) string`
-
-Returns `content` wrapped in an emphasis box. The `color` parameter is reserved for future use (for example, to pass a `lipgloss.Color` value) and is currently ignored by the WASM implementation.
-
-```go
-box := console.LayoutEmphasisBox("Important notice", nil)
-fmt.Fprintln(os.Stderr, box)
-```
-
-### `LayoutJoinVertical(sections ...string) string`
-
-Joins multiple rendered section strings with newlines.
-
-```go
-output := console.LayoutJoinVertical(header, body, footer)
-fmt.Fprintln(os.Stderr, output)
-```
-
-## Terminal Control Functions
-
-These functions emit ANSI control sequences to manage the terminal display. They are no-ops when stderr is not a TTY.
-
-### `ClearScreen()`
-
-Clears the terminal screen and moves the cursor to the home position.
-
-```go
-console.ClearScreen()
-```
-
-### `ClearLine()`
-
-Clears the current terminal line (moves to start of line and erases to end).
-
-```go
-console.ClearLine()
-fmt.Fprint(os.Stderr, "Updated status...")
-```
-
-### `ShowWelcomeBanner(description string)`
-
-Clears the screen and displays the `gh aw` welcome banner followed by `description`. Use at the start of interactive commands for a consistent onboarding experience.
-
-```go
-console.ShowWelcomeBanner("Let's create your first agentic workflow.")
-```
-
-## Verbose Logging
-
-### `LogVerbose(verbose bool, message string)`
-
-Writes `message` as a `FormatVerboseMessage` to `os.Stderr` when `verbose` is `true`. This is a convenience helper that avoids repetitive `if verbose` guards throughout the codebase.
-
-```go
-console.LogVerbose(cfg.Verbose, "Loaded 12 workflow files")
-```
-
-## Utility Functions
-
-### `FormatFileSize(size int64) string`
-
-Formats a byte count as a human-readable string with appropriate unit suffix.
-
-```go
-console.FormatFileSize(0)              // "0 B"
-console.FormatFileSize(1500)           // "1.5 KB"
-console.FormatFileSize(2_100_000)      // "2.0 MB"
-```
-
-### `FormatNumber(n int) string`
-
-Formats a large integer as a compact human-readable string using SI suffixes (`k`, `M`, `B`).
-
-```go
-console.FormatNumber(0)          // "0"
-console.FormatNumber(999)        // "999"
-console.FormatNumber(1500)       // "1.50k"
-console.FormatNumber(1_200_000)  // "1.20M"
-```
-
-### `FormatTokens(tokens int) string`
-
-Formats a token count as a compact human-readable string. Zero values render as `"-"` to indicate no data; non-zero values use SI suffixes for readability.
-
-```go
-console.FormatTokens(0)        // "-"
-console.FormatTokens(500)      // "500"
-console.FormatTokens(1500)     // "1.5K"
-console.FormatTokens(1200000)  // "1.2M"
-```
-
-### `ToRelativePath(path string) string`
-
-Converts an absolute path to a path relative to the current working directory. If the relative path would require traversing parent directories (`..`), the original absolute path is returned unchanged.
-
-```go
-// When cwd is /home/user/projects:
-console.ToRelativePath("/home/user/projects/workflow.md")  // "workflow.md"
-console.ToRelativePath("/etc/hosts")                       // "/etc/hosts"
-```
-
-### `FormatErrorWithSuggestions(message string, suggestions []string) string`
-
-Formats an error message followed by a bulleted list of actionable suggestions. Returns an empty suggestions block when `suggestions` is nil or empty.
-
-```go
-msg := console.FormatErrorWithSuggestions(
-    "Unknown engine 'myengine'",
-    []string{
-        "Valid engines are: copilot, claude, codex",
-        "Check your workflow frontmatter",
-    },
-)
-fmt.Fprint(os.Stderr, msg)
-```
-
-### `FormatBanner() string`
-
-Returns the `gh aw` ASCII art banner as a styled string.
-
-### `PrintBanner()`
-
-Prints the banner to `os.Stderr`.
-
-### `SetTimeLocation(location *time.Location)`
-
-Configures the `time.Location` used when rendering `time.Time` values in `RenderStruct`. When set, rendered timestamps include the UTC offset (e.g. `"2026-01-15 09:30:00 UTC+09:00"`). Pass `nil` to reset to the default (`"2006-01-02 15:04:05"` in the local zone).
-
-### `ResetTimeLocation()`
-
-Clears any configured time location override, restoring the default formatting behaviour.
-
-```go
-// Display times in Japan Standard Time
-loc, _ := time.LoadLocation("Asia/Tokyo")
-console.SetTimeLocation(loc)
-defer console.ResetTimeLocation()
-fmt.Print(console.RenderStruct(myData))
-```
-
-## Accessibility
-
-### `IsAccessibleMode() bool`
-
-Returns `true` when the terminal is in accessibility mode based on environment variables:
-- `ACCESSIBLE` is set (any value)
-- `TERM` is `"dumb"`
-- `NO_COLOR` is set (any value)
-
-When accessibility mode is active:
-- Spinner animations are disabled.
-- The `huh` confirmation dialog uses accessible (plain-text) mode.
-- All `Format*` functions still work normally but rendered output may differ if called with lipgloss styles.
-
-```go
-if console.IsAccessibleMode() {
-    // Use simpler, non-animated output
-}
-```
+### Types
+
+| Type | Kind | Description |
+|------|------|-------------|
+| `CompilerError` | struct | Structured diagnostic with source position, severity-like type string, message, optional source context, and optional hint text. |
+| `ErrorPosition` | struct | Source location with file, line, and column fields. |
+| `FormField` | struct | Declarative form field description used by WASM-only `RunForm`, including type, labels, bound value, options, and validation callback. |
+| `ListItem` | struct | Interactive list item value created by `NewListItem`; its fields are intentionally unexported. |
+| `ProgressBar` | struct | Progress-bar controller returned by `NewProgressBar` and `NewIndeterminateProgressBar`, with `Update` for rendering determinate or indeterminate progress. |
+| `SelectOption` | struct | Label/value pair used by select-oriented APIs. |
+| `SpinnerWrapper` | struct | Spinner controller with lifecycle methods `Start`, `Stop`, `StopWithMessage`, and `UpdateMessage`. |
+| `TableConfig` | struct | Table-rendering configuration including headers, rows, optional title/total row, and optional TTY override. |
+| `TreeNode` | struct | Tree node with a display value and child nodes; rendered by `RenderTree` in WASM builds. |
+
+### Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ClearLine` | `func ClearLine()` | Clears the current stderr terminal line when stderr is a TTY. |
+| `ClearScreen` | `func ClearScreen()` | Clears the stderr terminal screen when stderr is a TTY. |
+| `ConfirmAction` | `func ConfirmAction(title, affirmative, negative string) (bool, error)` | Presents a confirmation prompt; native builds use `huh`, non-TTY mode falls back to text input, and WASM reports unsupported behavior. |
+| `FormatBanner` | `func FormatBanner() string` | Returns the embedded `gh-aw` ASCII banner, styled in native TTY mode and empty in WASM. |
+| `FormatCommandMessage` | `func FormatCommandMessage(command string) string` | Formats a command-prefixed message (`$ ...`). |
+| `FormatCommandMessageStderr` | `func FormatCommandMessageStderr(command string) string` | Formats a command-prefixed message for stderr styling. |
+| `FormatCountMessage` | `func FormatCountMessage(message string) string` | Formats a count-style message (`# ...`) in WASM builds. |
+| `FormatError` | `func FormatError(err CompilerError) string` | Formats a `CompilerError` including location, severity prefix, context lines, and hint text. |
+| `FormatErrorChain` | `func FormatErrorChain(err error) string` | Formats an error and unwrap chain into a readable multi-line diagnostic. |
+| `FormatErrorMessage` | `func FormatErrorMessage(message string) string` | Formats a simple error message with an error prefix. |
+| `FormatErrorStderr` | `func FormatErrorStderr(err CompilerError) string` | Formats a `CompilerError` using stderr-aware styling rules. |
+| `FormatErrorTextStderr` | `func FormatErrorTextStderr(text string) string` | Applies error styling to plain stderr text. |
+| `FormatErrorWithSuggestions` | `func FormatErrorWithSuggestions(message string, suggestions []string) string` | Formats an error message followed by actionable suggestions. |
+| `FormatFileSize` | `func FormatFileSize(size int64) string` | Formats byte counts into human-readable sizes. |
+| `FormatInfoMessage` | `func FormatInfoMessage(message string) string` | Formats an informational message with an `i` prefix. |
+| `FormatInfoMessageStderr` | `func FormatInfoMessageStderr(message string) string` | Formats an informational message for stderr styling. |
+| `FormatListHeader` | `func FormatListHeader(header string) string` | Formats a list header in WASM builds. |
+| `FormatListItem` | `func FormatListItem(item string) string` | Formats a bullet list item. |
+| `FormatListItemStderr` | `func FormatListItemStderr(item string) string` | Formats a bullet list item for stderr styling. |
+| `FormatLocationMessage` | `func FormatLocationMessage(message string) string` | Formats a location-style message (`~ ...`) in WASM builds. |
+| `FormatNumber` | `func FormatNumber(n int) string` | Formats integers with grouping for display. |
+| `FormatProgressMessage` | `func FormatProgressMessage(message string) string` | Formats a progress/activity message with a `▸` prefix. |
+| `FormatProgressMessageStderr` | `func FormatProgressMessageStderr(message string) string` | Formats a progress/activity message for stderr styling. |
+| `FormatPromptMessage` | `func FormatPromptMessage(message string) string` | Formats a prompt message with a `?` prefix. |
+| `FormatSectionHeader` | `func FormatSectionHeader(header string) string` | Formats a section header. |
+| `FormatSectionHeaderStderr` | `func FormatSectionHeaderStderr(header string) string` | Formats a section header for stderr styling. |
+| `FormatSuccessMessage` | `func FormatSuccessMessage(message string) string` | Formats a success message with a checkmark prefix. |
+| `FormatSuccessMessageStderr` | `func FormatSuccessMessageStderr(message string) string` | Formats a success message for stderr styling. |
+| `FormatTableHeaderStderr` | `func FormatTableHeaderStderr(text string) string` | Formats table-header text for stderr output. |
+| `FormatTokens` | `func FormatTokens(tokens int) string` | Formats token counts into readable grouped text. |
+| `FormatVerboseMessage` | `func FormatVerboseMessage(message string) string` | Formats verbose output with a `»` prefix. |
+| `FormatWarningMessage` | `func FormatWarningMessage(message string) string` | Formats a warning message with a warning prefix. |
+| `FormatWarningMessageStderr` | `func FormatWarningMessageStderr(message string) string` | Formats a warning message for stderr styling. |
+| `IsAccessibleMode` | `func IsAccessibleMode() bool` | Returns whether accessibility mode should be enabled based on environment variables. |
+| `IsCancelled` | `func IsCancelled(err error) bool` | Reports whether an error represents user cancellation from a `huh` form. |
+| `LayoutEmphasisBox` | `func LayoutEmphasisBox(content string, color any) string` | Returns a simple emphasized block layout in WASM builds. |
+| `LayoutInfoSection` | `func LayoutInfoSection(label, value string) string` | Returns a simple labeled info line in WASM builds. |
+| `LayoutJoinVertical` | `func LayoutJoinVertical(sections ...string) string` | Joins multiple sections vertically in WASM builds. |
+| `LayoutTitleBox` | `func LayoutTitleBox(title string, width int) string` | Returns a simple title-box layout in WASM builds. |
+| `LogVerbose` | `func LogVerbose(verbose bool, message string)` | Prints a verbose message to stderr only when verbose mode is enabled. |
+| `NewConfirmForm` | `func NewConfirmForm(confirm *huh.Confirm) *huh.Form` | Wraps a confirm field in a themed, accessibility-aware `huh` form. |
+| `NewForm` | `func NewForm(groups ...*huh.Group) *huh.Form` | Creates a themed, accessibility-aware `huh` form. |
+| `NewIndeterminateProgressBar` | `func NewIndeterminateProgressBar() *ProgressBar` | Creates an indeterminate progress bar; available in WASM builds. |
+| `NewInputForm` | `func NewInputForm(input *huh.Input) *huh.Form` | Wraps an input field in a themed, accessibility-aware `huh` form. |
+| `NewListItem` | `func NewListItem(title, description, value string) ListItem` | Constructs a `ListItem` for interactive list APIs. |
+| `NewProgressBar` | `func NewProgressBar(total int64) *ProgressBar` | Creates a progress bar for a known total amount of work. |
+| `NewSelectForm` | `func NewSelectForm[T comparable](selectField *huh.Select[T]) *huh.Form` | Wraps a select field in a themed, accessibility-aware `huh` form. |
+| `NewSpinner` | `func NewSpinner(message string) *SpinnerWrapper` | Creates a spinner configured for stderr TTY and accessibility conditions. |
+| `PrintBanner` | `func PrintBanner()` | Prints the banner to stderr in native builds; no-op in WASM. |
+| `PrintCommandMessage` | `func PrintCommandMessage(command string)` | Prints a formatted command message to stderr. |
+| `PrintErrorMessage` | `func PrintErrorMessage(message string)` | Prints a formatted error message to stderr. |
+| `PrintInfoMessage` | `func PrintInfoMessage(message string)` | Prints a formatted info message to stderr. |
+| `PrintSectionHeader` | `func PrintSectionHeader(header string)` | Prints a formatted section header to stderr. |
+| `PrintSuccessMessage` | `func PrintSuccessMessage(message string)` | Prints a formatted success message to stderr. |
+| `PrintWarningMessage` | `func PrintWarningMessage(message string)` | Prints a formatted warning message to stderr. |
+| `PromptInput` | `func PromptInput(title, description, placeholder string) (string, error)` | Requests plain-text input in WASM builds, where it currently reports unsupported interactivity. |
+| `PromptInputWithValidation` | `func PromptInputWithValidation(title, description, placeholder string, validate func(string) error) (string, error)` | Requests validated plain-text input in WASM builds, where it currently reports unsupported interactivity. |
+| `PromptMultiSelect` | `func PromptMultiSelect(title, description string, options []SelectOption, limit int) ([]string, error)` | Requests multiple selections in WASM builds, where it currently reports unsupported interactivity. |
+| `PromptSecretInput` | `func PromptSecretInput(title, description string) (string, error)` | Requests masked secret input in native TTY mode; unavailable in non-TTY and WASM environments. |
+| `PromptSelect` | `func PromptSelect(title, description string, options []SelectOption) (string, error)` | Requests a single selection in WASM builds, where it currently reports unsupported interactivity. |
+| `RenderComposedSections` | `func RenderComposedSections(sections []string)` | Writes multiple rendered sections to stderr with spacing and terminal-aware composition. |
+| `RenderErrorBox` | `func RenderErrorBox(title string) []string` | Renders an error-emphasis box, with TTY and plain-text variants. |
+| `RenderInfoSection` | `func RenderInfoSection(content string) []string` | Renders an informational section with left-border emphasis or plain indentation. |
+| `RenderStruct` | `func RenderStruct(v any) string` | Reflectively renders structs, slices, arrays, and maps into structured console output. |
+| `RenderTable` | `func RenderTable(config TableConfig) string` | Renders a table from `TableConfig`, optionally including a title and total row. |
+| `RenderTitleBox` | `func RenderTitleBox(title string, width int) []string` | Renders a titled box suitable for section headings. |
+| `RenderTree` | `func RenderTree(root TreeNode) string` | Renders a `TreeNode` hierarchy in WASM builds. |
+| `ResetTimeLocation` | `func ResetTimeLocation()` | Clears the configured `time.Time` display location override. |
+| `RunForm` | `func RunForm(fields []FormField) error` | Executes declarative forms in WASM builds, where it currently reports unsupported interactivity. |
+| `SetTimeLocation` | `func SetTimeLocation(location *time.Location)` | Sets the location used when rendering `time.Time` values. |
+| `ShowInteractiveList` | `func ShowInteractiveList(title string, items []ListItem) (string, error)` | Shows a single-selection interactive list; native builds use `huh` and non-TTY mode falls back to numbered text input. |
+| `ShowWelcomeBanner` | `func ShowWelcomeBanner(description string)` | Clears the screen and prints the interactive welcome banner and description to stderr. |
+| `ToRelativePath` | `func ToRelativePath(path string) string` | Converts an absolute path to a cwd-relative display path when possible. |
+
+### Constants
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| *(none)* | — | — | `pkg/console` exposes no exported constants in current source. |
 
 ## Usage Examples
 
+### Formatting and printing diagnostic output
+
 ```go
-import (
-    "fmt"
-    "os"
-    "github.com/github/gh-aw/pkg/console"
-)
-
-// Display a spinner during a long-running operation
-spinner := console.NewSpinner("Compiling workflows...")
-spinner.Start()
-// ... do work ...
-spinner.StopWithMessage("✓ Done!")
-
-// Format status messages (always write to stderr)
-fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow compiled successfully"))
-fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Processing 3 files..."))
-fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Network access is unrestricted"))
-fmt.Fprintln(os.Stderr, console.FormatErrorMessage("File not found: workflow.md"))
-
-// Render a table
-table := console.RenderTable(console.TableConfig{
-    Headers: []string{"Name", "Status"},
-    Rows: [][]string{
-        {"build", "success"},
-        {"test", "failure"},
-    },
-    Title: "Job Results",
-})
-fmt.Print(table)
-
-// Interactive confirmation
-confirmed, err := console.ConfirmAction("Delete all compiled workflows?", "Yes, delete", "Cancel")
-if err != nil || !confirmed {
-    return
-}
+fmt.Fprintln(os.Stderr, console.FormatErrorChain(err))
+console.PrintSuccessMessage("Workflow compiled")
+console.PrintCommandMessage("gh aw compile .github/workflows/example.md")
 ```
 
-## Thread Safety
+The formatting functions return strings, while the `Print*` helpers write directly to stderr.
 
-- **Format\* functions** — all pure string transformations with no shared state; safe for concurrent use from multiple goroutines.
-- **SpinnerWrapper** — thread-safe via Bubble Tea's message-passing model; `Start`, `Stop`, `StopWithMessage`, and `UpdateMessage` MAY be called from any goroutine after `Start` returns.
-- **ProgressBar** — `Update` uses atomic operations and is safe for concurrent calls.
-- **RenderStruct** — stateless reflection-based renderer; safe for concurrent use.
-- **SetTimeLocation / ResetTimeLocation** — NOT goroutine-safe; MUST be called only from a single goroutine (typically the main goroutine, paired with `defer ResetTimeLocation()`).
+### Rendering reflected structs and tables
+
+```go
+type Overview struct {
+    Name   string `console:"header:Workflow"`
+    Tokens int    `console:"header:Token Count"`
+}
+
+output := console.RenderStruct([]Overview{{
+    Name:   "agentic-token-audit",
+    Tokens: 1200,
+}})
+fmt.Print(output)
+```
+
+`RenderStruct` uses reflection and `console` struct tags such as `header`, `title`, `omitempty`, and `-` to choose headings, omit zero values, and build tables for slices of structs.
+
+### Spinner lifecycle
+
+```go
+spinner := console.NewSpinner("Compiling workflow...")
+spinner.Start()
+// long-running work
+spinner.StopWithMessage("✓ Workflow compiled")
+```
+
+Native spinners render on stderr only when stderr is a TTY and accessibility mode is not enabled.
+
+### Progress bars
+
+```go
+bar := console.NewProgressBar(totalBytes)
+fmt.Fprintf(os.Stderr, "\r%s", bar.Update(currentBytes))
+```
+
+On native TTYs, `Update` returns a rendered progress bar. In non-TTY mode, it returns plain text such as `50% (512MB/1GB)`.
+
+## Design Decisions
+
+The package preserves a strong separation between formatting and rendering. `Format*` helpers are string-producing utilities for single messages, while `Render*` helpers handle multi-line layout and composition. This convention is documented in `doc.go` and is reflected throughout the exported API.
+
+The native implementation is terminal-aware. Styling is applied only when appropriate for the destination stream, and stdout-oriented rendering is degraded through the color-profile writer so environment variables such as `NO_COLOR`, `COLORTERM`, and `TERM` are respected. Diagnostic output is intended for stderr, while structured machine-readable output is expected to remain on stdout.
+
+Interactive helpers deliberately degrade or refuse operation outside native TTY contexts. `ConfirmAction` and `ShowInteractiveList` provide plain-text fallbacks for non-TTY native runs, while secret input remains unavailable without a TTY. WASM-specific files provide explicit fallback implementations so exported APIs remain available across build targets even when rich interactivity is unsupported.
+
+Spinner coordination is intentionally global in native builds: only one spinner may actively render at a time. Additional concurrent spinners become suppressed instead of competing for the same stderr line, avoiding flicker and escape-sequence corruption.
 
 ## Dependencies
 
-**Internal**:
-- `github.com/github/gh-aw/pkg/colorwriter` — color-profile-aware output writer selection for terminal rendering
-- `github.com/github/gh-aw/pkg/logger` — debug-level console logging
-- `github.com/github/gh-aw/pkg/styles` — adaptive color constants and pre-configured lipgloss styles
-- `github.com/github/gh-aw/pkg/stringutil` — whitespace normalization used by reflection-based rendering helpers
-- `github.com/github/gh-aw/pkg/tty` — terminal detection for spinner and progress bar
+Internal dependencies include `pkg/styles` for shared visual styling, `pkg/tty` for terminal detection, `pkg/colorwriter` for stream-aware ANSI degradation, `pkg/logger` for debug logging, and `pkg/stringutil` for text formatting support during reflective rendering.
 
-**Test-only**:
-- `github.com/github/gh-aw/pkg/testutil` — shared test fixtures and assertion helpers used by console package tests
+External dependencies include Charmbracelet libraries: `lipgloss` and `lipgloss/table` for styling and layout, `bubbletea` and `bubbles/progress`/`bubbles/spinner` for progress and spinner components, and `huh` for interactive forms and prompts.
 
-**External**:
-- `charm.land/lipgloss/v2` — terminal styling and layout
-- `charm.land/bubbles/v2/spinner` — spinner animation
-- `charm.land/bubbles/v2/progress` — progress bar
-- `charm.land/bubbletea/v2` — terminal UI event loop
-- `charm.land/huh/v2` — interactive form components
+## Thread Safety
 
-<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
-## Source-verified export coverage
+`SetTimeLocation` and `ResetTimeLocation` are safe for concurrent use; the package protects the configured time location with an RW mutex. Native `SpinnerWrapper` lifecycle methods use mutexes and a wait group internally, and the implementation includes global coordination so only one spinner renders at a time.
 
-This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+`ProgressBar.Update` mutates the progress bar instance and should be treated as operating on shared mutable state. The implementation does not expose separate synchronization for callers, so concurrent access to the same instance should be externally coordinated.
 
-| Category | Count |
-|----------|------:|
-| Types | 9 |
-| Constants | 0 |
-| Variables | 0 |
-| Functions and methods | 69 |
-| Additional symbols documented in this appendix | 1 |
-
-### Additional functions and methods
-
-| File | Symbol | Declaration | Description |
-|------|--------|-------------|-------------|
-| `spinner_wasm.go` | `(*SpinnerWrapper).IsEnabled` | `func (*SpinnerWrapper).IsEnabled() bool` | Exported function or method declared in `spinner_wasm.go`. |
-
-<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+`Render*`, `Format*`, and most constructor-style helpers are otherwise side-effect free apart from reading environment state or writing to stderr/stdout through explicit print-oriented APIs.
 
 ---
 
