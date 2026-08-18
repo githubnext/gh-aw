@@ -158,7 +158,11 @@ func buildLogsFileResponse(outputStr string) string {
 	// requested) directly in the tool response so callers see it without having to
 	// open the file.
 	if warning := extractLogsMessage(outputStr); warning != "" {
-		response.Message = fmt.Sprintf("%s WARNING: %s", response.Message, warning)
+		if response.Message == "" {
+			response.Message = "WARNING: " + warning
+		} else {
+			response.Message = fmt.Sprintf("%s WARNING: %s", response.Message, warning)
+		}
 	}
 
 	responseJSON, err := json.MarshalIndent(response, "", "  ")
