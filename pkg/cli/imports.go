@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,54 +57,74 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 		return content, nil // No imports field, return original content
 	}
 
-	// processImportPaths converts a list of raw import paths to workflowspec format.
+	// resolveOneImportPath converts a single raw import path to workflowspec format.
 	// Paths that already use the workflowspec format (contain "@") are left unchanged.
 	// When localWorkflowDir is set, relative paths whose files exist locally are also
 	// preserved as-is so that consumers who have copied shared files into their own repo
 	// are not forced onto cross-repo references after every `gh aw update`.
+	resolveOneImportPath := func(importPath string) string {
+		if isWorkflowSpecFormat(importPath) {
+			importsLog.Printf("Import already in workflowspec format: %s", importPath)
+			return importPath
+		}
+		// Preserve relative paths whose files exist in the local workflow directory.
+		// Absolute paths (starting with "/") are not checked — they are always resolved
+		// relative to the repo root and cannot be reliably tested here.
+		if localWorkflowDir != "" && !strings.HasPrefix(importPath, "/") {
+			if isLocalFileForUpdate(localWorkflowDir, importPath) {
+				importsLog.Printf("Import path exists locally, preserving relative path: %s", importPath)
+				return importPath
+			}
+		}
+		resolvedPath := resolveImportPath(importPath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
+		importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
+		workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
+		importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
+		return workflowSpec
+	}
+
+	// processImportPaths converts a list of raw string import paths to workflowspec format.
 	processImportPaths := func(imports []string) []string {
 		processed := make([]string, 0, len(imports))
 		for _, importPath := range imports {
-			if isWorkflowSpecFormat(importPath) {
-				importsLog.Printf("Import already in workflowspec format: %s", importPath)
-				processed = append(processed, importPath)
-				continue
-			}
-			// Preserve relative paths whose files exist in the local workflow directory.
-			// Absolute paths (starting with "/") are not checked — they are always resolved
-			// relative to the repo root and cannot be reliably tested here.
-			if localWorkflowDir != "" && !strings.HasPrefix(importPath, "/") {
-				if isLocalFileForUpdate(localWorkflowDir, importPath) {
-					importsLog.Printf("Import path exists locally, preserving relative path: %s", importPath)
-					processed = append(processed, importPath)
-					continue
-				}
-			}
-			resolvedPath := resolveImportPath(importPath, filepath.Dir(workflow.WorkflowPath), importPathImportsOpts)
-			importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
-			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
-			importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
-			processed = append(processed, workflowSpec)
+			processed = append(processed, resolveOneImportPath(importPath))
 		}
 		return processed
 	}
 
-	// collectStringImports extracts string paths from a []any slice.
-	collectStringImports := func(items []any) []string {
-		var paths []string
+	// processImportItems converts a list of import entries to workflowspec format.
+	// Each entry may be a plain string path, or an object with a "path"/"uses" key
+	// (and optionally an "inputs"/"with" key). Object-form entries are preserved as
+	// objects — only their path/uses value is rewritten — so that any accompanying
+	// inputs/with data is not silently dropped from the imports collection.
+	processImportItems := func(items []any) []any {
+		processed := make([]any, 0, len(items))
 		for _, item := range items {
-			if str, ok := item.(string); ok {
-				paths = append(paths, str)
+			switch v := item.(type) {
+			case string:
+				processed = append(processed, resolveOneImportPath(v))
+			case map[string]any:
+				updated := make(map[string]any, len(v))
+				maps.Copy(updated, v)
+				if pathVal, ok := updated["path"].(string); ok {
+					updated["path"] = resolveOneImportPath(pathVal)
+				} else if usesVal, ok := updated["uses"].(string); ok {
+					updated["uses"] = resolveOneImportPath(usesVal)
+				}
+				processed = append(processed, updated)
+			default:
+				importsLog.Printf("Preserving import entry of unsupported type: %T", item)
+				processed = append(processed, item)
 			}
 		}
-		return paths
+		return processed
 	}
 
 	switch v := importsField.(type) {
 	case []any:
-		imports := collectStringImports(v)
-		importsLog.Printf("Found %d imports (array form) to process", len(imports))
-		result.Frontmatter["imports"] = processImportPaths(imports)
+		processedItems := processImportItems(v)
+		importsLog.Printf("Found %d imports (array form) to process", len(processedItems))
+		result.Frontmatter["imports"] = processedItems
 	case []string:
 		importsLog.Printf("Found %d imports ([]string form) to process", len(v))
 		result.Frontmatter["imports"] = processImportPaths(v)
@@ -112,9 +133,9 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 		if awAny, hasAW := v["aw"]; hasAW {
 			switch aw := awAny.(type) {
 			case []any:
-				awImports := collectStringImports(aw)
-				importsLog.Printf("Found %d imports (object form, aw subfield) to process", len(awImports))
-				v["aw"] = processImportPaths(awImports)
+				processedItems := processImportItems(aw)
+				importsLog.Printf("Found %d imports (object form, aw subfield) to process", len(processedItems))
+				v["aw"] = processedItems
 			case []string:
 				importsLog.Printf("Found %d imports (object form, aw []string) to process", len(aw))
 				v["aw"] = processImportPaths(aw)

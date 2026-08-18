@@ -794,6 +794,61 @@ Test content.
 	}
 }
 
+// TestProcessImportsWithWorkflowSpec_ObjectFormPreserved tests that object-form
+// import entries (using "uses"/"with" or "path"/"inputs") are preserved rather
+// than silently dropped when the imports field is rewritten to workflowspec
+// format. This is a regression test for: gh aw update replaces valid workflow
+// imports with `imports: []` when the only entries are object-form.
+func TestProcessImportsWithWorkflowSpec_ObjectFormPreserved(t *testing.T) {
+	content := `---
+engine: copilot
+imports:
+  - uses: shared/control.md
+    with:
+      role: orchestrator
+      rollout_mode: ${{ vars.CENTRAL_AGENTIC_OPS_DEPENDABOT_MODE || 'preview' }}
+      review_repo: ${{ vars.CENTRAL_AGENTIC_OPS_DEPENDABOT_REVIEW_REPO || '' }}
+---
+
+# Test Workflow
+
+Test content.
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/dependabot.md",
+	}
+
+	commitSHA := "abc123def456"
+
+	result, err := processImportsWithWorkflowSpec(content, workflow, commitSHA, "", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// The imports field must NOT be replaced with an empty array.
+	if strings.Contains(result, "imports: []") {
+		t.Fatalf("Expected imports to be preserved, but got empty imports array:\n%s", result)
+	}
+
+	// The uses path should be rewritten to workflowspec format.
+	expectedUses := "uses: github/gh-aw/.github/workflows/shared/control.md@abc123def456"
+	if !strings.Contains(result, expectedUses) {
+		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedUses, result)
+	}
+
+	// The "with" subfields must be preserved.
+	for _, expected := range []string{"role: orchestrator", "rollout_mode:", "review_repo:"} {
+		if !strings.Contains(result, expected) {
+			t.Errorf("Expected result to contain '%s'\nGot:\n%s", expected, result)
+		}
+	}
+}
+
 // TestProcessImportsWithWorkflowSpec_PreservesLocalRelativePaths tests that when
 // localWorkflowDir is provided and import files exist on disk, the relative paths
 // are kept as-is and NOT rewritten to cross-repo workflowspec references.
