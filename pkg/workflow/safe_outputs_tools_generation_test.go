@@ -235,7 +235,7 @@ func TestAddRepoParameterIfNeededClosePullRequestWithAllowedRepos(t *testing.T) 
 }
 
 func TestRepoTargetAccessorsCoverRepoTargetTools(t *testing.T) {
-	for _, toolName := range []string{
+	expectedTools := []string{
 		"create_issue", "create_discussion", "add_comment", "create_pull_request",
 		"create_pull_request_review_comment", "reply_to_pull_request_review_comment",
 		"dismiss_pull_request_review", "create_agent_session", "close_issue", "update_issue",
@@ -244,7 +244,9 @@ func TestRepoTargetAccessorsCoverRepoTargetTools(t *testing.T) {
 		"link_sub_issue", "mark_pull_request_as_ready_for_review", "add_reviewer",
 		"assign_milestone", "assign_to_agent", "assign_to_user", "unassign_from_user",
 		"set_issue_type", "set_issue_field",
-	} {
+	}
+	assert.Len(t, repoTargetAccessors, len(expectedTools))
+	for _, toolName := range expectedTools {
 		assert.Contains(t, repoTargetAccessors, toolName)
 	}
 }
