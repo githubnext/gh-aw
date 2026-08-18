@@ -79,6 +79,12 @@ func TestBuildSafeGitShowObjectArg(t *testing.T) {
 			fileName:  "-n",
 			shouldErr: true,
 		},
+		{
+			name:      "rejects control character in file name",
+			ref:       "origin/experiments/my-feature",
+			fileName:  "state\x01.jsonl",
+			shouldErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -289,6 +295,32 @@ func TestParseExperimentStateJSONLBaselineCounts(t *testing.T) {
 		"feature": {"A": 3, "B": 2},
 	}, state.Counts)
 	assert.Len(t, state.Runs, 2)
+}
+
+func TestAppendExperimentRunAddsAssignmentToBaseline(t *testing.T) {
+	state := emptyExperimentState()
+	appendExperimentRun(state, ExperimentRunRecord{
+		RunID:       "1",
+		Timestamp:   "2026-08-18T12:00:00Z",
+		Assignments: map[string]string{"feature": "A"},
+		BaselineCounts: map[string]map[string]int{
+			"feature": {"A": 2, "B": 1},
+		},
+	})
+
+	assert.Equal(t, map[string]map[string]int{
+		"feature": {"A": 3, "B": 1},
+	}, state.Counts)
+}
+
+func TestParseExperimentStateJSONLSnapshotDiscardsEarlierRuns(t *testing.T) {
+	state := parseExperimentState([]byte(`{"run_id":"before","timestamp":"2026-08-18T10:00:00Z","assignments":{"feature":"A"}}
+{"counts":{"feature":{"B":2}}}
+{"run_id":"after","timestamp":"2026-08-18T12:00:00Z","assignments":{"feature":"B"}}`))
+
+	assert.Equal(t, map[string]map[string]int{"feature": {"B": 3}}, state.Counts)
+	require.Len(t, state.Runs, 1)
+	assert.Equal(t, "after", state.Runs[0].RunID)
 }
 
 func TestExperimentTotalRunsFallback(t *testing.T) {

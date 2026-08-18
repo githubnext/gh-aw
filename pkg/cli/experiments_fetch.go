@@ -303,7 +303,6 @@ func findWorkflowFileForExperiment(experimentName string) string {
 // returned here. The caller should prefer findRemoteWorkflowFilenameForExperiment which
 // resolves the real filename by scanning the remote directory.
 func workflowFileCandidates(experimentName string) []string {
-	// Return the experiment name as-is as a last-resort fallback.
 	return []string{experimentName}
 }
 

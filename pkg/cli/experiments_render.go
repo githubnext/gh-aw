@@ -29,14 +29,7 @@ func printExperimentDetails(d *ExperimentDetails) {
 				pairs = append(pairs, kv{k, v})
 			}
 			slices.SortFunc(pairs, func(a, b kv) int {
-				switch {
-				case a.k < b.k:
-					return -1
-				case a.k > b.k:
-					return 1
-				default:
-					return 0
-				}
+				return strings.Compare(a.k, b.k)
 			})
 			rows := make([][]string, 0, len(pairs))
 			for _, p := range pairs {

@@ -75,8 +75,8 @@ func readLocalExperimentState(ref string) *ExperimentState {
 	return emptyExperimentState()
 }
 
-// buildSafeGitShowObjectArg validates git show's "ref:path" object argument parts
-// before joining them, preventing flag and path-traversal style injections.
+// readRemoteExperimentState reads state.jsonl or state.json from a remote experiment branch.
+// Returns an empty state when neither file can be read or parsed.
 func readRemoteExperimentState(repoOverride, branchName string) *ExperimentState {
 	for _, fileName := range experimentStateFilenames() {
 		decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, fileName, "")
@@ -103,6 +103,8 @@ func appendExperimentRun(state *ExperimentState, run ExperimentRunRecord) {
 		if state.Counts[name] == nil {
 			state.Counts[name] = map[string]int{}
 		}
+		// BaselineCounts captures totals before this run, so the assigned
+		// variant is intentionally added as the current run.
 		state.Counts[name][variant]++
 	}
 	state.Runs = append(state.Runs, run)
@@ -118,6 +120,7 @@ func parseExperimentStateJSONL(data []byte) *ExperimentState {
 
 		var snapshot ExperimentState
 		if err := json.Unmarshal([]byte(line), &snapshot); err == nil && snapshot.Counts != nil {
+			// A snapshot is a cumulative checkpoint, so it discards preceding run records.
 			state = &snapshot
 			continue
 		}
@@ -173,14 +176,7 @@ func experimentDetailsFromState(workflowID, branchName string, state *Experiment
 		})
 	}
 	slices.SortFunc(experiments, func(a, b ExperimentVariantStats) int {
-		switch {
-		case a.Name < b.Name:
-			return -1
-		case a.Name > b.Name:
-			return 1
-		default:
-			return 0
-		}
+		return strings.Compare(a.Name, b.Name)
 	})
 
 	recentRuns := state.Runs
@@ -238,13 +234,4 @@ func extractExperimentName(ref string) string {
 	// An empty result here (bare "experiments/" ref) is acceptable: callers
 	// guard against empty workflow IDs with `if workflowID == ""` checks.
 	return strings.TrimPrefix(ref, experimentsBranchPrefix)
-}
-
-// gitRefExists reports whether an experiments/evals state ref exists locally.
-func gitRefExists(ref string) bool {
-	if !isSafeExperimentStateRef(ref) {
-		return false
-	}
-	cmd := exec.Command("git", "rev-parse", "--verify", ref)
-	return cmd.Run() == nil
 }

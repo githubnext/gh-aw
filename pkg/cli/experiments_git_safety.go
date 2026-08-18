@@ -2,10 +2,13 @@ package cli
 
 import (
 	"errors"
+	"os/exec"
 	"path"
 	"strings"
 )
 
+// buildSafeGitShowObjectArg validates git show's "ref:path" object argument parts
+// before joining them, preventing flag and path-traversal style injections.
 func buildSafeGitShowObjectArg(ref, fileName string) (string, error) {
 	if !isSafeExperimentStateRef(ref) {
 		return "", errors.New("unsafe git ref")
@@ -14,6 +17,14 @@ func buildSafeGitShowObjectArg(ref, fileName string) (string, error) {
 		return "", errors.New("unsafe git tree path")
 	}
 	return ref + ":" + fileName, nil
+}
+
+// gitRefExists reports whether an experiments/evals state ref exists locally.
+func gitRefExists(ref string) bool {
+	if !isSafeExperimentStateRef(ref) {
+		return false
+	}
+	return exec.Command("git", "rev-parse", "--verify", ref).Run() == nil
 }
 
 func isSafeExperimentStateRef(ref string) bool {
@@ -83,8 +94,13 @@ func isSafeGitTreePath(fileName string) bool {
 	if fileName == "" || strings.HasPrefix(fileName, "-") {
 		return false
 	}
-	if path.IsAbs(fileName) || strings.Contains(fileName, "\\") || strings.Contains(fileName, ":") || strings.ContainsRune(fileName, '\x00') {
+	if path.IsAbs(fileName) || strings.Contains(fileName, "\\") || strings.Contains(fileName, ":") {
 		return false
+	}
+	for _, r := range fileName {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
 	}
 	clean := path.Clean(fileName)
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
