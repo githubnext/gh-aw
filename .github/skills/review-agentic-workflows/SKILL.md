@@ -46,7 +46,12 @@ fi
 Identify changed workflow sources and generated outputs:
 
 ```bash
-git diff --name-only -- .github/workflows .github/workflows/*.md .github/workflows/*.lock.yml
+BASE_REF="${BASE_REF:-origin/main}"
+if git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+  git diff --name-only "$BASE_REF...HEAD" -- .github/workflows/
+else
+  git diff --name-only -- .github/workflows/
+fi
 ```
 
 If source `.md` files changed, treat generated `.lock.yml` drift as part of the review.
