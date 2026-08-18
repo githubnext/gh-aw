@@ -46,7 +46,7 @@ fi
 Identify changed workflow sources and generated outputs:
 
 ```bash
-git diff --name-only -- .github/workflows '*.md' '*.lock.yml'
+git diff --name-only -- .github/workflows .github/workflows/*.md .github/workflows/*.lock.yml
 ```
 
 If source `.md` files changed, treat generated `.lock.yml` drift as part of the review.
