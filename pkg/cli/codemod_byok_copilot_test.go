@@ -11,6 +11,7 @@ import (
 )
 
 func TestByokCopilotFeatureRemovalCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getByokCopilotFeatureRemovalCodemod()
 
 	tests := []struct {
@@ -56,6 +57,7 @@ features:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := parser.ExtractFrontmatterFromContent(tt.input)
 			require.NoError(t, err, "Failed to parse test input frontmatter")
 

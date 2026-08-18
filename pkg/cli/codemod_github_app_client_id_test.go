@@ -10,9 +10,11 @@ import (
 )
 
 func TestGitHubAppClientIDCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getGitHubAppClientIDCodemod()
 
 	t.Run("renames app-id under github-app blocks", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 github-app:
   app-id: ${{ vars.TOP_LEVEL_APP_ID }}
@@ -60,6 +62,7 @@ checkout:
 	})
 
 	t.Run("does not modify content without github-app.app-id", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 github-app:
   client-id: ${{ vars.APP_ID }}
@@ -80,6 +83,7 @@ github-app:
 	})
 
 	t.Run("does not rename app-id outside github-app blocks", func(t *testing.T) {
+		t.Parallel()
 		content := `---
 engine:
   provider:

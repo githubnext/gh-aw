@@ -12,6 +12,7 @@ import (
 )
 
 func TestBashAnonymousRemovalCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getBashAnonymousRemovalCodemod()
 
 	tests := []struct {
@@ -86,6 +87,7 @@ name: Test Workflow
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Parse frontmatter to get the map
 			result, err := parser.ExtractFrontmatterFromContent(tt.input)
 			require.NoError(t, err, "Failed to parse test input frontmatter")
@@ -118,6 +120,7 @@ name: Test Workflow
 }
 
 func TestBashAnonymousCodemodWithComments(t *testing.T) {
+	t.Parallel()
 	codemod := getBashAnonymousRemovalCodemod()
 
 	input := `---
@@ -140,6 +143,7 @@ tools:
 }
 
 func TestBashAnonymousCodemodPreservesIndentation(t *testing.T) {
+	t.Parallel()
 	codemod := getBashAnonymousRemovalCodemod()
 
 	input := `---
@@ -172,6 +176,7 @@ tools:
 }
 
 func TestReplaceBashAnonymousWithTrue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		lines       []string
@@ -230,6 +235,7 @@ func TestReplaceBashAnonymousWithTrue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, modified := replaceBashAnonymousWithTrue(tt.lines)
 			assert.Equal(t, tt.modified, modified, "Modified status mismatch")
 			assert.Equal(t, tt.expectLines, result, "Output lines mismatch")

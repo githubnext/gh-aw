@@ -27,6 +27,7 @@ func baseFieldRemovalConfig() fieldRemovalCodemodConfig {
 }
 
 func TestNewFieldRemovalCodemod_Metadata(t *testing.T) {
+	t.Parallel()
 	cfg := baseFieldRemovalConfig()
 	codemod := newFieldRemovalCodemod(cfg)
 
@@ -38,6 +39,7 @@ func TestNewFieldRemovalCodemod_Metadata(t *testing.T) {
 }
 
 func TestNewFieldRemovalCodemod_ParentKeyMissing(t *testing.T) {
+	t.Parallel()
 	codemod := newFieldRemovalCodemod(baseFieldRemovalConfig())
 
 	content := `---
@@ -60,6 +62,7 @@ other: value
 }
 
 func TestNewFieldRemovalCodemod_ParentKeyWrongType(t *testing.T) {
+	t.Parallel()
 	codemod := newFieldRemovalCodemod(baseFieldRemovalConfig())
 
 	content := `---
@@ -82,6 +85,7 @@ parent: simple_string
 }
 
 func TestNewFieldRemovalCodemod_FieldKeyMissing(t *testing.T) {
+	t.Parallel()
 	codemod := newFieldRemovalCodemod(baseFieldRemovalConfig())
 
 	content := `---
@@ -107,6 +111,7 @@ parent:
 }
 
 func TestNewFieldRemovalCodemod_SuccessfulRemoval(t *testing.T) {
+	t.Parallel()
 	codemod := newFieldRemovalCodemod(baseFieldRemovalConfig())
 
 	content := `---
@@ -135,6 +140,7 @@ parent:
 }
 
 func TestNewFieldRemovalCodemod_PostTransformInvoked(t *testing.T) {
+	t.Parallel()
 	var postTransformCalled bool
 	var capturedFieldValue any
 
@@ -173,6 +179,7 @@ parent:
 }
 
 func TestNewFieldRemovalCodemod_PostTransformNotCalledWhenFieldAbsent(t *testing.T) {
+	t.Parallel()
 	var postTransformCalled bool
 
 	cfg := baseFieldRemovalConfig()
@@ -206,6 +213,7 @@ parent:
 }
 
 func TestNewFieldRemovalCodemod_TableDriven(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -253,6 +261,7 @@ func TestNewFieldRemovalCodemod_TableDriven(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			codemod := newFieldRemovalCodemod(baseFieldRemovalConfig())
 
 			result, applied, err := codemod.Apply(tt.content, tt.frontmatter)

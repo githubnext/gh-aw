@@ -11,6 +11,7 @@ import (
 )
 
 func TestGetEngineStepsToTopLevelCodemod_Metadata(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	assert.Equal(t, "engine-steps-to-top-level", codemod.ID)
@@ -22,6 +23,7 @@ func TestGetEngineStepsToTopLevelCodemod_Metadata(t *testing.T) {
 
 // TestEngineStepsToTopLevelCodemod_NoOp tests cases where the codemod should not apply
 func TestEngineStepsToTopLevelCodemod_NoOp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -73,6 +75,7 @@ engine:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			codemod := getEngineStepsToTopLevelCodemod()
 			result, applied, err := codemod.Apply(tt.content, tt.frontmatter)
 			require.NoError(t, err)
@@ -84,6 +87,7 @@ engine:
 
 // TestEngineStepsToTopLevelCodemod_SingleStep tests moving a single engine step to top level
 func TestEngineStepsToTopLevelCodemod_SingleStep(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -121,6 +125,7 @@ engine:
 
 // TestEngineStepsToTopLevelCodemod_MultipleSteps tests moving multiple steps preserves order
 func TestEngineStepsToTopLevelCodemod_MultipleSteps(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -183,6 +188,7 @@ engine:
 
 // TestEngineStepsToTopLevelCodemod_UsesStep tests a step that uses an action (not run:)
 func TestEngineStepsToTopLevelCodemod_UsesStep(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -231,6 +237,7 @@ engine:
 // TestEngineStepsToTopLevelCodemod_EngineFieldsAfterSteps tests that engine fields after steps
 // are preserved correctly in the engine block
 func TestEngineStepsToTopLevelCodemod_EngineFieldsAfterSteps(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -270,6 +277,7 @@ engine:
 // TestEngineStepsToTopLevelCodemod_MergeWithExistingSteps tests appending engine steps
 // after existing top-level steps
 func TestEngineStepsToTopLevelCodemod_MergeWithExistingSteps(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -325,6 +333,7 @@ steps:
 
 // TestEngineStepsToTopLevelCodemod_NoMarkdownBody tests a workflow without a body section
 func TestEngineStepsToTopLevelCodemod_NoMarkdownBody(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -358,6 +367,7 @@ engine:
 // TestEngineStepsToTopLevelCodemod_Idempotent tests that applying the codemod twice
 // (simulated by running on output with updated frontmatter) does not change the content
 func TestEngineStepsToTopLevelCodemod_Idempotent(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	// After codemod is applied, engine no longer has steps in frontmatter
@@ -393,6 +403,7 @@ steps:
 // TestEngineStepsToTopLevelCodemod_StepsBeforeEngine tests when top-level steps field
 // comes before the engine field in the YAML
 func TestEngineStepsToTopLevelCodemod_StepsBeforeEngine(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -442,6 +453,7 @@ engine:
 // TestEngineStepsToTopLevelCodemod_PreservesMarkdownBody tests that the markdown body
 // is preserved after the frontmatter when applying the codemod
 func TestEngineStepsToTopLevelCodemod_PreservesMarkdownBody(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -488,6 +500,7 @@ Follow these steps carefully.`
 
 // TestEngineStepsToTopLevelCodemod_TableDriven is a comprehensive table-driven test
 func TestEngineStepsToTopLevelCodemod_TableDriven(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		content      string
@@ -584,6 +597,7 @@ Review this PR`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			codemod := getEngineStepsToTopLevelCodemod()
 			result, applied, err := codemod.Apply(tt.content, tt.frontmatter)
 
@@ -603,6 +617,7 @@ Review this PR`,
 // TestEngineStepsToTopLevelCodemod_EmptyEngineBlockRemoved tests that a dangling
 // engine: block (containing only steps) is removed after migration
 func TestEngineStepsToTopLevelCodemod_EmptyEngineBlockRemoved(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---
@@ -639,6 +654,7 @@ engine:
 // TestEngineStepsToTopLevelCodemod_NonSequenceTopLevelSteps tests that when
 // top-level steps exists but is not a sequence, a fresh steps block is inserted
 func TestEngineStepsToTopLevelCodemod_NonSequenceTopLevelSteps(t *testing.T) {
+	t.Parallel()
 	codemod := getEngineStepsToTopLevelCodemod()
 
 	content := `---

@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetDiscussionTriggerCategoriesLowercaseCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionTriggerCategoriesLowercaseCodemod()
 
 	assert.Equal(t, "discussion-trigger-categories-lowercase", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetDiscussionTriggerCategoriesLowercaseCodemod(t *testing.T) {
 }
 
 func TestDiscussionTriggerCategoriesCodemod_LowercasesMixedCaseValues(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionTriggerCategoriesLowercaseCodemod()
 
 	content := `---
@@ -55,6 +57,7 @@ on:
 }
 
 func TestDiscussionTriggerCategoriesCodemod_NoOpWhenAlreadyLowercase(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionTriggerCategoriesLowercaseCodemod()
 
 	content := `---
@@ -87,6 +90,7 @@ on:
 }
 
 func TestDiscussionTriggerCategoriesCodemod_LowercasesQuotedOnAndTriggerKeys(t *testing.T) {
+	t.Parallel()
 	codemod := getDiscussionTriggerCategoriesLowercaseCodemod()
 
 	content := `---
@@ -122,6 +126,7 @@ func TestDiscussionTriggerCategoriesCodemod_LowercasesQuotedOnAndTriggerKeys(t *
 }
 
 func TestGetBlockMappingKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		line    string
@@ -137,6 +142,7 @@ func TestGetBlockMappingKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			gotKey, gotOK := getBlockMappingKey(tt.line)
 			assert.Equal(t, tt.wantKey, gotKey)
 			assert.Equal(t, tt.wantOK, gotOK)
