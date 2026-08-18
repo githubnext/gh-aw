@@ -1,0 +1,175 @@
+{
+  "$schema": "https://docs.github.com/gh-aw/schemas/wizard-data-model.schema.json",
+  "version": "1.0.0",
+  "goalCategories": [
+    {
+      "id": "issue-automation",
+      "text": {
+        "label": "Automate issue triage or replies",
+        "help": "Respond to, label, or triage issues automatically when they are opened or commented on."
+      },
+      "triggerOptionIds": ["on-issue-opened", "on-issue-comment", "slash-command", "manual-dispatch"],
+      "destinationOptionIds": ["comment-on-issue", "add-labels-to-issue", "close-issue"],
+      "defaultTriggerOptionId": "on-issue-opened",
+      "defaultDestinationOptionId": "comment-on-issue"
+    },
+    {
+      "id": "pr-review-assistant",
+      "text": {
+        "label": "Review pull requests automatically",
+        "help": "Review incoming pull requests and leave feedback or suggested fixes."
+      },
+      "triggerOptionIds": ["on-pull-request", "slash-command", "manual-dispatch"],
+      "destinationOptionIds": ["comment-on-issue", "open-pull-request"],
+      "defaultTriggerOptionId": "on-pull-request",
+      "defaultDestinationOptionId": "comment-on-issue"
+    },
+    {
+      "id": "scheduled-report",
+      "text": {
+        "label": "Generate a recurring report",
+        "help": "Run on a schedule and publish a summary, digest, or status report."
+      },
+      "triggerOptionIds": ["schedule-daily", "schedule-weekly", "manual-dispatch"],
+      "destinationOptionIds": ["create-discussion", "open-pull-request", "comment-on-issue"],
+      "defaultTriggerOptionId": "schedule-daily",
+      "defaultDestinationOptionId": "create-discussion"
+    },
+    {
+      "id": "command-responder",
+      "text": {
+        "label": "Respond to a slash command",
+        "help": "Run on-demand when a user types a /command in an issue, PR, or discussion comment."
+      },
+      "triggerOptionIds": ["slash-command", "manual-dispatch"],
+      "destinationOptionIds": ["comment-on-issue", "open-pull-request", "add-labels-to-issue"],
+      "defaultTriggerOptionId": "slash-command",
+      "defaultDestinationOptionId": "comment-on-issue"
+    },
+    {
+      "id": "discussion-automation",
+      "text": {
+        "label": "Automate discussion replies",
+        "help": "Respond to or summarize discussions automatically when they are created or commented on."
+      },
+      "triggerOptionIds": ["on-discussion-created", "on-discussion-comment", "slash-command", "manual-dispatch"],
+      "destinationOptionIds": ["comment-on-issue", "create-discussion"],
+      "defaultTriggerOptionId": "on-discussion-created",
+      "defaultDestinationOptionId": "comment-on-issue"
+    },
+    {
+      "id": "ci-triage",
+      "text": {
+        "label": "Triage CI failures",
+        "help": "Investigate failed workflow runs and report findings or open a fix."
+      },
+      "triggerOptionIds": ["on-workflow-run", "manual-dispatch"],
+      "destinationOptionIds": ["comment-on-issue", "open-pull-request", "create-discussion"],
+      "defaultTriggerOptionId": "on-workflow-run",
+      "defaultDestinationOptionId": "comment-on-issue"
+    }
+  ],
+  "triggerOptions": [
+    {
+      "id": "on-issue-opened",
+      "type": "issues",
+      "text": { "label": "When an issue is opened", "help": "Fires whenever a new issue is created." },
+      "frontmatter": { "on": { "issues": { "types": ["opened"] } } }
+    },
+    {
+      "id": "on-issue-comment",
+      "type": "issue_comment",
+      "text": { "label": "When someone comments on an issue" },
+      "frontmatter": { "on": { "issue_comment": { "types": ["created"] } } }
+    },
+    {
+      "id": "on-pull-request",
+      "type": "pull_request",
+      "text": { "label": "When a pull request is opened or updated" },
+      "frontmatter": { "on": { "pull_request": { "types": ["opened", "synchronize"] } } }
+    },
+    {
+      "id": "on-discussion-created",
+      "type": "discussion",
+      "text": { "label": "When a discussion is created" },
+      "frontmatter": { "on": { "discussion": { "types": ["created"] } } }
+    },
+    {
+      "id": "on-discussion-comment",
+      "type": "issue_comment",
+      "text": { "label": "When someone comments on a discussion" },
+      "frontmatter": { "on": { "discussion_comment": { "types": ["created"] } } }
+    },
+    {
+      "id": "on-workflow-run",
+      "type": "other",
+      "text": { "label": "When another workflow run completes", "help": "Fires after a monitored CI workflow run finishes." },
+      "frontmatter": { "on": { "workflow_run": { "workflows": ["CI"], "types": ["completed"] } } }
+    },
+    {
+      "id": "slash-command",
+      "type": "slash_command",
+      "text": { "label": "When triggered by a /command comment", "help": "Runs on-demand when a user comments a slash command." },
+      "frontmatter": { "on": "/my-bot" }
+    },
+    {
+      "id": "schedule-daily",
+      "type": "schedule",
+      "text": { "label": "Every day" },
+      "frontmatter": { "on": { "schedule": "daily" } }
+    },
+    {
+      "id": "schedule-weekly",
+      "type": "schedule",
+      "text": { "label": "Every week" },
+      "frontmatter": { "on": { "schedule": "weekly" } }
+    },
+    {
+      "id": "manual-dispatch",
+      "type": "workflow_dispatch",
+      "text": { "label": "Only when run manually" },
+      "frontmatter": { "on": "workflow_dispatch" }
+    }
+  ],
+  "destinationOptions": [
+    {
+      "id": "comment-on-issue",
+      "safeOutputType": "add-comment",
+      "text": { "label": "Post a comment" },
+      "inferFromTriggerTypes": ["issues", "issue_comment", "pull_request", "discussion", "slash_command", "other"]
+    },
+    {
+      "id": "add-labels-to-issue",
+      "safeOutputType": "add-labels",
+      "text": { "label": "Add labels" },
+      "inferFromTriggerTypes": ["issues", "slash_command"]
+    },
+    {
+      "id": "close-issue",
+      "safeOutputType": "close-issue",
+      "text": { "label": "Close the issue with a comment" },
+      "inferFromTriggerTypes": ["issues"]
+    },
+    {
+      "id": "open-pull-request",
+      "safeOutputType": "create-pull-request",
+      "text": { "label": "Open a pull request" },
+      "inferFromTriggerTypes": ["schedule", "pull_request", "workflow_dispatch", "other"]
+    },
+    {
+      "id": "create-discussion",
+      "safeOutputType": "create-discussion",
+      "text": { "label": "Post a discussion" },
+      "inferFromTriggerTypes": ["schedule", "workflow_dispatch", "discussion", "other"]
+    }
+  ],
+  "promptTemplate": {
+    "introText": "You are helping generate a new GitHub Agentic Workflow (gh-aw) markdown file. This prompt is self-contained: run it in your project with an AI coding assistant and it will produce a complete `.md` workflow without assuming any prior gh-aw setup.",
+    "sections": [
+      { "id": "goal", "heading": "Goal" },
+      { "id": "trigger", "heading": "Trigger" },
+      { "id": "destination", "heading": "Output destination" },
+      { "id": "task-details", "heading": "Task details" }
+    ]
+  }
+}
