@@ -20,3 +20,5 @@
 {"id":"prioritized_plan_reported","question":"Did the agent report a prioritized plan with actionable specification work items?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-15T16:01:07.401Z","runid":"31894044291"}
 {"id":"specifications_analyzed","question":"Did the agent analyze repository specifications using the SPDD planning process?","answer":"YES","model":"evals","timestamp":"2026-08-17T16:06:19.100Z","runid":"32043814909"}
 {"id":"prioritized_plan_reported","question":"Did the agent report a prioritized plan with actionable specification work items?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-17T16:06:19.100Z","runid":"32043814909"}
+{"id":"specifications_analyzed","question":"Did the agent analyze repository specifications using the SPDD planning process?","answer":"YES","model":"evals","timestamp":"2026-08-18T16:05:22.552Z","runid":"32157710053"}
+{"id":"prioritized_plan_reported","question":"Did the agent report a prioritized plan with actionable specification work items?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-18T16:05:22.552Z","runid":"32157710053"}
