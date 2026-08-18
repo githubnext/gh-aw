@@ -1198,6 +1198,12 @@ test-docs-remark:
 	@node docs/src/lib/remark/inlineMarkdownInHtml.test.js
 	@echo "✓ Docs remark plugin unit tests passed"
 
+.PHONY: test-docs-wizard-model
+test-docs-wizard-model:
+	@echo "Running AW wizard data model unit tests..."
+	@node docs/src/lib/wizard/model.test.js
+	@echo "✓ AW wizard data model unit tests passed"
+
 # Sync templates from .github to pkg/cli/templates
 # Sync action pins from .github/aw to pkg/actionpins/data and pkg/workflow/data
 .PHONY: sync-action-pins
