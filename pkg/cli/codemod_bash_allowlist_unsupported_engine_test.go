@@ -12,6 +12,7 @@ import (
 )
 
 func TestBashAllowlistUnsupportedEngineCodemod_Metadata(t *testing.T) {
+	t.Parallel()
 	codemod := getBashAllowlistUnsupportedEngineCodemod()
 
 	assert.Equal(t, "bash-allowlist-unsupported-engine-guided-error", codemod.ID)
@@ -24,6 +25,7 @@ func TestBashAllowlistUnsupportedEngineCodemod_Metadata(t *testing.T) {
 }
 
 func TestBashAllowlistUnsupportedEngineCodemod_Apply(t *testing.T) {
+	t.Parallel()
 	codemod := getBashAllowlistUnsupportedEngineCodemod()
 
 	content := `---
@@ -150,6 +152,7 @@ tools:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			newContent, applied, err := codemod.Apply(content, tt.frontmatter)
 			assert.False(t, applied, "guided codemod never modifies the workflow")
 			assert.Equal(t, content, newContent, "content must be preserved")
@@ -169,6 +172,7 @@ tools:
 // ApplyWithContext detects a bash restriction that originates solely from an imported file (not
 // the top-level workflow), which Apply cannot detect because it only sees raw frontmatter.
 func TestBashAllowlistUnsupportedEngineCodemod_ApplyWithContext_ImportedRestriction(t *testing.T) {
+	t.Parallel()
 	codemod := getBashAllowlistUnsupportedEngineCodemod()
 
 	dir := t.TempDir()
@@ -210,6 +214,7 @@ imports:
 // TestBashAllowlistUnsupportedEngineCodemod_ApplyWithContext_NoImportedRestriction verifies that
 // ApplyWithContext is a no-op when no bash restriction exists in the top-level or imported tools.
 func TestBashAllowlistUnsupportedEngineCodemod_ApplyWithContext_NoImportedRestriction(t *testing.T) {
+	t.Parallel()
 	codemod := getBashAllowlistUnsupportedEngineCodemod()
 
 	content := `---

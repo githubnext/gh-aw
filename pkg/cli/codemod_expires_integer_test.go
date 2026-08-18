@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetExpiresIntegerToStringCodemod(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	assert.Equal(t, "expires-integer-to-string", codemod.ID)
@@ -20,6 +21,7 @@ func TestGetExpiresIntegerToStringCodemod(t *testing.T) {
 }
 
 func TestExpiresIntegerCodemod_ConvertsCreateIssue(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -48,6 +50,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_ConvertsCreateDiscussion(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -76,6 +79,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_ConvertsCreatePullRequest(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -104,6 +108,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_AlreadyStringFormat_NoChange(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -132,6 +137,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_HourStringFormat_NoChange(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -160,6 +166,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_NoSafeOutputs_NoChange(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -185,6 +192,7 @@ permissions:
 }
 
 func TestExpiresIntegerCodemod_PreservesComment(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -213,6 +221,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_PreservesOtherFields(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -248,6 +257,7 @@ safe-outputs:
 }
 
 func TestExpiresIntegerCodemod_MultipleOutputTypes(t *testing.T) {
+	t.Parallel()
 	codemod := getExpiresIntegerToDayStringCodemod()
 
 	content := `---
@@ -282,6 +292,7 @@ safe-outputs:
 }
 
 func TestConvertExpiresLineToString_Integer(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -334,6 +345,7 @@ func TestConvertExpiresLineToString_Integer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, changed := convertExpiresIntegerLineToDayString(tt.input)
 			assert.Equal(t, tt.changed, changed, "changed flag should match")
 			assert.Equal(t, tt.expected, result, "converted line should match")
