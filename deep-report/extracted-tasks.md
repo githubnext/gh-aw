@@ -1,3 +1,14 @@
+## Extracted code-quality tasks (2026-08-18 06:23Z cycle)
+
+4 filed, 1 comment, all newly-mined (short 5h52m cycle, 10 new discussions):
+1. Re-decompose `compiler_safe_outputs_job.go` (discussion #53563) — prior fix issue #50515 auto-expired unfixed 2026-08-06, same 144-line function rediscovered. Filed.
+2. Resolve undocumented/unschemaed top-level `version`/`include` frontmatter fields (discussion #53595). Filed.
+3. Bundle 3 docs quick-wins: WIF expansion, frontmatter-definition timing, "Get Started" label (discussion #53578). Filed.
+4. Root-cause PR Sous Chef's chronic `safe_outputs` job failure, consolidate 16 duplicate open `[aw] Failed jobs` issues (discussion #53589 + live issue search). Filed.
+5. Commented on #53464 (recurring MCP toolset unavailability) with the 4th+ occurrence (discussion #53596) rather than filing a duplicate.
+
+Not filed: Sergo's and ESLint Refiner's own findings (already self-filed, #53592/#53593 and aw_sg61a1); lint-monster (updated own tracking issue #53268 in place); firewall report and firewall-escape test (both fully compliant, no action).
+
 ## Extracted code-quality tasks (2026-08-18 00:31Z cycle)
 
 5 filed, all newly-mined (cache-refresh fix confirmed working this cycle, no stale-data workaround needed):

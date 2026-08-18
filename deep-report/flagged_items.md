@@ -1,3 +1,14 @@
+## Flagged Items (2026-08-18, 06:23Z cycle)
+
+- **[new, filed]** compiler_safe_outputs_job.go decomposition re-filed — prior issue #50515 auto-expired unfixed 2026-08-06, exact same 144-line function rediscovered by today's compiler-quality report (#53563). Watch: does the re-filing land a real fix this time, or expire again.
+- **[new, filed]** Top-level `version`/`include` frontmatter fields undocumented/unschemaed (Schema Consistency Check #53595) — clean filing, no prior issue found.
+- **[new, filed]** 3 docs quick-wins from Documentation Noob Test Report #53578 (WIF expansion, frontmatter-definition timing, "Get Started" label) — bundled into one issue.
+- **[new, filed]** PR Sous Chef chronic `safe_outputs` job failure — 16 open duplicate `[aw] Failed jobs: PR Sous Chef` issues, none consolidated/root-caused; Issue Arborist independently flagged the same cluster this cycle without acting on it.
+- **[new, commented]** #53464 (recurring MCP toolset unavailability) — logged 4th+ occurrence (#53596) as a comment, correctly not filed as a new duplicate issue.
+- **[verified, no dupe filed]** Sergo's own finding (aw_sg61a1) and ESLint Refiner's 2 findings (#53592, #53593) were already self-filed by those workflows — confirmed via search, no action needed.
+- **[declined, self-resolving]** lint-monster updated its own authoritative issue #53268 in place — no new issue needed.
+- **[declined, fully compliant]** Firewall report (0% block rate) and Firewall Escape test (SECURE, 11/11 new techniques failed) — no action.
+
 ## Flagged Items (2026-08-18, 00:31Z cycle)
 
 - **[new, filed]** `Copilot Opt` and `Copilot Agent PR Analysis` have the same day-keyed cache-reuse bug that was just fixed for deep-report itself (PR #53486) — filed citing that PR as the fix template. Watch: does this get fixed quickly like the last 4 filings, or does it linger since it's not deep-report's own pipeline this time.
