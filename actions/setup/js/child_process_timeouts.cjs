@@ -2,6 +2,13 @@
 "use strict";
 
 /**
+ * Largest timeout Node.js can represent as a timer delay (2^31 - 1 ms, ~24.8 days).
+ * Larger delays overflow and are silently converted to 1 ms, so overrides above
+ * this bound are clamped to it.
+ */
+const MAX_SETUP_TIMEOUT_MS = 2_147_483_647;
+
+/**
  * Setup/runtime command timeout defaults, in milliseconds. Each timeout can be
  * overridden with its environment variable by setting a positive integer value.
  */
@@ -38,7 +45,10 @@ function getPositiveEnvIntOrDefault(envName, defaultMs, env = process.env) {
     return defaultMs;
   }
   const parsed = Number(trimmed);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : defaultMs;
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    return defaultMs;
+  }
+  return Math.min(parsed, MAX_SETUP_TIMEOUT_MS);
 }
 
 /**
@@ -55,6 +65,7 @@ function getSetupTimeoutMs(name, env = process.env) {
 }
 
 module.exports = {
+  MAX_SETUP_TIMEOUT_MS,
   SETUP_TIMEOUTS,
   getPositiveEnvIntOrDefault,
   getSetupTimeoutMs,

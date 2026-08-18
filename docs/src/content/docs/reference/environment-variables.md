@@ -192,7 +192,7 @@ There is no separate public Codex, Gemini, or Copilot startup-retry environment 
 
 ### Setup helper process timeouts
 
-The JavaScript setup helpers bound child processes, archive operations, and setup-time network requests with positive millisecond timeouts. These defaults protect workflows from indefinitely hung setup commands, but very large repositories or artifact payloads can require larger budgets. Set the relevant variable to a positive integer number of milliseconds; unset, zero, negative, or non-numeric values use the default.
+The JavaScript setup helpers bound child processes, archive operations, and setup-time network requests with positive millisecond timeouts. These defaults protect workflows from indefinitely hung setup commands, but very large repositories or artifact payloads can require larger budgets. Set the relevant variable to a positive integer number of milliseconds; unset, zero, negative, or non-numeric values use the default. Values above Node's maximum timer delay of `2147483647` ms (about 24.8 days) are clamped to that maximum.
 
 | Variable | Default | Applies to |
 | --- | --- | --- |
