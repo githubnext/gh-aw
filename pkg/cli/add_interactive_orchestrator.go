@@ -192,16 +192,15 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles,
 		return nil, nil, "", "", false, err
 	}
 
-	if c.hasWriteAccess && !c.SkipSecret && !c.UseCopilotRequests {
+	createPR, err = c.confirmChanges(workflowFiles, initFiles)
+	if err != nil {
+		return nil, nil, "", "", false, err
+	}
+	if createPR && c.hasWriteAccess && !c.SkipSecret && !c.UseCopilotRequests {
 		secretName, secretValue, err = c.resolveEngineApiKeyCredential()
 		if err != nil {
 			return nil, nil, "", "", false, err
 		}
-	}
-
-	createPR, err = c.confirmChanges(workflowFiles, initFiles, secretName, secretValue)
-	if err != nil {
-		return nil, nil, "", "", false, err
 	}
 
 	return workflowFiles, initFiles, secretName, secretValue, createPR, nil
@@ -330,8 +329,7 @@ func (c *AddInteractiveConfig) primaryWorkflowName() string {
 }
 
 // confirmChanges asks the user to confirm the changes
-// secretValue is empty if the secret already exists in the repository
-func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string, secretName string, secretValue string) (bool, error) {
+func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string) (bool, error) {
 	addInteractiveLog.Print("Confirming changes with user")
 
 	fmt.Fprintln(os.Stderr, "")
