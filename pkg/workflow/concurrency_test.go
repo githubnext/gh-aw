@@ -211,7 +211,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: true,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
+  queue: max`,
 			description: "Alias workflows should use dynamic concurrency with ref but without cancellation",
 		},
 		{
@@ -224,7 +225,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref || github.run_id }}"
+  queue: max`,
 			description: "Push workflows should use github.ref without cancellation",
 		},
 		{
@@ -237,7 +239,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}"`,
+  group: "gh-aw-${{ github.workflow }}"
+  queue: max`,
 			description: "Regular workflows should use static concurrency without cancellation",
 		},
 		{
@@ -250,7 +253,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}"
+  queue: max`,
 			description: "Issue workflows should use issue number without cancellation",
 		},
 		{
@@ -263,7 +267,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}"
+  queue: max`,
 			description: "Issue comment workflows should use issue number without cancellation",
 		},
 		{
@@ -292,7 +297,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.discussion.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.discussion.number || github.run_id }}"
+  queue: max`,
 			description: "Discussion workflows should use discussion number without cancellation",
 		},
 		{
@@ -307,7 +313,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.discussion.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.discussion.number || github.run_id }}"
+  queue: max`,
 			description: "Mixed issue and discussion workflows should use issue/discussion number without cancellation",
 		},
 		{
@@ -334,7 +341,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
+  queue: max`,
 			description: "slash_command (input-level YAML) should use issue/PR number, same as command trigger",
 		},
 		{
@@ -348,7 +356,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}"
+  queue: max`,
 			description: "Rendered slash_command YAML (issue_comment + workflow_dispatch) uses issue number via isIssueWorkflow",
 		},
 		{
@@ -365,7 +374,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-call-test-copilot-call-worker-${{ github.run_id }}"`,
+  group: "gh-aw-call-test-copilot-call-worker-${{ github.run_id }}"
+  queue: max`,
 			description: "workflow_call workers must use compile-time workflow ID and run_id to avoid caller-name collisions and fan-out queue contention",
 		},
 		{
@@ -378,7 +388,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.run_id }}"
+  queue: max`,
 			description: "workflow_call without WorkflowID still appends run_id so worker runs remain collision-free",
 		},
 		{
@@ -392,7 +403,8 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-mixed-call-worker-${{ github.run_id }}"`,
+  group: "gh-aw-mixed-call-worker-${{ github.run_id }}"
+  queue: max`,
 			description: "workflow_call mixed with workflow_dispatch should still use compile-time ID and run_id",
 		},
 	}
@@ -1615,7 +1627,8 @@ func TestGenerateConcurrencyConfigWithBotIsolation(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ contains(github.actor, '[bot]') && github.run_id || github.event.issue.number || github.event.pull_request.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ contains(github.actor, '[bot]') && github.run_id || github.event.issue.number || github.event.pull_request.number || github.run_id }}"
+  queue: max`,
 			description: "slash_command + github-app generates bot-isolated concurrency group",
 		},
 		{
@@ -1629,7 +1642,8 @@ func TestGenerateConcurrencyConfigWithBotIsolation(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ contains(github.actor, '[bot]') && github.run_id || github.event.issue.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ contains(github.actor, '[bot]') && github.run_id || github.event.issue.number || github.run_id }}"
+  queue: max`,
 			description: "issue_comment + github-app generates bot-isolated concurrency group",
 		},
 		{
@@ -1642,7 +1656,8 @@ func TestGenerateConcurrencyConfigWithBotIsolation(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}"
+  queue: max`,
 			description: "slash_command without github-app uses standard concurrency (backward compat)",
 		},
 		{

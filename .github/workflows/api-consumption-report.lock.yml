@@ -85,6 +85,7 @@ permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
+  queue: max
 
 run-name: "GitHub API Consumption Report Agent"
 
