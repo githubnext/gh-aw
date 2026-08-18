@@ -194,7 +194,6 @@ Common file paths referenced in workflow files:
 | `/tmp/gh-aw/aw_info.json` | File | Workflow info JSON | Workflow metadata and configuration |
 | `/tmp/gh-aw/awf-config.json` | File | AWF config JSON | Agentic Workflow Firewall (AWF) configuration file |
 | `/tmp/gh-aw/base` | Directory | Base checkout | Base repository checkout for git diff operations |
-| `/tmp/gh-aw/copilot-otel.jsonl` | File | Copilot OTEL log | OpenTelemetry spans from Copilot engine requests |
 | `/tmp/gh-aw/cache-memory` | Directory | Cache memory storage | Persistent cache data across runs |
 | `/tmp/gh-aw/cache-memory-chroma` | Directory | Chroma cache storage | Chroma vector database cache |
 | `/tmp/gh-aw/cache-memory-focus-areas` | Directory | Focus areas cache | Cached focus area data |
@@ -649,7 +648,6 @@ GitHub Actions runner images used across compiled workflows:
 ├── cache-memory-repo-audits/   # Audit cache
 ├── comment-memory/             # Comment memory
 │   └── default.md
-├── copilot-otel.jsonl          # Copilot OpenTelemetry spans
 ├── experiments/                # A/B experiments
 │   ├── assignments.json
 │   └── state.json
