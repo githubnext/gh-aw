@@ -145,7 +145,7 @@ async function applyIssueIntentLabels({ githubClient, core, repoParts, itemNumbe
       RATE_LIMIT_RETRY_CONFIG,
       `restore labels on ${contextType} #${itemNumber} in ${itemRepo}`
     );
-    afterLabels = mergeLabelNames(existingLabelNames, afterLabels, normalizeLabelNames(restoredLabels));
+    afterLabels = mergeLabelNames(existingLabelNames, afterLabels, restoredLabels);
   }
 
   return afterLabels;
@@ -439,7 +439,7 @@ const main = createCountGatedHandler({
                 RATE_LIMIT_RETRY_CONFIG,
                 `add metadata-free labels to ${contextType} #${itemNumber} in ${itemRepo}`
               );
-              afterLabels = mergeLabelNames(afterLabels, normalizeLabelNames(labels));
+              afterLabels = mergeLabelNames(afterLabels, labels);
               afterNamesLower = new Set(afterLabels.map(name => name.toLowerCase()));
             }
 

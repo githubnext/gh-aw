@@ -331,6 +331,7 @@ describe("add_labels", () => {
     it("should add metadata-free labels through REST when the intent mutation does not apply them", async () => {
       const handler = await main({ max: 10 });
       const addLabelsCalls = [];
+      const graphqlMutationCalls = [];
 
       mockGithub.rest.issues.get = async () => ({
         data: {
@@ -354,6 +355,7 @@ describe("add_labels", () => {
             },
           };
         }
+        graphqlMutationCalls.push(variables);
         return { updateIssue: { issue: { labels: { nodes: [{ name: "feature-openapi" }] } } } };
       };
       mockGithub.rest.issues.addLabels = async params => {
@@ -373,6 +375,8 @@ describe("add_labels", () => {
       expect(result.labelsAdded).toEqual(["bug"]);
       expect(result.labelsSuggested).toEqual(["area-minimal"]);
       expect(result.after_state.labels).toEqual(["feature-openapi", "bug"]);
+      expect(graphqlMutationCalls).toHaveLength(1);
+      expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_area-minimal", rationale: "Minimal APIs area", confidence: "MEDIUM" }, { labelId: "LABEL_bug" }, { labelId: "LABEL_feature-openapi" }]);
       expect(addLabelsCalls).toHaveLength(1);
       expect(addLabelsCalls[0].labels).toEqual(["bug"]);
     });
