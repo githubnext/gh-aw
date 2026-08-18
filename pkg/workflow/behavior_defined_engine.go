@@ -612,7 +612,7 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionStep(exec *EngineEx
 	}
 	filteredEnv := FilterEnvForSecrets(env, e.GetRequiredSecretNames(workflowData))
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
-	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, command, filteredEnv))
+	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, wrapAgentExecutionCommand(command), filteredEnv))
 }
 
 func (e *BehaviorDefinedEngine) modelFlagFragment(exec *EngineExecutionDefinition, workflowData *WorkflowData) string {

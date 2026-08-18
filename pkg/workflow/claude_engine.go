@@ -215,7 +215,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// fallback expression that is always allowed when cli-proxy is enabled)
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
 
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
+	stepLines = FormatStepWithCommandAndEnv(stepLines, wrapAgentExecutionCommand(command), filteredEnv)
 	steps = append(steps, GitHubActionStep(stepLines))
 	return steps
 }

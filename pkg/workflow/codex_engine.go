@@ -419,7 +419,7 @@ func (e *CodexEngine) buildCodexExecutionStep(workflowData *WorkflowData, comman
 	}
 	filteredEnv := FilterEnvForSecrets(env, e.GetRequiredSecretNames(workflowData))
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
-	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, command, filteredEnv))
+	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, wrapAgentExecutionCommand(command), filteredEnv))
 }
 
 // GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)

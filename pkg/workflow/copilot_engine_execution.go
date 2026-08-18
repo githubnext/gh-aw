@@ -37,7 +37,9 @@ import (
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
-const agentExecutionExitCodePath = "/tmp/gh-aw/agent_execution_exit_code.txt"
+
+// copilotExecutionStepName is the display name of the generated Copilot CLI execution step.
+const copilotExecutionStepName = "Execute GitHub Copilot CLI"
 
 // copilotSettingsPath is the shell expression that resolves to the Copilot CLI settings
 // file at runtime. The Copilot CLI resolves its config directory as ~/.copilot, which is
@@ -85,18 +87,13 @@ func buildCopilotSettingsSetup(settingsContent string, fixOwnershipForCustomComm
 		shellEscapeArg(settingsContent), copilotSettingsPath)
 }
 
-// buildCopilotSettingsCleanupAndExitCodeTrap returns an EXIT trap that:
-//  1. persists the execution step exit code for setup/post OTLP conclusion spans, and
-//  2. removes the temporary Copilot settings file.
+// buildCopilotSettingsCleanupAndExitCodeTrap adds Copilot settings cleanup to the
+// shared agent execution exit-code trap.
 //
 // The body is single-quoted so $HOME in copilotSettingsPath is expanded at trap-fire
 // time (matching buildCopilotSettingsCleanupTrap behavior).
 func buildCopilotSettingsCleanupAndExitCodeTrap() string {
-	return fmt.Sprintf(
-		"trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf \"%%s\" \"$gh_aw_exit_code\" > %s || true; rm -f \"%s\"' EXIT\n",
-		agentExecutionExitCodePath,
-		copilotSettingsPath,
-	)
+	return buildAgentExecutionExitCodeTrapWithCleanup(fmt.Sprintf(`rm -f "%s"`, copilotSettingsPath))
 }
 
 // buildCopilotMCPConfigExport returns shell commands that export Copilot-CLI-specific
@@ -690,7 +687,7 @@ func (e *CopilotEngine) addCopilotSDKStepEnv(env map[string]string, workflowData
 
 func (e *CopilotEngine) buildCopilotExecutionStep(workflowData *WorkflowData, command string, env map[string]string, timeoutValue string) GitHubActionStep {
 	// Generate the step for Copilot CLI execution
-	stepLines := []string{"      - name: Execute GitHub Copilot CLI", "        id: agentic_execution"}
+	stepLines := []string{"      - name: " + copilotExecutionStepName, "        id: agentic_execution"}
 	// Add tool arguments comment before the run section
 	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.MCPScripts, workflowData, "        ")
 	if toolArgsComment != "" {
