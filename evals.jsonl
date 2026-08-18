@@ -16,3 +16,5 @@
 {"id":"report_or_discussion_created","question":"Was a report or discussion created with historical trend data and per-workflow AIC breakdowns?","answer":"YES","model":"evals","timestamp":"2026-08-14T11:58:01.114Z","runid":"31797390337"}
 {"id":"aic_usage_analyzed","question":"Did the agent audit AI Credit (AIC) usage across agentic workflows for the target period?","answer":"YES","model":"evals","timestamp":"2026-08-17T11:48:58.814Z","runid":"32025811529"}
 {"id":"report_or_discussion_created","question":"Was a report or discussion created with historical trend data and per-workflow AIC breakdowns?","answer":"YES","model":"evals","timestamp":"2026-08-17T11:48:58.814Z","runid":"32025811529"}
+{"id":"aic_usage_analyzed","question":"Did the agent audit AI Credit (AIC) usage across agentic workflows for the target period?","answer":"YES","model":"evals","timestamp":"2026-08-18T11:48:10.476Z","runid":"32132667793"}
+{"id":"report_or_discussion_created","question":"Was a report or discussion created with historical trend data and per-workflow AIC breakdowns?","answer":"YES","model":"evals","timestamp":"2026-08-18T11:48:10.476Z","runid":"32132667793"}
