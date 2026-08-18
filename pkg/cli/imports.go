@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,9 +105,7 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 				processed = append(processed, resolveOneImportPath(v))
 			case map[string]any:
 				updated := make(map[string]any, len(v))
-				for k, val := range v {
-					updated[k] = val
-				}
+				maps.Copy(updated, v)
 				if pathVal, ok := updated["path"].(string); ok {
 					updated["path"] = resolveOneImportPath(pathVal)
 				} else if usesVal, ok := updated["uses"].(string); ok {
