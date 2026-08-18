@@ -15,6 +15,8 @@ import (
 // Custom Job Field Configuration Tests (runs-on, strategy, container)
 // ========================================
 
+// TestBuildCustomJobsRunsOnForms tests that runs-on string, array, and object forms
+// are all correctly handled in buildCustomJobs.
 func TestBuildCustomJobsRunsOnForms(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -539,7 +541,3 @@ func TestBuildCustomJobsTimeoutMinutesInvalidStringViaWorkflowData(t *testing.T)
 		t.Fatalf("expected timeout-minutes validation error, got: %v", err)
 	}
 }
-
-// TestPushRepoMemoryJobConditionalDetection verifies that push_repo_memory already uses
-// always() and buildDetectionPassedCondition() (accepting 'success' or 'skipped') when
-// detection is expression-controlled, so the job still runs when detection is skipped at runtime.

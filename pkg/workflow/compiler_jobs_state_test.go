@@ -19,6 +19,9 @@ import (
 // State Push Job Tests (repo memory, cache memory, experiments, evals)
 // ========================================
 
+// TestPushRepoMemoryJobConditionalDetection verifies that push_repo_memory already uses
+// always() and buildDetectionPassedCondition() (accepting 'success' or 'skipped') when
+// detection is expression-controlled, so the job still runs when detection is skipped at runtime.
 func TestPushRepoMemoryJobConditionalDetection(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
@@ -308,7 +311,3 @@ Test content`
 	assert.Contains(t, conclusionSection, "push_evals_state", "conclusion job should depend on push_evals_state")
 	assert.Contains(t, conclusionSection, "GH_AW_EVALS_AIC: ${{ needs.evals.outputs.aic }}", "conclusion job should pass evals AIC to footer generation")
 }
-
-// TestBuildMainJobEngineEnvNeedsExpression verifies that when engine.env values contain
-// needs.<customJob>.outputs.* expressions, the referenced custom job is added as a direct
-// dependency of the agent job (issue: agent 'needs' does not incorporate jobs in engine.env).

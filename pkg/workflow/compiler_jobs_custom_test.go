@@ -524,6 +524,3 @@ Test content`
 		t.Error("Expected simple_job in compiled output")
 	}
 }
-
-// TestBuildCustomJobsRunsOnForms tests that runs-on string, array, and object forms
-// are all correctly handled in buildCustomJobs.

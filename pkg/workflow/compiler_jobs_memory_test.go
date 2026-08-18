@@ -14,6 +14,8 @@ import (
 // Repo Memory and Cache Memory Job Tests
 // ========================================
 
+// TestJobsWithRepoMemoryDependencies tests push_repo_memory job positioning
+// This tests the job creation logic when repo-memory config is present
 func TestJobsWithRepoMemoryDependencies(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()

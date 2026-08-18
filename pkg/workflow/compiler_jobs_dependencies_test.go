@@ -209,6 +209,3 @@ Test content`
 		t.Error("Expected reference to producer output")
 	}
 }
-
-// TestJobsWithRepoMemoryDependencies tests push_repo_memory job positioning
-// This tests the job creation logic when repo-memory config is present

@@ -15,6 +15,8 @@ import (
 // Safe Outputs, Threat Detection, and Reusable Workflow Job Tests
 // ========================================
 
+// TestBuildSafeOutputsJobsCreatesExpectedJobs tests that safe output steps are created correctly
+// in the consolidated safe_outputs job
 func TestBuildSafeOutputsJobsCreatesExpectedJobs(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "safe-outputs-jobs-test")
 

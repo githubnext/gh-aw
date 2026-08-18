@@ -18,6 +18,9 @@ import (
 // Engine Env Needs Expression Tests
 // ========================================
 
+// TestBuildMainJobEngineEnvNeedsExpression verifies that when engine.env values contain
+// needs.<customJob>.outputs.* expressions, the referenced custom job is added as a direct
+// dependency of the agent job (issue: agent 'needs' does not incorporate jobs in engine.env).
 func TestBuildMainJobEngineEnvNeedsExpression(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.stepOrderTracker = NewStepOrderTracker()

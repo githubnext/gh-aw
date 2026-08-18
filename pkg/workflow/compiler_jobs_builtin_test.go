@@ -290,5 +290,3 @@ func TestIsBuiltinJobName(t *testing.T) {
 		})
 	}
 }
-
-// TestBuildCustomJobsWithActivation tests building custom jobs with activation dependency

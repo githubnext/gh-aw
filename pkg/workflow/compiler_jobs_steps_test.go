@@ -18,6 +18,7 @@ import (
 // Custom Job Setup and Pre-Step Tests
 // ========================================
 
+// TestBuildCustomJobsWithActivation tests building custom jobs with activation dependency
 func TestBuildCustomJobsWithActivation(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "custom-jobs-test")
 
@@ -681,6 +682,3 @@ func indexInNonCommentLinesInSection(content string, target string) int {
 	}
 	return -1
 }
-
-// TestBuildSafeOutputsJobsCreatesExpectedJobs tests that safe output steps are created correctly
-// in the consolidated safe_outputs job
