@@ -139,6 +139,7 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
     /** @type {NodeJS.Timeout | null} */
     let stallWatchdogTimer = null;
     const stallIntervalMs = Number.isFinite(Number(stallWarningIntervalMs)) ? Math.max(0, Number(stallWarningIntervalMs)) : resolveStallWarningIntervalMs(env ?? process.env);
+    const stallIsError = (env ?? process.env).GH_AW_HARNESS_STALL_ERROR === "true";
     let stallWarnings = 0;
     let stalledSinceMs = 0;
 
@@ -188,7 +189,8 @@ function runProcess({ command, args, attempt, log, logArgs, env, postResultWatch
         if (stalledSinceMs === 0) stalledSinceMs = lastActivityAt;
         stallWarnings++;
         log(
-          `attempt ${attempt + 1}: stall watchdog: no output from '${command}' for ${formatDuration(idleMs)}` +
+          (stallIsError ? "::error::Agent CLI exceeded its no-output budget. " : "") +
+            `attempt ${attempt + 1}: stall watchdog: no output from '${command}' for ${formatDuration(idleMs)}` +
             ` (elapsed=${formatDuration(Date.now() - startTime)} pid=${child.pid ?? "unknown"} warnings=${stallWarnings})` +
             ` - the step may be hung${formatStepTimeoutBudget(startTime, env ?? process.env)}`
         );

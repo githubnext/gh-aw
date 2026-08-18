@@ -518,6 +518,19 @@ describe("process_runner.cjs", () => {
       expect(logs.some(line => line.includes("stall watchdog: output resumed after"))).toBe(true);
     });
 
+    it("emits an error annotation when configured for a stalled agent CLI", async () => {
+      const logs = [];
+      await runProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => process.exit(0), 300);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        env: { GH_AW_HARNESS_STALL_ERROR: "true" },
+        stallWarningIntervalMs: 100,
+      });
+      expect(logs.some(line => line.startsWith("::error::Agent CLI exceeded its no-output budget."))).toBe(true);
+    });
+
     it("does not log stall warnings when the process keeps producing output", async () => {
       const logs = [];
       await runProcess({

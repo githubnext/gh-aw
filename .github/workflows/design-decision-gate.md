@@ -34,6 +34,9 @@ max-turns: 30
 model: claude-sonnet-4-6
 engine:
   id: claude
+  env:
+    GH_AW_HARNESS_STALL_WARNING_MS: "60000"
+    GH_AW_HARNESS_STALL_ERROR: "true"
 safe-outputs:
   add-comment:
     max: 2
@@ -109,6 +112,8 @@ steps:
             default_business_additions: 0,
             requires_adr_by_default_volume: false,
             file_count: 0,
+            diff_size_bytes: 0,
+            diff_truncated: false,
             diff_available: false,
             skip_reason: $skip_reason
           }' > /tmp/gh-aw/agent/adr-prefetch-summary.json
@@ -123,19 +128,34 @@ steps:
         > /tmp/gh-aw/agent/pr.json
 
       gh api --paginate "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
-        --jq '.[]' | jq -s '.' > /tmp/gh-aw/agent/pr-files.json
+        --jq '.[]' | jq -s '.' > /tmp/gh-aw/agent/pr-files-full.json
 
-      FILE_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-files.json)
+      FILE_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-files-full.json)
 
       if [ "$FILE_COUNT" -gt 300 ]; then
         echo "::warning::PR has $FILE_COUNT changed files (exceeds the 300-file GitHub diff API limit). Skipping full diff; file listing is available in pr-files.json."
         printf '# Diff unavailable: PR has %s changed files (exceeds the 300-file GitHub diff API limit).\n# Use pr-files.json for the full file listing instead.\n' "$FILE_COUNT" \
           > /tmp/gh-aw/agent/pr.diff
+        DIFF_SIZE_BYTES=0
+        DIFF_TRUNCATED=true
       else
-        gh pr diff "$PR_NUMBER" \
-          --repo "$EXPR_GITHUB_REPOSITORY" \
-          > /tmp/gh-aw/agent/pr.diff
+        MAX_DIFF_BYTES=200000
+        jq -r '.[] | "diff --git a/\(.filename) b/\(.filename)\n--- a/\(.filename)\n+++ b/\(.filename)\n\(.patch // "# Patch unavailable")\n"' \
+          /tmp/gh-aw/agent/pr-files-full.json > /tmp/gh-aw/agent/pr.diff.full
+        DIFF_SIZE_BYTES=$(wc -c < /tmp/gh-aw/agent/pr.diff.full)
+        if [ "$DIFF_SIZE_BYTES" -gt "$MAX_DIFF_BYTES" ]; then
+          head -c "$MAX_DIFF_BYTES" /tmp/gh-aw/agent/pr.diff.full > /tmp/gh-aw/agent/pr.diff
+          printf '\n# Diff truncated at %s bytes; use pr-files.json for file metadata instead.\n' "$MAX_DIFF_BYTES" \
+            >> /tmp/gh-aw/agent/pr.diff
+          rm /tmp/gh-aw/agent/pr.diff.full
+          DIFF_TRUNCATED=true
+        else
+          mv /tmp/gh-aw/agent/pr.diff.full /tmp/gh-aw/agent/pr.diff
+          DIFF_TRUNCATED=false
+        fi
       fi
+      jq '[.[] | del(.patch)]' /tmp/gh-aw/agent/pr-files-full.json > /tmp/gh-aw/agent/pr-files.json
+      rm /tmp/gh-aw/agent/pr-files-full.json
 
       if [ -f "$EXPR_GITHUB_WORKSPACE/.design-gate.yml" ]; then
         cp "$EXPR_GITHUB_WORKSPACE/.design-gate.yml" /tmp/gh-aw/agent/design-gate-config.yml
@@ -155,6 +175,8 @@ steps:
         --arg pr_number "$PR_NUMBER" \
         --arg threshold "100" \
         --argjson file_count "$FILE_COUNT" \
+        --argjson diff_size_bytes "$DIFF_SIZE_BYTES" \
+        --argjson diff_truncated "$DIFF_TRUNCATED" \
         --argjson diff_available "$(jq -n --argjson fc "$FILE_COUNT" 'if $fc <= 300 then true else false end')" \
         '{
           pr_number: ($pr_number | tonumber),
@@ -164,6 +186,8 @@ steps:
           default_business_additions: $default_business_additions,
           requires_adr_by_default_volume: ($default_business_additions > ($threshold | tonumber)),
           file_count: $file_count,
+          diff_size_bytes: $diff_size_bytes,
+          diff_truncated: $diff_truncated,
           diff_available: $diff_available
         }' > /tmp/gh-aw/agent/adr-prefetch-summary.json
 evals:
@@ -224,11 +248,12 @@ Stop and emit a safe output **immediately** when any of the following is true:
 2. If a pre-fetched file is missing or returns a permission error, fall back to the equivalent GitHub MCP tool immediately (do not retry the file read):
    - Missing `pr.json` → `mcp__github__get_pull_request`
    - Missing `pr-files.json` → `mcp__github__get_pull_request_files`
-   - Missing `pr.diff` → `mcp__github__get_pull_request_diff` (only if `diff_available` is `true` in the summary; if `false`, the diff exceeds the 300-file API limit — use `pr-files.json` instead and do **not** call the diff API)
+   - Missing `pr.diff` → `mcp__github__get_pull_request_diff` (only if `diff_available` is `true` and `diff_truncated` is `false` in the summary; otherwise use `pr-files.json` and do **not** call the diff API)
    - Missing `adr-prefetch-summary.json` → compute manually from PR files and labels
 3. Do **not** perform broad exploration. Only fetch extra data if a required field is missing from pre-fetched files.
-4. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, or `noop`) and then stop.
-5. If you have enough evidence to decide, stop immediately. Do not gather optional data.
+4. `pr.diff` is capped at 200,000 bytes. If `diff_truncated` is `true`, do not read it; use `pr-files.json` for file metadata and inspect only the specific changed files needed for the ADR decision.
+5. Call exactly one final safe output action (`add-comment`, `push-to-pull-request-branch`, or `noop`) and then stop.
+6. If you have enough evidence to decide, stop immediately. Do not gather optional data.
 
 ## Gate Quality Bar
 

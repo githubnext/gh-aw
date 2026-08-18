@@ -177,6 +177,8 @@ Unlike the post-result watchdog, the stall watchdog never terminates the agent p
 
 The warning repeats on each interval while the silence continues, and a `stall watchdog: output resumed after ...` line is logged once output comes back. This makes a hung step diagnosable from the step log alone, without cross-referencing job or step metadata. The final `process closed` line reports `stallWarnings=<count>` when any warning fired.
 
+Set `GH_AW_HARNESS_STALL_ERROR: "true"` to emit each configured stall warning as a GitHub Actions error annotation.
+
 ### Engine-specific harness settings
 
 | Variable | Engine | Default | Units / range | Description |
