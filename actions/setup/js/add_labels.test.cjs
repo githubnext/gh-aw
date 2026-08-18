@@ -375,6 +375,7 @@ describe("add_labels", () => {
       expect(result.labelsAdded).toEqual(["bug"]);
       expect(result.labelsSuggested).toEqual(["area-minimal"]);
       expect(result.after_state.labels).toEqual(["feature-openapi", "bug"]);
+      expect(result.after_state.labels).not.toContain("area-minimal");
       expect(graphqlMutationCalls).toHaveLength(1);
       expect(graphqlMutationCalls[0].labels).toEqual([{ labelId: "LABEL_area-minimal", rationale: "Minimal APIs area", confidence: "MEDIUM" }, { labelId: "LABEL_bug" }, { labelId: "LABEL_feature-openapi" }]);
       expect(addLabelsCalls).toHaveLength(1);
