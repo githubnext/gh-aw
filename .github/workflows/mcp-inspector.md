@@ -22,6 +22,7 @@ network:
     - fonts
 sandbox:
   agent:
+    runtime: cloud-hypervisor
     id: awf
 timeout-minutes: 20
 strict: false

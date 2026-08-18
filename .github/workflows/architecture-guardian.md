@@ -28,7 +28,7 @@ imports:
   - shared/otlp.md
 sandbox:
   agent:
-    runtime: gvisor
+    runtime: cloud-hypervisor
 tools:
   cli-proxy: true
   bash:

@@ -60,6 +60,9 @@ evals:
 
 features:
   gh-aw-detection: true
+sandbox:
+  agent:
+    runtime: cloud-hypervisor
 ---
 
 Scan the repository for SQL injection vulnerabilities using Semgrep.
