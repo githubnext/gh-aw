@@ -116,12 +116,18 @@ func TestEngineDefaultDomainsDoNotOverlapEcosystems(t *testing.T) {
 			})
 		}
 
-		for _, domain := range ecosystemDomains {
-			assert.NotContains(t, PiBaseDefaultDomains, domain,
-				"PiBaseDefaultDomains must not include %q ecosystem domain %q", ecosystem, domain)
-			assert.NotContains(t, PiDefaultDomains, domain,
-				"PiDefaultDomains must not include %q ecosystem domain %q", ecosystem, domain)
-		}
+		t.Run(ecosystem+"/PiBaseDefaultDomains", func(t *testing.T) {
+			for _, domain := range ecosystemDomains {
+				assert.NotContains(t, PiBaseDefaultDomains, domain,
+					"PiBaseDefaultDomains must not include %q ecosystem domain %q", ecosystem, domain)
+			}
+		})
+		t.Run(ecosystem+"/PiDefaultDomains", func(t *testing.T) {
+			for _, domain := range ecosystemDomains {
+				assert.NotContains(t, PiDefaultDomains, domain,
+					"PiDefaultDomains must not include %q ecosystem domain %q", ecosystem, domain)
+			}
+		})
 	}
 }
 
