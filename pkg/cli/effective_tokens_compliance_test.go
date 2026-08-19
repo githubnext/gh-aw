@@ -31,6 +31,7 @@ import (
 // T-ET-001: Single invocation with all four token classes produces correct base_weighted_tokens.
 // Spec §4.3: base_weighted_tokens = (w_in × I) + (w_cache × C) + (w_out × O) + (w_reason × R)
 func TestETCompliance_T_ET_001_SingleInvocationBaseWeightedTokens(t *testing.T) {
+	t.Parallel()
 	weights := types.TokenClassWeights{
 		Input:       1.0,
 		CachedInput: 0.1,
@@ -46,6 +47,7 @@ func TestETCompliance_T_ET_001_SingleInvocationBaseWeightedTokens(t *testing.T) 
 // T-ET-002: Single invocation ET equals m × base_weighted_tokens.
 // Spec §4.4: effective_tokens = m × base_weighted_tokens
 func TestETCompliance_T_ET_002_SingleInvocationEffectiveTokens(t *testing.T) {
+	t.Parallel()
 	weights := types.TokenClassWeights{
 		Input:       1.0,
 		CachedInput: 0.1,
@@ -61,6 +63,7 @@ func TestETCompliance_T_ET_002_SingleInvocationEffectiveTokens(t *testing.T) {
 // T-ET-003: Zero-value token classes do not affect the result.
 // Spec §4.3: zero-valued classes contribute zero to the sum.
 func TestETCompliance_T_ET_003_ZeroValueTokenClasses(t *testing.T) {
+	t.Parallel()
 	weights := types.TokenClassWeights{
 		Input:       1.0,
 		CachedInput: 0.1,
@@ -75,6 +78,7 @@ func TestETCompliance_T_ET_003_ZeroValueTokenClasses(t *testing.T) {
 // T-ET-004: Custom weights are applied when default weights are overridden.
 // Spec §4.2: implementations MAY override default weights but MUST disclose them.
 func TestETCompliance_T_ET_004_CustomWeightsApplied(t *testing.T) {
+	t.Parallel()
 	custom := types.TokenClassWeights{
 		Input:       2.0, // overridden
 		CachedInput: 0.5, // overridden
@@ -93,6 +97,7 @@ func TestETCompliance_T_ET_004_CustomWeightsApplied(t *testing.T) {
 // T-ET-010: Multi-invocation ET_total equals the sum of per-invocation ET values.
 // Spec §5.1: ET_total = Σ (m_i × base_weighted_tokens_i)
 func TestETCompliance_T_ET_010_MultiInvocationETTotal(t *testing.T) {
+	t.Parallel()
 	weights := types.TokenClassWeights{Input: 1.0, CachedInput: 0.1, Output: 4.0, Reasoning: 4.0}
 
 	// Invocation 1: model-a, m=2.0, I=500, C=200, O=150, R=0 → base=1120, ET=2240
@@ -114,6 +119,7 @@ func TestETCompliance_T_ET_010_MultiInvocationETTotal(t *testing.T) {
 // T-ET-011: raw_total_tokens equals the sum of all raw tokens across all invocations.
 // Spec §5.2: raw_total_tokens = Σ (I_i + C_i + O_i + R_i)
 func TestETCompliance_T_ET_011_RawTotalTokens(t *testing.T) {
+	t.Parallel()
 	// Invocation 1: I=500, C=200, O=150, R=0 → raw=850
 	// Invocation 2: I=300, C=0, O=100, R=0 → raw=400
 	// Invocation 3: I=200, C=100, O=250, R=0 → raw=550
@@ -125,6 +131,7 @@ func TestETCompliance_T_ET_011_RawTotalTokens(t *testing.T) {
 // T-ET-012: total_invocations count includes root, sub-agents, and tool-triggered calls.
 // Spec §5.3: all invocations (root + sub-agents + tool-triggered) MUST be counted.
 func TestETCompliance_T_ET_012_TotalInvocationsCount(t *testing.T) {
+	t.Parallel()
 	// Simulated invocation list: 1 root + 2 sub-agents = 3 total
 	invocationIDs := []string{"root", "retrieval", "synthesis"}
 	assert.Len(t, invocationIDs, 3, "T-ET-012: total_invocations must include root + all sub-agents")
@@ -137,6 +144,7 @@ func TestETCompliance_T_ET_012_TotalInvocationsCount(t *testing.T) {
 // T-ET-020: Root node has parent_id = null.
 // Spec §6.2: the root invocation MUST have parent_id = null.
 func TestETCompliance_T_ET_020_RootNodeParentIDNull(t *testing.T) {
+	t.Parallel()
 	type invocationNode struct {
 		ID       string
 		ParentID *string
@@ -148,6 +156,7 @@ func TestETCompliance_T_ET_020_RootNodeParentIDNull(t *testing.T) {
 // T-ET-021: All sub-agent nodes reference a valid parent_id.
 // Spec §6.3: each sub-agent invocation MUST reference a valid parent_id.
 func TestETCompliance_T_ET_021_SubAgentParentIDValid(t *testing.T) {
+	t.Parallel()
 	parentID := "root"
 	type invocationNode struct {
 		ID       string
@@ -163,6 +172,7 @@ func TestETCompliance_T_ET_021_SubAgentParentIDValid(t *testing.T) {
 // usage.input_tokens, usage.cached_input_tokens, usage.output_tokens,
 // usage.reasoning_tokens, derived.base_weighted_tokens, derived.effective_tokens.
 func TestETCompliance_T_ET_022_NodeSchemaRequiredFields(t *testing.T) {
+	t.Parallel()
 	type modelInfo struct {
 		Name              string  `json:"name"`
 		CopilotMultiplier float64 `json:"copilot_multiplier"`
@@ -207,6 +217,7 @@ func TestETCompliance_T_ET_022_NodeSchemaRequiredFields(t *testing.T) {
 // T-ET-030: Summary object is present in all conforming responses.
 // Spec §7: a conforming response MUST include a summary object.
 func TestETCompliance_T_ET_030_SummaryObjectPresent(t *testing.T) {
+	t.Parallel()
 	type summaryObject struct {
 		TotalInvocations   int     `json:"total_invocations"`
 		RawTotalTokens     int     `json:"raw_total_tokens"`
@@ -233,6 +244,7 @@ func TestETCompliance_T_ET_030_SummaryObjectPresent(t *testing.T) {
 // T-ET-031: Summary values are consistent with per-invocation data.
 // Spec §7: summary.effective_tokens MUST equal Σ per-invocation effective_tokens.
 func TestETCompliance_T_ET_031_SummaryConsistentWithInvocations(t *testing.T) {
+	t.Parallel()
 	weights := types.TokenClassWeights{Input: 1.0, CachedInput: 0.1, Output: 4.0, Reasoning: 4.0}
 
 	perInvocationET := []float64{
