@@ -45,7 +45,7 @@
       }
     },
     "ghes": {
-      "description": "Enable GitHub Enterprise Server (GHES) compatibility mode. Artifact actions continue to use latest non-v3 pins because upload-artifact/download-artifact v3 are deprecated.",
+      "description": "Enable GitHub Enterprise Server (GHES) compatibility mode. Artifact actions use upload-artifact@v3.2.2 and download-artifact@v3.1.0.",
       "type": "boolean"
     },
     "help_command": {

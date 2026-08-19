@@ -69,11 +69,25 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		if isFormattedCompilerError(err) {
 			return err
 		}
+
 		// Fallback for any unformatted error that slipped through.
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
 	return c.CompileWorkflowData(workflowData, markdownPath)
+}
+
+func (c *Compiler) configureGHESCompatibility() {
+	if c.ghesCompatConfigured {
+		return
+	}
+	c.ghesCompatConfigured = true
+	c.ghesArtifactCompat = c.ghesCompatFromCLI
+	if !c.ghesArtifactCompat {
+		if repoConfig, err := c.loadRepoConfig(); err == nil && repoConfig != nil {
+			c.ghesArtifactCompat = repoConfig.GHES
+		}
+	}
 }
 
 // validateWorkflowData orchestrates all validation of workflow configuration by
@@ -441,17 +455,11 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	}
 
 	// Enable GHES artifact compatibility from CLI flag or aw.json (CLI flag wins).
-	// c.ghesCompatFromCLI is set once per compiler instance via SetGHESCompat().
-	c.ghesArtifactCompat = c.ghesCompatFromCLI
-	if !c.ghesArtifactCompat {
-		// Fall back to aw.json ghes field when CLI flag was not passed.
-		if repoConfig, err := c.loadRepoConfig(); err == nil && repoConfig != nil {
-			c.ghesArtifactCompat = repoConfig.GHES
-		}
-	}
+	c.configureGHESCompatibility()
 	if c.ghesArtifactCompat {
-		actionPinsLog.Print("GHES compatibility mode enabled: artifact actions continue using latest non-v3 pins")
+		actionPinsLog.Print("GHES compatibility mode enabled: artifact actions will use v3-compatible pins")
 	}
+	workflowData.GHES = c.ghesArtifactCompat
 
 	// Generate lock file name
 	lockFile := stringutil.MarkdownToLockFile(markdownPath)
