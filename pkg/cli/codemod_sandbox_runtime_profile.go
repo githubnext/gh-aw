@@ -25,13 +25,13 @@ const (
 //	legacy-security: enable           -> runtime: docker-sudo-iptables
 //	runtime: docker-sbx + sudo: true  -> runtime: docker-sbx
 //	sudo: true (no other runtime)     -> runtime: docker-sudo-iptables
-//	runtime: gvisor + sudo/legacy     -> runtime: docker-sudo-iptables (preserves privileged intent)
+//	runtime: gvisor + sudo/legacy     -> runtime: gvisor (sudo/legacy-security are dropped)
 //
-// gVisor combined with privileged security options is migrated to the privileged
-// docker-sudo-iptables profile rather than erroring, since that preserves the original
-// sudo/legacy-security intent. Other mixed profiles that cannot be migrated unambiguously
-// return an actionable error so the author can choose between strict isolation and the
-// privileged iptables profile.
+// gVisor combined with privileged security options keeps the strict 'runtime: gvisor'
+// isolation and simply drops the no-longer-supported 'sudo'/'legacy-security' fields,
+// since gVisor's network isolation already takes precedence over the privileged intent.
+// Other mixed profiles that cannot be migrated unambiguously return an actionable error
+// so the author can choose between strict isolation and the privileged iptables profile.
 func getSandboxRuntimeProfileCodemod() Codemod {
 	return Codemod{
 		ID:           "sandbox-runtime-profiles",
@@ -103,14 +103,14 @@ func resolveMigratedSandboxRuntime(runtime string, sudoEnabled, legacyEnabled bo
 		return "", nil
 	case sandboxRuntimeGvisor:
 		// gVisor combined with privileged security options is no longer a supported
-		// combination, but the original config expressed a privileged/sudo intent.
-		// Auto-migrate to the privileged docker-sudo-iptables profile instead of
+		// combination. gVisor's strict network isolation takes precedence, so keep
+		// 'runtime: gvisor' and drop the 'sudo'/'legacy-security' fields instead of
 		// aborting the fix pass so `gh aw fix --write` can still repair the file.
 		sandboxRuntimeProfileCodemodLog.Printf(
-			"sandbox.agent.runtime: gvisor combined with privileged security options is not supported; migrating to %q",
-			sandboxRuntimeDockerSudoIptables,
+			"sandbox.agent.runtime: gvisor combined with privileged security options is not supported; keeping %q and dropping sudo/legacy-security",
+			sandboxRuntimeGvisor,
 		)
-		return sandboxRuntimeDockerSudoIptables, nil
+		return sandboxRuntimeGvisor, nil
 	default:
 		return "", mixedSandboxProfileError(runtime)
 	}
