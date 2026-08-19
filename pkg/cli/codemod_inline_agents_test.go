@@ -11,6 +11,8 @@ import (
 )
 
 func TestInlineAgentsFeatureRemovalCodemod(t *testing.T) {
+	t.Parallel()
+
 	codemod := getInlineAgentsFeatureRemovalCodemod()
 	assert.Equal(t, "1.0.0", codemod.IntroducedIn)
 
@@ -54,6 +56,8 @@ features:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := parser.ExtractFrontmatterFromContent(tt.input)
 			require.NoError(t, err, "Failed to parse test input frontmatter")
 
