@@ -13,6 +13,7 @@ import (
 )
 
 func TestValidateWorkflowName_Integration(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       string
@@ -82,6 +83,7 @@ func TestValidateWorkflowName_Integration(t *testing.T) {
 }
 
 func TestCommonWorkflowNamesAreValid(t *testing.T) {
+	t.Parallel()
 	// Ensure all suggested workflow names are themselves valid
 	if len(commonWorkflowNames) == 0 {
 		t.Error("commonWorkflowNames should not be empty")
@@ -95,6 +97,7 @@ func TestCommonWorkflowNamesAreValid(t *testing.T) {
 }
 
 func TestCommonWorkflowNamesHasExpectedPatterns(t *testing.T) {
+	t.Parallel()
 	// Verify that common workflow patterns are included
 	expectedPatterns := []string{
 		"issue-triage",
@@ -259,6 +262,7 @@ func TestIsAccessibleMode(t *testing.T) {
 }
 
 func TestInteractiveWorkflowBuilder_generateWorkflowContent(t *testing.T) {
+	t.Parallel()
 	builder := &InteractiveWorkflowBuilder{
 		WorkflowName:  "test-workflow",
 		Trigger:       "workflow_dispatch",
@@ -316,6 +320,7 @@ func TestInteractiveWorkflowBuilder_generateWorkflowContent(t *testing.T) {
 }
 
 func TestInteractiveWorkflowBuilder_generateTriggerConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		trigger  string
 		expected string
@@ -337,6 +342,7 @@ func TestInteractiveWorkflowBuilder_generateTriggerConfig(t *testing.T) {
 }
 
 func TestInteractiveWorkflowBuilder_describeTrigger(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		trigger  string
@@ -482,6 +488,7 @@ func TestCreateWorkflowInteractively_WithForceFlag(t *testing.T) {
 }
 
 func TestInteractiveWorkflowBuilder_compileWorkflow_SpinnerIntegration(t *testing.T) {
+	t.Parallel()
 	// This test verifies that the spinner integration doesn't panic
 	// and handles errors correctly. We can't directly test the spinner
 	// UI output, but we can verify the method works correctly.
@@ -505,6 +512,7 @@ func TestInteractiveWorkflowBuilder_compileWorkflow_SpinnerIntegration(t *testin
 }
 
 func TestInteractiveWorkflowBuilder_FieldDescriptions(t *testing.T) {
+	t.Parallel()
 	// This test verifies that all major form fields have descriptions
 	// We'll use a code inspection approach since we can't test the interactive UI directly
 
@@ -536,6 +544,7 @@ func TestInteractiveWorkflowBuilder_FieldDescriptions(t *testing.T) {
 }
 
 func TestInteractiveWorkflowBuilder_AllMajorFieldsHaveDescriptions(t *testing.T) {
+	t.Parallel()
 	// This test ensures we maintain descriptions for all major form fields
 	// by verifying the code structure
 
@@ -577,6 +586,7 @@ func TestInteractiveWorkflowBuilder_AllMajorFieldsHaveDescriptions(t *testing.T)
 }
 
 func TestBuildSafeOutputOptions(t *testing.T) {
+	t.Parallel()
 	options := buildSafeOutputOptions()
 
 	// Should have options loaded from safe_outputs_tools.json
@@ -604,6 +614,7 @@ func TestBuildSafeOutputOptions(t *testing.T) {
 }
 
 func TestDetectNetworkFromRepo(t *testing.T) {
+	t.Parallel()
 	// detectNetworkFromRepo inspects the current directory; we exercise it
 	// without relying on the actual repo contents – we just verify it returns
 	// a list (possibly empty) without panicking.
@@ -618,6 +629,7 @@ func TestDetectNetworkFromRepo(t *testing.T) {
 }
 
 func TestGeneratePermissionsConfig_SafeOutputPermissions(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		tools       []string
@@ -690,6 +702,7 @@ func TestGeneratePermissionsConfig_SafeOutputPermissions(t *testing.T) {
 }
 
 func TestGenerateNetworkConfig_MultiNetwork(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		network  string
@@ -724,6 +737,7 @@ func TestGenerateNetworkConfig_MultiNetwork(t *testing.T) {
 }
 
 func TestGenerateToolsConfig_UsesToolsets(t *testing.T) {
+	t.Parallel()
 	b := &InteractiveWorkflowBuilder{Tools: []string{"github", "bash"}}
 	config := b.generateToolsConfig()
 
@@ -740,6 +754,7 @@ func TestGenerateToolsConfig_UsesToolsets(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPromptNonInteractiveSelect_ByNumber(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{
 		{"Option A", "a"},
 		{"Option B", "b"},
@@ -771,6 +786,7 @@ func TestPromptNonInteractiveSelect_ByNumber(t *testing.T) {
 }
 
 func TestPromptNonInteractiveSelect_ByValue(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{
 		{"copilot option", "copilot"},
 		{"claude option", "claude"},
@@ -787,6 +803,7 @@ func TestPromptNonInteractiveSelect_ByValue(t *testing.T) {
 }
 
 func TestPromptNonInteractiveSelect_InvalidValue(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{
 		{"Option A", "a"},
 	}
@@ -798,6 +815,7 @@ func TestPromptNonInteractiveSelect_InvalidValue(t *testing.T) {
 }
 
 func TestPromptNonInteractiveSelect_EOF(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{{"Option A", "a"}}
 	scanner := newScannerFromString("") // empty = EOF immediately
 	_, err := promptNonInteractiveSelect(scanner, "Pick one", opts)
@@ -807,6 +825,7 @@ func TestPromptNonInteractiveSelect_EOF(t *testing.T) {
 }
 
 func TestPromptNonInteractiveMultiSelect_ByNumber(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{
 		{"github tools", "github"},
 		{"edit tools", "edit"},
@@ -824,6 +843,7 @@ func TestPromptNonInteractiveMultiSelect_ByNumber(t *testing.T) {
 }
 
 func TestPromptNonInteractiveMultiSelect_ByValue(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{
 		{"github tools", "github"},
 		{"edit tools", "edit"},
@@ -841,6 +861,7 @@ func TestPromptNonInteractiveMultiSelect_ByValue(t *testing.T) {
 }
 
 func TestPromptNonInteractiveMultiSelect_Empty(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{{"Option A", "a"}}
 	scanner := newScannerFromString("")
 	got, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
@@ -853,6 +874,7 @@ func TestPromptNonInteractiveMultiSelect_Empty(t *testing.T) {
 }
 
 func TestPromptNonInteractiveMultiSelect_Deduplication(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{
 		{"github tools", "github"},
 		{"edit tools", "edit"},
@@ -868,6 +890,7 @@ func TestPromptNonInteractiveMultiSelect_Deduplication(t *testing.T) {
 }
 
 func TestPromptNonInteractiveMultiSelect_OutOfRange(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{{"Option A", "a"}}
 	scanner := newScannerFromString("99")
 	_, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
@@ -877,6 +900,7 @@ func TestPromptNonInteractiveMultiSelect_OutOfRange(t *testing.T) {
 }
 
 func TestPromptNonInteractiveMultiSelect_UnknownValue(t *testing.T) {
+	t.Parallel()
 	opts := []struct{ label, value string }{{"Option A", "a"}}
 	scanner := newScannerFromString("zzz")
 	_, err := promptNonInteractiveMultiSelect(scanner, "Pick tools", opts)
@@ -886,6 +910,7 @@ func TestPromptNonInteractiveMultiSelect_UnknownValue(t *testing.T) {
 }
 
 func TestPromptForWorkflowNameFrom_Valid(t *testing.T) {
+	t.Parallel()
 	b := &InteractiveWorkflowBuilder{}
 	err := b.promptForWorkflowNameFrom(strings.NewReader("my-workflow\n"))
 	if err != nil {
@@ -897,6 +922,7 @@ func TestPromptForWorkflowNameFrom_Valid(t *testing.T) {
 }
 
 func TestPromptForWorkflowNameFrom_Invalid(t *testing.T) {
+	t.Parallel()
 	b := &InteractiveWorkflowBuilder{}
 	err := b.promptForWorkflowNameFrom(strings.NewReader("invalid name!\n"))
 	if err == nil {
@@ -905,6 +931,7 @@ func TestPromptForWorkflowNameFrom_Invalid(t *testing.T) {
 }
 
 func TestPromptForWorkflowNameFrom_Empty(t *testing.T) {
+	t.Parallel()
 	b := &InteractiveWorkflowBuilder{}
 	// Empty reader → EOF without any text
 	err := b.promptForWorkflowNameFrom(strings.NewReader(""))
@@ -914,6 +941,7 @@ func TestPromptForWorkflowNameFrom_Empty(t *testing.T) {
 }
 
 func TestPromptForConfigurationFrom_Basic(t *testing.T) {
+	t.Parallel()
 	// Simulate non-TTY input: trigger=1, engine=1, tools=1,2, safe-outputs="" (blank),
 	// network=1, intent="This is a test workflow description with at least 20 chars"
 	input := "1\n1\n1,2\n\n1\nThis is a test workflow description with at least 20 chars\n"
@@ -940,6 +968,7 @@ func TestPromptForConfigurationFrom_Basic(t *testing.T) {
 }
 
 func TestPromptForConfigurationFrom_ByValue(t *testing.T) {
+	t.Parallel()
 	// Use values instead of numbers for engine and tools
 	input := "issues\nclaude\ngithub,bash\ncreate-issue\ndefaults\nThis is a test workflow that does something useful and important\n"
 	b := &InteractiveWorkflowBuilder{}
@@ -959,6 +988,7 @@ func TestPromptForConfigurationFrom_ByValue(t *testing.T) {
 }
 
 func TestPromptForWorkflowNameFrom_ThenConfigurationFrom_SharedReader(t *testing.T) {
+	t.Parallel()
 	input := strings.NewReader(
 		"my-workflow\n" +
 			"workflow_dispatch\n" +
