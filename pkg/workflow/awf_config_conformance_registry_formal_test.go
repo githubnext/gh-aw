@@ -4,6 +4,9 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,23 +21,43 @@ type formalConformanceRegistryRow struct {
 	TestFile    string
 }
 
-func formalConformanceRegistryBaselineRows() []formalConformanceRegistryRow {
-	return []formalConformanceRegistryRow{
-		{TestID: "T-DR-001", Requirement: "§3.1 — required fields", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-002", Requirement: "§3.1 — drift_category enum", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-003", Requirement: "§3.1 — detected_at format", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-004", Requirement: "§3.1 — suggested_action non-empty", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-005", Requirement: "§3.1 — no additional properties", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-006", Requirement: "§7.5.1 — corrective PR trigger", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-007", Requirement: "§7.5.1 — SLA escalation trigger", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-008", Requirement: "§7.5.1 — corrective PR embeds records", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-009", Requirement: "§7.5.1 — empty list is valid", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-010", Requirement: "§7.2 Step 5 integration", TestFile: "pkg/workflow/awf_config_drift_test.go"},
-		{TestID: "T-DR-SAFE-001", Requirement: "§8 item 1 — snapshot storage and freshness", TestFile: "pkg/workflow/awf_config_safeguards_formal_test.go"},
-		{TestID: "T-DR-SAFE-002", Requirement: "§8 item 2 — retrieval warning", TestFile: "pkg/workflow/awf_config_safeguards_formal_test.go"},
-		{TestID: "T-DR-SAFE-003", Requirement: "§8 item 3 — degraded-run safety", TestFile: "pkg/workflow/awf_config_safeguards_formal_test.go"},
-		{TestID: "T-DR-SAFE-004", Requirement: "§8 item 4 — scheduled persistence", TestFile: "pkg/workflow/awf_config_safeguards_formal_test.go"},
+func formalConformanceRegistryRepositoryRoot(t *testing.T) string {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
+}
+
+func formalConformanceRegistryReadFile(t *testing.T, relativePath string) string {
+	t.Helper()
+
+	content, err := os.ReadFile(filepath.Join(formalConformanceRegistryRepositoryRoot(t), relativePath))
+	require.NoError(t, err)
+	return string(content)
+}
+
+func formalConformanceRegistryBaselineRows(t *testing.T) []formalConformanceRegistryRow {
+	t.Helper()
+
+	content := formalConformanceRegistryReadFile(t, "specs/awf-config-sources-compliance/README.md")
+	var rows []formalConformanceRegistryRow
+	for line := range strings.SplitSeq(content, "\n") {
+		if !strings.HasPrefix(line, "| T-DR-") {
+			continue
+		}
+
+		cells := strings.Split(line, "|")
+		require.Len(t, cells, 6, "registry row: %s", line)
+		rows = append(rows, formalConformanceRegistryRow{
+			TestID:      strings.TrimSpace(cells[1]),
+			Requirement: strings.TrimSpace(cells[2]),
+			TestFile:    strings.Trim(strings.TrimSpace(cells[4]), "`"),
+		})
 	}
+
+	require.NotEmpty(t, rows)
+	return rows
 }
 
 func formalConformanceRegistryParseSeriesID(id string, prefix string) (int, bool) {
@@ -113,9 +136,27 @@ func formalConformanceRegistryRouteTestFile(spansDriftOutputAndSchema bool) stri
 	return "pkg/workflow/awf_config_safeguards_formal_test.go"
 }
 
-func formalConformanceRegistryHasSpecCrossReference(specIDs map[string]struct{}, id string) bool {
-	_, ok := specIDs[id]
-	return ok
+func formalConformanceRegistryHasSpecCrossReference(specContent, id string) bool {
+	for offset := 0; ; {
+		index := strings.Index(specContent[offset:], id)
+		if index < 0 {
+			return false
+		}
+		index += offset
+		end := index + len(id)
+		if (index == 0 || !formalConformanceRegistryIDCharacter(specContent[index-1])) &&
+			(end == len(specContent) || !formalConformanceRegistryIDCharacter(specContent[end])) {
+			return true
+		}
+		offset = end
+	}
+}
+
+func formalConformanceRegistryIDCharacter(character byte) bool {
+	return character >= 'A' && character <= 'Z' ||
+		character >= 'a' && character <= 'z' ||
+		character >= '0' && character <= '9' ||
+		character == '-'
 }
 
 func formalConformanceRegistrySeriesDisjoint(id string) bool {
@@ -125,7 +166,7 @@ func formalConformanceRegistrySeriesDisjoint(id string) bool {
 }
 
 func TestFormalConformanceRegistry_P1_TestIDMonotonicity(t *testing.T) {
-	next := formalConformanceRegistryNextPlainID(formalConformanceRegistryBaselineRows())
+	next := formalConformanceRegistryNextPlainID(formalConformanceRegistryBaselineRows(t))
 	assert.Equal(t, "T-DR-011", next)
 
 	nextValue, ok := formalConformanceRegistryParsePlainID(next)
@@ -138,7 +179,7 @@ func TestFormalConformanceRegistry_P1_EmptyRegistryStartsAtOne(t *testing.T) {
 }
 
 func TestFormalConformanceRegistry_P2_TestIDNoDuplicates(t *testing.T) {
-	rows := formalConformanceRegistryBaselineRows()
+	rows := formalConformanceRegistryBaselineRows(t)
 	assert.True(t, formalConformanceRegistryHasUniqueIDs(rows))
 
 	rows = append(rows, formalConformanceRegistryRow{TestID: "T-DR-010", Requirement: "§x", TestFile: "pkg/workflow/awf_config_drift_test.go"})
@@ -162,15 +203,16 @@ func TestFormalConformanceRegistry_P4_PlaceholderIDRejectedAsFinal(t *testing.T)
 }
 
 func TestFormalConformanceRegistry_P5_RowHasRequirementReference(t *testing.T) {
-	for _, row := range formalConformanceRegistryBaselineRows() {
+	for _, row := range formalConformanceRegistryBaselineRows(t) {
 		assert.True(t, formalConformanceRegistryHasRequirementReference(row), row.TestID)
 	}
 	assert.False(t, formalConformanceRegistryHasRequirementReference(formalConformanceRegistryRow{TestID: "T-DR-011", Requirement: "required fields", TestFile: "pkg/workflow/awf_config_drift_test.go"}))
 }
 
 func TestFormalConformanceRegistry_P6_RowHasImplementationFile(t *testing.T) {
-	for _, row := range formalConformanceRegistryBaselineRows() {
+	for _, row := range formalConformanceRegistryBaselineRows(t) {
 		assert.True(t, formalConformanceRegistryHasImplementationFile(row), row.TestID)
+		assert.FileExists(t, filepath.Join(formalConformanceRegistryRepositoryRoot(t), row.TestFile), row.TestID)
 	}
 	assert.False(t, formalConformanceRegistryHasImplementationFile(formalConformanceRegistryRow{TestID: "T-DR-011", Requirement: "§3.1", TestFile: ""}))
 }
@@ -181,12 +223,12 @@ func TestFormalConformanceRegistry_P7_SafeguardRowRoutingDecision(t *testing.T) 
 }
 
 func TestFormalConformanceRegistry_P8_SpecCrossReferenceRequired(t *testing.T) {
-	specIDs := map[string]struct{}{
-		"T-DR-010":      {},
-		"T-DR-SAFE-004": {},
+	specContent := formalConformanceRegistryReadFile(t, "specs/awf-config-sources-spec.md")
+	for _, row := range formalConformanceRegistryBaselineRows(t) {
+		assert.True(t, formalConformanceRegistryHasSpecCrossReference(specContent, row.TestID), row.TestID)
 	}
-	assert.True(t, formalConformanceRegistryHasSpecCrossReference(specIDs, "T-DR-010"))
-	assert.False(t, formalConformanceRegistryHasSpecCrossReference(specIDs, "T-DR-011"))
+
+	assert.False(t, formalConformanceRegistryHasSpecCrossReference(specContent, "T-DR-011"))
 }
 
 func TestFormalConformanceRegistry_P9_DriftSeriesVsSafeguardSeriesDisjoint(t *testing.T) {

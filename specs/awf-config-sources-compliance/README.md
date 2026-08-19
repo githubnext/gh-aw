@@ -12,18 +12,18 @@ defined in §3.1 of the specification for structured drift output.
 
 The following test IDs cover the `DriftRecord` schema and its usage requirements from §3.1 and §7.5.
 
-| Test ID | Requirement | Description |
-|---------|-------------|-------------|
-| T-DR-001 | §3.1 — required fields | `DriftRecord` MUST include `property_path`, `drift_category`, `suggested_action`, and `detected_at`; records missing any required field are invalid and MUST be rejected. |
-| T-DR-002 | §3.1 — `drift_category` enum | `drift_category` MUST be one of `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch`; any other value is invalid. |
-| T-DR-003 | §3.1 — `detected_at` format | `detected_at` MUST be a valid ISO 8601 UTC timestamp; non-conforming values MUST be rejected. |
-| T-DR-004 | §3.1 — `suggested_action` non-empty | `suggested_action` MUST NOT be empty (`minLength: 1`); an empty string MUST be rejected. |
-| T-DR-005 | §3.1 — no additional properties | `DriftRecord` objects MUST NOT include properties beyond the four required fields; additional properties MUST be rejected. |
-| T-DR-006 | §7.5.1 — corrective PR trigger | When any `DriftRecord` in the output list has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation MUST open a corrective PR (CR-05). |
-| T-DR-007 | §7.5.1 — SLA escalation trigger | When CR-06 SLA window is exceeded and `DriftRecord` items with actionable categories are present, an escalation issue MUST be opened or updated. |
-| T-DR-008 | §7.5.1 — corrective PR embeds records | The corrective PR description MUST embed the full `DriftRecord` list as JSON. |
-| T-DR-009 | §7.5.1 — empty list is valid | An empty `DriftRecord` list (no drift detected) is a valid output and MUST NOT trigger corrective PR or escalation actions. |
-| T-DR-010 | §7.2 Step 5 integration | The drift detection procedure Step 5 MUST produce a list of zero or more `DriftRecord` objects; the output format MUST be a JSON array conforming to the §3.1 schema. |
+| Test ID | Requirement | Description | Implementation file |
+|---------|-------------|-------------|---------------------|
+| T-DR-001 | §3.1 — required fields | `DriftRecord` MUST include `property_path`, `drift_category`, `suggested_action`, and `detected_at`; records missing any required field are invalid and MUST be rejected. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-002 | §3.1 — `drift_category` enum | `drift_category` MUST be one of `missing_in_ghaw`, `missing_in_schema`, or `spec_mismatch`; any other value is invalid. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-003 | §3.1 — `detected_at` format | `detected_at` MUST be a valid ISO 8601 UTC timestamp; non-conforming values MUST be rejected. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-004 | §3.1 — `suggested_action` non-empty | `suggested_action` MUST NOT be empty (`minLength: 1`); an empty string MUST be rejected. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-005 | §3.1 — no additional properties | `DriftRecord` objects MUST NOT include properties beyond the four required fields; additional properties MUST be rejected. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-006 | §7.5.1 — corrective PR trigger | When any `DriftRecord` in the output list has `drift_category` of `missing_in_ghaw` or `spec_mismatch`, the detecting automation MUST open a corrective PR (CR-05). | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-007 | §7.5.1 — SLA escalation trigger | When CR-06 SLA window is exceeded and `DriftRecord` items with actionable categories are present, an escalation issue MUST be opened or updated. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-008 | §7.5.1 — corrective PR embeds records | The corrective PR description MUST embed the full `DriftRecord` list as JSON. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-009 | §7.5.1 — empty list is valid | An empty `DriftRecord` list (no drift detected) is a valid output and MUST NOT trigger corrective PR or escalation actions. | `pkg/workflow/awf_config_drift_test.go` |
+| T-DR-010 | §7.2 Step 5 integration | The drift detection procedure Step 5 MUST produce a list of zero or more `DriftRecord` objects; the output format MUST be a JSON array conforming to the §3.1 schema. | `pkg/workflow/awf_config_drift_test.go` |
 
 ---
 
@@ -31,12 +31,12 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 
 The following test IDs cover the unavailable-source safeguards from §8.
 
-| Test ID | Requirement | Description |
-|---------|-------------|-------------|
-| T-DR-SAFE-001 | §8 item 1 — snapshot storage and freshness | Every invocation MUST select the stable path for its runner type, expire snapshots older than 168 hours, mark expired-snapshot runs degraded, and SHOULD delete snapshots older than 14 days. |
-| T-DR-SAFE-002 | §8 item 2 — retrieval warning | A canonical-source retrieval failure SHOULD identify the failing source paths and UTC timestamp. |
-| T-DR-SAFE-003 | §8 item 3 — degraded-run safety | An unavailable or expired canonical source MUST mark the run degraded and MUST prevent destructive validation actions. |
-| T-DR-SAFE-004 | §8 item 4 — scheduled persistence | A tracking issue SHOULD be opened or updated only when unavailability persists through the next scheduled cron invocation; manual and ad hoc runs do not advance the threshold. |
+| Test ID | Requirement | Description | Implementation file |
+|---------|-------------|-------------|---------------------|
+| T-DR-SAFE-001 | §8 item 1 — snapshot storage and freshness | Every invocation MUST select the stable path for its runner type, expire snapshots older than 168 hours, mark expired-snapshot runs degraded, and SHOULD delete snapshots older than 14 days. | `pkg/workflow/awf_config_safeguards_formal_test.go` |
+| T-DR-SAFE-002 | §8 item 2 — retrieval warning | A canonical-source retrieval failure SHOULD identify the failing source paths and UTC timestamp. | `pkg/workflow/awf_config_safeguards_formal_test.go` |
+| T-DR-SAFE-003 | §8 item 3 — degraded-run safety | An unavailable or expired canonical source MUST mark the run degraded and MUST prevent destructive validation actions. | `pkg/workflow/awf_config_safeguards_formal_test.go` |
+| T-DR-SAFE-004 | §8 item 4 — scheduled persistence | A tracking issue SHOULD be opened or updated only when unavailability persists through the next scheduled cron invocation; manual and ad hoc runs do not advance the threshold. | `pkg/workflow/awf_config_safeguards_formal_test.go` |
 
 ---
 
