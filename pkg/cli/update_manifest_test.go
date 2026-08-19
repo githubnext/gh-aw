@@ -190,4 +190,35 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("update unchanged workflow: %v", err)
 	}
+
+	downloadRemoteImportFile = func(_ context.Context, owner, repo, path, ref string) ([]byte, error) {
+		return nil, errors.New("dependency download failed")
+	}
+	err = updateManifestManagedWorkflow(context.Background(), manifestManagedWorkflowUpdate{
+		wf:             &workflowWithSource{Name: "existing", Path: existingPath},
+		repo:           "owner/repo",
+		currentPath:    "workflows/existing.md",
+		latestPath:     "workflows/existing.md",
+		currentRef:     "v2.0.0",
+		latestRef:      "v2.0.0",
+		manifestSource: "owner/repo@v2.0.0",
+	}, UpdateWorkflowsOptions{
+		Force:                  true,
+		NoMerge:                true,
+		NoCompile:              true,
+		DisableSecurityScanner: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "dependency download failed") {
+		t.Fatalf("expected dependency refresh failure, got %v", err)
+	}
+	err = addManifestManagedWorkflow(context.Background(), tmpDir, "failing", "owner/repo", "workflows/new.md", "v2.0.0", "owner/repo@v2.0.0", UpdateWorkflowsOptions{
+		NoCompile:              true,
+		DisableSecurityScanner: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "dependency download failed") {
+		t.Fatalf("expected dependency installation failure, got %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(tmpDir, "failing.md")); !os.IsNotExist(statErr) {
+		t.Fatalf("failed workflow was written, got err=%v", statErr)
+	}
 }

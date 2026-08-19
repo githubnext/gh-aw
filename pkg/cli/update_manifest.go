@@ -33,7 +33,7 @@ func fetchManifestManagedDependencies(ctx context.Context, content []byte, repo,
 		},
 		WorkflowPath: workflowPath,
 	}
-	return fetchAllRemoteDependencies(ctx, string(content), spec, targetDir, verbose, true, nil)
+	return fetchAllRemoteDependenciesStrict(ctx, string(content), spec, targetDir, verbose, true, nil)
 }
 
 func parseManifestSourceSpec(source string) (*RepoSpec, bool, error) {
@@ -334,11 +334,11 @@ func addManifestManagedWorkflow(ctx context.Context, targetDir, name, repo, late
 	}
 
 	destPath := filepath.Join(targetDir, name+".md")
-	if err := os.WriteFile(destPath, []byte(content), constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write new manifest workflow %s: %w", destPath, err)
-	}
 	if err := fetchManifestManagedDependencies(ctx, []byte(content), repo, latestPath, latestRef, targetDir, opts.Verbose); err != nil {
 		return fmt.Errorf("failed to install workflow dependencies: %w", err)
+	}
+	if err := os.WriteFile(destPath, []byte(content), constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write new manifest workflow %s: %w", destPath, err)
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added new workflow from manifest: "+filepath.Base(destPath)))
 	if !opts.NoCompile {
