@@ -165,7 +165,7 @@ describe("no-exec-interpolated-command", () => {
         },
         // execApi parameter-alias with identifier args (still array-shaped by convention) — flagged
         {
-          code: "function run(execApi, branchName) { execApi.exec(\"git checkout \" + branchName, args); }",
+          code: 'function run(execApi, branchName) { execApi.exec("git checkout " + branchName, args); }',
           errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } }],
         },
       ],
