@@ -90,6 +90,7 @@ permissions:
   issues: read
 tools:
   bash: false
+  cli-proxy: false
   github:
     min-integrity: none
 ---

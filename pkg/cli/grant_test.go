@@ -12,6 +12,7 @@ import (
 )
 
 func TestGrantDisplayFindings_NilOutput(t *testing.T) {
+	t.Parallel()
 	count, err := grantDisplayFindings("test-image:latest", nil)
 	if err != nil {
 		t.Fatalf("Expected no error for nil output, got: %v", err)
@@ -22,6 +23,7 @@ func TestGrantDisplayFindings_NilOutput(t *testing.T) {
 }
 
 func TestGrantDisplayFindings_WithDeniedPackages(t *testing.T) {
+	t.Parallel()
 	output := &grantOutput{}
 	output.Run.Targets = []grantTargetResult{
 		{
@@ -62,6 +64,7 @@ func TestGrantDisplayFindings_WithDeniedPackages(t *testing.T) {
 }
 
 func TestRunGrantOnLockFiles_NoLockFiles(t *testing.T) {
+	t.Parallel()
 	err := runGrantOnLockFiles([]string{}, false, false)
 	if err != nil {
 		t.Errorf("Expected no error for empty lock file list, got: %v", err)
@@ -69,6 +72,7 @@ func TestRunGrantOnLockFiles_NoLockFiles(t *testing.T) {
 }
 
 func TestGrantPolicyFile(t *testing.T) {
+	t.Parallel()
 	policyFile, err := grantPolicyFile()
 	if err != nil {
 		t.Fatalf("Expected grant policy file, got: %v", err)
@@ -79,6 +83,7 @@ func TestGrantPolicyFile(t *testing.T) {
 }
 
 func TestGrantRunOnImageRejectsInvalidImageRef(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	policyFile := filepath.Join(tmpDir, "policy.yaml")
 	require.NoError(t, os.WriteFile(policyFile, []byte("policy: true\n"), 0o644))
@@ -97,6 +102,7 @@ func TestGrantRunOnImageRejectsInvalidImageRef(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := grantRunOnImage(tt.imageRef, policyFile, false)
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.want)
@@ -105,6 +111,7 @@ func TestGrantRunOnImageRejectsInvalidImageRef(t *testing.T) {
 }
 
 func TestGrantRunOnImageVerboseCommandEscapesImageRef(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	policyFile := filepath.Join(tmpDir, "policy file.yaml")
 	require.NoError(t, os.WriteFile(policyFile, []byte("policy: true\n"), 0o644))

@@ -8,6 +8,7 @@ import (
 )
 
 func TestWorkflowIDExplanation(t *testing.T) {
+	t.Parallel()
 	// Test that the constant is not empty
 	if WorkflowIDExplanation == "" {
 		t.Error("WorkflowIDExplanation should not be empty")

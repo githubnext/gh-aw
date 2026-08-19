@@ -15,6 +15,7 @@ import (
 // workflowspec paths are returned unchanged, "/" prefix paths become repo-relative
 // strings, and relative paths are cleaned and forward-slash normalised.
 func TestResolveImportPath_ImportsOpts(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	workflowDir := filepath.ToSlash(filepath.Join(tmpDir, "workflows"))
 
@@ -58,6 +59,7 @@ func TestResolveImportPath_ImportsOpts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := resolveImportPath(tt.importPath, workflowDir, opts)
 			assert.Equal(t, tt.expected, result,
 				"resolveImportPath(%q, %q, importsOpts) = %q", tt.importPath, workflowDir, result)
@@ -69,6 +71,7 @@ func TestResolveImportPath_ImportsOpts(t *testing.T) {
 // section refs are stripped, workflowspec paths return "", and relative paths are
 // joined with baseDir.
 func TestResolveImportPath_RunPushOpts(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, "workflows")
 	require.NoError(t, os.MkdirAll(baseDir, 0755))
@@ -107,6 +110,7 @@ func TestResolveImportPath_RunPushOpts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := resolveImportPath(tt.importPath, baseDir, opts)
 			assert.Equal(t, tt.expected, result,
 				"resolveImportPath(%q, %q, runPushOpts) = %q", tt.importPath, baseDir, result)
