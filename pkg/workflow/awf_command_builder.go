@@ -317,11 +317,14 @@ GH_AW_CLOUD_HYPERVISOR_STATUS=1
 while true; do
   GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG="$(mktemp)"
   echo "[INFO] [cloud-hypervisor] Starting guest connectivity preflight attempt ${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}/${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}"
-  if %s 2>&1 | tee "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}" | tee -a %s; then
+  set +e
+  %s 2>&1 | tee "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}" | tee -a %s
+  GH_AW_CLOUD_HYPERVISOR_PIPE_STATUS=("${PIPESTATUS[@]}")
+  set -e
+  GH_AW_CLOUD_HYPERVISOR_STATUS="${GH_AW_CLOUD_HYPERVISOR_PIPE_STATUS[0]}"
+  if [ "${GH_AW_CLOUD_HYPERVISOR_STATUS}" -eq 0 ] && [ "${GH_AW_CLOUD_HYPERVISOR_PIPE_STATUS[1]}" -eq 0 ] && [ "${GH_AW_CLOUD_HYPERVISOR_PIPE_STATUS[2]}" -eq 0 ]; then
     rm -f "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"
     break
-  else
-    GH_AW_CLOUD_HYPERVISOR_STATUS=$?
   fi
   if grep -Fq "Cloud Hypervisor guest connectivity probe failed" "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"; then
     if [ "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT}" -lt "${GH_AW_CLOUD_HYPERVISOR_MAX_ATTEMPTS}" ]; then
@@ -338,7 +341,7 @@ while true; do
     fi
   fi
   rm -f "${GH_AW_CLOUD_HYPERVISOR_ATTEMPT_LOG}"
-  if [ -z "${GH_AW_CLOUD_HYPERVISOR_STATUS:-}" ] || [ "${GH_AW_CLOUD_HYPERVISOR_STATUS}" -eq 0 ]; then
+  if [ "${GH_AW_CLOUD_HYPERVISOR_STATUS}" -eq 0 ]; then
     GH_AW_CLOUD_HYPERVISOR_STATUS=1
   fi
   exit "${GH_AW_CLOUD_HYPERVISOR_STATUS}"
