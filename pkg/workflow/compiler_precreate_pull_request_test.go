@@ -210,3 +210,37 @@ func TestActivationPreCreateStepUsesConfiguredBaseBranch(t *testing.T) {
 	steps := strings.Join(job.Steps, "")
 	assert.Contains(t, steps, `GH_AW_CUSTOM_BASE_BRANCH: "release/v1"`)
 }
+
+func TestActivationPreCreateStepPassesConfiguredTitlePrefix(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		Name:            "Pre-create test",
+		MarkdownContent: "# Test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true, TitlePrefix: "[bot] "},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	require.NoError(t, err)
+
+	steps := strings.Join(job.Steps, "")
+	assert.Contains(t, steps, `GH_AW_PR_TITLE_PREFIX: "[bot] "`)
+}
+
+func TestActivationPreCreateStepOmitsEmptyTitlePrefix(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		Name:            "Pre-create test",
+		MarkdownContent: "# Test",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{PreCreate: true},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	require.NoError(t, err)
+
+	steps := strings.Join(job.Steps, "")
+	assert.NotContains(t, steps, "GH_AW_PR_TITLE_PREFIX")
+}
